@@ -14,8 +14,8 @@ export class ServerMetricsPage {
   going = false
   metrics: Metrics = {}
 
-  readonly systemTime$ = this.timeService.systemTime$
-  readonly systemUptime$ = this.timeService.systemUptime$
+  readonly now$ = this.timeService.now$
+  readonly uptime$ = this.timeService.uptime$
 
   constructor(
     private readonly errToast: ErrorToastService,

@@ -179,7 +179,10 @@ export class MockApiService extends ApiService {
     params: RR.GetSystemTimeReq,
   ): Promise<RR.GetSystemTimeRes> {
     await pauseFor(2000)
-    return new Date().toUTCString()
+    return {
+      now: new Date().toUTCString(),
+      uptime: 1234567,
+    }
   }
 
   async getServerLogs(

@@ -76,7 +76,7 @@ export interface ServerInfo {
   hostname: string
   pubkey: string
   'ca-fingerprint': string
-  'system-start-time': string
+  'ntp-synced': boolean
   zram: boolean
   platform: string
 }

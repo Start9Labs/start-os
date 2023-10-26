@@ -15,6 +15,7 @@ use serde::Deserialize;
 use sqlx::postgres::PgConnectOptions;
 use sqlx::PgPool;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
+use tokio::time::Instant;
 use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
@@ -29,7 +30,7 @@ use crate::install::cleanup::{cleanup_failed, uninstall};
 use crate::manager::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
 use crate::net::net_controller::NetController;
-use crate::net::ssl::SslManager;
+use crate::net::ssl::{root_ca_start_time, SslManager};
 use crate::net::wifi::WpaCli;
 use crate::notifications::NotificationManager;
 use crate::shutdown::Shutdown;
@@ -123,6 +124,7 @@ pub struct RpcContextSeed {
     pub current_secret: Arc<Jwk>,
     pub client: Client,
     pub hardware: Hardware,
+    pub start_time: Instant,
 }
 
 pub struct Hardware {
@@ -158,7 +160,7 @@ impl RpcContext {
                 base.dns_bind
                     .as_deref()
                     .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
-                SslManager::new(&account)?,
+                SslManager::new(&account, root_ca_start_time().await?)?,
                 &account.hostname,
                 &account.key,
             )
@@ -214,6 +216,7 @@ impl RpcContext {
                 .build()
                 .with_kind(crate::ErrorKind::ParseUrl)?,
             hardware: Hardware { devices, ram },
+            start_time: Instant::now(),
         });
 
         let res = Self(seed.clone());

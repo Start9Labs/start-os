@@ -42,7 +42,10 @@ export module RR {
   export type EchoRes = string
 
   export type GetSystemTimeReq = {} // server.time
-  export type GetSystemTimeRes = string
+  export type GetSystemTimeRes = {
+    now: string
+    uptime: number // seconds
+  }
 
   export type GetServerLogsReq = ServerLogsReq // server.logs & server.kernel-logs
   export type GetServerLogsRes = LogsRes
