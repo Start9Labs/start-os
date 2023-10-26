@@ -53,9 +53,9 @@ export function getErrorMessage(
   } else if (e.code === 0) {
     message =
       'Request Error. Your browser blocked the request. This is usually caused by a corrupt browser cache or an overly aggressive ad blocker. Please clear your browser cache and/or adjust your ad blocker and try again'
+    link = 'https://docs.start9.com/0.3.5.x/support/common-issues#request-error'
   } else if (!e.message) {
     message = 'Unknown Error'
-    link = 'https://docs.start9.com/latest/support/faq'
   } else {
     message = e.message
   }
