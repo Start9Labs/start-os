@@ -1,7 +1,7 @@
 use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use color_eyre::eyre::eyre;
 use helpers::NonDetachingJoinHandle;
@@ -19,7 +19,6 @@ use crate::install::PKG_ARCHIVE_DIR;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
 use crate::sound::BEP;
-use crate::system::time;
 use crate::util::cpupower::{
     current_governor, get_available_governors, set_governor, GOVERNOR_PERFORMANCE,
 };
@@ -361,15 +360,28 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         }
     }
 
-    let mut warn_time_not_synced = true;
-    for _ in 0..60 {
+    let mut time_not_synced = true;
+    let mut not_made_progress = 0u32;
+    for _ in 0..1800 {
         if check_time_is_synchronized().await? {
-            warn_time_not_synced = false;
+            time_not_synced = false;
             break;
         }
+        let t = SystemTime::now();
         tokio::time::sleep(Duration::from_secs(1)).await;
+        if t.elapsed()
+            .map(|t| t > Duration::from_secs_f64(1.1))
+            .unwrap_or(true)
+        {
+            not_made_progress = 0;
+        } else {
+            not_made_progress += 1;
+        }
+        if not_made_progress > 30 {
+            break;
+        }
     }
-    if warn_time_not_synced {
+    if time_not_synced {
         tracing::warn!("Timed out waiting for system time to synchronize");
     } else {
         tracing::info!("Syncronized system clock");
@@ -385,7 +397,20 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         backup_progress: None,
     };
 
-    server_info.system_start_time = time().await?;
+    server_info.ntp_synced = if time_not_synced {
+        let db = db.clone();
+        tokio::spawn(async move {
+            while !check_time_is_synchronized().await.unwrap() {
+                tokio::time::sleep(Duration::from_secs(30)).await;
+            }
+            db.mutate(|v| v.as_server_info_mut().as_ntp_synced_mut().ser(&true))
+                .await
+                .unwrap()
+        });
+        false
+    } else {
+        true
+    };
 
     db.mutate(|v| {
         v.as_server_info_mut().ser(&server_info)?;

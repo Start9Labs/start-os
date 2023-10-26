@@ -1,4 +1,5 @@
-use digest::Digest;
+use std::time::SystemTime;
+
 use ed25519_dalek::SecretKey;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
@@ -29,11 +30,11 @@ pub struct AccountInfo {
     pub root_ca_cert: X509,
 }
 impl AccountInfo {
-    pub fn new(password: &str) -> Result<Self, Error> {
+    pub fn new(password: &str, start_time: SystemTime) -> Result<Self, Error> {
         let server_id = generate_id();
         let hostname = generate_hostname();
         let root_ca_key = generate_key()?;
-        let root_ca_cert = make_root_cert(&root_ca_key, &hostname)?;
+        let root_ca_cert = make_root_cert(&root_ca_key, &hostname, start_time)?;
         Ok(Self {
             server_id,
             hostname,

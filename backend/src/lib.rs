@@ -17,6 +17,9 @@ lazy_static::lazy_static! {
             ARCH.to_string()
         }
     };
+    pub static ref SOURCE_DATE: SystemTime = {
+        std::fs::metadata(std::env::current_exe().unwrap()).unwrap().modified().unwrap()
+    };
 }
 
 pub mod account;
@@ -61,6 +64,8 @@ pub mod update;
 pub mod util;
 pub mod version;
 pub mod volume;
+
+use std::time::SystemTime;
 
 pub use config::Config;
 pub use error::{Error, ErrorKind, ResultExt};
