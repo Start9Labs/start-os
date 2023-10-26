@@ -15,10 +15,9 @@ export class TimeService {
       return interval(1000).pipe(
         map(index => {
           const incremented = index + 1
-          const msToAdd = 1000 * incremented
           return {
-            now: current + msToAdd,
-            uptime: uptime + msToAdd,
+            now: current + 1000 * incremented,
+            uptime: uptime + incremented,
           }
         }),
         startWith({
@@ -42,13 +41,12 @@ export class TimeService {
 
   readonly uptime$ = this.time$.pipe(
     map(({ uptime }) => {
-      const days = Math.floor(uptime / (24 * 60 * 60 * 1000))
-      const daysms = uptime % (24 * 60 * 60 * 1000)
-      const hours = Math.floor(daysms / (60 * 60 * 1000))
-      const hoursms = uptime % (60 * 60 * 1000)
-      const minutes = Math.floor(hoursms / (60 * 1000))
-      const minutesms = uptime % (60 * 1000)
-      const seconds = Math.floor(minutesms / 1000)
+      const days = Math.floor(uptime / (24 * 60 * 60))
+      const daysSec = uptime % (24 * 60 * 60)
+      const hours = Math.floor(daysSec / (60 * 60))
+      const hoursSec = uptime % (60 * 60)
+      const minutes = Math.floor(hoursSec / 60)
+      const seconds = uptime % 60
       return { days, hours, minutes, seconds }
     }),
   )

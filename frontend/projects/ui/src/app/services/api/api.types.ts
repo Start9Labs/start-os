@@ -44,7 +44,7 @@ export module RR {
   export type GetSystemTimeReq = {} // server.time
   export type GetSystemTimeRes = {
     now: string
-    uptime: number
+    uptime: number // seconds
   }
 
   export type GetServerLogsReq = ServerLogsReq // server.logs & server.kernel-logs
