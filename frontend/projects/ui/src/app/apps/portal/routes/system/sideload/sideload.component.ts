@@ -1,62 +1,84 @@
 import { CommonModule } from '@angular/common'
-import { Component, inject } from '@angular/core'
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { Router } from '@angular/router'
-import { ErrorService, LoadingService } from '@start9labs/shared'
-import {
-  TuiAlertService,
-  TuiLinkModule,
-  TuiWrapperModule,
-} from '@taiga-ui/core'
+import { MarketplacePkg } from '@start9labs/marketplace'
+import { TuiLinkModule, TuiWrapperModule } from '@taiga-ui/core'
 import { TuiAvatarModule, TuiButtonModule } from '@taiga-ui/experimental'
 import {
   TuiInputFilesModule,
   tuiInputFilesOptionsProvider,
 } from '@taiga-ui/kit'
+import { Subject } from 'rxjs'
 import { ConfigService } from 'src/app/services/config.service'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
 
-import { NavigationService } from '../../../services/navigation.service'
-import { toDesktopItem } from '../../../utils/to-desktop-item'
 import { parseS9pk, validateS9pk } from './sideload.utils'
+import { SideloadPackageComponent } from './package.component'
 
 @Component({
   template: `
-    <tui-input-files
-      [style.height.%]="100"
-      [ngModel]="null"
-      (ngModelChange)="upload($event)"
-      (pointerdown)="invalid = false"
+    <ng-container *ngIf="refresh$ | async"></ng-container>
+    <sideload-package
+      *ngIf="package && file; else upload"
+      [package]="package"
+      [file]="file"
     >
-      <input tuiInputFiles accept=".s9pk" />
-      <ng-template>
-        <div *ngIf="invalid; else valid">
-          <tui-avatar
-            tuiWrapper
-            appearance="secondary"
-            src="tuiIconXCircleLarge"
-          ></tui-avatar>
-          <p [style.color]="'var(--tui-negative)'">Invalid package file</p>
-          <button tuiButton>Try again</button>
-        </div>
-        <ng-template #valid>
-          <div>
+      <button
+        tuiIconButton
+        appearance="secondary"
+        iconLeft="tuiIconXLarge"
+        [style.border-radius.%]="100"
+        [style.float]="'right'"
+        (click)="clear()"
+      >
+        Close
+      </button>
+    </sideload-package>
+    <ng-template #upload>
+      <tui-input-files
+        [ngModel]="null"
+        (ngModelChange)="onFile($event)"
+        (click)="clear()"
+      >
+        <input tuiInputFiles accept=".s9pk" />
+        <ng-template>
+          <div *ngIf="invalid; else valid">
             <tui-avatar
               tuiWrapper
               appearance="secondary"
-              src="tuiIconUploadCloudLarge"
+              src="tuiIconXCircleLarge"
             ></tui-avatar>
-            <p>Upload .s9pk package file</p>
-            <p *ngIf="isTor" [style.color]="'var(--tui-positive)'">
-              Tip: switch to LAN for faster uploads
-            </p>
-            <button tuiButton>Upload</button>
+            <p [style.color]="'var(--tui-negative)'">Invalid package file</p>
+            <button tuiButton>Try again</button>
           </div>
+          <ng-template #valid>
+            <div>
+              <tui-avatar
+                tuiWrapper
+                appearance="secondary"
+                src="tuiIconUploadCloudLarge"
+              ></tui-avatar>
+              <p>Upload .s9pk package file</p>
+              <p *ngIf="isTor" [style.color]="'var(--tui-positive)'">
+                Tip: switch to LAN for faster uploads
+              </p>
+              <button tuiButton>Upload</button>
+            </div>
+          </ng-template>
         </ng-template>
-      </ng-template>
-    </tui-input-files>
+      </tui-input-files>
+    </ng-template>
   `,
   host: { class: 'g-page', '[style.padding-top.rem]': '2' },
+  styles: [
+    `
+      tui-input-files {
+        height: 100%;
+        max-width: 40rem;
+        margin: 0 auto;
+      }
+    `,
+  ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [tuiInputFilesOptionsProvider({ maxFileSize: Infinity })],
   standalone: true,
   imports: [
@@ -67,45 +89,31 @@ import { parseS9pk, validateS9pk } from './sideload.utils'
     TuiAvatarModule,
     TuiWrapperModule,
     TuiButtonModule,
+    SideloadPackageComponent,
   ],
 })
 export class SideloadComponent {
-  private readonly loader = inject(LoadingService)
-  private readonly api = inject(ApiService)
-  private readonly errorService = inject(ErrorService)
-  private readonly router = inject(Router)
-  private readonly navigation = inject(NavigationService)
-  private readonly alerts = inject(TuiAlertService)
-
+  readonly refresh$ = new Subject<void>()
   readonly isTor = inject(ConfigService).isTor()
 
   invalid = false
+  file: File | null = null
+  package: MarketplacePkg | null = null
 
-  async upload(file: File | null) {
+  clear() {
+    this.invalid = false
+    this.file = null
+    this.package = null
+  }
+
+  async onFile(file: File | null) {
     if (!file || !(await validateS9pk(file))) {
       this.invalid = true
-
-      return
+    } else {
+      this.package = await parseS9pk(file)
+      this.file = file
     }
 
-    const loader = this.loader.open('Uploading package').subscribe()
-    const { manifest, icon } = await parseS9pk(file)
-    const { size } = file
-
-    try {
-      const pkg = await this.api.sideloadPackage({ manifest, icon, size })
-
-      await this.api.uploadPackage(pkg, file)
-      await this.router.navigate(['/portal/desktop'])
-
-      this.navigation.removeTab(toDesktopItem('/portal/system/sideload'))
-      this.alerts
-        .open('Package uploaded successfully', { status: 'success' })
-        .subscribe()
-    } catch (e: any) {
-      this.errorService.handleError(e)
-    } finally {
-      loader.unsubscribe()
-    }
+    this.refresh$.next()
   }
 }

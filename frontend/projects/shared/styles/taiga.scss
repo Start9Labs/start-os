@@ -39,6 +39,13 @@
   color: var(--tui-error-fill);
 }
 
+[tuiWrapper][data-appearance='input-file'] {
+  &:hover,
+  &:active {
+    background: transparent !important;
+  }
+}
+
 tui-dialog {
   transform: translate3d(0, 0, 0);
 }
