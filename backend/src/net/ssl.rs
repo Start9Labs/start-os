@@ -195,10 +195,10 @@ pub fn make_root_cert(
 
     let unix_start_time = unix_time(start_time);
 
-    let embargo = Asn1Time::from_unix(unix_start_time)?;
+    let embargo = Asn1Time::from_unix(unix_start_time - 86400)?;
     builder.set_not_before(&embargo)?;
 
-    let expiration = Asn1Time::from_unix(unix_start_time + (10 * 365 * 86400))?;
+    let expiration = Asn1Time::from_unix(unix_start_time + (10 * 364 * 86400))?;
     builder.set_not_after(&expiration)?;
 
     builder.set_serial_number(&*rand_serial()?)?;
@@ -252,10 +252,10 @@ pub fn make_int_cert(
 
     let unix_start_time = unix_time(start_time);
 
-    let embargo = Asn1Time::from_unix(unix_start_time)?;
+    let embargo = Asn1Time::from_unix(unix_start_time - 86400)?;
     builder.set_not_before(&embargo)?;
 
-    let expiration = Asn1Time::from_unix(unix_start_time + (10 * 365 * 86400))?;
+    let expiration = Asn1Time::from_unix(unix_start_time + (10 * 364 * 86400))?;
     builder.set_not_after(&expiration)?;
 
     builder.set_serial_number(&*rand_serial()?)?;
@@ -381,7 +381,7 @@ pub fn make_leaf_cert(
     let embargo = Asn1Time::from_unix(unix_time(SystemTime::now()) - 86400)?;
     builder.set_not_before(&embargo)?;
 
-    // Google Apple and Mozilla reject certificate horizons longer than 397 days
+    // Google Apple and Mozilla reject certificate horizons longer than 398 days
     // https://techbeacon.com/security/google-apple-mozilla-enforce-1-year-max-security-certifications
     let expiration = Asn1Time::days_from_now(397)?;
     builder.set_not_after(&expiration)?;
