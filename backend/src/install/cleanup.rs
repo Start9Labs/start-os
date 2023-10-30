@@ -173,7 +173,7 @@ where
     );
     cleanup(ctx, id, &version).await?;
     cleanup_folder(volume_dir, Arc::new(dependents_paths)).await;
-    remove_tor_keys(secrets, id).await?;
+    remove_network_keys(secrets, id).await?;
 
     ctx.db
         .mutate(|d| {
@@ -188,12 +188,15 @@ where
 }
 
 #[instrument(skip_all)]
-pub async fn remove_tor_keys<Ex>(secrets: &mut Ex, id: &PackageId) -> Result<(), Error>
+pub async fn remove_network_keys<Ex>(secrets: &mut Ex, id: &PackageId) -> Result<(), Error>
 where
     for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
 {
+    sqlx::query!("DELETE FROM network_keys WHERE package = $1", &*id)
+        .execute(&mut *secrets)
+        .await?;
     sqlx::query!("DELETE FROM tor WHERE package = $1", &*id)
-        .execute(secrets)
+        .execute(&mut *secrets)
         .await?;
     Ok(())
 }
