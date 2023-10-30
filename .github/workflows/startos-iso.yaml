@@ -219,6 +219,7 @@ jobs:
   index:
     if: ${{ github.event.inputs.deploy != '' && github.event.inputs.deploy != 'NONE' }}
     needs: [image]
+    runs-on: ubuntu-22.04
     steps:
       - run: >-
           curl "https://${{
