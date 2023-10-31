@@ -208,10 +208,10 @@ jobs:
             }')[github.event.inputs.deploy]
           }}" KEY="${{
             fromJson(
-              format('{
+              format('{{
                 "alpha": "{0}",
                 "beta": "{1}",
-              }', secrets.ALPHA_INDEX_KEY, secrets.BETA_INDEX_KEY)
+              }}', secrets.ALPHA_INDEX_KEY, secrets.BETA_INDEX_KEY)
             )[github.event.inputs.deploy]
           }}"
         if: ${{ github.event.inputs.deploy != '' && github.event.inputs.deploy != 'NONE' }}
@@ -229,9 +229,9 @@ jobs:
             }')[github.event.inputs.deploy]
           }}:8443/resync.cgi?key=${{
             fromJson(
-              format('{
+              format('{{
                 "alpha": "{0}",
                 "beta": "{1}",
-              }', secrets.ALPHA_INDEX_KEY, secrets.BETA_INDEX_KEY)
+              }}', secrets.ALPHA_INDEX_KEY, secrets.BETA_INDEX_KEY)
             )[github.event.inputs.deploy]
           }}"
