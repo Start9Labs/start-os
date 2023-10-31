@@ -23,10 +23,16 @@
         {{ page.title }}
       </ion-label>
       <ion-icon
+        *ngIf="page.url === '/system' && (warning$ | async)"
+        color="warning"
+        size="small"
+        name="warning"
+      ></ion-icon>
+      <ion-icon
         *ngIf="page.url === '/system' && (showEOSUpdate$ | async)"
         color="success"
         size="small"
-        name="rocket-outline"
+        name="rocket"
       ></ion-icon>
       <ion-badge
         *ngIf="page.url === '/updates' && (updateCount$ | async) as updateCount"

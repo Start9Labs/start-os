@@ -1,44 +1,41 @@
-.grid-wiz {
-  --ion-grid-padding: 36px;
-  height: 100%
+ion-content {
+  --padding-top: 2.2rem;
+  --padding-bottom: 2.2rem;
+  --padding-start: 2.2rem;
+  --padding-end: 2.2rem;
 }
 
-.wiz-icon {
-  font-size: 84px;
+.title {
+  font-size: 28px;
+  font-weight: 600;
 }
 
-.wiz-card {
-  background: #414141;
-  margin: 24px;
-  padding: 16px;
-  height: 280px;
-  border-radius: 16px;
-  display: grid;
+.subtitle {
+  font-size: 21px;
+  line-height: 26px;
+  margin-bottom: 30px;
+  margin-top: 0;
+}
 
-  & h2 {
-    font-weight: 600;
+ol {
+  font-size: 17px;
+  line-height: 25px;
+
+  li {
+    padding-bottom: 24px;
+  }
+
+  ion-button {
+    margin-top: 8px;
   }
 }
 
-.wiz-card-button {
-  justify-self: center;
-  white-space: normal;
+a {
+  cursor: pointer;
+  color: aquamarine;
+  text-decoration: underline;
 }
 
-.wiz-spinner {
-  width: 14px;
-  height: 14px;
-}
-
-.disabled {
-  filter: saturate(0.2) contrast(0.5)
-}
-
-.wiz-step {
-  margin-top: 4px;
-}
-
-.inline-center {
-  display: inline-flex;
-  align-items: center;
+.wiz-icon {
+  font-size: 64px;
 }
