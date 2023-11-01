@@ -15,7 +15,7 @@ fn hash_password(password: &str) -> Result<String, Error> {
     argon2::hash_encoded(
         password.as_bytes(),
         &rand::random::<[u8; 16]>()[..],
-        &argon2::Config::default(),
+        &argon2::Config::rfc9106_low_mem(),
     )
     .with_kind(crate::ErrorKind::PasswordHashGeneration)
 }
