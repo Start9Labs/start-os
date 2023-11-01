@@ -203,7 +203,7 @@ frontend/config.json: $(GIT_HASH_FILE) frontend/config-sample.json
 	jq '.useMocks = false' frontend/config-sample.json | jq '.gitHash = "$(shell cat GIT_HASH.txt)"' > frontend/config.json
 
 frontend/patchdb-ui-seed.json: frontend/package.json
-	jq '."ack-welcome" = $(shell yq '.version' frontend/package.json)' frontend/patchdb-ui-seed.json > ui-seed.tmp
+	jq '."ack-welcome" = $(shell jq '.version' frontend/package.json)' frontend/patchdb-ui-seed.json > ui-seed.tmp
 	mv ui-seed.tmp frontend/patchdb-ui-seed.json
 
 patch-db/client/node_modules: patch-db/client/package.json

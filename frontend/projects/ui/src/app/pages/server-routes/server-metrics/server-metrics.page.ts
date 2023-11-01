@@ -3,6 +3,7 @@ import { Metrics } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { TimeService } from 'src/app/services/time-service'
 import { pauseFor, ErrorToastService } from '@start9labs/shared'
+import { Subject } from 'rxjs'
 
 @Component({
   selector: 'server-metrics',
@@ -10,9 +11,8 @@ import { pauseFor, ErrorToastService } from '@start9labs/shared'
   styleUrls: ['./server-metrics.page.scss'],
 })
 export class ServerMetricsPage {
-  loading = true
   going = false
-  metrics: Metrics = {}
+  metrics$ = new Subject<Metrics>()
 
   readonly now$ = this.timeService.now$
   readonly uptime$ = this.timeService.uptime$
@@ -25,19 +25,7 @@ export class ServerMetricsPage {
 
   async ngOnInit() {
     await this.getMetrics()
-    let headersCount = 0
-    let rowsCount = 0
-    Object.values(this.metrics).forEach(groupVal => {
-      headersCount++
-      Object.keys(groupVal).forEach(_ => {
-        rowsCount++
-      })
-    })
-    const height = headersCount * 54 + rowsCount * 50 + 24 // extra 24 for room at the bottom
-    const elem = document.getElementById('metricSection')
-    if (elem) elem.style.height = `${height}px`
     this.startDaemon()
-    this.loading = false
   }
 
   ngOnDestroy() {
@@ -59,7 +47,8 @@ export class ServerMetricsPage {
 
   private async getMetrics(): Promise<void> {
     try {
-      this.metrics = await this.embassyApi.getServerMetrics({})
+      const metrics = await this.embassyApi.getServerMetrics({})
+      this.metrics$.next(metrics)
     } catch (e: any) {
       this.errToast.present(e)
       this.stopDaemon()

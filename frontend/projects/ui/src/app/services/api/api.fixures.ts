@@ -835,85 +835,79 @@ export module Mock {
 
   export function getServerMetrics() {
     return {
-      Group1: {
-        Metric1: {
-          value: Math.random(),
-          unit: 'mi/b',
+      general: {
+        temperature: {
+          value: '66.8',
+          unit: '°C',
         },
-        Metric2: {
-          value: Math.random(),
+      },
+      memory: {
+        'percentage-used': {
+          value: '30.7',
           unit: '%',
         },
-        Metric3: {
-          value: 10.1,
+        total: {
+          value: '31971.10',
+          unit: 'MiB',
+        },
+        available: {
+          value: '22150.66',
+          unit: 'MiB',
+        },
+        used: {
+          value: '8784.97',
+          unit: 'MiB',
+        },
+        'zram-total': {
+          value: '7992.00',
+          unit: 'MiB',
+        },
+        'zram-available': {
+          value: '7882.50',
+          unit: 'MiB',
+        },
+        'zram-used': {
+          value: '109.50',
+          unit: 'MiB',
+        },
+      },
+      cpu: {
+        'percentage-used': {
+          value: '8.4',
+          unit: '%',
+        },
+        'user-space': {
+          value: '7.0',
+          unit: '%',
+        },
+        'kernel-space': {
+          value: '1.4',
+          unit: '%',
+        },
+        wait: {
+          value: '0.5',
+          unit: '%',
+        },
+        idle: {
+          value: '91.1',
           unit: '%',
         },
       },
-      Group2: {
-        Hmmmm1: {
-          value: 22.2,
-          unit: 'mi/b',
+      disk: {
+        capacity: {
+          value: '1851.60',
+          unit: 'GB',
         },
-        Hmmmm2: {
-          value: 50,
-          unit: '%',
+        used: {
+          value: '859.02',
+          unit: 'GB',
         },
-        Hmmmm3: {
-          value: 10.1,
-          unit: '%',
+        available: {
+          value: '992.59',
+          unit: 'GB',
         },
-      },
-      Group3: {
-        Hmmmm1: {
-          value: Math.random(),
-          unit: 'mi/b',
-        },
-        Hmmmm2: {
-          value: 50,
-          unit: '%',
-        },
-        Hmmmm3: {
-          value: 10.1,
-          unit: '%',
-        },
-      },
-      Group4: {
-        Hmmmm1: {
-          value: Math.random(),
-          unit: 'mi/b',
-        },
-        Hmmmm2: {
-          value: 50,
-          unit: '%',
-        },
-        Hmmmm3: {
-          value: 10.1,
-          unit: '%',
-        },
-      },
-      Group5: {
-        Hmmmm1: {
-          value: Math.random(),
-          unit: 'mi/b',
-        },
-        Hmmmm2: {
-          value: 50,
-          unit: '%',
-        },
-        Hmmmm3: {
-          value: 10.1,
-          unit: '%',
-        },
-        Hmmmm4: {
-          value: Math.random(),
-          unit: 'mi/b',
-        },
-        Hmmmm5: {
-          value: 50,
-          unit: '%',
-        },
-        Hmmmm6: {
-          value: 10.1,
+        'percentage-used': {
+          value: '46.4',
           unit: '%',
         },
       },

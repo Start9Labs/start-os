@@ -301,12 +301,36 @@ export interface ActionResponse {
   qr: boolean
 }
 
+interface MetricData {
+  value: string
+  unit: string
+}
+
 export interface Metrics {
-  [key: string]: {
-    [key: string]: {
-      value: string | number | null
-      unit?: string
-    }
+  general: {
+    temperature: MetricData | null
+  }
+  memory: {
+    total: MetricData
+    'percentage-used': MetricData
+    used: MetricData
+    available: MetricData
+    'zram-total': MetricData
+    'zram-used': MetricData
+    'zram-available': MetricData
+  }
+  cpu: {
+    'percentage-used': MetricData
+    idle: MetricData
+    'user-space': MetricData
+    'kernel-space': MetricData
+    wait: MetricData
+  }
+  disk: {
+    capacity: MetricData
+    'percentage-used': MetricData
+    used: MetricData
+    available: MetricData
   }
 }
 
