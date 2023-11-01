@@ -3,13 +3,14 @@ import { map, shareReplay, startWith, switchMap } from 'rxjs/operators'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from './patch-db/data-model'
 import { ApiService } from './api/embassy-api.service'
-import { combineLatest, from, interval } from 'rxjs'
+import { combineLatest, interval, of } from 'rxjs'
 
 @Injectable({
   providedIn: 'root',
 })
 export class TimeService {
-  private readonly time$ = from(this.apiService.getSystemTime({})).pipe(
+  private readonly time$ = of({}).pipe(
+    switchMap(() => this.apiService.getSystemTime({})),
     switchMap(({ now, uptime }) => {
       const current = new Date(now).valueOf()
       return interval(1000).pipe(
