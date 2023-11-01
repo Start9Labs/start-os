@@ -4,9 +4,9 @@
       <ion-back-button defaultHref="system"></ion-back-button>
     </ion-buttons>
     <ion-title>Monitor</ion-title>
-    <ion-title slot="end"
-      ><ion-spinner name="dots" class="fader"></ion-spinner
-    ></ion-title>
+    <ion-title slot="end">
+      <ion-spinner name="dots" class="fader"></ion-spinner>
+    </ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -16,28 +16,51 @@
   <div id="metricSection">
     <ng-container *ngIf="!loading">
       <ion-item-group>
-        <ion-item-divider>Time</ion-item-divider>
-        <ion-item>
-          <ion-label>System Time</ion-label>
-          <ion-note slot="end" class="metric-note">
-            <ion-text style="color: white"
-              >{{ systemTime$ | async | date:'MMMM d, y, h:mm a z':'UTC'
-              }}</ion-text
-            >
-          </ion-note>
+        <!-- <ion-item-divider>Time</ion-item-divider> -->
+        <ion-item *ngIf="now$ | async as now; else timeLoading">
+          <ion-label>
+            <h1>System Time</h1>
+            <h2>
+              <ion-text style="color: white">
+                <b>{{ now.value | date:'MMMM d, y, h:mm a z':'UTC' }}</b>
+              </ion-text>
+            </h2>
+            <p *ngIf="!now.synced">
+              <ion-text color="warning">
+                NTP not synced, time could be wrong
+              </ion-text>
+            </p>
+          </ion-label>
+          <ion-note slot="end" class="metric-note"></ion-note>
         </ion-item>
+        <ng-template #timeLoading>
+          <ion-item>
+            <ion-label>
+              <h1>System Time</h1>
+              <p>Loading...</p>
+            </ion-label>
+            <ion-note slot="end" class="metric-note"></ion-note>
+          </ion-item>
+        </ng-template>
+
         <ion-item>
-          <ion-label>System Uptime</ion-label>
-          <ion-note
-            *ngIf="systemUptime$ | async as uptime"
-            slot="end"
-            class="metric-note"
-          >
-            <ion-text style="color: white">
-              <b>{{ uptime.days }}</b> Days, <b>{{ uptime.hours }}</b> Hours,
-              <b>{{ uptime.minutes }}</b> Minutes
-            </ion-text>
-          </ion-note>
+          <ion-label>
+            <h1>System Uptime</h1>
+            <h2>
+              <ion-text style="color: white">
+                <ng-container *ngIf="uptime$ | async as uptime">
+                  <b>{{ uptime.days }}</b>
+                  Days,
+                  <b>{{ uptime.hours }}</b>
+                  Hours,
+                  <b>{{ uptime.minutes }}</b>
+                  Minutes,
+                  <b>{{ uptime.seconds }}</b>
+                  Seconds
+                </ng-container>
+              </ion-text>
+            </h2>
+          </ion-label>
         </ion-item>
       </ion-item-group>
 
@@ -50,9 +73,9 @@
         >
           <ion-label>{{ metric.key }}</ion-label>
           <ion-note *ngIf="metric.value" slot="end" class="metric-note">
-            <ion-text style="color: white"
-              >{{ metric.value.value }} {{ metric.value.unit }}</ion-text
-            >
+            <ion-text style="color: white">
+              {{ metric.value.value }} {{ metric.value.unit }}
+            </ion-text>
           </ion-note>
         </ion-item>
       </ion-item-group>

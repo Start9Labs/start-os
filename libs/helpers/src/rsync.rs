@@ -71,7 +71,7 @@ impl Rsync {
             cmd.arg(format!("--exclude={}", exclude));
         }
         let mut command = cmd
-            .arg("-acAXH")
+            .arg("-actAXH")
             .arg("--info=progress2")
             .arg("--no-inc-recursive")
             .arg(src.as_ref())

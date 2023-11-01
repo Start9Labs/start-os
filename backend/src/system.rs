@@ -1,6 +1,7 @@
 use std::fmt;
 
 use chrono::Utc;
+use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
 use rpc_toolkit::command;
@@ -84,9 +85,65 @@ pub async fn zram(#[context] ctx: RpcContext, #[arg] enable: bool) -> Result<(),
     Ok(())
 }
 
-#[command]
-pub async fn time() -> Result<String, Error> {
-    Ok(Utc::now().to_rfc3339())
+#[derive(Serialize, Deserialize)]
+pub struct TimeInfo {
+    now: String,
+    uptime: u64,
+}
+
+fn display_time(arg: TimeInfo, matches: &ArgMatches) {
+    use std::fmt::Write;
+
+    use prettytable::*;
+
+    if matches.is_present("format") {
+        return display_serializable(arg, matches);
+    }
+
+    let days = arg.uptime / (24 * 60 * 60);
+    let days_s = arg.uptime % (24 * 60 * 60);
+    let hours = days_s / (60 * 60);
+    let hours_s = arg.uptime % (60 * 60);
+    let minutes = hours_s / 60;
+    let seconds = arg.uptime % 60;
+    let mut uptime_string = String::new();
+    if days > 0 {
+        write!(&mut uptime_string, "{days} days").unwrap();
+    }
+    if hours > 0 {
+        if !uptime_string.is_empty() {
+            uptime_string += ", ";
+        }
+        write!(&mut uptime_string, "{hours} hours").unwrap();
+    }
+    if minutes > 0 {
+        if !uptime_string.is_empty() {
+            uptime_string += ", ";
+        }
+        write!(&mut uptime_string, "{minutes} minutes").unwrap();
+    }
+    if !uptime_string.is_empty() {
+        uptime_string += ", ";
+    }
+    write!(&mut uptime_string, "{seconds} seconds").unwrap();
+
+    let mut table = Table::new();
+    table.add_row(row![bc -> "NOW", &arg.now]);
+    table.add_row(row![bc -> "UPTIME", &uptime_string]);
+    table.print_tty(false).unwrap();
+}
+
+#[command(display(display_time))]
+pub async fn time(
+    #[context] ctx: RpcContext,
+    #[allow(unused_variables)]
+    #[arg(long = "format")]
+    format: Option<IoFormat>,
+) -> Result<TimeInfo, Error> {
+    Ok(TimeInfo {
+        now: Utc::now().to_rfc3339(),
+        uptime: ctx.start_time.elapsed().as_secs(),
+    })
 }
 
 #[command(

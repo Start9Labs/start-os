@@ -1,6 +1,8 @@
 use models::ErrorKind;
 
 use crate::context::RpcContext;
+use crate::procedure::docker::DockerProcedure;
+use crate::procedure::PackageProcedure;
 use crate::s9pk::manifest::Manifest;
 use crate::util::docker::stop_container;
 use crate::Error;
@@ -16,11 +18,13 @@ impl ManagerSeed {
     pub async fn stop_container(&self) -> Result<(), Error> {
         match stop_container(
             &self.container_name,
-            self.manifest
-                .containers
-                .as_ref()
-                .and_then(|c| c.main.sigterm_timeout)
-                .map(|d| *d),
+            match &self.manifest.main {
+                PackageProcedure::Docker(DockerProcedure {
+                    sigterm_timeout: Some(sigterm_timeout),
+                    ..
+                }) => Some(**sigterm_timeout),
+                _ => None,
+            },
             None,
         )
         .await

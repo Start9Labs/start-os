@@ -79,7 +79,7 @@ impl Database {
                     .iter()
                     .map(|x| format!("{x:X}"))
                     .join(":"),
-                system_start_time: Utc::now().to_rfc3339(),
+                ntp_synced: false,
                 zram: true,
             },
             package_data: AllPackageData::default(),
@@ -125,7 +125,8 @@ pub struct ServerInfo {
     pub password_hash: String,
     pub pubkey: String,
     pub ca_fingerprint: String,
-    pub system_start_time: String,
+    #[serde(default)]
+    pub ntp_synced: bool,
     #[serde(default)]
     pub zram: bool,
 }

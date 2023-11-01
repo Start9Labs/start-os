@@ -31,6 +31,7 @@ use crate::disk::REPAIR_DISK_PATH;
 use crate::hostname::Hostname;
 use crate::init::{init, InitResult};
 use crate::middleware::encrypt::EncryptedWire;
+use crate::net::ssl::root_ca_start_time;
 use crate::prelude::*;
 use crate::util::io::{dir_copy, dir_size, Counter};
 use crate::{Error, ErrorKind, ResultExt};
@@ -378,7 +379,7 @@ async fn fresh_setup(
     ctx: &SetupContext,
     embassy_password: &str,
 ) -> Result<(Hostname, OnionAddressV3, X509), Error> {
-    let account = AccountInfo::new(embassy_password)?;
+    let account = AccountInfo::new(embassy_password, root_ca_start_time().await?)?;
     let sqlite_pool = ctx.secret_store().await?;
     account.save(&sqlite_pool).await?;
     sqlite_pool.close().await;

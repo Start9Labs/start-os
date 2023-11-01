@@ -61,43 +61,46 @@ impl VersionT for Version {
                 }
             }
         }
-        db.mutate(|v| {
-            v.as_server_info_mut().as_zram_mut().ser(&true)?;
-            for (_, pde) in v.as_package_data_mut().as_entries_mut()? {
-                for (dependency, info) in pde
-                    .as_installed_mut()
-                    .map(|i| i.as_dependency_info_mut().as_entries_mut())
-                    .transpose()?
-                    .into_iter()
-                    .flatten()
-                {
-                    if let Some(url) = url_replacements.get(&dependency) {
-                        info.as_icon_mut().ser(url)?;
-                    } else {
-                        info.as_icon_mut().ser(&DataUrl::from_slice(
-                            "image/png",
-                            include_bytes!("../install/package-icon.png"),
-                        ))?;
-                    }
-                    let manifest = <&mut Value>::from(&mut *info)
-                        .as_object_mut()
-                        .and_then(|o| o.remove("manifest"));
-                    if let Some(title) = manifest
-                        .as_ref()
-                        .and_then(|m| m.as_object())
-                        .and_then(|m| m.get("title"))
-                        .and_then(|t| t.as_str())
-                        .map(|s| s.to_owned())
+        let prev_zram = db
+            .mutate(|v| {
+                for (_, pde) in v.as_package_data_mut().as_entries_mut()? {
+                    for (dependency, info) in pde
+                        .as_installed_mut()
+                        .map(|i| i.as_dependency_info_mut().as_entries_mut())
+                        .transpose()?
+                        .into_iter()
+                        .flatten()
                     {
-                        info.as_title_mut().ser(&title)?;
-                    } else {
-                        info.as_title_mut().ser(&dependency.to_string())?;
+                        if let Some(url) = url_replacements.get(&dependency) {
+                            info.as_icon_mut().ser(url)?;
+                        } else {
+                            info.as_icon_mut().ser(&DataUrl::from_slice(
+                                "image/png",
+                                include_bytes!("../install/package-icon.png"),
+                            ))?;
+                        }
+                        let manifest = <&mut Value>::from(&mut *info)
+                            .as_object_mut()
+                            .and_then(|o| o.remove("manifest"));
+                        if let Some(title) = manifest
+                            .as_ref()
+                            .and_then(|m| m.as_object())
+                            .and_then(|m| m.get("title"))
+                            .and_then(|t| t.as_str())
+                            .map(|s| s.to_owned())
+                        {
+                            info.as_title_mut().ser(&title)?;
+                        } else {
+                            info.as_title_mut().ser(&dependency.to_string())?;
+                        }
                     }
                 }
-            }
-            Ok(())
-        })
-        .await?;
+                v.as_server_info_mut().as_zram_mut().replace(&true)
+            })
+            .await?;
+        if !prev_zram {
+            crate::system::enable_zram().await?;
+        }
         Ok(())
     }
     async fn down(&self, _db: PatchDb, _secrets: &PgPool) -> Result<(), Error> {
