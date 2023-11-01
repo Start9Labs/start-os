@@ -838,15 +838,15 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             None
         };
 
-        let icon_path = if let Some(marketplace_url) = &marketplace_url {
-            if let Some(manifest) = &manifest {
-                let dir = ctx
-                    .datadir
-                    .join(PKG_PUBLIC_DIR)
-                    .join(&manifest.id)
-                    .join(manifest.version.as_str());
-                let icon_path = dir.join(format!("icon.{}", manifest.assets.icon_type()));
-                if tokio::fs::metadata(&icon_path).await.is_err() {
+        let icon_path = if let Some(manifest) = &manifest {
+            let dir = ctx
+                .datadir
+                .join(PKG_PUBLIC_DIR)
+                .join(&manifest.id)
+                .join(manifest.version.as_str());
+            let icon_path = dir.join(format!("icon.{}", manifest.assets.icon_type()));
+            if tokio::fs::metadata(&icon_path).await.is_err() {
+                if let Some(marketplace_url) = &marketplace_url {
                     tokio::fs::create_dir_all(&dir).await?;
                     let icon = ctx
                         .client
@@ -864,10 +864,12 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                     let mut dst = File::create(&icon_path).await?;
                     tokio::io::copy(&mut response_to_reader(icon), &mut dst).await?;
                     dst.sync_all().await?;
+                    Some(icon_path)
+                } else {
+                    None
                 }
-                Some(icon_path)
             } else {
-                None
+                Some(icon_path)
             }
         } else {
             None
