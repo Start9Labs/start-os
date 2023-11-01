@@ -360,60 +360,44 @@ impl<'de> Deserialize<'de> for GigaBytes {
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(rename_all = "kebab-case")]
 pub struct MetricsGeneral {
-    #[serde(rename = "Temperature")]
-    temperature: Option<Celsius>,
+    pub temperature: Option<Celsius>,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(rename_all = "kebab-case")]
 pub struct MetricsMemory {
-    #[serde(rename = "Percentage Used")]
     pub percentage_used: Percentage,
-    #[serde(rename = "Total")]
     pub total: MebiBytes,
-    #[serde(rename = "Available")]
     pub available: MebiBytes,
-    #[serde(rename = "Used")]
     pub used: MebiBytes,
-    #[serde(rename = "Swap Total")]
-    pub swap_total: MebiBytes,
-    #[serde(rename = "Swap Free")]
-    pub swap_free: MebiBytes,
-    #[serde(rename = "Swap Used")]
-    pub swap_used: MebiBytes,
+    pub zram_total: MebiBytes,
+    pub zram_available: MebiBytes,
+    pub zram_used: MebiBytes,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(rename_all = "kebab-case")]
 pub struct MetricsCpu {
-    #[serde(rename = "User Space")]
-    user_space: Percentage,
-    #[serde(rename = "Kernel Space")]
-    kernel_space: Percentage,
-    #[serde(rename = "I/O Wait")]
-    wait: Percentage,
-    #[serde(rename = "Idle")]
-    idle: Percentage,
-    #[serde(rename = "Usage")]
     usage: Percentage,
+    idle: Percentage,
+    user_space: Percentage,
+    kernel_space: Percentage,
+    wait: Percentage,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(rename_all = "kebab-case")]
 pub struct MetricsDisk {
-    #[serde(rename = "Size")]
-    size: GigaBytes,
-    #[serde(rename = "Used")]
-    used: GigaBytes,
-    #[serde(rename = "Available")]
-    available: GigaBytes,
-    #[serde(rename = "Percentage Used")]
     used_percentage: Percentage,
+    used: GigaBytes,
+    available: GigaBytes,
+    size: GigaBytes,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(rename_all = "kebab-case")]
 pub struct Metrics {
-    #[serde(rename = "General")]
     general: MetricsGeneral,
-    #[serde(rename = "Memory")]
     memory: MetricsMemory,
-    #[serde(rename = "CPU")]
     cpu: MetricsCpu,
-    #[serde(rename = "Disk")]
     disk: MetricsDisk,
 }
 
@@ -752,8 +736,8 @@ pub struct MemInfo {
     buffers: Option<u64>,
     cached: Option<u64>,
     slab: Option<u64>,
-    swap_total: Option<u64>,
-    swap_free: Option<u64>,
+    zram_total: Option<u64>,
+    zram_free: Option<u64>,
 }
 #[instrument(skip_all)]
 pub async fn get_mem_info() -> Result<MetricsMemory, Error> {
@@ -765,8 +749,8 @@ pub async fn get_mem_info() -> Result<MetricsMemory, Error> {
         buffers: None,
         cached: None,
         slab: None,
-        swap_total: None,
-        swap_free: None,
+        zram_total: None,
+        zram_free: None,
     };
     fn get_num_kb(l: &str) -> Result<u64, Error> {
         let e = Error::new(
@@ -791,8 +775,8 @@ pub async fn get_mem_info() -> Result<MetricsMemory, Error> {
             _ if entry.starts_with("Buffers") => mem_info.buffers = Some(get_num_kb(entry)?),
             _ if entry.starts_with("Cached") => mem_info.cached = Some(get_num_kb(entry)?),
             _ if entry.starts_with("Slab") => mem_info.slab = Some(get_num_kb(entry)?),
-            _ if entry.starts_with("SwapTotal") => mem_info.swap_total = Some(get_num_kb(entry)?),
-            _ if entry.starts_with("SwapFree") => mem_info.swap_free = Some(get_num_kb(entry)?),
+            _ if entry.starts_with("SwapTotal") => mem_info.zram_total = Some(get_num_kb(entry)?),
+            _ if entry.starts_with("SwapFree") => mem_info.zram_free = Some(get_num_kb(entry)?),
             _ => (),
         }
     }
@@ -808,24 +792,24 @@ pub async fn get_mem_info() -> Result<MetricsMemory, Error> {
     let buffers = ensure_present(mem_info.buffers, "Buffers")?;
     let cached = ensure_present(mem_info.cached, "Cached")?;
     let slab = ensure_present(mem_info.slab, "Slab")?;
-    let swap_total_k = ensure_present(mem_info.swap_total, "SwapTotal")?;
-    let swap_free_k = ensure_present(mem_info.swap_free, "SwapFree")?;
+    let zram_total_k = ensure_present(mem_info.zram_total, "SwapTotal")?;
+    let zram_free_k = ensure_present(mem_info.zram_free, "SwapFree")?;
 
     let total = MebiBytes(mem_total as f64 / 1024.0);
     let available = MebiBytes(mem_available as f64 / 1024.0);
     let used = MebiBytes((mem_total - mem_free - buffers - cached - slab) as f64 / 1024.0);
-    let swap_total = MebiBytes(swap_total_k as f64 / 1024.0);
-    let swap_free = MebiBytes(swap_free_k as f64 / 1024.0);
-    let swap_used = MebiBytes((swap_total_k - swap_free_k) as f64 / 1024.0);
+    let zram_total = MebiBytes(zram_total_k as f64 / 1024.0);
+    let zram_available = MebiBytes(zram_free_k as f64 / 1024.0);
+    let zram_used = MebiBytes((zram_total_k - zram_free_k) as f64 / 1024.0);
     let percentage_used = Percentage((total.0 - available.0) / total.0 * 100.0);
     Ok(MetricsMemory {
         percentage_used,
         total,
         available,
         used,
-        swap_total,
-        swap_free,
-        swap_used,
+        zram_total,
+        zram_available,
+        zram_used,
     })
 }
 
