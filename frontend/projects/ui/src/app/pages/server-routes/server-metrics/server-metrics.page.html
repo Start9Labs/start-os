@@ -61,7 +61,12 @@
       <ion-item-divider>General</ion-item-divider>
       <ion-item>
         <ion-label>Temperature</ion-label>
-        <ion-note slot="end">{{ general.temperature.value }} &deg;C</ion-note>
+        <ion-note slot="end">
+          <ng-container *ngIf="general.temperature; else noTemp">
+            {{ general.temperature.value }} &deg;C
+          </ng-container>
+          <ng-template #noTemp>N/A</ng-template>
+        </ion-note>
       </ion-item>
     </ion-item-group>
 

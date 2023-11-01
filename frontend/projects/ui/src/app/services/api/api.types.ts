@@ -308,7 +308,7 @@ interface MetricData {
 
 export interface Metrics {
   general: {
-    temperature: MetricData
+    temperature: MetricData | null
   }
   memory: {
     total: MetricData
