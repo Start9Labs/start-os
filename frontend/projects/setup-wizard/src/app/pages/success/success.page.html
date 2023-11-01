@@ -15,16 +15,14 @@
                   ></ion-icon>
                   <h1>Setup Complete!</h1>
                 </div>
-                <div class="card-container">
-                  <ion-card id="exit" (click)="exitKiosk()" tabindex="0">
-                    <div class="container">
-                      <div class="inline">
-                        <p>Continue to login</p>
-                        <ion-icon name="log-in-outline"></ion-icon>
-                      </div>
-                    </div>
-                  </ion-card>
-                </div>
+                <ion-button
+                  (click)="exitKiosk()"
+                  size="large"
+                  class="login-btn"
+                >
+                  Continue to Login
+                  <ion-icon slot="end" name="log-in-outline"></ion-icon>
+                </ion-button>
               </ion-col>
             </ion-row>
           </ion-card>
@@ -63,24 +61,34 @@
                     <ion-footer>
                       <div class="container">
                         <div class="inline">
-                          <p>Download</p>
+                          <p>DOWNLOAD</p>
                           <ion-icon name="download-outline"></ion-icon>
                         </div>
                       </div>
                     </ion-footer>
                   </ion-card>
+
                   <ion-card
-                    [disabled]="disableLogin"
                     id="launch"
+                    [disabled]="disableLogin"
                     href="{{ lanAddress }}"
                     target="_blank"
                   >
-                    <div class="container">
-                      <div class="inline">
-                        <p>Login to StartOS</p>
-                        <ion-icon name="open-outline"></ion-icon>
+                    <ion-card-content>
+                      <ion-card-title>Trust your Root CA</ion-card-title>
+                      <p>
+                        In the new tab, follow instructions to trust your
+                        server's Root CA and log in.
+                      </p>
+                    </ion-card-content>
+                    <ion-footer>
+                      <div class="container">
+                        <div class="inline">
+                          <p>OPEN</p>
+                          <ion-icon name="open-outline"></ion-icon>
+                        </div>
                       </div>
-                    </div>
+                    </ion-footer>
                   </ion-card>
                 </div>
               </ion-col>
