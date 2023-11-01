@@ -31,6 +31,13 @@ on:
           - aarch64
           - aarch64-nonfree
           - raspberrypi
+      deploy:
+        type: choice
+        description: Deploy
+        options:
+          - NONE
+          - alpha
+          - beta
   push:
     branches:
       - master
@@ -191,3 +198,40 @@ jobs:
           name: ${{ matrix.platform }}.img
           path: results/*.img
         if: ${{ matrix.platform == 'raspberrypi' }}
+
+      - name: Upload OTA to registry
+        run: >-
+          PLATFORM=${{ matrix.platform }} make upload-ota TARGET="${{
+            fromJson('{
+              "alpha": "alpha-registry-x.start9.com",
+              "beta": "beta-registry.start9.com",
+            }')[github.event.inputs.deploy]
+          }}" KEY="${{
+            fromJson(
+              format('{{
+                "alpha": "{0}",
+                "beta": "{1}",
+              }}', secrets.ALPHA_INDEX_KEY, secrets.BETA_INDEX_KEY)
+            )[github.event.inputs.deploy]
+          }}"
+        if: ${{ github.event.inputs.deploy != '' && github.event.inputs.deploy != 'NONE' }}
+
+  index:
+    if: ${{ github.event.inputs.deploy != '' && github.event.inputs.deploy != 'NONE' }}
+    needs: [image]
+    runs-on: ubuntu-22.04
+    steps:
+      - run: >-
+          curl "https://${{
+            fromJson('{
+              "alpha": "alpha-registry-x.start9.com",
+              "beta": "beta-registry.start9.com",
+            }')[github.event.inputs.deploy]
+          }}:8443/resync.cgi?key=${{
+            fromJson(
+              format('{{
+                "alpha": "{0}",
+                "beta": "{1}",
+              }}', secrets.ALPHA_INDEX_KEY, secrets.BETA_INDEX_KEY)
+            )[github.event.inputs.deploy]
+          }}"

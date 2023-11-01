@@ -158,6 +158,9 @@ emulate-reflash: $(ALL_TARGETS)
 	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/embassy/next PLATFORM=$(PLATFORM)
 	$(call ssh,"sudo touch /media/embassy/config/upgrade && sudo rm -f /media/embassy/config/disk.guid && sudo sync && sudo reboot")
 
+upload-ota: results/$(BASENAME).squashfs
+	TARGET=$(TARGET) KEY=$(KEY) ./upload-ota.sh
+
 build/lib/depends build/lib/conflicts: build/dpkg-deps/*
 	build/dpkg-deps/generate.sh
 
