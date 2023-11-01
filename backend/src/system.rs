@@ -387,7 +387,7 @@ pub struct MetricsCpu {
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "kebab-case")]
 pub struct MetricsDisk {
-    used_percentage: Percentage,
+    percentage_used: Percentage,
     used: GigaBytes,
     available: GigaBytes,
     size: GigaBytes,
@@ -836,7 +836,7 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
         size: GigaBytes(total_size as f64 / 1_000_000_000.0),
         used: GigaBytes(total_used as f64 / 1_000_000_000.0),
         available: GigaBytes(total_available as f64 / 1_000_000_000.0),
-        used_percentage: Percentage(total_percentage as f64),
+        percentage_used: Percentage(total_percentage as f64),
     })
 }
 
