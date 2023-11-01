@@ -19,32 +19,34 @@ ion-card {
     font-family: 'Open Sans';
     padding: 0.6rem;
     font-weight: 600;
-    font-size: calc(12px + 0.5vw);
-    height: 3rem;
+    height: 2.4rem;
   }
 
   ion-card-content {
-    min-height: 9rem;
+    min-height: 8rem;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     
     ion-icon {
-      font-size: calc(90px + 0.5vw);
+      font-size: calc(90px + 0.4vw);
       --ionicon-stroke-width: 1rem;
     }
   }
   
   ion-footer {
-    padding: 1rem;
+    padding: 0 1rem;
     font-family: 'Open Sans';
     font-size: clamp(1rem, calc(12px + 0.5vw), 1.3rem);
-    height: 9rem;
+    height: 4.5rem;
     width: clamp(13rem, 80%, 18rem);
     margin: 0 auto;
     * {
       max-width: 100%;
+    }
+    p {
+      margin-top: 0;
     }
   }
 
@@ -54,9 +56,6 @@ ion-card {
 }
 
 @media (max-width: 900px) {
-  ion-card-title, ion-footer {
-    height: auto !important;
-  }
   ion-footer {
     width: 10rem;
   }

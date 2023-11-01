@@ -1,106 +1,78 @@
-<ion-grid class="grid-wiz">
-  <img width="60px" height="60px" src="/assets/img/icon.png" alt="StartOS" />
-  <ion-row>
-    <ion-col class="ion-text-center">
-      <ion-icon name="lock-closed-outline" class="wiz-icon"></ion-icon>
-    </ion-col>
-  </ion-row>
-  <ion-row>
-    <ion-col class="ion-text-center">
-      <h2><b>Trust your Root Certificate Authority (CA)</b></h2>
-      <p>
-        Download and trust your server's Root CA to establish secure, encrypted
-        (
-        <b>HTTPS</b>
-        ) connections with your server
-      </p>
-    </ion-col>
-  </ion-row>
-  <ion-row>
-    <ion-col sizeXs="12" sizeLg="4">
-      <div class="wiz-card">
-        <ion-row class="ion-justify-content-between">
-          <b class="wiz-step">1</b>
-          <tui-tooltip
-            content="Your server uses its Root CA to generate SSL/TLS certificates for itself and its installed services. These certificates are used to encrypt network traffic with your client devices."
-            direction="right"
-          ></tui-tooltip>
-        </ion-row>
-        <div class="ion-text-center">
-          <h2>Download Root CA</h2>
-          <p>Download your server's Root CA</p>
-        </div>
-        <ion-button class="wiz-card-button" shape="round" (click)="download()">
-          <ion-icon slot="start" name="download-outline"></ion-icon>
+<ion-content>
+  <ng-container *ngIf="!caTrusted; else trusted">
+    <ion-icon name="lock-closed-outline" class="wiz-icon"></ion-icon>
+    <h1 class="title">Trust Your Root CA</h1>
+    <p class="subtitle">
+      Download and trust your server's Root Certificate Authority to establish a
+      secure (
+      <b>HTTPS</b>
+      ) connection. You will need to repeat this on every device you use to
+      connect to your server.
+    </p>
+    <ol>
+      <li>
+        <b>Download your server's Root CA</b>
+        . Your server uses its Root CA to generate SSL/TLS certificates for
+        itself and installed services. These certificates are then used to
+        encrypt network traffic with your client devices.
+        <br />
+        <ion-button strong size="small" (click)="download()">
           Download
+          <ion-icon slot="end" name="download-outline"></ion-icon>
         </ion-button>
-      </div>
-    </ion-col>
-    <ion-col sizeXs="12" sizeLg="4">
-      <div class="wiz-card" [class.disabled]="!downloadClicked">
-        <ion-row class="ion-justify-content-between">
-          <b class="wiz-step">2</b>
-          <tui-tooltip
-            content="By trusting your server's Root CA, your device can verify the authenticity of its encrypted communications with your server and installed services. You will need to trust the Root CA on every device used to connect to your server."
-            direction="right"
-          ></tui-tooltip>
-        </ion-row>
-        <div class="ion-text-center">
-          <h2>Trust Root CA</h2>
-          <p>Follow instructions for your OS</p>
-        </div>
-        <ion-button
-          class="wiz-card-button"
-          shape="round"
-          (click)="instructions()"
-          [disabled]="!downloadClicked"
-        >
-          View Docs
+      </li>
+      <li>
+        <b>Trust your server's Root CA</b>
+        . Follow instructions for your OS. By trusting your server's Root CA,
+        your device can verify the authenticity of encrypted communications with
+        your server.
+        <br />
+        <ion-button strong size="small" (click)="instructions()">
+          View Instructions
           <ion-icon slot="end" name="open-outline"></ion-icon>
         </ion-button>
-      </div>
-    </ion-col>
-    <ion-col sizeXs="12" sizeLg="4">
-      <div class="wiz-card" [class.disabled]="!polling && !caTrusted">
-        <b class="wiz-step">3</b>
-        <div class="ion-text-center">
-          <h2>Go To Login</h2>
-          <p *ngIf="instructionsClicked; else space" class="inline-center">
-            <ion-spinner
-              class="wiz-spinner"
-              *ngIf="!caTrusted; else trusted"
-            ></ion-spinner>
-            <ng-template #trusted>
-              <ion-icon name="ribbon-outline" color="success"></ion-icon>
-            </ng-template>
-            &nbsp;{{ caTrusted ? 'Root CA trusted!' : 'Waiting for trust...' }}
-          </p>
-          <ng-template #space>
-            <!-- to keep alignment -->
-            <p><br /></p>
-          </ng-template>
-        </div>
-        <ion-button
-          class="wiz-card-button"
-          shape="round"
-          (click)="launchHttps()"
-          [disabled]="!caTrusted"
-        >
-          Open
-          <ion-icon slot="end" name="open-outline"></ion-icon>
+      </li>
+      <li>
+        <b>Test</b>
+        . If refreshing the page does not work, you may need to quit the browser
+        and re-open.
+        <i>Tip: before quitting, bookmark this page or copy the URL.</i>
+        <br />
+        <ion-button strong size="small" (click)="refresh()">
+          Refresh
+          <ion-icon slot="end" name="refresh"></ion-icon>
         </ion-button>
-      </div>
-    </ion-col>
-  </ion-row>
-  <ion-row>
-    <ion-col class="ion-text-center">
-      <ion-button fill="clear" (click)="launchHttps()" [disabled]="caTrusted">
-        Skip
-        <ion-icon slot="end" name="open-outline"></ion-icon>
-      </ion-button>
-    </ion-col>
-  </ion-row>
-</ion-grid>
+      </li>
+    </ol>
+    <ion-button
+      style="--padding-start: 0"
+      fill="clear"
+      (click)="launchHttps()"
+      [disabled]="caTrusted"
+    >
+      Skip
+      <ion-icon slot="end" name="open-outline"></ion-icon>
+    </ion-button>
+  </ng-container>
+
+  <ng-template #trusted>
+    <ion-icon
+      name="shield-checkmark-outline"
+      class="wiz-icon"
+      color="success"
+    ></ion-icon>
+    <h1 class="title">Root CA Trusted!</h1>
+    <p class="subtitle">
+      You have successfully trusted your server's Root CA and may now log in
+      securely.
+    </p>
+    <ion-button strong (click)="launchHttps()">
+      Go to login
+      <ion-icon slot="end" name="open-outline"></ion-icon>
+    </ion-button>
+  </ng-template>
+</ion-content>
+
 <a
   id="install-cert"
   href="/eos/local.crt"

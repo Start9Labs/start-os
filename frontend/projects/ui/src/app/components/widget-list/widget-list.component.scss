@@ -3,11 +3,17 @@ ion-col {
   --ion-grid-column-padding: 1rem;
 }
 
-@media (min-width: 1800px) {
+@media (min-width: 1700px) {
   div {
-    padding: 0 20%;
+    padding: 0 7%;
   }
   ion-col {
     max-width: 24rem !important;
+  }
+}
+
+@media (min-width: 2000px) {
+  div {
+    padding: 0 12%;
   }
 }
