@@ -31,4 +31,4 @@ BASENAME="startos-${VERSION}-${GIT_HASH}_${PLATFORM}"
 
 SHASUM=$(sha256sum results/$BASENAME.squashfs | awk '{print $1}')
 
-curl -T results/${BASENAME}.squashfs "https://${TARGET}:8443/upload.cgi?key=${KEY}&gitHash=${GIT_HASH}&version=${VERSION}&platform=${PLATFORM}&shasum=${SHASUM}"
+curl --fail-with-body -T results/${BASENAME}.squashfs "https://${TARGET}:8443/upload.cgi?key=${KEY}&gitHash=${GIT_HASH}&version=${VERSION}&platform=${PLATFORM}&shasum=${SHASUM}"
