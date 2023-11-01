@@ -84,7 +84,7 @@ fn gen_pwd() {
         argon2::hash_encoded(
             b"testing1234",
             &rand::random::<[u8; 16]>()[..],
-            &argon2::Config::default()
+            &argon2::Config::rfc9106_low_mem()
         )
         .unwrap()
     )

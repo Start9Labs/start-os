@@ -189,7 +189,7 @@ pub async fn recover_full_embassy(
     os_backup.account.password = argon2::hash_encoded(
         embassy_password.as_bytes(),
         &rand::random::<[u8; 16]>()[..],
-        &argon2::Config::default(),
+        &argon2::Config::rfc9106_low_mem(),
     )
     .with_kind(ErrorKind::PasswordHashGeneration)?;
 
