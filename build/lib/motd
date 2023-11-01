@@ -2,15 +2,23 @@
 printf "\n"
 printf "Welcome to\n"
 cat << "ASCII"
-╭ ━ ━ ━ ╮ ╭ ╮ ╱ ╱ ╱ ╱ ╱ ╭ ╮ ╭ ━ ━ ━ ┳ ━ ━ ━ ╮
-┃ ╭ ━ ╮ ┣ ╯ ╰ ╮ ╱ ╱ ╱ ╭ ╯ ╰ ┫ ╭ ━ ╮ ┃ ╭ ━ ╮ ┃
-┃ ╰ ━ ━ ╋ ╮ ╭ ╋ ━ ━ ┳ ┻ ╮ ╭ ┫ ┃ ╱ ┃ ┃ ╰ ━ ━ ╮
-╰ ━ ━ ╮ ┃ ┃ ┃ ┃ ╭ ╮ ┃ ╭ ┫ ┃ ┃ ┃ ╱ ┃ ┣ ━ ━ ╮ ┃
-┃ ╰ ━ ╯ ┃ ┃ ╰ ┫ ╭ ╮ ┃ ┃ ┃ ╰ ┫ ╰ ━ ╯ ┃ ╰ ━ ╯ ┃
-╰ ━ ━ ━ ╯ ╰ ━ ┻ ╯ ╰ ┻ ╯ ╰ ━ ┻ ━ ━ ━ ┻ ━ ━ ━ ╯
+
+           ███████        
+         █    █    █      
+       █     █ █     █    
+      █     █   █     █   
+      █    █     █    █   
+       █  █       █  █    
+         █         █      
+           ███████        
+
+    _____     __ ___  __  __
+   (_  |  /\ |__) |  /  \(_
+   __) | /  \|  \ |  \__/__)
 ASCII
+printf "                            $(start-cli --version | sed 's/StartOS CLI /v/g')\n\n"
 printf "   %s (%s %s)\n" "$(uname -o)" "$(uname -r)" "$(uname -m)"
-printf "   $(start-cli --version | sed 's/StartOS CLI /StartOS v/g') - $(start-cli git-info)"
+printf "   Git Hash: $(start-cli git-info)"
 if [ -n "$(cat /usr/lib/startos/ENVIRONMENT.txt)" ]; then
     printf " ~ $(cat /usr/lib/startos/ENVIRONMENT.txt)\n"
 else
@@ -18,7 +26,8 @@ else
 fi
 
 printf "\n"
-printf " * Documentation:  https://start9.com\n"
+printf " * Documentation:  https://docs.start9.com\n"
 printf " * Management:     https://%s.local\n" "$(hostname)"
-printf " * Support:        https://t.me/start9_labs\n"
+printf " * Support:        https://start9.com/contact\n"
+printf " * License:        MIT\n"
 printf "\n"
