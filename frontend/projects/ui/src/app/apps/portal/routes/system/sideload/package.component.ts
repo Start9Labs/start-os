@@ -1,48 +1,66 @@
 import { CommonModule } from '@angular/common'
 import { Component, inject, Input } from '@angular/core'
-import { Router } from '@angular/router'
+import { Router, RouterLink } from '@angular/router'
 import {
   AboutModule,
   AdditionalModule,
-  DependenciesModule,
   MarketplacePkg,
   PackageModule,
 } from '@start9labs/marketplace'
 import {
+  Emver,
   ErrorService,
   LoadingService,
   SharedPipesModule,
 } from '@start9labs/shared'
-import { TuiButtonModule } from '@taiga-ui/experimental'
+import { TuiLetModule } from '@taiga-ui/cdk'
 import { TuiAlertService } from '@taiga-ui/core'
+import { TuiButtonModule } from '@taiga-ui/experimental'
+import { PatchDB } from 'patch-db-client'
+import { combineLatest, map } from 'rxjs'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ClientStorageService } from 'src/app/services/client-storage.service'
 
 import { toDesktopItem } from '../../../utils/to-desktop-item'
 import { NavigationService } from '../../../services/navigation.service'
+import { SideloadDependenciesComponent } from './dependencies.component'
 
 @Component({
   selector: 'sideload-package',
   template: `
     <ng-content></ng-content>
-    <marketplace-package [pkg]="package">
-      <button tuiButton (click)="upload()">Install</button>
+    <marketplace-package *tuiLet="button$ | async as button" [pkg]="package">
+      <a
+        *ngIf="button !== null && button !== 'Install'"
+        tuiButton
+        appearance="secondary"
+        [routerLink]="'/portal/service/' + package.manifest.id"
+      >
+        View installed
+      </a>
+      <button *ngIf="button" tuiButton (click)="upload()">
+        {{ button }}
+      </button>
     </marketplace-package>
     <marketplace-about [pkg]="package"></marketplace-about>
-    <marketplace-dependencies
+    <sideload-dependencies
       *ngIf="!(package.manifest.dependencies | empty)"
-      [pkg]="package"
-    ></marketplace-dependencies>
+      [package]="package"
+    ></sideload-dependencies>
     <marketplace-additional [pkg]="package"></marketplace-additional>
   `,
   standalone: true,
   imports: [
     CommonModule,
+    RouterLink,
     SharedPipesModule,
     AboutModule,
     AdditionalModule,
-    DependenciesModule,
     PackageModule,
     TuiButtonModule,
+    TuiLetModule,
+    SideloadDependenciesComponent,
   ],
 })
 export class SideloadPackageComponent {
@@ -52,6 +70,36 @@ export class SideloadPackageComponent {
   private readonly router = inject(Router)
   private readonly navigation = inject(NavigationService)
   private readonly alerts = inject(TuiAlertService)
+  private readonly emver = inject(Emver)
+
+  readonly button$ = combineLatest([
+    inject(ClientStorageService).showDevTools$,
+    inject(PatchDB<DataModel>)
+      .watch$('package-data')
+      .pipe(
+        map(local =>
+          local[this.package.manifest.id]
+            ? this.emver.compare(
+                local[this.package.manifest.id].manifest.version,
+                this.package.manifest.version,
+              )
+            : null,
+        ),
+      ),
+  ]).pipe(
+    map(([devtools, version]) => {
+      switch (version) {
+        case null:
+          return 'Install'
+        case 1:
+          return 'Update'
+        case -1:
+          return devtools ? 'Downgrade' : ''
+        default:
+          return ''
+      }
+    }),
+  )
 
   @Input({ required: true })
   package!: MarketplacePkg
@@ -68,7 +116,7 @@ export class SideloadPackageComponent {
       const pkg = await this.api.sideloadPackage({ manifest, icon, size })
 
       await this.api.uploadPackage(pkg, this.file)
-      await this.router.navigate(['/portal/desktop'])
+      await this.router.navigate(['/portal/service', manifest.id])
 
       this.navigation.removeTab(toDesktopItem('/portal/system/sideload'))
       this.alerts
