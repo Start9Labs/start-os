@@ -378,7 +378,7 @@ pub struct MetricsMemory {
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "kebab-case")]
 pub struct MetricsCpu {
-    usage: Percentage,
+    percentage_used: Percentage,
     idle: Percentage,
     user_space: Percentage,
     kernel_space: Percentage,
@@ -390,7 +390,7 @@ pub struct MetricsDisk {
     percentage_used: Percentage,
     used: GigaBytes,
     available: GigaBytes,
-    size: GigaBytes,
+    capacity: GigaBytes,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "kebab-case")]
@@ -723,7 +723,7 @@ async fn get_cpu_info(last: &mut ProcStat) -> Result<MetricsCpu, Error> {
         kernel_space: Percentage((new.system() - last.system()) as f64 * 100.0 / total_diff as f64),
         idle: Percentage((new.idle - last.idle) as f64 * 100.0 / total_diff as f64),
         wait: Percentage((new.iowait - last.iowait) as f64 * 100.0 / total_diff as f64),
-        usage: Percentage((new.used() - last.used()) as f64 * 100.0 / total_diff as f64),
+        percentage_used: Percentage((new.used() - last.used()) as f64 * 100.0 / total_diff as f64),
     };
     *last = new;
     Ok(res)
@@ -833,7 +833,7 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
     let total_percentage = total_used as f64 / total_size as f64 * 100.0f64;
 
     Ok(MetricsDisk {
-        size: GigaBytes(total_size as f64 / 1_000_000_000.0),
+        capacity: GigaBytes(total_size as f64 / 1_000_000_000.0),
         used: GigaBytes(total_used as f64 / 1_000_000_000.0),
         available: GigaBytes(total_available as f64 / 1_000_000_000.0),
         percentage_used: Percentage(total_percentage as f64),
