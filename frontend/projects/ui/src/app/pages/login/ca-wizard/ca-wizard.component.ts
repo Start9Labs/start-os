@@ -45,7 +45,7 @@ export class CAWizardComponent {
 
   launchHttps() {
     const host = this.config.getHost()
-    this.windowRef.open(`https://${host}`, '_blank', 'noreferrer')
+    this.windowRef.open(`https://${host}`, '_self')
   }
 
   private async testHttps() {
