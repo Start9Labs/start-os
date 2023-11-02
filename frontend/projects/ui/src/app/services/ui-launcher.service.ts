@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@angular/core'
-import { DOCUMENT } from '@angular/common'
+import { WINDOW } from '@ng-web-apis/common'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { ConfigService } from './config.service'
 
@@ -8,15 +8,11 @@ import { ConfigService } from './config.service'
 })
 export class UiLauncherService {
   constructor(
-    @Inject(DOCUMENT) private readonly document: Document,
+    @Inject(WINDOW) private readonly windowRef: Window,
     private readonly config: ConfigService,
   ) {}
 
   launch(pkg: PackageDataEntry): void {
-    this.document.defaultView?.open(
-      this.config.launchableURL(pkg),
-      '_blank',
-      'noreferrer',
-    )
+    this.windowRef.open(this.config.launchableURL(pkg), '_blank', 'noreferrer')
   }
 }

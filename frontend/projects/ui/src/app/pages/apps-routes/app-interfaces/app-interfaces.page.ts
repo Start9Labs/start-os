@@ -1,4 +1,5 @@
-import { Component, Input } from '@angular/core'
+import { Component, Inject, Input } from '@angular/core'
+import { WINDOW } from '@ng-web-apis/common'
 import { ActivatedRoute } from '@angular/router'
 import { ModalController, ToastController } from '@ionic/angular'
 import { copyToClipboard, getPkgId } from '@start9labs/shared'
@@ -91,10 +92,11 @@ export class AppInterfacesItemComponent {
   constructor(
     private readonly toastCtrl: ToastController,
     private readonly modalCtrl: ModalController,
+    @Inject(WINDOW) private readonly windowRef: Window,
   ) {}
 
   launch(url: string): void {
-    window.open(url, '_blank', 'noreferrer')
+    this.windowRef.open(url, '_blank', 'noreferrer')
   }
 
   async showQR(text: string): Promise<void> {

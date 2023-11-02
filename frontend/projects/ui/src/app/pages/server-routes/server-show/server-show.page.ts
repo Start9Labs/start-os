@@ -22,7 +22,7 @@ import {
   GenericInputOptions,
 } from 'src/app/modals/generic-input/generic-input.component'
 import { ConfigService } from 'src/app/services/config.service'
-import { DOCUMENT } from '@angular/common'
+import { WINDOW } from '@ng-web-apis/common'
 import { getServerInfo } from 'src/app/util/get-server-info'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
@@ -57,7 +57,7 @@ export class ServerShowPage {
     private readonly authService: AuthService,
     private readonly toastCtrl: ToastController,
     private readonly config: ConfigService,
-    @Inject(DOCUMENT) private readonly document: Document,
+    @Inject(WINDOW) private readonly windowRef: Window,
   ) {}
 
   async setBrowserTab(): Promise<void> {
@@ -307,7 +307,7 @@ export class ServerShowPage {
 
   async launchHttps() {
     const { 'tor-address': torAddress } = await getServerInfo(this.patch)
-    window.open(torAddress)
+    this.windowRef.open(torAddress, '_self')
   }
 
   addClick(title: string) {
@@ -495,7 +495,7 @@ export class ServerShowPage {
       },
       {
         title: 'Root CA',
-        description: `Download and trust your server's root certificate authority`,
+        description: `Download and trust your server's Root Certificate Authority`,
         icon: 'ribbon-outline',
         action: () =>
           this.navCtrl.navigateForward(['root-ca'], { relativeTo: this.route }),
@@ -621,7 +621,7 @@ export class ServerShowPage {
         description: 'Discover what StartOS can do',
         icon: 'map-outline',
         action: () =>
-          window.open(
+          this.windowRef.open(
             'https://docs.start9.com/0.3.5.x/user-manual',
             '_blank',
             'noreferrer',
@@ -634,7 +634,11 @@ export class ServerShowPage {
         description: 'Get help from the Start9 team and community',
         icon: 'chatbubbles-outline',
         action: () =>
-          window.open('https://start9.com/contact', '_blank', 'noreferrer'),
+          this.windowRef.open(
+            'https://start9.com/contact',
+            '_blank',
+            'noreferrer',
+          ),
         detail: true,
         disabled$: of(false),
       },
@@ -643,7 +647,7 @@ export class ServerShowPage {
         description: `Support StartOS development`,
         icon: 'logo-bitcoin',
         action: () =>
-          this.document.defaultView?.open(
+          this.windowRef.open(
             'https://donate.start9.com',
             '_blank',
             'noreferrer',
