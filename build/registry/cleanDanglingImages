@@ -1,0 +1,8 @@
+#!/bin/bash
+
+for image in $(find /root/resources/eos/ -type f -name '*.squashfs' -exec realpath {} \;); do
+        if ! mount | grep "^$image" > /dev/null; then
+                rm $image
+        fi
+done
+find /root/resources/eos -type d -empty -delete

@@ -69,12 +69,11 @@ impl PackageLogger {
         use tracing_subscriber::prelude::*;
         use tracing_subscriber::{fmt, EnvFilter};
 
-        let filter_layer = EnvFilter::default()
-            .add_directive(
-                format!("{}=warn", std::module_path!().split("::").next().unwrap())
-                    .parse()
-                    .unwrap(),
-            );
+        let filter_layer = EnvFilter::default().add_directive(
+            format!("{}=warn", std::module_path!().split("::").next().unwrap())
+                .parse()
+                .unwrap(),
+        );
         let fmt_layer = fmt::layer().with_writer(std::io::stderr).with_target(true);
         let journald_layer = tracing_journald::layer()
             .unwrap()
