@@ -214,6 +214,14 @@ ion-toast {
   width: 100%;
 }
 
+.inline {
+  * {
+    display: inline-block;
+    vertical-align: middle;
+    padding-left: 0px 0.3rem;
+  }
+}
+
 .claim-button {
   margin-inline-start: 0;
   margin-inline-end: 0;

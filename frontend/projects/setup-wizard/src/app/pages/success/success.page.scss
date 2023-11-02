@@ -139,15 +139,17 @@ ion-card {
     content: '';
     position: absolute;
     left: 0;
-    top: 80%;
+    top: 79%;
     width: 100%;
     height: 100%;
     background: var(--color-accent);
   }
 
   #launch:after {
+    top: 80%;
     background: var(--alt-blue);
   }
+
 }
 
 .mb-12 {
@@ -162,8 +164,13 @@ ion-card {
   padding-top: 0.25rem;
 }
 
-.pr-2 {
+
+.action-text {
+  font-variant-caps: all-small-caps;
   padding-right: 0.5rem;
+  font-size: 1.5rem !important;
+  letter-spacing: 0.03rem;
+  padding-bottom: 0.1rem;
 }
 
 @media (max-width: 500px) {
