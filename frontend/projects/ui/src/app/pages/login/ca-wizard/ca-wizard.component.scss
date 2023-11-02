@@ -7,7 +7,7 @@
 }
 
 .center-container {
-  padding: 2.2rem;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -20,7 +20,7 @@ ion-card {
   background: #414141;
   box-shadow: 0 4px 4px rgba(17, 17, 17, 0.144);
   border-radius: 35px;
-  padding: 2rem;
+  padding: 1.5rem;
   width: 100%;
 
   h1 {
@@ -31,7 +31,7 @@ ion-card {
 
   p {
     font-size: 21px;
-    line-height: 26px;
+    line-height: 25px;
     margin-bottom: 30px;
     margin-top: 0;
   }
@@ -63,8 +63,14 @@ ol {
   font-size: 64px;
 }
 
-@media (max-width: 500px) {
+@media (max-width: 700px) {
   #trusted, #untrusted {
     max-width: 100%;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1200px) {
+  #trusted, #untrusted {
+    max-width: 75%;
   }
 }
