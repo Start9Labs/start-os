@@ -21,6 +21,7 @@ update-initramfs -u -k all
 
 if [ -f /etc/default/grub ]; then
     sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=embassy"' /etc/default/grub
+    sed -i '/\(^\|#\)GRUB_DISTRIBUTOR=/c\GRUB_DISTRIBUTOR="StartOS v$(cat /usr/lib/startos/VERSION.txt)"' /etc/default/grub
 fi
 
 # change timezone

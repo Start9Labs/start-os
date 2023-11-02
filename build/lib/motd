@@ -16,9 +16,9 @@ cat << "ASCII"
    (_  |  /\ |__) |  /  \(_
    __) | /  \|  \ |  \__/__)
 ASCII
-printf "                            $(start-cli --version | sed 's/StartOS CLI /v/g')\n\n"
+printf "                            v$(cat /usr/lib/startos/VERSION.txt)\n\n"
 printf "   %s (%s %s)\n" "$(uname -o)" "$(uname -r)" "$(uname -m)"
-printf "   Git Hash: $(start-cli git-info)"
+printf "   Git Hash: $(cat /usr/lib/startos/GIT_HASH.txt)"
 if [ -n "$(cat /usr/lib/startos/ENVIRONMENT.txt)" ]; then
     printf " ~ $(cat /usr/lib/startos/ENVIRONMENT.txt)\n"
 else
