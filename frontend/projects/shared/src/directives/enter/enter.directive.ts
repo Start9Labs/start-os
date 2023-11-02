@@ -1,6 +1,6 @@
 import { Directive, HostListener, Inject } from '@angular/core'
 import { DOCUMENT } from '@angular/common'
-import { debounce } from '@start9labs/shared'
+import { debounce } from '../../util/misc.util'
 
 @Directive({
   selector: '[appEnter]',
