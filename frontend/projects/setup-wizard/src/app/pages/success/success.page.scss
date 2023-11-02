@@ -31,11 +31,11 @@ ion-grid {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 2rem;
+  gap: 1rem;
 }
 
 ion-card {
-  padding: 3rem;
+  padding: 2.4rem;
 
   h1 {
     color: var(--ion-color-success);
@@ -51,13 +51,12 @@ ion-card {
 
   // download info card
   ion-card {
-    max-width: 100%;
-    min-width: 91%;
+    min-height: 260px;
+    width: 80%;
     background: #615F5F;
     color: var(--ion-text-color);
     box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
     border-radius: 44px;
-    margin: auto;
     text-align: left;
     cursor: pointer;
     position: relative;
@@ -74,14 +73,6 @@ ion-card {
     ion-card-title {
       color: var(--ion-text-color);
       font-size: 1.3rem;
-    }
-
-    ion-card-content {
-      padding-bottom: 4rem;
-
-      p {
-        padding: 1rem 0;
-      }
     }
 
     ion-footer {
@@ -106,7 +97,7 @@ ion-card {
     }
   }
 
-  .login-button, .launch-button {
+  .login-button {
     --background: var(--color-accent);
     --padding-bottom: 2.5rem;
     --padding-top: 2.5rem;
@@ -146,7 +137,6 @@ ion-card {
   }
 
   #launch:after {
-    top: 80%;
     background: var(--alt-blue);
   }
 
@@ -173,13 +163,14 @@ ion-card {
   padding-bottom: 0.1rem;
 }
 
-@media (max-width: 500px) {
+@media (max-width: 700px) {
   .setup {
     flex-direction: column;
   }
 
   ion-card {
     ion-card {
+      width: 100%;
       padding-bottom: unset;
     }
     #information:after {

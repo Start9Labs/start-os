@@ -38,7 +38,7 @@
                       name="checkmark-circle-outline"
                       color="success"
                     ></ion-icon>
-                    <h1 class="pb-05">Setup Complete!</h1>
+                    <h1>Setup Complete!</h1>
                   </div>
                   <h3 *ngIf="setupType === 'restore'">
                     You can now safely unplug your backup drive
@@ -50,9 +50,7 @@
                 <div class="card-container">
                   <ion-card id="information" (click)="download()">
                     <ion-card-content>
-                      <ion-card-title>
-                        Download permanent address info
-                      </ion-card-title>
+                      <ion-card-title>Download address info</ion-card-title>
                       <p>
                         start.local was for setup purposes only. It will no
                         longer work.
