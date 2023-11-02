@@ -27,6 +27,12 @@ impl Volumes {
             volume
                 .validate(interfaces)
                 .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, format!("Volume {}", id)))?;
+            if let Volume::Backup { .. } = volume {
+                return Err(Error::new(
+                    eyre!("Invalid volume type \"backup\""),
+                    ErrorKind::ParseS9pk,
+                )); // Volume::Backup is for internal use and shouldn't be declared in manifest
+            }
         }
         Ok(())
     }
@@ -131,7 +137,6 @@ pub enum Volume {
     #[serde(rename_all = "kebab-case")]
     Certificate { interface_id: InterfaceId },
     #[serde(rename_all = "kebab-case")]
-    #[serde(skip)]
     Backup { readonly: bool },
 }
 impl Volume {
