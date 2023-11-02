@@ -10,11 +10,12 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { IonicModule } from '@ionic/angular'
 import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
 import {
-  MarkdownModule,
   DarkThemeModule,
+  EnterModule,
+  LightThemeModule,
+  MarkdownModule,
   ResponsiveColModule,
   SharedPipesModule,
-  LightThemeModule,
 } from '@start9labs/shared'
 
 import { AppComponent } from './app.component'
@@ -25,7 +26,6 @@ import { MarketplaceModule } from './marketplace.module'
 import { PreloaderModule } from './app/preloader/preloader.module'
 import { FooterModule } from './app/footer/footer.module'
 import { MenuModule } from './app/menu/menu.module'
-import { EnterModule } from './app/enter/enter.module'
 import { APP_PROVIDERS } from './app.providers'
 import { PatchDbModule } from './services/patch-db/patch-db.module'
 import { ToastContainerModule } from './components/toast-container/toast-container.module'
