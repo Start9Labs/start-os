@@ -1,41 +1,70 @@
-ion-content {
-  --padding-top: 2.2rem;
-  --padding-bottom: 2.2rem;
-  --padding-start: 2.2rem;
-  --padding-end: 2.2rem;
+#trusted {
+  max-width: 40%;
 }
 
-.title {
-  font-size: 28px;
-  font-weight: 600;
+#untrusted {
+  max-width: 50%;
 }
 
-.subtitle {
-  font-size: 21px;
-  line-height: 26px;
-  margin-bottom: 30px;
-  margin-top: 0;
+.center-container {
+  padding: 2.2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+ion-card {
+  color: var(--ion-color-dark);
+  background: #414141;
+  box-shadow: 0 4px 4px rgba(17, 17, 17, 0.144);
+  border-radius: 35px;
+  padding: 2rem;
+  width: 100%;
+
+  h1 {
+    font-weight: bold;
+    font-size: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+
+  p {
+    font-size: 21px;
+    line-height: 26px;
+    margin-bottom: 30px;
+    margin-top: 0;
+  }
+}
+
+.text-center {
+  text-align: center;
 }
 
 ol {
   font-size: 17px;
   line-height: 25px;
+  text-align: left;
 
   li {
     padding-bottom: 24px;
   }
 
   ion-button {
-    margin-top: 8px;
+    margin-top: 10px;
   }
 }
 
-a {
-  cursor: pointer;
-  color: aquamarine;
-  text-decoration: underline;
+.refresh {
+  --background: var(--ion-color-success-shade);
 }
 
 .wiz-icon {
   font-size: 64px;
+}
+
+@media (max-width: 500px) {
+  #trusted, #untrusted {
+    max-width: 100%;
+  }
 }
