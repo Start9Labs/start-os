@@ -272,7 +272,14 @@ impl VHostServer {
                                                         .await
                                                         .with_kind(crate::ErrorKind::OpenSsl)?;
                                                 let mut tls_stream =
-                                                    mid.into_stream(Arc::new(cfg)).await?;
+                                                    match mid.into_stream(Arc::new(cfg)).await {
+                                                        Ok(a) => a,
+                                                        Err(e) => {
+                                                            tracing::trace!( "VHostController: failed to accept TLS connection on port {port}: {e}");
+                                                            tracing::trace!("{e:?}");
+                                                            return Ok(())
+                                                        }
+                                                    };
                                                 tls_stream.get_mut().0.stop_buffering();
                                                 tokio::io::copy_bidirectional(
                                                     &mut tls_stream,
@@ -287,7 +294,14 @@ impl VHostServer {
                                                     cfg.alpn_protocols.push(proto.into());
                                                 }
                                                 let mut tls_stream =
-                                                    mid.into_stream(Arc::new(cfg)).await?;
+                                                    match mid.into_stream(Arc::new(cfg)).await {
+                                                        Ok(a) => a,
+                                                        Err(e) => {
+                                                            tracing::trace!( "VHostController: failed to accept TLS connection on port {port}: {e}");
+                                                            tracing::trace!("{e:?}");
+                                                            return Ok(())
+                                                        }
+                                                    };
                                                 tls_stream.get_mut().0.stop_buffering();
                                                 tokio::io::copy_bidirectional(
                                                     &mut tls_stream,
@@ -298,7 +312,14 @@ impl VHostServer {
                                             Err(AlpnInfo::Specified(alpn)) => {
                                                 cfg.alpn_protocols = alpn;
                                                 let mut tls_stream =
-                                                    mid.into_stream(Arc::new(cfg)).await?;
+                                                    match mid.into_stream(Arc::new(cfg)).await {
+                                                        Ok(a) => a,
+                                                        Err(e) => {
+                                                            tracing::trace!( "VHostController: failed to accept TLS connection on port {port}: {e}");
+                                                            tracing::trace!("{e:?}");
+                                                            return Ok(())
+                                                        }
+                                                    };
                                                 tls_stream.get_mut().0.stop_buffering();
                                                 tokio::io::copy_bidirectional(
                                                     &mut tls_stream,
@@ -308,10 +329,12 @@ impl VHostServer {
                                             }
                                         }
                                         .map_or_else(
-                                            |e| match e.kind() {
-                                                std::io::ErrorKind::UnexpectedEof => Ok(()),
+                                            |e| {
+                                                use std::io::ErrorKind as E;
+                                                match e.kind() {
+                                                    E::UnexpectedEof | E::BrokenPipe | E::ConnectionAborted | E::ConnectionReset | E::ConnectionRefused | E::TimedOut | E::Interrupted | E::NotConnected => Ok(()),
                                                 _ => Err(e),
-                                            },
+                                            }},
                                             |_| Ok(()),
                                         )?;
                                     } else {
@@ -327,8 +350,10 @@ impl VHostServer {
                             });
                         }
                         Err(e) => {
-                            tracing::error!("Error in VHostController on port {port}: {e}");
-                            tracing::debug!("{e:?}");
+                            tracing::trace!(
+                                "VHostController: failed to accept connection on port {port}: {e}"
+                            );
+                            tracing::trace!("{e:?}");
                         }
                     }
                 }

@@ -136,7 +136,13 @@ pub struct LogEntry {
 }
 impl std::fmt::Display for LogEntry {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{} {}", self.timestamp, self.message)
+        write!(
+            f,
+            "{} {}",
+            self.timestamp
+                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            self.message
+        )
     }
 }
 
