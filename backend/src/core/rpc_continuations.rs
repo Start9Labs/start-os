@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use std::time::Duration;
 
 use futures::future::BoxFuture;
@@ -6,22 +5,18 @@ use futures::FutureExt;
 use helpers::TimedResource;
 use hyper::upgrade::Upgraded;
 use hyper::{Body, Error as HyperError, Request, Response};
-use rand::RngCore;
+use imbl_value::InternedString;
 use tokio::task::JoinError;
 use tokio_tungstenite::WebSocketStream;
 
+use crate::util::new_guid;
 use crate::{Error, ResultExt};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
-pub struct RequestGuid<T: AsRef<str> = String>(Arc<T>);
+pub struct RequestGuid(InternedString);
 impl RequestGuid {
     pub fn new() -> Self {
-        let mut buf = [0; 40];
-        rand::thread_rng().fill_bytes(&mut buf);
-        RequestGuid(Arc::new(base32::encode(
-            base32::Alphabet::RFC4648 { padding: false },
-            &buf,
-        )))
+        Self(new_guid())
     }
 
     pub fn from(r: &str) -> Option<RequestGuid> {
@@ -33,7 +28,7 @@ impl RequestGuid {
                 return None;
             }
         }
-        Some(RequestGuid(Arc::new(r.to_owned())))
+        Some(RequestGuid(InternedString::intern(r)))
     }
 }
 #[test]
@@ -44,9 +39,9 @@ fn parse_guid() {
     )
 }
 
-impl<T: AsRef<str>> std::fmt::Display for RequestGuid<T> {
+impl std::fmt::Display for RequestGuid {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        (&*self.0).as_ref().fmt(f)
+        self.0.fmt(f)
     }
 }
 

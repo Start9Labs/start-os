@@ -43,6 +43,7 @@ pub mod init;
 pub mod inspect;
 pub mod install;
 pub mod logs;
+pub mod lxc;
 pub mod manager;
 pub mod middleware;
 pub mod migration;

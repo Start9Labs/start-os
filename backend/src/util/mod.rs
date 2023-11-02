@@ -14,6 +14,7 @@ use color_eyre::eyre::{self, eyre};
 use fd_lock_rs::FdLock;
 use helpers::canonicalize;
 pub use helpers::NonDetachingJoinHandle;
+use imbl_value::InternedString;
 use lazy_static::lazy_static;
 pub use models::Version;
 use pin_project::pin_project;
@@ -26,13 +27,13 @@ use crate::shutdown::Shutdown;
 use crate::{Error, ErrorKind, ResultExt as _};
 pub mod config;
 pub mod cpupower;
+pub mod crypto;
 pub mod docker;
 pub mod http_reader;
 pub mod io;
 pub mod logger;
 pub mod lshw;
 pub mod serde;
-pub mod crypto;
 
 #[derive(Clone, Copy, Debug, ::serde::Deserialize, ::serde::Serialize)]
 pub enum Never {}
@@ -382,4 +383,14 @@ impl FileLock {
 
 pub fn assure_send<T: Send>(x: T) -> T {
     x
+}
+
+pub fn new_guid() -> InternedString {
+    use rand::RngCore;
+    let mut buf = [0; 40];
+    rand::thread_rng().fill_bytes(&mut buf);
+    InternedString::intern(base32::encode(
+        base32::Alphabet::RFC4648 { padding: false },
+        &buf,
+    ))
 }
