@@ -31,14 +31,6 @@ export class CAWizardComponent {
     this.document.getElementById('install-cert')?.click()
   }
 
-  instructions() {
-    this.windowRef.open(
-      'https://docs.start9.com/0.3.5.x/user-manual/getting-started/trust-ca/#trust-root-ca',
-      '_blank',
-      'noreferrer',
-    )
-  }
-
   refresh() {
     this.document.location.reload()
   }
