@@ -38,6 +38,20 @@ ion-grid {
   align-items: center;
 }
 
+.inline-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.card-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+}
+
 ion-card {
   padding: 3rem;
 
@@ -53,8 +67,9 @@ ion-card {
     margin-bottom: 2rem;
   }
 
+  // download info card
   ion-card {
-    max-width: 91%;
+    max-width: 100%;
     min-width: 91%;
     background: #615F5F;
     color: var(--ion-text-color);
@@ -109,13 +124,36 @@ ion-card {
     }
   }
 
-  .container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  .login-button, .launch-button {
+    --background: var(--color-accent);
+    --padding-bottom: 2.5rem;
+    --padding-top: 2.5rem;
+    --padding-start: 2.5rem;
+    --padding-end: 2.5rem;
+    --border-radius: 44px;
+    font-size: 1.4rem !important;
+    font-weight: bold;
+    text-transform: none;
+    letter-spacing: normal;
+    transition: all 350ms ease;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  
+    &:hover {
+      transition-property: transform;
+      transform: scale(1.05);
+      transition-delay: 40ms;
+    }
+
+    ion-icon {
+      font-size: 1.7rem;
+    }
+  }
+
+  .launch-button {
+    --background: var(--alt-blue);
   }
   
-  #information:after {
+  #information:after, #launch:after {
     content: '';
     position: absolute;
     left: 0;
@@ -126,25 +164,37 @@ ion-card {
   }
 
   #launch:after {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 80%;
-    width: 100%;
-    height: 100%;
     background: var(--alt-blue);
   }
 }
 
-.card-container {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 2rem;
+.mb-12 {
+  margin-bottom: 3rem;
 }
 
-.emphasis-warn {
-  font-weight: 600;
-  color: var(--ion-color-warning);
+.pb-2 {
+  padding-bottom: 0.5rem;
+}
+
+.pt-1 {
+  padding-top: 0.25rem;
+}
+
+.pr-2 {
+  padding-right: 0.5rem;
+}
+
+@media (max-width: 500px) {
+  .setup {
+    flex-direction: column;
+  }
+
+  ion-card {
+    ion-card {
+      padding-bottom: unset;
+    }
+    #information:after {
+        top: 85%;
+      }
+  }
 }

@@ -8,7 +8,7 @@
           <ion-card>
             <ion-row class="ion-align-items-center">
               <ion-col responsiveCol sizeXs="12" class="ion-text-center">
-                <div class="inline" style="margin-bottom: 3rem">
+                <div class="inline mb-12">
                   <ion-icon
                     name="checkmark-circle-outline"
                     color="success"
@@ -16,12 +16,12 @@
                   <h1>Setup Complete!</h1>
                 </div>
                 <ion-button
+                  shape="round"
+                  class="enter-click login-button mb-12"
                   (click)="exitKiosk()"
-                  size="large"
-                  class="login-btn"
                 >
                   Continue to Login
-                  <ion-icon slot="end" name="log-in-outline"></ion-icon>
+                  <ion-icon name="log-in-outline" slot="end"></ion-icon>
                 </ion-button>
               </ion-col>
             </ion-row>
@@ -32,13 +32,13 @@
           <ion-card *ngIf="lanAddress">
             <ion-row class="ion-align-items-center">
               <ion-col responsiveCol sizeXs="12" class="ion-text-center">
-                <div style="margin-bottom: 4rem">
-                  <div class="inline">
+                <div class="mb-12">
+                  <div class="inline-container setup">
                     <ion-icon
                       name="checkmark-circle-outline"
                       color="success"
                     ></ion-icon>
-                    <h1>Setup Complete!</h1>
+                    <h1 class="pb-05">Setup Complete!</h1>
                   </div>
                   <h3 *ngIf="setupType === 'restore'">
                     You can now safely unplug your backup drive
@@ -59,15 +59,12 @@
                       </p>
                     </ion-card-content>
                     <ion-footer>
-                      <div class="container">
-                        <div class="inline">
-                          <p>DOWNLOAD</p>
-                          <ion-icon name="download-outline"></ion-icon>
-                        </div>
+                      <div class="inline-container">
+                        <p class="align-top pr-2">DOWNLOAD</p>
+                        <ion-icon slot="end" name="download-outline"></ion-icon>
                       </div>
                     </ion-footer>
                   </ion-card>
-
                   <ion-card
                     id="launch"
                     [disabled]="disableLogin"
