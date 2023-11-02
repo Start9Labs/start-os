@@ -40,7 +40,7 @@ export class SuccessPage {
   }
 
   get isKiosk() {
-    return ['localhost', '127.0.0.1'].includes(this.document.location.hostname)
+    return ['', '127.0.0.1'].includes(this.document.location.hostname)
   }
 
   async ngAfterViewInit() {
