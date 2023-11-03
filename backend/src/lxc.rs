@@ -79,6 +79,23 @@ impl LxcContainer {
             exited: false,
         })
     }
+
+    pub async fn exit(mut self) -> Result<(), Error> {
+        Command::new("lxc")
+            .arg("stop")
+            .arg(&**self.guid)
+            .invoke(ErrorKind::Lxc)
+            .await?;
+        Command::new("lxc")
+            .arg("delete")
+            .arg(&**self.guid)
+            .invoke(ErrorKind::Lxc)
+            .await?;
+
+        self.exited = true;
+
+        Ok(())
+    }
 }
 impl Drop for LxcContainer {
     fn drop(&mut self) {
