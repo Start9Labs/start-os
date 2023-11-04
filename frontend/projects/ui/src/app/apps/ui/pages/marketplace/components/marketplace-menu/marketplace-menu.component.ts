@@ -5,12 +5,12 @@ import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { MarketplaceSettingsPage } from '../../marketplace-list/marketplace-settings/marketplace-settings.page'
 
 @Component({
-  selector: 'marketplace-sidebar',
-  templateUrl: 'marketplace-sidebar.component.html',
-  styleUrls: ['./marketplace-sidebar.component.scss'],
+  selector: 'marketplace-menu',
+  templateUrl: 'marketplace-menu.component.html',
+  styleUrls: ['./marketplace-menu.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MarketplaceSidebarComponent {
+export class MarketplaceMenuComponent {
   constructor(
     @Inject(TuiDialogService) private readonly dialogs: TuiDialogService,
     readonly config: ConfigService,

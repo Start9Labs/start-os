@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
 import { SharedPipesModule } from '@start9labs/shared'
 
-import { SidebarComponent } from './sidebar.component'
+import { MenuComponent } from './menu.component'
 import { TuiButtonModule, TuiLoaderModule } from '@taiga-ui/core'
 import { TuiActiveZoneModule, TuiLetModule } from '@taiga-ui/cdk'
 import { TuiSidebarModule } from '@taiga-ui/addon-mobile'
@@ -24,7 +24,7 @@ import { StoreIconComponentModule } from '../store-icon/store-icon.component.mod
     StoreIconComponentModule,
     TuiLetModule,
   ],
-  declarations: [SidebarComponent],
-  exports: [SidebarComponent],
+  declarations: [MenuComponent],
+  exports: [MenuComponent],
 })
-export class SidebarModule {}
+export class MenuModule {}

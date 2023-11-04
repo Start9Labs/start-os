@@ -13,12 +13,12 @@ import { Router } from '@angular/router'
 import { MarketplaceConfig } from '@start9labs/shared'
 
 @Component({
-  selector: 'sidebar',
-  templateUrl: './sidebar.component.html',
-  styleUrls: ['./sidebar.component.scss'],
+  selector: 'menu',
+  templateUrl: './menu.component.html',
+  styleUrls: ['./menu.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SidebarComponent implements OnDestroy {
+export class MenuComponent implements OnDestroy {
   @Input({ required: true })
   iconConfig!: MarketplaceConfig
 
