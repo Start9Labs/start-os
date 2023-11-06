@@ -33,6 +33,7 @@ import { PatchDB } from 'patch-db-client'
         <button
           slot="close"
           [style.--tui-padding]="0"
+          size="xs"
           class="place-self-end"
           tuiIconButton
           type="button"
@@ -51,7 +52,7 @@ import { PatchDB } from 'patch-db-client'
       </marketplace-package-preview>
     </div>
   `,
-  styles: [``],
+  styles: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [
