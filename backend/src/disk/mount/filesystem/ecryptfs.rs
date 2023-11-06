@@ -2,13 +2,13 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
 use async_trait::async_trait;
-use color_eyre::eyre::eyre;
+
 use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
 use sha2::Sha256;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use super::{FileSystem, MountType};
+use crate::util::Invoke;
 use crate::{Error, ResultExt};
 
 pub async fn mount_ecryptfs<P0: AsRef<Path>, P1: AsRef<Path>>(
@@ -17,7 +17,7 @@ pub async fn mount_ecryptfs<P0: AsRef<Path>, P1: AsRef<Path>>(
     key: &str,
 ) -> Result<(), Error> {
     tokio::fs::create_dir_all(dst.as_ref()).await?;
-    let mut ecryptfs = tokio::process::Command::new("mount")
+    tokio::process::Command::new("mount")
         .arg("-t")
         .arg("ecryptfs")
         .arg(src.as_ref())
@@ -25,22 +25,9 @@ pub async fn mount_ecryptfs<P0: AsRef<Path>, P1: AsRef<Path>>(
         .arg("-o")
         // for more information `man ecryptfs` 
         .arg(format!("key=passphrase:passphrase_passwd={},ecryptfs_cipher=aes,ecryptfs_key_bytes=32,ecryptfs_passthrough=n,ecryptfs_enable_filename_crypto=y,no_sig_cache", key))
-        .stdin(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()?;
-    let mut stdin = ecryptfs.stdin.take().unwrap();
-    let mut stderr = ecryptfs.stderr.take().unwrap();
-    stdin.write_all(b"\n").await?;
-    stdin.flush().await?;
-    stdin.shutdown().await?;
-    drop(stdin);
-    let mut err = String::new();
-    stderr.read_to_string(&mut err).await?;
-    if !ecryptfs.wait().await?.success() {
-        Err(Error::new(eyre!("{}", err), crate::ErrorKind::Filesystem))
-    } else {
-        Ok(())
-    }
+        .input(Some(&mut std::io::Cursor::new(b"\n")))
+        .invoke(crate::ErrorKind::Filesystem).await?;
+    Ok(())
 }
 
 pub struct EcryptFS<EncryptedDir: AsRef<Path>, Key: AsRef<str>> {

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::io::SeekFrom;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
+
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
@@ -49,9 +49,9 @@ use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::status::{MainStatus, Status};
 use crate::util::docker::CONTAINER_TOOL;
-use crate::util::io::{copy_and_shutdown, response_to_reader};
+use crate::util::io::{response_to_reader};
 use crate::util::serde::{display_serializable, Port};
-use crate::util::{display_none, AsyncFileExt, Version};
+use crate::util::{display_none, AsyncFileExt, Invoke, Version};
 use crate::volume::{asset_dir, script_dir};
 use crate::{Error, ErrorKind, ResultExt};
 
@@ -953,32 +953,11 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     tracing::info!("Install {}@{}: Unpacking Docker Images", pkg_id, version);
     progress
         .track_read_during(ctx.db.clone(), pkg_id, || async {
-            let mut load = Command::new(CONTAINER_TOOL)
+            Command::new(CONTAINER_TOOL)
                 .arg("load")
-                .stdin(Stdio::piped())
-                .stderr(Stdio::piped())
-                .spawn()?;
-            let load_in = load.stdin.take().ok_or_else(|| {
-                Error::new(
-                    eyre!("Could not write to stdin of docker load"),
-                    crate::ErrorKind::Docker,
-                )
-            })?;
-            let mut docker_rdr = rdr.docker_images().await?;
-            copy_and_shutdown(&mut docker_rdr, load_in).await?;
-            let res = load.wait_with_output().await?;
-            if !res.status.success() {
-                Err(Error::new(
-                    eyre!(
-                        "{}",
-                        String::from_utf8(res.stderr)
-                            .unwrap_or_else(|e| format!("Could not parse stderr: {}", e))
-                    ),
-                    crate::ErrorKind::Docker,
-                ))
-            } else {
-                Ok(())
-            }
+                .input(Some(&mut rdr.docker_images().await?))
+                .invoke(ErrorKind::Docker)
+                .await
         })
         .await?;
     tracing::info!("Install {}@{}: Unpacked Docker Images", pkg_id, version,);
@@ -1275,57 +1254,36 @@ pub fn load_images<'a, P: AsRef<Path> + 'a + Send + Sync>(
                         let path = entry.path();
                         let ext = path.extension().and_then(|ext| ext.to_str());
                         if ext == Some("tar") || ext == Some("s9pk") {
-                            let mut load = Command::new(CONTAINER_TOOL)
-                                .arg("load")
-                                .stdin(Stdio::piped())
-                                .stderr(Stdio::piped())
-                                .spawn()?;
-                            let load_in = load.stdin.take().ok_or_else(|| {
-                                Error::new(
-                                    eyre!("Could not write to stdin of docker load"),
-                                    crate::ErrorKind::Docker,
-                                )
-                            })?;
-                            match ext {
-                                Some("tar") => {
-                                    copy_and_shutdown(&mut File::open(&path).await?, load_in)
-                                        .await?
-                                }
-                                Some("s9pk") => match async {
-                                    let mut reader = S9pkReader::open(&path, true).await?;
-                                    copy_and_shutdown(&mut reader.docker_images().await?, load_in)
-                                        .await?;
-                                    Ok::<_, Error>(())
-                                }
-                                .await
-                                {
-                                    Ok(()) => (),
-                                    Err(e) => {
-                                        tracing::error!(
-                                            "Error loading docker images from s9pk: {e}"
-                                        );
-                                        tracing::debug!("{e:?}");
-                                        return Ok(());
+                            if let Err(e) = async {
+                                match ext {
+                                    Some("tar") => {
+                                        Command::new(CONTAINER_TOOL)
+                                            .arg("load")
+                                            .input(Some(&mut File::open(&path).await?))
+                                            .invoke(ErrorKind::Docker)
+                                            .await
                                     }
-                                },
-                                _ => unreachable!(),
-                            };
-
-                            let res = load.wait_with_output().await?;
-                            if !res.status.success() {
-                                Err(Error::new(
-                                    eyre!(
-                                        "{}",
-                                        String::from_utf8(res.stderr).unwrap_or_else(|e| format!(
-                                            "Could not parse stderr: {}",
-                                            e
-                                        ))
-                                    ),
-                                    crate::ErrorKind::Docker,
-                                ))
-                            } else {
-                                Ok(())
+                                    Some("s9pk") => {
+                                        Command::new(CONTAINER_TOOL)
+                                            .arg("load")
+                                            .input(Some(
+                                                &mut S9pkReader::open(&path, true)
+                                                    .await?
+                                                    .docker_images()
+                                                    .await?,
+                                            ))
+                                            .invoke(ErrorKind::Docker)
+                                            .await
+                                    }
+                                    _ => unreachable!(),
+                                }
                             }
+                            .await
+                            {
+                                tracing::error!("Error loading docker images from s9pk: {e}");
+                                tracing::debug!("{e:?}");
+                            }
+                            Ok(())
                         } else {
                             Ok(())
                         }
