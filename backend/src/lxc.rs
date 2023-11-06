@@ -2,10 +2,12 @@ use std::collections::BTreeSet;
 use std::sync::{Arc, Weak};
 
 use imbl_value::InternedString;
+use serde::Serialize;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 
 use crate::prelude::*;
+use crate::util::serde::IoFormat;
 use crate::util::{new_guid, Invoke};
 
 pub struct LxcManager {
@@ -14,10 +16,12 @@ pub struct LxcManager {
 impl LxcManager {
     pub async fn create(self: &Arc<Self>, config: LxcConfig) -> Result<LxcContainer, Error> {
         let container = LxcContainer::new(self.clone(), config).await?;
-        self.containers
-            .lock()
-            .await
-            .push(Arc::downgrade(&container.guid));
+        let mut guard = self.containers.lock().await;
+        *guard = std::mem::take(&mut *guard)
+            .into_iter()
+            .filter(|g| g.strong_count() > 0)
+            .chain(std::iter::once(Arc::downgrade(&container.guid)))
+            .collect();
         Ok(container)
     }
 
@@ -67,9 +71,10 @@ impl LxcContainer {
             .arg("launch")
             .arg("startos-init")
             .arg(&*guid)
-            .arg("-c")
-            .arg("/usr/lib/startos/lxc/init/config.yaml")
             .arg("-e")
+            .input(Some(&mut std::io::Cursor::new(
+                IoFormat::Yaml.to_vec(&config)?,
+            )))
             .invoke(ErrorKind::Lxc)
             .await?;
         Ok(Self {
@@ -118,4 +123,5 @@ impl Drop for LxcContainer {
     }
 }
 
+#[derive(Serialize)]
 pub struct LxcConfig {}
