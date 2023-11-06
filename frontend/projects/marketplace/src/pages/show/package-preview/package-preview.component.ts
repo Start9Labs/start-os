@@ -17,13 +17,13 @@ import { isPlatform } from '@ionic/angular'
 import { MarketplacePkg } from '../../../types'
 
 @Component({
-  selector: 'marketplace-package',
-  templateUrl: './package.component.html',
-  styleUrls: ['./package.component.scss'],
+  selector: 'marketplace-package-preview',
+  templateUrl: './package-preview.component.html',
+  styleUrls: ['./package-preview.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   animations: [tuiFadeIn],
 })
-export class PackageComponent {
+export class PackagePreviewComponent {
   @Input()
   pkg!: MarketplacePkg
 

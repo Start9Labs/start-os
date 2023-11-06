@@ -1,8 +1,11 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  EventEmitter,
   Inject,
+  inject,
   Input,
+  Output,
 } from '@angular/core'
 import {
   AbstractMarketplaceService,
@@ -13,6 +16,7 @@ import {
   ErrorService,
   isEmptyObject,
   LoadingService,
+  pauseFor,
   sameUrl,
 } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
@@ -29,6 +33,7 @@ import { PatchDB } from 'patch-db-client'
 import { getAllPackages } from 'src/app/util/get-package-data'
 import { TUI_PROMPT } from '@taiga-ui/kit'
 import { dryUpdate } from 'src/app/util/dry-update'
+import { Router } from '@angular/router'
 
 @Component({
   selector: 'marketplace-show-controls',
@@ -46,9 +51,14 @@ export class MarketplaceShowControlsComponent {
   @Input()
   localPkg!: PackageDataEntry | null
 
+  @Output()
+  togglePreview = new EventEmitter<boolean>()
+
   readonly showDevTools$ = this.ClientStorageService.showDevTools$
 
   readonly PackageState = PackageState
+
+  private readonly router = inject(Router)
 
   constructor(
     private readonly dialogs: TuiDialogService,
@@ -66,6 +76,7 @@ export class MarketplaceShowControlsComponent {
   }
 
   async tryInstall() {
+    this.togglePreview.emit(false)
     const currentMarketplace = await firstValueFrom(
       this.marketplaceService.getSelectedHost$(),
     )
@@ -96,6 +107,12 @@ export class MarketplaceShowControlsComponent {
     }
   }
 
+  async showService() {
+    this.togglePreview.emit(false)
+    // @TODO code smell
+    await pauseFor(300)
+    this.router.navigate(['/services', this.pkg.manifest.id])
+  }
   private async presentAlertDifferentMarketplace(
     url: string,
     originalUrl: string | null | undefined,

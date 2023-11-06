@@ -10,13 +10,6 @@ const routes: Routes = [
         m => m.MarketplaceListPageModule,
       ),
   },
-  {
-    path: ':pkgId',
-    loadChildren: () =>
-      import('./marketplace-show/marketplace-show.module').then(
-        m => m.MarketplaceShowPageModule,
-      ),
-  },
 ]
 
 @NgModule({

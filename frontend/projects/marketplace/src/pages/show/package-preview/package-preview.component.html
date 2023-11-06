@@ -1,0 +1,62 @@
+<div class="grid gap-8 mb-16 p-4 lg:px-16 lg:pb-8 pt-20 justify-center">
+  <!-- close button -->
+  <ng-content select="[slot=close]"></ng-content>
+  <!-- hero -->
+  <div class="flex justify-center mt-10 md:mt-0 z-0">
+    <!-- control buttons -->
+    <ng-content select="[slot=controls]"></ng-content>
+    <div
+      class="flex flex-col w-full h-[32vh] xs:h-[25vh] md:min-h-[14rem] relative rounded-3xl pt-16 pb-10 px-8 shadow-lg"
+    >
+      <!-- icon -->
+      <img
+        [src]="pkg | mimeType | trustUrl"
+        class="w-24 h-24 pointer-events-none rounded-full object-cover shadow-lg absolute -top-9 left-7 z-10"
+        alt="{{ pkg.manifest.title }} Icon"
+      />
+      <div
+        class="overflow-hidden absolute w-full h-full top-0 left-0 rounded-3xl bg-zinc-800"
+      >
+        <!-- color background -->
+        <img
+          [src]="pkg | mimeType | trustUrl"
+          class="absolute object-cover pointer-events-none w-[200%] h-[200%] max-w-[200%] blur-[100px] saturate-150 rounded-full"
+          alt="{{ pkg.manifest.title }} background image"
+        />
+      </div>
+      <div
+        class="overflow-hidden absolute w-full h-full top-0 left-0 rounded-3xl bg-zinc-700 opacity-70"
+      ></div>
+      <div class="my-3 text-zinc-50 mix-blend-plus-lighter">
+        <h2 class="text-2xl font-medium line-clamp-1 mb-1">
+          {{ pkg.manifest.title }}
+        </h2>
+        <p class="block text-base h-12 line-clamp-2">
+          {{ pkg.manifest.description.short }}
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 2xl:grid-cols-12 gap-x-8">
+    <div class="col-span-12 2xl:col-span-8">
+      <!-- about -->
+      <marketplace-about [pkg]="pkg"></marketplace-about>
+      <!-- dependencies -->
+      <marketplace-dependencies
+        *ngIf="!(pkg.manifest.dependencies | empty)"
+        [pkg]="pkg"
+      ></marketplace-dependencies>
+      <!-- release notes -->
+      <release-notes [pkg]="pkg"></release-notes>
+    </div>
+    <!-- additional info-->
+    <div class="col-span-12 2xl:col-span-4 mt-6 2xl:mt-0">
+      <marketplace-additional
+        class="additional"
+        [pkg]="pkg"
+        (version)="version$.next($event)"
+      ></marketplace-additional>
+    </div>
+  </div>
+</div>

@@ -1,9 +1,15 @@
-import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Inject,
+  Input,
+} from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { getPkgId } from '@start9labs/shared'
 import { AbstractMarketplaceService } from '../../services/marketplace.service'
 import { PolymorpheusContent } from '@tinkoff/ng-polymorpheus'
 import { TuiDialogContext, TuiDialogService } from '@taiga-ui/core'
+import { MarketplacePkg } from '../../types'
+import { Observable } from 'rxjs'
 
 @Component({
   selector: 'release-notes',
@@ -18,9 +24,16 @@ export class ReleaseNotesComponent {
     @Inject(TuiDialogService) private readonly dialogs: TuiDialogService,
   ) {}
 
-  private readonly pkgId = getPkgId(this.route)
-  readonly pkg$ = this.marketplaceService.getPackage$(this.pkgId, '*')
-  readonly notes$ = this.marketplaceService.fetchReleaseNotes$(this.pkgId)
+  @Input({ required: true })
+  pkg!: MarketplacePkg
+
+  notes$!: Observable<Record<string, string>>
+
+  ngOnChanges() {
+    this.notes$ = this.marketplaceService.fetchReleaseNotes$(
+      this.pkg.manifest.id,
+    )
+  }
 
   asIsOrder(a: any, b: any) {
     return 0

@@ -1,39 +1,36 @@
-<ion-content class="with-widgets">
-  <marketplace-sidebar></marketplace-sidebar>
-  <div
-    class="sm:pl-[34vw] md:pl-[28vw] lg:pl-[22vw] 2xl:pl-[280px] min-h-screen grid place-content-center"
-  >
-    <ng-container *ngIf="pkg$ | async as pkg else loading">
-      <ng-container *ngIf="pkg | empty; else show">
-        <div *ngIf="loadVersion$ | async as version">
-          <img
-            alt="Close circle outline"
-            src="/svg/close-circle-outline.svg"
-            class="opacity-70 invert m-auto mb-2"
-            width="48px"
-            height="48px"
-          />
-          <h2 class="text-xl">
-            {{ pkgId }} @{{ version === '*' ? 'latest' : version }} not found in
-            this registry
-          </h2>
-        </div>
-      </ng-container>
-
-      <ng-template #show>
-        <marketplace-package [pkg]="pkg">
-          <marketplace-show-controls
-            class="relative"
-            [url]="url"
-            [pkg]="pkg"
-            [localPkg]="localPkg$ | async"
-          ></marketplace-show-controls>
-        </marketplace-package>
-      </ng-template>
+<div
+  class="sm:pl-[34vw] md:pl-[28vw] lg:pl-[22vw] 2xl:pl-[280px] min-h-screen grid place-content-center"
+>
+  <ng-container *ngIf="pkg$ | async as pkg else loading">
+    <ng-container *ngIf="pkg | empty; else show">
+      <div *ngIf="loadVersion$ | async as version">
+        <img
+          alt="Close circle outline"
+          src="/svg/close-circle-outline.svg"
+          class="opacity-70 invert m-auto mb-2"
+          width="48px"
+          height="48px"
+        />
+        <h2 class="text-xl">
+          {{ pkgId }} @{{ version === '*' ? 'latest' : version }} not found in
+          this registry
+        </h2>
+      </div>
     </ng-container>
 
-    <ng-template #loading>
-      <text-spinner text="Loading Package"></text-spinner>
+    <ng-template #show>
+      <marketplace-package [pkg]="pkg">
+        <marketplace-show-controls
+          class="relative"
+          [url]="url"
+          [pkg]="pkg"
+          [localPkg]="localPkg$ | async"
+        ></marketplace-show-controls>
+      </marketplace-package>
     </ng-template>
-  </div>
-</ion-content>
+  </ng-container>
+
+  <ng-template #loading>
+    <text-spinner text="Loading Package"></text-spinner>
+  </ng-template>
+</div>

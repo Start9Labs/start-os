@@ -3,13 +3,8 @@ module.exports = {
   content: ['./src/**/*.{html,ts}', '../marketplace/src/**/*.{html,ts}'],
   theme: {
     extend: {
-      keyframes: {
-        shine: {
-          '100%': { left: '125%' },
-        },
-      },
       screens: {
-        xs: '370px',
+        xs: '376px',
         '3xl': '1792px',
         '4xl': '2048px',
       },

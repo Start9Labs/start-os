@@ -5,7 +5,7 @@
     class="p-2 mr-2 blue"
     appearance="primary"
     *ngIf="localPkg"
-    [routerLink]="['/services', pkg.manifest.id]"
+    (click)="showService()"
   >
     View Installed
   </button>

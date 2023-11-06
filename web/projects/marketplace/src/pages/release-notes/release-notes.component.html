@@ -1,11 +1,8 @@
 <div
   class="rounded-xl bg-gradient-to-bl from-zinc-400/75 to-zinc-600 p-px shadow-lg shadow-zinc-400/10 mt-6"
 >
-  <div
-    *ngIf="pkg$ | async as pkg"
-    class="bg-zinc-800 rounded-xl p-7 grid grid-flow-row items-center gap-6"
-  >
-    <div class="flex justify-between">
+  <div class="bg-zinc-800 rounded-xl p-7 grid grid-flow-row items-center gap-6">
+    <div class="block md:flex md:justify-between">
       <h3 class="text-lg font-bold small-caps">What's new</h3>
       <p
         *ngIf="pkg['published-at'] as published"

@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
-import { ActivatedRoute } from '@angular/router'
 import {
   AbstractCategoryService,
   AbstractMarketplaceService,
@@ -56,10 +55,8 @@ export class MarketplaceListPage {
     private readonly categoryService: CategoryService,
     @Inject(TuiDialogService) private readonly dialogs: TuiDialogService,
     readonly config: ConfigService,
-    private readonly route: ActivatedRoute,
   ) {}
 
-  readonly back = !!this.route.snapshot.queryParamMap.get('back')
   readonly packages$ = this.marketplaceService
     .getSelectedStore$()
     .pipe(map(({ packages }) => packages))

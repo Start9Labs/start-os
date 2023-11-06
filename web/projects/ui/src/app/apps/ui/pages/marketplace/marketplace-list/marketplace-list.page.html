@@ -1,4 +1,4 @@
-<marketplace-sidebar></marketplace-sidebar>
+<marketplace-menu></marketplace-menu>
 <div
   class="background sm:pl-[34vw] md:pl-[28vw] lg:pl-[22vw] 2xl:pl-[280px] min-h-screen flex justify-between overflow-auto scroll-smooth"
 >
@@ -94,7 +94,7 @@
           [@itemAnimation]="filtered.length"
         >
           <li *ngFor="let pkg of filtered">
-            <marketplace-item [pkg]="pkg"></marketplace-item>
+            <marketplace-item-toggle [pkg]="pkg"></marketplace-item-toggle>
           </li>
         </ul>
       </section>

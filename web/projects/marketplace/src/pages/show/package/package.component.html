@@ -3,9 +3,9 @@
     <!-- hero -->
     <div class="flex justify-center mt-10 md:mt-0 z-0">
       <!-- control buttons -->
-      <ng-content></ng-content>
+      <ng-content select="[slot=controls]"></ng-content>
       <div
-        class="flex flex-col w-full h-[30vh] xs:h-[25vh] md:min-h-[14rem] relative rounded-3xl pt-16 pb-10 px-8 shadow-lg"
+        class="flex flex-col w-full h-[32vh] xs:h-[25vh] md:min-h-[14rem] relative rounded-3xl pt-16 pb-10 px-8 shadow-lg"
       >
         <!-- icon -->
         <img
@@ -100,7 +100,7 @@
           [pkg]="pkg"
         ></marketplace-dependencies>
         <!-- release notes -->
-        <release-notes></release-notes>
+        <release-notes [pkg]="pkg"></release-notes>
       </div>
       <!-- additional info-->
       <div class="col-span-12 2xl:col-span-4 mt-6 2xl:mt-0">
