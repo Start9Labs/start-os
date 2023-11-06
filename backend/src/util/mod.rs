@@ -51,30 +51,113 @@ impl std::fmt::Display for Never {
 impl std::error::Error for Never {}
 
 #[async_trait::async_trait]
-pub trait Invoke {
+pub trait Invoke<'a> {
+    type Extended<'ext>
+    where
+        Self: 'ext,
+        'ext: 'a;
+    fn timeout<'ext: 'a>(&'ext mut self, timeout: Option<Duration>) -> Self::Extended<'ext>;
+    fn input<'ext: 'a, Input: tokio::io::AsyncRead + Unpin + Send>(
+        &'ext mut self,
+        input: Option<&'ext mut Input>,
+    ) -> Self::Extended<'ext>;
     async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error>;
-    async fn invoke_timeout(
-        &mut self,
-        error_kind: crate::ErrorKind,
-        timeout: Option<Duration>,
-    ) -> Result<Vec<u8>, Error>;
 }
-#[async_trait::async_trait]
-impl Invoke for tokio::process::Command {
-    async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error> {
-        self.invoke_timeout(error_kind, None).await
+
+pub struct ExtendedCommand<'a> {
+    cmd: &'a mut tokio::process::Command,
+    timeout: Option<Duration>,
+    input: Option<&'a mut (dyn tokio::io::AsyncRead + Unpin + Send)>,
+}
+impl<'a> std::ops::Deref for ExtendedCommand<'a> {
+    type Target = tokio::process::Command;
+    fn deref(&self) -> &Self::Target {
+        &*self.cmd
     }
-    async fn invoke_timeout(
-        &mut self,
-        error_kind: crate::ErrorKind,
-        timeout: Option<Duration>,
-    ) -> Result<Vec<u8>, Error> {
-        self.kill_on_drop(true);
-        self.stdout(Stdio::piped());
-        self.stderr(Stdio::piped());
-        let res = match timeout {
-            None => self.output().await?,
-            Some(t) => tokio::time::timeout(t, self.output())
+}
+impl<'a> std::ops::DerefMut for ExtendedCommand<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.cmd
+    }
+}
+
+#[async_trait::async_trait]
+impl<'a> Invoke<'a> for tokio::process::Command {
+    type Extended<'ext> = ExtendedCommand<'ext>
+    where
+        Self: 'ext,
+        'ext: 'a;
+    fn timeout<'ext: 'a>(&'ext mut self, timeout: Option<Duration>) -> Self::Extended<'ext> {
+        ExtendedCommand {
+            cmd: self,
+            timeout,
+            input: None,
+        }
+    }
+    fn input<'ext: 'a, Input: tokio::io::AsyncRead + Unpin + Send>(
+        &'ext mut self,
+        input: Option<&'ext mut Input>,
+    ) -> Self::Extended<'ext> {
+        ExtendedCommand {
+            cmd: self,
+            timeout: None,
+            input: if let Some(input) = input {
+                Some(&mut *input)
+            } else {
+                None
+            },
+        }
+    }
+    async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error> {
+        ExtendedCommand {
+            cmd: self,
+            timeout: None,
+            input: None,
+        }
+        .invoke(error_kind)
+        .await
+    }
+}
+
+#[async_trait::async_trait]
+impl<'a> Invoke<'a> for ExtendedCommand<'a> {
+    type Extended<'ext> = &'ext mut ExtendedCommand<'ext>
+    where
+        Self: 'ext,
+        'ext: 'a;
+    fn timeout<'ext: 'a>(&'ext mut self, timeout: Option<Duration>) -> Self::Extended<'ext> {
+        self.timeout = timeout;
+        self
+    }
+    fn input<'ext: 'a, Input: tokio::io::AsyncRead + Unpin + Send>(
+        &'ext mut self,
+        input: Option<&'ext mut Input>,
+    ) -> Self::Extended<'ext> {
+        self.input = if let Some(input) = input {
+            Some(&mut *input)
+        } else {
+            None
+        };
+        self
+    }
+    async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error> {
+        self.cmd.kill_on_drop(true);
+        if self.input.is_some() {
+            self.cmd.stdin(Stdio::piped());
+        }
+        self.cmd.stdout(Stdio::piped());
+        self.cmd.stderr(Stdio::piped());
+        let mut child = self.cmd.spawn()?;
+        if let (Some(mut stdin), Some(input)) = (child.stdin.take(), self.input.take()) {
+            use tokio::io::AsyncWriteExt;
+            tokio::io::copy(input, &mut stdin).await?;
+            stdin.flush().await?;
+            stdin.shutdown().await?;
+            drop(stdin);
+        }
+        let res = match self.timeout {
+            None => child.wait_with_output().await?,
+            Some(t) => tokio::time::timeout(t, child.wait_with_output())
                 .await
                 .with_kind(ErrorKind::Timeout)??,
         };
