@@ -2,7 +2,6 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
 use async_trait::async_trait;
-
 use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
 use sha2::Sha256;

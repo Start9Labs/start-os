@@ -6,9 +6,7 @@ use std::os::unix::prelude::FileTypeExt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-
 use color_eyre::eyre::eyre;
-
 use futures::future::{BoxFuture, Either as EitherFuture};
 use futures::{FutureExt, TryStreamExt};
 use helpers::{NonDetachingJoinHandle, UnixRpcClient};
