@@ -8,7 +8,7 @@
           <ion-card>
             <ion-row class="ion-align-items-center">
               <ion-col responsiveCol sizeXs="12" class="ion-text-center">
-                <div class="inline" style="margin-bottom: 3rem">
+                <div class="inline mb-12">
                   <ion-icon
                     name="checkmark-circle-outline"
                     color="success"
@@ -16,12 +16,12 @@
                   <h1>Setup Complete!</h1>
                 </div>
                 <ion-button
+                  shape="round"
+                  class="login-button mb-12"
                   (click)="exitKiosk()"
-                  size="large"
-                  class="login-btn"
                 >
                   Continue to Login
-                  <ion-icon slot="end" name="log-in-outline"></ion-icon>
+                  <ion-icon name="log-in-outline" slot="end"></ion-icon>
                 </ion-button>
               </ion-col>
             </ion-row>
@@ -32,8 +32,8 @@
           <ion-card *ngIf="lanAddress">
             <ion-row class="ion-align-items-center">
               <ion-col responsiveCol sizeXs="12" class="ion-text-center">
-                <div style="margin-bottom: 4rem">
-                  <div class="inline">
+                <div class="mb-12">
+                  <div class="inline-container setup">
                     <ion-icon
                       name="checkmark-circle-outline"
                       color="success"
@@ -50,24 +50,19 @@
                 <div class="card-container">
                   <ion-card id="information" (click)="download()">
                     <ion-card-content>
-                      <ion-card-title>
-                        Download permanent address info
-                      </ion-card-title>
+                      <ion-card-title>Download address info</ion-card-title>
                       <p>
                         start.local was for setup purposes only. It will no
                         longer work.
                       </p>
                     </ion-card-content>
                     <ion-footer>
-                      <div class="container">
-                        <div class="inline">
-                          <p>DOWNLOAD</p>
-                          <ion-icon name="download-outline"></ion-icon>
-                        </div>
+                      <div class="inline-container">
+                        <p class="action-text">Download</p>
+                        <ion-icon slot="end" name="download-outline"></ion-icon>
                       </div>
                     </ion-footer>
                   </ion-card>
-
                   <ion-card
                     id="launch"
                     [disabled]="disableLogin"
@@ -83,9 +78,9 @@
                     </ion-card-content>
                     <ion-footer>
                       <div class="container">
-                        <div class="inline">
-                          <p>OPEN</p>
-                          <ion-icon name="open-outline"></ion-icon>
+                        <div class="inline-container">
+                          <p class="action-text">Open</p>
+                          <ion-icon slot="end" name="open-outline"></ion-icon>
                         </div>
                       </div>
                     </ion-footer>

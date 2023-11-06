@@ -1,0 +1,9 @@
+#!/bin/bash
+
+for image in $(find /root/resources/eos/ -type f -name '*.squashfs' -mmin +240 -exec realpath {} \;); do
+        if ! mount | grep "^$image" > /dev/null; then
+                >&2 echo "Removing dangling image: $image"
+                rm $image
+        fi
+done
+find /root/resources/eos -type d -empty -delete
