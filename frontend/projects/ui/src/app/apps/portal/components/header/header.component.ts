@@ -1,11 +1,14 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { TuiBadgedContentModule } from '@taiga-ui/kit'
 import {
-  TuiButtonModule,
   TuiDataListModule,
   TuiHostedDropdownModule,
   TuiSvgModule,
 } from '@taiga-ui/core'
+import {
+  TuiBadgedContentModule,
+  TuiBadgeNotificationModule,
+  TuiButtonModule,
+} from '@taiga-ui/experimental'
 import { HeaderMenuComponent } from './header-menu/header-menu.component'
 
 @Component({
@@ -16,6 +19,7 @@ import { HeaderMenuComponent } from './header-menu/header-menu.component'
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiBadgedContentModule,
+    TuiBadgeNotificationModule,
     TuiButtonModule,
     TuiHostedDropdownModule,
     TuiDataListModule,

@@ -1,10 +1,10 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 
 import { SnekDirective } from './snek.directive'
 import { SnakePage } from './snake.page'
-import { TuiButtonModule } from '@taiga-ui/core'
 
 @NgModule({
   imports: [CommonModule, IonicModule, TuiButtonModule],

@@ -15,13 +15,12 @@ import {
   SharedPipesModule,
 } from '@start9labs/shared'
 import {
-  TuiButtonModule,
   TuiDialogService,
   TuiLinkModule,
   TuiLoaderModule,
   TuiSvgModule,
 } from '@taiga-ui/core'
-import { TuiAvatarModule } from '@taiga-ui/experimental'
+import { TuiAvatarModule, TuiButtonModule } from '@taiga-ui/experimental'
 import {
   TUI_PROMPT,
   TuiAccordionModule,

@@ -9,11 +9,11 @@ import {
 import {
   TuiBadgedContentModule,
   TuiBadgeNotificationModule,
+  TuiButtonModule,
 } from '@taiga-ui/experimental'
 import { RouterLink } from '@angular/router'
 import { TickerModule } from '@start9labs/shared'
 import {
-  TuiButtonModule,
   TuiDataListModule,
   TuiHostedDropdownModule,
   TuiSvgModule,

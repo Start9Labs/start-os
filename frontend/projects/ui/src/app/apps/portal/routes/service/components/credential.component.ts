@@ -6,7 +6,8 @@ import {
 } from '@angular/core'
 import { CopyService } from '@start9labs/shared'
 import { mask } from 'src/app/util/mask'
-import { TuiButtonModule, TuiLabelModule } from '@taiga-ui/core'
+import { TuiLabelModule } from '@taiga-ui/core'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 
 @Component({
   selector: 'service-credential',
@@ -17,7 +18,7 @@ import { TuiButtonModule, TuiLabelModule } from '@taiga-ui/core'
     <button
       tuiIconButton
       appearance="flat"
-      [icon]="masked ? 'tuiIconEyeLarge' : 'tuiIconEyeOffLarge'"
+      [iconLeft]="masked ? 'tuiIconEyeLarge' : 'tuiIconEyeOffLarge'"
       (click)="masked = !masked"
     >
       Toggle
@@ -25,7 +26,7 @@ import { TuiButtonModule, TuiLabelModule } from '@taiga-ui/core'
     <button
       tuiIconButton
       appearance="flat"
-      icon="tuiIconCopyLarge"
+      iconLeft="tuiIconCopyLarge"
       (click)="copyService.copy(value)"
     >
       Copy

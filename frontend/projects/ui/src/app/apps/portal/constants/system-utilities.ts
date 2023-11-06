@@ -8,17 +8,9 @@ export const SYSTEM_UTILITIES: Record<string, { icon: string; title: string }> =
       icon: 'tuiIconGlobeLarge',
       title: 'Updates',
     },
-    '/portal/system/devices': {
-      icon: 'assets/img/icon_transparent.png',
-      title: 'Devices',
-    },
-    '/portal/system/metrics': {
-      icon: 'assets/img/icon_transparent.png',
-      title: 'Metrics',
-    },
-    '/portal/system/manual': {
-      icon: 'assets/img/icon_transparent.png',
-      title: 'Manual',
+    '/portal/system/sideload': {
+      icon: 'tuiIconUploadLarge',
+      title: 'Sideload',
     },
     '/portal/system/snek': {
       icon: 'assets/img/icon_transparent.png',

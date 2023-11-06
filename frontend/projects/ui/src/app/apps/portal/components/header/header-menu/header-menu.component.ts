@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import {
-  TuiButtonModule,
   TuiDataListModule,
   TuiHostedDropdownModule,
   TuiSvgModule,
 } from '@taiga-ui/core'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
 

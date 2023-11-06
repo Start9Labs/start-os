@@ -5,7 +5,8 @@ import {
   inject,
   Input,
 } from '@angular/core'
-import { TuiButtonModule, TuiSvgModule } from '@taiga-ui/core'
+import { TuiSvgModule } from '@taiga-ui/core'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 import { ConfigService } from 'src/app/services/config.service'
 import { InterfaceInfo } from 'src/app/services/patch-db/data-model'
 import { ExtendedInterfaceInfo } from '../pipes/interface-info.pipe'
@@ -23,7 +24,7 @@ import { ExtendedInterfaceInfo } from '../pipes/interface-info.pipe'
       *ngIf="info.type === 'ui'"
       tuiIconButton
       appearance="flat"
-      icon="tuiIconExternalLinkLarge"
+      iconLeft="tuiIconExternalLinkLarge"
       [style.border-radius.%]="100"
       (click.stop.prevent)="launchUI(info)"
       [disabled]="disabled"

@@ -375,6 +375,7 @@ ul {
   padding: 1px 2rem 3rem;
   box-sizing: border-box;
   overflow: auto;
+  isolation: isolate;
 
   // TODO: Theme
   background: #373a3f;

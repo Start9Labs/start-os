@@ -3,12 +3,12 @@ import { Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { TuiForModule } from '@taiga-ui/cdk'
 import {
-  TuiButtonModule,
   TuiDialogContext,
   TuiDialogOptions,
   TuiGroupModule,
   TuiLoaderModule,
 } from '@taiga-ui/core'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 import { TuiCheckboxBlockModule } from '@taiga-ui/kit'
 import {
   POLYMORPHEUS_CONTEXT,

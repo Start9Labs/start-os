@@ -2,8 +2,8 @@ import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ErrorService } from '@start9labs/shared'
 import { TuiForModule } from '@taiga-ui/cdk'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 import {
-  TuiButtonModule,
   TuiDialogContext,
   TuiDialogOptions,
   TuiDialogService,

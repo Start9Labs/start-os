@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { Router, RouterModule } from '@angular/router'
-import { TuiButtonModule, TuiSvgModule } from '@taiga-ui/core'
+import { TuiSvgModule } from '@taiga-ui/core'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 import { NavigationService } from '../../services/navigation.service'
 import { NavigationItem } from '../../types/navigation-item'
 

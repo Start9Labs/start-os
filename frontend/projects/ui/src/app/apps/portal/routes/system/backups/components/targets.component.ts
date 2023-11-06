@@ -8,8 +8,8 @@ import {
   Output,
 } from '@angular/core'
 import { TuiForModule } from '@taiga-ui/cdk'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 import {
-  TuiButtonModule,
   TuiDialogOptions,
   TuiDialogService,
   TuiSvgModule,
@@ -52,7 +52,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
             tuiIconButton
             size="xs"
             appearance="icon"
-            icon="tuiIconEdit2"
+            iconLeft="tuiIconEdit2"
             (click)="update.emit(target)"
           >
             Update
@@ -61,7 +61,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
             tuiIconButton
             size="xs"
             appearance="icon"
-            icon="tuiIconTrash2"
+            iconLeft="tuiIconTrash2"
             (click)="delete$.next(target.id)"
           >
             Delete

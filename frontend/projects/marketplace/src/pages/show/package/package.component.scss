@@ -1,7 +1,8 @@
-.header {
+:host {
   display: flex;
   align-items: flex-start;
   padding: 16px;
+  line-height: 2;
 }
 
 .text {

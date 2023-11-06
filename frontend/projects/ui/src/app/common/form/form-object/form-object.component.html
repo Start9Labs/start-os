@@ -2,11 +2,11 @@
   <button
     tuiIconButton
     size="s"
-    icon="tuiIconChevronDown"
+    iconLeft="tuiIconChevronDown"
     type="button"
-    shape="rounded"
     class="button"
     [class.button_open]="open"
+    [style.border-radius.%]="100"
     [appearance]="invalid ? 'secondary-destructive' : 'secondary'"
   ></button>
   <ng-content></ng-content>

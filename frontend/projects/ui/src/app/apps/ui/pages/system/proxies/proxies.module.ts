@@ -4,13 +4,13 @@ import { FormsModule } from '@angular/forms'
 import { RouterModule, Routes } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import {
-  TuiButtonModule,
   TuiDataListModule,
   TuiHostedDropdownModule,
   TuiNotificationModule,
   TuiSvgModule,
   TuiWrapperModule,
 } from '@taiga-ui/core'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 import { TuiBadgeModule, TuiInputModule, TuiToggleModule } from '@taiga-ui/kit'
 import { ProxiesPage } from './proxies.page'
 

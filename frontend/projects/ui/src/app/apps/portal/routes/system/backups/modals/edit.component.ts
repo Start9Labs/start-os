@@ -36,6 +36,7 @@ import { ToHumanCronPipe } from '../pipes/to-human-cron.pipe'
         appearance="secondary"
         type="button"
         class="button"
+        size="l"
         (click)="selectTarget()"
       >
         Target
@@ -48,6 +49,7 @@ import { ToHumanCronPipe } from '../pipes/to-human-cron.pipe'
         appearance="secondary"
         type="button"
         class="button"
+        size="l"
         (click)="selectPackages()"
       >
         Packages
@@ -70,7 +72,6 @@ import { ToHumanCronPipe } from '../pipes/to-human-cron.pipe'
       </div>
       <button
         tuiButton
-        size="m"
         class="submit"
         [style.margin-left]="'auto'"
         (click)="save()"

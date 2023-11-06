@@ -2,11 +2,11 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { ReactiveFormsModule } from '@angular/forms'
 import {
-  TuiButtonModule,
   TuiLoaderModule,
   TuiModeModule,
   TuiNotificationModule,
 } from '@taiga-ui/core'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 import { FormPageModule } from 'src/app/apps/ui/modals/form/form.module'
 
 import { AppConfigPage } from './app-config.page'
