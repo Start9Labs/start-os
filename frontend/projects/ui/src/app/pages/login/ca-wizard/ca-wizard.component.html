@@ -10,6 +10,11 @@
       </p>
       <ol>
         <li>
+          <b>Bookmark this page</b>
+          - Save this page so you can access it later. You can also find the
+          address in the file downloaded at the end of initial setup.
+        </li>
+        <li>
           <b>Download your server's Root CA</b>
           - Your server uses its Root CA to generate SSL/TLS certificates for
           itself and installed services. These certificates are then used to
@@ -37,7 +42,7 @@
             size="small"
             shape="round"
             color="primary"
-            href="https://docs.start9.com/0.3.5.x/getting-started/trust-ca#trust-root-ca"
+            href="https://docs.start9.com/0.3.5.x/user-manual/trust-ca#establishing-trust"
             target="_blank"
             noreferrer
           >
@@ -47,9 +52,8 @@
         </li>
         <li>
           <b>Test</b>
-          - If refreshing the page does not work, you may need to quit the
-          browser and re-open.
-          <i>Tip: before quitting, bookmark this page or copy the URL.</i>
+          - Refresh the page. If refreshing the page does not work, you may need
+          to quit and re-open your browser, then revisit this page.
           <br />
           <ion-button
             strong
@@ -69,7 +73,7 @@
         (click)="launchHttps()"
         [disabled]="caTrusted"
       >
-        Skip
+        Skip (not recommended)
         <ion-icon slot="end" name="open-outline"></ion-icon>
       </ion-button>
     </ion-card>
