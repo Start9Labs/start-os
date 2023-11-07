@@ -69,15 +69,11 @@
           </ion-button>
         </li>
       </ol>
-      <ion-button
-        style="--padding-start: 0"
-        fill="clear"
-        (click)="launchHttps()"
-        [disabled]="caTrusted"
-      >
-        Skip (not recommended)
+      <ion-button fill="clear" (click)="launchHttps()" [disabled]="caTrusted">
+        Skip
         <ion-icon slot="end" name="open-outline"></ion-icon>
       </ion-button>
+      <span class="skip_detail">(not recommended)</span>
     </ion-card>
   </ng-container>
 
