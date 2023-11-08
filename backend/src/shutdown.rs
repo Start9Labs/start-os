@@ -6,10 +6,11 @@ use rpc_toolkit::command;
 use crate::context::RpcContext;
 use crate::disk::main::export;
 use crate::init::{STANDBY_MODE_PATH, SYSTEM_REBUILD_PATH};
+use crate::prelude::*;
 use crate::sound::SHUTDOWN;
 use crate::util::docker::CONTAINER_TOOL;
 use crate::util::{display_none, Invoke};
-use crate::{Error, PLATFORM};
+use crate::PLATFORM;
 
 #[derive(Debug, Clone)]
 pub struct Shutdown {
@@ -90,6 +91,14 @@ impl Shutdown {
 
 #[command(display(display_none))]
 pub async fn shutdown(#[context] ctx: RpcContext) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_server_info_mut()
+                .as_status_info_mut()
+                .as_shutting_down()
+                .ser(&true)
+        })
+        .await?;
     ctx.shutdown
         .send(Some(Shutdown {
             export_args: Some((ctx.disk_guid.clone(), ctx.datadir.clone())),
@@ -102,6 +111,14 @@ pub async fn shutdown(#[context] ctx: RpcContext) -> Result<(), Error> {
 
 #[command(display(display_none))]
 pub async fn restart(#[context] ctx: RpcContext) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_server_info_mut()
+                .as_status_info_mut()
+                .as_restarting()
+                .ser(&true)
+        })
+        .await?;
     ctx.shutdown
         .send(Some(Shutdown {
             export_args: Some((ctx.disk_guid.clone(), ctx.datadir.clone())),
