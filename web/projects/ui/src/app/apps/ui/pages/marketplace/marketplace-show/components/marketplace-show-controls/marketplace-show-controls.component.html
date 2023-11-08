@@ -15,7 +15,7 @@
         tuiButton
         type="button"
         class="p-2 mr-2"
-        appearance="warning"
+        appearance="warning-solid"
         *ngIf="(localVersion | compareEmver : pkg.manifest.version) === -1"
         (click)="tryInstall()"
       >
@@ -25,7 +25,7 @@
         tuiButton
         type="button"
         class="p-2 mr-2"
-        appearance="secondary"
+        appearance="secondary-solid"
         *ngIf="(localVersion | compareEmver : pkg.manifest.version) === 1"
         (click)="tryInstall()"
       >
@@ -36,7 +36,7 @@
           tuiButton
           type="button"
           class="p-2 mr-2"
-          appearance="tertiary"
+          appearance="tertiary-solid"
           *ngIf="(localVersion | compareEmver : pkg.manifest.version) === 0"
           (click)="tryInstall()"
         >
@@ -47,7 +47,12 @@
   </ng-container>
 
   <ng-template #install>
-    <button tuiButton type="button" appearance="primary" (click)="tryInstall()">
+    <button
+      tuiButton
+      type="button"
+      appearance="primary-solid"
+      (click)="tryInstall()"
+    >
       Install
     </button>
   </ng-template>
