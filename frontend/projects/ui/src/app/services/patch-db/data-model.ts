@@ -96,6 +96,8 @@ export interface ServerStatusInfo {
   }
   updated: boolean
   'update-progress': { size: number | null; downloaded: number } | null
+  restarting: boolean
+  'shutting-down': boolean
 }
 
 export enum ServerStatus {
