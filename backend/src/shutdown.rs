@@ -95,7 +95,7 @@ pub async fn shutdown(#[context] ctx: RpcContext) -> Result<(), Error> {
         .mutate(|db| {
             db.as_server_info_mut()
                 .as_status_info_mut()
-                .as_shutting_down()
+                .as_shutting_down_mut()
                 .ser(&true)
         })
         .await?;
@@ -115,7 +115,7 @@ pub async fn restart(#[context] ctx: RpcContext) -> Result<(), Error> {
         .mutate(|db| {
             db.as_server_info_mut()
                 .as_status_info_mut()
-                .as_restarting()
+                .as_restarting_mut()
                 .ser(&true)
         })
         .await?;
