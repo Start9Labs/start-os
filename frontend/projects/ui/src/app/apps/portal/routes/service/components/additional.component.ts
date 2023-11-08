@@ -1,46 +1,34 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { TuiSvgModule } from '@taiga-ui/core'
-import { AdditionalItem, FALLBACK_URL } from '../pipes/to-additional.pipe'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { ToAdditionalPipe } from '../pipes/to-additional.pipe'
+import { ServiceAdditionalItemComponent } from './additional-item.component'
 
 @Component({
-  selector: '[additional]',
+  selector: 'service-additional',
   template: `
-    <div [style.flex]="1">
-      <strong>{{ additional.name }}</strong>
-      <div>{{ additional.description }}</div>
-    </div>
-    <tui-svg *ngIf="icon" [src]="icon"></tui-svg>
+    <h3 class="g-title">Additional Info</h3>
+    <ng-container *ngFor="let additional of service | toAdditional">
+      <a
+        *ngIf="additional.description.startsWith('http'); else button"
+        class="g-action"
+        [additionalItem]="additional"
+      ></a>
+      <ng-template #button>
+        <button
+          class="g-action"
+          [style.pointer-events]="!additional.icon ? 'none' : null"
+          [additionalItem]="additional"
+          (click)="additional.action?.()"
+        ></button>
+      </ng-template>
+    </ng-container>
   `,
-  styles: [
-    `
-      :host._disabled {
-        pointer-events: none;
-        opacity: var(--tui-disabled-opacity);
-      }
-    `,
-  ],
-  host: {
-    '[attr.href]': 'additional.description',
-    '[class._disabled]': 'disabled',
-    target: '_blank',
-    rel: 'noreferrer',
-  },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TuiSvgModule],
+  imports: [CommonModule, ToAdditionalPipe, ServiceAdditionalItemComponent],
 })
 export class ServiceAdditionalComponent {
   @Input({ required: true })
-  additional!: AdditionalItem
-
-  get disabled(): boolean {
-    return this.additional.description === FALLBACK_URL
-  }
-
-  get icon(): string | undefined {
-    return this.additional.description.startsWith('http')
-      ? 'tuiIconExternalLinkLarge'
-      : this.additional.icon
-  }
+  service!: PackageDataEntry
 }

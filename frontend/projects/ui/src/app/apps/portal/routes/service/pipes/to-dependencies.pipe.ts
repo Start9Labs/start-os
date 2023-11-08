@@ -21,12 +21,14 @@ export class ToDependenciesPipe implements PipeTransform {
     private readonly formDialog: FormDialogService,
   ) {}
 
-  transform(pkg: PackageDataEntry): DependencyInfo[] {
-    if (!pkg.installed) return []
+  transform(pkg: PackageDataEntry): DependencyInfo[] | null {
+    if (!pkg.installed) return null
 
-    return Object.keys(pkg.installed['current-dependencies'])
-      .filter(depId => !!pkg.manifest.dependencies[depId])
+    const deps = Object.keys(pkg.installed['current-dependencies'])
+      .filter(depId => pkg.manifest.dependencies[depId])
       .map(depId => this.setDepValues(pkg, depId))
+
+    return deps.length ? deps : null
   }
 
   private setDepValues(pkg: PackageDataEntry, depId: string): DependencyInfo {

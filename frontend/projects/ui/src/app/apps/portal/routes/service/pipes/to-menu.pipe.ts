@@ -14,9 +14,7 @@ import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { ProxyService } from 'src/app/services/proxy.service'
 import { PackageConfigData } from '../types/package-config-data'
 import { ServiceConfigModal } from '../modals/config.component'
-import { ServiceLogsModal } from '../modals/logs.component'
 import { ServiceCredentialsModal } from '../modals/credentials.component'
-import { ServiceActionsModal } from '../modals/actions.component'
 
 export interface ServiceMenu {
   icon: string
@@ -29,7 +27,7 @@ export interface ServiceMenu {
   name: 'toMenu',
   standalone: true,
 })
-export class ToMenusPipe implements PipeTransform {
+export class ToMenuPipe implements PipeTransform {
   private readonly api = inject(ApiService)
   private readonly dialogs = inject(TuiDialogService)
   private readonly formDialog = inject(FormDialogService)
@@ -69,11 +67,9 @@ export class ToMenusPipe implements PipeTransform {
         name: 'Actions',
         description: `Uninstall and other commands specific to ${manifest.title}`,
         action: () =>
-          this.showDialog(
-            `${manifest.title} credentials`,
-            manifest.id,
-            ServiceActionsModal,
-          ),
+          this.router.navigate(['actions'], {
+            relativeTo: this.route,
+          }),
       },
       {
         icon: 'tuiIconShieldLarge',
@@ -86,11 +82,9 @@ export class ToMenusPipe implements PipeTransform {
         name: 'Logs',
         description: `Raw, unfiltered logs`,
         action: () =>
-          this.showDialog(
-            `${manifest.title} logs`,
-            manifest.id,
-            ServiceLogsModal,
-          ),
+          this.router.navigate(['logs'], {
+            relativeTo: this.route,
+          }),
       },
       url
         ? {
@@ -99,7 +93,6 @@ export class ToMenusPipe implements PipeTransform {
             description: `View ${manifest.title} on the Marketplace`,
             action: () =>
               this.router.navigate(['marketplace', manifest.id], {
-                relativeTo: this.route,
                 queryParams: { url },
               }),
           }

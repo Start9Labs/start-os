@@ -4,7 +4,7 @@
       {{ badge }}
     </tui-badge-notification>
     <tui-svg
-      *ngIf="icon.startsWith('tuiIcon'); else url"
+      *ngIf="icon?.startsWith('tuiIcon'); else url"
       class="icon"
       [src]="icon"
     ></tui-svg>

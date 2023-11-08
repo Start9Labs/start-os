@@ -24,6 +24,15 @@ import { InstallProgressPipeModule } from 'src/app/common/install-progress/insta
       </strong>
     </ng-template>
   `,
+  styles: [
+    `
+      :host {
+        font-size: x-large;
+        margin: 1em 0;
+        display: block;
+      }
+    `,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [CommonModule, InstallProgressPipeModule],

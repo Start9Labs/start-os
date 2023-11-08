@@ -119,7 +119,7 @@ export class ServiceActionsComponent {
   }
 
   async tryStart(): Promise<void> {
-    if (this.dependencies.transform(this.service).some(d => !!d.errorText)) {
+    if (this.dependencies.transform(this.service)?.some(d => !!d.errorText)) {
       const depErrMsg = `${this.service.manifest.title} has unmet dependencies. It will not work as expected.`
       const proceed = await this.presentAlertStart(depErrMsg)
 

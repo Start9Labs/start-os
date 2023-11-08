@@ -1,18 +1,15 @@
-import { inject, Pipe, PipeTransform } from '@angular/core'
-import { TuiDialogService } from '@taiga-ui/core'
-import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { Pipe, PipeTransform } from '@angular/core'
 import {
   InterfaceInfo,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { ServiceInterfaceModal } from '../modals/interface.component'
 
 export interface ExtendedInterfaceInfo extends InterfaceInfo {
   id: string
   icon: string
   color: string
   typeDetail: string
-  action: () => void
+  routerLink: string
 }
 
 @Pipe({
@@ -20,12 +17,7 @@ export interface ExtendedInterfaceInfo extends InterfaceInfo {
   standalone: true,
 })
 export class InterfaceInfoPipe implements PipeTransform {
-  private readonly dialogs = inject(TuiDialogService)
-
-  transform({
-    manifest,
-    installed,
-  }: PackageDataEntry): ExtendedInterfaceInfo[] {
+  transform({ installed }: PackageDataEntry): ExtendedInterfaceInfo[] {
     return Object.entries(installed!.interfaceInfo).map(([id, val]) => {
       let color: string
       let icon: string
@@ -60,17 +52,7 @@ export class InterfaceInfoPipe implements PipeTransform {
         color,
         icon,
         typeDetail,
-        action: () =>
-          this.dialogs
-            .open(new PolymorpheusComponent(ServiceInterfaceModal), {
-              label: val.name,
-              size: 'l',
-              data: {
-                packageId: manifest.id,
-                interfaceId: id,
-              },
-            })
-            .subscribe(),
+        routerLink: `./interface/${id}`,
       }
     })
   }
