@@ -406,6 +406,8 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         updated: false,
         update_progress: None,
         backup_progress: None,
+        shutting_down: false,
+        restarting: false,
     };
 
     server_info.ntp_synced = if time_not_synced {

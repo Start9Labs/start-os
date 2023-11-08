@@ -66,6 +66,8 @@ export const mockPatchData: DataModel = {
       'backup-progress': null,
       updated: false,
       'update-progress': null,
+      restarting: false,
+      'shutting-down': false,
     },
     hostname: 'random-words',
     pubkey: 'npub1sg6plzptd64u62a878hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m',
