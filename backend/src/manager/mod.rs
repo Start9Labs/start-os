@@ -40,7 +40,7 @@ use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
 use crate::procedure::{NoOutput, ProcedureName};
 use crate::s9pk::manifest::Manifest;
 use crate::status::MainStatus;
-use crate::util::docker::{get_container_ip, kill_container};
+use crate::util::docker::get_container_ip;
 use crate::util::NonDetachingJoinHandle;
 use crate::volume::Volume;
 use crate::Error;
@@ -61,7 +61,7 @@ use self::manager_seed::ManagerSeed;
 pub const HEALTH_CHECK_COOLDOWN_SECONDS: u64 = 15;
 pub const HEALTH_CHECK_GRACE_PERIOD_SECONDS: u64 = 5;
 
-type ManagerPersistentContainer = Arc<Option<PersistentContainer>>;
+type ManagerPersistentContainer = Arc<PersistentContainer>;
 type BackupGuard = Arc<Mutex<BackupMountGuard<TmpMountGuard>>>;
 pub enum BackupReturn {
     Error(Error),
@@ -221,10 +221,8 @@ impl Manager {
     }
 
     /// Used as a getter, but also used in procedure
-    pub fn rpc_client(&self) -> Option<Arc<UnixRpcClient>> {
-        (*self.persistent_container)
-            .as_ref()
-            .map(|x| x.rpc_client())
+    pub fn rpc_client(&self) -> Arc<UnixRpcClient> {
+        self.persistent_container.rpc_client()
     }
 
     async fn _transition_abort(&self) {
@@ -428,7 +426,7 @@ async fn configure(
     if !configure_context.dry_run {
         // run config action
         let res = action
-            .set(ctx, id, version, &dependencies, volumes, &config)
+            .set(ctx, id, version, dependencies, volumes, &config)
             .await?;
 
         // track dependencies with no pointers
@@ -462,7 +460,7 @@ async fn configure(
     }
 
     let dependency_config_errs =
-        compute_dependency_config_errs(&ctx, &db, &manifest, &current_dependencies, overrides)
+        compute_dependency_config_errs(ctx, &db, &manifest, &current_dependencies, overrides)
             .await?;
 
     // cache current config for dependents
@@ -650,37 +648,14 @@ pub enum OnStop {
 type RunMainResult = Result<Result<NoOutput, (i32, String)>, Error>;
 
 #[instrument(skip_all)]
-async fn run_main(
-    seed: Arc<ManagerSeed>,
-    persistent_container: ManagerPersistentContainer,
-    started: Arc<impl Fn()>,
-) -> RunMainResult {
-    let mut runtime = NonDetachingJoinHandle::from(tokio::spawn(start_up_image(seed.clone())));
-    let ip = match persistent_container.is_some() {
-        false => Some(match get_running_ip(&seed, &mut runtime).await {
-            GetRunningIp::Ip(x) => x,
-            GetRunningIp::Error(e) => return Err(e),
-            GetRunningIp::EarlyExit(x) => return Ok(x),
-        }),
-        true => None,
-    };
-
-    let svc = if let Some(ip) = ip {
-        let net = add_network_for_main(&seed, ip).await?;
-        started();
-        Some(net)
-    } else {
-        None
-    };
+async fn run_main(seed: Arc<ManagerSeed>) -> RunMainResult {
+    let runtime = NonDetachingJoinHandle::from(tokio::spawn(start_up_image(seed.clone())));
 
     let health = main_health_check_daemon(seed.clone());
     let res = tokio::select! {
         a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).and_then(|a| a),
         _ = health => Err(Error::new(eyre!("Health check daemon exited!"), crate::ErrorKind::Unknown))
     };
-    if let Some(svc) = svc {
-        remove_network_for_main(svc).await?;
-    }
     res
 }
 
@@ -847,41 +822,30 @@ async fn send_signal(manager: &Manager, gid: Arc<Gid>, signal: Signal) -> Result
     //     .commit_health_check_results
     //     .store(false, Ordering::SeqCst);
 
-    if let Some(rpc_client) = manager.rpc_client() {
-        let main_gid = *gid.main_gid.0.borrow();
-        let next_gid = gid.new_gid();
-        #[cfg(feature = "js_engine")]
-        if let Err(e) = crate::procedure::js_scripts::JsProcedure::default()
-            .execute::<_, NoOutput>(
-                &manager.seed.ctx.datadir,
-                &manager.seed.manifest.id,
-                &manager.seed.manifest.version,
-                ProcedureName::Signal,
-                &manager.seed.manifest.volumes,
-                Some(embassy_container_init::SignalGroupParams {
-                    gid: main_gid,
-                    signal: signal as u32,
-                }),
-                None, // TODO
-                next_gid,
-                Some(rpc_client),
-            )
-            .await?
-        {
-            tracing::error!("Failed to send js signal: {}", e.1);
-            tracing::debug!("{:?}", e);
-        }
-    } else {
-        // send signal to container
-        kill_container(&manager.seed.container_name, Some(signal))
-            .await
-            .or_else(|e| {
-                if e.kind == ErrorKind::NotFound {
-                    Ok(())
-                } else {
-                    Err(e)
-                }
-            })?;
+    let rpc_client = manager.rpc_client();
+
+    let main_gid = *gid.main_gid.0.borrow();
+    let next_gid = gid.new_gid();
+    #[cfg(feature = "js_engine")]
+    if let Err(e) = crate::procedure::js_scripts::JsProcedure::default()
+        .execute::<_, NoOutput>(
+            &manager.seed.ctx.datadir,
+            &manager.seed.manifest.id,
+            &manager.seed.manifest.version,
+            ProcedureName::Signal,
+            &manager.seed.manifest.volumes,
+            Some(embassy_container_init::SignalGroupParams {
+                gid: main_gid,
+                signal: signal as u32,
+            }),
+            None, // TODO
+            next_gid,
+            Some(rpc_client),
+        )
+        .await?
+    {
+        tracing::error!("Failed to send js signal: {}", e.1);
+        tracing::debug!("{:?}", e);
     }
 
     Ok(())

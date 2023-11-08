@@ -25,16 +25,16 @@ pub struct PersistentContainer {
 
 impl PersistentContainer {
     #[instrument(skip_all)]
-    pub async fn init(seed: &Arc<ManagerSeed>) -> Result<Option<Self>, Error> {
+    pub async fn init(seed: &Arc<ManagerSeed>) -> Result<Self, Error> {
         Ok(if let Some(containers) = &seed.manifest.containers {
             let (running_docker, rpc_client) =
                 spawn_persistent_container(seed.clone(), containers.main.clone()).await?;
-            Some(Self {
+            Self {
                 _running_docker: running_docker,
                 rpc_client,
-            })
+            }
         } else {
-            None
+            todo!("No containers in manifest")
         })
     }
 

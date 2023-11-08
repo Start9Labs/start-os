@@ -109,7 +109,7 @@ impl PackageProcedure {
                         input,
                         timeout,
                         gid,
-                        rpc_client,
+                        Some(rpc_client),
                     )
                     .await
             }
