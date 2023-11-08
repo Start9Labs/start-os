@@ -20,8 +20,6 @@ export * from './pages/show/screenshots/screenshots.component'
 export * from './pages/show/hero/hero.component'
 export * from './pages/show/package/package.component'
 export * from './pages/show/package/package.module'
-export * from './pages/show/package-preview/package-preview.component'
-export * from './pages/show/package-preview/package-preview.module'
 
 export * from './pipes/filter-packages.pipe'
 export * from './pipes/mime-type.pipe'

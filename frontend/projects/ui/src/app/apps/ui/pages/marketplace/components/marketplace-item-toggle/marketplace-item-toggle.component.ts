@@ -3,12 +3,9 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { TuiButtonModule } from '@taiga-ui/core'
 import { TuiActiveZoneModule } from '@taiga-ui/cdk'
 import { TuiSidebarModule } from '@taiga-ui/addon-mobile'
-import {
-  ItemModule,
-  MarketplacePkg,
-  PackagePreviewModule,
-} from '@start9labs/marketplace'
-import { MarketplaceShowComponentsModule } from '../../marketplace-show/components/marketplace-show-components.module'
+import { ItemModule, MarketplacePkg } from '@start9labs/marketplace'
+import { MarketplaceShowComponentsModule } from '../../marketplace-show-preview/components/marketplace-show-components.module'
+import { MarketplaceShowPreviewModule } from '../../marketplace-show-preview/marketplace-show-preview.module'
 import {
   DataModel,
   PackageDataEntry,
@@ -20,12 +17,13 @@ import { PatchDB } from 'patch-db-client'
   selector: 'marketplace-item-toggle',
   template: `
     <div
+      [id]="pkg.manifest.id"
       class="items-center gap-3 h-full"
       (click)="toggle(true)"
       (tuiActiveZoneChange)="toggle($event)"
     >
       <marketplace-item [pkg]="pkg"></marketplace-item>
-      <marketplace-package-preview
+      <marketplace-show-preview
         [pkg]="pkg"
         *tuiSidebar="open; direction: 'right'; autoWidth: true"
         class="overflow-y-auto max-w-full md:max-w-[30rem]"
@@ -49,7 +47,7 @@ import { PatchDB } from 'patch-db-client'
           [localPkg]="localPkg$ | async"
           (togglePreview)="toggle($event)"
         ></marketplace-show-controls>
-      </marketplace-package-preview>
+      </marketplace-show-preview>
     </div>
   `,
   styles: [],
@@ -60,7 +58,7 @@ import { PatchDB } from 'patch-db-client'
     TuiActiveZoneModule,
     TuiButtonModule,
     TuiSidebarModule,
-    PackagePreviewModule,
+    MarketplaceShowPreviewModule,
     ItemModule,
     MarketplaceShowComponentsModule,
   ],
@@ -69,10 +67,10 @@ export class MarketplaceItemToggleComponent {
   @Input({ required: true })
   pkg!: MarketplacePkg
 
+  constructor(private readonly patch: PatchDB<DataModel>) {}
+
   localPkg$!: Observable<PackageDataEntry>
   open = false
-
-  constructor(private readonly patch: PatchDB<DataModel>) {}
 
   ngOnChanges() {
     this.localPkg$ = this.patch

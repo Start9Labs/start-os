@@ -15,17 +15,19 @@ import {
 import { tuiPure } from '@taiga-ui/cdk'
 import { PolymorpheusContent } from '@tinkoff/ng-polymorpheus'
 import { isPlatform } from '@ionic/angular'
-import { MarketplacePkg } from '../../../types'
-import { AbstractMarketplaceService } from '../../../services/marketplace.service'
+import {
+  AbstractMarketplaceService,
+  MarketplacePkg,
+} from '@start9labs/marketplace'
 
 @Component({
-  selector: 'marketplace-package-preview',
-  templateUrl: './package-preview.component.html',
-  styleUrls: ['./package-preview.component.scss'],
+  selector: 'marketplace-show-preview',
+  templateUrl: './marketplace-show-preview.component.html',
+  styleUrls: ['./marketplace-show-preview.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   animations: [tuiFadeIn],
 })
-export class PackagePreviewComponent {
+export class MarketplaceShowPreviewComponent {
   @Input({ required: true })
   pkg!: MarketplacePkg
 

@@ -2,17 +2,17 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { SideloadPage } from './sideload.page'
-import { Routes, RouterModule } from '@angular/router'
+import { RouterModule, Routes } from '@angular/router'
 import { EmverPipesModule, SharedPipesModule } from '@start9labs/shared'
 import { DragNDropDirective } from './dnd.directive'
 import {
-  PackageModule,
   AboutModule,
   AdditionalModule,
   DependenciesModule,
+  PackageModule,
 } from '@start9labs/marketplace'
 // TODO: Find a way to not tie two routes together
-import { MarketplaceShowComponentsModule } from '../../marketplace/marketplace-show/components/marketplace-show-components.module'
+import { MarketplaceShowComponentsModule } from '../../marketplace/marketplace-show-preview/components/marketplace-show-components.module'
 
 const routes: Routes = [
   {

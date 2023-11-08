@@ -20,6 +20,8 @@ import {
 import { CategoryService } from 'src/app/services/category.service'
 import { MarketplaceSettingsPage } from './marketplace-settings/marketplace-settings.page'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { ActivatedRoute } from '@angular/router'
+import { DOCUMENT } from '@angular/common'
 
 @Component({
   selector: 'marketplace-list',
@@ -55,6 +57,8 @@ export class MarketplaceListPage {
     private readonly categoryService: CategoryService,
     @Inject(TuiDialogService) private readonly dialogs: TuiDialogService,
     readonly config: ConfigService,
+    private readonly route: ActivatedRoute,
+    @Inject(DOCUMENT) private readonly document: Document,
   ) {}
 
   readonly packages$ = this.marketplaceService
@@ -65,6 +69,13 @@ export class MarketplaceListPage {
   readonly query$ = this.categoryService.getQuery$()
   readonly details$ = this.marketplaceService.getSelectedHost$()
   readonly marketplace = this.config.marketplace
+  readonly pkgId = this.route.snapshot.queryParamMap.get('id') || undefined
+
+  ngAfterViewInit() {
+    if (this.pkgId) {
+      this.document.getElementById(this.pkgId)?.click()
+    }
+  }
 
   async presentModalMarketplaceSettings() {
     this.dialogs
