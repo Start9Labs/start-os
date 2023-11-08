@@ -5,6 +5,7 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use futures::FutureExt;
+use libc::time_t;
 use openssl::asn1::{Asn1Integer, Asn1Time};
 use openssl::bn::{BigNum, MsbOption};
 use openssl::ec::{EcGroup, EcKey};
@@ -20,11 +21,19 @@ use tracing::instrument;
 use crate::account::AccountInfo;
 use crate::context::RpcContext;
 use crate::hostname::Hostname;
+use crate::init::check_time_is_synchronized;
 use crate::net::dhcp::ips;
 use crate::net::keys::{Key, KeyInfo};
-use crate::{Error, ErrorKind, ResultExt};
+use crate::{Error, ErrorKind, ResultExt, SOURCE_DATE};
 
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
+
+fn unix_time(time: SystemTime) -> time_t {
+    time.duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as time_t)
+        .or_else(|_| UNIX_EPOCH.elapsed().map(|d| -(d.as_secs() as time_t)))
+        .unwrap_or_default()
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CertPair {
@@ -55,9 +64,13 @@ impl CertPair {
                         }),
                 );
                 if cert
-                    .not_after()
-                    .compare(Asn1Time::days_from_now(30)?.as_ref())?
-                    == Ordering::Greater
+                    .not_before()
+                    .compare(Asn1Time::days_from_now(0)?.as_ref())?
+                    == Ordering::Less
+                    && cert
+                        .not_after()
+                        .compare(Asn1Time::days_from_now(30)?.as_ref())?
+                        == Ordering::Greater
                     && ips.is_superset(&ip)
                 {
                     return Ok(cert.clone());
@@ -80,6 +93,14 @@ impl CertPair {
     }
 }
 
+pub async fn root_ca_start_time() -> Result<SystemTime, Error> {
+    Ok(if check_time_is_synchronized().await? {
+        SystemTime::now()
+    } else {
+        *SOURCE_DATE
+    })
+}
+
 #[derive(Debug)]
 pub struct SslManager {
     hostname: Hostname,
@@ -89,9 +110,13 @@ pub struct SslManager {
     cert_cache: RwLock<BTreeMap<Key, CertPair>>,
 }
 impl SslManager {
-    pub fn new(account: &AccountInfo) -> Result<Self, Error> {
+    pub fn new(account: &AccountInfo, start_time: SystemTime) -> Result<Self, Error> {
         let int_key = generate_key()?;
-        let int_cert = make_int_cert((&account.root_ca_key, &account.root_ca_cert), &int_key)?;
+        let int_cert = make_int_cert(
+            (&account.root_ca_key, &account.root_ca_cert),
+            &int_key,
+            start_time,
+        )?;
         Ok(Self {
             hostname: account.hostname.clone(),
             root_cert: account.root_ca_cert.clone(),
@@ -160,14 +185,20 @@ pub fn generate_key() -> Result<PKey<Private>, Error> {
 }
 
 #[instrument(skip_all)]
-pub fn make_root_cert(root_key: &PKey<Private>, hostname: &Hostname) -> Result<X509, Error> {
+pub fn make_root_cert(
+    root_key: &PKey<Private>,
+    hostname: &Hostname,
+    start_time: SystemTime,
+) -> Result<X509, Error> {
     let mut builder = X509Builder::new()?;
     builder.set_version(CERTIFICATE_VERSION)?;
 
-    let embargo = Asn1Time::days_from_now(0)?;
+    let unix_start_time = unix_time(start_time);
+
+    let embargo = Asn1Time::from_unix(unix_start_time - 86400)?;
     builder.set_not_before(&embargo)?;
 
-    let expiration = Asn1Time::days_from_now(3650)?;
+    let expiration = Asn1Time::from_unix(unix_start_time + (10 * 364 * 86400))?;
     builder.set_not_after(&expiration)?;
 
     builder.set_serial_number(&*rand_serial()?)?;
@@ -214,14 +245,17 @@ pub fn make_root_cert(root_key: &PKey<Private>, hostname: &Hostname) -> Result<X
 pub fn make_int_cert(
     signer: (&PKey<Private>, &X509),
     applicant: &PKey<Private>,
+    start_time: SystemTime,
 ) -> Result<X509, Error> {
     let mut builder = X509Builder::new()?;
     builder.set_version(CERTIFICATE_VERSION)?;
 
-    let embargo = Asn1Time::days_from_now(0)?;
+    let unix_start_time = unix_time(start_time);
+
+    let embargo = Asn1Time::from_unix(unix_start_time - 86400)?;
     builder.set_not_before(&embargo)?;
 
-    let expiration = Asn1Time::days_from_now(3650)?;
+    let expiration = Asn1Time::from_unix(unix_start_time + (10 * 364 * 86400))?;
     builder.set_not_after(&expiration)?;
 
     builder.set_serial_number(&*rand_serial()?)?;
@@ -344,17 +378,10 @@ pub fn make_leaf_cert(
     let mut builder = X509Builder::new()?;
     builder.set_version(CERTIFICATE_VERSION)?;
 
-    let embargo = Asn1Time::from_unix(
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .or_else(|_| UNIX_EPOCH.elapsed().map(|d| -(d.as_secs() as i64)))
-            .unwrap_or_default()
-            - 86400,
-    )?;
+    let embargo = Asn1Time::from_unix(unix_time(SystemTime::now()) - 86400)?;
     builder.set_not_before(&embargo)?;
 
-    // Google Apple and Mozilla reject certificate horizons longer than 397 days
+    // Google Apple and Mozilla reject certificate horizons longer than 398 days
     // https://techbeacon.com/security/google-apple-mozilla-enforce-1-year-max-security-certifications
     let expiration = Asn1Time::days_from_now(397)?;
     builder.set_not_after(&expiration)?;

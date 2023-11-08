@@ -5,11 +5,20 @@ pub const DEFAULT_MARKETPLACE: &str = "https://registry.start9.com";
 pub const BUFFER_SIZE: usize = 1024;
 pub const HOST_IP: [u8; 4] = [172, 18, 0, 1];
 pub const TARGET: &str = current_platform::CURRENT_PLATFORM;
-pub const OS_ARCH: &str = env!("OS_ARCH");
 lazy_static::lazy_static! {
     pub static ref ARCH: &'static str = {
         let (arch, _) = TARGET.split_once("-").unwrap();
         arch
+    };
+    pub static ref PLATFORM: String = {
+        if let Ok(platform) = std::fs::read_to_string("/usr/lib/startos/PLATFORM.txt") {
+            platform
+        } else {
+            ARCH.to_string()
+        }
+    };
+    pub static ref SOURCE_DATE: SystemTime = {
+        std::fs::metadata(std::env::current_exe().unwrap()).unwrap().modified().unwrap()
     };
 }
 
@@ -55,6 +64,8 @@ pub mod update;
 pub mod util;
 pub mod version;
 pub mod volume;
+
+use std::time::SystemTime;
 
 pub use config::Config;
 pub use error::{Error, ErrorKind, ResultExt};

@@ -18,19 +18,24 @@ ion-content {
 
 ion-grid {
   max-width: 760px;
-  height: 100%;
 }
 
-.grid-center-wrapper {
-  height: 100%;
-  width: 100%;
+.inline-container {
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
+.card-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+}
+
 ion-card {
-  padding: 3rem;
+  padding: 2.4rem;
 
   h1 {
     color: var(--ion-color-success);
@@ -44,14 +49,14 @@ ion-card {
     margin-bottom: 2rem;
   }
 
+  // download info card
   ion-card {
-    max-width: 91%;
-    min-width: 91%;
+    min-height: 260px;
+    width: 80%;
     background: #615F5F;
     color: var(--ion-text-color);
     box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
     border-radius: 44px;
-    margin: auto;
     text-align: left;
     cursor: pointer;
     position: relative;
@@ -68,14 +73,6 @@ ion-card {
     ion-card-title {
       color: var(--ion-text-color);
       font-size: 1.3rem;
-    }
-
-    ion-card-content {
-      padding-bottom: 4rem;
-
-      p {
-        padding: 1rem 0;
-      }
     }
 
     ion-footer {
@@ -100,19 +97,24 @@ ion-card {
     }
   }
 
-  .container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-  #exit {
-    background: var(--color-accent);
-    height: 100%;
-
-    .container p {
-      font-size: 1.4rem !important;
-      font-weight: bold;
+  .login-button {
+    --background: var(--color-accent);
+    --padding-bottom: 2.5rem;
+    --padding-top: 2.5rem;
+    --padding-start: 2.5rem;
+    --padding-end: 2.5rem;
+    --border-radius: 44px;
+    font-size: 1.4rem !important;
+    font-weight: bold;
+    text-transform: none;
+    letter-spacing: normal;
+    transition: all 350ms ease;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  
+    &:hover {
+      transition-property: transform;
+      transform: scale(1.05);
+      transition-delay: 40ms;
     }
 
     ion-icon {
@@ -120,40 +122,62 @@ ion-card {
     }
   }
 
-  #launch {
-    background: var(--alt-blue);
-    height: 100%;
-    
-    .container p {
-      font-size: 1.4rem !important;
-      font-weight: bold;
-    }
-
-    ion-icon {
-      font-size: 1.7rem;
-    }
+  .launch-button {
+    --background: var(--alt-blue);
   }
   
-  #information:after {
+  #information:after, #launch:after {
     content: '';
     position: absolute;
     left: 0;
-    top: 80%;
+    top: 79%;
     width: 100%;
     height: 100%;
     background: var(--color-accent);
   }
+
+  #launch:after {
+    background: var(--alt-blue);
+  }
+
 }
 
-.card-container {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 2rem;
+.mb-12 {
+  margin-bottom: 3rem;
 }
 
-.emphasis-warn {
-  font-weight: 600;
-  color: var(--ion-color-warning);
+.pb-2 {
+  padding-bottom: 0.5rem;
+}
+
+.pt-1 {
+  padding-top: 0.25rem;
+}
+
+
+.action-text {
+  font-variant-caps: all-small-caps;
+  padding-right: 0.5rem;
+  font-size: 1.5rem !important;
+  letter-spacing: 0.03rem;
+  padding-bottom: 0.1rem;
+}
+
+@media (max-width: 700px) {
+  .setup {
+    flex-direction: column;
+  }
+
+  ion-card {
+    ion-card {
+      width: 100%;
+      padding-bottom: unset;
+    }
+    #information:after {
+      top: 84%;
+    }
+    #launch:after {
+      top: 85%;
+    }
+  }
 }

@@ -26,10 +26,7 @@
           type="overlay"
           side="end"
           class="right-menu container"
-          [class.container_offline]="
-            (authService.isVerified$ | async) &&
-            !(connection.connected$ | async)
-          "
+          [class.container_offline]="offline$ | async"
           [class.right-menu_hidden]="!drawer.open"
           [style.--side-width.px]="drawer.width"
         >
@@ -47,10 +44,7 @@
           [responsiveColViewport]="viewport"
           id="main-content"
           class="container"
-          [class.container_offline]="
-            (authService.isVerified$ | async) &&
-            !(connection.connected$ | async)
-          "
+          [class.container_offline]="offline$ | async"
         >
           <ion-content
             #viewport="viewport"

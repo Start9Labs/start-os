@@ -4,12 +4,12 @@ import { distinctUntilChanged, map, shareReplay } from 'rxjs/operators'
 import { PatchDB } from 'patch-db-client'
 import {
   DataModel,
-  HealthCheckResult,
   HealthResult,
-  InstalledPackageDataEntry,
+  InstalledPackageInfo,
   PackageMainStatus,
 } from './patch-db/data-model'
 import * as deepEqual from 'fast-deep-equal'
+import { Manifest } from '@start9labs/marketplace'
 
 export type AllDependencyErrors = Record<string, PkgDependencyErrors>
 export type PkgDependencyErrors = Record<string, DependencyError | null>
@@ -62,7 +62,13 @@ export class DepErrorService {
     return currentDeps(pkgs, pkgId).reduce(
       (innerErrors, depId): PkgDependencyErrors => ({
         ...innerErrors,
-        [depId]: this.getDepError(pkgs, pkgInstalled, depId, outerErrors),
+        [depId]: this.getDepError(
+          pkgs,
+          pkgInstalled,
+          pkgs[pkgId].manifest,
+          depId,
+          outerErrors,
+        ),
       }),
       {} as PkgDependencyErrors,
     )
@@ -70,11 +76,13 @@ export class DepErrorService {
 
   private getDepError(
     pkgs: DataModel['package-data'],
-    pkgInstalled: InstalledPackageDataEntry,
+    pkgInstalled: InstalledPackageInfo,
+    pkgManifest: Manifest,
     depId: string,
     outerErrors: AllDependencyErrors,
   ): DependencyError | null {
     const depInstalled = pkgs[depId]?.installed
+    const depManifest = pkgs[depId]?.manifest
 
     // not installed
     if (!depInstalled) {
@@ -82,9 +90,6 @@ export class DepErrorService {
         type: DependencyErrorType.NotInstalled,
       }
     }
-
-    const pkgManifest = pkgInstalled.manifest
-    const depManifest = depInstalled.manifest
 
     // incorrect version
     if (

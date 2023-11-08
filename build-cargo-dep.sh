@@ -4,7 +4,7 @@ set -e
 shopt -s expand_aliases
 
 if [ "$0" != "./build-cargo-dep.sh" ]; then
-	>&2 echo "Must be run from embassy-os directory"
+	>&2 echo "Must be run from start-os directory"
 	exit 1
 fi
 

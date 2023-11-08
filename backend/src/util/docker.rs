@@ -7,14 +7,14 @@ use tokio::process::Command;
 
 use crate::util::Invoke;
 
-#[cfg(not(feature = "podman"))]
+#[cfg(feature = "docker")]
 pub const CONTAINER_TOOL: &str = "docker";
-#[cfg(feature = "podman")]
+#[cfg(not(feature = "docker"))]
 pub const CONTAINER_TOOL: &str = "podman";
 
-#[cfg(not(feature = "podman"))]
+#[cfg(feature = "docker")]
 pub const CONTAINER_DATADIR: &str = "/var/lib/docker";
-#[cfg(feature = "podman")]
+#[cfg(not(feature = "docker"))]
 pub const CONTAINER_DATADIR: &str = "/var/lib/containers";
 
 pub struct DockerImageSha(String);

@@ -6,9 +6,7 @@ use std::os::unix::prelude::FileTypeExt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use async_stream::stream;
 use color_eyre::eyre::eyre;
-use color_eyre::Report;
 use futures::future::{BoxFuture, Either as EitherFuture};
 use futures::{FutureExt, TryStreamExt};
 use helpers::{NonDetachingJoinHandle, UnixRpcClient};
@@ -396,7 +394,7 @@ impl DockerProcedure {
 
         cmd.arg("exec");
 
-        cmd.args(self.docker_args_inject(pkg_id).await?);
+        cmd.args(self.docker_args_inject(pkg_id));
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
             cmd.stdin(std::process::Stdio::piped());
             Some(format.to_vec(input)?)
@@ -756,7 +754,7 @@ impl DockerProcedure {
                 + self.args.len(), // [ARG...]
         )
     }
-    async fn docker_args_inject(&self, pkg_id: &PackageId) -> Result<Vec<Cow<'_, OsStr>>, Error> {
+    fn docker_args_inject(&self, pkg_id: &PackageId) -> Vec<Cow<'_, OsStr>> {
         let mut res = self.new_docker_args();
         if let Some(shm_size_mb) = self.shm_size_mb {
             res.push(OsStr::new("--shm-size").into());
@@ -769,7 +767,7 @@ impl DockerProcedure {
 
         res.extend(self.args.iter().map(|s| OsStr::new(s).into()));
 
-        Ok(res)
+        res
     }
 }
 
@@ -813,7 +811,7 @@ impl LongRunning {
         socket_path: &Path,
     ) -> Result<tokio::process::Command, Error> {
         const INIT_EXEC: &str = "/start9/bin/embassy_container_init";
-        const BIND_LOCATION: &str = "/usr/lib/embassy/container/";
+        const BIND_LOCATION: &str = "/usr/lib/startos/container/";
         tracing::trace!("setup_long_running_docker_cmd");
 
         remove_container(container_name, true).await?;
@@ -892,23 +890,12 @@ async fn buf_reader_to_lines(
     reader: impl AsyncBufRead + Unpin,
     limit: impl Into<Option<usize>>,
 ) -> Result<Vec<String>, Error> {
-    let lines = stream! {
-        let mut lines = reader.lines();
-        while let Some(line) = lines.next_line().await? {
-            yield Ok::<_, Report>(line);
-        }
-    };
-    let output: RingVec<String> = lines
-        .try_fold(
-            RingVec::new(limit.into().unwrap_or(1000)),
-            |mut acc, line| async move {
-                acc.push(line);
-                Ok(acc)
-            },
-        )
-        .await
-        .with_kind(crate::ErrorKind::Unknown)?;
-    let output: Vec<String> = output.value.into_iter().collect();
+    let mut lines = reader.lines();
+    let mut answer = RingVec::new(limit.into().unwrap_or(1000));
+    while let Some(line) = lines.next_line().await? {
+        answer.push(line);
+    }
+    let output: Vec<String> = answer.value.into_iter().collect();
     Ok(output)
 }
 
@@ -972,5 +959,12 @@ mod tests {
         }
         assert_eq!(CAPACITY_IN, ring.value.capacity());
         assert_eq!(CAPACITY_IN, ring.value.len());
+    }
+
+    #[test]
+    fn tests_buf_reader_to_lines() {
+        let mut reader = BufReader::new("hello\nworld\n".as_bytes());
+        let lines = futures::executor::block_on(buf_reader_to_lines(&mut reader, None)).unwrap();
+        assert_eq!(lines, vec!["hello", "world"]);
     }
 }

@@ -25,7 +25,7 @@ use crate::sound::{
 };
 use crate::update::latest_information::LatestInformation;
 use crate::util::Invoke;
-use crate::{Error, ErrorKind, ResultExt, OS_ARCH};
+use crate::{Error, ErrorKind, ResultExt, PLATFORM};
 
 mod latest_information;
 
@@ -231,7 +231,7 @@ impl EosUrl {
             .host_str()
             .ok_or_else(|| Error::new(eyre!("Could not get host of base"), ErrorKind::ParseUrl))?;
         let version: &Version = &self.version;
-        Ok(format!("{host}::{version}/{OS_ARCH}/")
+        Ok(format!("{host}::{version}/{}/", &*PLATFORM)
             .parse()
             .map_err(|_| Error::new(eyre!("Could not parse path"), ErrorKind::ParseUrl))?)
     }
@@ -297,7 +297,7 @@ async fn sync_boot() -> Result<(), Error> {
     .await?
     .wait()
     .await?;
-    if OS_ARCH != "raspberrypi" {
+    if &*PLATFORM != "raspberrypi" {
         let dev_mnt =
             MountGuard::mount(&Bind::new("/dev"), "/media/embassy/next/dev", ReadWrite).await?;
         let sys_mnt =

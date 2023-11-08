@@ -4,8 +4,6 @@ import { WorkspaceConfig } from '@start9labs/shared'
 import { InstalledPackageInfo } from 'src/app/services/patch-db/data-model'
 
 const {
-  packageArch,
-  osArch,
   gitHash,
   useMocks,
   ui: { api, marketplace, mocks },
@@ -25,8 +23,6 @@ export class ConfigService {
   version = require('../../../../../package.json').version as string
   useMocks = useMocks
   mocks = mocks
-  packageArch = packageArch
-  osArch = osArch
   gitHash = gitHash
   api = api
   marketplace = marketplace

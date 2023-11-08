@@ -41,7 +41,10 @@ export module RR {
   export type EchoRes = string
 
   export type GetSystemTimeReq = {} // server.time
-  export type GetSystemTimeRes = string
+  export type GetSystemTimeRes = {
+    now: string
+    uptime: number // seconds
+  }
 
   export type GetServerLogsReq = ServerLogsReq // server.logs & server.kernel-logs
   export type GetServerLogsRes = LogsRes
@@ -349,31 +352,36 @@ export interface ActionResponse {
   qr: boolean
 }
 
+interface MetricData {
+  value: string
+  unit: string
+}
+
 export interface Metrics {
   general: {
-    temperature: string
+    temperature: MetricData | null
   }
   memory: {
-    'percentage-used': string
-    total: string
-    available: string
-    used: string
-    'swap-total': string
-    'swap-free': string
-    'swap-used': string
+    total: MetricData
+    'percentage-used': MetricData
+    used: MetricData
+    available: MetricData
+    'zram-total': MetricData
+    'zram-used': MetricData
+    'zram-available': MetricData
   }
   cpu: {
-    'user-space': string
-    'kernel-space': string
-    'io-wait': string
-    idle: string
-    usage: string
+    'percentage-used': MetricData
+    idle: MetricData
+    'user-space': MetricData
+    'kernel-space': MetricData
+    wait: MetricData
   }
   disk: {
-    size: string
-    used: string
-    available: string
-    'percentage-used': string
+    capacity: MetricData
+    'percentage-used': MetricData
+    used: MetricData
+    available: MetricData
   }
 }
 

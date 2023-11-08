@@ -855,7 +855,7 @@ export const action = {
   },
   /**
    * Created this test because of issue
-   * https://github.com/Start9Labs/embassy-os/issues/1737
+   * https://github.com/Start9Labs/start-os/issues/1737 
    * which that we couldn't create a dir that was deeply nested, and the parents where
    * not created yet. Found this out during the migrations, where the parent would die.
    * @param {*} effects
@@ -931,7 +931,7 @@ export const action = {
   },
   /**
    * Created this test because of issue
-   * https://github.com/Start9Labs/embassy-os/issues/2121
+   * https://github.com/Start9Labs/start-os/issues/2121
    * That the empty in the create dies
    * @param {*} effects
    * @param {*} _input

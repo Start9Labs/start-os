@@ -31,6 +31,7 @@ export module Mock {
     'current-backup': null,
     'update-progress': null,
     updated: true,
+    restarting: false,
     'shutting-down': false,
   }
   export const MarketplaceEos: RR.GetMarketplaceEosRes = {
@@ -381,29 +382,80 @@ export module Mock {
   export function getMetrics(): Metrics {
     return {
       general: {
-        temperature: (Math.random() * 100).toFixed(1),
+        temperature: {
+          value: '66.8',
+          unit: '°C',
+        },
       },
       memory: {
-        'percentage-used': '20',
-        total: (Math.random() * 100).toFixed(2),
-        available: '18000',
-        used: '4000',
-        'swap-total': '1000',
-        'swap-free': Math.random().toFixed(2),
-        'swap-used': '0',
+        'percentage-used': {
+          value: '30.7',
+          unit: '%',
+        },
+        total: {
+          value: '31971.10',
+          unit: 'MiB',
+        },
+        available: {
+          value: '22150.66',
+          unit: 'MiB',
+        },
+        used: {
+          value: '8784.97',
+          unit: 'MiB',
+        },
+        'zram-total': {
+          value: '7992.00',
+          unit: 'MiB',
+        },
+        'zram-available': {
+          value: '7882.50',
+          unit: 'MiB',
+        },
+        'zram-used': {
+          value: '109.50',
+          unit: 'MiB',
+        },
       },
       cpu: {
-        'user-space': '100',
-        'kernel-space': '50',
-        'io-wait': String(Math.random() * 50),
-        idle: '80',
-        usage: '30',
+        'percentage-used': {
+          value: '8.4',
+          unit: '%',
+        },
+        'user-space': {
+          value: '7.0',
+          unit: '%',
+        },
+        'kernel-space': {
+          value: '1.4',
+          unit: '%',
+        },
+        wait: {
+          value: '0.5',
+          unit: '%',
+        },
+        idle: {
+          value: '91.1',
+          unit: '%',
+        },
       },
       disk: {
-        size: '1000',
-        used: '900',
-        available: '100',
-        'percentage-used': '90',
+        capacity: {
+          value: '1851.60',
+          unit: 'GB',
+        },
+        used: {
+          value: '859.02',
+          unit: 'GB',
+        },
+        available: {
+          value: '992.59',
+          unit: 'GB',
+        },
+        'percentage-used': {
+          value: '46.4',
+          unit: '%',
+        },
       },
     }
   }

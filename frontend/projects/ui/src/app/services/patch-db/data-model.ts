@@ -66,10 +66,11 @@ export interface ServerInfo {
   hostname: string
   pubkey: string
   'ca-fingerprint': string
-  'system-start-time': string
+  'ntp-synced': boolean
   zram: boolean
   smtp: typeof customSmtp.validator._TYPE
   'password-hash': string
+  platform: string
 }
 
 export interface IpInfo {
@@ -90,7 +91,14 @@ export interface ServerStatusInfo {
   }
   updated: boolean
   'update-progress': { size: number | null; downloaded: number } | null
+  restarting: boolean
   'shutting-down': boolean
+}
+
+export enum ServerStatus {
+  Running = 'running',
+  Updated = 'updated',
+  BackingUp = 'backing-up',
 }
 
 export interface PackageDataEntry {

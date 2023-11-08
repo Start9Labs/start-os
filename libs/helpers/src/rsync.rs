@@ -74,7 +74,7 @@ impl Rsync {
             cmd.arg("--no-perms");
         }
         let mut command = cmd
-            .arg("-acAXH")
+            .arg("-actAXH")
             .arg("--info=progress2")
             .arg("--no-inc-recursive")
             .arg(src.as_ref())

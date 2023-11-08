@@ -11,7 +11,17 @@
         <ion-icon slot="start" name="warning-outline"></ion-icon>
         <ion-label>
           <h2 style="font-weight: bold">Http detected</h2>
-          <p style="font-weight: 600">Tor is faster over https.</p>
+          <p style="font-weight: 600">
+            Tor is faster over https. Your Root CA must be trusted.
+            <a
+              href="https://docs.start9.com/0.3.5.x/user-manual/trust-ca"
+              target="_blank"
+              noreferrer
+              style="color: black"
+            >
+              View instructions
+            </a>
+          </p>
         </ion-label>
         <ion-button slot="end" color="light" (click)="launchHttps()">
           Open Https
@@ -48,7 +58,6 @@
                     [type]="unmasked ? 'text' : 'password'"
                     [(ngModel)]="password"
                     (ionChange)="error = ''"
-                    maxlength="64"
                   ></ion-input>
                   <ion-button
                     slot="end"

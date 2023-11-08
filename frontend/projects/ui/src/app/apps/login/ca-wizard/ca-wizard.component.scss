@@ -1,44 +1,83 @@
-.grid-wiz {
-  --ion-grid-padding: 36px;
-  height: 100%
+#trusted {
+  max-width: 40%;
 }
 
-.wiz-icon {
-  font-size: 84px;
+#untrusted {
+  max-width: 50%;
 }
 
-.wiz-card {
+.center-container {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+ion-card {
+  color: var(--ion-color-dark);
   background: #414141;
-  margin: 24px;
-  padding: 16px;
-  height: 280px;
-  border-radius: 16px;
-  display: grid;
+  box-shadow: 0 4px 4px rgba(17, 17, 17, 0.144);
+  border-radius: 35px;
+  padding: 1.5rem;
+  width: 100%;
 
-  & h2 {
-    font-weight: 600;
+  h1 {
+    font-weight: bold;
+    font-size: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+
+  p {
+    font-size: 21px;
+    line-height: 25px;
+    margin-bottom: 30px;
+    margin-top: 0;
   }
 }
 
-.wiz-card-button {
-  justify-self: center;
-  white-space: normal;
+.text-center {
+  text-align: center;
 }
 
-.wiz-spinner {
-  width: 14px;
-  height: 14px;
+ol {
+  font-size: 17px;
+  line-height: 25px;
+  text-align: left;
+
+  li {
+    padding-bottom: 24px;
+  }
+
+  ion-button {
+    margin-top: 10px;
+  }
 }
 
-.disabled {
-  filter: saturate(0.2) contrast(0.5)
+.refresh {
+  --background: var(--ion-color-success-shade);
 }
 
-.wiz-step {
-  margin-top: 4px;
+.wiz-icon {
+  font-size: 64px;
 }
 
-.inline-center {
-  display: inline-flex;
-  align-items: center;
+.skip_detail {
+  display: block;
+  font-size: 0.8rem;
+  margin-top: -13px;
+  padding-bottom: 0.5rem;
+}
+
+@media (max-width: 700px) {
+  #trusted, #untrusted {
+    max-width: 100%;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1200px) {
+  #trusted, #untrusted {
+    max-width: 75%;
+  }
 }

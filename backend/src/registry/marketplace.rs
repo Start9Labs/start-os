@@ -23,7 +23,7 @@ pub fn with_query_params(ctx: RpcContext, mut url: Url) -> Url {
             "os.compat",
             &crate::version::Current::new().compat().to_string(),
         )
-        .append_pair("os.arch", crate::OS_ARCH)
+        .append_pair("os.arch", &*crate::PLATFORM)
         .append_pair("hardware.arch", &*crate::ARCH)
         .append_pair("hardware.ram", &ctx.hardware.ram.to_string());
 

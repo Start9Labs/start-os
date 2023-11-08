@@ -194,7 +194,10 @@ export class MockApiService extends ApiService {
     params: RR.GetSystemTimeReq,
   ): Promise<RR.GetSystemTimeRes> {
     await pauseFor(2000)
-    return new Date().toUTCString()
+    return {
+      now: new Date().toUTCString(),
+      uptime: 1234567,
+    }
   }
 
   async getServerLogs(
@@ -310,6 +313,27 @@ export class MockApiService extends ApiService {
     params: RR.RestartServerReq,
   ): Promise<RR.RestartServerRes> {
     await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/status-info/restarting',
+        value: true,
+      },
+    ]
+    this.mockRevision(patch)
+
+    setTimeout(() => {
+      const patch2 = [
+        {
+          op: PatchOp.REPLACE,
+          path: '/server-info/status-info/restarting',
+          value: false,
+        },
+      ]
+      this.mockRevision(patch2)
+    }, 2000)
+
     return null
   }
 
@@ -317,14 +341,34 @@ export class MockApiService extends ApiService {
     params: RR.ShutdownServerReq,
   ): Promise<RR.ShutdownServerRes> {
     await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/status-info/shutting-down',
+        value: true,
+      },
+    ]
+    this.mockRevision(patch)
+
+    setTimeout(() => {
+      const patch2 = [
+        {
+          op: PatchOp.REPLACE,
+          path: '/server-info/status-info/shutting-down',
+          value: false,
+        },
+      ]
+      this.mockRevision(patch2)
+    }, 2000)
+
     return null
   }
 
   async systemRebuild(
-    params: RR.RestartServerReq,
-  ): Promise<RR.RestartServerRes> {
-    await pauseFor(2000)
-    return null
+    params: RR.SystemRebuildReq,
+  ): Promise<RR.SystemRebuildRes> {
+    return this.restartServer(params)
   }
 
   async repairDisk(params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
@@ -431,7 +475,9 @@ export class MockApiService extends ApiService {
         value: params.enable,
       },
     ]
-    return this.withRevision(patch, null)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async getWifi(params: RR.GetWifiReq): Promise<RR.GetWifiRes> {
@@ -472,8 +518,9 @@ export class MockApiService extends ApiService {
         value: params,
       },
     ]
+    this.mockRevision(patch)
 
-    return this.withRevision(patch)
+    return null
   }
 
   // ssh

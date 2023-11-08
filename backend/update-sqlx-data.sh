@@ -15,7 +15,7 @@ docker run -d --rm --name=tmp_postgres -e POSTGRES_PASSWORD=password -v $TMP_DIR
     PG_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' tmp_postgres)
     
     DATABASE_URL=postgres://postgres:password@$PG_IP/postgres cargo sqlx migrate run
-    DATABASE_URL=postgres://postgres:password@$PG_IP/postgres OS_ARCH=$(uname -m) cargo sqlx prepare -- --lib --profile=test
+    DATABASE_URL=postgres://postgres:password@$PG_IP/postgres PLATFORM=$(uname -m) cargo sqlx prepare -- --lib --profile=test
 )
 
 docker stop tmp_postgres

@@ -6,12 +6,14 @@
 # Then we are going to make sure that each of these files is then put on the rsyncd server
 # so the embassies can pull them down
 
+date >> /var/log/resyncRsyncRegistry.runlog
+
 
 cat > /etc/rsyncd.conf << RD
 uid = root
 gid = root
 use chroot = yes
-max connections = 50
+max connections = 4
 pid file = /var/run/rsyncd.pid
 exclude = lost+found/
 timeout = 900
@@ -27,7 +29,7 @@ do
     filename=${dir##*/}
     version=$(echo $directory | sed -r 's/.*\///')
     version_dir="/srv/rsync/$version"
-    type=$(echo "$filename" | sed -r "s/^.*?\.(\w+)\.squashfs$/\1/")
+    type=$(echo "$filename" | sed -r "s/^.*?\.([a-z0-9_-]+)\.squashfs$/\1/")
     new_dir="$version_dir/$type"
 
 

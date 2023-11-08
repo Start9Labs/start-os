@@ -1,7 +1,7 @@
 use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use color_eyre::eyre::eyre;
 use helpers::NonDetachingJoinHandle;
@@ -19,7 +19,6 @@ use crate::install::PKG_ARCHIVE_DIR;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
 use crate::sound::BEP;
-use crate::system::time;
 use crate::util::cpupower::{
     current_governor, get_available_governors, set_governor, GOVERNOR_PERFORMANCE,
 };
@@ -255,6 +254,17 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         }
     }
     crate::disk::mount::util::bind(&log_dir, "/var/log/journal", false).await?;
+    match Command::new("chattr")
+        .arg("-R")
+        .arg("+C")
+        .arg("/var/log/journal")
+        .invoke(ErrorKind::Filesystem)
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(e) if e.source.to_string().contains("Operation not supported") => Ok(()),
+        Err(e) => Err(e),
+    }?;
     Command::new("systemctl")
         .arg("restart")
         .arg("systemd-journald")
@@ -263,6 +273,9 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     tracing::info!("Mounted Logs");
 
     let tmp_dir = cfg.datadir().join("package-data/tmp");
+    if should_rebuild && tokio::fs::metadata(&tmp_dir).await.is_ok() {
+        tokio::fs::remove_dir_all(&tmp_dir).await?;
+    }
     if tokio::fs::metadata(&tmp_dir).await.is_err() {
         tokio::fs::create_dir_all(&tmp_dir).await?;
     }
@@ -275,9 +288,6 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .datadir()
         .join(format!("package-data/tmp/{CONTAINER_TOOL}"));
     let tmp_docker_exists = tokio::fs::metadata(&tmp_docker).await.is_ok();
-    if should_rebuild && tmp_docker_exists {
-        tokio::fs::remove_dir_all(&tmp_docker).await?;
-    }
     if CONTAINER_TOOL == "docker" {
         Command::new("systemctl")
             .arg("stop")
@@ -309,7 +319,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         }
 
         tracing::info!("Loading System Docker Images");
-        crate::install::load_images("/usr/lib/embassy/system-images").await?;
+        crate::install::load_images("/usr/lib/startos/system-images").await?;
         tracing::info!("Loaded System Docker Images");
 
         tracing::info!("Loading Package Docker Images");
@@ -361,15 +371,28 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         }
     }
 
-    let mut warn_time_not_synced = true;
-    for _ in 0..60 {
+    let mut time_not_synced = true;
+    let mut not_made_progress = 0u32;
+    for _ in 0..1800 {
         if check_time_is_synchronized().await? {
-            warn_time_not_synced = false;
+            time_not_synced = false;
             break;
         }
+        let t = SystemTime::now();
         tokio::time::sleep(Duration::from_secs(1)).await;
+        if t.elapsed()
+            .map(|t| t > Duration::from_secs_f64(1.1))
+            .unwrap_or(true)
+        {
+            not_made_progress = 0;
+        } else {
+            not_made_progress += 1;
+        }
+        if not_made_progress > 30 {
+            break;
+        }
     }
-    if warn_time_not_synced {
+    if time_not_synced {
         tracing::warn!("Timed out waiting for system time to synchronize");
     } else {
         tracing::info!("Syncronized system clock");
@@ -383,9 +406,24 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         updated: false,
         update_progress: None,
         backup_progress: None,
+        shutting_down: false,
+        restarting: false,
     };
 
-    server_info.system_start_time = time().await?;
+    server_info.ntp_synced = if time_not_synced {
+        let db = db.clone();
+        tokio::spawn(async move {
+            while !check_time_is_synchronized().await.unwrap() {
+                tokio::time::sleep(Duration::from_secs(30)).await;
+            }
+            db.mutate(|v| v.as_server_info_mut().as_ntp_synced_mut().ser(&true))
+                .await
+                .unwrap()
+        });
+        false
+    } else {
+        true
+    };
 
     db.mutate(|v| {
         v.as_server_info_mut().ser(&server_info)?;

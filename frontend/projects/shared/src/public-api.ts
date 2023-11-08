@@ -27,6 +27,8 @@ export * from './directives/responsive-col/responsive-col.module'
 export * from './directives/responsive-col/responsive-col-viewport.directive'
 export * from './directives/safe-links/safe-links.directive'
 export * from './directives/safe-links/safe-links.module'
+export * from './directives/enter/enter.directive'
+export * from './directives/enter/enter.module'
 
 export * from './mocks/get-setup-status'
 

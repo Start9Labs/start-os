@@ -58,12 +58,13 @@ export const mockPatchData: DataModel = {
       'current-backup': null,
       updated: false,
       'update-progress': null,
+      restarting: false,
       'shutting-down': false,
     },
     hostname: 'random-words',
     pubkey: 'npub1sg6plzptd64u62a878hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m',
     'ca-fingerprint': 'SHA-256: 63 2B 11 99 44 40 17 DF 37 FC C3 DF 0F 3D 15',
-    'system-start-time': new Date(new Date().valueOf() - 360042).toUTCString(),
+    'ntp-synced': false,
     zram: false,
     smtp: {
       server: '',
@@ -75,6 +76,7 @@ export const mockPatchData: DataModel = {
     },
     'password-hash':
       '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+    platform: 'x86_64-nonfree',
   },
   'package-data': {
     bitcoind: Mock.bitcoind,

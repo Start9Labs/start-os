@@ -15,7 +15,32 @@
 
   <!-- loaded -->
   <ion-item-group *ngIf="server$ | async as server; else loading">
-    <ion-item *ngIf="isTorHttp" color="warning">
+    <ion-item
+      *ngIf="!server['ntp-synced']"
+      color="warning"
+      class="ion-margin-bottom"
+    >
+      <ion-icon slot="start" name="warning-outline"></ion-icon>
+      <ion-label>
+        <h2 style="font-weight: bold">Clock sync failure</h2>
+        <p style="font-weight: 600">
+          This will cause connectivity issues. Refer to the StartOS docs to
+          resolve the issue.
+        </p>
+      </ion-label>
+      <ion-button
+        slot="end"
+        color="light"
+        href="https://docs.start9.com/0.3.5.x/support/common-issues#clock-sync-failure"
+        target="_blank"
+        rel="noreferrer"
+      >
+        Open Docs
+        <ion-icon slot="end" name="open-outline"></ion-icon>
+      </ion-button>
+    </ion-item>
+
+    <ion-item *ngIf="isTorHttp" color="warning" class="ion-margin-bottom">
       <ion-icon slot="start" name="warning-outline"></ion-icon>
       <ion-label>
         <h2 style="font-weight: bold">Http detected</h2>

@@ -15,6 +15,7 @@ name = "start-os"
 readme = "README.md"
 repository = "https://github.com/Start9Labs/start-os"
 version = "0.3.5"
+license = "MIT"
 
 [lib]
 name = "startos"
@@ -31,7 +32,7 @@ cli = []
 daemon = []
 default = ["cli", "sdk", "daemon", "js_engine"]
 dev = []
-podman = []
+docker = []
 sdk = []
 unstable = ["console-subscriber", "tokio/tracing"]
 
@@ -66,18 +67,17 @@ divrem = "1.0.0"
 ed25519 = { version = "2.2.3", features = ["pkcs8", "pem", "alloc"] }
 ed25519-dalek = { version = "2.0.0", features = [
   "serde",
-  "hazmat",
   "zeroize",
   "rand_core",
   "digest",
 ] }
+ed25519-dalek-v1 = { package = "ed25519-dalek", version = "1" }
 embassy_container_init = { path = "../libs/embassy_container_init" }
 emver = { version = "0.1.7", git = "https://github.com/Start9Labs/emver-rs.git", features = [
   "serde",
 ] }
 fd-lock-rs = "0.1.4"
 futures = "0.3.28"
-git-version = "0.3.5"
 gpt = "3.1.0"
 helpers = { path = "../libs/helpers" }
 hex = "0.4.3"

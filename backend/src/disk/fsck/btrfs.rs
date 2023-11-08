@@ -23,6 +23,7 @@ pub async fn btrfs_check_repair(logicalname: impl AsRef<Path>) -> Result<Require
     Command::new("btrfs")
         .arg("check")
         .arg("--repair")
+        .arg("--force")
         .arg(logicalname.as_ref())
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
