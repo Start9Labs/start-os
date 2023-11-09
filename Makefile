@@ -194,7 +194,7 @@ frontend/dist/raw/diagnostic-ui: $(FRONTEND_DIAGNOSTIC_UI_SRC) $(FRONTEND_SHARED
 	npm --prefix frontend run build:dui
 
 frontend/dist/raw/install-wizard: $(FRONTEND_INSTALL_WIZARD_SRC) $(FRONTEND_SHARED_SRC)
-	npm --prefix frontend run build:install-wiz
+	npm --prefix frontend run build:install
 
 frontend/dist/static: $(EMBASSY_UIS) $(ENVIRONMENT_FILE)
 	./compress-uis.sh
