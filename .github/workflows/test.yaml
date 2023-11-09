@@ -1,14 +1,14 @@
-name: Debian-based ISO and SquashFS
+name: Automated Tests
 
 on:
   push:
     branches:
       - master
-      - next
+      - next/*
   pull_request:
     branches:
       - master
-      - next
+      - next/*
 
 env:
   NODEJS_VERSION: "18.15.0"
@@ -27,5 +27,5 @@ jobs:
         with:
           node-version: ${{ env.NODEJS_VERSION }}
 
-      - name: Run Tests
+      - name: Build And Run Tests
         run: make test
