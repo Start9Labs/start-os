@@ -63,6 +63,13 @@ ol {
   font-size: 64px;
 }
 
+.skip_detail {
+  display: block;
+  font-size: 0.8rem;
+  margin-top: -13px;
+  padding-bottom: 0.5rem;
+}
+
 @media (max-width: 700px) {
   #trusted, #untrusted {
     max-width: 100%;

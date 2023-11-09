@@ -17,6 +17,8 @@ export module Mock {
     'backup-progress': null,
     'update-progress': null,
     updated: true,
+    restarting: false,
+    'shutting-down': false,
   }
   export const MarketplaceEos: RR.GetMarketplaceEosRes = {
     version: '0.3.5',

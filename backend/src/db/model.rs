@@ -57,6 +57,8 @@ impl Database {
                     backup_progress: None,
                     updated: false,
                     update_progress: None,
+                    shutting_down: false,
+                    restarting: false,
                 },
                 wifi: WifiInfo {
                     ssids: Vec::new(),
@@ -166,6 +168,10 @@ pub struct ServerStatus {
     pub backup_progress: Option<BTreeMap<PackageId, BackupProgress>>,
     pub updated: bool,
     pub update_progress: Option<UpdateProgress>,
+    #[serde(default)]
+    pub shutting_down: bool,
+    #[serde(default)]
+    pub restarting: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]

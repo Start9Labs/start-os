@@ -1,9 +1,7 @@
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
 
-use color_eyre::eyre::eyre;
 use embassy_container_init::ProcessGroupId;
 use helpers::UnixRpcClient;
 pub use js_engine::JsError;
@@ -17,8 +15,8 @@ use tracing::instrument;
 use super::ProcedureName;
 use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
-use crate::util::io::to_json_async_writer;
-use crate::util::Version;
+use crate::util::serde::IoFormat;
+use crate::util::{Invoke, Version};
 use crate::volume::Volumes;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -83,45 +81,23 @@ impl JsProcedure {
         _gid: ProcessGroupId,
         _rpc_client: Option<Arc<UnixRpcClient>>,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        let runner_argument = ExecuteArgs {
-            procedure: self.clone(),
-            directory: directory.clone(),
-            pkg_id: pkg_id.clone(),
-            pkg_version: pkg_version.clone(),
-            name,
-            volumes: volumes.clone(),
-            input: input.and_then(|x| serde_json::to_value(x).ok()),
-        };
-        let mut runner = Command::new("start-deno")
+        Command::new("start-deno")
             .arg("execute")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .kill_on_drop(true)
-            .spawn()?;
-        to_json_async_writer(
-            &mut runner.stdin.take().or_not_found("stdin")?,
-            &runner_argument,
-        )
-        .await?;
-
-        let res = if let Some(timeout) = timeout {
-            tokio::time::timeout(timeout, runner.wait_with_output())
-                .await
-                .with_kind(ErrorKind::Timeout)??
-        } else {
-            runner.wait_with_output().await?
-        };
-
-        if res.status.success() {
-            serde_json::from_str::<Result<O, (i32, String)>>(std::str::from_utf8(&res.stdout)?)
-                .with_kind(ErrorKind::Deserialization)
-        } else {
-            Err(Error::new(
-                eyre!("{}", String::from_utf8(res.stderr)?),
-                ErrorKind::Javascript,
-            ))
-        }
+            .input(Some(&mut std::io::Cursor::new(IoFormat::Json.to_vec(
+                &ExecuteArgs {
+                    procedure: self.clone(),
+                    directory: directory.clone(),
+                    pkg_id: pkg_id.clone(),
+                    pkg_version: pkg_version.clone(),
+                    name,
+                    volumes: volumes.clone(),
+                    input: input.and_then(|x| serde_json::to_value(x).ok()),
+                },
+            )?)))
+            .timeout(timeout)
+            .invoke(ErrorKind::Javascript)
+            .await
+            .and_then(|res| IoFormat::Json.from_slice(&res))
     }
 
     #[instrument(skip_all)]
@@ -135,45 +111,23 @@ impl JsProcedure {
         timeout: Option<Duration>,
         name: ProcedureName,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        let runner_argument = ExecuteArgs {
-            procedure: self.clone(),
-            directory: directory.clone(),
-            pkg_id: pkg_id.clone(),
-            pkg_version: pkg_version.clone(),
-            name,
-            volumes: volumes.clone(),
-            input: input.and_then(|x| serde_json::to_value(x).ok()),
-        };
-        let mut runner = Command::new("start-deno")
+        Command::new("start-deno")
             .arg("sandbox")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .kill_on_drop(true)
-            .spawn()?;
-        to_json_async_writer(
-            &mut runner.stdin.take().or_not_found("stdin")?,
-            &runner_argument,
-        )
-        .await?;
-
-        let res = if let Some(timeout) = timeout {
-            tokio::time::timeout(timeout, runner.wait_with_output())
-                .await
-                .with_kind(ErrorKind::Timeout)??
-        } else {
-            runner.wait_with_output().await?
-        };
-
-        if res.status.success() {
-            serde_json::from_str::<Result<O, (i32, String)>>(std::str::from_utf8(&res.stdout)?)
-                .with_kind(ErrorKind::Deserialization)
-        } else {
-            Err(Error::new(
-                eyre!("{}", String::from_utf8(res.stderr)?),
-                ErrorKind::Javascript,
-            ))
-        }
+            .input(Some(&mut std::io::Cursor::new(IoFormat::Json.to_vec(
+                &ExecuteArgs {
+                    procedure: self.clone(),
+                    directory: directory.clone(),
+                    pkg_id: pkg_id.clone(),
+                    pkg_version: pkg_version.clone(),
+                    name,
+                    volumes: volumes.clone(),
+                    input: input.and_then(|x| serde_json::to_value(x).ok()),
+                },
+            )?)))
+            .timeout(timeout)
+            .invoke(ErrorKind::Javascript)
+            .await
+            .and_then(|res| IoFormat::Json.from_slice(&res))
     }
 
     #[instrument(skip_all)]

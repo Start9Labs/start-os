@@ -302,6 +302,27 @@ export class MockApiService extends ApiService {
     params: RR.RestartServerReq,
   ): Promise<RR.RestartServerRes> {
     await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/status-info/restarting',
+        value: true,
+      },
+    ]
+    this.mockRevision(patch)
+
+    setTimeout(() => {
+      const patch2 = [
+        {
+          op: PatchOp.REPLACE,
+          path: '/server-info/status-info/restarting',
+          value: false,
+        },
+      ]
+      this.mockRevision(patch2)
+    }, 2000)
+
     return null
   }
 
@@ -309,14 +330,34 @@ export class MockApiService extends ApiService {
     params: RR.ShutdownServerReq,
   ): Promise<RR.ShutdownServerRes> {
     await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/status-info/shutting-down',
+        value: true,
+      },
+    ]
+    this.mockRevision(patch)
+
+    setTimeout(() => {
+      const patch2 = [
+        {
+          op: PatchOp.REPLACE,
+          path: '/server-info/status-info/shutting-down',
+          value: false,
+        },
+      ]
+      this.mockRevision(patch2)
+    }, 2000)
+
     return null
   }
 
   async systemRebuild(
-    params: RR.RestartServerReq,
-  ): Promise<RR.RestartServerRes> {
-    await pauseFor(2000)
-    return null
+    params: RR.SystemRebuildReq,
+  ): Promise<RR.SystemRebuildRes> {
+    return this.restartServer(params)
   }
 
   async repairDisk(params: RR.RestartServerReq): Promise<RR.RestartServerRes> {

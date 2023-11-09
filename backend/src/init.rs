@@ -254,6 +254,17 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         }
     }
     crate::disk::mount::util::bind(&log_dir, "/var/log/journal", false).await?;
+    match Command::new("chattr")
+        .arg("-R")
+        .arg("+C")
+        .arg("/var/log/journal")
+        .invoke(ErrorKind::Filesystem)
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(e) if e.source.to_string().contains("Operation not supported") => Ok(()),
+        Err(e) => Err(e),
+    }?;
     Command::new("systemctl")
         .arg("restart")
         .arg("systemd-journald")
@@ -395,6 +406,8 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         updated: false,
         update_progress: None,
         backup_progress: None,
+        shutting_down: false,
+        restarting: false,
     };
 
     server_info.ntp_synced = if time_not_synced {

@@ -1,9 +1,8 @@
 use std::path::Path;
-use std::process::Stdio;
 
 use async_compression::tokio::bufread::GzipDecoder;
 use tokio::fs::File;
-use tokio::io::{AsyncRead, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncRead, BufReader};
 use tokio::process::Command;
 
 use crate::disk::fsck::RequiresReboot;
@@ -44,36 +43,25 @@ pub async fn update_firmware() -> Result<RequiresReboot, Error> {
             let mut firmware_read_dir = tokio::fs::read_dir(&firmware_dir).await?;
             while let Some(entry) = firmware_read_dir.next_entry().await? {
                 let filename = entry.file_name().to_string_lossy().into_owned();
-                let rdr: Option<Box<dyn AsyncRead + Unpin>> = if filename.ends_with(".rom.gz") {
-                    Some(Box::new(GzipDecoder::new(BufReader::new(
-                        File::open(entry.path()).await?,
-                    ))))
-                } else if filename.ends_with(".rom") {
-                    Some(Box::new(File::open(entry.path()).await?))
-                } else {
-                    None
-                };
+                let rdr: Option<Box<dyn AsyncRead + Unpin + Send>> =
+                    if filename.ends_with(".rom.gz") {
+                        Some(Box::new(GzipDecoder::new(BufReader::new(
+                            File::open(entry.path()).await?,
+                        ))))
+                    } else if filename.ends_with(".rom") {
+                        Some(Box::new(File::open(entry.path()).await?))
+                    } else {
+                        None
+                    };
                 if let Some(mut rdr) = rdr {
-                    let mut flashrom = Command::new("flashrom")
+                    Command::new("flashrom")
                         .arg("-p")
                         .arg("internal")
                         .arg("-w-")
-                        .stdin(Stdio::piped())
-                        .spawn()?;
-                    let mut rom_dest = flashrom.stdin.take().or_not_found("stdin")?;
-                    tokio::io::copy(&mut rdr, &mut rom_dest).await?;
-                    rom_dest.flush().await?;
-                    rom_dest.shutdown().await?;
-                    drop(rom_dest);
-                    let o = flashrom.wait_with_output().await?;
-                    if !o.status.success() {
-                        return Err(Error::new(
-                            eyre!("{}", std::str::from_utf8(&o.stderr)?),
-                            ErrorKind::Firmware,
-                        ));
-                    } else {
-                        return Ok(RequiresReboot(true));
-                    }
+                        .input(Some(&mut rdr))
+                        .invoke(ErrorKind::Firmware)
+                        .await?;
+                    return Ok(RequiresReboot(true));
                 }
             }
         }
