@@ -9,8 +9,17 @@ use crate::prelude::*;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::file_contents::FileContents;
 use crate::s9pk::merkle_archive::sink::TrackingWriter;
+use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::merkle_archive::{Entry, EntryContents, MerkleArchive};
 
+/// Creates a MerkleArchive (a1) with the provided files at the provided paths. NOTE: later files can overwrite previous files/directories at the same path
+/// Tests:
+///     - a1.update_hashes(): returns Ok(_)
+///     - a1.serialize(verify: true): returns Ok(s1)
+///     - MerkleArchive::deserialize(s1): returns Ok(a2)
+///     - a2: contains all expected files with expected content
+///     - a2.serialize(verify: true): returns Ok(s2)
+///     - s1 == s2
 #[instrument]
 fn test(files: Vec<(PathBuf, String)>) -> Result<(), Error> {
     let mut root = DirectoryContents::<Arc<[u8]>>::new();
@@ -24,10 +33,11 @@ fn test(files: Vec<(PathBuf, String)>) -> Result<(), Error> {
         ) {
             eprintln!("failed to insert file at {path:?}: {e}");
         } else {
-            let mut remaining = check_set.split_off(&path);
+            let path = path.strip_prefix("/").unwrap_or(&path);
+            let mut remaining = check_set.split_off(path);
             while {
                 if let Some((p, s)) = remaining.pop_first() {
-                    if !p.starts_with(&path) {
+                    if !p.starts_with(path) {
                         remaining.insert(p, s);
                         false
                     } else {
@@ -38,29 +48,32 @@ fn test(files: Vec<(PathBuf, String)>) -> Result<(), Error> {
                 }
             } {}
             check_set.append(&mut remaining);
-            check_set.insert(path.clone(), content);
+            check_set.insert(path.to_owned(), content);
         }
     }
     let key = SigningKey::generate(&mut rand::thread_rng());
-    let mut archive = MerkleArchive::new(root, key);
+    let mut a1 = MerkleArchive::new(root, key);
     tokio::runtime::Builder::new_current_thread()
         .enable_io()
         .build()
         .unwrap()
         .block_on(async move {
-            archive.update_hashes(true).await?;
+            a1.update_hashes(true).await?;
             let mut s1 = Vec::new();
-            archive
-                .serialize(&mut TrackingWriter::new(0, &mut s1), true)
+            a1.serialize(&mut TrackingWriter::new(0, &mut s1), true)
                 .await?;
             let s1: Arc<[u8]> = s1.into();
-            let archive = MerkleArchive::deserialize(&s1, &mut Cursor::new(s1.clone())).await?;
+            let a2 = MerkleArchive::deserialize(&s1, &mut Cursor::new(s1.clone())).await?;
 
             for (path, content) in check_set {
-                match archive.contents.get_path(&path).map(|e| e.as_contents()) {
-                    Some(EntryContents::File(f)) => {
+                match a2
+                    .contents
+                    .get_path(&path)
+                    .map(|e| (e.as_contents(), e.hash()))
+                {
+                    Some((EntryContents::File(f), hash)) => {
                         ensure_code!(
-                            &f.to_vec().await? == content.as_bytes(),
+                            &f.to_vec(hash).await? == content.as_bytes(),
                             ErrorKind::ParseS9pk,
                             "File at {path:?} does not match input"
                         )
@@ -75,8 +88,7 @@ fn test(files: Vec<(PathBuf, String)>) -> Result<(), Error> {
             }
 
             let mut s2 = Vec::new();
-            archive
-                .serialize(&mut TrackingWriter::new(0, &mut s2), true)
+            a2.serialize(&mut TrackingWriter::new(0, &mut s2), true)
                 .await?;
             let s2: Arc<[u8]> = s2.into();
             ensure_code!(s1 == s2, ErrorKind::Pack, "s1 does not match s2");

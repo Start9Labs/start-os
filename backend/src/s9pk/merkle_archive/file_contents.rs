@@ -1,7 +1,7 @@
 use tokio::io::AsyncRead;
 
 use crate::prelude::*;
-use crate::s9pk::merkle_archive::hash::{Hash, HashWriter, VerifyingWriter};
+use crate::s9pk::merkle_archive::hash::{Hash, HashWriter};
 use crate::s9pk::merkle_archive::sink::{Sink, TrackingWriter};
 use crate::s9pk::merkle_archive::source::{ArchiveSource, FileSource, Section};
 
@@ -41,14 +41,6 @@ impl<S: FileSource> FileContents<S> {
         self.serialize_body(&mut hasher, None).await?;
         Ok(hasher.into_inner().finalize())
     }
-    pub async fn size(&self) -> Result<u64, Error> {
-        self.0.size().await
-    }
-    pub async fn to_vec(&self) -> Result<Vec<u8>, Error> {
-        let mut res = Vec::with_capacity(self.size().await? as usize);
-        self.0.copy_to(&mut res).await?;
-        Ok(res)
-    }
     #[instrument(skip_all)]
     pub async fn serialize_header<W: Sink>(&self, position: u64, w: &mut W) -> Result<u64, Error> {
         use tokio::io::AsyncWriteExt;
@@ -71,16 +63,20 @@ impl<S: FileSource> FileContents<S> {
         } else {
             None
         };
-        let mut w = VerifyingWriter::new(w, verify);
-        self.0.copy_to(&mut w).await?;
-        let w = w.verify()?;
+        self.0.copy_verify(w, verify).await?;
         if let Some(start) = start {
             ensure_code!(
                 w.current_position().await? - start == self.0.size().await?,
                 ErrorKind::Pack,
-                "FileSource::copy_to wrote a number of bytes that does not match FileSource::size"
+                "FileSource::copy wrote a number of bytes that does not match FileSource::size"
             );
         }
         Ok(())
+    }
+}
+impl<S> std::ops::Deref for FileContents<S> {
+    type Target = S;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }

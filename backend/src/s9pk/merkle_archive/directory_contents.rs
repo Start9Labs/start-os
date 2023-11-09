@@ -20,6 +20,7 @@ impl<S> DirectoryContents<S> {
         Self(BTreeMap::new())
     }
 
+    #[instrument(skip_all)]
     pub fn get_path(&self, path: impl AsRef<Path>) -> Option<&Entry<S>> {
         let mut dir = Some(self);
         let mut res = None;
@@ -104,6 +105,7 @@ impl<S: ArchiveSource> DirectoryContents<Section<S>> {
     pub fn deserialize<'a>(
         source: &'a S,
         header: &'a mut (impl AsyncRead + Unpin + Send),
+        sighash: Hash,
     ) -> BoxFuture<'a, Result<Self, Error>> {
         async move {
             use tokio::io::AsyncReadExt;
@@ -127,7 +129,16 @@ impl<S: ArchiveSource> DirectoryContents<Section<S>> {
                 );
             }
 
-            Ok(Self(entries))
+            let res = Self(entries);
+
+            if res.sighash().await? == sighash {
+                Ok(res)
+            } else {
+                Err(Error::new(
+                    eyre!("hash sum does not match"),
+                    ErrorKind::InvalidSignature,
+                ))
+            }
         }
         .boxed()
     }
@@ -143,6 +154,7 @@ impl<S: FileSource> DirectoryContents<S> {
         }
         .boxed()
     }
+
     #[instrument(skip_all)]
     pub fn sighash<'a>(&'a self) -> BoxFuture<'a, Result<Hash, Error>> {
         async move {

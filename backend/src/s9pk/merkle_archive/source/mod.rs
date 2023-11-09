@@ -1,10 +1,12 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use blake3::Hash;
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::prelude::*;
+use crate::s9pk::merkle_archive::hash::VerifyingWriter;
 
 pub mod http;
 pub mod multi_cursor_file;
@@ -14,9 +16,24 @@ pub trait FileSource: Send + Sync + Sized + 'static {
     type Reader: AsyncRead + Unpin + Send;
     async fn size(&self) -> Result<u64, Error>;
     async fn reader(&self) -> Result<Self::Reader, Error>;
-    async fn copy_to<W: AsyncWrite + Unpin + Send>(&self, w: &mut W) -> Result<(), Error> {
+    async fn copy<W: AsyncWrite + Unpin + Send>(&self, w: &mut W) -> Result<(), Error> {
         tokio::io::copy(&mut self.reader().await?, w).await?;
         Ok(())
+    }
+    async fn copy_verify<W: AsyncWrite + Unpin + Send>(
+        &self,
+        w: &mut W,
+        verify: Option<Hash>,
+    ) -> Result<(), Error> {
+        let mut w = VerifyingWriter::new(w, verify);
+        tokio::io::copy(&mut self.reader().await?, &mut w).await?;
+        w.verify()?;
+        Ok(())
+    }
+    async fn to_vec(&self, verify: Option<Hash>) -> Result<Vec<u8>, Error> {
+        let mut vec = Vec::with_capacity(self.size().await? as usize);
+        self.copy_verify(&mut vec, verify).await?;
+        Ok(vec)
     }
 }
 
@@ -40,7 +57,7 @@ impl FileSource for Arc<[u8]> {
     async fn reader(&self) -> Result<Self::Reader, Error> {
         Ok(std::io::Cursor::new(self.clone()))
     }
-    async fn copy_to<W: AsyncWrite + Unpin + Send>(&self, w: &mut W) -> Result<(), Error> {
+    async fn copy<W: AsyncWrite + Unpin + Send>(&self, w: &mut W) -> Result<(), Error> {
         use tokio::io::AsyncWriteExt;
 
         w.write_all(&*self).await?;
@@ -97,7 +114,7 @@ impl<S: ArchiveSource> FileSource for Section<S> {
     async fn reader(&self) -> Result<Self::Reader, Error> {
         self.source.fetch(self.position, self.size).await
     }
-    async fn copy_to<W: AsyncWrite + Unpin + Send>(&self, w: &mut W) -> Result<(), Error> {
+    async fn copy<W: AsyncWrite + Unpin + Send>(&self, w: &mut W) -> Result<(), Error> {
         self.source.copy_to(self.position, self.size, w).await
     }
 }

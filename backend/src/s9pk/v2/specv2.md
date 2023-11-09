@@ -12,6 +12,7 @@
 
 - ed25519 pubkey (32B)
 - ed25519 signature of TOC sighash (64B)
+- TOC sighash: (32B)
 - TOC position: (8B: u64 BE)
 - TOC size: (8B: u64 BE)
 
