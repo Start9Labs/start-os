@@ -20,9 +20,9 @@ export class NavigationComponent {
 
   readonly tabs$ = this.navigation.getTabs()
 
-  removeTab(tab: NavigationItem, active: boolean) {
-    this.navigation.removeTab(tab)
+  removeTab(routerLink: string, active: boolean) {
+    this.navigation.removeTab(routerLink)
 
-    if (active) this.router.navigate(['./portal/desktop'])
+    if (active) this.router.navigate(['/portal/desktop'])
   }
 }

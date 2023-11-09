@@ -10,6 +10,8 @@ import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { ServiceConfigModal } from '../modals/config.component'
 import { DependencyInfo } from '../types/dependency-info'
 import { PackageConfigData } from '../types/package-config-data'
+import { NavigationService } from '../../../services/navigation.service'
+import { toRouterLink } from '../../../utils/to-router-link'
 
 @Pipe({
   name: 'toDependencies',
@@ -19,23 +21,32 @@ export class ToDependenciesPipe implements PipeTransform {
   constructor(
     private readonly router: Router,
     private readonly formDialog: FormDialogService,
+    private readonly navigation: NavigationService,
   ) {}
 
-  transform(pkg: PackageDataEntry): DependencyInfo[] {
-    if (!pkg.installed) return []
+  transform(pkg: PackageDataEntry): DependencyInfo[] | null {
+    if (!pkg.installed) return null
 
-    return Object.keys(pkg.installed['current-dependencies'])
-      .filter(depId => !!pkg.manifest.dependencies[depId])
+    const deps = Object.keys(pkg.installed['current-dependencies'])
+      .filter(depId => pkg.manifest.dependencies[depId])
       .map(depId => this.setDepValues(pkg, depId))
+
+    return deps.length ? deps : null
   }
 
-  private setDepValues(pkg: PackageDataEntry, depId: string): DependencyInfo {
+  private setDepValues(pkg: PackageDataEntry, id: string): DependencyInfo {
+    const error = pkg.installed!.status['dependency-errors'][id]
+    const depInfo = pkg.installed!['dependency-info'][id]
+    const version = pkg.manifest.dependencies[id].version
+    const title = depInfo?.title || id
+    const icon = depInfo?.icon || ''
+
     let errorText = ''
     let actionText = 'View'
-    let action = (): unknown =>
-      this.router.navigate([`portal`, `service`, depId])
-
-    const error = pkg.installed!.status['dependency-errors'][depId]
+    let action = () => {
+      this.navigation.addTab({ icon, title, routerLink: toRouterLink(id) })
+      this.router.navigate([`portal`, `service`, id])
+    }
 
     if (error) {
       // health checks failed
@@ -45,12 +56,12 @@ export class ToDependenciesPipe implements PipeTransform {
       } else if (error.type === DependencyErrorType.NotInstalled) {
         errorText = 'Not installed'
         actionText = 'Install'
-        action = () => this.fixDep(pkg, 'install', depId)
+        action = () => this.fixDep(pkg, 'install', id)
         // incorrect version
       } else if (error.type === DependencyErrorType.IncorrectVersion) {
         errorText = 'Incorrect version'
         actionText = 'Update'
-        action = () => this.fixDep(pkg, 'update', depId)
+        action = () => this.fixDep(pkg, 'update', id)
         // not running
       } else if (error.type === DependencyErrorType.NotRunning) {
         errorText = 'Not running'
@@ -59,24 +70,14 @@ export class ToDependenciesPipe implements PipeTransform {
       } else if (error.type === DependencyErrorType.ConfigUnsatisfied) {
         errorText = 'Config not satisfied'
         actionText = 'Auto config'
-        action = () => this.fixDep(pkg, 'configure', depId)
+        action = () => this.fixDep(pkg, 'configure', id)
       } else if (error.type === DependencyErrorType.Transitive) {
         errorText = 'Dependency has a dependency issue'
       }
       errorText = `${errorText}. ${pkg.manifest.title} will not work as expected.`
     }
 
-    const depInfo = pkg.installed!['dependency-info'][depId]
-
-    return {
-      id: depId,
-      version: pkg.manifest.dependencies[depId].version,
-      title: depInfo?.title || depId,
-      icon: depInfo?.icon || '',
-      errorText,
-      actionText,
-      action,
-    }
+    return { id, icon, title, version, errorText, actionText, action }
   }
 
   async fixDep(

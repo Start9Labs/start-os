@@ -1,25 +1,46 @@
+import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { TuiSvgModule } from '@taiga-ui/core'
-import { ServiceMenu } from '../pipes/to-menu.pipe'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { ToMenuPipe } from '../pipes/to-menu.pipe'
+import { ServiceMenuItemComponent } from './menu-item.component'
 
 @Component({
-  selector: '[serviceMenu]',
+  selector: 'service-menu',
   template: `
-    <tui-svg [src]="menu.icon"></tui-svg>
-    <div [style.flex]="1">
-      <strong>{{ menu.name }}</strong>
-      <div>
-        {{ menu.description }}
-        <ng-content></ng-content>
+    <h3 class="g-title">Menu</h3>
+    <button
+      *ngFor="let menu of service | toMenu"
+      class="g-action"
+      [serviceMenuItem]="menu"
+      (click)="menu.action()"
+    >
+      <div *ngIf="menu.name === 'Outbound Proxy'" [style.color]="color">
+        {{ proxy }}
       </div>
-    </div>
-    <tui-svg src="tuiIconChevronRightLarge"></tui-svg>
+    </button>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiSvgModule],
+  imports: [CommonModule, ToMenuPipe, ServiceMenuItemComponent],
 })
 export class ServiceMenuComponent {
-  @Input({ required: true, alias: 'serviceMenu' })
-  menu!: ServiceMenu
+  @Input({ required: true })
+  service!: PackageDataEntry
+
+  get color(): string {
+    return this.service.installed?.outboundProxy
+      ? 'var(--tui-success-fill)'
+      : 'var(--tui-warning-fill)'
+  }
+
+  get proxy(): string {
+    switch (this.service.installed?.outboundProxy) {
+      case 'primary':
+        return 'System Primary'
+      case 'mirror':
+        return 'Mirror P2P'
+      default:
+        return this.service.installed?.outboundProxy?.proxyId || 'None'
+    }
+  }
 }

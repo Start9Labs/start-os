@@ -12,7 +12,7 @@ import { InterfaceInfo } from 'src/app/services/patch-db/data-model'
 import { ExtendedInterfaceInfo } from '../pipes/interface-info.pipe'
 
 @Component({
-  selector: 'button[serviceInterface]',
+  selector: 'a[serviceInterface]',
   template: `
     <tui-svg [src]="info.icon" [style.color]="info.color"></tui-svg>
     <div [style.flex]="1">

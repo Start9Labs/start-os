@@ -1,14 +1,11 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { InterfaceAddressesComponentModule } from 'src/app/common/interface-addresses/interface-addresses.module'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-
-interface Context {
-  packageId: string
-  interfaceId: string
-}
+import { ActivatedRoute } from '@angular/router'
+import { getPkgId } from '@start9labs/shared'
+import { updateTab } from '../utils/update-tab'
 
 @Component({
   template: `
@@ -23,8 +20,13 @@ interface Context {
   standalone: true,
   imports: [CommonModule, InterfaceAddressesComponentModule],
 })
-export class ServiceInterfaceModal {
-  readonly context = inject<{ data: Context }>(POLYMORPHEUS_CONTEXT).data
+export class ServiceInterfaceRoute {
+  private readonly route = inject(ActivatedRoute)
+
+  readonly context = {
+    packageId: getPkgId(this.route),
+    interfaceId: this.route.snapshot.paramMap.get('interfaceId') || '',
+  }
 
   readonly interfaceInfo$ = inject(PatchDB<DataModel>).watch$(
     'package-data',
@@ -33,4 +35,8 @@ export class ServiceInterfaceModal {
     'interfaceInfo',
     this.context.interfaceId,
   )
+
+  constructor() {
+    updateTab(`/interface/${this.context.interfaceId}`)
+  }
 }

@@ -22,7 +22,6 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
 
-import { toDesktopItem } from '../../../utils/to-desktop-item'
 import { NavigationService } from '../../../services/navigation.service'
 import { SideloadDependenciesComponent } from './dependencies.component'
 
@@ -118,7 +117,7 @@ export class SideloadPackageComponent {
       await this.api.uploadPackage(pkg, this.file)
       await this.router.navigate(['/portal/service', manifest.id])
 
-      this.navigation.removeTab(toDesktopItem('/portal/system/sideload'))
+      this.navigation.removeTab('/portal/system/sideload')
       this.alerts
         .open('Package uploaded successfully', { status: 'success' })
         .subscribe()
