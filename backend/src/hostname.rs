@@ -1,9 +1,7 @@
-use patch_db::DbHandle;
 use rand::{thread_rng, Rng};
 use tokio::process::Command;
 use tracing::instrument;
 
-use crate::account::AccountInfo;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind};
 #[derive(Clone, serde::Deserialize, serde::Serialize, Debug)]
@@ -60,6 +58,14 @@ pub async fn set_hostname(hostname: &Hostname) -> Result<(), Error> {
         .arg("--static")
         .arg("set-hostname")
         .arg(hostname)
+        .invoke(ErrorKind::ParseSysInfo)
+        .await?;
+    Command::new("sed")
+        .arg("-i")
+        .arg(format!(
+            "s/\\(\\s\\)localhost\\( {hostname}\\)\\?/\\1localhost {hostname}/g"
+        ))
+        .arg("/etc/hosts")
         .invoke(ErrorKind::ParseSysInfo)
         .await?;
     Ok(())

@@ -5,9 +5,10 @@ if [ "$UID" -ne 0 ]; then
     exit 1
 fi
 
-echo 'Syncing...'
-
-rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next
+if [ -z "$NO_SYNC" ]; then
+    echo 'Syncing...'
+    rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next
+fi
 
 mkdir -p /media/embassy/next/run
 mkdir -p /media/embassy/next/dev
@@ -20,7 +21,13 @@ mount --bind /sys /media/embassy/next/sys
 mount --bind /proc /media/embassy/next/proc
 mount --bind /boot /media/embassy/next/boot
 
-chroot /media/embassy/next $@
+if [ -z "$*" ]; then
+    chroot /media/embassy/next
+    CHROOT_RES=$?
+else
+    chroot /media/embassy/next "$SHELL" -c "$*"
+    CHROOT_RES=$?
+fi
 
 umount /media/embassy/next/run
 umount /media/embassy/next/dev
@@ -28,10 +35,12 @@ umount /media/embassy/next/sys
 umount /media/embassy/next/proc
 umount /media/embassy/next/boot
 
-echo 'Upgrading...'
+if [ "$CHROOT_RES" -eq 0 ]; then
+    echo 'Upgrading...'
 
-touch /media/embassy/config/upgrade
+    touch /media/embassy/config/upgrade
 
-sync
+    sync
 
-reboot
+    reboot
+fi

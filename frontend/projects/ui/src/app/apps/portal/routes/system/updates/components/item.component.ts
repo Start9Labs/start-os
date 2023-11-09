@@ -8,8 +8,6 @@ import {
 } from '@start9labs/marketplace'
 import {
   EmverPipesModule,
-  isEmptyObject,
-  LoadingService,
   MarkdownPipeModule,
   SafeLinksDirective,
   SharedPipesModule,
@@ -27,16 +25,9 @@ import {
   TuiProgressModule,
 } from '@taiga-ui/kit'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
-import { PatchDB } from 'patch-db-client'
-import {
-  DataModel,
-  PackageDataEntry,
-} from 'src/app/services/patch-db/data-model'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { Breakages } from 'src/app/services/api/api.types'
-import { getAllPackages } from 'src/app/util/get-package-data'
 import { InstallProgressPipe } from '../pipes/install-progress.pipe'
 
 @Component({
@@ -44,15 +35,15 @@ import { InstallProgressPipe } from '../pipes/install-progress.pipe'
   template: `
     <tui-accordion-item borders="top-bottom">
       <div class="g-action">
-        <tui-avatar size="s" [src]="pkg | mimeType | trustUrl" />
+        <tui-avatar size="s" [src]="marketplacePkg | mimeType | trustUrl" />
         <div [style.flex]="1" [style.overflow]="'hidden'">
-          <strong>{{ pkg.manifest.title }}</strong>
+          <strong>{{ marketplacePkg.manifest.title }}</strong>
           <div>
             <!-- @TODO left side should be local['old-manifest'] (or whatever), not manifest. -->
-            {{ local.manifest.version || '' | displayEmver }}
+            {{ localPkg.manifest.version || '' | displayEmver }}
             <tui-svg src="tuiIconArrowRight"></tui-svg>
             <span [style.color]="'var(--tui-positive)'">
-              {{ pkg.manifest.version | displayEmver }}
+              {{ marketplacePkg.manifest.version | displayEmver }}
             </span>
           </div>
           <div [style.color]="'var(--tui-negative)'">
@@ -60,10 +51,10 @@ import { InstallProgressPipe } from '../pipes/install-progress.pipe'
           </div>
         </div>
         <tui-progress-circle
-          *ngIf="local.state === 'updating'; else button"
+          *ngIf="localPkg.state === 'updating'; else button"
           style="color: var(--tui-positive)"
           [max]="100"
-          [value]="local['install-progress'] | installProgress"
+          [value]="localPkg['install-progress'] | installProgress"
         ></tui-progress-circle>
         <ng-template #button>
           <button
@@ -84,13 +75,15 @@ import { InstallProgressPipe } from '../pipes/install-progress.pipe'
         <strong>What's new</strong>
         <p
           safeLinks
-          [innerHTML]="pkg.manifest['release-notes'] | markdown | dompurify"
+          [innerHTML]="
+            marketplacePkg.manifest['release-notes'] | markdown | dompurify
+          "
         ></p>
         <a
           tuiLink
           iconAlign="right"
           icon="tuiIconExternalLink"
-          [routerLink]="'/marketplace/' + pkg.manifest.id"
+          [routerLink]="'/marketplace/' + marketplacePkg.manifest.id"
           [queryParams]="{ url: url }"
         >
           View listing
@@ -131,77 +124,49 @@ import { InstallProgressPipe } from '../pipes/install-progress.pipe'
   ],
 })
 export class UpdatesItemComponent {
-  private readonly api = inject(ApiService)
   private readonly dialogs = inject(TuiDialogService)
-  private readonly loader = inject(LoadingService)
-  private readonly patch = inject(PatchDB<DataModel>)
   private readonly marketplace = inject(
     AbstractMarketplaceService,
   ) as MarketplaceService
 
   @Input({ required: true })
-  pkg!: MarketplacePkg
+  marketplacePkg!: MarketplacePkg
 
   @Input({ required: true })
-  local!: PackageDataEntry
+  localPkg!: PackageDataEntry
 
   @Input({ required: true })
   url = ''
 
   get errors(): string {
-    return this.marketplace.updateErrors[this.pkg.manifest.id]
+    return this.marketplace.updateErrors[this.marketplacePkg.manifest.id]
   }
 
   get ready(): boolean {
-    return !this.marketplace.updateQueue[this.pkg.manifest.id]
+    return !this.marketplace.updateQueue[this.marketplacePkg.manifest.id]
   }
 
   async onClick() {
-    const { id, version } = this.pkg.manifest
+    const { id } = this.marketplacePkg.manifest
 
     delete this.marketplace.updateErrors[id]
     this.marketplace.updateQueue[id] = true
 
-    if (await hasCurrentDeps(this.patch, this.local.manifest.id)) {
-      await this.dry()
+    if (hasCurrentDeps(this.localPkg)) {
+      const proceed = await this.alert()
+
+      if (proceed) {
+        await this.update()
+      } else {
+        delete this.marketplace.updateQueue[id]
+      }
     } else {
       await this.update()
     }
   }
 
-  private async dry() {
-    const { id, version } = this.pkg.manifest
-    const loader = this.loader
-      .open('Checking dependent services...')
-      .subscribe()
-
-    try {
-      const breakages = await this.api.dryUpdatePackage({
-        id,
-        version,
-      })
-      loader.unsubscribe()
-
-      if (isEmptyObject(breakages)) {
-        await this.update()
-      } else {
-        const proceed = await this.alert(breakages)
-
-        if (proceed) {
-          await this.update()
-        } else {
-          delete this.marketplace.updateQueue[id]
-        }
-      }
-    } catch (e: any) {
-      delete this.marketplace.updateQueue[id]
-      this.marketplace.updateErrors[id] = e.message
-      loader.unsubscribe()
-    }
-  }
-
   private async update() {
-    const { id, version } = this.pkg.manifest
+    const { id, version } = this.marketplacePkg.manifest
 
     try {
       await this.marketplace.installPackage(id, version, this.url)
@@ -212,20 +177,14 @@ export class UpdatesItemComponent {
     }
   }
 
-  private async alert(breakages: Breakages): Promise<boolean> {
-    const content: string = `As a result of updating ${this.pkg.manifest.title}, the following services will no longer work properly and may crash:<ul>`
-    const local = await getAllPackages(this.patch)
-    const bullets = Object.keys(breakages)
-      .map(id => `<li><b>${local[id].manifest.title}</b></li>`)
-      .join('')
-
+  private async alert(): Promise<boolean> {
     return new Promise(async resolve => {
       this.dialogs
         .open<boolean>(TUI_PROMPT, {
           label: 'Warning',
           size: 's',
           data: {
-            content: `${content}${bullets}</ul>`,
+            content: `Services that depend on ${this.localPkg.manifest.title} will no longer work properly and may crash`,
             yes: 'Continue',
             no: 'Cancel',
           },

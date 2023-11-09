@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@angular/core'
 import {
-  decodeBase64,
   HttpOptions,
   HttpService,
   isRpcError,
@@ -14,7 +13,7 @@ import { ApiService } from './embassy-api.service'
 import { BackupTargetType, Metrics, RR } from './api.types'
 import { ConfigService } from '../config.service'
 import { webSocket, WebSocketSubjectConfig } from 'rxjs/webSocket'
-import { Observable } from 'rxjs'
+import { Observable, filter, firstValueFrom } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
@@ -77,20 +76,8 @@ export class LiveApiService extends ApiService {
 
   // auth
 
-  /**
-   * We want to update the pubkey, which means that we will call in clearnet the
-   * getPubKey, and all the information is never in the clear, and only public
-   * information is sent across the network.
-   */
-  async getPubKey() {
-    this.pubkey = await this.rpcRequest({
-      method: 'auth.get-pubkey',
-      params: {},
-    })
-  }
-
   async login(params: RR.LoginReq): Promise<RR.loginRes> {
-    return this.rpcRequest({ method: 'auth.login', params }, false)
+    return this.rpcRequest({ method: 'auth.login', params })
   }
 
   async logout(params: RR.LogoutReq): Promise<RR.LogoutRes> {
@@ -113,8 +100,8 @@ export class LiveApiService extends ApiService {
 
   // server
 
-  async echo(params: RR.EchoReq): Promise<RR.EchoRes> {
-    return this.rpcRequest({ method: 'echo', params }, false)
+  async echo(params: RR.EchoReq, urlOverride?: string): Promise<RR.EchoRes> {
+    return this.rpcRequest({ method: 'echo', params }, urlOverride)
   }
 
   openPatchWebsocket$(): Observable<Update<DataModel>> {
@@ -483,12 +470,6 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'package.install', params })
   }
 
-  async dryUpdatePackage(
-    params: RR.DryUpdatePackageReq,
-  ): Promise<RR.DryUpdatePackageRes> {
-    return this.rpcRequest({ method: 'package.update.dry', params })
-  }
-
   async getPackageConfig(
     params: RR.GetPackageConfigReq,
   ): Promise<RR.GetPackageConfigRes> {
@@ -588,41 +569,28 @@ export class LiveApiService extends ApiService {
 
   private async rpcRequest<T>(
     options: RPCOptions,
-    addHeader = true,
+    urlOverride?: string,
   ): Promise<T> {
-    if (addHeader) {
-      options.headers = {
-        'x-patch-sequence': String(this.patch.cache$.value.sequence),
-        ...(options.headers || {}),
-      }
-    }
+    const res = await this.http.rpcRequest<T>(options, urlOverride)
+    const body = res.body
 
-    const res = await this.http.rpcRequest<T>(options)
-    const encodedUpdates = res.headers.get('x-patch-updates')
-    const encodedError = res.headers.get('x-patch-error')
-
-    if (encodedUpdates) {
-      const decoded = decodeBase64(encodedUpdates)
-      const updates: Update<DataModel>[] = JSON.parse(decoded)
-      this.patchStream$.next(updates)
-    }
-
-    if (encodedError) {
-      const error = decodeBase64(encodedError)
-      console.error(error)
-    }
-
-    const rpcRes = res.body
-
-    if (isRpcError(rpcRes)) {
-      if (rpcRes.error.code === 34) {
+    if (isRpcError(body)) {
+      if (body.error.code === 34) {
         console.error('Unauthenticated, logging out')
         this.auth.setUnverified()
       }
-      throw new RpcError(rpcRes.error)
+      throw new RpcError(body.error)
     }
 
-    return rpcRes.result
+    const patchSequence = res.headers.get('x-patch-sequence')
+    if (patchSequence)
+      await firstValueFrom(
+        this.patch.cache$.pipe(
+          filter(({ sequence }) => sequence >= Number(patchSequence)),
+        ),
+      )
+
+    return body.result
   }
 
   private async httpRequest<T>(opts: HttpOptions): Promise<T> {

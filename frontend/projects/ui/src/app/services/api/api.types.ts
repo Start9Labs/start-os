@@ -3,11 +3,11 @@ import { MarketplacePkg, StoreInfo, Manifest } from '@start9labs/marketplace'
 import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import {
   DataModel,
-  DependencyError,
   DomainInfo,
   NetworkStrategy,
   OsOutboundProxy,
   ServiceOutboundProxy,
+  HealthCheckResult,
 } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
@@ -25,7 +25,7 @@ export module RR {
   // auth
 
   export type LoginReq = {
-    password: Encrypted | string
+    password: string
     metadata: SessionMetadata
   } // auth.login - unauthed
   export type loginRes = null
@@ -41,11 +41,14 @@ export module RR {
 
   // server
 
-  export type EchoReq = { message: string } // server.echo
+  export type EchoReq = { message: string; timeout?: number } // server.echo
   export type EchoRes = string
 
   export type GetSystemTimeReq = {} // server.time
-  export type GetSystemTimeRes = string
+  export type GetSystemTimeRes = {
+    now: string
+    uptime: number // seconds
+  }
 
   export type GetServerLogsReq = ServerLogsReq // server.logs & server.kernel-logs
   export type GetServerLogsRes = LogsRes
@@ -309,9 +312,6 @@ export module RR {
   } // package.install
   export type InstallPackageRes = null
 
-  export type DryUpdatePackageReq = { id: string; version: string } // package.update.dry
-  export type DryUpdatePackageRes = Breakages
-
   export type GetPackageConfigReq = { id: string } // package.config.get
   export type GetPackageConfigRes = { spec: InputSpec; config: object }
 
@@ -421,31 +421,36 @@ export interface ActionResponse {
   qr: boolean
 }
 
+interface MetricData {
+  value: string
+  unit: string
+}
+
 export interface Metrics {
   general: {
-    temperature: string
+    temperature: MetricData | null
   }
   memory: {
-    'percentage-used': string
-    total: string
-    available: string
-    used: string
-    'swap-total': string
-    'swap-free': string
-    'swap-used': string
+    total: MetricData
+    'percentage-used': MetricData
+    used: MetricData
+    available: MetricData
+    'zram-total': MetricData
+    'zram-used': MetricData
+    'zram-available': MetricData
   }
   cpu: {
-    'user-space': string
-    'kernel-space': string
-    'io-wait': string
-    idle: string
-    usage: string
+    'percentage-used': MetricData
+    idle: MetricData
+    'user-space': MetricData
+    'kernel-space': MetricData
+    wait: MetricData
   }
   disk: {
-    size: string
-    used: string
-    available: string
-    'percentage-used': string
+    capacity: MetricData
+    'percentage-used': MetricData
+    used: MetricData
+    available: MetricData
   }
 }
 
@@ -621,3 +626,49 @@ export type Encrypted = {
 }
 
 export type CloudProvider = 'dropbox' | 'google-drive'
+
+export type DependencyError =
+  | DependencyErrorNotInstalled
+  | DependencyErrorNotRunning
+  | DependencyErrorIncorrectVersion
+  | DependencyErrorConfigUnsatisfied
+  | DependencyErrorHealthChecksFailed
+  | DependencyErrorTransitive
+
+export enum DependencyErrorType {
+  NotInstalled = 'not-installed',
+  NotRunning = 'not-running',
+  IncorrectVersion = 'incorrect-version',
+  ConfigUnsatisfied = 'config-unsatisfied',
+  HealthChecksFailed = 'health-checks-failed',
+  InterfaceHealthChecksFailed = 'interface-health-checks-failed',
+  Transitive = 'transitive',
+}
+
+export interface DependencyErrorNotInstalled {
+  type: DependencyErrorType.NotInstalled
+}
+
+export interface DependencyErrorNotRunning {
+  type: DependencyErrorType.NotRunning
+}
+
+export interface DependencyErrorIncorrectVersion {
+  type: DependencyErrorType.IncorrectVersion
+  expected: string // version range
+  received: string // version
+}
+
+export interface DependencyErrorConfigUnsatisfied {
+  type: DependencyErrorType.ConfigUnsatisfied
+  error: string
+}
+
+export interface DependencyErrorHealthChecksFailed {
+  type: DependencyErrorType.HealthChecksFailed
+  check: HealthCheckResult
+}
+
+export interface DependencyErrorTransitive {
+  type: DependencyErrorType.Transitive
+}

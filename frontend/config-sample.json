@@ -1,8 +1,6 @@
 {
   "useMocks": true,
   "enableWidgets": false,
-  "packageArch": "aarch64",
-  "osArch": "raspberrypi",
   "ui": {
     "api": {
       "url": "rpc",
@@ -14,6 +12,7 @@
     },
     "mocks": {
       "maskAs": "tor",
+      "maskAsHttps": true,
       "skipStartupAlerts": true
     }
   },

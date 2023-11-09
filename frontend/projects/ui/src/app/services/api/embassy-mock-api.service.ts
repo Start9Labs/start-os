@@ -10,7 +10,6 @@ import {
 } from 'patch-db-client'
 import {
   DataModel,
-  DependencyErrorType,
   InstallProgress,
   PackageDataEntry,
   PackageMainStatus,
@@ -26,7 +25,8 @@ import {
   interval,
   map,
   Observable,
-  ReplaySubject,
+  shareReplay,
+  Subject,
   switchMap,
   tap,
   timer,
@@ -50,8 +50,8 @@ const PROGRESS: InstallProgress = {
 
 @Injectable()
 export class MockApiService extends ApiService {
-  readonly mockWsSource$ = new ReplaySubject<Update<DataModel>>()
-  private readonly revertTime = 2000
+  readonly mockWsSource$ = new Subject<Update<DataModel>>()
+  private readonly revertTime = 1800
   sequence = 0
 
   constructor(
@@ -64,7 +64,6 @@ export class MockApiService extends ApiService {
       .pipe(
         tap(() => {
           this.sequence = 0
-          this.patchStream$.next([])
         }),
         switchMap(verified =>
           iif(
@@ -111,28 +110,12 @@ export class MockApiService extends ApiService {
         value: params.value,
       },
     ]
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   // auth
-
-  async getPubKey() {
-    await pauseFor(1000)
-
-    // randomly generated
-    // const keystore = jose.JWK.createKeyStore()
-    // this.pubkey = await keystore.generate('EC', 'P-256')
-
-    // generated from backend
-    this.pubkey = await this.jose.then(jose =>
-      jose.JWK.asKey({
-        kty: 'EC',
-        crv: 'P-256',
-        x: 'yHTDYSfjU809fkSv9MmN4wuojf5c3cnD7ZDN13n-jz4',
-        y: '8Mpkn744A5KDag0DmX2YivB63srjbugYZzWc3JOpQXI',
-      }),
-    )
-  }
 
   async login(params: RR.LoginReq): Promise<RR.loginRes> {
     await pauseFor(2000)
@@ -168,13 +151,20 @@ export class MockApiService extends ApiService {
 
   // server
 
-  async echo(params: RR.EchoReq): Promise<RR.EchoRes> {
+  async echo(params: RR.EchoReq, url?: string): Promise<RR.EchoRes> {
+    if (url) {
+      const num = Math.floor(Math.random() * 10) + 1
+      if (num > 8) return params.message
+      throw new Error()
+    }
     await pauseFor(2000)
     return params.message
   }
 
   openPatchWebsocket$(): Observable<Update<DataModel>> {
-    return this.mockWsSource$
+    return this.mockWsSource$.pipe(
+      shareReplay({ bufferSize: 1, refCount: true }),
+    )
   }
 
   openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
@@ -205,7 +195,10 @@ export class MockApiService extends ApiService {
     params: RR.GetSystemTimeReq,
   ): Promise<RR.GetSystemTimeRes> {
     await pauseFor(2000)
-    return new Date().toUTCString()
+    return {
+      now: new Date().toUTCString(),
+      uptime: 1234567,
+    }
   }
 
   async getServerLogs(
@@ -312,7 +305,9 @@ export class MockApiService extends ApiService {
         value: initialProgress,
       },
     ]
-    return this.withRevision(patch, 'updating')
+    this.mockRevision(patch)
+
+    return 'updating'
   }
 
   async setServerClearnetAddress(
@@ -326,13 +321,37 @@ export class MockApiService extends ApiService {
         value: params.domainInfo,
       },
     ]
-    return this.withRevision(patch, null)
+
+    this.mockRevision(patch)
+
+    return null
   }
 
   async restartServer(
     params: RR.RestartServerReq,
   ): Promise<RR.RestartServerRes> {
     await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/status-info/restarting',
+        value: true,
+      },
+    ]
+    this.mockRevision(patch)
+
+    setTimeout(() => {
+      const patch2 = [
+        {
+          op: PatchOp.REPLACE,
+          path: '/server-info/status-info/restarting',
+          value: false,
+        },
+      ]
+      this.mockRevision(patch2)
+    }, 2000)
+
     return null
   }
 
@@ -340,14 +359,34 @@ export class MockApiService extends ApiService {
     params: RR.ShutdownServerReq,
   ): Promise<RR.ShutdownServerRes> {
     await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/status-info/shutting-down',
+        value: true,
+      },
+    ]
+    this.mockRevision(patch)
+
+    setTimeout(() => {
+      const patch2 = [
+        {
+          op: PatchOp.REPLACE,
+          path: '/server-info/status-info/shutting-down',
+          value: false,
+        },
+      ]
+      this.mockRevision(patch2)
+    }, 2000)
+
     return null
   }
 
   async systemRebuild(
-    params: RR.RestartServerReq,
-  ): Promise<RR.RestartServerRes> {
-    await pauseFor(2000)
-    return null
+    params: RR.SystemRebuildReq,
+  ): Promise<RR.SystemRebuildRes> {
+    return this.restartServer(params)
   }
 
   async repairDisk(params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
@@ -369,7 +408,9 @@ export class MockApiService extends ApiService {
         value: params.enable,
       },
     ]
-    return this.withRevision(patch, null)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async setOsOutboundProxy(
@@ -384,7 +425,9 @@ export class MockApiService extends ApiService {
         value: params.proxy,
       },
     ]
-    return this.withRevision(patch, null)
+    this.mockRevision(patch)
+
+    return null
   }
 
   // marketplace URLs
@@ -437,7 +480,9 @@ export class MockApiService extends ApiService {
         value: 0,
       },
     ]
-    return this.withRevision(patch, Mock.Notifications)
+    this.mockRevision(patch)
+
+    return Mock.Notifications
   }
 
   async deleteNotification(
@@ -485,7 +530,9 @@ export class MockApiService extends ApiService {
         ],
       },
     ]
-    return this.withRevision(patch, null)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async updateProxy(params: RR.UpdateProxyReq): Promise<RR.UpdateProxyRes> {
@@ -500,7 +547,9 @@ export class MockApiService extends ApiService {
         value,
       },
     ]
-    return this.withRevision(patch, null)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async deleteProxy(params: RR.DeleteProxyReq): Promise<RR.DeleteProxyRes> {
@@ -512,7 +561,9 @@ export class MockApiService extends ApiService {
         value: [],
       },
     ]
-    return this.withRevision(patch, null)
+    this.mockRevision(patch)
+
+    return null
   }
 
   // domains
@@ -534,7 +585,9 @@ export class MockApiService extends ApiService {
         },
       },
     ]
-    return this.withRevision(patch, null)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async deleteStart9ToDomain(
@@ -548,7 +601,9 @@ export class MockApiService extends ApiService {
         value: null,
       },
     ]
-    return this.withRevision(patch, null)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes> {
@@ -569,7 +624,9 @@ export class MockApiService extends ApiService {
         ],
       },
     ]
-    return this.withRevision(patch, null)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async deleteDomain(params: RR.DeleteDomainReq): Promise<RR.DeleteDomainRes> {
@@ -581,7 +638,9 @@ export class MockApiService extends ApiService {
         value: [],
       },
     ]
-    return this.withRevision(patch, null)
+    this.mockRevision(patch)
+
+    return null
   }
 
   // port forwards
@@ -598,7 +657,9 @@ export class MockApiService extends ApiService {
         value: params.port,
       },
     ]
-    return this.withRevision(patch, null)
+    this.mockRevision(patch)
+
+    return null
   }
 
   // wifi
@@ -612,7 +673,9 @@ export class MockApiService extends ApiService {
         value: params.enable,
       },
     ]
-    return this.withRevision(patch, null)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async getWifi(params: RR.GetWifiReq): Promise<RR.GetWifiRes> {
@@ -653,8 +716,9 @@ export class MockApiService extends ApiService {
         value: params,
       },
     ]
+    this.mockRevision(patch)
 
-    return this.withRevision(patch)
+    return null
   }
 
   // ssh
@@ -838,7 +902,9 @@ export class MockApiService extends ApiService {
       },
     ]
 
-    return this.withRevision(originalPatch)
+    this.mockRevision(originalPatch)
+
+    return null
   }
 
   // package
@@ -905,23 +971,9 @@ export class MockApiService extends ApiService {
         },
       },
     ]
-    return this.withRevision(patch)
-  }
+    this.mockRevision(patch)
 
-  async dryUpdatePackage(
-    params: RR.DryUpdatePackageReq,
-  ): Promise<RR.DryUpdatePackageRes> {
-    await pauseFor(2000)
-    return {
-      lnd: {
-        dependency: 'bitcoind',
-        error: {
-          type: DependencyErrorType.IncorrectVersion,
-          expected: '>0.23.0',
-          received: params.version,
-        },
-      },
-    }
+    return null
   }
 
   async getPackageConfig(
@@ -952,7 +1004,9 @@ export class MockApiService extends ApiService {
         value: true,
       },
     ]
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async restorePackages(
@@ -976,7 +1030,9 @@ export class MockApiService extends ApiService {
       }
     })
 
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async executePackageAction(
@@ -1026,7 +1082,9 @@ export class MockApiService extends ApiService {
       },
     ]
 
-    return this.withRevision(originalPatch)
+    this.mockRevision(originalPatch)
+
+    return null
   }
 
   async restartPackage(
@@ -1103,7 +1161,9 @@ export class MockApiService extends ApiService {
       },
     ]
 
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async stopPackage(params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
@@ -1129,7 +1189,9 @@ export class MockApiService extends ApiService {
       },
     ]
 
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async uninstallPackage(
@@ -1155,7 +1217,9 @@ export class MockApiService extends ApiService {
       },
     ]
 
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async dryConfigureDependency(
@@ -1196,7 +1260,9 @@ export class MockApiService extends ApiService {
         value: params.domainInfo,
       },
     ]
-    return this.withRevision(patch, null)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async setServiceOutboundProxy(
@@ -1210,7 +1276,9 @@ export class MockApiService extends ApiService {
         value: params.proxy,
       },
     ]
-    return this.withRevision(patch, null)
+    this.mockRevision(patch)
+
+    return null
   }
 
   private async updateProgress(id: string): Promise<void> {
@@ -1336,24 +1404,5 @@ export class MockApiService extends ApiService {
       patch,
     }
     this.mockWsSource$.next(revision)
-  }
-
-  private async withRevision<T>(
-    patch: Operation<unknown>[],
-    response: T | null = null,
-  ): Promise<T> {
-    if (!this.sequence) {
-      const { sequence } = this.bootstrapper.init()
-      this.sequence = sequence
-    }
-
-    this.patchStream$.next([
-      {
-        id: ++this.sequence,
-        patch,
-      },
-    ])
-
-    return response as T
   }
 }

@@ -8,8 +8,9 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use self::docker::{DockerContainers, DockerProcedure};
+use self::docker::DockerProcedure;
 use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::volume::Volumes;
@@ -20,11 +21,10 @@ pub mod docker;
 pub mod js_scripts;
 pub use models::ProcedureName;
 
-// TODO: create RPC endpoint that looks up the appropriate action and calls `execute`
-
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "type")]
+#[model = "Model<Self>"]
 pub enum PackageProcedure {
     Docker(DockerProcedure),
 
@@ -43,7 +43,6 @@ impl PackageProcedure {
     #[instrument(skip_all)]
     pub fn validate(
         &self,
-        container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
@@ -121,7 +120,6 @@ impl PackageProcedure {
     #[instrument(skip_all)]
     pub async fn sandboxed<I: Serialize, O: DeserializeOwned>(
         &self,
-        container: &Option<DockerContainers>,
         ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
@@ -140,7 +138,15 @@ impl PackageProcedure {
             #[cfg(feature = "js_engine")]
             PackageProcedure::Script(procedure) => {
                 procedure
-                    .sandboxed(ctx, pkg_id, pkg_version, volumes, input, timeout, name)
+                    .sandboxed(
+                        &ctx.datadir,
+                        pkg_id,
+                        pkg_version,
+                        volumes,
+                        input,
+                        timeout,
+                        name,
+                    )
                     .await
             }
         }
@@ -158,13 +164,21 @@ impl std::fmt::Display for PackageProcedure {
     }
 }
 
+// TODO: make this not allocate
 #[derive(Debug)]
 pub struct NoOutput;
 impl<'de> Deserialize<'de> for NoOutput {
-    fn deserialize<D>(_: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
+        let _ = Value::deserialize(deserializer);
         Ok(NoOutput)
     }
+}
+
+#[test]
+fn test_deser_no_output() {
+    serde_json::from_str::<NoOutput>("").unwrap();
+    serde_json::from_str::<Result<NoOutput, NoOutput>>("{\"Ok\": null}").unwrap();
 }

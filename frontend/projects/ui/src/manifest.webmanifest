@@ -5,11 +5,11 @@
   "background_color": "#1e1e1e",
   "display": "standalone",
   "scope": ".",
-  "start_url": "/?version=0344",
-  "id": "/?version=0344",
+  "start_url": "/?version=035",
+  "id": "/?version=035",
   "icons": [
     {
-      "src": "assets/img/icon_pwa.png",
+      "src": "assets/img/icon.png",
       "sizes": "256x256",
       "type": "image/png",
       "purpose": "any"

@@ -1,20 +1,54 @@
 <ion-content class="content">
-  <ion-grid class="grid">
-    <ion-row class="row">
-      <ion-col>
-        <img src="assets/img/logo.png" alt="Start9" class="logo" />
+  <!-- Local HTTP -->
+  <ng-container *ngIf="config.isLanHttp(); else notLanHttp">
+    <ca-wizard></ca-wizard>
+  </ng-container>
 
-        <ion-card class="card">
-          <ion-card-header>
-            <ion-card-title class="title">StartOS Login</ion-card-title>
-          </ion-card-header>
+  <!-- not Local HTTP -->
+  <ng-template #notLanHttp>
+    <div *ngIf="config.isTorHttp()" class="banner">
+      <ion-item color="warning">
+        <ion-icon slot="start" name="warning-outline"></ion-icon>
+        <ion-label>
+          <h2 style="font-weight: bold">Http detected</h2>
+          <p style="font-weight: 600">
+            Tor is faster over https. Your Root CA must be trusted.
+            <a
+              href="https://docs.start9.com/0.3.5.x/user-manual/trust-ca"
+              target="_blank"
+              noreferrer
+              style="color: black"
+            >
+              View instructions
+            </a>
+          </p>
+        </ion-label>
+        <ion-button slot="end" color="light" (click)="launchHttps()">
+          Open Https
+          <ion-icon slot="end" name="open-outline"></ion-icon>
+        </ion-button>
+      </ion-item>
+    </div>
 
-          <ion-card-content class="ion-margin">
-            <form class="form" (submit)="submit()">
-              <ion-item-group>
-                <ion-item color="dark">
+    <ion-grid class="grid">
+      <ion-row class="row">
+        <ion-col>
+          <ion-card>
+            <img
+              alt="StartOS Icon"
+              class="header-icon"
+              src="assets/img/icon.png"
+            />
+            <ion-card-header>
+              <ion-card-title class="title">Login to StartOS</ion-card-title>
+            </ion-card-header>
+            <ion-card-content class="ion-margin">
+              <form (submit)="submit()">
+                <ion-item color="dark" fill="solid">
                   <ion-icon
                     slot="start"
+                    size="small"
+                    color="base"
                     name="key-outline"
                     style="margin-right: 16px"
                   ></ion-icon>
@@ -25,7 +59,12 @@
                     [(ngModel)]="password"
                     (ionChange)="error = ''"
                   ></ion-input>
-                  <ion-button fill="clear" color="light" (click)="toggleMask()">
+                  <ion-button
+                    slot="end"
+                    fill="clear"
+                    color="dark"
+                    (click)="unmasked = !unmasked"
+                  >
                     <ion-icon
                       slot="icon-only"
                       size="small"
@@ -33,22 +72,22 @@
                     ></ion-icon>
                   </ion-button>
                 </ion-item>
-              </ion-item-group>
-              <ion-button
-                class="login-button"
-                type="submit"
-                expand="block"
-                color="tertiary"
-              >
-                Login
-              </ion-button>
-            </form>
-            <p class="error">
-              <ion-text color="danger">{{ error }}</ion-text>
-            </p>
-          </ion-card-content>
-        </ion-card>
-      </ion-col>
-    </ion-row>
-  </ion-grid>
+                <p class="error ion-text-center">
+                  <ion-text color="danger">{{ error }}</ion-text>
+                </p>
+                <ion-button
+                  class="login-button"
+                  type="submit"
+                  expand="block"
+                  color="tertiary"
+                >
+                  Login
+                </ion-button>
+              </form>
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
+  </ng-template>
 </ion-content>

@@ -1,14 +1,9 @@
 import { DOCUMENT } from '@angular/common'
 import { Inject, Injectable } from '@angular/core'
 import { WorkspaceConfig } from '@start9labs/shared'
-import {
-  InstalledPackageInfo,
-  InterfaceInfo,
-} from 'src/app/services/patch-db/data-model'
+import { InterfaceInfo } from 'src/app/services/patch-db/data-model'
 
 const {
-  packageArch,
-  osArch,
   gitHash,
   useMocks,
   ui: { api, marketplace, mocks },
@@ -21,20 +16,20 @@ export class ConfigService {
   constructor(@Inject(DOCUMENT) private readonly document: Document) {}
 
   hostname = this.document.location.hostname
+  // includes port
+  host = this.document.location.host
+  // includes ":" (e.g. "http:")
+  protocol = this.document.location.protocol
   version = require('../../../../../package.json').version as string
   useMocks = useMocks
   mocks = mocks
-  packageArch = packageArch
-  osArch = osArch
   gitHash = gitHash
   api = api
   marketplace = marketplace
   skipStartupAlerts = useMocks && mocks.skipStartupAlerts
 
   isTor(): boolean {
-    return (
-      this.hostname.endsWith('.onion') || (useMocks && mocks.maskAs === 'tor')
-    )
+    return useMocks ? mocks.maskAs === 'tor' : this.hostname.endsWith('.onion')
   }
 
   isLocal(): boolean {
@@ -69,6 +64,14 @@ export class ConfigService {
     )
   }
 
+  isTorHttp(): boolean {
+    return this.isTor() && !this.isHttps()
+  }
+
+  isLanHttp(): boolean {
+    return !this.isTor() && !this.isLocalhost() && !this.isHttps()
+  }
+
   isSecure(): boolean {
     return window.isSecureContext || this.isTor()
   }
@@ -83,6 +86,14 @@ export class ConfigService {
       : info.addressInfo.domainInfo?.subdomain
       ? `https://${info.addressInfo.domainInfo.subdomain}${info.addressInfo.domainInfo.domain}`
       : `https://${info.addressInfo.domainInfo?.domain}`
+  }
+
+  getHost(): string {
+    return this.host
+  }
+
+  private isHttps(): boolean {
+    return useMocks ? mocks.maskAsHttps : this.protocol === 'https:'
   }
 }
 

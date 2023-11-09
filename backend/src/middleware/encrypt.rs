@@ -13,7 +13,8 @@ pub fn pbkdf2(password: impl AsRef<[u8]>, salt: impl AsRef<[u8]>) -> CipherKey<A
         salt.as_ref(),
         1000,
         aeskey.as_mut_slice(),
-    );
+    )
+    .unwrap();
     aeskey
 }
 

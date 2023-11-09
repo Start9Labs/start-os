@@ -1,0 +1,5 @@
+dhcpcd5
+firewalld
+nginx
+nginx-common
+openresolv

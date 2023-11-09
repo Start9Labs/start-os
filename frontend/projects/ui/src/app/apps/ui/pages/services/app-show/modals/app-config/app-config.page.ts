@@ -109,7 +109,7 @@ export class AppConfigPage {
     try {
       await this.uploadFiles(config, loader)
 
-      if (await hasCurrentDeps(this.patchDb, this.pkgId)) {
+      if (hasCurrentDeps(this.pkg!)) {
         await this.configureDeps(config, loader)
       } else {
         await this.configure(config, loader)

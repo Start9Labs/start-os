@@ -1,85 +1,59 @@
 import { Injectable } from '@angular/core'
+import { map, shareReplay, startWith, switchMap } from 'rxjs/operators'
 import { PatchDB } from 'patch-db-client'
-import {
-  map,
-  startWith,
-  switchMap,
-  combineLatest,
-  from,
-  Observable,
-  timer,
-} from 'rxjs'
 import { DataModel } from './patch-db/data-model'
 import { ApiService } from './api/embassy-api.service'
-
-export interface TimeInfo {
-  systemStartTime: number
-  systemCurrentTime: number
-  systemUptime: {
-    days: number
-    hours: number
-    minutes: number
-    seconds: number
-  }
-}
+import { combineLatest, interval, of } from 'rxjs'
 
 @Injectable({
   providedIn: 'root',
 })
 export class TimeService {
-  private readonly systemStartTime$ = this.patch
-    .watch$('server-info', 'system-start-time')
-    .pipe(map(startTime => new Date(startTime).valueOf()))
+  private readonly time$ = of({}).pipe(
+    switchMap(() => this.apiService.getSystemTime({})),
+    switchMap(({ now, uptime }) => {
+      const current = new Date(now).valueOf()
+      return interval(1000).pipe(
+        map(index => {
+          const incremented = index + 1
+          return {
+            now: current + 1000 * incremented,
+            uptime: uptime + incremented,
+          }
+        }),
+        startWith({
+          now: current,
+          uptime,
+        }),
+      )
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  )
+
+  readonly now$ = combineLatest([
+    this.time$,
+    this.patch.watch$('server-info', 'ntp-synced'),
+  ]).pipe(
+    map(([time, synced]) => ({
+      value: time.now,
+      synced,
+    })),
+  )
+
+  readonly uptime$ = this.time$.pipe(
+    map(({ uptime }) => {
+      const days = Math.floor(uptime / (24 * 60 * 60))
+      const daysSec = uptime % (24 * 60 * 60)
+      const hours = Math.floor(daysSec / (60 * 60))
+      const hoursSec = uptime % (60 * 60)
+      const minutes = Math.floor(hoursSec / 60)
+      const seconds = uptime % 60
+      return { days, hours, minutes, seconds }
+    }),
+  )
 
   constructor(
     private readonly patch: PatchDB<DataModel>,
     private readonly apiService: ApiService,
   ) {}
-
-  getTimeInfo$(): Observable<TimeInfo> {
-    return combineLatest([
-      this.systemStartTime$.pipe(),
-      this.getSystemCurrentTime$(),
-    ]).pipe(
-      map(([systemStartTime, systemCurrentTime]) => ({
-        systemStartTime,
-        systemCurrentTime,
-        systemUptime: this.getSystemUptime(systemStartTime, systemCurrentTime),
-      })),
-    )
-  }
-
-  private getSystemCurrentTime$() {
-    return from(this.apiService.getSystemTime({})).pipe(
-      switchMap(utcStr => {
-        const dateObj = new Date(utcStr)
-        const current = dateObj.valueOf()
-        return timer(0, 1000).pipe(
-          map(index => {
-            const incremented = index + 1
-            const msToAdd = 1000 * incremented
-            return current + msToAdd
-          }),
-          startWith(current),
-        )
-      }),
-    )
-  }
-
-  private getSystemUptime(systemStartTime: number, systemCurrentTime: number) {
-    const ms = systemCurrentTime - systemStartTime
-
-    const days = Math.floor(ms / (24 * 60 * 60 * 1000))
-    const daysms = ms % (24 * 60 * 60 * 1000)
-
-    const hours = Math.floor(daysms / (60 * 60 * 1000))
-    const hoursms = ms % (60 * 60 * 1000)
-
-    const minutes = Math.floor(hoursms / (60 * 1000))
-    const minutesms = ms % (60 * 1000)
-
-    const seconds = Math.floor(minutesms / 1000)
-
-    return { days, hours, minutes, seconds }
-  }
 }

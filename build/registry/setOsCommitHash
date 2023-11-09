@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Get the current directory
+PWD=$(pwd)
+HASH=$1
+
+if [ -z "$HASH" ]; then
+  >&2 echo "usage: setOsCommitHash <hash>"
+  exit 1
+fi
+
+# Define the expected pattern for the directory
+pattern="/root/resources/eos/"
+
+# Check if the current directory matches the pattern
+if [[ $PWD =~ ^$pattern([0-9.]+)$ ]]; then
+  # Extract the version number from the directory path
+  version="${BASH_REMATCH[1]}"
+else
+  >&2 echo "MUST BE IN OS VERSION DIRECTORY"
+  exit 1
+fi
+
+if ! [ -d "$HASH" ]; then
+  >&2 echo "$HASH: No such directory"
+  exit 1
+fi
+
+for file in $(ls $HASH/startos-$version-${HASH}_*.squashfs); do
+  if [[ $file =~ ^$HASH/startos-$version-${HASH}_([a-z0-9_-]+).squashfs$ ]]; then
+    arch="${BASH_REMATCH[1]}"
+    echo "Found arch $arch"
+    umount /srv/rsync/$version/$arch
+    rm eos.$arch.squashfs
+    ln -s $file eos.$arch.squashfs
+  fi
+done
+
+resyncRsyncRegistry

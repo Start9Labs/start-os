@@ -139,7 +139,7 @@ pub async fn logs_nofollow(
     _ctx: (),
     (limit, cursor, before, _): (Option<usize>, Option<String>, bool, bool),
 ) -> Result<LogResponse, Error> {
-    fetch_logs(LogSource::Service(SYSTEMD_UNIT), limit, cursor, before).await
+    fetch_logs(LogSource::Unit(SYSTEMD_UNIT), limit, cursor, before).await
 }
 
 #[command(rpc_only, rename = "follow", display(display_none))]
@@ -147,7 +147,7 @@ pub async fn logs_follow(
     #[context] ctx: RpcContext,
     #[parent_data] (limit, _, _, _): (Option<usize>, Option<String>, bool, bool),
 ) -> Result<LogFollowResponse, Error> {
-    follow_logs(ctx, LogSource::Service(SYSTEMD_UNIT), limit).await
+    follow_logs(ctx, LogSource::Unit(SYSTEMD_UNIT), limit).await
 }
 
 fn event_handler(_event: AsyncEvent<'static>) -> BoxFuture<'static, Result<(), ConnError>> {
@@ -305,7 +305,7 @@ async fn torctl(
             .invoke(ErrorKind::Tor)
             .await?;
 
-        let logs = journalctl(LogSource::Service(SYSTEMD_UNIT), 0, None, false, true).await?;
+        let logs = journalctl(LogSource::Unit(SYSTEMD_UNIT), 0, None, false, true).await?;
 
         let mut tcp_stream = None;
         for _ in 0..60 {
@@ -617,7 +617,7 @@ async fn torctl(
         let mut last_success = Instant::now();
         loop {
             tokio::time::sleep(Duration::from_secs(30)).await;
-            if let Err(e) = tokio::time::timeout(
+            if tokio::time::timeout(
                 Duration::from_secs(30),
                 tokio_socks::tcp::Socks5Stream::connect(
                     tor_socks,
@@ -627,6 +627,7 @@ async fn torctl(
             .await
             .map_err(|e| e.to_string())
             .and_then(|e| e.map_err(|e| e.to_string()))
+            .is_err()
             {
                 if last_success.elapsed() > *health_timeout {
                     let err = Error::new(eyre!("Tor health check failed for longer than current timeout ({health_timeout:?})"), crate::ErrorKind::Tor);

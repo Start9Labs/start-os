@@ -11,7 +11,9 @@ import {
   filter,
   first,
   map,
+  merge,
   Observable,
+  of,
   pairwise,
   startWith,
   switchMap,
@@ -22,6 +24,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { SplitPaneTracker } from 'src/app/services/split-pane.service'
 import { Emver, THEME } from '@start9labs/shared'
 import { ConnectionService } from 'src/app/services/connection.service'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   selector: 'app-menu',
@@ -110,6 +113,11 @@ export class MenuComponent {
 
   readonly theme$ = inject(THEME)
 
+  readonly warning$ = merge(
+    of(this.config.isTorHttp()),
+    this.patch.watch$('server-info', 'ntp-synced').pipe(map(synced => !synced)),
+  )
+
   constructor(
     private readonly patch: PatchDB<DataModel>,
     private readonly eosService: EOSService,
@@ -118,5 +126,6 @@ export class MenuComponent {
     private readonly splitPane: SplitPaneTracker,
     private readonly emver: Emver,
     private readonly connectionService: ConnectionService,
+    private readonly config: ConfigService,
   ) {}
 }

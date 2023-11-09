@@ -21,7 +21,7 @@ import { TuiAlertService, TuiDialogService } from '@taiga-ui/core'
 import { PROMPT } from 'src/app/apps/ui/modals/prompt/prompt.component'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { TUI_PROMPT } from '@taiga-ui/kit'
-import { DOCUMENT } from '@angular/common'
+import { WINDOW } from '@ng-web-apis/common'
 import { getServerInfo } from 'src/app/util/get-server-info'
 import * as argon2 from '@start9labs/argon2'
 import { ProxyService } from 'src/app/services/proxy.service'
@@ -39,9 +39,7 @@ export class ServerShowPage {
   readonly showUpdate$ = this.eosService.showUpdate$
   readonly showDiskRepair$ = this.clientStorageService.showDiskRepair$
 
-  readonly secure = this.config.isSecure()
-  readonly isTorHttp =
-    this.config.isTor() && this.document.location.protocol === 'http:'
+  readonly isTorHttp = this.config.isTorHttp()
 
   constructor(
     private readonly dialogs: TuiDialogService,
@@ -58,7 +56,7 @@ export class ServerShowPage {
     private readonly config: ConfigService,
     private readonly formDialog: FormDialogService,
     private readonly proxyService: ProxyService,
-    @Inject(DOCUMENT) private readonly document: Document,
+    @Inject(WINDOW) private readonly windowRef: Window,
   ) {}
 
   addClick(title: string) {
@@ -254,6 +252,11 @@ export class ServerShowPage {
       .subscribe(() => this.systemRebuild())
   }
 
+  async launchHttps() {
+    const info = await getServerInfo(this.patch)
+    this.windowRef.open(`https://${info.ui.torHostname}`, '_self')
+  }
+
   private async setName(value: string | null): Promise<void> {
     const loader = this.loader.open('Saving...').subscribe()
 
@@ -276,7 +279,6 @@ export class ServerShowPage {
 
     try {
       await this.api.restartServer({})
-      this.presentAlertInProgress(action, ` until ${action} completes.`)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -290,10 +292,6 @@ export class ServerShowPage {
 
     try {
       await this.api.shutdownServer({})
-      this.presentAlertInProgress(
-        action,
-        '.<br /><br /><b>You will need to physically power cycle the device to regain connectivity.</b>',
-      )
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -307,7 +305,6 @@ export class ServerShowPage {
 
     try {
       await this.api.systemRebuild({})
-      this.presentAlertInProgress(action, ` until ${action} completes.`)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -340,18 +337,6 @@ export class ServerShowPage {
         label: 'Up to date!',
         size: 's',
       })
-      .subscribe()
-  }
-
-  private presentAlertInProgress(verb: string, message: string) {
-    this.dialogs
-      .open(
-        `Stopping all services gracefully. This can take a while.<br /><br />If you have a speaker, your server will <b>♫ play a melody ♫</b> before shutting down. Your server will then become unreachable${message}`,
-        {
-          label: `${verb} In Progress...`,
-          size: 's',
-        },
-      )
       .subscribe()
   }
 
@@ -404,7 +389,7 @@ export class ServerShowPage {
         icon: 'key-outline',
         action: () => this.presentAlertResetPassword(),
         detail: false,
-        disabled$: of(!this.secure),
+        disabled$: of(false),
       },
       {
         title: 'Experimental Features',
@@ -559,8 +544,8 @@ export class ServerShowPage {
         description: 'Discover what StartOS can do',
         icon: 'map-outline',
         action: () =>
-          window.open(
-            'https://docs.start9.com/latest/user-manual',
+          this.windowRef.open(
+            'https://docs.start9.com/0.3.5.x/user-manual',
             '_blank',
             'noreferrer',
           ),
@@ -572,7 +557,11 @@ export class ServerShowPage {
         description: 'Get help from the Start9 team and community',
         icon: 'chatbubbles-outline',
         action: () =>
-          window.open('https://start9.com/contact', '_blank', 'noreferrer'),
+          this.windowRef.open(
+            'https://start9.com/contact',
+            '_blank',
+            'noreferrer',
+          ),
         detail: true,
         disabled$: of(false),
       },
@@ -581,7 +570,7 @@ export class ServerShowPage {
         description: `Support StartOS development`,
         icon: 'logo-bitcoin',
         action: () =>
-          this.document.defaultView?.open(
+          this.windowRef.open(
             'https://donate.start9.com',
             '_blank',
             'noreferrer',

@@ -10,13 +10,28 @@ impl EmbassyLogger {
         use tracing_subscriber::prelude::*;
         use tracing_subscriber::{fmt, EnvFilter};
 
-        let filter_layer = EnvFilter::from_default_env();
+        let filter_layer = EnvFilter::builder()
+            .with_default_directive(
+                format!("{}=info", std::module_path!().split("::").next().unwrap())
+                    .parse()
+                    .unwrap(),
+            )
+            .from_env_lossy();
+        #[cfg(feature = "unstable")]
+        let filter_layer = filter_layer
+            .add_directive("tokio=trace".parse().unwrap())
+            .add_directive("runtime=trace".parse().unwrap());
         let fmt_layer = fmt::layer().with_target(true);
 
-        tracing_subscriber::registry()
+        let sub = tracing_subscriber::registry()
             .with(filter_layer)
             .with(fmt_layer)
-            .with(ErrorLayer::default())
+            .with(ErrorLayer::default());
+
+        #[cfg(feature = "unstable")]
+        let sub = sub.with(console_subscriber::spawn());
+
+        sub
     }
     pub fn init() -> Self {
         Self::base_subscriber().init();

@@ -17,7 +17,7 @@ pub struct Version;
 
 #[async_trait]
 impl VersionT for Version {
-    type Previous = v0_3_4_3::Version;
+    type Previous = v0_3_5::Version;
     fn new() -> Self {
         Version
     }
@@ -27,10 +27,10 @@ impl VersionT for Version {
     fn compat(&self) -> &'static VersionRange {
         &*V0_4_0_COMPAT
     }
-    async fn up<Db: DbHandle>(&self, db: &mut Db, secrets: &PgPool) -> Result<(), Error> {
+    async fn up(&self, _db: &PatchDb, _secrets: &PgPool) -> Result<(), Error> {
         Ok(())
     }
-    async fn down<Db: DbHandle>(&self, db: &mut Db, secrets: &PgPool) -> Result<(), Error> {
+    async fn down(&self, _db: &PatchDb, _secrets: &PgPool) -> Result<(), Error> {
         Ok(())
     }
 }

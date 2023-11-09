@@ -4,6 +4,8 @@ import { Manifest } from '@start9labs/marketplace'
 import { BackupJob } from '../api/api.types'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
 import { NetworkInterfaceType } from '@start9labs/start-sdk/lib/util/utils'
+import { DependencyInfo } from 'src/app/apps/portal/routes/service/types/dependency-info'
+import { PackageStatus } from '../pkg-status-rendering.service'
 
 export interface DataModel {
   'server-info': ServerInfo
@@ -64,10 +66,11 @@ export interface ServerInfo {
   'eos-version-compat': string
   pubkey: string
   'ca-fingerprint': string
-  'system-start-time': string
+  'ntp-synced': boolean
   zram: boolean
   smtp: typeof customSmtp.validator._TYPE
   'password-hash': string
+  platform: string
 }
 
 export type NetworkInfo = {
@@ -156,7 +159,14 @@ export interface ServerStatusInfo {
   }
   updated: boolean
   'update-progress': { size: number | null; downloaded: number } | null
+  restarting: boolean
   'shutting-down': boolean
+}
+
+export enum ServerStatus {
+  Running = 'running',
+  Updated = 'updated',
+  BackingUp = 'backing-up',
 }
 
 export interface PackageDataEntry {
@@ -166,6 +176,12 @@ export interface PackageDataEntry {
   installed?: InstalledPackageInfo // when: installed
   actions?: Record<string, Action> // when: installed
   'install-progress'?: InstallProgress // when: installing, updating, restoring
+}
+
+export type PackagePlus = {
+  pkg: PackageDataEntry
+  status: PackageStatus
+  dependencies: DependencyInfo[]
 }
 
 // export type PackageDataEntry =
@@ -224,6 +240,7 @@ export interface InstalledPackageInfo {
   'last-backup': string | null
   'installed-at': string
   'current-dependencies': Record<string, CurrentDependencyInfo>
+  'current-dependents': Record<string, CurrentDependencyInfo>
   'dependency-info': Record<string, { title: string; icon: Url }>
   interfaceInfo: Record<string, InterfaceInfo>
   'marketplace-url': string | null
@@ -262,7 +279,7 @@ export interface Action {
 export interface Status {
   configured: boolean
   main: MainStatus
-  'dependency-errors': { [id: string]: DependencyError | null }
+  'dependency-config-errors': { [id: string]: string | null }
 }
 
 export type MainStatus =
@@ -352,51 +369,6 @@ export interface HealthCheckResultLoading {
 export interface HealthCheckResultFailure {
   result: HealthResult.Failure
   error: string
-}
-
-export type DependencyError =
-  | DependencyErrorNotInstalled
-  | DependencyErrorNotRunning
-  | DependencyErrorIncorrectVersion
-  | DependencyErrorConfigUnsatisfied
-  | DependencyErrorHealthChecksFailed
-  | DependencyErrorTransitive
-
-export enum DependencyErrorType {
-  NotInstalled = 'not-installed',
-  NotRunning = 'not-running',
-  IncorrectVersion = 'incorrect-version',
-  ConfigUnsatisfied = 'config-unsatisfied',
-  HealthChecksFailed = 'health-checks-failed',
-  Transitive = 'transitive',
-}
-
-export interface DependencyErrorNotInstalled {
-  type: DependencyErrorType.NotInstalled
-}
-
-export interface DependencyErrorNotRunning {
-  type: DependencyErrorType.NotRunning
-}
-
-export interface DependencyErrorIncorrectVersion {
-  type: DependencyErrorType.IncorrectVersion
-  expected: string // version range
-  received: string // version
-}
-
-export interface DependencyErrorConfigUnsatisfied {
-  type: DependencyErrorType.ConfigUnsatisfied
-  error: string
-}
-
-export interface DependencyErrorHealthChecksFailed {
-  type: DependencyErrorType.HealthChecksFailed
-  check: HealthCheckResult
-}
-
-export interface DependencyErrorTransitive {
-  type: DependencyErrorType.Transitive
 }
 
 export interface InstallProgress {

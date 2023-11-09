@@ -1,29 +1,11 @@
-import { BehaviorSubject, Observable } from 'rxjs'
+import { Observable } from 'rxjs'
 import { Update } from 'patch-db-client'
-import { RR, Encrypted, BackupTargetType, Metrics } from './api.types'
+import { RR, BackupTargetType, Metrics } from './api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Log, SetupStatus } from '@start9labs/shared'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
-import type { JWK } from 'node-jose'
 
 export abstract class ApiService {
-  protected readonly jose = import('node-jose')
-
-  readonly patchStream$ = new BehaviorSubject<Update<DataModel>[]>([])
-  pubkey?: JWK.Key
-
-  async encrypt(toEncrypt: string): Promise<Encrypted> {
-    const { pubkey } = this
-
-    if (!pubkey) throw new Error('No pubkey found!')
-
-    const encrypted = await this.jose.then(jose =>
-      jose.JWE.createEncrypt(pubkey).update(toEncrypt).final(),
-    )
-
-    return { encrypted }
-  }
-
   // http
 
   // for getting static files: ex icons, instructions, licenses
@@ -43,8 +25,6 @@ export abstract class ApiService {
 
   // auth
 
-  abstract getPubKey(): Promise<void>
-
   abstract login(params: RR.LoginReq): Promise<RR.loginRes>
 
   abstract logout(params: RR.LogoutReq): Promise<RR.LogoutRes>
@@ -59,7 +39,7 @@ export abstract class ApiService {
 
   // server
 
-  abstract echo(params: RR.EchoReq): Promise<RR.EchoRes>
+  abstract echo(params: RR.EchoReq, urlOverride?: string): Promise<RR.EchoRes>
 
   abstract openPatchWebsocket$(): Observable<Update<DataModel>>
 
@@ -285,10 +265,6 @@ export abstract class ApiService {
   abstract installPackage(
     params: RR.InstallPackageReq,
   ): Promise<RR.InstallPackageRes>
-
-  abstract dryUpdatePackage(
-    params: RR.DryUpdatePackageReq,
-  ): Promise<RR.DryUpdatePackageRes>
 
   abstract getPackageConfig(
     params: RR.GetPackageConfigReq,

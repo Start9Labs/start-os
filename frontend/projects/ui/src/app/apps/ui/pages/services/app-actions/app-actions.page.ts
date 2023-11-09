@@ -103,7 +103,7 @@ export class AppActionsPage {
       alerts.uninstall ||
       `Uninstalling ${title} will permanently delete its data`
 
-    if (await hasCurrentDeps(this.patch, id)) {
+    if (hasCurrentDeps(pkg)) {
       content = `${content}. Services that depend on ${title} will no longer work properly and may crash`
     }
 

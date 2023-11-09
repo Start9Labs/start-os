@@ -21,6 +21,8 @@ export * from './components/ticker/ticker.module'
 export * from './directives/drag-scroller.directive'
 export * from './directives/responsive-col.directive'
 export * from './directives/safe-links.directive'
+export * from './directives/enter/enter.directive'
+export * from './directives/enter/enter.module'
 
 export * from './mocks/get-setup-status'
 

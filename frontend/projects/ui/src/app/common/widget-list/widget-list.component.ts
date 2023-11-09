@@ -14,8 +14,8 @@ import { Card, Dimension } from './widget-card/widget-card.component'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WidgetListComponent {
-  @ViewChild('gridContent') gridContent: ElementRef<HTMLElement> =
-    {} as ElementRef<HTMLElement>
+  @ViewChild('gridContent')
+  gridContent: ElementRef<HTMLElement> = {} as ElementRef<HTMLElement>
   @HostListener('window:resize', ['$event'])
   onResize() {
     this.setContainerDimensions()
@@ -38,46 +38,46 @@ export class WidgetListComponent {
 
   cards: Card[] = [
     {
-      title: 'Visit the Marketplace',
+      title: 'Server Info',
+      icon: 'information-circle-outline',
+      color: 'var(--alt-green)',
+      description: 'View information about your server',
+      link: '/system/specs',
+    },
+    {
+      title: 'Browse',
       icon: 'storefront-outline',
-      color: 'var(--alt-blue)',
-      description: 'Shop for your favorite open source services',
+      color: 'var(--alt-purple)',
+      description: 'Browse for services to install',
       link: '/marketplace',
       qp: { back: 'true' },
     },
     {
-      title: 'Root CA',
-      icon: 'ribbon-outline',
-      color: 'var(--alt-orange)',
-      description: `Download and trust your server's root certificate authority`,
-      link: '/system/root-ca',
-    },
-    {
       title: 'Create Backup',
       icon: 'duplicate-outline',
-      color: 'var(--alt-purple)',
+      color: 'var(--alt-blue)',
       description: 'Back up StartOS and service data',
       link: '/system/backup',
     },
     {
-      title: 'Server Info',
-      icon: 'information-circle-outline',
-      color: 'var(--alt-green)',
-      description: 'View basic information about your server',
-      link: '/system/specs',
+      title: 'Monitor',
+      icon: 'pulse-outline',
+      color: 'var(--alt-orange)',
+      description: `View your system resource usage`,
+      link: '/system/metrics',
     },
     {
       title: 'User Manual',
       icon: 'map-outline',
       color: 'var(--alt-yellow)',
       description: 'Discover what StartOS can do',
-      link: 'https://docs.start9.com/latest/user-manual/index',
+      link: 'https://docs.start9.com/0.3.5.x/user-manual/index',
     },
     {
       title: 'Contact Support',
       icon: 'chatbubbles-outline',
       color: 'var(--alt-red)',
-      description: 'Get help from the Start9 team and community',
+      description: 'Get help from the Start9 community',
       link: 'https://start9.com/contact',
     },
   ]

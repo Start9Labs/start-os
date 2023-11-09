@@ -15,6 +15,8 @@ ENVIRONMENT=$(cat ENVIRONMENT.txt)
 GIT_HASH=$(cat GIT_HASH.txt | head -c 7)
 DATE=$(date +%Y%m%d)
 
+ROOT_PART_END=7217792
+
 VERSION_FULL="$VERSION-$GIT_HASH"
 
 if [ -n "$ENVIRONMENT" ]; then
@@ -22,7 +24,7 @@ if [ -n "$ENVIRONMENT" ]; then
 fi
 
 TARGET_NAME=startos-${VERSION_FULL}-${DATE}_raspberrypi.img
-TARGET_SIZE=$[(6817791+1)*512]
+TARGET_SIZE=$[($ROOT_PART_END+1)*512]
 
 rm -f $TARGET_NAME
 truncate -s $TARGET_SIZE $TARGET_NAME
@@ -43,7 +45,7 @@ truncate -s $TARGET_SIZE $TARGET_NAME
     echo p
     echo 2
     echo 526336
-    echo 6817791
+    echo $ROOT_PART_END
     echo a
     echo 1
     echo w
@@ -58,12 +60,12 @@ sudo mount `partition_for ${OUTPUT_DEVICE} 2` $TMPDIR
 sudo mkdir $TMPDIR/boot
 sudo mount `partition_for ${OUTPUT_DEVICE} 1` $TMPDIR/boot
 sudo unsquashfs -f -d $TMPDIR startos.raspberrypi.squashfs
-REAL_GIT_HASH=$(cat $TMPDIR/usr/lib/embassy/GIT_HASH.txt)
-REAL_VERSION=$(cat $TMPDIR/usr/lib/embassy/VERSION.txt)
-REAL_ENVIRONMENT=$(cat $TMPDIR/usr/lib/embassy/ENVIRONMENT.txt)
-sudo sed -i 's| boot=embassy| init=/usr/lib/embassy/scripts/init_resize\.sh|' $TMPDIR/boot/cmdline.txt
+REAL_GIT_HASH=$(cat $TMPDIR/usr/lib/startos/GIT_HASH.txt)
+REAL_VERSION=$(cat $TMPDIR/usr/lib/startos/VERSION.txt)
+REAL_ENVIRONMENT=$(cat $TMPDIR/usr/lib/startos/ENVIRONMENT.txt)
+sudo sed -i 's| boot=embassy| init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/cmdline.txt
 sudo cp ./build/raspberrypi/fstab $TMPDIR/etc/
-sudo cp ./build/raspberrypi/init_resize.sh $TMPDIR/usr/lib/embassy/scripts/init_resize.sh
+sudo cp ./build/raspberrypi/init_resize.sh $TMPDIR/usr/lib/startos/scripts/init_resize.sh
 sudo umount $TMPDIR/boot
 sudo umount $TMPDIR
 sudo losetup -d $OUTPUT_DEVICE

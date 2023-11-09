@@ -11,12 +11,13 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { IonicModule } from '@ionic/angular'
 import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
 import {
-  MarkdownModule,
   DarkThemeModule,
   SharedPipesModule,
   LightThemeModule,
   LoadingModule,
   ResponsiveColViewportDirective,
+  EnterModule,
+  MarkdownModule,
 } from '@start9labs/shared'
 
 import { AppComponent } from './app.component'
@@ -26,7 +27,6 @@ import { QRComponentModule } from './common/qr/qr.module'
 import { PreloaderModule } from './app/preloader/preloader.module'
 import { FooterModule } from './app/footer/footer.module'
 import { MenuModule } from './app/menu/menu.module'
-import { EnterModule } from './app/enter/enter.module'
 import { APP_PROVIDERS } from './app.providers'
 import { PatchDbModule } from './services/patch-db/patch-db.module'
 import { ToastContainerModule } from './common/toast-container/toast-container.module'

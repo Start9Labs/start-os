@@ -474,3 +474,11 @@ button.g-action {
   @include scrollbar-hidden;
   overflow: auto !important;
 }
+
+p {
+  font-size: 1rem;
+}
+
+svg:not(:root) {
+  overflow: auto;
+}

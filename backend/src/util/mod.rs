@@ -6,6 +6,7 @@ use std::pin::Pin;
 use std::process::Stdio;
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::time::Duration;
 
 use async_trait::async_trait;
 use clap::ArgMatches;
@@ -16,7 +17,7 @@ pub use helpers::NonDetachingJoinHandle;
 use lazy_static::lazy_static;
 pub use models::Version;
 use pin_project::pin_project;
-use sha2_old::Digest;
+use sha2::Digest;
 use tokio::fs::File;
 use tokio::sync::{Mutex, OwnedMutexGuard, RwLock};
 use tracing::instrument;
@@ -24,13 +25,16 @@ use tracing::instrument;
 use crate::shutdown::Shutdown;
 use crate::{Error, ErrorKind, ResultExt as _};
 pub mod config;
+pub mod cpupower;
+pub mod crypto;
+pub mod docker;
 pub mod http_reader;
 pub mod io;
 pub mod logger;
 pub mod lshw;
 pub mod serde;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, ::serde::Deserialize, ::serde::Serialize)]
 pub enum Never {}
 impl Never {}
 impl Never {
@@ -46,15 +50,116 @@ impl std::fmt::Display for Never {
 impl std::error::Error for Never {}
 
 #[async_trait::async_trait]
-pub trait Invoke {
+pub trait Invoke<'a> {
+    type Extended<'ext>
+    where
+        Self: 'ext,
+        'ext: 'a;
+    fn timeout<'ext: 'a>(&'ext mut self, timeout: Option<Duration>) -> Self::Extended<'ext>;
+    fn input<'ext: 'a, Input: tokio::io::AsyncRead + Unpin + Send>(
+        &'ext mut self,
+        input: Option<&'ext mut Input>,
+    ) -> Self::Extended<'ext>;
     async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error>;
 }
+
+pub struct ExtendedCommand<'a> {
+    cmd: &'a mut tokio::process::Command,
+    timeout: Option<Duration>,
+    input: Option<&'a mut (dyn tokio::io::AsyncRead + Unpin + Send)>,
+}
+impl<'a> std::ops::Deref for ExtendedCommand<'a> {
+    type Target = tokio::process::Command;
+    fn deref(&self) -> &Self::Target {
+        &*self.cmd
+    }
+}
+impl<'a> std::ops::DerefMut for ExtendedCommand<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.cmd
+    }
+}
+
 #[async_trait::async_trait]
-impl Invoke for tokio::process::Command {
+impl<'a> Invoke<'a> for tokio::process::Command {
+    type Extended<'ext> = ExtendedCommand<'ext>
+    where
+        Self: 'ext,
+        'ext: 'a;
+    fn timeout<'ext: 'a>(&'ext mut self, timeout: Option<Duration>) -> Self::Extended<'ext> {
+        ExtendedCommand {
+            cmd: self,
+            timeout,
+            input: None,
+        }
+    }
+    fn input<'ext: 'a, Input: tokio::io::AsyncRead + Unpin + Send>(
+        &'ext mut self,
+        input: Option<&'ext mut Input>,
+    ) -> Self::Extended<'ext> {
+        ExtendedCommand {
+            cmd: self,
+            timeout: None,
+            input: if let Some(input) = input {
+                Some(&mut *input)
+            } else {
+                None
+            },
+        }
+    }
     async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error> {
-        self.stdout(Stdio::piped());
-        self.stderr(Stdio::piped());
-        let res = self.output().await?;
+        ExtendedCommand {
+            cmd: self,
+            timeout: None,
+            input: None,
+        }
+        .invoke(error_kind)
+        .await
+    }
+}
+
+#[async_trait::async_trait]
+impl<'a> Invoke<'a> for ExtendedCommand<'a> {
+    type Extended<'ext> = &'ext mut ExtendedCommand<'ext>
+    where
+        Self: 'ext,
+        'ext: 'a;
+    fn timeout<'ext: 'a>(&'ext mut self, timeout: Option<Duration>) -> Self::Extended<'ext> {
+        self.timeout = timeout;
+        self
+    }
+    fn input<'ext: 'a, Input: tokio::io::AsyncRead + Unpin + Send>(
+        &'ext mut self,
+        input: Option<&'ext mut Input>,
+    ) -> Self::Extended<'ext> {
+        self.input = if let Some(input) = input {
+            Some(&mut *input)
+        } else {
+            None
+        };
+        self
+    }
+    async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error> {
+        self.cmd.kill_on_drop(true);
+        if self.input.is_some() {
+            self.cmd.stdin(Stdio::piped());
+        }
+        self.cmd.stdout(Stdio::piped());
+        self.cmd.stderr(Stdio::piped());
+        let mut child = self.cmd.spawn()?;
+        if let (Some(mut stdin), Some(input)) = (child.stdin.take(), self.input.take()) {
+            use tokio::io::AsyncWriteExt;
+            tokio::io::copy(input, &mut stdin).await?;
+            stdin.flush().await?;
+            stdin.shutdown().await?;
+            drop(stdin);
+        }
+        let res = match self.timeout {
+            None => child.wait_with_output().await?,
+            Some(t) => tokio::time::timeout(t, child.wait_with_output())
+                .await
+                .with_kind(ErrorKind::Timeout)??,
+        };
         crate::ensure_code!(
             res.status.success(),
             error_kind,
@@ -170,9 +275,7 @@ impl<W: std::fmt::Write> std::io::Write for FmtWriter<W> {
     }
 }
 
-pub fn display_none<T>(_: T, _: &ArgMatches) {
-    ()
-}
+pub fn display_none<T>(_: T, _: &ArgMatches) {}
 
 pub struct Container<T>(RwLock<Option<T>>);
 impl<T> Container<T> {
@@ -183,7 +286,7 @@ impl<T> Container<T> {
         std::mem::replace(&mut *self.0.write().await, Some(value))
     }
     pub async fn take(&self) -> Option<T> {
-        std::mem::replace(&mut *self.0.write().await, None)
+        self.0.write().await.take()
     }
     pub async fn is_empty(&self) -> bool {
         self.0.read().await.is_none()
@@ -220,7 +323,7 @@ impl<H: Digest, W: tokio::io::AsyncWrite> tokio::io::AsyncWrite for HashWriter<H
         buf: &[u8],
     ) -> Poll<std::io::Result<usize>> {
         let this = self.project();
-        let written = tokio::io::AsyncWrite::poll_write(this.writer, cx, &buf);
+        let written = tokio::io::AsyncWrite::poll_write(this.writer, cx, buf);
         match written {
             // only update the hasher once
             Poll::Ready(res) => {
@@ -256,6 +359,29 @@ where
     }
 }
 
+pub struct GeneralBoxedGuard(Option<Box<dyn FnOnce() + Send + Sync>>);
+impl GeneralBoxedGuard {
+    pub fn new(f: impl FnOnce() + 'static + Send + Sync) -> Self {
+        GeneralBoxedGuard(Some(Box::new(f)))
+    }
+
+    pub fn drop(mut self) {
+        self.0.take().unwrap()()
+    }
+
+    pub fn drop_without_action(mut self) {
+        self.0 = None;
+    }
+}
+
+impl Drop for GeneralBoxedGuard {
+    fn drop(&mut self) {
+        if let Some(destroy) = self.0.take() {
+            destroy();
+        }
+    }
+}
+
 pub struct GeneralGuard<F: FnOnce() -> T, T = ()>(Option<F>);
 impl<F: FnOnce() -> T, T> GeneralGuard<F, T> {
     pub fn new(f: F) -> Self {
@@ -272,29 +398,6 @@ impl<F: FnOnce() -> T, T> GeneralGuard<F, T> {
 }
 
 impl<F: FnOnce() -> T, T> Drop for GeneralGuard<F, T> {
-    fn drop(&mut self) {
-        if let Some(destroy) = self.0.take() {
-            destroy();
-        }
-    }
-}
-
-pub struct GeneralBoxedGuard(Option<Box<dyn FnOnce() -> ()>>);
-impl GeneralBoxedGuard {
-    pub fn new(f: impl FnOnce() -> () + 'static) -> Self {
-        GeneralBoxedGuard(Some(Box::new(f)))
-    }
-
-    pub fn drop(mut self) -> () {
-        self.0.take().unwrap()()
-    }
-
-    pub fn drop_without_action(mut self) {
-        self.0 = None;
-    }
-}
-
-impl Drop for GeneralBoxedGuard {
     fn drop(&mut self) {
         if let Some(destroy) = self.0.take() {
             destroy();

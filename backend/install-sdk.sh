@@ -8,8 +8,11 @@ if [ "$0" != "./install-sdk.sh" ]; then
 	exit 1
 fi
 
-if [ -z "$OS_ARCH" ]; then
-  export OS_ARCH=$(uname -m)
+frontend="../frontend/dist/static"
+[ -d "$frontend" ] || mkdir -p "$frontend"
+
+if [ -z "$PLATFORM" ]; then
+  export PLATFORM=$(uname -m)
 fi
 
 cargo install --path=. --no-default-features --features=js_engine,sdk,cli --locked

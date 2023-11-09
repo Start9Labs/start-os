@@ -4,7 +4,7 @@ use chrono::Utc;
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use rpc_toolkit::command;
-use sqlx::{Executor, Pool, Postgres};
+use sqlx::{Pool, Postgres};
 use tracing::instrument;
 
 use crate::context::RpcContext;

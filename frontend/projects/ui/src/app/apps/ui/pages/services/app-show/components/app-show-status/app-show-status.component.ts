@@ -27,7 +27,6 @@ import {
   AppConfigPage,
   PackageConfigData,
 } from '../../modals/app-config/app-config.page'
-import { DependencyInfo } from '../../pipes/to-dependencies.pipe'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { LaunchMenuComponent } from '../../../app-list/app-list-pkg/launch-menu/launch-menu.component'
@@ -47,8 +46,7 @@ export class AppShowStatusComponent {
   @Input({ required: true })
   status!: PackageStatus
 
-  @Input()
-  dependencies: DependencyInfo[] = []
+  PR = PrimaryRendering
 
   readonly connected$ = this.connectionService.connected$
 
@@ -82,6 +80,14 @@ export class AppShowStatusComponent {
     return this.status.primary === PrimaryStatus.Running
   }
 
+  get canStop(): boolean {
+    return [
+      PrimaryStatus.Running,
+      PrimaryStatus.Starting,
+      PrimaryStatus.Restarting,
+    ].includes(this.status.primary as PrimaryStatus)
+  }
+
   get isStopped(): boolean {
     return this.status.primary === PrimaryStatus.Stopped
   }
@@ -98,7 +104,7 @@ export class AppShowStatusComponent {
   }
 
   async tryStart(): Promise<void> {
-    if (this.dependencies.some(d => !!d.errorText)) {
+    if (this.status.dependency === 'warning') {
       const depErrMsg = `${this.pkg.manifest.title} has unmet dependencies. It will not work as expected.`
       const proceed = await this.presentAlertStart(depErrMsg)
 
@@ -117,10 +123,10 @@ export class AppShowStatusComponent {
   }
 
   async tryStop(): Promise<void> {
-    const { title, alerts, id } = this.pkg.manifest
+    const { title, alerts } = this.pkg.manifest
 
     let content = alerts.stop || ''
-    if (await hasCurrentDeps(this.patch, id)) {
+    if (hasCurrentDeps(this.pkg)) {
       const depMessage = `Services that depend on ${title} will no longer work properly and may crash`
       content = content ? `${content}.\n\n${depMessage}` : depMessage
     }
@@ -144,15 +150,13 @@ export class AppShowStatusComponent {
   }
 
   async tryRestart(): Promise<void> {
-    const { id, title } = this.pkg.manifest
-
-    if (await hasCurrentDeps(this.patch, id)) {
+    if (hasCurrentDeps(this.pkg)) {
       this.dialogs
         .open(TUI_PROMPT, {
           label: 'Warning',
           size: 's',
           data: {
-            content: `Services that depend on ${title} may temporarily experiences issues`,
+            content: `Services that depend on ${this.pkg.manifest} may temporarily experiences issues`,
             yes: 'Restart',
             no: 'Cancel',
           },

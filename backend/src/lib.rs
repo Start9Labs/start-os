@@ -5,11 +5,20 @@ pub const DEFAULT_MARKETPLACE: &str = "https://registry.start9.com";
 pub const BUFFER_SIZE: usize = 1024;
 pub const HOST_IP: [u8; 4] = [172, 18, 0, 1];
 pub const TARGET: &str = current_platform::CURRENT_PLATFORM;
-pub const OS_ARCH: &str = env!("OS_ARCH");
 lazy_static::lazy_static! {
     pub static ref ARCH: &'static str = {
         let (arch, _) = TARGET.split_once("-").unwrap();
         arch
+    };
+    pub static ref PLATFORM: String = {
+        if let Ok(platform) = std::fs::read_to_string("/usr/lib/startos/PLATFORM.txt") {
+            platform
+        } else {
+            ARCH.to_string()
+        }
+    };
+    pub static ref SOURCE_DATE: SystemTime = {
+        std::fs::metadata(std::env::current_exe().unwrap()).unwrap().modified().unwrap()
     };
 }
 
@@ -28,20 +37,22 @@ pub mod developer;
 pub mod diagnostic;
 pub mod disk;
 pub mod error;
+pub mod firmware;
 pub mod hostname;
 pub mod init;
 pub mod inspect;
 pub mod install;
 pub mod logs;
 pub mod manager;
-pub mod marketplace;
 pub mod middleware;
 pub mod migration;
 pub mod net;
 pub mod notifications;
 pub mod os_install;
+pub mod prelude;
 pub mod procedure;
 pub mod properties;
+pub mod registry;
 pub mod s9pk;
 pub mod setup;
 pub mod shutdown;
@@ -53,6 +64,8 @@ pub mod update;
 pub mod util;
 pub mod version;
 pub mod volume;
+
+use std::time::SystemTime;
 
 pub use config::Config;
 pub use error::{Error, ErrorKind, ResultExt};
@@ -78,7 +91,7 @@ pub fn echo(#[arg] message: String) -> Result<String, RpcError> {
     disk::disk,
     notifications::notification,
     backup::backup,
-    marketplace::marketplace,
+    registry::marketplace::marketplace,
 ))]
 pub fn main_api() -> Result<(), RpcError> {
     Ok(())
@@ -105,7 +118,6 @@ pub fn server() -> Result<(), RpcError> {
     install::sideload,
     install::uninstall,
     install::list,
-    install::update::update,
     config::config,
     control::start,
     control::stop,
@@ -124,7 +136,8 @@ pub fn package() -> Result<(), RpcError> {
     s9pk::pack,
     developer::verify,
     developer::init,
-    inspect::inspect
+    inspect::inspect,
+    registry::admin::publish,
 ))]
 pub fn portable_api() -> Result<(), RpcError> {
     Ok(())

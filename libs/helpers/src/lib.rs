@@ -72,9 +72,27 @@ pub async fn canonicalize(
 
 #[pin_project::pin_project(PinnedDrop)]
 pub struct NonDetachingJoinHandle<T>(#[pin] JoinHandle<T>);
+impl<T> NonDetachingJoinHandle<T> {
+    pub async fn wait_for_abort(self) -> Result<T, JoinError> {
+        self.abort();
+        self.await
+    }
+}
 impl<T> From<JoinHandle<T>> for NonDetachingJoinHandle<T> {
     fn from(t: JoinHandle<T>) -> Self {
         NonDetachingJoinHandle(t)
+    }
+}
+
+impl<T> Deref for NonDetachingJoinHandle<T> {
+    type Target = JoinHandle<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<T> DerefMut for NonDetachingJoinHandle<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 #[pin_project::pinned_drop]
@@ -92,17 +110,6 @@ impl<T> Future for NonDetachingJoinHandle<T> {
     ) -> std::task::Poll<Self::Output> {
         let this = self.project();
         this.0.poll(cx)
-    }
-}
-impl<T> Deref for NonDetachingJoinHandle<T> {
-    type Target = JoinHandle<T>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl<T> DerefMut for NonDetachingJoinHandle<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
 

@@ -1,0 +1,123 @@
+#!/bin/sh
+set -e
+
+SYSTEMCTL=systemctl
+if [ -n "$DPKG_MAINTSCRIPT_PACKAGE" ]; then
+	  SYSTEMCTL=deb-systemd-helper
+fi
+
+if [ -f /usr/sbin/grub-probe ]; then
+  mv /usr/sbin/grub-probe /usr/sbin/grub-probe-default
+  ln -s /usr/lib/startos/scripts/grub-probe-eos /usr/sbin/grub-probe
+fi
+
+cp /usr/lib/startos/scripts/embassy-initramfs-module /etc/initramfs-tools/scripts/embassy
+
+if ! grep overlay /etc/initramfs-tools/modules > /dev/null; then
+    echo overlay >> /etc/initramfs-tools/modules
+fi
+
+update-initramfs -u -k all
+
+if [ -f /etc/default/grub ]; then
+    sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=embassy"' /etc/default/grub
+    sed -i '/\(^\|#\)GRUB_DISTRIBUTOR=/c\GRUB_DISTRIBUTOR="StartOS v$(cat /usr/lib/startos/VERSION.txt)"' /etc/default/grub
+fi
+
+# change timezone
+rm -f /etc/localtime
+ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime
+
+# switch to systemd-resolved & network-manager
+echo "#" > /etc/network/interfaces
+if ! [ -f /etc/resolv.conf ]; then
+  rm -f /etc/resolv.conf
+  echo "nameserver 8.8.8.8" > /etc/resolv.conf # Google DNS Fallback
+fi
+if ! [ -f /run/systemd/resolve/stub-resolv.conf ]; then
+    mkdir -p /run/systemd/resolve
+    cp /etc/resolv.conf /run/systemd/resolve/stub-resolv.conf
+fi
+ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+cat << EOF > /etc/NetworkManager/NetworkManager.conf
+[main]
+plugins=ifupdown,keyfile
+dns=systemd-resolved
+
+[ifupdown]
+managed=true
+EOF
+$SYSTEMCTL enable startd.service
+$SYSTEMCTL enable systemd-resolved.service
+$SYSTEMCTL enable systemd-networkd-wait-online.service
+$SYSTEMCTL enable ssh.service
+$SYSTEMCTL disable wpa_supplicant.service
+
+$SYSTEMCTL disable docker.service
+$SYSTEMCTL disable postgresql.service
+$SYSTEMCTL disable tor.service
+$SYSTEMCTL disable bluetooth.service
+$SYSTEMCTL disable hciuart.service
+$SYSTEMCTL disable triggerhappy.service
+
+$SYSTEMCTL mask sleep.target
+$SYSTEMCTL mask suspend.target
+$SYSTEMCTL mask hibernate.target
+$SYSTEMCTL mask hybrid-sleep.target
+
+if which gsettings > /dev/null; then
+    gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout '0'
+    gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-timeout '0'
+fi
+
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+sed -i 's/Restart=on-failure/Restart=always/g' /lib/systemd/system/tor@default.service
+sed -i '/\(^\|#\)entries-per-entry-group-max=/c\entries-per-entry-group-max=128' /etc/avahi/avahi-daemon.conf
+sed -i '/\(^\|#\)Storage=/c\Storage=persistent' /etc/systemd/journald.conf
+sed -i '/\(^\|#\)Compress=/c\Compress=yes' /etc/systemd/journald.conf
+sed -i '/\(^\|#\)SystemMaxUse=/c\SystemMaxUse=1G' /etc/systemd/journald.conf
+sed -i '/\(^\|#\)ForwardToSyslog=/c\ForwardToSyslog=no' /etc/systemd/journald.conf
+sed -i '/^\s*#\?\s*issue_discards\s*=\s*/c\issue_discards = 1' /etc/lvm/lvm.conf
+
+if cat /usr/lib/startos/ENVIRONMENT.txt | grep '(^|-)docker(-|$)'; then
+    sed -i 's/ExecStart=\/usr\/bin\/dockerd/ExecStart=\/usr\/bin\/dockerd --exec-opt native.cgroupdriver=systemd/g' /lib/systemd/system/docker.service
+    mkdir -p /etc/docker
+    echo '{ "storage-driver": "overlay2" }' > /etc/docker/daemon.json
+else
+    podman network create -d bridge --subnet 172.18.0.1/24 --opt com.docker.network.bridge.name=br-start9 start9
+fi
+mkdir -p /etc/nginx/ssl
+
+# fix to suppress docker warning, fixed in 21.xx release of docker cli: https://github.com/docker/cli/pull/2934
+mkdir -p /root/.docker
+touch /root/.docker/config.json
+
+cat << EOF > /etc/tor/torrc
+SocksPort 0.0.0.0:9050
+SocksPolicy accept 127.0.0.1
+SocksPolicy accept 172.18.0.0/16
+SocksPolicy reject *
+ControlPort 9051
+CookieAuthentication 1
+EOF
+
+rm -rf /var/lib/tor/*
+ln -sf /usr/lib/startos/scripts/tor-check.sh /usr/bin/tor-check
+
+echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-embassy.conf
+
+# Old pi was set with this locale, because of pg we are now stuck with including that locale
+locale-gen en_GB en_GB.UTF-8 
+echo "locales locales/locales_to_be_generated multiselect en_GB.UTF-8 UTF-8" | debconf-set-selections
+update-locale  LANGUAGE
+rm "/etc/locale.gen"
+dpkg-reconfigure --frontend noninteractive locales
+
+groupadd embassy
+
+ln -s /usr/lib/startos/scripts/dhclient-exit-hook /etc/dhcp/dhclient-exit-hooks.d/embassy
+
+rm -f /etc/motd
+ln -sf /usr/lib/startos/motd /etc/update-motd.d/00-embassy
+chmod -x /etc/update-motd.d/*
+chmod +x /etc/update-motd.d/00-embassy

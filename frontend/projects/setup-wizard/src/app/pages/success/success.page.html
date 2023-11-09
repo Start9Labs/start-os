@@ -8,23 +8,21 @@
           <ion-card>
             <ion-row class="ion-align-items-center">
               <ion-col responsiveCol sizeXs="12" class="ion-text-center">
-                <div class="inline" style="margin-bottom: 3rem">
+                <div class="inline mb-12">
                   <ion-icon
                     name="checkmark-circle-outline"
                     color="success"
                   ></ion-icon>
                   <h1>Setup Complete!</h1>
                 </div>
-                <div class="card-container">
-                  <ion-card id="exit" (click)="exitKiosk()">
-                    <div class="container">
-                      <div class="inline">
-                        <p>Continue to login</p>
-                        <ion-icon name="log-in-outline"></ion-icon>
-                      </div>
-                    </div>
-                  </ion-card>
-                </div>
+                <ion-button
+                  shape="round"
+                  class="login-button mb-12"
+                  (click)="exitKiosk()"
+                >
+                  Continue to Login
+                  <ion-icon name="log-in-outline" slot="end"></ion-icon>
+                </ion-button>
               </ion-col>
             </ion-row>
           </ion-card>
@@ -34,8 +32,8 @@
           <ion-card *ngIf="lanAddress">
             <ion-row class="ion-align-items-center">
               <ion-col responsiveCol sizeXs="12" class="ion-text-center">
-                <div style="margin-bottom: 4rem">
-                  <div class="inline">
+                <div class="mb-12">
+                  <div class="inline-container setup">
                     <ion-icon
                       name="checkmark-circle-outline"
                       color="success"
@@ -52,35 +50,40 @@
                 <div class="card-container">
                   <ion-card id="information" (click)="download()">
                     <ion-card-content>
-                      <ion-card-title>
-                        Download permanent address info
-                      </ion-card-title>
+                      <ion-card-title>Download address info</ion-card-title>
                       <p>
                         start.local was for setup purposes only. It will no
                         longer work.
                       </p>
                     </ion-card-content>
                     <ion-footer>
-                      <div class="container">
-                        <div class="inline">
-                          <p>Download</p>
-                          <ion-icon name="download-outline"></ion-icon>
-                        </div>
+                      <div class="inline-container">
+                        <p class="action-text">Download</p>
+                        <ion-icon slot="end" name="download-outline"></ion-icon>
                       </div>
                     </ion-footer>
                   </ion-card>
                   <ion-card
-                    [disabled]="disableLogin"
                     id="launch"
+                    [disabled]="disableLogin"
                     href="{{ lanAddress }}"
                     target="_blank"
                   >
-                    <div class="container">
-                      <div class="inline">
-                        <p>Login to StartOS</p>
-                        <ion-icon name="open-outline"></ion-icon>
+                    <ion-card-content>
+                      <ion-card-title>Trust your Root CA</ion-card-title>
+                      <p>
+                        In the new tab, follow instructions to trust your
+                        server's Root CA and log in.
+                      </p>
+                    </ion-card-content>
+                    <ion-footer>
+                      <div class="container">
+                        <div class="inline-container">
+                          <p class="action-text">Open</p>
+                          <ion-icon slot="end" name="open-outline"></ion-icon>
+                        </div>
                       </div>
-                    </div>
+                    </ion-footer>
                   </ion-card>
                 </div>
               </ion-col>

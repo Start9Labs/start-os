@@ -5,8 +5,8 @@ use std::process::Stdio;
 use std::sync::Arc;
 
 use embassy_container_init::{
-    LogParams, OutputParams, OutputStrategy, ProcessGroupId, ProcessId, ReadLineStderrParams,
-    ReadLineStdoutParams, RunCommandParams, SendSignalParams, SignalGroupParams,
+    LogParams, OutputParams, OutputStrategy, ProcessGroupId, ProcessId, RunCommandParams,
+    SendSignalParams, SignalGroupParams,
 };
 use futures::StreamExt;
 use helpers::NonDetachingJoinHandle;
@@ -15,7 +15,7 @@ use nix::sys::signal::Signal;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{Child, ChildStderr, ChildStdout, Command};
+use tokio::process::{Child, Command};
 use tokio::select;
 use tokio::sync::{watch, Mutex};
 use yajrc::{Id, RpcError};
@@ -103,7 +103,7 @@ impl Handler {
             // Input::ReadLineStderr(ReadLineStderrParams { pid }) => {
             //     Output::ReadLineStderr(self.read_line_stderr(pid).await?)
             // }
-            Input::Log(LogParams { gid, level }) => {
+            Input::Log(LogParams { gid: _, level }) => {
                 level.trace();
                 Output::Log
             }
@@ -363,23 +363,23 @@ async fn main() {
                             let req = serde_json::from_str::<IncomingRpc>(&line?)?;
                             match handler.handle(req.input).await {
                                 Ok(output) => {
-                                    if let Err(err) = w.lock().await.write_all(
+                                    if  w.lock().await.write_all(
                                         format!("{}\n", json!({ "id": req.id, "jsonrpc": "2.0", "result": output }))
                                             .as_bytes(),
                                     )
-                                    .await {
+                                    .await.is_err() {
                                         tracing::error!("Error sending to {id:?}", id = req.id);
                                     }
                                 }
                                 Err(e) =>
-                                if let Err(err) = w
+                                if  w
                                     .lock()
                                     .await
                                     .write_all(
                                         format!("{}\n", json!({ "id": req.id, "jsonrpc": "2.0", "error": e }))
                                             .as_bytes(),
                                     )
-                                    .await {
+                                    .await.is_err() {
 
                                         tracing::error!("Handle + Error sending to {id:?}", id = req.id);
                                     },

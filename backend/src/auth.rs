@@ -5,7 +5,6 @@ use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use josekit::jwk::Jwk;
-use patch_db::{DbHandle, LockReceipt};
 use rpc_toolkit::command;
 use rpc_toolkit::command_helpers::prelude::{RequestParts, ResponseParts};
 use rpc_toolkit::yajrc::RpcError;
@@ -17,6 +16,7 @@ use tracing::instrument;
 use crate::context::{CliContext, RpcContext};
 use crate::middleware::auth::{AsLogoutSessionId, HasLoggedOutSessions, HashSessionToken};
 use crate::middleware::encrypt::EncryptedWire;
+use crate::prelude::*;
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::{ensure_code, Error, ResultExt};
@@ -84,7 +84,7 @@ fn gen_pwd() {
         argon2::hash_encoded(
             b"testing1234",
             &rand::random::<[u8; 16]>()[..],
-            &argon2::Config::default()
+            &argon2::Config::rfc9106_low_mem()
         )
         .unwrap()
     )
@@ -160,7 +160,7 @@ pub async fn login(
 ) -> Result<(), Error> {
     let password = password.unwrap_or_default().decrypt(&ctx)?;
     let mut handle = ctx.secret_store.acquire().await?;
-    check_password_against_db(&mut handle, &password).await?;
+    check_password_against_db(handle.as_mut(), &password).await?;
 
     let hash_token = HashSessionToken::new();
     let user_agent = req.headers.get("user-agent").and_then(|h| h.to_str().ok());
@@ -172,7 +172,7 @@ pub async fn login(
         user_agent,
         metadata,
     )
-    .execute(&mut handle)
+    .execute(handle.as_mut())
     .await?;
     res.headers.insert(
         "set-cookie",
@@ -263,7 +263,7 @@ pub async fn list(
         sessions: sqlx::query!(
             "SELECT * FROM session WHERE logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP"
         )
-        .fetch_all(&mut ctx.secret_store.acquire().await?)
+        .fetch_all(ctx.secret_store.acquire().await?.as_mut())
         .await?
         .into_iter()
         .map(|row| {
@@ -343,27 +343,6 @@ async fn cli_reset_password(
     Ok(())
 }
 
-pub struct SetPasswordReceipt(LockReceipt<String, ()>);
-impl SetPasswordReceipt {
-    pub async fn new<Db: DbHandle>(db: &mut Db) -> Result<Self, Error> {
-        let mut locks = Vec::new();
-
-        let setup = Self::setup(&mut locks);
-        Ok(setup(&db.lock_all(locks).await?)?)
-    }
-
-    pub fn setup(
-        locks: &mut Vec<patch_db::LockTargetId>,
-    ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
-        let password_hash = crate::db::DatabaseModel::new()
-            .server_info()
-            .password_hash()
-            .make_locker(patch_db::LockType::Write)
-            .add_to_keys(locks);
-        move |skeleton_key| Ok(Self(password_hash.verify(skeleton_key)?))
-    }
-}
-
 #[command(
     rename = "reset-password",
     custom_cli(cli_reset_password(async, context(CliContext))),
@@ -389,13 +368,14 @@ pub async fn reset_password(
     }
     account.set_password(&new_password)?;
     account.save(&ctx.secret_store).await?;
-    crate::db::DatabaseModel::new()
-        .server_info()
-        .password_hash()
-        .put(&mut ctx.db.handle(), &account.password)
-        .await?;
-
-    Ok(())
+    let account_password = &account.password;
+    ctx.db
+        .mutate(|d| {
+            d.as_server_info_mut()
+                .as_password_hash_mut()
+                .ser(account_password)
+        })
+        .await
 }
 
 #[command(

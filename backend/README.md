@@ -5,6 +5,7 @@
   - Recommended: [rust-analyzer](https://rust-analyzer.github.io/)
   - [Docker](https://docs.docker.com/get-docker/)
   - [Rust ARM64 Build Container](https://github.com/Start9Labs/rust-arm-builder)
+  - Mac `brew install gnu-tar`
 - Scripts (run within the `./backend` directory)
   - `build-prod.sh` - compiles a release build of the artifacts for running on
     ARM64
@@ -12,7 +13,7 @@
 
 ## Structure
 
-The StartOS backend is packed into a single binary `startbox` that is symlinked under 
+The StartOS backend is packed into a single binary `startbox` that is symlinked under
 several different names for different behaviour:
 
 - startd: This is the main workhorse of StartOS - any new functionality you

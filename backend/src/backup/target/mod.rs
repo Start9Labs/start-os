@@ -7,7 +7,6 @@ use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use digest::generic_array::GenericArray;
 use digest::OutputSizeUser;
-use lazy_static::lazy_static;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -23,10 +22,10 @@ use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::filesystem::{FileSystem, MountType, ReadWrite};
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::PartitionInfo;
+use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::{deserialize_from_str, display_serializable, serialize_display};
 use crate::util::{display_none, Version};
-use crate::Error;
 
 pub mod cifs;
 
@@ -44,7 +43,7 @@ pub enum BackupTarget {
     Cifs(CifsBackupTarget),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum BackupTargetId {
     Disk { logicalname: PathBuf },
     Cifs { id: i32 },
@@ -73,14 +72,14 @@ impl std::fmt::Display for BackupTargetId {
 impl std::str::FromStr for BackupTargetId {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.split_once("-") {
+        match s.split_once('-') {
             Some(("disk", logicalname)) => Ok(BackupTargetId::Disk {
                 logicalname: Path::new(logicalname).to_owned(),
             }),
             Some(("cifs", id)) => Ok(BackupTargetId::Cifs { id: id.parse()? }),
             _ => Err(Error::new(
                 eyre!("Invalid Backup Target ID"),
-                crate::ErrorKind::InvalidBackupTargetId,
+                ErrorKind::InvalidBackupTargetId,
             )),
         }
     }
@@ -143,7 +142,7 @@ pub async fn list(
     let mut sql_handle = ctx.secret_store.acquire().await?;
     let (disks_res, cifs) = tokio::try_join!(
         crate::disk::util::list(&ctx.os_partitions),
-        cifs::list(&mut sql_handle),
+        cifs::list(sql_handle.as_mut()),
     )?;
     Ok(disks_res
         .into_iter()
@@ -214,7 +213,7 @@ fn display_backup_info(info: BackupInfo, matches: &ArgMatches) {
     ]);
     for (id, info) in info.package_backups {
         let row = row![
-            id.as_str(),
+            &*id,
             info.version.as_str(),
             info.os_version.as_str(),
             &info.timestamp.to_string(),
@@ -225,7 +224,7 @@ fn display_backup_info(info: BackupInfo, matches: &ArgMatches) {
 }
 
 #[command(display(display_backup_info))]
-#[instrument(skip_all)]
+#[instrument(skip(ctx, password))]
 pub async fn info(
     #[context] ctx: RpcContext,
     #[arg(rename = "target-id")] target_id: BackupTargetId,
@@ -234,7 +233,7 @@ pub async fn info(
     let guard = BackupMountGuard::mount(
         TmpMountGuard::mount(
             &target_id
-                .load(&mut ctx.secret_store.acquire().await?)
+                .load(ctx.secret_store.acquire().await?.as_mut())
                 .await?,
             ReadWrite,
         )
@@ -250,7 +249,7 @@ pub async fn info(
     Ok(res)
 }
 
-lazy_static! {
+lazy_static::lazy_static! {
     static ref USER_MOUNTS: Mutex<BTreeMap<BackupTargetId, BackupMountGuard<TmpMountGuard>>> =
         Mutex::new(BTreeMap::new());
 }
@@ -272,7 +271,7 @@ pub async fn mount(
         TmpMountGuard::mount(
             &target_id
                 .clone()
-                .load(&mut ctx.secret_store.acquire().await?)
+                .load(ctx.secret_store.acquire().await?.as_mut())
                 .await?,
             ReadWrite,
         )
@@ -287,11 +286,10 @@ pub async fn mount(
 
     Ok(res)
 }
-
 #[command(display(display_none))]
 #[instrument(skip_all)]
 pub async fn umount(
-    #[context] ctx: RpcContext,
+    #[context] _ctx: RpcContext,
     #[arg(rename = "target-id")] target_id: Option<BackupTargetId>,
 ) -> Result<(), Error> {
     let mut mounts = USER_MOUNTS.lock().await;

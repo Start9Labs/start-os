@@ -1,5 +1,4 @@
 import {
-  DependencyErrorType,
   HealthResult,
   PackageDataEntry,
   PackageMainStatus,
@@ -32,12 +31,14 @@ export module Mock {
     'current-backup': null,
     'update-progress': null,
     updated: true,
+    restarting: false,
     'shutting-down': false,
   }
   export const MarketplaceEos: RR.GetMarketplaceEosRes = {
-    version: '0.3.4.4',
+    version: '0.3.5',
     headline: 'Our biggest release ever.',
     'release-notes': {
+      '0.3.5': 'Some **Markdown** release _notes_ for 0.3.5',
       '0.3.4.4': 'Some **Markdown** release _notes_ for 0.3.4.4',
       '0.3.4.3': 'Some **Markdown** release _notes_ for 0.3.4.3',
       '0.3.4.2': 'Some **Markdown** release _notes_ for 0.3.4.2',
@@ -381,29 +382,80 @@ export module Mock {
   export function getMetrics(): Metrics {
     return {
       general: {
-        temperature: (Math.random() * 100).toFixed(1),
+        temperature: {
+          value: '66.8',
+          unit: '°C',
+        },
       },
       memory: {
-        'percentage-used': '20',
-        total: (Math.random() * 100).toFixed(2),
-        available: '18000',
-        used: '4000',
-        'swap-total': '1000',
-        'swap-free': Math.random().toFixed(2),
-        'swap-used': '0',
+        'percentage-used': {
+          value: '30.7',
+          unit: '%',
+        },
+        total: {
+          value: '31971.10',
+          unit: 'MiB',
+        },
+        available: {
+          value: '22150.66',
+          unit: 'MiB',
+        },
+        used: {
+          value: '8784.97',
+          unit: 'MiB',
+        },
+        'zram-total': {
+          value: '7992.00',
+          unit: 'MiB',
+        },
+        'zram-available': {
+          value: '7882.50',
+          unit: 'MiB',
+        },
+        'zram-used': {
+          value: '109.50',
+          unit: 'MiB',
+        },
       },
       cpu: {
-        'user-space': '100',
-        'kernel-space': '50',
-        'io-wait': String(Math.random() * 50),
-        idle: '80',
-        usage: '30',
+        'percentage-used': {
+          value: '8.4',
+          unit: '%',
+        },
+        'user-space': {
+          value: '7.0',
+          unit: '%',
+        },
+        'kernel-space': {
+          value: '1.4',
+          unit: '%',
+        },
+        wait: {
+          value: '0.5',
+          unit: '%',
+        },
+        idle: {
+          value: '91.1',
+          unit: '%',
+        },
       },
       disk: {
-        size: '1000',
-        used: '900',
-        available: '100',
-        'percentage-used': '90',
+        capacity: {
+          value: '1851.60',
+          unit: 'GB',
+        },
+        used: {
+          value: '859.02',
+          unit: 'GB',
+        },
+        available: {
+          value: '992.59',
+          unit: 'GB',
+        },
+        'percentage-used': {
+          value: '46.4',
+          unit: '%',
+        },
       },
     }
   }
@@ -1258,7 +1310,7 @@ export module Mock {
             },
           },
         },
-        'dependency-errors': {},
+        'dependency-config-errors': {},
       },
       interfaceInfo: {
         rpc: {
@@ -1297,6 +1349,7 @@ export module Mock {
         },
       },
       'current-dependencies': {},
+      'current-dependents': {},
       'dependency-info': {},
       'marketplace-url': 'https://registry.start9.com/',
       'developer-key': 'developer-key',
@@ -1350,7 +1403,7 @@ export module Mock {
         main: {
           status: PackageMainStatus.Stopped,
         },
-        'dependency-errors': {},
+        'dependency-config-errors': {},
       },
       interfaceInfo: {
         rpc: {
@@ -1371,6 +1424,7 @@ export module Mock {
           type: 'api',
         },
       },
+      'current-dependents': {},
       'current-dependencies': {
         bitcoind: {
           'health-checks': [],
@@ -1378,8 +1432,8 @@ export module Mock {
       },
       'dependency-info': {
         bitcoind: {
-          title: 'Bitcoin Core',
-          icon: 'assets/img/service-icons/bitcoind.png',
+          title: Mock.MockManifestBitcoind.title,
+          icon: 'assets/img/service-icons/bitcoind.svg',
         },
       },
       'marketplace-url': 'https://registry.start9.com/',
@@ -1402,11 +1456,8 @@ export module Mock {
         main: {
           status: PackageMainStatus.Stopped,
         },
-        'dependency-errors': {
-          'btc-rpc-proxy': {
-            type: DependencyErrorType.ConfigUnsatisfied,
-            error: 'This is a config unsatisfied error',
-          },
+        'dependency-config-errors': {
+          'btc-rpc-proxy': 'Username not found',
         },
       },
       interfaceInfo: {
@@ -1453,13 +1504,14 @@ export module Mock {
           'health-checks': [],
         },
       },
+      'current-dependents': {},
       'dependency-info': {
         bitcoind: {
-          title: 'Bitcoin Core',
+          title: Mock.MockManifestBitcoind.title,
           icon: 'assets/img/service-icons/bitcoind.svg',
         },
         'btc-rpc-proxy': {
-          title: 'Bitcoin Proxy',
+          title: Mock.MockManifestBitcoinProxy.title,
           icon: 'assets/img/service-icons/btc-rpc-proxy.png',
         },
       },

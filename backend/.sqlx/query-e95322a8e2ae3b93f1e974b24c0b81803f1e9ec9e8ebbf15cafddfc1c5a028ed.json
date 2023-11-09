@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT\n                    network_keys.package,\n                    network_keys.interface,\n                    network_keys.key,\n                    tor.key AS \"tor_key?\"\n                FROM\n                    network_keys\n                LEFT JOIN\n                    tor\n                ON\n                    network_keys.package = tor.package\n                AND\n                    network_keys.interface = tor.interface\n                WHERE\n                    network_keys.package = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "package",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "interface",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "key",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 3,
+        "name": "tor_key?",
+        "type_info": "Bytea"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e95322a8e2ae3b93f1e974b24c0b81803f1e9ec9e8ebbf15cafddfc1c5a028ed"
+}

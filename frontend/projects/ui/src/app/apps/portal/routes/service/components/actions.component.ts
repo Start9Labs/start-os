@@ -3,26 +3,18 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
 import { TuiButtonModule } from '@taiga-ui/experimental'
-import { tuiPure } from '@taiga-ui/cdk'
 import { TUI_PROMPT } from '@taiga-ui/kit'
-import { PatchDB } from 'patch-db-client'
 import { filter } from 'rxjs'
 import {
-  PackageStatus,
-  PrimaryStatus,
-  renderPkgStatus,
-} from 'src/app/services/pkg-status-rendering.service'
-import {
-  DataModel,
   InterfaceInfo,
-  PackageDataEntry,
+  PackageMainStatus,
+  PackagePlus,
 } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { ServiceConfigModal } from '../modals/config.component'
 import { PackageConfigData } from '../types/package-config-data'
-import { ToDependenciesPipe } from '../pipes/to-dependencies.pipe'
 
 @Component({
   selector: 'service-actions',
@@ -69,12 +61,11 @@ import { ToDependenciesPipe } from '../pipes/to-dependencies.pipe'
   styles: [':host { display: flex; gap: 1rem }'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  providers: [ToDependenciesPipe],
   imports: [CommonModule, TuiButtonModule],
 })
 export class ServiceActionsComponent {
   @Input({ required: true })
-  service!: PackageDataEntry
+  service!: PackagePlus
 
   constructor(
     private readonly dialogs: TuiDialogService,
@@ -82,51 +73,51 @@ export class ServiceActionsComponent {
     private readonly loader: LoadingService,
     private readonly embassyApi: ApiService,
     private readonly formDialog: FormDialogService,
-    private readonly patch: PatchDB<DataModel>,
-    private readonly dependencies: ToDependenciesPipe,
   ) {}
 
   private get id(): string {
-    return this.service.manifest.id
+    return this.service.pkg.manifest.id
   }
 
   get interfaceInfo(): Record<string, InterfaceInfo> {
-    return this.service.installed!['interfaceInfo']
+    return this.service.pkg.installed!['interfaceInfo']
   }
 
   get isConfigured(): boolean {
-    return this.service.installed!.status.configured
+    return this.service.pkg.installed!.status.configured
   }
 
   get isRunning(): boolean {
-    return this.getStatus(this.service).primary === PrimaryStatus.Running
+    return (
+      this.service.pkg.installed?.status.main.status ===
+      PackageMainStatus.Running
+    )
   }
 
   get isStopped(): boolean {
-    return this.getStatus(this.service).primary === PrimaryStatus.Stopped
-  }
-
-  @tuiPure
-  getStatus(service: PackageDataEntry): PackageStatus {
-    return renderPkgStatus(service)
+    return (
+      this.service.pkg.installed?.status.main.status ===
+      PackageMainStatus.Stopped
+    )
   }
 
   presentModalConfig(): void {
     this.formDialog.open<PackageConfigData>(ServiceConfigModal, {
-      label: `${this.service.manifest.title} configuration`,
+      label: `${this.service.pkg.manifest.title} configuration`,
       data: { pkgId: this.id },
     })
   }
 
   async tryStart(): Promise<void> {
-    if (this.dependencies.transform(this.service)?.some(d => !!d.errorText)) {
-      const depErrMsg = `${this.service.manifest.title} has unmet dependencies. It will not work as expected.`
+    const pkg = this.service.pkg
+    if (Object.values(this.service.dependencies).some(dep => !!dep.errorText)) {
+      const depErrMsg = `${pkg.manifest.title} has unmet dependencies. It will not work as expected.`
       const proceed = await this.presentAlertStart(depErrMsg)
 
       if (!proceed) return
     }
 
-    const alertMsg = this.service.manifest.alerts.start
+    const alertMsg = pkg.manifest.alerts.start
 
     if (alertMsg) {
       const proceed = await this.presentAlertStart(alertMsg)
@@ -138,10 +129,10 @@ export class ServiceActionsComponent {
   }
 
   async tryStop(): Promise<void> {
-    const { title, alerts, id } = this.service.manifest
+    const { title, alerts } = this.service.pkg.manifest
 
     let content = alerts.stop || ''
-    if (await hasCurrentDeps(this.patch, id)) {
+    if (hasCurrentDeps(this.service.pkg)) {
       const depMessage = `Services that depend on ${title} will no longer work properly and may crash`
       content = content ? `${content}.\n\n${depMessage}` : depMessage
     }
@@ -165,15 +156,13 @@ export class ServiceActionsComponent {
   }
 
   async tryRestart(): Promise<void> {
-    const { id, title } = this.service.manifest
-
-    if (await hasCurrentDeps(this.patch, id)) {
+    if (hasCurrentDeps(this.service.pkg)) {
       this.dialogs
         .open(TUI_PROMPT, {
           label: 'Warning',
           size: 's',
           data: {
-            content: `Services that depend on ${title} may temporarily experiences issues`,
+            content: `Services that depend on ${this.service.pkg.manifest} may temporarily experiences issues`,
             yes: 'Restart',
             no: 'Cancel',
           },

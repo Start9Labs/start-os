@@ -1,0 +1,45 @@
+#!/bin/bash
+
+set -e
+
+RUN_ID=$1
+
+if [ -z "$RUN_ID" ]; then
+        >&2 echo usage: $0 '<run-id>'
+        exit 1
+fi
+
+TMP_DIR=/var/tmp/action-run-results/$RUN_ID
+
+rm -rf $TMP_DIR
+mkdir -p $TMP_DIR
+
+cd $TMP_DIR
+
+for arch in x86_64 x86_64-nonfree aarch64 aarch64-nonfree raspberrypi; do
+        gh run download -R Start9Labs/start-os $RUN_ID -n $arch.squashfs
+done
+
+VERSION=
+HASH=
+for file in $(ls *.squashfs); do
+        if [[ $file =~ ^startos-([0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?)-([a-f0-9]{7}(~[a-z-]+)?|unknown)_([a-z0-9_-]+).squashfs$ ]]; then
+                if [ -n "$VERSION" ] && [ "$VERSION" != "${BASH_REMATCH[1]}" ]; then
+                        >&2 echo "VERSION MISMATCH: expected $VERSION got ${BASH_REMATCH[1]}"
+                        exit 2
+                fi
+                if [ -n "$HASH" ] && [ "$HASH" != "${BASH_REMATCH[3]}" ]; then
+                        >&2 echo "HASH MISMATCH: expected $HASH got ${BASH_REMATCH[3]}"
+                        exit 3
+                fi
+                VERSION="${BASH_REMATCH[1]}"
+                HASH="${BASH_REMATCH[3]}"
+        fi
+done
+
+mkdir -p /root/resources/eos/$VERSION
+rm -rf /root/resources/eos/$VERSION/$HASH
+mv $TMP_DIR /root/resources/eos/$VERSION/$HASH
+
+cd /root/resources/eos/$VERSION
+setOsCommitHash $HASH

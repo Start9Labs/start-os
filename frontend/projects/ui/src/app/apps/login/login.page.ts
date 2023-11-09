@@ -8,6 +8,7 @@ import { LoadingService } from '@start9labs/shared'
 import { TuiDestroyService } from '@taiga-ui/cdk'
 import { takeUntil } from 'rxjs'
 import { DOCUMENT } from '@angular/common'
+import { WINDOW } from '@ng-web-apis/common'
 
 @Component({
   selector: 'login',
@@ -19,30 +20,21 @@ export class LoginPage {
   password = ''
   unmasked = false
   error = ''
-  secure = this.config.isSecure()
 
   constructor(
-    @Inject(DOCUMENT) private readonly document: Document,
     private readonly destroy$: TuiDestroyService,
     private readonly router: Router,
     private readonly authService: AuthService,
     private readonly loader: LoadingService,
     private readonly api: ApiService,
-    private readonly config: ConfigService,
+    public readonly config: ConfigService,
+    @Inject(DOCUMENT) public readonly document: Document,
+    @Inject(WINDOW) private readonly windowRef: Window,
   ) {}
 
-  async ionViewDidEnter() {
-    if (!this.secure) {
-      try {
-        await this.api.getPubKey()
-      } catch (e: any) {
-        this.error = e.message
-      }
-    }
-  }
-
-  toggleMask() {
-    this.unmasked = !this.unmasked
+  launchHttps() {
+    const host = this.config.getHost()
+    this.windowRef.open(`https://${host}`, '_self')
   }
 
   async submit() {
@@ -60,9 +52,7 @@ export class LoginPage {
         return
       }
       await this.api.login({
-        password: this.secure
-          ? this.password
-          : await this.api.encrypt(this.password),
+        password: this.password,
         metadata: { platforms: getPlatforms() },
       })
 

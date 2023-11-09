@@ -1,11 +1,11 @@
-import { isEmptyObject } from '@start9labs/shared'
 import {
-  InstalledPackageInfo,
   PackageDataEntry,
   PackageMainStatus,
+  PackagePlus,
   PackageState,
   Status,
 } from 'src/app/services/patch-db/data-model'
+import { PkgDependencyErrors } from './dep-error.service'
 
 export interface PackageStatus {
   primary: PrimaryStatus | PackageState | PackageMainStatus
@@ -13,14 +13,17 @@ export interface PackageStatus {
   health: HealthStatus | null
 }
 
-export function renderPkgStatus(pkg: PackageDataEntry): PackageStatus {
+export function renderPkgStatus(
+  pkg: PackageDataEntry,
+  depErrors: PkgDependencyErrors,
+): PackageStatus {
   let primary: PrimaryStatus | PackageState | PackageMainStatus
   let dependency: DependencyStatus | null = null
   let health: HealthStatus | null = null
 
   if (pkg.state === PackageState.Installed && pkg.installed) {
     primary = getPrimaryStatus(pkg.installed.status)
-    dependency = getDependencyStatus(pkg.installed)
+    dependency = getDependencyStatus(depErrors)
     health = getHealthStatus(pkg.installed.status)
   } else {
     primary = pkg.state
@@ -37,15 +40,10 @@ function getPrimaryStatus(status: Status): PrimaryStatus | PackageMainStatus {
   }
 }
 
-function getDependencyStatus(
-  installed: InstalledPackageInfo,
-): DependencyStatus | null {
-  if (isEmptyObject(installed['current-dependencies'])) return null
-
-  const depErrors = installed.status['dependency-errors']
-  const depIds = Object.keys(depErrors).filter(key => !!depErrors[key])
-
-  return depIds.length ? DependencyStatus.Warning : DependencyStatus.Satisfied
+function getDependencyStatus(depErrors: PkgDependencyErrors): DependencyStatus {
+  return Object.values(depErrors).some(err => !!err)
+    ? DependencyStatus.Warning
+    : DependencyStatus.Satisfied
 }
 
 function getHealthStatus(status: Status): HealthStatus | null {

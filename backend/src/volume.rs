@@ -4,13 +4,13 @@ use std::path::{Path, PathBuf};
 
 pub use helpers::script_dir;
 pub use models::VolumeId;
-use patch_db::{HasModel, Map, MapModel};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::net::interface::{InterfaceId, Interfaces};
 use crate::net::PACKAGE_CERT_PATH;
+use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::{Error, ResultExt};
@@ -27,6 +27,12 @@ impl Volumes {
             volume
                 .validate(interfaces)
                 .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, format!("Volume {}", id)))?;
+            if let Volume::Backup { .. } = volume {
+                return Err(Error::new(
+                    eyre!("Invalid volume type \"backup\""),
+                    ErrorKind::ParseS9pk,
+                )); // Volume::Backup is for internal use and shouldn't be declared in manifest
+            }
         }
         Ok(())
     }
@@ -82,13 +88,6 @@ impl DerefMut for Volumes {
 impl Map for Volumes {
     type Key = VolumeId;
     type Value = Volume;
-    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
-        self.0.get(key)
-    }
-}
-pub type VolumesModel = MapModel<Volumes>;
-impl HasModel for Volumes {
-    type Model = MapModel<Self>;
 }
 
 pub fn data_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, volume_id: &VolumeId) -> PathBuf {
@@ -117,7 +116,7 @@ pub fn cert_dir(pkg_id: &PackageId, interface_id: &InterfaceId) -> PathBuf {
     Path::new(PACKAGE_CERT_PATH).join(pkg_id).join(interface_id)
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
 #[serde(rename_all = "kebab-case")]
 pub enum Volume {
@@ -138,7 +137,6 @@ pub enum Volume {
     #[serde(rename_all = "kebab-case")]
     Certificate { interface_id: InterfaceId },
     #[serde(rename_all = "kebab-case")]
-    #[serde(skip)]
     Backup { readonly: bool },
 }
 impl Volume {

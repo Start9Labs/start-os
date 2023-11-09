@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { Metrics } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { TimeInfo, TimeService } from 'src/app/services/time-service'
+import { TimeService } from 'src/app/services/time-service'
 import {
   catchError,
   combineLatest,
@@ -29,9 +29,24 @@ export class ServerMetricsPage {
     private readonly connectionService: ConnectionService,
   ) {}
 
-  private getServerData$(): Observable<[TimeInfo, Metrics]> {
+  private getServerData$(): Observable<
+    [
+      {
+        value: number
+        synced: boolean
+      },
+      {
+        days: number
+        hours: number
+        minutes: number
+        seconds: number
+      },
+      Metrics,
+    ]
+  > {
     return combineLatest([
-      this.timeService.getTimeInfo$(),
+      this.timeService.now$,
+      this.timeService.uptime$,
       this.getMetrics$(),
     ]).pipe(
       catchError(() => {

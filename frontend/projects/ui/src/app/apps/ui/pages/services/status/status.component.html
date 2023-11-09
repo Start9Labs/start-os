@@ -6,18 +6,25 @@
   [style.font-style]="style"
   [style.font-weight]="weight"
 >
-  <span *ngIf="!installProgress">
-    {{ (connected$ | async) ? rendering.display : 'Unknown' }}
-    <span *ngIf="rendering.showDots" class="loading-dots"></span>
+  {{ (connected$ | async) ? rendering.display : 'Unknown' }}
+
+  <span
+    *ngIf="
+      rendering.display === PR[PS.Stopping].display &&
+      (sigtermTimeout | durationToSeconds) > 30
+    "
+  >
+    this may take a while
   </span>
+
   <span *ngIf="installProgress">
     <ion-text
       *ngIf="installProgress | installProgressDisplay as progress"
       color="primary"
     >
-      Installing
-      <span class="loading-dots"></span>
       {{ progress }}
     </ion-text>
   </span>
+
+  <span *ngIf="rendering.showDots" class="loading-dots"></span>
 </p>

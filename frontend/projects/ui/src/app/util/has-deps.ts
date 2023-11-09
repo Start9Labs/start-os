@@ -1,13 +1,7 @@
-import { PatchDB } from 'patch-db-client'
-import { DataModel } from '../services/patch-db/data-model'
-import { getAllPackages } from './get-package-data'
+import { PackageDataEntry } from '../services/patch-db/data-model'
 
-export async function hasCurrentDeps(
-  patch: PatchDB<DataModel>,
-  id: string,
-): Promise<boolean> {
-  const pkgs = await getAllPackages(patch)
-  return !!Object.keys(pkgs)
-    .filter(pkgId => pkgId !== id)
-    .find(pkgId => pkgs[pkgId].installed?.['current-dependencies'][pkgId])
+export function hasCurrentDeps(pkg: PackageDataEntry): boolean {
+  return !!Object.keys(pkg.installed?.['current-dependents'] || {}).filter(
+    depId => depId !== pkg.manifest.id,
+  ).length
 }

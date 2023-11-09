@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use color_eyre::eyre::eyre;
-use ed25519_dalek::{PublicKey, Signature};
+use ed25519_dalek::{Signature, VerifyingKey};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 
 use crate::Error;
@@ -11,15 +11,15 @@ pub const VERSION: u8 = 1;
 
 #[derive(Debug)]
 pub struct Header {
-    pub pubkey: PublicKey,
+    pub pubkey: VerifyingKey,
     pub signature: Signature,
     pub table_of_contents: TableOfContents,
 }
 impl Header {
     pub fn placeholder() -> Self {
         Header {
-            pubkey: PublicKey::default(),
-            signature: Signature::from_bytes(&[0; 64]).expect("Invalid ed25519 signature"),
+            pubkey: VerifyingKey::default(),
+            signature: Signature::from_bytes(&[0; 64]),
             table_of_contents: Default::default(),
         }
     }
@@ -28,7 +28,7 @@ impl Header {
         writer.write_all(&MAGIC).await?;
         writer.write_all(&[VERSION]).await?;
         writer.write_all(self.pubkey.as_bytes()).await?;
-        writer.write_all(self.signature.as_ref()).await?;
+        writer.write_all(&self.signature.to_bytes()).await?;
         self.table_of_contents.serialize(writer).await?;
         Ok(())
     }
@@ -51,11 +51,11 @@ impl Header {
         }
         let mut pubkey_bytes = [0; 32];
         reader.read_exact(&mut pubkey_bytes).await?;
-        let pubkey = PublicKey::from_bytes(&pubkey_bytes)
+        let pubkey = VerifyingKey::from_bytes(&pubkey_bytes)
             .map_err(|e| Error::new(e, crate::ErrorKind::ParseS9pk))?;
         let mut sig_bytes = [0; 64];
         reader.read_exact(&mut sig_bytes).await?;
-        let signature = Signature::from_bytes(&sig_bytes).expect("Invalid ed25519 signature");
+        let signature = Signature::from_bytes(&sig_bytes);
         let table_of_contents = TableOfContents::deserialize(reader).await?;
 
         Ok(Header {

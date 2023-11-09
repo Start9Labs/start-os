@@ -1,6 +1,7 @@
 use std::fmt;
 
 use chrono::Utc;
+use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
 use rpc_toolkit::command;
@@ -17,12 +18,11 @@ use crate::logs::{
     cli_logs_generic_follow, cli_logs_generic_nofollow, fetch_logs, follow_logs, LogFollowResponse,
     LogResponse, LogSource,
 };
+use crate::prelude::*;
 use crate::shutdown::Shutdown;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::util::{display_none, Invoke};
 use crate::{Error, ErrorKind, ResultExt};
-
-pub const SYSTEMD_UNIT: &'static str = "startd";
 
 #[command(subcommands(zram))]
 pub async fn experimental() -> Result<(), Error> {
@@ -59,16 +59,12 @@ pub async fn enable_zram() -> Result<(), Error> {
 
 #[command(display(display_none))]
 pub async fn zram(#[context] ctx: RpcContext, #[arg] enable: bool) -> Result<(), Error> {
-    let mut db = ctx.db.handle();
-    let mut zram = crate::db::DatabaseModel::new()
-        .server_info()
-        .zram()
-        .get_mut(&mut db)
-        .await?;
-    if enable == *zram {
+    let db = ctx.db.peek().await;
+
+    let zram = db.as_server_info().as_zram().de()?;
+    if enable == zram {
         return Ok(());
     }
-    *zram = enable;
     if enable {
         enable_zram().await?;
     } else {
@@ -80,13 +76,74 @@ pub async fn zram(#[context] ctx: RpcContext, #[arg] enable: bool) -> Result<(),
             .await
             .with_kind(ErrorKind::Zram)?;
     }
-    zram.save(&mut db).await?;
+    ctx.db
+        .mutate(|v| {
+            v.as_server_info_mut().as_zram_mut().ser(&enable)?;
+            Ok(())
+        })
+        .await?;
     Ok(())
 }
 
-#[command]
-pub async fn time() -> Result<String, Error> {
-    Ok(Utc::now().to_rfc3339())
+#[derive(Serialize, Deserialize)]
+pub struct TimeInfo {
+    now: String,
+    uptime: u64,
+}
+
+fn display_time(arg: TimeInfo, matches: &ArgMatches) {
+    use std::fmt::Write;
+
+    use prettytable::*;
+
+    if matches.is_present("format") {
+        return display_serializable(arg, matches);
+    }
+
+    let days = arg.uptime / (24 * 60 * 60);
+    let days_s = arg.uptime % (24 * 60 * 60);
+    let hours = days_s / (60 * 60);
+    let hours_s = arg.uptime % (60 * 60);
+    let minutes = hours_s / 60;
+    let seconds = arg.uptime % 60;
+    let mut uptime_string = String::new();
+    if days > 0 {
+        write!(&mut uptime_string, "{days} days").unwrap();
+    }
+    if hours > 0 {
+        if !uptime_string.is_empty() {
+            uptime_string += ", ";
+        }
+        write!(&mut uptime_string, "{hours} hours").unwrap();
+    }
+    if minutes > 0 {
+        if !uptime_string.is_empty() {
+            uptime_string += ", ";
+        }
+        write!(&mut uptime_string, "{minutes} minutes").unwrap();
+    }
+    if !uptime_string.is_empty() {
+        uptime_string += ", ";
+    }
+    write!(&mut uptime_string, "{seconds} seconds").unwrap();
+
+    let mut table = Table::new();
+    table.add_row(row![bc -> "NOW", &arg.now]);
+    table.add_row(row![bc -> "UPTIME", &uptime_string]);
+    table.print_tty(false).unwrap();
+}
+
+#[command(display(display_time))]
+pub async fn time(
+    #[context] ctx: RpcContext,
+    #[allow(unused_variables)]
+    #[arg(long = "format")]
+    format: Option<IoFormat>,
+) -> Result<TimeInfo, Error> {
+    Ok(TimeInfo {
+        now: Utc::now().to_rfc3339(),
+        uptime: ctx.start_time.elapsed().as_secs(),
+    })
 }
 
 #[command(
@@ -128,7 +185,7 @@ pub async fn logs_nofollow(
     _ctx: (),
     (limit, cursor, before, _): (Option<usize>, Option<String>, bool, bool),
 ) -> Result<LogResponse, Error> {
-    fetch_logs(LogSource::Service(SYSTEMD_UNIT), limit, cursor, before).await
+    fetch_logs(LogSource::System, limit, cursor, before).await
 }
 
 #[command(rpc_only, rename = "follow", display(display_none))]
@@ -136,7 +193,7 @@ pub async fn logs_follow(
     #[context] ctx: RpcContext,
     #[parent_data] (limit, _, _, _): (Option<usize>, Option<String>, bool, bool),
 ) -> Result<LogFollowResponse, Error> {
-    follow_logs(ctx, LogSource::Service(SYSTEMD_UNIT), limit).await
+    follow_logs(ctx, LogSource::System, limit).await
 }
 
 #[command(
@@ -303,60 +360,44 @@ impl<'de> Deserialize<'de> for GigaBytes {
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(rename_all = "kebab-case")]
 pub struct MetricsGeneral {
-    #[serde(rename = "Temperature")]
-    temperature: Option<Celsius>,
+    pub temperature: Option<Celsius>,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(rename_all = "kebab-case")]
 pub struct MetricsMemory {
-    #[serde(rename = "Percentage Used")]
     pub percentage_used: Percentage,
-    #[serde(rename = "Total")]
     pub total: MebiBytes,
-    #[serde(rename = "Available")]
     pub available: MebiBytes,
-    #[serde(rename = "Used")]
     pub used: MebiBytes,
-    #[serde(rename = "Swap Total")]
-    pub swap_total: MebiBytes,
-    #[serde(rename = "Swap Free")]
-    pub swap_free: MebiBytes,
-    #[serde(rename = "Swap Used")]
-    pub swap_used: MebiBytes,
+    pub zram_total: MebiBytes,
+    pub zram_available: MebiBytes,
+    pub zram_used: MebiBytes,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(rename_all = "kebab-case")]
 pub struct MetricsCpu {
-    #[serde(rename = "User Space")]
-    user_space: Percentage,
-    #[serde(rename = "Kernel Space")]
-    kernel_space: Percentage,
-    #[serde(rename = "I/O Wait")]
-    wait: Percentage,
-    #[serde(rename = "Idle")]
+    percentage_used: Percentage,
     idle: Percentage,
-    #[serde(rename = "Usage")]
-    usage: Percentage,
+    user_space: Percentage,
+    kernel_space: Percentage,
+    wait: Percentage,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(rename_all = "kebab-case")]
 pub struct MetricsDisk {
-    #[serde(rename = "Size")]
-    size: GigaBytes,
-    #[serde(rename = "Used")]
+    percentage_used: Percentage,
     used: GigaBytes,
-    #[serde(rename = "Available")]
     available: GigaBytes,
-    #[serde(rename = "Percentage Used")]
-    used_percentage: Percentage,
+    capacity: GigaBytes,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(rename_all = "kebab-case")]
 pub struct Metrics {
-    #[serde(rename = "General")]
     general: MetricsGeneral,
-    #[serde(rename = "Memory")]
     memory: MetricsMemory,
-    #[serde(rename = "CPU")]
     cpu: MetricsCpu,
-    #[serde(rename = "Disk")]
     disk: MetricsDisk,
 }
 
@@ -588,7 +629,8 @@ async fn get_temp() -> Result<Celsius, Error> {
     .flat_map(|(_, v)| v.as_object())
     .flatten()
     .filter_map(|(k, v)| {
-        if k.ends_with("_input") {
+        // we have seen so far that `temp1` is always a composite reading of some sort, so we should just use that for each chip
+        if k.trim() == "temp1_input" {
             v.as_f64()
         } else {
             None
@@ -681,7 +723,7 @@ async fn get_cpu_info(last: &mut ProcStat) -> Result<MetricsCpu, Error> {
         kernel_space: Percentage((new.system() - last.system()) as f64 * 100.0 / total_diff as f64),
         idle: Percentage((new.idle - last.idle) as f64 * 100.0 / total_diff as f64),
         wait: Percentage((new.iowait - last.iowait) as f64 * 100.0 / total_diff as f64),
-        usage: Percentage((new.used() - last.used()) as f64 * 100.0 / total_diff as f64),
+        percentage_used: Percentage((new.used() - last.used()) as f64 * 100.0 / total_diff as f64),
     };
     *last = new;
     Ok(res)
@@ -694,8 +736,8 @@ pub struct MemInfo {
     buffers: Option<u64>,
     cached: Option<u64>,
     slab: Option<u64>,
-    swap_total: Option<u64>,
-    swap_free: Option<u64>,
+    zram_total: Option<u64>,
+    zram_free: Option<u64>,
 }
 #[instrument(skip_all)]
 pub async fn get_mem_info() -> Result<MetricsMemory, Error> {
@@ -707,8 +749,8 @@ pub async fn get_mem_info() -> Result<MetricsMemory, Error> {
         buffers: None,
         cached: None,
         slab: None,
-        swap_total: None,
-        swap_free: None,
+        zram_total: None,
+        zram_free: None,
     };
     fn get_num_kb(l: &str) -> Result<u64, Error> {
         let e = Error::new(
@@ -733,8 +775,8 @@ pub async fn get_mem_info() -> Result<MetricsMemory, Error> {
             _ if entry.starts_with("Buffers") => mem_info.buffers = Some(get_num_kb(entry)?),
             _ if entry.starts_with("Cached") => mem_info.cached = Some(get_num_kb(entry)?),
             _ if entry.starts_with("Slab") => mem_info.slab = Some(get_num_kb(entry)?),
-            _ if entry.starts_with("SwapTotal") => mem_info.swap_total = Some(get_num_kb(entry)?),
-            _ if entry.starts_with("SwapFree") => mem_info.swap_free = Some(get_num_kb(entry)?),
+            _ if entry.starts_with("SwapTotal") => mem_info.zram_total = Some(get_num_kb(entry)?),
+            _ if entry.starts_with("SwapFree") => mem_info.zram_free = Some(get_num_kb(entry)?),
             _ => (),
         }
     }
@@ -750,24 +792,24 @@ pub async fn get_mem_info() -> Result<MetricsMemory, Error> {
     let buffers = ensure_present(mem_info.buffers, "Buffers")?;
     let cached = ensure_present(mem_info.cached, "Cached")?;
     let slab = ensure_present(mem_info.slab, "Slab")?;
-    let swap_total_k = ensure_present(mem_info.swap_total, "SwapTotal")?;
-    let swap_free_k = ensure_present(mem_info.swap_free, "SwapFree")?;
+    let zram_total_k = ensure_present(mem_info.zram_total, "SwapTotal")?;
+    let zram_free_k = ensure_present(mem_info.zram_free, "SwapFree")?;
 
     let total = MebiBytes(mem_total as f64 / 1024.0);
     let available = MebiBytes(mem_available as f64 / 1024.0);
     let used = MebiBytes((mem_total - mem_free - buffers - cached - slab) as f64 / 1024.0);
-    let swap_total = MebiBytes(swap_total_k as f64 / 1024.0);
-    let swap_free = MebiBytes(swap_free_k as f64 / 1024.0);
-    let swap_used = MebiBytes((swap_total_k - swap_free_k) as f64 / 1024.0);
+    let zram_total = MebiBytes(zram_total_k as f64 / 1024.0);
+    let zram_available = MebiBytes(zram_free_k as f64 / 1024.0);
+    let zram_used = MebiBytes((zram_total_k - zram_free_k) as f64 / 1024.0);
     let percentage_used = Percentage((total.0 - available.0) / total.0 * 100.0);
     Ok(MetricsMemory {
         percentage_used,
         total,
         available,
         used,
-        swap_total,
-        swap_free,
-        swap_used,
+        zram_total,
+        zram_available,
+        zram_used,
     })
 }
 
@@ -791,10 +833,10 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
     let total_percentage = total_used as f64 / total_size as f64 * 100.0f64;
 
     Ok(MetricsDisk {
-        size: GigaBytes(total_size as f64 / 1_000_000_000.0),
+        capacity: GigaBytes(total_size as f64 / 1_000_000_000.0),
         used: GigaBytes(total_used as f64 / 1_000_000_000.0),
         available: GigaBytes(total_available as f64 / 1_000_000_000.0),
-        used_percentage: Percentage(total_percentage as f64),
+        percentage_used: Percentage(total_percentage as f64),
     })
 }
 

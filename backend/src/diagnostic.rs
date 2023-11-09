@@ -9,7 +9,6 @@ use crate::disk::repair;
 use crate::init::SYSTEM_REBUILD_PATH;
 use crate::logs::{fetch_logs, LogResponse, LogSource};
 use crate::shutdown::Shutdown;
-use crate::system::SYSTEMD_UNIT;
 use crate::util::display_none;
 use crate::Error;
 
@@ -29,7 +28,7 @@ pub async fn logs(
     #[arg] cursor: Option<String>,
     #[arg] before: bool,
 ) -> Result<LogResponse, Error> {
-    Ok(fetch_logs(LogSource::Service(SYSTEMD_UNIT), limit, cursor, before).await?)
+    Ok(fetch_logs(LogSource::System, limit, cursor, before).await?)
 }
 
 #[command(display(display_none))]
@@ -42,8 +41,10 @@ pub fn exit(#[context] ctx: DiagnosticContext) -> Result<(), Error> {
 pub fn restart(#[context] ctx: DiagnosticContext) -> Result<(), Error> {
     ctx.shutdown
         .send(Some(Shutdown {
-            datadir: ctx.datadir.clone(),
-            disk_guid: ctx.disk_guid.clone(),
+            export_args: ctx
+                .disk_guid
+                .clone()
+                .map(|guid| (guid, ctx.datadir.clone())),
             restart: true,
         }))
         .expect("receiver dropped");

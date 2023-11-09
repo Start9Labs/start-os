@@ -136,7 +136,13 @@ pub struct LogEntry {
 }
 impl std::fmt::Display for LogEntry {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{} {}", self.timestamp, self.message)
+        write!(
+            f,
+            "{} {}",
+            self.timestamp
+                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            self.message
+        )
     }
 }
 
@@ -145,7 +151,7 @@ pub struct JournalctlEntry {
     #[serde(rename = "__REALTIME_TIMESTAMP")]
     pub timestamp: String,
     #[serde(rename = "MESSAGE")]
-    #[serde(deserialize_with = "deserialize_string_or_utf8_array")]
+    #[serde(deserialize_with = "deserialize_log_message")]
     pub message: String,
     #[serde(rename = "__CURSOR")]
     pub cursor: String,
@@ -164,7 +170,7 @@ impl JournalctlEntry {
     }
 }
 
-fn deserialize_string_or_utf8_array<'de, D: serde::de::Deserializer<'de>>(
+fn deserialize_log_message<'de, D: serde::de::Deserializer<'de>>(
     deserializer: D,
 ) -> std::result::Result<String, D::Error> {
     struct Visitor;
@@ -177,13 +183,7 @@ fn deserialize_string_or_utf8_array<'de, D: serde::de::Deserializer<'de>>(
         where
             E: serde::de::Error,
         {
-            Ok(v.to_owned())
-        }
-        fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            Ok(v)
+            Ok(v.trim().to_owned())
         }
         fn visit_unit<E>(self) -> Result<Self::Value, E>
         where
@@ -198,21 +198,31 @@ fn deserialize_string_or_utf8_array<'de, D: serde::de::Deserializer<'de>>(
             String::from_utf8(
                 std::iter::repeat_with(|| seq.next_element::<u8>().transpose())
                     .take_while(|a| a.is_some())
-                    .filter_map(|a| a)
+                    .flatten()
                     .collect::<Result<Vec<u8>, _>>()?,
             )
+            .map(|s| s.trim().to_owned())
             .map_err(serde::de::Error::custom)
         }
     }
     deserializer.deserialize_any(Visitor)
 }
 
+/// Defining how we are going to filter on a journalctl cli log.
+/// Kernal: (-k --dmesg                 Show kernel message log from the current boot)
+/// Unit: ( -u --unit=UNIT             Show logs from the specified unit
+///     --user-unit=UNIT        Show logs from the specified user unit))
+/// System: Unit is startd, but we also filter on the comm
+/// Container: Filtering containers, like podman/docker is done by filtering on the CONTAINER_NAME
 #[derive(Debug)]
 pub enum LogSource {
     Kernel,
-    Service(&'static str),
+    Unit(&'static str),
+    System,
     Container(PackageId),
 }
+
+pub const SYSTEM_UNIT: &str = "startd";
 
 #[command(
     custom_cli(cli_logs(async, context(CliContext))),
@@ -323,21 +333,15 @@ pub async fn cli_logs_generic_follow(
             .into())
         }
     };
-    base_url.set_scheme(ws_scheme).or_else(|_| {
-        Err(Error::new(
-            eyre!("Cannot set URL scheme"),
-            crate::ErrorKind::ParseUrl,
-        ))
-    })?;
+    base_url
+        .set_scheme(ws_scheme)
+        .map_err(|_| Error::new(eyre!("Cannot set URL scheme"), crate::ErrorKind::ParseUrl))?;
     let (mut stream, _) =
                 // base_url is "http://127.0.0.1/", with a trailing slash, so we don't put a leading slash in this path:
                 tokio_tungstenite::connect_async(format!("{}ws/rpc/{}", base_url, res.guid)).await?;
     while let Some(log) = stream.try_next().await? {
-        match log {
-            Message::Text(log) => {
-                println!("{}", serde_json::from_str::<LogEntry>(&log)?);
-            }
-            _ => (),
+        if let Message::Text(log) = log {
+            println!("{}", serde_json::from_str::<LogEntry>(&log)?);
         }
     }
 
@@ -361,11 +365,22 @@ pub async fn journalctl(
         LogSource::Kernel => {
             cmd.arg("-k");
         }
-        LogSource::Service(id) => {
+        LogSource::Unit(id) => {
             cmd.arg("-u");
             cmd.arg(id);
         }
+        LogSource::System => {
+            cmd.arg("-u");
+            cmd.arg(SYSTEM_UNIT);
+            cmd.arg(format!("_COMM={}", SYSTEM_UNIT));
+        }
         LogSource::Container(id) => {
+            #[cfg(not(feature = "docker"))]
+            cmd.arg(format!(
+                "SYSLOG_IDENTIFIER={}",
+                DockerProcedure::container_name(&id, None)
+            ));
+            #[cfg(feature = "docker")]
             cmd.arg(format!(
                 "CONTAINER_NAME={}",
                 DockerProcedure::container_name(&id, None)
@@ -373,7 +388,7 @@ pub async fn journalctl(
         }
     };
 
-    let cursor_formatted = format!("--after-cursor={}", cursor.clone().unwrap_or(""));
+    let cursor_formatted = format!("--after-cursor={}", cursor.unwrap_or(""));
     if cursor.is_some() {
         cmd.arg(&cursor_formatted);
         if before {

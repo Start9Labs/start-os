@@ -2,23 +2,22 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use color_eyre::eyre::eyre;
-use color_eyre::Report;
-use embassy_container_init::{ProcessGroupId, SignalGroup, SignalGroupParams};
-use helpers::{Address, AddressSchemaLocal, AddressSchemaOnion, Callback, OsApi, UnixRpcClient};
+use embassy_container_init::ProcessGroupId;
+use helpers::UnixRpcClient;
 pub use js_engine::JsError;
 use js_engine::{JsExecutionEnvironment, PathForVolumeId};
-use models::{ErrorKind, InterfaceId, VolumeId};
+use models::VolumeId;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use tokio::process::Command;
 use tracing::instrument;
 
 use super::ProcedureName;
-use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
-use crate::util::{GeneralGuard, Version};
+use crate::util::serde::IoFormat;
+use crate::util::{Invoke, Version};
 use crate::volume::Volumes;
-use crate::Error;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "kebab-case")]
@@ -46,56 +45,15 @@ impl PathForVolumeId for Volumes {
     }
 }
 
-struct SandboxOsApi {
-    _ctx: RpcContext,
-}
-#[async_trait::async_trait]
-impl OsApi for SandboxOsApi {
-    #[allow(unused_variables)]
-    async fn get_service_config(
-        &self,
-        id: PackageId,
-        path: &str,
-        callback: Option<Callback>,
-    ) -> Result<Vec<serde_json::Value>, Report> {
-        Err(eyre!("Operation not permitted"))
-    }
-    #[allow(unused_variables)]
-    async fn bind_local(
-        &self,
-        internal_port: u16,
-        address_schema: AddressSchemaLocal,
-    ) -> Result<Address, Report> {
-        Err(eyre!("Operation not permitted"))
-    }
-    #[allow(unused_variables)]
-    async fn bind_onion(
-        &self,
-        internal_port: u16,
-        address_schema: AddressSchemaOnion,
-    ) -> Result<Address, Report> {
-        Err(eyre!("Operation not permitted"))
-    }
-    #[allow(unused_variables)]
-    async fn unbind_local(&self, id: InterfaceId, external: u16) -> Result<(), Report> {
-        Err(eyre!("Operation not permitted"))
-    }
-    #[allow(unused_variables)]
-    async fn unbind_onion(&self, id: InterfaceId, external: u16) -> Result<(), Report> {
-        Err(eyre!("Operation not permitted"))
-    }
-    fn set_started(&self) -> Result<(), Report> {
-        Err(eyre!("Operation not permitted"))
-    }
-    async fn restart(&self) -> Result<(), Report> {
-        Err(eyre!("Operation not permitted"))
-    }
-    async fn start(&self) -> Result<(), Report> {
-        Err(eyre!("Operation not permitted"))
-    }
-    async fn stop(&self) -> Result<(), Report> {
-        Err(eyre!("Operation not permitted"))
-    }
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ExecuteArgs {
+    pub procedure: JsProcedure,
+    pub directory: PathBuf,
+    pub pkg_id: PackageId,
+    pub pkg_version: Version,
+    pub name: ProcedureName,
+    pub volumes: Volumes,
+    pub input: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -120,56 +78,32 @@ impl JsProcedure {
         volumes: &Volumes,
         input: Option<I>,
         timeout: Option<Duration>,
-        gid: ProcessGroupId,
-        rpc_client: Option<Arc<UnixRpcClient>>,
-        os: Arc<dyn OsApi>,
+        _gid: ProcessGroupId,
+        _rpc_client: Option<Arc<UnixRpcClient>>,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        let cleaner_client = rpc_client.clone();
-        let cleaner = GeneralGuard::new(move || {
-            tokio::spawn(async move {
-                if let Some(client) = cleaner_client {
-                    client
-                        .request(SignalGroup, SignalGroupParams { gid, signal: 9 })
-                        .await
-                        .map_err(|e| {
-                            Error::new(eyre!("{}: {:?}", e.message, e.data), ErrorKind::Docker)
-                        })
-                } else {
-                    Ok(())
-                }
-            })
-        });
-        let res = async move {
-            let running_action = JsExecutionEnvironment::load_from_package(
-                os,
-                directory,
-                pkg_id,
-                pkg_version,
-                Box::new(volumes.clone()),
-                gid,
-                rpc_client,
-            )
-            .await?
-            .run_action(name, input, self.args.clone());
-            let output: Option<ErrorValue> = match timeout {
-                Some(timeout_duration) => tokio::time::timeout(timeout_duration, running_action)
-                    .await
-                    .map_err(|_| (JsError::Timeout, "Timed out. Retrying soon...".to_owned()))??,
-                None => running_action.await?,
-            };
-            let output: O = unwrap_known_error(output)?;
-            Ok(output)
-        }
-        .await
-        .map_err(|(error, message)| (error.as_code_num(), message));
-        cleaner.drop().await.unwrap()?;
-        Ok(res)
+        Command::new("start-deno")
+            .arg("execute")
+            .input(Some(&mut std::io::Cursor::new(IoFormat::Json.to_vec(
+                &ExecuteArgs {
+                    procedure: self.clone(),
+                    directory: directory.clone(),
+                    pkg_id: pkg_id.clone(),
+                    pkg_version: pkg_version.clone(),
+                    name,
+                    volumes: volumes.clone(),
+                    input: input.and_then(|x| serde_json::to_value(x).ok()),
+                },
+            )?)))
+            .timeout(timeout)
+            .invoke(ErrorKind::Javascript)
+            .await
+            .and_then(|res| IoFormat::Json.from_slice(&res))
     }
 
     #[instrument(skip_all)]
     pub async fn sandboxed<I: Serialize, O: DeserializeOwned>(
         &self,
-        ctx: &RpcContext,
+        directory: &PathBuf,
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
@@ -177,25 +111,75 @@ impl JsProcedure {
         timeout: Option<Duration>,
         name: ProcedureName,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        Ok(async move {
+        Command::new("start-deno")
+            .arg("sandbox")
+            .input(Some(&mut std::io::Cursor::new(IoFormat::Json.to_vec(
+                &ExecuteArgs {
+                    procedure: self.clone(),
+                    directory: directory.clone(),
+                    pkg_id: pkg_id.clone(),
+                    pkg_version: pkg_version.clone(),
+                    name,
+                    volumes: volumes.clone(),
+                    input: input.and_then(|x| serde_json::to_value(x).ok()),
+                },
+            )?)))
+            .timeout(timeout)
+            .invoke(ErrorKind::Javascript)
+            .await
+            .and_then(|res| IoFormat::Json.from_slice(&res))
+    }
+
+    #[instrument(skip_all)]
+    pub async fn execute_impl<I: Serialize, O: DeserializeOwned>(
+        &self,
+        directory: &PathBuf,
+        pkg_id: &PackageId,
+        pkg_version: &Version,
+        name: ProcedureName,
+        volumes: &Volumes,
+        input: Option<I>,
+    ) -> Result<Result<O, (i32, String)>, Error> {
+        let res = async move {
             let running_action = JsExecutionEnvironment::load_from_package(
-                Arc::new(SandboxOsApi { _ctx: ctx.clone() }),
-                &ctx.datadir,
+                directory,
                 pkg_id,
                 pkg_version,
                 Box::new(volumes.clone()),
-                ProcessGroupId(0),
-                None,
+            )
+            .await?
+            .run_action(name, input, self.args.clone());
+            let output: Option<ErrorValue> = running_action.await?;
+            let output: O = unwrap_known_error(output)?;
+            Ok(output)
+        }
+        .await
+        .map_err(|(error, message)| (error.as_code_num(), message));
+
+        Ok(res)
+    }
+
+    #[instrument(skip_all)]
+    pub async fn sandboxed_impl<I: Serialize, O: DeserializeOwned>(
+        &self,
+        directory: &PathBuf,
+        pkg_id: &PackageId,
+        pkg_version: &Version,
+        volumes: &Volumes,
+        input: Option<I>,
+        name: ProcedureName,
+    ) -> Result<Result<O, (i32, String)>, Error> {
+        Ok(async move {
+            let running_action = JsExecutionEnvironment::load_from_package(
+                directory,
+                pkg_id,
+                pkg_version,
+                Box::new(volumes.clone()),
             )
             .await?
             .read_only_effects()
             .run_action(name, input, self.args.clone());
-            let output: Option<ErrorValue> = match timeout {
-                Some(timeout_duration) => tokio::time::timeout(timeout_duration, running_action)
-                    .await
-                    .map_err(|_| (JsError::Timeout, "Timed out. Retrying soon...".to_owned()))??,
-                None => running_action.await?,
-            };
+            let output: Option<ErrorValue> = running_action.await?;
             let output: O = unwrap_known_error(output)?;
             Ok(output)
         }
@@ -873,134 +857,40 @@ mod tests {
             }
         }))
         .unwrap();
-        let input: Option<serde_json::Value> = None;
-        let timeout = Some(Duration::from_secs(10));
-        js_action
-            .execute::<serde_json::Value, serde_json::Value>(
-                &path,
-                &package_id,
-                &package_version,
-                name,
-                &volumes,
-                input,
-                timeout,
-                ProcessGroupId(0),
-                None,
-                Arc::new(OsApiMock::default()),
-            )
-            .await
-            .unwrap()
-            .unwrap();
-    }
-    #[tokio::test]
-    async fn test_callback() {
-        let api = Arc::new(OsApiMock::default());
-        let action_api = api.clone();
-        let spawned = tokio::spawn(async move {
-            let mut watching = api.config_callbacks.subscribe();
-            loop {
-                if watching.borrow().is_empty() {
-                    watching.changed().await.unwrap();
-                    continue;
-                }
-                api.config_callbacks.send_modify(|x| {
-                    x[0].call(vec![json!("This is something across the wire!")])
-                        .map_err(|e| format!("Failed call"))
-                        .unwrap();
-                });
-                break;
-            }
-        });
-        let js_action = JsProcedure { args: vec![] };
-        let path: PathBuf = "test/js_action_execute/"
-            .parse::<PathBuf>()
-            .unwrap()
-            .canonicalize()
-            .unwrap();
-        let package_id = "test-package".parse().unwrap();
-        let package_version: Version = "0.3.0.3".parse().unwrap();
-        let name = ProcedureName::Action("test-callback".parse().unwrap());
-        let volumes: Volumes = serde_json::from_value(json!({
-            "main": {
-                "type": "data"
-            },
-            "compat": {
-                "type": "assets"
-            },
-            "filebrowser" :{
-                "package-id": "filebrowser",
-                "path": "data",
-                "readonly": true,
-                "type": "pointer",
-                "volume-id": "main",
-            }
-        }))
+    let package_id = "test-package".parse().unwrap();
+    let package_version: Version = "0.3.0.3".parse().unwrap();
+    let name = ProcedureName::Action("test-disk-usage".parse().unwrap());
+    let volumes: Volumes = serde_json::from_value(serde_json::json!({
+        "main": {
+            "type": "data"
+        },
+        "compat": {
+            "type": "assets"
+        },
+        "filebrowser" :{
+            "package-id": "filebrowser",
+            "path": "data",
+            "readonly": true,
+            "type": "pointer",
+            "volume-id": "main",
+        }
+    }))
+    .unwrap();
+    let input: Option<serde_json::Value> = None;
+    let timeout = Some(Duration::from_secs(10));
+    js_action
+        .execute::<serde_json::Value, serde_json::Value>(
+            &path,
+            &package_id,
+            &package_version,
+            name,
+            &volumes,
+            input,
+            timeout,
+            ProcessGroupId(0),
+            None,
+        )
+        .await
+        .unwrap()
         .unwrap();
-        let input: Option<serde_json::Value> = None;
-        let timeout = Some(Duration::from_secs(10));
-        js_action
-            .execute::<serde_json::Value, serde_json::Value>(
-                &path,
-                &package_id,
-                &package_version,
-                name,
-                &volumes,
-                input,
-                timeout,
-                ProcessGroupId(0),
-                None,
-                action_api,
-            )
-            .await
-            .unwrap()
-            .unwrap();
-        spawned.await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn js_disk_usage() {
-        let js_action = JsProcedure { args: vec![] };
-        let path: PathBuf = "test/js_action_execute/"
-            .parse::<PathBuf>()
-            .unwrap()
-            .canonicalize()
-            .unwrap();
-        let package_id = "test-package".parse().unwrap();
-        let package_version: Version = "0.3.0.3".parse().unwrap();
-        let name = ProcedureName::Action("test-disk-usage".parse().unwrap());
-        let volumes: Volumes = serde_json::from_value(serde_json::json!({
-            "main": {
-                "type": "data"
-            },
-            "compat": {
-                "type": "assets"
-            },
-            "filebrowser" :{
-                "package-id": "filebrowser",
-                "path": "data",
-                "readonly": true,
-                "type": "pointer",
-                "volume-id": "main",
-            }
-        }))
-        .unwrap();
-        let input: Option<serde_json::Value> = None;
-        let timeout = Some(Duration::from_secs(10));
-        dbg!(js_action
-            .execute::<serde_json::Value, serde_json::Value>(
-                &path,
-                &package_id,
-                &package_version,
-                name,
-                &volumes,
-                input,
-                timeout,
-                ProcessGroupId(0),
-                None,
-                Arc::new(OsApiMock::default()),
-            )
-            .await
-            .unwrap()
-            .unwrap());
-    }
 }

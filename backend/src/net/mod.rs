@@ -11,7 +11,6 @@ pub mod dns;
 pub mod forward;
 pub mod interface;
 pub mod keys;
-#[cfg(feature = "avahi")]
 pub mod mdns;
 pub mod net_controller;
 pub mod ssl;
@@ -24,7 +23,7 @@ pub mod wifi;
 
 pub const PACKAGE_CERT_PATH: &str = "/var/lib/embassy/ssl";
 
-#[command(subcommands(tor::tor, dhcp::dhcp))]
+#[command(subcommands(tor::tor, dhcp::dhcp, ssl::ssl))]
 pub fn net() -> Result<(), Error> {
     Ok(())
 }

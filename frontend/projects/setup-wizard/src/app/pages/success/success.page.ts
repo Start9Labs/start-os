@@ -46,18 +46,7 @@ export class SuccessPage {
 
   async ngAfterViewInit() {
     this.ngZone.runOutsideAngular(() => this.initMatrix())
-    try {
-      const ret = await this.api.complete()
-      if (!this.isKiosk) {
-        this.torAddress = ret['tor-address']
-        this.lanAddress = ret['lan-address'].replace(/^https:/, 'http:')
-        this.cert = ret['root-ca']
-
-        await this.api.exit()
-      }
-    } catch (e: any) {
-      await this.errorService.handleError(e)
-    }
+    setTimeout(() => this.complete(), 1000)
   }
 
   download() {
@@ -82,6 +71,21 @@ export class SuccessPage {
 
   exitKiosk() {
     this.api.exit()
+  }
+
+  private async complete() {
+    try {
+      const ret = await this.api.complete()
+      if (!this.isKiosk) {
+        this.torAddress = ret['tor-address'].replace(/^https:/, 'http:')
+        this.lanAddress = ret['lan-address'].replace(/^https:/, 'http:')
+        this.cert = ret['root-ca']
+
+        await this.api.exit()
+      }
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    }
   }
 
   private initMatrix() {

@@ -1,6 +1,6 @@
 import { Component, inject, OnDestroy } from '@angular/core'
 import { Router } from '@angular/router'
-import { combineLatest, map, merge } from 'rxjs'
+import { combineLatest, map, merge, startWith } from 'rxjs'
 import { AuthService } from './services/auth.service'
 import { SplitPaneTracker } from './services/split-pane.service'
 import { PatchDataService } from './services/patch-data.service'
@@ -34,10 +34,25 @@ export class AppComponent implements OnDestroy {
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
   readonly widgetDrawer$ = this.clientStorageService.widgetDrawer$
   readonly theme$ = inject(THEME)
+
   readonly navigation$ = combineLatest([
     this.authService.isVerified$,
     this.router.events.pipe(map(() => hasNavigation(this.router.url))),
   ]).pipe(map(([isVerified, hasNavigation]) => isVerified && hasNavigation))
+
+  readonly offline$ = combineLatest([
+    this.authService.isVerified$,
+    this.connection.connected$,
+    this.patch
+      .watch$('server-info', 'status-info')
+      .pipe(startWith({ restarting: false, 'shutting-down': false })),
+  ]).pipe(
+    map(
+      ([verified, connected, status]) =>
+        verified &&
+        (!connected || status.restarting || status['shutting-down']),
+    ),
+  )
 
   constructor(
     private readonly router: Router,
