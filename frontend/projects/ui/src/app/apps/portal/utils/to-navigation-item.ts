@@ -3,7 +3,7 @@ import { SYSTEM_UTILITIES } from '../constants/system-utilities'
 import { NavigationItem } from '../types/navigation-item'
 import { toRouterLink } from './to-router-link'
 
-export function toDesktopItem(
+export function toNavigationItem(
   id: string,
   packages: Record<string, PackageDataEntry> = {},
 ): NavigationItem {

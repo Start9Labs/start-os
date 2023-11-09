@@ -28,15 +28,15 @@
         [desktopItem]="item"
       >
         <a
-          *ngIf="packages | toDesktopItem : item as desktopItem"
+          *ngIf="packages | toNavigationItem : item as navigationItem"
           tuiTileHandle
           appCard
           @tuiFadeIn
           [id]="item"
           [badge]="item | toNotifications | async"
-          [title]="desktopItem.title"
-          [icon]="desktopItem.icon"
-          [routerLink]="desktopItem.routerLink"
+          [title]="navigationItem.title"
+          [icon]="navigationItem.icon"
+          [routerLink]="navigationItem.routerLink"
         ></a>
       </tui-tile>
     </tui-tiles>

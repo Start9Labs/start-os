@@ -1,7 +1,7 @@
 import { NgModule } from '@angular/core'
 import { RouterModule, Routes } from '@angular/router'
 import { systemTabResolver } from '../../utils/system-tab-resolver'
-import { toDesktopItem } from '../../utils/to-desktop-item'
+import { toNavigationItem } from '../../utils/to-navigation-item'
 
 const ROUTES: Routes = [
   {
@@ -9,28 +9,28 @@ const ROUTES: Routes = [
     path: 'backups',
     loadComponent: () =>
       import('./backups/backups.component').then(m => m.BackupsComponent),
-    data: toDesktopItem('/portal/system/backups'),
+    data: toNavigationItem('/portal/system/backups'),
   },
   {
     title: systemTabResolver,
     path: 'sideload',
     loadComponent: () =>
       import('./sideload/sideload.component').then(m => m.SideloadComponent),
-    data: toDesktopItem('/portal/system/sideload'),
+    data: toNavigationItem('/portal/system/sideload'),
   },
   {
     title: systemTabResolver,
     path: 'updates',
     loadComponent: () =>
       import('./updates/updates.component').then(m => m.UpdatesComponent),
-    data: toDesktopItem('/portal/system/updates'),
+    data: toNavigationItem('/portal/system/updates'),
   },
   {
     title: systemTabResolver,
     path: 'snek',
     loadComponent: () =>
       import('./snek/snek.component').then(m => m.SnekComponent),
-    data: toDesktopItem('/portal/system/snek'),
+    data: toNavigationItem('/portal/system/snek'),
   },
 ]
 

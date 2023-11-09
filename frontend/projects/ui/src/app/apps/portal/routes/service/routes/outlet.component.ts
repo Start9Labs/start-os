@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ActivatedRoute, Router, RouterModule } from '@angular/router'
 import { TuiSvgModule } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
-import { filter, map, switchMap, tap } from 'rxjs'
+import { distinctUntilChanged, filter, map, switchMap, tap } from 'rxjs'
 import {
   DataModel,
   PackageDataEntry,
@@ -48,12 +48,14 @@ import { NavigationService } from '../../../services/navigation.service'
 })
 export class ServiceOutletComponent {
   private readonly patch = inject(PatchDB<DataModel>)
+  private readonly route = inject(ActivatedRoute)
   private readonly router = inject(Router)
   private readonly navigation = inject(NavigationService)
 
-  readonly service$ = inject(ActivatedRoute).firstChild?.paramMap.pipe(
-    map(map => map.get('pkgId')),
+  readonly service$ = this.router.events.pipe(
+    map(() => this.route.firstChild?.snapshot.paramMap?.get('pkgId')),
     filter(Boolean),
+    distinctUntilChanged(),
     switchMap(id => this.patch.watch$('package-data', id)),
     tap(pkg => {
       // if package disappears, navigate to list page

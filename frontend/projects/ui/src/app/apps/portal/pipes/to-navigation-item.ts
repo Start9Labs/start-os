@@ -1,17 +1,17 @@
 import { Pipe, PipeTransform } from '@angular/core'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { NavigationItem } from '../types/navigation-item'
-import { toDesktopItem } from '../utils/to-desktop-item'
+import { toNavigationItem } from '../utils/to-navigation-item'
 
 @Pipe({
-  name: 'toDesktopItem',
+  name: 'toNavigationItem',
   standalone: true,
 })
-export class ToDesktopItemPipe implements PipeTransform {
+export class ToNavigationItemPipe implements PipeTransform {
   transform(
     packages: Record<string, PackageDataEntry>,
     id: string,
   ): NavigationItem | null {
-    return id ? toDesktopItem(id, packages) : null
+    return id ? toNavigationItem(id, packages) : null
   }
 }
