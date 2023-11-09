@@ -1,19 +1,25 @@
 use std::io::SeekFrom;
 use std::os::fd::{AsRawFd, RawFd};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use tokio::fs::File;
 use tokio::io::AsyncRead;
 use tokio::sync::{Mutex, OwnedMutexGuard};
 
+use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::prelude::*;
-use crate::s9pk::merkle_archive::source::ArchiveSource;
+use crate::s9pk::merkle_archive::source::{ArchiveSource, Section};
 
 #[derive(Clone)]
 pub struct MultiCursorFile {
     fd: RawFd,
     file: Arc<Mutex<File>>,
+}
+impl MultiCursorFile {
+    fn path(&self) -> PathBuf {
+        Path::new("/proc/self/fd").join(self.fd.to_string())
+    }
 }
 impl From<File> for MultiCursorFile {
     fn from(value: File) -> Self {
@@ -25,12 +31,12 @@ impl From<File> for MultiCursorFile {
 }
 
 #[pin_project::pin_project]
-pub struct FileSection {
+pub struct FileSectionReader {
     #[pin]
     file: OwnedMutexGuard<File>,
     remaining: u64,
 }
-impl AsyncRead for FileSection {
+impl AsyncRead for FileSectionReader {
     fn poll_read(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
@@ -52,23 +58,27 @@ impl AsyncRead for FileSection {
 
 #[async_trait::async_trait]
 impl ArchiveSource for MultiCursorFile {
-    type Reader = FileSection;
+    type Reader = FileSectionReader;
     async fn fetch(&self, position: u64, size: u64) -> Result<Self::Reader, Error> {
         use tokio::io::AsyncSeekExt;
 
         let mut file = if let Ok(file) = self.file.clone().try_lock_owned() {
             file
         } else {
-            Arc::new(Mutex::new(
-                File::open(Path::new("/proc/self/fd").join(self.fd.to_string())).await?,
-            ))
-            .try_lock_owned()
-            .expect("freshly created")
+            Arc::new(Mutex::new(File::open(self.path()).await?))
+                .try_lock_owned()
+                .expect("freshly created")
         };
         file.seek(SeekFrom::Start(position)).await?;
         Ok(Self::Reader {
             file,
             remaining: size,
         })
+    }
+}
+
+impl From<Section<MultiCursorFile>> for LoopDev<PathBuf> {
+    fn from(value: Section<MultiCursorFile>) -> Self {
+        LoopDev::new(value.source.path(), value.position, value.size)
     }
 }

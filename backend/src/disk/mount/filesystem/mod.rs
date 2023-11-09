@@ -14,7 +14,7 @@ pub mod ecryptfs;
 pub mod efivarfs;
 pub mod httpdirfs;
 pub mod label;
-pub mod offset;
+pub mod loop_dev;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MountType {

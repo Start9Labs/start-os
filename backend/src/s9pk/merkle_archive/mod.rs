@@ -42,6 +42,9 @@ impl<S> MerkleArchive<S> {
                  + 64 // signature
                  + DirectoryContents::<Section<S>>::header_size()
     }
+    pub fn contents(&self) -> &DirectoryContents<S> {
+        &self.contents
+    }
 }
 impl<S: ArchiveSource> MerkleArchive<Section<S>> {
     #[instrument(skip_all)]
@@ -59,7 +62,11 @@ impl<S: ArchiveSource> MerkleArchive<Section<S>> {
         header.read_exact(&mut signature).await?;
         let signature = Signature::from_bytes(&signature);
 
-        let contents = DirectoryContents::deserialize(source, header).await?;
+        let mut sighash = [0u8; 32];
+        header.read_exact(&mut sighash).await?;
+        let sighash = Hash::from_bytes(sighash);
+
+        let contents = DirectoryContents::deserialize(source, header, sighash).await?;
 
         pubkey.verify_strict(contents.sighash().await?.as_bytes(), &signature)?;
 
@@ -77,16 +84,16 @@ impl<S: FileSource> MerkleArchive<S> {
     pub async fn serialize<W: Sink>(&self, w: &mut W, verify: bool) -> Result<(), Error> {
         use tokio::io::AsyncWriteExt;
 
+        let sighash = self.contents.sighash().await?;
+
         let (pubkey, signature) = match &self.signer {
             Signer::Signed(pubkey, signature) => (*pubkey, *signature),
-            Signer::Signer(s) => (
-                s.into(),
-                ed25519_dalek::Signer::sign(s, self.contents.sighash().await?.as_bytes()),
-            ),
+            Signer::Signer(s) => (s.into(), ed25519_dalek::Signer::sign(s, sighash.as_bytes())),
         };
 
         w.write_all(pubkey.as_bytes()).await?;
         w.write_all(&signature.to_bytes()).await?;
+        w.write_all(sighash.as_bytes()).await?;
         let mut next_pos = w.current_position().await?;
         next_pos += DirectoryContents::<S>::header_size();
         self.contents.serialize_header(next_pos, w).await?;
@@ -109,6 +116,9 @@ impl<S> Entry<S> {
             hash: None,
             contents,
         }
+    }
+    pub fn hash(&self) -> Option<Hash> {
+        self.hash
     }
     pub fn as_contents(&self) -> &EntryContents<S> {
         &self.contents
@@ -137,7 +147,7 @@ impl<S: ArchiveSource> Entry<Section<S>> {
         header.read_exact(&mut hash).await?;
         let hash = Hash::from_bytes(hash);
 
-        let contents = EntryContents::deserialize(source, header).await?;
+        let contents = EntryContents::deserialize(source, header, hash).await?;
 
         Ok(Self {
             hash: Some(hash),
@@ -210,6 +220,7 @@ impl<S: ArchiveSource> EntryContents<Section<S>> {
     pub async fn deserialize(
         source: &S,
         header: &mut (impl AsyncRead + Unpin + Send),
+        hash: Hash,
     ) -> Result<Self, Error> {
         use tokio::io::AsyncReadExt;
 
@@ -219,7 +230,7 @@ impl<S: ArchiveSource> EntryContents<Section<S>> {
             0 => Ok(Self::Missing),
             1 => Ok(Self::File(FileContents::deserialize(source, header).await?)),
             2 => Ok(Self::Directory(
-                DirectoryContents::deserialize(source, header).await?,
+                DirectoryContents::deserialize(source, header, hash).await?,
             )),
             id => Err(Error::new(
                 eyre!("Unknown type id {id} found in MerkleArchive"),
