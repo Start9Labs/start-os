@@ -5,14 +5,19 @@ use crate::s9pk::merkle_archive::hash::{Hash, HashWriter, VerifyingWriter};
 use crate::s9pk::merkle_archive::sink::{Sink, TrackingWriter};
 use crate::s9pk::merkle_archive::source::{ArchiveSource, FileSource, Section};
 
+#[derive(Debug)]
 pub struct FileContents<S>(S);
 impl<S> FileContents<S> {
+    pub fn new(source: S) -> Self {
+        Self(source)
+    }
     pub const fn header_size() -> u64 {
         8 // position: u64 BE
         + 8 // size: u64 BE
     }
 }
 impl<S: ArchiveSource> FileContents<Section<S>> {
+    #[instrument(skip_all)]
     pub async fn deserialize(
         source: &S,
         header: &mut (impl AsyncRead + Unpin + Send),
@@ -36,23 +41,26 @@ impl<S: FileSource> FileContents<S> {
         self.serialize_body(&mut hasher, None).await?;
         Ok(hasher.into_inner().finalize())
     }
-    pub async fn serialize_header<W: Sink>(
-        &self,
-        next_pos: &mut u64,
-        w: &mut W,
-    ) -> Result<(), Error> {
+    pub async fn size(&self) -> Result<u64, Error> {
+        self.0.size().await
+    }
+    pub async fn to_vec(&self) -> Result<Vec<u8>, Error> {
+        let mut res = Vec::with_capacity(self.size().await? as usize);
+        self.0.copy_to(&mut res).await?;
+        Ok(res)
+    }
+    #[instrument(skip_all)]
+    pub async fn serialize_header<W: Sink>(&self, position: u64, w: &mut W) -> Result<u64, Error> {
         use tokio::io::AsyncWriteExt;
 
         let size = self.0.size().await?;
 
-        let position = *next_pos;
-        *next_pos += size;
-
         w.write_all(&position.to_be_bytes()).await?;
         w.write_all(&size.to_be_bytes()).await?;
 
-        Ok(())
+        Ok(position)
     }
+    #[instrument(skip_all)]
     pub async fn serialize_body<W: Sink>(
         &self,
         w: &mut W,

@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -10,7 +11,6 @@ pub mod multi_cursor_file;
 
 #[async_trait::async_trait]
 pub trait FileSource: Send + Sync + Sized + 'static {
-    const TRUSTED: bool;
     type Reader: AsyncRead + Unpin + Send;
     async fn size(&self) -> Result<u64, Error>;
     async fn reader(&self) -> Result<Self::Reader, Error>;
@@ -22,7 +22,6 @@ pub trait FileSource: Send + Sync + Sized + 'static {
 
 #[async_trait::async_trait]
 impl FileSource for PathBuf {
-    const TRUSTED: bool = true;
     type Reader = File;
     async fn size(&self) -> Result<u64, Error> {
         Ok(tokio::fs::metadata(self).await?.len())
@@ -33,8 +32,24 @@ impl FileSource for PathBuf {
 }
 
 #[async_trait::async_trait]
+impl FileSource for Arc<[u8]> {
+    type Reader = std::io::Cursor<Self>;
+    async fn size(&self) -> Result<u64, Error> {
+        Ok(self.len() as u64)
+    }
+    async fn reader(&self) -> Result<Self::Reader, Error> {
+        Ok(std::io::Cursor::new(self.clone()))
+    }
+    async fn copy_to<W: AsyncWrite + Unpin + Send>(&self, w: &mut W) -> Result<(), Error> {
+        use tokio::io::AsyncWriteExt;
+
+        w.write_all(&*self).await?;
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
 pub trait ArchiveSource: Clone + Send + Sync + Sized + 'static {
-    const TRUSTED: bool;
     type Reader: AsyncRead + Unpin + Send;
     async fn fetch(&self, position: u64, size: u64) -> Result<Self::Reader, Error>;
     async fn copy_to<W: AsyncWrite + Unpin + Send>(
@@ -55,6 +70,19 @@ pub trait ArchiveSource: Clone + Send + Sync + Sized + 'static {
     }
 }
 
+#[async_trait::async_trait]
+impl ArchiveSource for Arc<[u8]> {
+    type Reader = tokio::io::Take<std::io::Cursor<Self>>;
+    async fn fetch(&self, position: u64, size: u64) -> Result<Self::Reader, Error> {
+        use tokio::io::AsyncReadExt;
+
+        let mut cur = std::io::Cursor::new(self.clone());
+        cur.set_position(position);
+        Ok(cur.take(size))
+    }
+}
+
+#[derive(Debug)]
 pub struct Section<S> {
     source: S,
     position: u64,
@@ -62,7 +90,6 @@ pub struct Section<S> {
 }
 #[async_trait::async_trait]
 impl<S: ArchiveSource> FileSource for Section<S> {
-    const TRUSTED: bool = S::TRUSTED;
     type Reader = S::Reader;
     async fn size(&self) -> Result<u64, Error> {
         Ok(self.size)

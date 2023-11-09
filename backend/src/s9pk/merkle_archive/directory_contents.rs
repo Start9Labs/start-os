@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::path::Path;
 
 use futures::future::BoxFuture;
 use futures::FutureExt;
@@ -9,30 +10,84 @@ use crate::prelude::*;
 use crate::s9pk::merkle_archive::hash::{Hash, HashWriter};
 use crate::s9pk::merkle_archive::sink::{Sink, TrackingWriter};
 use crate::s9pk::merkle_archive::source::{ArchiveSource, FileSource, Section};
+use crate::s9pk::merkle_archive::write_queue::WriteQueue;
 use crate::s9pk::merkle_archive::{varint, Entry, EntryContents};
 
+#[derive(Debug)]
 pub struct DirectoryContents<S>(BTreeMap<InternedString, Entry<S>>);
 impl<S> DirectoryContents<S> {
+    pub fn new() -> Self {
+        Self(BTreeMap::new())
+    }
+
+    pub fn get_path(&self, path: impl AsRef<Path>) -> Option<&Entry<S>> {
+        let mut dir = Some(self);
+        let mut res = None;
+        for segment in path.as_ref().into_iter() {
+            let segment = segment.to_str()?;
+            if segment == "/" {
+                continue;
+            }
+            res = dir?.get(segment);
+            if let Some(EntryContents::Directory(d)) = res.as_ref().map(|e| e.as_contents()) {
+                dir = Some(d);
+            } else {
+                dir = None
+            }
+        }
+        res
+    }
+
+    pub fn insert_path(&mut self, path: impl AsRef<Path>, entry: Entry<S>) -> Result<(), Error> {
+        let path = path.as_ref();
+        let (parent, Some(file)) = (path.parent(), path.file_name().and_then(|f| f.to_str()))
+        else {
+            return Err(Error::new(
+                eyre!("cannot create file at root"),
+                ErrorKind::Pack,
+            ));
+        };
+        let mut dir = self;
+        for segment in parent.into_iter().flatten() {
+            let segment = segment
+                .to_str()
+                .ok_or_else(|| Error::new(eyre!("non-utf8 path segment"), ErrorKind::Utf8))?;
+            if segment == "/" {
+                continue;
+            }
+            if !dir.contains_key(segment) {
+                dir.insert(
+                    segment.into(),
+                    Entry::new(EntryContents::Directory(DirectoryContents::new())),
+                );
+            }
+            if let Some(EntryContents::Directory(d)) =
+                dir.get_mut(segment).map(|e| e.as_contents_mut())
+            {
+                dir = d;
+            } else {
+                return Err(Error::new(eyre!("failed to insert entry at path {path:?}: ancestor exists and is not a directory"), ErrorKind::Pack));
+            }
+        }
+        dir.insert(file.into(), entry);
+        Ok(())
+    }
+
     pub const fn header_size() -> u64 {
         8 // position: u64 BE
         + 8 // size: u64 BE
     }
-    pub async fn serialize_header<W: Sink>(
-        &self,
-        next_pos: &mut u64,
-        w: &mut W,
-    ) -> Result<(), Error> {
+
+    #[instrument(skip_all)]
+    pub async fn serialize_header<W: Sink>(&self, position: u64, w: &mut W) -> Result<u64, Error> {
         use tokio::io::AsyncWriteExt;
 
         let size = self.toc_size();
 
-        let position = *next_pos;
-        *next_pos += size;
-
         w.write_all(&position.to_be_bytes()).await?;
         w.write_all(&size.to_be_bytes()).await?;
 
-        Ok(())
+        Ok(position)
     }
 
     pub fn toc_size(&self) -> u64 {
@@ -45,6 +100,7 @@ impl<S> DirectoryContents<S> {
     }
 }
 impl<S: ArchiveSource> DirectoryContents<Section<S>> {
+    #[instrument(skip_all)]
     pub fn deserialize<'a>(
         source: &'a S,
         header: &'a mut (impl AsyncRead + Unpin + Send),
@@ -77,62 +133,55 @@ impl<S: ArchiveSource> DirectoryContents<Section<S>> {
     }
 }
 impl<S: FileSource> DirectoryContents<S> {
-    pub async fn sighash(&self) -> Result<Hash, Error> {
-        let mut hasher = TrackingWriter::new(0, HashWriter::new());
-        Self(
-            self.0
-                .iter()
-                .map(|(name, entry)| (name.clone(), entry.to_missing()))
-                .collect(),
-        )
-        .serialize_toc(&mut 0, &mut hasher)
-        .await?;
-        Ok(hasher.into_inner().finalize())
+    #[instrument(skip_all)]
+    pub fn update_hashes<'a>(&'a mut self, only_missing: bool) -> BoxFuture<'a, Result<(), Error>> {
+        async move {
+            for (_, entry) in &mut self.0 {
+                entry.update_hash(only_missing).await?;
+            }
+            Ok(())
+        }
+        .boxed()
+    }
+    #[instrument(skip_all)]
+    pub fn sighash<'a>(&'a self) -> BoxFuture<'a, Result<Hash, Error>> {
+        async move {
+            let mut hasher = TrackingWriter::new(0, HashWriter::new());
+            let mut sig_contents = BTreeMap::new();
+            for (name, entry) in &self.0 {
+                sig_contents.insert(name.clone(), entry.to_missing().await?);
+            }
+            Self(sig_contents)
+                .serialize_toc(&mut WriteQueue::new(0), &mut hasher)
+                .await?;
+            Ok(hasher.into_inner().finalize())
+        }
+        .boxed()
     }
 
-    pub async fn serialize_toc<W: Sink>(&self, next_pos: &mut u64, w: &mut W) -> Result<(), Error> {
+    #[instrument(skip_all)]
+    pub async fn serialize_toc<'a, W: Sink>(
+        &'a self,
+        queue: &mut WriteQueue<'a, S>,
+        w: &mut W,
+    ) -> Result<(), Error> {
         varint::serialize_varint(self.0.len() as u64, w).await?;
         for (name, entry) in self.0.iter() {
             varint::serialize_varstring(&**name, w).await?;
-            entry.serialize_header(next_pos, w).await?;
+            entry.serialize_header(queue.add(entry).await?, w).await?;
         }
 
         Ok(())
     }
-    pub fn serialize_entries<'a, W: Sink>(
-        &'a self,
-        next_pos: &'a mut u64,
-        w: &'a mut W,
-        verify: bool,
-    ) -> BoxFuture<'a, Result<(), Error>> {
-        async move {
-            for entry in self.0.values() {
-                match &entry.contents {
-                    EntryContents::Missing => (),
-                    EntryContents::File(f) => {
-                        f.serialize_body(w, if verify { Some(entry.hash) } else { None })
-                            .await?;
-                    }
-                    EntryContents::Directory(d) => {
-                        d.serialize_toc(next_pos, w).await?;
-                        if verify {
-                            ensure_code!(
-                                d.sighash().await? == entry.hash,
-                                ErrorKind::InvalidSignature,
-                                "hash sum does not match"
-                            );
-                        }
-                    }
-                }
-            }
-            for entry in self.0.values() {
-                if let EntryContents::Directory(d) = &entry.contents {
-                    d.serialize_entries(next_pos, w, verify).await?;
-                }
-            }
-
-            Ok(())
-        }
-        .boxed()
+}
+impl<S> std::ops::Deref for DirectoryContents<S> {
+    type Target = BTreeMap<InternedString, Entry<S>>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<S> std::ops::DerefMut for DirectoryContents<S> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
