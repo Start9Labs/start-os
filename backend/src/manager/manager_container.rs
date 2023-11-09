@@ -223,16 +223,14 @@ fn starting_service(
     persistent_container: ManagerPersistentContainer,
     running_service: &mut Option<NonDetachingJoinHandle<()>>,
 ) {
-    let set_running = {
-        let current_state = current_state.clone();
-        Arc::new(move || {
-            current_state.send_modify(|x| *x = StartStop::Start);
-        })
-    };
     let set_stopped = { move || current_state.send_modify(|x| *x = StartStop::Stop) };
     let running_main_loop = async move {
         while desired_state.borrow().is_start() {
-            let result = run_main(seed.clone()).await;
+            let result = persistent_container
+                .execute(models::ProcedureName::Main, Value::Null, None)
+                .await;
+
+            run_main(seed.clone()).await;
             set_stopped();
             run_main_log_result(result, seed.clone()).await;
         }

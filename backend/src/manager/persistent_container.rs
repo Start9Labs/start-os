@@ -3,8 +3,10 @@ use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use helpers::UnixRpcClient;
-use tokio::sync::oneshot;
+use models::ProcedureName;
+use serde::de::DeserializeOwned;
 use tokio::sync::watch::{self, Receiver};
+use tokio::sync::{oneshot, Mutex};
 use tracing::instrument;
 
 use super::manager_seed::ManagerSeed;
@@ -12,15 +14,20 @@ use super::{
     add_network_for_main, get_long_running_ip, long_running_docker, remove_network_for_main,
     GetRunningIp,
 };
+use crate::prelude::*;
 use crate::procedure::docker::DockerContainer;
 use crate::util::NonDetachingJoinHandle;
-use crate::Error;
+
+struct ProcedureId(u64);
 
 /// Persistant container are the old containers that need to run all the time
 /// The goal is that all services will be persistent containers, waiting to run the main system.
 pub struct PersistentContainer {
     _running_docker: NonDetachingJoinHandle<()>,
+    // TODO: Drb: Implement to spec https://github.com/Start9Labs/start-sdk/blob/master/lib/types.ts#L223
     pub rpc_client: Receiver<Arc<UnixRpcClient>>,
+    manager_seed: Arc<ManagerSeed>,
+    procedures: Mutex<Vec<(ProcedureName, ProcedureId)>>,
 }
 
 impl PersistentContainer {
@@ -32,14 +39,85 @@ impl PersistentContainer {
             Self {
                 _running_docker: running_docker,
                 rpc_client,
+                manager_seed: seed.clone(),
+                procedures: Default::default(),
             }
         } else {
-            todo!("No containers in manifest")
+            todo!("DRB No containers in manifest")
         })
     }
 
     pub fn rpc_client(&self) -> Arc<UnixRpcClient> {
         self.rpc_client.borrow().clone()
+    }
+
+    pub async fn execute<O>(
+        &self,
+        name: ProcedureName,
+        input: Value,
+        timeout: Option<Duration>,
+    ) -> Result<Result<O, (i32, String)>, Error>
+    where
+        O: DeserializeOwned,
+    {
+        match self._execute(name, input, timeout).await {
+            Ok(Ok(a)) => Ok(Ok(imbl_value::from_value(a).map_err(|e| {
+                Error::new(
+                    eyre!("Error deserializing output: {}", e),
+                    crate::ErrorKind::Deserialization,
+                )
+            })?)),
+            Ok(Err(e)) => Ok(Err(e)),
+            Err(e) => Err(e),
+        }
+    }
+    pub async fn sanboxed<O>(
+        &self,
+        name: ProcedureName,
+        input: Value,
+        timeout: Option<Duration>,
+    ) -> Result<Result<O, (i32, String)>, Error>
+    where
+        O: DeserializeOwned,
+    {
+        match self._sandboxed(name, input, timeout).await {
+            Ok(Ok(a)) => Ok(Ok(imbl_value::from_value(a).map_err(|e| {
+                Error::new(
+                    eyre!("Error deserializing output: {}", e),
+                    crate::ErrorKind::Deserialization,
+                )
+            })?)),
+            Ok(Err(e)) => Ok(Err(e)),
+            Err(e) => Err(e),
+        }
+    }
+    async fn _execute(
+        &self,
+        name: ProcedureName,
+        input: Value,
+        timeout: Option<Duration>,
+    ) -> Result<Result<Value, (i32, String)>, Error> {
+        todo!(
+            r#"""
+            DRB
+            Call into the persistant via rpc, start a procedure.
+            Procedure already has access to rpc to call back, maybe an id to track?
+            Should be able to cancel.
+            Note(Main): Only one should be running at a time
+            Note(Main): Has additional effect of setRunning 
+            Note: The input (Option<I>) is not generic because we don't want to clone this fn for each type of input
+            Note: The output is not generic because we don't want to clone this fn for each type of output
+        """#
+        )
+    }
+
+    async fn _sandboxed(
+        &self,
+        name: ProcedureName,
+        input: Value,
+        timeout: Option<Duration>,
+    ) -> Result<Result<Value, (i32, String)>, Error> {
+        todo!("DRB")
     }
 }
 
