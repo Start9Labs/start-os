@@ -38,8 +38,8 @@ import { SkeletonListComponent } from '../../../components/skeleton-list.compone
             else: loading;
             empty: blank
           "
-          [pkg]="pkg"
-          [local]="data.local[pkg.manifest.id]"
+          [marketplacePkg]="pkg"
+          [localPkg]="data.local[pkg.manifest.id]"
           [url]="host.url"
         ></updates-item>
       </section>
