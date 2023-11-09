@@ -1,0 +1,31 @@
+name: Debian-based ISO and SquashFS
+
+on:
+  push:
+    branches:
+      - master
+      - next
+  pull_request:
+    branches:
+      - master
+      - next
+
+env:
+  NODEJS_VERSION: "18.15.0"
+  ENVIRONMENT: dev-unstable
+
+jobs:
+  test:
+    name: Run Automated Tests
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODEJS_VERSION }}
+
+      - name: Run Tests
+        run: make test

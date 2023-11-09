@@ -15,7 +15,7 @@ EMBASSY_SRC := backend/startd.service $(BUILD_SRC)
 COMPAT_SRC := $(shell git ls-files system-images/compat/)
 UTILS_SRC := $(shell git ls-files system-images/utils/)
 BINFMT_SRC := $(shell git ls-files system-images/binfmt/)
-BACKEND_SRC := $(shell git ls-files backend) $(shell git ls-files --recurse-submodules patch-db) $(shell git ls-files libs) frontend/dist/static
+BACKEND_SRC := $(shell git ls-files backend) $(shell git ls-files --recurse-submodules patch-db) $(shell git ls-files libs) frontend/dist/static frontend/patchdb-ui-seed.json $(GIT_HASH_FILE)
 FRONTEND_SHARED_SRC := $(shell git ls-files frontend/projects/shared) $(shell ls -p frontend/ | grep -v / | sed 's/^/frontend\//g') frontend/node_modules frontend/config.json patch-db/client/dist frontend/patchdb-ui-seed.json
 FRONTEND_UI_SRC := $(shell git ls-files frontend/projects/ui)
 FRONTEND_SETUP_WIZARD_SRC := $(shell git ls-files frontend/projects/setup-wizard)
@@ -82,7 +82,7 @@ format:
 	cd backend && cargo +nightly fmt
 	cd libs && cargo +nightly fmt
 
-test:
+test: $(BACKEND_SRC) $(ENVIRONMENT_FILE)
 	cd backend && cargo test
 	cd libs && cargo test
 
@@ -181,7 +181,7 @@ snapshots: libs/snapshot_creator/Cargo.toml
 	cd libs/  && ./build-v8-snapshot.sh
 	cd libs/  && ./build-arm-v8-snapshot.sh
 
-$(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) frontend/patchdb-ui-seed.json
+$(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE)
 	cd backend && ARCH=$(ARCH) ./build-prod.sh
 	touch $(EMBASSY_BINS)
 
