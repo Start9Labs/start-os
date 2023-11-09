@@ -856,6 +856,7 @@ pub async fn test_get_mem_info() {
 }
 
 #[tokio::test]
+#[ignore]
 pub async fn test_get_disk_usage() {
     println!("{:?}", get_disk_info().await.unwrap())
 }

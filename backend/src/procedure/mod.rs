@@ -179,5 +179,7 @@ impl<'de> Deserialize<'de> for NoOutput {
 #[test]
 fn test_deser_no_output() {
     serde_json::from_str::<NoOutput>("").unwrap();
-    serde_json::from_str::<Result<NoOutput, NoOutput>>("{\"Ok\": null}").unwrap();
+    serde_json::from_str::<Result<NoOutput, NoOutput>>("{\"Ok\": null}")
+        .unwrap()
+        .unwrap();
 }

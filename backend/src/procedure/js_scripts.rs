@@ -81,8 +81,12 @@ impl JsProcedure {
         _gid: ProcessGroupId,
         _rpc_client: Option<Arc<UnixRpcClient>>,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        Command::new("start-deno")
-            .arg("execute")
+        #[cfg(not(test))]
+        let mut cmd = Command::new("start-deno");
+        #[cfg(test)]
+        let mut cmd = test_start_deno_command().await?;
+
+        cmd.arg("execute")
             .input(Some(&mut std::io::Cursor::new(IoFormat::Json.to_vec(
                 &ExecuteArgs {
                     procedure: self.clone(),
@@ -111,8 +115,12 @@ impl JsProcedure {
         timeout: Option<Duration>,
         name: ProcedureName,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        Command::new("start-deno")
-            .arg("sandbox")
+        #[cfg(not(test))]
+        let mut cmd = Command::new("start-deno");
+        #[cfg(test)]
+        let mut cmd = test_start_deno_command().await?;
+
+        cmd.arg("sandbox")
             .input(Some(&mut std::io::Cursor::new(IoFormat::Json.to_vec(
                 &ExecuteArgs {
                     procedure: self.clone(),
@@ -210,6 +218,26 @@ fn unwrap_known_error<O: DeserializeOwned>(
             }
         },
     }
+}
+
+#[cfg(test)]
+async fn test_start_deno_command() -> Result<Command, Error> {
+    Command::new("cargo")
+        .arg("build")
+        .invoke(ErrorKind::Unknown)
+        .await?;
+    if tokio::fs::metadata("target/debug/start-deno")
+        .await
+        .is_err()
+    {
+        Command::new("ln")
+            .arg("-rsf")
+            .arg("target/debug/startbox")
+            .arg("target/debug/start-deno")
+            .invoke(crate::ErrorKind::Filesystem)
+            .await?;
+    }
+    Ok(Command::new("target/debug/start-deno"))
 }
 
 #[tokio::test]

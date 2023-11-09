@@ -48,7 +48,7 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all metadata install clean format sdk snapshots frontends ui backend reflash deb $(IMAGE_TYPE) squashfs sudo wormhole docker-buildx
+.PHONY: all metadata install clean format sdk snapshots frontends ui backend reflash deb $(IMAGE_TYPE) squashfs sudo wormhole test
 
 all: $(ALL_TARGETS)
 
@@ -81,6 +81,10 @@ clean:
 format:
 	cd backend && cargo +nightly fmt
 	cd libs && cargo +nightly fmt
+
+test:
+	cd backend && cargo test
+	cd libs && cargo test
 
 sdk:
 	cd backend/ && ./install-sdk.sh
@@ -164,13 +168,13 @@ upload-ota: results/$(BASENAME).squashfs
 build/lib/depends build/lib/conflicts: build/dpkg-deps/*
 	build/dpkg-deps/generate.sh
 
-system-images/compat/docker-images/$(ARCH).tar: $(COMPAT_SRC) backend/Cargo.lock | docker-buildx
+system-images/compat/docker-images/$(ARCH).tar: $(COMPAT_SRC) backend/Cargo.lock
 	cd system-images/compat && make docker-images/$(ARCH).tar && touch docker-images/$(ARCH).tar
 
-system-images/utils/docker-images/$(ARCH).tar: $(UTILS_SRC) | docker-buildx
+system-images/utils/docker-images/$(ARCH).tar: $(UTILS_SRC)
 	cd system-images/utils && make docker-images/$(ARCH).tar && touch docker-images/$(ARCH).tar
 
-system-images/binfmt/docker-images/$(ARCH).tar: $(BINFMT_SRC) | docker-buildx
+system-images/binfmt/docker-images/$(ARCH).tar: $(BINFMT_SRC)
 	cd system-images/binfmt && make docker-images/$(ARCH).tar && touch docker-images/$(ARCH).tar
 
 snapshots: libs/snapshot_creator/Cargo.toml

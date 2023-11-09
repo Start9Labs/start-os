@@ -32,19 +32,19 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Er
         .arg("-sf")
         .arg("/usr/lib/startos/scripts/fake-apt")
         .arg("/usr/local/bin/apt")
-        .invoke(crate::ErrorKind::OpenSsh)
+        .invoke(crate::ErrorKind::Filesystem)
         .await?;
     Command::new("ln")
         .arg("-sf")
         .arg("/usr/lib/startos/scripts/fake-apt")
         .arg("/usr/local/bin/apt-get")
-        .invoke(crate::ErrorKind::OpenSsh)
+        .invoke(crate::ErrorKind::Filesystem)
         .await?;
     Command::new("ln")
         .arg("-sf")
         .arg("/usr/lib/startos/scripts/fake-apt")
         .arg("/usr/local/bin/aptitude")
-        .invoke(crate::ErrorKind::OpenSsh)
+        .invoke(crate::ErrorKind::Filesystem)
         .await?;
 
     Command::new("make-ssl-cert")
