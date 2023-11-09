@@ -6,6 +6,8 @@ use crate::prelude::*;
 /// Most-significant byte, == 0x80
 pub const MSB: u8 = 0b1000_0000;
 
+const MAX_STR_LEN: u64 = 1024 * 1024; // 1 MiB
+
 pub fn serialized_varint_size(n: u64) -> u64 {
     VarInt::required_space(n) as u64
 }
@@ -89,13 +91,10 @@ pub async fn deserialize_varint<R: AsyncRead + Unpin>(r: &mut R) -> Result<u64, 
 pub async fn deserialize_varstring<R: AsyncRead + Unpin>(r: &mut R) -> Result<String, Error> {
     use tokio::io::AsyncReadExt;
 
-    let len = deserialize_varint(r).await?;
-    if len > 10000000 {
-        panic!("absurd len")
-    }
-    let mut buf = vec![0u8; len as usize];
-    r.read_exact(&mut buf).await?;
-    Ok(String::from_utf8(buf)?)
+    let len = std::cmp::min(deserialize_varint(r).await?, MAX_STR_LEN);
+    let mut res = String::with_capacity(len as usize);
+    r.take(len).read_to_string(&mut res).await?;
+    Ok(res)
 }
 
 #[cfg(test)]

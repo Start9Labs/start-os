@@ -14,7 +14,7 @@ use crate::s9pk::merkle_archive::{Entry, EntryContents, MerkleArchive};
 #[instrument]
 fn test(files: Vec<(PathBuf, String)>) -> Result<(), Error> {
     let mut root = DirectoryContents::<Arc<[u8]>>::new();
-    let mut check_set = BTreeMap::new();
+    let mut check_set = BTreeMap::<PathBuf, String>::new();
     for (path, content) in files {
         if let Err(e) = root.insert_path(
             &path,
@@ -24,6 +24,20 @@ fn test(files: Vec<(PathBuf, String)>) -> Result<(), Error> {
         ) {
             eprintln!("failed to insert file at {path:?}: {e}");
         } else {
+            let mut remaining = check_set.split_off(&path);
+            while {
+                if let Some((p, s)) = remaining.pop_first() {
+                    if !p.starts_with(&path) {
+                        remaining.insert(p, s);
+                        false
+                    } else {
+                        true
+                    }
+                } else {
+                    false
+                }
+            } {}
+            check_set.append(&mut remaining);
             check_set.insert(path.clone(), content);
         }
     }
@@ -74,7 +88,6 @@ fn test(files: Vec<(PathBuf, String)>) -> Result<(), Error> {
 proptest::proptest! {
     #[test]
     fn property_test(files: Vec<(PathBuf, String)>) {
-        // TODO: make unique
         let files: Vec<(PathBuf, String)> = files.into_iter().filter(|(p, _)| p.file_name().is_some() && p.iter().all(|s| s.to_str().is_some())).collect();
         if let Err(e) = test(files.clone()) {
             panic!("{e}\nInput: {files:#?}\n{e:?}");
@@ -105,8 +118,8 @@ fn test_example_2() {
 #[test]
 fn test_example_3() {
     if let Err(e) = test(vec![
-        (Path::new("b/ⶨ").into(), "𑦪".into()),
-        (Path::new("a/c/0").into(), "·".into()),
+        (Path::new("b/a").into(), "𑦪".into()),
+        (Path::new("a/c/a").into(), "·".into()),
     ]) {
         panic!("{e}\n{e:?}");
     }
