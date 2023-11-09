@@ -7,11 +7,11 @@ const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x02];
 
 pub struct S9pk<S>(MerkleArchive<S>);
 impl<S: FileSource> S9pk<S> {
-    pub async fn serialize<W: Sink>(&mut self, w: &mut W) -> Result<(), Error> {
+    pub async fn serialize<W: Sink>(&mut self, w: &mut W, verify: bool) -> Result<(), Error> {
         use tokio::io::AsyncWriteExt;
 
         w.write_all(MAGIC_AND_VERSION).await?;
-        self.0.serialize(w).await?;
+        self.0.serialize(w, verify).await?;
 
         Ok(())
     }

@@ -90,7 +90,71 @@ pub async fn deserialize_varstring<R: AsyncRead + Unpin>(r: &mut R) -> Result<St
     use tokio::io::AsyncReadExt;
 
     let len = deserialize_varint(r).await?;
+    if len > 10000000 {
+        panic!("absurd len")
+    }
     let mut buf = vec![0u8; len as usize];
     r.read_exact(&mut buf).await?;
     Ok(String::from_utf8(buf)?)
+}
+
+#[cfg(test)]
+mod test {
+    use std::io::Cursor;
+
+    use crate::prelude::*;
+
+    fn test_int(n: u64) -> Result<(), Error> {
+        let n1 = n;
+        tokio::runtime::Builder::new_current_thread()
+            .enable_io()
+            .build()
+            .unwrap()
+            .block_on(async move {
+                let mut v = Vec::new();
+                super::serialize_varint(n1, &mut v).await?;
+                let n2 = super::deserialize_varint(&mut Cursor::new(v)).await?;
+
+                ensure_code!(n1 == n2, ErrorKind::Deserialization, "n1 does not match n2");
+
+                Ok(())
+            })
+    }
+
+    fn test_string(s: &str) -> Result<(), Error> {
+        let s1 = s;
+        tokio::runtime::Builder::new_current_thread()
+            .enable_io()
+            .build()
+            .unwrap()
+            .block_on(async move {
+                let mut v: Vec<u8> = Vec::new();
+                super::serialize_varstring(&s1, &mut v).await?;
+                let s2 = super::deserialize_varstring(&mut Cursor::new(v)).await?;
+
+                ensure_code!(
+                    s1 == &s2,
+                    ErrorKind::Deserialization,
+                    "s1 does not match s2"
+                );
+
+                Ok(())
+            })
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn proptest_int(n: u64) {
+            if let Err(e) = test_int(n) {
+                panic!("{e}\nInput: {n}\n{e:?}");
+            }
+        }
+
+        #[test]
+        fn proptest_string(s: String) {
+            if let Err(e) = test_string(&s) {
+                panic!("{e}\nInput: {s:?}\n{e:?}");
+            }
+        }
+    }
 }

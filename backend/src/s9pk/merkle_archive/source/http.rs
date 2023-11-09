@@ -47,7 +47,6 @@ impl HttpSource {
 }
 #[async_trait::async_trait]
 impl ArchiveSource for HttpSource {
-    const TRUSTED: bool = false;
     type Reader = HttpReader;
     async fn fetch(&self, position: u64, size: u64) -> Result<Self::Reader, Error> {
         match self.range_support {

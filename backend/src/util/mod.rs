@@ -466,3 +466,27 @@ impl FileLock {
 pub fn assure_send<T: Send>(x: T) -> T {
     x
 }
+
+pub enum MaybeOwned<'a, T> {
+    Borrowed(&'a T),
+    Owned(T),
+}
+impl<'a, T> std::ops::Deref for MaybeOwned<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Borrowed(a) => *a,
+            Self::Owned(a) => a,
+        }
+    }
+}
+impl<'a, T> From<T> for MaybeOwned<'a, T> {
+    fn from(value: T) -> Self {
+        MaybeOwned::Owned(value)
+    }
+}
+impl<'a, T> From<&'a T> for MaybeOwned<'a, T> {
+    fn from(value: &'a T) -> Self {
+        MaybeOwned::Borrowed(value)
+    }
+}

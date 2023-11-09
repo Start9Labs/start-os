@@ -1,4 +1,4 @@
-use ed25519_dalek::{Signature, VerifyingKey};
+use ed25519_dalek::{Signature, SigningKey, VerifyingKey};
 use tokio::io::AsyncRead;
 
 use crate::prelude::*;
@@ -7,20 +7,36 @@ use crate::s9pk::merkle_archive::file_contents::FileContents;
 use crate::s9pk::merkle_archive::hash::Hash;
 use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, FileSource, Section};
+use crate::s9pk::merkle_archive::write_queue::WriteQueue;
 
 pub mod directory_contents;
 pub mod file_contents;
 pub mod hash;
 pub mod sink;
 pub mod source;
+#[cfg(test)]
+mod test;
 pub mod varint;
+pub mod write_queue;
 
+#[derive(Debug)]
+enum Signer {
+    Signed(VerifyingKey, Signature),
+    Signer(SigningKey),
+}
+
+#[derive(Debug)]
 pub struct MerkleArchive<S> {
-    pubkey: VerifyingKey,
-    signature: Signature,
+    signer: Signer,
     contents: DirectoryContents<S>,
 }
 impl<S> MerkleArchive<S> {
+    pub fn new(contents: DirectoryContents<S>, signer: SigningKey) -> Self {
+        Self {
+            signer: Signer::Signer(signer),
+            contents,
+        }
+    }
     pub const fn header_size() -> u64 {
         32 // pubkey
                  + 64 // signature
@@ -28,6 +44,7 @@ impl<S> MerkleArchive<S> {
     }
 }
 impl<S: ArchiveSource> MerkleArchive<Section<S>> {
+    #[instrument(skip_all)]
     pub async fn deserialize(
         source: &S,
         header: &mut (impl AsyncRead + Unpin + Send),
@@ -47,44 +64,69 @@ impl<S: ArchiveSource> MerkleArchive<Section<S>> {
         pubkey.verify_strict(contents.sighash().await?.as_bytes(), &signature)?;
 
         Ok(Self {
-            pubkey,
-            signature,
+            signer: Signer::Signed(pubkey, signature),
             contents,
         })
     }
 }
 impl<S: FileSource> MerkleArchive<S> {
-    pub async fn serialize<W: Sink>(&self, w: &mut W) -> Result<(), Error> {
+    pub async fn update_hashes(&mut self, only_missing: bool) -> Result<(), Error> {
+        self.contents.update_hashes(only_missing).await
+    }
+    #[instrument(skip_all)]
+    pub async fn serialize<W: Sink>(&self, w: &mut W, verify: bool) -> Result<(), Error> {
         use tokio::io::AsyncWriteExt;
 
-        w.write_all(self.pubkey.as_bytes()).await?;
-        w.write_all(&self.signature.to_bytes()).await?;
+        let (pubkey, signature) = match &self.signer {
+            Signer::Signed(pubkey, signature) => (*pubkey, *signature),
+            Signer::Signer(s) => (
+                s.into(),
+                ed25519_dalek::Signer::sign(s, self.contents.sighash().await?.as_bytes()),
+            ),
+        };
+
+        w.write_all(pubkey.as_bytes()).await?;
+        w.write_all(&signature.to_bytes()).await?;
         let mut next_pos = w.current_position().await?;
-        self.contents.serialize_toc(&mut next_pos, w).await?;
-        self.contents
-            .serialize_entries(&mut next_pos, w, S::TRUSTED)
-            .await?;
+        next_pos += DirectoryContents::<S>::header_size();
+        self.contents.serialize_header(next_pos, w).await?;
+        next_pos += self.contents.toc_size();
+        let mut queue = WriteQueue::new(next_pos);
+        self.contents.serialize_toc(&mut queue, w).await?;
+        queue.serialize(w, verify).await?;
         Ok(())
     }
 }
 
+#[derive(Debug)]
 pub struct Entry<S> {
-    hash: Hash,
+    hash: Option<Hash>,
     contents: EntryContents<S>,
 }
 impl<S> Entry<S> {
+    pub fn new(contents: EntryContents<S>) -> Self {
+        Self {
+            hash: None,
+            contents,
+        }
+    }
+    pub fn as_contents(&self) -> &EntryContents<S> {
+        &self.contents
+    }
+    pub fn as_contents_mut(&mut self) -> &mut EntryContents<S> {
+        self.hash = None;
+        &mut self.contents
+    }
+    pub fn into_contents(self) -> EntryContents<S> {
+        self.contents
+    }
     pub fn header_size(&self) -> u64 {
         32 // hash
         + self.contents.header_size()
     }
-    pub fn to_missing(&self) -> Self {
-        Self {
-            hash: self.hash,
-            contents: EntryContents::Missing,
-        }
-    }
 }
 impl<S: ArchiveSource> Entry<Section<S>> {
+    #[instrument(skip_all)]
     pub async fn deserialize(
         source: &S,
         header: &mut (impl AsyncRead + Unpin + Send),
@@ -97,24 +139,50 @@ impl<S: ArchiveSource> Entry<Section<S>> {
 
         let contents = EntryContents::deserialize(source, header).await?;
 
-        Ok(Self { hash, contents })
+        Ok(Self {
+            hash: Some(hash),
+            contents,
+        })
     }
 }
 impl<S: FileSource> Entry<S> {
+    pub async fn to_missing(&self) -> Result<Self, Error> {
+        let hash = if let Some(hash) = self.hash {
+            hash
+        } else {
+            self.contents.hash().await?
+        };
+        Ok(Self {
+            hash: Some(hash),
+            contents: EntryContents::Missing,
+        })
+    }
+    pub async fn update_hash(&mut self, only_missing: bool) -> Result<(), Error> {
+        if let EntryContents::Directory(d) = &mut self.contents {
+            d.update_hashes(only_missing).await?;
+        }
+        self.hash = Some(self.contents.hash().await?);
+        Ok(())
+    }
+    #[instrument(skip_all)]
     pub async fn serialize_header<W: Sink>(
         &self,
-        next_pos: &mut u64,
+        position: u64,
         w: &mut W,
-    ) -> Result<(), Error> {
+    ) -> Result<Option<u64>, Error> {
         use tokio::io::AsyncWriteExt;
 
-        w.write_all(self.hash.as_bytes()).await?;
-        self.contents.serialize_header(next_pos, w).await?;
-
-        Ok(())
+        let hash = if let Some(hash) = self.hash {
+            hash
+        } else {
+            self.contents.hash().await?
+        };
+        w.write_all(hash.as_bytes()).await?;
+        self.contents.serialize_header(position, w).await
     }
 }
 
+#[derive(Debug)]
 pub enum EntryContents<S> {
     Missing,
     File(FileContents<S>),
@@ -138,6 +206,7 @@ impl<S> EntryContents<S> {
     }
 }
 impl<S: ArchiveSource> EntryContents<Section<S>> {
+    #[instrument(skip_all)]
     pub async fn deserialize(
         source: &S,
         header: &mut (impl AsyncRead + Unpin + Send),
@@ -160,20 +229,29 @@ impl<S: ArchiveSource> EntryContents<Section<S>> {
     }
 }
 impl<S: FileSource> EntryContents<S> {
+    pub async fn hash(&self) -> Result<Hash, Error> {
+        match self {
+            Self::Missing => Err(Error::new(
+                eyre!("Cannot compute hash of missing file"),
+                ErrorKind::Pack,
+            )),
+            Self::File(f) => f.hash().await,
+            Self::Directory(d) => d.sighash().await,
+        }
+    }
+    #[instrument(skip_all)]
     pub async fn serialize_header<W: Sink>(
         &self,
-        next_pos: &mut u64,
+        position: u64,
         w: &mut W,
-    ) -> Result<(), Error> {
+    ) -> Result<Option<u64>, Error> {
         use tokio::io::AsyncWriteExt;
 
         w.write_all(&[self.type_id()]).await?;
-        match self {
-            Self::Missing => (),
-            Self::File(f) => f.serialize_header(next_pos, w).await?, // position: u64 BE
-            Self::Directory(d) => d.serialize_header(next_pos, w).await?, // position: u64 BE
-        }
-
-        Ok(())
+        Ok(match self {
+            Self::Missing => None,
+            Self::File(f) => Some(f.serialize_header(position, w).await?),
+            Self::Directory(d) => Some(d.serialize_header(position, w).await?),
+        })
     }
 }
