@@ -15,7 +15,7 @@ EMBASSY_SRC := backend/startd.service $(BUILD_SRC)
 COMPAT_SRC := $(shell git ls-files system-images/compat/)
 UTILS_SRC := $(shell git ls-files system-images/utils/)
 BINFMT_SRC := $(shell git ls-files system-images/binfmt/)
-BACKEND_SRC := $(shell git ls-files backend) $(shell git ls-files --recurse-submodules patch-db) $(shell git ls-files libs) frontend/dist/static
+BACKEND_SRC := $(shell git ls-files backend) $(shell git ls-files --recurse-submodules patch-db) $(shell git ls-files libs) frontend/dist/static frontend/patchdb-ui-seed.json $(GIT_HASH_FILE)
 FRONTEND_SHARED_SRC := $(shell git ls-files frontend/projects/shared) $(shell ls -p frontend/ | grep -v / | sed 's/^/frontend\//g') frontend/node_modules frontend/config.json patch-db/client/dist frontend/patchdb-ui-seed.json
 FRONTEND_UI_SRC := $(shell git ls-files frontend/projects/ui)
 FRONTEND_SETUP_WIZARD_SRC := $(shell git ls-files frontend/projects/setup-wizard)
@@ -48,7 +48,7 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all metadata install clean format sdk snapshots frontends ui backend reflash deb $(IMAGE_TYPE) squashfs sudo wormhole docker-buildx
+.PHONY: all metadata install clean format sdk snapshots frontends ui backend reflash deb $(IMAGE_TYPE) squashfs sudo wormhole test
 
 all: $(ALL_TARGETS)
 
@@ -81,6 +81,10 @@ clean:
 format:
 	cd backend && cargo +nightly fmt
 	cd libs && cargo +nightly fmt
+
+test: $(BACKEND_SRC) $(ENVIRONMENT_FILE)
+	cd backend && cargo build && cargo test
+	cd libs && cargo test
 
 sdk:
 	cd backend/ && ./install-sdk.sh
@@ -164,20 +168,20 @@ upload-ota: results/$(BASENAME).squashfs
 build/lib/depends build/lib/conflicts: build/dpkg-deps/*
 	build/dpkg-deps/generate.sh
 
-system-images/compat/docker-images/$(ARCH).tar: $(COMPAT_SRC) backend/Cargo.lock | docker-buildx
+system-images/compat/docker-images/$(ARCH).tar: $(COMPAT_SRC) backend/Cargo.lock
 	cd system-images/compat && make docker-images/$(ARCH).tar && touch docker-images/$(ARCH).tar
 
-system-images/utils/docker-images/$(ARCH).tar: $(UTILS_SRC) | docker-buildx
+system-images/utils/docker-images/$(ARCH).tar: $(UTILS_SRC)
 	cd system-images/utils && make docker-images/$(ARCH).tar && touch docker-images/$(ARCH).tar
 
-system-images/binfmt/docker-images/$(ARCH).tar: $(BINFMT_SRC) | docker-buildx
+system-images/binfmt/docker-images/$(ARCH).tar: $(BINFMT_SRC)
 	cd system-images/binfmt && make docker-images/$(ARCH).tar && touch docker-images/$(ARCH).tar
 
 snapshots: libs/snapshot_creator/Cargo.toml
 	cd libs/  && ./build-v8-snapshot.sh
 	cd libs/  && ./build-arm-v8-snapshot.sh
 
-$(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) frontend/patchdb-ui-seed.json
+$(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE)
 	cd backend && ARCH=$(ARCH) ./build-prod.sh
 	touch $(EMBASSY_BINS)
 

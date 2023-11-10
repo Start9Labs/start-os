@@ -169,6 +169,9 @@ zeroize = "1.6.0"
 [profile.test]
 opt-level = 3
 
+[profile.dev]
+opt-level = 3
+
 [profile.dev.package.backtrace]
 opt-level = 3
 

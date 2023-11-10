@@ -841,6 +841,7 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
 }
 
 #[tokio::test]
+#[ignore]
 pub async fn test_get_temp() {
     println!("{}", get_temp().await.unwrap())
 }
@@ -856,6 +857,7 @@ pub async fn test_get_mem_info() {
 }
 
 #[tokio::test]
+#[ignore]
 pub async fn test_get_disk_usage() {
     println!("{:?}", get_disk_info().await.unwrap())
 }

@@ -1201,11 +1201,11 @@ mod fns {
 
     #[tokio::test]
     async fn test_is_subset() {
-        assert!(
-            !is_subset("/home/drbonez", "/home/drbonez/code/fakedir/../../..")
-                .await
-                .unwrap()
-        )
+        let home = std::env::var("HOME").unwrap();
+        let home = Path::new(&home);
+        assert!(!is_subset(home, &home.join("code/fakedir/../../.."))
+            .await
+            .unwrap())
     }
 }
 
