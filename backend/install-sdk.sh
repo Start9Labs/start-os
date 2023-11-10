@@ -8,8 +8,8 @@ if [ "$0" != "./install-sdk.sh" ]; then
 	exit 1
 fi
 
-frontend="../frontend/dist/static"
-[ -d "$frontend" ] || mkdir -p "$frontend"
+web="../web/dist/static"
+[ -d "$web" ] || mkdir -p "$web"
 
 if [ -z "$PLATFORM" ]; then
   export PLATFORM=$(uname -m)

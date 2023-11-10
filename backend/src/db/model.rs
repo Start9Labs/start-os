@@ -85,8 +85,7 @@ impl Database {
                 zram: true,
             },
             package_data: AllPackageData::default(),
-            ui: serde_json::from_str(include_str!("../../../frontend/patchdb-ui-seed.json"))
-                .unwrap(),
+            ui: serde_json::from_str(include_str!("../../../web/patchdb-ui-seed.json")).unwrap(),
         }
     }
 }

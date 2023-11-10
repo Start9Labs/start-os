@@ -6,26 +6,26 @@ BASENAME := $(shell ./basename.sh)
 PLATFORM := $(shell if [ -f ./PLATFORM.txt ]; then cat ./PLATFORM.txt; else echo unknown; fi)
 ARCH := $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo aarch64; else echo $(PLATFORM) | sed 's/-nonfree$$//g'; fi)
 IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo iso; fi)
-EMBASSY_BINS := backend/target/$(ARCH)-unknown-linux-gnu/release/startbox libs/target/aarch64-unknown-linux-musl/release/embassy_container_init libs/target/x86_64-unknown-linux-musl/release/embassy_container_init
-EMBASSY_UIS := frontend/dist/raw/ui frontend/dist/raw/setup-wizard frontend/dist/raw/diagnostic-ui frontend/dist/raw/install-wizard
+BINS := backend/target/$(ARCH)-unknown-linux-gnu/release/startbox libs/target/aarch64-unknown-linux-musl/release/embassy_container_init libs/target/x86_64-unknown-linux-musl/release/embassy_container_init
+WEB_UIS := web/dist/raw/ui web/dist/raw/setup-wizard web/dist/raw/diagnostic-ui web/dist/raw/install-wizard
 BUILD_SRC := $(shell git ls-files build) build/lib/depends build/lib/conflicts
 DEBIAN_SRC := $(shell git ls-files debian/)
 IMAGE_RECIPE_SRC := $(shell git ls-files image-recipe/)
-EMBASSY_SRC := backend/startd.service $(BUILD_SRC)
+STARTD_SRC := backend/startd.service $(BUILD_SRC)
 COMPAT_SRC := $(shell git ls-files system-images/compat/)
 UTILS_SRC := $(shell git ls-files system-images/utils/)
 BINFMT_SRC := $(shell git ls-files system-images/binfmt/)
-BACKEND_SRC := $(shell git ls-files backend) $(shell git ls-files --recurse-submodules patch-db) $(shell git ls-files libs) frontend/dist/static
-FRONTEND_SHARED_SRC := $(shell git ls-files frontend/projects/shared) $(shell ls -p frontend/ | grep -v / | sed 's/^/frontend\//g') frontend/node_modules frontend/config.json patch-db/client/dist frontend/patchdb-ui-seed.json
-FRONTEND_UI_SRC := $(shell git ls-files frontend/projects/ui)
-FRONTEND_SETUP_WIZARD_SRC := $(shell git ls-files frontend/projects/setup-wizard)
-FRONTEND_DIAGNOSTIC_UI_SRC := $(shell git ls-files frontend/projects/diagnostic-ui)
-FRONTEND_INSTALL_WIZARD_SRC := $(shell git ls-files frontend/projects/install-wizard)
+BACKEND_SRC := $(shell git ls-files backend) $(shell git ls-files --recurse-submodules patch-db) $(shell git ls-files libs) web/dist/static
+WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules web/config.json patch-db/client/dist web/patchdb-ui-seed.json
+WEB_UI_SRC := $(shell git ls-files web/projects/ui)
+WEB_SETUP_WIZARD_SRC := $(shell git ls-files web/projects/setup-wizard)
+WEB_DIAGNOSTIC_UI_SRC := $(shell git ls-files web/projects/diagnostic-ui)
+WEB_INSTALL_WIZARD_SRC := $(shell git ls-files web/projects/install-wizard)
 PATCH_DB_CLIENT_SRC := $(shell git ls-files --recurse-submodules patch-db/client)
 GZIP_BIN := $(shell which pigz || which gzip)
 TAR_BIN := $(shell which gtar || which tar)
-COMPILED_TARGETS := $(EMBASSY_BINS) system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar
-ALL_TARGETS := $(EMBASSY_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE) $(COMPILED_TARGETS) $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep; fi)  $(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]; then echo cargo-deps/$(ARCH)-unknown-linux-gnu/release/tokio-console; fi') $(PLATFORM_FILE)
+COMPILED_TARGETS := $(BINS) system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar
+ALL_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE) $(COMPILED_TARGETS) $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep; fi)  $(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]; then echo cargo-deps/$(ARCH)-unknown-linux-gnu/release/tokio-console; fi') $(PLATFORM_FILE)
 
 ifeq ($(REMOTE),)
 	mkdir = mkdir -p $1
@@ -48,7 +48,7 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all metadata install clean format sdk snapshots frontends ui backend reflash deb $(IMAGE_TYPE) squashfs sudo wormhole docker-buildx
+.PHONY: all metadata install clean format sdk snapshots uis ui backend reflash deb $(IMAGE_TYPE) squashfs sudo wormhole docker-buildx
 
 all: $(ALL_TARGETS)
 
@@ -61,10 +61,10 @@ clean:
 	rm -f system-images/**/*.tar
 	rm -rf system-images/compat/target
 	rm -rf backend/target
-	rm -rf frontend/.angular
-	rm -f frontend/config.json
-	rm -rf frontend/node_modules
-	rm -rf frontend/dist
+	rm -rf web/.angular
+	rm -f web/config.json
+	rm -rf web/node_modules
+	rm -rf web/dist
 	rm -rf libs/target
 	rm -rf patch-db/client/node_modules
 	rm -rf patch-db/client/dist
@@ -177,51 +177,51 @@ snapshots: libs/snapshot_creator/Cargo.toml
 	cd libs/  && ./build-v8-snapshot.sh
 	cd libs/  && ./build-arm-v8-snapshot.sh
 
-$(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) frontend/patchdb-ui-seed.json
+$(BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) web/patchdb-ui-seed.json
 	cd backend && ARCH=$(ARCH) ./build-prod.sh
-	touch $(EMBASSY_BINS)
+	touch $(BINS)
 
-frontend/node_modules: frontend/package.json
-	npm --prefix frontend ci
+web/node_modules: web/package.json
+	npm --prefix web ci
 
-frontend/dist/raw/ui: $(FRONTEND_UI_SRC) $(FRONTEND_SHARED_SRC)
-	npm --prefix frontend run build:ui
+web/dist/raw/ui: $(WEB_UI_SRC) $(WEB_SHARED_SRC)
+	npm --prefix web run build:ui
 
-frontend/dist/raw/setup-wizard: $(FRONTEND_SETUP_WIZARD_SRC) $(FRONTEND_SHARED_SRC)
-	npm --prefix frontend run build:setup
+web/dist/raw/setup-wizard: $(WEB_SETUP_WIZARD_SRC) $(WEB_SHARED_SRC)
+	npm --prefix web run build:setup
 
-frontend/dist/raw/diagnostic-ui: $(FRONTEND_DIAGNOSTIC_UI_SRC) $(FRONTEND_SHARED_SRC)
-	npm --prefix frontend run build:dui
+web/dist/raw/diagnostic-ui: $(WEB_DIAGNOSTIC_UI_SRC) $(WEB_SHARED_SRC)
+	npm --prefix web run build:dui
 
-frontend/dist/raw/install-wizard: $(FRONTEND_INSTALL_WIZARD_SRC) $(FRONTEND_SHARED_SRC)
-	npm --prefix frontend run build:install-wiz
+web/dist/raw/install-wizard: $(WEB_INSTALL_WIZARD_SRC) $(WEB_SHARED_SRC)
+	npm --prefix web run build:install
 
-frontend/dist/static: $(EMBASSY_UIS) $(ENVIRONMENT_FILE)
+web/dist/static: $(WEB_UIS) $(ENVIRONMENT_FILE)
 	./compress-uis.sh
 
-frontend/config.json: $(GIT_HASH_FILE) frontend/config-sample.json
-	jq '.useMocks = false' frontend/config-sample.json | jq '.gitHash = "$(shell cat GIT_HASH.txt)"' > frontend/config.json
+web/config.json: $(GIT_HASH_FILE) web/config-sample.json
+	jq '.useMocks = false' web/config-sample.json | jq '.gitHash = "$(shell cat GIT_HASH.txt)"' > web/config.json
 
-frontend/patchdb-ui-seed.json: frontend/package.json
-	jq '."ack-welcome" = $(shell jq '.version' frontend/package.json)' frontend/patchdb-ui-seed.json > ui-seed.tmp
-	mv ui-seed.tmp frontend/patchdb-ui-seed.json
+web/patchdb-ui-seed.json: web/package.json
+	jq '."ack-welcome" = $(shell jq '.version' web/package.json)' web/patchdb-ui-seed.json > ui-seed.tmp
+	mv ui-seed.tmp web/patchdb-ui-seed.json
 
 patch-db/client/node_modules: patch-db/client/package.json
 	npm --prefix patch-db/client ci
 
 patch-db/client/dist: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules
 	! test -d patch-db/client/dist || rm -rf patch-db/client/dist
-	npm --prefix frontend run build:deps
+	npm --prefix web run build:deps
 
 # used by github actions
 compiled-$(ARCH).tar: $(COMPILED_TARGETS) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
 	tar -cvf $@ $^
 
-# this is a convenience step to build all frontends - it is not referenced elsewhere in this file
-frontends: $(EMBASSY_UIS) 
+# this is a convenience step to build all web uis - it is not referenced elsewhere in this file
+uis: $(WEB_UIS) 
 
 # this is a convenience step to build the UI
-ui: frontend/dist/raw/ui
+ui: web/dist/raw/ui
 
 cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep:
 	ARCH=aarch64 ./build-cargo-dep.sh pi-beep

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-FE_VERSION="$(cat frontend/package.json | grep '"version"' | sed 's/[ \t]*"version":[ \t]*"\([^"]*\)",/\1/')"
+FE_VERSION="$(cat web/package.json | grep '"version"' | sed 's/[ \t]*"version":[ \t]*"\([^"]*\)",/\1/')"
 
 # TODO: Validate other version sources - backend/Cargo.toml, backend/src/version/mod.rs
 

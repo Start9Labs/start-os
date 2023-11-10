@@ -35,7 +35,7 @@ static NOT_FOUND: &[u8] = b"Not Found";
 static METHOD_NOT_ALLOWED: &[u8] = b"Method Not Allowed";
 static NOT_AUTHORIZED: &[u8] = b"Not Authorized";
 
-static EMBEDDED_UIS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../frontend/dist/static");
+static EMBEDDED_UIS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../web/dist/static");
 
 const PROXY_STRIP_HEADERS: &[&str] = &["cookie", "host", "origin", "referer", "user-agent"];
 
