@@ -69,51 +69,19 @@ impl PackageProcedure {
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         tracing::trace!("Procedure execute {} {} - {:?}", self, pkg_id, name);
-        match self {
-            PackageProcedure::Docker(procedure) if procedure.inject == true => {
-                procedure
-                    .inject(ctx, pkg_id, pkg_version, name, volumes, input, timeout)
-                    .await
-            }
-            PackageProcedure::Docker(procedure) => {
-                procedure
-                    .execute(ctx, pkg_id, pkg_version, name, volumes, input, timeout)
-                    .await
-            }
-            #[cfg(feature = "js_engine")]
-            PackageProcedure::Script(procedure) => {
-                let man = ctx
-                    .managers
-                    .get(&(pkg_id.clone(), pkg_version.clone()))
-                    .await
-                    .ok_or_else(|| {
-                        Error::new(
-                            eyre!("No manager found for {}", pkg_id),
-                            ErrorKind::NotFound,
-                        )
-                    })?;
-                let rpc_client = man.rpc_client();
-                let gid = if matches!(name, ProcedureName::Main) {
-                    man.gid.new_main_gid()
-                } else {
-                    man.gid.new_gid()
-                };
-
-                procedure
-                    .execute(
-                        &ctx.datadir,
-                        pkg_id,
-                        pkg_version,
-                        name,
-                        volumes,
-                        input,
-                        timeout,
-                        gid,
-                        Some(rpc_client),
-                    )
-                    .await
-            }
-        }
+        let manager = ctx
+            .managers
+            .get(&(pkg_id.clone(), pkg_version.clone()))
+            .await
+            .ok_or_else(|| {
+                Error::new(
+                    eyre!("No manager found for {}", pkg_id),
+                    ErrorKind::NotFound,
+                )
+            })?;
+        manager
+            .execute(name, imbl_value::to_value(&input)?, timeout)
+            .await
     }
 
     #[instrument(skip_all)]
@@ -128,27 +96,19 @@ impl PackageProcedure {
         name: ProcedureName,
     ) -> Result<Result<O, (i32, String)>, Error> {
         tracing::trace!("Procedure sandboxed {} {} - {:?}", self, pkg_id, name);
-        match self {
-            PackageProcedure::Docker(procedure) => {
-                procedure
-                    .sandboxed(ctx, pkg_id, pkg_version, volumes, input, timeout)
-                    .await
-            }
-            #[cfg(feature = "js_engine")]
-            PackageProcedure::Script(procedure) => {
-                procedure
-                    .sandboxed(
-                        &ctx.datadir,
-                        pkg_id,
-                        pkg_version,
-                        volumes,
-                        input,
-                        timeout,
-                        name,
-                    )
-                    .await
-            }
-        }
+        let manager = ctx
+            .managers
+            .get(&(pkg_id.clone(), pkg_version.clone()))
+            .await
+            .ok_or_else(|| {
+                Error::new(
+                    eyre!("No manager found for {}", pkg_id),
+                    ErrorKind::NotFound,
+                )
+            })?;
+        manager
+            .sanboxed(name, imbl_value::to_value(&input)?, timeout)
+            .await
     }
 }
 

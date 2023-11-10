@@ -4,6 +4,7 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use helpers::UnixRpcClient;
 use models::ProcedureName;
+use nix::sys::signal::Signal;
 use serde::de::DeserializeOwned;
 use tokio::sync::watch::{self, Receiver};
 use tokio::sync::{oneshot, Mutex};
@@ -29,6 +30,9 @@ pub struct PersistentContainer {
     manager_seed: Arc<ManagerSeed>,
     procedures: Mutex<Vec<(ProcedureName, ProcedureId)>>,
 }
+
+// BLUJ TODO Need to get the only action is this and not procedure/<docker,js_scripts>
+// BLUJ Modify the rpc client to match the new type
 
 impl PersistentContainer {
     #[instrument(skip_all)]
@@ -71,6 +75,7 @@ impl PersistentContainer {
             Err(e) => Err(e),
         }
     }
+
     pub async fn sanboxed<O>(
         &self,
         name: ProcedureName,
@@ -117,6 +122,10 @@ impl PersistentContainer {
         input: Value,
         timeout: Option<Duration>,
     ) -> Result<Result<Value, (i32, String)>, Error> {
+        todo!("DRB")
+    }
+
+    pub async fn send_signal(&self, gid: Arc<super::Gid>, signal: Signal) -> Result<(), Error> {
         todo!("DRB")
     }
 }

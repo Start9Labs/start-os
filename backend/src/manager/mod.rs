@@ -13,6 +13,7 @@ use models::{ErrorKind, OptionExt, PackageId};
 use nix::sys::signal::Signal;
 use persistent_container::PersistentContainer;
 use rand::SeedableRng;
+use serde::de::DeserializeOwned;
 use sqlx::Connection;
 use start_stop::StartStop;
 use tokio::sync::watch::{self, Sender};
@@ -327,6 +328,38 @@ impl Manager {
     fn _is_transition_backup(&self) -> bool {
         let transition = self.transition.borrow();
         matches!(*transition, TransitionState::BackingUp(_))
+    }
+
+    pub async fn execute<O>(
+        &self,
+        name: ProcedureName,
+        input: Value,
+        timeout: Option<Duration>,
+    ) -> Result<Result<O, (i32, String)>, Error>
+    where
+        O: DeserializeOwned,
+    {
+        self.persistent_container
+            .execute(name, input, timeout)
+            .await
+    }
+
+    pub async fn sanboxed<O>(
+        &self,
+        name: ProcedureName,
+        input: Value,
+        timeout: Option<Duration>,
+    ) -> Result<Result<O, (i32, String)>, Error>
+    where
+        O: DeserializeOwned,
+    {
+        self.persistent_container
+            .sanboxed(name, input, timeout)
+            .await
+    }
+
+    pub async fn send_signal(&self, gid: Arc<Gid>, signal: Signal) -> Result<(), Error> {
+        self.persistent_container.send_signal(gid, signal).await
     }
 }
 
@@ -817,36 +850,5 @@ async fn get_running_ip(seed: &ManagerSeed, mut runtime: &mut RuntimeOfCommand) 
 }
 
 async fn send_signal(manager: &Manager, gid: Arc<Gid>, signal: Signal) -> Result<(), Error> {
-    // stop health checks from committing their results
-    // shared
-    //     .commit_health_check_results
-    //     .store(false, Ordering::SeqCst);
-
-    let rpc_client = manager.rpc_client();
-
-    let main_gid = *gid.main_gid.0.borrow();
-    let next_gid = gid.new_gid();
-    #[cfg(feature = "js_engine")]
-    if let Err(e) = crate::procedure::js_scripts::JsProcedure::default()
-        .execute::<_, NoOutput>(
-            &manager.seed.ctx.datadir,
-            &manager.seed.manifest.id,
-            &manager.seed.manifest.version,
-            ProcedureName::Signal,
-            &manager.seed.manifest.volumes,
-            Some(embassy_container_init::SignalGroupParams {
-                gid: main_gid,
-                signal: signal as u32,
-            }),
-            None, // TODO
-            next_gid,
-            Some(rpc_client),
-        )
-        .await?
-    {
-        tracing::error!("Failed to send js signal: {}", e.1);
-        tracing::debug!("{:?}", e);
-    }
-
-    Ok(())
+    manager.send_signal(gid, signal).await
 }
