@@ -1201,7 +1201,8 @@ mod fns {
 
     #[tokio::test]
     async fn test_is_subset() {
-        let home = Path::new(&std::env::var("HOME").unwrap());
+        let home = std::env::var("HOME").unwrap();
+        let home = Path::new(&home);
         assert!(!is_subset(home, &home.join("code/fakedir/../../.."))
             .await
             .unwrap())
