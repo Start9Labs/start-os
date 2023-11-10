@@ -117,11 +117,24 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
             old_version -= 1;
             let old_datadir = db_dir.join(old_version.to_string());
             if tokio::fs::metadata(&old_datadir).await.is_ok() {
+                let new_dbdir_tmp = db_dir.join(format!("{pg_version}.tmp"));
+                if tokio::fs::metadata(&new_dbdir_tmp).await.is_ok() {
+                    tokio::fs::remove_dir_all(&new_dbdir_tmp).await?;
+                }
                 Command::new("pg_upgradecluster")
+                    .arg("--method=upgrade")
+                    .arg("--link")
                     .arg(old_version.to_string())
                     .arg("main")
+                    .arg(&new_dbdir_tmp)
                     .invoke(crate::ErrorKind::Database)
                     .await?;
+                Command::new("mv")
+                    .arg(&new_dbdir_tmp)
+                    .arg(&pg_version_path)
+                    .invoke(ErrorKind::Filesystem)
+                    .await?;
+
                 break;
             }
         }
