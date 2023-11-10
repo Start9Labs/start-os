@@ -83,7 +83,7 @@ format:
 	cd libs && cargo +nightly fmt
 
 test: $(BACKEND_SRC) $(ENVIRONMENT_FILE)
-	cd backend && cargo test
+	cd backend && cargo build && cargo test
 	cd libs && cargo test
 
 sdk:
