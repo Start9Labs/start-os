@@ -194,7 +194,7 @@ web/dist/raw/diagnostic-ui: $(WEB_DIAGNOSTIC_UI_SRC) $(WEB_SHARED_SRC)
 	npm --prefix web run build:dui
 
 web/dist/raw/install-wizard: $(WEB_INSTALL_WIZARD_SRC) $(WEB_SHARED_SRC)
-	npm --prefix web run build:install
+	npm --prefix web run build:install-wiz
 
 web/dist/static: $(WEB_UIS) $(ENVIRONMENT_FILE)
 	./compress-uis.sh
