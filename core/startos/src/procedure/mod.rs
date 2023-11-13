@@ -17,7 +17,6 @@ use crate::volume::Volumes;
 use crate::{Error, ErrorKind};
 
 pub mod docker;
-#[cfg(feature = "js-engine")]
 pub mod js_scripts;
 pub use models::ProcedureName;
 
@@ -27,15 +26,12 @@ pub use models::ProcedureName;
 #[model = "Model<Self>"]
 pub enum PackageProcedure {
     Docker(DockerProcedure),
-
-    #[cfg(feature = "js-engine")]
     Script(js_scripts::JsProcedure),
 }
 
 impl PackageProcedure {
     pub fn is_script(&self) -> bool {
         match self {
-            #[cfg(feature = "js-engine")]
             Self::Script(_) => true,
             _ => false,
         }
@@ -52,7 +48,6 @@ impl PackageProcedure {
             PackageProcedure::Docker(action) => {
                 action.validate(eos_version, volumes, image_ids, expected_io)
             }
-            #[cfg(feature = "js-engine")]
             PackageProcedure::Script(action) => action.validate(volumes),
         }
     }
@@ -116,7 +111,6 @@ impl std::fmt::Display for PackageProcedure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PackageProcedure::Docker(_) => write!(f, "Docker")?,
-            #[cfg(feature = "js-engine")]
             PackageProcedure::Script(_) => write!(f, "JS")?,
         }
         Ok(())

@@ -30,7 +30,7 @@ avahi = ["avahi-sys"]
 avahi-alias = ["avahi"]
 cli = []
 daemon = []
-default = ["cli", "sdk", "daemon", "js-engine"]
+default = ["cli", "sdk", "daemon"]
 dev = []
 docker = []
 sdk = []
@@ -98,7 +98,6 @@ itertools = "0.11.0"
 jaq-core = "0.10.1"
 jaq-std = "0.10.0"
 josekit = "0.8.4"
-js-engine = { path = '../js-engine', optional = true }
 jsonpath_lib = { git = "https://github.com/Start9Labs/jsonpath.git" }
 lazy_static = "1.4.0"
 libc = "0.2.149"

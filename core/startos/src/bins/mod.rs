@@ -5,8 +5,6 @@ pub mod avahi_alias;
 pub mod deprecated;
 #[cfg(feature = "cli")]
 pub mod start_cli;
-#[cfg(feature = "js-engine")]
-pub mod start_deno;
 #[cfg(feature = "daemon")]
 pub mod start_init;
 #[cfg(feature = "sdk")]
@@ -18,8 +16,6 @@ fn select_executable(name: &str) -> Option<fn()> {
     match name {
         #[cfg(feature = "avahi-alias")]
         "avahi-alias" => Some(avahi_alias::main),
-        #[cfg(feature = "js_engine")]
-        "start-deno" => Some(start_deno::main),
         #[cfg(feature = "cli")]
         "start-cli" => Some(start_cli::main),
         #[cfg(feature = "sdk")]
