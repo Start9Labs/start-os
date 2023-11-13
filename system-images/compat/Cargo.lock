@@ -684,6 +684,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7144d30dcf0fafbce74250a3963025d8d52177934239851c917d29f1df280c2"
 
 [[package]]
+name = "container-init"
+version = "0.1.0"
+dependencies = [
+ "async-stream",
+ "color-eyre",
+ "futures",
+ "helpers",
+ "imbl",
+ "nix 0.27.1",
+ "procfs",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "tracing-error",
+ "tracing-futures",
+ "tracing-subscriber",
+ "yajrc 0.1.0 (git+https://github.com/dr-bonez/yajrc.git?branch=develop)",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1234,28 +1256,6 @@ dependencies = [
  "sec1",
  "subtle",
  "zeroize",
-]
-
-[[package]]
-name = "embassy_container_init"
-version = "0.1.0"
-dependencies = [
- "async-stream",
- "color-eyre",
- "futures",
- "helpers",
- "imbl",
- "nix 0.27.1",
- "procfs",
- "serde",
- "serde_json",
- "tokio",
- "tokio-stream",
- "tracing",
- "tracing-error",
- "tracing-futures",
- "tracing-subscriber",
- "yajrc 0.1.0 (git+https://github.com/dr-bonez/yajrc.git?branch=develop)",
 ]
 
 [[package]]
@@ -4434,6 +4434,7 @@ dependencies = [
  "clap 3.2.25",
  "color-eyre",
  "console",
+ "container-init",
  "cookie 0.18.0",
  "cookie_store 0.20.0",
  "current_platform",
@@ -4442,7 +4443,6 @@ dependencies = [
  "ed25519 2.2.3",
  "ed25519-dalek 1.0.1",
  "ed25519-dalek 2.0.0",
- "embassy_container_init",
  "emver",
  "fd-lock-rs",
  "futures",

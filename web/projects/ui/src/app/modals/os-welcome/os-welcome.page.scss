@@ -1,0 +1,29 @@
+.close-button {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100px;
+}
+
+.main-content {
+  color: var(--ion-color-dark);
+}
+
+.spaced-list {
+  li {
+    padding-bottom: 12px;
+  }
+}
+
+.note-padding {
+  padding-bottom: 12px;
+}
+
+h2 {
+  font-weight: bold;
+}
+
+h4 {
+  font-style: italic;
+}
