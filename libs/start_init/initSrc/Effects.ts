@@ -2,14 +2,14 @@ import * as T from "@start9labs/start-sdk/lib/types"
 import * as net from "net"
 import { CallbackHolder } from "./CallbackHolder"
 
-const path = "/start9/sockets/rpcOut.sock"
+const SOCKET_PATH = "/start9/sockets/startDaemon.sock"
 const MAIN = "main" as const
 export class Effects implements T.Effects {
   constructor(readonly method: string, readonly callbackHolder: CallbackHolder) {}
   id = 0
   rpcRound(method: string, params: unknown) {
     const id = this.id++;
-    const client = net.createConnection(path, () => {
+    const client = net.createConnection(SOCKET_PATH, () => {
         client.write(JSON.stringify({
           id,
           method,

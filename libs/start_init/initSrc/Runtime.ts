@@ -16,6 +16,10 @@ import { CallbackHolder } from "./CallbackHolder"
 import * as CP from "child_process"
 import * as Mod from "module"
 
+
+const SOCKET_PATH = "/start9/sockets/rpc.sock"
+const LOCATION_OF_SERVICE_JS = "/services/service.js"
+
 const childProcesses = new Map<number, CP.ChildProcess[]>()
 let childProcessIndex = 0
 const require = Mod.prototype.require
@@ -76,7 +80,6 @@ const cleanupRequire = (requireChildProcessIndex: number) => {
 }
 
 const idType = some(string, number)
-const path = "/start9/sockets/rpc.sock"
 const runType = object({
   id: idType,
   method: literal("run"),
@@ -104,7 +107,7 @@ const dealWithInput = async (callbackHolder: CallbackHolder, input: unknown) =>
       const index = setupRequire()
       const effects = new Effects(`/${methodName.join("/")}`, callbackHolder)
       // @ts-ignore
-      return import("/services/service.js")
+      return import(LOCATION_OF_SERVICE_JS)
         .then((x) => methodName.reduce(reduceMethod(methodArgs, effects), x))
         .then()
         .then((result) => ({ id, result }))
@@ -135,7 +138,7 @@ export class Runtime {
   unixSocketServer = net.createServer(async (server) => {})
   private callbacks = new CallbackHolder()
   constructor() {
-    this.unixSocketServer.listen(path)
+    this.unixSocketServer.listen(SOCKET_PATH)
 
     this.unixSocketServer.on("connection", (s) => {
       s.on("data", (a) =>
