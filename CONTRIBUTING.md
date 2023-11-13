@@ -17,7 +17,6 @@ This guide is for contributing to the StartOS. If you are interested in packagin
 ├── debian/
 ├── web/
 ├── image-recipe/
-├── libs/
 ├── patch-db
 └── system-images/
 ```
@@ -28,19 +27,16 @@ screenshots for the StartOS README
 An API, daemon (startd), CLI (start-cli), and SDK (start-sdk) that together provide the core functionality of StartOS.
 
 #### build
-Scripts for building StartOS
+Auxiliary files and scripts to include in deployed StartOS images
 
 #### debian
-Necessary for building debian images
+Maintainer scripts for the StartOS Debian package
 
 #### web
 Web UIs served under various conditions and used to interact with StartOS APIs.
 
 #### image-recipe
 Scripts for building StartOS images
-
-#### libs
-A set of standalone crates that were separated out of `backend` for the purpose of portability.
 
 #### patch-db (submodule)
 A diff based data store used to synchronize data between the web interfaces and server.
