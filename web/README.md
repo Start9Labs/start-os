@@ -1,22 +1,24 @@
-# StartOS Frontend
+# StartOS Web
 
-StartOS has three user interfaces and a shared library, all written in Ionic/Angular/Typescript using an Angular workspace environment:
+StartOS web UIs are written in [Angular/Typescript](https://angular.io/docs) and leverage the [Ionic Framework](https://ionicframework.com/) component library.
 
-1. **ui**: the main user interface
-1. **install-wizard**: used to install StartOS
-1. **setup-wizard**: used to facilitate initial setup
-1. **diagnostic-ui**: used to display certain diagnostic information in the event StartOS fails to initialize
-1. **marketplace**: abstracted ui elements to search for, list and display details for packages and their dependencies
-1. **shared**: contains components, types, and functions shared amongst all of the UIs.
+StartOS conditionally serves one of four Web UIs, depending on the state of the system and user choice.
+- **install-wizard** - UI for installing StartOS, served on localhost.
+- **setup-wizard** - UI for setting up StartOS, served on start.local.
+- **diagnostic-ui** - UI to display any error during server initialization, served on start.local.
+- **ui** - primary UI for administering StartOS, served on various hosts unique to the instance.
 
-## Development Environment Setup
+Additionally, there are two libraries for shared code:
+- **marketplace** - library code shared between the StartOS UI and Start9's [brochure marketplace](https://github.com/Start9Labs/brochure-marketplace).
+- **shared** - library code shared between the various web UIs and marketplace lib.
 
-- Requirements:
-  - [Install nodejs](https://nodejs.org/en/)
-  - [Install npm](https://www.npmjs.com/get-npm)
+## Environment Setup
 
-Check your versions
+#### Install NodeJS and NPM
+- [Install nodejs](https://nodejs.org/en/)
+- [Install npm](https://www.npmjs.com/get-npm)
 
+#### Check that your versions match the ones below
 ```sh
 node --version
 v18.15.0
@@ -25,53 +27,57 @@ npm --version
 v8.0.0
 ```
 
-## Running locally with mocks
+#### Install and enable the Prettier extension for your text editor
 
-1. Clone the repository
-
+#### Clone StartOS and load the PatchDB submodule if you have not already
 ```sh
 git clone https://github.com/Start9Labs/start-os.git
 cd start-os
 git submodule update --init --recursive
-cd frontend
-npm ci
+```
+
+#### Move to web directory and install dependencies
+```sh
+cd web
+npm i
 npm run build:deps
 ```
 
-2. Copy `config-sample.json` and its contents to a new file `config.json`.
-
+#### Copy `config-sample.json` to a new file `config.json`.
 ```sh
 cp config-sample.json config.json
 ```
 
-By default, "useMocks" is set to `true`.
-Valid values for "maskAs" are `tor` and `lan`.
+- By default, "useMocks" is set to `true`.
+- Use "maskAs" to mock the host from which the web UI is served. Valid values are `tor`, `local`, and `localhost`.
+- Use "maskAsHttps" to mock the protocol over which the web UI is served. `true` means https; `false` means http.
 
-3. Start the development server(s)
+## Running the development server
 
+You can develop using mocks (recommended to start) or against a live server. Either way, any code changes will live reload the development server and refresh the browser page.
+
+### Using mocks
+
+#### Start the standard development server
 ```sh
-npm run start:ui
 npm run start:install-wiz
 npm run start:setup
 npm run start:dui
+npm run start:ui
 ```
 
-## Running locally with proxied backend
+### Proxying to a live server
 
-This section enables you to run a local frontend with a remote backend (eg. hosted on a live Start9 server). It assumes you have completed Step 1 and Step 2 in the [section above](#running-locally-with-mocks)
+#### In `config.json`, set "useMocks" to `false`
 
-1. Set `useMocks: false` in `config.json`
-
-2. Create a proxy configuration file from the sample:
-
+#### Copy `proxy.conf-sample.json` to a new file `proxy.conf.json`
 ```sh
 cp proxy.conf-sample.json proxy.conf.json
 ```
 
-3. Change the target address to desired IP address in `proxy.conf.json`
+#### Replace every instance of "\<CHANGEME>\" with the hostname of your remote server
 
-4. Start the development server
-
+#### Start the proxy development server
 ```sh
 npm run start:ui:proxy
 ```
