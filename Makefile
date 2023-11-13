@@ -6,16 +6,16 @@ BASENAME := $(shell ./basename.sh)
 PLATFORM := $(shell if [ -f ./PLATFORM.txt ]; then cat ./PLATFORM.txt; else echo unknown; fi)
 ARCH := $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo aarch64; else echo $(PLATFORM) | sed 's/-nonfree$$//g'; fi)
 IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo iso; fi)
-BINS := backend/target/$(ARCH)-unknown-linux-gnu/release/startbox libs/target/aarch64-unknown-linux-musl/release/embassy_container_init libs/target/x86_64-unknown-linux-musl/release/embassy_container_init
+BINS := core/target/$(ARCH)-unknown-linux-gnu/release/startbox core/target/aarch64-unknown-linux-musl/release/container-init core/target/x86_64-unknown-linux-musl/release/container-init
 WEB_UIS := web/dist/raw/ui web/dist/raw/setup-wizard web/dist/raw/diagnostic-ui web/dist/raw/install-wizard
 BUILD_SRC := $(shell git ls-files build) build/lib/depends build/lib/conflicts
 DEBIAN_SRC := $(shell git ls-files debian/)
 IMAGE_RECIPE_SRC := $(shell git ls-files image-recipe/)
-STARTD_SRC := backend/startd.service $(BUILD_SRC)
+STARTD_SRC := core/startos/startd.service $(BUILD_SRC)
 COMPAT_SRC := $(shell git ls-files system-images/compat/)
 UTILS_SRC := $(shell git ls-files system-images/utils/)
 BINFMT_SRC := $(shell git ls-files system-images/binfmt/)
-BACKEND_SRC := $(shell git ls-files backend) $(shell git ls-files --recurse-submodules patch-db) $(shell git ls-files libs) web/dist/static
+CORE_SRC := $(shell git ls-files core) $(shell git ls-files --recurse-submodules patch-db) web/dist/static
 WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules web/config.json patch-db/client/dist web/patchdb-ui-seed.json
 WEB_UI_SRC := $(shell git ls-files web/projects/ui)
 WEB_SETUP_WIZARD_SRC := $(shell git ls-files web/projects/setup-wizard)
@@ -48,7 +48,7 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all metadata install clean format sdk snapshots uis ui backend reflash deb $(IMAGE_TYPE) squashfs sudo wormhole docker-buildx
+.PHONY: all metadata install clean format sdk snapshots uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole docker-buildx
 
 all: $(ALL_TARGETS)
 
@@ -60,12 +60,11 @@ sudo:
 clean:
 	rm -f system-images/**/*.tar
 	rm -rf system-images/compat/target
-	rm -rf backend/target
+	rm -rf core/target
 	rm -rf web/.angular
 	rm -f web/config.json
 	rm -rf web/node_modules
 	rm -rf web/dist
-	rm -rf libs/target
 	rm -rf patch-db/client/node_modules
 	rm -rf patch-db/client/dist
 	rm -rf patch-db/target
@@ -79,11 +78,10 @@ clean:
 	rm -f VERSION.txt
 
 format:
-	cd backend && cargo +nightly fmt
-	cd libs && cargo +nightly fmt
+	cd core && cargo +nightly fmt
 
 sdk:
-	cd backend/ && ./install-sdk.sh
+	cd core && ./install-sdk.sh
 
 deb: results/$(BASENAME).deb
 
@@ -103,7 +101,7 @@ results/$(BASENAME).$(IMAGE_TYPE) results/$(BASENAME).squashfs: $(IMAGE_RECIPE_S
 # For creating os images. DO NOT USE
 install: $(ALL_TARGETS)
 	$(call mkdir,$(DESTDIR)/usr/bin)
-	$(call cp,backend/target/$(ARCH)-unknown-linux-gnu/release/startbox,$(DESTDIR)/usr/bin/startbox)
+	$(call cp,core/target/$(ARCH)-unknown-linux-gnu/release/startbox,$(DESTDIR)/usr/bin/startbox)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/startd)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/start-cli)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/start-sdk)
@@ -114,7 +112,7 @@ install: $(ALL_TARGETS)
 	if /bin/bash -c '[[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]'; then $(call cp,cargo-deps/$(ARCH)-unknown-linux-gnu/release/tokio-console,$(DESTDIR)/usr/bin/tokio-console); fi
 	
 	$(call mkdir,$(DESTDIR)/lib/systemd/system)
-	$(call cp,backend/startd.service,$(DESTDIR)/lib/systemd/system/startd.service)
+	$(call cp,core/startos/startd.service,$(DESTDIR)/lib/systemd/system/startd.service)
 
 	$(call mkdir,$(DESTDIR)/usr/lib)
 	$(call rm,$(DESTDIR)/usr/lib/startos)
@@ -126,8 +124,8 @@ install: $(ALL_TARGETS)
 	$(call cp,VERSION.txt,$(DESTDIR)/usr/lib/startos/VERSION.txt)
 
 	$(call mkdir,$(DESTDIR)/usr/lib/startos/container)
-	$(call cp,libs/target/aarch64-unknown-linux-musl/release/embassy_container_init,$(DESTDIR)/usr/lib/startos/container/embassy_container_init.arm64)
-	$(call cp,libs/target/x86_64-unknown-linux-musl/release/embassy_container_init,$(DESTDIR)/usr/lib/startos/container/embassy_container_init.amd64)
+	$(call cp,core/target/aarch64-unknown-linux-musl/release/container-init,$(DESTDIR)/usr/lib/startos/container/container-init.arm64)
+	$(call cp,core/target/x86_64-unknown-linux-musl/release/container-init,$(DESTDIR)/usr/lib/startos/container/container-init.amd64)
 
 	$(call mkdir,$(DESTDIR)/usr/lib/startos/system-images)
 	$(call cp,system-images/compat/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/startos/system-images/compat.tar)
@@ -143,8 +141,8 @@ update-overlay: $(ALL_TARGETS)
 	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) PLATFORM=$(PLATFORM)
 	$(call ssh,"sudo systemctl start startd")
 
-wormhole: backend/target/$(ARCH)-unknown-linux-gnu/release/startbox
-	@wormhole send backend/target/$(ARCH)-unknown-linux-gnu/release/startbox 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/startos/scripts/chroot-and-upgrade \"cd /usr/bin && rm startbox && wormhole receive --accept-file %s && chmod +x startbox\"\n", $$3 }'
+wormhole: core/target/$(ARCH)-unknown-linux-gnu/release/startbox
+	@wormhole send core/target/$(ARCH)-unknown-linux-gnu/release/startbox 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/startos/scripts/chroot-and-upgrade \"cd /usr/bin && rm startbox && wormhole receive --accept-file %s && chmod +x startbox\"\n", $$3 }'
 
 update: $(ALL_TARGETS)
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
@@ -164,21 +162,21 @@ upload-ota: results/$(BASENAME).squashfs
 build/lib/depends build/lib/conflicts: build/dpkg-deps/*
 	build/dpkg-deps/generate.sh
 
-system-images/compat/docker-images/$(ARCH).tar: $(COMPAT_SRC) backend/Cargo.lock | docker-buildx
+system-images/compat/docker-images/$(ARCH).tar: $(COMPAT_SRC) core/Cargo.lock
 	cd system-images/compat && make docker-images/$(ARCH).tar && touch docker-images/$(ARCH).tar
 
-system-images/utils/docker-images/$(ARCH).tar: $(UTILS_SRC) | docker-buildx
+system-images/utils/docker-images/$(ARCH).tar: $(UTILS_SRC)
 	cd system-images/utils && make docker-images/$(ARCH).tar && touch docker-images/$(ARCH).tar
 
-system-images/binfmt/docker-images/$(ARCH).tar: $(BINFMT_SRC) | docker-buildx
+system-images/binfmt/docker-images/$(ARCH).tar: $(BINFMT_SRC)
 	cd system-images/binfmt && make docker-images/$(ARCH).tar && touch docker-images/$(ARCH).tar
 
-snapshots: libs/snapshot_creator/Cargo.toml
-	cd libs/  && ./build-v8-snapshot.sh
-	cd libs/  && ./build-arm-v8-snapshot.sh
+snapshots: core/snapshot-creator/Cargo.toml
+	cd core/ && ARCH=aarch64 ./build-v8-snapshot.sh
+	cd core/ && ARCH=x86_64 ./build-v8-snapshot.sh
 
-$(BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) web/patchdb-ui-seed.json
-	cd backend && ARCH=$(ARCH) ./build-prod.sh
+$(BINS): $(CORE_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) web/patchdb-ui-seed.json
+	cd core && ARCH=$(ARCH) ./build-prod.sh
 	touch $(BINS)
 
 web/node_modules: web/package.json
