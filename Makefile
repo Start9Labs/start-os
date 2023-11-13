@@ -48,7 +48,7 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all metadata install clean format sdk snapshots uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole docker-buildx
+.PHONY: all metadata install clean format sdk snapshots uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole
 
 all: $(ALL_TARGETS)
 
