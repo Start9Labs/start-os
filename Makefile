@@ -7,7 +7,7 @@ PLATFORM := $(shell if [ -f ./PLATFORM.txt ]; then cat ./PLATFORM.txt; else echo
 ARCH := $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo aarch64; else echo $(PLATFORM) | sed 's/-nonfree$$//g'; fi)
 IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo iso; fi)
 BINS := core/target/$(ARCH)-unknown-linux-gnu/release/startbox core/target/aarch64-unknown-linux-musl/release/container-init core/target/x86_64-unknown-linux-musl/release/container-init
-WEB_UIS := web/dist/raw/ui web/dist/raw/setup-wizard web/dist/raw/diagnostic-ui web/dist/raw/install-wizard
+WEB_UIS := web/dist/raw/ui web/dist/raw/setup-wizard web/dist/raw/install-wizard
 BUILD_SRC := $(shell git ls-files build) build/lib/depends build/lib/conflicts
 DEBIAN_SRC := $(shell git ls-files debian/)
 IMAGE_RECIPE_SRC := $(shell git ls-files image-recipe/)
@@ -19,7 +19,6 @@ CORE_SRC := $(shell git ls-files core) $(shell git ls-files --recurse-submodules
 WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules web/config.json patch-db/client/dist web/patchdb-ui-seed.json
 WEB_UI_SRC := $(shell git ls-files web/projects/ui)
 WEB_SETUP_WIZARD_SRC := $(shell git ls-files web/projects/setup-wizard)
-WEB_DIAGNOSTIC_UI_SRC := $(shell git ls-files web/projects/diagnostic-ui)
 WEB_INSTALL_WIZARD_SRC := $(shell git ls-files web/projects/install-wizard)
 PATCH_DB_CLIENT_SRC := $(shell git ls-files --recurse-submodules patch-db/client)
 GZIP_BIN := $(shell which pigz || which gzip)
@@ -191,9 +190,6 @@ web/dist/raw/ui: $(WEB_UI_SRC) $(WEB_SHARED_SRC)
 
 web/dist/raw/setup-wizard: $(WEB_SETUP_WIZARD_SRC) $(WEB_SHARED_SRC)
 	npm --prefix web run build:setup
-
-web/dist/raw/diagnostic-ui: $(WEB_DIAGNOSTIC_UI_SRC) $(WEB_SHARED_SRC)
-	npm --prefix web run build:dui
 
 web/dist/raw/install-wizard: $(WEB_INSTALL_WIZARD_SRC) $(WEB_SHARED_SRC)
 	npm --prefix web run build:install
