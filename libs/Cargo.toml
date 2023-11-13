@@ -1,9 +1,0 @@
-[workspace]
-
-members = [
-    "snapshot_creator",
-    "models",
-    "js_engine",
-    "helpers",
-    "embassy_container_init",
-]

@@ -41,11 +41,11 @@ on:
   push:
     branches:
       - master
-      - next
+      - next/*
   pull_request:
     branches:
       - master
-      - next
+      - next/*
 
 env:
   NODEJS_VERSION: "18.15.0"
@@ -171,7 +171,7 @@ jobs:
 
       - name: Prevent rebuild of compiled artifacts
         run: |
-          mkdir -p frontend/dist/raw
+          mkdir -p web/dist/raw
           PLATFORM=${{ matrix.platform }} make -t compiled-${{ env.ARCH }}.tar
 
       - name: Run iso build
