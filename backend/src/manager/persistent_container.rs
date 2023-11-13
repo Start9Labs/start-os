@@ -21,6 +21,8 @@ use crate::util::NonDetachingJoinHandle;
 
 struct ProcedureId(u64);
 
+// @DRB Need to have a way of starting the the procudures and getting the information back
+// @DRB On top of this we need to also have  the procedures to have the effects and get the results back for them, maybe lock them to the running instance?
 /// Persistant container are the old containers that need to run all the time
 /// The goal is that all services will be persistent containers, waiting to run the main system.
 pub struct PersistentContainer {

@@ -682,7 +682,7 @@ type RunMainResult = Result<Result<NoOutput, (i32, String)>, Error>;
 
 #[instrument(skip_all)]
 async fn run_main(seed: Arc<ManagerSeed>) -> RunMainResult {
-    let runtime = NonDetachingJoinHandle::from(tokio::spawn(start_up_image(seed.clone())));
+    let runtime = NonDetachingJoinHandle::from(tokio::spawn(execute_main(seed.clone())));
 
     let health = main_health_check_daemon(seed.clone());
     let res = tokio::select! {
@@ -694,7 +694,7 @@ async fn run_main(seed: Arc<ManagerSeed>) -> RunMainResult {
 
 /// We want to start up the manifest, but in this case we want to know that we have generated the certificates.
 /// Note for _generated_certificate: Needed to know that before we start the state we have generated the certificate
-async fn start_up_image(seed: Arc<ManagerSeed>) -> Result<Result<NoOutput, (i32, String)>, Error> {
+async fn execute_main(seed: Arc<ManagerSeed>) -> Result<Result<NoOutput, (i32, String)>, Error> {
     seed.manifest
         .main
         .execute::<(), NoOutput>(
