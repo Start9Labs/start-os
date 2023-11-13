@@ -1,0 +1,6 @@
+node_modules/
+dist/
+bundle.js
+startInit.js
+service/
+service.js

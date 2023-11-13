@@ -1,0 +1,3 @@
+[workspace]
+
+members = ["container-init", "helpers", "models", "snapshot-creator", "startos"]
