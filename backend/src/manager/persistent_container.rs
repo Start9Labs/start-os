@@ -31,9 +31,6 @@ pub struct PersistentContainer {
     procedures: Mutex<Vec<(ProcedureName, ProcedureId)>>,
 }
 
-// BLUJ TODO Need to get the only action is this and not procedure/<docker,js_scripts>
-// BLUJ Modify the rpc client to match the new type
-
 impl PersistentContainer {
     #[instrument(skip_all)]
     pub async fn init(seed: &Arc<ManagerSeed>) -> Result<Self, Error> {
