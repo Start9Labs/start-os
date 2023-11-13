@@ -6,7 +6,7 @@ import { SetupLogsService } from '../../../services/setup-logs.service'
 import { Log } from '../../../types/api'
 import { toLocalIsoString } from '../../../util/to-local-iso-string'
 
-var Convert = require('ansi-to-html')
+import Convert from 'ansi-to-html'
 var convert = new Convert({
   bg: 'transparent',
 })
