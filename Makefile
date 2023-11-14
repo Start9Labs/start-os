@@ -79,9 +79,8 @@ clean:
 format:
 	cd core && cargo +nightly fmt
 
-test: $(BACKEND_SRC) $(ENVIRONMENT_FILE)
-	cd backend && cargo build && cargo test
-	cd libs && cargo test
+test: $(CORE_SRC) $(ENVIRONMENT_FILE)
+	cd core && cargo build && cargo test
 
 sdk:
 	cd core && ./install-sdk.sh
