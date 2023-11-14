@@ -15,7 +15,7 @@ pub struct LxcManager {
 }
 impl LxcManager {
     pub async fn create(self: &Arc<Self>, config: LxcConfig) -> Result<LxcContainer, Error> {
-        let container = LxcContainer::new(self.clone(), config).await?;
+        let container = LxcContainer::new(self, config).await?;
         let mut guard = self.containers.lock().await;
         *guard = std::mem::take(&mut *guard)
             .into_iter()
@@ -59,13 +59,13 @@ impl LxcManager {
 }
 
 pub struct LxcContainer {
-    manager: Arc<LxcManager>,
+    manager: Weak<LxcManager>,
     guid: Arc<InternedString>,
     config: LxcConfig,
     exited: bool,
 }
 impl LxcContainer {
-    async fn new(manager: Arc<LxcManager>, config: LxcConfig) -> Result<Self, Error> {
+    async fn new(manager: &Arc<LxcManager>, config: LxcConfig) -> Result<Self, Error> {
         let guid = new_guid();
         Command::new("lxc")
             .arg("launch")
@@ -78,7 +78,7 @@ impl LxcContainer {
             .invoke(ErrorKind::Lxc)
             .await?;
         Ok(Self {
-            manager,
+            manager: Arc::downgrade(manager),
             guid: Arc::new(guid),
             config,
             exited: false,
@@ -110,15 +110,16 @@ impl Drop for LxcContainer {
                 &**self.guid
             );
             drop(std::mem::take(&mut self.guid));
-            let manager = self.manager.clone();
-            tokio::spawn(async move {
-                if let Err(e) = manager.gc().await {
-                    tracing::error!("Error cleaning up dangling LXC containers: {e}");
-                    tracing::debug!("{e:?}")
-                } else {
-                    tracing::info!("Successfully cleaned up dangling LXC containers");
-                }
-            });
+            if let Some(manager) = self.manager.upgrade() {
+                tokio::spawn(async move {
+                    if let Err(e) = manager.gc().await {
+                        tracing::error!("Error cleaning up dangling LXC containers: {e}");
+                        tracing::debug!("{e:?}")
+                    } else {
+                        tracing::info!("Successfully cleaned up dangling LXC containers");
+                    }
+                });
+            }
         }
     }
 }
