@@ -7,4 +7,4 @@ for image in $(ls -d /media/images/*); do
     done
 done
 
-exec /usr/local/lib/container-init/index.js
+exec node /usr/local/lib/startInit.js
