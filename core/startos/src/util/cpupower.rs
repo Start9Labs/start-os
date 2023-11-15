@@ -7,10 +7,20 @@ use tokio::process::Command;
 use crate::prelude::*;
 use crate::util::Invoke;
 
-pub const GOVERNOR_PERFORMANCE: Governor = Governor(Cow::Borrowed("performance"));
+pub const GOVERNOR_HEIRARCHY: &[Governor] = &[
+    Governor(Cow::Borrowed("ondemand")),
+    Governor(Cow::Borrowed("schedutil")),
+    Governor(Cow::Borrowed("conservative")),
+];
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct Governor(Cow<'static, str>);
+impl std::str::FromStr for Governor {
+    type Err = std::convert::Infallible;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(s.to_owned().into()))
+    }
+}
 impl std::fmt::Display for Governor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
@@ -112,6 +122,16 @@ pub async fn current_governor() -> Result<Option<Governor>, Error> {
         eyre!("Failed to parse cpupower output:\n{raw}"),
         ErrorKind::ParseSysInfo,
     ))
+}
+
+pub async fn get_preferred_governor() -> Result<Option<&'static Governor>, Error> {
+    let governors = get_available_governors().await?;
+    for governor in GOVERNOR_HEIRARCHY {
+        if governors.contains(governor) {
+            return Ok(Some(governor));
+        }
+    }
+    Ok(None)
 }
 
 pub async fn set_governor(governor: &Governor) -> Result<(), Error> {

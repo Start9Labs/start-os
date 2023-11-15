@@ -226,18 +226,18 @@ async fn test_start_deno_command() -> Result<Command, Error> {
         .arg("build")
         .invoke(ErrorKind::Unknown)
         .await?;
-    if tokio::fs::metadata("target/debug/start-deno")
+    if tokio::fs::metadata("../target/debug/start-deno")
         .await
         .is_err()
     {
         Command::new("ln")
             .arg("-rsf")
-            .arg("target/debug/startbox")
-            .arg("target/debug/start-deno")
+            .arg("../target/debug/startbox")
+            .arg("../target/debug/start-deno")
             .invoke(crate::ErrorKind::Filesystem)
             .await?;
     }
-    Ok(Command::new("target/debug/start-deno"))
+    Ok(Command::new("../target/debug/start-deno"))
 }
 
 #[tokio::test]
