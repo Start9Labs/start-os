@@ -24,6 +24,33 @@
               {{ swiper?.activeIndex === 0 ? 'StartOS Setup' : 'Recover Options'
               }}
             </ion-card-title>
+            <p *ngIf="swiper?.activeIndex === 0">
+              If using Firefox (recommended), ensure you have completed the
+              "Local" portion of
+              <a
+                class="inline"
+                href="https://docs.start9.com/0.3.5.x/user-manual/configuring-ff"
+                target="_blank"
+                noreferrer
+              >
+                this guide
+                <ion-icon name="open-outline"></ion-icon>
+              </a>
+              for your OS.
+            </p>
+            <p *ngIf="swiper?.activeIndex === 1">
+              View the
+              <a
+                class="inline"
+                href="https://docs.start9.com/0.3.5.x/user-manual/initial-setup#recover-options"
+                target="_blank"
+                noreferrer
+              >
+                instructions
+                <ion-icon name="open-outline"></ion-icon>
+              </a>
+              for more info.
+            </p>
           </ion-card-header>
           <ion-card-content class="ion-margin-bottom">
             <swiper
