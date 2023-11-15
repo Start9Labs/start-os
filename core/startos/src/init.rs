@@ -234,7 +234,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         loop {
             BEP.play().await.unwrap();
             BEP.play().await.unwrap();
-            tokio::time::sleep(Duration::from_secs(60)).await;
+            tokio::time::sleep(Duration::from_secs(30)).await;
         }
     }));
 
