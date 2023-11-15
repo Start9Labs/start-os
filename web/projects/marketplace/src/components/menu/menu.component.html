@@ -25,7 +25,7 @@
     </div>
     <!-- mobile nav -->
     <div class="sm:hidden bg-zinc-700/90 backdrop-blur-3xl">
-      <div class="flex justify-between py-4 px-4 w-[100vw]">
+      <div class="flex justify-between items-center py-4 px-4 w-[100vw]">
         <!-- mobile search -->
         <marketplace-search
           class="max-w-fit"
@@ -39,6 +39,7 @@
           [pseudoActive]="false"
           (click)="toggleMenu(true)"
           (tuiActiveZoneChange)="toggleMenu($event)"
+          [style.--tui-padding]="'1rem'"
         >
           <store-icon
             size="48px"

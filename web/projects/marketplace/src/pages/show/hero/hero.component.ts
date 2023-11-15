@@ -9,7 +9,7 @@ import { MimeTypePipeModule } from '../../../pipes/mime-type.pipe'
   template: `
     <div class="flex justify-center mt-10 md:mt-0 z-0">
       <div
-        class="flex flex-col w-full h-[32vh] xs:h-[25vh] md:min-h-[14rem] relative rounded-3xl pt-16 pb-10 px-8 shadow-lg"
+        class="flex flex-col w-full h-[32vh] xs:h-[26vh] md:min-h-[14rem] relative rounded-3xl pt-16 px-8 shadow-lg"
       >
         <!-- icon -->
         <img
@@ -27,10 +27,11 @@ import { MimeTypePipeModule } from '../../../pipes/mime-type.pipe'
             alt="{{ pkg.manifest.title }} background image"
           />
         </div>
+        <!-- background darkening overlay -->
         <div
           class="overflow-hidden absolute w-full h-full top-0 left-0 rounded-3xl bg-zinc-700 opacity-70"
         ></div>
-        <div class="my-3 text-zinc-50 mix-blend-plus-lighter">
+        <div class="my-4 text-zinc-50 mix-blend-plus-lighter">
           <h2 class="text-2xl font-medium line-clamp-1 mb-1">
             {{ pkg.manifest.title }}
           </h2>

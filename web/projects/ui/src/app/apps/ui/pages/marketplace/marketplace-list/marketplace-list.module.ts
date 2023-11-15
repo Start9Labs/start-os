@@ -9,7 +9,7 @@ import { MarketplaceListPage } from './marketplace-list.page'
 import { MarketplaceSettingsPageModule } from './marketplace-settings/marketplace-settings.module'
 import { TuiNotificationModule } from '@taiga-ui/core'
 import { TuiLetModule } from '@taiga-ui/cdk'
-import { MarketplaceItemToggleComponent } from '../components/marketplace-item-toggle/marketplace-item-toggle.component'
+import { MarketplaceItemToggleComponent } from '../components/marketplace-item-toggle.component'
 const routes: Routes = [
   {
     path: '',

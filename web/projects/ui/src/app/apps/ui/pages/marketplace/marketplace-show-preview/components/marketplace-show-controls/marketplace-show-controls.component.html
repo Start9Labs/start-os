@@ -1,8 +1,8 @@
-<div class="flex justify-center">
+<div class="flex justify-start">
   <button
     tuiButton
     type="button"
-    class="p-2 mr-2 blue"
+    class="mr-2"
     appearance="primary"
     *ngIf="localPkg"
     (click)="showService()"
@@ -14,7 +14,7 @@
       <button
         tuiButton
         type="button"
-        class="p-2 mr-2"
+        class="mr-2"
         appearance="warning-solid"
         *ngIf="(localVersion | compareEmver : pkg.manifest.version) === -1"
         (click)="tryInstall()"
@@ -24,7 +24,7 @@
       <button
         tuiButton
         type="button"
-        class="p-2 mr-2"
+        class="mr-2"
         appearance="secondary-solid"
         *ngIf="(localVersion | compareEmver : pkg.manifest.version) === 1"
         (click)="tryInstall()"
@@ -35,7 +35,7 @@
         <button
           tuiButton
           type="button"
-          class="p-2 mr-2"
+          class="mr-2"
           appearance="tertiary-solid"
           *ngIf="(localVersion | compareEmver : pkg.manifest.version) === 0"
           (click)="tryInstall()"

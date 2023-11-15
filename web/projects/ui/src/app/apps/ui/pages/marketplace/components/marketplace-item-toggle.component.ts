@@ -4,8 +4,8 @@ import { TuiButtonModule } from '@taiga-ui/core'
 import { TuiActiveZoneModule } from '@taiga-ui/cdk'
 import { TuiSidebarModule } from '@taiga-ui/addon-mobile'
 import { ItemModule, MarketplacePkg } from '@start9labs/marketplace'
-import { MarketplaceShowComponentsModule } from '../../marketplace-show-preview/components/marketplace-show-components.module'
-import { MarketplaceShowPreviewModule } from '../../marketplace-show-preview/marketplace-show-preview.module'
+import { MarketplaceShowComponentsModule } from '../marketplace-show-preview/components/marketplace-show-components.module'
+import { MarketplaceShowPreviewModule } from '../marketplace-show-preview/marketplace-show-preview.module'
 import {
   DataModel,
   PackageDataEntry,
@@ -42,7 +42,6 @@ import { PatchDB } from 'patch-db-client'
         ></button>
         <marketplace-show-controls
           slot="controls"
-          class="relative"
           [pkg]="pkg"
           [localPkg]="localPkg$ | async"
           (togglePreview)="toggle($event)"
