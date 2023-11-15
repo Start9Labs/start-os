@@ -14,10 +14,10 @@ import { TuiCheckboxModule } from '@taiga-ui/kit'
 import { BehaviorSubject } from 'rxjs'
 import { BackupRun } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { REPORT } from 'src/app/apps/portal/modals/report.component'
 import { DurationPipe } from '../pipes/duration.pipe'
 import { HasErrorPipe } from '../pipes/has-error.pipe'
 import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
-import { REPORT } from './report.component'
 
 @Component({
   template: `

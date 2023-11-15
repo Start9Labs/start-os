@@ -96,3 +96,8 @@ tui-dropdown[data-appearance='start-os'][data-appearance='start-os'] {
     }
   }
 }
+
+[tuiSidebar] > div.t-wrapper {
+  backdrop-filter: blur(1rem);
+  background: rgb(34 34 34 / 80%);
+}

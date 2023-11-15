@@ -67,10 +67,17 @@ export class NotificationsService {
     ),
   )
 
+  private readonly notifications$ = this.patch.watch$(
+    'server-info',
+    'unread-notification-count',
+  )
+
   getNotifications(id: string): Observable<number> {
     switch (id) {
       case '/portal/system/updates':
         return this.updates$
+      case 'notifications':
+        return this.notifications$
       default:
         return EMPTY
     }
