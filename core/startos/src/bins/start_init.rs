@@ -8,7 +8,7 @@ use tracing::instrument;
 
 use crate::context::rpc::RpcContextConfig;
 use crate::context::{DiagnosticContext, InstallContext, SetupContext};
-use crate::disk::fsck::RepairStrategy;
+use crate::disk::fsck::{RepairStrategy, RequiresReboot};
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::REPAIR_DISK_PATH;
 use crate::firmware::update_firmware;
@@ -21,11 +21,18 @@ use crate::{Error, ErrorKind, ResultExt, PLATFORM};
 
 #[instrument(skip_all)]
 async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
-    if update_firmware().await?.0 {
-        return Ok(Some(Shutdown {
-            export_args: None,
-            restart: true,
-        }));
+    match update_firmware().await {
+        Ok(RequiresReboot(true)) => {
+            return Ok(Some(Shutdown {
+                export_args: None,
+                restart: true,
+            }))
+        }
+        Err(e) => {
+            tracing::warn!("Error performing firmware update: {e}");
+            tracing::debug!("{e:?}");
+        }
+        _ => (),
     }
 
     Command::new("ln")

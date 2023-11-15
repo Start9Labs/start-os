@@ -1,0 +1,12 @@
+[
+  {
+    "id": "pureboot-librem_mini_v2-basic_usb_autoboot_blob_jail-Release-28.3",
+    "platform": ["x86_64"],
+    "system-product-name": "librem_mini_v2",
+    "bios-version": {
+      "semver-prefix": "PureBoot-Release-",
+      "semver-range": "<28.3"
+    },
+    "url": "https://source.puri.sm/firmware/releases/-/raw/master/librem_mini_v2/custom/pureboot-librem_mini_v2-basic_usb_autoboot_blob_jail-Release-28.3.rom.gz"
+  }
+]
