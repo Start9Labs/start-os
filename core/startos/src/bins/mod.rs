@@ -1,7 +1,5 @@
 use std::path::Path;
 
-#[cfg(feature = "avahi-alias")]
-pub mod avahi_alias;
 pub mod deprecated;
 #[cfg(feature = "cli")]
 pub mod start_cli;
@@ -16,8 +14,6 @@ pub mod startd;
 
 fn select_executable(name: &str) -> Option<fn()> {
     match name {
-        #[cfg(feature = "avahi-alias")]
-        "avahi-alias" => Some(avahi_alias::main),
         #[cfg(feature = "js_engine")]
         "start-deno" => Some(start_deno::main),
         #[cfg(feature = "cli")]

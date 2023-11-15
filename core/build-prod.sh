@@ -25,7 +25,10 @@ set +e
 fail=
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-if ! rust-gnu-builder sh -c "(cd core && cargo build --release --features avahi-alias,$FEATURES --locked --bin startbox --target=$ARCH-unknown-linux-gnu)"; then 
+if [ -n "$FEATURES" ]; then
+	FEATURES="--features=$FEATURES"
+fi
+if ! rust-gnu-builder sh -c "(cd core && cargo build --release $FEATURES --locked --bin startbox --target=$ARCH-unknown-linux-gnu)"; then 
 	fail=true
 fi
 for ARCH in x86_64 aarch64

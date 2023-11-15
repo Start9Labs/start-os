@@ -83,9 +83,6 @@ impl Key {
             .get_onion_address()
             .get_address_without_dot_onion()
     }
-    pub fn local_address(&self) -> String {
-        self.base_address() + ".local"
-    }
     pub fn openssl_key_ed25519(&self) -> PKey<Private> {
         PKey::private_key_from_raw_bytes(&self.base, openssl::pkey::Id::ED25519).unwrap()
     }

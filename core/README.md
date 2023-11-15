@@ -25,7 +25,6 @@ several different names for different behaviour:
 - `start-sdk`: This is a CLI tool that aids in building and packaging services
   you wish to deploy to StartOS
 - `start-deno`: This is a CLI tool invoked by startd to run `.js` maintainer scripts for v0.3
-- `avahi-alias`: This is a CLI tool invoked by startd to create aliases in `avahi` for mDNS
 
 ## Questions
 

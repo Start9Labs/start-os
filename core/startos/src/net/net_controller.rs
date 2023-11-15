@@ -11,7 +11,6 @@ use crate::error::ErrorCollection;
 use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
 use crate::net::keys::Key;
-use crate::net::mdns::MdnsController;
 use crate::net::ssl::{export_cert, export_key, SslManager};
 use crate::net::tor::TorController;
 use crate::net::vhost::{AlpnInfo, VHostController};
@@ -21,7 +20,6 @@ use crate::{Error, HOST_IP};
 
 pub struct NetController {
     pub(super) tor: TorController,
-    pub(super) mdns: MdnsController,
     pub(super) vhost: VHostController,
     pub(super) dns: DnsController,
     pub(super) ssl: Arc<SslManager>,
@@ -41,7 +39,6 @@ impl NetController {
         let ssl = Arc::new(ssl);
         let mut res = Self {
             tor: TorController::new(tor_control, tor_socks),
-            mdns: MdnsController::init().await?,
             vhost: VHostController::new(ssl.clone()),
             dns: DnsController::init(dns_bind).await?,
             ssl,
@@ -199,13 +196,11 @@ impl NetController {
                 )
                 .await?,
         );
-        rcs.push(self.mdns.add(key.base_address()).await?);
         Ok(rcs)
     }
 
     async fn remove_lan(&self, key: &Key, external: u16, rcs: Vec<Arc<()>>) -> Result<(), Error> {
         drop(rcs);
-        self.mdns.gc(key.base_address()).await?;
         self.vhost.gc(Some(key.local_address()), external).await
     }
 }
