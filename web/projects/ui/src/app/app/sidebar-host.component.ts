@@ -25,19 +25,7 @@ export class SidebarDirective {}
 @Component({
   selector: 'sidebar-host',
   template: '<ng-container #viewContainer></ng-container>',
-  styles: [
-    `
-      :host {
-        position: fixed;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        top: 0;
-        height: 0;
-        width: 100%;
-      }
-    `,
-  ],
+  styles: [':host { position: fixed; top: 0; }'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   providers: [
