@@ -384,6 +384,22 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async togglePerformance(
+    params: RR.TogglePerformanceReq,
+  ): Promise<RR.TogglePerformanceRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/performance',
+        value: params.enable,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
   // marketplace URLs
 
   async marketplaceProxy(

@@ -79,6 +79,7 @@ export interface ServerInfo {
   'ntp-synced': boolean
   zram: boolean
   platform: string
+  performance: boolean
 }
 
 export interface IpInfo {

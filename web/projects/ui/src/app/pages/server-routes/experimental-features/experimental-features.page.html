@@ -19,18 +19,40 @@
         </p>
       </ion-label>
     </ion-item>
-    <ion-item button (click)="presentAlertZram(server.zram)">
-      <ion-icon
-        slot="start"
-        [name]="server.zram ? 'flash-off-outline' : 'flash-outline'"
-      ></ion-icon>
+    <ion-item>
+      <ion-icon slot="start" name="hardware-chip-outline"></ion-icon>
       <ion-label>
-        <h2>{{ server.zram ? 'Disable' : 'Enable' }} zram</h2>
+        <h2>Zram ({{ server.zram ? 'Enabled' : 'Disabled' }})</h2>
         <p>
-          Enabling zram may improve server performance, especially on low RAM
-          devices
+          Zram creates compressed swap in memory, resulting in faster I/O for
+          low RAM devices.
         </p>
       </ion-label>
+      <ion-button
+        slot="end"
+        strong
+        [color]="server.zram ? 'dark' : 'primary'"
+        (click)="presentAlertZram(server.zram)"
+      >
+        {{ server.zram ? 'Disable' : 'Enable' }}
+      </ion-button>
+    </ion-item>
+    <ion-item>
+      <ion-icon slot="start" name="speedometer-outline"></ion-icon>
+      <ion-label>
+        <h2>
+          Performance Mode ({{ server.performance ? 'Enabled' : 'Disabled' }})
+        </h2>
+        <p>Performance mode speeds up CPU operations.</p>
+      </ion-label>
+      <ion-button
+        slot="end"
+        strong
+        [color]="server.performance ? 'dark' : 'primary'"
+        (click)="presentAlertPerformance(server.performance)"
+      >
+        {{ server.performance ? 'Disable' : 'Enable' }}
+      </ion-button>
     </ion-item>
   </ion-item-group>
 </ion-content>

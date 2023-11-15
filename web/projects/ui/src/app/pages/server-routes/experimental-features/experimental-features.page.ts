@@ -65,10 +65,10 @@ export class ExperimentalFeaturesPage {
 
   async presentAlertZram(enabled: boolean) {
     const alert = await this.alertCtrl.create({
-      header: enabled ? 'Confirm' : 'Warning',
+      header: 'Confirm',
       message: enabled
-        ? 'Are you sure you want to disable zram?'
-        : 'zram on StartOS is experimental. It may increase performance of you server, especially if it is a low RAM device.',
+        ? 'Are you sure you want to disable zram? It provides significant performance benefits on low RAM devices.'
+        : 'Enable zram? It will only make a difference on lower RAM devices.',
       buttons: [
         {
           text: 'Cancel',
@@ -78,6 +78,30 @@ export class ExperimentalFeaturesPage {
           text: enabled ? 'Disable' : 'Enable',
           handler: () => {
             this.toggleZram(enabled)
+          },
+          cssClass: 'enter-click',
+        },
+      ],
+      cssClass: enabled ? 'alert-warning-message' : '',
+    })
+    await alert.present()
+  }
+
+  async presentAlertPerformance(enabled: boolean) {
+    const alert = await this.alertCtrl.create({
+      header: enabled ? 'Confirm' : 'Warning',
+      message: enabled
+        ? 'Disable performance mode? You may notice a small decrease in performance.'
+        : 'Enable performance mode? Your server will run hotter and may result in a louder fan.',
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: enabled ? 'Disable' : 'Enable',
+          handler: () => {
+            this.togglePerformance(enabled)
           },
           cssClass: 'enter-click',
         },
@@ -122,7 +146,7 @@ export class ExperimentalFeaturesPage {
 
   private async toggleZram(enabled: boolean) {
     const loader = await this.loadingCtrl.create({
-      message: enabled ? 'Disabling zram...' : 'Enabling zram',
+      message: enabled ? 'Disabling zram...' : 'Enabling zram...',
     })
     await loader.present()
 
@@ -130,6 +154,38 @@ export class ExperimentalFeaturesPage {
       await this.api.toggleZram({ enable: !enabled })
       const toast = await this.toastCtrl.create({
         header: `Zram ${enabled ? 'disabled' : 'enabled'}`,
+        position: 'bottom',
+        duration: 4000,
+        buttons: [
+          {
+            side: 'start',
+            icon: 'close',
+            handler: () => {
+              return true
+            },
+          },
+        ],
+      })
+      await toast.present()
+    } catch (e: any) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  private async togglePerformance(enabled: boolean) {
+    const loader = await this.loadingCtrl.create({
+      message: enabled
+        ? 'Disabling performance mode...'
+        : 'Enabling performance mode...',
+    })
+    await loader.present()
+
+    try {
+      await this.api.togglePerformance({ enable: !enabled })
+      const toast = await this.toastCtrl.create({
+        header: `Performance mode ${enabled ? 'disabled' : 'enabled'}`,
         position: 'bottom',
         duration: 4000,
         buttons: [

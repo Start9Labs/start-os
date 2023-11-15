@@ -193,6 +193,15 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'server.experimental.zram', params })
   }
 
+  async togglePerformance(
+    params: RR.TogglePerformanceReq,
+  ): Promise<RR.TogglePerformanceRes> {
+    return this.rpcRequest({
+      method: 'server.experimental.performance',
+      params,
+    })
+  }
+
   // marketplace URLs
 
   async marketplaceProxy<T>(

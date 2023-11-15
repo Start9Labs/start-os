@@ -99,6 +99,10 @@ export abstract class ApiService {
 
   abstract toggleZram(params: RR.ToggleZramReq): Promise<RR.ToggleZramRes>
 
+  abstract togglePerformance(
+    params: RR.TogglePerformanceReq,
+  ): Promise<RR.TogglePerformanceRes>
+
   // marketplace URLs
 
   abstract marketplaceProxy<T>(

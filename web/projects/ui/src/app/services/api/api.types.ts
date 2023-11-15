@@ -82,6 +82,11 @@ export module RR {
   } // server.experimental.zram
   export type ToggleZramRes = null
 
+  export type TogglePerformanceReq = {
+    enable: boolean
+  } // server.experimental.performance
+  export type TogglePerformanceRes = null
+
   // sessions
 
   export type GetSessionsReq = {} // sessions.list
