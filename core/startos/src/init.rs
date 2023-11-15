@@ -230,17 +230,13 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         || &*server_info.version < &emver::Version::new(0, 3, 2, 0)
         || (*ARCH == "x86_64" && &*server_info.version < &emver::Version::new(0, 3, 4, 0));
 
-    let song = if should_rebuild {
-        Some(NonDetachingJoinHandle::from(tokio::spawn(async {
-            loop {
-                BEP.play().await.unwrap();
-                BEP.play().await.unwrap();
-                tokio::time::sleep(Duration::from_secs(60)).await;
-            }
-        })))
-    } else {
-        None
-    };
+    let song = NonDetachingJoinHandle::from(tokio::spawn(async {
+        loop {
+            BEP.play().await.unwrap();
+            BEP.play().await.unwrap();
+            tokio::time::sleep(Duration::from_secs(60)).await;
+        }
+    }));
 
     let log_dir = cfg.datadir().join("main/logs");
     if tokio::fs::metadata(&log_dir).await.is_err() {
