@@ -84,7 +84,7 @@ import { InstallProgressPipe } from '../pipes/install-progress.pipe'
           iconAlign="right"
           icon="tuiIconExternalLink"
           routerLink="/marketplace"
-          [queryParams]="{ url: url, id: pkg.manifest.id }"
+          [queryParams]="{ url: url, id: marketplacePkg.manifest.id }"
         >
           View listing
         </a>
