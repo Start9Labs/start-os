@@ -105,6 +105,7 @@ pub fn main_api() -> Result<(), RpcError> {
     shutdown::restart,
     shutdown::rebuild,
     update::update_system,
+    firmware::update_firmware,
 ))]
 pub fn server() -> Result<(), RpcError> {
     Ok(())
