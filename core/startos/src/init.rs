@@ -96,44 +96,64 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
 
     let pg_version_string = pg_version.to_string();
     let pg_version_path = db_dir.join(&pg_version_string);
-    if tokio::fs::metadata(&pg_version_path).await.is_err() {
-        let conf_dir = Path::new("/etc/postgresql").join(pg_version.to_string());
-        let conf_dir_tmp = {
-            let mut tmp = conf_dir.clone();
-            tmp.set_extension("tmp");
-            tmp
-        };
-        if tokio::fs::metadata(&conf_dir).await.is_ok() {
-            Command::new("mv")
-                .arg(&conf_dir)
-                .arg(&conf_dir_tmp)
-                .invoke(ErrorKind::Filesystem)
-                .await?;
-        }
-        let mut old_version = pg_version;
-        while old_version > 13
-        /* oldest pg version included in startos */
+    if exists
+    // maybe migrate
+    {
+        let incomplete_path = db_dir.join(format!("{pg_version}.migration.incomplete"));
+        if tokio::fs::metadata(&incomplete_path).await.is_ok() // previous migration was incomplete
+        && tokio::fs::metadata(&pg_version_path).await.is_ok()
         {
-            old_version -= 1;
-            let old_datadir = db_dir.join(old_version.to_string());
-            if tokio::fs::metadata(&old_datadir).await.is_ok() {
-                Command::new("pg_upgradecluster")
-                    .arg(old_version.to_string())
-                    .arg("main")
-                    .invoke(crate::ErrorKind::Database)
-                    .await?;
-                break;
-            }
+            tokio::fs::remove_dir_all(&pg_version_path).await?;
         }
-        if tokio::fs::metadata(&conf_dir).await.is_ok() {
+        if tokio::fs::metadata(&pg_version_path).await.is_err()
+        // need to migrate
+        {
+            let conf_dir = Path::new("/etc/postgresql").join(pg_version.to_string());
+            let conf_dir_tmp = {
+                let mut tmp = conf_dir.clone();
+                tmp.set_extension("tmp");
+                tmp
+            };
             if tokio::fs::metadata(&conf_dir).await.is_ok() {
-                tokio::fs::remove_dir_all(&conf_dir).await?;
+                Command::new("mv")
+                    .arg(&conf_dir)
+                    .arg(&conf_dir_tmp)
+                    .invoke(ErrorKind::Filesystem)
+                    .await?;
             }
-            Command::new("mv")
-                .arg(&conf_dir_tmp)
-                .arg(&conf_dir)
-                .invoke(ErrorKind::Filesystem)
-                .await?;
+            let mut old_version = pg_version;
+            while old_version > 13
+            /* oldest pg version included in startos */
+            {
+                old_version -= 1;
+                let old_datadir = db_dir.join(old_version.to_string());
+                if tokio::fs::metadata(&old_datadir).await.is_ok() {
+                    tokio::fs::File::create(&incomplete_path)
+                        .await?
+                        .sync_all()
+                        .await?;
+                    Command::new("pg_upgradecluster")
+                        .arg(old_version.to_string())
+                        .arg("main")
+                        .invoke(crate::ErrorKind::Database)
+                        .await?;
+                    break;
+                }
+            }
+            if tokio::fs::metadata(&conf_dir).await.is_ok() {
+                if tokio::fs::metadata(&conf_dir).await.is_ok() {
+                    tokio::fs::remove_dir_all(&conf_dir).await?;
+                }
+                Command::new("mv")
+                    .arg(&conf_dir_tmp)
+                    .arg(&conf_dir)
+                    .invoke(ErrorKind::Filesystem)
+                    .await?;
+            }
+            tokio::fs::remove_file(&incomplete_path).await?;
+        }
+        if tokio::fs::metadata(&incomplete_path).await.is_ok() {
+            unreachable!() // paranoia
         }
     }
 
