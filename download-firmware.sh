@@ -18,9 +18,11 @@ cd ./firmware/$PLATFORM
 
 mapfile -t firmwares <<< "$(jq -c ".[] | select(.platform[] | contains(\"$PLATFORM\"))" ../../build/lib/firmware.json)"
 for firmware in "${firmwares[@]}"; do
-	id=$(echo "$firmware" | jq --raw-output '.id')
-	url=$(echo "$firmware" | jq --raw-output '.url')
-	shasum=$(echo "$firmware" | jq --raw-output '.shasum')
-	curl --fail -L -o "${id}.rom.gz" "$url"
-	echo "$shasum ${id}.rom.gz" | sha256sum -c
+	if [ -n "$firmware" ]; then
+		id=$(echo "$firmware" | jq --raw-output '.id')
+		url=$(echo "$firmware" | jq --raw-output '.url')
+		shasum=$(echo "$firmware" | jq --raw-output '.shasum')
+		curl --fail -L -o "${id}.rom.gz" "$url"
+		echo "$shasum ${id}.rom.gz" | sha256sum -c
+	fi
 done
