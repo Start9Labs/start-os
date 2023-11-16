@@ -18,7 +18,7 @@ fn select_executable(name: &str) -> Option<fn()> {
     match name {
         #[cfg(feature = "avahi-alias")]
         "avahi-alias" => Some(avahi_alias::main),
-        #[cfg(feature = "js_engine")]
+        #[cfg(feature = "js-engine")]
         "start-deno" => Some(start_deno::main),
         #[cfg(feature = "cli")]
         "start-cli" => Some(start_cli::main),
@@ -36,24 +36,14 @@ fn select_executable(name: &str) -> Option<fn()> {
 
 pub fn startbox() {
     let args = std::env::args().take(2).collect::<Vec<_>>();
-    if let Some(x) = args
+    let executable = args
         .get(0)
         .and_then(|s| Path::new(&*s).file_name())
-        .and_then(|s| s.to_str())
-        .and_then(|s| select_executable(&s))
-    {
-        x()
-    } else if let Some(x) = args.get(1).and_then(|s| select_executable(&s)) {
+        .and_then(|s| s.to_str());
+    if let Some(x) = executable.and_then(|s| select_executable(&s)) {
         x()
     } else {
-        eprintln!(
-            "unknown executable: {}",
-            args.get(0)
-                .filter(|x| &**x != "startbox")
-                .or_else(|| args.get(1))
-                .map(|s| s.as_str())
-                .unwrap_or("N/A")
-        );
+        eprintln!("unknown executable: {}", executable.unwrap_or("N/A"));
         std::process::exit(1);
     }
 }

@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use emver::VersionRange;
-use lazy_static::lazy_static;
+use sqlx::PgPool;
 
-use super::*;
+use super::v0_3_4::V0_3_0_COMPAT;
+use super::VersionT;
 use crate::prelude::*;
 
-const V0_3_5: emver::Version = emver::Version::new(0, 3, 5, 0);
 lazy_static! {
     static ref V0_3_0_COMPAT: VersionRange = VersionRange::Conj(
         Box::new(VersionRange::Anchor(
@@ -15,6 +15,7 @@ lazy_static! {
         Box::new(VersionRange::Anchor(emver::LTE, Current::new().semver())),
     );
 }
+const V0_3_5_1: emver::Version = emver::Version::new(0, 3, 5, 1);
 
 #[derive(Clone, Debug)]
 pub struct Version;
@@ -26,15 +27,15 @@ impl VersionT for Version {
         Version
     }
     fn semver(&self) -> emver::Version {
-        V0_3_5
+        V0_3_5_1
     }
     fn compat(&self) -> &'static VersionRange {
         &V0_3_0_COMPAT
     }
-    async fn up(&self, _db: &PatchDb, _secrets: &PgPool) -> Result<(), Error> {
+    async fn up(&self, _db: PatchDb, _secrets: &PgPool) -> Result<(), Error> {
         Ok(())
     }
-    async fn down(&self, _db: &PatchDb, _secrets: &PgPool) -> Result<(), Error> {
+    async fn down(&self, _db: PatchDb, _secrets: &PgPool) -> Result<(), Error> {
         Ok(())
     }
 }
