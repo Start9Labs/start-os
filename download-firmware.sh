@@ -16,8 +16,11 @@ mkdir -p ./firmware/$PLATFORM
 
 cd ./firmware/$PLATFORM
 
-for firmware_id in $(jq --raw-output ".[] | select(.platform[] | contains(\"$PLATFORM\")) | .id" ../../build/lib/firmware.json); do
-	curl --fail -L -o ${firmware_id}.rom.gz "$(jq --raw-output ".[] | select(.id == \"${firmware_id}\") | .url" ../../build/lib/firmware.json)"
+mapfile -t firmwares <<< "$(jq -c ".[] | select(.platform[] | contains(\"$PLATFORM\"))" ../../build/lib/firmware.json)"
+for firmware in "${firmwares[@]}"; do
+	id=$(echo "$firmware" | jq --raw-output '.id')
+	url=$(echo "$firmware" | jq --raw-output '.url')
+	shasum=$(echo "$firmware" | jq --raw-output '.shasum')
+	curl --fail -L -o "${id}.rom.gz" "$url"
+	echo "$shasum ${id}.rom.gz" | sha256sum -c
 done
- 
-sha256sum * > checksums.sha256
