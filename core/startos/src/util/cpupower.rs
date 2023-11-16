@@ -39,13 +39,12 @@ impl std::borrow::Borrow<str> for Governor {
 }
 
 pub async fn get_available_governors() -> Result<BTreeSet<Governor>, Error> {
-    let raw = String::from_utf8(
-        Command::new("cpupower")
-            .arg("frequency-info")
-            .arg("-g")
-            .invoke(ErrorKind::CpuSettings)
-            .await?,
-    )?;
+    let raw = Command::new("cpupower")
+        .arg("frequency-info")
+        .arg("-g")
+        .invoke(ErrorKind::CpuSettings)
+        .await
+        .map_or_else(|e| Ok(e.source.to_string()), String::from_utf8)?;
     let mut for_cpu: OrdMap<u32, BTreeSet<Governor>> = OrdMap::new();
     let mut current_cpu = None;
     for line in raw.lines() {
