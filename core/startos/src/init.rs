@@ -20,7 +20,7 @@ use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
 use crate::sound::BEP;
 use crate::util::cpupower::{
-    current_governor, get_available_governors, set_governor, GOVERNOR_PERFORMANCE,
+    current_governor, get_available_governors, get_preferred_governor, set_governor,
 };
 use crate::util::docker::{create_bridge_network, CONTAINER_DATADIR, CONTAINER_TOOL};
 use crate::util::Invoke;
@@ -230,18 +230,6 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         || &*server_info.version < &emver::Version::new(0, 3, 2, 0)
         || (*ARCH == "x86_64" && &*server_info.version < &emver::Version::new(0, 3, 4, 0));
 
-    let song = if should_rebuild {
-        Some(NonDetachingJoinHandle::from(tokio::spawn(async {
-            loop {
-                BEP.play().await.unwrap();
-                BEP.play().await.unwrap();
-                tokio::time::sleep(Duration::from_secs(60)).await;
-            }
-        })))
-    } else {
-        None
-    };
-
     let log_dir = cfg.datadir().join("main/logs");
     if tokio::fs::metadata(&log_dir).await.is_err() {
         tokio::fs::create_dir_all(&log_dir).await?;
@@ -354,21 +342,20 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .await?;
     tracing::info!("Enabled Docker QEMU Emulation");
 
-    if current_governor()
-        .await?
-        .map(|g| &g != &GOVERNOR_PERFORMANCE)
-        .unwrap_or(false)
-    {
-        tracing::info!("Setting CPU Governor to \"{}\"", GOVERNOR_PERFORMANCE);
-        if get_available_governors()
-            .await?
-            .contains(&GOVERNOR_PERFORMANCE)
-        {
-            set_governor(&GOVERNOR_PERFORMANCE).await?;
-            tracing::info!("Set CPU Governor");
+    let governor = if let Some(governor) = &server_info.governor {
+        if get_available_governors().await?.contains(governor) {
+            Some(governor)
         } else {
-            tracing::warn!("CPU Governor \"{}\" Not Available", GOVERNOR_PERFORMANCE)
+            tracing::warn!("CPU Governor \"{governor}\" Not Available");
+            None
         }
+    } else {
+        get_preferred_governor().await?
+    };
+    if let Some(governor) = governor {
+        tracing::info!("Setting CPU Governor to \"{governor}\"");
+        set_governor(governor).await?;
+        tracing::info!("Set CPU Governor");
     }
 
     let mut time_not_synced = true;
@@ -446,8 +433,6 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             Err(e) => Err(e),
         }?;
     }
-
-    drop(song);
 
     tracing::info!("System initialized.");
 
