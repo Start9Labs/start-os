@@ -11,9 +11,13 @@ if [ -z "$PLATFORM" ]; then
 	exit 1
 fi
 
+rm -rf ./firmware/$PLATFORM
 mkdir -p ./firmware/$PLATFORM
 
-for firmware_id in $(jq --raw-output ".[] | select(.platform[] | contains(\"$PLATFORM\")) | .id" ./build/lib/firmware.json); do
-	dest=./firmware/$PLATFORM/${firmware_id}.rom.gz
-	curl --fail -L -o $dest "$(jq --raw-output ".[] | select(.id == \"${firmware_id}\") | .url" ./build/lib/firmware.json)"
+cd ./firmware/$PLATFORM
+
+for firmware_id in $(jq --raw-output ".[] | select(.platform[] | contains(\"$PLATFORM\")) | .id" ../../build/lib/firmware.json); do
+	curl --fail -L -o ${firmware_id}.rom.gz "$(jq --raw-output ".[] | select(.id == \"${firmware_id}\") | .url" ../../build/lib/firmware.json)"
 done
+ 
+sha256sum * > checksums.sha256

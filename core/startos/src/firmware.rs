@@ -2,10 +2,12 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use async_compression::tokio::bufread::GzipDecoder;
+use futures::TryStreamExt;
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
-use tokio::io::BufReader;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
+use tokio_stream::wrappers::LinesStream;
 
 use crate::disk::fsck::RequiresReboot;
 use crate::prelude::*;
@@ -96,7 +98,23 @@ pub async fn update_firmware() -> Result<RequiresReboot, Error> {
             })
             .unwrap_or(false);
         if firmware.platform.contains(&*PLATFORM) && matches_product_name && matches_bios_version {
-            let firmware_path = firmware_dir.join(format!("{id}.rom.gz"));
+            let filename = format!("{id}.rom.gz");
+            let firmware_path = firmware_dir.join(&filename);
+            let checksum = LinesStream::new(
+                BufReader::new(File::open(&firmware_dir.join("checksums.sha256")).await?).lines(),
+            )
+            .try_filter(|l| futures::future::ready(l.ends_with(&filename)))
+            .try_next()
+            .await?
+            .ok_or_else(|| {
+                Error::new(
+                    eyre!("No checksum found for {filename}"),
+                    ErrorKind::NotFound,
+                )
+            })?;
+            Command::new("sha256sum")
+                .arg("-c")
+                .input(Some(&mut std::io::Cursor::new(checksum.into_bytes())));
             let mut rdr = if tokio::fs::metadata(&firmware_path).await.is_ok() {
                 GzipDecoder::new(BufReader::new(File::open(&firmware_path).await?))
             } else {
