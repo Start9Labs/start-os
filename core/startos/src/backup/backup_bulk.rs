@@ -292,7 +292,7 @@ async fn perform_backup(
     if tokio::fs::metadata(&luks_folder_bak).await.is_ok() {
         tokio::fs::rename(&luks_folder_bak, &luks_folder_old).await?;
     }
-    let luks_folder = Path::new("/media/embassy/config/luks");
+    let luks_folder = Path::new("/media/startos/config/luks");
     if tokio::fs::metadata(&luks_folder).await.is_ok() {
         dir_copy(&luks_folder, &luks_folder_bak, None).await?;
     }

@@ -8,7 +8,7 @@ use crate::prelude::*;
 use crate::util::serde::IoFormat;
 use crate::{Config, Error};
 
-pub const DEVICE_CONFIG_PATH: &str = "/media/embassy/config/config.yaml";
+pub const DEVICE_CONFIG_PATH: &str = "/media/startos/config/config.yaml";
 pub const CONFIG_PATH: &str = "/etc/embassy/config.yaml";
 pub const CONFIG_PATH_LOCAL: &str = ".embassy/config.yaml";
 

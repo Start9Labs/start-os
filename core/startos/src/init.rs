@@ -26,8 +26,8 @@ use crate::util::docker::{create_bridge_network, CONTAINER_DATADIR, CONTAINER_TO
 use crate::util::Invoke;
 use crate::{Error, ARCH};
 
-pub const SYSTEM_REBUILD_PATH: &str = "/media/embassy/config/system-rebuild";
-pub const STANDBY_MODE_PATH: &str = "/media/embassy/config/standby";
+pub const SYSTEM_REBUILD_PATH: &str = "/media/startos/config/system-rebuild";
+pub const STANDBY_MODE_PATH: &str = "/media/startos/config/standby";
 
 pub async fn check_time_is_synchronized() -> Result<bool, Error> {
     Ok(String::from_utf8(

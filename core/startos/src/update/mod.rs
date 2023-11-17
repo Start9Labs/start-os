@@ -189,7 +189,7 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
 async fn do_update(ctx: RpcContext, eos_url: EosUrl) -> Result<(), Error> {
     let mut rsync = Rsync::new(
         eos_url.rsync_path()?,
-        "/media/embassy/next/",
+        "/media/startos/next/",
         Default::default(),
     )
     .await?;
@@ -238,44 +238,44 @@ impl EosUrl {
 }
 
 async fn copy_fstab() -> Result<(), Error> {
-    tokio::fs::copy("/etc/fstab", "/media/embassy/next/etc/fstab").await?;
+    tokio::fs::copy("/etc/fstab", "/media/startos/next/etc/fstab").await?;
     Ok(())
 }
 
 async fn copy_machine_id() -> Result<(), Error> {
-    tokio::fs::copy("/etc/machine-id", "/media/embassy/next/etc/machine-id").await?;
+    tokio::fs::copy("/etc/machine-id", "/media/startos/next/etc/machine-id").await?;
     Ok(())
 }
 
 async fn copy_ssh_host_keys() -> Result<(), Error> {
     tokio::fs::copy(
         "/etc/ssh/ssh_host_rsa_key",
-        "/media/embassy/next/etc/ssh/ssh_host_rsa_key",
+        "/media/startos/next/etc/ssh/ssh_host_rsa_key",
     )
     .await?;
     tokio::fs::copy(
         "/etc/ssh/ssh_host_rsa_key.pub",
-        "/media/embassy/next/etc/ssh/ssh_host_rsa_key.pub",
+        "/media/startos/next/etc/ssh/ssh_host_rsa_key.pub",
     )
     .await?;
     tokio::fs::copy(
         "/etc/ssh/ssh_host_ecdsa_key",
-        "/media/embassy/next/etc/ssh/ssh_host_ecdsa_key",
+        "/media/startos/next/etc/ssh/ssh_host_ecdsa_key",
     )
     .await?;
     tokio::fs::copy(
         "/etc/ssh/ssh_host_ecdsa_key.pub",
-        "/media/embassy/next/etc/ssh/ssh_host_ecdsa_key.pub",
+        "/media/startos/next/etc/ssh/ssh_host_ecdsa_key.pub",
     )
     .await?;
     tokio::fs::copy(
         "/etc/ssh/ssh_host_ed25519_key",
-        "/media/embassy/next/etc/ssh/ssh_host_ed25519_key",
+        "/media/startos/next/etc/ssh/ssh_host_ed25519_key",
     )
     .await?;
     tokio::fs::copy(
         "/etc/ssh/ssh_host_ed25519_key.pub",
-        "/media/embassy/next/etc/ssh/ssh_host_ed25519_key.pub",
+        "/media/startos/next/etc/ssh/ssh_host_ed25519_key.pub",
     )
     .await?;
     Ok(())
@@ -283,7 +283,7 @@ async fn copy_ssh_host_keys() -> Result<(), Error> {
 
 async fn sync_boot() -> Result<(), Error> {
     Rsync::new(
-        "/media/embassy/next/boot/",
+        "/media/startos/next/boot/",
         "/boot/",
         RsyncOptions {
             delete: false,
@@ -299,15 +299,15 @@ async fn sync_boot() -> Result<(), Error> {
     .await?;
     if &*PLATFORM != "raspberrypi" {
         let dev_mnt =
-            MountGuard::mount(&Bind::new("/dev"), "/media/embassy/next/dev", ReadWrite).await?;
+            MountGuard::mount(&Bind::new("/dev"), "/media/startos/next/dev", ReadWrite).await?;
         let sys_mnt =
-            MountGuard::mount(&Bind::new("/sys"), "/media/embassy/next/sys", ReadWrite).await?;
+            MountGuard::mount(&Bind::new("/sys"), "/media/startos/next/sys", ReadWrite).await?;
         let proc_mnt =
-            MountGuard::mount(&Bind::new("/proc"), "/media/embassy/next/proc", ReadWrite).await?;
+            MountGuard::mount(&Bind::new("/proc"), "/media/startos/next/proc", ReadWrite).await?;
         let boot_mnt =
-            MountGuard::mount(&Bind::new("/boot"), "/media/embassy/next/boot", ReadWrite).await?;
+            MountGuard::mount(&Bind::new("/boot"), "/media/startos/next/boot", ReadWrite).await?;
         Command::new("chroot")
-            .arg("/media/embassy/next")
+            .arg("/media/startos/next")
             .arg("update-grub2")
             .invoke(ErrorKind::MigrationFailed)
             .await?;
@@ -321,6 +321,6 @@ async fn sync_boot() -> Result<(), Error> {
 
 #[instrument(skip_all)]
 async fn swap_boot_label() -> Result<(), Error> {
-    tokio::fs::write("/media/embassy/config/upgrade", b"").await?;
+    tokio::fs::write("/media/startos/config/upgrade", b"").await?;
     Ok(())
 }

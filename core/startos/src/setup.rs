@@ -322,7 +322,7 @@ pub async fn complete(#[context] ctx: SetupContext) -> Result<SetupResult, Error
             crate::ErrorKind::InvalidRequest,
         ));
     };
-    let mut guid_file = File::create("/media/embassy/config/disk.guid").await?;
+    let mut guid_file = File::create("/media/startos/config/disk.guid").await?;
     guid_file.write_all(guid.as_bytes()).await?;
     guid_file.sync_all().await?;
     Ok(setup_result)
@@ -427,7 +427,7 @@ async fn migrate(
 
     let _ = crate::disk::main::import(
         &old_guid,
-        "/media/embassy/migrate",
+        "/media/startos/migrate",
         RepairStrategy::Preen,
         if guid.ends_with("_UNENC") {
             None
@@ -437,9 +437,9 @@ async fn migrate(
     )
     .await?;
 
-    let main_transfer_args = ("/media/embassy/migrate/main/", "/embassy-data/main/");
+    let main_transfer_args = ("/media/startos/migrate/main/", "/embassy-data/main/");
     let package_data_transfer_args = (
-        "/media/embassy/migrate/package-data/",
+        "/media/startos/migrate/package-data/",
         "/embassy-data/package-data/",
     );
 
@@ -504,7 +504,7 @@ async fn migrate(
 
     let (hostname, tor_addr, root_ca) = setup_init(&ctx, Some(embassy_password)).await?;
 
-    crate::disk::main::export(&old_guid, "/media/embassy/migrate").await?;
+    crate::disk::main::export(&old_guid, "/media/startos/migrate").await?;
 
     Ok((guid, hostname, tor_addr, root_ca))
 }

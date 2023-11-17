@@ -1,0 +1,105 @@
+# Local filesystem mounting			-*- shell-script -*-
+
+#
+# This script overrides local_mount_root() in /scripts/local
+# and mounts root as a read-only filesystem with a temporary (rw)
+# overlay filesystem.
+#
+
+. /scripts/local
+
+local_mount_root()
+{
+	echo 'using startos initramfs module'
+
+	local_top
+	local_device_setup "${ROOT}" "root file system"
+	ROOT="${DEV}"
+
+	# Get the root filesystem type if not set
+	if [ -z "${ROOTFSTYPE}" ]; then
+		FSTYPE=$(get_fstype "${ROOT}")
+	else
+		FSTYPE=${ROOTFSTYPE}
+	fi
+
+	local_premount
+
+	# CHANGES TO THE ORIGINAL FUNCTION BEGIN HERE
+	# N.B. this code still lacks error checking
+
+	modprobe ${FSTYPE}
+	checkfs ${ROOT} root "${FSTYPE}"
+
+	echo 'mounting startos'
+	mkdir /startos
+
+	ROOTFLAGS="$(echo "${ROOTFLAGS}" | sed 's/subvol=\(next\|current\)//' | sed 's/^-o *$//')"
+
+	if [ "${FSTYPE}" != "unknown" ]; then
+		mount -t ${FSTYPE} ${ROOTFLAGS} ${ROOT} /startos
+	else
+		mount ${ROOTFLAGS} ${ROOT} /startos
+	fi
+
+	if [ -d /startos/images ]; then
+		if [ -h /startos/config/current.squashfs ] && [ -f /startos/config/current.squashfs ]; then
+			image=$(readlink /startos/config/current.squashfs)
+		else
+			image=$(ls -t /startos/images/*.squashfs | head -n1)
+		fi
+
+		mkdir /lower /upper
+
+		mount -r $image /lower
+	else # backwards compatibility
+		if ! [ -d /startos/current ] && [ -d /startos/prev ]; then
+			mv /startos/prev /startos/current
+		fi
+
+		if ! [ -d /startos/current ]; then
+			mkdir /startos/current
+			for FILE in $(ls /startos); do
+				if [ "$FILE" != current ]; then
+					mv /startos/$FILE /startos/current/
+				fi
+			done
+		fi
+
+		mkdir -p /startos/config
+
+		if [ -f /startos/config/upgrade ] && [ -d /startos/next ]; then
+			mv /startos/current /startos/prev
+			mv /startos/next /startos/current
+			rm /startos/config/upgrade
+		fi
+
+		if ! [ -d /startos/next ]; then
+			if [ -d /startos/prev ]; then
+				mv /startos/prev /startos/next
+			else
+				mkdir /startos/next
+			fi
+		fi
+
+		mkdir /lower /upper
+
+		mount -r --bind /startos/current /lower
+	fi
+
+	modprobe overlay || insmod "/lower/lib/modules/$(uname -r)/kernel/fs/overlayfs/overlay.ko"
+
+	# Mount a tmpfs for the overlay in /upper
+	mount -t tmpfs tmpfs /upper
+	mkdir /upper/data /upper/work
+
+	# Mount the final overlay-root in $rootmnt
+	mount -t overlay \
+		-olowerdir=/lower,upperdir=/upper/data,workdir=/upper/work \
+		overlay ${rootmnt}
+
+	mkdir -p ${rootmnt}/media/startos/config
+	mount --bind /startos/config ${rootmnt}/media/startos/config
+	mkdir -p ${rootmnt}/media/startos/images
+	mount --bind /startos/images ${rootmnt}/media/startos/images
+}
