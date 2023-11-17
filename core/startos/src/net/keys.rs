@@ -15,11 +15,11 @@ use zeroize::Zeroize;
 
 use crate::config::{configure, ConfigureContext};
 use crate::context::RpcContext;
+use crate::control::restart;
 use crate::disk::fsck::RequiresReboot;
 use crate::net::ssl::CertPair;
 use crate::prelude::*;
 use crate::util::crypto::ed25519_expand_key;
-use crate::util::display_none;
 
 // TODO: delete once we may change tor addresses
 async fn compat(
@@ -317,7 +317,8 @@ pub async fn rotate_key(
         .await?;
         let new_key =
             Key::for_interface(&mut *tx, Some((package.clone(), interface.clone()))).await?;
-        ctx.db
+        let needs_config = ctx
+            .db
             .mutate(|v| {
                 let installed = v
                     .as_package_data_mut()
@@ -325,7 +326,6 @@ pub async fn rotate_key(
                     .or_not_found(&package)?
                     .as_installed_mut()
                     .or_not_found("installed")?;
-                installed.as_status_mut().as_configured_mut().ser(&false)?;
                 let addrs = installed
                     .as_interface_addresses_mut()
                     .as_idx_mut(&interface)
@@ -337,21 +337,38 @@ pub async fn rotate_key(
                     lan.ser(&new_key.tor_address().to_string())?;
                 }
 
-                Ok(())
+                if installed
+                    .as_manifest()
+                    .as_config()
+                    .transpose_ref()
+                    .is_some()
+                {
+                    installed
+                        .as_status_mut()
+                        .as_configured_mut()
+                        .replace(&false)
+                } else {
+                    Ok(false)
+                }
             })
             .await?;
-        configure(
-            &ctx,
-            &package,
-            ConfigureContext {
-                breakages: BTreeMap::new(),
-                timeout: None,
-                config: None,
-                overrides: BTreeMap::new(),
-                dry_run: false,
-            },
-        )
-        .await?;
+        tx.commit().await?;
+        if needs_config {
+            configure(
+                &ctx,
+                &package,
+                ConfigureContext {
+                    breakages: BTreeMap::new(),
+                    timeout: None,
+                    config: None,
+                    overrides: BTreeMap::new(),
+                    dry_run: false,
+                },
+            )
+            .await?;
+        } else {
+            restart(ctx, package).await?;
+        }
         Ok(RequiresReboot(false))
     } else {
         sqlx::query!("UPDATE account SET tor_key = NULL, network_key = gen_random_bytes(32)")
@@ -362,6 +379,7 @@ pub async fn rotate_key(
         ctx.db
             .mutate(|v| v.as_server_info_mut().as_tor_address_mut().ser(&url))
             .await?;
+        tx.commit().await?;
         Ok(RequiresReboot(true))
     }
 }
