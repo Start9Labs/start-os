@@ -1,14 +1,22 @@
+use std::collections::BTreeMap;
+
+use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use models::{Id, InterfaceId, PackageId};
 use openssl::pkey::{PKey, Private};
 use openssl::sha::Sha256;
 use openssl::x509::X509;
 use p256::elliptic_curve::pkcs8::EncodePrivateKey;
-use sqlx::PgExecutor;
+use rpc_toolkit::command;
+use sqlx::{Acquire, PgExecutor};
 use ssh_key::private::Ed25519PrivateKey;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use zeroize::Zeroize;
 
+use crate::config::{configure, ConfigureContext};
+use crate::context::RpcContext;
+use crate::control::restart;
+use crate::disk::fsck::RequiresReboot;
 use crate::net::ssl::CertPair;
 use crate::prelude::*;
 use crate::util::crypto::ed25519_expand_key;
@@ -270,4 +278,108 @@ pub fn test_keygen() {
     let key = Key::new(None);
     key.tor_key();
     key.openssl_key_nistp256();
+}
+
+fn display_requires_reboot(arg: RequiresReboot, matches: &ArgMatches) {
+    if arg.0 {
+        println!("Server must be restarted for changes to take effect");
+    }
+}
+
+#[command(rename = "rotate-key", display(display_requires_reboot))]
+pub async fn rotate_key(
+    #[context] ctx: RpcContext,
+    #[arg] package: Option<PackageId>,
+    #[arg] interface: Option<InterfaceId>,
+) -> Result<RequiresReboot, Error> {
+    let mut pgcon = ctx.secret_store.acquire().await?;
+    let mut tx = pgcon.begin().await?;
+    if let Some(package) = package {
+        let Some(interface) = interface else {
+            return Err(Error::new(
+                eyre!("Must specify interface"),
+                ErrorKind::InvalidRequest,
+            ));
+        };
+        sqlx::query!(
+            "DELETE FROM tor WHERE package = $1 AND interface = $2",
+            &package,
+            &interface,
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            "DELETE FROM network_keys WHERE package = $1 AND interface = $2",
+            &package,
+            &interface,
+        )
+        .execute(&mut *tx)
+        .await?;
+        let new_key =
+            Key::for_interface(&mut *tx, Some((package.clone(), interface.clone()))).await?;
+        let needs_config = ctx
+            .db
+            .mutate(|v| {
+                let installed = v
+                    .as_package_data_mut()
+                    .as_idx_mut(&package)
+                    .or_not_found(&package)?
+                    .as_installed_mut()
+                    .or_not_found("installed")?;
+                let addrs = installed
+                    .as_interface_addresses_mut()
+                    .as_idx_mut(&interface)
+                    .or_not_found(&interface)?;
+                if let Some(lan) = addrs.as_lan_address_mut().transpose_mut() {
+                    lan.ser(&new_key.local_address())?;
+                }
+                if let Some(lan) = addrs.as_tor_address_mut().transpose_mut() {
+                    lan.ser(&new_key.tor_address().to_string())?;
+                }
+
+                if installed
+                    .as_manifest()
+                    .as_config()
+                    .transpose_ref()
+                    .is_some()
+                {
+                    installed
+                        .as_status_mut()
+                        .as_configured_mut()
+                        .replace(&false)
+                } else {
+                    Ok(false)
+                }
+            })
+            .await?;
+        tx.commit().await?;
+        if needs_config {
+            configure(
+                &ctx,
+                &package,
+                ConfigureContext {
+                    breakages: BTreeMap::new(),
+                    timeout: None,
+                    config: None,
+                    overrides: BTreeMap::new(),
+                    dry_run: false,
+                },
+            )
+            .await?;
+        } else {
+            restart(ctx, package).await?;
+        }
+        Ok(RequiresReboot(false))
+    } else {
+        sqlx::query!("UPDATE account SET tor_key = NULL, network_key = gen_random_bytes(32)")
+            .execute(&mut *tx)
+            .await?;
+        let new_key = Key::for_interface(&mut *tx, None).await?;
+        let url = format!("https://{}", new_key.tor_address()).parse()?;
+        ctx.db
+            .mutate(|v| v.as_server_info_mut().as_tor_address_mut().ser(&url))
+            .await?;
+        tx.commit().await?;
+        Ok(RequiresReboot(true))
+    }
 }
