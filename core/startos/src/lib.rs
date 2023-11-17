@@ -1,5 +1,3 @@
-#![recursion_limit = "256"]
-
 pub const DEFAULT_MARKETPLACE: &str = "https://registry.start9.com";
 // pub const COMMUNITY_MARKETPLACE: &str = "https://community-registry.start9.com";
 pub const BUFFER_SIZE: usize = 1024;
@@ -108,6 +106,7 @@ pub fn main_api() -> Result<(), RpcError> {
     shutdown::restart,
     shutdown::rebuild,
     update::update_system,
+    firmware::update_firmware,
 ))]
 pub fn server() -> Result<(), RpcError> {
     Ok(())

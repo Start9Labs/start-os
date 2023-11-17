@@ -65,10 +65,10 @@ export class ExperimentalFeaturesPage {
 
   async presentAlertZram(enabled: boolean) {
     const alert = await this.alertCtrl.create({
-      header: enabled ? 'Confirm' : 'Warning',
+      header: 'Confirm',
       message: enabled
-        ? 'Are you sure you want to disable zram?'
-        : 'zram on StartOS is experimental. It may increase performance of you server, especially if it is a low RAM device.',
+        ? 'Are you sure you want to disable zram? It provides significant performance benefits on low RAM devices.'
+        : 'Enable zram? It will only make a difference on lower RAM devices.',
       buttons: [
         {
           text: 'Cancel',
@@ -82,7 +82,6 @@ export class ExperimentalFeaturesPage {
           cssClass: 'enter-click',
         },
       ],
-      cssClass: enabled ? '' : 'alert-warning-message',
     })
     await alert.present()
   }
@@ -122,7 +121,7 @@ export class ExperimentalFeaturesPage {
 
   private async toggleZram(enabled: boolean) {
     const loader = await this.loadingCtrl.create({
-      message: enabled ? 'Disabling zram...' : 'Enabling zram',
+      message: enabled ? 'Disabling zram...' : 'Enabling zram...',
     })
     await loader.present()
 
