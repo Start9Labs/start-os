@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
-use models::ImageId;
+use models::{ImageId, PackageId};
 use patch_db::HasModel;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,6 @@ use tracing::instrument;
 use self::docker::DockerProcedure;
 use crate::context::RpcContext;
 use crate::prelude::*;
-use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::volume::Volumes;
 use crate::{Error, ErrorKind};

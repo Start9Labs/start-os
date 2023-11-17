@@ -817,7 +817,7 @@ dependencies = [
  "tracing-error",
  "tracing-futures",
  "tracing-subscriber",
- "yajrc 0.1.0 (git+https://github.com/dr-bonez/yajrc.git?branch=develop)",
+ "yajrc 0.1.0",
 ]
 
 [[package]]
@@ -2030,12 +2030,12 @@ dependencies = [
  "lazy_async_pool",
  "models",
  "pin-project",
+ "rpc-toolkit",
  "serde",
  "serde_json",
  "tokio",
  "tokio-stream",
  "tracing",
- "yajrc 0.1.0 (git+https://github.com/dr-bonez/yajrc.git?branch=develop)",
 ]
 
 [[package]]
@@ -3962,9 +3962,9 @@ dependencies = [
 
 [[package]]
 name = "rpc-toolkit"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5353673ffd8265292281141560d2b851e4da49e83e2f5e255fd473736d45ee10"
+checksum = "c48252a30abb9426a3239fa8dfd2c8dd2647bb24db0b6145db2df04ae53fe647"
 dependencies = [
  "clap 3.2.25",
  "futures",
@@ -3979,7 +3979,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
- "yajrc 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "yajrc 0.1.1",
 ]
 
 [[package]]
@@ -6721,8 +6721,7 @@ dependencies = [
 [[package]]
 name = "yajrc"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b40687b4c165cb760e35730055c8840f36897e7c98099b2d3d66ba8cb624c79a"
+source = "git+https://github.com/dr-bonez/yajrc.git?branch=develop#72a22f7ac2197d7a5cdce4be601cf20e5280eec5"
 dependencies = [
  "anyhow",
  "serde",
@@ -6732,8 +6731,9 @@ dependencies = [
 
 [[package]]
 name = "yajrc"
-version = "0.1.0"
-source = "git+https://github.com/dr-bonez/yajrc.git?branch=develop#72a22f7ac2197d7a5cdce4be601cf20e5280eec5"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc08b562507a1674a1ef886a1aedeeb19d41462386ae09f634995d41bbef87d3"
 dependencies = [
  "anyhow",
  "serde",

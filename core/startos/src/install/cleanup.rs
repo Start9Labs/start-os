@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use models::OptionExt;
+use models::{OptionExt, PackageId};
 use sqlx::{Executor, Postgres};
 use tracing::instrument;
 
@@ -13,7 +13,6 @@ use crate::db::model::{
 };
 use crate::error::ErrorCollection;
 use crate::prelude::*;
-use crate::s9pk::manifest::PackageId;
 use crate::util::{Apply, Version};
 use crate::volume::{asset_dir, script_dir};
 use crate::Error;

@@ -1,19 +1,32 @@
 use std::collections::BTreeSet;
+use std::path::Path;
 use std::sync::{Arc, Weak};
+use std::time::Duration;
 
+use helpers::UnixRpcClient;
 use imbl_value::InternedString;
 use serde::Serialize;
 use tokio::process::Command;
 use tokio::sync::Mutex;
+use tokio::time::Instant;
 
 use crate::prelude::*;
 use crate::util::serde::IoFormat;
 use crate::util::{new_guid, Invoke};
 
+const LXC_CONTAINER_DIR: &str = "/var/lib/lxc";
+const CONTAINER_RPC_SERVER_SOCKET: &str = "run/rpc.sock"; // must not be absolute path
+
 pub struct LxcManager {
     containers: Mutex<Vec<Weak<InternedString>>>,
 }
 impl LxcManager {
+    pub fn new() -> Self {
+        Self {
+            containers: Default::default(),
+        }
+    }
+
     pub async fn create(self: &Arc<Self>, config: LxcConfig) -> Result<LxcContainer, Error> {
         let container = LxcContainer::new(self, config).await?;
         let mut guard = self.containers.lock().await;
@@ -101,6 +114,24 @@ impl LxcContainer {
 
         Ok(())
     }
+
+    pub async fn connect_rpc(&self, timeout: Option<Duration>) -> Result<UnixRpcClient, Error> {
+        let started = Instant::now();
+        let sock_path = Path::new(LXC_CONTAINER_DIR)
+            .join(&*self.guid)
+            .join("rootfs")
+            .join(CONTAINER_RPC_SERVER_SOCKET);
+        while tokio::fs::metadata(&sock_path).await.is_err() {
+            if timeout.map_or(false, |t| started.elapsed() > t) {
+                return Err(Error::new(
+                    eyre!("timed out waiting for socket"),
+                    ErrorKind::Timeout,
+                ));
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        Ok(UnixRpcClient::new(sock_path))
+    }
 }
 impl Drop for LxcContainer {
     fn drop(&mut self) {
@@ -124,5 +155,5 @@ impl Drop for LxcContainer {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Default, Serialize)]
 pub struct LxcConfig {}

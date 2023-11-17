@@ -1037,7 +1037,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         let migration = manifest
             .migrations
             .from(
-                &manifest.containers,
                 &ctx,
                 &prev.manifest.version,
                 pkg_id,

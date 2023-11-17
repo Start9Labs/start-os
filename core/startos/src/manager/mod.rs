@@ -221,11 +221,6 @@ impl Manager {
         send_signal(self, gid, signal).await
     }
 
-    /// Used as a getter, but also used in procedure
-    pub fn rpc_client(&self) -> Arc<UnixRpcClient> {
-        self.persistent_container.rpc_client()
-    }
-
     async fn _transition_abort(&self) {
         self.transition
             .send_replace(Default::default())

@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use color_eyre::eyre::eyre;
-use models::ImageId;
+use models::{ImageId, PackageId};
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -12,7 +12,6 @@ use crate::dependencies::Dependencies;
 use crate::prelude::*;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{PackageProcedure, ProcedureName};
-use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::HealthCheckId;
 use crate::util::Version;
 use crate::volume::Volumes;
@@ -35,7 +34,6 @@ impl ConfigActions {
     #[instrument(skip_all)]
     pub fn validate(
         &self,
-        _container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,

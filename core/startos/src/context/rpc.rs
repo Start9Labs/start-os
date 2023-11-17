@@ -27,6 +27,7 @@ use crate::dependencies::compute_dependency_config_errs;
 use crate::disk::OsPartitionInfo;
 use crate::init::init_postgres;
 use crate::install::cleanup::{cleanup_failed, uninstall};
+use crate::lxc::LxcManager;
 use crate::manager::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
 use crate::net::net_controller::NetController;
@@ -118,6 +119,7 @@ pub struct RpcContextSeed {
     pub shutdown: broadcast::Sender<Option<Shutdown>>,
     pub tor_socks: SocketAddr,
     pub notification_manager: NotificationManager,
+    pub lxc_manager: Arc<LxcManager>,
     pub open_authed_websockets: Mutex<BTreeMap<HashSessionToken, Vec<oneshot::Sender<()>>>>,
     pub rpc_stream_continuations: Mutex<BTreeMap<RequestGuid, RpcContinuation>>,
     pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
@@ -190,6 +192,7 @@ impl RpcContext {
             shutdown,
             tor_socks: tor_proxy,
             notification_manager,
+            lxc_manager: Arc::new(LxcManager::new()),
             open_authed_websockets: Mutex::new(BTreeMap::new()),
             rpc_stream_continuations: Mutex::new(BTreeMap::new()),
             wifi_manager: base

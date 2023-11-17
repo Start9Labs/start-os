@@ -2,13 +2,13 @@ use std::collections::BTreeMap;
 
 use indexmap::IndexSet;
 pub use models::InterfaceId;
+use models::PackageId;
 use serde::{Deserialize, Deserializer, Serialize};
 use sqlx::{Executor, Postgres};
 use tracing::instrument;
 
 use crate::db::model::{InterfaceAddressMap, InterfaceAddresses};
 use crate::net::keys::Key;
-use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Port;
 use crate::{Error, ResultExt};
 

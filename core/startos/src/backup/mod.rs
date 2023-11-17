@@ -5,7 +5,7 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
-use models::{ImageId, OptionExt};
+use models::{ImageId, OptionExt, PackageId};
 use reqwest::Url;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
@@ -22,7 +22,6 @@ use crate::net::keys::Key;
 use crate::prelude::*;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
-use crate::s9pk::manifest::PackageId;
 use crate::util::serde::{Base32, Base64, IoFormat};
 use crate::util::Version;
 use crate::version::{Current, VersionT};
@@ -80,7 +79,6 @@ pub struct BackupActions {
 impl BackupActions {
     pub fn validate(
         &self,
-        _container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,

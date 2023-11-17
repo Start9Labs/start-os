@@ -10,11 +10,11 @@ use tokio::io::AsyncRead;
 use tracing::instrument;
 
 use crate::context::SdkContext;
-use crate::s9pk::builder::S9pkPacker;
-use crate::s9pk::docker::DockerMultiArch;
-use crate::s9pk::git_hash::GitHash;
-use crate::s9pk::manifest::Manifest;
-use crate::s9pk::reader::S9pkReader;
+use crate::s9pk::v1::builder::S9pkPacker;
+use crate::s9pk::v1::docker::DockerMultiArch;
+use crate::s9pk::v1::git_hash::GitHash;
+use crate::s9pk::v1::manifest::Manifest;
+use crate::s9pk::v1::reader::S9pkReader;
 use crate::util::display_none;
 use crate::util::io::BufferedWriteReader;
 use crate::util::serde::IoFormat;

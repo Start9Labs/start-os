@@ -4,7 +4,7 @@ use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::{Future, FutureExt};
 use indexmap::IndexMap;
-use models::ImageId;
+use models::{ImageId, PackageId};
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -13,7 +13,6 @@ use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{PackageProcedure, ProcedureName};
-use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::volume::Volumes;
 use crate::{Error, ResultExt};
@@ -29,7 +28,6 @@ impl Migrations {
     #[instrument(skip_all)]
     pub fn validate(
         &self,
-        _container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
@@ -60,7 +58,6 @@ impl Migrations {
     #[instrument(skip_all)]
     pub fn from<'a>(
         &'a self,
-        _container: &'a Option<DockerContainers>,
         ctx: &'a RpcContext,
         version: &'a Version,
         pkg_id: &'a PackageId,

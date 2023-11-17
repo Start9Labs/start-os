@@ -7,6 +7,7 @@ use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use digest::generic_array::GenericArray;
 use digest::OutputSizeUser;
+use models::PackageId;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -23,7 +24,6 @@ use crate::disk::mount::filesystem::{FileSystem, MountType, ReadWrite};
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::PartitionInfo;
 use crate::prelude::*;
-use crate::s9pk::manifest::PackageId;
 use crate::util::serde::{deserialize_from_str, display_serializable, serialize_display};
 use crate::util::{display_none, Version};
 

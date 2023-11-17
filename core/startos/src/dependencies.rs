@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
-use models::OptionExt;
+use models::{OptionExt, PackageId};
 use rand::SeedableRng;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,7 @@ use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencies, Database};
 use crate::prelude::*;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
-use crate::s9pk::manifest::{Manifest, PackageId};
+use crate::s9pk::manifest::Manifest;
 use crate::status::DependencyConfigErrors;
 use crate::util::serde::display_serializable;
 use crate::util::{display_none, Version};

@@ -1,7 +1,6 @@
-use models::Version;
+use models::{PackageId, Version};
 
 use crate::prelude::*;
-use crate::s9pk::manifest::PackageId;
 
 pub fn get_packages(db: Peeked) -> Result<Vec<(PackageId, Version)>, Error> {
     Ok(db

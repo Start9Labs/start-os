@@ -4,6 +4,7 @@ use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
+use models::PackageId;
 use rpc_toolkit::command;
 use sqlx::PgPool;
 use tokio::sync::Mutex;
@@ -12,7 +13,6 @@ use tracing::instrument;
 use crate::backup::BackupReport;
 use crate::context::RpcContext;
 use crate::prelude::*;
-use crate::s9pk::manifest::PackageId;
 use crate::util::display_none;
 use crate::util::serde::display_serializable;
 use crate::{Error, ErrorKind, ResultExt};

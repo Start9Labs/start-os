@@ -126,7 +126,7 @@ regex = "1.10.2"
 reqwest = { version = "0.11.22", features = ["stream", "json", "socks"] }
 reqwest_cookie_store = "0.6.0"
 rpassword = "7.2.0"
-rpc-toolkit = "0.2.2"
+rpc-toolkit = "0.2.3"
 rust-argon2 = "2.0.0"
 scopeguard = "1.1" # because avahi-sys fucks your shit up
 semver = { version = "1.0.20", features = ["serde"] }

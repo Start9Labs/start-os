@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
+use models::PackageId;
 use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
@@ -13,7 +14,6 @@ use crate::backup::target::BackupInfo;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::util::EmbassyOsRecoveryInfo;
 use crate::middleware::encrypt::{decrypt_slice, encrypt_slice};
-use crate::s9pk::manifest::PackageId;
 use crate::util::serde::IoFormat;
 use crate::util::FileLock;
 use crate::volume::BACKUP_DIR;

@@ -3,7 +3,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
-use models::InterfaceId;
+use models::{InterfaceId, PackageId};
 use sqlx::PgExecutor;
 use tracing::instrument;
 
@@ -15,7 +15,6 @@ use crate::net::mdns::MdnsController;
 use crate::net::ssl::{export_cert, export_key, SslManager};
 use crate::net::tor::TorController;
 use crate::net::vhost::{AlpnInfo, VHostController};
-use crate::s9pk::manifest::PackageId;
 use crate::volume::cert_dir;
 use crate::{Error, HOST_IP};
 

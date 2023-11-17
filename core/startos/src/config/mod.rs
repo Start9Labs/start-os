@@ -6,7 +6,7 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use indexmap::IndexSet;
 use itertools::Itertools;
-use models::{ErrorKind, OptionExt};
+use models::{ErrorKind, OptionExt, PackageId};
 use patch_db::value::InternedString;
 use patch_db::Value;
 use regex::Regex;
@@ -15,7 +15,6 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::prelude::*;
-use crate::s9pk::manifest::PackageId;
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
 use crate::Error;

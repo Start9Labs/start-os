@@ -4,7 +4,7 @@ use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use indexmap::IndexSet;
 pub use models::ActionId;
-use models::ImageId;
+use models::{ImageId, PackageId};
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -14,7 +14,6 @@ use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{PackageProcedure, ProcedureName};
-use crate::s9pk::manifest::PackageId;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
 use crate::util::Version;
 use crate::volume::Volumes;
@@ -60,7 +59,6 @@ impl Action {
     #[instrument(skip_all)]
     pub fn validate(
         &self,
-        _container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,

@@ -2,13 +2,12 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::{DateTime, Utc};
 pub use models::HealthCheckId;
-use models::ImageId;
+use models::{ImageId, PackageId};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
-use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Duration;
 use crate::util::Version;
 use crate::volume::Volumes;

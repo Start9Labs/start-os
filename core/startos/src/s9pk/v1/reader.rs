@@ -20,7 +20,7 @@ use super::header::{FileSection, Header, TableOfContents};
 use super::manifest::{Manifest, PackageId};
 use super::SIG_CONTEXT;
 use crate::install::progress::InstallProgressTracker;
-use crate::s9pk::docker::DockerReader;
+use crate::s9pk::v1::docker::DockerReader;
 use crate::util::Version;
 use crate::{Error, ResultExt};
 
@@ -179,33 +179,18 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
         }
         let image_tags = self.image_tags().await?;
         let man = self.manifest().await?;
-        let containers = &man.containers;
         let validated_image_ids = image_tags
             .into_iter()
             .map(|i| i.validate(&man.id, &man.version).map(|_| i.image_id))
             .collect::<Result<BTreeSet<ImageId>, _>>()?;
         man.description.validate()?;
         man.actions.0.iter().try_for_each(|(_, action)| {
-            action.validate(
-                containers,
-                &man.eos_version,
-                &man.volumes,
-                &validated_image_ids,
-            )
+            action.validate(&man.eos_version, &man.volumes, &validated_image_ids)
         })?;
-        man.backup.validate(
-            containers,
-            &man.eos_version,
-            &man.volumes,
-            &validated_image_ids,
-        )?;
+        man.backup
+            .validate(&man.eos_version, &man.volumes, &validated_image_ids)?;
         if let Some(cfg) = &man.config {
-            cfg.validate(
-                containers,
-                &man.eos_version,
-                &man.volumes,
-                &validated_image_ids,
-            )?;
+            cfg.validate(&man.eos_version, &man.volumes, &validated_image_ids)?;
         }
         man.health_checks
             .validate(&man.eos_version, &man.volumes, &validated_image_ids)?;
@@ -213,12 +198,8 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
         man.main
             .validate(&man.eos_version, &man.volumes, &validated_image_ids, false)
             .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Main"))?;
-        man.migrations.validate(
-            containers,
-            &man.eos_version,
-            &man.volumes,
-            &validated_image_ids,
-        )?;
+        man.migrations
+            .validate(&man.eos_version, &man.volumes, &validated_image_ids)?;
 
         if man.replaces.len() >= MAX_REPLACES {
             return Err(Error::new(
@@ -239,14 +220,6 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
             ));
         }
 
-        if man.containers.is_some()
-            && matches!(man.main, crate::procedure::PackageProcedure::Docker(_))
-        {
-            return Err(Error::new(
-                eyre!("Cannot have a main docker and a main in containers"),
-                crate::ErrorKind::ValidateS9pk,
-            ));
-        }
         if let Some(props) = &man.properties {
             props
                 .validate(&man.eos_version, &man.volumes, &validated_image_ids, true)

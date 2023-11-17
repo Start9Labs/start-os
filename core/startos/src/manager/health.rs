@@ -1,9 +1,8 @@
-use models::OptionExt;
+use models::{OptionExt, PackageId};
 use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::prelude::*;
-use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
 use crate::Error;
 

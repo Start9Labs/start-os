@@ -14,7 +14,6 @@ use crate::dependencies::Dependencies;
 use crate::migration::Migrations;
 use crate::net::interface::Interfaces;
 use crate::prelude::*;
-use crate::procedure::docker::DockerContainers;
 use crate::procedure::PackageProcedure;
 use crate::status::health_check::HealthChecks;
 use crate::util::serde::Regex;
@@ -69,7 +68,6 @@ pub struct Manifest {
     // pub permissions: Permissions,
     #[serde(default)]
     pub dependencies: Dependencies,
-    pub containers: Option<DockerContainers>,
 
     #[serde(default)]
     pub replaces: Vec<String>,

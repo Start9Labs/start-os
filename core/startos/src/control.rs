@@ -1,10 +1,10 @@
 use color_eyre::eyre::eyre;
+use models::PackageId;
 use rpc_toolkit::command;
 use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::prelude::*;
-use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
 use crate::util::display_none;
 use crate::Error;

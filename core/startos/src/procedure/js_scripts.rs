@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use container_init::ProcessGroupId;
 use helpers::UnixRpcClient;
-use models::VolumeId;
+use models::{PackageId, VolumeId};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
@@ -12,7 +12,6 @@ use tracing::instrument;
 
 use super::ProcedureName;
 use crate::prelude::*;
-use crate::s9pk::manifest::PackageId;
 use crate::util::serde::IoFormat;
 use crate::util::{Invoke, Version};
 use crate::volume::Volumes;

@@ -7,13 +7,13 @@ use futures::future::BoxFuture;
 use futures::{FutureExt, TryFutureExt};
 use lazy_async_pool::Pool;
 use models::{Error, ErrorKind, ResultExt};
+use rpc_toolkit::yajrc::{Id, RpcError, RpcMethod, RpcRequest, RpcResponse};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::net::UnixStream;
 use tokio::runtime::Handle;
 use tokio::sync::{oneshot, Mutex};
-use yajrc::{Id, RpcError, RpcMethod, RpcRequest, RpcResponse};
 
 use crate::NonDetachingJoinHandle;
 
@@ -108,7 +108,7 @@ impl RpcClient {
                 .write_all((serde_json::to_string(&request)? + "\n").as_bytes())
                 .await
                 .map_err(|e| {
-                    let mut err = yajrc::INTERNAL_ERROR.clone();
+                    let mut err = rpc_toolkit::yajrc::INTERNAL_ERROR.clone();
                     err.data = Some(json!(e.to_string()));
                     err
                 })?;
@@ -125,7 +125,7 @@ impl RpcClient {
             "Client has finished {:?}",
             futures::poll!(&mut self._handler)
         );
-        let mut err = yajrc::INTERNAL_ERROR.clone();
+        let mut err = rpc_toolkit::yajrc::INTERNAL_ERROR.clone();
         err.data = Some(json!("RpcClient thread has terminated"));
         Err(err)
     }
@@ -177,7 +177,7 @@ impl UnixRpcClient {
             let mut client = self.pool.clone().get().await?;
             let res = client.request(method.clone(), params.clone()).await;
             match &res {
-                Err(e) if e.code == yajrc::INTERNAL_ERROR.code => {
+                Err(e) if e.code == rpc_toolkit::yajrc::INTERNAL_ERROR.code => {
                     client.destroy();
                 }
                 _ => break res,

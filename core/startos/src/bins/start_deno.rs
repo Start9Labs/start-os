@@ -1,9 +1,9 @@
+use models::PackageId;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{command, run_cli, Context};
 use serde_json::Value;
 
 use crate::procedure::js_scripts::ExecuteArgs;
-use crate::s9pk::manifest::PackageId;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
 use crate::version::{Current, VersionT};
 use crate::Error;
