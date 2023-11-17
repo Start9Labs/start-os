@@ -3800,9 +3800,12 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "1.0.16"
+version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58bc9567378fc7690d6b2addae4e60ac2eeea07becb2c64b9f218b53865cba2a"
+checksum = "836fa6a3e1e547f9a2c4040802ec865b5d85f4014efe00555d7090a3dcaa1090"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "serde"
@@ -4399,7 +4402,7 @@ dependencies = [
 
 [[package]]
 name = "start-os"
-version = "0.3.5"
+version = "0.3.5-rev.1"
 dependencies = [
  "aes",
  "async-compression",
@@ -4475,6 +4478,7 @@ dependencies = [
  "rpc-toolkit",
  "rust-argon2 2.0.0",
  "scopeguard",
+ "semver",
  "serde",
  "serde_json",
  "serde_with",

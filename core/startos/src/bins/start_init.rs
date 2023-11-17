@@ -3,29 +3,45 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+use helpers::NonDetachingJoinHandle;
 use tokio::process::Command;
 use tracing::instrument;
 
 use crate::context::rpc::RpcContextConfig;
 use crate::context::{DiagnosticContext, InstallContext, SetupContext};
-use crate::disk::fsck::RepairStrategy;
+use crate::disk::fsck::{RepairStrategy, RequiresReboot};
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::REPAIR_DISK_PATH;
 use crate::firmware::update_firmware;
 use crate::init::STANDBY_MODE_PATH;
 use crate::net::web_server::WebServer;
 use crate::shutdown::Shutdown;
-use crate::sound::CHIME;
+use crate::sound::{BEP, CHIME};
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt, PLATFORM};
 
 #[instrument(skip_all)]
 async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
-    if update_firmware().await?.0 {
-        return Ok(Some(Shutdown {
-            export_args: None,
-            restart: true,
-        }));
+    let song = NonDetachingJoinHandle::from(tokio::spawn(async {
+        loop {
+            BEP.play().await.unwrap();
+            BEP.play().await.unwrap();
+            tokio::time::sleep(Duration::from_secs(30)).await;
+        }
+    }));
+
+    match update_firmware().await {
+        Ok(RequiresReboot(true)) => {
+            return Ok(Some(Shutdown {
+                export_args: None,
+                restart: true,
+            }))
+        }
+        Err(e) => {
+            tracing::warn!("Error performing firmware update: {e}");
+            tracing::debug!("{e:?}");
+        }
+        _ => (),
     }
 
     Command::new("ln")
@@ -74,6 +90,7 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Er
         )
         .await?;
 
+        drop(song);
         tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
         CHIME.play().await?;
 
@@ -100,8 +117,10 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Er
         )
         .await?;
 
+        drop(song);
         tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
         CHIME.play().await?;
+
         ctx.shutdown
             .subscribe()
             .recv()
@@ -152,6 +171,7 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Er
         }
         tracing::info!("Loaded Disk");
         crate::init::init(&cfg).await?;
+        drop(song);
     }
 
     Ok(None)

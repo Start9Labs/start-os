@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fmt;
 
 use chrono::Utc;
@@ -20,11 +21,12 @@ use crate::logs::{
 };
 use crate::prelude::*;
 use crate::shutdown::Shutdown;
+use crate::util::cpupower::{get_available_governors, set_governor, Governor};
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::util::{display_none, Invoke};
 use crate::{Error, ErrorKind, ResultExt};
 
-#[command(subcommands(zram))]
+#[command(subcommands(zram, governor))]
 pub async fn experimental() -> Result<(), Error> {
     Ok(())
 }
@@ -83,6 +85,56 @@ pub async fn zram(#[context] ctx: RpcContext, #[arg] enable: bool) -> Result<(),
         })
         .await?;
     Ok(())
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GovernorInfo {
+    current: Option<Governor>,
+    available: BTreeSet<Governor>,
+}
+
+fn display_governor_info(arg: GovernorInfo, matches: &ArgMatches) {
+    use prettytable::*;
+
+    if matches.is_present("format") {
+        return display_serializable(arg, matches);
+    }
+
+    let mut table = Table::new();
+    table.add_row(row![bc -> "GOVERNORS"]);
+    for entry in arg.available {
+        if Some(&entry) == arg.current.as_ref() {
+            table.add_row(row![g -> format!("* {entry} (current)")]);
+        } else {
+            table.add_row(row![entry]);
+        }
+    }
+    table.print_tty(false).unwrap();
+}
+
+#[command(display(display_governor_info))]
+pub async fn governor(
+    #[context] ctx: RpcContext,
+    #[allow(unused_variables)]
+    #[arg(long = "format")]
+    format: Option<IoFormat>,
+    #[arg] set: Option<Governor>,
+) -> Result<GovernorInfo, Error> {
+    let available = get_available_governors().await?;
+    if let Some(set) = set {
+        if !available.contains(&set) {
+            return Err(Error::new(
+                eyre!("Governor {set} not available"),
+                ErrorKind::InvalidRequest,
+            ));
+        }
+        set_governor(&set).await?;
+        ctx.db
+            .mutate(|d| d.as_server_info_mut().as_governor_mut().ser(&Some(set)))
+            .await?;
+    }
+    let current = ctx.db.peek().await.as_server_info().as_governor().de()?;
+    Ok(GovernorInfo { current, available })
 }
 
 #[derive(Serialize, Deserialize)]
