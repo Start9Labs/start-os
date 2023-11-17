@@ -11,7 +11,7 @@ use crate::Error;
 pub mod btrfs;
 pub mod ext4;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 #[must_use]
 pub struct RequiresReboot(pub bool);
 impl std::ops::BitOrAssign for RequiresReboot {
