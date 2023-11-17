@@ -326,12 +326,13 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             tracing::info!("Created Docker Network");
         }
 
+        let datadir = cfg.datadir();
         tracing::info!("Loading System Docker Images");
-        crate::install::load_images("/usr/lib/startos/system-images").await?;
+        crate::install::rebuild_from("/usr/lib/startos/system-images", &datadir).await?;
         tracing::info!("Loaded System Docker Images");
 
         tracing::info!("Loading Package Docker Images");
-        crate::install::load_images(cfg.datadir().join(PKG_ARCHIVE_DIR)).await?;
+        crate::install::rebuild_from(datadir.join(PKG_ARCHIVE_DIR), &datadir).await?;
         tracing::info!("Loaded Package Docker Images");
     }
 
