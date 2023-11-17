@@ -22,7 +22,7 @@ pub mod wifi;
 
 pub const PACKAGE_CERT_PATH: &str = "/var/lib/embassy/ssl";
 
-#[command(subcommands(tor::tor, dhcp::dhcp, ssl::ssl))]
+#[command(subcommands(tor::tor, dhcp::dhcp, ssl::ssl, keys::rotate_key))]
 pub fn net() -> Result<(), Error> {
     Ok(())
 }
