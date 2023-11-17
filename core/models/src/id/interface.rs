@@ -1,11 +1,18 @@
 use std::path::Path;
+use std::str::FromStr;
 
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::Id;
+use crate::{Id, InvalidId};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct InterfaceId(Id);
+impl FromStr for InterfaceId {
+    type Err = InvalidId;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(Id::try_from(s.to_owned())?))
+    }
+}
 impl From<Id> for InterfaceId {
     fn from(id: Id) -> Self {
         Self(id)
