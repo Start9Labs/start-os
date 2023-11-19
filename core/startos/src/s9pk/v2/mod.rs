@@ -5,6 +5,22 @@ use crate::s9pk::merkle_archive::MerkleArchive;
 
 const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x02];
 
+pub mod compat;
+
+/**
+    /
+    ├── manifest.json
+    ├── LICENSE.md
+    ├── instructions.md
+    ├── icon.<ext>
+    ├── images
+    │   └── <arch>
+    │       └── <id>.squashfs (xN)
+    ├── assets
+    │   └── <id>.squashfs (xN)
+    └── javascript.squashfs
+*/
+
 pub struct S9pk<S>(MerkleArchive<S>);
 impl<S: FileSource> S9pk<S> {
     pub async fn serialize<W: Sink>(&mut self, w: &mut W, verify: bool) -> Result<(), Error> {
