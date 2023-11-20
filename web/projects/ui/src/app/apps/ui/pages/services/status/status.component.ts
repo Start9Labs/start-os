@@ -21,6 +21,7 @@ export class StatusComponent {
   @Input() style?: string = 'regular'
   @Input() weight?: string = 'normal'
   @Input() installProgress?: InstallProgress
+  @Input() sigtermTimeout?: string | null = null
 
   readonly connected$ = this.connectionService.connected$
 
