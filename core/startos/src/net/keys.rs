@@ -280,7 +280,7 @@ pub fn test_keygen() {
     key.openssl_key_nistp256();
 }
 
-fn display_requires_reboot(arg: RequiresReboot, matches: &ArgMatches) {
+fn display_requires_reboot(arg: RequiresReboot, _matches: &ArgMatches) {
     if arg.0 {
         println!("Server must be restarted for changes to take effect");
     }
