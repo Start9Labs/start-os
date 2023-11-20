@@ -23,6 +23,7 @@ use tokio_util::io::ReaderStream;
 use crate::context::{DiagnosticContext, InstallContext, RpcContext, SetupContext};
 use crate::core::rpc_continuations::RequestGuid;
 use crate::db::subscribe;
+use crate::hostname::Hostname;
 use crate::install::PKG_PUBLIC_DIR;
 use crate::middleware::auth::{auth as auth_middleware, HasValidSession};
 use crate::middleware::cors::cors;
@@ -339,7 +340,8 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
             .await
         }
         (&Method::GET, Some(("eos", "local.crt"))) => {
-            cert_send(&ctx.account.read().await.root_ca_cert)
+            let account = ctx.account.read().await;
+            cert_send(&account.root_ca_cert, &account.hostname)
         }
         (&Method::GET, _) => {
             let uri_path = UiMode::Main.path(
@@ -405,7 +407,7 @@ fn bad_request() -> Response<Body> {
         .unwrap()
 }
 
-fn cert_send(cert: &X509) -> Result<Response<Body>, Error> {
+fn cert_send(cert: &X509, hostname: &Hostname) -> Result<Response<Body>, Error> {
     let pem = cert.to_pem()?;
     Response::builder()
         .status(StatusCode::OK)
@@ -417,8 +419,12 @@ fn cert_send(cert: &X509) -> Result<Response<Body>, Error> {
             )
             .to_lowercase(),
         )
-        .header(http::header::CONTENT_TYPE, "application/x-pem-file")
+        .header(http::header::CONTENT_TYPE, "application/x-x509-ca-cert")
         .header(http::header::CONTENT_LENGTH, pem.len())
+        .header(
+            http::header::CONTENT_DISPOSITION,
+            format!("attachment; filename={}.crt", &hostname.0),
+        )
         .body(Body::from(pem))
         .with_kind(ErrorKind::Network)
 }
