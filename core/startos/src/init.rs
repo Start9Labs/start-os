@@ -4,7 +4,7 @@ use std::path::Path;
 use std::time::{Duration, SystemTime};
 
 use color_eyre::eyre::eyre;
-use helpers::NonDetachingJoinHandle;
+
 use models::ResultExt;
 use rand::random;
 use sqlx::{Pool, Postgres};
@@ -18,9 +18,9 @@ use crate::disk::mount::util::unmount;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
-use crate::sound::BEP;
+
 use crate::util::cpupower::{
-    current_governor, get_available_governors, get_preferred_governor, set_governor,
+    get_available_governors, get_preferred_governor, set_governor,
 };
 use crate::util::docker::{create_bridge_network, CONTAINER_DATADIR, CONTAINER_TOOL};
 use crate::util::Invoke;
