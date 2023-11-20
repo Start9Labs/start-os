@@ -25,12 +25,12 @@ export class HeaderNotificationsService {
     return this.stream$
   }
 
-  async delete(id: number, index: number): Promise<void> {
+  async delete(id: number): Promise<void> {
     const loader = this.loader.open('Deleting...').subscribe()
 
     try {
       await this.api.deleteNotification({ id })
-      this.stream$.next(this.current.splice(index, 1) || null)
+      this.stream$.next(this.current.filter(a => a.id !== id))
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

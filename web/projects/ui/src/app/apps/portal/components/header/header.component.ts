@@ -57,7 +57,9 @@ import { HeaderNotificationsComponent } from './header-notifications.component'
       </button>
     </tui-badged-content>
     <header-menu></header-menu>
-    <header-notifications *tuiSidebar="!!(open$ | async); direction: 'right'" />
+    <header-notifications
+      *tuiSidebar="!!(open$ | async); direction: 'right'; autoWidth: true"
+    />
   `,
   styles: [
     `

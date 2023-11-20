@@ -50,7 +50,6 @@ import { HeaderNotificationsService } from './header-notifications.service'
       <header-notification
         *ngFor="
           let not of service.notification$ | async;
-          let i = index;
           empty: blank;
           else: loading
         "
@@ -75,7 +74,7 @@ import { HeaderNotificationsService } from './header-notifications.service'
           appearance="icon"
           size="xs"
           style="align-self: flex-start; margin: 0.75rem 0;"
-          (click)="service.delete(not.id, i)"
+          (click)="service.delete(not.id)"
         ></button>
       </header-notification>
       <ng-template #blank>
@@ -103,6 +102,8 @@ import { HeaderNotificationsService } from './header-notifications.service'
         display: flex;
         flex-direction: column;
         height: 100%;
+        width: 22rem;
+        max-width: 80vw;
       }
     `,
   ],
