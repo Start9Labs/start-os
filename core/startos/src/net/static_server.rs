@@ -419,7 +419,7 @@ fn cert_send(cert: &X509, hostname: &Hostname) -> Result<Response<Body>, Error> 
             )
             .to_lowercase(),
         )
-        .header(http::header::CONTENT_TYPE, "application/x-pem-file")
+        .header(http::header::CONTENT_TYPE, "application/x-x509-ca-cert")
         .header(http::header::CONTENT_LENGTH, pem.len())
         .header(
             http::header::CONTENT_DISPOSITION,
