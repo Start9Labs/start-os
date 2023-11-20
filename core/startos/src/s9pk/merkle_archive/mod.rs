@@ -117,6 +117,9 @@ impl<S> Entry<S> {
             contents,
         }
     }
+    pub fn file(source: S) -> Self {
+        Self::new(EntryContents::File(FileContents::new(source)))
+    }
     pub fn hash(&self) -> Option<Hash> {
         self.hash
     }
