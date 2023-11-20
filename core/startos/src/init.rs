@@ -342,6 +342,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             .arg("run")
             .arg("-d")
             .arg("--rm")
+            .arg("--init")
             .arg("--network=start9")
             .arg("--name=netdummy")
             .arg("start9/x_system/utils:latest")
@@ -379,11 +380,11 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         tracing::info!("Set CPU Governor");
     }
 
-    let mut time_not_synced = true;
+    server_info.ntp_synced = false;
     let mut not_made_progress = 0u32;
     for _ in 0..1800 {
         if check_time_is_synchronized().await? {
-            time_not_synced = false;
+            server_info.ntp_synced = true;
             break;
         }
         let t = SystemTime::now();
@@ -400,7 +401,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             break;
         }
     }
-    if time_not_synced {
+    if !server_info.ntp_synced {
         tracing::warn!("Timed out waiting for system time to synchronize");
     } else {
         tracing::info!("Syncronized system clock");
@@ -416,21 +417,6 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         backup_progress: None,
         shutting_down: false,
         restarting: false,
-    };
-
-    server_info.ntp_synced = if time_not_synced {
-        let db = db.clone();
-        tokio::spawn(async move {
-            while !check_time_is_synchronized().await.unwrap() {
-                tokio::time::sleep(Duration::from_secs(30)).await;
-            }
-            db.mutate(|v| v.as_server_info_mut().as_ntp_synced_mut().ser(&true))
-                .await
-                .unwrap()
-        });
-        false
-    } else {
-        true
     };
 
     db.mutate(|v| {
