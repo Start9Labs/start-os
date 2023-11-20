@@ -4,6 +4,7 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 use helpers::to_tmp_path;
 use josekit::jwk::Jwk;
@@ -25,7 +26,7 @@ use crate::db::model::{CurrentDependents, Database, PackageDataEntryMatchModelRe
 use crate::db::prelude::PatchDbExt;
 use crate::dependencies::compute_dependency_config_errs;
 use crate::disk::OsPartitionInfo;
-use crate::init::init_postgres;
+use crate::init::{check_time_is_synchronized, init_postgres};
 use crate::install::cleanup::{cleanup_failed, uninstall};
 use crate::lxc::LxcManager;
 use crate::manager::ManagerMap;
@@ -176,6 +177,19 @@ impl RpcContext {
         let tor_proxy_url = format!("socks5h://{tor_proxy}");
         let devices = lshw().await?;
         let ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
+
+        if !db.peek().await.as_server_info().as_ntp_synced().de()? {
+            let db = db.clone();
+            tokio::spawn(async move {
+                while !check_time_is_synchronized().await.unwrap() {
+                    tokio::time::sleep(Duration::from_secs(30)).await;
+                }
+                db.mutate(|v| v.as_server_info_mut().as_ntp_synced_mut().ser(&true))
+                    .await
+                    .unwrap()
+            });
+        }
+
         let seed = Arc::new(RpcContextSeed {
             is_closed: AtomicBool::new(false),
             datadir: base.datadir().to_path_buf(),
