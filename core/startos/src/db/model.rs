@@ -22,7 +22,7 @@ use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::prelude::*;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::Status;
-use crate::util::cpupower::{get_preferred_governor, Governor};
+use crate::util::cpupower::{Governor};
 use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::{ARCH, PLATFORM};
