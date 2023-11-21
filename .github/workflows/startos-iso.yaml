@@ -41,11 +41,11 @@ on:
   push:
     branches:
       - master
-      - next
+      - next/*
   pull_request:
     branches:
       - master
-      - next
+      - next/*
 
 env:
   NODEJS_VERSION: "18.15.0"

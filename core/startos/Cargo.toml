@@ -14,7 +14,7 @@ keywords = [
 name = "start-os"
 readme = "README.md"
 repository = "https://github.com/Start9Labs/start-os"
-version = "0.3.5"
+version = "0.3.5-rev.1"
 license = "MIT"
 
 [lib]
@@ -128,6 +128,7 @@ rpassword = "7.2.0"
 rpc-toolkit = "0.2.2"
 rust-argon2 = "2.0.0"
 scopeguard = "1.1" # because avahi-sys fucks your shit up
+semver = { version = "1.0.20", features = ["serde"] }
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_cbor = { package = "ciborium", version = "0.2.1" }
 serde_json = "1.0"
@@ -167,6 +168,9 @@ uuid = { version = "1.4.1", features = ["v4"] }
 zeroize = "1.6.0"
 
 [profile.test]
+opt-level = 3
+
+[profile.dev]
 opt-level = 3
 
 [profile.dev.package.backtrace]

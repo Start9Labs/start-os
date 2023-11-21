@@ -8,14 +8,15 @@ ARCH := $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo aarch64; else ec
 IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo iso; fi)
 BINS := core/target/$(ARCH)-unknown-linux-gnu/release/startbox core/target/aarch64-unknown-linux-musl/release/container-init core/target/x86_64-unknown-linux-musl/release/container-init
 WEB_UIS := web/dist/raw/ui web/dist/raw/setup-wizard web/dist/raw/diagnostic-ui web/dist/raw/install-wizard
-BUILD_SRC := $(shell git ls-files build) build/lib/depends build/lib/conflicts
+FIRMWARE_ROMS := ./firmware/$(PLATFORM) $(shell jq --raw-output '.[] | select(.platform[] | contains("$(PLATFORM)")) | "./firmware/$(PLATFORM)/" + .id + ".rom.gz"' build/lib/firmware.json)
+BUILD_SRC := $(shell git ls-files build) build/lib/depends build/lib/conflicts $(FIRMWARE_ROMS)
 DEBIAN_SRC := $(shell git ls-files debian/)
 IMAGE_RECIPE_SRC := $(shell git ls-files image-recipe/)
 STARTD_SRC := core/startos/startd.service $(BUILD_SRC)
 COMPAT_SRC := $(shell git ls-files system-images/compat/)
 UTILS_SRC := $(shell git ls-files system-images/utils/)
 BINFMT_SRC := $(shell git ls-files system-images/binfmt/)
-CORE_SRC := $(shell git ls-files core) $(shell git ls-files --recurse-submodules patch-db) web/dist/static
+CORE_SRC := $(shell git ls-files core) $(shell git ls-files --recurse-submodules patch-db) web/dist/static web/patchdb-ui-seed.json $(GIT_HASH_FILE)
 WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules web/config.json patch-db/client/dist web/patchdb-ui-seed.json
 WEB_UI_SRC := $(shell git ls-files web/projects/ui)
 WEB_SETUP_WIZARD_SRC := $(shell git ls-files web/projects/setup-wizard)
@@ -48,7 +49,7 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all metadata install clean format sdk snapshots uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole
+.PHONY: all metadata install clean format sdk snapshots uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole test
 
 all: $(ALL_TARGETS)
 
@@ -72,6 +73,7 @@ clean:
 	rm -rf dpkg-workdir
 	rm -rf image-recipe/deb
 	rm -rf results
+	rm -rf build/lib/firmware
 	rm -f ENVIRONMENT.txt
 	rm -f PLATFORM.txt
 	rm -f GIT_HASH.txt
@@ -79,6 +81,9 @@ clean:
 
 format:
 	cd core && cargo +nightly fmt
+
+test: $(CORE_SRC) $(ENVIRONMENT_FILE)
+	cd core && cargo build && cargo test
 
 sdk:
 	cd core && ./install-sdk.sh
@@ -131,6 +136,8 @@ install: $(ALL_TARGETS)
 	$(call cp,system-images/compat/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/startos/system-images/compat.tar)
 	$(call cp,system-images/utils/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/startos/system-images/utils.tar)
 	$(call cp,system-images/binfmt/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/startos/system-images/binfmt.tar)
+	
+	$(call cp,firmware/$(PLATFORM),$(DESTDIR)/usr/lib/startos/firmware)
 
 update-overlay: $(ALL_TARGETS)
 	@echo "\033[33m!!! THIS WILL ONLY REFLASH YOUR DEVICE IN MEMORY !!!\033[0m"
@@ -162,6 +169,9 @@ upload-ota: results/$(BASENAME).squashfs
 build/lib/depends build/lib/conflicts: build/dpkg-deps/*
 	build/dpkg-deps/generate.sh
 
+$(FIRMWARE_ROMS): build/lib/firmware.json download-firmware.sh $(PLATFORM_FILE)
+	./download-firmware.sh $(PLATFORM)
+
 system-images/compat/docker-images/$(ARCH).tar: $(COMPAT_SRC) core/Cargo.lock
 	cd system-images/compat && make docker-images/$(ARCH).tar && touch docker-images/$(ARCH).tar
 
@@ -175,7 +185,7 @@ snapshots: core/snapshot-creator/Cargo.toml
 	cd core/ && ARCH=aarch64 ./build-v8-snapshot.sh
 	cd core/ && ARCH=x86_64 ./build-v8-snapshot.sh
 
-$(BINS): $(CORE_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) web/patchdb-ui-seed.json
+$(BINS): $(CORE_SRC) $(ENVIRONMENT_FILE)
 	cd core && ARCH=$(ARCH) ./build-prod.sh
 	touch $(BINS)
 

@@ -53,11 +53,6 @@ lazy_static! {
     static ref PROGRESS_REGEX: Regex = Regex::new("PROGRESS=([0-9]+)").unwrap();
 }
 
-#[test]
-fn random_key() {
-    println!("x'{}'", hex::encode(rand::random::<[u8; 32]>()));
-}
-
 #[command(subcommands(list_services, logs, reset))]
 pub fn tor() -> Result<(), Error> {
     Ok(())
@@ -684,6 +679,7 @@ impl TorControl {
 }
 
 #[tokio::test]
+#[ignore]
 async fn test() {
     let mut conn = torut::control::UnauthenticatedConn::new(
         TcpStream::connect(SocketAddr::from(([127, 0, 0, 1], 9051)))

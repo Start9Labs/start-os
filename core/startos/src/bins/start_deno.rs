@@ -4,7 +4,7 @@ use serde_json::Value;
 
 use crate::procedure::js_scripts::ExecuteArgs;
 use crate::s9pk::manifest::PackageId;
-use crate::util::serde::{display_serializable, parse_stdin_deserializable};
+use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
 use crate::version::{Current, VersionT};
 use crate::Error;
 
@@ -23,6 +23,9 @@ fn deno_api() -> Result<(), Error> {
 #[command(cli_only, display(display_serializable))]
 async fn execute(
     #[arg(stdin, parse(parse_stdin_deserializable))] arg: ExecuteArgs,
+    #[allow(unused_variables)]
+    #[arg(long = "format")]
+    format: Option<IoFormat>,
 ) -> Result<Result<Value, (i32, String)>, Error> {
     let ExecuteArgs {
         procedure,
@@ -41,6 +44,9 @@ async fn execute(
 #[command(cli_only, display(display_serializable))]
 async fn sandbox(
     #[arg(stdin, parse(parse_stdin_deserializable))] arg: ExecuteArgs,
+    #[allow(unused_variables)]
+    #[arg(long = "format")]
+    format: Option<IoFormat>,
 ) -> Result<Result<Value, (i32, String)>, Error> {
     let ExecuteArgs {
         procedure,
