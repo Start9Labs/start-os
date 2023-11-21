@@ -130,6 +130,18 @@ impl<S> Entry<S> {
         self.hash = None;
         &mut self.contents
     }
+    pub fn as_file(&self) -> Option<&FileContents<S>> {
+        match self.as_contents() {
+            EntryContents::File(f) => Some(f),
+            _ => None,
+        }
+    }
+    pub fn as_directory(&self) -> Option<&DirectoryContents<S>> {
+        match self.as_contents() {
+            EntryContents::Directory(d) => Some(d),
+            _ => None,
+        }
+    }
     pub fn into_contents(self) -> EntryContents<S> {
         self.contents
     }
@@ -159,6 +171,18 @@ impl<S: ArchiveSource> Entry<Section<S>> {
     }
 }
 impl<S: FileSource> Entry<S> {
+    pub async fn read_file_to_vec(&self) -> Result<Vec<u8>, Error> {
+        match self.as_contents() {
+            EntryContents::File(f) => Ok(f.to_vec(self.hash).await?),
+            EntryContents::Directory(_) => Err(Error::new(
+                eyre!("expected file, found directory"),
+                ErrorKind::ParseS9pk,
+            )),
+            EntryContents::Missing => {
+                Err(Error::new(eyre!("entry is missing"), ErrorKind::ParseS9pk))
+            }
+        }
+    }
     pub async fn to_missing(&self) -> Result<Self, Error> {
         let hash = if let Some(hash) = self.hash {
             hash

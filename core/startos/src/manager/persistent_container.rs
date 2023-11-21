@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -9,88 +10,15 @@ use tokio::sync::Mutex;
 use tracing::instrument;
 
 use super::manager_seed::ManagerSeed;
+use crate::disk::mount::filesystem::loop_dev::LoopDev;
+use crate::disk::mount::filesystem::ReadOnly;
+use crate::disk::mount::guard::MountGuard;
 use crate::lxc::{LxcConfig, LxcContainer};
+use crate::manager::rpc;
 use crate::prelude::*;
+use crate::ARCH;
 
 const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
-
-mod rpc {
-    use std::time::Duration;
-
-    use imbl_value::Value;
-    use models::ProcedureName;
-    use rpc_toolkit::yajrc::RpcMethod;
-
-    #[derive(Clone, serde::Deserialize, serde::Serialize)]
-    pub struct ExecuteParams {
-        procedure: String,
-        input: Value,
-        timeout: Option<Duration>,
-    }
-    impl ExecuteParams {
-        pub fn new(procedure: ProcedureName, input: Value, timeout: Option<Duration>) -> Self {
-            Self {
-                procedure: procedure.js_function_name(),
-                input,
-                timeout,
-            }
-        }
-    }
-
-    #[derive(Clone)]
-    pub struct Execute;
-    impl RpcMethod for Execute {
-        type Params = ExecuteParams;
-        type Response = Value;
-        fn as_str<'a>(&'a self) -> &'a str {
-            "execute"
-        }
-    }
-    impl serde::Serialize for Execute {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer,
-        {
-            serializer.serialize_str(self.as_str())
-        }
-    }
-
-    #[derive(Clone)]
-    pub struct Sandbox;
-    impl RpcMethod for Sandbox {
-        type Params = ExecuteParams;
-        type Response = Value;
-        fn as_str<'a>(&'a self) -> &'a str {
-            "sandbox"
-        }
-    }
-    impl serde::Serialize for Sandbox {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer,
-        {
-            serializer.serialize_str(self.as_str())
-        }
-    }
-
-    #[derive(Clone)]
-    pub struct Init;
-    impl RpcMethod for Init {
-        type Params = ();
-        type Response = ();
-        fn as_str<'a>(&'a self) -> &'a str {
-            "init"
-        }
-    }
-    impl serde::Serialize for Init {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer,
-        {
-            serializer.serialize_str(self.as_str())
-        }
-    }
-}
 
 struct ProcedureId(u64);
 
@@ -104,13 +32,41 @@ pub struct PersistentContainer {
     rpc_client: UnixRpcClient,
     manager_seed: Arc<ManagerSeed>,
     procedures: Mutex<Vec<(ProcedureName, ProcedureId)>>,
+    image_mounts: Vec<MountGuard>,
 }
 
 impl PersistentContainer {
     #[instrument(skip_all)]
     pub async fn init(seed: &Arc<ManagerSeed>) -> Result<Self, Error> {
         let lxc_container = seed.ctx.lxc_manager.create(LxcConfig::default()).await?;
-        // TODO: mount images
+        let mut image_mounts = Vec::new();
+        for (image_id, contents) in seed
+            .s9pk
+            .as_archive()
+            .contents()
+            .get_path(Path::new("images").join(&*ARCH))
+            .and_then(|f| f.as_directory())
+            .or_not_found("images for current architecture")?
+            .iter()
+            .filter_map(|(name, contents)| name.strip_suffix(".squashfs").map(|id| (id, contents)))
+        {
+            image_mounts.push(
+                MountGuard::mount(
+                    &LoopDev::from(&**contents.as_file().ok_or_else(|| {
+                        Error::new(
+                            eyre!("images/{}/{}.squashfs is not a file", &*ARCH, image_id),
+                            ErrorKind::ParseS9pk,
+                        )
+                    })?),
+                    lxc_container
+                        .rootfs_dir()
+                        .join("media/images")
+                        .join(image_id),
+                    ReadOnly,
+                )
+                .await?,
+            );
+        }
         let rpc_client = lxc_container.connect_rpc(Some(RPC_CONNECT_TIMEOUT)).await?;
         rpc_client.request(rpc::Init, ()).await.map_err(|e| {
             Error::new(
@@ -124,6 +80,7 @@ impl PersistentContainer {
             rpc_client,
             manager_seed: seed.clone(),
             procedures: Default::default(),
+            image_mounts,
         })
     }
 
@@ -197,9 +154,5 @@ impl PersistentContainer {
             fut.await
         }
         .map_err(|e| (e.code, e.message.into_owned())))
-    }
-
-    pub async fn send_signal(&self, gid: Arc<super::Gid>, signal: Signal) -> Result<(), Error> {
-        todo!("DRB")
     }
 }

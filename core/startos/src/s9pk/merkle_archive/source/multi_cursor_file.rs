@@ -77,8 +77,8 @@ impl ArchiveSource for MultiCursorFile {
     }
 }
 
-impl From<Section<MultiCursorFile>> for LoopDev<PathBuf> {
-    fn from(value: Section<MultiCursorFile>) -> Self {
+impl From<&Section<MultiCursorFile>> for LoopDev<PathBuf> {
+    fn from(value: &Section<MultiCursorFile>) -> Self {
         LoopDev::new(value.source.path(), value.position, value.size)
     }
 }

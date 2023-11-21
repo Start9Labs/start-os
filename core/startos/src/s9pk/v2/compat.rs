@@ -214,7 +214,7 @@ impl S9pk<Section<MultiCursorFile>> {
             Entry::file(CompatSource::File(sqfs_path)),
         )?;
 
-        let mut s9pk = S9pk(MerkleArchive::new(archive, signer));
+        let mut s9pk = S9pk::new(MerkleArchive::new(archive, signer)).await?;
         let mut dest_file = File::create(destination.as_ref()).await?;
         s9pk.serialize(&mut dest_file, false).await?;
 

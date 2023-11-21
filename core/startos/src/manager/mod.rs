@@ -40,6 +40,7 @@ use crate::prelude::*;
 use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
 use crate::procedure::{NoOutput, ProcedureName};
 use crate::s9pk::manifest::Manifest;
+use crate::s9pk::S9pk;
 use crate::status::MainStatus;
 use crate::util::docker::get_container_ip;
 use crate::util::NonDetachingJoinHandle;
@@ -51,6 +52,7 @@ mod manager_container;
 mod manager_map;
 pub mod manager_seed;
 mod persistent_container;
+mod rpc;
 mod start_stop;
 mod transition_state;
 
@@ -118,12 +120,8 @@ pub struct Manager {
     pub gid: Arc<Gid>,
 }
 impl Manager {
-    pub async fn new(ctx: RpcContext, manifest: Manifest) -> Result<Self, Error> {
-        let seed = Arc::new(ManagerSeed {
-            ctx,
-            container_name: DockerProcedure::container_name(&manifest.id, None),
-            manifest,
-        });
+    pub async fn new(ctx: RpcContext, s9pk: S9pk) -> Result<Self, Error> {
+        let seed = Arc::new(ManagerSeed { ctx, s9pk });
 
         let persistent_container = Arc::new(PersistentContainer::init(&seed).await?);
         let manage_container = Arc::new(
@@ -180,7 +178,7 @@ impl Manager {
             ));
         }
         let context = self.seed.ctx.clone();
-        let id = self.seed.manifest.id.clone();
+        let id = self.seed.s9pk.as_manifest().id.clone();
 
         let breakages = configure(context, id, configure_context).await?;
 
@@ -213,12 +211,6 @@ impl Manager {
 
         self.exit().await;
         Ok(())
-    }
-
-    /// Used when we want to shutdown the service
-    pub async fn signal(&self, signal: Signal) -> Result<(), Error> {
-        let gid = self.gid.clone();
-        send_signal(self, gid, signal).await
     }
 
     async fn _transition_abort(&self) {
@@ -263,17 +255,19 @@ impl Manager {
         async move {
             let peek = seed.ctx.db.peek().await;
             let state_reverter = DesiredStateReverter::new(manage_container.clone());
-            let override_guard =
-                manage_container.set_override(get_status(peek, &seed.manifest).backing_up())?;
+            let override_guard = manage_container
+                .set_override(get_status(peek, seed.s9pk.as_manifest()).backing_up())?;
             manage_container.wait_for_desired(StartStop::Stop).await;
             let backup_guard = backup_guard.lock().await;
-            let guard = backup_guard.mount_package_backup(&seed.manifest.id).await?;
+            let guard = backup_guard
+                .mount_package_backup(&seed.s9pk.as_manifest().id)
+                .await?;
 
-            let return_value = seed.manifest.backup.create(seed.clone()).await;
+            let return_value = seed.s9pk.as_manifest().backup.create(seed.clone()).await;
             guard.unmount().await?;
             drop(backup_guard);
 
-            let manifest_id = seed.manifest.id.clone();
+            let manifest_id = seed.s9pk.as_manifest().id.clone();
             seed.ctx
                 .db
                 .mutate(|db| {
@@ -351,10 +345,6 @@ impl Manager {
         self.persistent_container
             .sanboxed(name, input, timeout)
             .await
-    }
-
-    pub async fn send_signal(&self, gid: Arc<Gid>, signal: Signal) -> Result<(), Error> {
-        self.persistent_container.send_signal(gid, signal).await
     }
 }
 
@@ -690,14 +680,15 @@ async fn run_main(seed: Arc<ManagerSeed>) -> RunMainResult {
 /// We want to start up the manifest, but in this case we want to know that we have generated the certificates.
 /// Note for _generated_certificate: Needed to know that before we start the state we have generated the certificate
 async fn execute_main(seed: Arc<ManagerSeed>) -> Result<Result<NoOutput, (i32, String)>, Error> {
-    seed.manifest
+    seed.s9pk
+        .as_manifest()
         .main
         .execute::<(), NoOutput>(
             &seed.ctx,
-            &seed.manifest.id,
-            &seed.manifest.version,
+            &seed.s9pk.as_manifest().id,
+            &seed.s9pk.as_manifest().version,
             ProcedureName::Main,
-            &seed.manifest.volumes,
+            &seed.s9pk.as_manifest().volumes,
             None,
             None,
         )
@@ -711,9 +702,9 @@ async fn long_running_docker(
     container
         .long_running_execute(
             &seed.ctx,
-            &seed.manifest.id,
-            &seed.manifest.version,
-            &seed.manifest.volumes,
+            &seed.s9pk.as_manifest().id,
+            &seed.s9pk.as_manifest().version,
+            &seed.s9pk.as_manifest().volumes,
         )
         .await
 }
@@ -726,7 +717,7 @@ enum GetRunningIp {
 
 async fn get_long_running_ip(seed: &ManagerSeed, runtime: &mut LongRunning) -> GetRunningIp {
     loop {
-        match get_container_ip(&seed.container_name).await {
+        match get_container_ip(todo!()).await {
             Ok(Some(ip_addr)) => return GetRunningIp::Ip(ip_addr),
             Ok(None) => (),
             Err(e) if e.kind == ErrorKind::NotFound => (),
@@ -754,12 +745,12 @@ async fn add_network_for_main(
     let mut svc = seed
         .ctx
         .net_controller
-        .create_service(seed.manifest.id.clone(), ip)
+        .create_service(seed.s9pk.as_manifest().id.clone(), ip)
         .await?;
     // DEPRECATED
     let mut secrets = seed.ctx.secret_store.acquire().await?;
     let mut tx = secrets.begin().await?;
-    for (id, interface) in &seed.manifest.interfaces.0 {
+    for (id, interface) in &seed.s9pk.as_manifest().interfaces.0 {
         for (external, internal) in interface.lan_config.iter().flatten() {
             svc.add_lan(
                 tx.as_mut(),
@@ -775,7 +766,7 @@ async fn add_network_for_main(
                 .await?;
         }
     }
-    for volume in seed.manifest.volumes.values() {
+    for volume in seed.s9pk.as_manifest().volumes.values() {
         if let Volume::Certificate { interface_id } = volume {
             svc.export_cert(tx.as_mut(), interface_id, ip.into())
                 .await?;
@@ -793,10 +784,10 @@ async fn remove_network_for_main(svc: NetService) -> Result<(), Error> {
 async fn main_health_check_daemon(seed: Arc<ManagerSeed>) {
     tokio::time::sleep(Duration::from_secs(HEALTH_CHECK_GRACE_PERIOD_SECONDS)).await;
     loop {
-        if let Err(e) = health::check(&seed.ctx, &seed.manifest.id).await {
+        if let Err(e) = health::check(&seed.ctx, &seed.s9pk.as_manifest().id).await {
             tracing::error!(
                 "Failed to run health check for {}: {}",
-                &seed.manifest.id,
+                &seed.s9pk.as_manifest().id,
                 e
             );
             tracing::debug!("{:?}", e);
@@ -810,7 +801,7 @@ type RuntimeOfCommand = NonDetachingJoinHandle<Result<Result<NoOutput, (i32, Str
 #[instrument(skip(seed, runtime))]
 async fn get_running_ip(seed: &ManagerSeed, mut runtime: &mut RuntimeOfCommand) -> GetRunningIp {
     loop {
-        match get_container_ip(&seed.container_name).await {
+        match get_container_ip(todo!()).await {
             Ok(Some(ip_addr)) => return GetRunningIp::Ip(ip_addr),
             Ok(None) => (),
             Err(e) if e.kind == ErrorKind::NotFound => (),
@@ -842,8 +833,4 @@ async fn get_running_ip(seed: &ManagerSeed, mut runtime: &mut RuntimeOfCommand) 
             }
         }
     }
-}
-
-async fn send_signal(manager: &Manager, gid: Arc<Gid>, signal: Signal) -> Result<(), Error> {
-    manager.send_signal(gid, signal).await
 }

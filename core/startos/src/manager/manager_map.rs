@@ -33,7 +33,7 @@ impl ManagerMap {
 
             res.insert(
                 (package, man.version.clone()),
-                Arc::new(Manager::new(ctx.clone(), man).await?),
+                Arc::new(Manager::new(ctx.clone(), todo!()).await?),
             );
         }
         *self.0.write().await = res;
@@ -48,7 +48,7 @@ impl ManagerMap {
         if let Some(man) = lock.remove(&id) {
             man.exit().await;
         }
-        let manager = Arc::new(Manager::new(ctx.clone(), manifest).await?);
+        let manager = Arc::new(Manager::new(ctx.clone(), todo!()).await?);
         lock.insert(id, manager.clone());
         Ok(manager)
     }

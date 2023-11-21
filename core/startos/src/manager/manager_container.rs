@@ -53,7 +53,7 @@ impl ManageContainer {
         let current_state = Arc::new(watch::channel(StartStop::Stop).0);
         let desired_state = Arc::new(
             watch::channel::<StartStop>(
-                get_status(seed.ctx.db.peek().await, &seed.manifest).into(),
+                get_status(seed.ctx.db.peek().await, seed.s9pk.as_manifest()).into(),
             )
             .0,
         );
@@ -103,7 +103,7 @@ impl ManageContainer {
         &self,
         seed: &manager_seed::ManagerSeed,
     ) -> Result<(), Error> {
-        let current_state = get_status(seed.ctx.db.peek().await, &seed.manifest);
+        let current_state = get_status(seed.ctx.db.peek().await, seed.s9pk.as_manifest());
         self.override_main_status
             .send_modify(|x| *x = Some(current_state));
         Ok(())
@@ -198,14 +198,14 @@ async fn save_state(
             (_, StartStop::Stop, StartStop::Stop) => MainStatus::Stopped,
         };
 
-        let manifest = &seed.manifest;
+        let manifest = seed.s9pk.as_manifest();
         if let Err(err) = seed
             .ctx
             .db
             .mutate(|db| set_status(db, manifest, &status))
             .await
         {
-            tracing::error!("Did not set status for {}", seed.container_name);
+            tracing::error!("Did not set status for {}", seed.s9pk.as_manifest().id);
             tracing::debug!("{:?}", err);
         }
         tokio::select! {
@@ -244,7 +244,7 @@ async fn run_main_log_result(result: RunMainResult, seed: Arc<manager_seed::Mana
         Ok(Err(e)) => {
             tracing::error!(
                 "The service {} has crashed with the following exit code: {}",
-                seed.manifest.id.clone(),
+                seed.s9pk.as_manifest().id.clone(),
                 e.0
             );
 

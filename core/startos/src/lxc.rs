@@ -1,5 +1,5 @@
 use std::collections::BTreeSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
@@ -98,6 +98,12 @@ impl LxcContainer {
         })
     }
 
+    pub fn rootfs_dir(&self) -> PathBuf {
+        Path::new(LXC_CONTAINER_DIR)
+            .join(&*self.guid)
+            .join("rootfs")
+    }
+
     pub async fn exit(mut self) -> Result<(), Error> {
         Command::new("lxc")
             .arg("stop")
@@ -117,10 +123,7 @@ impl LxcContainer {
 
     pub async fn connect_rpc(&self, timeout: Option<Duration>) -> Result<UnixRpcClient, Error> {
         let started = Instant::now();
-        let sock_path = Path::new(LXC_CONTAINER_DIR)
-            .join(&*self.guid)
-            .join("rootfs")
-            .join(CONTAINER_RPC_SERVER_SOCKET);
+        let sock_path = self.rootfs_dir().join(CONTAINER_RPC_SERVER_SOCKET);
         while tokio::fs::metadata(&sock_path).await.is_err() {
             if timeout.map_or(false, |t| started.elapsed() > t) {
                 return Err(Error::new(
