@@ -59,11 +59,11 @@ export class ExperimentalFeaturesPage {
   presentAlertZram(enabled: boolean) {
     this.dialogs
       .open(TUI_PROMPT, {
-        label: enabled ? 'Confirm' : 'Warning',
+        label: 'Confirm',
         data: {
           content: enabled
-            ? 'Are you sure you want to disable zram?'
-            : 'zram on StartOS is experimental. It may increase performance of you server, especially if it is a low RAM device.',
+            ? 'Are you sure you want to disable zram? It provides significant performance benefits on low RAM devices.'
+            : 'Enable zram? It will only make a difference on lower RAM devices.',
           yes: enabled ? 'Disable' : 'Enable',
           no: 'Cancel',
         },
@@ -90,7 +90,7 @@ export class ExperimentalFeaturesPage {
 
   private async toggleZram(enabled: boolean) {
     const loader = this.loader
-      .open(enabled ? 'Disabling zram...' : 'Enabling zram')
+      .open(enabled ? 'Disabling zram...' : 'Enabling zram...')
       .subscribe()
 
     try {

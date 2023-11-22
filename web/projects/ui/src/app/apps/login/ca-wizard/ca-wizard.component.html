@@ -44,7 +44,7 @@
             size="small"
             shape="round"
             color="primary"
-            href="https://docs.start9.com/0.3.5.x/user-manual/trust-ca#establishing-trust"
+            href="https://docs.start9.com/0.3.5.x/user-manual/trust-ca"
             target="_blank"
             noreferrer
           >
@@ -97,10 +97,4 @@
   </ng-template>
 </div>
 
-<a
-  id="install-cert"
-  href="/eos/local.crt"
-  [download]="
-    config.isLocal() ? document.location.hostname + '.crt' : 'startos.crt'
-  "
-></a>
+<a id="install-cert" href="/eos/local.crt"></a>

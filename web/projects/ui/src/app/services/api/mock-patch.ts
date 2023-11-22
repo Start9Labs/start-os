@@ -36,7 +36,7 @@ export const mockPatchData: DataModel = {
   },
   'server-info': {
     id: 'abcdefgh',
-    version: '0.3.5',
+    version: '0.3.5.1',
     country: 'us',
     ui: {
       lanHostname: 'adjective-noun.local',

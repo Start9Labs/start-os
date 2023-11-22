@@ -891,102 +891,11 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     }
     tracing::info!("Install {}@{}: Fetched Dependency Info", pkg_id, version);
 
-    let public_dir_path = ctx
-        .datadir
-        .join(PKG_PUBLIC_DIR)
-        .join(pkg_id)
-        .join(version.as_str());
-    tokio::fs::create_dir_all(&public_dir_path).await?;
-
-    tracing::info!("Install {}@{}: Unpacking LICENSE.md", pkg_id, version);
-    progress
-        .track_read_during(ctx.db.clone(), pkg_id, || async {
-            let license_path = public_dir_path.join("LICENSE.md");
-            let mut dst = File::create(&license_path).await?;
-            tokio::io::copy(&mut rdr.license().await?, &mut dst).await?;
-            dst.sync_all().await?;
-            Ok(())
+    let icon = progress
+        .track_read_during(ctx.db.clone(), pkg_id, || {
+            unpack_s9pk(&ctx.datadir, &manifest, rdr)
         })
         .await?;
-    tracing::info!("Install {}@{}: Unpacked LICENSE.md", pkg_id, version);
-
-    tracing::info!("Install {}@{}: Unpacking INSTRUCTIONS.md", pkg_id, version);
-    progress
-        .track_read_during(ctx.db.clone(), pkg_id, || async {
-            let instructions_path = public_dir_path.join("INSTRUCTIONS.md");
-            let mut dst = File::create(&instructions_path).await?;
-            tokio::io::copy(&mut rdr.instructions().await?, &mut dst).await?;
-            dst.sync_all().await?;
-            Ok(())
-        })
-        .await?;
-    tracing::info!("Install {}@{}: Unpacked INSTRUCTIONS.md", pkg_id, version);
-
-    let icon_filename = Path::new("icon").with_extension(manifest.assets.icon_type());
-    let icon_path = public_dir_path.join(&icon_filename);
-    tracing::info!(
-        "Install {}@{}: Unpacking {}",
-        pkg_id,
-        version,
-        icon_path.display()
-    );
-    let icon_buf = progress
-        .track_read_during(ctx.db.clone(), pkg_id, || async {
-            Ok(rdr.icon().await?.to_vec().await?)
-        })
-        .await?;
-    let mut dst = File::create(&icon_path).await?;
-    dst.write_all(&icon_buf).await?;
-    dst.sync_all().await?;
-    let icon = DataUrl::from_vec(
-        mime(manifest.assets.icon_type()).unwrap_or("image/png"),
-        icon_buf,
-    );
-    tracing::info!(
-        "Install {}@{}: Unpacked {}",
-        pkg_id,
-        version,
-        icon_filename.display()
-    );
-
-    tracing::info!("Install {}@{}: Unpacking Docker Images", pkg_id, version);
-    progress
-        .track_read_during(ctx.db.clone(), pkg_id, || async {
-            Command::new(CONTAINER_TOOL)
-                .arg("load")
-                .input(Some(&mut rdr.docker_images().await?))
-                .invoke(ErrorKind::Docker)
-                .await
-        })
-        .await?;
-    tracing::info!("Install {}@{}: Unpacked Docker Images", pkg_id, version,);
-
-    tracing::info!("Install {}@{}: Unpacking Assets", pkg_id, version);
-    progress
-        .track_read_during(ctx.db.clone(), pkg_id, || async {
-            let asset_dir = asset_dir(&ctx.datadir, pkg_id, version);
-            if tokio::fs::metadata(&asset_dir).await.is_err() {
-                tokio::fs::create_dir_all(&asset_dir).await?;
-            }
-            let mut tar = tokio_tar::Archive::new(rdr.assets().await?);
-            tar.unpack(asset_dir).await?;
-
-            let script_dir = script_dir(&ctx.datadir, pkg_id, version);
-            if tokio::fs::metadata(&script_dir).await.is_err() {
-                tokio::fs::create_dir_all(&script_dir).await?;
-            }
-            if let Some(mut hdl) = rdr.scripts().await? {
-                tokio::io::copy(
-                    &mut hdl,
-                    &mut File::create(script_dir.join("embassy.js")).await?,
-                )
-                .await?;
-            }
-
-            Ok(())
-        })
-        .await?;
-    tracing::info!("Install {}@{}: Unpacked Assets", pkg_id, version);
 
     progress.unpack_complete.store(true, Ordering::SeqCst);
 
@@ -1107,6 +1016,8 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     let mut auto_start = false;
     let mut configured = false;
 
+    let mut to_cleanup = None;
+
     if let PackageDataEntry::Updating(PackageDataEntryUpdating {
         installed: prev, ..
     }) = &prev
@@ -1148,7 +1059,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             auto_start = prev.status.main.running();
         }
         if &prev.manifest.version != version {
-            cleanup(&ctx, &prev.manifest.id, &prev.manifest.version).await?;
+            to_cleanup = Some((prev.manifest.id.clone(), prev.manifest.version.clone()));
         }
     } else if let PackageDataEntry::Restoring(PackageDataEntryRestoring { .. }) = prev {
         next.installed.marketplace_url = manifest
@@ -1190,6 +1101,10 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             set_dependents_with_live_pointers_to_needs_config(db, pkg_id)
         })
         .await?;
+
+    if let Some((id, version)) = to_cleanup {
+        cleanup(&ctx, &id, &version).await?;
+    }
 
     if configured && manifest.config.is_some() {
         let breakages = BTreeMap::new();
@@ -1237,15 +1152,103 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
 }
 
 #[instrument(skip_all)]
-pub fn load_images<'a, P: AsRef<Path> + 'a + Send + Sync>(
-    datadir: P,
+pub async fn unpack_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
+    datadir: impl AsRef<Path>,
+    manifest: &Manifest,
+    rdr: &mut S9pkReader<R>,
+) -> Result<DataUrl<'static>, Error> {
+    let datadir = datadir.as_ref();
+    let pkg_id = &manifest.id;
+    let version = &manifest.version;
+
+    let public_dir_path = datadir
+        .join(PKG_PUBLIC_DIR)
+        .join(pkg_id)
+        .join(version.as_str());
+    tokio::fs::create_dir_all(&public_dir_path).await?;
+
+    tracing::info!("Install {}@{}: Unpacking LICENSE.md", pkg_id, version);
+    let license_path = public_dir_path.join("LICENSE.md");
+    let mut dst = File::create(&license_path).await?;
+    tokio::io::copy(&mut rdr.license().await?, &mut dst).await?;
+    dst.sync_all().await?;
+    tracing::info!("Install {}@{}: Unpacked LICENSE.md", pkg_id, version);
+
+    tracing::info!("Install {}@{}: Unpacking INSTRUCTIONS.md", pkg_id, version);
+    let instructions_path = public_dir_path.join("INSTRUCTIONS.md");
+    let mut dst = File::create(&instructions_path).await?;
+    tokio::io::copy(&mut rdr.instructions().await?, &mut dst).await?;
+    dst.sync_all().await?;
+    tracing::info!("Install {}@{}: Unpacked INSTRUCTIONS.md", pkg_id, version);
+
+    let icon_filename = Path::new("icon").with_extension(manifest.assets.icon_type());
+    let icon_path = public_dir_path.join(&icon_filename);
+    tracing::info!(
+        "Install {}@{}: Unpacking {}",
+        pkg_id,
+        version,
+        icon_path.display()
+    );
+    let icon_buf = rdr.icon().await?.to_vec().await?;
+    let mut dst = File::create(&icon_path).await?;
+    dst.write_all(&icon_buf).await?;
+    dst.sync_all().await?;
+    let icon = DataUrl::from_vec(
+        mime(manifest.assets.icon_type()).unwrap_or("image/png"),
+        icon_buf,
+    );
+    tracing::info!(
+        "Install {}@{}: Unpacked {}",
+        pkg_id,
+        version,
+        icon_filename.display()
+    );
+
+    tracing::info!("Install {}@{}: Unpacking Docker Images", pkg_id, version);
+    Command::new(CONTAINER_TOOL)
+        .arg("load")
+        .input(Some(&mut rdr.docker_images().await?))
+        .invoke(ErrorKind::Docker)
+        .await?;
+    tracing::info!("Install {}@{}: Unpacked Docker Images", pkg_id, version,);
+
+    tracing::info!("Install {}@{}: Unpacking Assets", pkg_id, version);
+    let asset_dir = asset_dir(datadir, pkg_id, version);
+    if tokio::fs::metadata(&asset_dir).await.is_ok() {
+        tokio::fs::remove_dir_all(&asset_dir).await?;
+    }
+    tokio::fs::create_dir_all(&asset_dir).await?;
+    let mut tar = tokio_tar::Archive::new(rdr.assets().await?);
+    tar.unpack(asset_dir).await?;
+
+    let script_dir = script_dir(datadir, pkg_id, version);
+    if tokio::fs::metadata(&script_dir).await.is_err() {
+        tokio::fs::create_dir_all(&script_dir).await?;
+    }
+    if let Some(mut hdl) = rdr.scripts().await? {
+        tokio::io::copy(
+            &mut hdl,
+            &mut File::create(script_dir.join("embassy.js")).await?,
+        )
+        .await?;
+    }
+    tracing::info!("Install {}@{}: Unpacked Assets", pkg_id, version);
+
+    Ok(icon)
+}
+
+#[instrument(skip_all)]
+pub fn rebuild_from<'a>(
+    source: impl AsRef<Path> + 'a + Send + Sync,
+    datadir: impl AsRef<Path> + 'a + Send + Sync,
 ) -> BoxFuture<'a, Result<(), Error>> {
     async move {
-        let docker_dir = datadir.as_ref();
-        if tokio::fs::metadata(&docker_dir).await.is_ok() {
-            ReadDirStream::new(tokio::fs::read_dir(&docker_dir).await?)
+        let source_dir = source.as_ref();
+        let datadir = datadir.as_ref();
+        if tokio::fs::metadata(&source_dir).await.is_ok() {
+            ReadDirStream::new(tokio::fs::read_dir(&source_dir).await?)
                 .map(|r| {
-                    r.with_ctx(|_| (crate::ErrorKind::Filesystem, format!("{:?}", &docker_dir)))
+                    r.with_ctx(|_| (crate::ErrorKind::Filesystem, format!("{:?}", &source_dir)))
                 })
                 .try_for_each(|entry| async move {
                     let m = entry.metadata().await?;
@@ -1260,26 +1263,21 @@ pub fn load_images<'a, P: AsRef<Path> + 'a + Send + Sync>(
                                             .arg("load")
                                             .input(Some(&mut File::open(&path).await?))
                                             .invoke(ErrorKind::Docker)
-                                            .await
+                                            .await?;
+                                        Ok::<_, Error>(())
                                     }
                                     Some("s9pk") => {
-                                        Command::new(CONTAINER_TOOL)
-                                            .arg("load")
-                                            .input(Some(
-                                                &mut S9pkReader::open(&path, true)
-                                                    .await?
-                                                    .docker_images()
-                                                    .await?,
-                                            ))
-                                            .invoke(ErrorKind::Docker)
-                                            .await
+                                        let mut s9pk = S9pkReader::open(&path, true).await?;
+                                        unpack_s9pk(datadir, &s9pk.manifest().await?, &mut s9pk)
+                                            .await?;
+                                        Ok(())
                                     }
                                     _ => unreachable!(),
                                 }
                             }
                             .await
                             {
-                                tracing::error!("Error loading docker images from s9pk: {e}");
+                                tracing::error!("Error unpacking {path:?}: {e}");
                                 tracing::debug!("{e:?}");
                             }
                             Ok(())
@@ -1287,7 +1285,7 @@ pub fn load_images<'a, P: AsRef<Path> + 'a + Send + Sync>(
                             Ok(())
                         }
                     } else if m.is_dir() {
-                        load_images(entry.path()).await?;
+                        rebuild_from(entry.path(), datadir).await?;
                         Ok(())
                     } else {
                         Ok(())

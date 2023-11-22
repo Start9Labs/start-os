@@ -4,7 +4,7 @@ use std::path::Path;
 use std::time::{Duration, SystemTime};
 
 use color_eyre::eyre::eyre;
-use helpers::NonDetachingJoinHandle;
+
 use models::ResultExt;
 use rand::random;
 use sqlx::{Pool, Postgres};
@@ -18,9 +18,9 @@ use crate::disk::mount::util::unmount;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
-use crate::sound::BEP;
+
 use crate::util::cpupower::{
-    current_governor, get_available_governors, set_governor, GOVERNOR_PERFORMANCE,
+    get_available_governors, get_preferred_governor, set_governor,
 };
 use crate::util::docker::{create_bridge_network, CONTAINER_DATADIR, CONTAINER_TOOL};
 use crate::util::Invoke;
@@ -96,44 +96,64 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
 
     let pg_version_string = pg_version.to_string();
     let pg_version_path = db_dir.join(&pg_version_string);
-    if tokio::fs::metadata(&pg_version_path).await.is_err() {
-        let conf_dir = Path::new("/etc/postgresql").join(pg_version.to_string());
-        let conf_dir_tmp = {
-            let mut tmp = conf_dir.clone();
-            tmp.set_extension("tmp");
-            tmp
-        };
-        if tokio::fs::metadata(&conf_dir).await.is_ok() {
-            Command::new("mv")
-                .arg(&conf_dir)
-                .arg(&conf_dir_tmp)
-                .invoke(ErrorKind::Filesystem)
-                .await?;
-        }
-        let mut old_version = pg_version;
-        while old_version > 13
-        /* oldest pg version included in startos */
+    if exists
+    // maybe migrate
+    {
+        let incomplete_path = db_dir.join(format!("{pg_version}.migration.incomplete"));
+        if tokio::fs::metadata(&incomplete_path).await.is_ok() // previous migration was incomplete
+        && tokio::fs::metadata(&pg_version_path).await.is_ok()
         {
-            old_version -= 1;
-            let old_datadir = db_dir.join(old_version.to_string());
-            if tokio::fs::metadata(&old_datadir).await.is_ok() {
-                Command::new("pg_upgradecluster")
-                    .arg(old_version.to_string())
-                    .arg("main")
-                    .invoke(crate::ErrorKind::Database)
-                    .await?;
-                break;
-            }
+            tokio::fs::remove_dir_all(&pg_version_path).await?;
         }
-        if tokio::fs::metadata(&conf_dir).await.is_ok() {
+        if tokio::fs::metadata(&pg_version_path).await.is_err()
+        // need to migrate
+        {
+            let conf_dir = Path::new("/etc/postgresql").join(pg_version.to_string());
+            let conf_dir_tmp = {
+                let mut tmp = conf_dir.clone();
+                tmp.set_extension("tmp");
+                tmp
+            };
             if tokio::fs::metadata(&conf_dir).await.is_ok() {
-                tokio::fs::remove_dir_all(&conf_dir).await?;
+                Command::new("mv")
+                    .arg(&conf_dir)
+                    .arg(&conf_dir_tmp)
+                    .invoke(ErrorKind::Filesystem)
+                    .await?;
             }
-            Command::new("mv")
-                .arg(&conf_dir_tmp)
-                .arg(&conf_dir)
-                .invoke(ErrorKind::Filesystem)
-                .await?;
+            let mut old_version = pg_version;
+            while old_version > 13
+            /* oldest pg version included in startos */
+            {
+                old_version -= 1;
+                let old_datadir = db_dir.join(old_version.to_string());
+                if tokio::fs::metadata(&old_datadir).await.is_ok() {
+                    tokio::fs::File::create(&incomplete_path)
+                        .await?
+                        .sync_all()
+                        .await?;
+                    Command::new("pg_upgradecluster")
+                        .arg(old_version.to_string())
+                        .arg("main")
+                        .invoke(crate::ErrorKind::Database)
+                        .await?;
+                    break;
+                }
+            }
+            if tokio::fs::metadata(&conf_dir).await.is_ok() {
+                if tokio::fs::metadata(&conf_dir).await.is_ok() {
+                    tokio::fs::remove_dir_all(&conf_dir).await?;
+                }
+                Command::new("mv")
+                    .arg(&conf_dir_tmp)
+                    .arg(&conf_dir)
+                    .invoke(ErrorKind::Filesystem)
+                    .await?;
+            }
+            tokio::fs::remove_file(&incomplete_path).await?;
+        }
+        if tokio::fs::metadata(&incomplete_path).await.is_ok() {
+            unreachable!() // paranoia
         }
     }
 
@@ -230,18 +250,6 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         || &*server_info.version < &emver::Version::new(0, 3, 2, 0)
         || (*ARCH == "x86_64" && &*server_info.version < &emver::Version::new(0, 3, 4, 0));
 
-    let song = if should_rebuild {
-        Some(NonDetachingJoinHandle::from(tokio::spawn(async {
-            loop {
-                BEP.play().await.unwrap();
-                BEP.play().await.unwrap();
-                tokio::time::sleep(Duration::from_secs(60)).await;
-            }
-        })))
-    } else {
-        None
-    };
-
     let log_dir = cfg.datadir().join("main/logs");
     if tokio::fs::metadata(&log_dir).await.is_err() {
         tokio::fs::create_dir_all(&log_dir).await?;
@@ -318,12 +326,13 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             tracing::info!("Created Docker Network");
         }
 
+        let datadir = cfg.datadir();
         tracing::info!("Loading System Docker Images");
-        crate::install::load_images("/usr/lib/startos/system-images").await?;
+        crate::install::rebuild_from("/usr/lib/startos/system-images", &datadir).await?;
         tracing::info!("Loaded System Docker Images");
 
         tracing::info!("Loading Package Docker Images");
-        crate::install::load_images(cfg.datadir().join(PKG_ARCHIVE_DIR)).await?;
+        crate::install::rebuild_from(datadir.join(PKG_ARCHIVE_DIR), &datadir).await?;
         tracing::info!("Loaded Package Docker Images");
     }
 
@@ -333,6 +342,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             .arg("run")
             .arg("-d")
             .arg("--rm")
+            .arg("--init")
             .arg("--network=start9")
             .arg("--name=netdummy")
             .arg("start9/x_system/utils:latest")
@@ -354,28 +364,27 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .await?;
     tracing::info!("Enabled Docker QEMU Emulation");
 
-    if current_governor()
-        .await?
-        .map(|g| &g != &GOVERNOR_PERFORMANCE)
-        .unwrap_or(false)
-    {
-        tracing::info!("Setting CPU Governor to \"{}\"", GOVERNOR_PERFORMANCE);
-        if get_available_governors()
-            .await?
-            .contains(&GOVERNOR_PERFORMANCE)
-        {
-            set_governor(&GOVERNOR_PERFORMANCE).await?;
-            tracing::info!("Set CPU Governor");
+    let governor = if let Some(governor) = &server_info.governor {
+        if get_available_governors().await?.contains(governor) {
+            Some(governor)
         } else {
-            tracing::warn!("CPU Governor \"{}\" Not Available", GOVERNOR_PERFORMANCE)
+            tracing::warn!("CPU Governor \"{governor}\" Not Available");
+            None
         }
+    } else {
+        get_preferred_governor().await?
+    };
+    if let Some(governor) = governor {
+        tracing::info!("Setting CPU Governor to \"{governor}\"");
+        set_governor(governor).await?;
+        tracing::info!("Set CPU Governor");
     }
 
-    let mut time_not_synced = true;
+    server_info.ntp_synced = false;
     let mut not_made_progress = 0u32;
     for _ in 0..1800 {
         if check_time_is_synchronized().await? {
-            time_not_synced = false;
+            server_info.ntp_synced = true;
             break;
         }
         let t = SystemTime::now();
@@ -392,7 +401,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             break;
         }
     }
-    if time_not_synced {
+    if !server_info.ntp_synced {
         tracing::warn!("Timed out waiting for system time to synchronize");
     } else {
         tracing::info!("Syncronized system clock");
@@ -408,21 +417,6 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         backup_progress: None,
         shutting_down: false,
         restarting: false,
-    };
-
-    server_info.ntp_synced = if time_not_synced {
-        let db = db.clone();
-        tokio::spawn(async move {
-            while !check_time_is_synchronized().await.unwrap() {
-                tokio::time::sleep(Duration::from_secs(30)).await;
-            }
-            db.mutate(|v| v.as_server_info_mut().as_ntp_synced_mut().ser(&true))
-                .await
-                .unwrap()
-        });
-        false
-    } else {
-        true
     };
 
     db.mutate(|v| {
@@ -446,8 +440,6 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             Err(e) => Err(e),
         }?;
     }
-
-    drop(song);
 
     tracing::info!("System initialized.");
 
