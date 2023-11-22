@@ -40,7 +40,7 @@ impl HttpSource {
             range_support: if range_support {
                 Ok(())
             } else {
-                todo!() // Err(Arc::new(Mutex::new(None)))
+                Err(()) // Err(Arc::new(Mutex::new(None)))
             },
         })
     }

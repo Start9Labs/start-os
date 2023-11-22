@@ -198,7 +198,7 @@ impl S9pk<Section<MultiCursorFile>> {
             js_file.sync_all().await?;
         }
         {
-            let mut js_file = File::create(js_dir.join("old-manifest.json")).await?;
+            let mut js_file = File::create(js_dir.join("manifest-v1.json")).await?;
             js_file
                 .write_all(&serde_json::to_vec(&manifest).with_kind(ErrorKind::Serialization)?)
                 .await?;

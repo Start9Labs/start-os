@@ -2,7 +2,9 @@ use std::time::Duration;
 
 use imbl_value::Value;
 use models::ProcedureName;
-use rpc_toolkit::yajrc::RpcMethod;
+use rpc_toolkit::yajrc::{RpcError, RpcMethod};
+
+use crate::prelude::*;
 
 #[derive(Clone)]
 pub struct Init;
@@ -137,4 +139,11 @@ impl serde::Serialize for Sandbox {
     {
         serializer.serialize_str(self.as_str())
     }
+}
+
+pub(super) fn convert_rpc_error(e: RpcError) -> Error {
+    Error::new(
+        eyre!("{}: {} ({:?})", e.code, e.message, e.data),
+        ErrorKind::Unknown, // TODO
+    )
 }

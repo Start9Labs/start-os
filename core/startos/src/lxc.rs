@@ -10,10 +10,12 @@ use tokio::process::Command;
 use tokio::sync::Mutex;
 use tokio::time::Instant;
 
+use crate::disk::mount::util::unmount;
 use crate::prelude::*;
 use crate::util::serde::IoFormat;
 use crate::util::{new_guid, Invoke};
 
+const LXC_IMAGE_NAME: &str = "startos-service";
 const LXC_CONTAINER_DIR: &str = "/var/lib/lxc";
 const CONTAINER_RPC_SERVER_SOCKET: &str = "run/rpc.sock"; // must not be absolute path
 
@@ -82,7 +84,7 @@ impl LxcContainer {
         let guid = new_guid();
         Command::new("lxc")
             .arg("launch")
-            .arg("startos-init")
+            .arg(LXC_IMAGE_NAME)
             .arg(&*guid)
             .arg("-e")
             .input(Some(&mut std::io::Cursor::new(
@@ -105,13 +107,26 @@ impl LxcContainer {
     }
 
     pub async fn exit(mut self) -> Result<(), Error> {
+        for mountpoint in String::from_utf8(
+            Command::new("find")
+                .arg(self.rootfs_dir())
+                .arg("-depth")
+                .arg("!")
+                .arg("-exec")
+                .arg("mountpoint")
+                .arg("-q")
+                .arg("{}")
+                .arg(";")
+                .arg("-print")
+                .invoke(ErrorKind::Filesystem)
+                .await?,
+        )?
+        .lines()
+        {
+            unmount(mountpoint).await?;
+        }
         Command::new("lxc")
             .arg("stop")
-            .arg(&**self.guid)
-            .invoke(ErrorKind::Lxc)
-            .await?;
-        Command::new("lxc")
-            .arg("delete")
             .arg(&**self.guid)
             .invoke(ErrorKind::Lxc)
             .await?;

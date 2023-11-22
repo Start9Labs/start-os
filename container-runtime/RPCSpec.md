@@ -4,6 +4,8 @@
 
 ### init
 initialize runtime (mount `/proc`, `/sys`, `/dev`, and `/run` to each image in `/media/images`)
+
+called after os has mounted js and images to the container
 #### args
 `[]`
 #### response
@@ -55,4 +57,3 @@ run a specific package procedure in sandbox mode
 ```
 #### response
 `any`
-

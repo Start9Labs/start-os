@@ -14,7 +14,7 @@ use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::MountGuard;
 use crate::lxc::{LxcConfig, LxcContainer};
-use crate::manager::rpc;
+use crate::manager::rpc::{self, convert_rpc_error};
 use crate::prelude::*;
 use crate::ARCH;
 
@@ -22,23 +22,37 @@ const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
 struct ProcedureId(u64);
 
-// @DRB Need to have a way of starting the the procudures and getting the information back
 // @DRB On top of this we need to also have  the procedures to have the effects and get the results back for them, maybe lock them to the running instance?
-/// Persistant container are the old containers that need to run all the time
-/// The goal is that all services will be persistent containers, waiting to run the main system.
+/// This contains the LXC container running the javascript init system
+/// that can be used via a JSON RPC Client connected to a unix domain
+/// socket served by the container
 pub struct PersistentContainer {
     lxc_container: LxcContainer,
-    // TODO: Drb: Implement to spec https://github.com/Start9Labs/start-sdk/blob/master/lib/types.ts#L223
     rpc_client: UnixRpcClient,
     manager_seed: Arc<ManagerSeed>,
     procedures: Mutex<Vec<(ProcedureName, ProcedureId)>>,
     image_mounts: Vec<MountGuard>,
+    js_mount: MountGuard,
 }
 
 impl PersistentContainer {
     #[instrument(skip_all)]
     pub async fn init(seed: &Arc<ManagerSeed>) -> Result<Self, Error> {
         let lxc_container = seed.ctx.lxc_manager.create(LxcConfig::default()).await?;
+        let js_mount = MountGuard::mount(
+            &LoopDev::from(
+                &**seed
+                    .s9pk
+                    .as_archive()
+                    .contents()
+                    .get_path("javascript.squashfs")
+                    .and_then(|f| f.as_file())
+                    .or_not_found("javascript")?,
+            ),
+            lxc_container.rootfs_dir().join("usr/lib/javascript"),
+            ReadOnly,
+        )
+        .await?;
         let mut image_mounts = Vec::new();
         for (image_id, contents) in seed
             .s9pk
@@ -68,12 +82,10 @@ impl PersistentContainer {
             );
         }
         let rpc_client = lxc_container.connect_rpc(Some(RPC_CONNECT_TIMEOUT)).await?;
-        rpc_client.request(rpc::Init, ()).await.map_err(|e| {
-            Error::new(
-                eyre!("{}: {} ({:?})", e.code, e.message, e.data),
-                ErrorKind::Unknown, // TODO
-            )
-        })?;
+        rpc_client
+            .request(rpc::Init, ())
+            .await
+            .map_err(convert_rpc_error)?;
 
         Ok(Self {
             lxc_container,
@@ -81,7 +93,29 @@ impl PersistentContainer {
             manager_seed: seed.clone(),
             procedures: Default::default(),
             image_mounts,
+            js_mount,
         })
+    }
+
+    pub async fn exit(self) -> Result<(), Error> {
+        let Self {
+            rpc_client,
+            js_mount,
+            image_mounts,
+            lxc_container,
+            ..
+        } = self;
+        rpc_client
+            .request(rpc::Exit, ())
+            .await
+            .map_err(convert_rpc_error)?;
+        js_mount.unmount(true).await?;
+        for image_mount in image_mounts {
+            image_mount.unmount(true).await?;
+        }
+        lxc_container.exit().await?;
+
+        Ok(())
     }
 
     pub async fn execute<O>(

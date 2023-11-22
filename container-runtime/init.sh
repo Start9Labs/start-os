@@ -6,5 +6,3 @@ for image in $(ls -d /media/images/*); do
         mount --bind /$special $image/$special
     done
 done
-
-exec node /usr/local/lib/startInit.js
