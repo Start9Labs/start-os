@@ -54,6 +54,17 @@ impl Shutdown {
                     tracing::error!("Error Stopping Docker: {}", e);
                     tracing::debug!("{:?}", e);
                 }
+            } else if CONTAINER_TOOL == "podman" {
+                if let Err(e) = Command::new("podman")
+                    .arg("rm")
+                    .arg("-f")
+                    .arg("netdummy")
+                    .invoke(crate::ErrorKind::Docker)
+                    .await
+                {
+                    tracing::error!("Error Stopping Podman: {}", e);
+                    tracing::debug!("{:?}", e);
+                }
             }
             if let Some((guid, datadir)) = &self.export_args {
                 if let Err(e) = export(guid, datadir).await {

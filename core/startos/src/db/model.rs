@@ -23,6 +23,7 @@ use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::prelude::*;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::Status;
+use crate::util::cpupower::{Governor};
 use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::{ARCH, PLATFORM};
@@ -85,6 +86,7 @@ impl Database {
                     .join(":"),
                 ntp_synced: false,
                 zram: true,
+                governor: None,
             },
             package_data: AllPackageData::default(),
             lan_port_forwards: LanPortForwards::new(),
@@ -137,6 +139,7 @@ pub struct ServerInfo {
     pub ntp_synced: bool,
     #[serde(default)]
     pub zram: bool,
+    pub governor: Option<Governor>,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]

@@ -7,10 +7,20 @@ use tokio::process::Command;
 use crate::prelude::*;
 use crate::util::Invoke;
 
-pub const GOVERNOR_PERFORMANCE: Governor = Governor(Cow::Borrowed("performance"));
+pub const GOVERNOR_HEIRARCHY: &[Governor] = &[
+    Governor(Cow::Borrowed("ondemand")),
+    Governor(Cow::Borrowed("schedutil")),
+    Governor(Cow::Borrowed("conservative")),
+];
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct Governor(Cow<'static, str>);
+impl std::str::FromStr for Governor {
+    type Err = std::convert::Infallible;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(s.to_owned().into()))
+    }
+}
 impl std::fmt::Display for Governor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
@@ -29,13 +39,12 @@ impl std::borrow::Borrow<str> for Governor {
 }
 
 pub async fn get_available_governors() -> Result<BTreeSet<Governor>, Error> {
-    let raw = String::from_utf8(
-        Command::new("cpupower")
-            .arg("frequency-info")
-            .arg("-g")
-            .invoke(ErrorKind::CpuSettings)
-            .await?,
-    )?;
+    let raw = Command::new("cpupower")
+        .arg("frequency-info")
+        .arg("-g")
+        .invoke(ErrorKind::CpuSettings)
+        .await
+        .map_or_else(|e| Ok(e.source.to_string()), String::from_utf8)?;
     let mut for_cpu: OrdMap<u32, BTreeSet<Governor>> = OrdMap::new();
     let mut current_cpu = None;
     for line in raw.lines() {
@@ -112,6 +121,16 @@ pub async fn current_governor() -> Result<Option<Governor>, Error> {
         eyre!("Failed to parse cpupower output:\n{raw}"),
         ErrorKind::ParseSysInfo,
     ))
+}
+
+pub async fn get_preferred_governor() -> Result<Option<&'static Governor>, Error> {
+    let governors = get_available_governors().await?;
+    for governor in GOVERNOR_HEIRARCHY {
+        if governors.contains(governor) {
+            return Ok(Some(governor));
+        }
+    }
+    Ok(None)
 }
 
 pub async fn set_governor(governor: &Governor) -> Result<(), Error> {
