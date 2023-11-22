@@ -47,7 +47,7 @@ export class NotificationsService {
     ),
   )
 
-  private readonly updates$ = combineLatest([
+  private readonly updateCount$ = combineLatest([
     this.marketplace.getMarketplace$(true),
     this.local$,
   ]).pipe(
@@ -67,17 +67,18 @@ export class NotificationsService {
     ),
   )
 
-  private readonly notifications$ = this.patch.watch$(
+  private readonly notificationCount$ = this.patch.watch$(
     'server-info',
-    'unread-notification-count',
+    'unreadNotifications',
+    'count',
   )
 
-  getNotifications(id: string): Observable<number> {
+  getNotificationCount(id: string): Observable<number> {
     switch (id) {
       case '/portal/system/updates':
-        return this.updates$
+        return this.updateCount$
       case 'notifications':
-        return this.notifications$
+        return this.notificationCount$
       default:
         return EMPTY
     }

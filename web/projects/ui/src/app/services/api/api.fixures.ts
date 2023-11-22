@@ -339,6 +339,7 @@ export module Mock {
           },
         },
       },
+      read: false,
     },
     {
       id: 2,
@@ -349,6 +350,7 @@ export module Mock {
       title: 'SSH Key Added',
       message: 'A new SSH key was added. If you did not do this, shit is bad.',
       data: null,
+      read: true,
     },
     {
       id: 3,
@@ -359,6 +361,7 @@ export module Mock {
       title: 'SSH Key Removed',
       message: 'A SSH key was removed.',
       data: null,
+      read: false,
     },
     {
       id: 4,
@@ -376,6 +379,7 @@ export module Mock {
         )
         .join(''),
       data: null,
+      read: true,
     },
   ]
 

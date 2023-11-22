@@ -476,7 +476,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/unread-notification-count',
+        path: '/server-info/unreadNotifications/count',
         value: 0,
       },
     ]
@@ -495,6 +495,20 @@ export class MockApiService extends ApiService {
   async deleteAllNotifications(
     params: RR.DeleteAllNotificationsReq,
   ): Promise<RR.DeleteAllNotificationsRes> {
+    await pauseFor(2000)
+    return null
+  }
+
+  async markSeenNotification(
+    params: RR.MarkSeenNotificationReq,
+  ): Promise<RR.MarkSeenNotificationRes> {
+    await pauseFor(2000)
+    return null
+  }
+
+  async markSeenAllNotifications(
+    params: RR.MarkSeenAllNotificationsReq,
+  ): Promise<RR.MarkSeenAllNotificationsRes> {
     await pauseFor(2000)
     return null
   }
@@ -1242,11 +1256,6 @@ export class MockApiService extends ApiService {
 
   async getSetupStatus() {
     return getSetupStatusMock()
-  }
-
-  async followLogs(): Promise<string> {
-    await pauseFor(1000)
-    return 'fake-guid'
   }
 
   async setInterfaceClearnetAddress(

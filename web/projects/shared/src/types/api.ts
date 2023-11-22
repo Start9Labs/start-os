@@ -1,10 +1,16 @@
-export type ServerLogsReq = {
+export type FollowLogsReq = {}
+export type FollowLogsRes = {
+  'start-cursor': string
+  guid: string
+}
+
+export type FetchLogsReq = {
   before: boolean
   cursor?: string
   limit?: number
 }
 
-export type LogsRes = {
+export type FetchLogsRes = {
   entries: Log[]
   'start-cursor'?: string
   'end-cursor'?: string

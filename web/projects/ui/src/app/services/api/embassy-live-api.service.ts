@@ -117,10 +117,6 @@ export class LiveApiService extends ApiService {
     return this.openWebsocket(config)
   }
 
-  async followLogs(): Promise<string> {
-    return this.rpcRequest({ method: 'setup.logs.follow', params: {} })
-  }
-
   openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
     return this.openWebsocket(config)
   }
@@ -270,6 +266,21 @@ export class LiveApiService extends ApiService {
   ): Promise<RR.DeleteAllNotificationsRes> {
     return this.rpcRequest({
       method: 'notification.delete-before',
+      params,
+    })
+  }
+
+  async markSeenNotification(
+    params: RR.MarkSeenNotificationReq,
+  ): Promise<RR.MarkSeenNotificationRes> {
+    return this.rpcRequest({ method: 'notification.mark-seen', params })
+  }
+
+  async markSeenAllNotifications(
+    params: RR.MarkSeenAllNotificationsReq,
+  ): Promise<RR.MarkSeenAllNotificationsRes> {
+    return this.rpcRequest({
+      method: 'notification.mark-seen-before',
       params,
     })
   }

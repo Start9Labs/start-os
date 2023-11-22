@@ -98,7 +98,7 @@ export class NotificationsPage {
       .subscribe(() => this.deleteAll())
   }
 
-  async viewBackupReport(notification: ServerNotification<1>) {
+  async viewBackupReport(notification: ServerNotification<number>) {
     this.dialogs
       .open(new PolymorpheusComponent(BackupReportComponent), {
         label: 'Backup Report',

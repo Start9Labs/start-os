@@ -10,6 +10,6 @@ export class ToNotificationsPipe implements PipeTransform {
   readonly notifications = inject(NotificationsService)
 
   transform(id: string): Observable<number> {
-    return this.notifications.getNotifications(id)
+    return this.notifications.getNotificationCount(id)
   }
 }

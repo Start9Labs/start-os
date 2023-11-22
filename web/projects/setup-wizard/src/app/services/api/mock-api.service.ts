@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core'
 import {
   encodeBase64,
+  FollowLogsReq,
+  FollowLogsRes,
   getSetupStatusMock,
   Log,
   pauseFor,
@@ -134,9 +136,12 @@ export class MockApiService extends ApiService {
     await pauseFor(1000)
   }
 
-  async followLogs(): Promise<string> {
+  async followServerLogs(params: FollowLogsReq): Promise<FollowLogsRes> {
     await pauseFor(1000)
-    return 'fake-guid'
+    return {
+      'start-cursor': 'fakestartcursor',
+      guid: 'fake-guid',
+    }
   }
 
   openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
