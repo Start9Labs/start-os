@@ -23,14 +23,18 @@ export class SystemForEmbassy implements System {
     throw new Error("Method not implemented.")
   }
   async start(effects: T.Effects): Promise<void> {
-    await this.stop(effects)
+    if (!!this.currentRunning) return
     const utils = createUtils(effects)
     const currentCommand: [string, ...string[]] = [
       this.manifest.main.entrypoint,
       ...this.manifest.main.args,
     ]
 
+    await effects.setMainStatus({ status: "running" })
     this.currentRunning = await utils.runDaemon(currentCommand, {})
+    this.currentRunning.wait().then(() => {
+      effects.setMainStatus({ status: "stopped" })
+    })
   }
   async stop(
     effects: T.Effects,

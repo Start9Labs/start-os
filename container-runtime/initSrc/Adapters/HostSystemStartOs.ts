@@ -222,6 +222,11 @@ export class HostSystemStartOs implements T.Effects {
       T.Effects["setHealth"]
     >
   }
+
+  setMainStatus(o: { status: "running" | "stopped" }): Promise<void> {
+    return this.rpcRound("setHealth", o) as ReturnType<T.Effects["setHealth"]>
+  }
+
   shutdown(...[]: Parameters<T.Effects["shutdown"]>) {
     return this.rpcRound("shutdown", null)
   }
