@@ -1,6 +1,16 @@
-import { Runtime } from "./Runtime"
+import { RpcListener } from "./Adapters/RpcListener"
+import { SystemForEmbassy } from "./Adapters/Systems/SystemForEmbassy"
+import { HostSystemStartOs } from "./Adapters/HostSystemStartOs"
+import { AllGetDependencies } from "./Interfaces/AllGetDependencies"
+import { getSystem } from "./Adapters/Systems"
+import { once } from "@start9labs/start-sdk/lib/util/once"
 
-new Runtime()
+const getDependencies: AllGetDependencies = {
+  system: once(getSystem),
+  hostSystem: async () => HostSystemStartOs.of,
+}
+
+new RpcListener(getDependencies)
 
 /**
 

@@ -2,7 +2,7 @@
   "include": [
     "./**/*.mjs",
     "./**/*.js",
-    "initSrc/Runtime.ts",
+    "initSrc/Adapters/RpcListener.ts",
     "initSrc/index.ts",
     "effects.ts"
   ],
