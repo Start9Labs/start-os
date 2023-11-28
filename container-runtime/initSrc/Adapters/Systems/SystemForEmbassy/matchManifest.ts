@@ -11,27 +11,8 @@ import {
   some,
 } from "ts-matches"
 import { matchVolume } from "./matchVolume"
+import {matchDockerProcedure} from '../../../Models/DockerProcedure'
 
-const matchDockerProcedure = object(
-  {
-    type: literal("docker"),
-    image: string,
-    system: boolean,
-    entrypoint: string,
-    args: array(string),
-    mounts: dictionary([string, string]),
-    "iso-format": literals(
-      "json",
-      "json-pretty",
-      "yaml",
-      "cbor",
-      "toml",
-      "toml-pretty",
-    ),
-    "sigterm-timeout": number,
-  },
-  ["iso-format"],
-)
 const matchJsProcedure = object({
   type: literal("script"),
   args: array(unknown),

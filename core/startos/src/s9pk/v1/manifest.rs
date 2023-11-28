@@ -8,13 +8,10 @@ use url::Url;
 
 use super::git_hash::GitHash;
 use crate::action::Actions;
-use crate::backup::BackupActions;
-use crate::config::action::ConfigActions;
 use crate::dependencies::Dependencies;
 use crate::migration::Migrations;
 use crate::net::interface::Interfaces;
 use crate::prelude::*;
-use crate::procedure::PackageProcedure;
 use crate::status::health_check::HealthChecks;
 use crate::util::serde::Regex;
 use crate::util::Version;
@@ -51,21 +48,11 @@ pub struct Manifest {
     pub donation_url: Option<Url>,
     #[serde(default)]
     pub alerts: Alerts,
-    pub main: PackageProcedure,
     pub health_checks: HealthChecks,
-    pub config: Option<ConfigActions>,
-    pub properties: Option<PackageProcedure>,
     pub volumes: Volumes,
-    // #[serde(default)]
     pub interfaces: Interfaces,
-    // #[serde(default)]
-    pub backup: BackupActions,
-    #[serde(default)]
-    pub migrations: Migrations,
     #[serde(default)]
     pub actions: Actions,
-    // #[serde(default)]
-    // pub permissions: Permissions,
     #[serde(default)]
     pub dependencies: Dependencies,
 
@@ -74,30 +61,12 @@ pub struct Manifest {
 
     #[serde(default)]
     pub hardware_requirements: HardwareRequirements,
+
+    #[serde(flatten)]
+    pub extra: Value,
 }
 
 impl Manifest {
-    pub fn package_procedures(&self) -> impl Iterator<Item = &PackageProcedure> {
-        use std::iter::once;
-        let main = once(&self.main);
-        let cfg_get = self.config.as_ref().map(|a| &a.get).into_iter();
-        let cfg_set = self.config.as_ref().map(|a| &a.set).into_iter();
-        let props = self.properties.iter();
-        let backups = vec![&self.backup.create, &self.backup.restore].into_iter();
-        let migrations = self
-            .migrations
-            .to
-            .values()
-            .chain(self.migrations.from.values());
-        let actions = self.actions.0.values().map(|a| &a.implementation);
-        main.chain(cfg_get)
-            .chain(cfg_set)
-            .chain(props)
-            .chain(backups)
-            .chain(migrations)
-            .chain(actions)
-    }
-
     pub fn with_git_hash(mut self, git_hash: GitHash) -> Self {
         self.git_hash = Some(git_hash);
         self

@@ -49,7 +49,6 @@ pub mod net;
 pub mod notifications;
 pub mod os_install;
 pub mod prelude;
-pub mod procedure;
 pub mod properties;
 pub mod registry;
 pub mod s9pk;

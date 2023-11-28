@@ -6,7 +6,9 @@ import { createUtils } from "@start9labs/start-sdk/lib/util"
 import { matchManifest, Manifest } from "./matchManifest"
 
 const MANIFEST_LOCATION = "/lib/startos/embassyManifest.json"
+const EMBASSY_JS_LOCATION = "/usr/lib/javascript/embassy.js"
 export class SystemForEmbassy implements System {
+  moduleCode: Promise<unknown> = Promise.resolve()
   currentRunning: T.DaemonReturned | undefined
   static async of(manifestLocation: string = MANIFEST_LOCATION) {
     return fs.readFile(manifestLocation, "utf-8").then((manifest) => {
@@ -16,11 +18,11 @@ export class SystemForEmbassy implements System {
     })
   }
   constructor(readonly manifest: Manifest) {}
-  init(): Promise<void> {
-    throw new Error("Method not implemented.")
+  async init(effects: T.Effects): Promise<void> {
+    this.moduleCode = Promise.resolve().then(() => require(EMBASSY_JS_LOCATION))
   }
-  exit(): Promise<void> {
-    throw new Error("Method not implemented.")
+  async exit(effects: T.Effects): Promise<void> {
+    await this.stop(effects)
   }
   async start(effects: T.Effects): Promise<void> {
     if (!!this.currentRunning) return
@@ -66,7 +68,8 @@ export class SystemForEmbassy implements System {
       input: unknown
       timeout?: number | undefined
     },
-  ): Promise<void> {
+  ): Promise<unknown> {
+    const input = options.input;
     switch (options.procedure) {
       case "/createBackup":
         return this.createBackup(effects)
@@ -75,9 +78,9 @@ export class SystemForEmbassy implements System {
       case "/getConfig":
         return this.getConfig(effects)
       case "/setConfig":
-        return this.setConfig(effects)
+        return this.setConfig(effects, input)
       case "migration":
-        return this.migration(effects)
+        return this.migration(effects, input)
       case "/properties":
         return this.properties(effects)
       case "/handleSignal":
@@ -86,16 +89,16 @@ export class SystemForEmbassy implements System {
         const procedure = options.procedure.split("/")
         switch (true) {
           case options.procedure.startsWith("/health/"):
-            return this.health(effects, procedure[2])
+            return this.health(effects, procedure[2], input)
           case options.procedure.startsWith("/action/"):
-            return this.action(effects, procedure[2])
+            return this.action(effects, procedure[2], input)
           case options.procedure.startsWith("/dependencies/") &&
             procedure[3] === "check":
-            return this.dependenciesCheck(effects, procedure[2])
+            return this.dependenciesCheck(effects, procedure[2], input)
 
           case options.procedure.startsWith("/dependencies/") &&
             procedure[3] === "autoConfigure":
-            return this.dependenciesAutoconfig(effects, procedure[2])
+            return this.dependenciesAutoconfig(effects, procedure[2], input)
         }
     }
   }
@@ -105,31 +108,31 @@ export class SystemForEmbassy implements System {
   restoreBackup(effects: T.Effects): Promise<void> {
     throw new Error("Method not implemented.")
   }
-  getConfig(effects: T.Effects): Promise<void> {
+  getConfig(effects: T.Effects): Promise<T.ConfigRes> {
     throw new Error("Method not implemented.")
   }
-  setConfig(effects: T.Effects): Promise<void> {
+  setConfig(effects: T.Effects, newConfig: unknown): Promise<T.SetResult> {
     throw new Error("Method not implemented.")
   }
-  migration(effects: T.Effects): Promise<void> {
+  migration(effects: T.Effects, fromVersion: unknown): Promise<T.MigrationRes> {
     throw new Error("Method not implemented.")
   }
-  properties(effects: T.Effects): Promise<void> {
+  properties(effects: T.Effects): Promise<unknown> {
     throw new Error("Method not implemented.")
   }
   handleSignal(effects: T.Effects): Promise<void> {
     throw new Error("Method not implemented.")
   }
-  health(effects: T.Effects, healthId: string): Promise<void> {
+  health(effects: T.Effects, healthId: string, timeSinceStarted: unknown): Promise<void> {
     throw new Error("Method not implemented.")
   }
-  action(effects: T.Effects, actionId: string): Promise<void> {
+  action(effects: T.Effects, actionId: string, formData: unknown): Promise<T.ActionResult> {
     throw new Error("Method not implemented.")
   }
-  dependenciesCheck(effects: T.Effects, id: string): Promise<void> {
+  dependenciesCheck(effects: T.Effects, id: string, oldConfig: unknown): Promise<object> {
     throw new Error("Method not implemented.")
   }
-  dependenciesAutoconfig(effects: T.Effects, id: string): Promise<void> {
+  dependenciesAutoconfig(effects: T.Effects, id: string, oldConfig: unknown): Promise<void> {
     throw new Error("Method not implemented.")
   }
   sandbox(

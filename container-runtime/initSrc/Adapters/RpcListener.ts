@@ -22,65 +22,6 @@ import { HostSystem } from "../Interfaces/HostSystem"
 const SOCKET_PATH = "/start9/sockets/rpc.sock"
 const LOCATION_OF_SERVICE_JS = "/services/service.js"
 
-const childProcesses = new Map<number, CP.ChildProcess[]>()
-let childProcessIndex = 0
-const require = Mod.prototype.require
-const setupRequire = () => {
-  const requireChildProcessIndex = childProcessIndex++
-  // @ts-ignore
-  Mod.prototype.require = (name, ...rest) => {
-    if (["child_process", "node:child_process"].indexOf(name) !== -1) {
-      return {
-        exec(...args: any[]) {
-          const returning = CP.exec.apply(null, args as any)
-          const childProcessArray =
-            childProcesses.get(requireChildProcessIndex) ?? []
-          childProcessArray.push(returning)
-          childProcesses.set(requireChildProcessIndex, childProcessArray)
-          return returning
-        },
-        execFile(...args: any[]) {
-          const returning = CP.execFile.apply(null, args as any)
-          const childProcessArray =
-            childProcesses.get(requireChildProcessIndex) ?? []
-          childProcessArray.push(returning)
-          childProcesses.set(requireChildProcessIndex, childProcessArray)
-          return returning
-        },
-        execFileSync: CP.execFileSync,
-        execSync: CP.execSync,
-        fork(...args: any[]) {
-          const returning = CP.fork.apply(null, args as any)
-          const childProcessArray =
-            childProcesses.get(requireChildProcessIndex) ?? []
-          childProcessArray.push(returning)
-          childProcesses.set(requireChildProcessIndex, childProcessArray)
-          return returning
-        },
-        spawn(...args: any[]) {
-          const returning = CP.spawn.apply(null, args as any)
-          const childProcessArray =
-            childProcesses.get(requireChildProcessIndex) ?? []
-          childProcessArray.push(returning)
-          childProcesses.set(requireChildProcessIndex, childProcessArray)
-          return returning
-        },
-        spawnSync: CP.spawnSync,
-      } as typeof CP
-    }
-    console.log("require", name)
-    return require(name, ...rest)
-  }
-  return requireChildProcessIndex
-}
-
-const cleanupRequire = (requireChildProcessIndex: number) => {
-  const foundChildren = childProcesses.get(requireChildProcessIndex)
-  if (!foundChildren) return
-  childProcesses.delete(requireChildProcessIndex)
-  foundChildren.forEach((x) => x.kill())
-}
-
 const idType = some(string, number)
 const runType = object({
   id: idType,
@@ -149,7 +90,6 @@ export class RpcListener {
   private dealWithInput(input: unknown) {
     return matches(input)
       .when(runType, async ({ id, params: { methodName, methodArgs } }) => {
-        const index = setupRequire()
         const hostSystem = await this.getDependencies
           .hostSystem()
           .then((x) => x(`/${methodName.join("/")}`, this.#callbacks))
@@ -164,7 +104,6 @@ export class RpcListener {
             id,
             error: { message: error?.message ?? String(error) },
           }))
-          .finally(() => cleanupRequire(index))
       })
       .when(callbackType, async ({ id, params: { callback, args } }) =>
         Promise.resolve(this.#callbacks.callCallback(callback, args))

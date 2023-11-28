@@ -9,7 +9,7 @@ use container_init::ProcessGroupId;
 use futures::future::BoxFuture;
 use futures::{Future, FutureExt, TryFutureExt};
 use helpers::UnixRpcClient;
-use models::{ErrorKind, OptionExt, PackageId};
+use models::{ErrorKind, OptionExt, PackageId, ProcedureName};
 use nix::sys::signal::Signal;
 use persistent_container::PersistentContainer;
 use rand::SeedableRng;
@@ -21,9 +21,6 @@ use tokio::sync::{oneshot, Mutex};
 use tracing::instrument;
 use transition_state::TransitionState;
 
-use crate::backup::target::PackageBackupInfo;
-use crate::backup::PackageBackupReport;
-use crate::config::action::ConfigRes;
 use crate::config::spec::ValueSpecPointer;
 use crate::config::ConfigureContext;
 use crate::context::RpcContext;
@@ -37,8 +34,6 @@ use crate::install::cleanup::remove_from_current_dependents_lists;
 use crate::net::net_controller::NetService;
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
-use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
-use crate::procedure::{NoOutput, ProcedureName};
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::S9pk;
 use crate::status::MainStatus;
@@ -46,12 +41,18 @@ use crate::util::docker::get_container_ip;
 use crate::util::NonDetachingJoinHandle;
 use crate::volume::Volume;
 use crate::Error;
+use crate::{backup::target::PackageBackupInfo, util::serde::NoOutput};
+use crate::{backup::PackageBackupReport, net::keys::Key};
+use crate::{
+    config::action::ConfigRes,
+    util::serde::{Base32, Base64},
+};
 
 pub mod health;
 mod manager_container;
 mod manager_map;
 pub mod manager_seed;
-mod persistent_container;
+pub mod persistent_container;
 mod rpc;
 mod start_stop;
 mod transition_state;
@@ -109,7 +110,7 @@ impl Gid {
 }
 
 /// This is the controller of the services. Here is where we can control a service with a start, stop, restart, etc.
-#[derive(Clone)]
+// #[derive(Clone)]
 pub struct Manager {
     seed: Arc<ManagerSeed>,
 
@@ -253,6 +254,8 @@ impl Manager {
         let manage_container = self.manage_container.clone();
         let seed = self.seed.clone();
         async move {
+            let pkg_id = &seed.s9pk.as_manifest().id;
+            let pkg_version = &seed.s9pk.as_manifest().version;
             let peek = seed.ctx.db.peek().await;
             let state_reverter = DesiredStateReverter::new(manage_container.clone());
             let override_guard = manage_container
@@ -263,7 +266,77 @@ impl Manager {
                 .mount_package_backup(&seed.s9pk.as_manifest().id)
                 .await?;
 
-            let return_value = seed.s9pk.as_manifest().backup.create(seed.clone()).await;
+            let return_value = async {
+                self.persistent_container
+                    .execute::<NoOutput>(ProcedureName::CreateBackup, Value::Null, None)
+                    .await?
+                    .map_err(|e| eyre!("{}", e.1))
+                    .with_kind(crate::ErrorKind::Backup)?;
+                let (network_keys, tor_keys): (Vec<_>, Vec<_>) = Key::for_package(
+                    &self.seed.ctx.secret_store,
+                    &self.seed.s9pk.as_manifest().id,
+                )
+                .await?
+                .into_iter()
+                .filter_map(|k| {
+                    let interface = k.interface().map(|(_, i)| i)?;
+                    Some((
+                        (interface.clone(), Base64(k.as_bytes())),
+                        (interface, Base32(k.tor_key().as_bytes())),
+                    ))
+                })
+                .unzip();
+                let marketplace_url = seed
+                    .ctx
+                    .db
+                    .peek()
+                    .await
+                    .as_package_data()
+                    .as_idx(&seed.s9pk.as_manifest().id)
+                    .or_not_found(&seed.s9pk.as_manifest().id)?
+                    .expect_as_installed()?
+                    .as_installed()
+                    .as_marketplace_url()
+                    .de()?;
+                let s9pk_path = Path::new(BACKUP_DIR)
+                    .join(pkg_id)
+                    .join(format!("{}.s9pk", pkg_id));
+                let mut outfile = AtomicFile::new(&s9pk_path, None::<PathBuf>)
+                    .await
+                    .with_kind(ErrorKind::Filesystem)?;
+                tokio::io::copy(&mut infile, &mut *outfile)
+                    .await
+                    .with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Filesystem,
+                            format!("cp {} -> {}", s9pk_path.display(), tmp_path.display()),
+                        )
+                    })?;
+                outfile.save().await.with_kind(ErrorKind::Filesystem)?;
+                let timestamp = Utc::now();
+                let metadata_path = Path::new(BACKUP_DIR).join(pkg_id).join("metadata.cbor");
+                let mut outfile = AtomicFile::new(&metadata_path, None::<PathBuf>)
+                    .await
+                    .with_kind(ErrorKind::Filesystem)?;
+                let network_keys = network_keys.into_iter().collect();
+                let tor_keys = tor_keys.into_iter().collect();
+                outfile
+                    .write_all(&IoFormat::Cbor.to_vec(&BackupMetadata {
+                        timestamp,
+                        network_keys,
+                        tor_keys,
+                        marketplace_url,
+                    })?)
+                    .await?;
+                outfile.save().await.with_kind(ErrorKind::Filesystem)?;
+                Ok(PackageBackupInfo {
+                    os_version: Current::new().semver().into(),
+                    title: manifest.title.clone(),
+                    version: pkg_version.clone(),
+                    timestamp,
+                })
+            }
+            .await;
             guard.unmount().await?;
             drop(backup_guard);
 

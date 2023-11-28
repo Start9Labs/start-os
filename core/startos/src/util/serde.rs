@@ -843,3 +843,16 @@ impl Serialize for Regex {
         serialize_display(&self.0, serializer)
     }
 }
+
+// TODO: make this not allocate
+#[derive(Debug)]
+pub struct NoOutput;
+impl<'de> Deserialize<'de> for NoOutput {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let _ = Value::deserialize(deserializer);
+        Ok(NoOutput)
+    }
+}
