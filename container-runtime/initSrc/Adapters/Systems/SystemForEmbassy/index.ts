@@ -4,6 +4,9 @@ import * as fs from "fs/promises"
 import { System } from "../../../Interfaces/System"
 import { createUtils } from "@start9labs/start-sdk/lib/util"
 import { matchManifest, Manifest } from "./matchManifest"
+import { create } from "domain"
+import { DockerProcedure } from "../../../Models/DockerProcedure"
+import {DockerProcedureContainer} from '../../../Models/DockerProcedureContainer'
 
 const MANIFEST_LOCATION = "/lib/startos/embassyManifest.json"
 const EMBASSY_JS_LOCATION = "/usr/lib/javascript/embassy.js"
@@ -69,7 +72,7 @@ export class SystemForEmbassy implements System {
       timeout?: number | undefined
     },
   ): Promise<unknown> {
-    const input = options.input;
+    const input = options.input
     switch (options.procedure) {
       case "/createBackup":
         return this.createBackup(effects)
@@ -102,8 +105,14 @@ export class SystemForEmbassy implements System {
         }
     }
   }
-  createBackup(effects: T.Effects): Promise<void> {
-    throw new Error("Method not implemented.")
+  async createBackup(effects: T.Effects): Promise<void> {
+    const backup = this.manifest.backup.create
+    if (backup.type === "docker") {
+      await using container = await DockerProcedureContainer.of(backup)
+      // TODO run the command in the container
+    } else {
+      throw new Error("Method not implemented.")
+    }
   }
   restoreBackup(effects: T.Effects): Promise<void> {
     throw new Error("Method not implemented.")
@@ -123,16 +132,32 @@ export class SystemForEmbassy implements System {
   handleSignal(effects: T.Effects): Promise<void> {
     throw new Error("Method not implemented.")
   }
-  health(effects: T.Effects, healthId: string, timeSinceStarted: unknown): Promise<void> {
+  health(
+    effects: T.Effects,
+    healthId: string,
+    timeSinceStarted: unknown,
+  ): Promise<void> {
     throw new Error("Method not implemented.")
   }
-  action(effects: T.Effects, actionId: string, formData: unknown): Promise<T.ActionResult> {
+  action(
+    effects: T.Effects,
+    actionId: string,
+    formData: unknown,
+  ): Promise<T.ActionResult> {
     throw new Error("Method not implemented.")
   }
-  dependenciesCheck(effects: T.Effects, id: string, oldConfig: unknown): Promise<object> {
+  dependenciesCheck(
+    effects: T.Effects,
+    id: string,
+    oldConfig: unknown,
+  ): Promise<object> {
     throw new Error("Method not implemented.")
   }
-  dependenciesAutoconfig(effects: T.Effects, id: string, oldConfig: unknown): Promise<void> {
+  dependenciesAutoconfig(
+    effects: T.Effects,
+    id: string,
+    oldConfig: unknown,
+  ): Promise<void> {
     throw new Error("Method not implemented.")
   }
   sandbox(
