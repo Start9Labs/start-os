@@ -75,6 +75,7 @@ export class FilterPackagesPipe implements PipeTransform {
           new Date(a['published-at']).valueOf()
         )
       })
+      .map(a => ({ ...a }))
   }
 }
 

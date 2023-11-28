@@ -1,16 +1,16 @@
-import { CommonModule } from "@angular/common";
-import { NgModule } from "@angular/core";
-import { RouterModule } from "@angular/router";
-import { ResponsiveColDirective, SharedPipesModule } from "@start9labs/shared";
-
-import { DependenciesComponent } from "./dependencies.component";
-
+import { CommonModule } from '@angular/common'
+import { NgModule } from '@angular/core'
+import { RouterModule } from '@angular/router'
+import { EmverPipesModule, ResponsiveColDirective } from '@start9labs/shared'
+import { DependenciesComponent } from './dependencies.component'
+import { TuiAvatarModule } from '@taiga-ui/experimental'
 @NgModule({
   imports: [
     CommonModule,
     RouterModule,
-    SharedPipesModule,
     ResponsiveColDirective,
+    TuiAvatarModule,
+    EmverPipesModule,
   ],
   declarations: [DependenciesComponent],
   exports: [DependenciesComponent],

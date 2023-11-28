@@ -20,10 +20,23 @@
   </a>
   <div class="grid grid-cols-1 gap-x-8">
     <marketplace-about [pkg]="pkg"></marketplace-about>
-    <marketplace-dependencies
+    <div
       *ngIf="!(pkg.manifest.dependencies | empty)"
-      [pkg]="pkg"
-    ></marketplace-dependencies>
+      class="rounded-xl bg-gradient-to-bl from-zinc-400/75 to-zinc-600 p-px shadow-lg shadow-zinc-400/10 mt-6"
+    >
+      <div class="lg:col-span-5 xl:col-span-4 bg-zinc-800 rounded-xl p-7">
+        <h2 class="text-lg font-bold small-caps my-2 pb-3">Dependencies</h2>
+        <div class="grid grid-row-auto gap-3">
+          <div *ngFor="let dep of pkg.manifest.dependencies | keyvalue">
+            <marketplace-dependencies
+              [dep]="dep"
+              [pkg]="pkg"
+              (click)="sidebarService.toggleState(dep.key, true)"
+            ></marketplace-dependencies>
+          </div>
+        </div>
+      </div>
+    </div>
     <release-notes [pkg]="pkg"></release-notes>
     <marketplace-additional
       class="mt-6"

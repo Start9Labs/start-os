@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { MarketplacePkg } from '../../../types'
+import { Dependency, MarketplacePkg } from '../../../types'
+import { KeyValue } from '@angular/common'
 
 @Component({
   selector: 'marketplace-dependencies',
@@ -11,8 +12,16 @@ export class DependenciesComponent {
   @Input({ required: true })
   pkg!: MarketplacePkg
 
-  getImg(key: string): string {
+  @Input({ required: true })
+  dep!: KeyValue<string, Dependency>
+
+  getImage(key: string): string {
+    const icon = this.pkg['dependency-metadata'][key]?.icon
     // @TODO fix when registry api is updated to include mimetype in icon url
-    return 'data:image/png;base64,' + this.pkg['dependency-metadata'][key].icon
+    return icon ? `data:image/png;base64,${icon}` : key.substring(0, 2)
+  }
+
+  getTitle(key: string): string {
+    return this.pkg['dependency-metadata'][key]?.title || key
   }
 }

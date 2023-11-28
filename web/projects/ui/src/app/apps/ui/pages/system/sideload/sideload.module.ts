@@ -9,10 +9,10 @@ import {
   AboutModule,
   AdditionalModule,
   DependenciesModule,
-  PackageModule,
+  MarketplacePackageHeroComponent,
 } from '@start9labs/marketplace'
 // TODO: Find a way to not tie two routes together
-import { MarketplaceShowComponentsModule } from '../../marketplace/marketplace-show-preview/components/marketplace-show-components.module'
+import { MarketplaceShowControlsComponent } from '../../marketplace/marketplace-show-preview/components/marketplace-show-controls.component'
 
 const routes: Routes = [
   {
@@ -28,11 +28,11 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     SharedPipesModule,
     EmverPipesModule,
-    PackageModule,
     AboutModule,
     AdditionalModule,
+    MarketplaceShowControlsComponent,
     DependenciesModule,
-    MarketplaceShowComponentsModule,
+    MarketplacePackageHeroComponent,
   ],
   declarations: [SideloadPage, DragNDropDirective],
 })

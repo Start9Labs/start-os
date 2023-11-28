@@ -93,7 +93,7 @@ export class ToMenuPipe implements PipeTransform {
             description: `View ${manifest.title} on the Marketplace`,
             action: () =>
               this.router.navigate(['marketplace'], {
-                // relativeTo: this.route,
+                relativeTo: this.route,
                 queryParams: { url, id: manifest.id },
               }),
           }

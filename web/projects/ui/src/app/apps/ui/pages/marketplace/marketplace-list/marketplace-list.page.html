@@ -90,17 +90,23 @@
         "
       >
         <ul
-          class="px-6 md:px-8 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-16 list-none"
-          [@itemAnimation]="filtered.length"
+          class="px-6 md:px-8 grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-16 list-none"
         >
-          <li *ngFor="let pkg of filtered">
-            <marketplace-item-toggle [pkg]="pkg"></marketplace-item-toggle>
+          <li *ngFor="let pkg of filtered; index as i">
+            <marketplace-item-toggle
+              [pkg]="pkg"
+              [index]="i"
+              class="block h-full"
+            ></marketplace-item-toggle>
           </li>
         </ul>
       </section>
     </ng-container>
     <ng-template #loading>
-      <h1 class="text-xl pl-6">Loading...</h1>
+      <h1 class="text-xl pl-6">
+        Loading
+        <span class="loading-dots"></span>
+      </h1>
     </ng-template>
   </main>
 </div>

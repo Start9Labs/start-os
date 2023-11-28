@@ -19,6 +19,7 @@ import {
   AbstractMarketplaceService,
   MarketplacePkg,
 } from '@start9labs/marketplace'
+import { SidebarService } from 'src/app/services/sidebar.service'
 
 @Component({
   selector: 'marketplace-show-preview',
@@ -35,6 +36,7 @@ export class MarketplaceShowPreviewComponent {
     @Inject(TuiDialogService) private readonly dialogs: TuiDialogService,
   ) {}
 
+  readonly sidebarService = inject(SidebarService)
   private readonly marketplaceService = inject(AbstractMarketplaceService)
   readonly version$ = new BehaviorSubject('*')
   index = 0

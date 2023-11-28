@@ -29,6 +29,7 @@ import { SideloadPackageComponent } from './package.component'
         [style.border-radius.%]="100"
         [style.float]="'right'"
         (click)="clear()"
+        class="justify-self-end"
       >
         Close
       </button>
