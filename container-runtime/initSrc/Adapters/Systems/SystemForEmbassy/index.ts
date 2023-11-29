@@ -6,7 +6,7 @@ import { createUtils } from "@start9labs/start-sdk/lib/util"
 import { matchManifest, Manifest } from "./matchManifest"
 import { create } from "domain"
 import { DockerProcedure } from "../../../Models/DockerProcedure"
-import {DockerProcedureContainer} from '../../../Models/DockerProcedureContainer'
+import {DockerProcedureContainer} from '../../DockerProcedureContainer'
 
 const MANIFEST_LOCATION = "/lib/startos/embassyManifest.json"
 const EMBASSY_JS_LOCATION = "/usr/lib/javascript/embassy.js"
@@ -63,7 +63,7 @@ export class SystemForEmbassy implements System {
         | "/setConfig"
         | "migration"
         | "/properties"
-        | "/handleSignal"
+        
         | `/health/${string}`
         | `/action/${string}`
         | `/dependencies/${string}/check`
@@ -86,8 +86,6 @@ export class SystemForEmbassy implements System {
         return this.migration(effects, input)
       case "/properties":
         return this.properties(effects)
-      case "/handleSignal":
-        return this.handleSignal(effects)
       default:
         const procedure = options.procedure.split("/")
         switch (true) {
@@ -109,56 +107,119 @@ export class SystemForEmbassy implements System {
     const backup = this.manifest.backup.create
     if (backup.type === "docker") {
       await using container = await DockerProcedureContainer.of(backup)
-      // TODO run the command in the container
+      await container.exec([backup.entrypoint, ...backup.args])
     } else {
       throw new Error("Method not implemented.")
     }
   }
-  restoreBackup(effects: T.Effects): Promise<void> {
-    throw new Error("Method not implemented.")
+  async restoreBackup(effects: T.Effects): Promise<void> {
+    const restoreBackup = this.manifest.backup.restore
+    if (restoreBackup.type === "docker") {
+      await using container = await DockerProcedureContainer.of(restoreBackup)
+      await container.exec([restoreBackup.entrypoint, ...restoreBackup.args])
+    } else {
+      throw new Error("Method not implemented.")
+    }
   }
-  getConfig(effects: T.Effects): Promise<T.ConfigRes> {
-    throw new Error("Method not implemented.")
+  async getConfig(effects: T.Effects): Promise<T.ConfigRes> {
+    const config = this.manifest.config?.get
+    if (!config) return {spec:{}}
+    if (config.type === "docker") {
+      await using container = await DockerProcedureContainer.of(config)
+      return JSON.parse((await container.exec([config.entrypoint, ...config.args])).stdout)
+    } else {
+      throw new Error("Method not implemented.")
+    }
   }
-  setConfig(effects: T.Effects, newConfig: unknown): Promise<T.SetResult> {
-    throw new Error("Method not implemented.")
+  async setConfig(effects: T.Effects, newConfig: unknown): Promise<T.SetResult> {
+    const setConfigValue = this.manifest.config?.set
+    if (!setConfigValue) return {signal:"SIGTERM", "depends-on":{}}
+    // TODO Deal with the pointers
+    if (setConfigValue.type === "docker") {
+      await using container = await DockerProcedureContainer.of(setConfigValue)
+      return JSON.parse((await container.exec([setConfigValue.entrypoint, ...setConfigValue.args, JSON.stringify(newConfig)])).stdout)
+    } else {
+      throw new Error("Method not implemented.")
+    }
   }
-  migration(effects: T.Effects, fromVersion: unknown): Promise<T.MigrationRes> {
-    throw new Error("Method not implemented.")
+  async migration(effects: T.Effects, fromVersion: unknown): Promise<T.MigrationRes> {
+    // //todo filter
+    // const setConfigValue = this.manifest.migrations
+    // if (!setConfigValue) return {configured:true}
+    // // TODO Deal with the pointers
+    // if (setConfigValue.type === "docker") {
+    //   await using container = await DockerProcedureContainer.of(setConfigValue)
+    //   return JSON.parse((await container.exec([setConfigValue.entrypoint, ...setConfigValue.args, JSON.stringify(fromVersion)])).stdout)
+    // } else {
+    //   throw new Error("Method not implemented.")
+    // }
+    throw new Error("Not implemented")
   }
-  properties(effects: T.Effects): Promise<unknown> {
-    throw new Error("Method not implemented.")
+  async properties(effects: T.Effects): Promise<unknown> {
+    const setConfigValue = this.manifest.properties
+    if (!setConfigValue) return {}
+    if (setConfigValue.type === "docker") {
+      await using container = await DockerProcedureContainer.of(setConfigValue)
+      return JSON.parse((await container.exec([setConfigValue.entrypoint, ...setConfigValue.args])).stdout)
+    } else {
+      throw new Error("Method not implemented.")
+    }
   }
-  handleSignal(effects: T.Effects): Promise<void> {
-    throw new Error("Method not implemented.")
-  }
-  health(
+  async health(
     effects: T.Effects,
     healthId: string,
     timeSinceStarted: unknown,
   ): Promise<void> {
-    throw new Error("Method not implemented.")
+    const healthProcedure = this.manifest["health-checks"][healthId]?.implementation
+    if (!healthProcedure) return
+    if (healthProcedure.type === "docker") {
+      await using container = await DockerProcedureContainer.of(healthProcedure)
+      return JSON.parse((await container.exec([healthProcedure.entrypoint, ...healthProcedure.args, JSON.stringify(timeSinceStarted)])).stdout)
+    } else {
+      throw new Error("Method not implemented.")
+    }
   }
-  action(
+  async action(
     effects: T.Effects,
     actionId: string,
     formData: unknown,
   ): Promise<T.ActionResult> {
-    throw new Error("Method not implemented.")
+    const actionProcedure = this.manifest.actions[actionId]?.implementation
+    if (!actionProcedure) return {message: "Action not found", value: null}
+    if (actionProcedure.type === "docker") {
+      await using container = await DockerProcedureContainer.of(actionProcedure)
+      return JSON.parse((await container.exec([actionProcedure.entrypoint, ...actionProcedure.args, JSON.stringify(formData)])).stdout)
+    } else {
+      throw new Error("Method not implemented.")
+    }
   }
-  dependenciesCheck(
+  async dependenciesCheck(
     effects: T.Effects,
     id: string,
     oldConfig: unknown,
   ): Promise<object> {
-    throw new Error("Method not implemented.")
+    const actionProcedure = this.manifest.dependencies[id]?.config?.check
+    if (!actionProcedure) return {message: "Action not found", value: null}
+    if (actionProcedure.type === "docker") {
+      await using container = await DockerProcedureContainer.of(actionProcedure)
+      return JSON.parse((await container.exec([actionProcedure.entrypoint, ...actionProcedure.args, JSON.stringify(oldConfig)])).stdout)
+    } else {
+      throw new Error("Method not implemented.")
+    }
   }
-  dependenciesAutoconfig(
+  async dependenciesAutoconfig(
     effects: T.Effects,
     id: string,
     oldConfig: unknown,
   ): Promise<void> {
-    throw new Error("Method not implemented.")
+    const actionProcedure = this.manifest.dependencies[id]?.config?.["auto-configure"]
+    if (!actionProcedure) return 
+    if (actionProcedure.type === "docker") {
+      await using container = await DockerProcedureContainer.of(actionProcedure)
+      return JSON.parse((await container.exec([actionProcedure.entrypoint, ...actionProcedure.args, JSON.stringify(oldConfig)])).stdout)
+    } else {
+      throw new Error("Method not implemented.")
+    }
   }
   sandbox(
     effects: T.Effects,
@@ -170,7 +231,6 @@ export class SystemForEmbassy implements System {
         | "/setConfig"
         | "migration"
         | "/properties"
-        | "/handleSignal"
         | `/health/${string}`
         | `/action/${string}`
         | `/dependencies/${string}/check`

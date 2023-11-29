@@ -2,11 +2,12 @@ import fs from "fs/promises"
 
 import cp from "child_process"
 import { promisify } from "util"
-import { DockerProcedure } from "./DockerProcedure"
+import { DockerProcedure } from "../Models/DockerProcedure"
 export const exec = promisify(cp.exec)
+export const execFile = promisify(cp.execFile)
 
 export class DockerProcedureContainer {
-  private constructor(readonly rootfs: string | undefined) {}
+  private constructor(readonly rootfs: string) {}
   static async of(data: DockerProcedure) {
     const image = data.image
     if (await fs.stat(`/media/images/${data.image}`).catch(() => false))
@@ -16,19 +17,32 @@ export class DockerProcedureContainer {
     const upper = await fs.mkdir(`${container}/upper`, { recursive: true })
     const work = await fs.mkdir(`${container}/work`, { recursive: true })
 
-    await exec(
-      `mount -t overlay -olowerdir=/media/images/${image},upperdir=${upper},workdir=${work} overlay ${rootfs}`,
-    )
+    if (!rootfs) {
+      throw new Error(`Failed to create rootfs`)
+    }
+
+    await execFile("mount", [
+      "-t",
+      "overlay",
+      `-olowerdir=/media/images/${image},upper=${upper},workdir=${work}`,
+      "overlay",
+      rootfs,
+    ])
 
     for (const dirPart of ["dev", "sys", "proc", "run"] as const) {
       const dir = await fs.mkdir(`${rootfs}/${dirPart}`, { recursive: true })
-      await exec(`mount --bind /${dirPart} ${dir}`)
+      if (!dir) break
+      await execFile("mount", ["--bind", `/${dirPart}`, dir])
     }
 
     return new DockerProcedureContainer(rootfs)
   }
   async [Symbol.asyncDispose]() {
     await exec(`umount --recursive ${this.rootfs}`)
-    this.rootfs && (await fs.rmdir(this.rootfs))
+    await fs.rm(this.rootfs, { recursive: true, force: true })
+  }
+
+  async exec(commands: string[]) {
+    return await execFile("chroot", [this.rootfs, ...commands])
   }
 }

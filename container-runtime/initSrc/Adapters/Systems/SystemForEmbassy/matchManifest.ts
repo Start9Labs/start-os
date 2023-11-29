@@ -11,13 +11,26 @@ import {
   some,
 } from "ts-matches"
 import { matchVolume } from "./matchVolume"
-import {matchDockerProcedure} from '../../../Models/DockerProcedure'
+import { matchDockerProcedure } from "../../../Models/DockerProcedure"
 
 const matchJsProcedure = object({
   type: literal("script"),
   args: array(unknown),
 })
+
 const matchProcedure = some(matchDockerProcedure, matchJsProcedure)
+
+const matchAction = object(
+  {
+    name: string,
+    description: string,
+    warning: string,
+    implementation: matchProcedure,
+    "allowed-statuses": array(literals("running", "stopped")),
+    "input-spec": unknown,
+  },
+  ["warning", "input-spec"],
+)
 export const matchManifest = object(
   {
     id: string,
@@ -87,6 +100,8 @@ export const matchManifest = object(
         ["description", "config"],
       ),
     ]),
+
+    actions: dictionary([string, matchAction]),
   },
   ["config", "properties"],
 )
