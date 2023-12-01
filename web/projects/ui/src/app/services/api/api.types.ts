@@ -124,17 +124,17 @@ export module RR {
   } // notification.list
   export type GetNotificationsRes = ServerNotification<number>[]
 
-  export type DeleteNotificationReq = { id: number } // notification.delete
+  export type DeleteNotificationReq = { ids: number[] } // notification.delete
   export type DeleteNotificationRes = null
-
-  export type DeleteAllNotificationsReq = { before: number } // notification.delete-before
-  export type DeleteAllNotificationsRes = null
 
   export type MarkSeenNotificationReq = DeleteNotificationReq // notification.mark-seen
   export type MarkSeenNotificationRes = null
 
-  export type MarkSeenAllNotificationsReq = DeleteAllNotificationsReq // notification.mark-seen-before
+  export type MarkSeenAllNotificationsReq = { before: number } // notification.mark-seen-before
   export type MarkSeenAllNotificationsRes = null
+
+  export type MarkUnseenNotificationReq = DeleteNotificationReq // notification.mark-unseen
+  export type MarkUnseenNotificationRes = null
 
   // network
 

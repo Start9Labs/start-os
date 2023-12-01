@@ -255,22 +255,13 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'notification.list', params })
   }
 
-  async deleteNotification(
+  async deleteNotifications(
     params: RR.DeleteNotificationReq,
   ): Promise<RR.DeleteNotificationRes> {
     return this.rpcRequest({ method: 'notification.delete', params })
   }
 
-  async deleteAllNotifications(
-    params: RR.DeleteAllNotificationsReq,
-  ): Promise<RR.DeleteAllNotificationsRes> {
-    return this.rpcRequest({
-      method: 'notification.delete-before',
-      params,
-    })
-  }
-
-  async markSeenNotification(
+  async markSeenNotifications(
     params: RR.MarkSeenNotificationReq,
   ): Promise<RR.MarkSeenNotificationRes> {
     return this.rpcRequest({ method: 'notification.mark-seen', params })
@@ -283,6 +274,12 @@ export class LiveApiService extends ApiService {
       method: 'notification.mark-seen-before',
       params,
     })
+  }
+
+  async markUnseenNotifications(
+    params: RR.MarkUnseenNotificationReq,
+  ): Promise<RR.MarkUnseenNotificationRes> {
+    return this.rpcRequest({ method: 'notification.mark-unseen', params })
   }
 
   // network

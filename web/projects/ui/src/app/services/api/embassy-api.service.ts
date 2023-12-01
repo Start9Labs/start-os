@@ -125,21 +125,21 @@ export abstract class ApiService {
     params: RR.GetNotificationsReq,
   ): Promise<RR.GetNotificationsRes>
 
-  abstract markSeenNotification(
-    params: RR.DeleteNotificationReq,
-  ): Promise<RR.DeleteNotificationRes>
+  abstract markSeenNotifications(
+    params: RR.MarkSeenNotificationReq,
+  ): Promise<RR.MarkSeenNotificationRes>
 
   abstract markSeenAllNotifications(
-    params: RR.DeleteAllNotificationsReq,
-  ): Promise<RR.DeleteAllNotificationsRes>
+    params: RR.MarkSeenAllNotificationsReq,
+  ): Promise<RR.MarkSeenAllNotificationsRes>
 
-  abstract deleteNotification(
+  abstract markUnseenNotifications(
     params: RR.DeleteNotificationReq,
   ): Promise<RR.DeleteNotificationRes>
 
-  abstract deleteAllNotifications(
-    params: RR.DeleteAllNotificationsReq,
-  ): Promise<RR.DeleteAllNotificationsRes>
+  abstract deleteNotifications(
+    params: RR.DeleteNotificationReq,
+  ): Promise<RR.DeleteNotificationRes>
 
   // network
 

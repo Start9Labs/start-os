@@ -73,7 +73,7 @@ export class NotificationsPage {
     const loader = this.loader.open('Deleting...').subscribe()
 
     try {
-      await this.embassyApi.deleteNotification({ id })
+      // await this.embassyApi.deleteNotification({ id })
       this.notifications.splice(index, 1)
       this.beforeCursor = this.notifications[this.notifications.length - 1]?.id
     } catch (e: any) {
@@ -137,9 +137,9 @@ export class NotificationsPage {
     const loader = this.loader.open('Deleting...').subscribe()
 
     try {
-      await this.embassyApi.deleteAllNotifications({
-        before: this.notifications[0].id + 1,
-      })
+      // await this.embassyApi.deleteAllNotifications({
+      //   before: this.notifications[0].id + 1,
+      // })
       this.notifications = []
       this.beforeCursor = undefined
     } catch (e: any) {

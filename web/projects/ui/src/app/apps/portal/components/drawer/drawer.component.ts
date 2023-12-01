@@ -24,7 +24,7 @@ import { ServicesService } from '../../services/services.service'
 import { toRouterLink } from '../../utils/to-router-link'
 import { DrawerItemDirective } from './drawer-item.directive'
 import { SYSTEM_UTILITIES } from '../../constants/system-utilities'
-import { ToNotificationsPipe } from '../../pipes/to-notifications'
+import { ToBadgePipe } from '../../pipes/to-badge'
 
 @Component({
   selector: 'app-drawer',
@@ -45,7 +45,7 @@ import { ToNotificationsPipe } from '../../pipes/to-notifications'
     TuiFilterPipeModule,
     CardComponent,
     DrawerItemDirective,
-    ToNotificationsPipe,
+    ToBadgePipe,
   ],
 })
 export class DrawerComponent {

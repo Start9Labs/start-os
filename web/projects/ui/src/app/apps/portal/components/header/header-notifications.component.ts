@@ -1,5 +1,11 @@
 import { CommonModule } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Output,
+  inject,
+  EventEmitter,
+} from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { TuiForModule } from '@taiga-ui/cdk'
 import { TuiScrollbarModule } from '@taiga-ui/core'
@@ -10,11 +16,15 @@ import {
   TuiTitleModule,
 } from '@taiga-ui/experimental'
 import { PatchDB } from 'patch-db-client'
-import { first } from 'rxjs'
+import { Subject, first, tap } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { HeaderNotificationComponent } from './header-notification.component'
 import { toRouterLink } from '../../utils/to-router-link'
-import { HeaderNotificationsService } from './header-notifications.service'
+import {
+  ServerNotification,
+  ServerNotifications,
+} from 'src/app/services/api/api.types'
+import { NotificationService } from '../../services/notification.service'
 
 @Component({
   selector: 'header-notifications',
@@ -24,21 +34,28 @@ import { HeaderNotificationsService } from './header-notifications.service'
         Notifications
         <a
           *ngIf="notifications.length"
-          style="margin-left: auto; text-transform: none; font-size: 0.8rem;"
-          (click)="service.markAllSeen(notifications[0].id)"
+          style="margin-left: auto; text-transform: none; font-size: 0.9rem; font-weight: 600;"
+          (click)="markAllSeen(notifications[0].id)"
         >
-          Mark all as seen
+          Mark All Seen
         </a>
       </h3>
       <tui-scrollbar *ngIf="packageData$ | async as packageData">
         <header-notification
-          *ngFor="let not of notifications; let i = index; empty: blank"
+          *ngFor="let not of notifications; let i = index"
           tuiCell
           [notification]="not"
         >
           <ng-container *ngIf="not['package-id'] as pkgId">
             {{ $any(packageData[pkgId])?.manifest.title || pkgId }}
           </ng-container>
+          <button
+            style="align-self: flex-start; margin: 0.2rem 0; color: gray; border-radius: 100%;"
+            tuiIconButton
+            appearance="transparent"
+            iconLeft="tuiIconMinusCircle"
+            (click)="markSeen(notifications, not)"
+          ></button>
           <a
             *ngIf="not['package-id'] && packageData[not['package-id']]"
             tuiButton
@@ -49,18 +66,13 @@ import { HeaderNotificationsService } from './header-notifications.service'
             View Service
           </a>
         </header-notification>
-        <ng-template #blank>
-          <div style="padding: 0 1rem">
-            Important system alerts and notifications from StartOS will display
-            here
-          </div>
-        </ng-template>
-        <a
-          style="margin: 1rem; text-align: center; font-size: 0.9rem; font-weight: 600;"
-        >
-          View all
-        </a>
       </tui-scrollbar>
+      <a
+        style="margin: 2rem; text-align: center; font-size: 0.9rem; font-weight: 600;"
+        [routerLink]="'/portal/system/notifications'"
+      >
+        View All
+      </a>
     </ng-container>
   `,
   styles: [
@@ -90,13 +102,42 @@ import { HeaderNotificationsService } from './header-notifications.service'
 })
 export class HeaderNotificationsComponent {
   private readonly patch = inject(PatchDB<DataModel>)
-  readonly service = inject(HeaderNotificationsService)
-
-  readonly notifications$ = this.patch
-    .watch$('server-info', 'unreadNotifications', 'recent')
-    .pipe(first())
+  private readonly service = inject(NotificationService)
 
   readonly packageData$ = this.patch.watch$('package-data').pipe(first())
+
+  readonly notifications$ = new Subject<ServerNotifications>()
+
+  @Output() onEmpty = new EventEmitter()
+
+  ngAfterViewInit() {
+    this.patch
+      .watch$('server-info', 'unreadNotifications', 'recent')
+      .pipe(
+        tap(recent => this.notifications$.next(recent)),
+        first(),
+      )
+      .subscribe()
+  }
+
+  markSeen(
+    current: ServerNotifications,
+    notification: ServerNotification<number>,
+  ) {
+    this.notifications$.next(current.filter(c => c.id !== notification.id))
+
+    if (current.length === 1) this.onEmpty.emit()
+
+    this.service.markSeen([notification])
+  }
+
+  markAllSeen(latestId: number) {
+    this.notifications$.next([])
+
+    this.service.markSeenAll(latestId)
+
+    this.onEmpty.emit()
+  }
 
   getLink(id: string) {
     return toRouterLink(id)

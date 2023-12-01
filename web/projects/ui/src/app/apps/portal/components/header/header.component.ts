@@ -9,7 +9,7 @@ import {
   inject,
   ViewChild,
 } from '@angular/core'
-import { tuiContainsOrAfter, tuiIsElement } from '@taiga-ui/cdk'
+import { tuiContainsOrAfter, tuiIsElement, TuiLetModule } from '@taiga-ui/cdk'
 import {
   TuiDataListModule,
   TuiHostedDropdownModule,
@@ -21,11 +21,10 @@ import {
   TuiButtonModule,
 } from '@taiga-ui/experimental'
 import { Subject } from 'rxjs'
-
 import { SidebarDirective } from '../../../../app/sidebar-host.component'
-import { ToNotificationsPipe } from '../../pipes/to-notifications'
 import { HeaderMenuComponent } from './header-menu.component'
 import { HeaderNotificationsComponent } from './header-notifications.component'
+import { NotificationService } from '../../services/notification.service'
 
 @Component({
   selector: 'header[appHeader]',
@@ -39,25 +38,25 @@ import { HeaderNotificationsComponent } from './header-notifications.component'
     >
       Connection
     </button>
-    <tui-badged-content [style.--tui-radius.%]="50">
-      <tui-badge-notification
-        *ngIf="'notifications' | toNotifications | async as unread"
-        tuiSlot="bottom"
-        size="s"
-      >
+    <tui-badged-content
+      *tuiLet="notificationService.unreadCount$ | async as unread"
+      [style.--tui-radius.%]="50"
+    >
+      <tui-badge-notification *ngIf="unread" tuiSlot="bottom" size="s">
         {{ unread }}
       </tui-badge-notification>
       <button
         tuiIconButton
         iconLeft="tuiIconBellLarge"
         appearance="warning"
-        (click)="open$.next(true)"
+        (click)="handleNotificationsClick(unread || 0)"
       >
         Notifications
       </button>
     </tui-badged-content>
     <header-menu></header-menu>
     <header-notifications
+      (onEmpty)="this.open$.next(false)"
       *tuiSidebar="!!(open$ | async); direction: 'right'; autoWidth: true"
     />
   `,
@@ -88,14 +87,17 @@ import { HeaderNotificationsComponent } from './header-notifications.component'
     SidebarDirective,
     HeaderMenuComponent,
     HeaderNotificationsComponent,
-    ToNotificationsPipe,
+    TuiLetModule,
   ],
 })
 export class HeaderComponent {
+  private readonly router = inject(Router)
+  readonly notificationService = inject(NotificationService)
+
   @ViewChild(HeaderNotificationsComponent, { read: ElementRef })
   private readonly panel?: ElementRef<HTMLElement>
 
-  private readonly navigation = inject(Router).events.subscribe(() => {
+  private readonly _ = this.router.events.subscribe(() => {
     this.open$.next(false)
   })
 
@@ -109,6 +111,14 @@ export class HeaderComponent {
       !tuiContainsOrAfter(this.panel.nativeElement, target)
     ) {
       this.open$.next(false)
+    }
+  }
+
+  handleNotificationsClick(unread: number) {
+    if (unread) {
+      this.open$.next(true)
+    } else {
+      this.router.navigateByUrl('/portal/system/notifications')
     }
   }
 }

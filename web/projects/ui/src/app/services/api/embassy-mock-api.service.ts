@@ -473,33 +473,18 @@ export class MockApiService extends ApiService {
     params: RR.GetNotificationsReq,
   ): Promise<RR.GetNotificationsRes> {
     await pauseFor(2000)
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: '/server-info/unreadNotifications/count',
-        value: 0,
-      },
-    ]
-    this.mockRevision(patch)
 
     return Mock.Notifications
   }
 
-  async deleteNotification(
+  async deleteNotifications(
     params: RR.DeleteNotificationReq,
   ): Promise<RR.DeleteNotificationRes> {
     await pauseFor(2000)
     return null
   }
 
-  async deleteAllNotifications(
-    params: RR.DeleteAllNotificationsReq,
-  ): Promise<RR.DeleteAllNotificationsRes> {
-    await pauseFor(2000)
-    return null
-  }
-
-  async markSeenNotification(
+  async markSeenNotifications(
     params: RR.MarkSeenNotificationReq,
   ): Promise<RR.MarkSeenNotificationRes> {
     await pauseFor(2000)
@@ -509,6 +494,13 @@ export class MockApiService extends ApiService {
   async markSeenAllNotifications(
     params: RR.MarkSeenAllNotificationsReq,
   ): Promise<RR.MarkSeenAllNotificationsRes> {
+    await pauseFor(2000)
+    return null
+  }
+
+  async markUnseenNotifications(
+    params: RR.MarkUnseenNotificationReq,
+  ): Promise<RR.MarkUnseenNotificationRes> {
     await pauseFor(2000)
     return null
   }

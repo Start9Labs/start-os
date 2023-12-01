@@ -5,41 +5,40 @@ import {
   inject,
   Input,
 } from '@angular/core'
-import { TuiDialogService, TuiSvgModule } from '@taiga-ui/core'
+import { TuiSvgModule } from '@taiga-ui/core'
 import { TuiButtonModule, TuiTitleModule } from '@taiga-ui/experimental'
 import { TuiLineClampModule } from '@taiga-ui/kit'
-import {
-  NotificationLevel,
-  ServerNotification,
-} from 'src/app/services/api/api.types'
-import { REPORT } from 'src/app/apps/portal/modals/report.component'
+import { ServerNotification } from 'src/app/services/api/api.types'
+import { NotificationService } from '../../services/notification.service'
 
 @Component({
   selector: 'header-notification',
   template: `
     <tui-svg
-      style="align-self: flex-start; margin: 0.75rem 0;"
+      style="align-self: flex-start; margin: 0.2rem 0;"
       [style.color]="color"
       [src]="icon"
     ></tui-svg>
     <div tuiTitle>
       <div tuiSubtitle><ng-content></ng-content></div>
-      <div [style.color]="color">{{ notification.title }}</div>
+      <div [style.color]="color">
+        {{ notification.title }}
+      </div>
       <tui-line-clamp
         tuiSubtitle
         style="pointer-events: none"
-        [linesLimit]="8"
+        [linesLimit]="4"
         [lineHeight]="16"
         [content]="notification.message"
         (overflownChange)="overflow = $event"
       />
-      <div style="display: flex; gap: 0.5rem">
+      <div style="display: flex; gap: 0.5rem; padding-top: 0.5rem;">
         <button
           *ngIf="notification.code === 1"
           tuiButton
           appearance="secondary"
           size="xs"
-          (click)="viewReport()"
+          (click)="service.viewReport(notification)"
         >
           View Report
         </button>
@@ -49,7 +48,7 @@ import { REPORT } from 'src/app/apps/portal/modals/report.component'
           tuiButton
           appearance="secondary"
           size="xs"
-          (click)="viewFull()"
+          (click)="service.viewFull(notification)"
         >
           View full
         </button>
@@ -70,53 +69,17 @@ import { REPORT } from 'src/app/apps/portal/modals/report.component'
   ],
 })
 export class HeaderNotificationComponent<T extends number> {
-  private readonly dialogs = inject(TuiDialogService)
+  readonly service = inject(NotificationService)
 
   @Input({ required: true }) notification!: ServerNotification<T>
 
   overflow = false
 
   get color(): string {
-    switch (this.notification.level) {
-      case NotificationLevel.Info:
-        return 'var(--tui-info-fill)'
-      case NotificationLevel.Success:
-        return 'var(--tui-success-fill)'
-      case NotificationLevel.Warning:
-        return 'var(--tui-warning-fill)'
-      case NotificationLevel.Error:
-        return 'var(--tui-error-fill)'
-    }
+    return this.service.getColor(this.notification)
   }
 
   get icon(): string {
-    switch (this.notification.level) {
-      case NotificationLevel.Info:
-        return 'tuiIconInfoLarge'
-      case NotificationLevel.Success:
-        return 'tuiIconCheckCircleLarge'
-      case NotificationLevel.Warning:
-        return 'tuiIconAlertCircleLarge'
-      case NotificationLevel.Error:
-        return 'tuiIconXCircleLarge'
-    }
-  }
-
-  viewFull() {
-    this.dialogs
-      .open(this.notification.message, { label: this.notification.title })
-      .subscribe()
-  }
-
-  viewReport() {
-    this.dialogs
-      .open(REPORT, {
-        label: 'Backup Report',
-        data: {
-          report: this.notification.data,
-          timestamp: this.notification['created-at'],
-        },
-      })
-      .subscribe()
+    return this.service.getIcon(this.notification)
   }
 }
