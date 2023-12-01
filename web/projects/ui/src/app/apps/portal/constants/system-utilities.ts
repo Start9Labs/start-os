@@ -12,6 +12,10 @@ export const SYSTEM_UTILITIES: Record<string, { icon: string; title: string }> =
       icon: 'tuiIconUploadLarge',
       title: 'Sideload',
     },
+    '/portal/system/settings': {
+      icon: 'tuiIconToolLarge',
+      title: 'Settings',
+    },
     '/portal/system/snek': {
       icon: 'assets/img/icon_transparent.png',
       title: 'Snek',

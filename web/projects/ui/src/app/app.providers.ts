@@ -1,7 +1,7 @@
 import { APP_INITIALIZER, Provider } from '@angular/core'
 import { UntypedFormBuilder } from '@angular/forms'
 import { Router, RouteReuseStrategy } from '@angular/router'
-import { IonicRouteStrategy, IonNav } from '@ionic/angular'
+import { IonNav } from '@ionic/angular'
 import { TUI_DATE_FORMAT, TUI_DATE_SEPARATOR } from '@taiga-ui/cdk'
 import {
   tuiNumberFormatProvider,
@@ -53,10 +53,6 @@ export const APP_PROVIDERS: Provider[] = [
   {
     provide: TUI_DATE_TIME_VALUE_TRANSFORMER,
     useClass: DatetimeTransformerService,
-  },
-  {
-    provide: RouteReuseStrategy,
-    useClass: IonicRouteStrategy,
   },
   {
     provide: ApiService,

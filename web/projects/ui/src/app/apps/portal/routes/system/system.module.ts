@@ -13,6 +13,13 @@ const ROUTES: Routes = [
   },
   {
     title: systemTabResolver,
+    path: 'settings',
+    loadChildren: () =>
+      import('./settings/settings.routes').then(m => m.SETTINGS_ROUTES),
+    data: toNavigationItem('/portal/system/settings'),
+  },
+  {
+    title: systemTabResolver,
     path: 'sideload',
     loadComponent: () =>
       import('./sideload/sideload.component').then(m => m.SideloadComponent),

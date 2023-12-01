@@ -22,7 +22,7 @@ export class RoutingStrategyService extends BaseRouteReuseStrategy {
 
     if (!store) this.handlers.delete(path)
 
-    return store
+    return store && path.startsWith('/portal/service')
   }
 
   override store(
@@ -41,30 +41,14 @@ export class RoutingStrategyService extends BaseRouteReuseStrategy {
   }
 
   override shouldReuseRoute(
-    future: ActivatedRouteSnapshot,
-    curr: ActivatedRouteSnapshot,
+    { routeConfig, params }: ActivatedRouteSnapshot,
+    current: ActivatedRouteSnapshot,
   ): boolean {
-    // return future.routeConfig === curr.routeConfig
-    // TODO: Copied from ionic for backwards compatibility, remove later
-    if (future.routeConfig !== curr.routeConfig) {
-      return false
-    }
-
-    // checking router params
-    const futureParams = future.params
-    const currentParams = curr.params
-    const keysA = Object.keys(futureParams)
-    const keysB = Object.keys(currentParams)
-    if (keysA.length !== keysB.length) {
-      return false
-    }
-    // Test for A's keys different from B.
-    for (const key of keysA) {
-      if (currentParams[key] !== futureParams[key]) {
-        return false
-      }
-    }
-    return true
+    return (
+      routeConfig === current.routeConfig &&
+      Object.keys(params).length === Object.keys(current.params).length &&
+      Object.keys(params).every(key => current.params[key] === params[key])
+    )
   }
 
   private getPath(route: ActivatedRouteSnapshot): string {

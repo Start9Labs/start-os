@@ -1,5 +1,6 @@
 <tui-root
   *ngIf="widgetDrawer$ | async as drawer"
+  tuiTheme="night"
   [tuiMode]="(theme$ | async) === 'Dark' ? 'onDark' : null"
   [style.--widgets-width.px]="drawer.open ? drawer.width : 0"
 >

@@ -387,6 +387,7 @@ ul {
 
   td,
   th {
+    position: relative;
     font: var(--tui-font-text-s);
     text-align: left;
     height: 2rem;
@@ -473,10 +474,6 @@ button.g-action {
 .g-hidden-scrollbar {
   @include scrollbar-hidden;
   overflow: auto !important;
-}
-
-p {
-  font-size: 1rem;
 }
 
 svg:not(:root) {
