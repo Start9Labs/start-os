@@ -1,9 +1,5 @@
 import { literals, some, string } from "ts-matches"
 
-function isHealth(path: string): path is `/health/${string}` {
-  const paths = path.split("/")
-  return paths.length === 3 && paths[1] === "health"
-}
 function isAction(path: string): path is `/action/${string}` {
   const paths = path.split("/")
   return paths.length === 3 && paths[1] === "action"
@@ -32,7 +28,6 @@ export const jsonPath = some(
     "/properties",
     "/handleSignal",
   ),
-  string.refine(isHealth, "isHealth"),
   string.refine(isAction, "isAction"),
   string.refine(isDependencies, "isDependencies"),
 )

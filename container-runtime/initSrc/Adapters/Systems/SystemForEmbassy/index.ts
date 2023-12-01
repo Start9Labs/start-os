@@ -9,6 +9,7 @@ import { create } from "domain"
 import { DockerProcedure } from "../../../Models/DockerProcedure"
 import {DockerProcedureContainer} from '../../DockerProcedureContainer'
 import * as U from './oldEmbassyTypes'
+import { EmbassyHealth } from "./EmbassyHealth"
 
 const MANIFEST_LOCATION = "/lib/startos/embassyManifest.json"
 const EMBASSY_JS_LOCATION = "/usr/lib/javascript/embassy.js"
@@ -33,7 +34,7 @@ export class SystemForEmbassy implements System {
   async start(effects: T.Effects): Promise<void> {
     if (!!this.currentRunning) return
     const utils = createUtils(effects)
-    // TODO of running the health loops
+    using embassyHealth = new EmbassyHealth(this, effects)
     const currentCommand: [string, ...string[]] = [
       this.manifest.main.entrypoint,
       ...this.manifest.main.args,
@@ -68,7 +69,7 @@ export class SystemForEmbassy implements System {
         | "migration"
         | "/properties"
         
-        | `/health/${string}`
+  
         | `/action/${string}`
         | `/dependencies/${string}/check`
         | `/dependencies/${string}/autoConfigure`
@@ -93,8 +94,6 @@ export class SystemForEmbassy implements System {
       default:
         const procedure = options.procedure.split("/")
         switch (true) {
-          case options.procedure.startsWith("/health/"):
-            return this.health(effects, procedure[2], input)
           case options.procedure.startsWith("/action/"):
             return this.action(effects, procedure[2], input)
           case options.procedure.startsWith("/dependencies/") &&
@@ -280,7 +279,6 @@ export class SystemForEmbassy implements System {
         | "/setConfig"
         | "migration"
         | "/properties"
-        | `/health/${string}`
         | `/action/${string}`
         | `/dependencies/${string}/check`
         | `/dependencies/${string}/autoConfigure`
@@ -291,3 +289,5 @@ export class SystemForEmbassy implements System {
     throw new Error("Method not implemented.")
   }
 }
+
+
