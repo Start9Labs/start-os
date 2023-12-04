@@ -127,7 +127,8 @@ pub async fn publish(
             .with_message("Verifying s9pk");
         pb.enable_steady_tick(Duration::from_millis(200));
         let mut s9pk = S9pkReader::open(&path, true).await?;
-        s9pk.validate().await?;
+        // s9pk.validate().await?;
+        todo!();
         let m = s9pk.manifest().await?.clone();
         pb.set_style(plain_line_style.clone());
         pb.abandon();

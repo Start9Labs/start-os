@@ -30,7 +30,8 @@ pub async fn manifest(
     #[arg(long = "format")]
     format: Option<IoFormat>,
 ) -> Result<Manifest, Error> {
-    S9pkReader::open(path, !no_verify).await?.manifest().await
+    // S9pkReader::open(path, !no_verify).await?.manifest().await
+    todo!()
 }
 
 #[command(cli_only, display(display_none))]

@@ -21,6 +21,9 @@ use tokio::sync::{oneshot, Mutex};
 use tracing::instrument;
 use transition_state::TransitionState;
 
+use crate::backup::target::PackageBackupInfo;
+use crate::backup::PackageBackupReport;
+use crate::config::action::{ConfigRes, SetResult};
 use crate::config::spec::ValueSpecPointer;
 use crate::config::ConfigureContext;
 use crate::context::RpcContext;
@@ -31,6 +34,7 @@ use crate::dependencies::{
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::install::cleanup::remove_from_current_dependents_lists;
+use crate::net::keys::Key;
 use crate::net::net_controller::NetService;
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
@@ -38,15 +42,10 @@ use crate::s9pk::manifest::Manifest;
 use crate::s9pk::S9pk;
 use crate::status::MainStatus;
 use crate::util::docker::get_container_ip;
+use crate::util::serde::{Base32, Base64, NoOutput};
 use crate::util::NonDetachingJoinHandle;
 use crate::volume::Volume;
 use crate::Error;
-use crate::{backup::target::PackageBackupInfo, util::serde::NoOutput};
-use crate::{backup::PackageBackupReport, net::keys::Key};
-use crate::{
-    config::action::ConfigRes,
-    util::serde::{Base32, Base64},
-};
 
 pub mod health;
 mod manager_container;
@@ -438,17 +437,24 @@ async fn configure(
         .or_not_found(id)?
         .as_manifest()
         .de()?;
+    let manager = ctx
+        .managers
+        .get(&(id.clone(), manifest.version.clone()))
+        .await
+        .or_not_found(lazy_format!("Manager for {}@{}", id, manifest.version))?;
 
     // get current config and current spec
     let ConfigRes {
         config: old_config,
         spec,
-    } = manifest
-        .config
-        .as_ref()
-        .or_not_found("Manifest config")?
-        .get(ctx, id, &manifest.version, &manifest.volumes)
-        .await?;
+    } = manager
+        .execute(
+            ProcedureName::GetConfig,
+            Value::Null,
+            Some(Duration::from_secs(30)),
+        )
+        .await?
+        .map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::ConfigGen))?;
 
     // determine new config to use
     let mut config = if let Some(config) = configure_context.config.or_else(|| old_config.clone()) {
@@ -511,14 +517,18 @@ async fn configure(
         }
     }
 
-    let action = manifest.config.as_ref().or_not_found(id)?;
     let version = &manifest.version;
     let volumes = &manifest.volumes;
     if !configure_context.dry_run {
         // run config action
-        let res = action
-            .set(ctx, id, version, dependencies, volumes, &config)
-            .await?;
+        let res = manager
+            .execute::<SetResult>(
+                ProcedureName::SetConfig,
+                to_value(&config)?,
+                Some(Duration::from_secs(60)),
+            )
+            .await?
+            .map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::ConfigRulesViolation))?;
 
         // track dependencies with no pointers
         for (package_id, health_checks) in res.depends_on.into_iter() {
@@ -736,78 +746,10 @@ pub enum OnStop {
     Exit,
 }
 
-type RunMainResult = Result<Result<NoOutput, (i32, String)>, Error>;
-
-#[instrument(skip_all)]
-async fn run_main(seed: Arc<ManagerSeed>) -> RunMainResult {
-    let runtime = NonDetachingJoinHandle::from(tokio::spawn(execute_main(seed.clone())));
-
-    let health = main_health_check_daemon(seed.clone());
-    let res = tokio::select! {
-        a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).and_then(|a| a),
-        _ = health => Err(Error::new(eyre!("Health check daemon exited!"), crate::ErrorKind::Unknown))
-    };
-    res
-}
-
-/// We want to start up the manifest, but in this case we want to know that we have generated the certificates.
-/// Note for _generated_certificate: Needed to know that before we start the state we have generated the certificate
-async fn execute_main(seed: Arc<ManagerSeed>) -> Result<Result<NoOutput, (i32, String)>, Error> {
-    seed.s9pk
-        .as_manifest()
-        .main
-        .execute::<(), NoOutput>(
-            &seed.ctx,
-            &seed.s9pk.as_manifest().id,
-            &seed.s9pk.as_manifest().version,
-            ProcedureName::Main,
-            &seed.s9pk.as_manifest().volumes,
-            None,
-            None,
-        )
-        .await
-}
-
-async fn long_running_docker(
-    seed: &ManagerSeed,
-    container: &DockerContainer,
-) -> Result<(LongRunning, UnixRpcClient), Error> {
-    container
-        .long_running_execute(
-            &seed.ctx,
-            &seed.s9pk.as_manifest().id,
-            &seed.s9pk.as_manifest().version,
-            &seed.s9pk.as_manifest().volumes,
-        )
-        .await
-}
-
 enum GetRunningIp {
     Ip(Ipv4Addr),
     Error(Error),
     EarlyExit(Result<NoOutput, (i32, String)>),
-}
-
-async fn get_long_running_ip(seed: &ManagerSeed, runtime: &mut LongRunning) -> GetRunningIp {
-    loop {
-        match get_container_ip(todo!()).await {
-            Ok(Some(ip_addr)) => return GetRunningIp::Ip(ip_addr),
-            Ok(None) => (),
-            Err(e) if e.kind == ErrorKind::NotFound => (),
-            Err(e) => return GetRunningIp::Error(e),
-        }
-        if let Poll::Ready(res) = futures::poll!(&mut runtime.running_output) {
-            match res {
-                Ok(_) => return GetRunningIp::EarlyExit(Ok(NoOutput)),
-                Err(_e) => {
-                    return GetRunningIp::Error(Error::new(
-                        eyre!("Manager runtime panicked!"),
-                        crate::ErrorKind::Docker,
-                    ))
-                }
-            }
-        }
-    }
 }
 
 #[instrument(skip(seed))]

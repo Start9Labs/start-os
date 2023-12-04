@@ -1,10 +1,8 @@
 use tokio::io::AsyncRead;
 
-use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::hash::{Hash, HashWriter};
 use crate::s9pk::merkle_archive::sink::{Sink, TrackingWriter};
-use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, FileSource, Section};
 
 #[derive(Debug)]

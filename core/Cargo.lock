@@ -2674,6 +2674,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "lazy_format"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "983cc849ee13b34b8d38194572475cec1ae841848b020501b5b3dae94c9a7382"
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4978,6 +4984,7 @@ dependencies = [
  "jaq-std",
  "josekit",
  "jsonpath_lib",
+ "lazy_format",
  "lazy_static",
  "libc",
  "log",

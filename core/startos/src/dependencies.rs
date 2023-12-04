@@ -15,7 +15,6 @@ use crate::config::{not_found, Config, ConfigSpec, ConfigureContext};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencies, Database};
 use crate::prelude::*;
-use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::Manifest;
 use crate::status::DependencyConfigErrors;
 use crate::util::serde::display_serializable;
@@ -58,61 +57,7 @@ pub struct DepInfo {
     pub requirement: DependencyRequirement,
     pub description: Option<String>,
     #[serde(default)]
-    pub config: Option<DependencyConfig>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
-#[model = "Model<Self>"]
-pub struct DependencyConfig {
-    check: PackageProcedure,
-    auto_configure: PackageProcedure,
-}
-impl DependencyConfig {
-    pub async fn check(
-        &self,
-        ctx: &RpcContext,
-        dependent_id: &PackageId,
-        dependent_version: &Version,
-        dependent_volumes: &Volumes,
-        dependency_id: &PackageId,
-        dependency_config: &Config,
-    ) -> Result<Result<NoOutput, String>, Error> {
-        Ok(self
-            .check
-            .sandboxed(
-                ctx,
-                dependent_id,
-                dependent_version,
-                dependent_volumes,
-                Some(dependency_config),
-                None,
-                ProcedureName::Check(dependency_id.clone()),
-            )
-            .await?
-            .map_err(|(_, e)| e))
-    }
-    pub async fn auto_configure(
-        &self,
-        ctx: &RpcContext,
-        dependent_id: &PackageId,
-        dependent_version: &Version,
-        dependent_volumes: &Volumes,
-        old: &Config,
-    ) -> Result<Config, Error> {
-        self.auto_configure
-            .sandboxed(
-                ctx,
-                dependent_id,
-                dependent_version,
-                dependent_volumes,
-                Some(old),
-                None,
-                ProcedureName::AutoConfig(dependent_id.clone()),
-            )
-            .await?
-            .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))
-    }
+    pub config: Option<Value>, // TODO: remove
 }
 
 #[command(

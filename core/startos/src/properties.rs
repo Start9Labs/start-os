@@ -1,13 +1,12 @@
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
-use models::PackageId;
+use models::{PackageId, ProcedureName};
 use rpc_toolkit::command;
 use serde_json::Value;
 use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::prelude::*;
-use crate::procedure::ProcedureName;
 use crate::{Error, ErrorKind};
 
 pub fn display_properties(response: Value, _: &ArgMatches) {

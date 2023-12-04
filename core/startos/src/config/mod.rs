@@ -6,7 +6,7 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use indexmap::IndexSet;
 use itertools::Itertools;
-use models::{ErrorKind, OptionExt, PackageId};
+use models::{ErrorKind, OptionExt, PackageId, ProcedureName};
 use patch_db::value::InternedString;
 use patch_db::Value;
 use regex::Regex;
@@ -173,14 +173,19 @@ pub async fn get(
         .as_installed()
         .or_not_found(&id)?
         .as_manifest();
-    let action = manifest
-        .as_config()
-        .de()?
-        .ok_or_else(|| Error::new(eyre!("{} has no config", id), crate::ErrorKind::NotFound))?;
-
-    let volumes = manifest.as_volumes().de()?;
     let version = manifest.as_version().de()?;
-    action.get(&ctx, &id, &version, &volumes).await
+
+    ctx.managers
+        .get(&(id.clone(), version.clone()))
+        .await
+        .or_not_found(lazy_format!("Manager for {id}@{version}"))?
+        .execute(
+            ProcedureName::GetConfig,
+            Value::Null,
+            Some(Duration::from_secs(30)),
+        )
+        .await?
+        .map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::ConfigGen))
 }
 
 #[command(

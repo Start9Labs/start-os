@@ -147,18 +147,7 @@ where
         .or_not_found(id)?
         .expect_as_removing()?;
 
-    let dependents_paths: Vec<PathBuf> = entry
-        .as_removing()
-        .as_current_dependents()
-        .keys()?
-        .into_iter()
-        .filter(|x| x != id)
-        .flat_map(|x| db.as_package_data().as_idx(&x))
-        .flat_map(|x| x.as_installed())
-        .flat_map(|x| x.as_manifest().as_volumes().de())
-        .flat_map(|x| x.values().cloned().collect::<Vec<_>>())
-        .flat_map(|x| x.pointer_path(&ctx.datadir))
-        .collect();
+    let dependents_paths: Vec<PathBuf> = todo!();
 
     let volume_dir = ctx
         .datadir

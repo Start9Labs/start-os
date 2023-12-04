@@ -44,7 +44,6 @@ pub mod logs;
 pub mod lxc;
 pub mod manager;
 pub mod middleware;
-pub mod migration;
 pub mod net;
 pub mod notifications;
 pub mod os_install;
@@ -132,7 +131,7 @@ pub fn package() -> Result<(), RpcError> {
 
 #[command(subcommands(
     version::git_info,
-    s9pk::pack,
+    // s9pk::pack,
     developer::verify,
     developer::init,
     inspect::inspect,

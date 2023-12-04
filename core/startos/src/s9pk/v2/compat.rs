@@ -7,10 +7,12 @@ use tokio::io::{AsyncRead, AsyncSeek, AsyncWriteExt};
 use tokio::process::Command;
 
 use crate::prelude::*;
+use crate::s9pk::manifest::Manifest;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::{FileSource, Section};
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
+use crate::s9pk::v1::manifest::Manifest as ManifestV1;
 use crate::s9pk::v1::reader::S9pkReader;
 use crate::s9pk::v2::S9pk;
 use crate::util::docker::CONTAINER_TOOL;
@@ -56,11 +58,12 @@ impl S9pk<Section<MultiCursorFile>> {
         let mut archive = DirectoryContents::<CompatSource>::new();
 
         // manifest.json
-        let manifest = reader.manifest().await?;
+        let manifest_raw = reader.manifest().await?;
+        let manifest = from_value::<ManifestV1>(manifest_raw.clone())?;
         archive.insert_path(
             "manifest.json",
             Entry::file(CompatSource::Buffered(
-                serde_json::to_vec(&manifest)
+                serde_json::to_vec::<Manifest>(&manifest.clone().into())
                     .with_kind(ErrorKind::Serialization)?
                     .into(),
             )),
@@ -200,7 +203,7 @@ impl S9pk<Section<MultiCursorFile>> {
         {
             let mut js_file = File::create(js_dir.join("manifest-v1.json")).await?;
             js_file
-                .write_all(&serde_json::to_vec(&manifest).with_kind(ErrorKind::Serialization)?)
+                .write_all(&serde_json::to_vec(&manifest_raw).with_kind(ErrorKind::Serialization)?)
                 .await?;
             js_file.sync_all().await?;
         }
@@ -224,5 +227,44 @@ impl S9pk<Section<MultiCursorFile>> {
             File::open(destination.as_ref()).await?,
         ))
         .await?)
+    }
+}
+
+impl From<ManifestV1> for Manifest {
+    fn from(value: ManifestV1) -> Self {
+        let default_url = value.upstream_repo.clone();
+        Self {
+            id: value.id,
+            title: value.title,
+            version: value.version,
+            release_notes: value.release_notes,
+            license: value.license,
+            replaces: value.replaces,
+            wrapper_repo: value.wrapper_repo,
+            upstream_repo: value.upstream_repo,
+            support_site: value.support_site.unwrap_or_else(|| default_url.clone()),
+            marketing_site: value.marketing_site.unwrap_or_else(|| default_url.clone()),
+            donation_url: value.donation_url,
+            description: value.description,
+            images: vec!["main".parse().unwrap()], // TODO
+            assets: value
+                .volumes
+                .iter()
+                .filter(|(_, v)| matches!(v, &&Volume::Assets { .. }))
+                .map(|(id, _)| id.clone())
+                .collect(),
+            volumes: value
+                .volumes
+                .iter()
+                .filter(|(_, v)| matches!(v, &&Volume::Data { .. }))
+                .map(|(id, _)| id.clone())
+                .collect(),
+            alerts: value.alerts,
+            dependencies: value.dependencies,
+            hardware_requirements: value.hardware_requirements,
+            git_hash: value.git_hash,
+            os_version: value.eos_version,
+            has_config: value.config.is_some(),
+        }
     }
 }

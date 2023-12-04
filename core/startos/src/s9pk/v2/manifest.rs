@@ -1,25 +1,18 @@
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::eyre;
+use helpers::const_true;
 pub use models::PackageId;
+use models::{ImageId, VolumeId};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use super::git_hash::GitHash;
-use crate::action::Actions;
-use crate::backup::BackupActions;
-use crate::config::action::ConfigActions;
 use crate::dependencies::Dependencies;
-use crate::migration::Migrations;
-use crate::net::interface::Interfaces;
 use crate::prelude::*;
-use crate::procedure::PackageProcedure;
-use crate::status::health_check::HealthChecks;
+use crate::s9pk::v1::git_hash::GitHash;
 use crate::util::serde::Regex;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
-use crate::volume::Volumes;
 
 fn current_version() -> Version {
     Current::new().semver().into()
@@ -55,6 +48,8 @@ pub struct Manifest {
     pub git_hash: Option<GitHash>,
     #[serde(default = "current_version")]
     pub os_version: Version,
+    #[serde(default = "const_true")]
+    pub has_config: bool,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]

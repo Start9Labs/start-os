@@ -8,6 +8,7 @@ use crate::s9pk::merkle_archive::MerkleArchive;
 const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x02];
 
 pub mod compat;
+pub mod manifest;
 
 /**
     /

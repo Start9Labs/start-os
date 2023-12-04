@@ -14,6 +14,7 @@ use imbl_value::InternedString;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jsonpath_lib::Compiled as CompiledJsonPath;
+use models::ProcedureName;
 use patch_db::value::{Number, Value};
 use rand::{CryptoRng, Rng};
 use regex::Regex;
@@ -23,6 +24,7 @@ use sqlx::PgPool;
 
 use super::util::{self, CharSet, NumRange, UniqueBy, STATIC_NULL};
 use super::{Config, MatchError, NoMatchWithPath, TimeoutError, TypeOf};
+use crate::config::action::ConfigRes;
 use crate::config::ConfigurationError;
 use crate::context::RpcContext;
 use crate::net::interface::InterfaceId;
@@ -1773,27 +1775,36 @@ impl ConfigPointer {
             Ok(self.select(&Value::Object(cfg.clone())))
         } else {
             let id = &self.package_id;
-            let db = ctx.db.peek().await;
-            let manifest = db.as_package_data().as_idx(id).map(|pde| pde.as_manifest());
-            let cfg_actions = manifest.and_then(|m| m.as_config().transpose_ref());
-            if let (Some(manifest), Some(cfg_actions)) = (manifest, cfg_actions) {
-                let cfg_res = cfg_actions
-                    .de()
+            let version = ctx
+                .db
+                .peek()
+                .await
+                .as_package_data()
+                .as_idx(id)
+                .and_then(|pde| pde.as_installed())
+                .map(|i| i.as_manifest().as_version().de())
+                .transpose()
+                .map_err(ConfigurationError::SystemError)?;
+            if let Some(version) = version {
+                let cfg_res = ctx
+                    .managers
+                    .get(&(id.clone(), version.clone()))
+                    .await
+                    .or_not_found(lazy_format!("Manager for {id}@{version}"))
                     .map_err(|e| ConfigurationError::SystemError(e))?
-                    .get(
-                        ctx,
-                        &self.package_id,
-                        &manifest
-                            .as_version()
-                            .de()
-                            .map_err(|e| ConfigurationError::SystemError(e))?,
-                        &manifest
-                            .as_volumes()
-                            .de()
-                            .map_err(|e| ConfigurationError::SystemError(e))?,
+                    .execute::<ConfigRes>(
+                        ProcedureName::GetConfig,
+                        Value::Null,
+                        Some(Duration::from_secs(30)),
                     )
                     .await
-                    .map_err(|e| ConfigurationError::SystemError(e))?;
+                    .map_err(|e| ConfigurationError::SystemError(e))?
+                    .map_err(|e| {
+                        ConfigurationError::SystemError(Error::new(
+                            eyre!("{}", e.1),
+                            ErrorKind::ConfigGen,
+                        ))
+                    })?;
                 if let Some(cfg) = cfg_res.config {
                     Ok(self.select(&Value::Object(cfg)))
                 } else {

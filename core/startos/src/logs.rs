@@ -27,7 +27,6 @@ use tracing::instrument;
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::error::ResultExt;
-use crate::procedure::docker::DockerProcedure;
 use crate::util::display_none;
 use crate::util::serde::Reversible;
 use crate::{Error, ErrorKind};
@@ -376,15 +375,9 @@ pub async fn journalctl(
         }
         LogSource::Container(id) => {
             #[cfg(not(feature = "docker"))]
-            cmd.arg(format!(
-                "SYSLOG_IDENTIFIER={}",
-                DockerProcedure::container_name(&id, None)
-            ));
+            cmd.arg(format!("SYSLOG_IDENTIFIER={}.embassy", id));
             #[cfg(feature = "docker")]
-            cmd.arg(format!(
-                "CONTAINER_NAME={}",
-                DockerProcedure::container_name(&id, None)
-            ));
+            cmd.arg(format!("CONTAINER_NAME={}.embassy", id));
         }
     };
 

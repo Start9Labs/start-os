@@ -7,11 +7,11 @@ use tokio::sync::watch::Sender;
 use tracing::instrument;
 
 use super::start_stop::StartStop;
-use super::{manager_seed, run_main, ManagerPersistentContainer, RunMainResult};
+use super::{manager_seed, ManagerPersistentContainer};
 use crate::prelude::*;
-use crate::procedure::NoOutput;
 use crate::s9pk::manifest::Manifest;
 use crate::status::MainStatus;
+use crate::util::serde::NoOutput;
 use crate::util::NonDetachingJoinHandle;
 use crate::Error;
 
@@ -236,25 +236,6 @@ fn starting_service(
         }
     };
     *running_service = Some(tokio::spawn(running_main_loop).into());
-}
-
-async fn run_main_log_result(result: RunMainResult, seed: Arc<manager_seed::ManagerSeed>) {
-    match result {
-        Ok(Ok(NoOutput)) => (), // restart
-        Ok(Err(e)) => {
-            tracing::error!(
-                "The service {} has crashed with the following exit code: {}",
-                seed.s9pk.as_manifest().id.clone(),
-                e.0
-            );
-
-            tokio::time::sleep(Duration::from_secs(15)).await;
-        }
-        Err(e) => {
-            tracing::error!("failed to start service: {}", e);
-            tracing::debug!("{:?}", e);
-        }
-    }
 }
 
 /// Used only in the mod where we are doing a backup

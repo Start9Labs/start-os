@@ -40,6 +40,7 @@ use crate::status::MainStatus;
 use crate::system::get_mem_info;
 use crate::util::config::load_config_from_paths;
 use crate::util::lshw::{lshw, LshwDevice};
+use crate::volume::Volume;
 use crate::{Error, ErrorKind, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
@@ -316,8 +317,8 @@ impl RpcContext {
                 PackageDataEntryMatchModelRef::Installed(m) => {
                     let version = m.as_manifest().as_version().clone().de()?;
                     let volumes = m.as_manifest().as_volumes().de()?;
-                    for (volume_id, volume_info) in &*volumes {
-                        let tmp_path = to_tmp_path(volume_info.path_for(
+                    for volume_id in &*volumes {
+                        let tmp_path = to_tmp_path(Volume::Data { readonly: false }.path_for(
                             &self.datadir,
                             &package_id,
                             &version,

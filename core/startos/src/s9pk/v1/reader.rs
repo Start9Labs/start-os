@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::io::SeekFrom;
 use std::ops::Range;
 use std::path::Path;
@@ -10,19 +9,18 @@ use color_eyre::eyre::eyre;
 use digest::Output;
 use ed25519_dalek::VerifyingKey;
 use futures::TryStreamExt;
-use models::ImageId;
+use models::{ImageId, PackageId};
 use sha2::{Digest, Sha512};
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, ReadBuf};
 use tracing::instrument;
 
 use super::header::{FileSection, Header, TableOfContents};
-use super::manifest::{Manifest, PackageId};
 use super::SIG_CONTEXT;
 use crate::install::progress::InstallProgressTracker;
+use crate::prelude::*;
 use crate::s9pk::v1::docker::DockerReader;
 use crate::util::Version;
-use crate::{Error, ResultExt};
 
 const MAX_REPLACES: usize = 10;
 const MAX_TITLE_LEN: usize = 30;
@@ -169,67 +167,6 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<InstallProgressT
 }
 impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
     #[instrument(skip_all)]
-    pub async fn validate(&mut self) -> Result<(), Error> {
-        if self.toc.icon.length > 102_400 {
-            // 100 KiB
-            return Err(Error::new(
-                eyre!("icon must be less than 100KiB"),
-                crate::ErrorKind::ValidateS9pk,
-            ));
-        }
-        let image_tags = self.image_tags().await?;
-        let man = self.manifest().await?;
-        let validated_image_ids = image_tags
-            .into_iter()
-            .map(|i| i.validate(&man.id, &man.version).map(|_| i.image_id))
-            .collect::<Result<BTreeSet<ImageId>, _>>()?;
-        man.description.validate()?;
-        man.actions.0.iter().try_for_each(|(_, action)| {
-            action.validate(&man.eos_version, &man.volumes, &validated_image_ids)
-        })?;
-        man.backup
-            .validate(&man.eos_version, &man.volumes, &validated_image_ids)?;
-        if let Some(cfg) = &man.config {
-            cfg.validate(&man.eos_version, &man.volumes, &validated_image_ids)?;
-        }
-        man.health_checks
-            .validate(&man.eos_version, &man.volumes, &validated_image_ids)?;
-        man.interfaces.validate()?;
-        man.main
-            .validate(&man.eos_version, &man.volumes, &validated_image_ids, false)
-            .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Main"))?;
-        man.migrations
-            .validate(&man.eos_version, &man.volumes, &validated_image_ids)?;
-
-        if man.replaces.len() >= MAX_REPLACES {
-            return Err(Error::new(
-                eyre!("Cannot have more than {MAX_REPLACES} replaces"),
-                crate::ErrorKind::ValidateS9pk,
-            ));
-        }
-        if let Some(too_big) = man.replaces.iter().find(|x| x.len() >= MAX_REPLACES) {
-            return Err(Error::new(
-                eyre!("We have found a replaces of ({too_big}) that exceeds the max length of {MAX_TITLE_LEN} "),
-                crate::ErrorKind::ValidateS9pk,
-            ));
-        }
-        if man.title.len() >= MAX_TITLE_LEN {
-            return Err(Error::new(
-                eyre!("Cannot have more than a length of {MAX_TITLE_LEN} for title"),
-                crate::ErrorKind::ValidateS9pk,
-            ));
-        }
-
-        if let Some(props) = &man.properties {
-            props
-                .validate(&man.eos_version, &man.volumes, &validated_image_ids, true)
-                .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Properties"))?;
-        }
-        man.volumes.validate(&man.interfaces)?;
-
-        Ok(())
-    }
-    #[instrument(skip_all)]
     pub async fn image_tags(&mut self) -> Result<Vec<ImageTag>, Error> {
         let mut tar = tokio_tar::Archive::new(self.docker_images().await?);
         let mut entries = tar.entries()?;
@@ -334,7 +271,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
         self.read_handle(self.toc.manifest).await
     }
 
-    pub async fn manifest(&mut self) -> Result<Manifest, Error> {
+    pub async fn manifest(&mut self) -> Result<Value, Error> {
         let slice = self.manifest_raw().await?.to_vec().await?;
         serde_cbor::de::from_reader(slice.as_slice())
             .with_ctx(|_| (crate::ErrorKind::ParseS9pk, "Deserializing Manifest (CBOR)"))
