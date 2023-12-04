@@ -213,17 +213,15 @@ export class SystemForEmbassy implements System {
       const [version, procedure] = migration
       if (procedure.type === "docker") {
         const container = await DockerProcedureContainer.of(procedure)
-        return {
-          configured: !!JSON.parse(
-            (
-              await container.exec([
-                procedure.entrypoint,
-                ...procedure.args,
-                JSON.stringify(fromVersion),
-              ])
-            ).stdout,
-          ),
-        }
+        return JSON.parse(
+          (
+            await container.exec([
+              procedure.entrypoint,
+              ...procedure.args,
+              JSON.stringify(fromVersion),
+            ])
+          ).stdout,
+        )
       } else {
         const moduleCode = await this.moduleCode
         const method = moduleCode.migration
