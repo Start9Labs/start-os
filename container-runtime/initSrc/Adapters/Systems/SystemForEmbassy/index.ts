@@ -269,7 +269,7 @@ export class SystemForEmbassy implements System {
          throw new Error("Error getting config: " + x['error-code'][1])
       }) as any
   }
-  sandbox(
+  async sandbox(
     effects: T.Effects,
     options: {
       procedure:
@@ -285,8 +285,35 @@ export class SystemForEmbassy implements System {
       input: unknown
       timeout?: number | undefined
     },
-  ): Promise<void> {
-    throw new Error("Method not implemented.")
+  ): Promise<unknown> {
+    const input = options.input
+    switch (options.procedure) {
+      case "/createBackup":
+        return this.roCreateBackup(effects)
+      case "/restoreBackup":
+        return this.roRestoreBackup(effects)
+      case "/getConfig":
+        return this.roGetConfig(effects)
+      case "/setConfig":
+        return this.roSetConfig(effects, input)
+      case "migration":
+        return this.roMigration(effects, input)
+      case "/properties":
+        return this.roProperties(effects)
+      default:
+        const procedure = options.procedure.split("/")
+        switch (true) {
+          case options.procedure.startsWith("/action/"):
+            return this.roAction(effects, procedure[2], input)
+          case options.procedure.startsWith("/dependencies/") &&
+            procedure[3] === "check":
+            return this.roDependenciesCheck(effects, procedure[2], input)
+
+          case options.procedure.startsWith("/dependencies/") &&
+            procedure[3] === "autoConfigure":
+            return this.roDependenciesAutoconfig(effects, procedure[2], input)
+        }
+    }
   }
 
   async roCreateBackup(effects: T.Effects): Promise<void> {
