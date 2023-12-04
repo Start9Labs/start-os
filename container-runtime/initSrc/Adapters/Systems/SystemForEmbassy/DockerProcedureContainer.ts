@@ -41,12 +41,13 @@ export class DockerProcedureContainer {
 
     return new DockerProcedureContainer(rootfs)
   }
-  async [Symbol.asyncDispose]() {
-    await exec(`umount --recursive ${this.rootfs}`)
-    await fs.rm(this.rootfs, { recursive: true, force: true })
-  }
 
   async exec(commands: string[]) {
-    return await execFile("chroot", [this.rootfs, ...commands])
+    try {
+      return await execFile("chroot", [this.rootfs, ...commands])
+    } finally {
+      await exec(`umount --recursive ${this.rootfs}`)
+      await fs.rm(this.rootfs, { recursive: true, force: true })
+    }
   }
 }

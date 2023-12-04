@@ -1,15 +1,17 @@
 import * as T from "@start9labs/start-sdk/lib/types"
 import * as fs from "fs/promises"
 
-import {PolyfillEffects} from './polyfillEffects'
+import { PolyfillEffects } from "./polyfillEffects"
 import { System } from "../../../Interfaces/System"
 import { createUtils } from "@start9labs/start-sdk/lib/util"
-import { matchManifest, Manifest } from "./matchManifest"
+import { matchManifest, Manifest, Procedure } from "./matchManifest"
 import { create } from "domain"
 import { DockerProcedure } from "../../../Models/DockerProcedure"
-import {DockerProcedureContainer} from './DockerProcedureContainer'
-import * as U from './oldEmbassyTypes'
+import { DockerProcedureContainer } from "./DockerProcedureContainer"
+import * as U from "./oldEmbassyTypes"
 import { EmbassyHealth } from "./EmbassyHealth"
+import { EmVer } from "@start9labs/start-sdk/lib/emverLite/mod"
+import { string } from "ts-matches"
 
 const MANIFEST_LOCATION = "/lib/startos/embassyManifest.json"
 const EMBASSY_JS_LOCATION = "/usr/lib/javascript/embassy.js"
@@ -25,7 +27,9 @@ export class SystemForEmbassy implements System {
   }
   constructor(readonly manifest: Manifest) {}
   async init(effects: T.Effects): Promise<void> {
-    this.moduleCode = Promise.resolve().then(() => require(EMBASSY_JS_LOCATION)).catch(() => ({}))
+    this.moduleCode = Promise.resolve()
+      .then(() => require(EMBASSY_JS_LOCATION))
+      .catch(() => ({}))
     await effects.setMainStatus({ status: "stopped" })
   }
   async exit(effects: T.Effects): Promise<void> {
@@ -34,16 +38,18 @@ export class SystemForEmbassy implements System {
   async start(effects: T.Effects): Promise<void> {
     if (!!this.currentRunning) return
     const utils = createUtils(effects)
-    using embassyHealth = new EmbassyHealth(this, effects)
-    const currentCommand: [string, ...string[]] = [
-      this.manifest.main.entrypoint,
-      ...this.manifest.main.args,
-    ]
 
-    await effects.setMainStatus({ status: "running" })
-    this.currentRunning = await utils.runDaemon(currentCommand, {})
-    this.currentRunning.wait().then(() => {
-      effects.setMainStatus({ status: "stopped" })
+    new EmbassyHealth(this, effects).during(async () => {
+      const currentCommand: [string, ...string[]] = [
+        this.manifest.main.entrypoint,
+        ...this.manifest.main.args,
+      ]
+
+      await effects.setMainStatus({ status: "running" })
+      this.currentRunning = await utils.runDaemon(currentCommand, {})
+      this.currentRunning.wait().then(() => {
+        effects.setMainStatus({ status: "stopped" })
+      })
     })
   }
   async stop(
@@ -68,8 +74,6 @@ export class SystemForEmbassy implements System {
         | "/setConfig"
         | "migration"
         | "/properties"
-        
-  
         | `/action/${string}`
         | `/dependencies/${string}/check`
         | `/dependencies/${string}/autoConfigure`
@@ -109,7 +113,7 @@ export class SystemForEmbassy implements System {
   async createBackup(effects: T.Effects): Promise<void> {
     const backup = this.manifest.backup.create
     if (backup.type === "docker") {
-      await using container = await DockerProcedureContainer.of(backup)
+      const container = await DockerProcedureContainer.of(backup)
       await container.exec([backup.entrypoint, ...backup.args])
     } else {
       const moduleCode = await this.moduleCode
@@ -119,7 +123,7 @@ export class SystemForEmbassy implements System {
   async restoreBackup(effects: T.Effects): Promise<void> {
     const restoreBackup = this.manifest.backup.restore
     if (restoreBackup.type === "docker") {
-      await using container = await DockerProcedureContainer.of(restoreBackup)
+      const container = await DockerProcedureContainer.of(restoreBackup)
       await container.exec([restoreBackup.entrypoint, ...restoreBackup.args])
     } else {
       const moduleCode = await this.moduleCode
@@ -128,68 +132,138 @@ export class SystemForEmbassy implements System {
   }
   async getConfig(effects: T.Effects): Promise<T.ConfigRes> {
     const config = this.manifest.config?.get
-    if (!config) return {spec:{}}
+    if (!config) return { spec: {} }
     if (config.type === "docker") {
-      await using container = await DockerProcedureContainer.of(config)
-      return JSON.parse((await container.exec([config.entrypoint, ...config.args])).stdout)
+      const container = await DockerProcedureContainer.of(config)
+      return JSON.parse(
+        (await container.exec([config.entrypoint, ...config.args])).stdout,
+      )
     } else {
       const moduleCode = await this.moduleCode
       const method = moduleCode.getConfig
-      if (!method)throw new Error("Expecting that the method getConfig exists")
-      return await method(new PolyfillEffects(effects)).then(x => {
-        if ('result' in x) return x.result
-        if('error' in x) throw new Error("Error getting config: " + x.error)
-         throw new Error("Error getting config: " + x['error-code'][1])
-      }) as any
+      if (!method) throw new Error("Expecting that the method getConfig exists")
+      return (await method(new PolyfillEffects(effects)).then((x) => {
+        if ("result" in x) return x.result
+        if ("error" in x) throw new Error("Error getting config: " + x.error)
+        throw new Error("Error getting config: " + x["error-code"][1])
+      })) as any
     }
   }
-  async setConfig(effects: T.Effects, newConfig: unknown): Promise<T.SetResult> {
+  async setConfig(
+    effects: T.Effects,
+    newConfig: unknown,
+  ): Promise<T.SetResult> {
     const setConfigValue = this.manifest.config?.set
-    if (!setConfigValue) return {signal:"SIGTERM", "depends-on":{}}
+    if (!setConfigValue) return { signal: "SIGTERM", "depends-on": {} }
     // TODO Deal with the pointers
     if (setConfigValue.type === "docker") {
-      await using container = await DockerProcedureContainer.of(setConfigValue)
-      return JSON.parse((await container.exec([setConfigValue.entrypoint, ...setConfigValue.args, JSON.stringify(newConfig)])).stdout)
+      const container = await DockerProcedureContainer.of(setConfigValue)
+      return JSON.parse(
+        (
+          await container.exec([
+            setConfigValue.entrypoint,
+            ...setConfigValue.args,
+            JSON.stringify(newConfig),
+          ])
+        ).stdout,
+      )
     } else {
-      
       const moduleCode = await this.moduleCode
       const method = moduleCode.setConfig
-      if (!method)throw new Error("Expecting that the method setConfig exists")
-      return await method(new PolyfillEffects(effects), newConfig as U.Config).then(x => {
-        if ('result' in x) return x.result
-        if('error' in x) throw new Error("Error getting config: " + x.error)
-         throw new Error("Error getting config: " + x['error-code'][1])
-      }) 
+      if (!method) throw new Error("Expecting that the method setConfig exists")
+      return await method(
+        new PolyfillEffects(effects),
+        newConfig as U.Config,
+      ).then((x) => {
+        if ("result" in x) return x.result
+        if ("error" in x) throw new Error("Error getting config: " + x.error)
+        throw new Error("Error getting config: " + x["error-code"][1])
+      })
     }
   }
-  async migration(effects: T.Effects, fromVersion: unknown): Promise<T.MigrationRes> {
-    // //todo filter
-    // const setConfigValue = this.manifest.migrations
-    // if (!setConfigValue) return {configured:true}
-    // // TODO Deal with the pointers
-    // if (setConfigValue.type === "docker") {
-    //   await using container = await DockerProcedureContainer.of(setConfigValue)
-    //   return JSON.parse((await container.exec([setConfigValue.entrypoint, ...setConfigValue.args, JSON.stringify(fromVersion)])).stdout)
-    // } else {
-    //   throw new Error("Method not implemented.")
-    // }
-    throw new Error("Not implemented")
+  async migration(
+    effects: T.Effects,
+    fromVersion: unknown,
+  ): Promise<T.MigrationRes> {
+    if (!string.test(fromVersion)) throw new Error("Expecting a string")
+    const fromEmver = EmVer.from(fromVersion)
+    const currentEmver = EmVer.from(this.manifest.version)
+
+    const fromMigration = Object.entries(this.manifest.migrations.from)
+      .map(([version, procedure]) => [EmVer.from(version), procedure] as const)
+      .find(
+        ([versionEmver, procedure]) =>
+          versionEmver.greaterThan(fromEmver) &&
+          versionEmver.lessThanOrEqual(currentEmver),
+      )
+    const toMigration = Object.entries(this.manifest.migrations.to)
+      .map(([version, procedure]) => [EmVer.from(version), procedure] as const)
+      .find(
+        ([versionEmver, procedure]) =>
+          versionEmver.greaterThan(fromEmver) &&
+          versionEmver.lessThanOrEqual(currentEmver),
+      )
+
+    // prettier-ignore
+    const migration = (
+        fromEmver.greaterThan(currentEmver) ? [toMigration, fromMigration] :
+        [fromMigration, toMigration]).filter(Boolean)[0]
+
+    if (migration) {
+      const [version, procedure] = migration
+      if (procedure.type === "docker") {
+        const container = await DockerProcedureContainer.of(procedure)
+        return {
+          configured: !!JSON.parse(
+            (
+              await container.exec([
+                procedure.entrypoint,
+                ...procedure.args,
+                JSON.stringify(fromVersion),
+              ])
+            ).stdout,
+          ),
+        }
+      } else {
+        const moduleCode = await this.moduleCode
+        const method = moduleCode.migration
+        if (!method)
+          throw new Error("Expecting that the method migration exists")
+        return (await method(
+          new PolyfillEffects(effects),
+          fromVersion as string,
+        ).then((x) => {
+          if ("result" in x) return x.result
+          if ("error" in x) throw new Error("Error getting config: " + x.error)
+          throw new Error("Error getting config: " + x["error-code"][1])
+        })) as any
+      }
+    }
+    return { configured: true }
   }
   async properties(effects: T.Effects): Promise<unknown> {
     const setConfigValue = this.manifest.properties
     if (!setConfigValue) return {}
     if (setConfigValue.type === "docker") {
-      await using container = await DockerProcedureContainer.of(setConfigValue)
-      return JSON.parse((await container.exec([setConfigValue.entrypoint, ...setConfigValue.args])).stdout)
+      const container = await DockerProcedureContainer.of(setConfigValue)
+      return JSON.parse(
+        (
+          await container.exec([
+            setConfigValue.entrypoint,
+            ...setConfigValue.args,
+          ])
+        ).stdout,
+      )
     } else {
       const moduleCode = await this.moduleCode
       const method = moduleCode.properties
-      if (!method)throw new Error("Expecting that the method properties exists")
-      return await method(new PolyfillEffects(effects)).then(x => {
-        if ('result' in x) return x.result
-        if('error' in x) throw new Error("Error getting config: " + x.error)
-         throw new Error("Error getting config: " + x['error-code'][1])
-      }) 
+      if (!method)
+        throw new Error("Expecting that the method properties exists")
+      return await method(new PolyfillEffects(effects)).then((x) => {
+        if ("result" in x) return x.result
+        if ("error" in x) throw new Error("Error getting config: " + x.error)
+        throw new Error("Error getting config: " + x["error-code"][1])
+      })
     }
   }
   async health(
@@ -197,20 +271,31 @@ export class SystemForEmbassy implements System {
     healthId: string,
     timeSinceStarted: unknown,
   ): Promise<void> {
-    const healthProcedure = this.manifest["health-checks"][healthId]?.implementation
+    const healthProcedure =
+      this.manifest["health-checks"][healthId]?.implementation
     if (!healthProcedure) return
     if (healthProcedure.type === "docker") {
-      await using container = await DockerProcedureContainer.of(healthProcedure)
-      return JSON.parse((await container.exec([healthProcedure.entrypoint, ...healthProcedure.args, JSON.stringify(timeSinceStarted)])).stdout)
+      const container = await DockerProcedureContainer.of(healthProcedure)
+      return JSON.parse(
+        (
+          await container.exec([
+            healthProcedure.entrypoint,
+            ...healthProcedure.args,
+            JSON.stringify(timeSinceStarted),
+          ])
+        ).stdout,
+      )
     } else {
       const moduleCode = await this.moduleCode
       const method = moduleCode.health?.[healthId]
-      if (!method)throw new Error("Expecting that the method health exists")
-      await method(new PolyfillEffects(effects),Number(timeSinceStarted) ).then(x => {
-        if ('result' in x) return x.result
-        if('error' in x) throw new Error("Error getting config: " + x.error)
-         throw new Error("Error getting config: " + x['error-code'][1])
-      }) 
+      if (!method) throw new Error("Expecting that the method health exists")
+      await method(new PolyfillEffects(effects), Number(timeSinceStarted)).then(
+        (x) => {
+          if ("result" in x) return x.result
+          if ("error" in x) throw new Error("Error getting config: " + x.error)
+          throw new Error("Error getting config: " + x["error-code"][1])
+        },
+      )
     }
   }
   async action(
@@ -219,19 +304,29 @@ export class SystemForEmbassy implements System {
     formData: unknown,
   ): Promise<T.ActionResult> {
     const actionProcedure = this.manifest.actions[actionId]?.implementation
-    if (!actionProcedure) return {message: "Action not found", value: null}
+    if (!actionProcedure) return { message: "Action not found", value: null }
     if (actionProcedure.type === "docker") {
-      await using container = await DockerProcedureContainer.of(actionProcedure)
-      return JSON.parse((await container.exec([actionProcedure.entrypoint, ...actionProcedure.args, JSON.stringify(formData)])).stdout)
+      const container = await DockerProcedureContainer.of(actionProcedure)
+      return JSON.parse(
+        (
+          await container.exec([
+            actionProcedure.entrypoint,
+            ...actionProcedure.args,
+            JSON.stringify(formData),
+          ])
+        ).stdout,
+      )
     } else {
       const moduleCode = await this.moduleCode
       const method = moduleCode.action?.[actionId]
-      if (!method)throw new Error("Expecting that the method action exists")
-      return await method(new PolyfillEffects(effects),formData as any ).then(x => {
-        if ('result' in x) return x.result
-        if('error' in x) throw new Error("Error getting config: " + x.error)
-         throw new Error("Error getting config: " + x['error-code'][1])
-      }) as any
+      if (!method) throw new Error("Expecting that the method action exists")
+      return (await method(new PolyfillEffects(effects), formData as any).then(
+        (x) => {
+          if ("result" in x) return x.result
+          if ("error" in x) throw new Error("Error getting config: " + x.error)
+          throw new Error("Error getting config: " + x["error-code"][1])
+        },
+      )) as any
     }
   }
   async dependenciesCheck(
@@ -240,19 +335,32 @@ export class SystemForEmbassy implements System {
     oldConfig: unknown,
   ): Promise<object> {
     const actionProcedure = this.manifest.dependencies[id]?.config?.check
-    if (!actionProcedure) return {message: "Action not found", value: null}
+    if (!actionProcedure) return { message: "Action not found", value: null }
     if (actionProcedure.type === "docker") {
-      await using container = await DockerProcedureContainer.of(actionProcedure)
-      return JSON.parse((await container.exec([actionProcedure.entrypoint, ...actionProcedure.args, JSON.stringify(oldConfig)])).stdout)
+      const container = await DockerProcedureContainer.of(actionProcedure)
+      return JSON.parse(
+        (
+          await container.exec([
+            actionProcedure.entrypoint,
+            ...actionProcedure.args,
+            JSON.stringify(oldConfig),
+          ])
+        ).stdout,
+      )
     } else {
       const moduleCode = await this.moduleCode
       const method = moduleCode.dependencies?.[id]?.check
-      if (!method)throw new Error(`Expecting that the method dependency check ${id} exists`)
-      return await method(new PolyfillEffects(effects),oldConfig as any ).then(x => {
-        if ('result' in x) return x.result
-        if('error' in x) throw new Error("Error getting config: " + x.error)
-         throw new Error("Error getting config: " + x['error-code'][1])
-      }) as any
+      if (!method)
+        throw new Error(
+          `Expecting that the method dependency check ${id} exists`,
+        )
+      return (await method(new PolyfillEffects(effects), oldConfig as any).then(
+        (x) => {
+          if ("result" in x) return x.result
+          if ("error" in x) throw new Error("Error getting config: " + x.error)
+          throw new Error("Error getting config: " + x["error-code"][1])
+        },
+      )) as any
     }
   }
   async dependenciesAutoconfig(
@@ -261,13 +369,18 @@ export class SystemForEmbassy implements System {
     oldConfig: unknown,
   ): Promise<void> {
     const moduleCode = await this.moduleCode
-      const method = moduleCode.dependencies?.[id]?.autoConfigure
-      if (!method)throw new Error(`Expecting that the method dependency autoConfigure ${id} exists`)
-      return await method(new PolyfillEffects(effects),oldConfig as any ).then(x => {
-        if ('result' in x) return x.result
-        if('error' in x) throw new Error("Error getting config: " + x.error)
-         throw new Error("Error getting config: " + x['error-code'][1])
-      }) as any
+    const method = moduleCode.dependencies?.[id]?.autoConfigure
+    if (!method)
+      throw new Error(
+        `Expecting that the method dependency autoConfigure ${id} exists`,
+      )
+    return (await method(new PolyfillEffects(effects), oldConfig as any).then(
+      (x) => {
+        if ("result" in x) return x.result
+        if ("error" in x) throw new Error("Error getting config: " + x.error)
+        throw new Error("Error getting config: " + x["error-code"][1])
+      },
+    )) as any
   }
   async sandbox(
     effects: T.Effects,
@@ -319,7 +432,7 @@ export class SystemForEmbassy implements System {
   async roCreateBackup(effects: T.Effects): Promise<void> {
     const backup = this.manifest.backup.create
     if (backup.type === "docker") {
-      await using container = await DockerProcedureContainer.readonlyOf(backup)
+      const container = await DockerProcedureContainer.readonlyOf(backup)
       await container.exec([backup.entrypoint, ...backup.args])
     } else {
       const moduleCode = await this.moduleCode
@@ -329,7 +442,7 @@ export class SystemForEmbassy implements System {
   async roRestoreBackup(effects: T.Effects): Promise<void> {
     const restoreBackup = this.manifest.backup.restore
     if (restoreBackup.type === "docker") {
-      await using container = await DockerProcedureContainer.readonlyOf(restoreBackup)
+      const container = await DockerProcedureContainer.readonlyOf(restoreBackup)
       await container.exec([restoreBackup.entrypoint, ...restoreBackup.args])
     } else {
       const moduleCode = await this.moduleCode
@@ -338,68 +451,88 @@ export class SystemForEmbassy implements System {
   }
   async roGetConfig(effects: T.Effects): Promise<T.ConfigRes> {
     const config = this.manifest.config?.get
-    if (!config) return {spec:{}}
+    if (!config) return { spec: {} }
     if (config.type === "docker") {
-      await using container = await DockerProcedureContainer.readonlyOf(config)
-      return JSON.parse((await container.exec([config.entrypoint, ...config.args])).stdout)
+      const container = await DockerProcedureContainer.readonlyOf(config)
+      return JSON.parse(
+        (await container.exec([config.entrypoint, ...config.args])).stdout,
+      )
     } else {
       const moduleCode = await this.moduleCode
       const method = moduleCode.getConfig
-      if (!method)throw new Error("Expecting that the method getConfig exists")
-      return await method(new PolyfillEffects(effects)).then(x => {
-        if ('result' in x) return x.result
-        if('error' in x) throw new Error("Error getting config: " + x.error)
-         throw new Error("Error getting config: " + x['error-code'][1])
-      }) as any
+      if (!method) throw new Error("Expecting that the method getConfig exists")
+      return (await method(new PolyfillEffects(effects)).then((x) => {
+        if ("result" in x) return x.result
+        if ("error" in x) throw new Error("Error getting config: " + x.error)
+        throw new Error("Error getting config: " + x["error-code"][1])
+      })) as any
     }
   }
-  async roSetConfig(effects: T.Effects, newConfig: unknown): Promise<T.SetResult> {
+  async roSetConfig(
+    effects: T.Effects,
+    newConfig: unknown,
+  ): Promise<T.SetResult> {
     const setConfigValue = this.manifest.config?.set
-    if (!setConfigValue) return {signal:"SIGTERM", "depends-on":{}}
+    if (!setConfigValue) return { signal: "SIGTERM", "depends-on": {} }
     // TODO Deal with the pointers
     if (setConfigValue.type === "docker") {
-      await using container = await DockerProcedureContainer.readonlyOf(setConfigValue)
-      return JSON.parse((await container.exec([setConfigValue.entrypoint, ...setConfigValue.args, JSON.stringify(newConfig)])).stdout)
+      const container = await DockerProcedureContainer.readonlyOf(
+        setConfigValue,
+      )
+      return JSON.parse(
+        (
+          await container.exec([
+            setConfigValue.entrypoint,
+            ...setConfigValue.args,
+            JSON.stringify(newConfig),
+          ])
+        ).stdout,
+      )
     } else {
-      
       const moduleCode = await this.moduleCode
       const method = moduleCode.setConfig
-      if (!method)throw new Error("Expecting that the method setConfig exists")
-      return await method(new PolyfillEffects(effects), newConfig as U.Config).then(x => {
-        if ('result' in x) return x.result
-        if('error' in x) throw new Error("Error getting config: " + x.error)
-         throw new Error("Error getting config: " + x['error-code'][1])
-      }) 
+      if (!method) throw new Error("Expecting that the method setConfig exists")
+      return await method(
+        new PolyfillEffects(effects),
+        newConfig as U.Config,
+      ).then((x) => {
+        if ("result" in x) return x.result
+        if ("error" in x) throw new Error("Error getting config: " + x.error)
+        throw new Error("Error getting config: " + x["error-code"][1])
+      })
     }
   }
-  async roMigration(effects: T.Effects, fromVersion: unknown): Promise<T.MigrationRes> {
-    // //todo filter
-    // const setConfigValue = this.manifest.migrations
-    // if (!setConfigValue) return {configured:true}
-    // // TODO Deal with the pointers
-    // if (setConfigValue.type === "docker") {
-    //   await using container = await DockerProcedureContainer.readonlyOf(setConfigValue)
-    //   return JSON.parse((await container.exec([setConfigValue.entrypoint, ...setConfigValue.args, JSON.stringify(fromVersion)])).stdout)
-    // } else {
-    //   throw new Error("Method not implemented.")
-    // }
-    throw new Error("Not implemented")
+  async roMigration(
+    effects: T.Effects,
+    fromVersion: unknown,
+  ): Promise<T.MigrationRes> {
+    throw new Error("Migrations should never be ran in the sandbox mode")
   }
   async roProperties(effects: T.Effects): Promise<unknown> {
     const setConfigValue = this.manifest.properties
     if (!setConfigValue) return {}
     if (setConfigValue.type === "docker") {
-      await using container = await DockerProcedureContainer.readonlyOf(setConfigValue)
-      return JSON.parse((await container.exec([setConfigValue.entrypoint, ...setConfigValue.args])).stdout)
+      const container = await DockerProcedureContainer.readonlyOf(
+        setConfigValue,
+      )
+      return JSON.parse(
+        (
+          await container.exec([
+            setConfigValue.entrypoint,
+            ...setConfigValue.args,
+          ])
+        ).stdout,
+      )
     } else {
       const moduleCode = await this.moduleCode
       const method = moduleCode.properties
-      if (!method)throw new Error("Expecting that the method properties exists")
-      return await method(new PolyfillEffects(effects)).then(x => {
-        if ('result' in x) return x.result
-        if('error' in x) throw new Error("Error getting config: " + x.error)
-         throw new Error("Error getting config: " + x['error-code'][1])
-      }) 
+      if (!method)
+        throw new Error("Expecting that the method properties exists")
+      return await method(new PolyfillEffects(effects)).then((x) => {
+        if ("result" in x) return x.result
+        if ("error" in x) throw new Error("Error getting config: " + x.error)
+        throw new Error("Error getting config: " + x["error-code"][1])
+      })
     }
   }
   async roHealth(
@@ -407,20 +540,33 @@ export class SystemForEmbassy implements System {
     healthId: string,
     timeSinceStarted: unknown,
   ): Promise<void> {
-    const healthProcedure = this.manifest["health-checks"][healthId]?.implementation
+    const healthProcedure =
+      this.manifest["health-checks"][healthId]?.implementation
     if (!healthProcedure) return
     if (healthProcedure.type === "docker") {
-      await using container = await DockerProcedureContainer.readonlyOf(healthProcedure)
-      return JSON.parse((await container.exec([healthProcedure.entrypoint, ...healthProcedure.args, JSON.stringify(timeSinceStarted)])).stdout)
+      const container = await DockerProcedureContainer.readonlyOf(
+        healthProcedure,
+      )
+      return JSON.parse(
+        (
+          await container.exec([
+            healthProcedure.entrypoint,
+            ...healthProcedure.args,
+            JSON.stringify(timeSinceStarted),
+          ])
+        ).stdout,
+      )
     } else {
       const moduleCode = await this.moduleCode
       const method = moduleCode.health?.[healthId]
-      if (!method)throw new Error("Expecting that the method health exists")
-      await method(new PolyfillEffects(effects),Number(timeSinceStarted) ).then(x => {
-        if ('result' in x) return x.result
-        if('error' in x) throw new Error("Error getting config: " + x.error)
-         throw new Error("Error getting config: " + x['error-code'][1])
-      }) 
+      if (!method) throw new Error("Expecting that the method health exists")
+      await method(new PolyfillEffects(effects), Number(timeSinceStarted)).then(
+        (x) => {
+          if ("result" in x) return x.result
+          if ("error" in x) throw new Error("Error getting config: " + x.error)
+          throw new Error("Error getting config: " + x["error-code"][1])
+        },
+      )
     }
   }
   async roAction(
@@ -429,19 +575,31 @@ export class SystemForEmbassy implements System {
     formData: unknown,
   ): Promise<T.ActionResult> {
     const actionProcedure = this.manifest.actions[actionId]?.implementation
-    if (!actionProcedure) return {message: "Action not found", value: null}
+    if (!actionProcedure) return { message: "Action not found", value: null }
     if (actionProcedure.type === "docker") {
-      await using container = await DockerProcedureContainer.readonlyOf(actionProcedure)
-      return JSON.parse((await container.exec([actionProcedure.entrypoint, ...actionProcedure.args, JSON.stringify(formData)])).stdout)
+      const container = await DockerProcedureContainer.readonlyOf(
+        actionProcedure,
+      )
+      return JSON.parse(
+        (
+          await container.exec([
+            actionProcedure.entrypoint,
+            ...actionProcedure.args,
+            JSON.stringify(formData),
+          ])
+        ).stdout,
+      )
     } else {
       const moduleCode = await this.moduleCode
       const method = moduleCode.action?.[actionId]
-      if (!method)throw new Error("Expecting that the method action exists")
-      return await method(new PolyfillEffects(effects),formData as any ).then(x => {
-        if ('result' in x) return x.result
-        if('error' in x) throw new Error("Error getting config: " + x.error)
-         throw new Error("Error getting config: " + x['error-code'][1])
-      }) as any
+      if (!method) throw new Error("Expecting that the method action exists")
+      return (await method(new PolyfillEffects(effects), formData as any).then(
+        (x) => {
+          if ("result" in x) return x.result
+          if ("error" in x) throw new Error("Error getting config: " + x.error)
+          throw new Error("Error getting config: " + x["error-code"][1])
+        },
+      )) as any
     }
   }
   async roDependenciesCheck(
@@ -450,19 +608,34 @@ export class SystemForEmbassy implements System {
     oldConfig: unknown,
   ): Promise<object> {
     const actionProcedure = this.manifest.dependencies[id]?.config?.check
-    if (!actionProcedure) return {message: "Action not found", value: null}
+    if (!actionProcedure) return { message: "Action not found", value: null }
     if (actionProcedure.type === "docker") {
-      await using container = await DockerProcedureContainer.readonlyOf(actionProcedure)
-      return JSON.parse((await container.exec([actionProcedure.entrypoint, ...actionProcedure.args, JSON.stringify(oldConfig)])).stdout)
+      const container = await DockerProcedureContainer.readonlyOf(
+        actionProcedure,
+      )
+      return JSON.parse(
+        (
+          await container.exec([
+            actionProcedure.entrypoint,
+            ...actionProcedure.args,
+            JSON.stringify(oldConfig),
+          ])
+        ).stdout,
+      )
     } else {
       const moduleCode = await this.moduleCode
       const method = moduleCode.dependencies?.[id]?.check
-      if (!method)throw new Error(`Expecting that the method dependency check ${id} exists`)
-      return await method(new PolyfillEffects(effects),oldConfig as any ).then(x => {
-        if ('result' in x) return x.result
-        if('error' in x) throw new Error("Error getting config: " + x.error)
-         throw new Error("Error getting config: " + x['error-code'][1])
-      }) as any
+      if (!method)
+        throw new Error(
+          `Expecting that the method dependency check ${id} exists`,
+        )
+      return (await method(new PolyfillEffects(effects), oldConfig as any).then(
+        (x) => {
+          if ("result" in x) return x.result
+          if ("error" in x) throw new Error("Error getting config: " + x.error)
+          throw new Error("Error getting config: " + x["error-code"][1])
+        },
+      )) as any
     }
   }
   async roDependenciesAutoconfig(
@@ -471,14 +644,17 @@ export class SystemForEmbassy implements System {
     oldConfig: unknown,
   ): Promise<void> {
     const moduleCode = await this.moduleCode
-      const method = moduleCode.dependencies?.[id]?.autoConfigure
-      if (!method)throw new Error(`Expecting that the method dependency autoConfigure ${id} exists`)
-      return await method(new PolyfillEffects(effects),oldConfig as any ).then(x => {
-        if ('result' in x) return x.result
-        if('error' in x) throw new Error("Error getting config: " + x.error)
-         throw new Error("Error getting config: " + x['error-code'][1])
-      }) as any
+    const method = moduleCode.dependencies?.[id]?.autoConfigure
+    if (!method)
+      throw new Error(
+        `Expecting that the method dependency autoConfigure ${id} exists`,
+      )
+    return (await method(new PolyfillEffects(effects), oldConfig as any).then(
+      (x) => {
+        if ("result" in x) return x.result
+        if ("error" in x) throw new Error("Error getting config: " + x.error)
+        throw new Error("Error getting config: " + x["error-code"][1])
+      },
+    )) as any
   }
 }
-
-

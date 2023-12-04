@@ -19,6 +19,7 @@ const matchJsProcedure = object({
 })
 
 const matchProcedure = some(matchDockerProcedure, matchJsProcedure)
+export type Procedure = typeof matchProcedure._TYPE
 
 const matchAction = object(
   {
@@ -34,6 +35,7 @@ const matchAction = object(
 export const matchManifest = object(
   {
     id: string,
+    version: string,
     main: matchDockerProcedure,
     assets: object(
       {
