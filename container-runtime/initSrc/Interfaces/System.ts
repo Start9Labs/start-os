@@ -22,5 +22,5 @@ export interface System {
       input: unknown
       timeout?: number
     },
-  ): Promise<void>
+  ): Promise<unknown>
 }
