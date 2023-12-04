@@ -2,13 +2,16 @@ import fs from "fs/promises"
 
 import cp from "child_process"
 import { promisify } from "util"
-import { DockerProcedure } from "../Models/DockerProcedure"
+import { DockerProcedure } from "../../../Models/DockerProcedure"
 export const exec = promisify(cp.exec)
 export const execFile = promisify(cp.execFile)
 
 export class DockerProcedureContainer {
   private constructor(readonly rootfs: string) {}
-  static async of(data: DockerProcedure) {
+  static async readonlyOf(data: DockerProcedure) {
+    return DockerProcedureContainer.of(data, ["-o", "ro"])
+  }
+  static async of(data: DockerProcedure, mountArgs: string[] = []) {
     const image = data.image
     if (await fs.stat(`/media/images/${data.image}`).catch(() => false))
       throw new Error(`Image ${data.image} does not exist`)
@@ -24,6 +27,7 @@ export class DockerProcedureContainer {
     await execFile("mount", [
       "-t",
       "overlay",
+      ...mountArgs,
       `-olowerdir=/media/images/${image},upper=${upper},workdir=${work}`,
       "overlay",
       rootfs,
@@ -32,7 +36,7 @@ export class DockerProcedureContainer {
     for (const dirPart of ["dev", "sys", "proc", "run"] as const) {
       const dir = await fs.mkdir(`${rootfs}/${dirPart}`, { recursive: true })
       if (!dir) break
-      await execFile("mount", ["--bind", `/${dirPart}`, dir])
+      await execFile("mount", [...mountArgs, "--bind", `/${dirPart}`, dir])
     }
 
     return new DockerProcedureContainer(rootfs)

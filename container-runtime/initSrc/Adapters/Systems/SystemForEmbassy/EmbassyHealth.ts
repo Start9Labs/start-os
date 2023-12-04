@@ -1,6 +1,6 @@
 import * as T from "@start9labs/start-sdk/lib/types";
 import { PolyfillEffects } from './polyfillEffects';
-import { DockerProcedureContainer } from '../../DockerProcedureContainer';
+import { DockerProcedureContainer } from './DockerProcedureContainer';
 import { SystemForEmbassy } from ".";
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000;
