@@ -11,7 +11,15 @@ import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import * as U from "./oldEmbassyTypes"
 import { EmbassyHealth } from "./EmbassyHealth"
 import { EmVer } from "@start9labs/start-sdk/lib/emverLite/mod"
-import { string } from "ts-matches"
+import {
+  boolean,
+  dictionary,
+  literal,
+  literals,
+  object,
+  string,
+  unknown,
+} from "ts-matches"
 
 const MANIFEST_LOCATION = "/lib/startos/embassyManifest.json"
 const EMBASSY_JS_LOCATION = "/usr/lib/javascript/embassy.js"
@@ -131,6 +139,9 @@ export class SystemForEmbassy implements System {
     }
   }
   async getConfig(effects: T.Effects): Promise<T.ConfigRes> {
+    return this.getConfigUncleaned(effects).then(removePointers)
+  }
+  async getConfigUncleaned(effects: T.Effects): Promise<T.ConfigRes> {
     const config = this.manifest.config?.get
     if (!config) return { spec: {} }
     if (config.type === "docker") {
@@ -151,8 +162,14 @@ export class SystemForEmbassy implements System {
   }
   async setConfig(
     effects: T.Effects,
-    newConfig: unknown,
+    newConfigWithoutPointers: unknown,
   ): Promise<T.SetResult> {
+    const newConfig = structuredClone(newConfigWithoutPointers)
+    await updateConfig(
+      effects,
+      await this.getConfigUncleaned(effects).then((x) => x.spec),
+      newConfig,
+    )
     const setConfigValue = this.manifest.config?.set
     if (!setConfigValue) return { signal: "SIGTERM", "depends-on": {} }
     // TODO Deal with the pointers
@@ -654,5 +671,110 @@ export class SystemForEmbassy implements System {
         throw new Error("Error getting config: " + x["error-code"][1])
       },
     )) as any
+  }
+}
+async function removePointers(value: T.ConfigRes): Promise<T.ConfigRes> {
+  const startingSpec = structuredClone(value.spec)
+  const spec = cleanSpecOfPointers(startingSpec)
+
+  return { ...value, spec }
+}
+
+const matchPointer = object({
+  type: literal("pointer"),
+})
+
+const matchPointerPackage = object({
+  subtype: literal("package"),
+  target: literals("tor-key", "tor-address", "lan-address"),
+  "package-id": string,
+  interface: string,
+})
+const matchPointerConfig = object({
+  subtype: literal("package"),
+  target: literals("config"),
+  "package-id": string,
+  selector: string,
+  multi: boolean,
+})
+const matchSpec = object({
+  spec: object,
+})
+const matchVariants = object({ variants: dictionary([string, unknown]) })
+function cleanSpecOfPointers<T>(mutSpec: T): T {
+  if (!object.test(mutSpec)) return mutSpec
+  for (const key in mutSpec) {
+    const value = mutSpec[key]
+    if (matchSpec.test(value)) value.spec = cleanSpecOfPointers(value.spec)
+    if (matchVariants.test(value))
+      value.variants = Object.fromEntries(
+        Object.entries(value.variants).map(([key, value]) => [
+          key,
+          cleanSpecOfPointers(value),
+        ]),
+      )
+    if (!matchPointer.test(value)) continue
+    delete mutSpec[key]
+    // // if (value.target === )
+  }
+
+  return mutSpec
+}
+
+async function updateConfig(
+  effects: T.Effects,
+  spec: unknown,
+  mutConfigValue: unknown,
+) {
+  if (!dictionary([string, unknown]).test(spec)) return
+  if (!dictionary([string, unknown]).test(mutConfigValue)) return
+  for (const key in spec) {
+    const specValue = spec[key]
+
+    const newConfigValue = mutConfigValue[key]
+    if (matchSpec.test(specValue))
+      updateConfig(
+        effects,
+        specValue.spec,
+        (mutConfigValue[key] = mutConfigValue[key] || {}),
+      )
+    if (
+      matchVariants.test(specValue) &&
+      object({ tag: object({ id: string }) }).test(newConfigValue) &&
+      newConfigValue.tag.id in specValue.variants
+    ) {
+      //TODO BLUJ Need to do something recursive
+    }
+    if (!matchPointer.test(specValue)) continue
+    if (matchPointerConfig.test(specValue)) {
+      // const configValue =
+      //   // spec[key] =
+      //   effects.store.
+      // TODO BLUJ Need to have an effect for this
+    }
+    if (!matchPointerPackage.test(specValue)) continue
+
+    if (specValue.target === "lan-address") {
+      const remoteInterface = await effects.getInterface({
+        packageId: specValue["package-id"],
+        callback: () => {},
+        interfaceId: specValue["interface"],
+      })
+      // TODO BLUJ Something to do with the interface?
+    } else if (specValue.target === "tor-address") {
+      const remoteInterface = await effects.getInterface({
+        packageId: specValue["package-id"],
+        callback: () => {},
+        interfaceId: specValue["interface"],
+      })
+      // TODO BLUJ Something to do with the interface?
+    } else if (specValue.target === "tor-key") {
+      const remoteInterface = await effects.getInterface({
+        packageId: specValue["package-id"],
+        callback: () => {},
+        interfaceId: specValue["interface"],
+      })
+      // TODO BLUJ Something to do with the interface?
+    }
   }
 }
