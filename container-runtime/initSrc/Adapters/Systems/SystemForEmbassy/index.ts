@@ -747,10 +747,12 @@ async function updateConfig(
     }
     if (!matchPointer.test(specValue)) continue
     if (matchPointerConfig.test(specValue)) {
-      // const configValue =
-      //   // spec[key] =
-      //   effects.store.
-      // TODO BLUJ Need to have an effect for this
+      const configValue = (await effects.store.get({
+        packageId: specValue["package-id"],
+        callback() {},
+        path: specValue.selector as any,
+      })) as any
+      mutConfigValue[key] = configValue
     }
     if (!matchPointerPackage.test(specValue)) continue
 
