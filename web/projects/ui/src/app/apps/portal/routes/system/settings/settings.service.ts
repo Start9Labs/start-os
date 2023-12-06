@@ -31,12 +31,6 @@ export class SettingsService {
   readonly settings: Record<string, readonly SettingBtn[]> = {
     General: [
       {
-        title: 'About',
-        description: 'Basic information about your server',
-        icon: 'tuiIconInfo',
-        routerLink: 'specs',
-      },
-      {
         title: 'Email',
         description:
           'Connect to an external SMTP server to send yourself emails',

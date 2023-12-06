@@ -6,6 +6,7 @@ import {
   TuiCellModule,
   TuiTitleModule,
 } from '@taiga-ui/experimental'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ConfigService } from 'src/app/services/config.service'
@@ -13,7 +14,7 @@ import { ConfigService } from 'src/app/services/config.service'
 @Component({
   template: `
     <ng-container *ngIf="server$ | async as server">
-      <h3 class="g-title" [style.margin-top.rem]="1">StartOS Info</h3>
+      <h3 class="g-title">StartOS Info</h3>
       <div tuiCell [style.box-shadow]="'0 1px var(--tui-clear)'">
         <div tuiTitle>
           <strong>Version</strong>
@@ -63,8 +64,10 @@ import { ConfigService } from 'src/app/services/config.service'
     TuiCellModule,
   ],
 })
-export class SettingsSpecComponent {
+export class AboutComponent {
   readonly server$ = inject(PatchDB<DataModel>).watch$('server-info')
   readonly copyService = inject(CopyService)
   readonly gitHash = inject(ConfigService).gitHash
 }
+
+export const ABOUT = new PolymorpheusComponent(AboutComponent)

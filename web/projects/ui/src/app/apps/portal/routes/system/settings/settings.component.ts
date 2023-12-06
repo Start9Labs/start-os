@@ -46,6 +46,8 @@ import { SettingsMenuComponent } from './components/menu.component'
 
       ._current + .page {
         display: flex;
+        max-width: 45rem;
+        margin: 0 auto;
       }
     `,
   ],

@@ -14,15 +14,17 @@ import {
         <div tuiTitle>
           Http detected
           <div tuiSubtitle>
-            Tor is faster over https.
-            <a
-              href="https://docs.start9.com/0.3.5.x/user-manual/trust-ca"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Download and trust your server's Root CA
-            </a>
-            , then switch to https.
+            <div>
+              Tor is faster over https.
+              <a
+                href="https://docs.start9.com/0.3.5.x/user-manual/trust-ca"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Download and trust your server's Root CA
+              </a>
+              , then switch to https.
+            </div>
           </div>
         </div>
         <ng-content />

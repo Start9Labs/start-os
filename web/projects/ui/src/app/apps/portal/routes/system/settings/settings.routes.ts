@@ -8,13 +8,6 @@ export const SETTINGS_ROUTES: Routes = [
     component: SettingsComponent,
     children: [
       {
-        path: 'specs',
-        loadComponent: () =>
-          import('./routes/spec/spec.component').then(
-            m => m.SettingsSpecComponent,
-          ),
-      },
-      {
         path: 'email',
         loadComponent: () =>
           import('./routes/email/email.component').then(
