@@ -246,4 +246,17 @@ export class HostSystemStartOs implements T.Effects {
         T.Effects["store"]["set"]
       >,
   }
+
+  /**
+   * So, this is created
+   * @param options
+   * @returns
+   */
+  embassyGetInterface(options: {
+    target: "tor-key" | "tor-address" | "lan-address"
+    packageId: string
+    interface: string
+  }) {
+    return this.rpcRound("embassyGetInterface", options) as Promise<string>
+  }
 }

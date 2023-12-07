@@ -1,9 +1,10 @@
 import fs from "fs/promises"
 import * as T from "@start9labs/start-sdk/lib/types"
 import * as oet from "./oldEmbassyTypes"
+import { HostSystemStartOs } from "../../HostSystemStartOs"
 
 export class PolyfillEffects implements oet.Effects {
-  constructor(readonly effects: T.Effects) {}
+  constructor(readonly effects: HostSystemStartOs) {}
   writeFile(input: {
     path: string
     volumeId: string
