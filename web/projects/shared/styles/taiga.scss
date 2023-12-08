@@ -1,22 +1,9 @@
 @import '@taiga-ui/core/styles/taiga-ui-local';
 
 /* stylelint-disable order/order */
-[tuiWrapper][data-appearance='secondary-warning'] {
+[tuiAppearance][data-appearance='secondary-warning'] {
   background: var(--tui-warning-bg);
   color: var(--tui-warning-fill);
-
-  &[data-mode='onDark'] {
-    background: var(--tui-warning-bg-night);
-    color: var(--tui-warning-fill-night);
-
-    @include wrapper-hover {
-      background: var(--tui-warning-bg-night-hover);
-    }
-
-    @include wrapper-active {
-      background: var(--tui-warning-bg-night-hover);
-    }
-  }
 
   @include wrapper-hover {
     background: var(--tui-warning-bg-hover);
@@ -27,16 +14,21 @@
   }
 }
 
-[tuiWrapper][data-appearance='success'] {
+[tuiAppearance][data-appearance='icon-success'] {
   color: var(--tui-success-fill);
 }
 
-[tuiWrapper][data-appearance='warning'] {
+[tuiAppearance][data-appearance='icon-warning'] {
   color: var(--tui-warning-fill);
 }
 
-[tuiWrapper][data-appearance='error'] {
+[tuiAppearance][data-appearance='icon-error'] {
   color: var(--tui-error-fill);
+}
+
+[tuiAppearance][data-appearance='flat'],
+[tuiAppearance][data-appearance='outline'] {
+  color: var(--tui-text-01);
 }
 
 [tuiWrapper][data-appearance='input-file'] {

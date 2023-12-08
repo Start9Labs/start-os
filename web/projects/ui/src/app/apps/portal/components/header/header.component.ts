@@ -33,7 +33,7 @@ import { NotificationService } from '../../services/notification.service'
     <button
       tuiIconButton
       iconLeft="tuiIconCloudLarge"
-      appearance="success"
+      appearance="icon-success"
       [style.margin-left]="'auto'"
     >
       Connection
@@ -48,7 +48,7 @@ import { NotificationService } from '../../services/notification.service'
       <button
         tuiIconButton
         iconLeft="tuiIconBellLarge"
-        appearance="warning"
+        appearance="icon-warning"
         (click)="handleNotificationsClick(unread || 0)"
       >
         Notifications

@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ActivatedRoute, Router, RouterModule } from '@angular/router'
-import { TuiSvgModule } from '@taiga-ui/core'
+import { TuiIconModule } from '@taiga-ui/experimental'
 import { PatchDB } from 'patch-db-client'
 import { distinctUntilChanged, filter, map, switchMap, tap } from 'rxjs'
 import {
@@ -20,10 +20,10 @@ import { NavigationService } from '../../../services/navigation.service'
       [routerLink]="getLink(service.manifest.id)"
       (isActiveChange)="onActive(service, $event)"
     >
-      <tui-svg src="tuiIconChevronLeftLarge" />
+      <tui-icon icon="tuiIconChevronLeft" />
       {{ service.manifest.title }}
     </a>
-    <router-outlet></router-outlet>
+    <router-outlet />
   `,
   styles: [
     `
@@ -44,7 +44,7 @@ import { NavigationService } from '../../../services/navigation.service'
   host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, RouterModule, TuiSvgModule],
+  imports: [CommonModule, RouterModule, TuiIconModule],
 })
 export class ServiceOutletComponent {
   private readonly patch = inject(PatchDB<DataModel>)
