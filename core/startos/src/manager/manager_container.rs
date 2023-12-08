@@ -7,7 +7,7 @@ use tokio::sync::watch::Sender;
 use tracing::instrument;
 
 use super::start_stop::StartStop;
-use super::{manager_seed, ManagerPersistentContainer};
+use super::ManagerPersistentContainer;
 use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
 use crate::status::MainStatus;
@@ -47,16 +47,11 @@ pub struct ManageContainer {
 
 impl ManageContainer {
     pub async fn new(
-        seed: Arc<manager_seed::ManagerSeed>,
         persistent_container: ManagerPersistentContainer,
+        initial_state: StartStop,
     ) -> Result<Self, Error> {
         let current_state = Arc::new(watch::channel(StartStop::Stop).0);
-        let desired_state = Arc::new(
-            watch::channel::<StartStop>(
-                get_status(seed.ctx.db.peek().await, seed.s9pk.as_manifest()).into(),
-            )
-            .0,
-        );
+        let desired_state = Arc::new(watch::channel::<StartStop>(initial_state).0);
         let override_main_status: ManageContainerOverride = Arc::new(watch::channel(None).0);
         let service = tokio::spawn(create_service_manager(
             desired_state.clone(),
@@ -136,13 +131,11 @@ impl ManageContainer {
 
 async fn create_service_manager(
     desired_state: Arc<Sender<StartStop>>,
-    seed: Arc<manager_seed::ManagerSeed>,
     current_state: Arc<Sender<StartStop>>,
     persistent_container: Arc<super::persistent_container::PersistentContainer>,
 ) {
     let mut desired_state_receiver = desired_state.subscribe();
     let mut running_service: Option<NonDetachingJoinHandle<()>> = None;
-    let seed = seed.clone();
     loop {
         let current: StartStop = *current_state.borrow();
         let desired: StartStop = *desired_state_receiver.borrow();
@@ -160,7 +153,6 @@ async fn create_service_manager(
             (StartStop::Stop, StartStop::Start) => starting_service(
                 current_state.clone(),
                 desired_state.clone(),
-                seed.clone(),
                 persistent_container.clone(),
                 &mut running_service,
             ),
@@ -219,7 +211,6 @@ async fn save_state(
 fn starting_service(
     current_state: Arc<Sender<StartStop>>,
     desired_state: Arc<Sender<StartStop>>,
-    seed: Arc<manager_seed::ManagerSeed>,
     persistent_container: ManagerPersistentContainer,
     running_service: &mut Option<NonDetachingJoinHandle<()>>,
 ) {

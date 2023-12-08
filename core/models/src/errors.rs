@@ -82,6 +82,7 @@ pub enum ErrorKind {
     Firmware = 70,
     Timeout = 71,
     Lxc = 72,
+    Cancelled = 73,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -159,6 +160,7 @@ impl ErrorKind {
             Firmware => "Firmware Error",
             Timeout => "Timeout Error",
             Lxc => "LXC Error",
+            Cancelled => "Cancelled",
         }
     }
 }

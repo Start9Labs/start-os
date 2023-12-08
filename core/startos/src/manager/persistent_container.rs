@@ -1,21 +1,21 @@
 use std::path::Path;
-use std::sync::Arc;
 use std::time::Duration;
 
 use helpers::UnixRpcClient;
 use models::ProcedureName;
-use nix::sys::signal::Signal;
 use serde::de::DeserializeOwned;
-use tokio::sync::Mutex;
+use tokio::sync::{watch, Mutex};
 use tracing::instrument;
 
-use super::manager_seed::ManagerSeed;
+use crate::context::RpcContext;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::MountGuard;
 use crate::lxc::{LxcConfig, LxcContainer};
-use crate::manager::rpc::{self, convert_rpc_error};
+use crate::manager::rpc::{self, convert_rpc_error, StopParams};
+use crate::manager::start_stop::StartStop;
 use crate::prelude::*;
+use crate::s9pk::S9pk;
 use crate::ARCH;
 
 const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -29,20 +29,20 @@ struct ProcedureId(u64);
 pub struct PersistentContainer {
     lxc_container: LxcContainer,
     rpc_client: UnixRpcClient,
-    manager_seed: Arc<ManagerSeed>,
     procedures: Mutex<Vec<(ProcedureName, ProcedureId)>>,
     image_mounts: Vec<MountGuard>,
     js_mount: MountGuard,
+    current_state: watch::Receiver<StartStop>,
+    desired_state: watch::Receiver<StartStop>,
 }
 
 impl PersistentContainer {
     #[instrument(skip_all)]
-    pub async fn init(seed: &Arc<ManagerSeed>) -> Result<Self, Error> {
-        let lxc_container = seed.ctx.lxc_manager.create(LxcConfig::default()).await?;
+    pub async fn init(ctx: &RpcContext, s9pk: &S9pk) -> Result<Self, Error> {
+        let lxc_container = ctx.lxc_manager.create(LxcConfig::default()).await?;
         let js_mount = MountGuard::mount(
             &LoopDev::from(
-                &**seed
-                    .s9pk
+                &**s9pk
                     .as_archive()
                     .contents()
                     .get_path("javascript.squashfs")
@@ -54,8 +54,7 @@ impl PersistentContainer {
         )
         .await?;
         let mut image_mounts = Vec::new();
-        for (image_id, contents) in seed
-            .s9pk
+        for (image_id, contents) in s9pk
             .as_archive()
             .contents()
             .get_path(Path::new("images").join(&*ARCH))
@@ -90,7 +89,6 @@ impl PersistentContainer {
         Ok(Self {
             lxc_container,
             rpc_client,
-            manager_seed: seed.clone(),
             procedures: Default::default(),
             image_mounts,
             js_mount,
@@ -116,6 +114,20 @@ impl PersistentContainer {
         lxc_container.exit().await?;
 
         Ok(())
+    }
+
+    pub async fn start(&self) -> Result<(), Error> {
+        self.rpc_client
+            .request(rpc::Start, ())
+            .await
+            .map_err(convert_rpc_error)
+    }
+
+    pub async fn stop(&self, timeout: Option<Duration>) -> Result<(), Error> {
+        self.rpc_client
+            .request(rpc::Stop, StopParams::new(timeout))
+            .await
+            .map_err(convert_rpc_error)
     }
 
     pub async fn execute<O>(

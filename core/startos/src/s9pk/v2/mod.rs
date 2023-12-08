@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::merkle_archive::sink::Sink;
@@ -76,6 +78,13 @@ impl<S: ArchiveSource> S9pk<Section<S>> {
         let manifest = extract_manifest(&archive).await?;
 
         Ok(Self { archive, manifest })
+    }
+}
+impl S9pk {
+    pub async fn open(path: impl AsRef<Path>) -> Result<Self, Error> {
+        Self::deserialize(&MultiCursorFile::from(
+            tokio::fs::File::open(path).await?,
+        )).await
     }
 }
 

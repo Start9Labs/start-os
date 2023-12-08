@@ -7,55 +7,55 @@ use tracing::instrument;
 
 use super::Manager;
 use crate::context::RpcContext;
+use crate::install::PKG_ARCHIVE_DIR;
 use crate::prelude::*;
-use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::util::Version;
-use crate::Error;
+use crate::s9pk::manifest::PackageId;
+use crate::s9pk::S9pk;
 
 /// This is the structure to contain all the service managers
 #[derive(Default)]
-pub struct ManagerMap(RwLock<BTreeMap<(PackageId, Version), Arc<Manager>>>);
+pub struct ManagerMap(RwLock<BTreeMap<PackageId, Arc<Manager>>>);
 impl ManagerMap {
     #[instrument(skip_all)]
-    pub async fn init(&self, ctx: RpcContext, peeked: Peeked) -> Result<(), Error> {
+    pub async fn init(&self, ctx: &RpcContext) -> Result<(), Error> {
         let mut res = BTreeMap::new();
-        for package in peeked.as_package_data().keys()? {
-            let man: Manifest = if let Some(manifest) = peeked
-                .as_package_data()
-                .as_idx(&package)
-                .and_then(|x| x.as_installed())
-                .map(|x| x.as_manifest().de())
-            {
-                manifest?
-            } else {
-                continue;
-            };
-
-            res.insert(
-                (package, man.version.clone()),
-                Arc::new(Manager::new(ctx.clone(), todo!()).await?),
-            );
+        let mut dir =
+            tokio::fs::read_dir(ctx.datadir.join(PKG_ARCHIVE_DIR).join("installed")).await?;
+        while let Some(file) = dir.next_entry().await? {
+            match S9pk::open(file.path()).await {
+                Ok(s9pk) => {
+                    res.insert(
+                        s9pk.as_manifest().id.clone(),
+                        Arc::new(Manager::new(ctx.clone(), s9pk).await?),
+                    );
+                }
+                Err(e) => {
+                    tracing::error!("Error loading installed package as service: {e}");
+                    tracing::debug!("{e:?}");
+                }
+            }
         }
         *self.0.write().await = res;
         Ok(())
     }
 
-    /// Used during the install process
     #[instrument(skip_all)]
-    pub async fn add(&self, ctx: RpcContext, manifest: Manifest) -> Result<Arc<Manager>, Error> {
+    pub async fn install(&self, ctx: &RpcContext, s9pk: S9pk) -> Result<Arc<Manager>, Error> {
         let mut lock = self.0.write().await;
-        let id = (manifest.id.clone(), manifest.version.clone());
-        if let Some(man) = lock.remove(&id) {
-            man.exit().await;
+        let id = s9pk.as_manifest().id.clone();
+        if let Some(manager) = lock.remove(&id) {
+            manager.upgrade(s9pk).await?;
+            Ok(manager)
+        } else {
+            let manager = Arc::new(Manager::new(ctx.clone(), s9pk).await?);
+            lock.insert(id, manager.clone());
+            Ok(manager)
         }
-        let manager = Arc::new(Manager::new(ctx.clone(), todo!()).await?);
-        lock.insert(id, manager.clone());
-        Ok(manager)
     }
 
     /// This is ran during the cleanup, so when we are uninstalling the service
     #[instrument(skip_all)]
-    pub async fn remove(&self, id: &(PackageId, Version)) {
+    pub async fn remove(&self, id: &PackageId) {
         if let Some(man) = self.0.write().await.remove(id) {
             man.exit().await;
         }
@@ -66,15 +66,14 @@ impl ManagerMap {
     pub async fn empty(&self) -> Result<(), Error> {
         let res =
             futures::future::join_all(std::mem::take(&mut *self.0.write().await).into_iter().map(
-                |((id, version), man)| async move {
-                    tracing::debug!("Manager for {}@{} shutting down", id, version);
+                |(id, man)| async move {
+                    tracing::debug!("Manager for {id} shutting down");
                     man.shutdown().await?;
-                    tracing::debug!("Manager for {}@{} is shutdown", id, version);
+                    tracing::debug!("Manager for {id} is shutdown");
                     if let Err(e) = Arc::try_unwrap(man) {
                         tracing::trace!(
-                            "Manager for {}@{} still has {} other open references",
+                            "Manager for {} still has {} other open references",
                             id,
-                            version,
                             Arc::strong_count(&e) - 1
                         );
                     }
@@ -90,7 +89,7 @@ impl ManagerMap {
     }
 
     #[instrument(skip_all)]
-    pub async fn get(&self, id: &(PackageId, Version)) -> Option<Arc<Manager>> {
+    pub async fn get(&self, id: &PackageId) -> Option<Arc<Manager>> {
         self.0.read().await.get(id).cloned()
     }
 }
