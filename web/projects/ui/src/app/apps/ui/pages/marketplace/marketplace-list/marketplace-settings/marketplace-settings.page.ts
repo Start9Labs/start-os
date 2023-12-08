@@ -25,6 +25,18 @@ import { ConfigService } from 'src/app/services/config.service'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplaceSettingsPage {
+  constructor(
+    private readonly api: ApiService,
+    private readonly loader: LoadingService,
+    private readonly formDialog: FormDialogService,
+    private readonly errorService: ErrorService,
+    @Inject(AbstractMarketplaceService)
+    private readonly marketplaceService: MarketplaceService,
+    private readonly patch: PatchDB<DataModel>,
+    private readonly dialogs: TuiDialogService,
+    readonly config: ConfigService,
+  ) {}
+
   stores$ = combineLatest([
     this.marketplaceService.getKnownHosts$(),
     this.marketplaceService.getSelectedHost$(),
@@ -42,18 +54,6 @@ export class MarketplaceSettingsPage {
       return { standard, alt }
     }),
   )
-
-  constructor(
-    private readonly api: ApiService,
-    private readonly loader: LoadingService,
-    private readonly formDialog: FormDialogService,
-    private readonly errorService: ErrorService,
-    @Inject(AbstractMarketplaceService)
-    private readonly marketplaceService: MarketplaceService,
-    private readonly patch: PatchDB<DataModel>,
-    private readonly dialogs: TuiDialogService,
-    readonly config: ConfigService,
-  ) {}
 
   async presentModalAdd() {
     const { name, spec } = getMarketplaceValueSpec()

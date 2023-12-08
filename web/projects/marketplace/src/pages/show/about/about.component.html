@@ -1,32 +1,21 @@
-<!-- release notes -->
-<ion-item-divider>
-  New in {{ pkg.manifest.version | displayEmver }}
-</ion-item-divider>
-<ion-item lines="none" color="transparent">
-  <ion-label>
-    <div
-      safeLinks
-      [innerHTML]="pkg.manifest['release-notes'] | markdown | dompurify"
-    ></div>
-  </ion-label>
-</ion-item>
-<ion-button routerLink="notes" fill="clear" strong>
-  Past Release Notes
-  <ion-icon slot="end" name="arrow-forward"></ion-icon>
-</ion-button>
-<!-- description -->
-<ion-item-divider>Description</ion-item-divider>
-<ion-item lines="none" color="transparent">
-  <ion-label>
-    <h2>{{ pkg.manifest.description.long }}</h2>
-  </ion-label>
-</ion-item>
 <div
-  *ngIf="pkg.manifest['marketing-site'] as url"
-  style="padding: 4px 0 10px 14px"
+  class="rounded-xl bg-gradient-to-bl from-zinc-400/75 to-zinc-600 p-px shadow-lg shadow-zinc-400/10"
 >
-  <ion-button [href]="url" target="_blank" rel="noreferrer" color="tertiary">
-    View website
-    <ion-icon slot="end" name="open-outline"></ion-icon>
-  </ion-button>
+  <div class="lg:col-span-5 xl:col-span-4 bg-zinc-800 rounded-xl p-7">
+    <h2 class="text-lg font-bold small-caps pb-3">Description</h2>
+    <p class="text-base mb-3">
+      {{ pkg.manifest.description.long }}
+    </p>
+    <ng-container *ngIf="pkg.manifest.replaces as replaces">
+      <div *ngIf="replaces.length">
+        <h2 class="text-lg font-bold small-caps pb-3">Intended to replace</h2>
+        <tui-tag
+          *ngFor="let app; index as i; of: replaces"
+          size="l"
+          [class]="i > 0 ? 'ml-1.5 mt-2' : 'mt-2'"
+          [value]="app"
+        ></tui-tag>
+      </div>
+    </ng-container>
+  </div>
 </div>

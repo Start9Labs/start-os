@@ -4,8 +4,9 @@ import { Router, RouterLink } from '@angular/router'
 import {
   AboutModule,
   AdditionalModule,
+  DependenciesModule,
+  MarketplacePackageHeroComponent,
   MarketplacePkg,
-  PackageModule,
 } from '@start9labs/marketplace'
 import {
   Emver,
@@ -23,31 +24,49 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
 
 import { NavigationService } from '../../../services/navigation.service'
-import { SideloadDependenciesComponent } from './dependencies.component'
 
 @Component({
   selector: 'sideload-package',
   template: `
-    <ng-content></ng-content>
-    <marketplace-package *tuiLet="button$ | async as button" [pkg]="package">
-      <a
-        *ngIf="button !== null && button !== 'Install'"
-        tuiButton
-        appearance="secondary"
-        [routerLink]="'/portal/service/' + package.manifest.id"
+    <div class="grid gap-8 mb-16 p-4 lg:px-16 lg:pb-8 pt-14 justify-center">
+      <ng-content></ng-content>
+      <marketplace-package-hero
+        *tuiLet="button$ | async as button"
+        [pkg]="package"
       >
-        View installed
-      </a>
-      <button *ngIf="button" tuiButton (click)="upload()">
-        {{ button }}
-      </button>
-    </marketplace-package>
-    <marketplace-about [pkg]="package"></marketplace-about>
-    <sideload-dependencies
-      *ngIf="!(package.manifest.dependencies | empty)"
-      [package]="package"
-    ></sideload-dependencies>
-    <marketplace-additional [pkg]="package"></marketplace-additional>
+        <div class="flex justify-start">
+          <a
+            *ngIf="button !== null && button !== 'Install'"
+            tuiButton
+            appearance="secondary"
+            [routerLink]="'/portal/service/' + package.manifest.id"
+          >
+            View installed
+          </a>
+          <button *ngIf="button" tuiButton (click)="upload()">
+            {{ button }}
+          </button>
+        </div>
+      </marketplace-package-hero>
+      <marketplace-about [pkg]="package"></marketplace-about>
+      <div
+        *ngIf="!(package.manifest.dependencies | empty)"
+        class="rounded-xl bg-gradient-to-bl from-zinc-400/75 to-zinc-600 p-px shadow-lg shadow-zinc-400/10"
+      >
+        <div class="lg:col-span-5 xl:col-span-4 bg-zinc-800 rounded-xl p-7">
+          <h2 class="text-lg font-bold small-caps my-2 pb-3">Dependencies</h2>
+          <div class="grid grid-row-auto gap-3">
+            <div *ngFor="let dep of package.manifest.dependencies | keyvalue">
+              <marketplace-dependencies
+                [dep]="dep"
+                [pkg]="package"
+              ></marketplace-dependencies>
+            </div>
+          </div>
+        </div>
+      </div>
+      <marketplace-additional [pkg]="package"></marketplace-additional>
+    </div>
   `,
   standalone: true,
   imports: [
@@ -56,10 +75,10 @@ import { SideloadDependenciesComponent } from './dependencies.component'
     SharedPipesModule,
     AboutModule,
     AdditionalModule,
-    PackageModule,
     TuiButtonModule,
     TuiLetModule,
-    SideloadDependenciesComponent,
+    MarketplacePackageHeroComponent,
+    DependenciesModule,
   ],
 })
 export class SideloadPackageComponent {

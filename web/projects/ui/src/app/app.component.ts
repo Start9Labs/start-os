@@ -15,6 +15,7 @@ import { ThemeSwitcherService } from './services/theme-switcher.service'
 import { THEME } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from './services/patch-db/data-model'
+import { slideInAnimation } from './route-animation'
 
 function hasNavigation(url: string): boolean {
   return (
@@ -28,13 +29,14 @@ function hasNavigation(url: string): boolean {
   selector: 'app-root',
   templateUrl: 'app.component.html',
   styleUrls: ['app.component.scss'],
+  animations: [slideInAnimation],
 })
 export class AppComponent implements OnDestroy {
   readonly subscription = merge(this.patchData, this.patchMonitor).subscribe()
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
   readonly widgetDrawer$ = this.clientStorageService.widgetDrawer$
   readonly theme$ = inject(THEME)
-
+  // @TODO theres a bug here disabling the side menu from appearing on first login; refresh fixes
   readonly navigation$ = combineLatest([
     this.authService.isVerified$,
     this.router.events.pipe(map(() => hasNavigation(this.router.url))),

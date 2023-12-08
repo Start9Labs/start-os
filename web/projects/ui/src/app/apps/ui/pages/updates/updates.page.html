@@ -10,7 +10,7 @@
 <ion-content class="with-widgets">
   <ion-item-group *ngIf="data$ | async as data">
     <div *ngFor="let host of data.hosts">
-      <ion-item-divider class="inline">
+      <ion-item-divider>
         <store-icon
           [url]="host.url"
           [marketplace]="config.marketplace"

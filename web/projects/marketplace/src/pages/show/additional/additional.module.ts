@@ -1,26 +1,25 @@
-import { CommonModule } from '@angular/common'
-import { NgModule } from '@angular/core'
-import { IonicModule } from '@ionic/angular'
-import { MarkdownModule, ResponsiveColDirective } from '@start9labs/shared'
-
-import { AdditionalComponent } from './additional.component'
+import { CommonModule } from "@angular/common";
+import { NgModule } from "@angular/core";
+import { AdditionalComponent } from "./additional.component";
 import {
   TuiRadioListModule,
   TuiStringifyContentPipeModule,
-} from '@taiga-ui/kit'
-import { FormsModule } from '@angular/forms'
-import { TuiButtonModule } from '@taiga-ui/core'
+} from "@taiga-ui/kit";
+import { FormsModule } from "@angular/forms";
+import { TuiButtonModule, TuiLabelModule } from "@taiga-ui/core";
+import { AdditionalLinkModule } from "./additional-link/additional-link.component.module";
+import { ResponsiveColDirective } from "@start9labs/shared";
 
 @NgModule({
   imports: [
     CommonModule,
-    IonicModule,
-    MarkdownModule,
     ResponsiveColDirective,
     TuiRadioListModule,
     FormsModule,
     TuiStringifyContentPipeModule,
     TuiButtonModule,
+    TuiLabelModule,
+    AdditionalLinkModule,
   ],
   declarations: [AdditionalComponent],
   exports: [AdditionalComponent],

@@ -1,23 +1,16 @@
 import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
 import { RouterModule } from '@angular/router'
-import { IonicModule } from '@ionic/angular'
-import {
-  EmverPipesModule,
-  ResponsiveColDirective,
-  SharedPipesModule,
-} from '@start9labs/shared'
-
+import { EmverPipesModule, ResponsiveColDirective } from '@start9labs/shared'
 import { DependenciesComponent } from './dependencies.component'
-
+import { TuiAvatarModule } from '@taiga-ui/experimental'
 @NgModule({
   imports: [
     CommonModule,
     RouterModule,
-    IonicModule,
-    SharedPipesModule,
-    EmverPipesModule,
     ResponsiveColDirective,
+    TuiAvatarModule,
+    EmverPipesModule,
   ],
   declarations: [DependenciesComponent],
   exports: [DependenciesComponent],

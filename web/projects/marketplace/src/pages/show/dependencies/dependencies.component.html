@@ -1,35 +1,30 @@
-<ion-item-divider>Dependencies</ion-item-divider>
-<ion-grid>
-  <ion-row>
-    <ion-col
-      *ngFor="let dep of pkg.manifest.dependencies | keyvalue"
-      responsiveCol
-      sizeSm="12"
-      sizeMd="6"
-    >
-      <ion-item [routerLink]="['/marketplace', dep.key]">
-        <ion-thumbnail slot="start">
-          <img
-            alt=""
-            style="border-radius: 100%"
-            [src]="getImg(dep.key) | trustUrl"
-          />
-        </ion-thumbnail>
-        <ion-label>
-          <h2>
-            {{ pkg['dependency-metadata'][dep.key].title }}
-            <ng-container [ngSwitch]="dep.value.requirement.type">
-              <span *ngSwitchCase="'required'">(required)</span>
-              <span *ngSwitchCase="'opt-out'">(required by default)</span>
-              <span *ngSwitchCase="'opt-in'">(optional)</span>
-            </ng-container>
-          </h2>
-          <p>
-            <small>{{ dep.value.version | displayEmver }}</small>
-          </p>
-          <p>{{ dep.value.description }}</p>
-        </ion-label>
-      </ion-item>
-    </ion-col>
-  </ion-row>
-</ion-grid>
+<div
+  class="bg-zinc-700/40 rounded-xl py-3 px-5 gap-2 drop-shadow-lg hover:bg-zinc-700/70"
+>
+  <div class="flex items-center gap-6">
+    <tui-avatar
+      class="w-16 pointer-events-none rounded-full object-cover drop-shadow-lg"
+      [src]="getImage(dep.key)"
+    ></tui-avatar>
+    <div class="mt-3">
+      <div class="flex flex-wrap items-center gap-1 mb-1">
+        <span class="block text-base font-medium text-zinc-50/90 line-clamp-1">
+          {{ getTitle(dep.key) }}
+        </span>
+        <p>
+          <ng-container [ngSwitch]="dep.value.requirement.type">
+            <span *ngSwitchCase="'required'">(required)</span>
+            <span *ngSwitchCase="'opt-out'">(required by default)</span>
+            <span *ngSwitchCase="'opt-in'">(optional)</span>
+          </ng-container>
+        </p>
+      </div>
+      <span class="text-sm text-zinc-50/70 line-clamp-1">
+        {{ dep.value.version | displayEmver }}
+      </span>
+      <span class="text-sm text-zinc-50/70 h-11 line-clamp-2">
+        {{ dep.value.description }}
+      </span>
+    </div>
+  </div>
+</div>

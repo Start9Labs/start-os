@@ -1,0 +1,12 @@
+<a [href]="url" target="_blank" rel="noreferrer">
+  <div class="flex justify-between items-center">
+    <label [tuiLabel]="label" class="hover:cursor-pointer">
+      <tui-line-clamp [content]="url" [linesLimit]="1"></tui-line-clamp>
+    </label>
+    <img
+      alt="Open Icon"
+      class="block opacity-70 invert w-4"
+      src="svg/open-outline.svg"
+    />
+  </div>
+</a>

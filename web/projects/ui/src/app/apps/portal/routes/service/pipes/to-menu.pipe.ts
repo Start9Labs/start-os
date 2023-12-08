@@ -6,8 +6,8 @@ import { TuiDialogService } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { from } from 'rxjs'
 import {
-  PackageDataEntry,
   InstalledPackageInfo,
+  PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
@@ -92,8 +92,9 @@ export class ToMenuPipe implements PipeTransform {
             name: 'Marketplace Listing',
             description: `View ${manifest.title} on the Marketplace`,
             action: () =>
-              this.router.navigate(['marketplace', manifest.id], {
-                queryParams: { url },
+              this.router.navigate(['marketplace'], {
+                relativeTo: this.route,
+                queryParams: { url, id: manifest.id },
               }),
           }
         : {

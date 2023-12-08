@@ -1,26 +1,15 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import { FormsModule } from '@angular/forms'
-import { Routes, RouterModule } from '@angular/router'
+import { RouterModule, Routes } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
-import {
-  SharedPipesModule,
-  EmverPipesModule,
-  ResponsiveColDirective,
-} from '@start9labs/shared'
-import {
-  FilterPackagesPipeModule,
-  CategoriesModule,
-  ItemModule,
-  SearchModule,
-  SkeletonModule,
-  StoreIconComponentModule,
-} from '@start9labs/marketplace'
-import { BadgeMenuComponentModule } from 'src/app/common/badge-menu-button/badge-menu.component.module'
-import { MarketplaceStatusModule } from '../marketplace-status/marketplace-status.module'
+import { ResponsiveColDirective, SharedPipesModule } from '@start9labs/shared'
+import { FilterPackagesPipeModule } from '@start9labs/marketplace'
+import { MarketplaceMenuModule } from '../components/marketplace-menu/marketplace-menu.module'
 import { MarketplaceListPage } from './marketplace-list.page'
 import { MarketplaceSettingsPageModule } from './marketplace-settings/marketplace-settings.module'
-
+import { TuiNotificationModule } from '@taiga-ui/core'
+import { TuiLetModule } from '@taiga-ui/cdk'
+import { MarketplaceItemToggleComponent } from '../components/marketplace-item-toggle.component'
 const routes: Routes = [
   {
     path: '',
@@ -32,20 +21,15 @@ const routes: Routes = [
   imports: [
     CommonModule,
     IonicModule,
-    FormsModule,
     RouterModule.forChild(routes),
     SharedPipesModule,
-    EmverPipesModule,
     FilterPackagesPipeModule,
-    MarketplaceStatusModule,
-    BadgeMenuComponentModule,
-    ItemModule,
-    CategoriesModule,
-    SearchModule,
-    SkeletonModule,
+    MarketplaceMenuModule,
     MarketplaceSettingsPageModule,
-    StoreIconComponentModule,
+    TuiNotificationModule,
+    TuiLetModule,
     ResponsiveColDirective,
+    MarketplaceItemToggleComponent,
   ],
   declarations: [MarketplaceListPage],
   exports: [MarketplaceListPage],

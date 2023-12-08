@@ -1,7 +1,15 @@
-import { ChangeDetectionStrategy, Component, ElementRef } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Inject,
+  Input,
+} from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { getPkgId } from '@start9labs/shared'
 import { AbstractMarketplaceService } from '../../services/marketplace.service'
+import { PolymorpheusContent } from '@tinkoff/ng-polymorpheus'
+import { TuiDialogContext, TuiDialogService } from '@taiga-ui/core'
+import { MarketplacePkg } from '../../types'
+import { Observable } from 'rxjs'
 
 @Component({
   selector: 'release-notes',
@@ -13,27 +21,29 @@ export class ReleaseNotesComponent {
   constructor(
     private readonly route: ActivatedRoute,
     private readonly marketplaceService: AbstractMarketplaceService,
+    @Inject(TuiDialogService) private readonly dialogs: TuiDialogService,
   ) {}
 
-  private readonly pkgId = getPkgId(this.route)
+  @Input({ required: true })
+  pkg!: MarketplacePkg
 
-  private selected: string | null = null
+  notes$!: Observable<Record<string, string>>
 
-  readonly notes$ = this.marketplaceService.fetchReleaseNotes$(this.pkgId)
-
-  isSelected(key: string): boolean {
-    return this.selected === key
-  }
-
-  setSelected(selected: string) {
-    this.selected = this.isSelected(selected) ? null : selected
-  }
-
-  getDocSize(key: string, { nativeElement }: ElementRef<HTMLElement>) {
-    return this.isSelected(key) ? nativeElement.scrollHeight : 0
+  ngOnChanges() {
+    this.notes$ = this.marketplaceService.fetchReleaseNotes$(
+      this.pkg.manifest.id,
+    )
   }
 
   asIsOrder(a: any, b: any) {
     return 0
+  }
+
+  async showReleaseNotes(content: PolymorpheusContent<TuiDialogContext>) {
+    this.dialogs
+      .open(content, {
+        label: 'Previous Release Notes',
+      })
+      .subscribe()
   }
 }

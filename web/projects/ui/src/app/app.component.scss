@@ -18,6 +18,7 @@ tui-root {
 }
 
 .container {
+  max-width: 100%;
   transition: filter 0.3s;
 
   &_offline {

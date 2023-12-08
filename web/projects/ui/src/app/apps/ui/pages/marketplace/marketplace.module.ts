@@ -1,5 +1,5 @@
 import { NgModule } from '@angular/core'
-import { Routes, RouterModule } from '@angular/router'
+import { RouterModule, Routes } from '@angular/router'
 
 const routes: Routes = [
   {
@@ -8,20 +8,6 @@ const routes: Routes = [
     loadChildren: () =>
       import('./marketplace-list/marketplace-list.module').then(
         m => m.MarketplaceListPageModule,
-      ),
-  },
-  {
-    path: ':pkgId',
-    loadChildren: () =>
-      import('./marketplace-show/marketplace-show.module').then(
-        m => m.MarketplaceShowPageModule,
-      ),
-  },
-  {
-    path: ':pkgId/notes',
-    loadChildren: () =>
-      import('./release-notes/release-notes.module').then(
-        m => m.ReleaseNotesPageModule,
       ),
   },
 ]

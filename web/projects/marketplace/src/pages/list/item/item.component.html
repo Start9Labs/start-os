@@ -1,12 +1,33 @@
-<ion-item class="service-card" [routerLink]="['/marketplace', pkg.manifest.id]">
-  <ion-thumbnail slot="start">
-    <img alt="" [src]="pkg | mimeType | trustUrl" />
-  </ion-thumbnail>
-  <ion-label>
-    <h2 class="montserrat">
-      <strong>{{ pkg.manifest.title }}</strong>
-    </h2>
-    <h3>{{ pkg.manifest.description.short }}</h3>
-    <ng-content></ng-content>
-  </ion-label>
-</ion-item>
+<div
+  class="h-full relative rounded-3xl pt-20 pb-10 px-8 gap-4 shadow-lg hover:scale-90 transition duration-500 ease-in-out min-w-[300px]"
+>
+  <!-- color background -->
+  <div
+    class="overflow-hidden absolute w-full h-full top-0 left-0 -z-50 rounded-3xl bg-zinc-800"
+  >
+    <img
+      [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
+      class="absolute object-cover pointer-events-none w-[150%] h-[150%] max-w-[200%] blur-[100px]"
+      alt="{{ pkg.manifest.title }} Icon"
+    />
+  </div>
+  <!-- darkening overlay -->
+  <div
+    class="overflow-hidden absolute w-full h-full top-0 left-0 -z-50 rounded-3xl bg-zinc-800 opacity-40"
+  ></div>
+  <!-- icon -->
+  <img
+    [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
+    class="w-[5.5rem] h-[5.5rem] pointer-events-none absolute -top-10 rounded-full object-cover shadow-lg z-10"
+    alt="{{ pkg.manifest.title }} Icon"
+    style="transform: none"
+  />
+  <div class="mt-3 text-zinc-5 mix-blend-plus-lighter">
+    <span class="block text-2xl font-medium line-clamp-1 mb-1">
+      {{ pkg.manifest.title }}
+    </span>
+    <span class="block text-base h-12 line-clamp-2">
+      {{ pkg.manifest.description.short }}
+    </span>
+  </div>
+</div>

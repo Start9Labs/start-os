@@ -10,14 +10,11 @@ import {
   selector: 'marketplace-categories',
   templateUrl: 'categories.component.html',
   styleUrls: ['categories.component.scss'],
-  host: {
-    class: 'hidden-scrollbar ion-text-center',
-  },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CategoriesComponent {
   @Input()
-  categories: readonly string[] = []
+  categories?: string[]
 
   @Input()
   category = ''
@@ -28,5 +25,32 @@ export class CategoriesComponent {
   switchCategory(category: string): void {
     this.category = category
     this.categoryChange.emit(category)
+  }
+
+  determineIcon(category: string): string {
+    switch (category.toLowerCase()) {
+      case 'all':
+        return 'apps-outline'
+      case 'bitcoin':
+        return 'logo-bitcoin'
+      case 'communications':
+        return 'chatbubbles-outline'
+      case 'data':
+        return 'document-outline'
+      case 'developer tools':
+        return 'code-slash-outline'
+      case 'featured':
+        return 'star-outline'
+      case 'lightning':
+        return 'flash-outline'
+      case 'media':
+        return 'play-outline'
+      case 'networking':
+        return 'globe-outline'
+      case 'social':
+        return 'people-outline'
+      default:
+        return 'cube-outline'
+    }
   }
 }
