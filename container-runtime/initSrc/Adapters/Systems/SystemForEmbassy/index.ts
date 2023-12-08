@@ -20,9 +20,11 @@ import {
   string,
   unknown,
 } from "ts-matches"
+import { HostSystemStartOs } from "../../HostSystemStartOs"
 
 const MANIFEST_LOCATION = "/lib/startos/embassyManifest.json"
 const EMBASSY_JS_LOCATION = "/usr/lib/javascript/embassy.js"
+const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig"
 export class SystemForEmbassy implements System {
   moduleCode: Promise<Partial<U.ExpectedExports>> = Promise.resolve({})
   currentRunning: T.DaemonReturned | undefined
@@ -34,16 +36,16 @@ export class SystemForEmbassy implements System {
     })
   }
   constructor(readonly manifest: Manifest) {}
-  async init(effects: T.Effects): Promise<void> {
+  async init(effects: HostSystemStartOs): Promise<void> {
     this.moduleCode = Promise.resolve()
       .then(() => require(EMBASSY_JS_LOCATION))
       .catch(() => ({}))
     await effects.setMainStatus({ status: "stopped" })
   }
-  async exit(effects: T.Effects): Promise<void> {
+  async exit(effects: HostSystemStartOs): Promise<void> {
     await this.stop(effects)
   }
-  async start(effects: T.Effects): Promise<void> {
+  async start(effects: HostSystemStartOs): Promise<void> {
     if (!!this.currentRunning) return
     const utils = createUtils(effects)
 
@@ -61,7 +63,7 @@ export class SystemForEmbassy implements System {
     })
   }
   async stop(
-    effects: T.Effects,
+    effects: HostSystemStartOs,
     options?: { timeout?: number },
   ): Promise<void> {
     if (this.currentRunning) {
@@ -73,7 +75,7 @@ export class SystemForEmbassy implements System {
     this.currentRunning = undefined
   }
   async execute(
-    effects: T.Effects,
+    effects: HostSystemStartOs,
     options: {
       procedure:
         | "/createBackup"
@@ -118,7 +120,7 @@ export class SystemForEmbassy implements System {
         }
     }
   }
-  async createBackup(effects: T.Effects): Promise<void> {
+  async createBackup(effects: HostSystemStartOs): Promise<void> {
     const backup = this.manifest.backup.create
     if (backup.type === "docker") {
       const container = await DockerProcedureContainer.of(backup)
@@ -128,7 +130,7 @@ export class SystemForEmbassy implements System {
       await moduleCode.createBackup?.(new PolyfillEffects(effects))
     }
   }
-  async restoreBackup(effects: T.Effects): Promise<void> {
+  async restoreBackup(effects: HostSystemStartOs): Promise<void> {
     const restoreBackup = this.manifest.backup.restore
     if (restoreBackup.type === "docker") {
       const container = await DockerProcedureContainer.of(restoreBackup)
@@ -138,10 +140,10 @@ export class SystemForEmbassy implements System {
       await moduleCode.restoreBackup?.(new PolyfillEffects(effects))
     }
   }
-  async getConfig(effects: T.Effects): Promise<T.ConfigRes> {
+  async getConfig(effects: HostSystemStartOs): Promise<T.ConfigRes> {
     return this.getConfigUncleaned(effects).then(removePointers)
   }
-  async getConfigUncleaned(effects: T.Effects): Promise<T.ConfigRes> {
+  async getConfigUncleaned(effects: HostSystemStartOs): Promise<T.ConfigRes> {
     const config = this.manifest.config?.get
     if (!config) return { spec: {} }
     if (config.type === "docker") {
@@ -161,7 +163,7 @@ export class SystemForEmbassy implements System {
     }
   }
   async setConfig(
-    effects: T.Effects,
+    effects: HostSystemStartOs,
     newConfigWithoutPointers: unknown,
   ): Promise<T.SetResult> {
     const newConfig = structuredClone(newConfigWithoutPointers)
@@ -172,7 +174,6 @@ export class SystemForEmbassy implements System {
     )
     const setConfigValue = this.manifest.config?.set
     if (!setConfigValue) return { signal: "SIGTERM", "depends-on": {} }
-    // TODO Deal with the pointers
     if (setConfigValue.type === "docker") {
       const container = await DockerProcedureContainer.of(setConfigValue)
       return JSON.parse(
@@ -199,7 +200,7 @@ export class SystemForEmbassy implements System {
     }
   }
   async migration(
-    effects: T.Effects,
+    effects: HostSystemStartOs,
     fromVersion: unknown,
   ): Promise<T.MigrationRes> {
     if (!string.test(fromVersion)) throw new Error("Expecting a string")
@@ -256,7 +257,7 @@ export class SystemForEmbassy implements System {
     }
     return { configured: true }
   }
-  async properties(effects: T.Effects): Promise<unknown> {
+  async properties(effects: HostSystemStartOs): Promise<unknown> {
     const setConfigValue = this.manifest.properties
     if (!setConfigValue) return {}
     if (setConfigValue.type === "docker") {
@@ -282,7 +283,7 @@ export class SystemForEmbassy implements System {
     }
   }
   async health(
-    effects: T.Effects,
+    effects: HostSystemStartOs,
     healthId: string,
     timeSinceStarted: unknown,
   ): Promise<void> {
@@ -314,7 +315,7 @@ export class SystemForEmbassy implements System {
     }
   }
   async action(
-    effects: T.Effects,
+    effects: HostSystemStartOs,
     actionId: string,
     formData: unknown,
   ): Promise<T.ActionResult> {
@@ -345,7 +346,7 @@ export class SystemForEmbassy implements System {
     }
   }
   async dependenciesCheck(
-    effects: T.Effects,
+    effects: HostSystemStartOs,
     id: string,
     oldConfig: unknown,
   ): Promise<object> {
@@ -379,7 +380,7 @@ export class SystemForEmbassy implements System {
     }
   }
   async dependenciesAutoconfig(
-    effects: T.Effects,
+    effects: HostSystemStartOs,
     id: string,
     oldConfig: unknown,
   ): Promise<void> {
@@ -398,7 +399,7 @@ export class SystemForEmbassy implements System {
     )) as any
   }
   async sandbox(
-    effects: T.Effects,
+    effects: HostSystemStartOs,
     options: {
       procedure:
         | "/createBackup"
@@ -444,7 +445,7 @@ export class SystemForEmbassy implements System {
     }
   }
 
-  async roCreateBackup(effects: T.Effects): Promise<void> {
+  async roCreateBackup(effects: HostSystemStartOs): Promise<void> {
     const backup = this.manifest.backup.create
     if (backup.type === "docker") {
       const container = await DockerProcedureContainer.readonlyOf(backup)
@@ -454,7 +455,7 @@ export class SystemForEmbassy implements System {
       await moduleCode.createBackup?.(new PolyfillEffects(effects))
     }
   }
-  async roRestoreBackup(effects: T.Effects): Promise<void> {
+  async roRestoreBackup(effects: HostSystemStartOs): Promise<void> {
     const restoreBackup = this.manifest.backup.restore
     if (restoreBackup.type === "docker") {
       const container = await DockerProcedureContainer.readonlyOf(restoreBackup)
@@ -464,7 +465,7 @@ export class SystemForEmbassy implements System {
       await moduleCode.restoreBackup?.(new PolyfillEffects(effects))
     }
   }
-  async roGetConfig(effects: T.Effects): Promise<T.ConfigRes> {
+  async roGetConfig(effects: HostSystemStartOs): Promise<T.ConfigRes> {
     const config = this.manifest.config?.get
     if (!config) return { spec: {} }
     if (config.type === "docker") {
@@ -484,12 +485,11 @@ export class SystemForEmbassy implements System {
     }
   }
   async roSetConfig(
-    effects: T.Effects,
+    effects: HostSystemStartOs,
     newConfig: unknown,
   ): Promise<T.SetResult> {
     const setConfigValue = this.manifest.config?.set
     if (!setConfigValue) return { signal: "SIGTERM", "depends-on": {} }
-    // TODO Deal with the pointers
     if (setConfigValue.type === "docker") {
       const container = await DockerProcedureContainer.readonlyOf(
         setConfigValue,
@@ -518,12 +518,12 @@ export class SystemForEmbassy implements System {
     }
   }
   async roMigration(
-    effects: T.Effects,
+    effects: HostSystemStartOs,
     fromVersion: unknown,
   ): Promise<T.MigrationRes> {
     throw new Error("Migrations should never be ran in the sandbox mode")
   }
-  async roProperties(effects: T.Effects): Promise<unknown> {
+  async roProperties(effects: HostSystemStartOs): Promise<unknown> {
     const setConfigValue = this.manifest.properties
     if (!setConfigValue) return {}
     if (setConfigValue.type === "docker") {
@@ -551,7 +551,7 @@ export class SystemForEmbassy implements System {
     }
   }
   async roHealth(
-    effects: T.Effects,
+    effects: HostSystemStartOs,
     healthId: string,
     timeSinceStarted: unknown,
   ): Promise<void> {
@@ -585,7 +585,7 @@ export class SystemForEmbassy implements System {
     }
   }
   async roAction(
-    effects: T.Effects,
+    effects: HostSystemStartOs,
     actionId: string,
     formData: unknown,
   ): Promise<T.ActionResult> {
@@ -618,7 +618,7 @@ export class SystemForEmbassy implements System {
     }
   }
   async roDependenciesCheck(
-    effects: T.Effects,
+    effects: HostSystemStartOs,
     id: string,
     oldConfig: unknown,
   ): Promise<object> {
@@ -654,7 +654,7 @@ export class SystemForEmbassy implements System {
     }
   }
   async roDependenciesAutoconfig(
-    effects: T.Effects,
+    effects: HostSystemStartOs,
     id: string,
     oldConfig: unknown,
   ): Promise<void> {
@@ -722,7 +722,7 @@ function cleanSpecOfPointers<T>(mutSpec: T): T {
 }
 
 async function updateConfig(
-  effects: T.Effects,
+  effects: HostSystemStartOs,
   spec: unknown,
   mutConfigValue: unknown,
 ) {
@@ -732,51 +732,33 @@ async function updateConfig(
     const specValue = spec[key]
 
     const newConfigValue = mutConfigValue[key]
-    if (matchSpec.test(specValue))
-      updateConfig(
-        effects,
-        specValue.spec,
-        (mutConfigValue[key] = mutConfigValue[key] || {}),
-      )
+    if (matchSpec.test(specValue)) {
+      const updateObject = { spec: null }
+      await updateConfig(effects, { spec: specValue.spec }, updateObject)
+      mutConfigValue[key] = updateObject.spec
+    }
     if (
       matchVariants.test(specValue) &&
       object({ tag: object({ id: string }) }).test(newConfigValue) &&
       newConfigValue.tag.id in specValue.variants
     ) {
-      //TODO BLUJ Need to do something recursive
+      // Not going to do anything on the variants...
     }
     if (!matchPointer.test(specValue)) continue
     if (matchPointerConfig.test(specValue)) {
       const configValue = (await effects.store.get({
         packageId: specValue["package-id"],
         callback() {},
-        path: specValue.selector as any,
+        path: `${EMBASSY_POINTER_PATH_PREFIX}${specValue.selector}` as any,
       })) as any
       mutConfigValue[key] = configValue
     }
-    if (!matchPointerPackage.test(specValue)) continue
-
-    if (specValue.target === "lan-address") {
-      const remoteInterface = await effects.getInterface({
+    if (matchPointerPackage.test(specValue)) {
+      mutConfigValue[key] = await effects.embassyGetInterface({
+        target: specValue.target,
         packageId: specValue["package-id"],
-        callback: () => {},
-        interfaceId: specValue["interface"],
+        interface: specValue["interface"],
       })
-      // TODO BLUJ Something to do with the interface?
-    } else if (specValue.target === "tor-address") {
-      const remoteInterface = await effects.getInterface({
-        packageId: specValue["package-id"],
-        callback: () => {},
-        interfaceId: specValue["interface"],
-      })
-      // TODO BLUJ Something to do with the interface?
-    } else if (specValue.target === "tor-key") {
-      const remoteInterface = await effects.getInterface({
-        packageId: specValue["package-id"],
-        callback: () => {},
-        interfaceId: specValue["interface"],
-      })
-      // TODO BLUJ Something to do with the interface?
     }
   }
 }
