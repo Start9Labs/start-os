@@ -1,4 +1,3 @@
-use crate::util::Version;
 use futures::{future::BoxFuture, FutureExt};
 use imbl_value::json;
 use models::{ActionId, PackageId};
@@ -9,7 +8,6 @@ use crate::{
 
 struct ServiceEffectsService {
     package_id: PackageId,
-    version: Version,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -20,20 +18,12 @@ struct RpcData {
 }
 
 trait RpcMethod {
-    fn run_effect(
-        &self,
-        context: RpcContext,
-        package_id: &PackageId,
-        version: &Version,
-    ) -> BoxFuture<'static, Value>;
+    fn run_effect(&self, context: RpcContext, package_id: &PackageId) -> BoxFuture<'static, Value>;
 }
 
 impl ServiceEffectsService {
-    pub fn new(package_id: PackageId, version: Version) -> Self {
-        Self {
-            package_id,
-            version,
-        }
+    pub fn new(package_id: PackageId) -> Self {
+        Self { package_id }
     }
 
     pub async fn run_effects(
@@ -100,9 +90,7 @@ impl ServiceEffectsService {
         }) else {
             return json!({"error": format!("Invalid Params for {method}: {:?}", error_param)});
         };
-        effect
-            .run_effect(context, &self.package_id, &self.version)
-            .await
+        effect.run_effect(context, &self.package_id).await
     }
 }
 
@@ -114,12 +102,7 @@ struct Exists {
 }
 
 impl RpcMethod for Exists {
-    fn run_effect(
-        &self,
-        context: RpcContext,
-        package_id: &PackageId,
-        version: &Version,
-    ) -> BoxFuture<'static, Value> {
+    fn run_effect(&self, context: RpcContext, package_id: &PackageId) -> BoxFuture<'static, Value> {
         Box::pin(async move {
             let peeked = context.db.peek().await;
             let package = peeked.as_package_data().as_idx(&self.package).is_some();
@@ -136,21 +119,20 @@ struct ExecuteAction {
 }
 
 impl RpcMethod for ExecuteAction {
-    fn run_effect(
-        &self,
-        context: RpcContext,
-        package_id: &PackageId,
-        version: &Version,
-    ) -> BoxFuture<'static, Value> {
+    fn run_effect(&self, context: RpcContext, package_id: &PackageId) -> BoxFuture<'static, Value> {
         Box::pin(
-            action(
-                context,
-                self.service_id.unwrap_or_else(|| package_id.clone()),
-                self.action_id,
-                from_value(self.input).ok(),
-                Some(IoFormat::Json),
-            )
-            .map(|x| x.and_then(|x| imbl_value::to_value(&x).with_kind(ErrorKind::Serialization)))
+            async move {
+                let format = Some(IoFormat::Json);
+                let package_id = self
+                    .service_id
+                    .clone()
+                    .unwrap_or_else(|| package_id.clone());
+                let action_id = self.action_id.clone();
+                let input = from_value(self.input).ok();
+
+                let action_result = action(context, package_id, action_id, input, format).await?;
+                imbl_value::to_value(&action_result).with_kind(ErrorKind::Serialization)
+            }
             .map(|x| x.unwrap_or_else(|e| json!({"error": e.to_string()}))),
         )
     }
@@ -160,12 +142,7 @@ impl RpcMethod for ExecuteAction {
 struct GetConfigured {}
 
 impl RpcMethod for GetConfigured {
-    fn run_effect(
-        &self,
-        context: RpcContext,
-        package_id: &PackageId,
-        version: &Version,
-    ) -> BoxFuture<'static, Value> {
+    fn run_effect(&self, context: RpcContext, package_id: &PackageId) -> BoxFuture<'static, Value> {
         Box::pin(
             async move {
                 let peeked = context.db.peek().await;
@@ -194,12 +171,7 @@ struct Stopped {
 }
 
 impl RpcMethod for Stopped {
-    fn run_effect(
-        &self,
-        context: RpcContext,
-        package_id: &PackageId,
-        version: &Version,
-    ) -> BoxFuture<'static, Value> {
+    fn run_effect(&self, context: RpcContext, package_id: &PackageId) -> BoxFuture<'static, Value> {
         Box::pin(
             async move {
                 let peeked = context.db.peek().await;
@@ -229,12 +201,7 @@ struct Running {
 }
 
 impl RpcMethod for Running {
-    fn run_effect(
-        &self,
-        context: RpcContext,
-        package_id: &PackageId,
-        version: &Version,
-    ) -> BoxFuture<'static, Value> {
+    fn run_effect(&self, context: RpcContext, package_id: &PackageId) -> BoxFuture<'static, Value> {
         Box::pin(
             async move {
                 let peeked = context.db.peek().await;
@@ -265,18 +232,10 @@ impl RpcMethod for Running {
 struct Restart {}
 
 impl RpcMethod for Restart {
-    fn run_effect(
-        &self,
-        context: RpcContext,
-        package_id: &PackageId,
-        version: &Version,
-    ) -> BoxFuture<'static, Value> {
+    fn run_effect(&self, context: RpcContext, package_id: &PackageId) -> BoxFuture<'static, Value> {
         Box::pin(
             async move {
-                let manager = context
-                    .managers
-                    .get(&(package_id.clone(), version.clone()))
-                    .await?;
+                let manager = context.managers.get(&package_id).await?;
                 manager.restart().await;
                 Some(())
             }
@@ -289,18 +248,10 @@ impl RpcMethod for Restart {
 struct Shutdown {}
 
 impl RpcMethod for Shutdown {
-    fn run_effect(
-        &self,
-        context: RpcContext,
-        package_id: &PackageId,
-        version: &Version,
-    ) -> BoxFuture<'static, Value> {
+    fn run_effect(&self, context: RpcContext, package_id: &PackageId) -> BoxFuture<'static, Value> {
         Box::pin(
             async move {
-                let manager = context
-                    .managers
-                    .get(&(package_id.clone(), version.clone()))
-                    .await?;
+                let manager = context.managers.get(&package_id).await?;
                 manager.stop().await;
                 Some(())
             }
@@ -316,12 +267,7 @@ struct SetConfigured {
 }
 
 impl RpcMethod for SetConfigured {
-    fn run_effect(
-        &self,
-        context: RpcContext,
-        package_id: &PackageId,
-        version: &Version,
-    ) -> BoxFuture<'static, Value> {
+    fn run_effect(&self, context: RpcContext, package_id: &PackageId) -> BoxFuture<'static, Value> {
         Box::pin(
             async move {
                 context
