@@ -17,7 +17,7 @@ use serde::de::DeserializeOwned;
 use sqlx::Connection;
 use start_stop::StartStop;
 use tokio::sync::watch::{self, Sender};
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::{oneshot, Mutex, Notify};
 use tracing::instrument;
 use transition_state::TransitionState;
 
@@ -41,30 +41,29 @@ use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::S9pk;
 use crate::status::MainStatus;
+use crate::util::actor::{Actor, Handler, SimpleActor};
 use crate::util::docker::get_container_ip;
 use crate::util::serde::{Base32, Base64, NoOutput};
 use crate::util::NonDetachingJoinHandle;
 use crate::volume::Volume;
 use crate::Error;
 
-pub mod health;
+mod control;
 mod manager_container;
 mod manager_map;
-pub mod manager_seed;
 pub mod persistent_container;
 mod rpc;
 mod start_stop;
 mod transition_state;
+mod util;
 
 pub use manager_map::ManagerMap;
 
 use self::manager_container::{get_status, ManageContainer};
-use self::manager_seed::ManagerSeed;
 
 pub const HEALTH_CHECK_COOLDOWN_SECONDS: u64 = 15;
 pub const HEALTH_CHECK_GRACE_PERIOD_SECONDS: u64 = 5;
 
-type ManagerPersistentContainer = Arc<PersistentContainer>;
 type BackupGuard = Arc<Mutex<BackupMountGuard<TmpMountGuard>>>;
 pub enum BackupReturn {
     Error(Error),
@@ -75,59 +74,33 @@ pub enum BackupReturn {
     },
 }
 
-pub struct Gid {
-    next_gid: (watch::Sender<u32>, watch::Receiver<u32>),
-    main_gid: (
-        watch::Sender<ProcessGroupId>,
-        watch::Receiver<ProcessGroupId>,
-    ),
+pub struct Service {
+    actor: SimpleActor<ServiceActor>,
+    cancel_transition: Arc<Notify>,
 }
 
-impl Default for Gid {
-    fn default() -> Self {
-        Self {
-            next_gid: watch::channel(1),
-            main_gid: watch::channel(ProcessGroupId(1)),
-        }
-    }
+struct ServiceActor {
+    ctx: RpcContext,
+    package: S9pk,
+    persistent_container: PersistentContainer,
+    desired_state: StartStop,
+    cancel_transition: Arc<Notify>,
 }
-impl Gid {
-    pub fn new_gid(&self) -> ProcessGroupId {
-        let mut previous = 0;
-        self.next_gid.0.send_modify(|x| {
-            previous = *x;
-            *x = previous + 1;
-        });
-        ProcessGroupId(previous)
-    }
-
-    pub fn new_main_gid(&self) -> ProcessGroupId {
-        let gid = self.new_gid();
-        self.main_gid.0.send(gid).unwrap_or_default();
-        gid
-    }
-}
+impl Actor for ServiceActor {}
 
 /// This is the controller of the services. Here is where we can control a service with a start, stop, restart, etc.
 // #[derive(Clone)]
 pub struct Manager {
-    seed: Arc<ManagerSeed>,
-
-    manage_container: Arc<manager_container::ManageContainer>,
-    transition: Arc<watch::Sender<TransitionState>>,
-    persistent_container: ManagerPersistentContainer,
-
-    pub gid: Arc<Gid>,
+    ctx: RpcContext,
+    package: S9pk,
+    manage_container: ManageContainer,
+    transition: watch::Sender<TransitionState>,
+    persistent_container: PersistentContainer,
 }
 impl Manager {
-    pub async fn new(ctx: RpcContext, s9pk: S9pk) -> Result<Self, Error> {
-        let seed = Arc::new(ManagerSeed { ctx, s9pk });
-
-        let persistent_container = Arc::new(PersistentContainer::init(&seed).await?);
-        let manage_container = Arc::new(
-            manager_container::ManageContainer::new(seed.clone(), persistent_container.clone())
-                .await?,
-        );
+    pub async fn new(ctx: RpcContext, s9pk: S9pk, initial_state: StartStop) -> Result<Self, Error> {
+        let persistent_container = PersistentContainer::init(&ctx, &s9pk).await?;
+        let manage_container = ManageContainer::new(persistent_container.clone()).await?;
         let (transition, _) = watch::channel(Default::default());
         let transition = Arc::new(transition);
         Ok(Self {
@@ -135,7 +108,6 @@ impl Manager {
             manage_container,
             transition,
             persistent_container,
-            gid: Default::default(),
         })
     }
 
