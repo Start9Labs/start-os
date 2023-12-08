@@ -1,12 +1,14 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import {
   TuiDataListModule,
+  TuiDialogService,
   TuiHostedDropdownModule,
   TuiSvgModule,
 } from '@taiga-ui/core'
 import { TuiButtonModule } from '@taiga-ui/experimental'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
+import { ABOUT } from './about.component'
 
 @Component({
   selector: 'header-menu',
@@ -23,7 +25,7 @@ import { AuthService } from 'src/app/services/auth.service'
       <ng-template #content>
         <tui-data-list>
           <h3 class="title">StartOS</h3>
-          <button tuiOption class="item" (click)="({})">
+          <button tuiOption class="item" (click)="about()">
             <tui-svg src="tuiIconInfo"></tui-svg>
             About this server
           </button>
@@ -101,6 +103,11 @@ import { AuthService } from 'src/app/services/auth.service'
 export class HeaderMenuComponent {
   private readonly api = inject(ApiService)
   private readonly auth = inject(AuthService)
+  private readonly dialogs = inject(TuiDialogService)
+
+  about() {
+    this.dialogs.open(ABOUT, { label: 'About this server' }).subscribe()
+  }
 
   logout() {
     this.api.logout({}).catch(e => console.error('Failed to log out', e))

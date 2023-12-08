@@ -14,8 +14,7 @@ import { ConfigService } from 'src/app/services/config.service'
 @Component({
   template: `
     <ng-container *ngIf="server$ | async as server">
-      <h3 class="g-title">StartOS Info</h3>
-      <div tuiCell [style.box-shadow]="'0 1px var(--tui-clear)'">
+      <div tuiCell>
         <div tuiTitle>
           <strong>Version</strong>
           <div tuiSubtitle>{{ server.version | displayEmver }}</div>
@@ -24,7 +23,7 @@ import { ConfigService } from 'src/app/services/config.service'
       <div tuiCell>
         <div tuiTitle>
           <strong>Git Hash</strong>
-          <div tuiSubtitle>{{ server.version | displayEmver }}</div>
+          <div tuiSubtitle>{{ gitHash }}</div>
         </div>
         <button
           tuiIconButton
@@ -35,8 +34,6 @@ import { ConfigService } from 'src/app/services/config.service'
           Copy
         </button>
       </div>
-
-      <h3 class="g-title">Device Credentials</h3>
       <div tuiCell>
         <div tuiTitle>
           <strong>CA fingerprint</strong>
