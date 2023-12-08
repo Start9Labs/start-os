@@ -5,13 +5,9 @@ import { RR, ServerNotifications } from 'src/app/services/api/api.types'
 import { NotificationService } from '../../../services/notification.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorService } from '@start9labs/shared'
-import { TuiForModule, TuiLetModule } from '@taiga-ui/cdk'
-import { TuiFadeModule } from '@taiga-ui/experimental'
-import {
-  TuiButtonModule,
-  TuiDataListModule,
-  TuiHostedDropdownModule,
-} from '@taiga-ui/core'
+import { TuiLetModule } from '@taiga-ui/cdk'
+import { TuiButtonModule } from '@taiga-ui/experimental'
+import { TuiDataListModule, TuiHostedDropdownModule } from '@taiga-ui/core'
 import { NotificationsTableComponent } from './table.component'
 
 @Component({
@@ -60,8 +56,6 @@ import { NotificationsTableComponent } from './table.component'
   standalone: true,
   imports: [
     CommonModule,
-    TuiForModule,
-    TuiFadeModule,
     TuiHostedDropdownModule,
     TuiButtonModule,
     TuiDataListModule,
@@ -85,49 +79,39 @@ export class NotificationsComponent {
   async getMore(params: RR.GetNotificationsReq) {
     try {
       this.notifications$.next(null)
-      const notifications = await this.api.getNotifications(params)
-      this.notifications$.next(notifications)
+      this.notifications$.next(await this.api.getNotifications(params))
     } catch (e: any) {
       this.errorService.handleError(e)
     }
   }
 
-  async markSeen(
-    current: ServerNotifications,
-    toUpdate: ServerNotifications,
-  ): Promise<void> {
+  markSeen(current: ServerNotifications, toUpdate: ServerNotifications) {
     this.open = false
 
     this.notifications$.next(
       current.map(c => ({
         ...c,
-        read: toUpdate.some(n => n.id === c.id) ? true : c.read,
+        read: toUpdate.some(n => n.id === c.id) || c.read,
       })),
     )
 
     this.service.markSeen(toUpdate)
   }
 
-  async markUnseen(
-    current: ServerNotifications,
-    toUpdate: ServerNotifications,
-  ): Promise<void> {
+  markUnseen(current: ServerNotifications, toUpdate: ServerNotifications) {
     this.open = false
 
     this.notifications$.next(
       current.map(c => ({
         ...c,
-        read: toUpdate.some(n => n.id === c.id) ? false : c.read,
+        read: c.read && !toUpdate.some(n => n.id === c.id),
       })),
     )
 
     this.service.markUnseen(toUpdate)
   }
 
-  async remove(
-    current: ServerNotifications,
-    toDelete: ServerNotifications,
-  ): Promise<void> {
+  remove(current: ServerNotifications, toDelete: ServerNotifications) {
     this.open = false
 
     this.notifications$.next(

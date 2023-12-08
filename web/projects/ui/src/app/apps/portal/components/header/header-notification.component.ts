@@ -15,7 +15,7 @@ import { NotificationService } from '../../services/notification.service'
   selector: 'header-notification',
   template: `
     <tui-svg
-      style="align-self: flex-start; margin: 0.2rem 0;"
+      style="align-self: flex-start; margin: 0.25rem 0;"
       [style.color]="color"
       [src]="icon"
     ></tui-svg>

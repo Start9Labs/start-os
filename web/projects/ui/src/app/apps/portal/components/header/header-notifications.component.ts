@@ -50,9 +50,9 @@ import { NotificationService } from '../../services/notification.service'
             {{ $any(packageData[pkgId])?.manifest.title || pkgId }}
           </ng-container>
           <button
-            style="align-self: flex-start; margin: 0.2rem 0; color: gray; border-radius: 100%;"
+            style="align-self: flex-start; flex-shrink: 0;"
             tuiIconButton
-            appearance="transparent"
+            appearance="icon"
             iconLeft="tuiIconMinusCircle"
             (click)="markSeen(notifications, not)"
           ></button>

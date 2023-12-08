@@ -11,9 +11,10 @@ import {
 } from 'src/app/services/api/api.types'
 import { TuiForModule } from '@taiga-ui/cdk'
 import { BehaviorSubject } from 'rxjs'
-import { TuiCheckboxModule, TuiLineClampModule } from '@taiga-ui/kit'
+import { TuiLineClampModule } from '@taiga-ui/kit'
 import { FormsModule } from '@angular/forms'
 import { NotificationItemComponent } from './item.component'
+import { TuiCheckboxModule } from '@taiga-ui/experimental'
 
 @Component({
   selector: 'table[notifications]',
@@ -25,6 +26,7 @@ import { NotificationItemComponent } from './item.component'
             tuiCheckbox
             size="s"
             type="checkbox"
+            [style.display]="'block'"
             [disabled]="!notifications?.length"
             [ngModel]="all"
             (ngModelChange)="onAll($event)"
@@ -39,11 +41,16 @@ import { NotificationItemComponent } from './item.component'
     <tbody>
       <tr
         *ngFor="let notification of notifications; else: loading; empty: blank"
+        [notificationItem]="notification"
+        [style.font-weight]="notification.read ? 'normal' : 'bold'"
       >
-        <notification-item
-          [notification]="notification"
-          [selected]="selected$.value.includes(notification)"
-          (onToggle)="handleToggle($event)"
+        <input
+          tuiCheckbox
+          size="s"
+          type="checkbox"
+          [style.display]="'block'"
+          [ngModel]="selected$.value.includes(notification)"
+          (ngModelChange)="handleToggle(notification)"
         />
       </tr>
       <ng-template #blank>

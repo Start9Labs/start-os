@@ -18,7 +18,6 @@ export class NotificationService {
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
   private readonly dialogs = inject(TuiDialogService)
-
   private readonly localUnreadCount$ = new Subject<number>()
 
   readonly unreadCount$ = merge(
