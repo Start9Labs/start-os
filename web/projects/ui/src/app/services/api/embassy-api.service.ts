@@ -125,13 +125,21 @@ export abstract class ApiService {
     params: RR.GetNotificationsReq,
   ): Promise<RR.GetNotificationsRes>
 
-  abstract deleteNotification(
+  abstract markSeenNotifications(
+    params: RR.MarkSeenNotificationReq,
+  ): Promise<RR.MarkSeenNotificationRes>
+
+  abstract markSeenAllNotifications(
+    params: RR.MarkSeenAllNotificationsReq,
+  ): Promise<RR.MarkSeenAllNotificationsRes>
+
+  abstract markUnseenNotifications(
     params: RR.DeleteNotificationReq,
   ): Promise<RR.DeleteNotificationRes>
 
-  abstract deleteAllNotifications(
-    params: RR.DeleteAllNotificationsReq,
-  ): Promise<RR.DeleteAllNotificationsRes>
+  abstract deleteNotifications(
+    params: RR.DeleteNotificationReq,
+  ): Promise<RR.DeleteNotificationRes>
 
   // network
 
@@ -307,8 +315,6 @@ export abstract class ApiService {
   ): Promise<RR.SideloadPacakgeRes>
 
   abstract getSetupStatus(): Promise<SetupStatus | null>
-
-  abstract followLogs(): Promise<string>
 
   abstract setInterfaceClearnetAddress(
     params: RR.SetInterfaceClearnetAddressReq,

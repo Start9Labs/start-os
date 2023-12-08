@@ -4,6 +4,8 @@ import {
   StartOSDiskInfo,
   Log,
   SetupStatus,
+  FollowLogsRes,
+  FollowLogsReq,
 } from '@start9labs/shared'
 import { Observable } from 'rxjs'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
@@ -19,7 +21,7 @@ export abstract class ApiService {
   abstract execute(setupInfo: ExecuteReq): Promise<void> // setup.execute
   abstract complete(): Promise<CompleteRes> // setup.complete
   abstract exit(): Promise<void> // setup.exit
-  abstract followLogs(): Promise<string> // setup.logs.follow
+  abstract followServerLogs(params: FollowLogsReq): Promise<FollowLogsRes> // setup.logs.follow
   abstract openLogsWebsocket$(
     config: WebSocketSubjectConfig<Log>,
   ): Observable<Log>

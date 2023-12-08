@@ -22,7 +22,8 @@ const { enableWidgets } =
 export class BadgeMenuComponent {
   readonly unreadCount$ = this.patch.watch$(
     'server-info',
-    'unread-notification-count',
+    'unreadNotifications',
+    'count',
   )
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
   readonly widgetDrawer$ = this.clientStorageService.widgetDrawer$

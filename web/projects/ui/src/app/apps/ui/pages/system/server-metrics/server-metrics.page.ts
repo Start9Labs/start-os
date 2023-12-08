@@ -25,7 +25,7 @@ export class ServerMetricsPage {
 
   constructor(
     private readonly api: ApiService,
-    readonly timeService: TimeService,
+    private readonly timeService: TimeService,
     private readonly connectionService: ConnectionService,
   ) {}
 

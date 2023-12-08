@@ -68,7 +68,8 @@ export class MenuComponent {
 
   readonly notificationCount$ = this.patch.watch$(
     'server-info',
-    'unread-notification-count',
+    'unreadNotifications',
+    'count',
   )
 
   readonly snekScore$ = this.patch.watch$('ui', 'gaming', 'snake', 'high-score')

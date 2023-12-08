@@ -1,4 +1,4 @@
-import { LogsRes, ServerLogsReq } from '@start9labs/shared'
+import { FetchLogsReq, FetchLogsRes } from '@start9labs/shared'
 
 export abstract class DiagnosticService {
   abstract getError(): Promise<GetErrorRes>
@@ -6,7 +6,7 @@ export abstract class DiagnosticService {
   abstract forgetDrive(): Promise<void>
   abstract repairDisk(): Promise<void>
   abstract systemRebuild(): Promise<void>
-  abstract getLogs(params: ServerLogsReq): Promise<LogsRes>
+  abstract getLogs(params: FetchLogsReq): Promise<FetchLogsRes>
 }
 
 export interface GetErrorRes {

@@ -13,8 +13,8 @@ import {
 } from 'rxjs'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import {
-  LogsRes,
-  ServerLogsReq,
+  FetchLogsReq,
+  FetchLogsRes,
   toLocalIsoString,
   Log,
   DownloadHTMLService,
@@ -50,8 +50,8 @@ export class LogsComponent {
     params: RR.FollowServerLogsReq,
   ) => Promise<RR.FollowServerLogsRes>
   @Input({ required: true }) fetchLogs!: (
-    params: ServerLogsReq,
-  ) => Promise<LogsRes>
+    params: FetchLogsReq,
+  ) => Promise<FetchLogsRes>
   @Input({ required: true }) context!: string
   @Input() defaultBack = ''
   @Input() pageTitle = ''
@@ -205,7 +205,7 @@ export class LogsComponent {
     }
   }
 
-  private processRes(res: LogsRes) {
+  private processRes(res: FetchLogsRes) {
     const { entries, 'start-cursor': startCursor } = res
 
     if (!entries.length) return

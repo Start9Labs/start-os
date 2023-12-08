@@ -9,6 +9,8 @@ import {
   RpcError,
   RPCOptions,
   SetupStatus,
+  FollowLogsRes,
+  FollowLogsReq,
 } from '@start9labs/shared'
 import {
   ApiService,
@@ -90,8 +92,8 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async followLogs(): Promise<string> {
-    return this.rpcRequest({ method: 'setup.logs.follow', params: {} })
+  async followServerLogs(params: FollowLogsReq): Promise<FollowLogsRes> {
+    return this.rpcRequest({ method: 'setup.logs.follow', params })
   }
 
   openLogsWebsocket$({ url }: WebSocketSubjectConfig<Log>): Observable<Log> {

@@ -5,7 +5,7 @@ import {
   RpcError,
   RPCOptions,
 } from '@start9labs/shared'
-import { LogsRes, ServerLogsReq } from '@start9labs/shared'
+import { FetchLogsReq, FetchLogsRes } from '@start9labs/shared'
 import { DiagnosticService, GetErrorRes } from './diagnostic.service'
 
 @Injectable()
@@ -47,8 +47,8 @@ export class LiveDiagnosticService implements DiagnosticService {
     })
   }
 
-  async getLogs(params: ServerLogsReq): Promise<LogsRes> {
-    return this.rpcRequest<LogsRes>({
+  async getLogs(params: FetchLogsReq): Promise<FetchLogsRes> {
+    return this.rpcRequest<FetchLogsRes>({
       method: 'diagnostic.logs',
       params,
     })

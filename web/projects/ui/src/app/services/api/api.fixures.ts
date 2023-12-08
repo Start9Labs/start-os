@@ -339,6 +339,7 @@ export module Mock {
           },
         },
       },
+      read: false,
     },
     {
       id: 2,
@@ -349,6 +350,7 @@ export module Mock {
       title: 'SSH Key Added',
       message: 'A new SSH key was added. If you did not do this, shit is bad.',
       data: null,
+      read: false,
     },
     {
       id: 3,
@@ -359,6 +361,7 @@ export module Mock {
       title: 'SSH Key Removed',
       message: 'A SSH key was removed.',
       data: null,
+      read: false,
     },
     {
       id: 4,
@@ -367,7 +370,7 @@ export module Mock {
       code: 4,
       level: NotificationLevel.Error,
       title: 'Service Crashed',
-      message: new Array(40)
+      message: new Array(3)
         .fill(
           `2021-11-27T18:36:30.451064Z 2021-11-27T18:36:30Z tor: Thread interrupt
         2021-11-27T18:36:30.452833Z 2021-11-27T18:36:30Z Shutdown: In progress...
@@ -376,6 +379,7 @@ export module Mock {
         )
         .join(''),
       data: null,
+      read: false,
     },
   ]
 

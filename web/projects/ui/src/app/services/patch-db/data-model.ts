@@ -1,7 +1,7 @@
 import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import { Url } from '@start9labs/shared'
 import { Manifest } from '@start9labs/marketplace'
-import { BackupJob } from '../api/api.types'
+import { BackupJob, ServerNotifications } from '../api/api.types'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
 import { NetworkInterfaceType } from '@start9labs/start-sdk/lib/util/utils'
 import { DependencyInfo } from 'src/app/apps/portal/routes/service/types/dependency-info'
@@ -61,7 +61,10 @@ export interface ServerInfo {
   ui: AddressInfo
   network: NetworkInfo
   'last-backup': string | null
-  'unread-notification-count': number
+  unreadNotifications: {
+    count: number
+    recent: ServerNotifications
+  }
   'status-info': ServerStatusInfo
   'eos-version-compat': string
   pubkey: string
