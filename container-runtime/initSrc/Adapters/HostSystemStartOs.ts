@@ -164,11 +164,6 @@ export class HostSystemStartOs implements T.Effects {
       callback: this.callbackHolder.addCallback(options.callback),
     }) as ReturnType<T.Effects["getSystemSmtp"]>
   }
-  is_sandboxed(...[]: Parameters<T.Effects["is_sandboxed"]>) {
-    return this.rpcRound("is_sandboxed", null) as ReturnType<
-      T.Effects["is_sandboxed"]
-    >
-  }
   listInterface(...[options]: Parameters<T.Effects["listInterface"]>) {
     return this.rpcRound("listInterface", {
       ...options,

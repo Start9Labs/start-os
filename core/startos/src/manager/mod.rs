@@ -47,12 +47,12 @@ use crate::util::NonDetachingJoinHandle;
 use crate::volume::Volume;
 use crate::Error;
 
-pub mod health;
 mod manager_container;
 mod manager_map;
 pub mod manager_seed;
 pub mod persistent_container;
 mod rpc;
+mod service_effects_service;
 mod start_stop;
 mod transition_state;
 

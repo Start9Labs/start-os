@@ -57,9 +57,9 @@ export class SystemForEmbassy implements System {
 
       await effects.setMainStatus({ status: "running" })
       this.currentRunning = await utils.runDaemon(currentCommand, {})
-      this.currentRunning.wait().then(() => {
-        effects.setMainStatus({ status: "stopped" })
-      })
+      this.currentRunning
+        .wait()
+        .finally(() => effects.setMainStatus({ status: "stopped" }))
     })
   }
   async stop(
