@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { pauseFor } from '@start9labs/shared'
-import { LogsRes, ServerLogsReq, Log } from '@start9labs/shared'
+import { FetchLogsReq, FetchLogsRes, Log } from '@start9labs/shared'
 import { DiagnosticService, GetErrorRes } from './diagnostic.service'
 
 @Injectable()
@@ -30,7 +30,7 @@ export class MockDiagnosticService implements DiagnosticService {
     await pauseFor(1000)
   }
 
-  async getLogs(params: ServerLogsReq): Promise<LogsRes> {
+  async getLogs(params: FetchLogsReq): Promise<FetchLogsRes> {
     await pauseFor(1000)
     let entries: Log[]
     if (Math.random() < 0.2) {

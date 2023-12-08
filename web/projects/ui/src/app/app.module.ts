@@ -34,6 +34,7 @@ import { ConnectionBarComponentModule } from './app/connection-bar/connection-ba
 import { WidgetsPageModule } from 'src/app/apps/ui/pages/widgets/widgets.module'
 import { ServiceWorkerModule } from '@angular/service-worker'
 import { environment } from '../environments/environment'
+import { SidebarHostComponent } from './app/sidebar-host.component'
 
 @NgModule({
   declarations: [AppComponent],
@@ -72,6 +73,7 @@ import { environment } from '../environments/environment'
     }),
     LoadingModule,
     QRComponentModule,
+    SidebarHostComponent,
   ],
   providers: APP_PROVIDERS,
   bootstrap: [AppComponent],

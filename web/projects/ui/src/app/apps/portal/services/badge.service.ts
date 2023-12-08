@@ -20,7 +20,7 @@ import { ConnectionService } from 'src/app/services/connection.service'
 @Injectable({
   providedIn: 'root',
 })
-export class NotificationsService {
+export class BadgeService {
   private readonly emver = inject(Emver)
   private readonly patch = inject(PatchDB<DataModel>)
   private readonly marketplace = inject(
@@ -47,7 +47,7 @@ export class NotificationsService {
     ),
   )
 
-  private readonly updates$ = combineLatest([
+  private readonly updateCount$ = combineLatest([
     this.marketplace.getMarketplace$(true),
     this.local$,
   ]).pipe(
@@ -67,10 +67,10 @@ export class NotificationsService {
     ),
   )
 
-  getNotifications(id: string): Observable<number> {
+  getCount(id: string): Observable<number> {
     switch (id) {
       case '/portal/system/updates':
-        return this.updates$
+        return this.updateCount$
       default:
         return EMPTY
     }

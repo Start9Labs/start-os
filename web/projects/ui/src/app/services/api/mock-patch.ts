@@ -88,7 +88,10 @@ export const mockPatchData: DataModel = {
       outboundProxy: null,
     },
     'last-backup': new Date(new Date().valueOf() - 604800001).toISOString(),
-    'unread-notification-count': 4,
+    unreadNotifications: {
+      count: 4,
+      recent: Mock.Notifications,
+    },
     'eos-version-compat': '>=0.3.0 <=0.3.0.1',
     'status-info': {
       'current-backup': null,

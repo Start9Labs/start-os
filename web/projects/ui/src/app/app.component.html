@@ -19,7 +19,7 @@
           class="left-menu"
         >
           <ion-content color="light" scrollY="false" class="menu">
-            <app-menu *ngIf="authService.isVerified$ | async"></app-menu>
+            <app-menu *ngIf="authService.isVerified$ | async" />
           </ion-content>
         </ion-menu>
 
@@ -39,7 +39,7 @@
               (click)="onResize(drawer)"
             ></button>
           </div>
-          <widgets *ngIf="drawer.open" [wide]="drawer.width === 600"></widgets>
+          <widgets *ngIf="drawer.open" [wide]="drawer.width === 600" />
         </ion-menu>
 
         <ion-router-outlet
@@ -69,22 +69,23 @@
         !(sidebarOpen$ | async)
       "
     >
-      <connection-bar></connection-bar>
+      <connection-bar />
     </ion-footer>
-    <toast-container></toast-container>
+    <toast-container />
   </ion-app>
+  <sidebar-host ngProjectAs="tuiOverContent" />
 </tui-root>
 <ng-container
   *ngIf="authService.isVerified$ | async; else defaultTheme"
   [ngSwitch]="theme$ | async"
 >
   <ng-container *ngSwitchCase="'Dark'">
-    <tui-theme-night></tui-theme-night>
-    <dark-theme></dark-theme>
+    <tui-theme-night />
+    <dark-theme />
   </ng-container>
-  <light-theme *ngSwitchCase="'Light'"></light-theme>
+  <light-theme *ngSwitchCase="'Light'" />
 </ng-container>
 <ng-template #defaultTheme>
-  <tui-theme-night></tui-theme-night>
-  <dark-theme></dark-theme>
+  <tui-theme-night />
+  <dark-theme />
 </ng-template>

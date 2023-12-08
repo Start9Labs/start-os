@@ -20,4 +20,8 @@ export const SYSTEM_UTILITIES: Record<string, { icon: string; title: string }> =
       icon: 'assets/img/icon_transparent.png',
       title: 'Snek',
     },
+    '/portal/system/notifications': {
+      icon: 'tuiIconBellLarge',
+      title: 'Notifications',
+    },
   }

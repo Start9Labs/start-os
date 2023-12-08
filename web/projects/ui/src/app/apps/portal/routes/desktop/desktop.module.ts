@@ -8,7 +8,7 @@ import { TuiTilesModule } from '@taiga-ui/kit'
 import { DesktopComponent } from './desktop.component'
 import { CardComponent } from '../../components/card/card.component'
 import { ToNavigationItemPipe } from '../../pipes/to-navigation-item'
-import { ToNotificationsPipe } from '../../pipes/to-notifications'
+import { ToBadgePipe } from '../../pipes/to-badge'
 import { DesktopItemDirective } from './desktop-item.directive'
 
 const ROUTES: Routes = [
@@ -30,7 +30,7 @@ const ROUTES: Routes = [
     RouterModule.forChild(ROUTES),
     TuiFadeModule,
     DragScrollerDirective,
-    ToNotificationsPipe,
+    ToBadgePipe,
   ],
   declarations: [DesktopComponent],
   exports: [DesktopComponent],

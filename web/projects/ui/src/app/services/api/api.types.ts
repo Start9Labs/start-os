@@ -9,7 +9,13 @@ import {
   ServiceOutboundProxy,
   HealthCheckResult,
 } from 'src/app/services/patch-db/data-model'
-import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
+import {
+  StartOSDiskInfo,
+  FetchLogsReq,
+  FetchLogsRes,
+  FollowLogsRes,
+  FollowLogsReq,
+} from '@start9labs/shared'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
 
 export module RR {
@@ -50,14 +56,11 @@ export module RR {
     uptime: number // seconds
   }
 
-  export type GetServerLogsReq = ServerLogsReq // server.logs & server.kernel-logs
-  export type GetServerLogsRes = LogsRes
+  export type GetServerLogsReq = FetchLogsReq // server.logs & server.kernel-logs & server.tor-logs
+  export type GetServerLogsRes = FetchLogsRes
 
-  export type FollowServerLogsReq = { limit?: number } // server.logs.follow & server.kernel-logs.follow
-  export type FollowServerLogsRes = {
-    'start-cursor': string
-    guid: string
-  }
+  export type FollowServerLogsReq = FollowLogsReq & { limit?: number } // server.logs.follow & server.kernel-logs.follow & server.tor-logs.follow
+  export type FollowServerLogsRes = FollowLogsRes
 
   export type GetServerMetricsReq = {} // server.metrics
   export type GetServerMetricsRes = {
@@ -109,17 +112,29 @@ export module RR {
 
   // notification
 
+  export type FollowNotificationsReq = {}
+  export type FollowNotificationsRes = {
+    notifications: ServerNotifications
+    guid: string
+  }
+
   export type GetNotificationsReq = {
     before?: number
     limit?: number
   } // notification.list
   export type GetNotificationsRes = ServerNotification<number>[]
 
-  export type DeleteNotificationReq = { id: number } // notification.delete
+  export type DeleteNotificationReq = { ids: number[] } // notification.delete
   export type DeleteNotificationRes = null
 
-  export type DeleteAllNotificationsReq = { before: number } // notification.delete-before
-  export type DeleteAllNotificationsRes = null
+  export type MarkSeenNotificationReq = DeleteNotificationReq // notification.mark-seen
+  export type MarkSeenNotificationRes = null
+
+  export type MarkSeenAllNotificationsReq = { before: number } // notification.mark-seen-before
+  export type MarkSeenAllNotificationsRes = null
+
+  export type MarkUnseenNotificationReq = DeleteNotificationReq // notification.mark-unseen
+  export type MarkUnseenNotificationRes = null
 
   // network
 
@@ -298,8 +313,8 @@ export module RR {
   export type GetPackageCredentialsReq = { id: string } // package.credentials
   export type GetPackageCredentialsRes = Record<string, string>
 
-  export type GetPackageLogsReq = ServerLogsReq & { id: string } // package.logs
-  export type GetPackageLogsRes = LogsRes
+  export type GetPackageLogsReq = FetchLogsReq & { id: string } // package.logs
+  export type GetPackageLogsRes = FetchLogsRes
 
   export type FollowPackageLogsReq = FollowServerLogsReq & { id: string } // package.logs.follow
   export type FollowPackageLogsRes = FollowServerLogsRes
@@ -562,7 +577,7 @@ export interface SSHKey {
   fingerprint: string
 }
 
-export type ServerNotifications = ServerNotification<any>[]
+export type ServerNotifications = ServerNotification<number>[]
 
 export interface ServerNotification<T extends number> {
   id: number
@@ -573,6 +588,7 @@ export interface ServerNotification<T extends number> {
   title: string
   message: string
   data: NotificationData<T>
+  read: boolean
 }
 
 export enum NotificationLevel {

@@ -20,6 +20,15 @@ const ROUTES: Routes = [
   },
   {
     title: systemTabResolver,
+    path: 'notifications',
+    loadComponent: () =>
+      import('./notifications/notifications.component').then(
+        m => m.NotificationsComponent,
+      ),
+    data: toNavigationItem('/portal/system/notifications'),
+  },
+  {
+    title: systemTabResolver,
     path: 'sideload',
     loadComponent: () =>
       import('./sideload/sideload.component').then(m => m.SideloadComponent),
