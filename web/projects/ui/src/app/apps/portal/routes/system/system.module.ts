@@ -13,6 +13,12 @@ const ROUTES: Routes = [
   },
   {
     title: systemTabResolver,
+    path: 'marketplace',
+    loadChildren: () => import('./marketplace/marketplace.routes'),
+    data: toNavigationItem('/portal/system/marketplace'),
+  },
+  {
+    title: systemTabResolver,
     path: 'settings',
     loadChildren: () =>
       import('./settings/settings.routes').then(m => m.SETTINGS_ROUTES),

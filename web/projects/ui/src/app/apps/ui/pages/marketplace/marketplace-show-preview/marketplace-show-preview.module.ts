@@ -13,7 +13,7 @@ import {
 } from '@start9labs/marketplace'
 import { MarketplaceShowPreviewComponent } from './marketplace-show-preview.component'
 
-import { TuiButtonModule } from '@taiga-ui/core'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 import { RouterModule } from '@angular/router'
 
 @NgModule({

@@ -1,0 +1,13 @@
+@import '@taiga-ui/core/styles/taiga-ui-local';
+
+.header {
+  @include scrollbar-hidden();
+
+  max-height: 100%;
+  // TODO: Theme
+  background: #373a3f;
+
+  @media screen and (min-width: 640px) {
+    width: 15rem;
+  }
+}

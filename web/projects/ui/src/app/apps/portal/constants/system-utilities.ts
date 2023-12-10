@@ -1,19 +1,23 @@
 export const SYSTEM_UTILITIES: Record<string, { icon: string; title: string }> =
   {
     '/portal/system/backups': {
-      icon: 'tuiIconSaveLarge',
+      icon: 'tuiIconSave',
       title: 'Backups',
     },
+    '/portal/system/marketplace': {
+      icon: 'tuiIconShoppingCart',
+      title: 'Marketplace',
+    },
     '/portal/system/updates': {
-      icon: 'tuiIconGlobeLarge',
+      icon: 'tuiIconGlobe',
       title: 'Updates',
     },
     '/portal/system/sideload': {
-      icon: 'tuiIconUploadLarge',
+      icon: 'tuiIconUpload',
       title: 'Sideload',
     },
     '/portal/system/settings': {
-      icon: 'tuiIconToolLarge',
+      icon: 'tuiIconTool',
       title: 'Settings',
     },
     '/portal/system/snek': {
@@ -21,7 +25,7 @@ export const SYSTEM_UTILITIES: Record<string, { icon: string; title: string }> =
       title: 'Snek',
     },
     '/portal/system/notifications': {
-      icon: 'tuiIconBellLarge',
+      icon: 'tuiIconBell',
       title: 'Notifications',
     },
   }

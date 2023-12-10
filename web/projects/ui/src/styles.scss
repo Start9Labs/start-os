@@ -476,6 +476,10 @@ button.g-action {
   overflow: auto !important;
 }
 
+ng-component {
+  display: block;
+}
+
 svg:not(:root) {
   overflow: auto;
 }

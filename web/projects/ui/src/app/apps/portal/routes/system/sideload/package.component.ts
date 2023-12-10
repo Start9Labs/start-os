@@ -29,7 +29,7 @@ import { NavigationService } from '../../../services/navigation.service'
   selector: 'sideload-package',
   template: `
     <div class="grid gap-8 mb-16 p-4 lg:px-16 lg:pb-8 pt-14 justify-center">
-      <ng-content></ng-content>
+      <ng-content />
       <marketplace-package-hero
         *tuiLet="button$ | async as button"
         [pkg]="package"
@@ -48,7 +48,7 @@ import { NavigationService } from '../../../services/navigation.service'
           </button>
         </div>
       </marketplace-package-hero>
-      <marketplace-about [pkg]="package"></marketplace-about>
+      <marketplace-about [pkg]="package" />
       <div
         *ngIf="!(package.manifest.dependencies | empty)"
         class="rounded-xl bg-gradient-to-bl from-zinc-400/75 to-zinc-600 p-px shadow-lg shadow-zinc-400/10"
@@ -57,15 +57,12 @@ import { NavigationService } from '../../../services/navigation.service'
           <h2 class="text-lg font-bold small-caps my-2 pb-3">Dependencies</h2>
           <div class="grid grid-row-auto gap-3">
             <div *ngFor="let dep of package.manifest.dependencies | keyvalue">
-              <marketplace-dependencies
-                [dep]="dep"
-                [pkg]="package"
-              ></marketplace-dependencies>
+              <marketplace-dependencies [dep]="dep" [pkg]="package" />
             </div>
           </div>
         </div>
       </div>
-      <marketplace-additional [pkg]="package"></marketplace-additional>
+      <marketplace-additional [pkg]="package" />
     </div>
   `,
   standalone: true,

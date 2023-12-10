@@ -44,7 +44,7 @@ import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { RouterModule } from '@angular/router'
 
-import { TuiButtonModule } from '@taiga-ui/core'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 
 @Component({
   selector: 'marketplace-show-controls',
@@ -67,7 +67,7 @@ import { TuiButtonModule } from '@taiga-ui/core'
             type="button"
             class="mr-2"
             appearance="warning-solid"
-            *ngIf="(localVersion | compareEmver : pkg.manifest.version) === -1"
+            *ngIf="(localVersion | compareEmver: pkg.manifest.version) === -1"
             (click)="tryInstall()"
           >
             Update
@@ -77,7 +77,7 @@ import { TuiButtonModule } from '@taiga-ui/core'
             type="button"
             class="mr-2"
             appearance="secondary-solid"
-            *ngIf="(localVersion | compareEmver : pkg.manifest.version) === 1"
+            *ngIf="(localVersion | compareEmver: pkg.manifest.version) === 1"
             (click)="tryInstall()"
           >
             Downgrade
@@ -88,7 +88,7 @@ import { TuiButtonModule } from '@taiga-ui/core'
               type="button"
               class="mr-2"
               appearance="tertiary-solid"
-              *ngIf="(localVersion | compareEmver : pkg.manifest.version) === 0"
+              *ngIf="(localVersion | compareEmver: pkg.manifest.version) === 0"
               (click)="tryInstall()"
             >
               Reinstall
@@ -101,7 +101,7 @@ import { TuiButtonModule } from '@taiga-ui/core'
         <button
           tuiButton
           type="button"
-          appearance="primary-solid"
+          appearance="primary"
           (click)="tryInstall()"
         >
           Install

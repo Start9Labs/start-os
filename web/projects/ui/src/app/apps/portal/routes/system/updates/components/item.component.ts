@@ -16,9 +16,12 @@ import {
   TuiDialogService,
   TuiLinkModule,
   TuiLoaderModule,
-  TuiSvgModule,
 } from '@taiga-ui/core'
-import { TuiAvatarModule, TuiButtonModule } from '@taiga-ui/experimental'
+import {
+  TuiAvatarModule,
+  TuiButtonModule,
+  TuiIconModule,
+} from '@taiga-ui/experimental'
 import {
   TUI_PROMPT,
   TuiAccordionModule,
@@ -35,27 +38,25 @@ import { InstallProgressPipe } from '../pipes/install-progress.pipe'
   template: `
     <tui-accordion-item borders="top-bottom">
       <div class="g-action">
-        <tui-avatar size="s" [src]="marketplacePkg | mimeType | trustUrl" />
+        <tui-avatar size="s" [src]="marketplacePkg | mimeType" />
         <div [style.flex]="1" [style.overflow]="'hidden'">
           <strong>{{ marketplacePkg.manifest.title }}</strong>
           <div>
             <!-- @TODO left side should be local['old-manifest'] (or whatever), not manifest. -->
             {{ localPkg.manifest.version || '' | displayEmver }}
-            <tui-svg src="tuiIconArrowRight"></tui-svg>
+            <tui-icon icon="tuiIconArrowRight" [style.font-size.rem]="1" />
             <span [style.color]="'var(--tui-positive)'">
               {{ marketplacePkg.manifest.version | displayEmver }}
             </span>
           </div>
-          <div [style.color]="'var(--tui-negative)'">
-            {{ errors }}
-          </div>
+          <div [style.color]="'var(--tui-negative)'">{{ errors }}</div>
         </div>
         <tui-progress-circle
           *ngIf="localPkg.state === 'updating'; else button"
           style="color: var(--tui-positive)"
           [max]="100"
           [value]="localPkg['install-progress'] | installProgress"
-        ></tui-progress-circle>
+        />
         <ng-template #button>
           <button
             *ngIf="ready; else queued"
@@ -68,7 +69,7 @@ import { InstallProgressPipe } from '../pipes/install-progress.pipe'
           </button>
         </ng-template>
         <ng-template #queued>
-          <tui-loader [style.width.rem]="2" [inheritColor]="true"></tui-loader>
+          <tui-loader [style.width.rem]="2" [inheritColor]="true" />
         </ng-template>
       </div>
       <ng-template tuiAccordionItemContent>
@@ -116,7 +117,7 @@ import { InstallProgressPipe } from '../pipes/install-progress.pipe'
     TuiProgressModule,
     TuiAccordionModule,
     TuiAvatarModule,
-    TuiSvgModule,
+    TuiIconModule,
     TuiButtonModule,
     TuiLinkModule,
     TuiLoaderModule,

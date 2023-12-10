@@ -1,15 +1,21 @@
 @import '@taiga-ui/core/styles/taiga-ui-local';
 
+:root {
+  --tui-primary: #3880ff;
+  --tui-primary-hover: #4c8dff;
+  --tui-primary-active: #3171e0;
+}
+
 /* stylelint-disable order/order */
 [tuiAppearance][data-appearance='secondary-warning'] {
   background: var(--tui-warning-bg);
   color: var(--tui-warning-fill);
 
-  @include wrapper-hover {
+  @include appearance-hover {
     background: var(--tui-warning-bg-hover);
   }
 
-  @include wrapper-active {
+  @include appearance-active {
     background: var(--tui-warning-bg-hover);
   }
 }
@@ -30,142 +36,96 @@
 [tuiAppearance][data-appearance='outline'] {
   color: var(--tui-text-01);
 }
-[tuiWrapper][data-appearance='primary-solid'] {
-  background: #3880ff;
-  color: #fff;
 
-  .wrapper-hover {
-    background: #4c8dff;
-  }
-
-  ;
-
-  .wrapper-active {
-    background: #3171e0;
-  }
-
-  ;
-
-  .wrapper-disabled {
+[tuiAppearance][data-appearance='primary'] {
+  @include appearance-disabled {
     background: #eaecee;
   }
-
-  ;
 }
 
-[tuiWrapper][data-appearance='secondary-solid'] {
+[tuiAppearance][data-appearance='secondary-solid'] {
   background: #3dc2ff;
   color: #fff;
 
-  .wrapper-hover {
+  @include appearance-hover {
     background: #50c8ff;
   }
 
-  ;
-
-  .wrapper-active {
+  @include appearance-active {
     background: #36abe0;
   }
 
-  ;
-
-  .wrapper-disabled {
+  @include appearance-disabled {
     background: #eaecee;
   }
-
-  ;
 }
 
-[tuiWrapper][data-appearance='tertiary-solid'] {
+[tuiAppearance][data-appearance='tertiary-solid'] {
   background: #5260ff;
   color: #fff;
 
-  .wrapper-hover {
+  @include appearance-hover {
     background: #6370ff;
   }
 
-  ;
-
-  .wrapper-active {
+  @include appearance-active {
     background: #4854e0;
   }
 
-  ;
-
-  .wrapper-disabled {
+  @include appearance-disabled {
     background: #eaecee;
   }
-
-  ;
 }
 
-[tuiWrapper][data-appearance='success-solid'] {
+[tuiAppearance][data-appearance='success-solid'] {
   background: #2dd36f;
   color: #fff;
 
-  .wrapper-hover {
+  @include appearance-hover {
     background: #42d77d;
   }
 
-  ;
-
-  .wrapper-active {
+  @include appearance-active {
     background: #28ba62;
   }
 
-  ;
-
-  .wrapper-disabled {
+  @include appearance-disabled {
     background: #eaecee;
   }
-
-  ;
 }
 
-[tuiWrapper][data-appearance='warning-solid'] {
+[tuiAppearance][data-appearance='warning-solid'] {
   background: #ffc409;
   color: #fff;
 
-  .wrapper-hover {
+  @include appearance-hover {
     background: #ffca22;
   }
 
-  ;
-
-  .wrapper-active {
+  @include appearance-active {
     background: #e0ac08;
   }
 
-  ;
-
-  .wrapper-disabled {
+  @include appearance-disabled {
     background: #eaecee;
   }
-
-  ;
 }
 
-[tuiWrapper][data-appearance='danger-solid'] {
+[tuiAppearance][data-appearance='danger-solid'] {
   background: #eb445a;
   color: #fff;
 
-  .wrapper-hover {
+  @include appearance-hover {
     background: #ed576b;
   }
 
-  ;
-
-  .wrapper-active {
+  @include appearance-active {
     background: #cf3c4f;
   }
 
-  ;
-
-  .wrapper-disabled {
+  @include appearance-disabled {
     background: #eaecee;
   }
-
-  ;
 }
 
 [tuiWrapper][data-appearance='input-file'] {
@@ -196,7 +156,7 @@ tui-hint[data-appearance='onDark'] {
   }
 }
 
-[tuiWrapper][data-appearance='drawer'] {
+[tuiAppearance][data-appearance='drawer'] {
   // TODO: Theme
   background: rgb(81 80 83 / 86%);
   border-radius: 10rem;
@@ -215,7 +175,9 @@ tui-dropdown[data-appearance='start-os'][data-appearance='start-os'] {
   tui-opt-group {
     &::before {
       background: var(--tui-clear);
-      box-shadow: 1rem 0 var(--tui-clear), -1rem 0 var(--tui-clear);
+      box-shadow:
+        1rem 0 var(--tui-clear),
+        -1rem 0 var(--tui-clear);
       padding-top: 0.375rem !important;
       padding-bottom: 0 !important;
     }

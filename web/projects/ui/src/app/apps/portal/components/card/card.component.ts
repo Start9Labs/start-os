@@ -10,14 +10,11 @@ import {
   TuiBadgedContentModule,
   TuiBadgeNotificationModule,
   TuiButtonModule,
+  TuiIconModule,
 } from '@taiga-ui/experimental'
 import { RouterLink } from '@angular/router'
 import { TickerModule } from '@start9labs/shared'
-import {
-  TuiDataListModule,
-  TuiHostedDropdownModule,
-  TuiSvgModule,
-} from '@taiga-ui/core'
+import { TuiDataListModule, TuiHostedDropdownModule } from '@taiga-ui/core'
 import { NavigationService } from '../../services/navigation.service'
 import { Action, ActionsComponent } from '../actions/actions.component'
 import { toRouterLink } from '../../utils/to-router-link'
@@ -34,7 +31,7 @@ import { toRouterLink } from '../../utils/to-router-link'
     TuiButtonModule,
     TuiHostedDropdownModule,
     TuiDataListModule,
-    TuiSvgModule,
+    TuiIconModule,
     TickerModule,
     TuiBadgedContentModule,
     TuiBadgeNotificationModule,

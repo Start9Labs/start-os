@@ -1,5 +1,5 @@
 import { inject, Pipe, PipeTransform, Type } from '@angular/core'
-import { ActivatedRoute, Router } from '@angular/router'
+import { ActivatedRoute, Params, Router } from '@angular/router'
 import { Manifest } from '@start9labs/marketplace'
 import { MarkdownComponent } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
@@ -20,7 +20,9 @@ export interface ServiceMenu {
   icon: string
   name: string
   description: string
-  action: () => void
+  action?: () => void
+  routerLink?: string
+  params?: Params
 }
 
 @Pipe({
@@ -66,10 +68,7 @@ export class ToMenuPipe implements PipeTransform {
         icon: 'tuiIconZapLarge',
         name: 'Actions',
         description: `Uninstall and other commands specific to ${manifest.title}`,
-        action: () =>
-          this.router.navigate(['actions'], {
-            relativeTo: this.route,
-          }),
+        routerLink: `actions`,
       },
       {
         icon: 'tuiIconShieldLarge',
@@ -81,27 +80,20 @@ export class ToMenuPipe implements PipeTransform {
         icon: 'tuiIconFileTextLarge',
         name: 'Logs',
         description: `Raw, unfiltered logs`,
-        action: () =>
-          this.router.navigate(['logs'], {
-            relativeTo: this.route,
-          }),
+        routerLink: 'logs',
       },
       url
         ? {
             icon: 'tuiIconShoppingBagLarge',
             name: 'Marketplace Listing',
             description: `View ${manifest.title} on the Marketplace`,
-            action: () =>
-              this.router.navigate(['marketplace'], {
-                relativeTo: this.route,
-                queryParams: { url, id: manifest.id },
-              }),
+            routerLink: `/portal/system/marketplace`,
+            params: { url, id: manifest.id },
           }
         : {
             icon: 'tuiIconShoppingBagLarge',
             name: 'Marketplace Listing',
             description: `This package was not installed from the marketplace`,
-            action: () => {},
           },
     ]
   }
