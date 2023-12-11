@@ -47,7 +47,7 @@ import { EmailInfoComponent } from './info.component'
           [(ngModel)]="testAddress"
           [ngModelOptions]="{ standalone: true }"
         >
-          Firstname Lastname &lt;email@example.com&gt;
+          Firstname Lastname &lt;email&#64;example.com&gt;
           <input tuiTextfield inputmode="email" />
         </tui-input>
         <div class="ion-text-right ion-padding-top">
