@@ -38,6 +38,7 @@ impl ServiceEffectsService {
             .route("shutdown", from_fn(shutdown))
             .route("setConfigured", from_fn(set_configured))
             .route("setHealth", from_fn(set_health));
+        // TODO @DrBonez when we get the new api for 4.0?
         // .route("setDependencies",from_fn(set_dependencies))
         // .route("getStore",from_fn(get_store))
         // .route("setStore",from_fn(set_store))
