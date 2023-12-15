@@ -52,7 +52,8 @@ import { MarketplacePreviewComponent } from './modals/preview.component'
       :host {
         max-height: 100%;
         overflow: auto;
-        background: url('/assets/img/background.png') no-repeat top center fixed;
+        background: url('/assets/img/background.png') no-repeat center right
+          fixed;
       }
     `,
   ],
