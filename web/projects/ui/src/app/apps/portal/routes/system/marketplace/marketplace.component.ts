@@ -11,6 +11,7 @@ import { MarketplaceMenuComponent } from './components/menu.component'
 import { MarketplaceTileComponent } from './components/tile.component'
 import { MarketplaceControlsComponent } from './components/controls.component'
 import { MarketplacePreviewComponent } from './modals/preview.component'
+import { MarketplaceSidebarsComponent } from './components/sidebars.component'
 
 @Component({
   standalone: true,
@@ -46,14 +47,14 @@ import { MarketplacePreviewComponent } from './modals/preview.component'
         }
       </div>
     </div>
+    <marketplace-sidebars />
   `,
   styles: [
     `
       :host {
         max-height: 100%;
         overflow: auto;
-        background: url('/assets/img/background.png') no-repeat center right
-          fixed;
+        background: url('/assets/img/background.png') no-repeat center right;
       }
     `,
   ],
@@ -66,6 +67,7 @@ import { MarketplacePreviewComponent } from './modals/preview.component'
     MarketplaceNotificationComponent,
     MarketplaceControlsComponent,
     MarketplacePreviewComponent,
+    MarketplaceSidebarsComponent,
   ],
 })
 export class MarketplaceComponent {

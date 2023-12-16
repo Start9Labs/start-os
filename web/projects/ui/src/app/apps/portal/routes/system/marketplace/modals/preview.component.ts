@@ -68,6 +68,7 @@ import { Router } from '@angular/router'
       </div>
     </div>
   `,
+  styles: [':host { pointer-events: auto }'],
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [

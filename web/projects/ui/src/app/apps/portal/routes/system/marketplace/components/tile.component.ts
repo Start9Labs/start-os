@@ -8,12 +8,17 @@ import {
 import { ActivatedRoute, Router } from '@angular/router'
 import { ItemModule, MarketplacePkg } from '@start9labs/marketplace'
 import { TuiSidebarModule } from '@taiga-ui/addon-mobile'
-import { TuiActiveZoneModule, TuiAutoFocusModule } from '@taiga-ui/cdk'
+import {
+  TuiActiveZoneModule,
+  TuiAutoFocusModule,
+  TuiDropdownPortalService,
+} from '@taiga-ui/cdk'
 import { TuiButtonModule } from '@taiga-ui/experimental'
-import { debounceTime, map, tap } from 'rxjs'
+import { debounceTime, map } from 'rxjs'
 import { ToLocalPipe } from '../pipes/to-local.pipe'
 import { MarketplaceControlsComponent } from './controls.component'
 import { MarketplacePreviewComponent } from '../modals/preview.component'
+import { MarketplaceSidebarService } from '../services/sidebar.service'
 
 @Component({
   selector: 'marketplace-tile',
@@ -69,6 +74,12 @@ import { MarketplacePreviewComponent } from '../modals/preview.component'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
+  providers: [
+    {
+      provide: TuiDropdownPortalService,
+      useExisting: MarketplaceSidebarService,
+    },
+  ],
   imports: [
     CommonModule,
     ItemModule,
@@ -87,7 +98,6 @@ export class MarketplaceTileComponent {
   readonly id$ = inject(ActivatedRoute).queryParamMap.pipe(
     map(map => map.get('id') || ''),
     debounceTime(100),
-    tap(console.log),
   )
 
   @Input({ required: true })
