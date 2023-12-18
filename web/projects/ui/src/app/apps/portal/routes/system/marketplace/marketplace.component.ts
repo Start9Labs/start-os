@@ -54,7 +54,9 @@ import { MarketplaceSidebarsComponent } from './components/sidebars.component'
       :host {
         max-height: 100%;
         overflow: auto;
-        background: url('/assets/img/background.png') no-repeat center right;
+        // TODO: Theme
+        background: #18181b url('/assets/img/background.png') no-repeat top
+          right;
       }
     `,
   ],
