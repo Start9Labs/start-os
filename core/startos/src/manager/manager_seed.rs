@@ -30,6 +30,7 @@ impl ManagerSeed {
         .await
         {
             Err(e) if e.kind == ErrorKind::NotFound => (), // Already stopped
+            Err(e) if e.kind == ErrorKind::Timeout => (),  // Already stopped In theory
             a => a?,
         }
         Ok(())

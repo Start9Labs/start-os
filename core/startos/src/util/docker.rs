@@ -115,7 +115,9 @@ pub async fn stop_container(
     let mut cmd = Command::new(CONTAINER_TOOL);
     cmd.arg("stop");
     if let Some(dur) = timeout {
-        cmd.arg("-t").arg(dur.as_secs().to_string());
+        cmd.arg("-t")
+            .arg(dur.as_secs().to_string())
+            .timeout(Some(dur));
     }
     if let Some(sig) = signal {
         cmd.arg("-s").arg(sig.to_string());
