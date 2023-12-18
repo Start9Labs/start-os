@@ -1,27 +1,37 @@
-import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { ToMenuPipe } from '../pipes/to-menu.pipe'
 import { ServiceMenuItemComponent } from './menu-item.component'
+import { RouterLink } from '@angular/router'
 
 @Component({
   selector: 'service-menu',
   template: `
     <h3 class="g-title">Menu</h3>
-    <button
-      *ngFor="let menu of service | toMenu"
-      class="g-action"
-      [serviceMenuItem]="menu"
-      (click)="menu.action()"
-    >
-      <div *ngIf="menu.name === 'Outbound Proxy'" [style.color]="color">
-        {{ proxy }}
-      </div>
-    </button>
+    @for (menu of service | toMenu; track $index) {
+      @if (menu.routerLink) {
+        <a
+          class="g-action"
+          [serviceMenuItem]="menu"
+          [routerLink]="menu.routerLink"
+          [queryParams]="menu.params || {}"
+        ></a>
+      } @else {
+        <button
+          class="g-action"
+          [serviceMenuItem]="menu"
+          (click)="menu.action?.()"
+        >
+          @if (menu.name === 'Outbound Proxy') {
+            <div [style.color]="color">{{ proxy }}</div>
+          }
+        </button>
+      }
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, ToMenuPipe, ServiceMenuItemComponent],
+  imports: [ToMenuPipe, ServiceMenuItemComponent, RouterLink],
 })
 export class ServiceMenuComponent {
   @Input({ required: true })

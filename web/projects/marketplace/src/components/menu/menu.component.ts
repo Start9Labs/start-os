@@ -9,7 +9,6 @@ import { combineLatest, map, Subject, takeUntil } from 'rxjs'
 import { StoreIdentity } from '../../types'
 import { AbstractMarketplaceService } from '../../services/marketplace.service'
 import { AbstractCategoryService } from '../../services/category.service'
-import { Router } from '@angular/router'
 import { MarketplaceConfig } from '@start9labs/shared'
 
 @Component({
@@ -21,8 +20,6 @@ import { MarketplaceConfig } from '@start9labs/shared'
 export class MenuComponent implements OnDestroy {
   @Input({ required: true })
   iconConfig!: MarketplaceConfig
-
-  constructor(private readonly router: Router) {}
 
   private destroy$ = new Subject<void>()
   private readonly marketplaceService = inject(AbstractMarketplaceService)
@@ -69,13 +66,11 @@ export class MenuComponent implements OnDestroy {
     this.query = ''
     this.categoryService.resetQuery()
     this.categoryService.changeCategory(category)
-    this.router.navigate(['/marketplace'], { replaceUrl: true })
   }
 
   onQueryChange(query: string): void {
     this.query = query
     this.categoryService.setQuery(query)
-    this.router.navigate(['/marketplace'], { replaceUrl: true })
   }
 
   toggleMenu(open: boolean): void {

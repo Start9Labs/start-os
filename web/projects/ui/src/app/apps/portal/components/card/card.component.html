@@ -3,11 +3,11 @@
     <tui-badge-notification *ngIf="badge" size="m" tuiSlot="top">
       {{ badge }}
     </tui-badge-notification>
-    <tui-svg
+    <tui-icon
       *ngIf="icon?.startsWith('tuiIcon'); else url"
       class="icon"
-      [src]="icon"
-    ></tui-svg>
+      [icon]="icon"
+    />
     <ng-template #url>
       <img alt="" class="icon" [src]="icon" />
     </ng-template>

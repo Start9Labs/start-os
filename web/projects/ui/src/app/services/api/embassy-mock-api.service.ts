@@ -18,7 +18,7 @@ import {
 } from 'src/app/services/patch-db/data-model'
 import { BackupTargetType, Metrics, RR } from './api.types'
 import { Mock } from './api.fixures'
-import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
+// import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
 import {
   EMPTY,
   iif,
@@ -82,7 +82,7 @@ export class MockApiService extends ApiService {
 
   async getStatic(url: string): Promise<string> {
     await pauseFor(2000)
-    return markdown
+    return '' // markdown
   }
 
   async uploadPackage(guid: string, body: Blob): Promise<void> {
@@ -458,7 +458,7 @@ export class MockApiService extends ApiService {
     } else if (path.startsWith('/package/v0/release-notes')) {
       return Mock.ReleaseNotes
     } else if (path.includes('instructions') || path.includes('license')) {
-      return markdown
+      return '' // markdown
     }
   }
 
