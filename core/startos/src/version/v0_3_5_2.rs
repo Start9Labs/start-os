@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use emver::VersionRange;
 use sqlx::PgPool;
 
-use super::v0_3_4::V0_3_0_COMPAT;
-use super::{v0_3_5, VersionT};
+use super::VersionT;
+use super::{v0_3_4::V0_3_0_COMPAT, v0_3_5_1};
 use crate::prelude::*;
 
 const V0_3_5_2: emver::Version = emver::Version::new(0, 3, 5, 2);
