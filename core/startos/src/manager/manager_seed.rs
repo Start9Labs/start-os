@@ -29,7 +29,15 @@ impl ManagerSeed {
         )
         .await
         {
-            Err(e) if e.kind == ErrorKind::NotFound => (), // Already stopped
+            Err(e) if e.kind == ErrorKind::NotFound => {
+                tracing::info!(
+                    "Command for package {command_id} should already be stopped",
+                    command_id = &self.manifest.id
+                );
+            } // Already stopped
+            Err(e) if e.kind == ErrorKind::Timeout => {
+                tracing::warn!("Command for package {command_id} had to be timed out, but we have dropped which means it should be killed", command_id = &self.manifest.id);
+            } // Already stopped In theory
             a => a?,
         }
         Ok(())
