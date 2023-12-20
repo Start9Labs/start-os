@@ -6,7 +6,6 @@ export interface SettingBtn {
   description: string
   icon: string
   action?: Function
-  href?: string
   routerLink?: string
 }
 

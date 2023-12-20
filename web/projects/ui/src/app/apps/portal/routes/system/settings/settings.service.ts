@@ -111,26 +111,6 @@ export class SettingsService {
         routerLink: 'sessions',
       },
     ],
-    Support: [
-      {
-        title: 'User Manual',
-        description: 'Discover what StartOS can do',
-        icon: 'tuiIconMap',
-        href: 'https://docs.start9.com/0.3.5.x/user-manual',
-      },
-      {
-        title: 'Contact Support',
-        description: 'Get help from the Start9 team and community',
-        icon: 'tuiIconMessageSquare',
-        href: 'https://start9.com/contact',
-      },
-      {
-        title: 'Donate to Start9',
-        description: `Support StartOS development`,
-        icon: 'tuiIconDollarSign',
-        href: 'https://donate.start9.com',
-      },
-    ],
   }
 
   private async setBrowserTab(): Promise<void> {

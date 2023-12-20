@@ -25,19 +25,13 @@ import { SidebarDirective } from '../../../../app/sidebar-host.component'
 import { HeaderMenuComponent } from './header-menu.component'
 import { HeaderNotificationsComponent } from './header-notifications.component'
 import { NotificationService } from '../../services/notification.service'
+import { HeaderConnectionComponent } from './header-connection.component'
 
 @Component({
   selector: 'header[appHeader]',
   template: `
     <ng-content></ng-content>
-    <button
-      tuiIconButton
-      iconLeft="tuiIconCloudLarge"
-      appearance="icon-success"
-      [style.margin-left]="'auto'"
-    >
-      Connection
-    </button>
+    <header-connection [style.margin-left]="'auto'" />
     <tui-badged-content
       *tuiLet="notificationService.unreadCount$ | async as unread"
       [style.--tui-radius.%]="50"
@@ -87,6 +81,7 @@ import { NotificationService } from '../../services/notification.service'
     SidebarDirective,
     HeaderMenuComponent,
     HeaderNotificationsComponent,
+    HeaderConnectionComponent,
     TuiLetModule,
   ],
 })

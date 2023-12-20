@@ -1,3 +1,4 @@
+import { CommonModule } from '@angular/common'
 import {
   Component,
   ElementRef,
@@ -6,18 +7,48 @@ import {
   ViewChild,
   ViewChildren,
 } from '@angular/core'
+import { RouterModule } from '@angular/router'
+import { DragScrollerDirective } from '@start9labs/shared'
 import { EMPTY_QUERY, TUI_PARENT_STOP } from '@taiga-ui/cdk'
-import { tuiFadeIn, tuiScaleIn } from '@taiga-ui/core'
-import { TuiTileComponent, TuiTilesComponent } from '@taiga-ui/kit'
+import {
+  tuiFadeIn,
+  TuiLoaderModule,
+  tuiScaleIn,
+  TuiSvgModule,
+} from '@taiga-ui/core'
+import { TuiFadeModule } from '@taiga-ui/experimental'
+import {
+  TuiTileComponent,
+  TuiTilesComponent,
+  TuiTilesModule,
+} from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { DesktopService } from '../../services/desktop.service'
 import { DektopLoadingService } from './dektop-loading.service'
+import { CardComponent } from '../../components/card.component'
+import { DesktopItemDirective } from './desktop-item.directive'
+import { ToNavigationItemPipe } from '../../pipes/to-navigation-item'
+import { ToBadgePipe } from '../../pipes/to-badge'
 
 @Component({
+  standalone: true,
   templateUrl: 'desktop.component.html',
   styleUrls: ['desktop.component.scss'],
   animations: [TUI_PARENT_STOP, tuiScaleIn, tuiFadeIn],
+  imports: [
+    CommonModule,
+    RouterModule,
+    CardComponent,
+    DesktopItemDirective,
+    TuiSvgModule,
+    TuiLoaderModule,
+    TuiTilesModule,
+    ToNavigationItemPipe,
+    TuiFadeModule,
+    DragScrollerDirective,
+    ToBadgePipe,
+  ],
 })
 export class DesktopComponent {
   @ViewChildren(TuiTileComponent, { read: ElementRef })

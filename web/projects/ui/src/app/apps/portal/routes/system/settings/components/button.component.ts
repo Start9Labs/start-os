@@ -11,15 +11,6 @@ import { SettingBtn } from '../settings.types'
       <ng-container *ngTemplateOutlet="template" />
     </button>
     <a
-      *ngIf="button.href"
-      class="g-action"
-      target="_blank"
-      rel="noreferrer"
-      [href]="button.href"
-    >
-      <ng-container *ngTemplateOutlet="template" />
-    </a>
-    <a
       *ngIf="button.routerLink"
       class="g-action"
       [routerLink]="button.routerLink"
@@ -34,7 +25,6 @@ import { SettingBtn } from '../settings.types'
         <ng-content />
       </div>
       <tui-icon *ngIf="button.routerLink" icon="tuiIconChevronRight" />
-      <tui-icon *ngIf="button.href" icon="tuiIconExternalLink" />
     </ng-template>
   `,
   styles: [

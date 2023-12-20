@@ -4,7 +4,6 @@ import {
   HostBinding,
   inject,
   Input,
-  OnDestroy,
   OnInit,
 } from '@angular/core'
 import { TuiTilesComponent } from '@taiga-ui/kit'
@@ -17,7 +16,7 @@ import { TuiTilesComponent } from '@taiga-ui/kit'
   selector: '[desktopItem]',
   standalone: true,
 })
-export class DesktopItemDirective implements OnInit, OnDestroy {
+export class DesktopItemDirective implements OnInit {
   private readonly element: Element = inject(ElementRef).nativeElement
   private readonly tiles = inject(TuiTilesComponent)
 
@@ -31,10 +30,5 @@ export class DesktopItemDirective implements OnInit, OnDestroy {
 
   ngOnInit() {
     if (this.empty) this.tiles.element = this.element
-  }
-
-  // TODO: Remove after Taiga UI updated to 3.40.0
-  ngOnDestroy() {
-    if (this.tiles.element === this.element) this.tiles.element = null
   }
 }

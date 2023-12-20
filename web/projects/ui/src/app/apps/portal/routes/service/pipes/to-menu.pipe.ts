@@ -1,5 +1,5 @@
 import { inject, Pipe, PipeTransform, Type } from '@angular/core'
-import { ActivatedRoute, Params, Router } from '@angular/router'
+import { Params } from '@angular/router'
 import { Manifest } from '@start9labs/marketplace'
 import { MarkdownComponent } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
@@ -33,8 +33,6 @@ export class ToMenuPipe implements PipeTransform {
   private readonly api = inject(ApiService)
   private readonly dialogs = inject(TuiDialogService)
   private readonly formDialog = inject(FormDialogService)
-  private readonly route = inject(ActivatedRoute)
-  private readonly router = inject(Router)
   private readonly proxyService = inject(ProxyService)
 
   transform({ manifest, installed }: PackageDataEntry): ServiceMenu[] {
