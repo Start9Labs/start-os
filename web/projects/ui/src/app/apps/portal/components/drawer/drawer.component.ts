@@ -15,11 +15,11 @@ import {
 } from '@taiga-ui/cdk'
 import {
   TuiScrollbarModule,
-  TuiSvgModule,
   TuiTextfieldControllerModule,
 } from '@taiga-ui/core'
+import { TuiIconModule } from '@taiga-ui/experimental'
 import { TuiInputModule } from '@taiga-ui/kit'
-import { CardComponent } from '../card/card.component'
+import { CardComponent } from '../card.component'
 import { ServicesService } from '../../services/services.service'
 import { toRouterLink } from '../../utils/to-router-link'
 import { DrawerItemDirective } from './drawer-item.directive'
@@ -36,7 +36,6 @@ import { ToBadgePipe } from '../../pipes/to-badge'
     CommonModule,
     FormsModule,
     RouterLink,
-    TuiSvgModule,
     TuiScrollbarModule,
     TuiActiveZoneModule,
     TuiInputModule,
@@ -46,6 +45,7 @@ import { ToBadgePipe } from '../../pipes/to-badge'
     CardComponent,
     DrawerItemDirective,
     ToBadgePipe,
+    TuiIconModule,
   ],
 })
 export class DrawerComponent {

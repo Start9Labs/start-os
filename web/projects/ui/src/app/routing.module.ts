@@ -26,8 +26,7 @@ const routes: Routes = [
     path: 'portal',
     canActivate: [AuthGuard],
     canActivateChild: [AuthGuard],
-    loadChildren: () =>
-      import('./apps/portal/portal.module').then(m => m.PortalModule),
+    loadChildren: () => import('./apps/portal/portal.routes').then(m => m),
   },
   {
     path: '',

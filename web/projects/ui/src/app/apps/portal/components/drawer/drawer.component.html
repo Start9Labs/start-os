@@ -1,6 +1,6 @@
 <div class="content" (tuiActiveZoneChange)="open = $event">
   <button class="toggle" (click)="open = !open" (mousedown.prevent)="(0)">
-    <tui-svg src="tuiIconArrowUpCircleLarge" class="icon"></tui-svg>
+    <tui-icon icon="tuiIconArrowUpCircle" class="icon" />
     Toggle drawer
   </button>
   <tui-input
@@ -16,37 +16,42 @@
   <tui-scrollbar class="scrollbar">
     <h2 class="title">System Utilities</h2>
     <div class="items">
-      <a
-        *ngFor="
-          let item of system | keyvalue | tuiFilter : bySearch : search;
-          empty: empty
-        "
-        appCard
-        [badge]="item.key | toBadge | async"
-        [drawerItem]="item.key"
-        [id]="item.key"
-        [title]="item.value.title"
-        [icon]="item.value.icon"
-        [routerLink]="item.key"
-        (click)="open = false"
-      ></a>
+      @for (
+        item of system | keyvalue | tuiFilter: bySearch : search;
+        track $index
+      ) {
+        <a
+          appCard
+          [badge]="item.key | toBadge | async"
+          [drawerItem]="item.key"
+          [id]="item.key"
+          [title]="item.value.title"
+          [icon]="item.value.icon"
+          [routerLink]="item.key"
+          (click)="open = false"
+        ></a>
+      } @empty {
+        Nothing found
+      }
     </div>
     <h2 class="title">Installed services</h2>
     <div class="items">
-      <a
-        *ngFor="
-          let item of (services$ | async) || [] | tuiFilter : bySearch : search;
-          empty: empty
-        "
-        appCard
-        [drawerItem]="item.manifest.id"
-        [id]="item.manifest.id"
-        [icon]="item.icon"
-        [title]="item.manifest.title"
-        [routerLink]="getLink(item.manifest.id)"
-        (click)="open = false"
-      ></a>
+      @for (
+        item of (services$ | async) || [] | tuiFilter: bySearch : search;
+        track $index
+      ) {
+        <a
+          appCard
+          [drawerItem]="item.manifest.id"
+          [id]="item.manifest.id"
+          [icon]="item.icon"
+          [title]="item.manifest.title"
+          [routerLink]="getLink(item.manifest.id)"
+          (click)="open = false"
+        ></a>
+      } @empty {
+        Nothing found
+      }
     </div>
-    <ng-template #empty>Nothing found</ng-template>
   </tui-scrollbar>
 </div>
