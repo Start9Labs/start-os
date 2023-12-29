@@ -55,7 +55,7 @@ basic-cookies = "0.1.4"
 blake3 = "1.5.0"
 bytes = "1"
 chrono = { version = "0.4.31", features = ["serde"] }
-clap = "3.2.25"
+clap = "4.4.12"
 color-eyre = "0.6.2"
 console = "0.15.7"
 console-subscriber = { version = "0.2", optional = true }
@@ -127,7 +127,7 @@ regex = "1.10.2"
 reqwest = { version = "0.11.22", features = ["stream", "json", "socks"] }
 reqwest_cookie_store = "0.6.0"
 rpassword = "7.2.0"
-rpc-toolkit = "0.2.3"
+rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", branch = "refactor/traits" }
 rust-argon2 = "2.0.0"
 scopeguard = "1.1" # because avahi-sys fucks your shit up
 semver = { version = "1.0.20", features = ["serde"] }

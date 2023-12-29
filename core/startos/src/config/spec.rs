@@ -1788,7 +1788,7 @@ impl ConfigPointer {
             if let Some(version) = version {
                 let cfg_res = ctx
                     .managers
-                    .get(&(id.clone(), version.clone()))
+                    .get(&id)
                     .await
                     .or_not_found(lazy_format!("Manager for {id}@{version}"))
                     .map_err(|e| ConfigurationError::SystemError(e))?

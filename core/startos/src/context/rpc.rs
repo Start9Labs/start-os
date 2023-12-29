@@ -357,7 +357,7 @@ impl RpcContext {
                 Ok(v.clone())
             })
             .await?;
-        self.managers.init(self.clone(), peek.clone()).await?;
+        self.managers.init(&self).await?;
         tracing::info!("Initialized Package Managers");
 
         let mut all_dependency_config_errs = BTreeMap::new();

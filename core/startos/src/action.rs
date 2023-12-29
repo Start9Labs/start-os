@@ -60,20 +60,10 @@ pub async fn action(
     #[arg(long = "format")]
     format: Option<IoFormat>,
 ) -> Result<ActionResult, Error> {
-    let version = ctx
-        .db
-        .peek()
-        .await
-        .into_package_data()
-        .into_idx(&pkg_id)
-        .and_then(|pde| pde.into_installed())
-        .map(|i| i.into_manifest().into_version().de())
-        .transpose()?
-        .or_not_found(&pkg_id)?;
     ctx.managers
-        .get(&(pkg_id.clone(), version.clone()))
+        .get(&pkg_id)
         .await
-        .or_not_found(lazy_format!("Manager for {}@{}", pkg_id, version))?
+        .or_not_found(lazy_format!("Manager for {}", pkg_id))?
         .execute(
             ProcedureName::Action(action_id.clone()),
             input.map(|c| to_value(&c)).transpose()?.unwrap_or_default(),

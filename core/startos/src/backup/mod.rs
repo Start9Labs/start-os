@@ -14,16 +14,16 @@ use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
 use self::target::PackageBackupInfo;
-use crate::manager::manager_seed::ManagerSeed;
+use crate::context::RpcContext;
+use crate::install::PKG_ARCHIVE_DIR;
+use crate::manager::persistent_container::PersistentContainer;
 use crate::net::interface::InterfaceId;
 use crate::net::keys::Key;
 use crate::prelude::*;
-use crate::util::serde::{Base32, Base64, IoFormat};
+use crate::util::serde::{Base32, Base64, IoFormat, NoOutput};
 use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::volume::{backup_dir, Volume, VolumeId, Volumes, BACKUP_DIR};
-use crate::{context::RpcContext, manager::persistent_container::PersistentContainer};
-use crate::{install::PKG_ARCHIVE_DIR, util::serde::NoOutput};
 use crate::{Error, ErrorKind, ResultExt};
 
 pub mod backup_bulk;
@@ -70,35 +70,35 @@ struct BackupMetadata {
 
 #[instrument(skip_all)]
 pub async fn restore(
-    &self,
     ctx: &RpcContext,
     pkg_id: &PackageId,
     pkg_version: &Version,
     volumes: &Volumes,
 ) -> Result<Option<Url>, Error> {
-    let mut volumes = volumes.clone();
-    volumes.insert(VolumeId::Backup, Volume::Backup { readonly: true });
-    self.restore
-        .execute::<(), NoOutput>(
-            ctx,
-            pkg_id,
-            pkg_version,
-            ProcedureName::RestoreBackup,
-            &volumes,
-            None,
-            None,
-        )
-        .await?
-        .map_err(|e| eyre!("{}", e.1))
-        .with_kind(crate::ErrorKind::Restore)?;
-    let metadata_path = Path::new(BACKUP_DIR).join(pkg_id).join("metadata.cbor");
-    let metadata: BackupMetadata =
-        IoFormat::Cbor.from_slice(&tokio::fs::read(&metadata_path).await.with_ctx(|_| {
-            (
-                crate::ErrorKind::Filesystem,
-                metadata_path.display().to_string(),
-            )
-        })?)?;
+    // let mut volumes = volumes.clone();
+    // volumes.insert(VolumeId::Backup, Volume::Backup { readonly: true });
+    // self.restore
+    //     .execute::<(), NoOutput>(
+    //         ctx,
+    //         pkg_id,
+    //         pkg_version,
+    //         ProcedureName::RestoreBackup,
+    //         &volumes,
+    //         None,
+    //         None,
+    //     )
+    //     .await?
+    //     .map_err(|e| eyre!("{}", e.1))
+    //     .with_kind(crate::ErrorKind::Restore)?;
+    // let metadata_path = Path::new(BACKUP_DIR).join(pkg_id).join("metadata.cbor");
+    // let metadata: BackupMetadata =
+    //     IoFormat::Cbor.from_slice(&tokio::fs::read(&metadata_path).await.with_ctx(|_| {
+    //         (
+    //             crate::ErrorKind::Filesystem,
+    //             metadata_path.display().to_string(),
+    //         )
+    //     })?)?;
 
-    Ok(metadata.marketplace_url)
+    // Ok(metadata.marketplace_url)
+    todo!()
 }

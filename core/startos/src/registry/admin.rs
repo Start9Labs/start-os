@@ -9,6 +9,7 @@ use reqwest::{header, Body, Client, Url};
 use rpc_toolkit::command;
 
 use crate::s9pk::reader::S9pkReader;
+use crate::s9pk::S9pk;
 use crate::util::display_none;
 use crate::{Error, ErrorKind};
 
@@ -115,8 +116,8 @@ pub async fn publish(
             .with_prefix("[1/3]")
             .with_message("Querying s9pk");
         pb.enable_steady_tick(Duration::from_millis(200));
-        let mut s9pk = S9pkReader::open(&path, false).await?;
-        let m = s9pk.manifest().await?.clone();
+        let mut s9pk = S9pk::open(&path).await?;
+        let m = s9pk.as_manifest().clone();
         pb.set_style(plain_line_style.clone());
         pb.abandon();
         m
@@ -126,10 +127,10 @@ pub async fn publish(
             .with_prefix("[1/3]")
             .with_message("Verifying s9pk");
         pb.enable_steady_tick(Duration::from_millis(200));
-        let mut s9pk = S9pkReader::open(&path, true).await?;
+        let mut s9pk = S9pk::open(&path).await?;
         // s9pk.validate().await?;
         todo!();
-        let m = s9pk.manifest().await?.clone();
+        let m = s9pk.as_manifest().clone();
         pb.set_style(plain_line_style.clone());
         pb.abandon();
         m

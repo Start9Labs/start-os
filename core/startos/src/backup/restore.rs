@@ -32,6 +32,7 @@ use crate::notifications::NotificationLevel;
 use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::reader::S9pkReader;
+use crate::s9pk::S9pk;
 use crate::setup::SetupStatus;
 use crate::util::display_none;
 use crate::util::io::dir_size;
@@ -323,9 +324,9 @@ async fn assure_restoring(
         }
         let guard = backup_guard.mount_package_backup(&id).await?;
         let s9pk_path = Path::new(BACKUP_DIR).join(&id).join(format!("{}.s9pk", id));
-        let mut rdr = S9pkReader::open(&s9pk_path, false).await?;
+        let mut rdr = S9pk::open(&s9pk_path).await?;
 
-        let manifest = rdr.manifest().await?;
+        let manifest = rdr.as_manifest();
         let version = manifest.version.clone();
         let progress = Arc::new(InstallProgress::new(Some(
             tokio::fs::metadata(&s9pk_path).await?.len(),

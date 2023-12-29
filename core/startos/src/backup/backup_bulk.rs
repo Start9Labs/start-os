@@ -4,12 +4,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use chrono::Utc;
-use clap::ArgMatches;
+use clap::{ArgMatches, Parser};
 use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
 use imbl::OrdSet;
 use models::{PackageId, Version};
-use rpc_toolkit::command;
+use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
 use tracing::instrument;
@@ -39,21 +39,27 @@ fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<OrdSet<PackageId>,
         .collect()
 }
 
-#[command(rename = "create", display(display_none))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct BackupParams {
+    target_id: BackupTargetId,
+    #[arg(long = "old-password")]
+    old_password: Option<crate::auth::PasswordType>,
+    #[arg(long = "package-ids")]
+    package_ids: Option<Vec<PackageId>>,
+    password: crate::auth::PasswordType,
+}
+
 #[instrument(skip(ctx, old_password, password))]
 pub async fn backup_all(
-    #[context] ctx: RpcContext,
-    #[arg(rename = "target-id")] target_id: BackupTargetId,
-    #[arg(rename = "old-password", long = "old-password")] old_password: Option<
-        crate::auth::PasswordType,
-    >,
-    #[arg(
-        rename = "package-ids",
-        long = "package-ids",
-        parse(parse_comma_separated)
-    )]
-    package_ids: Option<OrdSet<PackageId>>,
-    #[arg] password: crate::auth::PasswordType,
+    ctx: RpcContext,
+    BackupParams {
+        target_id,
+        old_password,
+        package_ids,
+        password,
+    }: BackupParams,
 ) -> Result<(), Error> {
     let db = ctx.db.peek().await;
     let old_password_decrypted = old_password
@@ -107,10 +113,7 @@ pub async fn backup_all(
                             attempted: true,
                             error: None,
                         },
-                        packages: report
-                            .into_iter()
-                            .map(|((package_id, _), value)| (package_id, value))
-                            .collect(),
+                        packages: report,
                     },
                     None,
                 )
@@ -129,10 +132,7 @@ pub async fn backup_all(
                             attempted: true,
                             error: None,
                         },
-                        packages: report
-                            .into_iter()
-                            .map(|((package_id, _), value)| (package_id, value))
-                            .collect(),
+                        packages: report,
                     },
                     None,
                 )
@@ -217,11 +217,11 @@ async fn perform_backup(
     ctx: &RpcContext,
     backup_guard: BackupMountGuard<TmpMountGuard>,
     package_ids: &OrdSet<(PackageId, Version)>,
-) -> Result<BTreeMap<(PackageId, Version), PackageBackupReport>, Error> {
+) -> Result<BTreeMap<PackageId, PackageBackupReport>, Error> {
     let mut backup_report = BTreeMap::new();
     let backup_guard = Arc::new(Mutex::new(backup_guard));
 
-    for package_id in package_ids {
+    for (package_id, version) in package_ids {
         let (response, _report) = match ctx
             .managers
             .get(package_id)
@@ -260,7 +260,7 @@ async fn perform_backup(
                 .await
                 .metadata
                 .package_backups
-                .insert(package_id.0.clone(), pkg_meta);
+                .insert(package_id.clone(), pkg_meta);
         }
     }
 

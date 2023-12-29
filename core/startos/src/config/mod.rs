@@ -176,9 +176,9 @@ pub async fn get(
     let version = manifest.as_version().de()?;
 
     ctx.managers
-        .get(&(id.clone(), version.clone()))
+        .get(&id)
         .await
-        .or_not_found(lazy_format!("Manager for {id}@{version}"))?
+        .or_not_found(lazy_format!("Manager for {id}"))?
         .execute(
             ProcedureName::GetConfig,
             Value::Null,
@@ -268,11 +268,11 @@ pub async fn configure(
         .or_not_found(&id)?;
     let version = package.as_manifest().as_version().de()?;
     ctx.managers
-        .get(&(id.clone(), version.clone()))
+        .get(&id)
         .await
         .ok_or_else(|| {
             Error::new(
-                eyre!("There is no manager running for {id:?} and {version:?}"),
+                eyre!("There is no manager running for {id}"),
                 ErrorKind::Unknown,
             )
         })?

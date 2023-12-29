@@ -359,22 +359,3 @@ async fn main_test() {
 
     assert_eq!(buf.len(), test_reader.total_bytes)
 }
-
-#[tokio::test]
-#[ignore]
-async fn s9pk_test() {
-    use tokio::io::BufReader;
-
-    let http_url = Url::parse("http://qhc6ac47cytstejcepk2ia3ipadzjhlkc5qsktsbl4e7u2krfmfuaqqd.onion/content/files/2022/09/ghost.s9pk").unwrap();
-
-    println!("Getting this resource: {}", http_url);
-    let test_reader =
-        BufReader::with_capacity(1024 * 1024, HttpReader::new(http_url).await.unwrap());
-
-    let mut s9pk = crate::s9pk::reader::S9pkReader::from_reader(test_reader, false)
-        .await
-        .unwrap();
-
-    let manifest = s9pk.manifest().await.unwrap();
-    assert_eq!(&manifest.id.to_string(), "ghost");
-}

@@ -12,21 +12,10 @@ use crate::Error;
 #[command(display(display_none), metadata(sync_db = true))]
 #[instrument(skip_all)]
 pub async fn start(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(), Error> {
-    let peek = ctx.db.peek().await;
-    let version = peek
-        .as_package_data()
-        .as_idx(&id)
-        .or_not_found(&id)?
-        .as_installed()
-        .or_not_found(&id)?
-        .as_manifest()
-        .as_version()
-        .de()?;
-
     ctx.managers
-        .get(&(id, version))
+        .get(&id)
         .await
-        .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
+        .or_not_found(lazy_format!("Manager for {id}"))?
         .start()
         .await;
 
@@ -60,7 +49,7 @@ pub async fn stop(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<Ma
         .await?;
 
     ctx.managers
-        .get(&(id, version))
+        .get(&id)
         .await
         .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
         .stop()
@@ -82,7 +71,7 @@ pub async fn restart(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result
         .de()?;
 
     ctx.managers
-        .get(&(id, version))
+        .get(&id)
         .await
         .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
         .restart()

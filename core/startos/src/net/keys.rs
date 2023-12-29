@@ -337,19 +337,21 @@ pub async fn rotate_key(
                     lan.ser(&new_key.tor_address().to_string())?;
                 }
 
-                if installed
-                    .as_manifest()
-                    .as_config()
-                    .transpose_ref()
-                    .is_some()
-                {
-                    installed
-                        .as_status_mut()
-                        .as_configured_mut()
-                        .replace(&false)
-                } else {
-                    Ok(false)
-                }
+                // TODO
+                // if installed
+                //     .as_manifest()
+                //     .as_config()
+                //     .transpose_ref()
+                //     .is_some()
+                // {
+                //     installed
+                //         .as_status_mut()
+                //         .as_configured_mut()
+                //         .replace(&false)
+                // } else {
+                //     Ok(false)
+                // }
+                Ok(false)
             })
             .await?;
         tx.commit().await?;

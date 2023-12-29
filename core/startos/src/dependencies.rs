@@ -115,77 +115,78 @@ pub async fn configure_logic(
     ctx: RpcContext,
     (pkg_id, dependency_id): (PackageId, PackageId),
 ) -> Result<ConfigDryRes, Error> {
-    let db = ctx.db.peek().await;
-    let pkg = db
-        .as_package_data()
-        .as_idx(&pkg_id)
-        .or_not_found(&pkg_id)?
-        .as_installed()
-        .or_not_found(&pkg_id)?;
-    let pkg_version = pkg.as_manifest().as_version().de()?;
-    let pkg_volumes = pkg.as_manifest().as_volumes().de()?;
-    let dependency = db
-        .as_package_data()
-        .as_idx(&dependency_id)
-        .or_not_found(&dependency_id)?
-        .as_installed()
-        .or_not_found(&dependency_id)?;
-    let dependency_config_action = dependency
-        .as_manifest()
-        .as_config()
-        .de()?
-        .ok_or_else(|| not_found!("Manifest Config"))?;
-    let dependency_version = dependency.as_manifest().as_version().de()?;
-    let dependency_volumes = dependency.as_manifest().as_volumes().de()?;
-    let dependency = pkg
-        .as_manifest()
-        .as_dependencies()
-        .as_idx(&dependency_id)
-        .or_not_found(&dependency_id)?;
+    // let db = ctx.db.peek().await;
+    // let pkg = db
+    //     .as_package_data()
+    //     .as_idx(&pkg_id)
+    //     .or_not_found(&pkg_id)?
+    //     .as_installed()
+    //     .or_not_found(&pkg_id)?;
+    // let pkg_version = pkg.as_manifest().as_version().de()?;
+    // let pkg_volumes = pkg.as_manifest().as_volumes().de()?;
+    // let dependency = db
+    //     .as_package_data()
+    //     .as_idx(&dependency_id)
+    //     .or_not_found(&dependency_id)?
+    //     .as_installed()
+    //     .or_not_found(&dependency_id)?;
+    // let dependency_config_action = dependency
+    //     .as_manifest()
+    //     .as_config()
+    //     .de()?
+    //     .ok_or_else(|| not_found!("Manifest Config"))?;
+    // let dependency_version = dependency.as_manifest().as_version().de()?;
+    // let dependency_volumes = dependency.as_manifest().as_volumes().de()?;
+    // let dependency = pkg
+    //     .as_manifest()
+    //     .as_dependencies()
+    //     .as_idx(&dependency_id)
+    //     .or_not_found(&dependency_id)?;
 
-    let ConfigRes {
-        config: maybe_config,
-        spec,
-    } = dependency_config_action
-        .get(
-            &ctx,
-            &dependency_id,
-            &dependency_version,
-            &dependency_volumes,
-        )
-        .await?;
+    // let ConfigRes {
+    //     config: maybe_config,
+    //     spec,
+    // } = dependency_config_action
+    //     .get(
+    //         &ctx,
+    //         &dependency_id,
+    //         &dependency_version,
+    //         &dependency_volumes,
+    //     )
+    //     .await?;
 
-    let old_config = if let Some(config) = maybe_config {
-        config
-    } else {
-        spec.gen(
-            &mut rand::rngs::StdRng::from_entropy(),
-            &Some(Duration::new(10, 0)),
-        )?
-    };
+    // let old_config = if let Some(config) = maybe_config {
+    //     config
+    // } else {
+    //     spec.gen(
+    //         &mut rand::rngs::StdRng::from_entropy(),
+    //         &Some(Duration::new(10, 0)),
+    //     )?
+    // };
 
-    let new_config = dependency
-        .as_config()
-        .de()?
-        .ok_or_else(|| not_found!("Config"))?
-        .auto_configure
-        .sandboxed(
-            &ctx,
-            &pkg_id,
-            &pkg_version,
-            &pkg_volumes,
-            Some(&old_config),
-            None,
-            ProcedureName::AutoConfig(dependency_id.clone()),
-        )
-        .await?
-        .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))?;
+    // let new_config = dependency
+    //     .as_config()
+    //     .de()?
+    //     .ok_or_else(|| not_found!("Config"))?
+    //     .auto_configure
+    //     .sandboxed(
+    //         &ctx,
+    //         &pkg_id,
+    //         &pkg_version,
+    //         &pkg_volumes,
+    //         Some(&old_config),
+    //         None,
+    //         ProcedureName::AutoConfig(dependency_id.clone()),
+    //     )
+    //     .await?
+    //     .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))?;
 
-    Ok(ConfigDryRes {
-        old_config,
-        new_config,
-        spec,
-    })
+    // Ok(ConfigDryRes {
+    //     old_config,
+    //     new_config,
+    //     spec,
+    // })
+    todo!()
 }
 
 #[instrument(skip_all)]
@@ -269,36 +270,7 @@ pub async fn compute_dependency_config_errs(
             .or_not_found(dependency)?
             .config
         {
-            if let Err(error) = cfg
-                .check(
-                    ctx,
-                    &manifest.id,
-                    &manifest.version,
-                    &manifest.volumes,
-                    dependency,
-                    &if let Some(config) = dependency_config.get(dependency) {
-                        config.clone()
-                    } else if let Some(manifest) = db
-                        .as_package_data()
-                        .as_idx(dependency)
-                        .and_then(|pde| pde.as_installed())
-                        .map(|i| i.as_manifest().de())
-                        .transpose()?
-                    {
-                        if let Some(config) = &manifest.config {
-                            config
-                                .get(ctx, &manifest.id, &manifest.version, &manifest.volumes)
-                                .await?
-                                .config
-                                .unwrap_or_default()
-                        } else {
-                            Config::default()
-                        }
-                    } else {
-                        Config::default()
-                    },
-                )
-                .await?
+            let error = todo!();
             {
                 dependency_config_errs.insert(dependency.clone(), error);
             }
