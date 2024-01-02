@@ -270,7 +270,13 @@ pub async fn logs() -> ParentHandler {
 
 pub async fn cli_logs(
     ctx: CliContext,
-    (limit, cursor, before, follow): (Option<usize>, Option<String>, bool, bool),
+    _: Empty,
+    LogsParams {
+        limit,
+        cursor,
+        before,
+        follow,
+    }: LogsParams,
 ) -> Result<(), RpcError> {
     if follow {
         if cursor.is_some() {
@@ -292,7 +298,13 @@ pub async fn cli_logs(
 }
 pub async fn logs_nofollow(
     _ctx: (),
-    (limit, cursor, before, _): (Option<usize>, Option<String>, bool, bool),
+    _: Empty,
+    LogsParams {
+        limit,
+        cursor,
+        before,
+        follow,
+    }: LogsParams,
 ) -> Result<LogResponse, Error> {
     fetch_logs(LogSource::System, limit, cursor, before).await
 }
@@ -310,24 +322,51 @@ pub async fn logs_follow(
 ) -> Result<LogFollowResponse, Error> {
     follow_logs(ctx, LogSource::System, limit).await
 }
-
-#[command(
-    rename = "kernel-logs",
-    custom_cli(cli_kernel_logs(async, context(CliContext))),
-    subcommands(self(kernel_logs_nofollow(async)), kernel_logs_follow),
-    display(display_none)
-)]
-pub async fn kernel_logs(
-    #[arg(short = 'l', long = "limit")] limit: Option<usize>,
-    #[arg(short = 'c', long = "cursor")] cursor: Option<String>,
-    #[arg(short = 'B', long = "before", default)] before: bool,
-    #[arg(short = 'f', long = "follow", default)] follow: bool,
-) -> Result<(Option<usize>, Option<String>, bool, bool), Error> {
-    Ok((limit, cursor, before, follow))
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct KernelLogsParams {
+    #[arg(short = 'l', long = "limit")]
+    limit: Option<usize>,
+    #[arg(short = 'c', long = "cursor")]
+    cursor: Option<String>,
+    #[arg(short = 'B', long = "before")]
+    #[serde(default)]
+    before: bool,
+    #[arg(short = 'f', long = "follow")]
+    #[serde(default)]
+    follow: bool,
+}
+// #[command(
+//     rename = "kernel-logs",
+//     custom_cli(cli_kernel_logs(async, context(CliContext))),
+//     subcommands(self(kernel_logs_nofollow(async)), kernel_logs_follow),
+//     display(display_none)
+// )]
+pub async fn kernel_logs() -> ParentHandler {
+    ParentHandler::<KernelLogsParams>::new()
+        .root_handler(from_fn_async(cli_kernel_logs).with_inherited(|params, _| params))
+        .root_handler(
+            from_fn_async(kernel_logs_nofollow)
+                .with_inherited(|params, _| params)
+                .no_cli(),
+        )
+        .subcommand(
+            "follow",
+            from_fn_async(kernel_logs_follow)
+                .with_inherited(|params, _| params)
+                .no_cli(),
+        )
 }
 pub async fn cli_kernel_logs(
     ctx: CliContext,
-    (limit, cursor, before, follow): (Option<usize>, Option<String>, bool, bool),
+    _: Empty,
+    KernelLogsParams {
+        limit,
+        cursor,
+        before,
+        follow,
+    }: KernelLogsParams,
 ) -> Result<(), RpcError> {
     if follow {
         if cursor.is_some() {
@@ -349,15 +388,21 @@ pub async fn cli_kernel_logs(
 }
 pub async fn kernel_logs_nofollow(
     _ctx: (),
-    (limit, cursor, before, _): (Option<usize>, Option<String>, bool, bool),
+    _: Empty,
+    KernelLogsParams {
+        limit,
+        cursor,
+        before,
+        follow,
+    }: KernelLogsParams,
 ) -> Result<LogResponse, Error> {
     fetch_logs(LogSource::Kernel, limit, cursor, before).await
 }
 
-#[command(rpc_only, rename = "follow", display(display_none))]
 pub async fn kernel_logs_follow(
-    #[context] ctx: RpcContext,
-    #[parent_data] (limit, _, _, _): (Option<usize>, Option<String>, bool, bool),
+    ctx: RpcContext,
+    _: Empty,
+    KernelLogsParams { limit, .. }: KernelLogsParams,
 ) -> Result<LogFollowResponse, Error> {
     follow_logs(ctx, LogSource::Kernel, limit).await
 }
@@ -516,13 +561,15 @@ pub struct Metrics {
     disk: MetricsDisk,
 }
 
-#[command(display(display_serializable))]
-pub async fn metrics(
-    #[context] ctx: RpcContext,
-    #[allow(unused_variables)]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct MetricParams {
     #[arg(long = "format")]
     format: Option<IoFormat>,
-) -> Result<Metrics, Error> {
+}
+// #[command(display(display_serializable))]
+pub async fn metrics(ctx: RpcContext, _: MetricParams) -> Result<Metrics, Error> {
     match ctx.metrics_cache.read().await.clone() {
         None => Err(Error {
             source: color_eyre::eyre::eyre!("No Metrics Found"),
