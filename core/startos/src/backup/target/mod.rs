@@ -25,7 +25,7 @@ use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::PartitionInfo;
 use crate::prelude::*;
 use crate::util::serde::{deserialize_from_str, display_serializable, serialize_display};
-use crate::util::{display_none, Version};
+use crate::util::Version;
 
 pub mod cifs;
 
@@ -134,8 +134,8 @@ impl FileSystem for BackupTargetFS {
 pub fn target() -> ParentHandler {
     ParentHandler::new()
         .subcommand("cifs", cifs::cifs())
-        .subcommand_remote_cli::<CliContext, _, _>("list", from_fn_async(list))
-        .subcommand_remote_cli::<CliContext, _, _>("info", from_fn_async(info))
+        .subcommand("list", from_fn_async(list).remote_cli::<CliContext>())
+        .subcommand("info", from_fn_async(info).remote_cli::<CliContext>())
 }
 
 // #[command(display(display_serializable))]
@@ -311,16 +311,12 @@ pub async fn mount(
 #[command(rename_all = "kebab-case")]
 pub struct UmountParams {
     target_id: BackupTargetId,
-    password: String,
 }
 
 #[instrument(skip_all)]
 pub async fn umount(
     ctx: RpcContext,
-    UmountParams {
-        target_id,
-        password,
-    }: UmountParams,
+    UmountParams { target_id }: UmountParams,
 ) -> Result<(), Error> {
     let mut mounts = USER_MOUNTS.lock().await; // TODO: move to context
     if let Some(target_id) = target_id {
