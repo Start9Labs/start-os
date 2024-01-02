@@ -1,14 +1,14 @@
 use std::path::Path;
 
 use chrono::Utc;
-use clap::ArgMatches;
+use clap::Parser;
 use color_eyre::eyre::eyre;
-use rpc_toolkit::command;
+use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::{Error, ErrorKind};
 
@@ -50,14 +50,30 @@ impl std::str::FromStr for PubKey {
     }
 }
 
-#[command(subcommands(add, delete, list,))]
-pub fn ssh() -> Result<(), Error> {
-    Ok(())
+// #[command(subcommands(add, delete, list,))]
+pub fn ssh() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand("add", from_fn_async(add).no_display().no_cli())
+        .subcommand("delete", from_fn_async(delete).no_display().no_cli())
+        .subcommand(
+            "list",
+            from_fn_async(list)
+                .with_custom_display_fn(|handle, result| {
+                    Ok(display_all_ssh_keys(handle.params, result))
+                })
+                .no_cli(),
+        )
 }
 
-#[command(display(display_none))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct AddParams {
+    key: PubKey,
+}
+
 #[instrument(skip_all)]
-pub async fn add(#[context] ctx: RpcContext, #[arg] key: PubKey) -> Result<SshKeyResponse, Error> {
+pub async fn add(ctx: RpcContext, AddParams { key }: AddParams) -> Result<SshKeyResponse, Error> {
     let pool = &ctx.secret_store;
     // check fingerprint for duplicates
     let fp = key.0.fingerprint_md5();
@@ -90,9 +106,19 @@ pub async fn add(#[context] ctx: RpcContext, #[arg] key: PubKey) -> Result<SshKe
         Some(_) => Err(Error::new(eyre!("Duplicate ssh key"), ErrorKind::Duplicate)),
     }
 }
-#[command(display(display_none))]
+
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct DeleteParams {
+    fingerprint: String,
+}
+
 #[instrument(skip_all)]
-pub async fn delete(#[context] ctx: RpcContext, #[arg] fingerprint: String) -> Result<(), Error> {
+pub async fn delete(
+    ctx: RpcContext,
+    DeleteParams { fingerprint }: DeleteParams,
+) -> Result<(), Error> {
     let pool = &ctx.secret_store;
     // check if fingerprint is in DB
     // if in DB, remove it from DB
@@ -114,11 +140,11 @@ pub async fn delete(#[context] ctx: RpcContext, #[arg] fingerprint: String) -> R
     }
 }
 
-fn display_all_ssh_keys(all: Vec<SshKeyResponse>, matches: &ArgMatches) {
+fn display_all_ssh_keys(params: ListParams, result: Vec<SshKeyResponse>) {
     use prettytable::*;
 
-    if matches.is_present("format") {
-        return display_serializable(all, matches);
+    if let Some(format) = params.format {
+        return display_serializable(format, params);
     }
 
     let mut table = Table::new();
@@ -128,7 +154,7 @@ fn display_all_ssh_keys(all: Vec<SshKeyResponse>, matches: &ArgMatches) {
         "FINGERPRINT",
         "HOSTNAME",
     ]);
-    for key in all {
+    for key in result {
         let row = row![
             &format!("{}", key.created_at),
             &key.alg,
@@ -140,14 +166,16 @@ fn display_all_ssh_keys(all: Vec<SshKeyResponse>, matches: &ArgMatches) {
     table.print_tty(false).unwrap();
 }
 
-#[command(display(display_all_ssh_keys))]
-#[instrument(skip_all)]
-pub async fn list(
-    #[context] ctx: RpcContext,
-    #[allow(unused_variables)]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct ListParams {
     #[arg(long = "format")]
     format: Option<IoFormat>,
-) -> Result<Vec<SshKeyResponse>, Error> {
+}
+// #[command(display(display_all_ssh_keys))]
+#[instrument(skip_all)]
+pub async fn list(ctx: RpcContext, _: ListParams) -> Result<Vec<SshKeyResponse>, Error> {
     let pool = &ctx.secret_store;
     // list keys in DB and return them
     let entries = sqlx::query!("SELECT fingerprint, openssh_pubkey, created_at FROM ssh_keys")

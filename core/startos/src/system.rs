@@ -23,7 +23,7 @@ use crate::prelude::*;
 use crate::shutdown::Shutdown;
 use crate::util::cpupower::{get_available_governors, set_governor, Governor};
 use crate::util::serde::{display_serializable, IoFormat};
-use crate::util::{display_none, Invoke};
+use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
 pub async fn experimental() -> ParentHandler {
