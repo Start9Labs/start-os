@@ -2,11 +2,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use josekit::jwk::Jwk;
 use openssl::x509::X509;
-use rpc_toolkit::command;
-use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{command, ParentHandler};
+use rpc_toolkit::{from_fn_async, yajrc::RpcError};
 use serde::{Deserialize, Serialize};
 use sqlx::Connection;
 use tokio::fs::File;
@@ -36,18 +37,27 @@ use crate::prelude::*;
 use crate::util::io::{dir_copy, dir_size, Counter};
 use crate::{Error, ErrorKind, ResultExt};
 
-#[command(subcommands(status, disk, attach, execute, cifs, complete, get_pubkey, exit))]
-pub fn setup() -> Result<(), Error> {
-    Ok(())
+pub fn setup() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand("status", from_fn_async(status).no_display().no_cli())
+        .subcommand("disk", from_fn_async(disk).no_display().no_cli())
+        .subcommand("attach", from_fn_async(attach).no_display().no_cli())
+        .subcommand("execute", from_fn_async(execute).no_display().no_cli())
+        .subcommand("cifs", from_fn_async(cifs).no_display().no_cli())
+        .subcommand("complete", from_fn_async(complete).no_display().no_cli())
+        .subcommand(
+            "get-pubkey",
+            from_fn_async(get_pubkey).no_display().no_cli(),
+        )
+        .subcommand("exit", from_fn_async(exit).no_display().no_cli())
 }
 
-#[command(subcommands(list_disks))]
-pub fn disk() -> Result<(), Error> {
-    Ok(())
+pub fn disk() -> ParentHandler {
+    ParentHandler::new().subcommand("list", from_fn_async(list_disks).no_display().no_cli())
 }
 
-#[command(rename = "list", rpc_only, metadata(authenticated = false))]
-pub async fn list_disks(#[context] ctx: SetupContext) -> Result<Vec<DiskInfo>, Error> {
+// #[command(rename = "list", rpc_only, metadata(authenticated = false))]
+pub async fn list_disks(ctx: SetupContext) -> Result<Vec<DiskInfo>, Error> {
     crate::disk::util::list(&ctx.os_partitions).await
 }
 
@@ -82,11 +92,18 @@ async fn setup_init(
     ))
 }
 
-#[command(rpc_only)]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct AttachParams {
+    #[arg(rename = "embassy-password")]
+    password: Option<EncryptedWire>,
+    guid: Arc<String>,
+}
+
 pub async fn attach(
-    #[context] ctx: SetupContext,
-    #[arg] guid: Arc<String>,
-    #[arg(rename = "embassy-password")] password: Option<EncryptedWire>,
+    ctx: SetupContext,
+    AttachParams { password, guid }: AttachParams,
 ) -> Result<(), Error> {
     let mut status = ctx.setup_status.write().await;
     if status.is_some() {
@@ -169,8 +186,8 @@ pub struct SetupStatus {
     pub complete: bool,
 }
 
-#[command(rpc_only, metadata(authenticated = false))]
-pub async fn status(#[context] ctx: SetupContext) -> Result<Option<SetupStatus>, RpcError> {
+// #[command(rpc_only, metadata(authenticated = false))]
+pub async fn status(ctx: SetupContext) -> Result<Option<SetupStatus>, RpcError> {
     ctx.setup_status.read().await.clone().transpose()
 }
 
@@ -178,25 +195,36 @@ pub async fn status(#[context] ctx: SetupContext) -> Result<Option<SetupStatus>,
 /// This way the frontend can send a secret, like the password for the setup/ recovory
 /// without knowing the password over clearnet. We use the public key shared across the network
 /// since it is fine to share the public, and encrypt against the public.
-#[command(rename = "get-pubkey", rpc_only, metadata(authenticated = false))]
-pub async fn get_pubkey(#[context] ctx: SetupContext) -> Result<Jwk, RpcError> {
+// #[command(rename = "get-pubkey", rpc_only, metadata(authenticated = false))]
+pub async fn get_pubkey(ctx: SetupContext) -> Result<Jwk, RpcError> {
     let secret = ctx.as_ref().clone();
     let pub_key = secret.to_public_key()?;
     Ok(pub_key)
 }
 
-#[command(subcommands(verify_cifs))]
-pub fn cifs() -> Result<(), Error> {
-    Ok(())
+pub fn cifs() -> ParentHandler {
+    ParentHandler::new().subcommand("verify", from_fn_async(verify_cifs).no_cli())
 }
 
-#[command(rename = "verify", rpc_only)]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct VerifyCifsParams {
+    hostname: String,
+    path: PathBuf,
+    username: String,
+    password: Option<EncryptedWire>,
+}
+
+// #[command(rename = "verify", rpc_only)]
 pub async fn verify_cifs(
-    #[context] ctx: SetupContext,
-    #[arg] hostname: String,
-    #[arg] path: PathBuf,
-    #[arg] username: String,
-    #[arg] password: Option<EncryptedWire>,
+    ctx: SetupContext,
+    VerifyCifsParams {
+        hostname,
+        path,
+        username,
+        password,
+    }: VerifyCifsParams,
 ) -> Result<EmbassyOsRecoveryInfo, Error> {
     let password: Option<String> = password.map(|x| x.decrypt(&*ctx)).flatten();
     let guard = TmpMountGuard::mount(
@@ -222,13 +250,29 @@ pub enum RecoverySource {
     Backup { target: BackupTargetFS },
 }
 
-#[command(rpc_only)]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct ExecuteParams {
+    #[arg(rename = "embassy-logicalname")]
+    embassy_logicalname: PathBuf,
+    #[arg(rename = "embassy-password")]
+    embassy_password: EncryptedWire,
+    #[arg(rename = "recovery-source")]
+    recovery_source: Option<RecoverySource>,
+    #[arg(rename = "recovery-password")]
+    recovery_password: Option<EncryptedWire>,
+}
+
+// #[command(rpc_only)]
 pub async fn execute(
-    #[context] ctx: SetupContext,
-    #[arg(rename = "embassy-logicalname")] embassy_logicalname: PathBuf,
-    #[arg(rename = "embassy-password")] embassy_password: EncryptedWire,
-    #[arg(rename = "recovery-source")] recovery_source: Option<RecoverySource>,
-    #[arg(rename = "recovery-password")] recovery_password: Option<EncryptedWire>,
+    ctx: SetupContext,
+    ExecuteParams {
+        embassy_logicalname,
+        embassy_password,
+        recovery_source,
+        recovery_password,
+    }: ExecuteParams,
 ) -> Result<(), Error> {
     let embassy_password = match embassy_password.decrypt(&*ctx) {
         Some(a) => a,
@@ -312,8 +356,8 @@ pub async fn execute(
 }
 
 #[instrument(skip_all)]
-#[command(rpc_only)]
-pub async fn complete(#[context] ctx: SetupContext) -> Result<SetupResult, Error> {
+// #[command(rpc_only)]
+pub async fn complete(ctx: SetupContext) -> Result<SetupResult, Error> {
     let (guid, setup_result) = if let Some((guid, setup_result)) = &*ctx.setup_result.read().await {
         (guid.clone(), setup_result.clone())
     } else {
@@ -329,8 +373,8 @@ pub async fn complete(#[context] ctx: SetupContext) -> Result<SetupResult, Error
 }
 
 #[instrument(skip_all)]
-#[command(rpc_only)]
-pub async fn exit(#[context] ctx: SetupContext) -> Result<(), Error> {
+// #[command(rpc_only)]
+pub async fn exit(ctx: SetupContext) -> Result<(), Error> {
     ctx.shutdown.send(()).expect("failed to shutdown");
     Ok(())
 }
