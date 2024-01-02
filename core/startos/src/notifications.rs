@@ -3,9 +3,12 @@ use std::fmt;
 use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use models::PackageId;
 use rpc_toolkit::command;
+use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tokio::sync::Mutex;
 use tracing::instrument;
@@ -13,21 +16,33 @@ use tracing::instrument;
 use crate::backup::BackupReport;
 use crate::context::RpcContext;
 use crate::prelude::*;
-use crate::util::display_none;
-use crate::util::serde::display_serializable;
 use crate::{Error, ErrorKind, ResultExt};
 
-#[command(subcommands(list, delete, delete_before, create))]
-pub async fn notification() -> Result<(), Error> {
-    Ok(())
+// #[command(subcommands(list, delete, delete_before, create))]
+pub async fn notification() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand("list", from_fn_async(list).no_display().no_cli())
+        .subcommand("delete", from_fn_async(delete).no_display().no_cli())
+        .subcommand(
+            "delete-before",
+            from_fn_async(delete_before).no_display().no_cli(),
+        )
+        .subcommand("create", from_fn_async(create).no_display().no_cli())
 }
 
-#[command(display(display_serializable))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct ListParams {
+    before: Option<i32>,
+
+    limit: Option<u32>,
+}
+// #[command(display(display_serializable))]
 #[instrument(skip_all)]
 pub async fn list(
-    #[context] ctx: RpcContext,
-    #[arg] before: Option<i32>,
-    #[arg] limit: Option<u32>,
+    ctx: RpcContext,
+    ListParams { before, limit }: ListParams,
 ) -> Result<Vec<Notification>, Error> {
     let limit = limit.unwrap_or(40);
     match before {
@@ -115,29 +130,53 @@ pub async fn list(
     }
 }
 
-#[command(display(display_none))]
-pub async fn delete(#[context] ctx: RpcContext, #[arg] id: i32) -> Result<(), Error> {
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct DeleteParams {
+    id: i32,
+}
+
+pub async fn delete(ctx: RpcContext, DeleteParams { id }: DeleteParams) -> Result<(), Error> {
     sqlx::query!("DELETE FROM notifications WHERE id = $1", id)
         .execute(&ctx.secret_store)
         .await?;
     Ok(())
 }
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct DeleteBeforeParams {
+    before: i32,
+}
 
-#[command(rename = "delete-before", display(display_none))]
-pub async fn delete_before(#[context] ctx: RpcContext, #[arg] before: i32) -> Result<(), Error> {
+pub async fn delete_before(
+    ctx: RpcContext,
+    DeleteBeforeParams { before }: DeleteBeforeParams,
+) -> Result<(), Error> {
     sqlx::query!("DELETE FROM notifications WHERE id < $1", before)
         .execute(&ctx.secret_store)
         .await?;
     Ok(())
 }
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct CreateParams {
+    package: Option<PackageId>,
+    level: NotificationLevel,
+    title: String,
+    message: String,
+}
 
-#[command(display(display_none))]
 pub async fn create(
-    #[context] ctx: RpcContext,
-    #[arg] package: Option<PackageId>,
-    #[arg] level: NotificationLevel,
-    #[arg] title: String,
-    #[arg] message: String,
+    ctx: RpcContext,
+    CreateParams {
+        package,
+        level,
+        title,
+        message,
+    }: CreateParams,
 ) -> Result<(), Error> {
     ctx.notification_manager
         .notify(ctx.db.clone(), package, level, title, message, (), None)
