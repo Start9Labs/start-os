@@ -2,11 +2,11 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use chrono::Utc;
-use clap::{ArgMatches, Parser};
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
-use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{command, from_fn_async, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{yajrc::RpcError, AnyContext};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::process::Command;
 use tokio::sync::broadcast::Receiver;
@@ -239,8 +239,8 @@ pub struct LogsParams {
     follow: bool,
 }
 
-pub async fn logs() -> ParentHandler {
-    ParentHandler::<LogsParams>::new()
+pub async fn logs() -> ParentHandler<LogsParams> {
+    ParentHandler::new()
         .root_handler(
             from_fn_async(cli_logs)
                 .no_display()
@@ -288,13 +288,13 @@ pub async fn cli_logs(
     }
 }
 pub async fn logs_nofollow(
-    _ctx: (),
+    _ctx: AnyContext,
     _: Empty,
     LogsParams {
         limit,
         cursor,
         before,
-        follow,
+        ..
     }: LogsParams,
 ) -> Result<LogResponse, Error> {
     fetch_logs(LogSource::System, limit, cursor, before).await
@@ -303,12 +303,7 @@ pub async fn logs_nofollow(
 pub async fn logs_follow(
     ctx: RpcContext,
     _: Empty,
-    LogsParams {
-        limit,
-        cursor,
-        before,
-        follow,
-    }: LogsParams,
+    LogsParams { limit, .. }: LogsParams,
 ) -> Result<LogFollowResponse, Error> {
     follow_logs(ctx, LogSource::System, limit).await
 }
@@ -327,8 +322,8 @@ pub struct KernelLogsParams {
     #[serde(default)]
     follow: bool,
 }
-pub async fn kernel_logs() -> ParentHandler {
-    ParentHandler::<KernelLogsParams>::new()
+pub async fn kernel_logs() -> ParentHandler<KernelLogsParams> {
+    ParentHandler::new()
         .root_handler(
             from_fn_async(cli_kernel_logs)
                 .no_display()
@@ -375,13 +370,13 @@ pub async fn cli_kernel_logs(
     }
 }
 pub async fn kernel_logs_nofollow(
-    _ctx: (),
+    _ctx: AnyContext,
     _: Empty,
     KernelLogsParams {
         limit,
         cursor,
         before,
-        follow,
+        ..
     }: KernelLogsParams,
 ) -> Result<LogResponse, Error> {
     fetch_logs(LogSource::Kernel, limit, cursor, before).await
