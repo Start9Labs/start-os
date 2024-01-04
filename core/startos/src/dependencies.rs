@@ -65,9 +65,9 @@ pub struct ConfigureParams {
     #[arg(rename = "dependency-id")]
     dependency_id: PackageId,
 }
-pub async fn configure() -> ParentHandler {
+pub async fn configure() -> ParentHandler<ConfigureParams> {
     ParentHandler::new()
-        .roothandler(
+        .root_handler(
             from_fn_async(configure_impl)
                 .with_inherited(|params, _| params)
                 .no_cli(),
