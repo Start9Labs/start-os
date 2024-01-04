@@ -142,13 +142,15 @@ pub struct ConfigParams {
 
 // #[command(subcommands(get, set))]
 pub fn config() -> ParentHandler<ConfigParams> {
-    ParentHandler::new().subcommand(
-        "get",
-        from_fn_async(get)
-            .with_inherited(|ConfigParams { id }, _| id)
-            // .with_display_serializable() // TODO
-            .with_remote_cli::<CliContext>(),
-    )
+    ParentHandler::new()
+        .subcommand(
+            "get",
+            from_fn_async(get)
+                .with_inherited(|ConfigParams { id }, _| id)
+                // .with_display_serializable() // TODO
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand("set", set())
 }
 
 #[instrument(skip_all)]

@@ -7,7 +7,7 @@ use rpc_toolkit::{command, from_fn_async, AnyContext, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 
-use crate::context::InstallContext;
+use crate::context::{CliContext, InstallContext};
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::efivarfs::EfiVarFs;
@@ -34,12 +34,27 @@ pub struct PostInstallConfig {
 pub fn install() -> ParentHandler {
     ParentHandler::new()
         .subcommand("disk", disk())
-        .subcommand("execute", from_fn_async(execute).no_display())
-        .subcommand("reboot", from_fn_async(reboot).no_display())
+        .subcommand(
+            "execute",
+            from_fn_async(execute)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "reboot",
+            from_fn_async(reboot)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
 }
 
 pub fn disk() -> ParentHandler {
-    ParentHandler::new().subcommand("list", from_fn_async(list).no_display())
+    ParentHandler::new().subcommand(
+        "list",
+        from_fn_async(list)
+            .no_display()
+            .with_remote_cli::<CliContext>(),
+    )
 }
 
 pub async fn list() -> Result<Vec<DiskInfo>, Error> {

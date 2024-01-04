@@ -12,10 +12,10 @@ use crate::Error;
 
 pub fn inspect() -> ParentHandler {
     ParentHandler::new()
-        .subcommand("hash", from_fn_async(hash).with_remote_cli::<CliContext>())
+        .subcommand("hash", from_fn_async(hash))
         .subcommand(
             "manifest",
-            from_fn_async(manifest).with_remote_cli::<CliContext>(),
+            from_fn_async(manifest).with_display_serializable(),
         )
         .subcommand("license", from_fn_async(license).no_display())
         .subcommand("icon", from_fn_async(icon).no_display())

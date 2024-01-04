@@ -134,8 +134,8 @@ impl FileSystem for BackupTargetFS {
 pub fn target() -> ParentHandler {
     ParentHandler::new()
         .subcommand("cifs", cifs::cifs())
-        .subcommand("list", from_fn_async(list).remote_cli::<CliContext>())
-        .subcommand("info", from_fn_async(info).remote_cli::<CliContext>())
+        .subcommand("list", from_fn_async(list).with_remote_cli::<CliContext>())
+        .subcommand("info", from_fn_async(info).with_remote_cli::<CliContext>())
 }
 
 // #[command(display(display_serializable))]

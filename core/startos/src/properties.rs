@@ -1,4 +1,4 @@
-use clap::{ArgMatches, Parser};
+use clap::Parser;
 use models::PackageId;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};

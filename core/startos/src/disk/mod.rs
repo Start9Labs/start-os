@@ -4,7 +4,7 @@ use clap::Parser;
 use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::disk::util::DiskInfo;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::Error;
@@ -45,11 +45,18 @@ pub fn disk() -> ParentHandler {
     ParentHandler::new()
         .subcommand(
             "list",
-            from_fn_async(list).with_custom_display_fn(|handle, result| {
-                Ok(display_disk_info(handle.params, result))
-            }),
+            from_fn_async(list)
+                .with_custom_display_fn(|handle, result| {
+                    Ok(display_disk_info(handle.params, result))
+                })
+                .with_remote_cli::<CliContext>(),
         )
-        .subcommand("repair", from_fn_async(repair).no_display())
+        .subcommand(
+            "repair",
+            from_fn_async(repair)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
 }
 
 fn display_disk_info(params: ListParams, args: Vec<DiskInfo>) {

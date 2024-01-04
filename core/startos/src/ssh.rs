@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 use tracing::instrument;
 
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::{Error, ErrorKind};
 
@@ -53,15 +53,25 @@ impl std::str::FromStr for PubKey {
 // #[command(subcommands(add, delete, list,))]
 pub fn ssh() -> ParentHandler {
     ParentHandler::new()
-        .subcommand("add", from_fn_async(add).no_display().no_cli())
-        .subcommand("delete", from_fn_async(delete).no_display().no_cli())
+        .subcommand(
+            "add",
+            from_fn_async(add)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "delete",
+            from_fn_async(delete)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
         .subcommand(
             "list",
             from_fn_async(list)
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_all_ssh_keys(handle.params, result))
                 })
-                .no_cli(),
+                .with_remote_cli::<CliContext>(),
         )
 }
 

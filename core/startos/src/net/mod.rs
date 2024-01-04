@@ -28,9 +28,11 @@ pub fn net() -> ParentHandler {
         .subcommand("ssl", ssl::ssl())
         .subcommand(
             "rotate-key",
-            from_fn_async(keys::rotate_key).with_custom_display_fn(|handle, result| {
-                Ok(keys::display_requires_reboot(handle.params, result))
-            }),
+            from_fn_async(keys::rotate_key)
+                .with_custom_display_fn(|handle, result| {
+                    Ok(keys::display_requires_reboot(handle.params, result))
+                })
+                .with_remote_cli::<CliContext>(),
         )
 }
 

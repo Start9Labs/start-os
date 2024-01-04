@@ -10,7 +10,7 @@ use tracing::instrument;
 
 use crate::config::spec::PackagePointerSpec;
 use crate::config::{Config, ConfigSpec, ConfigureContext};
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::db::model::{CurrentDependencies, Database};
 use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
@@ -20,7 +20,12 @@ use crate::util::Version;
 use crate::Error;
 
 pub fn dependency() -> ParentHandler {
-    ParentHandler::new().subcommand("configure", from_fn_async(configure).no_display())
+    ParentHandler::new().subcommand(
+        "configure",
+        from_fn_async(configure)
+            .no_display()
+            .with_remote_cli::<CliContext>(),
+    )
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
@@ -78,7 +83,8 @@ pub async fn configure() -> ParentHandler<ConfigureParams> {
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_serializable(handle.params, result))
                 })
-                .with_inherited(|params, _| params),
+                .with_inherited(|params, _| params)
+                .with_remote_cli::<CliContext>(),
         )
 }
 

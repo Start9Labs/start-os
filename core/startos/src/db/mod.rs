@@ -176,9 +176,14 @@ pub async fn subscribe(ctx: RpcContext, req: Request<Body>) -> Result<Response<B
 
 pub fn db() -> ParentHandler {
     ParentHandler::new()
-        .subcommand("dump", from_fn_async(dump))
+        .subcommand("dump", from_fn_async(dump).with_remote_cli::<CliContext>())
         .subcommand("put", put())
-        .subcommand("apply", from_fn_async(apply).no_display())
+        .subcommand(
+            "apply",
+            from_fn_async(apply)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
 }
 
 #[derive(Deserialize, Serialize)]
@@ -351,7 +356,7 @@ pub async fn apply(ctx: RpcContext, ApplyParams { expr, path }: ApplyParams) -> 
 }
 
 pub fn put() -> ParentHandler {
-    ParentHandler::new().subcommand("ui", from_fn_async(ui))
+    ParentHandler::new().subcommand("ui", from_fn_async(ui).with_remote_cli::<CliContext>())
 }
 #[derive(Deserialize, Serialize, Parser)]
 #[serde(rename_all = "kebab-case")]

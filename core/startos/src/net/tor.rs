@@ -58,12 +58,19 @@ pub fn tor() -> ParentHandler {
     ParentHandler::new()
         .subcommand(
             "list-services",
-            from_fn_async(list_services).with_custom_display_fn(|handle, result| {
-                Ok(display_services(handle.params, result))
-            }),
+            from_fn_async(list_services)
+                .with_custom_display_fn(|handle, result| {
+                    Ok(display_services(handle.params, result))
+                })
+                .with_remote_cli::<CliContext>(),
         )
-        .subcommand("logs", from_fn_async(logs))
-        .subcommand("reset", from_fn_async(reset).no_display())
+        .subcommand("logs", logs())
+        .subcommand(
+            "reset",
+            from_fn_async(reset)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
 }
 #[derive(Deserialize, Serialize, Parser)]
 #[serde(rename_all = "kebab-case")]

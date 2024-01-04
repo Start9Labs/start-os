@@ -19,7 +19,6 @@ use tracing::instrument;
 use crate::account::AccountInfo;
 use crate::backup::restore::recover_full_embassy;
 use crate::backup::target::BackupTargetFS;
-use crate::context::rpc::RpcContextConfig;
 use crate::context::setup::SetupResult;
 use crate::context::SetupContext;
 use crate::disk::fsck::RepairStrategy;
@@ -31,9 +30,9 @@ use crate::disk::util::{pvscan, recovery_info, DiskInfo, EmbassyOsRecoveryInfo};
 use crate::disk::REPAIR_DISK_PATH;
 use crate::hostname::Hostname;
 use crate::init::{init, InitResult};
-use crate::middleware::encrypt::EncryptedWire;
 use crate::net::ssl::root_ca_start_time;
 use crate::prelude::*;
+use crate::util::crypto::EncryptedWire;
 use crate::util::io::{dir_copy, dir_size, Counter};
 use crate::{Error, ErrorKind, ResultExt};
 
@@ -76,8 +75,7 @@ async fn setup_init(
     ctx: &SetupContext,
     password: Option<String>,
 ) -> Result<(Hostname, OnionAddressV3, X509), Error> {
-    let InitResult { secret_store, db } =
-        init(&RpcContextConfig::load(ctx.config_path.clone()).await?).await?;
+    let InitResult { secret_store, db } = init(&ctx.config).await?;
     let mut secrets_handle = secret_store.acquire().await?;
     let mut secrets_tx = secrets_handle.begin().await?;
 
@@ -436,8 +434,7 @@ async fn fresh_setup(
     let sqlite_pool = ctx.secret_store().await?;
     account.save(&sqlite_pool).await?;
     sqlite_pool.close().await;
-    let InitResult { secret_store, .. } =
-        init(&RpcContextConfig::load(ctx.config_path.clone()).await?).await?;
+    let InitResult { secret_store, .. } = init(&ctx.config).await?;
     secret_store.close().await;
     Ok((
         account.hostname.clone(),

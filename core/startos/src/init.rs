@@ -4,7 +4,6 @@ use std::path::Path;
 use std::time::{Duration, SystemTime};
 
 use color_eyre::eyre::eyre;
-
 use models::ResultExt;
 use rand::random;
 use sqlx::{Pool, Postgres};
@@ -12,16 +11,13 @@ use tokio::process::Command;
 use tracing::instrument;
 
 use crate::account::AccountInfo;
-use crate::context::rpc::RpcContextConfig;
+use crate::context::config::ServerConfig;
 use crate::db::model::ServerStatus;
 use crate::disk::mount::util::unmount;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
-
-use crate::util::cpupower::{
-    get_available_governors, get_preferred_governor, set_governor,
-};
+use crate::util::cpupower::{get_available_governors, get_preferred_governor, set_governor};
 use crate::util::docker::{create_bridge_network, CONTAINER_DATADIR, CONTAINER_TOOL};
 use crate::util::Invoke;
 use crate::{Error, ARCH};
@@ -190,7 +186,7 @@ pub struct InitResult {
 }
 
 #[instrument(skip_all)]
-pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
+pub async fn init(cfg: &ServerConfig) -> Result<InitResult, Error> {
     tokio::fs::create_dir_all("/run/embassy")
         .await
         .with_ctx(|_| (crate::ErrorKind::Filesystem, "mkdir -p /run/embassy"))?;
