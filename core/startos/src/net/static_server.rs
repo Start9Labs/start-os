@@ -5,6 +5,11 @@ use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
 use async_compression::tokio::bufread::GzipEncoder;
+use axum::{
+    extract::{self as x, State},
+    routing::{any, any_service},
+    Router,
+};
 use digest::Digest;
 use futures::future::ready;
 use futures::FutureExt;
@@ -17,7 +22,7 @@ use include_dir::{include_dir, Dir};
 use new_mime_guess::MimeGuess;
 use openssl::hash::MessageDigest;
 use openssl::x509::X509;
-use rpc_toolkit::{BoxBody, Server};
+use rpc_toolkit::Server;
 use tokio::fs::File;
 use tokio::io::BufReader;
 use tokio_util::io::ReaderStream;
@@ -65,136 +70,99 @@ impl UiMode {
     }
 }
 
-pub async fn setup_ui_file_router(ctx: SetupContext) -> Result<HttpHandler, Error> {
-    let server =
-        Arc::new(Server::new(move || ready(Ok(ctx.clone())), setup_api()).middleware(Cors::new()));
-    let handler: HttpHandler = Arc::new(move |req| {
-        let server = server.clone();
-
-        let ui_mode = UiMode::Setup;
-        async move {
-            let res = match req.uri().path() {
-                path if path.starts_with("/rpc/") => Ok(server.handle(req).await),
-                _ => alt_ui(req, ui_mode).await,
-            };
-
-            match res {
-                Ok(data) => Ok(data),
-                Err(err) => Ok(server_error(err)),
-            }
-        }
-        .boxed()
-    });
-
-    Ok(handler)
+pub fn setup_ui_file_router(ctx: SetupContext) -> Router {
+    Router::new()
+        .route_service(
+            "/rpc/*path",
+            any_service(
+                Server::new(move || ready(Ok(ctx.clone())), setup_api()).middleware(Cors::new()),
+            ),
+        )
+        .fallback(any(|request: Request| alt_ui(request, UiMode::Setup)))
 }
 
-pub async fn diag_ui_file_router(ctx: DiagnosticContext) -> Result<HttpHandler, Error> {
-    let server = Arc::new(
-        Server::new(move || ready(Ok(ctx.clone())), diagnostic_api())
-            .middleware(Cors::new())
-            .middleware(DiagnosticMode::new()),
-    );
-    let handler: HttpHandler = Arc::new(move |req| {
-        let ctx = ctx.clone();
-        let ui_mode = UiMode::Diag;
-        async move {
-            let res = match req.uri().path() {
-                path if path.starts_with("/rpc/") => server.handle(req),
-                _ => alt_ui(req, ui_mode).await,
-            };
-
-            match res {
-                Ok(data) => Ok(data),
-                Err(err) => Ok(server_error(err)),
-            }
-        }
-        .boxed()
-    });
-
-    Ok(handler)
+pub fn diag_ui_file_router(ctx: DiagnosticContext) -> Router {
+    Router::new()
+        .route(
+            "/rpc/*path",
+            any(
+                Server::new(move || ready(Ok(ctx.clone())), diagnostic_api())
+                    .middleware(Cors::new())
+                    .middleware(DiagnosticMode::new()),
+            ),
+        )
+        .fallback(any(|request: Request| alt_ui(request, UiMode::Diag)))
 }
 
-pub async fn install_ui_file_router(ctx: InstallContext) -> Result<HttpHandler, Error> {
-    let server = Arc::new(
-        Server::new(move || ready(Ok(ctx.clone())), install_api()).middleware(Cors::new()),
-    );
-    let handler: HttpHandler = Arc::new(move |req| {
-        let ctx = ctx.clone();
-        let ui_mode = UiMode::Install;
-        async move {
-            let res = match req.uri().path() {
-                path if path.starts_with("/rpc/") => Ok(server.handle(req).await),
-                _ => alt_ui(req, ui_mode).await,
-            };
-
-            match res {
-                Ok(data) => Ok(data),
-                Err(err) => Ok(server_error(err)),
-            }
-        }
-        .boxed()
-    });
-
-    Ok(handler)
+pub async fn install_ui_file_router(ctx: InstallContext) -> Router {
+    Router::new()
+        .route(
+            "/rpc/*path",
+            any(Server::new(move || ready(Ok(ctx.clone())), install_api()).middleware(Cors::new())),
+        )
+        .fallback(any(|request: Request| alt_ui(request, UiMode::Install)))
 }
 
-pub async fn main_ui_server_router(ctx: RpcContext) -> Result<HttpHandler, Error> {
-    let server = Arc::new(
-        Server::new(move || ready(Ok(ctx.clone())), main_api())
-            .middleware(Cors::new())
-            .middleware(Auth::new())
-            .middleware(SyncDb::new()),
-    );
-    let handler: HttpHandler = Arc::new(move |req| {
-        let server = server.clone();
-
-        async move {
-            let res = match req.uri().path() {
-                path if path.starts_with("/rpc/") => Ok(server.handle(req).await),
-                "/ws/db" => subscribe(ctx, req).await,
-                path if path.starts_with("/ws/rpc/") => {
-                    match RequestGuid::from(path.strip_prefix("/ws/rpc/").unwrap()) {
+pub async fn main_ui_server_router(ctx: RpcContext) -> Router<RpcContext> {
+    Router::new()
+        .with_state(ctx.clone())
+        .route(
+            "/rpc/*path",
+            any(Server::new(move || ready(Ok(ctx.clone())), main_api())
+                .middleware(Cors::new())
+                .middleware(Auth::new())),
+        )
+        .route(
+            "/ws/db",
+            any(|request: Request, State(ctx): State<RpcContext>| subscribe(ctx, request)),
+        )
+        .route(
+            "/ws/rpc/*path",
+            any(
+                |request: Request,
+                 x::Path(path): x::Path<String>,
+                 State(ctx): State<RpcContext>| async move {
+                    match RequestGuid::from(&path) {
                         None => {
                             tracing::debug!("No Guid Path");
                             Ok::<_, Error>(bad_request())
                         }
                         Some(guid) => match ctx.get_ws_continuation_handler(&guid).await {
-                            Some(cont) => match cont(req).await {
+                            Some(cont) => match cont(request).await {
                                 Ok::<_, Error>(r) => Ok::<_, Error>(r),
                                 Err(err) => Ok::<_, Error>(server_error(err)),
                             },
                             _ => Ok::<_, Error>(not_found()),
                         },
                     }
-                }
-                path if path.starts_with("/rest/rpc/") => {
-                    match RequestGuid::from(path.strip_prefix("/rest/rpc/").unwrap()) {
+                },
+            ),
+        )
+        .route(
+            "/rest/rpc/*path",
+            any(
+                |request: Request,
+                 x::Path(path): x::Path<String>,
+                 State(ctx): State<RpcContext>| async move {
+                    match RequestGuid::from(&path) {
                         None => {
                             tracing::debug!("No Guid Path");
                             Ok::<_, Error>(bad_request())
                         }
                         Some(guid) => match ctx.get_rest_continuation_handler(&guid).await {
                             None => Ok::<_, Error>(not_found()),
-                            Some(cont) => match cont(req).await {
+                            Some(cont) => match cont(request).await {
                                 Ok::<_, Error>(r) => Ok::<_, Error>(r),
                                 Err(e) => Ok::<_, Error>(server_error(e)),
                             },
                         },
                     }
-                }
-                _ => main_embassy_ui(req, ctx).await,
-            };
-
-            match res {
-                Ok(data) => Ok(data),
-                Err(err) => Ok(server_error(err)),
-            }
-        }
-        .boxed()
-    });
-
-    Ok(handler)
+                },
+            ),
+        )
+        .fallback(any(|request: Request| {
+            main_embassy_ui(request, UiMode::Main)
+        }))
 }
 
 async fn alt_ui(req: Request<Incoming>, ui_mode: UiMode) -> Result<Response<BoxBody>, Error> {

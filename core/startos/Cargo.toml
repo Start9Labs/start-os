@@ -44,6 +44,7 @@ async-compression = { version = "0.4.4", features = [
 ] }
 async-stream = "0.3.5"
 async-trait = "0.1.74"
+axum = "0.7.3"
 avahi-sys = { git = "https://github.com/Start9Labs/avahi-sys", version = "0.10.0", branch = "feature/dynamic-linking", features = [
   "dynamic",
 ], optional = true }
