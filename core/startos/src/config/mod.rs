@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use clap::{CommandFactory, FromArgMatches, Parser};
 use color_eyre::eyre::eyre;
 use indexmap::IndexSet;
 use itertools::Itertools;
@@ -10,10 +11,11 @@ use models::{ErrorKind, OptionExt, PackageId, ProcedureName};
 use patch_db::value::InternedString;
 use patch_db::Value;
 use regex::Regex;
-use rpc_toolkit::command;
+use rpc_toolkit::{from_fn_async, Empty, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
@@ -131,40 +133,26 @@ pub enum MatchError {
     ListUniquenessViolation,
 }
 
-#[command(rename = "config-spec", cli_only, blocking, display(display_none))]
-pub fn verify_spec(#[arg] path: PathBuf) -> Result<(), Error> {
-    let mut file = std::fs::File::open(&path)?;
-    let format = match path.extension().and_then(|s| s.to_str()) {
-        Some("yaml") | Some("yml") => IoFormat::Yaml,
-        Some("json") => IoFormat::Json,
-        Some("toml") => IoFormat::Toml,
-        Some("cbor") => IoFormat::Cbor,
-        _ => {
-            return Err(Error::new(
-                eyre!("Unknown file format. Expected one of yaml, json, toml, cbor."),
-                crate::ErrorKind::Deserialization,
-            ));
-        }
-    };
-    let _: ConfigSpec = format.from_reader(&mut file)?;
-
-    Ok(())
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct ConfigParams {
+    pub id: PackageId,
 }
 
-#[command(subcommands(get, set))]
-pub fn config(#[arg] id: PackageId) -> Result<PackageId, Error> {
-    Ok(id)
+// #[command(subcommands(get, set))]
+pub fn config() -> ParentHandler<ConfigParams> {
+    ParentHandler::new().subcommand(
+        "get",
+        from_fn_async(get)
+            .with_inherited(|ConfigParams { id }, _| id)
+            // .with_display_serializable() // TODO
+            .with_remote_cli::<CliContext>(),
+    )
 }
 
-#[command(display(display_serializable))]
 #[instrument(skip_all)]
-pub async fn get(
-    #[context] ctx: RpcContext,
-    #[parent_data] id: PackageId,
-    #[allow(unused_variables)]
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
-) -> Result<ConfigRes, Error> {
+pub async fn get(ctx: RpcContext, _: Empty, id: PackageId) -> Result<ConfigRes, Error> {
     let db = ctx.db.peek().await;
     let manifest = db
         .as_package_data()
@@ -188,35 +176,97 @@ pub async fn get(
         .map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::ConfigGen))
 }
 
-#[command(
-    subcommands(self(set_impl(async, context(RpcContext))), set_dry),
-    display(display_none),
-    metadata(sync_db = true)
-)]
-#[instrument(skip_all)]
-pub fn set(
-    #[parent_data] id: PackageId,
-    #[allow(unused_variables)]
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
-    #[arg(long = "timeout")] timeout: Option<crate::util::serde::Duration>,
-    #[arg(stdin, parse(parse_stdin_deserializable))] config: Option<Config>,
-) -> Result<(PackageId, Option<Config>, Option<Duration>), Error> {
-    Ok((id, config, timeout.map(|d| *d)))
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct SetParams {
+    // #[arg(long = "timeout")]
+    pub timeout: Option<crate::util::serde::Duration>,
+    pub config: Option<Config>,
+}
+impl CommandFactory for SetParams {
+    fn command() -> clap::Command {
+        #[derive(Parser)]
+        #[command(rename_all = "kebab-case")]
+        struct CliParams {
+            #[arg(long = "timeout")]
+            timeout: Option<crate::util::serde::Duration>,
+        }
+        CliParams::command()
+    }
+    fn command_for_update() -> clap::Command {
+        #[derive(Parser)]
+        #[command(rename_all = "kebab-case")]
+        struct CliParams {
+            #[arg(long = "timeout")]
+            timeout: Option<crate::util::serde::Duration>,
+        }
+        CliParams::command_for_update()
+    }
+}
+impl FromArgMatches for SetParams {
+    fn from_arg_matches(matches: &clap::ArgMatches) -> Result<Self, clap::Error> {
+        #[derive(Parser)]
+        #[command(rename_all = "kebab-case")]
+        struct CliParams {
+            #[arg(long = "timeout")]
+            timeout: Option<crate::util::serde::Duration>,
+        }
+        let CliParams { timeout } = CliParams::from_arg_matches(matches)?;
+        Ok(SetParams {
+            timeout,
+            config: parse_stdin_deserializable(&mut std::io::stdin(), matches)?, // TODO
+        })
+    }
+    fn update_from_arg_matches(&mut self, matches: &clap::ArgMatches) -> Result<(), clap::Error> {
+        // #[derive(Parser)]
+        // #[command(rename_all = "kebab-case")]
+        // struct CliParams {
+        //     #[arg(long = "timeout")]
+        //     timeout: Option<crate::util::serde::Duration>,
+        // }
+        // let CliParams { timeout } = CliParams::from_arg_matches(matches)?;
+        // self.timeout = timeout;
+        // Ok(())
+        unimplemented!()
+    }
 }
 
-#[command(rename = "dry", display(display_serializable))]
+// TODO Dr Why isn't this used?
+// #[command(
+//     subcommands(self(set_impl(async, context(RpcContext))), set_dry),
+//     display(display_none),
+//     metadata(sync_db = true)
+// )]
 #[instrument(skip_all)]
+pub fn set() -> ParentHandler<SetParams, PackageId> {
+    ParentHandler::new()
+        .root_handler(
+            from_fn_async(set_impl)
+                .metadata("sync_db", Value::Boolean(true))
+                .with_inherited(|set_params, id| (id, set_params))
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "dry",
+            from_fn_async(set_dry)
+                .with_inherited(|set_params, id| (id, set_params))
+                .with_display_serializable()
+                .with_remote_cli::<CliContext>(),
+        )
+}
+
 pub async fn set_dry(
-    #[context] ctx: RpcContext,
-    #[parent_data] (id, config, timeout): (PackageId, Option<Config>, Option<Duration>),
+    ctx: RpcContext,
+    _: Empty,
+    (id, SetParams { timeout, config }): (PackageId, SetParams),
 ) -> Result<BTreeMap<PackageId, String>, Error> {
     let breakages = BTreeMap::new();
     let overrides = Default::default();
 
     let configure_context = ConfigureContext {
         breakages,
-        timeout,
+        timeout: timeout.map(|t| *t),
         config,
         dry_run: true,
         overrides,
@@ -237,14 +287,15 @@ pub struct ConfigureContext {
 #[instrument(skip_all)]
 pub async fn set_impl(
     ctx: RpcContext,
-    (id, config, timeout): (PackageId, Option<Config>, Option<Duration>),
+    _: Empty,
+    (id, SetParams { timeout, config }): (PackageId, SetParams),
 ) -> Result<(), Error> {
     let breakages = BTreeMap::new();
     let overrides = Default::default();
 
     let configure_context = ConfigureContext {
         breakages,
-        timeout,
+        timeout: timeout.map(|t| *t),
         config,
         dry_run: false,
         overrides,

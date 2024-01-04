@@ -1,16 +1,17 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use console::style;
 use futures::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::{header, Body, Client, Url};
 use rpc_toolkit::command;
+use serde::{Deserialize, Serialize};
 
-use crate::s9pk::reader::S9pkReader;
+use crate::context::CliContext;
 use crate::s9pk::S9pk;
-use crate::util::display_none;
 use crate::{Error, ErrorKind};
 
 async fn registry_user_pass(location: &str) -> Result<(Url, String, String), Error> {
@@ -89,13 +90,29 @@ async fn do_upload(
     Ok(())
 }
 
-#[command(cli_only, display(display_none))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct PublishParams {
+    location: String,
+    path: PathBuf,
+    #[arg(rename = "no-verify", long = "no-verify")]
+    no_verify: bool,
+    #[arg(rename = "no-upload", long = "no-upload")]
+    no_upload: bool,
+    #[arg(rename = "no-index", long = "no-index")]
+    no_index: bool,
+}
+
 pub async fn publish(
-    #[arg] location: String,
-    #[arg] path: PathBuf,
-    #[arg(rename = "no-verify", long = "no-verify")] no_verify: bool,
-    #[arg(rename = "no-upload", long = "no-upload")] no_upload: bool,
-    #[arg(rename = "no-index", long = "no-index")] no_index: bool,
+    _: CliContext,
+    PublishParams {
+        location,
+        no_index,
+        no_upload,
+        no_verify,
+        path,
+    }: PublishParams,
 ) -> Result<(), Error> {
     // Prepare for progress bars.
     let bytes_bar_style =

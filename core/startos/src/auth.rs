@@ -2,22 +2,23 @@ use std::collections::BTreeMap;
 use std::marker::PhantomData;
 
 use chrono::{DateTime, Utc};
-use clap::ArgMatches;
+use clap::{ArgMatches, Parser};
 use color_eyre::eyre::eyre;
+use imbl_value::{json, InternedString};
 use josekit::jwk::Jwk;
-use rpc_toolkit::command;
-use rpc_toolkit::command_helpers::prelude::{RequestParts, ResponseParts};
 use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{command, from_fn_async, CallRemote, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::{Executor, Postgres};
 use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
-use crate::middleware::auth::{AsLogoutSessionId, HasLoggedOutSessions, HashSessionToken};
-use crate::middleware::encrypt::EncryptedWire;
+use crate::middleware::auth::{
+    AsLogoutSessionId, HasLoggedOutSessions, HashSessionToken, LoginRes,
+};
 use crate::prelude::*;
-use crate::util::display_none;
+use crate::util::crypto::EncryptedWire;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::{ensure_code, Error, ResultExt};
 #[derive(Clone, Serialize, Deserialize)]
@@ -61,10 +62,37 @@ impl std::str::FromStr for PasswordType {
         })
     }
 }
-
-#[command(subcommands(login, logout, session, reset_password, get_pubkey))]
-pub fn auth() -> Result<(), Error> {
-    Ok(())
+pub fn auth() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "login",
+            from_fn_async(login_impl)
+                .metadata("login", Value::Boolean(true))
+                .no_cli(),
+        )
+        .subcommand("login", from_fn_async(cli_login).no_display())
+        .subcommand(
+            "logout",
+            from_fn_async(logout)
+                .metadata("get-session", Value::Boolean(true))
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand("session", session())
+        .subcommand(
+            "reset-password",
+            from_fn_async(reset_password_impl).no_cli(),
+        )
+        .subcommand(
+            "reset-password",
+            from_fn_async(cli_reset_password).no_display(),
+        )
+        .subcommand(
+            "get-pubkey",
+            from_fn_async(get_pubkey)
+                .no_display()
+                .metadata("authenticated", Value::Boolean(false))
+                .with_remote_cli::<CliContext>(),
+        )
 }
 
 pub fn cli_metadata() -> Value {
@@ -102,11 +130,9 @@ async fn cli_login(
         rpassword::prompt_password("Password: ")?
     };
 
-    rpc_toolkit::command_helpers::call_remote(
-        ctx,
+    ctx.call_remote(
         "auth.login",
-        serde_json::json!({ "password": password, "metadata": metadata }),
-        PhantomData::<()>,
+        json!({ "password": password, "metadata": metadata }),
     )
     .await?
     .result?;
@@ -140,30 +166,30 @@ where
     Ok(())
 }
 
-#[command(
-    custom_cli(cli_login(async, context(CliContext))),
-    display(display_none),
-    metadata(authenticated = false)
-)]
-#[instrument(skip_all)]
-pub async fn login(
-    #[context] ctx: RpcContext,
-    #[request] req: &RequestParts,
-    #[response] res: &mut ResponseParts,
-    #[arg] password: Option<PasswordType>,
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct LoginParams {
+    password: Option<PasswordType>,
     #[arg(
         parse(parse_metadata),
-        default = "cli_metadata",
         help = "RPC Only: This value cannot be overidden from the cli"
     )]
+    #[serde(default = "cli_metadata")]
     metadata: Value,
-) -> Result<(), Error> {
+}
+
+#[instrument(skip_all)]
+pub async fn login_impl(
+    ctx: RpcContext,
+    LoginParams { password, metadata }: LoginParams,
+) -> Result<LoginRes, Error> {
     let password = password.unwrap_or_default().decrypt(&ctx)?;
     let mut handle = ctx.secret_store.acquire().await?;
     check_password_against_db(handle.as_mut(), &password).await?;
 
     let hash_token = HashSessionToken::new();
-    let user_agent = req.headers.get("user-agent").and_then(|h| h.to_str().ok());
+    let user_agent = metadata.get("user-agent").and_then(|h| h.to_str().ok());
     let metadata = serde_json::to_string(&metadata).with_kind(crate::ErrorKind::Database)?;
     let hash_token_hashed = hash_token.hashed();
     sqlx::query!(
@@ -174,25 +200,24 @@ pub async fn login(
     )
     .execute(handle.as_mut())
     .await?;
-    res.headers.insert(
-        "set-cookie",
-        hash_token.header_value()?, // Should be impossible, but don't want to panic
-    );
 
-    Ok(())
+    Ok(hash_token.to_login_res())
 }
 
-#[command(display(display_none), metadata(authenticated = false))]
-#[instrument(skip_all)]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct LogoutParams {
+    session: InternedString,
+}
+
 pub async fn logout(
-    #[context] ctx: RpcContext,
-    #[request] req: &RequestParts,
+    ctx: RpcContext,
+    LogoutParams { session }: LogoutParams,
 ) -> Result<Option<HasLoggedOutSessions>, Error> {
-    let auth = match HashSessionToken::from_request_parts(req) {
-        Err(_) => return Ok(None),
-        Ok(a) => a,
-    };
-    Ok(Some(HasLoggedOutSessions::new(vec![auth], &ctx).await?))
+    Ok(Some(
+        HasLoggedOutSessions::new(vec![HashSessionToken::from_token(session)], &ctx).await?,
+    ))
 }
 
 #[derive(Deserialize, Serialize)]
@@ -211,16 +236,24 @@ pub struct SessionList {
     sessions: BTreeMap<String, Session>,
 }
 
-#[command(subcommands(list, kill))]
-pub async fn session() -> Result<(), Error> {
-    Ok(())
+pub async fn session() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "list",
+            from_fn_async(list)
+                .metadata("get-session", Value::Boolean(true))
+                .with_custom_display_fn(|handle, result| {
+                    Ok(display_sessions(handle.params, result))
+                }),
+        )
+        .subcommand("kill", from_fn_async(kill).no_display())
 }
 
-fn display_sessions(arg: SessionList, matches: &ArgMatches) {
+fn display_sessions(params: ListParams, arg: SessionList) {
     use prettytable::*;
 
-    if matches.is_present("format") {
-        return display_serializable(arg, matches);
+    if let Some(format) = params.format {
+        return display_serializable(format, arg);
     }
 
     let mut table = Table::new();
@@ -249,17 +282,24 @@ fn display_sessions(arg: SessionList, matches: &ArgMatches) {
     table.print_tty(false).unwrap();
 }
 
-#[command(display(display_sessions))]
-#[instrument(skip_all)]
-pub async fn list(
-    #[context] ctx: RpcContext,
-    #[request] req: &RequestParts,
-    #[allow(unused_variables)]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct ListParams {
+    #[arg(skip)]
+    session: InternedString,
     #[arg(long = "format")]
     format: Option<IoFormat>,
+}
+
+// #[command(display(display_sessions))]
+#[instrument(skip_all)]
+pub async fn list(
+    ctx: RpcContext,
+    ListParams { session, .. }: ListParams,
 ) -> Result<SessionList, Error> {
     Ok(SessionList {
-        current: HashSessionToken::from_request_parts(req)?.as_hash(),
+        current: HashSessionToken::from_token(session)?.as_hash(),
         sessions: sqlx::query!(
             "SELECT * FROM session WHERE logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP"
         )
@@ -295,21 +335,36 @@ impl AsLogoutSessionId for KillSessionId {
     }
 }
 
-#[command(display(display_none))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct KillParams {
+    ids: Vec<String>,
+}
+
 #[instrument(skip_all)]
-pub async fn kill(
-    #[context] ctx: RpcContext,
-    #[arg(parse(parse_comma_separated))] ids: Vec<String>,
-) -> Result<(), Error> {
+pub async fn kill(ctx: RpcContext, KillParams { ids }: KillParams) -> Result<(), Error> {
     HasLoggedOutSessions::new(ids.into_iter().map(KillSessionId), &ctx).await?;
     Ok(())
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct ResetPasswordParams {
+    #[arg(rename = "old-password")]
+    old_password: Option<PasswordType>,
+    #[arg(rename = "new-password")]
+    new_password: Option<PasswordType>,
 }
 
 #[instrument(skip_all)]
 async fn cli_reset_password(
     ctx: CliContext,
-    old_password: Option<PasswordType>,
-    new_password: Option<PasswordType>,
+    ResetPasswordParams {
+        old_password,
+        new_password,
+    }: ResetPasswordParams,
 ) -> Result<(), RpcError> {
     let old_password = if let Some(old_password) = old_password {
         old_password.decrypt(&ctx)?
@@ -331,11 +386,10 @@ async fn cli_reset_password(
         new_password
     };
 
-    rpc_toolkit::command_helpers::call_remote(
+    ctx.call_remote(
         ctx,
         "auth.reset-password",
         serde_json::json!({ "old-password": old_password, "new-password": new_password }),
-        PhantomData::<()>,
     )
     .await?
     .result?;
@@ -343,16 +397,13 @@ async fn cli_reset_password(
     Ok(())
 }
 
-#[command(
-    rename = "reset-password",
-    custom_cli(cli_reset_password(async, context(CliContext))),
-    display(display_none)
-)]
 #[instrument(skip_all)]
-pub async fn reset_password(
-    #[context] ctx: RpcContext,
-    #[arg(rename = "old-password")] old_password: Option<PasswordType>,
-    #[arg(rename = "new-password")] new_password: Option<PasswordType>,
+pub async fn reset_password_impl(
+    ctx: RpcContext,
+    ResetPasswordParams {
+        old_password,
+        new_password,
+    }: ResetPasswordParams,
 ) -> Result<(), Error> {
     let old_password = old_password.unwrap_or_default().decrypt(&ctx)?;
     let new_password = new_password.unwrap_or_default().decrypt(&ctx)?;
@@ -378,13 +429,8 @@ pub async fn reset_password(
         .await
 }
 
-#[command(
-    rename = "get-pubkey",
-    display(display_none),
-    metadata(authenticated = false)
-)]
 #[instrument(skip_all)]
-pub async fn get_pubkey(#[context] ctx: RpcContext) -> Result<Jwk, RpcError> {
+pub async fn get_pubkey(ctx: RpcContext) -> Result<Jwk, RpcError> {
     let secret = ctx.as_ref().clone();
     let pub_key = secret.to_public_key()?;
     Ok(pub_key)

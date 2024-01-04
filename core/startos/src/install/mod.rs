@@ -6,6 +6,7 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::future::BoxFuture;
@@ -15,8 +16,8 @@ use http::{Request, Response, StatusCode};
 use hyper::Body;
 use models::{mime, DataUrl};
 use reqwest::Url;
-use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWriteExt};
@@ -49,8 +50,8 @@ use crate::s9pk::reader::S9pkReader;
 use crate::status::{MainStatus, Status};
 use crate::util::docker::CONTAINER_TOOL;
 use crate::util::io::response_to_reader;
-use crate::util::serde::{display_serializable, Port};
-use crate::util::{display_none, AsyncFileExt, Invoke, Version};
+use crate::util::serde::Port;
+use crate::util::{AsyncFileExt, Invoke, Version};
 use crate::volume::{asset_dir, script_dir};
 use crate::{Error, ErrorKind, ResultExt};
 
@@ -61,8 +62,8 @@ pub const PKG_ARCHIVE_DIR: &str = "package-data/archive";
 pub const PKG_PUBLIC_DIR: &str = "package-data/public";
 pub const PKG_WASM_DIR: &str = "package-data/wasm";
 
-#[command(display(display_serializable))]
-pub async fn list(#[context] ctx: RpcContext) -> Result<Value, Error> {
+// #[command(display(display_serializable))]
+pub async fn list(ctx: RpcContext) -> Result<Value, Error> {
     Ok(ctx.db.peek().await.as_package_data().as_entries()?
         .iter()
         .filter_map(|(id, pde)| {
@@ -124,22 +125,31 @@ impl std::fmt::Display for MinMax {
         }
     }
 }
-
-#[command(
-    custom_cli(cli_install(async, context(CliContext))),
-    display(display_none),
-    metadata(sync_db = true)
-)]
-#[instrument(skip_all)]
-pub async fn install(
-    #[context] ctx: RpcContext,
-    #[arg] id: String,
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct InstallParams {
+    id: String,
     #[arg(short = 'm', long = "marketplace-url", rename = "marketplace-url")]
     marketplace_url: Option<Url>,
-    #[arg(short = 'v', long = "version-spec", rename = "version-spec")] version_spec: Option<
-        String,
-    >,
-    #[arg(long = "version-priority", rename = "version-priority")] version_priority: Option<MinMax>,
+    #[arg(short = 'v', long = "version-spec", rename = "version-spec")]
+    version_spec: Option<String>,
+    #[arg(long = "version-priority", rename = "version-priority")]
+    version_priority: Option<MinMax>,
+}
+
+// #[command(
+//     custom_cli(cli_install(async, context(CliContext))),
+// )]
+#[instrument(skip_all)]
+pub async fn install(
+    ctx: RpcContext,
+    InstallParams {
+        id,
+        marketplace_url,
+        version_spec,
+        version_priority,
+    }: InstallParams,
 ) -> Result<(), Error> {
     let version_str = match &version_spec {
         None => "*",
@@ -343,12 +353,18 @@ pub async fn install(
 
     Ok(())
 }
-#[command(rpc_only, display(display_none))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct SideloadParams {
+    manifest: Manifest,
+    icon: Option<String>,
+}
+
 #[instrument(skip_all)]
 pub async fn sideload(
-    #[context] ctx: RpcContext,
-    #[arg] manifest: Manifest,
-    #[arg] icon: Option<String>,
+    ctx: RpcContext,
+    SideloadParams { manifest, icon }: SideloadParams,
 ) -> Result<RequestGuid, Error> {
     let new_ctx = ctx.clone();
     let guid = RequestGuid::new();
@@ -592,10 +608,16 @@ async fn cli_install(
     Ok(())
 }
 
-#[command(display(display_none), metadata(sync_db = true))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct UninstallParams {
+    id: PackageId,
+}
+
 pub async fn uninstall(
-    #[context] ctx: RpcContext,
-    #[arg] id: PackageId,
+    ctx: RpcContext,
+    UninstallParams { id }: UninstallParams,
 ) -> Result<PackageId, Error> {
     ctx.db
         .mutate(|db| {

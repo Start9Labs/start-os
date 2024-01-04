@@ -1,20 +1,36 @@
 use std::path::PathBuf;
 
-use rpc_toolkit::command;
+use clap::Parser;
+use rpc_toolkit::{command, from_fn_async, AnyContext, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
 
+use crate::context::CliContext;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::reader::S9pkReader;
-use crate::util::display_none;
-use crate::util::serde::{display_serializable, IoFormat};
+use crate::util::serde::IoFormat;
 use crate::Error;
 
-#[command(subcommands(hash, manifest, license, icon, instructions, docker_images))]
-pub fn inspect() -> Result<(), Error> {
-    Ok(())
+pub fn inspect() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand("hash", from_fn_async(hash).with_remote_cli::<CliContext>())
+        .subcommand(
+            "manifest",
+            from_fn_async(manifest).with_remote_cli::<CliContext>(),
+        )
+        .subcommand("license", from_fn_async(license).no_display())
+        .subcommand("icon", from_fn_async(icon).no_display())
+        .subcommand("instructions", from_fn_async(instructions).no_display())
+        .subcommand("docker-images", from_fn_async(docker_images).no_display())
 }
 
-#[command(cli_only)]
-pub async fn hash(#[arg] path: PathBuf) -> Result<String, Error> {
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct HashParams {
+    path: PathBuf,
+}
+
+pub async fn hash(_: CliContext, HashParams { path }: HashParams) -> Result<String, Error> {
     Ok(S9pkReader::open(path, true)
         .await?
         .hash_str()
@@ -22,22 +38,43 @@ pub async fn hash(#[arg] path: PathBuf) -> Result<String, Error> {
         .to_owned())
 }
 
-#[command(cli_only, display(display_serializable))]
-pub async fn manifest(
-    #[arg] path: PathBuf,
-    #[arg(rename = "no-verify", long = "no-verify")] no_verify: bool,
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct ManifestParams {
+    path: PathBuf,
+    #[arg(rename = "no-verify", long = "no-verify")]
+    no_verify: bool,
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,
+}
+
+// #[command(cli_only, display(display_serializable))]
+pub async fn manifest(
+    _: CliContext,
+    ManifestParams {
+        path,
+        no_verify,
+        format,
+    }: ManifestParams,
 ) -> Result<Manifest, Error> {
     // S9pkReader::open(path, !no_verify).await?.manifest().await
     todo!()
 }
 
-#[command(cli_only, display(display_none))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct InspectParams {
+    path: PathBuf,
+    #[arg(rename = "no-verify", long = "no-verify")]
+    no_verify: bool,
+}
+
 pub async fn license(
-    #[arg] path: PathBuf,
-    #[arg(rename = "no-verify", long = "no-verify")] no_verify: bool,
+    _: AnyContext,
+    InspectParams { path, no_verify }: InspectParams,
 ) -> Result<(), Error> {
     tokio::io::copy(
         &mut S9pkReader::open(path, !no_verify).await?.license().await?,
@@ -47,10 +84,9 @@ pub async fn license(
     Ok(())
 }
 
-#[command(cli_only, display(display_none))]
 pub async fn icon(
-    #[arg] path: PathBuf,
-    #[arg(rename = "no-verify", long = "no-verify")] no_verify: bool,
+    _: AnyContext,
+    InspectParams { path, no_verify }: InspectParams,
 ) -> Result<(), Error> {
     tokio::io::copy(
         &mut S9pkReader::open(path, !no_verify).await?.icon().await?,
@@ -59,11 +95,19 @@ pub async fn icon(
     .await?;
     Ok(())
 }
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct InstructionParams {
+    #[arg]
+    path: PathBuf,
+    #[arg(rename = "no-verify", long = "no-verify")]
+    no_verify: bool,
+}
 
-#[command(cli_only, display(display_none))]
 pub async fn instructions(
-    #[arg] path: PathBuf,
-    #[arg(rename = "no-verify", long = "no-verify")] no_verify: bool,
+    _: CliContext,
+    InstructionParams { path, no_verify }: InstructionParams,
 ) -> Result<(), Error> {
     tokio::io::copy(
         &mut S9pkReader::open(path, !no_verify)
@@ -75,11 +119,9 @@ pub async fn instructions(
     .await?;
     Ok(())
 }
-
-#[command(cli_only, display(display_none), rename = "docker-images")]
 pub async fn docker_images(
-    #[arg] path: PathBuf,
-    #[arg(rename = "no-verify", long = "no-verify")] no_verify: bool,
+    _: AnyContext,
+    InspectParams { path, no_verify }: InspectParams,
 ) -> Result<(), Error> {
     tokio::io::copy(
         &mut S9pkReader::open(path, !no_verify)

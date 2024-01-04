@@ -6,8 +6,8 @@ use clap::Parser;
 use color_eyre::eyre::eyre;
 use josekit::jwk::Jwk;
 use openssl::x509::X509;
-use rpc_toolkit::{command, ParentHandler};
-use rpc_toolkit::{from_fn_async, yajrc::RpcError};
+use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{command, from_fn_async, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sqlx::Connection;
 use tokio::fs::File;
@@ -39,24 +39,35 @@ use crate::{Error, ErrorKind, ResultExt};
 
 pub fn setup() -> ParentHandler {
     ParentHandler::new()
-        .subcommand("status", from_fn_async(status).no_display().no_cli())
-        .subcommand("disk", from_fn_async(disk).no_display().no_cli())
-        .subcommand("attach", from_fn_async(attach).no_display().no_cli())
-        .subcommand("execute", from_fn_async(execute).no_display().no_cli())
-        .subcommand("cifs", from_fn_async(cifs).no_display().no_cli())
-        .subcommand("complete", from_fn_async(complete).no_display().no_cli())
+        .subcommand(
+            "status",
+            from_fn_async(status)
+                .metadata("authenticated", Value::Boolean(false))
+                .no_cli(),
+        )
+        .subcommand("disk", disk())
+        .subcommand("attach", from_fn_async(attach).no_cli())
+        .subcommand("execute", from_fn_async(execute).no_cli())
+        .subcommand("cifs", cifs())
+        .subcommand("complete", from_fn_async(complete).no_cli())
         .subcommand(
             "get-pubkey",
-            from_fn_async(get_pubkey).no_display().no_cli(),
+            from_fn_async(get_pubkey)
+                .metadata("authenticated", Value::Boolean(false))
+                .no_cli(),
         )
-        .subcommand("exit", from_fn_async(exit).no_display().no_cli())
+        .subcommand("exit", from_fn_async(exit).no_cli())
 }
 
 pub fn disk() -> ParentHandler {
-    ParentHandler::new().subcommand("list", from_fn_async(list_disks).no_display().no_cli())
+    ParentHandler::new().subcommand(
+        "list",
+        from_fn_async(list_disks)
+            .metadata("authenticated", Value::Boolean(false))
+            .no_cli(),
+    )
 }
 
-// #[command(rename = "list", rpc_only, metadata(authenticated = false))]
 pub async fn list_disks(ctx: SetupContext) -> Result<Vec<DiskInfo>, Error> {
     crate::disk::util::list(&ctx.os_partitions).await
 }
@@ -186,7 +197,6 @@ pub struct SetupStatus {
     pub complete: bool,
 }
 
-// #[command(rpc_only, metadata(authenticated = false))]
 pub async fn status(ctx: SetupContext) -> Result<Option<SetupStatus>, RpcError> {
     ctx.setup_status.read().await.clone().transpose()
 }
@@ -195,7 +205,6 @@ pub async fn status(ctx: SetupContext) -> Result<Option<SetupStatus>, RpcError> 
 /// This way the frontend can send a secret, like the password for the setup/ recovory
 /// without knowing the password over clearnet. We use the public key shared across the network
 /// since it is fine to share the public, and encrypt against the public.
-// #[command(rename = "get-pubkey", rpc_only, metadata(authenticated = false))]
 pub async fn get_pubkey(ctx: SetupContext) -> Result<Jwk, RpcError> {
     let secret = ctx.as_ref().clone();
     let pub_key = secret.to_public_key()?;

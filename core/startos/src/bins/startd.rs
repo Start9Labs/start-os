@@ -1,5 +1,6 @@
+use std::ffi::OsString;
 use std::net::{Ipv6Addr, SocketAddr};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
@@ -7,6 +8,7 @@ use futures::{FutureExt, TryFutureExt};
 use tokio::signal::unix::signal;
 use tracing::instrument;
 
+use crate::context::config::ServerConfig;
 use crate::context::{DiagnosticContext, RpcContext};
 use crate::net::web_server::WebServer;
 use crate::shutdown::Shutdown;
@@ -15,10 +17,10 @@ use crate::util::logger::EmbassyLogger;
 use crate::{Error, ErrorKind, ResultExt};
 
 #[instrument(skip_all)]
-async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
+async fn inner_main(config: &ServerConfig) -> Result<Option<Shutdown>, Error> {
     let (rpc_ctx, server, shutdown) = async {
         let rpc_ctx = RpcContext::init(
-            cfg_path,
+            config,
             Arc::new(
                 tokio::fs::read_to_string("/media/embassy/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
                     .await?
@@ -102,24 +104,18 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
     Ok(shutdown)
 }
 
-pub fn main() {
+pub fn main(args: impl IntoIterator<Item = OsString>) {
     EmbassyLogger::init();
 
+    let config = ServerConfig::command()
+        .get_matches_from(args)
+        .load()
+        .unwrap();
+
     if !Path::new("/run/embassy/initialized").exists() {
-        super::start_init::main();
+        super::start_init::main(args.clone());
         std::fs::write("/run/embassy/initialized", "").unwrap();
     }
-
-    let matches = clap::App::new("startd")
-        .arg(
-            clap::Arg::with_name("config")
-                .short('c')
-                .long("config")
-                .takes_value(true),
-        )
-        .get_matches();
-
-    let cfg_path = matches.value_of("config").map(|p| Path::new(p).to_owned());
 
     let res = {
         let rt = tokio::runtime::Builder::new_multi_thread()
@@ -127,7 +123,7 @@ pub fn main() {
             .build()
             .expect("failed to initialize runtime");
         rt.block_on(async {
-            match inner_main(cfg_path.clone()).await {
+            match inner_main(&config).await {
                 Ok(a) => Ok(a),
                 Err(e) => {
                     async {
@@ -135,7 +131,7 @@ pub fn main() {
                         tracing::debug!("{:?}", e.source);
                         crate::sound::BEETHOVEN.play().await?;
                         let ctx = DiagnosticContext::init(
-                            cfg_path,
+                            &config,
                             if tokio::fs::metadata("/media/embassy/config/disk.guid")
                                 .await
                                 .is_ok()

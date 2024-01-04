@@ -1,14 +1,19 @@
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
 use color_eyre::eyre::eyre;
+use num_enum::TryFromPrimitive;
 use patch_db::Revision;
 use rpc_toolkit::hyper::http::uri::InvalidUri;
 use rpc_toolkit::reqwest;
-use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::yajrc::{
+    RpcError, INVALID_PARAMS_ERROR, INVALID_REQUEST_ERROR, METHOD_NOT_FOUND_ERROR, PARSE_ERROR,
+};
+use serde::{Deserialize, Serialize};
 
 use crate::InvalidId;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, TryFromPrimitive)]
+#[repr(i32)]
 pub enum ErrorKind {
     Unknown = 1,
     Filesystem = 2,
@@ -304,6 +309,53 @@ impl From<patch_db::value::Error> for Error {
     }
 }
 
+#[derive(Clone, Deserialize, Serialize)]
+pub struct ErrorData {
+    pub details: String,
+    pub debug: String,
+}
+impl Display for ErrorData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.details, f)
+    }
+}
+impl Debug for ErrorData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.debug, f)
+    }
+}
+impl std::error::Error for ErrorData {}
+impl From<&RpcError> for ErrorData {
+    fn from(value: &RpcError) -> Self {
+        Self {
+            details: value
+                .data
+                .as_ref()
+                .and_then(|d| {
+                    d.as_object()
+                        .and_then(|d| {
+                            d.get("details")
+                                .and_then(|d| d.as_str().map(|s| s.to_owned()))
+                        })
+                        .or_else(|| d.as_str().map(|s| s.to_owned()))
+                })
+                .unwrap_or_else(|| value.message.clone().into_owned()),
+            debug: value
+                .data
+                .as_ref()
+                .and_then(|d| {
+                    d.as_object()
+                        .and_then(|d| {
+                            d.get("debug")
+                                .and_then(|d| d.as_str().map(|s| s.to_owned()))
+                        })
+                        .or_else(|| d.as_str().map(|s| s.to_owned()))
+                })
+                .unwrap_or_else(|| value.message.clone().into_owned()),
+        }
+    }
+}
+
 impl From<Error> for RpcError {
     fn from(e: Error) -> Self {
         let mut data_object = serde_json::Map::with_capacity(3);
@@ -322,8 +374,38 @@ impl From<Error> for RpcError {
         RpcError {
             code: e.kind as i32,
             message: e.kind.as_str().into(),
-            data: Some(data_object.into()),
+            data: Some(
+                match serde_json::to_value(&ErrorData {
+                    details: format!("{}", e.source),
+                    debug: format!("{:?}", e.source),
+                }) {
+                    Ok(a) => a,
+                    Err(e) => {
+                        tracing::warn!("Error serializing revision for Error object: {}", e);
+                        serde_json::Value::Null
+                    }
+                },
+            ),
         }
+    }
+}
+impl From<RpcError> for Error {
+    fn from(e: RpcError) -> Self {
+        Error::new(
+            ErrorData::from(&e),
+            if let Ok(kind) = e.code.try_into() {
+                kind
+            } else if e.code == METHOD_NOT_FOUND_ERROR.code {
+                ErrorKind::NotFound
+            } else if e.code == PARSE_ERROR.code
+                || e.code == INVALID_PARAMS_ERROR.code
+                || e.code == INVALID_REQUEST_ERROR.code
+            {
+                ErrorKind::Deserialization
+            } else {
+                ErrorKind::Unknown
+            },
+        )
     }
 }
 

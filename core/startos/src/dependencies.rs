@@ -1,30 +1,26 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use color_eyre::eyre::eyre;
+use clap::Parser;
 use emver::VersionRange;
 use models::{OptionExt, PackageId};
-use rand::SeedableRng;
-use rpc_toolkit::command;
+use rpc_toolkit::{command, from_fn_async, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::config::action::ConfigRes;
 use crate::config::spec::PackagePointerSpec;
-use crate::config::{not_found, Config, ConfigSpec, ConfigureContext};
+use crate::config::{Config, ConfigSpec, ConfigureContext};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencies, Database};
 use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
 use crate::status::DependencyConfigErrors;
 use crate::util::serde::display_serializable;
-use crate::util::{display_none, Version};
-use crate::volume::Volumes;
+use crate::util::Version;
 use crate::Error;
 
-#[command(subcommands(configure))]
-pub fn dependency() -> Result<(), Error> {
-    Ok(())
+pub fn dependency() -> ParentHandler {
+    ParentHandler::new().subcommand("configure", from_fn_async(configure).no_display())
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
@@ -60,20 +56,39 @@ pub struct DepInfo {
     pub config: Option<Value>, // TODO: remove
 }
 
-#[command(
-    subcommands(self(configure_impl(async)), configure_dry),
-    display(display_none)
-)]
-pub async fn configure(
-    #[arg(rename = "dependent-id")] dependent_id: PackageId,
-    #[arg(rename = "dependency-id")] dependency_id: PackageId,
-) -> Result<(PackageId, PackageId), Error> {
-    Ok((dependent_id, dependency_id))
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct ConfigureParams {
+    #[arg(rename = "dependent-id")]
+    dependent_id: PackageId,
+    #[arg(rename = "dependency-id")]
+    dependency_id: PackageId,
+}
+pub async fn configure() -> ParentHandler {
+    ParentHandler::new()
+        .roothandler(
+            from_fn_async(configure_impl)
+                .with_inherited(|params, _| params)
+                .no_cli(),
+        )
+        .subcommand(
+            "dry",
+            from_fn_async(configure_dry)
+                .with_custom_display_fn(|handle, result| {
+                    Ok(display_serializable(handle.params, result))
+                })
+                .with_inherited(|params, _| params),
+        )
 }
 
 pub async fn configure_impl(
     ctx: RpcContext,
-    (pkg_id, dep_id): (PackageId, PackageId),
+    _: Empty,
+    ConfigureParams {
+        dependent_id,
+        dependency_id,
+    }: ConfigureParams,
 ) -> Result<(), Error> {
     let breakages = BTreeMap::new();
     let overrides = Default::default();
@@ -81,7 +96,7 @@ pub async fn configure_impl(
         old_config: _,
         new_config,
         spec: _,
-    } = configure_logic(ctx.clone(), (pkg_id, dep_id.clone())).await?;
+    } = configure_logic(ctx.clone(), (dependent_id, dependency_id.clone())).await?;
 
     let configure_context = ConfigureContext {
         breakages,
@@ -90,7 +105,7 @@ pub async fn configure_impl(
         dry_run: false,
         overrides,
     };
-    crate::config::configure(&ctx, &dep_id, configure_context).await?;
+    crate::config::configure(&ctx, &dependency_id, configure_context).await?;
     Ok(())
 }
 
@@ -102,18 +117,22 @@ pub struct ConfigDryRes {
     pub spec: ConfigSpec,
 }
 
-#[command(rename = "dry", display(display_serializable))]
+// #[command(rename = "dry", display(display_serializable))]
 #[instrument(skip_all)]
 pub async fn configure_dry(
-    #[context] ctx: RpcContext,
-    #[parent_data] (pkg_id, dependency_id): (PackageId, PackageId),
+    ctx: RpcContext,
+    _: Empty,
+    ConfigureParams {
+        dependent_id,
+        dependency_id,
+    }: ConfigureParams,
 ) -> Result<ConfigDryRes, Error> {
-    configure_logic(ctx, (pkg_id, dependency_id)).await
+    configure_logic(ctx, (dependent_id, dependency_id)).await
 }
 
 pub async fn configure_logic(
     ctx: RpcContext,
-    (pkg_id, dependency_id): (PackageId, PackageId),
+    (dependent_id, dependency_id): (PackageId, PackageId),
 ) -> Result<ConfigDryRes, Error> {
     // let db = ctx.db.peek().await;
     // let pkg = db

@@ -14,7 +14,7 @@ use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::{X509Builder, X509Extension, X509NameBuilder, X509};
 use openssl::*;
-use rpc_toolkit::command;
+use rpc_toolkit::{from_fn_async, ParentHandler};
 use tokio::sync::{Mutex, RwLock};
 use tracing::instrument;
 
@@ -444,13 +444,11 @@ pub fn make_leaf_cert(
     Ok(cert)
 }
 
-#[command(subcommands(size))]
-pub async fn ssl() -> Result<(), Error> {
-    Ok(())
+pub async fn ssl() -> ParentHandler {
+    ParentHandler::new().subcommand("size", from_fn_async(size))
 }
 
-#[command]
-pub async fn size(#[context] ctx: RpcContext) -> Result<String, Error> {
+pub async fn size(ctx: RpcContext) -> Result<String, Error> {
     Ok(format!(
         "Cert Catch size: {}",
         ctx.net_controller.ssl.cert_cache.read().await.len()

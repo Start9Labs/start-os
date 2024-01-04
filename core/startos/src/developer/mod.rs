@@ -2,19 +2,20 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
+use clap::Parser;
 use ed25519::pkcs8::EncodePrivateKey;
 use ed25519::PublicKeyBytes;
 use ed25519_dalek::{SigningKey, VerifyingKey};
-use rpc_toolkit::command;
+use rpc_toolkit::{command, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::context::SdkContext;
+use crate::context::{CliContext, RpcContext};
 use crate::util::display_none;
 use crate::{Error, ResultExt};
 
-#[command(cli_only, blocking, display(display_none))]
 #[instrument(skip_all)]
-pub fn init(#[context] ctx: SdkContext) -> Result<(), Error> {
+pub fn init(ctx: CliContext) -> Result<(), Error> {
     if !ctx.developer_key_path.exists() {
         let parent = ctx.developer_key_path.parent().unwrap_or(Path::new("/"));
         if !parent.exists() {
@@ -49,7 +50,6 @@ pub fn init(#[context] ctx: SdkContext) -> Result<(), Error> {
     Ok(())
 }
 
-#[command(subcommands(crate::s9pk::verify, crate::config::verify_spec))]
-pub fn verify() -> Result<(), Error> {
-    Ok(())
+pub fn verify() -> ParentHandler {
+    ParentHandler::new().subcommand("verify", from_fn_async(crate::s9pk::verify).no_display())
 }

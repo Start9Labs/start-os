@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+use std::ffi::OsString;
 use std::path::Path;
 
 #[cfg(feature = "avahi-alias")]
@@ -7,19 +9,15 @@ pub mod deprecated;
 pub mod start_cli;
 #[cfg(feature = "daemon")]
 pub mod start_init;
-#[cfg(feature = "sdk")]
-pub mod start_sdk;
 #[cfg(feature = "daemon")]
 pub mod startd;
 
-fn select_executable(name: &str) -> Option<fn()> {
+fn select_executable(name: &str) -> Option<fn(VecDeque<OsString>)> {
     match name {
         #[cfg(feature = "avahi-alias")]
         "avahi-alias" => Some(avahi_alias::main),
         #[cfg(feature = "cli")]
         "start-cli" => Some(start_cli::main),
-        #[cfg(feature = "sdk")]
-        "start-sdk" => Some(start_sdk::main),
         #[cfg(feature = "daemon")]
         "startd" => Some(startd::main),
         "embassy-cli" => Some(|| deprecated::renamed("embassy-cli", "start-cli")),
@@ -31,15 +29,23 @@ fn select_executable(name: &str) -> Option<fn()> {
 }
 
 pub fn startbox() {
-    let args = std::env::args().take(2).collect::<Vec<_>>();
-    let executable = args
-        .get(0)
-        .and_then(|s| Path::new(&*s).file_name())
-        .and_then(|s| s.to_str());
-    if let Some(x) = executable.and_then(|s| select_executable(&s)) {
-        x()
-    } else {
-        eprintln!("unknown executable: {}", executable.unwrap_or("N/A"));
-        std::process::exit(1);
+    let args = std::env::args_os().collect::<VecDeque<_>>();
+    for _ in 0..2 {
+        if let Some(s) = args.pop_front() {
+            if let Some(x) = s
+                .and_then(|s| Path::new(&*s).file_name())
+                .and_then(|s| s.to_str())
+                .and_then(|s| select_executable(&s))
+            {
+                args.push_front(s);
+                return x(args);
+            }
+        }
     }
+    let args = std::env::args().collect::<VecDeque<_>>();
+    eprintln!(
+        "unknown executable: {}",
+        args.get(1).or_else(|| args.get(0)).unwrap_or("N/A")
+    );
+    std::process::exit(1);
 }

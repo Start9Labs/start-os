@@ -1,5 +1,5 @@
 use std::ops::Deref;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use josekit::jwk::Jwk;
@@ -15,11 +15,11 @@ use tokio::sync::RwLock;
 use tracing::instrument;
 
 use crate::account::AccountInfo;
+use crate::context::config::ServerConfig;
 use crate::db::model::Database;
 use crate::disk::OsPartitionInfo;
 use crate::init::init_postgres;
 use crate::setup::SetupStatus;
-use crate::util::config::load_config_from_paths;
 use crate::{Error, ResultExt};
 
 lazy_static::lazy_static! {
@@ -38,45 +38,8 @@ pub struct SetupResult {
     pub root_ca: String,
 }
 
-#[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct SetupContextConfig {
-    pub os_partitions: OsPartitionInfo,
-    pub migration_batch_rows: Option<usize>,
-    pub migration_prefetch_rows: Option<usize>,
-    pub datadir: Option<PathBuf>,
-    #[serde(default)]
-    pub disable_encryption: bool,
-}
-impl SetupContextConfig {
-    #[instrument(skip_all)]
-    pub async fn load<P: AsRef<Path> + Send + 'static>(path: Option<P>) -> Result<Self, Error> {
-        tokio::task::spawn_blocking(move || {
-            load_config_from_paths(
-                path.as_ref()
-                    .into_iter()
-                    .map(|p| p.as_ref())
-                    .chain(std::iter::once(Path::new(
-                        crate::util::config::DEVICE_CONFIG_PATH,
-                    )))
-                    .chain(std::iter::once(Path::new(crate::util::config::CONFIG_PATH))),
-            )
-        })
-        .await
-        .unwrap()
-    }
-    pub fn datadir(&self) -> &Path {
-        self.datadir
-            .as_deref()
-            .unwrap_or_else(|| Path::new("/embassy-data"))
-    }
-}
-
 pub struct SetupContextSeed {
     pub os_partitions: OsPartitionInfo,
-    pub config_path: Option<PathBuf>,
-    pub migration_batch_rows: usize,
-    pub migration_prefetch_rows: usize,
     pub disable_encryption: bool,
     pub shutdown: Sender<()>,
     pub datadir: PathBuf,
@@ -96,16 +59,12 @@ impl AsRef<Jwk> for SetupContextSeed {
 pub struct SetupContext(Arc<SetupContextSeed>);
 impl SetupContext {
     #[instrument(skip_all)]
-    pub async fn init<P: AsRef<Path> + Send + 'static>(path: Option<P>) -> Result<Self, Error> {
-        let cfg = SetupContextConfig::load(path.as_ref().map(|p| p.as_ref().to_owned())).await?;
+    pub fn init(config: &ServerConfig) -> Result<Self, Error> {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
-        let datadir = cfg.datadir().to_owned();
+        let datadir = config.datadir().to_owned();
         Ok(Self(Arc::new(SetupContextSeed {
-            os_partitions: cfg.os_partitions,
-            config_path: path.as_ref().map(|p| p.as_ref().to_owned()),
-            migration_batch_rows: cfg.migration_batch_rows.unwrap_or(25000),
-            migration_prefetch_rows: cfg.migration_prefetch_rows.unwrap_or(100_000),
-            disable_encryption: cfg.disable_encryption,
+            os_partitions: config.os_partitions,
+            disable_encryption: config.disable_encryption,
             shutdown,
             datadir,
             selected_v2_drive: RwLock::new(None),

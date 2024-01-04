@@ -1,16 +1,17 @@
 use base64::Engine;
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use reqwest::{StatusCode, Url};
-use rpc_toolkit::command;
+use rpc_toolkit::{command, from_fn_async, ParentHandler};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::context::RpcContext;
 use crate::version::VersionT;
 use crate::{Error, ResultExt};
 
-#[command(subcommands(get))]
-pub fn marketplace() -> Result<(), Error> {
-    Ok(())
+pub fn marketplace() -> ParentHandler {
+    ParentHandler::new().subcommand("get", from_fn_async)
 }
 
 pub fn with_query_params(ctx: RpcContext, mut url: Url) -> Url {
@@ -35,8 +36,14 @@ pub fn with_query_params(ctx: RpcContext, mut url: Url) -> Url {
     url
 }
 
-#[command]
-pub async fn get(#[context] ctx: RpcContext, #[arg] url: Url) -> Result<Value, Error> {
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct GetParams {
+    url: Url,
+}
+
+pub async fn get(ctx: RpcContext, GetParams { url }: GetParams) -> Result<Value, Error> {
     let mut response = ctx
         .client
         .get(with_query_params(ctx.clone(), url))

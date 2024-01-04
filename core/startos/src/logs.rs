@@ -5,14 +5,15 @@ use std::process::Stdio;
 use std::time::{Duration, UNIX_EPOCH};
 
 use chrono::{DateTime, Utc};
+use clap::{ArgMatches, Parser};
 use color_eyre::eyre::eyre;
 use futures::stream::BoxStream;
 use futures::{FutureExt, SinkExt, Stream, StreamExt, TryStreamExt};
 use hyper::upgrade::Upgraded;
 use hyper::Error as HyperError;
 use models::PackageId;
-use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{command, from_fn_async, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
@@ -223,19 +224,41 @@ pub enum LogSource {
 
 pub const SYSTEM_UNIT: &str = "startd";
 
-#[command(
-    custom_cli(cli_logs(async, context(CliContext))),
-    subcommands(self(logs_nofollow(async)), logs_follow),
-    display(display_none)
-)]
-pub async fn logs(
-    #[arg] id: PackageId,
-    #[arg(short = 'l', long = "limit")] limit: Option<usize>,
-    #[arg(short = 'c', long = "cursor")] cursor: Option<String>,
-    #[arg(short = 'B', long = "before", default)] before: bool,
-    #[arg(short = 'f', long = "follow", default)] follow: bool,
-) -> Result<(PackageId, Option<usize>, Option<String>, bool, bool), Error> {
-    Ok((id, limit, cursor, before, follow))
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct LogsParam {
+    id: PackageId,
+    #[arg(short = 'l', long = "limit")]
+    limit: Option<usize>,
+    #[arg(short = 'c', long = "cursor")]
+    cursor: Option<String>,
+    #[arg(short = 'B', long = "before")]
+    #[serde(default)]
+    before: bool,
+    #[arg(short = 'f', long = "follow")]
+    #[serde(default)]
+    follow: bool,
+}
+
+pub fn logs() -> ParentHandler {
+    ParentHandler::<LogsParam>::new()
+        .root_handler(
+            from_fn_async(cli_logs)
+                .no_display()
+                .with_inherited(|params, _| params),
+        )
+        .root_handler(
+            from_fn_async(logs_follow)
+                .with_inherited(|params, _| params)
+                .no_cli(),
+        )
+        .subcommand(
+            "follow",
+            from_fn_async(logs_follow)
+                .with_inherited(|params, _| params)
+                .no_cli(),
+        )
 }
 pub async fn cli_logs(
     ctx: CliContext,
@@ -261,14 +284,27 @@ pub async fn cli_logs(
 }
 pub async fn logs_nofollow(
     _ctx: (),
-    (id, limit, cursor, before, _): (PackageId, Option<usize>, Option<String>, bool, bool),
+    _: Empty,
+    LogsParam {
+        id,
+        limit,
+        cursor,
+        before,
+        follow,
+    }: LogsParam,
 ) -> Result<LogResponse, Error> {
     fetch_logs(LogSource::Container(id), limit, cursor, before).await
 }
-#[command(rpc_only, rename = "follow", display(display_none))]
 pub async fn logs_follow(
-    #[context] ctx: RpcContext,
-    #[parent_data] (id, limit, _, _, _): (PackageId, Option<usize>, Option<String>, bool, bool),
+    ctx: RpcContext,
+    _: Empty,
+    LogsParam {
+        id,
+        limit,
+        cursor,
+        before,
+        follow,
+    }: LogsParam,
 ) -> Result<LogFollowResponse, Error> {
     follow_logs(ctx, LogSource::Container(id), limit).await
 }

@@ -2,8 +2,7 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use async_compression::tokio::bufread::GzipDecoder;
-use clap::ArgMatches;
-use rpc_toolkit::command;
+use clap::{ArgMatches, Parser};
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::io::BufReader;
@@ -43,7 +42,7 @@ pub struct Firmware {
     shasum: String,
 }
 
-fn display_firmware_update_result(arg: RequiresReboot, _: &ArgMatches) {
+pub fn display_firmware_update_result(result: RequiresReboot) {
     if arg.0 {
         println!("Firmware successfully updated! Reboot to apply changes.");
     } else {
@@ -55,7 +54,7 @@ fn display_firmware_update_result(arg: RequiresReboot, _: &ArgMatches) {
 /// that the firmware was the correct and updated for
 /// systems like the Pure System that a new firmware
 /// was released and the updates where pushed through the pure os.
-#[command(rename = "update-firmware", display(display_firmware_update_result))]
+// #[command(rename = "update-firmware", display(display_firmware_update_result))]
 pub async fn update_firmware() -> Result<RequiresReboot, Error> {
     let system_product_name = String::from_utf8(
         Command::new("dmidecode")

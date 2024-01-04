@@ -1,39 +1,46 @@
-use futures::FutureExt;
-use rpc_toolkit::hyper::http::Error as HttpError;
-use rpc_toolkit::hyper::{Body, Request, Response};
-use rpc_toolkit::rpc_server_helpers::{noop4, DynMiddlewareStage2, DynMiddlewareStage3};
-use rpc_toolkit::yajrc::RpcMethod;
-use rpc_toolkit::Metadata;
+use rpc_toolkit::{Empty, Middleware, RpcRequest, RpcResponse};
 
-use crate::Error;
+use crate::context::DiagnosticContext;
+use crate::prelude::*;
 
-pub async fn diagnostic<M: Metadata>(
-    _req: &mut Request<Body>,
-    _metadata: M,
-) -> Result<Result<DynMiddlewareStage2, Response<Body>>, HttpError> {
-    Ok(Ok(Box::new(|_, rpc_req| {
-        let method = rpc_req.method.as_str().to_owned();
-        async move {
-            let res: DynMiddlewareStage3 = Box::new(|_, rpc_res| {
-                async move {
-                    if let Err(e) = rpc_res {
-                        if e.code == -32601 {
-                            *e = Error::new(
-                                color_eyre::eyre::eyre!(
-                                    "{} is not available on the Diagnostic API",
-                                    method
-                                ),
-                                crate::ErrorKind::DiagnosticMode,
-                            )
-                            .into();
-                        }
-                    }
-                    Ok(Ok(noop4()))
-                }
-                .boxed()
-            });
-            Ok::<_, HttpError>(Ok(res))
+#[derive(Clone)]
+pub struct DiagnosticMode {
+    method: Option<String>,
+}
+impl DiagnosticMode {
+    pub fn new() -> Self {
+        Self { method: None }
+    }
+}
+
+#[async_trait::async_trait]
+impl Middleware<DiagnosticContext> for DiagnosticMode {
+    type Metadata = Empty;
+    async fn process_rpc_request(
+        &mut self,
+        context: &DiagnosticContext,
+        metadata: Self::Metadata,
+        request: &mut RpcRequest,
+    ) -> Result<(), RpcResponse> {
+        self.method = Some(request.method.clone());
+        Ok(())
+    }
+    async fn process_rpc_response(
+        &mut self,
+        context: &DiagnosticContext,
+        response: &mut RpcResponse,
+    ) {
+        if let Err(e) = &mut response.result {
+            if e.code == -32601 {
+                *e = Error::new(
+                    eyre!(
+                        "{} is not available on the Diagnostic API",
+                        self.method.unwrap_or_default()
+                    ),
+                    crate::ErrorKind::DiagnosticMode,
+                )
+                .into();
+            }
         }
-        .boxed()
-    })))
+    }
 }

@@ -1,12 +1,11 @@
 use std::path::{Path, PathBuf};
 
-use clap::ArgMatches;
-use rpc_toolkit::command;
+use clap::Parser;
+use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 
 use crate::context::RpcContext;
 use crate::disk::util::DiskInfo;
-use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::Error;
 
@@ -42,16 +41,22 @@ impl OsPartitionInfo {
     }
 }
 
-#[command(subcommands(list, repair))]
-pub fn disk() -> Result<(), Error> {
-    Ok(())
+pub fn disk() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "list",
+            from_fn_async(list).with_custom_display_fn(|handle, result| {
+                Ok(display_disk_info(handle.params, result))
+            }),
+        )
+        .subcommand("repair", from_fn_async(repair).no_display())
 }
 
-fn display_disk_info(info: Vec<DiskInfo>, matches: &ArgMatches) {
+fn display_disk_info(params: ListParams, args: Vec<DiskInfo>) {
     use prettytable::*;
 
-    if matches.is_present("format") {
-        return display_serializable(info, matches);
+    if let Some(format) = params.format {
+        return display_serializable(format, args);
     }
 
     let mut table = Table::new();
@@ -62,7 +67,7 @@ fn display_disk_info(info: Vec<DiskInfo>, matches: &ArgMatches) {
         "USED",
         "EMBASSY OS VERSION"
     ]);
-    for disk in info {
+    for disk in args {
         let row = row![
             disk.logicalname.display(),
             "N/A",
@@ -101,17 +106,18 @@ fn display_disk_info(info: Vec<DiskInfo>, matches: &ArgMatches) {
     table.print_tty(false).unwrap();
 }
 
-#[command(display(display_disk_info))]
-pub async fn list(
-    #[context] ctx: RpcContext,
-    #[allow(unused_variables)]
-    #[arg]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct ListParams {
     format: Option<IoFormat>,
-) -> Result<Vec<DiskInfo>, Error> {
+}
+
+// #[command(display(display_disk_info))]
+pub async fn list(ctx: RpcContext, _: ListParams) -> Result<Vec<DiskInfo>, Error> {
     crate::disk::util::list(&ctx.os_partitions).await
 }
 
-#[command(display(display_none))]
 pub async fn repair() -> Result<(), Error> {
     tokio::fs::write(REPAIR_DISK_PATH, b"").await?;
     Ok(())

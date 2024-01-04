@@ -98,7 +98,6 @@ impl Shutdown {
     }
 }
 
-// #[command(display(display_none))]
 pub async fn shutdown(ctx: RpcContext) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
@@ -118,7 +117,6 @@ pub async fn shutdown(ctx: RpcContext) -> Result<(), Error> {
     Ok(())
 }
 
-// #[command(display(display_none))]
 pub async fn restart(ctx: RpcContext) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
@@ -138,7 +136,6 @@ pub async fn restart(ctx: RpcContext) -> Result<(), Error> {
     Ok(())
 }
 
-// #[command(display(display_none))]
 pub async fn rebuild(ctx: RpcContext) -> Result<(), Error> {
     tokio::fs::write(SYSTEM_REBUILD_PATH, b"").await?;
     restart(ctx).await

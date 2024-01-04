@@ -6,13 +6,14 @@ use std::future::Future;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use clap::Parser;
 use futures::{FutureExt, SinkExt, StreamExt};
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{Dump, Revision};
-use rpc_toolkit::command;
 use rpc_toolkit::hyper::upgrade::Upgraded;
-use rpc_toolkit::hyper::{Body, Error as HyperError, Request, Response};
+use rpc_toolkit::hyper::{Error as HyperError, Request, Response};
 use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{command, from_fn_async, ParentHandler};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::oneshot;
@@ -26,8 +27,7 @@ use tracing::instrument;
 use crate::context::{CliContext, RpcContext};
 use crate::middleware::auth::{HasValidSession, HashSessionToken};
 use crate::prelude::*;
-use crate::util::display_none;
-use crate::util::serde::{display_serializable, IoFormat};
+use crate::util::serde::IoFormat;
 
 #[instrument(skip_all)]
 async fn ws_handler<
@@ -174,9 +174,11 @@ pub async fn subscribe(ctx: RpcContext, req: Request<Body>) -> Result<Response<B
     Ok(res)
 }
 
-#[command(subcommands(dump, put, apply))]
-pub fn db() -> Result<(), RpcError> {
-    Ok(())
+pub fn db() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand("dump", from_fn_async(dump))
+        .subcommand("put", put())
+        .subcommand("apply", from_fn_async(apply).no_display())
 }
 
 #[derive(Deserialize, Serialize)]
@@ -208,19 +210,20 @@ async fn cli_dump(
     Ok(dump)
 }
 
-#[command(
-    custom_cli(cli_dump(async, context(CliContext))),
-    display(display_serializable)
-)]
-pub async fn dump(
-    #[context] ctx: RpcContext,
-    #[allow(unused_variables)]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct DumpParams {
     #[arg(long = "format")]
     format: Option<IoFormat>,
-    #[allow(unused_variables)]
-    #[arg]
     path: Option<PathBuf>,
-) -> Result<Dump, Error> {
+}
+
+// #[command(
+//     custom_cli(cli_dump(async, context(CliContext))),
+//     display(display_serializable)
+// )]
+pub async fn dump(ctx: RpcContext, _: DumpParams) -> Result<Dump, Error> {
     Ok(ctx.db.dump().await)
 }
 
@@ -314,17 +317,18 @@ async fn cli_apply(ctx: CliContext, expr: String, path: Option<PathBuf>) -> Resu
     Ok(())
 }
 
-#[command(
-    custom_cli(cli_apply(async, context(CliContext))),
-    display(display_none)
-)]
-pub async fn apply(
-    #[context] ctx: RpcContext,
-    #[arg] expr: String,
-    #[allow(unused_variables)]
-    #[arg]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct ApplyParams {
+    expr: String,
     path: Option<PathBuf>,
-) -> Result<(), Error> {
+}
+
+// #[command(
+//     custom_cli(cli_apply(async, context(CliContext)))
+// )]
+pub async fn apply(ctx: RpcContext, ApplyParams { expr, path }: ApplyParams) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
             let res = apply_expr(
@@ -346,21 +350,22 @@ pub async fn apply(
         .await
 }
 
-#[command(subcommands(ui))]
-pub fn put() -> Result<(), RpcError> {
-    Ok(())
+pub fn put() -> ParentHandler {
+    ParentHandler::new().subcommand("ui", from_fn_async(ui))
 }
-
-#[command(display(display_serializable))]
-#[instrument(skip_all)]
-pub async fn ui(
-    #[context] ctx: RpcContext,
-    #[arg] pointer: JsonPointer,
-    #[arg] value: Value,
-    #[allow(unused_variables)]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct UiParams {
+    pointer: JsonPointer,
+    value: Value,
     #[arg(long = "format")]
     format: Option<IoFormat>,
-) -> Result<(), Error> {
+}
+
+// #[command(display(display_serializable))]
+#[instrument(skip_all)]
+pub async fn ui(ctx: RpcContext, UiParams { pointer, value, .. }: UiParams) -> Result<(), Error> {
     let ptr = "/ui"
         .parse::<JsonPointer>()
         .with_kind(ErrorKind::Database)?

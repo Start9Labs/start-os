@@ -1,13 +1,11 @@
 use std::path::PathBuf;
 
-use futures::TryStreamExt;
 use imbl::OrdMap;
-use rpc_toolkit::command;
 use serde_json::Value;
 
+use crate::context::CliContext;
 use crate::prelude::*;
 use crate::s9pk::v1::reader::S9pkReader;
-use crate::util::display_none;
 
 pub mod builder;
 pub mod docker;
@@ -18,8 +16,7 @@ pub mod reader;
 
 pub const SIG_CONTEXT: &[u8] = b"s9pk";
 
-#[command(rename = "s9pk", cli_only, display(display_none))]
-pub async fn verify(#[arg] path: PathBuf) -> Result<(), Error> {
+pub async fn verify(_: CliContext, path: PathBuf) -> Result<(), Error> {
     let mut s9pk = S9pkReader::open(path, true).await?;
     // s9pk.validate().await?;
     todo!();

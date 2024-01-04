@@ -4,12 +4,12 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 
-use clap::ArgMatches;
+use clap::{ArgMatches, Parser};
 use futures::future::BoxFuture;
 use futures::{stream, FutureExt, StreamExt};
 use models::PackageId;
 use openssl::x509::X509;
-use rpc_toolkit::command;
+use serde::{Deserialize, Serialize};
 use sqlx::Connection;
 use tokio::fs::File;
 use torut::onion::OnionAddressV3;
@@ -18,7 +18,6 @@ use tracing::instrument;
 use super::target::BackupTargetId;
 use crate::backup::os::OsBackup;
 use crate::backup::BackupMetadata;
-use crate::context::rpc::RpcContextConfig;
 use crate::context::{RpcContext, SetupContext};
 use crate::db::model::{PackageDataEntry, PackageDataEntryRestoring, StaticFiles};
 use crate::disk::mount::backup::{BackupMountGuard, PackageBackupMountGuard};
@@ -31,10 +30,8 @@ use crate::install::{download_install_s9pk, PKG_PUBLIC_DIR};
 use crate::notifications::NotificationLevel;
 use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
-use crate::s9pk::reader::S9pkReader;
 use crate::s9pk::S9pk;
 use crate::setup::SetupStatus;
-use crate::util::display_none;
 use crate::util::io::dir_size;
 use crate::util::serde::IoFormat;
 use crate::volume::{backup_dir, BACKUP_DIR, PKG_VOLUME_DIR};
@@ -45,13 +42,25 @@ fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<Vec<PackageId>, Er
         .collect()
 }
 
-#[command(rename = "restore", display(display_none))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct RestorePackageParams {
+    pub ids: Vec<PackageId>,
+    pub target_id: BackupTargetId,
+    pub password: String,
+}
+
+// TODO dr Why doesn't anything use this
+// #[command(rename = "restore", display(display_none))]
 #[instrument(skip(ctx, password))]
 pub async fn restore_packages_rpc(
-    #[context] ctx: RpcContext,
-    #[arg(parse(parse_comma_separated))] ids: Vec<PackageId>,
-    #[arg(rename = "target-id")] target_id: BackupTargetId,
-    #[arg] password: String,
+    ctx: RpcContext,
+    RestorePackageParams {
+        ids,
+        target_id,
+        password,
+    }: RestorePackageParams,
 ) -> Result<(), Error> {
     let fs = target_id
         .load(ctx.secret_store.acquire().await?.as_mut())
@@ -201,9 +210,7 @@ pub async fn recover_full_embassy(
 
     secret_store.close().await;
 
-    let cfg = RpcContextConfig::load(ctx.config_path.clone()).await?;
-
-    init(&cfg).await?;
+    init(&ctx.config).await?;
 
     let rpc_ctx = RpcContext::init(ctx.config_path.clone(), disk_guid.clone()).await?;
 

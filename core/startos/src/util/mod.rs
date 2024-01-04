@@ -26,7 +26,6 @@ use tracing::instrument;
 use crate::shutdown::Shutdown;
 use crate::{Error, ErrorKind, ResultExt as _};
 pub mod actor;
-pub mod config;
 pub mod cpupower;
 pub mod crypto;
 pub mod docker;

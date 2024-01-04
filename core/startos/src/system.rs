@@ -140,7 +140,6 @@ pub struct GovernorParams {
     set: Option<Governor>,
 }
 
-// #[command(display(display_governor_info))]
 pub async fn governor(
     ctx: RpcContext,
     GovernorParams { set, .. }: GovernorParams,
@@ -168,13 +167,13 @@ pub struct TimeInfo {
     uptime: u64,
 }
 
-fn display_time(arg: TimeInfo, matches: &ArgMatches) {
+pub fn display_time(params: TimeParams, arg: TimeInfo) {
     use std::fmt::Write;
 
     use prettytable::*;
 
-    if matches.is_present("format") {
-        return display_serializable(arg, matches);
+    if let Some(format) = params.format {
+        return display_serializable(format, arg);
     }
 
     let days = arg.uptime / (24 * 60 * 60);
@@ -218,7 +217,6 @@ pub struct TimeParams {
     format: Option<IoFormat>,
 }
 
-// #[command(display(display_time))]
 pub async fn time(ctx: RpcContext, _: TimeParams) -> Result<TimeInfo, Error> {
     Ok(TimeInfo {
         now: Utc::now().to_rfc3339(),
@@ -241,11 +239,6 @@ pub struct LogsParams {
     follow: bool,
 }
 
-// #[command(
-//     custom_cli(cli_logs(async, context(CliContext))),
-//     subcommands(self(logs_nofollow(async)), logs_follow),
-//     display(display_none)
-// )]
 pub async fn logs() -> ParentHandler {
     ParentHandler::<LogsParams>::new()
         .root_handler(
@@ -256,14 +249,12 @@ pub async fn logs() -> ParentHandler {
         .root_handler(
             from_fn_async(logs_nofollow)
                 .with_inherited(|params, _| params)
-                .no_display()
                 .no_cli(),
         )
         .subcommand(
             "follow",
             from_fn_async(logs_follow)
                 .with_inherited(|params, _| params)
-                .no_display()
                 .no_cli(),
         )
 }
@@ -309,7 +300,6 @@ pub async fn logs_nofollow(
     fetch_logs(LogSource::System, limit, cursor, before).await
 }
 
-// #[command(rpc_only, rename = "follow", display(display_none))]
 pub async fn logs_follow(
     ctx: RpcContext,
     _: Empty,
@@ -337,15 +327,13 @@ pub struct KernelLogsParams {
     #[serde(default)]
     follow: bool,
 }
-// #[command(
-//     rename = "kernel-logs",
-//     custom_cli(cli_kernel_logs(async, context(CliContext))),
-//     subcommands(self(kernel_logs_nofollow(async)), kernel_logs_follow),
-//     display(display_none)
-// )]
 pub async fn kernel_logs() -> ParentHandler {
     ParentHandler::<KernelLogsParams>::new()
-        .root_handler(from_fn_async(cli_kernel_logs).with_inherited(|params, _| params))
+        .root_handler(
+            from_fn_async(cli_kernel_logs)
+                .no_display()
+                .with_inherited(|params, _| params),
+        )
         .root_handler(
             from_fn_async(kernel_logs_nofollow)
                 .with_inherited(|params, _| params)

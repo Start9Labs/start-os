@@ -2,7 +2,6 @@ use std::cmp::Ordering;
 
 use async_trait::async_trait;
 use color_eyre::eyre::eyre;
-use rpc_toolkit::command;
 use sqlx::PgPool;
 
 use crate::prelude::*;
@@ -189,7 +188,6 @@ pub async fn init(db: &PatchDb, secrets: &PgPool) -> Result<(), Error> {
 pub const COMMIT_HASH: &str =
     include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../GIT_HASH.txt"));
 
-#[command(rename = "git-info", local, metadata(authenticated = false))]
 pub fn git_info() -> Result<&'static str, Error> {
     Ok(COMMIT_HASH)
 }

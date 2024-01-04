@@ -14,7 +14,6 @@ use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::{recovery_info, EmbassyOsRecoveryInfo};
 use crate::prelude::*;
-use crate::util::display_none;
 use crate::util::serde::KeyVal;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -37,11 +36,15 @@ pub fn cifs() -> ParentHandler {
         )
         .subcommand(
             "update",
-            from_fn_async(update).with_remote_cli::<CliContext>(),
+            from_fn_async(update)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
         )
         .subcommand(
             "remove",
-            from_fn_async(remove).with_remote_cli::<CliContext>(),
+            from_fn_async(remove)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
         )
 }
 
@@ -164,8 +167,14 @@ pub async fn update(
     })
 }
 
-#[command(display(display_none))]
-pub async fn remove(#[context] ctx: RpcContext, #[arg] id: BackupTargetId) -> Result<(), Error> {
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct RemoveParams {
+    pub id: BackupTargetId,
+}
+
+pub async fn remove(ctx: RpcContext, RemoveParams { id }: RemoveParams) -> Result<(), Error> {
     let id = if let BackupTargetId::Cifs { id } = id {
         id
     } else {

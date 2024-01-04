@@ -310,14 +310,11 @@ pub async fn mount(
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct UmountParams {
-    target_id: BackupTargetId,
+    target_id: Option<BackupTargetId>,
 }
 
 #[instrument(skip_all)]
-pub async fn umount(
-    ctx: RpcContext,
-    UmountParams { target_id }: UmountParams,
-) -> Result<(), Error> {
+pub async fn umount(_: RpcContext, UmountParams { target_id }: UmountParams) -> Result<(), Error> {
     let mut mounts = USER_MOUNTS.lock().await; // TODO: move to context
     if let Some(target_id) = target_id {
         if let Some(existing) = mounts.remove(&target_id) {

@@ -173,7 +173,6 @@ pub struct ListParams {
     #[arg(long = "format")]
     format: Option<IoFormat>,
 }
-// #[command(display(display_all_ssh_keys))]
 #[instrument(skip_all)]
 pub async fn list(ctx: RpcContext, _: ListParams) -> Result<Vec<SshKeyResponse>, Error> {
     let pool = &ctx.secret_store;

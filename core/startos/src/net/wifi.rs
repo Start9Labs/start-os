@@ -3,11 +3,12 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use clap::ArgMatches;
+use clap::{ArgMatches, Parser};
 use isocountry::CountryCode;
 use lazy_static::lazy_static;
 use regex::Regex;
-use rpc_toolkit::command;
+use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::RwLock;
 use tracing::instrument;
@@ -15,7 +16,7 @@ use tracing::instrument;
 use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::util::serde::{display_serializable, IoFormat};
-use crate::util::{display_none, Invoke};
+use crate::util::Invoke;
 use crate::{Error, ErrorKind};
 
 type WifiManager = Arc<RwLock<WpaCli>>;
@@ -31,28 +32,42 @@ pub fn wifi_manager(ctx: &RpcContext) -> Result<&WifiManager, Error> {
     }
 }
 
-#[command(subcommands(add, connect, delete, get, country, available))]
-pub async fn wifi() -> Result<(), Error> {
-    Ok(())
+pub async fn wifi() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand("add", from_fn_async(add).no_display())
+        .subcommand("connect", from_fn_async(connect).no_display())
+        .subcommand("delete", from_fn_async(delete).no_display())
+        .subcommand(
+            "get",
+            from_fn_async(get).with_custom_display_fn(|handle, result| {
+                Ok(display_wifi_info(handle.params, result))
+            }),
+        )
+        .subcommand("country", country())
+        .subcommand("available", available())
 }
 
-#[command(subcommands(get_available))]
-pub async fn available() -> Result<(), Error> {
-    Ok(())
+pub fn available() -> ParentHandler {
+    ParentHandler::new().subcommand(
+        "get",
+        from_fn_async(get_available)
+            .with_custom_display_fn(|handle, result| Ok(display_wifi_list(handle.params, result))),
+    )
 }
 
-#[command(subcommands(set_country))]
-pub async fn country() -> Result<(), Error> {
-    Ok(())
+pub fn country() -> ParentHandler {
+    ParentHandler::new().subcommand("set", from_fn_async(set_country).no_display())
 }
 
-#[command(display(display_none))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct AddParams {
+    ssid: String,
+    password: String,
+}
 #[instrument(skip_all)]
-pub async fn add(
-    #[context] ctx: RpcContext,
-    #[arg] ssid: String,
-    #[arg] password: String,
-) -> Result<(), Error> {
+pub async fn add(ctx: RpcContext, AddParams { ssid, password }: AddParams) -> Result<(), Error> {
     let wifi_manager = wifi_manager(&ctx)?;
     if !ssid.is_ascii() {
         return Err(Error::new(
@@ -95,10 +110,15 @@ pub async fn add(
     }
     Ok(())
 }
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct SsidParams {
+    ssid: String,
+}
 
-#[command(display(display_none))]
 #[instrument(skip_all)]
-pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<(), Error> {
+pub async fn connect(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result<(), Error> {
     let wifi_manager = wifi_manager(&ctx)?;
     if !ssid.is_ascii() {
         return Err(Error::new(
@@ -144,9 +164,8 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
     Ok(())
 }
 
-#[command(display(display_none))]
 #[instrument(skip_all)]
-pub async fn delete(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<(), Error> {
+pub async fn delete(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result<(), Error> {
     let wifi_manager = wifi_manager(&ctx)?;
     if !ssid.is_ascii() {
         return Err(Error::new(
@@ -192,11 +211,11 @@ pub struct WifiListOut {
     security: Vec<String>,
 }
 pub type WifiList = HashMap<Ssid, WifiListInfo>;
-fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches) {
+fn display_wifi_info(params: FormatParams, info: WiFiInfo) {
     use prettytable::*;
 
-    if matches.is_present("format") {
-        return display_serializable(info, matches);
+    if let Some(format) = params.format {
+        return display_serializable(format, info);
     }
 
     let mut table_global = Table::new();
@@ -256,7 +275,7 @@ fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches) {
     table_global.print_tty(false).unwrap();
 }
 
-fn display_wifi_list(info: Vec<WifiListOut>, matches: &ArgMatches) {
+fn display_wifi_list(params: FormatParams, info: Vec<WifiListOut>) {
     use prettytable::*;
 
     if matches.is_present("format") {
@@ -280,14 +299,17 @@ fn display_wifi_list(info: Vec<WifiListOut>, matches: &ArgMatches) {
     table_global.print_tty(false).unwrap();
 }
 
-#[command(display(display_wifi_info))]
-#[instrument(skip_all)]
-pub async fn get(
-    #[context] ctx: RpcContext,
-    #[allow(unused_variables)]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct FormatParams {
     #[arg(long = "format")]
     format: Option<IoFormat>,
-) -> Result<WiFiInfo, Error> {
+}
+
+// #[command(display(display_wifi_info))]
+#[instrument(skip_all)]
+pub async fn get(ctx: RpcContext, _: FormatParams) -> Result<WiFiInfo, Error> {
     let wifi_manager = wifi_manager(&ctx)?;
     let wpa_supplicant = wifi_manager.read().await;
     let (list_networks, current_res, country_res, ethernet_res, signal_strengths) = tokio::join!(
@@ -334,14 +356,8 @@ pub async fn get(
     })
 }
 
-#[command(rename = "get", display(display_wifi_list))]
 #[instrument(skip_all)]
-pub async fn get_available(
-    #[context] ctx: RpcContext,
-    #[allow(unused_variables)]
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
-) -> Result<Vec<WifiListOut>, Error> {
+pub async fn get_available(ctx: RpcContext, _: FormatParams) -> Result<Vec<WifiListOut>, Error> {
     let wifi_manager = wifi_manager(&ctx)?;
     let wpa_supplicant = wifi_manager.read().await;
     let (wifi_list, network_list) = tokio::join!(
@@ -366,10 +382,16 @@ pub async fn get_available(
     Ok(wifi_list)
 }
 
-#[command(rename = "set", display(display_none))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct SetCountryParams {
+    #[arg(parse(country_code_parse))]
+    country: CountryCode,
+}
 pub async fn set_country(
-    #[context] ctx: RpcContext,
-    #[arg(parse(country_code_parse))] country: CountryCode,
+    ctx: RpcContext,
+    SetCountryParams { country }: SetCountryParams,
 ) -> Result<(), Error> {
     let wifi_manager = wifi_manager(&ctx)?;
     if !interface_connected(&ctx.ethernet_interface).await? {

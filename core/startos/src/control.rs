@@ -1,17 +1,24 @@
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use models::PackageId;
 use rpc_toolkit::command;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::status::MainStatus;
-use crate::util::display_none;
 use crate::Error;
 
-#[command(display(display_none), metadata(sync_db = true))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct ControlParams {
+    pub id: PackageId,
+}
+
 #[instrument(skip_all)]
-pub async fn start(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(), Error> {
+pub async fn start(ctx: RpcContext, ControlParams { id }: ControlParams) -> Result<(), Error> {
     ctx.managers
         .get(&id)
         .await
@@ -22,8 +29,10 @@ pub async fn start(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(
     Ok(())
 }
 
-#[command(display(display_none), metadata(sync_db = true))]
-pub async fn stop(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<MainStatus, Error> {
+pub async fn stop(
+    ctx: RpcContext,
+    ControlParams { id }: ControlParams,
+) -> Result<MainStatus, Error> {
     let peek = ctx.db.peek().await;
     let version = peek
         .as_package_data()
@@ -58,8 +67,7 @@ pub async fn stop(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<Ma
     Ok(last_statuts)
 }
 
-#[command(display(display_none), metadata(sync_db = true))]
-pub async fn restart(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(), Error> {
+pub async fn restart(ctx: RpcContext, ControlParams { id }: ControlParams) -> Result<(), Error> {
     let peek = ctx.db.peek().await;
     let version = peek
         .as_package_data()

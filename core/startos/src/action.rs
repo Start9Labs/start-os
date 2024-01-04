@@ -1,4 +1,4 @@
-use clap::ArgMatches;
+use clap::Parser;
 use color_eyre::eyre::eyre;
 pub use models::ActionId;
 use models::{PackageId, ProcedureName};
@@ -9,7 +9,7 @@ use tracing::instrument;
 use crate::config::Config;
 use crate::context::RpcContext;
 use crate::prelude::*;
-use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
+use crate::util::serde::{display_serializable, IoFormat};
 use crate::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -34,11 +34,11 @@ pub enum DockerStatus {
     Stopped,
 }
 
-fn display_action_result(action_result: ActionResult, matches: &ArgMatches) {
-    if matches.is_present("format") {
-        return display_serializable(action_result, matches);
+pub fn display_action_result(params: ActionParams, result: ActionResult) {
+    if let Some(format) = params.format {
+        return display_serializable(format, result);
     }
-    match action_result {
+    match result {
         ActionResult::V0(ar) => {
             println!(
                 "{}: {}",
@@ -49,16 +49,31 @@ fn display_action_result(action_result: ActionResult, matches: &ArgMatches) {
     }
 }
 
-#[command(about = "Executes an action", display(display_action_result))]
-#[instrument(skip_all)]
-pub async fn action(
-    #[context] ctx: RpcContext,
-    #[arg(rename = "id")] pkg_id: PackageId,
-    #[arg(rename = "action-id")] action_id: ActionId,
-    #[arg(stdin, parse(parse_stdin_deserializable))] input: Option<Config>,
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct ActionParams {
+    #[arg(rename = "id")]
+    pkg_id: PackageId,
+    #[arg(rename = "action-id")]
+    action_id: ActionId,
+    // TODO #[arg(stdin, parse(parse_stdin_deserializable))]
+    input: Option<Config>,
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,
+}
+
+// #[command(about = "Executes an action", display(display_action_result))]
+#[instrument(skip_all)]
+pub async fn action(
+    ctx: RpcContext,
+    ActionParams {
+        pkg_id,
+        action_id,
+        input,
+        format,
+    }: ActionParams,
 ) -> Result<ActionResult, Error> {
     ctx.managers
         .get(&pkg_id)

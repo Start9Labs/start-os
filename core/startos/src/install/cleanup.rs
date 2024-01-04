@@ -20,7 +20,7 @@ use crate::Error;
 #[instrument(skip_all)]
 pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Result<(), Error> {
     let mut errors = ErrorCollection::new();
-    ctx.managers.remove(&(id.clone(), version.clone())).await;
+    ctx.managers.remove(id).await;
     // docker images start9/$APP_ID/*:$VERSION -q | xargs docker rmi
     let images = crate::util::docker::images_for(id, version).await?;
     errors.extend(

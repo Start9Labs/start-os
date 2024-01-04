@@ -4,7 +4,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use clap::ArgMatches;
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::{FutureExt, TryStreamExt};
@@ -12,8 +12,9 @@ use helpers::NonDetachingJoinHandle;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
-use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{command, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
 use tokio::net::TcpStream;
 use tokio::process::Command;
 use tokio::sync::{mpsc, oneshot};
@@ -28,7 +29,7 @@ use crate::logs::{
     LogFollowResponse, LogResponse, LogSource,
 };
 use crate::util::serde::{display_serializable, IoFormat};
-use crate::util::{display_none, Invoke};
+use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt as _};
 
 pub const SYSTEMD_UNIT: &str = "tor@default";
@@ -53,16 +54,29 @@ lazy_static! {
     static ref PROGRESS_REGEX: Regex = Regex::new("PROGRESS=([0-9]+)").unwrap();
 }
 
-#[command(subcommands(list_services, logs, reset))]
-pub fn tor() -> Result<(), Error> {
-    Ok(())
+pub fn tor() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "list-services",
+            from_fn_async(list_services).with_custom_display_fn(|handle, result| {
+                Ok(display_services(handle.params, result))
+            }),
+        )
+        .subcommand("logs", from_fn_async(logs))
+        .subcommand("reset", from_fn_async(reset).no_display())
+}
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct ResetParams {
+    #[arg(rename = "wipe-state", short = 'w', long = "wipe-state")]
+    wipe_state: bool,
+    reason: String,
 }
 
-#[command(display(display_none))]
 pub async fn reset(
-    #[context] ctx: RpcContext,
-    #[arg(rename = "wipe-state", short = 'w', long = "wipe-state")] wipe_state: bool,
-    #[arg] reason: String,
+    ctx: RpcContext,
+    ResetParams { reason, wipe_state }: ResetParams,
 ) -> Result<(), Error> {
     ctx.net_controller
         .tor
@@ -70,11 +84,11 @@ pub async fn reset(
         .await
 }
 
-fn display_services(services: Vec<OnionAddressV3>, matches: &ArgMatches) {
+pub fn display_services(params: ListServicesParams, services: Vec<OnionAddressV3>) {
     use prettytable::*;
 
-    if matches.is_present("format") {
-        return display_serializable(services, matches);
+    if let Some(format) = params.format {
+        return display_serializable(format, services);
     }
 
     let mut table = Table::new();
@@ -85,32 +99,66 @@ fn display_services(services: Vec<OnionAddressV3>, matches: &ArgMatches) {
     table.print_tty(false).unwrap();
 }
 
-#[command(rename = "list-services", display(display_services))]
-pub async fn list_services(
-    #[context] ctx: RpcContext,
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct ListServicesParams {
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,
+}
+
+pub async fn list_services(
+    ctx: RpcContext,
+    _: ListServicesParams,
 ) -> Result<Vec<OnionAddressV3>, Error> {
     ctx.net_controller.tor.list_services().await
 }
 
-#[command(
-    custom_cli(cli_logs(async, context(CliContext))),
-    subcommands(self(logs_nofollow(async)), logs_follow),
-    display(display_none)
-)]
-pub async fn logs(
-    #[arg(short = 'l', long = "limit")] limit: Option<usize>,
-    #[arg(short = 'c', long = "cursor")] cursor: Option<String>,
-    #[arg(short = 'B', long = "before", default)] before: bool,
-    #[arg(short = 'f', long = "follow", default)] follow: bool,
-) -> Result<(Option<usize>, Option<String>, bool, bool), Error> {
-    Ok((limit, cursor, before, follow))
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct LogsParams {
+    #[arg(short = 'l', long = "limit")]
+    limit: Option<usize>,
+    #[arg(short = 'c', long = "cursor")]
+    cursor: Option<String>,
+    #[arg(short = 'B', long = "before")]
+    #[serde(default)]
+    before: bool,
+    #[arg(short = 'f', long = "follow")]
+    #[serde(default)]
+    follow: bool,
+}
+
+pub async fn logs() -> ParentHandler<LogsParams> {
+    ParentHandler::new()
+        .root_handler(
+            from_fn_async(cli_logs)
+                .no_display()
+                .with_inherited(|params, _| params),
+        )
+        .root_handler(
+            from_fn_async(logs_nofollow)
+                .with_inherited(|params, _| params)
+                .no_cli(),
+        )
+        .subcommand(
+            "follow",
+            from_fn_async(logs_follow)
+                .with_inherited(|params, _| params)
+                .no_cli(),
+        )
 }
 pub async fn cli_logs(
     ctx: CliContext,
-    (limit, cursor, before, follow): (Option<usize>, Option<String>, bool, bool),
+    _: Empty,
+    LogsParams {
+        limit,
+        cursor,
+        before,
+        follow,
+    }: LogsParams,
 ) -> Result<(), RpcError> {
     if follow {
         if cursor.is_some() {
@@ -131,16 +179,22 @@ pub async fn cli_logs(
     }
 }
 pub async fn logs_nofollow(
-    _ctx: (),
-    (limit, cursor, before, _): (Option<usize>, Option<String>, bool, bool),
+    _: AnyContext,
+    _: Empty,
+    LogsParams {
+        limit,
+        cursor,
+        before,
+        ..
+    }: LogsParams,
 ) -> Result<LogResponse, Error> {
     fetch_logs(LogSource::Unit(SYSTEMD_UNIT), limit, cursor, before).await
 }
 
-#[command(rpc_only, rename = "follow", display(display_none))]
 pub async fn logs_follow(
-    #[context] ctx: RpcContext,
-    #[parent_data] (limit, _, _, _): (Option<usize>, Option<String>, bool, bool),
+    ctx: RpcContext,
+    _: Empty,
+    LogsParams { limit, .. }: LogsParams,
 ) -> Result<LogFollowResponse, Error> {
     follow_logs(ctx, LogSource::Unit(SYSTEMD_UNIT), limit).await
 }

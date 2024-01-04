@@ -7,7 +7,7 @@ use serde_json::Value;
 use crate::context::RpcContext;
 use crate::Error;
 
-pub fn display_properties(response: Value, _: &ArgMatches) {
+pub fn display_properties(response: Value) {
     println!("{}", response);
 }
 

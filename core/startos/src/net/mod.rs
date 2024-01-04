@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use futures::future::BoxFuture;
 use hyper::{Body, Error as HyperError, Request, Response};
-use rpc_toolkit::command;
-
-use crate::Error;
+use rpc_toolkit::{from_fn_async, ParentHandler};
 
 pub mod dhcp;
 pub mod dns;
@@ -22,9 +20,17 @@ pub mod wifi;
 
 pub const PACKAGE_CERT_PATH: &str = "/var/lib/embassy/ssl";
 
-#[command(subcommands(tor::tor, dhcp::dhcp, ssl::ssl, keys::rotate_key))]
-pub fn net() -> Result<(), Error> {
-    Ok(())
+pub fn net() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand("tor", tor::tor())
+        .subcommand("dhcp", dhcp::dhcp())
+        .subcommand("ssl", ssl::ssl())
+        .subcommand(
+            "rotate-key",
+            from_fn_async(keys::rotate_key).with_custom_display_fn(|handle, result| {
+                Ok(keys::display_requires_reboot(handle.params, result))
+            }),
+        )
 }
 
 pub type HttpHandler = Arc<

@@ -4,7 +4,7 @@ use std::net::Ipv4Addr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use clap::ArgMatches;
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use cookie_store::{CookieStore, RawCookie};
 use josekit::jwk::Jwk;
@@ -12,32 +12,26 @@ use reqwest::Proxy;
 use reqwest_cookie_store::CookieStoreMutex;
 use rpc_toolkit::reqwest::{Client, Url};
 use rpc_toolkit::url::Host;
-use rpc_toolkit::Context;
-use serde::Deserialize;
+use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{call_remote_http, CallRemote, Context};
+use tokio::runtime::Runtime;
+use tokio::sync::OnceCell;
 use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
+use crate::context::config::{local_config_path, ClientConfig};
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
-use crate::util::config::{load_config_from_paths, local_config_path};
-use crate::ResultExt;
-
-#[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct CliContextConfig {
-    pub host: Option<Url>,
-    #[serde(deserialize_with = "crate::util::serde::deserialize_from_str_opt")]
-    #[serde(default)]
-    pub proxy: Option<Url>,
-    pub cookie_path: Option<PathBuf>,
-}
+use crate::prelude::*;
 
 #[derive(Debug)]
 pub struct CliContextSeed {
+    pub runtime: OnceCell<Runtime>,
     pub base_url: Url,
     pub rpc_url: Url,
     pub client: Client,
     pub cookie_store: Arc<CookieStoreMutex>,
     pub cookie_path: PathBuf,
+    pub developer_key_path: PathBuf,
 }
 impl Drop for CliContextSeed {
     fn drop(&mut self) {
@@ -68,34 +62,17 @@ pub struct CliContext(Arc<CliContextSeed>);
 impl CliContext {
     /// BLOCKING
     #[instrument(skip_all)]
-    pub fn init(matches: &ArgMatches) -> Result<Self, crate::Error> {
-        let local_config_path = local_config_path();
-        let base: CliContextConfig = load_config_from_paths(
-            matches
-                .values_of("config")
-                .into_iter()
-                .flatten()
-                .map(|p| Path::new(p))
-                .chain(local_config_path.as_deref().into_iter())
-                .chain(std::iter::once(Path::new(crate::util::config::CONFIG_PATH))),
-        )?;
-        let mut url = if let Some(host) = matches.value_of("host") {
+    pub fn init(config: ClientConfig) -> Result<Self, Error> {
+        let mut url = if let Some(host) = config.host {
             host.parse()?
-        } else if let Some(host) = base.host {
-            host
         } else {
             "http://localhost".parse()?
         };
-        let proxy = if let Some(proxy) = matches.value_of("proxy") {
-            Some(proxy.parse()?)
-        } else {
-            base.proxy
-        };
 
-        let cookie_path = base.cookie_path.unwrap_or_else(|| {
-            local_config_path
+        let cookie_path = config.cookie_path.unwrap_or_else(|| {
+            local_config_path()
                 .as_deref()
-                .unwrap_or_else(|| Path::new(crate::util::config::CONFIG_PATH))
+                .unwrap_or_else(|| Path::new(super::config::CONFIG_PATH))
                 .parent()
                 .unwrap_or(Path::new("/"))
                 .join(".cookies.json")
@@ -120,6 +97,7 @@ impl CliContext {
         }));
 
         Ok(CliContext(Arc::new(CliContextSeed {
+            runtime: OnceCell::new(),
             base_url: url.clone(),
             rpc_url: {
                 url.path_segments_mut()
@@ -131,7 +109,7 @@ impl CliContext {
             },
             client: {
                 let mut builder = Client::builder().cookie_provider(cookie_store.clone());
-                if let Some(proxy) = proxy {
+                if let Some(proxy) = config.proxy {
                     builder =
                         builder.proxy(Proxy::all(proxy).with_kind(crate::ErrorKind::ParseUrl)?)
                 }
@@ -139,7 +117,34 @@ impl CliContext {
             },
             cookie_store,
             cookie_path,
+            developer_key_path: config.developer_key_path.unwrap_or_else(|| {
+                local_config_path()
+                    .as_deref()
+                    .unwrap_or_else(|| Path::new(super::config::CONFIG_PATH))
+                    .parent()
+                    .unwrap_or(Path::new("/"))
+                    .join("developer.key.pem")
+            }),
         })))
+    }
+
+    /// BLOCKING
+    #[instrument(skip_all)]
+    pub fn developer_key(&self) -> Result<ed25519_dalek::SigningKey, Error> {
+        if !self.developer_key_path.exists() {
+            return Err(Error::new(eyre!("Developer Key does not exist! Please run `start-sdk init` before running this command."), crate::ErrorKind::Uninitialized));
+        }
+        let pair = <ed25519::KeypairBytes as ed25519::pkcs8::DecodePrivateKey>::from_pkcs8_pem(
+            &std::fs::read_to_string(&self.developer_key_path)?,
+        )
+        .with_kind(crate::ErrorKind::Pem)?;
+        let secret = ed25519_dalek::SecretKey::try_from(&pair.secret_key[..]).map_err(|_| {
+            Error::new(
+                eyre!("pkcs8 key is of incorrect length"),
+                ErrorKind::OpenSsl,
+            )
+        })?;
+        Ok(secret.into())
     }
 }
 impl AsRef<Jwk> for CliContext {
@@ -154,32 +159,25 @@ impl std::ops::Deref for CliContext {
     }
 }
 impl Context for CliContext {
-    fn protocol(&self) -> &str {
-        self.0.base_url.scheme()
-    }
-    fn host(&self) -> Host<&str> {
-        self.0.base_url.host().unwrap_or(DEFAULT_HOST)
-    }
-    fn port(&self) -> u16 {
-        self.0.base_url.port().unwrap_or(DEFAULT_PORT)
-    }
-    fn path(&self) -> &str {
-        self.0.rpc_url.path()
-    }
-    fn url(&self) -> Url {
-        self.0.rpc_url.clone()
-    }
-    fn client(&self) -> &Client {
-        &self.0.client
+    fn runtime(&self) -> tokio::runtime::Handle {
+        if let Some(rt) = self.runtime.get() {
+            rt
+        } else {
+            self.runtime
+                .set(
+                    tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .unwrap(),
+                )
+                .unwrap();
+            self.runtime.get().unwrap()
+        }
     }
 }
-/// When we had an empty proxy the system wasn't working like it used to, which allowed empty proxy
-#[test]
-fn test_cli_proxy_empty() {
-    serde_yaml::from_str::<CliContextConfig>(
-        "
-        bind_rpc:
-    ",
-    )
-    .unwrap();
+#[async_trait::async_trait]
+impl CallRemote for CliContext {
+    async fn call_remote(&self, method: &str, params: Value) -> Result<Value, RpcError> {
+        call_remote_http(&self.client, &self.url, method, params).await
+    }
 }

@@ -64,94 +64,171 @@ pub mod volume;
 
 use std::time::SystemTime;
 
+use clap::Parser;
 pub use config::Config;
 pub use error::{Error, ErrorKind, ResultExt};
-use rpc_toolkit::command;
+use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{command, from_fn, from_fn_async, from_fn_blocking, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
 
-#[command(metadata(authenticated = false))]
-pub fn echo(#[arg] message: String) -> Result<String, RpcError> {
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct EchoParams {
+    message: String,
+}
+
+pub fn echo(ctx: (), EchoParams { message }: EchoParams) -> Result<String, RpcError> {
     Ok(message)
 }
 
-#[command(subcommands(
-    version::git_info,
-    echo,
-    inspect::inspect,
-    server,
-    package,
-    net::net,
-    auth::auth,
-    db::db,
-    ssh::ssh,
-    net::wifi::wifi,
-    disk::disk,
-    notifications::notification,
-    backup::backup,
-    registry::marketplace::marketplace,
-))]
-pub fn main_api() -> Result<(), RpcError> {
-    Ok(())
+pub fn main_api() -> ParentHandler {
+    ParentHandler::new()
+        .subsommand("git-info", from_fn_async(version::git_info))
+        .subsommand(
+            "echo",
+            from_fn_async(echo).metadata("authenticated", Value::Boolean(false)),
+        )
+        .subsommand("inspect", inspect::inspect)
+        .subsommand("server", server)
+        .subsommand("package", package)
+        .subsommand("net", net::net)
+        .subsommand("auth", auth::auth)
+        .subsommand("db", db::db)
+        .subsommand("ssh", ssh::ssh)
+        .subsommand("wifi", net::wifi::wifi())
+        .subsommand("disk", disk::disk())
+        .subsommand("notification", notifications::notification)
+        .subsommand("backup", backup::backup)
+        .subsommand("marketplace", registry::markeplace::marketplace())
 }
 
-#[command(subcommands(
-    system::time,
-    system::experimental,
-    system::logs,
-    system::kernel_logs,
-    system::metrics,
-    shutdown::shutdown,
-    shutdown::restart,
-    shutdown::rebuild,
-    update::update_system,
-    firmware::update_firmware,
-))]
-pub fn server() -> Result<(), RpcError> {
-    Ok(())
+pub fn server() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "time",
+            from_fn_async(system::time).with_custom_display_fn(|handle, result| {
+                Ok(system::display_time(handle.params, result))
+            }),
+        )
+        .subcommand("experimental", system::experimental)
+        .subcommand("logs", system::logs())
+        .subcommand("kernel-logs", system::kernel_logs())
+        .subcommand("metrics", system::metrics)
+        .subcommand("shutdown", from_fn_async(shutdown::shutdown).no_display())
+        .subcommand("restart", from_fn_async(shutdown::restart).no_display())
+        .subcommand("rebuild", from_fn_async(shutdown::rebuild).no_display())
+        .subcommand(
+            "update",
+            from_fn_async(update::update_system)
+                .with_custom_display_fn(|handle, result| {
+                    Ok(update::display_update_result(handle.params, result))
+                })
+                .metadata("sync_db", Value::Boolean(true)),
+        )
+        .subcommand(
+            "update-firmware",
+            from_fn_async(firmware::update_firmware).with_custom_display_fn(|_handle, result| {
+                Ok(firmware::display_firmware_update_result(result))
+            }),
+        )
 }
 
-#[command(subcommands(
-    action::action,
-    install::install,
-    install::sideload,
-    install::uninstall,
-    install::list,
-    config::config,
-    control::start,
-    control::stop,
-    control::restart,
-    logs::logs,
-    properties::properties,
-    dependencies::dependency,
-    backup::package_backup,
-))]
-pub fn package() -> Result<(), RpcError> {
-    Ok(())
+pub fn package() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "action",
+            from_fn_async(action::action).with_custom_display_fn(|handle, result| {
+                Ok(action::display_action_result(handle.params, result))
+            }),
+        )
+        .subcommand(
+            "install",
+            from_fn_async(install::install)
+                .no_display()
+                .metadata("sync_db", Value::Boolean(true)),
+        )
+        .subcommand("sideload", from_fn_async(install::sideload).no_cli())
+        .subcommand(
+            "uninstall",
+            from_fn_async(install::uninstall)
+                .no_display()
+                .metadata("sync_db", Value::Boolean(true)),
+        )
+        .subcommand("list", from_fn_async(install::list))
+        .subcommand("config", config::config)
+        .subcommand(
+            "start",
+            from_fn_async(control::start)
+                .no_display()
+                .metadata("sync_db", Value::Boolean(true)),
+        )
+        .subcommand(
+            "stop",
+            from_fn_async(control::stop)
+                .no_display()
+                .metadata("sync_db", Value::Boolean(true)),
+        )
+        .subcommand(
+            "restart",
+            from_fn_async(control::restart)
+                .no_display()
+                .metadata("sync_db", Value::Boolean(true)),
+        )
+        .subcommand("logs", logs::logs)
+        .subcommand(
+            "properties",
+            from_fn_async(properties::properties).with_custom_display_fn(|handle, result| {
+                Ok(properties::display_properties(result))
+            }),
+        )
+        .subcommand("dependency", dependencies::dependency)
+        .subcommand("package-backup", backup::package_backup)
 }
 
-#[command(subcommands(
-    version::git_info,
-    // s9pk::pack,
-    developer::verify,
-    developer::init,
-    inspect::inspect,
-    registry::admin::publish,
-))]
-pub fn portable_api() -> Result<(), RpcError> {
-    Ok(())
+pub fn portable_api() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "git-info",
+            from_fn(version::git_info).metadata("authenticated", Value::Boolean(false)),
+        )
+        // s9pk::pack,
+        .subcommand("s9pk", developer::verify())
+        .subcommand("init", from_fn_blocking(developer::init).no_display())
+        .subcommand("inspect", inspect::inspect())
+        .subcommand(
+            "publish",
+            from_fn_async(registry::admin::publish).no_display(),
+        )
 }
 
-#[command(subcommands(version::git_info, echo, diagnostic::diagnostic))]
-pub fn diagnostic_api() -> Result<(), RpcError> {
-    Ok(())
+pub fn diagnostic_api() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "git-info",
+            from_fn(version::git_info).metadata("authenticated", Value::Boolean(false)),
+        )
+        .subcommand("echo", from_fn_async(echo))
+        .subcommand("diagnostic", diagnostic::diagnostic())
 }
 
-#[command(subcommands(version::git_info, echo, setup::setup))]
-pub fn setup_api() -> Result<(), RpcError> {
-    Ok(())
+pub fn setup_api() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "git-info",
+            from_fn(version::git_info).metadata("authenticated", Value::Boolean(false)),
+        )
+        .subcommand("echo", from_fn_async(echo))
+        .subcommand("setup", setup::setup())
 }
 
-#[command(subcommands(version::git_info, echo, os_install::install))]
-pub fn install_api() -> Result<(), RpcError> {
-    Ok(())
+pub fn install_api() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "git-info",
+            from_fn(version::git_info).metadata("authenticated", Value::Boolean(false)),
+        )
+        .subcommand("echo", from_fn_async(echo))
+        .subcommand("install", os_install::install())
 }

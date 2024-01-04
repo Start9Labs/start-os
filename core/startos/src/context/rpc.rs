@@ -1,19 +1,16 @@
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
 use helpers::to_tmp_path;
 use josekit::jwk::Jwk;
-use patch_db::json_ptr::JsonPointer;
 use patch_db::PatchDb;
-use reqwest::{Client, Proxy, Url};
+use reqwest::{Client, Proxy};
 use rpc_toolkit::Context;
-use serde::Deserialize;
-use sqlx::postgres::PgConnectOptions;
 use sqlx::PgPool;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tokio::time::Instant;
@@ -21,89 +18,28 @@ use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
+use crate::context::config::ServerConfig;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
-use crate::db::model::{CurrentDependents, Database, PackageDataEntryMatchModelRef};
+use crate::db::model::{CurrentDependents, PackageDataEntryMatchModelRef};
 use crate::db::prelude::PatchDbExt;
 use crate::dependencies::compute_dependency_config_errs;
 use crate::disk::OsPartitionInfo;
-use crate::init::{check_time_is_synchronized, init_postgres};
+use crate::init::check_time_is_synchronized;
 use crate::install::cleanup::{cleanup_failed, uninstall};
 use crate::lxc::LxcManager;
 use crate::manager::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
 use crate::net::net_controller::NetController;
 use crate::net::ssl::{root_ca_start_time, SslManager};
+use crate::net::utils::find_eth_iface;
 use crate::net::wifi::WpaCli;
 use crate::notifications::NotificationManager;
+use crate::prelude::*;
 use crate::shutdown::Shutdown;
 use crate::status::MainStatus;
 use crate::system::get_mem_info;
-use crate::util::config::load_config_from_paths;
 use crate::util::lshw::{lshw, LshwDevice};
 use crate::volume::Volume;
-use crate::{Error, ErrorKind, ResultExt};
-
-#[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct RpcContextConfig {
-    pub wifi_interface: Option<String>,
-    pub ethernet_interface: String,
-    pub os_partitions: OsPartitionInfo,
-    pub migration_batch_rows: Option<usize>,
-    pub migration_prefetch_rows: Option<usize>,
-    pub bind_rpc: Option<SocketAddr>,
-    pub tor_control: Option<SocketAddr>,
-    pub tor_socks: Option<SocketAddr>,
-    pub dns_bind: Option<Vec<SocketAddr>>,
-    pub revision_cache_size: Option<usize>,
-    pub datadir: Option<PathBuf>,
-    pub log_server: Option<Url>,
-}
-impl RpcContextConfig {
-    pub async fn load<P: AsRef<Path> + Send + 'static>(path: Option<P>) -> Result<Self, Error> {
-        tokio::task::spawn_blocking(move || {
-            load_config_from_paths(
-                path.as_ref()
-                    .into_iter()
-                    .map(|p| p.as_ref())
-                    .chain(std::iter::once(Path::new(
-                        crate::util::config::DEVICE_CONFIG_PATH,
-                    )))
-                    .chain(std::iter::once(Path::new(crate::util::config::CONFIG_PATH))),
-            )
-        })
-        .await
-        .unwrap()
-    }
-    pub fn datadir(&self) -> &Path {
-        self.datadir
-            .as_deref()
-            .unwrap_or_else(|| Path::new("/embassy-data"))
-    }
-    pub async fn db(&self, account: &AccountInfo) -> Result<PatchDb, Error> {
-        let db_path = self.datadir().join("main").join("embassy.db");
-        let db = PatchDb::open(&db_path)
-            .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
-        if !db.exists(&<JsonPointer>::default()).await {
-            db.put(&<JsonPointer>::default(), &Database::init(account))
-                .await?;
-        }
-        Ok(db)
-    }
-    #[instrument(skip_all)]
-    pub async fn secret_store(&self) -> Result<PgPool, Error> {
-        init_postgres(self.datadir()).await?;
-        let secret_store =
-            PgPool::connect_with(PgConnectOptions::new().database("secrets").username("root"))
-                .await?;
-        sqlx::migrate!()
-            .run(&secret_store)
-            .await
-            .with_kind(crate::ErrorKind::Database)?;
-        Ok(secret_store)
-    }
-}
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
@@ -140,28 +76,26 @@ pub struct Hardware {
 pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
     #[instrument(skip_all)]
-    pub async fn init<P: AsRef<Path> + Send + Sync + 'static>(
-        cfg_path: Option<P>,
-        disk_guid: Arc<String>,
-    ) -> Result<Self, Error> {
-        let base = RpcContextConfig::load(cfg_path).await?;
+    pub async fn init(config: &ServerConfig, disk_guid: Arc<String>) -> Result<Self, Error> {
         tracing::info!("Loaded Config");
-        let tor_proxy = base.tor_socks.unwrap_or(SocketAddr::V4(SocketAddrV4::new(
+        let tor_proxy = config.tor_socks.unwrap_or(SocketAddr::V4(SocketAddrV4::new(
             Ipv4Addr::new(127, 0, 0, 1),
             9050,
         )));
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
-        let secret_store = base.secret_store().await?;
+        let secret_store = config.secret_store().await?;
         tracing::info!("Opened Pg DB");
         let account = AccountInfo::load(&secret_store).await?;
-        let db = base.db(&account).await?;
+        let db = config.db(&account).await?;
         tracing::info!("Opened PatchDB");
         let net_controller = Arc::new(
             NetController::init(
-                base.tor_control
+                config
+                    .tor_control
                     .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
                 tor_proxy,
-                base.dns_bind
+                config
+                    .dns_bind
                     .as_deref()
                     .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
                 SslManager::new(&account, root_ca_start_time().await?)?,
@@ -193,10 +127,19 @@ impl RpcContext {
 
         let seed = Arc::new(RpcContextSeed {
             is_closed: AtomicBool::new(false),
-            datadir: base.datadir().to_path_buf(),
-            os_partitions: base.os_partitions,
-            wifi_interface: base.wifi_interface.clone(),
-            ethernet_interface: base.ethernet_interface,
+            datadir: config.datadir().to_path_buf(),
+            os_partitions: config.os_partitions.clone().ok_or_else(|| {
+                Error::new(
+                    eyre!("OS Partition Information Missing"),
+                    ErrorKind::Filesystem,
+                )
+            })?,
+            wifi_interface: config.wifi_interface.clone(),
+            ethernet_interface: if let Some(eth) = config.ethernet_interface.clone() {
+                eth
+            } else {
+                find_eth_iface().await?
+            },
             disk_guid,
             db,
             secret_store,
@@ -210,8 +153,9 @@ impl RpcContext {
             lxc_manager: Arc::new(LxcManager::new()),
             open_authed_websockets: Mutex::new(BTreeMap::new()),
             rpc_stream_continuations: Mutex::new(BTreeMap::new()),
-            wifi_manager: base
+            wifi_manager: config
                 .wifi_interface
+                .clone()
                 .map(|i| Arc::new(RwLock::new(WpaCli::init(i)))),
             current_secret: Arc::new(
                 Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).map_err(|e| {

@@ -7,14 +7,14 @@ use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
 use models::{ImageId, OptionExt, PackageId, ProcedureName};
 use reqwest::Url;
-use rpc_toolkit::command;
+use rpc_toolkit::{command, from_fn_async, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
 use self::target::PackageBackupInfo;
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::manager::persistent_container::PersistentContainer;
 use crate::net::interface::InterfaceId;
@@ -48,14 +48,16 @@ pub struct PackageBackupReport {
     pub error: Option<String>,
 }
 
-#[command(subcommands(backup_bulk::backup_all, target::target))]
-pub fn backup() -> Result<(), Error> {
-    Ok(())
-}
-
-#[command(rename = "backup", subcommands(restore::restore_packages_rpc))]
-pub fn package_backup() -> Result<(), Error> {
-    Ok(())
+// #[command(subcommands(backup_bulk::backup_all, target::target))]
+pub fn backup() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "create",
+            from_fn_async(backup_bulk::backup_all)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand("target", target::target())
 }
 
 #[derive(Deserialize, Serialize)]

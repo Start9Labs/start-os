@@ -1,8 +1,9 @@
 use std::path::{Path, PathBuf};
 
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use models::Error;
-use rpc_toolkit::command;
+use rpc_toolkit::{command, from_fn_async, AnyContext, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 
@@ -16,7 +17,7 @@ use crate::disk::util::{DiskInfo, PartitionTable};
 use crate::disk::OsPartitionInfo;
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
 use crate::util::serde::IoFormat;
-use crate::util::{display_none, Invoke};
+use crate::util::Invoke;
 use crate::ARCH;
 
 mod gpt;
@@ -30,17 +31,17 @@ pub struct PostInstallConfig {
     wifi_interface: Option<String>,
 }
 
-#[command(subcommands(disk, execute, reboot))]
-pub fn install() -> Result<(), Error> {
-    Ok(())
+pub fn install() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand("disk", disk())
+        .subcommand("execute", from_fn_async(execute).no_display())
+        .subcommand("reboot", from_fn_async(reboot).no_display())
 }
 
-#[command(subcommands(list))]
-pub fn disk() -> Result<(), Error> {
-    Ok(())
+pub fn disk() -> ParentHandler {
+    ParentHandler::new().subcommand("list", from_fn_async(list).no_display())
 }
 
-#[command(display(display_none))]
 pub async fn list() -> Result<Vec<DiskInfo>, Error> {
     let skip = match async {
         Ok::<_, Error>(
@@ -103,10 +104,21 @@ async fn partition(disk: &mut DiskInfo, overwrite: bool) -> Result<OsPartitionIn
     }
 }
 
-#[command(display(display_none))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct ExecuteParams {
+    logicalname: PathBuf,
+    #[arg(short = 'o')]
+    overwrite: bool,
+}
+
 pub async fn execute(
-    #[arg] logicalname: PathBuf,
-    #[arg(short = 'o')] mut overwrite: bool,
+    _: AnyContext,
+    ExecuteParams {
+        logicalname,
+        mut overwrite,
+    }: ExecuteParams,
 ) -> Result<(), Error> {
     let mut disk = crate::disk::util::list(&Default::default())
         .await?
@@ -330,8 +342,7 @@ pub async fn execute(
     Ok(())
 }
 
-#[command(display(display_none))]
-pub async fn reboot(#[context] ctx: InstallContext) -> Result<(), Error> {
+pub async fn reboot(ctx: InstallContext) -> Result<(), Error> {
     Command::new("sync")
         .invoke(crate::ErrorKind::Filesystem)
         .await?;
