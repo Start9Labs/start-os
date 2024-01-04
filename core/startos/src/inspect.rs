@@ -99,7 +99,6 @@ pub async fn icon(
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct InstructionParams {
-    #[arg]
     path: PathBuf,
     #[arg(rename = "no-verify", long = "no-verify")]
     no_verify: bool,

@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use async_compression::tokio::bufread::GzipDecoder;
-use clap::{ArgMatches, Parser};
+use clap::Parser;
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::io::BufReader;
@@ -43,7 +43,7 @@ pub struct Firmware {
 }
 
 pub fn display_firmware_update_result(result: RequiresReboot) {
-    if arg.0 {
+    if result.0 {
         println!("Firmware successfully updated! Reboot to apply changes.");
     } else {
         println!("No firmware update available.");
