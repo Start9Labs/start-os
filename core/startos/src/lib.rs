@@ -101,7 +101,7 @@ pub fn main_api() -> ParentHandler {
         .subsommand("disk", disk::disk())
         .subsommand("notification", notifications::notification)
         .subsommand("backup", backup::backup)
-        .subsommand("marketplace", registry::markeplace::marketplace())
+        .subsommand("marketplace", registry::marketplace::marketplace())
 }
 
 pub fn server() -> ParentHandler {
@@ -184,7 +184,7 @@ pub fn package() -> ParentHandler {
             }),
         )
         .subcommand("dependency", dependencies::dependency)
-        .subcommand("package-backup", backup::package_backup)
+        .subcommand("package-backup", backup::backup())
 }
 
 pub fn portable_api() -> ParentHandler {
