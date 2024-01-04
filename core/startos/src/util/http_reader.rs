@@ -8,9 +8,9 @@ use std::task::{Context, Poll};
 
 use color_eyre::eyre::eyre;
 use futures::Stream;
-use http::header::{ACCEPT_RANGES, CONTENT_LENGTH, RANGE};
 use hyper::body::Bytes;
 use pin_project::pin_project;
+use reqwest::header::{ACCEPT_RANGES, CONTENT_LENGTH, RANGE};
 use reqwest::{Client, Url};
 use tokio::io::{AsyncRead, AsyncSeek};
 

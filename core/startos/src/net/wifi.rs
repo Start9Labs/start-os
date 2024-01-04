@@ -301,8 +301,8 @@ fn display_wifi_info(params: FormatParams, info: WiFiInfo) {
 fn display_wifi_list(params: FormatParams, info: Vec<WifiListOut>) {
     use prettytable::*;
 
-    if matches.is_present("format") {
-        return display_serializable(info, matches);
+    if let Some(format) = params.format {
+        return display_serializable(format, info);
     }
 
     let mut table_global = Table::new();

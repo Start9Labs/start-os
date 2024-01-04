@@ -1,9 +1,6 @@
-use std::sync::Arc;
+use rpc_toolkit::{from_fn_async, ParentHandler};
 
-use futures::future::BoxFuture;
-use hyper::body::Incoming;
-use hyper::{Error as HyperError, Request, Response};
-use rpc_toolkit::{from_fn_async, BoxBody, ParentHandler};
+use crate::context::CliContext;
 
 pub mod dhcp;
 pub mod dns;
@@ -35,9 +32,3 @@ pub fn net() -> ParentHandler {
                 .with_remote_cli::<CliContext>(),
         )
 }
-
-pub type HttpHandler = Arc<
-    dyn Fn(Request<Incoming>) -> BoxFuture<'static, Result<Response<BoxBody>, HyperError>>
-        + Send
-        + Sync,
->;

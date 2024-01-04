@@ -2,16 +2,18 @@ use std::borrow::Borrow;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use axum::extract::Request;
+use axum::response::Response;
 use basic_cookies::Cookie;
 use bytes::Bytes;
 use color_eyre::eyre::eyre;
 use digest::Digest;
 use helpers::const_true;
+use http::header::COOKIE;
+use http::HeaderValue;
 use imbl_value::InternedString;
-use rpc_toolkit::hyper::header::{HeaderValue, COOKIE};
-use rpc_toolkit::hyper::{Request, Response};
 use rpc_toolkit::yajrc::INTERNAL_ERROR;
-use rpc_toolkit::{BoxBody, Middleware, RpcRequest, RpcResponse};
+use rpc_toolkit::{Middleware, RpcRequest, RpcResponse};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use tokio::sync::Mutex;
@@ -255,8 +257,8 @@ impl Middleware<RpcContext> for Auth {
     async fn process_http_request(
         &mut self,
         context: &RpcContext,
-        request: &mut Request<BoxBody>,
-    ) -> Result<(), Response<Bytes>> {
+        request: &mut Request,
+    ) -> Result<(), Response> {
         self.cookie = request.headers_mut().get(COOKIE).cloned();
         Ok(())
     }

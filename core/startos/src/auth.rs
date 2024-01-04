@@ -7,9 +7,8 @@ use color_eyre::eyre::eyre;
 use imbl_value::{json, InternedString};
 use josekit::jwk::Jwk;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{command, from_fn_async, CallRemote, HandlerExt, ParentHandler};
+use rpc_toolkit::{command, from_fn_async, CallRemote, HandleArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use sqlx::{Executor, Postgres};
 use tracing::instrument;
 
@@ -134,8 +133,7 @@ async fn cli_login(
         "auth.login",
         json!({ "password": password, "metadata": metadata }),
     )
-    .await?
-    .result?;
+    .await?;
 
     Ok(())
 }
@@ -189,7 +187,7 @@ pub async fn login_impl(
     check_password_against_db(handle.as_mut(), &password).await?;
 
     let hash_token = HashSessionToken::new();
-    let user_agent = metadata.get("user-agent").and_then(|h| h.to_str().ok());
+    let user_agent = todo!() as String;
     let metadata = serde_json::to_string(&metadata).with_kind(crate::ErrorKind::Database)?;
     let hash_token_hashed = hash_token.hashed();
     sqlx::query!(
@@ -241,8 +239,8 @@ pub async fn session() -> ParentHandler {
         .subcommand(
             "list",
             from_fn_async(list)
-                .metadata("get-session", Value::Boolean(true))
-                .with_custom_display_fn(|handle, result| {
+                .with_metadata("get-session", Value::Bool(true))
+                .with_custom_display_fn(|handle: HandleArgs<CliContext, _>, result| {
                     Ok(display_sessions(handle.params, result))
                 })
                 .with_remote_cli::<CliContext>(),
@@ -305,7 +303,7 @@ pub async fn list(
     ListParams { session, .. }: ListParams,
 ) -> Result<SessionList, Error> {
     Ok(SessionList {
-        current: HashSessionToken::from_token(session)?.as_hash(),
+        current: HashSessionToken::from_token(session).hashed().to_owned(),
         sessions: sqlx::query!(
             "SELECT * FROM session WHERE logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP"
         )
@@ -393,12 +391,10 @@ async fn cli_reset_password(
     };
 
     ctx.call_remote(
-        ctx,
         "auth.reset-password",
-        serde_json::json!({ "old-password": old_password, "new-password": new_password }),
+        imbl_value::json!({ "old-password": old_password, "new-password": new_password }),
     )
-    .await?
-    .result?;
+    .await?;
 
     Ok(())
 }

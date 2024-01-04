@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 use std::io::SeekFrom;
-use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 
+use axum::body::Body;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
@@ -13,7 +13,6 @@ use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use http::header::CONTENT_LENGTH;
 use http::{Request, Response, StatusCode};
-use hyper::Body;
 use models::{mime, DataUrl};
 use reqwest::Url;
 use rpc_toolkit::yajrc::RpcError;
@@ -391,7 +390,7 @@ pub async fn sideload(
         icon_file.sync_all().await?;
     }
 
-    let handler = Box::new(|req: Request<Body>| {
+    let handler = Box::new(|req: Request| {
         async move {
             let content_length = match req.headers().get(CONTENT_LENGTH).map(|a| a.to_str()) {
                 None => None,

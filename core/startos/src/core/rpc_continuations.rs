@@ -51,7 +51,7 @@ pub type RestHandler = Box<
 
 pub type WebSocketHandler = Box<
     dyn FnOnce(
-            BoxFuture<'static, Result<Result<WebSocketStream<Upgraded>, HyperError>, JoinError>>,
+            BoxFuture<'static, Result<Result<axum::extract::ws::WebSocket, HyperError>, JoinError>>,
         ) -> BoxFuture<'static, Result<(), Error>>
         + Send,
 >;
@@ -64,7 +64,7 @@ impl RpcContinuation {
     pub fn rest(handler: RestHandler, timeout: Duration) -> Self {
         RpcContinuation::Rest(TimedResource::new(handler, timeout))
     }
-    pub fn ws(handler: WebSocketHandler, timeout: Duration) -> Self {
+    pub fn ws(handler: axum::extract::ws::WebSocket, timeout: Duration) -> Self {
         RpcContinuation::WebSocket(TimedResource::new(handler, timeout))
     }
     pub fn is_timed_out(&self) -> bool {

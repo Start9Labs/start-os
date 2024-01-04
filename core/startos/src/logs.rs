@@ -12,7 +12,7 @@ use hyper::upgrade::Upgraded;
 use hyper::Error as HyperError;
 use models::PackageId;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{command, from_fn_async, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{command, from_fn_async, CallRemote, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
@@ -288,7 +288,7 @@ pub async fn logs_nofollow(
         limit,
         cursor,
         before,
-        follow,
+        ..
     }: LogsParam,
 ) -> Result<LogResponse, Error> {
     fetch_logs(LogSource::Container(id), limit, cursor, before).await
@@ -296,13 +296,7 @@ pub async fn logs_nofollow(
 pub async fn logs_follow(
     ctx: RpcContext,
     _: Empty,
-    LogsParam {
-        id,
-        limit,
-        cursor,
-        before,
-        follow,
-    }: LogsParam,
+    LogsParam { id, limit, .. }: LogsParam,
 ) -> Result<LogFollowResponse, Error> {
     follow_logs(ctx, LogSource::Container(id), limit).await
 }
@@ -317,9 +311,8 @@ pub async fn cli_logs_generic_nofollow(
 ) -> Result<(), RpcError> {
     let res = from_value::<LogResponse>(
         ctx.call_remote(
-            ctx.clone(),
             method,
-            serde_json::json!({
+            imbl_value::json!({
                 "id": id,
                 "limit": limit,
                 "cursor": cursor,
@@ -342,9 +335,8 @@ pub async fn cli_logs_generic_follow(
     id: Option<PackageId>,
     limit: Option<usize>,
 ) -> Result<(), RpcError> {
-    let res = from_value(
+    let res = from_value::<LogFollowResponse>(
         ctx.call_remote(
-            ctx.clone(),
             method,
             imbl_value::json!({
                 "id": id,

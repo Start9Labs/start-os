@@ -425,17 +425,9 @@ impl IoFormat {
     }
 }
 
-pub fn display_serializable<T: Serialize>(t: T, matches: &ArgMatches) {
-    let format = match matches.value_of("format").map(|f| f.parse()) {
-        Some(Ok(f)) => f,
-        Some(Err(_)) => {
-            eprintln!("unrecognized formatter");
-            exit(1)
-        }
-        None => IoFormat::default(),
-    };
+pub fn display_serializable<T: Serialize>(format: IoFormat, result: T) {
     format
-        .to_writer(std::io::stdout(), &t)
+        .to_writer(std::io::stdout(), &result)
         .expect("Error serializing result to stdout")
 }
 

@@ -5,8 +5,10 @@ use chrono::Utc;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
-use rpc_toolkit::{command, from_fn_async, Empty, HandlerExt, ParentHandler};
-use rpc_toolkit::{yajrc::RpcError, AnyContext};
+use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{
+    command, from_fn_async, AnyContext, Empty, HandleArgs, HandlerExt, ParentHandler,
+};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::process::Command;
 use tokio::sync::broadcast::Receiver;
@@ -37,7 +39,7 @@ pub async fn experimental() -> ParentHandler {
         .subcommand(
             "governor",
             from_fn_async(governor)
-                .with_custom_display_fn(|handle, result| {
+                .with_custom_display_fn(|handle: HandleArgs<CliContext, _>, result| {
                     Ok(display_governor_info(handle.params, result))
                 })
                 .with_remote_cli::<CliContext>(),

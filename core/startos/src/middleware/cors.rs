@@ -1,8 +1,8 @@
-use bytes::Bytes;
+use axum::extract::Request;
+use axum::response::Response;
 use http::HeaderValue;
 use hyper::header::HeaderMap;
-use rpc_toolkit::hyper::{Request, Response};
-use rpc_toolkit::{BoxBody, Empty, Middleware};
+use rpc_toolkit::{Empty, Middleware};
 
 #[derive(Clone)]
 pub struct Cors {
@@ -17,7 +17,7 @@ impl Cors {
         );
         Self { headers }
     }
-    fn get_cors_headers(&mut self, req: &Request<BoxBody>) {
+    fn get_cors_headers(&mut self, req: &Request) {
         if let Some(origin) = req.headers().get("Origin") {
             self.headers
                 .insert("Access-Control-Allow-Origin", origin.clone());
@@ -51,12 +51,12 @@ impl<Context: Send + 'static> Middleware<Context> for Cors {
     async fn process_http_request(
         &mut self,
         context: &Context,
-        request: &mut Request<BoxBody>,
-    ) -> Result<(), Response<Bytes>> {
+        request: &mut Request,
+    ) -> Result<(), Response> {
         self.get_cors_headers(request);
         Ok(())
     }
-    async fn process_http_response(&mut self, context: &Context, response: &mut Response<Bytes>) {
+    async fn process_http_response(&mut self, context: &Context, response: &mut Response) {
         response
             .headers_mut()
             .extend(std::mem::take(&mut self.headers))

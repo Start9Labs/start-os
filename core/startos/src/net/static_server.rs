@@ -1,23 +1,21 @@
 use std::fs::Metadata;
 use std::future::Future;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
 use async_compression::tokio::bufread::GzipEncoder;
-use axum::{
-    extract::{self as x, State},
-    routing::{any, any_service},
-    Router,
-};
+use axum::body::Body;
+use axum::extract::{self as x, Request, State};
+use axum::response::Response;
+use axum::routing::{any, any_service};
+use axum::Router;
 use digest::Digest;
 use futures::future::ready;
 use futures::FutureExt;
 use http::header::ACCEPT_ENCODING;
 use http::request::Parts as RequestParts;
-use http_body_util::BodyStream;
 use hyper::body::Incoming;
-use hyper::{Method, Request, Response, StatusCode};
+use hyper::{Method, StatusCode};
 use include_dir::{include_dir, Dir};
 use new_mime_guess::MimeGuess;
 use openssl::hash::MessageDigest;
@@ -36,7 +34,6 @@ use crate::middleware::auth::{Auth, HasValidSession};
 use crate::middleware::cors::Cors;
 use crate::middleware::db::SyncDb;
 use crate::middleware::diagnostic::DiagnosticMode;
-use crate::net::HttpHandler;
 use crate::{diagnostic_api, install_api, main_api, setup_api, Error, ErrorKind, ResultExt};
 
 static NOT_FOUND: &[u8] = b"Not Found";
@@ -103,14 +100,15 @@ pub async fn install_ui_file_router(ctx: InstallContext) -> Router {
         .fallback(any(|request: Request| alt_ui(request, UiMode::Install)))
 }
 
-pub async fn main_ui_server_router(ctx: RpcContext) -> Router<RpcContext> {
+pub async fn main_ui_server_router(ctx: RpcContext) -> Router {
     Router::new()
         .with_state(ctx.clone())
         .route(
             "/rpc/*path",
             any(Server::new(move || ready(Ok(ctx.clone())), main_api())
                 .middleware(Cors::new())
-                .middleware(Auth::new())),
+                .middleware(Auth::new())
+                .middleware(SyncDb::new())),
         )
         .route(
             "/ws/db",
@@ -118,9 +116,10 @@ pub async fn main_ui_server_router(ctx: RpcContext) -> Router<RpcContext> {
         )
         .route(
             "/ws/rpc/*path",
-            any(
+            get(
                 |request: Request,
                  x::Path(path): x::Path<String>,
+                 ws: axum::extract::ws::WebSocketUpgrade,
                  State(ctx): State<RpcContext>| async move {
                     match RequestGuid::from(&path) {
                         None => {
@@ -128,10 +127,7 @@ pub async fn main_ui_server_router(ctx: RpcContext) -> Router<RpcContext> {
                             Ok::<_, Error>(bad_request())
                         }
                         Some(guid) => match ctx.get_ws_continuation_handler(&guid).await {
-                            Some(cont) => match cont(request).await {
-                                Ok::<_, Error>(r) => Ok::<_, Error>(r),
-                                Err(err) => Ok::<_, Error>(server_error(err)),
-                            },
+                            Some(cont) => ws.on_upgrade(todo!("cont")),
                             _ => Ok::<_, Error>(not_found()),
                         },
                     }
@@ -165,7 +161,7 @@ pub async fn main_ui_server_router(ctx: RpcContext) -> Router<RpcContext> {
         }))
 }
 
-async fn alt_ui(req: Request<Incoming>, ui_mode: UiMode) -> Result<Response<BoxBody>, Error> {
+async fn alt_ui(req: Request, ui_mode: UiMode) -> Result<Response, Error> {
     let (request_parts, _body) = req.into_parts();
     match &request_parts.method {
         &Method::GET => {
@@ -195,12 +191,12 @@ async fn alt_ui(req: Request<Incoming>, ui_mode: UiMode) -> Result<Response<BoxB
 
 async fn if_authorized<
     F: FnOnce() -> Fut,
-    Fut: Future<Output = Result<Response<BoxBody>, Error>> + Send + Sync,
+    Fut: Future<Output = Result<Response, Error>> + Send + Sync,
 >(
     ctx: &RpcContext,
     parts: &RequestParts,
     f: F,
-) -> Result<Response<BoxBody>, Error> {
+) -> Result<Response, Error> {
     if let Err(e) = HasValidSession::from_request_parts(parts, ctx).await {
         un_authorized(e, parts.uri.path())
     } else {
@@ -208,10 +204,7 @@ async fn if_authorized<
     }
 }
 
-async fn main_embassy_ui(
-    req: Request<Incoming>,
-    ctx: RpcContext,
-) -> Result<Response<BoxBody>, Error> {
+async fn main_embassy_ui(req: Request<Incoming>, ctx: RpcContext) -> Result<Response, Error> {
     let (request_parts, _body) = req.into_parts();
     match (
         &request_parts.method,
@@ -266,7 +259,7 @@ async fn main_embassy_ui(
                         hres = hres.header(h, v);
                     }
                 }
-                hres.body(BoxBody::new(BodyStream::new(res.bytes_stream())))
+                hres.body(Body::wrap_stream(res.bytes_stream()))
                     .with_kind(crate::ErrorKind::Network)
             })
             .await
@@ -300,7 +293,7 @@ async fn main_embassy_ui(
     }
 }
 
-fn un_authorized(err: Error, path: &str) -> Result<Response<BoxBody>, Error> {
+fn un_authorized(err: Error, path: &str) -> Result<Response, Error> {
     tracing::warn!("unauthorized for {} @{:?}", err, path);
     tracing::debug!("{:?}", err);
     Ok(Response::builder()
@@ -310,7 +303,7 @@ fn un_authorized(err: Error, path: &str) -> Result<Response<BoxBody>, Error> {
 }
 
 /// HTTP status code 404
-fn not_found() -> Response<BoxBody> {
+fn not_found() -> Response {
     Response::builder()
         .status(StatusCode::NOT_FOUND)
         .body(NOT_FOUND.into())
@@ -318,28 +311,28 @@ fn not_found() -> Response<BoxBody> {
 }
 
 /// HTTP status code 405
-fn method_not_allowed() -> Response<BoxBody> {
+fn method_not_allowed() -> Response {
     Response::builder()
         .status(StatusCode::METHOD_NOT_ALLOWED)
         .body(METHOD_NOT_ALLOWED.into())
         .unwrap()
 }
 
-fn server_error(err: Error) -> Response<BoxBody> {
+fn server_error(err: Error) -> Response {
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .body(err.to_string().into())
         .unwrap()
 }
 
-fn bad_request() -> Response<BoxBody> {
+fn bad_request() -> Response {
     Response::builder()
         .status(StatusCode::BAD_REQUEST)
-        .body(BoxBody::empty())
+        .body(Body::empty())
         .unwrap()
 }
 
-fn cert_send(cert: &X509, hostname: &Hostname) -> Result<Response<BoxBody>, Error> {
+fn cert_send(cert: &X509, hostname: &Hostname) -> Result<Response, Error> {
     let pem = cert.to_pem()?;
     Response::builder()
         .status(StatusCode::OK)
@@ -357,12 +350,12 @@ fn cert_send(cert: &X509, hostname: &Hostname) -> Result<Response<BoxBody>, Erro
             http::header::CONTENT_DISPOSITION,
             format!("attachment; filename={}.crt", &hostname.0),
         )
-        .body(BoxBody::new(pem))
+        .body(Body::new(pem))
         .with_kind(ErrorKind::Network)
 }
 
 struct FileData {
-    data: BoxBody,
+    data: Body,
     len: Option<u64>,
     encoding: Option<&'static str>,
     e_tag: String,
@@ -431,14 +424,12 @@ impl FileData {
         let (len, data) = if encoding == Some("gzip") {
             (
                 None,
-                BoxBody::new(BodyStream::new(ReaderStream::new(GzipEncoder::new(
-                    BufReader::new(file),
-                )))),
+                Body::wrap_stream(ReaderStream::new(GzipEncoder::new(BufReader::new(file)))),
             )
         } else {
             (
                 Some(metadata.len()),
-                BoxBody::new(BodyStream::new(ReaderStream::new(file))),
+                Body::wrap_stream(ReaderStream::new(file)),
             )
         };
 
@@ -453,7 +444,7 @@ impl FileData {
         })
     }
 
-    async fn into_response(self, req: &RequestParts) -> Result<Response<BoxBody>, Error> {
+    async fn into_response(self, req: &RequestParts) -> Result<Response, Error> {
         let mut builder = Response::builder();
         if let Some(mime) = self.mime {
             builder = builder.header(http::header::CONTENT_TYPE, &*mime);
@@ -482,7 +473,7 @@ impl FileData {
             == Some(self.e_tag.as_ref())
         {
             builder = builder.status(StatusCode::NOT_MODIFIED);
-            builder.body(BoxBody::new(http_body_util::Empty::new()))
+            builder.body(Body::empty())
         } else {
             if let Some(len) = self.len {
                 builder = builder.header(http::header::CONTENT_LENGTH, len);

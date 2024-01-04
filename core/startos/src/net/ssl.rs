@@ -14,7 +14,7 @@ use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::{X509Builder, X509Extension, X509NameBuilder, X509};
 use openssl::*;
-use rpc_toolkit::{from_fn_async, ParentHandler};
+use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
 use tokio::sync::{Mutex, RwLock};
 use tracing::instrument;
 

@@ -1,6 +1,5 @@
-use bytes::Bytes;
+use axum::response::Response;
 use http::HeaderValue;
-use rpc_toolkit::hyper::Response;
 use rpc_toolkit::{Middleware, RpcRequest, RpcResponse};
 use serde::Deserialize;
 
@@ -35,11 +34,7 @@ impl Middleware<RpcContext> for SyncDb {
         self.sync_db = metadata.sync_db;
         Ok(())
     }
-    async fn process_http_response(
-        &mut self,
-        context: &RpcContext,
-        response: &mut Response<Bytes>,
-    ) {
+    async fn process_http_response(&mut self, context: &RpcContext, response: &mut Response) {
         if self.sync_db {
             response.headers_mut().append(
                 "X-Patch-Sequence",

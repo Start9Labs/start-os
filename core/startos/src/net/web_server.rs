@@ -1,19 +1,15 @@
-use std::convert::Infallible;
 use std::net::SocketAddr;
+use std::time::Duration;
 
-use futures::future::ready;
-use futures::FutureExt;
+use axum::Router;
+use axum_server::Handle;
 use helpers::NonDetachingJoinHandle;
-use hyper::service::service_fn;
-use hyper_util::rt::TokioExecutor;
-use hyper_util::server::conn::auto::Builder as ServerBuilder;
 use tokio::sync::oneshot;
 
 use crate::context::{DiagnosticContext, InstallContext, RpcContext, SetupContext};
 use crate::net::static_server::{
     diag_ui_file_router, install_ui_file_router, main_ui_server_router, setup_ui_file_router,
 };
-use crate::net::HttpHandler;
 use crate::Error;
 
 pub struct WebServer {
@@ -21,22 +17,18 @@ pub struct WebServer {
     thread: NonDetachingJoinHandle<()>,
 }
 impl WebServer {
-    pub fn new(bind: SocketAddr, router: HttpHandler) -> Self {
+    pub fn new(bind: SocketAddr, router: Router) -> Self {
         let (shutdown, shutdown_recv) = oneshot::channel();
         let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            let mut server = ServerBuilder::new(TokioExecutor::new());
-            server.http1().preserve_header_case(true);
-            server.http1().title_case_headers(true);
-            for conn in 
-                .bind(&bind)
-                .http1_preserve_header_case(true)
-                .http1_title_case_headers(true)
-                .serve(make_service_fn(move |_| {
-                    let router = router.clone();
-                    ready(Ok::<_, Infallible>(service_fn(move |req| router(req))))
-                }))
-                .with_graceful_shutdown(shutdown_recv.map(|_| ()));
-            if let Err(e) = server.await {
+            let handle = Handle::new();
+            let mut server = axum_server::bind(&bind);
+            server.http_builder().http1().preserve_header_case(true);
+            server.http_builder().http1().title_case_headers(true);
+
+            if let (Err(e), _) = tokio::join!(server.serve(router), async {
+                shutdown_recv.await;
+                handle.graceful_shutdown(Some(Duration::from_secs(60)));
+            }) {
                 tracing::error!("Spawning hyper server error: {}", e);
             }
         }));

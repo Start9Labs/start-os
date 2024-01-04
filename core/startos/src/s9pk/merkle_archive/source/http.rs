@@ -1,12 +1,9 @@
-use std::sync::Arc;
-
 use bytes::Bytes;
 use futures::stream::BoxStream;
 use futures::{StreamExt, TryStreamExt};
-use http::header::{ACCEPT_RANGES, RANGE};
+use reqwest::header::{ACCEPT_RANGES, RANGE};
 use reqwest::{Client, Url};
 use tokio::io::AsyncRead;
-use tokio::sync::Mutex;
 use tokio_util::io::StreamReader;
 
 use crate::prelude::*;
