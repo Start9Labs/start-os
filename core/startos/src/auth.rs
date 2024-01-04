@@ -244,9 +244,15 @@ pub async fn session() -> ParentHandler {
                 .metadata("get-session", Value::Boolean(true))
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_sessions(handle.params, result))
-                }),
+                })
+                .with_remote_cli::<CliContext>(),
         )
-        .subcommand("kill", from_fn_async(kill).no_display())
+        .subcommand(
+            "kill",
+            from_fn_async(kill)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
 }
 
 fn display_sessions(params: ListParams, arg: SessionList) {

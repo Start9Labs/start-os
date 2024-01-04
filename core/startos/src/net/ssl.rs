@@ -19,7 +19,7 @@ use tokio::sync::{Mutex, RwLock};
 use tracing::instrument;
 
 use crate::account::AccountInfo;
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::hostname::Hostname;
 use crate::init::check_time_is_synchronized;
 use crate::net::dhcp::ips;
@@ -445,7 +445,7 @@ pub fn make_leaf_cert(
 }
 
 pub async fn ssl() -> ParentHandler {
-    ParentHandler::new().subcommand("size", from_fn_async(size))
+    ParentHandler::new().subcommand("size", from_fn_async(size).with_remote_cli::<CliContext>())
 }
 
 pub async fn size(ctx: RpcContext) -> Result<String, Error> {

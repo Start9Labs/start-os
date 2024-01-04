@@ -6,12 +6,12 @@ use rpc_toolkit::{command, from_fn_async, ParentHandler};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::version::VersionT;
 use crate::{Error, ResultExt};
 
 pub fn marketplace() -> ParentHandler {
-    ParentHandler::new().subcommand("get", from_fn_async)
+    ParentHandler::new().subcommand("get", from_fn_async(get).with_remote_cli::<CliContext>())
 }
 
 pub fn with_query_params(ctx: RpcContext, mut url: Url) -> Url {

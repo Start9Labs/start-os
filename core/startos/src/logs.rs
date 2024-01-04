@@ -1,11 +1,10 @@
 use std::future::Future;
-use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::process::Stdio;
 use std::time::{Duration, UNIX_EPOCH};
 
 use chrono::{DateTime, Utc};
-use clap::{ArgMatches, Parser};
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::stream::BoxStream;
 use futures::{FutureExt, SinkExt, Stream, StreamExt, TryStreamExt};
@@ -28,9 +27,8 @@ use tracing::instrument;
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::error::ResultExt;
-use crate::util::display_none;
+use crate::prelude::*;
 use crate::util::serde::Reversible;
-use crate::{Error, ErrorKind};
 
 #[pin_project::pin_project]
 pub struct LogStream {
@@ -317,19 +315,19 @@ pub async fn cli_logs_generic_nofollow(
     cursor: Option<String>,
     before: bool,
 ) -> Result<(), RpcError> {
-    let res = rpc_toolkit::command_helpers::call_remote(
-        ctx.clone(),
-        method,
-        serde_json::json!({
-            "id": id,
-            "limit": limit,
-            "cursor": cursor,
-            "before": before,
-        }),
-        PhantomData::<LogResponse>,
-    )
-    .await?
-    .result?;
+    let res = from_value::<LogResponse>(
+        ctx.call_remote(
+            ctx.clone(),
+            method,
+            serde_json::json!({
+                "id": id,
+                "limit": limit,
+                "cursor": cursor,
+                "before": before,
+            }),
+        )
+        .await?,
+    )?;
 
     for entry in res.entries.iter() {
         println!("{}", entry);
@@ -344,17 +342,17 @@ pub async fn cli_logs_generic_follow(
     id: Option<PackageId>,
     limit: Option<usize>,
 ) -> Result<(), RpcError> {
-    let res = rpc_toolkit::command_helpers::call_remote(
-        ctx.clone(),
-        method,
-        serde_json::json!({
-            "id": id,
-            "limit": limit,
-        }),
-        PhantomData::<LogFollowResponse>,
-    )
-    .await?
-    .result?;
+    let res = from_value(
+        ctx.call_remote(
+            ctx.clone(),
+            method,
+            imbl_value::json!({
+                "id": id,
+                "limit": limit,
+            }),
+        )
+        .await?,
+    )?;
 
     let mut base_url = ctx.base_url.clone();
     let ws_scheme = match base_url.scheme() {

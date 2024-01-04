@@ -13,7 +13,7 @@ use tokio::process::Command;
 use tokio::sync::RwLock;
 use tracing::instrument;
 
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::util::Invoke;
@@ -34,14 +34,31 @@ pub fn wifi_manager(ctx: &RpcContext) -> Result<&WifiManager, Error> {
 
 pub async fn wifi() -> ParentHandler {
     ParentHandler::new()
-        .subcommand("add", from_fn_async(add).no_display())
-        .subcommand("connect", from_fn_async(connect).no_display())
-        .subcommand("delete", from_fn_async(delete).no_display())
+        .subcommand(
+            "add",
+            from_fn_async(add)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "connect",
+            from_fn_async(connect)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "delete",
+            from_fn_async(delete)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
         .subcommand(
             "get",
-            from_fn_async(get).with_custom_display_fn(|handle, result| {
-                Ok(display_wifi_info(handle.params, result))
-            }),
+            from_fn_async(get)
+                .with_custom_display_fn(|handle, result| {
+                    Ok(display_wifi_info(handle.params, result))
+                })
+                .with_remote_cli::<CliContext>(),
         )
         .subcommand("country", country())
         .subcommand("available", available())
@@ -51,12 +68,18 @@ pub fn available() -> ParentHandler {
     ParentHandler::new().subcommand(
         "get",
         from_fn_async(get_available)
-            .with_custom_display_fn(|handle, result| Ok(display_wifi_list(handle.params, result))),
+            .with_custom_display_fn(|handle, result| Ok(display_wifi_list(handle.params, result)))
+            .with_remote_cli::<CliContext>(),
     )
 }
 
 pub fn country() -> ParentHandler {
-    ParentHandler::new().subcommand("set", from_fn_async(set_country).no_display())
+    ParentHandler::new().subcommand(
+        "set",
+        from_fn_async(set_country)
+            .no_display()
+            .with_remote_cli::<CliContext>(),
+    )
 }
 
 #[derive(Deserialize, Serialize, Parser)]
