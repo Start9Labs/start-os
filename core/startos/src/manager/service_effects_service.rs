@@ -220,7 +220,7 @@ impl ExtractParam for RpcContext {
 mod routes {
     use models::HealthCheckId;
 
-    use crate::status::health_check::HealthCheckResult;
+    use crate::{action::ActionParams, status::health_check::HealthCheckResult};
 
     use super::*;
 
@@ -260,7 +260,16 @@ mod routes {
         let action_id = params.action_id.clone();
         let input = from_value(params.input).ok();
 
-        let action_result = action(context, package_id, action_id, input, format).await?;
+        let action_result = action(
+            context,
+            ActionParams {
+                pkg_id: package_id,
+                action_id,
+                input,
+                format,
+            },
+        )
+        .await?;
         imbl_value::to_value(&action_result).with_kind(ErrorKind::Serialization)
     }
     pub async fn get_configured(

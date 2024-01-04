@@ -54,14 +54,14 @@ pub fn display_action_result(params: ActionParams, result: ActionResult) {
 #[command(rename_all = "kebab-case")]
 pub struct ActionParams {
     #[arg(rename = "id")]
-    pkg_id: PackageId,
+    pub pkg_id: PackageId,
     #[arg(rename = "action-id")]
-    action_id: ActionId,
+    pub action_id: ActionId,
     // TODO #[arg(stdin, parse(parse_stdin_deserializable))]
-    input: Option<Config>,
+    pub input: Option<Config>,
     #[allow(unused_variables)]
     #[arg(long = "format")]
-    format: Option<IoFormat>,
+    pub format: Option<IoFormat>,
 }
 
 // #[command(about = "Executes an action", display(display_action_result))]
