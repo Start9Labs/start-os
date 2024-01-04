@@ -212,7 +212,7 @@ pub async fn recover_full_embassy(
 
     init(&ctx.config).await?;
 
-    let rpc_ctx = RpcContext::init(ctx.config_path.clone(), disk_guid.clone()).await?;
+    let rpc_ctx = RpcContext::init(&ctx.config, disk_guid.clone()).await?;
 
     let ids: Vec<_> = backup_guard
         .metadata
@@ -330,47 +330,48 @@ async fn assure_restoring(
             ));
         }
         let guard = backup_guard.mount_package_backup(&id).await?;
-        let s9pk_path = Path::new(BACKUP_DIR).join(&id).join(format!("{}.s9pk", id));
-        let mut rdr = S9pk::open(&s9pk_path).await?;
+        // let s9pk_path = Path::new(BACKUP_DIR).join(&id).join(format!("{}.s9pk", id));
+        // let mut rdr = S9pk::open(&s9pk_path).await?;
 
-        let manifest = rdr.as_manifest();
-        let version = manifest.version.clone();
-        let progress = Arc::new(InstallProgress::new(Some(
-            tokio::fs::metadata(&s9pk_path).await?.len(),
-        )));
+        // let manifest = rdr.as_manifest();
+        // let version = manifest.version.clone();
+        // let progress = Arc::new(InstallProgress::new(Some(
+        //     tokio::fs::metadata(&s9pk_path).await?.len(),
+        // )));
 
-        let public_dir_path = ctx
-            .datadir
-            .join(PKG_PUBLIC_DIR)
-            .join(&id)
-            .join(version.as_str());
-        tokio::fs::create_dir_all(&public_dir_path).await?;
+        // let public_dir_path = ctx
+        //     .datadir
+        //     .join(PKG_PUBLIC_DIR)
+        //     .join(&id)
+        //     .join(version.as_str());
+        // tokio::fs::create_dir_all(&public_dir_path).await?;
 
-        let license_path = public_dir_path.join("LICENSE.md");
-        let mut dst = File::create(&license_path).await?;
-        tokio::io::copy(&mut rdr.license().await?, &mut dst).await?;
-        dst.sync_all().await?;
+        // let license_path = public_dir_path.join("LICENSE.md");
+        // let mut dst = File::create(&license_path).await?;
+        // tokio::io::copy(&mut rdr.license().await?, &mut dst).await?;
+        // dst.sync_all().await?;
 
-        let instructions_path = public_dir_path.join("INSTRUCTIONS.md");
-        let mut dst = File::create(&instructions_path).await?;
-        tokio::io::copy(&mut rdr.instructions().await?, &mut dst).await?;
-        dst.sync_all().await?;
+        // let instructions_path = public_dir_path.join("INSTRUCTIONS.md");
+        // let mut dst = File::create(&instructions_path).await?;
+        // tokio::io::copy(&mut rdr.instructions().await?, &mut dst).await?;
+        // dst.sync_all().await?;
 
-        let icon_path = Path::new("icon").with_extension(&manifest.assets.icon_type());
-        let icon_path = public_dir_path.join(&icon_path);
-        let mut dst = File::create(&icon_path).await?;
-        tokio::io::copy(&mut rdr.icon().await?, &mut dst).await?;
-        dst.sync_all().await?;
-        insert_packages.insert(
-            id.clone(),
-            PackageDataEntry::Restoring(PackageDataEntryRestoring {
-                install_progress: progress.clone(),
-                static_files: StaticFiles::local(&id, &version, manifest.assets.icon_type()),
-                manifest: manifest.clone(),
-            }),
-        );
+        // let icon_path = Path::new("icon").with_extension(&todo!());
+        // let icon_path = public_dir_path.join(&icon_path);
+        // let mut dst = File::create(&icon_path).await?;
+        // tokio::io::copy(&mut rdr.icon().await?, &mut dst).await?;
+        // dst.sync_all().await?;
+        // insert_packages.insert(
+        //     id.clone(),
+        //     PackageDataEntry::Restoring(PackageDataEntryRestoring {
+        //         install_progress: progress.clone(),
+        //         static_files: StaticFiles::local(&id, &version, todo!()),
+        //         manifest: manifest.clone(),
+        //     }),
+        // );
 
-        guards.push((manifest, guard));
+        // guards.push((manifest, guard));
+        todo!("copy s9pk data")
     }
     ctx.db
         .mutate(|db| {
@@ -446,11 +447,7 @@ async fn restore_package<'a>(
                 &id,
                 &PackageDataEntry::Restoring(PackageDataEntryRestoring {
                     install_progress: progress.clone(),
-                    static_files: StaticFiles::local(
-                        &id,
-                        &manifest.version,
-                        manifest.assets.icon_type(),
-                    ),
+                    static_files: StaticFiles::local(&id, &manifest.version, todo!()),
                     manifest: manifest.clone(),
                 }),
             )

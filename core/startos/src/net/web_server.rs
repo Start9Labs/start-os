@@ -4,8 +4,9 @@ use std::net::SocketAddr;
 use futures::future::ready;
 use futures::FutureExt;
 use helpers::NonDetachingJoinHandle;
-use hyper::service::{make_service_fn, service_fn};
-use hyper::Server;
+use hyper::service::service_fn;
+use hyper_util::rt::TokioExecutor;
+use hyper_util::server::conn::auto::Builder as ServerBuilder;
 use tokio::sync::oneshot;
 
 use crate::context::{DiagnosticContext, InstallContext, RpcContext, SetupContext};
@@ -23,7 +24,11 @@ impl WebServer {
     pub fn new(bind: SocketAddr, router: HttpHandler) -> Self {
         let (shutdown, shutdown_recv) = oneshot::channel();
         let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            let server = Server::bind(&bind)
+            let mut server = ServerBuilder::new(TokioExecutor::new());
+            server.http1().preserve_header_case(true);
+            server.http1().title_case_headers(true);
+            for conn in 
+                .bind(&bind)
                 .http1_preserve_header_case(true)
                 .http1_title_case_headers(true)
                 .serve(make_service_fn(move |_| {

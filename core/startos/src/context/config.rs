@@ -89,7 +89,7 @@ impl ClientConfig {
     }
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, Parser)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, Parser)]
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct ServerConfig {

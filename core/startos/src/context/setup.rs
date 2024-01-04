@@ -39,6 +39,7 @@ pub struct SetupResult {
 }
 
 pub struct SetupContextSeed {
+    pub config: ServerConfig,
     pub os_partitions: OsPartitionInfo,
     pub disable_encryption: bool,
     pub shutdown: Sender<()>,
@@ -63,6 +64,7 @@ impl SetupContext {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let datadir = config.datadir().to_owned();
         Ok(Self(Arc::new(SetupContextSeed {
+            config: config.clone(),
             os_partitions: config.os_partitions,
             disable_encryption: config.disable_encryption,
             shutdown,

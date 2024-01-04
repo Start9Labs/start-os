@@ -5,17 +5,19 @@ use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
 use async_compression::tokio::bufread::GzipEncoder;
-use color_eyre::eyre::eyre;
 use digest::Digest;
+use futures::future::ready;
 use futures::FutureExt;
 use http::header::ACCEPT_ENCODING;
 use http::request::Parts as RequestParts;
-use hyper::{Body, Method, Request, Response, StatusCode};
+use http_body_util::BodyStream;
+use hyper::body::Incoming;
+use hyper::{Method, Request, Response, StatusCode};
 use include_dir::{include_dir, Dir};
 use new_mime_guess::MimeGuess;
 use openssl::hash::MessageDigest;
 use openssl::x509::X509;
-use rpc_toolkit::rpc_handler;
+use rpc_toolkit::{BoxBody, Server};
 use tokio::fs::File;
 use tokio::io::BufReader;
 use tokio_util::io::ReaderStream;
@@ -25,10 +27,10 @@ use crate::core::rpc_continuations::RequestGuid;
 use crate::db::subscribe;
 use crate::hostname::Hostname;
 use crate::install::PKG_PUBLIC_DIR;
-use crate::middleware::auth::{auth as auth_middleware, HasValidSession};
-use crate::middleware::cors::cors;
-use crate::middleware::db::db as db_middleware;
-use crate::middleware::diagnostic::diagnostic as diagnostic_middleware;
+use crate::middleware::auth::{Auth, HasValidSession};
+use crate::middleware::cors::Cors;
+use crate::middleware::db::SyncDb;
+use crate::middleware::diagnostic::DiagnosticMode;
 use crate::net::HttpHandler;
 use crate::{diagnostic_api, install_api, main_api, setup_api, Error, ErrorKind, ResultExt};
 
@@ -64,26 +66,15 @@ impl UiMode {
 }
 
 pub async fn setup_ui_file_router(ctx: SetupContext) -> Result<HttpHandler, Error> {
+    let server =
+        Arc::new(Server::new(move || ready(Ok(ctx.clone())), setup_api()).middleware(Cors::new()));
     let handler: HttpHandler = Arc::new(move |req| {
-        let ctx = ctx.clone();
+        let server = server.clone();
 
         let ui_mode = UiMode::Setup;
         async move {
             let res = match req.uri().path() {
-                path if path.starts_with("/rpc/") => {
-                    let rpc_handler = rpc_handler!({
-                        command: setup_api,
-                        context: ctx,
-                        status: status_fn,
-                        middleware: [
-                            cors,
-                        ]
-                    });
-
-                    rpc_handler(req)
-                        .await
-                        .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))
-                }
+                path if path.starts_with("/rpc/") => Ok(server.handle(req).await),
                 _ => alt_ui(req, ui_mode).await,
             };
 
@@ -99,26 +90,17 @@ pub async fn setup_ui_file_router(ctx: SetupContext) -> Result<HttpHandler, Erro
 }
 
 pub async fn diag_ui_file_router(ctx: DiagnosticContext) -> Result<HttpHandler, Error> {
+    let server = Arc::new(
+        Server::new(move || ready(Ok(ctx.clone())), diagnostic_api())
+            .middleware(Cors::new())
+            .middleware(DiagnosticMode::new()),
+    );
     let handler: HttpHandler = Arc::new(move |req| {
         let ctx = ctx.clone();
         let ui_mode = UiMode::Diag;
         async move {
             let res = match req.uri().path() {
-                path if path.starts_with("/rpc/") => {
-                    let rpc_handler = rpc_handler!({
-                        command: diagnostic_api,
-                        context: ctx,
-                        status: status_fn,
-                        middleware: [
-                            cors,
-                            diagnostic_middleware,
-                        ]
-                    });
-
-                    rpc_handler(req)
-                        .await
-                        .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))
-                }
+                path if path.starts_with("/rpc/") => server.handle(req),
                 _ => alt_ui(req, ui_mode).await,
             };
 
@@ -134,25 +116,15 @@ pub async fn diag_ui_file_router(ctx: DiagnosticContext) -> Result<HttpHandler, 
 }
 
 pub async fn install_ui_file_router(ctx: InstallContext) -> Result<HttpHandler, Error> {
+    let server = Arc::new(
+        Server::new(move || ready(Ok(ctx.clone())), install_api()).middleware(Cors::new()),
+    );
     let handler: HttpHandler = Arc::new(move |req| {
         let ctx = ctx.clone();
         let ui_mode = UiMode::Install;
         async move {
             let res = match req.uri().path() {
-                path if path.starts_with("/rpc/") => {
-                    let rpc_handler = rpc_handler!({
-                        command: install_api,
-                        context: ctx,
-                        status: status_fn,
-                        middleware: [
-                            cors,
-                        ]
-                    });
-
-                    rpc_handler(req)
-                        .await
-                        .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))
-                }
+                path if path.starts_with("/rpc/") => Ok(server.handle(req).await),
                 _ => alt_ui(req, ui_mode).await,
             };
 
@@ -168,29 +140,18 @@ pub async fn install_ui_file_router(ctx: InstallContext) -> Result<HttpHandler, 
 }
 
 pub async fn main_ui_server_router(ctx: RpcContext) -> Result<HttpHandler, Error> {
+    let server = Arc::new(
+        Server::new(move || ready(Ok(ctx.clone())), main_api())
+            .middleware(Cors::new())
+            .middleware(Auth::new())
+            .middleware(SyncDb::new()),
+    );
     let handler: HttpHandler = Arc::new(move |req| {
-        let ctx = ctx.clone();
+        let server = server.clone();
 
         async move {
             let res = match req.uri().path() {
-                path if path.starts_with("/rpc/") => {
-                    let auth_middleware = auth_middleware(ctx.clone());
-                    let db_middleware = db_middleware(ctx.clone());
-                    let rpc_handler = rpc_handler!({
-                        command: main_api,
-                        context: ctx,
-                        status: status_fn,
-                        middleware: [
-                            cors,
-                            auth_middleware,
-                            db_middleware,
-                        ]
-                    });
-
-                    rpc_handler(req)
-                        .await
-                        .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))
-                }
+                path if path.starts_with("/rpc/") => Ok(server.handle(req).await),
                 "/ws/db" => subscribe(ctx, req).await,
                 path if path.starts_with("/ws/rpc/") => {
                     match RequestGuid::from(path.strip_prefix("/ws/rpc/").unwrap()) {
@@ -236,7 +197,7 @@ pub async fn main_ui_server_router(ctx: RpcContext) -> Result<HttpHandler, Error
     Ok(handler)
 }
 
-async fn alt_ui(req: Request<Body>, ui_mode: UiMode) -> Result<Response<Body>, Error> {
+async fn alt_ui(req: Request<Incoming>, ui_mode: UiMode) -> Result<Response<BoxBody>, Error> {
     let (request_parts, _body) = req.into_parts();
     match &request_parts.method {
         &Method::GET => {
@@ -266,12 +227,12 @@ async fn alt_ui(req: Request<Body>, ui_mode: UiMode) -> Result<Response<Body>, E
 
 async fn if_authorized<
     F: FnOnce() -> Fut,
-    Fut: Future<Output = Result<Response<Body>, Error>> + Send + Sync,
+    Fut: Future<Output = Result<Response<BoxBody>, Error>> + Send + Sync,
 >(
     ctx: &RpcContext,
     parts: &RequestParts,
     f: F,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<BoxBody>, Error> {
     if let Err(e) = HasValidSession::from_request_parts(parts, ctx).await {
         un_authorized(e, parts.uri.path())
     } else {
@@ -279,7 +240,10 @@ async fn if_authorized<
     }
 }
 
-async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, Error> {
+async fn main_embassy_ui(
+    req: Request<Incoming>,
+    ctx: RpcContext,
+) -> Result<Response<BoxBody>, Error> {
     let (request_parts, _body) = req.into_parts();
     match (
         &request_parts.method,
@@ -334,7 +298,7 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
                         hres = hres.header(h, v);
                     }
                 }
-                hres.body(Body::wrap_stream(res.bytes_stream()))
+                hres.body(BoxBody::new(BodyStream::new(res.bytes_stream())))
                     .with_kind(crate::ErrorKind::Network)
             })
             .await
@@ -368,7 +332,7 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
     }
 }
 
-fn un_authorized(err: Error, path: &str) -> Result<Response<Body>, Error> {
+fn un_authorized(err: Error, path: &str) -> Result<Response<BoxBody>, Error> {
     tracing::warn!("unauthorized for {} @{:?}", err, path);
     tracing::debug!("{:?}", err);
     Ok(Response::builder()
@@ -378,7 +342,7 @@ fn un_authorized(err: Error, path: &str) -> Result<Response<Body>, Error> {
 }
 
 /// HTTP status code 404
-fn not_found() -> Response<Body> {
+fn not_found() -> Response<BoxBody> {
     Response::builder()
         .status(StatusCode::NOT_FOUND)
         .body(NOT_FOUND.into())
@@ -386,28 +350,28 @@ fn not_found() -> Response<Body> {
 }
 
 /// HTTP status code 405
-fn method_not_allowed() -> Response<Body> {
+fn method_not_allowed() -> Response<BoxBody> {
     Response::builder()
         .status(StatusCode::METHOD_NOT_ALLOWED)
         .body(METHOD_NOT_ALLOWED.into())
         .unwrap()
 }
 
-fn server_error(err: Error) -> Response<Body> {
+fn server_error(err: Error) -> Response<BoxBody> {
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .body(err.to_string().into())
         .unwrap()
 }
 
-fn bad_request() -> Response<Body> {
+fn bad_request() -> Response<BoxBody> {
     Response::builder()
         .status(StatusCode::BAD_REQUEST)
-        .body(Body::empty())
+        .body(BoxBody::empty())
         .unwrap()
 }
 
-fn cert_send(cert: &X509, hostname: &Hostname) -> Result<Response<Body>, Error> {
+fn cert_send(cert: &X509, hostname: &Hostname) -> Result<Response<BoxBody>, Error> {
     let pem = cert.to_pem()?;
     Response::builder()
         .status(StatusCode::OK)
@@ -425,12 +389,12 @@ fn cert_send(cert: &X509, hostname: &Hostname) -> Result<Response<Body>, Error> 
             http::header::CONTENT_DISPOSITION,
             format!("attachment; filename={}.crt", &hostname.0),
         )
-        .body(Body::from(pem))
+        .body(BoxBody::new(pem))
         .with_kind(ErrorKind::Network)
 }
 
 struct FileData {
-    data: Body,
+    data: BoxBody,
     len: Option<u64>,
     encoding: Option<&'static str>,
     e_tag: String,
@@ -499,12 +463,14 @@ impl FileData {
         let (len, data) = if encoding == Some("gzip") {
             (
                 None,
-                Body::wrap_stream(ReaderStream::new(GzipEncoder::new(BufReader::new(file)))),
+                BoxBody::new(BodyStream::new(ReaderStream::new(GzipEncoder::new(
+                    BufReader::new(file),
+                )))),
             )
         } else {
             (
                 Some(metadata.len()),
-                Body::wrap_stream(ReaderStream::new(file)),
+                BoxBody::new(BodyStream::new(ReaderStream::new(file))),
             )
         };
 
@@ -519,7 +485,7 @@ impl FileData {
         })
     }
 
-    async fn into_response(self, req: &RequestParts) -> Result<Response<Body>, Error> {
+    async fn into_response(self, req: &RequestParts) -> Result<Response<BoxBody>, Error> {
         let mut builder = Response::builder();
         if let Some(mime) = self.mime {
             builder = builder.header(http::header::CONTENT_TYPE, &*mime);
@@ -548,7 +514,7 @@ impl FileData {
             == Some(self.e_tag.as_ref())
         {
             builder = builder.status(StatusCode::NOT_MODIFIED);
-            builder.body(Body::empty())
+            builder.body(BoxBody::new(http_body_util::Empty::new()))
         } else {
             if let Some(len) = self.len {
                 builder = builder.header(http::header::CONTENT_LENGTH, len);

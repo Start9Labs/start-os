@@ -86,7 +86,7 @@ impl S9pk<Section<MultiCursorFile>> {
         // icon.md
         let icon: Arc<[u8]> = reader.icon().await?.to_vec().await?.into();
         archive.insert_path(
-            format!("icon.{}", manifest.assets.icon_type()),
+            format!("icon.{}", todo!()),
             Entry::file(CompatSource::Buffered(icon.into())),
         )?;
 

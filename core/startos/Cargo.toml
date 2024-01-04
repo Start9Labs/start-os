@@ -81,8 +81,14 @@ gpt = "3.1.0"
 helpers = { path = "../helpers" }
 hex = "0.4.3"
 hmac = "0.12.1"
-http = "0.2.9"
-hyper = { version = "0.14.27", features = ["full"] }
+http = "1.0.0"
+http-body-util = "0.1.0"
+hyper = { version = "1.1.0", features = ["full"] }
+hyper-util = { version = "0.1.2", features = [
+  "server",
+  "server-auto",
+  "tokio",
+] }
 hyper-ws-listener = "0.3.0"
 imbl = "2.0.2"
 imbl-value = { git = "https://github.com/Start9Labs/imbl-value.git" }
@@ -93,7 +99,7 @@ integer-encoding = { version = "4.0.0", features = ["tokio_async"] }
 ipnet = { version = "2.8.0", features = ["serde"] }
 iprange = { version = "0.6.7", features = ["serde"] }
 isocountry = "0.3.2"
-itertools = "0.11.0"
+itertools = "0.12.0"
 jaq-core = "0.10.1"
 jaq-std = "0.10.0"
 josekit = "0.8.4"
@@ -149,11 +155,11 @@ stderrlog = "0.5.4"
 tar = "0.4.40"
 thiserror = "1.0.49"
 tokio = { version = "1", features = ["full"] }
-tokio-rustls = "0.24.1"
+tokio-rustls = "0.25.0"
 tokio-socks = "0.5.1"
 tokio-stream = { version = "0.1.14", features = ["io-util", "sync", "net"] }
 tokio-tar = { git = "https://github.com/dr-bonez/tokio-tar.git" }
-tokio-tungstenite = { version = "0.20.1", features = ["native-tls"] }
+tokio-tungstenite = { version = "0.21.0", features = ["native-tls"] }
 tokio-util = { version = "0.7.9", features = ["io"] }
 torut = "0.2.1"
 tracing = "0.1.39"
@@ -162,7 +168,7 @@ tracing-futures = "0.2.5"
 tracing-journald = "0.3.0"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 trust-dns-server = "0.23.1"
-typed-builder = "0.17.0"
+typed-builder = "0.18.0"
 url = { version = "2.4.1", features = ["serde"] }
 urlencoding = "2.1.3"
 uuid = { version = "1.4.1", features = ["v4"] }

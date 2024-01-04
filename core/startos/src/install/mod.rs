@@ -17,6 +17,7 @@ use hyper::Body;
 use models::{mime, DataUrl};
 use reqwest::Url;
 use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::CallRemote;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::fs::{File, OpenOptions};
@@ -206,7 +207,7 @@ pub async fn install(
         .join(man.version.as_str());
     tokio::fs::create_dir_all(&public_dir_path).await?;
 
-    let icon_type = man.assets.icon_type();
+    let icon_type = todo!() as &str;
     let (license_res, instructions_res, icon_res) = tokio::join!(
         async {
             tokio::io::copy(
@@ -381,14 +382,9 @@ pub async fn sideload(
         let invalid_data_url =
             || Error::new(eyre!("Invalid Icon Data URL"), ErrorKind::InvalidRequest);
         let data = icon
-            .strip_prefix(&format!(
-                "data:image/{};base64,",
-                manifest.assets.icon_type()
-            ))
+            .strip_prefix(&format!("data:image/{};base64,", todo!(),))
             .ok_or_else(&invalid_data_url)?;
-        let mut icon_file =
-            File::create(public_dir_path.join(format!("icon.{}", manifest.assets.icon_type())))
-                .await?;
+        let mut icon_file = File::create(public_dir_path.join(format!("icon.{}", todo!()))).await?;
         icon_file
             .write_all(&base64::decode(data).with_kind(ErrorKind::InvalidRequest)?)
             .await?;
@@ -442,7 +438,7 @@ pub async fn sideload(
                             static_files: StaticFiles::local(
                                 &manifest.id,
                                 &manifest.version,
-                                &manifest.assets.icon_type(),
+                                todo!(),
                             ),
                             manifest: manifest.clone(),
                         }),
@@ -541,22 +537,17 @@ async fn cli_install(
         let mut reader = S9pkReader::open(&path, false).await?;
         let manifest = reader.manifest().await?;
         let icon = reader.icon().await?.to_vec().await?;
-        let icon_str = format!(
-            "data:image/{};base64,{}",
-            manifest.assets.icon_type(),
-            base64::encode(&icon)
-        );
+        let icon_str = format!("data:image/{};base64,{}", todo!(), base64::encode(&icon));
 
         // rpc call remote sideload
         tracing::debug!("calling package.sideload");
-        let guid = rpc_toolkit::command_helpers::call_remote(
-            ctx.clone(),
-            "package.sideload",
-            serde_json::json!({ "manifest": manifest, "icon": icon_str }),
-            PhantomData::<RequestGuid>,
-        )
-        .await?
-        .result?;
+        let guid = from_value::<RequestGuid>(
+            ctx.call_remote(
+                "package.sideload",
+                imbl_value::json!({ "manifest": manifest, "icon": icon_str }),
+            )
+            .await?,
+        )?;
         tracing::debug!("package.sideload succeeded {:?}", guid);
 
         // hit continuation api with guid that comes back
@@ -578,7 +569,7 @@ async fn cli_install(
     } else {
         let params = match (target.split_once("@"), version_spec) {
             (Some((pkg, v)), None) => {
-                serde_json::json!({ "id": pkg, "marketplace-url": marketplace_url, "version-spec": v, "version-priority": version_priority })
+                imbl_value::json!({ "id": pkg, "marketplace-url": marketplace_url, "version-spec": v, "version-priority": version_priority })
             }
             (Some(_), Some(_)) => {
                 return Err(crate::Error::new(
@@ -588,21 +579,14 @@ async fn cli_install(
                 .into())
             }
             (None, Some(v)) => {
-                serde_json::json!({ "id": target, "marketplace-url": marketplace_url, "version-spec": v, "version-priority": version_priority })
+                imbl_value::json!({ "id": target, "marketplace-url": marketplace_url, "version-spec": v, "version-priority": version_priority })
             }
             (None, None) => {
-                serde_json::json!({ "id": target, "marketplace-url": marketplace_url, "version-priority": version_priority })
+                imbl_value::json!({ "id": target, "marketplace-url": marketplace_url, "version-priority": version_priority })
             }
         };
         tracing::debug!("calling package.install");
-        rpc_toolkit::command_helpers::call_remote(
-            ctx,
-            "package.install",
-            params,
-            PhantomData::<()>,
-        )
-        .await?
-        .result?;
+        ctx.call_remote("package.install", params).await?;
         tracing::debug!("package.install succeeded");
     }
     Ok(())
@@ -704,31 +688,32 @@ pub async fn download_install_s9pk(
             tracing::info!("SSL Port Map: {:?}", &port_map);
 
             // if any of the requested interface lan configs conflict with current state, fail the install
-            for (_id, iface) in &temp_manifest.interfaces.0 {
-                if let Some(cfg) = &iface.lan_config {
-                    for (p, lan) in cfg {
-                        if p.0 == 80 && lan.ssl || p.0 == 443 && !lan.ssl {
-                            return Err(Error::new(
-                                eyre!("SSL Conflict with StartOS"),
-                                ErrorKind::LanPortConflict,
-                            ));
-                        }
-                        match port_map.get(&p) {
-                            Some((ssl, pkg)) => {
-                                if *ssl != lan.ssl {
-                                    return Err(Error::new(
-                                        eyre!("SSL Conflict with package: {}", pkg),
-                                        ErrorKind::LanPortConflict,
-                                    ));
-                                }
-                            }
-                            None => {
-                                continue;
-                            }
-                        }
-                    }
-                }
-            }
+            // for (_id, iface) in &temp_manifest.interfaces.0 {
+            //     if let Some(cfg) = &iface.lan_config {
+            //         for (p, lan) in cfg {
+            //             if p.0 == 80 && lan.ssl || p.0 == 443 && !lan.ssl {
+            //                 return Err(Error::new(
+            //                     eyre!("SSL Conflict with StartOS"),
+            //                     ErrorKind::LanPortConflict,
+            //                 ));
+            //             }
+            //             match port_map.get(&p) {
+            //                 Some((ssl, pkg)) => {
+            //                     if *ssl != lan.ssl {
+            //                         return Err(Error::new(
+            //                             eyre!("SSL Conflict with package: {}", pkg),
+            //                             ErrorKind::LanPortConflict,
+            //                         ));
+            //                     }
+            //                 }
+            //                 None => {
+            //                     continue;
+            //                 }
+            //             }
+            //         }
+            //     }
+            // }
+            todo!();
 
             let pkg_archive_dir = ctx
                 .datadir
@@ -804,7 +789,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     rdr: &mut S9pkReader<InstallProgressTracker<R>>,
     progress: Arc<InstallProgress>,
 ) -> Result<(), Error> {
-    rdr.validate().await?;
+    // rdr.validate().await?; TODO
     rdr.validated();
     let developer_key = rdr.developer_key().clone();
     rdr.reset().await?;
@@ -865,7 +850,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                 .join(PKG_PUBLIC_DIR)
                 .join(&manifest.id)
                 .join(manifest.version.as_str());
-            let icon_path = dir.join(format!("icon.{}", manifest.assets.icon_type()));
+            let icon_path = dir.join(format!("icon.{}", todo!()));
             if tokio::fs::metadata(&icon_path).await.is_err() {
                 if let Some(marketplace_url) = &marketplace_url {
                     tokio::fs::create_dir_all(&dir).await?;
@@ -954,7 +939,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     let manager = ctx.managers.add(ctx.clone(), manifest.clone()).await?;
     tracing::info!("Install {}@{}: Created manager", pkg_id, version);
 
-    let static_files = StaticFiles::local(pkg_id, version, manifest.assets.icon_type());
+    let static_files = StaticFiles::local(pkg_id, version, todo!());
     let current_dependencies: CurrentDependencies = CurrentDependencies(
         manifest
             .dependencies
@@ -1202,7 +1187,7 @@ pub async fn unpack_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     dst.sync_all().await?;
     tracing::info!("Install {}@{}: Unpacked INSTRUCTIONS.md", pkg_id, version);
 
-    let icon_filename = Path::new("icon").with_extension(manifest.assets.icon_type());
+    let icon_filename = Path::new("icon").with_extension(todo!());
     let icon_path = public_dir_path.join(&icon_filename);
     tracing::info!(
         "Install {}@{}: Unpacking {}",
@@ -1214,10 +1199,7 @@ pub async fn unpack_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     let mut dst = File::create(&icon_path).await?;
     dst.write_all(&icon_buf).await?;
     dst.sync_all().await?;
-    let icon = DataUrl::from_vec(
-        mime(manifest.assets.icon_type()).unwrap_or("image/png"),
-        icon_buf,
-    );
+    let icon = DataUrl::from_vec(mime(todo!()).unwrap_or("image/png"), icon_buf);
     tracing::info!(
         "Install {}@{}: Unpacked {}",
         pkg_id,

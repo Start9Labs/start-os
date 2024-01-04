@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use futures::future::BoxFuture;
-use hyper::{Body, Error as HyperError, Request, Response};
-use rpc_toolkit::{from_fn_async, ParentHandler};
+use hyper::body::Incoming;
+use hyper::{Error as HyperError, Request, Response};
+use rpc_toolkit::{from_fn_async, BoxBody, ParentHandler};
 
 pub mod dhcp;
 pub mod dns;
@@ -34,5 +35,7 @@ pub fn net() -> ParentHandler {
 }
 
 pub type HttpHandler = Arc<
-    dyn Fn(Request<Body>) -> BoxFuture<'static, Result<Response<Body>, HyperError>> + Send + Sync,
+    dyn Fn(Request<Incoming>) -> BoxFuture<'static, Result<Response<BoxBody>, HyperError>>
+        + Send
+        + Sync,
 >;
