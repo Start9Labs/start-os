@@ -6,28 +6,45 @@ use chrono::{DateTime, Utc};
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use models::PackageId;
-use rpc_toolkit::command;
-use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
+use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tokio::sync::Mutex;
 use tracing::instrument;
 
 use crate::backup::BackupReport;
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
+use crate::util::serde::HandlerExtSerde;
 use crate::{Error, ErrorKind, ResultExt};
 
 // #[command(subcommands(list, delete, delete_before, create))]
 pub async fn notification() -> ParentHandler {
     ParentHandler::new()
-        .subcommand("list", from_fn_async(list).no_display().no_cli())
-        .subcommand("delete", from_fn_async(delete).no_display().no_cli())
+        .subcommand(
+            "list",
+            from_fn_async(list)
+                .with_display_serializable()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "delete",
+            from_fn_async(delete)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
         .subcommand(
             "delete-before",
-            from_fn_async(delete_before).no_display().no_cli(),
+            from_fn_async(delete_before)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
         )
-        .subcommand("create", from_fn_async(create).no_display().no_cli())
+        .subcommand(
+            "create",
+            from_fn_async(create)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
 }
 
 #[derive(Deserialize, Serialize, Parser)]

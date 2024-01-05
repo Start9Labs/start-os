@@ -15,7 +15,7 @@ use crate::db::model::{CurrentDependencies, Database};
 use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
 use crate::status::DependencyConfigErrors;
-use crate::util::serde::display_serializable;
+use crate::util::serde::HandlerExtSerde;
 use crate::util::Version;
 use crate::Error;
 
@@ -80,10 +80,8 @@ pub async fn configure() -> ParentHandler<ConfigureParams> {
         .subcommand(
             "dry",
             from_fn_async(configure_dry)
-                .with_custom_display_fn(|handle, result| {
-                    Ok(display_serializable(handle.params, result))
-                })
                 .with_inherited(|params, _| params)
+                .with_display_serializable()
                 .with_remote_cli::<CliContext>(),
         )
 }

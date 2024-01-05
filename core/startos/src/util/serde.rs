@@ -1,10 +1,14 @@
+use std::any::TypeId;
+use std::collections::VecDeque;
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::process::exit;
 use std::str::FromStr;
 
-use clap::ArgMatches;
+use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use color_eyre::eyre::eyre;
+use imbl::OrdMap;
+use rpc_toolkit::{AnyContext, HandleArgs, Handler, HandlerTypes, PrintCliResult};
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
@@ -431,19 +435,186 @@ pub fn display_serializable<T: Serialize>(format: IoFormat, result: T) {
         .expect("Error serializing result to stdout")
 }
 
-pub fn parse_stdin_deserializable<T: for<'de> Deserialize<'de>>(
-    stdin: &mut std::io::Stdin,
-    matches: &ArgMatches,
-) -> Result<T, Error> {
-    let format = match matches.value_of("format").map(|f| f.parse()) {
-        Some(Ok(f)) => f,
-        Some(Err(_)) => {
-            eprintln!("unrecognized formatter");
-            exit(1)
+#[derive(Deserialize, Serialize)]
+pub struct WithIoFormat<T> {
+    pub format: Option<IoFormat>,
+    #[serde(flatten)]
+    pub rest: T,
+}
+impl<T: FromArgMatches> FromArgMatches for WithIoFormat<T> {
+    fn from_arg_matches(matches: &ArgMatches) -> Result<Self, clap::Error> {
+        Ok(Self {
+            rest: T::from_arg_matches(matches),
+            format: matches.get_one("format"),
+        })
+    }
+    fn update_from_arg_matches(&mut self, matches: &ArgMatches) -> Result<(), clap::Error> {
+        self.rest.update_from_arg_matches(matches)?;
+        self.format = matches.get_one("format");
+    }
+}
+impl<T: CommandFactory> CommandFactory for WithIoFormat<T> {
+    fn command() -> clap::Command {
+        let cmd = T::command();
+        if !cmd.get_arguments().any(|a| a.get_id() == "format") {
+            cmd.arg(
+                clap::Arg::new("format")
+                    .long("format")
+                    .value_parser(|s| s.parse()),
+            )
+        } else {
+            cmd
         }
-        None => IoFormat::default(),
-    };
-    format.from_reader(stdin)
+    }
+    fn command_for_update() -> clap::Command {
+        let cmd = T::command_for_update();
+        if !cmd.get_arguments().any(|a| a.get_id() == "format") {
+            cmd.arg(
+                clap::Arg::new("format")
+                    .long("format")
+                    .value_parser(|s| s.parse()),
+            )
+        } else {
+            cmd
+        }
+    }
+}
+
+pub trait HandlerExtSerde: Handler {
+    fn with_display_serializable(self) -> DisplaySerializable<Self>;
+}
+impl<T: Handler> HandlerExtSerde for T {
+    fn with_display_serializable(self) -> DisplaySerializable<Self> {
+        DisplaySerializable(self)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DisplaySerializable<T>(pub T);
+impl<T: HandlerTypes> HandlerTypes for DisplaySerializable<T> {
+    type Params = WithIoFormat<T::Params>;
+    type InheritedParams = T::InheritedParams;
+    type Ok = T::Ok;
+    type Err = T::Err;
+}
+#[async_trait::async_trait]
+impl<T: Handler> Handler for DisplaySerializable<T> {
+    type Context = T::Context;
+    fn handle_sync(
+        &self,
+        HandleArgs {
+            context,
+            parent_method,
+            method,
+            params,
+            inherited_params,
+            raw_params,
+        }: HandleArgs<Self::Context, Self>,
+    ) -> Result<Self::Ok, Self::Err> {
+        self.0.handle_sync(HandleArgs {
+            context,
+            parent_method,
+            method,
+            params: params.rest,
+            inherited_params,
+            raw_params,
+        })
+    }
+    async fn handle_async(
+        &self,
+        HandleArgs {
+            context,
+            parent_method,
+            method,
+            params,
+            inherited_params,
+            raw_params,
+        }: HandleArgs<Self::Context, Self>,
+    ) -> Result<Self::Ok, Self::Err> {
+        self.0
+            .handle_async(HandleArgs {
+                context,
+                parent_method,
+                method,
+                params: params.rest,
+                inherited_params,
+                raw_params,
+            })
+            .await
+    }
+    fn contexts(&self) -> Option<imbl::OrdSet<std::any::TypeId>> {
+        self.0.contexts()
+    }
+    fn metadata(
+        &self,
+        method: VecDeque<&'static str>,
+        ctx_ty: TypeId,
+    ) -> OrdMap<&'static str, imbl_value::Value> {
+        self.0.metadata(method, ctx_ty)
+    }
+    fn method_from_dots(&self, method: &str, ctx_ty: TypeId) -> Option<VecDeque<&'static str>> {
+        self.0.method_from_dots(method, ctx_ty)
+    }
+}
+impl<T: HandlerTypes> PrintCliResult for DisplaySerializable<T> {
+    type Context = AnyContext;
+    fn print(
+        &self,
+        HandleArgs {
+            context,
+            parent_method,
+            method,
+            params,
+            inherited_params,
+            raw_params,
+        }: HandleArgs<Self::Context, Self>,
+        result: Self::Ok,
+    ) -> Result<(), Self::Err> {
+        display_serializable(params.format.unwrap_or_default(), result)
+    }
+}
+
+pub struct StdinDeserializable<T>(pub T);
+impl<T> FromArgMatches for StdinDeserializable<T>
+where
+    T: FromArgMatches,
+{
+    fn from_arg_matches(matches: &ArgMatches) -> Result<Self, clap::Error> {
+        let format = matches.get_one::<IoFormat>("format").unwrap_or_default();
+        Ok(Self(format.from_reader(&mut std::io::stdin())?))
+    }
+    fn update_from_arg_matches(&mut self, matches: &ArgMatches) -> Result<(), clap::Error> {
+        let format = matches.get_one::<IoFormat>("format").unwrap_or_default();
+        self.0 = format.from_reader(&mut std::io::stdin())?;
+        Ok(())
+    }
+}
+impl<T> clap::Args for StdinDeserializable<T>
+where
+    T: FromArgMatches,
+{
+    fn augment_args(cmd: clap::Command) -> clap::Command {
+        if !cmd.get_arguments().any(|a| a.get_id() == "format") {
+            cmd.arg(
+                clap::Arg::new("format")
+                    .long("format")
+                    .value_parser(|s| s.parse()),
+            )
+        } else {
+            cmd
+        }
+    }
+    fn augment_args_for_update(cmd: clap::Command) -> clap::Command {
+        if !cmd.get_arguments().any(|a| a.get_id() == "format") {
+            cmd.arg(
+                clap::Arg::new("format")
+                    .long("format")
+                    .value_parser(|s| s.parse()),
+            )
+        } else {
+            cmd
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -7,15 +7,14 @@ use async_compression::tokio::bufread::GzipEncoder;
 use axum::body::Body;
 use axum::extract::{self as x, Request, State};
 use axum::response::Response;
-use axum::routing::{any, any_service};
+use axum::routing::{any, any_service, get};
 use axum::Router;
 use digest::Digest;
 use futures::future::ready;
 use futures::FutureExt;
 use http::header::ACCEPT_ENCODING;
 use http::request::Parts as RequestParts;
-use hyper::body::Incoming;
-use hyper::{Method, StatusCode};
+use http::{Method, StatusCode};
 use include_dir::{include_dir, Dir};
 use new_mime_guess::MimeGuess;
 use openssl::hash::MessageDigest;
@@ -43,10 +42,6 @@ static NOT_AUTHORIZED: &[u8] = b"Not Authorized";
 static EMBEDDED_UIS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static");
 
 const PROXY_STRIP_HEADERS: &[&str] = &["cookie", "host", "origin", "referer", "user-agent"];
-
-fn status_fn(_: i32) -> StatusCode {
-    StatusCode::OK
-}
 
 #[derive(Clone)]
 pub enum UiMode {
@@ -97,11 +92,13 @@ pub async fn install_ui_file_router(ctx: InstallContext) -> Router {
             "/rpc/*path",
             any(Server::new(move || ready(Ok(ctx.clone())), install_api()).middleware(Cors::new())),
         )
-        .fallback(any(|request: Request| alt_ui(request, UiMode::Install)))
+        .fallback(any(|request: Request| {
+            alt_ui(request, UiMode::Install).unwrap_or_else(server_error)
+        }))
 }
 
-pub async fn main_ui_server_router(ctx: RpcContext) -> Router {
-    Router::new()
+pub async fn main_ui_server_router(ctx: RpcContext) -> Router<RpcContext> {
+    Router::<RpcContext>::new()
         .with_state(ctx.clone())
         .route(
             "/rpc/*path",
@@ -112,7 +109,12 @@ pub async fn main_ui_server_router(ctx: RpcContext) -> Router {
         )
         .route(
             "/ws/db",
-            any(|request: Request, State(ctx): State<RpcContext>| subscribe(ctx, request)),
+            any(
+                |request: Request,
+                 State(ctx): State<RpcContext>,
+                 ws: axum::extract::ws::WebSocketUpgrade,
+                 req: Request| subscribe(ctx, ws, req),
+            ),
         )
         .route(
             "/ws/rpc/*path",
@@ -124,11 +126,11 @@ pub async fn main_ui_server_router(ctx: RpcContext) -> Router {
                     match RequestGuid::from(&path) {
                         None => {
                             tracing::debug!("No Guid Path");
-                            Ok::<_, Error>(bad_request())
+                            bad_request()
                         }
                         Some(guid) => match ctx.get_ws_continuation_handler(&guid).await {
-                            Some(cont) => ws.on_upgrade(todo!("cont")),
-                            _ => Ok::<_, Error>(not_found()),
+                            Some(cont) => ws.on_upgrade(cont),
+                            _ => not_found(),
                         },
                     }
                 },
@@ -140,24 +142,26 @@ pub async fn main_ui_server_router(ctx: RpcContext) -> Router {
                 |request: Request,
                  x::Path(path): x::Path<String>,
                  State(ctx): State<RpcContext>| async move {
-                    match RequestGuid::from(&path) {
+                    Box::new(match RequestGuid::from(&path) {
                         None => {
                             tracing::debug!("No Guid Path");
-                            Ok::<_, Error>(bad_request())
+                            bad_request()
                         }
                         Some(guid) => match ctx.get_rest_continuation_handler(&guid).await {
-                            None => Ok::<_, Error>(not_found()),
+                            None => not_found(),
                             Some(cont) => match cont(request).await {
-                                Ok::<_, Error>(r) => Ok::<_, Error>(r),
-                                Err(e) => Ok::<_, Error>(server_error(e)),
+                                Ok::<_, Error>(r) => r,
+                                Err(e) => server_error(e),
                             },
                         },
-                    }
+                    })
                 },
             ),
         )
-        .fallback(any(|request: Request| {
-            main_embassy_ui(request, UiMode::Main)
+        .fallback(any(|request: Request, State(ctx)| async move {
+            main_embassy_ui(request, ctx)
+                .await
+                .unwrap_or_else(server_error)
         }))
 }
 
@@ -197,14 +201,15 @@ async fn if_authorized<
     parts: &RequestParts,
     f: F,
 ) -> Result<Response, Error> {
-    if let Err(e) = HasValidSession::from_request_parts(parts, ctx).await {
+    if let Err(e) = HasValidSession::from_header(parts.headers.get(http::header::COOKIE), ctx).await
+    {
         un_authorized(e, parts.uri.path())
     } else {
         f().await
     }
 }
 
-async fn main_embassy_ui(req: Request<Incoming>, ctx: RpcContext) -> Result<Response, Error> {
+async fn main_embassy_ui(req: Request, ctx: RpcContext) -> Result<Response, Error> {
     let (request_parts, _body) = req.into_parts();
     match (
         &request_parts.method,
@@ -247,19 +252,27 @@ async fn main_embassy_ui(req: Request<Incoming>, ctx: RpcContext) -> Result<Resp
                                     .iter()
                                     .any(|bad| h.as_str().eq_ignore_ascii_case(bad))
                             })
-                            .map(|(h, v)| (h.clone(), v.clone()))
+                            .flat_map(|(h, v)| {
+                                Some((
+                                    reqwest::header::HeaderName::from_lowercase(
+                                        h.as_str().as_bytes(),
+                                    )
+                                    .ok()?,
+                                    reqwest::header::HeaderValue::from_bytes(v.as_bytes()).ok()?,
+                                ))
+                            })
                             .collect(),
                     )
                     .send()
                     .await
                     .with_kind(crate::ErrorKind::Network)?;
-                let mut hres = Response::builder().status(res.status());
+                let mut hres = Response::builder().status(res.status().as_u16());
                 for (h, v) in res.headers().clone() {
                     if let Some(h) = h {
-                        hres = hres.header(h, v);
+                        hres = hres.header(h.to_string(), v.as_bytes());
                     }
                 }
-                hres.body(Body::wrap_stream(res.bytes_stream()))
+                hres.body(Body::from_stream(res.bytes_stream()))
                     .with_kind(crate::ErrorKind::Network)
             })
             .await
@@ -424,12 +437,12 @@ impl FileData {
         let (len, data) = if encoding == Some("gzip") {
             (
                 None,
-                Body::wrap_stream(ReaderStream::new(GzipEncoder::new(BufReader::new(file)))),
+                Body::from_stream(ReaderStream::new(GzipEncoder::new(BufReader::new(file)))),
             )
         } else {
             (
                 Some(metadata.len()),
-                Body::wrap_stream(ReaderStream::new(file)),
+                Body::from_stream(ReaderStream::new(file)),
             )
         };
 

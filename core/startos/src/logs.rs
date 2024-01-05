@@ -88,7 +88,14 @@ async fn ws_handler(
     }
 
     if !ws_closed {
-        stream.close().await.with_kind(ErrorKind::Network)?;
+        stream
+            .send(ws::Message::Close(Some(ws::CloseFrame {
+                code: ws::close_code::NORMAL,
+                reason: "Log Stream Finished".into(),
+            })))
+            .await
+            .with_kind(ErrorKind::Network)?;
+        drop(stream);
     }
 
     Ok(())

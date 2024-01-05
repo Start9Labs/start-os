@@ -18,7 +18,7 @@ use crate::middleware::auth::{
 };
 use crate::prelude::*;
 use crate::util::crypto::EncryptedWire;
-use crate::util::serde::{display_serializable, IoFormat};
+use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::{ensure_code, Error, ResultExt};
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -240,6 +240,7 @@ pub async fn session() -> ParentHandler {
             "list",
             from_fn_async(list)
                 .with_metadata("get-session", Value::Bool(true))
+                .with_display_serializable()
                 .with_custom_display_fn(|handle: HandleArgs<CliContext, _>, result| {
                     Ok(display_sessions(handle.params, result))
                 })
@@ -253,7 +254,7 @@ pub async fn session() -> ParentHandler {
         )
 }
 
-fn display_sessions(params: ListParams, arg: SessionList) {
+fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -292,8 +293,6 @@ fn display_sessions(params: ListParams, arg: SessionList) {
 pub struct ListParams {
     #[arg(skip)]
     session: InternedString,
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
 }
 
 // #[command(display(display_sessions))]

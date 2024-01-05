@@ -5,7 +5,6 @@ use std::time::{Duration, Instant};
 use axum::extract::Request;
 use axum::response::Response;
 use basic_cookies::Cookie;
-use bytes::Bytes;
 use color_eyre::eyre::eyre;
 use digest::Digest;
 use helpers::const_true;
@@ -70,7 +69,7 @@ enum SessionType {
 }
 
 impl HasValidSession {
-    pub async fn from_request_parts(
+    pub async fn from_header(
         header: Option<&HeaderValue>,
         ctx: &RpcContext,
     ) -> Result<Self, Error> {
@@ -330,11 +329,7 @@ impl Middleware<RpcContext> for Auth {
             }
         }
     }
-    async fn process_http_response(
-        &mut self,
-        context: &RpcContext,
-        response: &mut Response<Bytes>,
-    ) {
+    async fn process_http_response(&mut self, context: &RpcContext, response: &mut Response) {
         if let Some(set_cookie) = self.set_cookie.take() {
             response.headers_mut().insert("set-cookie", set_cookie);
         }

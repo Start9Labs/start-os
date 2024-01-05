@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::context::CliContext;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::reader::S9pkReader;
-use crate::util::serde::IoFormat;
+use crate::util::serde::HandlerExtSerde;
 use crate::Error;
 
 pub fn inspect() -> ParentHandler {
@@ -45,19 +45,12 @@ pub struct ManifestParams {
     path: PathBuf,
     #[arg(rename = "no-verify", long = "no-verify")]
     no_verify: bool,
-    #[allow(unused_variables)]
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
 }
 
 // #[command(cli_only, display(display_serializable))]
 pub async fn manifest(
     _: CliContext,
-    ManifestParams {
-        path,
-        no_verify,
-        format,
-    }: ManifestParams,
+    ManifestParams { path, no_verify }: ManifestParams,
 ) -> Result<Manifest, Error> {
     // S9pkReader::open(path, !no_verify).await?.manifest().await
     todo!()

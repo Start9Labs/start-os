@@ -18,7 +18,7 @@ use tracing::instrument;
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
 use crate::util::display_none;
-use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
+use crate::util::serde::{display_serializable, StdinDeserializable};
 use crate::Error;
 
 pub mod action;
@@ -147,7 +147,7 @@ pub fn config() -> ParentHandler<ConfigParams> {
             "get",
             from_fn_async(get)
                 .with_inherited(|ConfigParams { id }, _| id)
-                // .with_display_serializable() // TODO
+                .with_display_serializable()
                 .with_remote_cli::<CliContext>(),
         )
         .subcommand("set", set())
@@ -178,59 +178,13 @@ pub async fn get(ctx: RpcContext, _: Empty, id: PackageId) -> Result<ConfigRes, 
         .map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::ConfigGen))
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Parser)]
 #[serde(rename_all = "kebab-case")]
 pub struct SetParams {
-    // #[arg(long = "timeout")]
+    #[arg(long = "timeout")]
     pub timeout: Option<crate::util::serde::Duration>,
-    pub config: Option<Config>,
-}
-impl CommandFactory for SetParams {
-    fn command() -> clap::Command {
-        #[derive(Parser)]
-        #[command(rename_all = "kebab-case")]
-        struct CliParams {
-            #[arg(long = "timeout")]
-            timeout: Option<crate::util::serde::Duration>,
-        }
-        CliParams::command()
-    }
-    fn command_for_update() -> clap::Command {
-        #[derive(Parser)]
-        #[command(rename_all = "kebab-case")]
-        struct CliParams {
-            #[arg(long = "timeout")]
-            timeout: Option<crate::util::serde::Duration>,
-        }
-        CliParams::command_for_update()
-    }
-}
-impl FromArgMatches for SetParams {
-    fn from_arg_matches(matches: &clap::ArgMatches) -> Result<Self, clap::Error> {
-        #[derive(Parser)]
-        #[command(rename_all = "kebab-case")]
-        struct CliParams {
-            #[arg(long = "timeout")]
-            timeout: Option<crate::util::serde::Duration>,
-        }
-        let CliParams { timeout } = CliParams::from_arg_matches(matches)?;
-        Ok(SetParams {
-            timeout,
-            config: parse_stdin_deserializable(&mut std::io::stdin(), matches)?, // TODO
-        })
-    }
-    fn update_from_arg_matches(&mut self, matches: &clap::ArgMatches) -> Result<(), clap::Error> {
-        // #[derive(Parser)]
-        // #[command(rename_all = "kebab-case")]
-        // struct CliParams {
-        //     #[arg(long = "timeout")]
-        //     timeout: Option<crate::util::serde::Duration>,
-        // }
-        // let CliParams { timeout } = CliParams::from_arg_matches(matches)?;
-        // self.timeout = timeout;
-        // Ok(())
-        unimplemented!()
-    }
+    #[command(flatten)]
+    pub config: StdinDeserializable<Option<Config>>,
 }
 
 // TODO Dr Why isn't this used?
@@ -261,7 +215,13 @@ pub fn set() -> ParentHandler<SetParams, PackageId> {
 pub async fn set_dry(
     ctx: RpcContext,
     _: Empty,
-    (id, SetParams { timeout, config }): (PackageId, SetParams),
+    (
+        id,
+        SetParams {
+            timeout,
+            config: StdinDeserializable(config),
+        },
+    ): (PackageId, SetParams),
 ) -> Result<BTreeMap<PackageId, String>, Error> {
     let breakages = BTreeMap::new();
     let overrides = Default::default();
@@ -290,7 +250,13 @@ pub struct ConfigureContext {
 pub async fn set_impl(
     ctx: RpcContext,
     _: Empty,
-    (id, SetParams { timeout, config }): (PackageId, SetParams),
+    (
+        id,
+        SetParams {
+            timeout,
+            config: StdinDeserializable(config),
+        },
+    ): (PackageId, SetParams),
 ) -> Result<(), Error> {
     let breakages = BTreeMap::new();
     let overrides = Default::default();

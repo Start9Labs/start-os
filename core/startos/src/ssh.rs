@@ -3,13 +3,13 @@ use std::path::Path;
 use chrono::Utc;
 use clap::Parser;
 use color_eyre::eyre::eyre;
-use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
+use rpc_toolkit::{command, from_fn_async, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
-use crate::util::serde::{display_serializable, IoFormat};
+use crate::util::serde::{display_serializable, WithIoFormat};
 use crate::{Error, ErrorKind};
 
 static SSH_AUTHORIZED_KEYS_FILE: &str = "/home/start9/.ssh/authorized_keys";
@@ -150,7 +150,7 @@ pub async fn delete(
     }
 }
 
-fn display_all_ssh_keys(params: ListParams, result: Vec<SshKeyResponse>) {
+fn display_all_ssh_keys(params: WithIoFormat<Empty>, result: Vec<SshKeyResponse>) {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -176,15 +176,8 @@ fn display_all_ssh_keys(params: ListParams, result: Vec<SshKeyResponse>) {
     table.print_tty(false).unwrap();
 }
 
-#[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
-#[command(rename_all = "kebab-case")]
-pub struct ListParams {
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
-}
 #[instrument(skip_all)]
-pub async fn list(ctx: RpcContext, _: ListParams) -> Result<Vec<SshKeyResponse>, Error> {
+pub async fn list(ctx: RpcContext, _: Empty) -> Result<Vec<SshKeyResponse>, Error> {
     let pool = &ctx.secret_store;
     // list keys in DB and return them
     let entries = sqlx::query!("SELECT fingerprint, openssh_pubkey, created_at FROM ssh_keys")

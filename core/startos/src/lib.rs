@@ -73,6 +73,7 @@ use rpc_toolkit::{command, from_fn, from_fn_async, from_fn_blocking, HandlerExt,
 use serde::{Deserialize, Serialize};
 
 use crate::context::CliContext;
+use crate::util::serde::HandlerExtSerde;
 
 #[derive(Deserialize, Serialize, Parser)]
 #[serde(rename_all = "kebab-case")]
@@ -121,7 +122,12 @@ pub fn server() -> ParentHandler {
         .subcommand("experimental", system::experimental())
         .subcommand("logs", system::logs())
         .subcommand("kernel-logs", system::kernel_logs())
-        .subcommand("metrics", system::metrics())
+        .subcommand(
+            "metrics",
+            from_fn_async(system::metrics)
+                .with_display_serializable()
+                .with_remote_cli::<CliContext>(),
+        )
         .subcommand(
             "shutdown",
             from_fn_async(shutdown::shutdown)

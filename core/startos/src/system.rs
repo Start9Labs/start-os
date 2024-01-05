@@ -24,7 +24,7 @@ use crate::logs::{
 use crate::prelude::*;
 use crate::shutdown::Shutdown;
 use crate::util::cpupower::{get_available_governors, set_governor, Governor};
-use crate::util::serde::{display_serializable, IoFormat};
+use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
@@ -39,6 +39,7 @@ pub async fn experimental() -> ParentHandler {
         .subcommand(
             "governor",
             from_fn_async(governor)
+                .with_display_serializable()
                 .with_custom_display_fn(|handle: HandleArgs<CliContext, _>, result| {
                     Ok(display_governor_info(handle.params, result))
                 })
@@ -137,8 +138,6 @@ fn display_governor_info(params: GovernorParams, result: GovernorInfo) {
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct GovernorParams {
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
     set: Option<Governor>,
 }
 
@@ -169,7 +168,7 @@ pub struct TimeInfo {
     uptime: u64,
 }
 
-pub fn display_time(params: TimeParams, arg: TimeInfo) {
+pub fn display_time(params: WithIoFormat<Empty>, arg: TimeInfo) {
     use std::fmt::Write;
 
     use prettytable::*;
@@ -211,15 +210,7 @@ pub fn display_time(params: TimeParams, arg: TimeInfo) {
     table.print_tty(false).unwrap();
 }
 
-#[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
-#[command(rename_all = "kebab-case")]
-pub struct TimeParams {
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
-}
-
-pub async fn time(ctx: RpcContext, _: TimeParams) -> Result<TimeInfo, Error> {
+pub async fn time(ctx: RpcContext, _: Empty) -> Result<TimeInfo, Error> {
     Ok(TimeInfo {
         now: Utc::now().to_rfc3339(),
         uptime: ctx.start_time.elapsed().as_secs(),
@@ -546,15 +537,8 @@ pub struct Metrics {
     disk: MetricsDisk,
 }
 
-#[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
-#[command(rename_all = "kebab-case")]
-pub struct MetricParams {
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
-}
 // #[command(display(display_serializable))]
-pub async fn metrics(ctx: RpcContext, _: MetricParams) -> Result<Metrics, Error> {
+pub async fn metrics(ctx: RpcContext, _: Empty) -> Result<Metrics, Error> {
     match ctx.metrics_cache.read().await.clone() {
         None => Err(Error {
             source: color_eyre::eyre::eyre!("No Metrics Found"),

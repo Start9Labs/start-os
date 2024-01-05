@@ -9,7 +9,7 @@ use tracing::instrument;
 use crate::config::Config;
 use crate::context::RpcContext;
 use crate::prelude::*;
-use crate::util::serde::{display_serializable, IoFormat};
+use crate::util::serde::{display_serializable, StdinDeserializable, WithIoFormat};
 use crate::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -34,7 +34,7 @@ pub enum DockerStatus {
     Stopped,
 }
 
-pub fn display_action_result(params: ActionParams, result: ActionResult) {
+pub fn display_action_result(params: WithIoFormat<ActionParams>, result: ActionResult) {
     if let Some(format) = params.format {
         return display_serializable(format, result);
     }
@@ -54,31 +54,30 @@ pub fn display_action_result(params: ActionParams, result: ActionResult) {
 #[command(rename_all = "kebab-case")]
 pub struct ActionParams {
     #[arg(rename = "id")]
-    pub pkg_id: PackageId,
+    #[serde(rename = "id")]
+    pub package_id: PackageId,
     #[arg(rename = "action-id")]
+    #[serde(rename = "action-id")]
     pub action_id: ActionId,
-    // TODO #[arg(stdin, parse(parse_stdin_deserializable))]
-    pub input: Option<Config>,
-    #[allow(unused_variables)]
-    #[arg(long = "format")]
-    pub format: Option<IoFormat>,
+    #[command(flatten)]
+    pub input: StdinDeserializable<Option<Config>>,
 }
+// impl C
 
 // #[command(about = "Executes an action", display(display_action_result))]
 #[instrument(skip_all)]
 pub async fn action(
     ctx: RpcContext,
     ActionParams {
-        pkg_id,
+        package_id,
         action_id,
-        input,
-        format,
+        input: StdinDeserializable(input),
     }: ActionParams,
 ) -> Result<ActionResult, Error> {
     ctx.managers
-        .get(&pkg_id)
+        .get(&package_id)
         .await
-        .or_not_found(lazy_format!("Manager for {}", pkg_id))?
+        .or_not_found(lazy_format!("Manager for {}", package_id))?
         .execute(
             ProcedureName::Action(action_id.clone()),
             input.map(|c| to_value(&c)).transpose()?.unwrap_or_default(),

@@ -367,7 +367,7 @@ dependencies = [
  "sha1",
  "sync_wrapper",
  "tokio",
- "tokio-tungstenite 0.21.0",
+ "tokio-tungstenite",
  "tower",
  "tower-layer",
  "tower-service",
@@ -516,7 +516,7 @@ dependencies = [
  "cfg-if 0.1.10",
  "clang-sys",
  "clap 2.34.0",
- "env_logger 0.7.1",
+ "env_logger",
  "lazy_static",
  "lazycell",
  "log",
@@ -1756,19 +1756,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "env_logger"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95b3f3e67048839cb0d0781f445682a35113da7121f7c949db0e2be96a4fbece"
-dependencies = [
- "humantime 2.1.0",
- "is-terminal",
- "log",
- "regex",
- "termcolor",
-]
-
-[[package]]
 name = "equivalent"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2427,7 +2414,6 @@ dependencies = [
  "itoa",
  "pin-project-lite",
  "tokio",
- "want",
 ]
 
 [[package]]
@@ -2471,23 +2457,6 @@ dependencies = [
  "socket2",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "hyper-ws-listener"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcbfe4981e45b0a7403a55d4af12f8d30e173e722409658c3857243990e72180"
-dependencies = [
- "anyhow",
- "base64 0.21.5",
- "env_logger 0.10.1",
- "futures",
- "hyper 0.14.28",
- "log",
- "sha-1",
- "tokio",
- "tokio-tungstenite 0.20.1",
 ]
 
 [[package]]
@@ -2722,9 +2691,9 @@ dependencies = [
 
 [[package]]
 name = "is-macro"
-version = "0.3.4"
+version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b75828adcb53122ef5ea649a39f50f82d94b754099bf6331b32e255e1891e8fb"
+checksum = "59a85abdc13717906baccb5a1e435556ce0df215f242892f721dff62bf25288f"
 dependencies = [
  "Inflector",
  "proc-macro2",
@@ -4288,7 +4257,7 @@ dependencies = [
 [[package]]
 name = "rpc-toolkit"
 version = "0.2.3"
-source = "git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/traits#9f7e731fd1ad307c3e67248fb3292ac1e521d236"
+source = "git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/traits#543ce4f2c0f75dd9aff2f468f2da6ce99a43405e"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -4329,7 +4298,7 @@ dependencies = [
 [[package]]
 name = "rpc-toolkit-macro"
 version = "0.2.2"
-source = "git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/traits#9f7e731fd1ad307c3e67248fb3292ac1e521d236"
+source = "git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/traits#543ce4f2c0f75dd9aff2f468f2da6ce99a43405e"
 dependencies = [
  "proc-macro2",
  "rpc-toolkit-macro-internals 0.2.2 (git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/traits)",
@@ -4350,7 +4319,7 @@ dependencies = [
 [[package]]
 name = "rpc-toolkit-macro-internals"
 version = "0.2.2"
-source = "git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/traits#9f7e731fd1ad307c3e67248fb3292ac1e521d236"
+source = "git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/traits#543ce4f2c0f75dd9aff2f468f2da6ce99a43405e"
 dependencies = [
  "itertools 0.12.0",
  "proc-macro2",
@@ -5351,10 +5320,6 @@ dependencies = [
  "hex",
  "hmac 0.12.1",
  "http 1.0.0",
- "http-body-util",
- "hyper 1.1.0",
- "hyper-util",
- "hyper-ws-listener",
  "imbl",
  "imbl-value",
  "include_dir",
@@ -5416,7 +5381,7 @@ dependencies = [
  "tokio-socks",
  "tokio-stream",
  "tokio-tar",
- "tokio-tungstenite 0.21.0",
+ "tokio-tungstenite",
  "tokio-util",
  "toml 0.8.8",
  "torut",
@@ -6199,18 +6164,6 @@ dependencies = [
 
 [[package]]
 name = "tokio-tungstenite"
-version = "0.20.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "212d5dcb2a1ce06d81107c3d0ffa3121fe974b73f068c8282cb1c32328113b6c"
-dependencies = [
- "futures-util",
- "log",
- "tokio",
- "tungstenite 0.20.1",
-]
-
-[[package]]
-name = "tokio-tungstenite"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c83b561d025642014097b66e6c1bb422783339e0909e4429cde4749d1990bc38"
@@ -6220,7 +6173,7 @@ dependencies = [
  "native-tls",
  "tokio",
  "tokio-native-tls",
- "tungstenite 0.21.0",
+ "tungstenite",
 ]
 
 [[package]]
@@ -6550,25 +6503,6 @@ name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
-
-[[package]]
-name = "tungstenite"
-version = "0.20.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e3dac10fd62eaf6617d3a904ae222845979aec67c615d1c842b4002c7666fb9"
-dependencies = [
- "byteorder",
- "bytes",
- "data-encoding",
- "http 0.2.11",
- "httparse",
- "log",
- "rand 0.8.5",
- "sha1",
- "thiserror",
- "url",
- "utf-8",
-]
 
 [[package]]
 name = "tungstenite"

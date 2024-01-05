@@ -6,8 +6,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::extract::ws::WebSocket;
-use futures::future::BoxFuture;
 use helpers::to_tmp_path;
 use josekit::jwk::Jwk;
 use patch_db::PatchDb;
@@ -20,7 +18,8 @@ use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
-use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
+use crate::context::config::ServerConfig;
+use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation, WebSocketHandler};
 use crate::db::model::{CurrentDependents, PackageDataEntryMatchModelRef};
 use crate::db::prelude::PatchDbExt;
 use crate::dependencies::compute_dependency_config_errs;
@@ -41,7 +40,6 @@ use crate::status::MainStatus;
 use crate::system::get_mem_info;
 use crate::util::lshw::{lshw, LshwDevice};
 use crate::volume::Volume;
-use crate::{context::config::ServerConfig, core::rpc_continuations::WebSocketHandler};
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,

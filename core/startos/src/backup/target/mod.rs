@@ -8,7 +8,7 @@ use color_eyre::eyre::eyre;
 use digest::generic_array::GenericArray;
 use digest::OutputSizeUser;
 use models::PackageId;
-use rpc_toolkit::{command, from_fn_async, ParentHandler};
+use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use sqlx::{Executor, Postgres};
@@ -24,7 +24,9 @@ use crate::disk::mount::filesystem::{FileSystem, MountType, ReadWrite};
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::PartitionInfo;
 use crate::prelude::*;
-use crate::util::serde::{deserialize_from_str, display_serializable, serialize_display};
+use crate::util::serde::{
+    deserialize_from_str, display_serializable, serialize_display, HandlerExtSerde, WithIoFormat,
+};
 use crate::util::Version;
 
 pub mod cifs;
@@ -134,8 +136,19 @@ impl FileSystem for BackupTargetFS {
 pub fn target() -> ParentHandler {
     ParentHandler::new()
         .subcommand("cifs", cifs::cifs())
-        .subcommand("list", from_fn_async(list).with_remote_cli::<CliContext>())
-        .subcommand("info", from_fn_async(info).with_remote_cli::<CliContext>())
+        .subcommand(
+            "list",
+            from_fn_async(list)
+                .with_display_serializable()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "info",
+            from_fn_async(info)
+                .with_display_serializable()
+                .with_custom_display_fn(|params, info| Ok(display_backup_info(params, info)))
+                .with_remote_cli::<CliContext>(),
+        )
 }
 
 // #[command(display(display_serializable))]
@@ -188,11 +201,11 @@ pub struct PackageBackupInfo {
     pub timestamp: DateTime<Utc>,
 }
 
-fn display_backup_info(info: BackupInfo, matches: &ArgMatches) {
+fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) {
     use prettytable::*;
 
-    if matches.is_present("format") {
-        return display_serializable(info, matches);
+    if let Some(format) = params.format {
+        return display_serializable(format, info);
     }
 
     let mut table = Table::new();

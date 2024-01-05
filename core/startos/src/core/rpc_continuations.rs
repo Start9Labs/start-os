@@ -1,11 +1,12 @@
 use std::time::Duration;
 
-use axum::{body::Body, extract::ws::WebSocket};
+use axum::body::Body;
+use axum::extract::ws::WebSocket;
+use axum::extract::Request;
+use axum::response::Response;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use helpers::TimedResource;
-use hyper::upgrade::Upgraded;
-use hyper::{Error as HyperError, Request, Response};
 use imbl_value::InternedString;
 use tokio::task::JoinError;
 use tokio_tungstenite::WebSocketStream;
@@ -46,9 +47,8 @@ impl std::fmt::Display for RequestGuid {
     }
 }
 
-pub type RestHandler = Box<
-    dyn FnOnce(Request<Body>) -> BoxFuture<'static, Result<Response<Body>, crate::Error>> + Send,
->;
+pub type RestHandler =
+    Box<dyn FnOnce(Request) -> BoxFuture<'static, Result<Response, crate::Error>> + Send>;
 
 pub type WebSocketHandler =
     Box<dyn FnOnce(WebSocket) -> BoxFuture<'static, Result<(), Error>> + Send>;
