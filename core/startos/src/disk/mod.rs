@@ -1,12 +1,11 @@
 use std::path::{Path, PathBuf};
 
-use clap::Parser;
-use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 
 use crate::context::{CliContext, RpcContext};
 use crate::disk::util::DiskInfo;
-use crate::util::serde::{display_serializable, IoFormat};
+use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::Error;
 
 pub mod fsck;
@@ -46,6 +45,7 @@ pub fn disk() -> ParentHandler {
         .subcommand(
             "list",
             from_fn_async(list)
+                .with_display_serializable()
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_disk_info(handle.params, result))
                 })
@@ -59,7 +59,7 @@ pub fn disk() -> ParentHandler {
         )
 }
 
-fn display_disk_info(params: ListParams, args: Vec<DiskInfo>) {
+fn display_disk_info(params: WithIoFormat<Empty>, args: Vec<DiskInfo>) {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -72,7 +72,7 @@ fn display_disk_info(params: ListParams, args: Vec<DiskInfo>) {
         "LABEL",
         "CAPACITY",
         "USED",
-        "EMBASSY OS VERSION"
+        "STARTOS VERSION"
     ]);
     for disk in args {
         let row = row![
@@ -113,15 +113,8 @@ fn display_disk_info(params: ListParams, args: Vec<DiskInfo>) {
     table.print_tty(false).unwrap();
 }
 
-#[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
-#[command(rename_all = "kebab-case")]
-pub struct ListParams {
-    format: Option<IoFormat>,
-}
-
 // #[command(display(display_disk_info))]
-pub async fn list(ctx: RpcContext, _: ListParams) -> Result<Vec<DiskInfo>, Error> {
+pub async fn list(ctx: RpcContext, _: Empty) -> Result<Vec<DiskInfo>, Error> {
     crate::disk::util::list(&ctx.os_partitions).await
 }
 

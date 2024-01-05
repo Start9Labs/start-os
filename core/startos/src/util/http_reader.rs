@@ -6,9 +6,9 @@ use std::io::Error as StdIOError;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use bytes::Bytes;
 use color_eyre::eyre::eyre;
 use futures::Stream;
-use hyper::body::Bytes;
 use pin_project::pin_project;
 use reqwest::header::{ACCEPT_RANGES, CONTENT_LENGTH, RANGE};
 use reqwest::{Client, Url};

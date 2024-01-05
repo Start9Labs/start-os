@@ -28,7 +28,7 @@ use crate::logs::{
     cli_logs_generic_follow, cli_logs_generic_nofollow, fetch_logs, follow_logs, journalctl,
     LogFollowResponse, LogResponse, LogSource,
 };
-use crate::util::serde::{display_serializable, IoFormat};
+use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt as _};
 
@@ -59,6 +59,7 @@ pub fn tor() -> ParentHandler {
         .subcommand(
             "list-services",
             from_fn_async(list_services)
+                .with_display_serializable()
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_services(handle.params, result))
                 })
@@ -91,7 +92,7 @@ pub async fn reset(
         .await
 }
 
-pub fn display_services(params: ListServicesParams, services: Vec<OnionAddressV3>) {
+pub fn display_services(params: WithIoFormat<Empty>, services: Vec<OnionAddressV3>) {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -106,19 +107,7 @@ pub fn display_services(params: ListServicesParams, services: Vec<OnionAddressV3
     table.print_tty(false).unwrap();
 }
 
-#[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
-#[command(rename_all = "kebab-case")]
-pub struct ListServicesParams {
-    #[allow(unused_variables)]
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
-}
-
-pub async fn list_services(
-    ctx: RpcContext,
-    _: ListServicesParams,
-) -> Result<Vec<OnionAddressV3>, Error> {
+pub async fn list_services(ctx: RpcContext, _: Empty) -> Result<Vec<OnionAddressV3>, Error> {
     ctx.net_controller.tor.list_services().await
 }
 

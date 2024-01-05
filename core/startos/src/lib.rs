@@ -190,7 +190,12 @@ pub fn package() -> ParentHandler {
                 .metadata("sync_db", Value::Boolean(true))
                 .with_remote_cli::<CliContext>(),
         )
-        .subcommand("list", from_fn_async(install::list))
+        .subcommand(
+            "list",
+            from_fn_async(install::list)
+                .with_display_serializable()
+                .with_remote_cli::<CliContext>(),
+        )
         .subcommand("config", config::config)
         .subcommand(
             "start",

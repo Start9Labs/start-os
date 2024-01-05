@@ -4257,7 +4257,7 @@ dependencies = [
 [[package]]
 name = "rpc-toolkit"
 version = "0.2.3"
-source = "git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/traits#543ce4f2c0f75dd9aff2f468f2da6ce99a43405e"
+source = "git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/traits#cf133727f1b4357a4bda775223f286ac1cc74212"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -4298,7 +4298,7 @@ dependencies = [
 [[package]]
 name = "rpc-toolkit-macro"
 version = "0.2.2"
-source = "git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/traits#543ce4f2c0f75dd9aff2f468f2da6ce99a43405e"
+source = "git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/traits#cf133727f1b4357a4bda775223f286ac1cc74212"
 dependencies = [
  "proc-macro2",
  "rpc-toolkit-macro-internals 0.2.2 (git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/traits)",
@@ -4319,7 +4319,7 @@ dependencies = [
 [[package]]
 name = "rpc-toolkit-macro-internals"
 version = "0.2.2"
-source = "git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/traits#543ce4f2c0f75dd9aff2f468f2da6ce99a43405e"
+source = "git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/traits#cf133727f1b4357a4bda775223f286ac1cc74212"
 dependencies = [
  "itertools 0.12.0",
  "proc-macro2",

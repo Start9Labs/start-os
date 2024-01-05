@@ -40,7 +40,7 @@ pub async fn experimental() -> ParentHandler {
             "governor",
             from_fn_async(governor)
                 .with_display_serializable()
-                .with_custom_display_fn(|handle: HandleArgs<CliContext, _>, result| {
+                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
                     Ok(display_governor_info(handle.params, result))
                 })
                 .with_remote_cli::<CliContext>(),
@@ -115,7 +115,7 @@ pub struct GovernorInfo {
     available: BTreeSet<Governor>,
 }
 
-fn display_governor_info(params: GovernorParams, result: GovernorInfo) {
+fn display_governor_info(params: WithIoFormat<GovernorParams>, result: GovernorInfo) {
     use prettytable::*;
 
     if let Some(format) = params.format {

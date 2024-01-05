@@ -7,7 +7,9 @@ use color_eyre::eyre::eyre;
 use imbl_value::{json, InternedString};
 use josekit::jwk::Jwk;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{command, from_fn_async, CallRemote, HandleArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{
+    command, from_fn_async, AnyContext, CallRemote, HandleArgs, HandlerExt, ParentHandler,
+};
 use serde::{Deserialize, Serialize};
 use sqlx::{Executor, Postgres};
 use tracing::instrument;
@@ -241,7 +243,7 @@ pub async fn session() -> ParentHandler {
             from_fn_async(list)
                 .with_metadata("get-session", Value::Bool(true))
                 .with_display_serializable()
-                .with_custom_display_fn(|handle: HandleArgs<CliContext, _>, result| {
+                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
                     Ok(display_sessions(handle.params, result))
                 })
                 .with_remote_cli::<CliContext>(),

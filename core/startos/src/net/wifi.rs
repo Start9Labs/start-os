@@ -7,7 +7,7 @@ use clap::{ArgMatches, Parser};
 use isocountry::CountryCode;
 use lazy_static::lazy_static;
 use regex::Regex;
-use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
+use rpc_toolkit::{command, from_fn_async, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::RwLock;
@@ -15,7 +15,7 @@ use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
-use crate::util::serde::{display_serializable, IoFormat};
+use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;
 use crate::{Error, ErrorKind};
 
@@ -55,6 +55,7 @@ pub async fn wifi() -> ParentHandler {
         .subcommand(
             "get",
             from_fn_async(get)
+                .with_display_serializable()
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_wifi_info(handle.params, result))
                 })
@@ -68,6 +69,7 @@ pub fn available() -> ParentHandler {
     ParentHandler::new().subcommand(
         "get",
         from_fn_async(get_available)
+            .with_display_serializable()
             .with_custom_display_fn(|handle, result| Ok(display_wifi_list(handle.params, result)))
             .with_remote_cli::<CliContext>(),
     )
@@ -234,7 +236,7 @@ pub struct WifiListOut {
     security: Vec<String>,
 }
 pub type WifiList = HashMap<Ssid, WifiListInfo>;
-fn display_wifi_info(params: FormatParams, info: WiFiInfo) {
+fn display_wifi_info(params: WithIoFormat<Empty>, info: WiFiInfo) {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -298,7 +300,7 @@ fn display_wifi_info(params: FormatParams, info: WiFiInfo) {
     table_global.print_tty(false).unwrap();
 }
 
-fn display_wifi_list(params: FormatParams, info: Vec<WifiListOut>) {
+fn display_wifi_list(params: WithIoFormat<Empty>, info: Vec<WifiListOut>) {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -322,17 +324,9 @@ fn display_wifi_list(params: FormatParams, info: Vec<WifiListOut>) {
     table_global.print_tty(false).unwrap();
 }
 
-#[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
-#[command(rename_all = "kebab-case")]
-pub struct FormatParams {
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
-}
-
 // #[command(display(display_wifi_info))]
 #[instrument(skip_all)]
-pub async fn get(ctx: RpcContext, _: FormatParams) -> Result<WiFiInfo, Error> {
+pub async fn get(ctx: RpcContext, _: Empty) -> Result<WiFiInfo, Error> {
     let wifi_manager = wifi_manager(&ctx)?;
     let wpa_supplicant = wifi_manager.read().await;
     let (list_networks, current_res, country_res, ethernet_res, signal_strengths) = tokio::join!(
@@ -380,7 +374,7 @@ pub async fn get(ctx: RpcContext, _: FormatParams) -> Result<WiFiInfo, Error> {
 }
 
 #[instrument(skip_all)]
-pub async fn get_available(ctx: RpcContext, _: FormatParams) -> Result<Vec<WifiListOut>, Error> {
+pub async fn get_available(ctx: RpcContext, _: Empty) -> Result<Vec<WifiListOut>, Error> {
     let wifi_manager = wifi_manager(&ctx)?;
     let wpa_supplicant = wifi_manager.read().await;
     let (wifi_list, network_list) = tokio::join!(
