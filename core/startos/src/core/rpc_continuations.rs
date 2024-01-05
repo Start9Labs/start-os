@@ -1,10 +1,11 @@
 use std::time::Duration;
 
+use axum::{body::Body, extract::ws::WebSocket};
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use helpers::TimedResource;
 use hyper::upgrade::Upgraded;
-use hyper::{Body, Error as HyperError, Request, Response};
+use hyper::{Error as HyperError, Request, Response};
 use imbl_value::InternedString;
 use tokio::task::JoinError;
 use tokio_tungstenite::WebSocketStream;
@@ -49,12 +50,8 @@ pub type RestHandler = Box<
     dyn FnOnce(Request<Body>) -> BoxFuture<'static, Result<Response<Body>, crate::Error>> + Send,
 >;
 
-pub type WebSocketHandler = Box<
-    dyn FnOnce(
-            BoxFuture<'static, Result<Result<axum::extract::ws::WebSocket, HyperError>, JoinError>>,
-        ) -> BoxFuture<'static, Result<(), Error>>
-        + Send,
->;
+pub type WebSocketHandler =
+    Box<dyn FnOnce(WebSocket) -> BoxFuture<'static, Result<(), Error>> + Send>;
 
 pub enum RpcContinuation {
     Rest(TimedResource<RestHandler>),
@@ -64,7 +61,7 @@ impl RpcContinuation {
     pub fn rest(handler: RestHandler, timeout: Duration) -> Self {
         RpcContinuation::Rest(TimedResource::new(handler, timeout))
     }
-    pub fn ws(handler: axum::extract::ws::WebSocket, timeout: Duration) -> Self {
+    pub fn ws(handler: WebSocketHandler, timeout: Duration) -> Self {
         RpcContinuation::WebSocket(TimedResource::new(handler, timeout))
     }
     pub fn is_timed_out(&self) -> bool {
@@ -76,36 +73,7 @@ impl RpcContinuation {
     pub async fn into_handler(self) -> Option<RestHandler> {
         match self {
             RpcContinuation::Rest(handler) => handler.get().await,
-            RpcContinuation::WebSocket(handler) => {
-                if let Some(handler) = handler.get().await {
-                    Some(Box::new(
-                        |req: Request<Body>| -> BoxFuture<'static, Result<Response<Body>, Error>> {
-                            async move {
-                                let (parts, body) = req.into_parts();
-                                let req = Request::from_parts(parts, body);
-                                let (res, ws_fut) = hyper_ws_listener::create_ws(req)
-                                    .with_kind(crate::ErrorKind::Network)?;
-                                if let Some(ws_fut) = ws_fut {
-                                    tokio::task::spawn(async move {
-                                        match handler(ws_fut.boxed()).await {
-                                            Ok(()) => (),
-                                            Err(e) => {
-                                                tracing::error!("WebSocket Closed: {}", e);
-                                                tracing::debug!("{:?}", e);
-                                            }
-                                        }
-                                    });
-                                }
-
-                                Ok(res)
-                            }
-                            .boxed()
-                        },
-                    ))
-                } else {
-                    None
-                }
-            }
+            RpcContinuation::WebSocket(handler) => None,
         }
     }
 }

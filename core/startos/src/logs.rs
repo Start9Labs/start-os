@@ -1,27 +1,21 @@
-use std::future::Future;
 use std::ops::{Deref, DerefMut};
 use std::process::Stdio;
 use std::time::{Duration, UNIX_EPOCH};
 
+use axum::extract::ws::{self, WebSocket};
 use chrono::{DateTime, Utc};
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::stream::BoxStream;
 use futures::{FutureExt, SinkExt, Stream, StreamExt, TryStreamExt};
-use hyper::upgrade::Upgraded;
-use hyper::Error as HyperError;
 use models::PackageId;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{command, from_fn_async, CallRemote, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
-use tokio::task::JoinError;
 use tokio_stream::wrappers::LinesStream;
-use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
-use tokio_tungstenite::tungstenite::protocol::CloseFrame;
 use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::WebSocketStream;
 use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
@@ -63,21 +57,14 @@ impl Stream for LogStream {
 }
 
 #[instrument(skip_all)]
-async fn ws_handler<
-    WSFut: Future<Output = Result<Result<WebSocketStream<Upgraded>, HyperError>, JoinError>>,
->(
+async fn ws_handler(
     first_entry: Option<LogEntry>,
     mut logs: LogStream,
-    ws_fut: WSFut,
+    mut stream: WebSocket,
 ) -> Result<(), Error> {
-    let mut stream = ws_fut
-        .await
-        .with_kind(crate::ErrorKind::Network)?
-        .with_kind(crate::ErrorKind::Unknown)?;
-
     if let Some(first_entry) = first_entry {
         stream
-            .send(Message::Text(
+            .send(ws::Message::Text(
                 serde_json::to_string(&first_entry).with_kind(ErrorKind::Serialization)?,
             ))
             .await
@@ -92,7 +79,7 @@ async fn ws_handler<
         if let Some(entry) = entry {
             let (_, log_entry) = entry.log_entry()?;
             stream
-                .send(Message::Text(
+                .send(ws::Message::Text(
                     serde_json::to_string(&log_entry).with_kind(ErrorKind::Serialization)?,
                 ))
                 .await
@@ -101,13 +88,7 @@ async fn ws_handler<
     }
 
     if !ws_closed {
-        stream
-            .close(Some(CloseFrame {
-                code: CloseCode::Normal,
-                reason: "Log Stream Finished".into(),
-            }))
-            .await
-            .with_kind(ErrorKind::Network)?;
+        stream.close().await.with_kind(ErrorKind::Network)?;
     }
 
     Ok(())
@@ -517,7 +498,7 @@ pub async fn follow_logs(
     ctx.add_continuation(
         guid.clone(),
         RpcContinuation::ws(
-            Box::new(move |ws_fut| ws_handler(first_entry, stream, ws_fut).boxed()),
+            Box::new(move |socket| ws_handler(first_entry, stream, socket).boxed()),
             Duration::from_secs(30),
         ),
     )

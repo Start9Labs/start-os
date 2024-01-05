@@ -6,6 +6,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use axum::extract::ws::WebSocket;
+use futures::future::BoxFuture;
 use helpers::to_tmp_path;
 use josekit::jwk::Jwk;
 use patch_db::PatchDb;
@@ -18,7 +20,6 @@ use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
-use crate::context::config::ServerConfig;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
 use crate::db::model::{CurrentDependents, PackageDataEntryMatchModelRef};
 use crate::db::prelude::PatchDbExt;
@@ -40,6 +41,7 @@ use crate::status::MainStatus;
 use crate::system::get_mem_info;
 use crate::util::lshw::{lshw, LshwDevice};
 use crate::volume::Volume;
+use crate::{context::config::ServerConfig, core::rpc_continuations::WebSocketHandler};
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
@@ -376,18 +378,24 @@ impl RpcContext {
         }
     }
 
-    pub async fn get_ws_continuation_handler(&self, guid: &RequestGuid) -> Option<RestHandler> {
-        let continuations = self.rpc_stream_continuations.lock().await;
-        if matches!(continuations.get(guid), Some(RpcContinuation::WebSocket(_))) {
-            drop(continuations);
-            self.get_continuation_handler(guid).await
-        } else {
-            None
+    pub async fn get_ws_continuation_handler(
+        &self,
+        guid: &RequestGuid,
+    ) -> Option<WebSocketHandler> {
+        let mut continuations = self.rpc_stream_continuations.lock().await;
+        if !matches!(continuations.get(guid), Some(RpcContinuation::WebSocket(_))) {
+            return None;
+        }
+        match continuations.remove(guid) {
+            None => None,
+            Some(RpcContinuation::WebSocket(x)) => x.get().await,
+            Some(_) => None,
         }
     }
 
     pub async fn get_rest_continuation_handler(&self, guid: &RequestGuid) -> Option<RestHandler> {
-        let continuations = self.rpc_stream_continuations.lock().await;
+        let continuations: tokio::sync::MutexGuard<'_, BTreeMap<RequestGuid, RpcContinuation>> =
+            self.rpc_stream_continuations.lock().await;
         if matches!(continuations.get(guid), Some(RpcContinuation::Rest(_))) {
             drop(continuations);
             self.get_continuation_handler(guid).await
