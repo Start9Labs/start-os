@@ -70,10 +70,4 @@ impl RpcContinuation {
             RpcContinuation::WebSocket(a) => a.is_timed_out(),
         }
     }
-    pub async fn into_handler(self) -> Option<RestHandler> {
-        match self {
-            RpcContinuation::Rest(handler) => handler.get().await,
-            RpcContinuation::WebSocket(handler) => None,
-        }
-    }
 }

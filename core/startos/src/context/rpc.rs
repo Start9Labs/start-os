@@ -369,15 +369,6 @@ impl RpcContext {
             .insert(guid, handler);
     }
 
-    pub async fn get_continuation_handler(&self, guid: &RequestGuid) -> Option<RestHandler> {
-        let mut continuations = self.rpc_stream_continuations.lock().await;
-        if let Some(cont) = continuations.remove(guid) {
-            cont.into_handler().await
-        } else {
-            None
-        }
-    }
-
     pub async fn get_ws_continuation_handler(
         &self,
         guid: &RequestGuid,
@@ -386,22 +377,22 @@ impl RpcContext {
         if !matches!(continuations.get(guid), Some(RpcContinuation::WebSocket(_))) {
             return None;
         }
-        match continuations.remove(guid) {
-            None => None,
-            Some(RpcContinuation::WebSocket(x)) => x.get().await,
-            Some(_) => None,
-        }
+        let Some(RpcContinuation::WebSocket(x)) = continuations.remove(guid) else {
+            return None;
+        };
+        x.get().await
     }
 
     pub async fn get_rest_continuation_handler(&self, guid: &RequestGuid) -> Option<RestHandler> {
-        let continuations: tokio::sync::MutexGuard<'_, BTreeMap<RequestGuid, RpcContinuation>> =
+        let mut continuations: tokio::sync::MutexGuard<'_, BTreeMap<RequestGuid, RpcContinuation>> =
             self.rpc_stream_continuations.lock().await;
-        if matches!(continuations.get(guid), Some(RpcContinuation::Rest(_))) {
-            drop(continuations);
-            self.get_continuation_handler(guid).await
-        } else {
-            None
+        if !matches!(continuations.get(guid), Some(RpcContinuation::Rest(_))) {
+            return None;
         }
+        let Some(RpcContinuation::Rest(x)) = continuations.remove(guid) else {
+            return None;
+        };
+        x.get().await
     }
 }
 impl AsRef<Jwk> for RpcContext {
