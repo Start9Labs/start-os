@@ -33,7 +33,7 @@ impl DiagnosticContext {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
 
         Ok(Self(Arc::new(DiagnosticContextSeed {
-            datadir: config.datadir().into_owned(),
+            datadir: config.datadir().to_owned(),
             shutdown,
             disk_guid,
             error: Arc::new(error.into()),

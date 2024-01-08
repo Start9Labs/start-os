@@ -79,13 +79,12 @@ impl ContextConfig for ClientConfig {
     }
 }
 impl ClientConfig {
-    pub fn load(self) -> Result<Self, Error> {
+    pub fn load(mut self) -> Result<Self, Error> {
         let path = self.next();
-        let mut res = Some(self);
-        res.load_path_rec(path)?;
-        res.load_path_rec(local_config_path())?;
-        res.load_path_rec(CONFIG_PATH)?;
-        Ok(res.unwrap_or_default())
+        self.load_path_rec(path)?;
+        self.load_path_rec(local_config_path())?;
+        self.load_path_rec(Some(CONFIG_PATH))?;
+        Ok(self)
     }
 }
 
@@ -99,7 +98,7 @@ pub struct ServerConfig {
     pub wifi_interface: Option<String>,
     #[arg(long = "ethernet-interface")]
     pub ethernet_interface: Option<String>,
-    #[arg(long = "os-partitions")]
+    #[arg(skip)]
     pub os_partitions: Option<OsPartitionInfo>,
     #[arg(long = "bind-rpc")]
     pub bind_rpc: Option<SocketAddr>,
@@ -138,13 +137,12 @@ impl ContextConfig for ServerConfig {
 }
 
 impl ServerConfig {
-    pub fn load(self) -> Result<Self, Error> {
+    pub fn load(mut self) -> Result<Self, Error> {
         let path = self.next();
-        let mut res = Some(self);
-        res.load_path_rec(path)?;
-        res.load_path_rec(DEVICE_CONFIG_PATH)?;
-        res.load_path_rec(CONFIG_PATH)?;
-        Ok(res.unwrap_or_default())
+        self.load_path_rec(path)?;
+        self.load_path_rec(Some(DEVICE_CONFIG_PATH))?;
+        self.load_path_rec(Some(CONFIG_PATH))?;
+        Ok(self)
     }
     pub fn datadir(&self) -> &Path {
         self.datadir

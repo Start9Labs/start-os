@@ -19,8 +19,8 @@ use crate::context::config::ServerConfig;
 use crate::db::model::Database;
 use crate::disk::OsPartitionInfo;
 use crate::init::init_postgres;
+use crate::prelude::*;
 use crate::setup::SetupStatus;
-use crate::{Error, ResultExt};
 
 lazy_static::lazy_static! {
     pub static ref CURRENT_SECRET: Jwk = Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).unwrap_or_else(|e| {
@@ -65,8 +65,13 @@ impl SetupContext {
         let datadir = config.datadir().to_owned();
         Ok(Self(Arc::new(SetupContextSeed {
             config: config.clone(),
-            os_partitions: config.os_partitions,
-            disable_encryption: config.disable_encryption,
+            os_partitions: config.os_partitions.ok_or_else(|| {
+                Error::new(
+                    eyre!("missing required configuration: `os-partitions`"),
+                    ErrorKind::NotFound,
+                )
+            })?,
+            disable_encryption: config.disable_encryption.unwrap_or(false),
             shutdown,
             datadir,
             selected_v2_drive: RwLock::new(None),

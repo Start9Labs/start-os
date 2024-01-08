@@ -161,7 +161,7 @@ impl std::ops::Deref for CliContext {
 impl Context for CliContext {
     fn runtime(&self) -> tokio::runtime::Handle {
         if let Some(rt) = self.runtime.get() {
-            rt
+            rt.handle().clone()
         } else {
             self.runtime
                 .set(
@@ -171,13 +171,13 @@ impl Context for CliContext {
                         .unwrap(),
                 )
                 .unwrap();
-            self.runtime.get().unwrap()
+            self.runtime.get().unwrap().handle().clone()
         }
     }
 }
 #[async_trait::async_trait]
 impl CallRemote for CliContext {
     async fn call_remote(&self, method: &str, params: Value) -> Result<Value, RpcError> {
-        call_remote_http(&self.client, &self.url, method, params).await
+        call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
     }
 }
