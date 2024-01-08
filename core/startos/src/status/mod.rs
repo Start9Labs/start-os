@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
+use imbl::OrdMap;
 use models::PackageId;
 use serde::{Deserialize, Serialize};
 
@@ -38,11 +39,11 @@ pub enum MainStatus {
     Starting,
     Running {
         started: DateTime<Utc>,
-        health: BTreeMap<HealthCheckId, HealthCheckResult>,
+        health: OrdMap<HealthCheckId, HealthCheckResult>,
     },
     BackingUp {
         started: Option<DateTime<Utc>>,
-        health: BTreeMap<HealthCheckId, HealthCheckResult>,
+        health: OrdMap<HealthCheckId, HealthCheckResult>,
     },
 }
 impl MainStatus {

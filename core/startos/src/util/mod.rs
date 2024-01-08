@@ -29,6 +29,7 @@ pub mod actor;
 pub mod cpupower;
 pub mod crypto;
 pub mod docker;
+pub mod future;
 pub mod http_reader;
 pub mod io;
 pub mod logger;

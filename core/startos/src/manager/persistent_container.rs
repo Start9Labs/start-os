@@ -32,13 +32,19 @@ pub struct PersistentContainer {
     procedures: Mutex<Vec<(ProcedureName, ProcedureId)>>,
     image_mounts: Vec<MountGuard>,
     js_mount: MountGuard,
-    current_state: watch::Receiver<StartStop>,
-    desired_state: watch::Receiver<StartStop>,
+    pub(super) current_state: watch::Sender<StartStop>,
+    pub(super) desired_state: watch::Receiver<StartStop>,
+    pub(super) temp_desired_state: watch::Receiver<Option<StartStop>>,
 }
 
 impl PersistentContainer {
     #[instrument(skip_all)]
-    pub async fn init(ctx: &RpcContext, s9pk: &S9pk) -> Result<Self, Error> {
+    pub async fn init(
+        ctx: &RpcContext,
+        s9pk: &S9pk,
+        desired_state: watch::Receiver<StartStop>,
+        temp_desired_state: watch::Receiver<Option<StartStop>>,
+    ) -> Result<Self, Error> {
         let lxc_container = ctx.lxc_manager.create(LxcConfig::default()).await?;
         let js_mount = MountGuard::mount(
             &LoopDev::from(
@@ -92,6 +98,9 @@ impl PersistentContainer {
             procedures: Default::default(),
             image_mounts,
             js_mount,
+            current_state: watch::channel(StartStop::Stop).0,
+            desired_state,
+            temp_desired_state,
         })
     }
 

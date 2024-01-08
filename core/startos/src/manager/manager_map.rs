@@ -5,7 +5,6 @@ use color_eyre::eyre::eyre;
 use tokio::sync::RwLock;
 use tracing::instrument;
 
-use super::Manager;
 use crate::context::RpcContext;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::prelude::*;

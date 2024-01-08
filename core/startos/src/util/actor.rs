@@ -11,7 +11,9 @@ use tokio::sync::{mpsc, oneshot};
 use crate::prelude::*;
 use crate::util::Never;
 
-pub trait Actor: Send {}
+pub trait Actor: Send {
+    fn init(&mut self, jobs: &mut BackgroundJobs) {}
+}
 
 #[async_trait::async_trait]
 pub trait Handler<M>: Actor {
@@ -85,6 +87,7 @@ impl<A: Actor> SimpleActor<A> {
         let (messenger_send, messenger_recv) = mpsc::unbounded_channel::<Request<A>>();
         let runtime = NonDetachingJoinHandle::from(tokio::spawn(async move {
             let mut bg = BackgroundJobs::default();
+            actor.init(&mut bg);
             loop {
                 tokio::select! {
                     _ = bg => (),
