@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use clap::{ArgMatches, Parser};
+use clap::Parser;
 use color_eyre::eyre::{eyre, Result};
 use emver::Version;
 use helpers::{Rsync, RsyncOptions};
@@ -38,7 +38,6 @@ lazy_static! {
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct UpdateSystemParams {
-    #[arg(rename = "marketplace-url")]
     marketplace_url: Url,
 }
 
