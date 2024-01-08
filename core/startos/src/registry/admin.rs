@@ -96,11 +96,11 @@ async fn do_upload(
 pub struct PublishParams {
     location: String,
     path: PathBuf,
-    #[arg(rename = "no-verify", long = "no-verify")]
+    #[arg(name = "no-verify", long = "no-verify")]
     no_verify: bool,
-    #[arg(rename = "no-upload", long = "no-upload")]
+    #[arg(name = "no-upload", long = "no-upload")]
     no_upload: bool,
-    #[arg(rename = "no-index", long = "no-index")]
+    #[arg(name = "no-index", long = "no-index")]
     no_index: bool,
 }
 
