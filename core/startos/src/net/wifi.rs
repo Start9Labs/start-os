@@ -32,7 +32,7 @@ pub fn wifi_manager(ctx: &RpcContext) -> Result<&WifiManager, Error> {
     }
 }
 
-pub async fn wifi() -> ParentHandler {
+pub fn wifi() -> ParentHandler {
     ParentHandler::new()
         .subcommand(
             "add",

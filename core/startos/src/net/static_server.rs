@@ -10,7 +10,7 @@ use axum::response::Response;
 use axum::routing::{any, any_service, get};
 use axum::Router;
 use digest::Digest;
-use futures::future::ready;
+use futures::{future::ready, TryFutureExt};
 use futures::FutureExt;
 use http::header::ACCEPT_ENCODING;
 use http::request::Parts as RequestParts;
@@ -19,7 +19,7 @@ use include_dir::{include_dir, Dir};
 use new_mime_guess::MimeGuess;
 use openssl::hash::MessageDigest;
 use openssl::x509::X509;
-use rpc_toolkit::Server;
+use rpc_toolkit::{Server, AnyContext};
 use tokio::fs::File;
 use tokio::io::BufReader;
 use tokio_util::io::ReaderStream;
@@ -62,7 +62,7 @@ impl UiMode {
     }
 }
 
-pub fn setup_ui_file_router(ctx: SetupContext) -> Router<RpcContext> {
+pub fn setup_ui_file_router(ctx: SetupContext) -> Router {
     Router::new()
         .route_service(
             "/rpc/*path",
@@ -73,59 +73,57 @@ pub fn setup_ui_file_router(ctx: SetupContext) -> Router<RpcContext> {
         .fallback(any(|request: Request| alt_ui(request, UiMode::Setup)))
 }
 
-pub fn diag_ui_file_router(ctx: DiagnosticContext) -> Router<RpcContext> {
+pub fn diag_ui_file_router(ctx: DiagnosticContext) -> Router<AnyContext> {
     Router::new()
+        .with_state(ctx.clone())
         .route(
             "/rpc/*path",
-            any(
+            any_service(
                 Server::new(move || ready(Ok(ctx.clone())), diagnostic_api())
                     .middleware(Cors::new())
                     .middleware(DiagnosticMode::new()),
             ),
         )
-        .fallback(any(|request: Request| alt_ui(request, UiMode::Diag)))
+        .fallback(any(|State(ctx): State<DiagnosticContext>, request: Request| async move {alt_ui(request, UiMode::Diag).await.unwrap_or_else(server_error)}))
 }
 
-pub fn install_ui_file_router(ctx: InstallContext) -> Router<RpcContext> {
+pub async fn install_ui_file_router(ctx: InstallContext) -> Router<RpcContext> {
     Router::new()
+        .with_state(ctx.clone())
         .route(
             "/rpc/*path",
-            any(Server::new(move || ready(Ok(ctx.clone())), install_api()).middleware(Cors::new())),
+            any_service(Server::new(move || ready(Ok(ctx.clone())), install_api()).middleware(Cors::new())),
         )
         .fallback(any(|request: Request| async move {
-            alt_ui(request, UiMode::Install)
-                .await
-                .unwrap_or_else(server_error)
+            alt_ui(request, UiMode::Install).await.unwrap_or_else(server_error)
         }))
 }
 
-pub fn main_ui_server_router(ctx: RpcContext) -> Router<RpcContext> {
-    type RState = State<RpcContext>;
+pub async fn main_ui_server_router(ctx: RpcContext) -> Router<RpcContext> {
     Router::<RpcContext>::new()
         .with_state(ctx.clone())
         .route(
             "/rpc/*path",
-            any_service(
-                Server::new(move || ready(Ok(ctx.clone())), main_api())
-                    .middleware(Cors::new())
-                    .middleware(Auth::new())
-                    .middleware(SyncDb::new()),
-            ),
+            any_service(Server::new(move || ready(Ok(ctx.clone())), main_api())
+                .middleware(Cors::new())
+                .middleware(Auth::new())
+                .middleware(SyncDb::new())),
         )
         .route(
             "/ws/db",
             any(
-                |State(ctx): RState,
-                 request: Request,
+                |
+                State(ctx): State<RpcContext>,request: Request,
+                
                  ws: axum::extract::ws::WebSocketUpgrade,
-                 req: Request| subscribe(ctx, req, ws),
+                 req: Request| subscribe(ctx, ws, req),
             ),
         )
         .route(
             "/ws/rpc/*path",
             get(
-                |State(ctx): State<RpcContext>,
-                 request: Request,
+                |
+                State(ctx): State<RpcContext>,request: Request,
                  x::Path(path): x::Path<String>,
                  ws: axum::extract::ws::WebSocketUpgrade| async move {
                     match RequestGuid::from(&path) {
@@ -144,9 +142,9 @@ pub fn main_ui_server_router(ctx: RpcContext) -> Router<RpcContext> {
         .route(
             "/rest/rpc/*path",
             any(
-                |State(ctx): State<RpcContext>,
-                 request: Request,
-                 x::Path(path): x::Path<String>| async move {
+                State(ctx): State<RpcContext>,
+                |request: Request,
+                 x::Path(path): x::Path<String>,| async move {
                     Box::new(match RequestGuid::from(&path) {
                         None => {
                             tracing::debug!("No Guid Path");
@@ -163,7 +161,7 @@ pub fn main_ui_server_router(ctx: RpcContext) -> Router<RpcContext> {
                 },
             ),
         )
-        .fallback(any(|State(ctx): RState, request: Request| async move {
+        .fallback(any(|request: Request, State(ctx)| async move {
             main_embassy_ui(request, ctx)
                 .await
                 .unwrap_or_else(server_error)
