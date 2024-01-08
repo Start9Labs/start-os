@@ -7,7 +7,7 @@ use clap::{ArgMatches, Parser};
 use isocountry::CountryCode;
 use lazy_static::lazy_static;
 use regex::Regex;
-use rpc_toolkit::{command, from_fn_async, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{command, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::RwLock;
@@ -56,7 +56,7 @@ pub async fn wifi() -> ParentHandler {
             "get",
             from_fn_async(get)
                 .with_display_serializable()
-                .with_custom_display_fn(|handle, result| {
+                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
                     Ok(display_wifi_info(handle.params, result))
                 })
                 .with_remote_cli::<CliContext>(),

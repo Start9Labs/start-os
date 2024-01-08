@@ -8,7 +8,12 @@ use helpers::NonDetachingJoinHandle;
 use models::ResultExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Mutex, RwLock};
-use tokio_rustls::rustls::server::Acceptor;
+use tokio_rustls::rustls::{
+    crypto::ring::{ALL_KX_GROUPS, DEFAULT_CIPHER_SUITES},
+    pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer},
+    server::Acceptor,
+    ConfigBuilder, ConfigSide, WantsVerifier, DEFAULT_VERSIONS,
+};
 use tokio_rustls::rustls::{RootCertStore, ServerConfig};
 use tokio_rustls::{LazyConfigAcceptor, TlsConnector};
 use tracing::instrument;
@@ -85,6 +90,18 @@ pub enum AlpnInfo {
     Specified(Vec<Vec<u8>>),
 }
 
+fn with_safe_defaults<S: ConfigSide, X>(
+    config_builder: ConfigBuilder<S, X>,
+) -> ConfigBuilder<S, X> {
+    ConfigBuilder {
+        state: WantsVerifier {
+            cipher_suites: DEFAULT_CIPHER_SUITES.to_vec(),
+            kx_groups: ALL_KX_GROUPS.to_vec(),
+            versions: DEFAULT_VERSIONS.into(), // versions::EnabledVersions::new(versions::DEFAULT_VERSIONS),
+        },
+        side: config_builder.side,
+    }
+}
 struct VHostServer {
     mapping: Weak<RwLock<BTreeMap<Option<String>, BTreeMap<TargetInfo, Weak<()>>>>>,
     _thread: NonDetachingJoinHandle<()>,
@@ -183,8 +200,7 @@ impl VHostServer {
                                             TcpStream::connect(target.addr).await?;
                                         let key =
                                             ssl.with_certs(target.key, target.addr.ip()).await?;
-                                        let cfg = ServerConfig::builder()
-                                            .with_safe_defaults()
+                                        let cfg = with_safe_defaults(ServerConfig::builder())
                                             .with_no_client_auth();
                                         let mut cfg =
                                             if mid.client_hello().signature_schemes().contains(
@@ -199,11 +215,11 @@ impl VHostServer {
                                                             ))
                                                         })
                                                         .collect::<Result<_, Error>>()?,
-                                                    tokio_rustls::rustls::pki_types::PrivateKeyDer::from(
+                                                    PrivateKeyDer::from(PrivatePkcs8KeyDer::from(
                                                         key.key()
                                                             .openssl_key_ed25519()
                                                             .private_key_to_der()?,
-                                                    ),
+                                                    )),
                                                 )
                                             } else {
                                                 cfg.with_single_cert(
@@ -215,10 +231,10 @@ impl VHostServer {
                                                             ))
                                                         })
                                                         .collect::<Result<_, Error>>()?,
-                                                    tokio_rustls::rustls::pki_types::PrivateKeyDer::from(
+                                                    PrivateKeyDer::from(PrivatePkcs8KeyDer::from(
                                                         key.key()
                                                             .openssl_key_nistp256()
-                                                            .private_key_to_der()?,
+                                                            .private_key_to_der()?,)
                                                     ),
                                                 )
                                             }
@@ -226,12 +242,11 @@ impl VHostServer {
                                         match target.connect_ssl {
                                             Ok(()) => {
                                                 let mut client_cfg =
-                                                    tokio_rustls::rustls::ClientConfig::builder()
-                                                        .with_safe_defaults()
+                                                with_safe_defaults(tokio_rustls::rustls::ClientConfig::builder())
                                                         .with_root_certificates({
                                                             let mut store = RootCertStore::empty();
                                                             store.add(
-                                                        &tokio_rustls::rustls::pki_types::CertificateDer::from(
+                                                        CertificateDer::from(
                                                             key.root_ca().to_der()?,
                                                         ),
                                                     ).with_kind(crate::ErrorKind::OpenSsl)?;
@@ -249,12 +264,7 @@ impl VHostServer {
                                                     TlsConnector::from(Arc::new(client_cfg))
                                                         .connect_with(
                                                             key.key()
-                                                                .internal_address()
-                                                                .as_str()
-                                                                .try_into()
-                                                                .with_kind(
-                                                                    crate::ErrorKind::OpenSsl,
-                                                                )?,
+                                                        .internal_address().try_into().with_kind(crate::ErrorKind::OpenSsl)?,
                                                             tcp_stream,
                                                             |conn| {
                                                                 cfg.alpn_protocols.extend(

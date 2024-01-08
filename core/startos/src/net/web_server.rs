@@ -17,7 +17,7 @@ pub struct WebServer {
     thread: NonDetachingJoinHandle<()>,
 }
 impl WebServer {
-    pub fn new(bind: SocketAddr, router: Router) -> Self {
+    pub fn new(bind: SocketAddr, router: Router<RpcContext>) -> Self {
         let (shutdown, shutdown_recv) = oneshot::channel();
         let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {
             let handle = Handle::new();

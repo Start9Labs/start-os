@@ -5,9 +5,7 @@ use imbl_value::json;
 use models::{ActionId, PackageId};
 use serde::de::DeserializeOwned;
 
-use crate::{
-    action::action, context::RpcContext, prelude::*, status::MainStatus, util::serde::IoFormat,
-};
+use crate::{action::action, context::RpcContext, prelude::*, status::MainStatus};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct RpcData {
@@ -252,7 +250,6 @@ mod routes {
         context: RpcContext,
         package_id: PackageId,
     ) -> Result<Value, Error> {
-        let format = Some(IoFormat::Json);
         let package_id = params
             .service_id
             .clone()
@@ -263,10 +260,9 @@ mod routes {
         let action_result = action(
             context,
             ActionParams {
-                pkg_id: package_id,
+                package_id,
                 action_id,
-                input,
-                format,
+                input: crate::util::serde::StdinDeserializable(input),
             },
         )
         .await?;
