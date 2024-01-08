@@ -9,7 +9,6 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use clap::ArgMatches;
 use color_eyre::eyre::{self, eyre};
 use fd_lock_rs::FdLock;
 use helpers::canonicalize;
@@ -26,6 +25,7 @@ use tracing::instrument;
 use crate::shutdown::Shutdown;
 use crate::{Error, ErrorKind, ResultExt as _};
 pub mod actor;
+pub mod clap;
 pub mod cpupower;
 pub mod crypto;
 pub mod docker;
@@ -276,8 +276,6 @@ impl<W: std::fmt::Write> std::io::Write for FmtWriter<W> {
         Ok(())
     }
 }
-
-pub fn display_none<T>(_: T, _: &ArgMatches) {}
 
 pub struct Container<T>(RwLock<Option<T>>);
 impl<T> Container<T> {

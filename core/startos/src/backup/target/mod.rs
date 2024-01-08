@@ -3,12 +3,13 @@ use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use clap::{ArgMatches, Parser};
+use clap::builder::ValueParserFactory;
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use digest::generic_array::GenericArray;
 use digest::OutputSizeUser;
 use models::PackageId;
-use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
+use rpc_toolkit::{command, from_fn_async, AnyContext, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use sqlx::{Executor, Postgres};
@@ -24,6 +25,7 @@ use crate::disk::mount::filesystem::{FileSystem, MountType, ReadWrite};
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::PartitionInfo;
 use crate::prelude::*;
+use crate::util::clap::FromStrParser;
 use crate::util::serde::{
     deserialize_from_str, display_serializable, serialize_display, HandlerExtSerde, WithIoFormat,
 };
@@ -86,6 +88,12 @@ impl std::str::FromStr for BackupTargetId {
         }
     }
 }
+impl ValueParserFactory for BackupTargetId {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
+    }
+}
 impl<'de> Deserialize<'de> for BackupTargetId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -146,7 +154,9 @@ pub fn target() -> ParentHandler {
             "info",
             from_fn_async(info)
                 .with_display_serializable()
-                .with_custom_display_fn(|params, info| Ok(display_backup_info(params, info)))
+                .with_custom_display_fn::<AnyContext, _>(|params, info| {
+                    Ok(display_backup_info(params.params, info))
+                })
                 .with_remote_cli::<CliContext>(),
         )
 }

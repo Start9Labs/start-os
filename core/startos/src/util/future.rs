@@ -1,14 +1,14 @@
 use std::pin::Pin;
-use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use futures::future::abortable;
 use futures::stream::{AbortHandle, Abortable};
-use futures::{ready, Future, FutureExt};
+use futures::{Future, FutureExt};
 use tokio::sync::watch;
 
 #[pin_project::pin_project(PinnedDrop)]
 pub struct DropSignaling<F> {
+    #[pin]
     fut: F,
     on_drop: watch::Sender<bool>,
 }
@@ -16,11 +16,11 @@ impl<F> DropSignaling<F> {
     pub fn new(fut: F) -> Self {
         Self {
             fut,
-            on_drop: watch::channel(false),
+            on_drop: watch::channel(false).0,
         }
     }
     pub fn subscribe(&self) -> DropHandle {
-        self.on_drop.subscribe()
+        DropHandle(self.on_drop.subscribe())
     }
 }
 impl<F> Future for DropSignaling<F>
@@ -55,7 +55,7 @@ pub struct RemoteCancellable<F> {
     on_drop: DropHandle,
     handle: AbortHandle,
 }
-impl<F> RemoteCancellable<F> {
+impl<F: Future> RemoteCancellable<F> {
     pub fn new(fut: F) -> Self {
         let sig_fut = DropSignaling::new(fut);
         let on_drop = sig_fut.subscribe();
@@ -66,6 +66,8 @@ impl<F> RemoteCancellable<F> {
             handle,
         }
     }
+}
+impl<F> RemoteCancellable<F> {
     pub fn cancellation_handle(&self) -> CancellationHandle {
         CancellationHandle {
             on_drop: self.on_drop.clone(),
@@ -80,7 +82,7 @@ where
     type Output = Option<F::Output>;
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.project();
-        this.fut.poll(cx)
+        this.fut.poll(cx).map(|a| a.ok())
     }
 }
 
@@ -102,14 +104,16 @@ impl CancellationHandle {
 
 #[tokio::test]
 async fn test_cancellable() {
+    use std::sync::Arc;
+
     let arc = Arc::new(());
     let weak = Arc::downgrade(&arc);
     let cancellable = RemoteCancellable::new(async move {
-        futures::future::pending().await;
+        futures::future::pending::<()>().await;
         drop(arc)
     });
     let handle = cancellable.cancellation_handle();
     let a = tokio::spawn(cancellable);
-    handle.cancel().await;
+    handle.cancel_and_wait().await;
     assert!(weak.strong_count() == 0);
 }
