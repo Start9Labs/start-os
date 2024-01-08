@@ -7,13 +7,12 @@ use crate::context::config::ClientConfig;
 use crate::context::CliContext;
 use crate::util::logger::EmbassyLogger;
 use crate::version::{Current, VersionT};
-use crate::Error;
 
 lazy_static::lazy_static! {
     static ref VERSION_STRING: String = Current::new().semver().to_string();
 }
 
-pub fn main(args: impl IntoIterator<Item = OsString>) -> Result<(), Error> {
+pub fn main(args: impl IntoIterator<Item = OsString>) {
     EmbassyLogger::init();
     if let Err(e) = CliApp::new(
         |cfg: ClientConfig| Ok(CliContext::init(cfg.load()?)?),
@@ -37,5 +36,4 @@ pub fn main(args: impl IntoIterator<Item = OsString>) -> Result<(), Error> {
 
         std::process::exit(e.code);
     }
-    Ok(())
 }
