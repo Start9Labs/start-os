@@ -19,7 +19,7 @@ use crate::util::serde::HandlerExtSerde;
 use crate::{Error, ErrorKind, ResultExt};
 
 // #[command(subcommands(list, delete, delete_before, create))]
-pub async fn notification() -> ParentHandler {
+pub fn notification() -> ParentHandler {
     ParentHandler::new()
         .subcommand(
             "list",

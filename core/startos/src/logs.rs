@@ -227,7 +227,7 @@ pub struct LogsParam {
     follow: bool,
 }
 
-pub fn logs() -> ParentHandler {
+pub fn logs() -> ParentHandler<LogsParam> {
     ParentHandler::<LogsParam>::new()
         .root_handler(
             from_fn_async(cli_logs)
