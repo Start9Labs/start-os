@@ -20,12 +20,7 @@ use crate::util::Version;
 use crate::Error;
 
 pub fn dependency() -> ParentHandler {
-    ParentHandler::new().subcommand(
-        "configure",
-        from_fn_async(configure)
-            .no_display()
-            .with_remote_cli::<CliContext>(),
-    )
+    ParentHandler::new().subcommand("configure", configure())
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
@@ -65,12 +60,12 @@ pub struct DepInfo {
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct ConfigureParams {
-    #[arg(rename = "dependent-id")]
+    #[arg(name = "dependent-id")]
     dependent_id: PackageId,
-    #[arg(rename = "dependency-id")]
+    #[arg(name = "dependency-id")]
     dependency_id: PackageId,
 }
-pub async fn configure() -> ParentHandler<ConfigureParams> {
+pub fn configure() -> ParentHandler<ConfigureParams> {
     ParentHandler::new()
         .root_handler(
             from_fn_async(configure_impl)
