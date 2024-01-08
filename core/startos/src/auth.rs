@@ -76,7 +76,9 @@ pub fn auth() -> ParentHandler {
             "logout",
             from_fn_async(logout)
                 .with_metadata("get-session", Value::Bool(true))
-                .with_remote_cli::<CliContext>(),
+                .with_remote_cli::<CliContext>()
+                // TODO @dr-bonez
+                .no_display(),
         )
         .subcommand("session", session())
         .subcommand(
@@ -90,14 +92,14 @@ pub fn auth() -> ParentHandler {
         .subcommand(
             "get-pubkey",
             from_fn_async(get_pubkey)
-                .no_display()
                 .with_metadata("authenticated", Value::Bool(false))
+                .no_display()
                 .with_remote_cli::<CliContext>(),
         )
 }
 
 pub fn cli_metadata() -> Value {
-    serde_json::json!({
+    imbl_value::json!({
         "platforms": ["cli"],
     })
 }
@@ -118,12 +120,18 @@ fn gen_pwd() {
         .unwrap()
     )
 }
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct CliLoginParams {
+    password: Option<PasswordType>,
+    metadata: Value,
+}
 
 #[instrument(skip_all)]
 async fn cli_login(
     ctx: CliContext,
-    password: Option<PasswordType>,
-    metadata: Value,
+    CliLoginParams { password, metadata }: CliLoginParams,
 ) -> Result<(), RpcError> {
     let password = if let Some(password) = password {
         password.decrypt(&ctx)?
@@ -236,7 +244,7 @@ pub struct SessionList {
     sessions: BTreeMap<String, Session>,
 }
 
-pub async fn session() -> ParentHandler {
+pub fn session() -> ParentHandler {
     ParentHandler::new()
         .subcommand(
             "list",
@@ -357,9 +365,9 @@ pub async fn kill(ctx: RpcContext, KillParams { ids }: KillParams) -> Result<(),
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct ResetPasswordParams {
-    #[arg(rename = "old-password")]
+    #[arg(name = "old-password")]
     old_password: Option<PasswordType>,
-    #[arg(rename = "new-password")]
+    #[arg(name = "new-password")]
     new_password: Option<PasswordType>,
 }
 
