@@ -248,7 +248,14 @@ pub fn logs() -> ParentHandler<LogsParam> {
 }
 pub async fn cli_logs(
     ctx: CliContext,
-    (id, limit, cursor, before, follow): (PackageId, Option<usize>, Option<String>, bool, bool),
+    _: Empty,
+    LogsParam {
+        id,
+        limit,
+        cursor,
+        before,
+        follow,
+    }: LogsParam,
 ) -> Result<(), RpcError> {
     if follow {
         if cursor.is_some() {
