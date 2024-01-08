@@ -102,15 +102,16 @@ pub fn install_ui_file_router(ctx: InstallContext) -> Router {
 pub fn main_ui_server_router(ctx: RpcContext) -> Router<RpcContext> {
     type RState = State<RpcContext>;
     Router::<RpcContext>::new()
-        // .route(
-        //     "/rpc/*path",
-        //     any(
-        //         Server::new(move || ready(Ok(ctx.clone())), main_api())
-        //             .middleware(Cors::new())
-        //             .middleware(Auth::new())
-        //             .middleware(SyncDb::new()),
-        //     ),
-        // )
+        .with_state(ctx.clone())
+        .route(
+            "/rpc/*path",
+            any_service(
+                Server::new(move || ready(Ok(ctx.clone())), main_api())
+                    .middleware(Cors::new())
+                    .middleware(Auth::new())
+                    .middleware(SyncDb::new()),
+            ),
+        )
         .route(
             "/ws/db",
             any(
@@ -123,7 +124,8 @@ pub fn main_ui_server_router(ctx: RpcContext) -> Router<RpcContext> {
         .route(
             "/ws/rpc/*path",
             get(
-                |State(ctx): State<RpcContext>,request: Request,
+                |State(ctx): State<RpcContext>,
+                 request: Request,
                  x::Path(path): x::Path<String>,
                  ws: axum::extract::ws::WebSocketUpgrade| async move {
                     match RequestGuid::from(&path) {
@@ -166,7 +168,6 @@ pub fn main_ui_server_router(ctx: RpcContext) -> Router<RpcContext> {
                 .await
                 .unwrap_or_else(server_error)
         }))
-        .with_state(ctx.clone())
 }
 
 async fn alt_ui(req: Request, ui_mode: UiMode) -> Result<Response, Error> {
