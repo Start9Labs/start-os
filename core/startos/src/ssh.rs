@@ -3,18 +3,21 @@ use std::path::Path;
 use chrono::Utc;
 use clap::Parser;
 use color_eyre::eyre::eyre;
-use rpc_toolkit::{command, from_fn_async, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{command, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 use tracing::instrument;
 
-use crate::context::{CliContext, RpcContext};
 use crate::util::serde::{display_serializable, WithIoFormat};
+use crate::{
+    context::{CliContext, RpcContext},
+    util::serde::HandlerExtSerde,
+};
 use crate::{Error, ErrorKind};
 
 static SSH_AUTHORIZED_KEYS_FILE: &str = "/home/start9/.ssh/authorized_keys";
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PubKey(
     #[serde(serialize_with = "crate::util::serde::serialize_display")]
     #[serde(deserialize_with = "crate::util::serde::deserialize_from_str")]
@@ -68,7 +71,8 @@ pub fn ssh() -> ParentHandler {
         .subcommand(
             "list",
             from_fn_async(list)
-                .with_custom_display_fn(|handle, result| {
+                .with_display_serializable()
+                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
                     Ok(display_all_ssh_keys(handle.params, result))
                 })
                 .with_remote_cli::<CliContext>(),
