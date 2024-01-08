@@ -1,7 +1,7 @@
 use axum::extract::Request;
 use axum::response::Response;
 use http::HeaderValue;
-use hyper::header::HeaderMap;
+// use hyper::header::HeaderMap;
 use rpc_toolkit::{Empty, Middleware};
 
 #[derive(Clone)]

@@ -41,18 +41,18 @@ impl WebServer {
     }
 
     pub async fn main(bind: SocketAddr, ctx: RpcContext) -> Result<Self, Error> {
-        Ok(Self::new(bind, main_ui_server_router(ctx).await?))
+        Ok(Self::new(bind, main_ui_server_router(ctx)))
     }
 
     pub async fn setup(bind: SocketAddr, ctx: SetupContext) -> Result<Self, Error> {
-        Ok(Self::new(bind, setup_ui_file_router(ctx).await?))
+        Ok(Self::new(bind, setup_ui_file_router(ctx)))
     }
 
     pub async fn diagnostic(bind: SocketAddr, ctx: DiagnosticContext) -> Result<Self, Error> {
-        Ok(Self::new(bind, diag_ui_file_router(ctx).await?))
+        Ok(Self::new(bind, diag_ui_file_router(ctx)))
     }
 
     pub async fn install(bind: SocketAddr, ctx: InstallContext) -> Result<Self, Error> {
-        Ok(Self::new(bind, install_ui_file_router(ctx).await?))
+        Ok(Self::new(bind, install_ui_file_router(ctx)))
     }
 }
