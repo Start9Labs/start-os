@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use clap::Parser;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{command, from_fn_async, AnyContext, HandlerExt, ParentHandler};
+use rpc_toolkit::{command, from_fn, from_fn_async, AnyContext, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 
 use crate::context::{CliContext, DiagnosticContext};
@@ -14,30 +14,19 @@ use crate::Error;
 
 pub fn diagnostic() -> ParentHandler {
     ParentHandler::new()
-        .subcommand(
-            "error",
-            from_fn_async(error).with_remote_cli::<CliContext>(),
-        )
+        .subcommand("error", from_fn(error).with_remote_cli::<CliContext>())
         .subcommand("logs", from_fn_async(logs).no_cli())
         .subcommand(
             "exit",
-            from_fn_async(exit)
-                .no_display()
-                .with_remote_cli::<CliContext>(),
+            from_fn(exit).no_display().with_remote_cli::<CliContext>(),
         )
         .subcommand(
             "restart",
-            from_fn_async(restart)
+            from_fn(restart)
                 .no_display()
                 .with_remote_cli::<CliContext>(),
         )
-        .subcommand(
-            "forget",
-            from_fn_async(forget_disk)
-                .no_display()
-                .with_remote_cli::<CliContext>(),
-        )
-        .subcommand("disk", from_fn_async(disk).with_remote_cli::<CliContext>())
+        .subcommand("disk", disk())
         .subcommand(
             "rebuild",
             from_fn_async(rebuild)
@@ -92,11 +81,16 @@ pub async fn rebuild(ctx: DiagnosticContext) -> Result<(), Error> {
     restart(ctx)
 }
 
-pub fn disk() -> Result<(), Error> {
-    Ok(())
+pub fn disk() -> ParentHandler {
+    ParentHandler::new().subcommand(
+        "forget",
+        from_fn_async(forget_disk)
+            .no_display()
+            .with_remote_cli::<CliContext>(),
+    )
 }
 
-pub async fn forget_disk() -> Result<(), Error> {
+pub async fn forget_disk(_: AnyContext) -> Result<(), Error> {
     let disk_guid = Path::new("/media/embassy/config/disk.guid");
     if tokio::fs::metadata(disk_guid).await.is_ok() {
         tokio::fs::remove_file(disk_guid).await?;
