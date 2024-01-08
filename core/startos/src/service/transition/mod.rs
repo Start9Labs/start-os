@@ -1,9 +1,7 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
-use futures::future::BoxFuture;
 use futures::{Future, FutureExt};
-use helpers::NonDetachingJoinHandle;
 use tokio::sync::watch;
 
 use crate::service::start_stop::StartStop;

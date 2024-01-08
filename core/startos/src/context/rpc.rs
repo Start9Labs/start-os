@@ -27,7 +27,6 @@ use crate::disk::OsPartitionInfo;
 use crate::init::check_time_is_synchronized;
 use crate::install::cleanup::{cleanup_failed, uninstall};
 use crate::lxc::LxcManager;
-use crate::manager::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
 use crate::net::net_controller::NetController;
 use crate::net::ssl::{root_ca_start_time, SslManager};
@@ -35,6 +34,7 @@ use crate::net::utils::find_eth_iface;
 use crate::net::wifi::WpaCli;
 use crate::notifications::NotificationManager;
 use crate::prelude::*;
+use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
 use crate::status::MainStatus;
 use crate::system::get_mem_info;
@@ -52,7 +52,7 @@ pub struct RpcContextSeed {
     pub secret_store: PgPool,
     pub account: RwLock<AccountInfo>,
     pub net_controller: Arc<NetController>,
-    pub managers: ManagerMap,
+    pub managers: ServiceMap,
     pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
     pub shutdown: broadcast::Sender<Option<Shutdown>>,
     pub tor_socks: SocketAddr,
@@ -105,7 +105,7 @@ impl RpcContext {
             .await?,
         );
         tracing::info!("Initialized Net Controller");
-        let managers = ManagerMap::default();
+        let managers = ServiceMap::default();
         let metrics_cache = RwLock::<Option<crate::system::Metrics>>::new(None);
         let notification_manager = NotificationManager::new(secret_store.clone());
         tracing::info!("Initialized Notification Manager");

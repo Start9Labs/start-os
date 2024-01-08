@@ -2,13 +2,13 @@ use std::any::TypeId;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
 use std::ops::Deref;
-use std::process::exit;
 use std::str::FromStr;
 
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use color_eyre::eyre::eyre;
 use imbl::OrdMap;
 use rpc_toolkit::{AnyContext, HandleArgs, Handler, HandlerTypes, PrintCliResult};
+use serde::de::DeserializeOwned;
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
@@ -444,13 +444,14 @@ pub struct WithIoFormat<T> {
 impl<T: FromArgMatches> FromArgMatches for WithIoFormat<T> {
     fn from_arg_matches(matches: &ArgMatches) -> Result<Self, clap::Error> {
         Ok(Self {
-            rest: T::from_arg_matches(matches),
-            format: matches.get_one("format"),
+            rest: T::from_arg_matches(matches)?,
+            format: matches.get_one("format").copied(),
         })
     }
     fn update_from_arg_matches(&mut self, matches: &ArgMatches) -> Result<(), clap::Error> {
         self.rest.update_from_arg_matches(matches)?;
-        self.format = matches.get_one("format");
+        self.format = matches.get_one("format").copied();
+        Ok(())
     }
 }
 impl<T: CommandFactory> CommandFactory for WithIoFormat<T> {
@@ -460,7 +461,7 @@ impl<T: CommandFactory> CommandFactory for WithIoFormat<T> {
             cmd.arg(
                 clap::Arg::new("format")
                     .long("format")
-                    .value_parser(|s| s.parse()),
+                    .value_parser(|s: &str| s.parse::<IoFormat>().map_err(|e| eyre!("{e}"))),
             )
         } else {
             cmd
@@ -472,7 +473,7 @@ impl<T: CommandFactory> CommandFactory for WithIoFormat<T> {
             cmd.arg(
                 clap::Arg::new("format")
                     .long("format")
-                    .value_parser(|s| s.parse()),
+                    .value_parser(|s: &str| s.parse::<IoFormat>().map_err(|e| eyre!("{e}"))),
             )
         } else {
             cmd
@@ -556,7 +557,10 @@ impl<T: Handler> Handler for DisplaySerializable<T> {
         self.0.method_from_dots(method, ctx_ty)
     }
 }
-impl<T: HandlerTypes> PrintCliResult for DisplaySerializable<T> {
+impl<T: HandlerTypes> PrintCliResult for DisplaySerializable<T>
+where
+    T::Ok: Serialize,
+{
     type Context = AnyContext;
     fn print(
         &self,
@@ -570,35 +574,47 @@ impl<T: HandlerTypes> PrintCliResult for DisplaySerializable<T> {
         }: HandleArgs<Self::Context, Self>,
         result: Self::Ok,
     ) -> Result<(), Self::Err> {
-        display_serializable(params.format.unwrap_or_default(), result)
+        display_serializable(params.format.unwrap_or_default(), result);
+        Ok(())
     }
 }
 
+#[derive(Deserialize, Serialize)]
 pub struct StdinDeserializable<T>(pub T);
 impl<T> FromArgMatches for StdinDeserializable<T>
 where
-    T: FromArgMatches,
+    T: FromArgMatches + DeserializeOwned,
 {
     fn from_arg_matches(matches: &ArgMatches) -> Result<Self, clap::Error> {
-        let format = matches.get_one::<IoFormat>("format").unwrap_or_default();
-        Ok(Self(format.from_reader(&mut std::io::stdin())?))
+        let format = matches
+            .get_one::<IoFormat>("format")
+            .copied()
+            .unwrap_or_default();
+        Ok(Self(format.from_reader(&mut std::io::stdin()).map_err(
+            |e| clap::Error::raw(clap::error::ErrorKind::ValueValidation, e),
+        )?))
     }
     fn update_from_arg_matches(&mut self, matches: &ArgMatches) -> Result<(), clap::Error> {
-        let format = matches.get_one::<IoFormat>("format").unwrap_or_default();
-        self.0 = format.from_reader(&mut std::io::stdin())?;
+        let format = matches
+            .get_one::<IoFormat>("format")
+            .copied()
+            .unwrap_or_default();
+        self.0 = format
+            .from_reader(&mut std::io::stdin())
+            .map_err(|e| clap::Error::raw(clap::error::ErrorKind::ValueValidation, e))?;
         Ok(())
     }
 }
 impl<T> clap::Args for StdinDeserializable<T>
 where
-    T: FromArgMatches,
+    T: FromArgMatches + DeserializeOwned,
 {
     fn augment_args(cmd: clap::Command) -> clap::Command {
         if !cmd.get_arguments().any(|a| a.get_id() == "format") {
             cmd.arg(
                 clap::Arg::new("format")
                     .long("format")
-                    .value_parser(|s| s.parse()),
+                    .value_parser(|s: &str| s.parse::<IoFormat>().map_err(|e| eyre!("{e}"))),
             )
         } else {
             cmd
@@ -609,7 +625,7 @@ where
             cmd.arg(
                 clap::Arg::new("format")
                     .long("format")
-                    .value_parser(|s| s.parse()),
+                    .value_parser(|s: &str| s.parse::<IoFormat>().map_err(|e| eyre!("{e}"))),
             )
         } else {
             cmd

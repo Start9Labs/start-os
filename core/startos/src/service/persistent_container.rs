@@ -12,11 +12,11 @@ use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::MountGuard;
 use crate::lxc::{LxcConfig, LxcContainer};
+use crate::prelude::*;
+use crate::s9pk::S9pk;
 use crate::service::rpc::{self, convert_rpc_error, StopParams};
 use crate::service::start_stop::StartStop;
 use crate::service::RunningStatus;
-use crate::prelude::*;
-use crate::s9pk::S9pk;
 use crate::ARCH;
 
 const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);

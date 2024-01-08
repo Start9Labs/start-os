@@ -10,21 +10,23 @@ use start_stop::StartStop;
 use tokio::sync::{watch, Notify};
 
 use crate::context::RpcContext;
-use crate::service::transition::{TempDesiredState, TransitionKind, TransitionState};
 use crate::prelude::*;
 use crate::s9pk::S9pk;
+use crate::service::transition::{TempDesiredState, TransitionKind, TransitionState};
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::actor::{Actor, BackgroundJobs, SimpleActor};
 
 mod control;
-mod manager_map;
 pub mod persistent_container;
 mod rpc;
 mod service_effects_service;
+mod service_map;
 mod start_stop;
 mod transition;
 mod util;
+
+pub use service_map::ServiceMap;
 
 pub const HEALTH_CHECK_COOLDOWN_SECONDS: u64 = 15;
 pub const HEALTH_CHECK_GRACE_PERIOD_SECONDS: u64 = 5;
@@ -107,67 +109,65 @@ impl Actor for ServiceActor {
                                 .as_idx_mut(&id)
                                 .and_then(|p| p.as_installed_mut())
                             {
-                                i.as_status_mut().as_main_mut().ser(
-                                    match (
-                                        transition_kind,
-                                        desired_state,
-                                        current_state,
-                                        running_status,
-                                    ) {
-                                        (Some(TransitionKind::Restarting), _, _, _) => {
-                                            MainStatus::Restarting
+                                i.as_status_mut().as_main_mut().ser(&match (
+                                    transition_kind,
+                                    desired_state,
+                                    current_state,
+                                    running_status,
+                                ) {
+                                    (Some(TransitionKind::Restarting), _, _, _) => {
+                                        MainStatus::Restarting
+                                    }
+                                    (Some(TransitionKind::BackingUp), _, _, Some(status)) => {
+                                        MainStatus::BackingUp {
+                                            started: Some(status.started),
+                                            health: status.health.clone(),
                                         }
-                                        (Some(TransitionKind::BackingUp), _, _, Some(status)) => {
-                                            MainStatus::BackingUp {
-                                                started: Some(status.started),
-                                                health: status.health.clone(),
-                                            }
+                                    }
+                                    (Some(TransitionKind::BackingUp), _, _, None) => {
+                                        MainStatus::BackingUp {
+                                            started: None,
+                                            health: OrdMap::new(),
                                         }
-                                        (Some(TransitionKind::BackingUp), _, _, None) => {
-                                            MainStatus::BackingUp {
-                                                started: None,
-                                                health: OrdMap::new(),
-                                            }
-                                        }
-                                        (None, StartStop::Stop, StartStop::Stop, _) => {
-                                            MainStatus::Stopped
-                                        }
-                                        (None, StartStop::Stop, StartStop::Start, _) => {
-                                            MainStatus::Stopping
-                                        }
-                                        (None, StartStop::Start, StartStop::Stop, _) => {
-                                            MainStatus::Starting
-                                        }
-                                        (None, StartStop::Start, StartStop::Start, None) => {
-                                            MainStatus::Starting
-                                        }
-                                        (
-                                            None,
-                                            StartStop::Start,
-                                            StartStop::Start,
-                                            Some(status),
-                                        ) => MainStatus::Running {
+                                    }
+                                    (None, StartStop::Stop, StartStop::Stop, _) => {
+                                        MainStatus::Stopped
+                                    }
+                                    (None, StartStop::Stop, StartStop::Start, _) => {
+                                        MainStatus::Stopping
+                                    }
+                                    (None, StartStop::Start, StartStop::Stop, _) => {
+                                        MainStatus::Starting
+                                    }
+                                    (None, StartStop::Start, StartStop::Start, None) => {
+                                        MainStatus::Starting
+                                    }
+                                    (None, StartStop::Start, StartStop::Start, Some(status)) => {
+                                        MainStatus::Running {
                                             started: status.started,
                                             health: status.health.clone(),
-                                        },
-                                    },
-                                )?;
+                                        }
+                                    }
+                                })?;
                             }
                             Ok(())
                         })
                         .await?;
                     match (desired_state, current_state) {
                         (StartStop::Start, StartStop::Stop) => {
-                            self.persistent_container.start().await
+                            self.0.persistent_container.start().await
                         }
                         (StartStop::Stop, StartStop::Start) => {
-                            self.persistent_container
+                            self.0
+                                .persistent_container
                                 .stop(todo!("s9pk sigterm timeout"))
                                 .await
                         }
                         _ => Ok(()),
-                    }?;
-                } {
+                    }
+                }
+                .await
+                {
                     tracing::error!("error synchronizing state of service: {e}");
                     tracing::debug!("{e:?}");
 
@@ -180,14 +180,13 @@ impl Actor for ServiceActor {
 
                 synchronized.notify_waiters();
 
-                futures::future::select_all([
-                    current.changed(),
-                    desired.changed(),
-                    temp_desired.changed(),
-                    transition.changed(),
-                    running.changed(),
-                ])
-                .await;
+                tokio::select! {
+                    _ = current.changed() => (),
+                    _ = desired.changed() => (),
+                    _ = temp_desired.changed() => (),
+                    _ = transition.changed() => (),
+                    _ = running.changed() => (),
+                }
             }
         })
     }

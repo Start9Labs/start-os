@@ -28,7 +28,7 @@ use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
-pub async fn experimental() -> ParentHandler {
+pub fn experimental() -> ParentHandler {
     ParentHandler::new()
         .subcommand(
             "zram",
@@ -232,7 +232,7 @@ pub struct LogsParams {
     follow: bool,
 }
 
-pub async fn logs() -> ParentHandler<LogsParams> {
+pub fn logs() -> ParentHandler<LogsParams> {
     ParentHandler::new()
         .root_handler(
             from_fn_async(cli_logs)
@@ -315,7 +315,7 @@ pub struct KernelLogsParams {
     #[serde(default)]
     follow: bool,
 }
-pub async fn kernel_logs() -> ParentHandler<KernelLogsParams> {
+pub fn kernel_logs() -> ParentHandler<KernelLogsParams> {
     ParentHandler::new()
         .root_handler(
             from_fn_async(cli_kernel_logs)

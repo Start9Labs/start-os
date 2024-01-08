@@ -68,14 +68,14 @@ pub fn auth() -> ParentHandler {
         .subcommand(
             "login",
             from_fn_async(login_impl)
-                .metadata("login", Value::Boolean(true))
+                .with_metadata("login", Value::Bool(true))
                 .no_cli(),
         )
         .subcommand("login", from_fn_async(cli_login).no_display())
         .subcommand(
             "logout",
             from_fn_async(logout)
-                .metadata("get-session", Value::Boolean(true))
+                .with_metadata("get-session", Value::Bool(true))
                 .with_remote_cli::<CliContext>(),
         )
         .subcommand("session", session())
@@ -91,7 +91,7 @@ pub fn auth() -> ParentHandler {
             "get-pubkey",
             from_fn_async(get_pubkey)
                 .no_display()
-                .metadata("authenticated", Value::Boolean(false))
+                .with_metadata("authenticated", Value::Bool(false))
                 .with_remote_cli::<CliContext>(),
         )
 }
@@ -277,7 +277,7 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) {
             &format!("{}", session.logged_in),
             &format!("{}", session.last_active),
             session.user_agent.as_deref().unwrap_or("N/A"),
-            &format!("{}", session.metadata),
+            &format!("{}", session.with_metadata),
         ];
         if id == arg.current {
             row.iter_mut()
@@ -318,7 +318,7 @@ pub async fn list(
                     logged_in: DateTime::from_utc(row.logged_in, Utc),
                     last_active: DateTime::from_utc(row.last_active, Utc),
                     user_agent: row.user_agent,
-                    metadata: serde_json::from_str(&row.metadata)
+                    metadata: serde_json::from_str(&row.with_metadata)
                         .with_kind(crate::ErrorKind::Database)?,
                 },
             ))

@@ -70,7 +70,9 @@ pub fn available() -> ParentHandler {
         "get",
         from_fn_async(get_available)
             .with_display_serializable()
-            .with_custom_display_fn(|handle, result| Ok(display_wifi_list(handle.params, result)))
+            .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                Ok(display_wifi_list(handle.params, result))
+            })
             .with_remote_cli::<CliContext>(),
     )
 }

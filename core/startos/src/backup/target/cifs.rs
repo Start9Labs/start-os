@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::TryStreamExt;
-use rpc_toolkit::{command, from_fn_async, ParentHandler};
+use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sqlx::{Executor, Postgres};
 

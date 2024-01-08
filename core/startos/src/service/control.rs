@@ -1,7 +1,7 @@
+use crate::prelude::*;
 use crate::service::start_stop::StartStop;
 use crate::service::transition::TransitionKind;
 use crate::service::{Service, ServiceActor};
-use crate::prelude::*;
 use crate::util::actor::{BackgroundJobs, Handler};
 
 struct Start;
@@ -9,8 +9,8 @@ struct Start;
 impl Handler<Start> for ServiceActor {
     type Response = ();
     async fn handle(&mut self, _: Start, _: &mut BackgroundJobs) -> Self::Response {
-        self.desired_state.send_replace(StartStop::Start);
-        self.seed.synchronized.notified().await
+        self.0.desired_state.send_replace(StartStop::Start);
+        self.0.synchronized.notified().await
     }
 }
 impl Service {
@@ -24,8 +24,7 @@ struct Stop;
 impl Handler<Stop> for ServiceActor {
     type Response = ();
     async fn handle(&mut self, _: Stop, _: &mut BackgroundJobs) -> Self::Response {
-        self.desired_state.send_replace(StartStop::Stop);
-        // TODO: cancel restarting
+        self.0.desired_state.send_replace(StartStop::Stop);
         if self.0.transition_state.borrow().as_ref().map(|t| t.kind())
             == Some(TransitionKind::Restarting)
         {
@@ -36,7 +35,7 @@ impl Handler<Stop> for ServiceActor {
                 unreachable!()
             }
         }
-        self.seed.synchronized.notified().await
+        self.0.synchronized.notified().await
     }
 }
 impl Service {

@@ -53,10 +53,10 @@ pub fn display_action_result(params: WithIoFormat<ActionParams>, result: ActionR
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct ActionParams {
-    #[arg(rename = "id")]
+    #[arg(id = "id")]
     #[serde(rename = "id")]
     pub package_id: PackageId,
-    #[arg(rename = "action-id")]
+    #[arg(id = "action-id")]
     #[serde(rename = "action-id")]
     pub action_id: ActionId,
     #[command(flatten)]

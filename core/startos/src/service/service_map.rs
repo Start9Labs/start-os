@@ -7,11 +7,11 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::install::PKG_ARCHIVE_DIR;
-use crate::service::start_stop::StartStop;
-use crate::service::Service;
 use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::S9pk;
+use crate::service::start_stop::StartStop;
+use crate::service::Service;
 
 /// This is the structure to contain all the service managers
 #[derive(Default)]

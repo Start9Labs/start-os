@@ -198,7 +198,7 @@ pub fn set() -> ParentHandler<SetParams, PackageId> {
     ParentHandler::new()
         .root_handler(
             from_fn_async(set_impl)
-                .metadata("sync_db", Value::Boolean(true))
+                .with_metadata("sync_db", Value::Bool(true))
                 .with_inherited(|set_params, id| (id, set_params))
                 .no_display()
                 .with_remote_cli::<CliContext>(),

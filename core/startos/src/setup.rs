@@ -41,7 +41,7 @@ pub fn setup() -> ParentHandler {
         .subcommand(
             "status",
             from_fn_async(status)
-                .metadata("authenticated", Value::Boolean(false))
+                .with_metadata("authenticated", Value::Bool(false))
                 .no_cli(),
         )
         .subcommand("disk", disk())
@@ -52,7 +52,7 @@ pub fn setup() -> ParentHandler {
         .subcommand(
             "get-pubkey",
             from_fn_async(get_pubkey)
-                .metadata("authenticated", Value::Boolean(false))
+                .with_metadata("authenticated", Value::Bool(false))
                 .no_cli(),
         )
         .subcommand("exit", from_fn_async(exit).no_cli())
@@ -62,7 +62,7 @@ pub fn disk() -> ParentHandler {
     ParentHandler::new().subcommand(
         "list",
         from_fn_async(list_disks)
-            .metadata("authenticated", Value::Boolean(false))
+            .with_metadata("authenticated", Value::Bool(false))
             .no_cli(),
     )
 }
