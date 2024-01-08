@@ -3,6 +3,7 @@ use std::net::{Ipv6Addr, SocketAddr};
 use std::path::Path;
 use std::sync::Arc;
 
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::{FutureExt, TryFutureExt};
 use tokio::signal::unix::signal;
@@ -107,13 +108,10 @@ async fn inner_main(config: &ServerConfig) -> Result<Option<Shutdown>, Error> {
 pub fn main(args: impl IntoIterator<Item = OsString>) {
     EmbassyLogger::init();
 
-    let config = ServerConfig::command()
-        .get_matches_from(args)
-        .load()
-        .unwrap();
+    let config = ServerConfig::parse_from(args).load().unwrap();
 
     if !Path::new("/run/embassy/initialized").exists() {
-        super::start_init::main(args.clone());
+        super::start_init::main(&config);
         std::fs::write("/run/embassy/initialized", "").unwrap();
     }
 
@@ -146,8 +144,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
                                 None
                             },
                             e,
-                        )
-                        .await?;
+                        )?;
 
                         let server = WebServer::diagnostic(
                             SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),

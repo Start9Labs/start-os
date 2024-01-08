@@ -4,6 +4,7 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use std::str::FromStr;
 
+use clap::builder::ValueParserFactory;
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use color_eyre::eyre::eyre;
 use imbl::OrdMap;
@@ -14,6 +15,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
 use super::IntoDoubleEndedIterator;
+use crate::util::clap::FromStrParser;
 use crate::{Error, ResultExt};
 
 pub fn deserialize_from_str<
@@ -583,7 +585,7 @@ where
 pub struct StdinDeserializable<T>(pub T);
 impl<T> FromArgMatches for StdinDeserializable<T>
 where
-    T: FromArgMatches + DeserializeOwned,
+    T: DeserializeOwned,
 {
     fn from_arg_matches(matches: &ArgMatches) -> Result<Self, clap::Error> {
         let format = matches
@@ -607,7 +609,7 @@ where
 }
 impl<T> clap::Args for StdinDeserializable<T>
 where
-    T: FromArgMatches + DeserializeOwned,
+    T: DeserializeOwned,
 {
     fn augment_args(cmd: clap::Command) -> clap::Command {
         if !cmd.get_arguments().any(|a| a.get_id() == "format") {
@@ -695,6 +697,12 @@ impl std::str::FromStr for Duration {
                 ))
             }
         }))
+    }
+}
+impl ValueParserFactory for Duration {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
     }
 }
 impl std::fmt::Display for Duration {

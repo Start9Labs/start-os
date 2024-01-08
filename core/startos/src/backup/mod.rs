@@ -7,7 +7,7 @@ use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
 use models::{ImageId, OptionExt, PackageId, ProcedureName};
 use reqwest::Url;
-use rpc_toolkit::{command, from_fn_async, ParentHandler};
+use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
