@@ -2,7 +2,6 @@ pub mod model;
 pub mod package;
 pub mod prelude;
 
-use std::future::Future;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -136,7 +135,7 @@ pub async fn subscribe(
     req: Request,
     ws: WebSocketUpgrade,
 ) -> Result<Response, Error> {
-    let (parts, body) = req.into_parts();
+    let (parts, _) = req.into_parts();
     let session = match async {
         let token = HashSessionToken::from_header(parts.headers.get(COOKIE))?;
         let session = HasValidSession::from_header(parts.headers.get(COOKIE), &ctx).await?;
