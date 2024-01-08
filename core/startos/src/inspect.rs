@@ -43,14 +43,14 @@ pub async fn hash(_: CliContext, HashParams { path }: HashParams) -> Result<Stri
 #[command(rename_all = "kebab-case")]
 pub struct ManifestParams {
     path: PathBuf,
-    #[arg(rename = "no-verify", long = "no-verify")]
+    #[arg(name = "no-verify", long = "no-verify")]
     no_verify: bool,
 }
 
 // #[command(cli_only, display(display_serializable))]
 pub async fn manifest(
     _: CliContext,
-    ManifestParams { path, no_verify }: ManifestParams,
+    ManifestParams { .. }: ManifestParams,
 ) -> Result<Manifest, Error> {
     // S9pkReader::open(path, !no_verify).await?.manifest().await
     todo!()
@@ -61,7 +61,7 @@ pub async fn manifest(
 #[command(rename_all = "kebab-case")]
 pub struct InspectParams {
     path: PathBuf,
-    #[arg(rename = "no-verify", long = "no-verify")]
+    #[arg(name = "no-verify", long = "no-verify")]
     no_verify: bool,
 }
 
@@ -93,7 +93,7 @@ pub async fn icon(
 #[command(rename_all = "kebab-case")]
 pub struct InstructionParams {
     path: PathBuf,
-    #[arg(rename = "no-verify", long = "no-verify")]
+    #[arg(name = "no-verify", long = "no-verify")]
     no_verify: bool,
 }
 
