@@ -270,17 +270,15 @@ impl Middleware<RpcContext> for Auth {
         if metadata.login {
             self.is_login = true;
             let guard = self.rate_limiter.lock().await;
-            if guard.1.elapsed() < Duration::from_secs(20) {
-                if guard.0 >= 3 {
-                    return Err(RpcResponse {
-                        id: request.id.take(),
-                        result: Err(Error::new(
-                            eyre!("Please limit login attempts to 3 per 20 seconds."),
-                            crate::ErrorKind::RateLimited,
-                        )
-                        .into()),
-                    });
-                }
+            if guard.1.elapsed() < Duration::from_secs(20) && guard.0 >= 3 {
+                return Err(RpcResponse {
+                    id: request.id.take(),
+                    result: Err(Error::new(
+                        eyre!("Please limit login attempts to 3 per 20 seconds."),
+                        crate::ErrorKind::RateLimited,
+                    )
+                    .into()),
+                });
             }
         } else if metadata.authenticated {
             match HasValidSession::from_request_parts(self.cookie.as_ref(), &context).await {
