@@ -62,7 +62,7 @@ impl UiMode {
     }
 }
 
-pub fn setup_ui_file_router(ctx: SetupContext) -> Router {
+pub fn setup_ui_file_router(ctx: SetupContext) -> Router<RpcContext> {
     Router::new()
         .route_service(
             "/rpc/*path",
@@ -73,7 +73,7 @@ pub fn setup_ui_file_router(ctx: SetupContext) -> Router {
         .fallback(any(|request: Request| alt_ui(request, UiMode::Setup)))
 }
 
-pub fn diag_ui_file_router(ctx: DiagnosticContext) -> Router {
+pub fn diag_ui_file_router(ctx: DiagnosticContext) -> Router<RpcContext> {
     Router::new()
         .route(
             "/rpc/*path",
@@ -86,7 +86,7 @@ pub fn diag_ui_file_router(ctx: DiagnosticContext) -> Router {
         .fallback(any(|request: Request| alt_ui(request, UiMode::Diag)))
 }
 
-pub fn install_ui_file_router(ctx: InstallContext) -> Router {
+pub fn install_ui_file_router(ctx: InstallContext) -> Router<RpcContext> {
     Router::new()
         .route(
             "/rpc/*path",
