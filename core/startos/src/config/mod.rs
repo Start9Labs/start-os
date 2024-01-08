@@ -18,7 +18,7 @@ use tracing::instrument;
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
 use crate::util::display_none;
-use crate::util::serde::{display_serializable, StdinDeserializable};
+use crate::util::serde::{display_serializable, HandlerExtSerde, StdinDeserializable};
 use crate::Error;
 
 pub mod action;
@@ -150,7 +150,7 @@ pub fn config() -> ParentHandler<ConfigParams> {
                 .with_display_serializable()
                 .with_remote_cli::<CliContext>(),
         )
-        .subcommand("set", set())
+        .subcommand("set", set().with_inherited(|ConfigParams { id }, _| id))
 }
 
 #[instrument(skip_all)]
