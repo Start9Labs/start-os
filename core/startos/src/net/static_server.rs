@@ -94,7 +94,7 @@ pub fn diag_ui_file_router(ctx: DiagnosticContext) -> Router {
         }))
 }
 
-pub async fn install_ui_file_router(ctx: InstallContext) -> Router {
+pub fn install_ui_file_router(ctx: InstallContext) -> Router {
     Router::new()
         .route("/rpc/*path", {
             let ctx = ctx.clone();
@@ -109,7 +109,7 @@ pub async fn install_ui_file_router(ctx: InstallContext) -> Router {
         }))
 }
 
-pub async fn main_ui_server_router(ctx: RpcContext) -> Router {
+pub fn main_ui_server_router(ctx: RpcContext) -> Router {
     Router::new()
         .route("/rpc/*path", {
             let ctx = ctx.clone();
