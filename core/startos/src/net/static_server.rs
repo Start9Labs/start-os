@@ -151,24 +151,24 @@ pub async fn main_ui_server_router(ctx: RpcContext) -> Router {
                 }
             }),
         )
-        // .route(
-        //     "/rest/rpc/*path",
-        //     any({
-        //         let ctx = ctx.clone();
-        //         move |headers: Request| async move {
-        //             Box::new(match RequestGuid::from(&path) {
-        //                 None => {
-        //                     tracing::debug!("No Guid Path");
-        //                     bad_request()
-        //                 }
-        //                 Some(guid) => match ctx.get_rest_continuation_handler(&guid).await {
-        //                     None => not_found(),
-        //                     Some(cont) => cont(headers).await.unwrap_or_else(server_error),
-        //                 },
-        //             })
-        //         }
-        //     }),
-        // )
+        .route(
+            "/rest/rpc/*path",
+            any({
+                let ctx = ctx.clone();
+                move |headers: HeaderMap, x::Path(path): x::Path<String>| async move {
+                    match RequestGuid::from(&path) {
+                        None => {
+                            tracing::debug!("No Guid Path");
+                            bad_request()
+                        }
+                        Some(guid) => match ctx.get_rest_continuation_handler(&guid).await {
+                            None => not_found(),
+                            Some(cont) => cont(headers).await.unwrap_or_else(server_error),
+                        },
+                    }
+                }
+            }),
+        )
         .fallback(any(move |request: Request| async move {
             main_embassy_ui(request, ctx)
                 .await

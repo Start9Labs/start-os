@@ -512,7 +512,16 @@ pub async fn follow_logs(
     ctx.add_continuation(
         guid.clone(),
         RpcContinuation::ws(
-            Box::new(move |socket| ws_handler(first_entry, stream, socket).boxed()),
+            Box::new(move |socket| {
+                ws_handler(first_entry, stream, socket)
+                    .map(|x| match x {
+                        Ok(_) => (),
+                        Err(e) => {
+                            tracing::error!("Error in log stream: {}", e);
+                        }
+                    })
+                    .boxed()
+            }),
             Duration::from_secs(30),
         ),
     )

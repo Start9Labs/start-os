@@ -11,7 +11,7 @@ use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt, TryStreamExt};
-use http::header::CONTENT_LENGTH;
+use http::{header::CONTENT_LENGTH, HeaderMap};
 use http::{Request, Response, StatusCode};
 use models::{mime, DataUrl};
 use reqwest::Url;
@@ -390,9 +390,9 @@ pub async fn sideload(
         icon_file.sync_all().await?;
     }
 
-    let handler = Box::new(|req: Request| {
+    let handler = Box::new(|headers: HeaderMap| {
         async move {
-            let content_length = match req.headers().get(CONTENT_LENGTH).map(|a| a.to_str()) {
+            let content_length = match headers.get(CONTENT_LENGTH).map(|a| a.to_str()) {
                 None => None,
                 Some(Err(_)) => {
                     return Response::builder()
