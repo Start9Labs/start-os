@@ -5,6 +5,7 @@ use axum::extract::Request;
 use axum::response::Response;
 use futures::future::BoxFuture;
 use helpers::TimedResource;
+use http::HeaderMap;
 use imbl_value::InternedString;
 
 use crate::prelude::*;
@@ -44,10 +45,9 @@ impl std::fmt::Display for RequestGuid {
 }
 
 pub type RestHandler =
-    Box<dyn FnOnce(Request) -> BoxFuture<'static, Result<Response, crate::Error>> + Send>;
+    Box<dyn FnOnce(HeaderMap) -> BoxFuture<'static, Result<Response, crate::Error>> + Send>;
 
-pub type WebSocketHandler =
-    Box<dyn FnOnce(WebSocket) -> BoxFuture<'static, Result<(), Error>> + Send>;
+pub type WebSocketHandler = Box<dyn FnOnce(WebSocket) -> BoxFuture<'static, ()> + Send>;
 
 pub enum RpcContinuation {
     Rest(TimedResource<RestHandler>),

@@ -1,7 +1,7 @@
-use std::fs::Metadata;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
+use std::{fs::Metadata, sync::Arc};
 
 use async_compression::tokio::bufread::GzipEncoder;
 use axum::body::Body;
@@ -12,14 +12,14 @@ use axum::Router;
 use digest::Digest;
 use futures::FutureExt;
 use futures::{future::ready, TryFutureExt};
-use http::header::ACCEPT_ENCODING;
 use http::request::Parts as RequestParts;
+use http::{header::ACCEPT_ENCODING, HeaderMap};
 use http::{Method, StatusCode};
 use include_dir::{include_dir, Dir};
 use new_mime_guess::MimeGuess;
 use openssl::hash::MessageDigest;
 use openssl::x509::X509;
-use rpc_toolkit::{AnyContext, Server};
+use rpc_toolkit::{AnyContext, IntoContext, Server};
 use tokio::fs::File;
 use tokio::io::BufReader;
 use tokio_util::io::ReaderStream;
@@ -70,12 +70,15 @@ pub fn setup_ui_file_router(ctx: SetupContext) -> Router {
                 Server::new(move || ready(Ok(ctx.clone())), setup_api()).middleware(Cors::new()),
             ),
         )
-        .fallback(any(|request: Request| alt_ui(request, UiMode::Setup)))
+        .fallback(any(|request: Request| async move {
+            alt_ui(request, UiMode::Setup)
+                .await
+                .unwrap_or_else(server_error)
+        }))
 }
 
-pub fn diag_ui_file_router(ctx: DiagnosticContext) -> Router<AnyContext> {
+pub fn diag_ui_file_router(ctx: DiagnosticContext) -> Router {
     Router::new()
-        .with_state(ctx.clone())
         .route(
             "/rpc/*path",
             any_service(
@@ -84,24 +87,21 @@ pub fn diag_ui_file_router(ctx: DiagnosticContext) -> Router<AnyContext> {
                     .middleware(DiagnosticMode::new()),
             ),
         )
-        .fallback(any(
-            |State(ctx): State<DiagnosticContext>, request: Request| async move {
-                alt_ui(request, UiMode::Diag)
-                    .await
-                    .unwrap_or_else(server_error)
-            },
-        ))
+        .fallback(any(|request: Request| async move {
+            alt_ui(request, UiMode::Diag)
+                .await
+                .unwrap_or_else(server_error)
+        }))
 }
 
-pub async fn install_ui_file_router(ctx: InstallContext) -> Router<RpcContext> {
+pub async fn install_ui_file_router(ctx: InstallContext) -> Router {
     Router::new()
-        .with_state(ctx.clone())
-        .route(
-            "/rpc/*path",
+        .route("/rpc/*path", {
+            let ctx = ctx.clone();
             any_service(
                 Server::new(move || ready(Ok(ctx.clone())), install_api()).middleware(Cors::new()),
-            ),
-        )
+            )
+        })
         .fallback(any(|request: Request| async move {
             alt_ui(request, UiMode::Install)
                 .await
@@ -109,35 +109,35 @@ pub async fn install_ui_file_router(ctx: InstallContext) -> Router<RpcContext> {
         }))
 }
 
-pub async fn main_ui_server_router(ctx: RpcContext) -> Router<RpcContext> {
-    Router::<RpcContext>::new()
-        .with_state(ctx.clone())
-        .route(
-            "/rpc/*path",
+pub async fn main_ui_server_router(ctx: RpcContext) -> Router {
+    Router::new()
+        .route("/rpc/*path", {
+            let ctx = ctx.clone();
             any_service(
                 Server::new(move || ready(Ok(ctx.clone())), main_api())
                     .middleware(Cors::new())
                     .middleware(Auth::new())
                     .middleware(SyncDb::new()),
-            ),
-        )
+            )
+        })
         .route(
             "/ws/db",
-            any(
-                |State(ctx): State<RpcContext>,
-                 request: Request,
-
-                 ws: axum::extract::ws::WebSocketUpgrade,
-                 req: Request| subscribe(ctx, ws, req),
-            ),
+            any({
+                let ctx = ctx.clone();
+                move |headers: HeaderMap, ws: x::WebSocketUpgrade| async move {
+                    subscribe(ctx, headers, ws)
+                        .await
+                        .unwrap_or_else(server_error)
+                }
+            }),
         )
         .route(
             "/ws/rpc/*path",
-            get(
-                |State(ctx): State<RpcContext>,
-                 request: Request,
-                 x::Path(path): x::Path<String>,
-                 ws: axum::extract::ws::WebSocketUpgrade| async move {
+            get({
+                let ctx = ctx.clone();
+                move |headers: HeaderMap,
+                      x::Path(path): x::Path<String>,
+                      ws: axum::extract::ws::WebSocketUpgrade| async move {
                     match RequestGuid::from(&path) {
                         None => {
                             tracing::debug!("No Guid Path");
@@ -148,32 +148,28 @@ pub async fn main_ui_server_router(ctx: RpcContext) -> Router<RpcContext> {
                             _ => not_found(),
                         },
                     }
-                },
-            ),
+                }
+            }),
         )
-        .route(
-            "/rest/rpc/*path",
-            any(
-                |State(ctx): State<RpcContext>,
-                 request: Request,
-                 x::Path(path): x::Path<String>| async move {
-                    Box::new(match RequestGuid::from(&path) {
-                        None => {
-                            tracing::debug!("No Guid Path");
-                            bad_request()
-                        }
-                        Some(guid) => match ctx.get_rest_continuation_handler(&guid).await {
-                            None => not_found(),
-                            Some(cont) => match cont(request).await {
-                                Ok::<_, Error>(r) => r,
-                                Err(e) => server_error(e),
-                            },
-                        },
-                    })
-                },
-            ),
-        )
-        .fallback(any(|request: Request, State(ctx)| async move {
+        // .route(
+        //     "/rest/rpc/*path",
+        //     any({
+        //         let ctx = ctx.clone();
+        //         move |headers: Request| async move {
+        //             Box::new(match RequestGuid::from(&path) {
+        //                 None => {
+        //                     tracing::debug!("No Guid Path");
+        //                     bad_request()
+        //                 }
+        //                 Some(guid) => match ctx.get_rest_continuation_handler(&guid).await {
+        //                     None => not_found(),
+        //                     Some(cont) => cont(headers).await.unwrap_or_else(server_error),
+        //                 },
+        //             })
+        //         }
+        //     }),
+        // )
+        .fallback(any(move |request: Request| async move {
             main_embassy_ui(request, ctx)
                 .await
                 .unwrap_or_else(server_error)

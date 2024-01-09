@@ -10,7 +10,7 @@ use axum::extract::{Request, WebSocketUpgrade};
 use axum::response::Response;
 use clap::Parser;
 use futures::{FutureExt, SinkExt, StreamExt};
-use http::header::COOKIE;
+use http::{header::COOKIE, HeaderMap};
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{Dump, Revision};
 use rpc_toolkit::yajrc::RpcError;
@@ -132,13 +132,12 @@ async fn send_dump(
 
 pub async fn subscribe(
     ctx: RpcContext,
-    req: Request,
+    headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> Result<Response, Error> {
-    let (parts, _) = req.into_parts();
     let session = match async {
-        let token = HashSessionToken::from_header(parts.headers.get(COOKIE))?;
-        let session = HasValidSession::from_header(parts.headers.get(COOKIE), &ctx).await?;
+        let token = HashSessionToken::from_header(headers.get(COOKIE))?;
+        let session = HasValidSession::from_header(headers.get(COOKIE), &ctx).await?;
         Ok::<_, Error>((session, token))
     }
     .await
