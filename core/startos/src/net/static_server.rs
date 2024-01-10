@@ -1,15 +1,14 @@
 use std::fs::Metadata;
 use std::future::Future;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
 use async_compression::tokio::bufread::GzipEncoder;
-use axum::body::Body;
-use axum::extract::{self as x, Request, State};
+use axum::extract::{self as x, Request};
 use axum::response::Response;
-use axum::routing::{any, any_service, get};
+use axum::routing::{any, get};
 use axum::Router;
+use axum::{body::Body, routing::post};
 use digest::Digest;
 use futures::future::ready;
 use futures::{FutureExt, TryFutureExt};
@@ -20,7 +19,7 @@ use include_dir::{include_dir, Dir};
 use new_mime_guess::MimeGuess;
 use openssl::hash::MessageDigest;
 use openssl::x509::X509;
-use rpc_toolkit::{AnyContext, IntoContext, Server};
+use rpc_toolkit::Server;
 use tokio::fs::File;
 use tokio::io::BufReader;
 use tokio_util::io::ReaderStream;
@@ -67,9 +66,7 @@ pub fn setup_ui_file_router(ctx: SetupContext) -> Router {
     Router::new()
         .route_service(
             "/rpc/*path",
-            any_service(
-                Server::new(move || ready(Ok(ctx.clone())), setup_api()).middleware(Cors::new()),
-            ),
+            post(Server::new(move || ready(Ok(ctx.clone())), setup_api()).middleware(Cors::new())),
         )
         .fallback(any(|request: Request| async move {
             alt_ui(request, UiMode::Setup)
@@ -82,7 +79,7 @@ pub fn diag_ui_file_router(ctx: DiagnosticContext) -> Router {
     Router::new()
         .route(
             "/rpc/*path",
-            any_service(
+            post(
                 Server::new(move || ready(Ok(ctx.clone())), diagnostic_api())
                     .middleware(Cors::new())
                     .middleware(DiagnosticMode::new()),
@@ -99,9 +96,7 @@ pub fn install_ui_file_router(ctx: InstallContext) -> Router {
     Router::new()
         .route("/rpc/*path", {
             let ctx = ctx.clone();
-            any_service(
-                Server::new(move || ready(Ok(ctx.clone())), install_api()).middleware(Cors::new()),
-            )
+            post(Server::new(move || ready(Ok(ctx.clone())), install_api()).middleware(Cors::new()))
         })
         .fallback(any(|request: Request| async move {
             alt_ui(request, UiMode::Install)
@@ -114,7 +109,7 @@ pub fn main_ui_server_router(ctx: RpcContext) -> Router {
     Router::new()
         .route("/rpc/*path", {
             let ctx = ctx.clone();
-            any_service(
+            post(
                 Server::new(move || ready(Ok(ctx.clone())), main_api())
                     .middleware(Cors::new())
                     .middleware(Auth::new())
@@ -381,7 +376,7 @@ fn cert_send(cert: &X509, hostname: &Hostname) -> Result<Response, Error> {
             http::header::CONTENT_DISPOSITION,
             format!("attachment; filename={}.crt", &hostname.0),
         )
-        .body(Body::new(pem))
+        .body(Body::from(pem))
         .with_kind(ErrorKind::Network)
 }
 
