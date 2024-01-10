@@ -82,9 +82,7 @@ impl<S: ArchiveSource> S9pk<Section<S>> {
 }
 impl S9pk {
     pub async fn open(path: impl AsRef<Path>) -> Result<Self, Error> {
-        Self::deserialize(&MultiCursorFile::from(
-            tokio::fs::File::open(path).await?,
-        )).await
+        Self::deserialize(&MultiCursorFile::from(tokio::fs::File::open(path).await?)).await
     }
 }
 

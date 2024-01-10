@@ -8,11 +8,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 use tracing::instrument;
 
-use crate::util::serde::{display_serializable, WithIoFormat};
-use crate::{
-    context::{CliContext, RpcContext},
-    util::serde::HandlerExtSerde,
-};
+use crate::context::{CliContext, RpcContext};
+use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::{Error, ErrorKind};
 
 static SSH_AUTHORIZED_KEYS_FILE: &str = "/home/start9/.ssh/authorized_keys";

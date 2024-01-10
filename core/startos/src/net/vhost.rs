@@ -8,13 +8,12 @@ use helpers::NonDetachingJoinHandle;
 use models::ResultExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Mutex, RwLock};
+use tokio_rustls::rustls::crypto::ring::{ALL_KX_GROUPS, DEFAULT_CIPHER_SUITES};
+use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
+use tokio_rustls::rustls::server::Acceptor;
 use tokio_rustls::rustls::{
-    crypto::ring::{ALL_KX_GROUPS, DEFAULT_CIPHER_SUITES},
-    pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer},
-    server::Acceptor,
-    ConfigBuilder, ConfigSide, WantsVerifier, DEFAULT_VERSIONS,
+    ConfigBuilder, ConfigSide, RootCertStore, ServerConfig, WantsVerifier, DEFAULT_VERSIONS,
 };
-use tokio_rustls::rustls::{RootCertStore, ServerConfig};
 use tokio_rustls::{LazyConfigAcceptor, TlsConnector};
 use tracing::instrument;
 

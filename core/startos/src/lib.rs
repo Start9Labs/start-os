@@ -68,8 +68,10 @@ use clap::Parser;
 pub use config::Config;
 pub use error::{Error, ErrorKind, ResultExt};
 use imbl_value::Value;
-use rpc_toolkit::{command, from_fn, from_fn_async, from_fn_blocking, HandlerExt, ParentHandler};
-use rpc_toolkit::{yajrc::RpcError, AnyContext};
+use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{
+    command, from_fn, from_fn_async, from_fn_blocking, AnyContext, HandlerExt, ParentHandler,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::context::CliContext;

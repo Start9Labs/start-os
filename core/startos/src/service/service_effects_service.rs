@@ -1,11 +1,16 @@
-use std::{collections::BTreeMap, marker::PhantomData};
+use std::collections::BTreeMap;
+use std::marker::PhantomData;
 
-use futures::{future::BoxFuture, Future, FutureExt};
+use futures::future::BoxFuture;
+use futures::{Future, FutureExt};
 use imbl_value::json;
 use models::{ActionId, PackageId};
 use serde::de::DeserializeOwned;
 
-use crate::{action::action, context::RpcContext, prelude::*, status::MainStatus};
+use crate::action::action;
+use crate::context::RpcContext;
+use crate::prelude::*;
+use crate::status::MainStatus;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct RpcData {
@@ -218,9 +223,9 @@ impl ExtractParam for RpcContext {
 mod routes {
     use models::HealthCheckId;
 
-    use crate::{action::ActionParams, status::health_check::HealthCheckResult};
-
     use super::*;
+    use crate::action::ActionParams;
+    use crate::status::health_check::HealthCheckResult;
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     struct ParamsPackageId {

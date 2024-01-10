@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::body::Body;
+use axum::extract::Request;
 use clap::builder::ValueParserFactory;
 use clap::Parser;
 use color_eyre::eyre::eyre;
@@ -396,8 +397,9 @@ pub async fn sideload(
         icon_file.sync_all().await?;
     }
 
-    let handler = Box::new(|headers: HeaderMap| {
+    let handler = Box::new(|request: Request| {
         async move {
+            let headers = request.headers();
             let content_length = match headers.get(CONTENT_LENGTH).map(|a| a.to_str()) {
                 None => None,
                 Some(Err(_)) => {
@@ -466,16 +468,12 @@ pub async fn sideload(
                     manifest.clone(),
                     None,
                     progress,
-                    tokio_util::io::StreamReader::new(req.into_body().map_err(|e| {
-                        std::io::Error::new(
-                            match &e {
-                                e if e.is_connect() => std::io::ErrorKind::ConnectionRefused,
-                                e if e.is_timeout() => std::io::ErrorKind::TimedOut,
-                                _ => std::io::ErrorKind::Other,
-                            },
-                            e,
-                        )
-                    })),
+                    tokio_util::io::StreamReader::new(
+                        request
+                            .into_body()
+                            .into_data_stream()
+                            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)),
+                    ),
                     Some(send),
                 )
                 .await
