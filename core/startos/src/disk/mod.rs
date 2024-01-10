@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use rpc_toolkit::{from_fn_async, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 
 use crate::context::{CliContext, RpcContext};
@@ -46,7 +46,7 @@ pub fn disk() -> ParentHandler {
             "list",
             from_fn_async(list)
                 .with_display_serializable()
-                .with_custom_display_fn(|handle, result| {
+                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
                     Ok(display_disk_info(handle.params, result))
                 })
                 .with_remote_cli::<CliContext>(),
