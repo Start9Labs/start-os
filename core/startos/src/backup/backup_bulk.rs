@@ -221,7 +221,7 @@ async fn perform_backup(
 
     for (package_id, version) in package_ids {
         let (response, _report) = match ctx
-            .managers
+            .services
             .get(package_id)
             .await
             .ok_or_else(|| Error::new(eyre!("Manager not found"), ErrorKind::InvalidRequest))?

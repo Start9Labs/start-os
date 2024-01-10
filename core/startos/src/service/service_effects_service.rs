@@ -328,7 +328,7 @@ mod routes {
     }
 
     pub async fn restart(context: RpcContext, package_id: PackageId) -> Result<Value, Error> {
-        let manager = context.managers.get(&package_id).await.ok_or_else(|| {
+        let manager = context.services.get(&package_id).await.ok_or_else(|| {
             Error::new(
                 eyre!("Could not find package {package_id}"),
                 ErrorKind::Unknown,
@@ -339,7 +339,7 @@ mod routes {
     }
 
     pub async fn shutdown(context: RpcContext, package_id: PackageId) -> Result<Value, Error> {
-        let manager = context.managers.get(&package_id).await.ok_or_else(|| {
+        let manager = context.services.get(&package_id).await.ok_or_else(|| {
             Error::new(
                 eyre!("Could not find package {package_id}"),
                 ErrorKind::Unknown,

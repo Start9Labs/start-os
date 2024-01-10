@@ -6,7 +6,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use helpers::to_tmp_path;
 use josekit::jwk::Jwk;
 use patch_db::PatchDb;
 use reqwest::{Client, Proxy};
@@ -20,12 +19,11 @@ use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
 use crate::context::config::ServerConfig;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation, WebSocketHandler};
-use crate::db::model::{CurrentDependents, PackageDataEntryMatchModelRef};
+use crate::db::model::CurrentDependents;
 use crate::db::prelude::PatchDbExt;
 use crate::dependencies::compute_dependency_config_errs;
 use crate::disk::OsPartitionInfo;
 use crate::init::check_time_is_synchronized;
-use crate::install::cleanup::{cleanup_failed, uninstall};
 use crate::lxc::LxcManager;
 use crate::middleware::auth::HashSessionToken;
 use crate::net::net_controller::NetController;
@@ -39,7 +37,6 @@ use crate::shutdown::Shutdown;
 use crate::status::MainStatus;
 use crate::system::get_mem_info;
 use crate::util::lshw::{lshw, LshwDevice};
-use crate::volume::Volume;
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
@@ -52,7 +49,7 @@ pub struct RpcContextSeed {
     pub secret_store: PgPool,
     pub account: RwLock<AccountInfo>,
     pub net_controller: Arc<NetController>,
-    pub managers: ServiceMap,
+    pub services: ServiceMap,
     pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
     pub shutdown: broadcast::Sender<Option<Shutdown>>,
     pub tor_socks: SocketAddr,
@@ -105,7 +102,7 @@ impl RpcContext {
             .await?,
         );
         tracing::info!("Initialized Net Controller");
-        let managers = ServiceMap::default();
+        let services = ServiceMap::default();
         let metrics_cache = RwLock::<Option<crate::system::Metrics>>::new(None);
         let notification_manager = NotificationManager::new(secret_store.clone());
         tracing::info!("Initialized Notification Manager");
@@ -145,7 +142,7 @@ impl RpcContext {
             secret_store,
             account: RwLock::new(account),
             net_controller,
-            managers,
+            services,
             metrics_cache,
             shutdown,
             tor_socks: tor_proxy,
@@ -189,7 +186,7 @@ impl RpcContext {
 
     #[instrument(skip_all)]
     pub async fn shutdown(self) -> Result<(), Error> {
-        self.managers.empty().await?;
+        self.services.empty().await?;
         self.secret_store.close().await;
         self.is_closed.store(true, Ordering::SeqCst);
         tracing::info!("RPC Context is shutdown");
@@ -241,47 +238,6 @@ impl RpcContext {
             })
             .await?;
 
-        let peek = self.db.peek().await;
-
-        for (package_id, package) in peek.as_package_data().as_entries()?.into_iter() {
-            let action = match package.as_match() {
-                PackageDataEntryMatchModelRef::Installing(_)
-                | PackageDataEntryMatchModelRef::Restoring(_)
-                | PackageDataEntryMatchModelRef::Updating(_) => {
-                    cleanup_failed(self, &package_id).await
-                }
-                PackageDataEntryMatchModelRef::Removing(_) => {
-                    uninstall(
-                        self,
-                        self.secret_store.acquire().await?.as_mut(),
-                        &package_id,
-                    )
-                    .await
-                }
-                PackageDataEntryMatchModelRef::Installed(m) => {
-                    let version = m.as_manifest().as_version().clone().de()?;
-                    let volumes = m.as_manifest().as_volumes().de()?;
-                    for volume_id in &*volumes {
-                        let tmp_path = to_tmp_path(Volume::Data { readonly: false }.path_for(
-                            &self.datadir,
-                            &package_id,
-                            &version,
-                            volume_id,
-                        ))
-                        .with_kind(ErrorKind::Filesystem)?;
-                        if tokio::fs::metadata(&tmp_path).await.is_ok() {
-                            tokio::fs::remove_dir_all(&tmp_path).await?;
-                        }
-                    }
-                    Ok(())
-                }
-                _ => continue,
-            };
-            if let Err(e) = action {
-                tracing::error!("Failed to clean up package {}: {}", package_id, e);
-                tracing::debug!("{:?}", e);
-            }
-        }
         let peek = self
             .db
             .mutate(|v| {
@@ -301,7 +257,7 @@ impl RpcContext {
                 Ok(v.clone())
             })
             .await?;
-        self.managers.init(&self).await?;
+        self.services.init(&self).await?;
         tracing::info!("Initialized Package Managers");
 
         let mut all_dependency_config_errs = BTreeMap::new();

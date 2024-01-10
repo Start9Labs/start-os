@@ -19,7 +19,7 @@ pub struct ControlParams {
 
 #[instrument(skip_all)]
 pub async fn start(ctx: RpcContext, ControlParams { id }: ControlParams) -> Result<(), Error> {
-    ctx.managers
+    ctx.services
         .get(&id)
         .await
         .or_not_found(lazy_format!("Manager for {id}"))?
@@ -57,7 +57,7 @@ pub async fn stop(
         })
         .await?;
 
-    ctx.managers
+    ctx.services
         .get(&id)
         .await
         .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
@@ -78,7 +78,7 @@ pub async fn restart(ctx: RpcContext, ControlParams { id }: ControlParams) -> Re
         .as_version()
         .de()?;
 
-    ctx.managers
+    ctx.services
         .get(&id)
         .await
         .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?

@@ -26,6 +26,7 @@ fn into_dyn_read<R: AsyncRead + Unpin + Send + Sync + 'static>(r: R) -> DynRead 
     Box::new(r)
 }
 
+#[derive(Clone)]
 enum CompatSource {
     Buffered(Arc<[u8]>),
     File(PathBuf),
@@ -86,7 +87,7 @@ impl S9pk<Section<MultiCursorFile>> {
         // icon.md
         let icon: Arc<[u8]> = reader.icon().await?.to_vec().await?.into();
         archive.insert_path(
-            format!("icon.{}", todo!()),
+            format!("icon.{}", manifest.assets.icon_type()),
             Entry::file(CompatSource::Buffered(icon.into())),
         )?;
 

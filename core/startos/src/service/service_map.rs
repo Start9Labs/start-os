@@ -13,7 +13,7 @@ use crate::s9pk::S9pk;
 use crate::service::start_stop::StartStop;
 use crate::service::Service;
 
-/// This is the structure to contain all the service managers
+/// This is the structure to contain all the services
 #[derive(Default)]
 pub struct ServiceMap(RwLock<BTreeMap<PackageId, Arc<Service>>>);
 impl ServiceMap {
@@ -23,29 +23,29 @@ impl ServiceMap {
         let s9pk_dir = ctx.datadir.join(PKG_ARCHIVE_DIR).join("installed");
         for (id, entry) in ctx.db.peek().await.as_package_data().as_entries()? {
             if let Some(i) = entry.as_installed() {
-                match S9pk::open(s9pk_dir.join(&id).with_extension("s9pk")).await {
-                    Ok(s9pk) => {
-                        res.insert(
-                            s9pk.as_manifest().id.clone(),
-                            Arc::new(
-                                Service::new(
-                                    ctx.clone(),
-                                    s9pk,
-                                    if i.as_status().as_main().de()?.running() {
-                                        StartStop::Start
-                                    } else {
-                                        StartStop::Stop
-                                    },
-                                )
-                                .await?,
-                            ),
-                        );
-                    }
-                    Err(e) => {
-                        tracing::error!("Error loading installed package as service: {e}");
-                        tracing::debug!("{e:?}");
-                        // TODO: add package broken state
-                    }
+                if let Err(e) = async {
+                    let s9pk = S9pk::open(s9pk_dir.join(&id).with_extension("s9pk")).await?;
+                    let id = s9pk.as_manifest().id.clone();
+                    let service = Arc::new(
+                        Service::new(
+                            ctx.clone(),
+                            s9pk,
+                            if i.as_status().as_main().de()?.running() {
+                                StartStop::Start
+                            } else {
+                                StartStop::Stop
+                            },
+                            entry,
+                        )
+                        .await?,
+                    );
+                    res.insert(id, service);
+                    Ok::<_, Error>(())
+                }
+                .await
+                {
+                    tracing::error!("Error loading installed package as service: {e}");
+                    tracing::debug!("{e:?}");
                 }
             }
         }

@@ -1,8 +1,8 @@
-use std::collections::BTreeMap;
 use std::path::Path;
 
 use futures::future::BoxFuture;
 use futures::FutureExt;
+use imbl::OrdMap;
 use imbl_value::InternedString;
 use tokio::io::AsyncRead;
 
@@ -13,11 +13,11 @@ use crate::s9pk::merkle_archive::source::{ArchiveSource, FileSource, Section};
 use crate::s9pk::merkle_archive::write_queue::WriteQueue;
 use crate::s9pk::merkle_archive::{varint, Entry, EntryContents};
 
-#[derive(Debug)]
-pub struct DirectoryContents<S>(BTreeMap<InternedString, Entry<S>>);
+#[derive(Debug, Clone)]
+pub struct DirectoryContents<S>(OrdMap<InternedString, Entry<S>>);
 impl<S> DirectoryContents<S> {
     pub fn new() -> Self {
-        Self(BTreeMap::new())
+        Self(OrdMap::new())
     }
 
     #[instrument(skip_all)]
@@ -100,6 +100,17 @@ impl<S> DirectoryContents<S> {
         )
     }
 }
+impl<S: Clone> DirectoryContents<S> {
+    pub fn with_prefix(&self, prefix: &str) -> impl Iterator<Item = (InternedString, Entry<S>)> {
+        let prefix = InternedString::intern(prefix);
+        let (_, center, right) = self.0.split_lookup(&*prefix);
+        center.map(|e| (prefix.clone(), e)).into_iter().chain(
+            right
+                .into_iter()
+                .take_while(move |(k, _)| k.starts_with(&*prefix)),
+        )
+    }
+}
 impl<S: ArchiveSource> DirectoryContents<Section<S>> {
     #[instrument(skip_all)]
     pub fn deserialize<'a>(
@@ -121,7 +132,7 @@ impl<S: ArchiveSource> DirectoryContents<Section<S>> {
             let mut toc_reader = source.fetch(position, size).await?;
 
             let len = varint::deserialize_varint(&mut toc_reader).await?;
-            let mut entries = BTreeMap::new();
+            let mut entries = OrdMap::new();
             for _ in 0..len {
                 entries.insert(
                     varint::deserialize_varstring(&mut toc_reader).await?.into(),
@@ -147,8 +158,10 @@ impl<S: FileSource> DirectoryContents<S> {
     #[instrument(skip_all)]
     pub fn update_hashes<'a>(&'a mut self, only_missing: bool) -> BoxFuture<'a, Result<(), Error>> {
         async move {
-            for (_, entry) in &mut self.0 {
-                entry.update_hash(only_missing).await?;
+            for key in self.0.keys() {
+                if let Some(entry) = self.0.get_mut(key) {
+                    entry.update_hash(only_missing).await?;
+                }
             }
             Ok(())
         }
@@ -159,7 +172,7 @@ impl<S: FileSource> DirectoryContents<S> {
     pub fn sighash<'a>(&'a self) -> BoxFuture<'a, Result<Hash, Error>> {
         async move {
             let mut hasher = TrackingWriter::new(0, HashWriter::new());
-            let mut sig_contents = BTreeMap::new();
+            let mut sig_contents = OrdMap::new();
             for (name, entry) in &self.0 {
                 sig_contents.insert(name.clone(), entry.to_missing().await?);
             }
@@ -187,7 +200,7 @@ impl<S: FileSource> DirectoryContents<S> {
     }
 }
 impl<S> std::ops::Deref for DirectoryContents<S> {
-    type Target = BTreeMap<InternedString, Entry<S>>;
+    type Target = OrdMap<InternedString, Entry<S>>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }

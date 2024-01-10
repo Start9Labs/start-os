@@ -5,7 +5,6 @@ use axum::extract::Request;
 use axum::response::Response;
 use futures::future::BoxFuture;
 use helpers::TimedResource;
-use http::HeaderMap;
 use imbl_value::InternedString;
 
 use crate::prelude::*;

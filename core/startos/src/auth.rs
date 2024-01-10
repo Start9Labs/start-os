@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::marker::PhantomData;
 
 use chrono::{DateTime, Utc};
 use clap::{ArgMatches, Parser};
@@ -7,9 +6,7 @@ use color_eyre::eyre::eyre;
 use imbl_value::{json, InternedString};
 use josekit::jwk::Jwk;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{
-    command, from_fn_async, AnyContext, CallRemote, HandleArgs, HandlerExt, ParentHandler,
-};
+use rpc_toolkit::{command, from_fn_async, AnyContext, CallRemote, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sqlx::{Executor, Postgres};
 use tracing::instrument;
@@ -179,11 +176,8 @@ where
 #[command(rename_all = "kebab-case")]
 pub struct LoginParams {
     password: Option<PasswordType>,
-    #[arg(
-        parse(parse_metadata),
-        help = "RPC Only: This value cannot be overidden from the cli"
-    )]
-    #[serde(default = "cli_metadata")]
+    #[arg(skip = cli_metadata())]
+    #[serde(default)]
     metadata: Value,
 }
 
@@ -285,7 +279,7 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) {
             &format!("{}", session.logged_in),
             &format!("{}", session.last_active),
             session.user_agent.as_deref().unwrap_or("N/A"),
-            &format!("{}", session.with_metadata),
+            &format!("{}", session.metadata),
         ];
         if id == arg.current {
             row.iter_mut()
@@ -326,7 +320,7 @@ pub async fn list(
                     logged_in: DateTime::from_utc(row.logged_in, Utc),
                     last_active: DateTime::from_utc(row.last_active, Utc),
                     user_agent: row.user_agent,
-                    metadata: serde_json::from_str(&row.with_metadata)
+                    metadata: serde_json::from_str(&row.metadata)
                         .with_kind(crate::ErrorKind::Database)?,
                 },
             ))

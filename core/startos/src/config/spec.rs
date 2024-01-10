@@ -1787,7 +1787,7 @@ impl ConfigPointer {
                 .map_err(ConfigurationError::SystemError)?;
             if let Some(version) = version {
                 let cfg_res = ctx
-                    .managers
+                    .services
                     .get(&id)
                     .await
                     .or_not_found(lazy_format!("Manager for {id}@{version}"))

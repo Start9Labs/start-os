@@ -105,7 +105,7 @@ impl<S: FileSource> MerkleArchive<S> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Entry<S> {
     hash: Option<Hash>,
     contents: EntryContents<S>,
@@ -144,6 +144,18 @@ impl<S> Entry<S> {
     }
     pub fn into_contents(self) -> EntryContents<S> {
         self.contents
+    }
+    pub fn into_file(&self) -> Option<FileContents<S>> {
+        match self.into_contents() {
+            EntryContents::File(f) => Some(f),
+            _ => None,
+        }
+    }
+    pub fn into_directory(&self) -> Option<DirectoryContents<S>> {
+        match self.into_contents() {
+            EntryContents::Directory(d) => Some(d),
+            _ => None,
+        }
     }
     pub fn header_size(&self) -> u64 {
         32 // hash
@@ -219,7 +231,7 @@ impl<S: FileSource> Entry<S> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum EntryContents<S> {
     Missing,
     File(FileContents<S>),

@@ -5,7 +5,7 @@ use crate::s9pk::merkle_archive::hash::{Hash, HashWriter};
 use crate::s9pk::merkle_archive::sink::{Sink, TrackingWriter};
 use crate::s9pk::merkle_archive::source::{ArchiveSource, FileSource, Section};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FileContents<S>(S);
 impl<S> FileContents<S> {
     pub fn new(source: S) -> Self {

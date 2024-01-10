@@ -12,7 +12,7 @@ pub mod http;
 pub mod multi_cursor_file;
 
 #[async_trait::async_trait]
-pub trait FileSource: Send + Sync + Sized + 'static {
+pub trait FileSource: Clone + Send + Sync + Sized + 'static {
     type Reader: AsyncRead + Unpin + Send;
     async fn size(&self) -> Result<u64, Error>;
     async fn reader(&self) -> Result<Self::Reader, Error>;
@@ -99,7 +99,7 @@ impl ArchiveSource for Arc<[u8]> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Section<S> {
     source: S,
     position: u64,

@@ -1,7 +1,11 @@
 use std::path::Path;
 
+use imbl_value::InternedString;
+use models::mime;
+
 use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
+use crate::s9pk::merkle_archive::file_contents::FileContents;
 use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, FileSource, Section};
@@ -43,6 +47,32 @@ impl<S: FileSource> S9pk<S> {
     pub async fn new(archive: MerkleArchive<S>) -> Result<Self, Error> {
         let manifest = extract_manifest(&archive).await?;
         Ok(Self { manifest, archive })
+    }
+
+    pub async fn icon(&self) -> Result<(InternedString, FileContents<S>), Error> {
+        let mut best_icon = None;
+        for (path, icon) in self
+            .archive
+            .contents()
+            .with_prefix("icon")
+            .filter(|(p, _)| {
+                Path::new(&*p)
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .and_then(mime)
+                    .map_or(false, |e| e.starts_with("image"))
+            })
+            .filter_map(|(k, v)| v.into_file().map(|f| (k, f)))
+        {
+            let size = icon.size().await?;
+            best_icon = match best_icon {
+                Some((s, a)) if s >= size => Some((s, a)),
+                _ => Some((size, (path, icon))),
+            };
+        }
+        best_icon
+            .map(|(_, a)| a)
+            .ok_or_else(|| Error::new(eyre!("no icon found in archive"), ErrorKind::ParseS9pk))
     }
 
     pub async fn serialize<W: Sink>(&mut self, w: &mut W, verify: bool) -> Result<(), Error> {

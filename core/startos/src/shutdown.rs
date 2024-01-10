@@ -42,28 +42,6 @@ impl Shutdown {
                 tracing::error!("Error Stopping Journald: {}", e);
                 tracing::debug!("{:?}", e);
             }
-            if CONTAINER_TOOL == "docker" {
-                if let Err(e) = Command::new("systemctl")
-                    .arg("stop")
-                    .arg("docker")
-                    .invoke(crate::ErrorKind::Docker)
-                    .await
-                {
-                    tracing::error!("Error Stopping Docker: {}", e);
-                    tracing::debug!("{:?}", e);
-                }
-            } else if CONTAINER_TOOL == "podman" {
-                if let Err(e) = Command::new("podman")
-                    .arg("rm")
-                    .arg("-f")
-                    .arg("netdummy")
-                    .invoke(crate::ErrorKind::Docker)
-                    .await
-                {
-                    tracing::error!("Error Stopping Podman: {}", e);
-                    tracing::debug!("{:?}", e);
-                }
-            }
             if let Some((guid, datadir)) = &self.export_args {
                 if let Err(e) = export(guid, datadir).await {
                     tracing::error!("Error Exporting Volume Group: {}", e);

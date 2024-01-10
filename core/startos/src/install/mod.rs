@@ -46,7 +46,7 @@ use crate::notifications::NotificationLevel;
 use crate::prelude::*;
 use crate::registry::marketplace::with_query_params;
 use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::s9pk::reader::S9pkReader;
+use crate::s9pk::S9pk;
 use crate::status::{MainStatus, Status};
 use crate::util::clap::FromStrParser;
 use crate::util::docker::CONTAINER_TOOL;
@@ -537,9 +537,8 @@ async fn cli_install(
         let path = PathBuf::from(target);
 
         // inspect manifest no verify
-        let mut reader = S9pkReader::open(&path, false).await?;
-        let manifest = reader.manifest().await?;
-        let icon = reader.icon().await?.to_vec().await?;
+        let mut s9pk = S9pk::open(&path).await?;
+        let icon = s9pk.icon().await?.to_vec().await?;
         let icon_str = format!("data:image/{};base64,{}", todo!(), base64::encode(&icon));
 
         // rpc call remote sideload
@@ -634,7 +633,7 @@ pub async fn uninstall(
     let return_id = id.clone();
 
     tokio::spawn(async move {
-        if let Err(e) = ctx.managers.uninstall(&id).await {
+        if let Err(e) = ctx.services.uninstall(&id).await {
             let err_str = format!("Uninstall of {} Failed: {}", id, e);
             tracing::error!("{}", err_str);
             tracing::debug!("{:?}", e);
@@ -715,7 +714,7 @@ pub async fn download_install_s9pk(
                 })
                 .await?;
 
-            ctx.managers.install(&ctx, s9pk_reader).await?;
+            ctx.services.install(&ctx, s9pk_reader).await?;
 
             Ok(())
         }

@@ -74,7 +74,7 @@ pub async fn action(
         input: StdinDeserializable(input),
     }: ActionParams,
 ) -> Result<ActionResult, Error> {
-    ctx.managers
+    ctx.services
         .get(&package_id)
         .await
         .or_not_found(lazy_format!("Manager for {}", package_id))?

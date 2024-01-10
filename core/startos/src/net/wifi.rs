@@ -3,7 +3,8 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use clap::{ArgMatches, Parser};
+use clap::builder::TypedValueParser;
+use clap::Parser;
 use isocountry::CountryCode;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -405,7 +406,7 @@ pub async fn get_available(ctx: RpcContext, _: Empty) -> Result<Vec<WifiListOut>
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct SetCountryParams {
-    #[arg(parse(country_code_parse))]
+    #[arg(value_parser = CountryCodeParser)]
     country: CountryCode,
 }
 pub async fn set_country(
@@ -810,13 +811,24 @@ pub async fn interface_connected(interface: &str) -> Result<bool, Error> {
     Ok(v.is_some())
 }
 
-pub fn country_code_parse(code: &str, _matches: &ArgMatches) -> Result<CountryCode, Error> {
-    CountryCode::for_alpha2(code).map_err(|_| {
-        Error::new(
-            color_eyre::eyre::eyre!("Invalid Country Code: {}", code),
-            ErrorKind::Wifi,
-        )
-    })
+#[derive(Clone)]
+struct CountryCodeParser;
+impl TypedValueParser for CountryCodeParser {
+    type Value = CountryCode;
+    fn parse_ref(
+        &self,
+        _: &clap::Command,
+        _: Option<&clap::Arg>,
+        value: &std::ffi::OsStr,
+    ) -> Result<Self::Value, clap::Error> {
+        let code = value.to_string_lossy();
+        CountryCode::for_alpha2(&code).map_err(|_| {
+            clap::Error::raw(
+                clap::error::ErrorKind::ValueValidation,
+                color_eyre::eyre::eyre!("Invalid Country Code: {}", code),
+            )
+        })
+    }
 }
 
 #[instrument(skip_all)]

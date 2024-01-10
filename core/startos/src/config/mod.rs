@@ -165,7 +165,7 @@ pub async fn get(ctx: RpcContext, _: Empty, id: PackageId) -> Result<ConfigRes, 
         .as_manifest();
     let version = manifest.as_version().de()?;
 
-    ctx.managers
+    ctx.services
         .get(&id)
         .await
         .or_not_found(lazy_format!("Manager for {id}"))?
@@ -286,7 +286,7 @@ pub async fn configure(
         .as_installed()
         .or_not_found(&id)?;
     let version = package.as_manifest().as_version().de()?;
-    ctx.managers
+    ctx.services
         .get(&id)
         .await
         .ok_or_else(|| {

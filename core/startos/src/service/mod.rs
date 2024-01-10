@@ -10,12 +10,14 @@ use start_stop::StartStop;
 use tokio::sync::{watch, Notify};
 
 use crate::context::RpcContext;
+use crate::db::model::{PackageDataEntry, PackageDataEntryMatchModelRef};
 use crate::prelude::*;
 use crate::s9pk::S9pk;
 use crate::service::transition::{TempDesiredState, TransitionKind, TransitionState};
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::actor::{Actor, BackgroundJobs, SimpleActor};
+use crate::volume::data_dir;
 
 mod control;
 pub mod persistent_container;
@@ -37,9 +39,39 @@ pub struct Service {
     seed: Arc<ServiceActorSeed>,
 }
 impl Service {
-    pub async fn new(ctx: RpcContext, s9pk: S9pk, start: StartStop) -> Result<Self, Error> {
+    pub async fn new(
+        ctx: RpcContext,
+        s9pk: S9pk,
+        start: StartStop,
+        entry: &Model<PackageDataEntry>,
+    ) -> Result<Self, Error> {
         let desired_state = watch::channel(start).0;
         let temp_desired_state = TempDesiredState(Arc::new(watch::channel(None).0));
+        match entry.as_match() {
+            PackageDataEntryMatchModelRef::Installing(_)
+            | PackageDataEntryMatchModelRef::Restoring(_)
+            | PackageDataEntryMatchModelRef::Updating(_) => {
+                todo!("cleanup failed");
+            }
+            PackageDataEntryMatchModelRef::Removing(_) => {
+                todo!("uninstall");
+            }
+            PackageDataEntryMatchModelRef::Installed(_) => {
+                for volume_id in &s9pk.as_manifest().volumes {
+                    let tmp_path =
+                        data_dir(&ctx.datadir, &s9pk.as_manifest().id.clone(), volume_id);
+                    if tokio::fs::metadata(&tmp_path).await.is_ok() {
+                        tokio::fs::remove_dir_all(&tmp_path).await?;
+                    }
+                }
+            }
+            PackageDataEntryMatchModelRef::Error(e) => {
+                return Err(Error::new(
+                    eyre!("Failed to parse PackageDataEntry, found {e:?}"),
+                    ErrorKind::Deserialization,
+                ));
+            }
+        }
         let persistent_container = PersistentContainer::init(
             &ctx,
             &s9pk,
