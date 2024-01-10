@@ -60,7 +60,7 @@ pub fn tor() -> ParentHandler {
             "list-services",
             from_fn_async(list_services)
                 .with_display_serializable()
-                .with_custom_display_fn(|handle, result| {
+                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
                     Ok(display_services(handle.params, result))
                 })
                 .with_remote_cli::<CliContext>(),
@@ -77,7 +77,7 @@ pub fn tor() -> ParentHandler {
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct ResetParams {
-    #[arg(rename = "wipe-state", short = 'w', long = "wipe-state")]
+    #[arg(name = "wipe-state", short = 'w', long = "wipe-state")]
     wipe_state: bool,
     reason: String,
 }

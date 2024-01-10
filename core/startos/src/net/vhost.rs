@@ -8,12 +8,9 @@ use helpers::NonDetachingJoinHandle;
 use models::ResultExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Mutex, RwLock};
-use tokio_rustls::rustls::crypto::ring::{ALL_KX_GROUPS, DEFAULT_CIPHER_SUITES};
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio_rustls::rustls::server::Acceptor;
-use tokio_rustls::rustls::{
-    ConfigBuilder, ConfigSide, RootCertStore, ServerConfig, WantsVerifier, DEFAULT_VERSIONS,
-};
+use tokio_rustls::rustls::{RootCertStore, ServerConfig};
 use tokio_rustls::{LazyConfigAcceptor, TlsConnector};
 use tracing::instrument;
 
@@ -89,18 +86,6 @@ pub enum AlpnInfo {
     Specified(Vec<Vec<u8>>),
 }
 
-fn with_safe_defaults<S: ConfigSide, X>(
-    config_builder: ConfigBuilder<S, X>,
-) -> ConfigBuilder<S, X> {
-    ConfigBuilder {
-        state: WantsVerifier {
-            cipher_suites: DEFAULT_CIPHER_SUITES.to_vec(),
-            kx_groups: ALL_KX_GROUPS.to_vec(),
-            versions: DEFAULT_VERSIONS.into(), // versions::EnabledVersions::new(versions::DEFAULT_VERSIONS),
-        },
-        side: config_builder.side,
-    }
-}
 struct VHostServer {
     mapping: Weak<RwLock<BTreeMap<Option<String>, BTreeMap<TargetInfo, Weak<()>>>>>,
     _thread: NonDetachingJoinHandle<()>,
@@ -199,7 +184,7 @@ impl VHostServer {
                                             TcpStream::connect(target.addr).await?;
                                         let key =
                                             ssl.with_certs(target.key, target.addr.ip()).await?;
-                                        let cfg = with_safe_defaults(ServerConfig::builder())
+                                        let cfg = ServerConfig::builder()
                                             .with_no_client_auth();
                                         let mut cfg =
                                             if mid.client_hello().signature_schemes().contains(
@@ -241,7 +226,7 @@ impl VHostServer {
                                         match target.connect_ssl {
                                             Ok(()) => {
                                                 let mut client_cfg =
-                                                with_safe_defaults(tokio_rustls::rustls::ClientConfig::builder())
+                                                tokio_rustls::rustls::ClientConfig::builder()
                                                         .with_root_certificates({
                                                             let mut store = RootCertStore::empty();
                                                             store.add(
