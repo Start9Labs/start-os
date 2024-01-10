@@ -21,11 +21,11 @@ impl WebServer {
         let (shutdown, shutdown_recv) = oneshot::channel();
         let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {
             let handle = Handle::new();
-            let mut server = axum_server::bind(&bind);
+            let mut server = axum_server::bind(bind);
             server.http_builder().http1().preserve_header_case(true);
             server.http_builder().http1().title_case_headers(true);
 
-            if let (Err(e), _) = tokio::join!(server.serve(router), async {
+            if let (Err(e), _) = tokio::join!(server.serve(router.into_make_service()), async {
                 shutdown_recv.await;
                 handle.graceful_shutdown(Some(Duration::from_secs(60)));
             }) {
