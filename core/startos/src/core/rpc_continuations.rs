@@ -45,7 +45,7 @@ impl std::fmt::Display for RequestGuid {
 }
 
 pub type RestHandler =
-    Box<dyn FnOnce(HeaderMap) -> BoxFuture<'static, Result<Response, crate::Error>> + Send>;
+    Box<dyn FnOnce(Request) -> BoxFuture<'static, Result<Response, crate::Error>> + Send>;
 
 pub type WebSocketHandler = Box<dyn FnOnce(WebSocket) -> BoxFuture<'static, ()> + Send>;
 

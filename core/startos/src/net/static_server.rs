@@ -155,7 +155,13 @@ pub fn main_ui_server_router(ctx: RpcContext) -> Router {
             "/rest/rpc/*path",
             any({
                 let ctx = ctx.clone();
-                move |headers: HeaderMap, x::Path(path): x::Path<String>| async move {
+                move |request: x::Request| async move {
+                    let path = request
+                        .uri()
+                        .path()
+                        .clone()
+                        .strip_prefix("/rest/rpc/")
+                        .unwrap_or_default();
                     match RequestGuid::from(&path) {
                         None => {
                             tracing::debug!("No Guid Path");
@@ -163,7 +169,7 @@ pub fn main_ui_server_router(ctx: RpcContext) -> Router {
                         }
                         Some(guid) => match ctx.get_rest_continuation_handler(&guid).await {
                             None => not_found(),
-                            Some(cont) => cont(headers).await.unwrap_or_else(server_error),
+                            Some(cont) => cont(request).await.unwrap_or_else(server_error),
                         },
                     }
                 }
