@@ -444,7 +444,7 @@ pub fn make_leaf_cert(
     Ok(cert)
 }
 
-pub async fn ssl() -> ParentHandler {
+pub fn ssl() -> ParentHandler {
     ParentHandler::new().subcommand("size", from_fn_async(size).with_remote_cli::<CliContext>())
 }
 

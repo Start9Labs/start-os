@@ -52,7 +52,7 @@ pub async fn init_ips() -> Result<BTreeMap<String, IpInfo>, Error> {
 }
 
 // #[command(subcommands(update))]
-pub async fn dhcp() -> ParentHandler {
+pub fn dhcp() -> ParentHandler {
     ParentHandler::new().subcommand(
         "update",
         from_fn_async::<_, _, (), Error, (RpcContext, UpdateParams)>(update)

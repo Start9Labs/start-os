@@ -1,4 +1,4 @@
-use rpc_toolkit::{from_fn_async, ParentHandler};
+use rpc_toolkit::{from_fn_async, AnyContext, HandlerExt, ParentHandler};
 
 use crate::context::CliContext;
 
@@ -26,7 +26,7 @@ pub fn net() -> ParentHandler {
         .subcommand(
             "rotate-key",
             from_fn_async(keys::rotate_key)
-                .with_custom_display_fn(|handle, result| {
+                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
                     Ok(keys::display_requires_reboot(handle.params, result))
                 })
                 .with_remote_cli::<CliContext>(),
