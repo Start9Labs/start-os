@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
+use clap::Parser;
 use imbl::OrdMap;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::context::CliContext;
@@ -16,7 +18,14 @@ pub mod reader;
 
 pub const SIG_CONTEXT: &[u8] = b"s9pk";
 
-pub async fn verify(_: CliContext, path: PathBuf) -> Result<(), Error> {
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct VerifyParams {
+    pub path: PathBuf,
+}
+
+pub async fn verify(_: CliContext, VerifyParams { path }: VerifyParams) -> Result<(), Error> {
     let mut s9pk = S9pkReader::open(path, true).await?;
     // s9pk.validate().await?;
     todo!();

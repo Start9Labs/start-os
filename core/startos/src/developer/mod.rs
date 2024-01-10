@@ -2,16 +2,13 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-use clap::Parser;
 use ed25519::pkcs8::EncodePrivateKey;
 use ed25519::PublicKeyBytes;
 use ed25519_dalek::{SigningKey, VerifyingKey};
-use rpc_toolkit::{command, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
-use serde::{Deserialize, Serialize};
+use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
 use tracing::instrument;
 
-use crate::context::{CliContext, RpcContext};
-use crate::util::display_none;
+use crate::context::CliContext;
 use crate::{Error, ResultExt};
 
 #[instrument(skip_all)]
