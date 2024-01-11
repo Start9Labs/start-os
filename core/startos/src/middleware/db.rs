@@ -1,4 +1,5 @@
 use axum::response::Response;
+use http::header::InvalidHeaderValue;
 use http::HeaderValue;
 use rpc_toolkit::{Middleware, RpcRequest, RpcResponse};
 use serde::Deserialize;
@@ -35,11 +36,19 @@ impl Middleware<RpcContext> for SyncDb {
         Ok(())
     }
     async fn process_http_response(&mut self, context: &RpcContext, response: &mut Response) {
-        if self.sync_db {
-            response.headers_mut().append(
-                "X-Patch-Sequence",
-                HeaderValue::from_str(&context.db.sequence().await.to_string())?,
-            );
+        if let Err(e) = async {
+            if self.sync_db {
+                response.headers_mut().append(
+                    "X-Patch-Sequence",
+                    HeaderValue::from_str(&context.db.sequence().await.to_string())?,
+                );
+            }
+            Ok::<_, InvalidHeaderValue>(())
+        }
+        .await
+        {
+            tracing::error!("error writing X-Patch-Sequence header: {e}");
+            tracing::debug!("{e:?}");
         }
     }
 }

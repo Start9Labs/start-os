@@ -39,41 +39,6 @@ impl<S> DirectoryContents<S> {
         res
     }
 
-    pub fn insert_path(&mut self, path: impl AsRef<Path>, entry: Entry<S>) -> Result<(), Error> {
-        let path = path.as_ref();
-        let (parent, Some(file)) = (path.parent(), path.file_name().and_then(|f| f.to_str()))
-        else {
-            return Err(Error::new(
-                eyre!("cannot create file at root"),
-                ErrorKind::Pack,
-            ));
-        };
-        let mut dir = self;
-        for segment in parent.into_iter().flatten() {
-            let segment = segment
-                .to_str()
-                .ok_or_else(|| Error::new(eyre!("non-utf8 path segment"), ErrorKind::Utf8))?;
-            if segment == "/" {
-                continue;
-            }
-            if !dir.contains_key(segment) {
-                dir.insert(
-                    segment.into(),
-                    Entry::new(EntryContents::Directory(DirectoryContents::new())),
-                );
-            }
-            if let Some(EntryContents::Directory(d)) =
-                dir.get_mut(segment).map(|e| e.as_contents_mut())
-            {
-                dir = d;
-            } else {
-                return Err(Error::new(eyre!("failed to insert entry at path {path:?}: ancestor exists and is not a directory"), ErrorKind::Pack));
-            }
-        }
-        dir.insert(file.into(), entry);
-        Ok(())
-    }
-
     pub const fn header_size() -> u64 {
         8 // position: u64 BE
         + 8 // size: u64 BE
@@ -109,6 +74,40 @@ impl<S: Clone> DirectoryContents<S> {
                 .into_iter()
                 .take_while(move |(k, _)| k.starts_with(&*prefix)),
         )
+    }
+    pub fn insert_path(&mut self, path: impl AsRef<Path>, entry: Entry<S>) -> Result<(), Error> {
+        let path = path.as_ref();
+        let (parent, Some(file)) = (path.parent(), path.file_name().and_then(|f| f.to_str()))
+        else {
+            return Err(Error::new(
+                eyre!("cannot create file at root"),
+                ErrorKind::Pack,
+            ));
+        };
+        let mut dir = self;
+        for segment in parent.into_iter().flatten() {
+            let segment = segment
+                .to_str()
+                .ok_or_else(|| Error::new(eyre!("non-utf8 path segment"), ErrorKind::Utf8))?;
+            if segment == "/" {
+                continue;
+            }
+            if !dir.contains_key(segment) {
+                dir.insert(
+                    segment.into(),
+                    Entry::new(EntryContents::Directory(DirectoryContents::new())),
+                );
+            }
+            if let Some(EntryContents::Directory(d)) =
+                dir.get_mut(segment).map(|e| e.as_contents_mut())
+            {
+                dir = d;
+            } else {
+                return Err(Error::new(eyre!("failed to insert entry at path {path:?}: ancestor exists and is not a directory"), ErrorKind::Pack));
+            }
+        }
+        dir.insert(file.into(), entry);
+        Ok(())
     }
 }
 impl<S: ArchiveSource> DirectoryContents<Section<S>> {

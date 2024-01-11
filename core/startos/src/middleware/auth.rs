@@ -29,7 +29,7 @@ pub struct LoginRes {
 }
 
 pub trait AsLogoutSessionId {
-    fn as_logout_session_id(self) -> String;
+    fn as_logout_session_id(self) -> InternedString;
 }
 
 /// Will need to know when we have logged out from a route
@@ -45,13 +45,14 @@ impl HasLoggedOutSessions {
         let mut sqlx_conn = ctx.secret_store.acquire().await?;
         for session in logged_out_sessions {
             let session = session.as_logout_session_id();
+            let session = &*session;
             sqlx::query!(
                 "UPDATE session SET logged_out = CURRENT_TIMESTAMP WHERE id = $1",
                 session
             )
             .execute(sqlx_conn.as_mut())
             .await?;
-            for socket in open_authed_websockets.remove(&session).unwrap_or_default() {
+            for socket in open_authed_websockets.remove(session).unwrap_or_default() {
                 let _ = socket.send(());
             }
         }
@@ -63,6 +64,7 @@ impl HasLoggedOutSessions {
 #[derive(Clone)]
 pub struct HasValidSession(SessionType);
 
+#[derive(Clone)]
 enum SessionType {
     Local,
     Session(HashSessionToken),
@@ -180,7 +182,7 @@ impl HashSessionToken {
     }
 
     pub fn hashed(&self) -> &str {
-        self.hashed.as_str()
+        &*self.hashed
     }
 
     fn hash(token: &str) -> InternedString {
@@ -196,7 +198,7 @@ impl HashSessionToken {
     }
 }
 impl AsLogoutSessionId for HashSessionToken {
-    fn as_logout_session_id(self) -> String {
+    fn as_logout_session_id(self) -> InternedString {
         self.hashed
     }
 }
@@ -216,9 +218,9 @@ impl Ord for HashSessionToken {
         self.hashed.cmp(&other.hashed)
     }
 }
-impl Borrow<String> for HashSessionToken {
-    fn borrow(&self) -> &String {
-        &self.hashed
+impl Borrow<str> for HashSessionToken {
+    fn borrow(&self) -> &str {
+        &*self.hashed
     }
 }
 
@@ -281,7 +283,7 @@ impl Middleware<RpcContext> for Auth {
                 });
             }
         } else if metadata.authenticated {
-            match HasValidSession::from_request_parts(self.cookie.as_ref(), &context).await {
+            match HasValidSession::from_header(self.cookie.as_ref(), &context).await {
                 Err(e) => {
                     return Err(RpcResponse {
                         id: request.id.take(),
@@ -301,14 +303,14 @@ impl Middleware<RpcContext> for Auth {
         if self.is_login {
             let mut guard = self.rate_limiter.lock().await;
             if guard.1.elapsed() < Duration::from_secs(20) {
-                if response.is_err() {
+                if response.result.is_err() {
                     guard.0 += 1;
                 }
             } else {
                 guard.0 = 0;
             }
             guard.1 = Instant::now();
-            if response.is_ok() {
+            if response.result.is_ok() {
                 let res = std::mem::replace(&mut response.result, Err(INTERNAL_ERROR));
                 response.result = async {
                     let res = res?;
@@ -316,7 +318,7 @@ impl Middleware<RpcContext> for Auth {
                     self.set_cookie = Some(
                         HeaderValue::from_str(&format!(
                         "session={}; Path=/; SameSite=Lax; Expires=Fri, 31 Dec 9999 23:59:59 GMT;",
-                        login_res.token
+                        login_res.session
                     ))
                         .with_kind(crate::ErrorKind::Network)?,
                     );

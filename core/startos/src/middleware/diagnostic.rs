@@ -1,3 +1,4 @@
+use rpc_toolkit::yajrc::RpcMethod;
 use rpc_toolkit::{Empty, Middleware, RpcRequest, RpcResponse};
 
 use crate::context::DiagnosticContext;
@@ -22,7 +23,7 @@ impl Middleware<DiagnosticContext> for DiagnosticMode {
         metadata: Self::Metadata,
         request: &mut RpcRequest,
     ) -> Result<(), RpcResponse> {
-        self.method = Some(request.method.clone());
+        self.method = Some(request.method.as_str().to_owned());
         Ok(())
     }
     async fn process_rpc_response(
