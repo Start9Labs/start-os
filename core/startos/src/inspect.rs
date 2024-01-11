@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::context::CliContext;
 use crate::s9pk::manifest::Manifest;
-use crate::s9pk::reader::S9pkReader;
+// use crate::s9pk::reader::S9pkReader;
 use crate::util::serde::HandlerExtSerde;
 use crate::Error;
 

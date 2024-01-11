@@ -105,7 +105,7 @@ async fn setup_init(
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct AttachParams {
-    #[arg(rename = "embassy-password")]
+    #[arg(name = "embassy-password")]
     password: Option<EncryptedWire>,
     guid: Arc<String>,
 }
@@ -249,7 +249,7 @@ pub async fn verify_cifs(
     embassy_os.ok_or_else(|| Error::new(eyre!("No Backup Found"), crate::ErrorKind::NotFound))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
 #[serde(rename_all = "kebab-case")]
 pub enum RecoverySource {
@@ -261,13 +261,13 @@ pub enum RecoverySource {
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct ExecuteParams {
-    #[arg(rename = "embassy-logicalname")]
+    #[arg(name = "embassy-logicalname")]
     embassy_logicalname: PathBuf,
-    #[arg(rename = "embassy-password")]
+    #[arg(name = "embassy-password")]
     embassy_password: EncryptedWire,
-    #[arg(rename = "recovery-source")]
+    #[arg(name = "recovery-source")]
     recovery_source: Option<RecoverySource>,
-    #[arg(rename = "recovery-password")]
+    #[arg(name = "recovery-password")]
     recovery_password: Option<EncryptedWire>,
 }
 
