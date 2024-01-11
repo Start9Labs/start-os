@@ -334,10 +334,16 @@ fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<Vec<String>, RpcEr
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct KillSessionId(String);
+struct KillSessionId(InternedString);
+
+impl KillSessionId {
+    fn new(id: String) -> Self {
+        Self(InternedString::from(id))
+    }
+}
 
 impl AsLogoutSessionId for KillSessionId {
-    fn as_logout_session_id(self) -> String {
+    fn as_logout_session_id(self) -> InternedString {
         self.0
     }
 }
@@ -351,7 +357,7 @@ pub struct KillParams {
 
 #[instrument(skip_all)]
 pub async fn kill(ctx: RpcContext, KillParams { ids }: KillParams) -> Result<(), Error> {
-    HasLoggedOutSessions::new(ids.into_iter().map(KillSessionId), &ctx).await?;
+    HasLoggedOutSessions::new(ids.into_iter().map(KillSessionId::new), &ctx).await?;
     Ok(())
 }
 
