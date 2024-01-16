@@ -130,6 +130,9 @@ impl<RW> InstallProgressTracker<RW> {
             progress,
         }
     }
+    pub fn into_inner(self) -> RW {
+        self.inner
+    }
     pub fn validated(&mut self) {
         self.progress
             .validation_complete

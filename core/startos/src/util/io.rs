@@ -10,6 +10,7 @@ use futures::future::{BoxFuture, Fuse};
 use futures::{AsyncSeek, FutureExt, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
 use nix::unistd::{Gid, Uid};
+use tokio::fs::File;
 use tokio::io::{
     duplex, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, WriteHalf,
 };
@@ -714,4 +715,29 @@ impl Drop for TmpDir {
             });
         }
     }
+}
+
+pub async fn create_file(path: impl AsRef<Path>) -> Result<File, Error> {
+    let path = path.as_ref();
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("mkdir -p {parent:?}")))?;
+    }
+    File::create(path)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("create {path:?}")))
+}
+
+pub async fn rename(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), Error> {
+    let src = src.as_ref();
+    let dst = dst.as_ref();
+    if let Some(parent) = dst.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("mkdir -p {parent:?}")))?;
+    }
+    tokio::fs::rename(src, dst)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("mv {src:?} -> {dst:?}")))
 }

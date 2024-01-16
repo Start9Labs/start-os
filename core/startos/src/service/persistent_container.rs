@@ -28,6 +28,7 @@ struct ProcedureId(u64);
 /// that can be used via a JSON RPC Client connected to a unix domain
 /// socket served by the container
 pub struct PersistentContainer {
+    s9pk: S9pk,
     lxc_container: LxcContainer,
     rpc_client: UnixRpcClient,
     procedures: Mutex<Vec<(ProcedureName, ProcedureId)>>,
@@ -43,7 +44,7 @@ impl PersistentContainer {
     #[instrument(skip_all)]
     pub async fn init(
         ctx: &RpcContext,
-        s9pk: &S9pk,
+        s9pk: S9pk,
         desired_state: watch::Receiver<StartStop>,
         temp_desired_state: watch::Receiver<Option<StartStop>>,
     ) -> Result<Self, Error> {
@@ -95,6 +96,7 @@ impl PersistentContainer {
             .map_err(convert_rpc_error)?;
 
         Ok(Self {
+            s9pk,
             lxc_container,
             rpc_client,
             procedures: Default::default(),

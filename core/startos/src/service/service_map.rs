@@ -2,13 +2,16 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
+use tokio::fs::File;
 use tokio::sync::RwLock;
 use tracing::instrument;
 
 use crate::context::RpcContext;
+use crate::install::progress::{InstallProgress, InstallProgressTracker};
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
+use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
 use crate::service::start_stop::StartStop;
 use crate::service::Service;
@@ -26,20 +29,9 @@ impl ServiceMap {
                 if let Err(e) = async {
                     let s9pk = S9pk::open(s9pk_dir.join(&id).with_extension("s9pk")).await?;
                     let id = s9pk.as_manifest().id.clone();
-                    let service = Arc::new(
-                        Service::new(
-                            ctx.clone(),
-                            s9pk,
-                            if i.as_status().as_main().de()?.running() {
-                                StartStop::Start
-                            } else {
-                                StartStop::Stop
-                            },
-                            entry,
-                        )
-                        .await?,
-                    );
-                    res.insert(id, service);
+                    if let Some(service) = Service::load(ctx.clone(), s9pk, entry).await? {
+                        res.insert(id, Arc::new(service));
+                    }
                     Ok::<_, Error>(())
                 }
                 .await
@@ -54,18 +46,64 @@ impl ServiceMap {
     }
 
     #[instrument(skip_all)]
-    pub async fn install(&self, ctx: &RpcContext, s9pk: S9pk) -> Result<Arc<Service>, Error> {
-        let mut lock = self.0.write().await;
+    pub async fn install<S: FileSource>(
+        &self,
+        ctx: &RpcContext,
+        s9pk: S9pk<S>,
+    ) -> Result<Arc<Service>, Error> {
         let id = s9pk.as_manifest().id.clone();
+        let download_path = ctx
+            .datadir
+            .join(PKG_ARCHIVE_DIR)
+            .join("downloading")
+            .join(&id)
+            .with_extension("s9pk");
+
+        let progress = Arc::new(InstallProgress::new(s9pk.size()));
+        progress
+            .track_download_during(ctx.db.clone(), &id, || async {
+                let mut progress_writer = InstallProgressTracker::new(
+                    crate::util::io::create_file(&download_path).await?,
+                    progress.clone(),
+                );
+                s9pk.serialize(&mut progress_writer, true).await?;
+                progress_writer.into_inner().sync_all().await?;
+                progress.download_complete();
+                Ok(())
+            })
+            .await?;
+
+        let installed_path = ctx
+            .datadir
+            .join(PKG_ARCHIVE_DIR)
+            .join("installed")
+            .join(&id)
+            .with_extension("s9pk");
+
+        crate::util::io::rename(&download_path, &installed_path).await?;
+
+        let s9pk = S9pk::open(&installed_path).await?;
+
+        let mut lock = self.0.write().await;
         if let Some(service) = lock.get(&id).cloned() {
             drop(lock);
-            service.upgrade(s9pk).await?;
+            service.update(s9pk).await?;
             Ok(service)
         } else {
-            let service = Arc::new(Service::new(ctx.clone(), s9pk, StartStop::Stop).await?);
+            let service = Arc::new(
+                Service::load(
+                    ctx.clone(),
+                    s9pk,
+                    ctx.db
+                        .peek()
+                        .await
+                        .as_package_data()
+                        .as_idx(&id)
+                        .or_not_found(&id)?,
+                )
+                .await?.ok_or_else(|| Error::new(eyre!("PackageDataEntry must not be in `removing` or `restoring` state in db for Service to be `load`ed"), ErrorKind::Incoherent))?,
+            );
             lock.insert(id, service.clone());
-            drop(lock);
-            service.install().await?;
             Ok(service)
         }
     }

@@ -33,6 +33,7 @@ pub mod manifest;
 pub struct S9pk<S = Section<MultiCursorFile>> {
     manifest: Manifest,
     archive: MerkleArchive<S>,
+    size: Option<u64>,
 }
 impl<S> S9pk<S> {
     pub fn as_manifest(&self) -> &Manifest {
@@ -41,12 +42,19 @@ impl<S> S9pk<S> {
     pub fn as_archive(&self) -> &MerkleArchive<S> {
         &self.archive
     }
+    pub fn size(&self) -> Option<u64> {
+        self.size
+    }
 }
 
 impl<S: FileSource> S9pk<S> {
-    pub async fn new(archive: MerkleArchive<S>) -> Result<Self, Error> {
+    pub async fn new(archive: MerkleArchive<S>, size: Option<u64>) -> Result<Self, Error> {
         let manifest = extract_manifest(&archive).await?;
-        Ok(Self { manifest, archive })
+        Ok(Self {
+            manifest,
+            archive,
+            size,
+        })
     }
 
     pub async fn icon(&self) -> Result<(InternedString, FileContents<S>), Error> {
@@ -105,9 +113,8 @@ impl<S: ArchiveSource> S9pk<Section<S>> {
         );
 
         let archive = MerkleArchive::deserialize(source, &mut header).await?;
-        let manifest = extract_manifest(&archive).await?;
 
-        Ok(Self { archive, manifest })
+        Self::new(archive, source.size().await).await
     }
 }
 impl S9pk {

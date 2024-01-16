@@ -46,6 +46,7 @@ use crate::notifications::NotificationLevel;
 use crate::prelude::*;
 use crate::registry::marketplace::with_query_params;
 use crate::s9pk::manifest::{Manifest, PackageId};
+use crate::s9pk::merkle_archive::source::{ArchiveSource, FileSource};
 use crate::s9pk::S9pk;
 use crate::status::{MainStatus, Status};
 use crate::util::clap::FromStrParser;
@@ -537,16 +538,24 @@ async fn cli_install(
         let path = PathBuf::from(target);
 
         // inspect manifest no verify
-        let mut s9pk = S9pk::open(&path).await?;
-        let icon = s9pk.icon().await?.to_vec().await?;
-        let icon_str = format!("data:image/{};base64,{}", todo!(), base64::encode(&icon));
+        let s9pk = S9pk::open(&path).await?;
+        let (icon_path, icon) = s9pk.icon().await?;
+        let icon_str = format!(
+            "data:{};base64,{}",
+            Path::new(&*icon_path)
+                .extension()
+                .and_then(|e| e.to_str())
+                .and_then(mime)
+                .unwrap_or("image/png"),
+            base64::encode(&icon.to_vec(None).await?)
+        );
 
         // rpc call remote sideload
         tracing::debug!("calling package.sideload");
         let guid = from_value::<RequestGuid>(
             ctx.call_remote(
                 "package.sideload",
-                imbl_value::json!({ "manifest": manifest, "icon": icon_str }),
+                imbl_value::json!({ "manifest": s9pk.as_manifest(), "icon": icon_str }),
             )
             .await?,
         )?;
@@ -657,77 +666,4 @@ pub async fn uninstall(
     });
 
     Ok(return_id)
-}
-
-#[instrument(skip_all)]
-pub async fn download_install_s9pk(
-    ctx: RpcContext,
-    temp_manifest: Manifest,
-    marketplace_url: Option<Url>,
-    progress: Arc<InstallProgress>,
-    mut s9pk: impl AsyncRead + Unpin,
-    download_complete: Option<oneshot::Sender<()>>,
-) -> Result<(), Error> {
-    let pkg_id = &temp_manifest.id;
-    let version = &temp_manifest.version;
-    let db = ctx.db.peek().await;
-
-    if let Result::<(), Error>::Err(e) = {
-        let ctx = ctx.clone();
-        async move {
-            let pkg_archive_dir = ctx
-                .datadir
-                .join(PKG_ARCHIVE_DIR)
-                .join(pkg_id)
-                .join(version.as_str());
-            tokio::fs::create_dir_all(&pkg_archive_dir).await?;
-            let pkg_archive =
-                pkg_archive_dir.join(AsRef::<Path>::as_ref(pkg_id).with_extension("s9pk"));
-
-            File::delete(&pkg_archive).await?;
-            let mut dst = OpenOptions::new()
-                .create(true)
-                .write(true)
-                .read(true)
-                .open(&pkg_archive)
-                .await?;
-
-            progress
-                .track_download_during(ctx.db.clone(), pkg_id, || async {
-                    let mut progress_writer =
-                        InstallProgressTracker::new(&mut dst, progress.clone());
-                    tokio::io::copy(&mut s9pk, &mut progress_writer).await?;
-                    progress.download_complete();
-                    if let Some(complete) = download_complete {
-                        complete.send(()).unwrap_or_default();
-                    }
-                    Ok(())
-                })
-                .await?;
-
-            dst.seek(SeekFrom::Start(0)).await?;
-
-            let progress_reader = InstallProgressTracker::new(dst, progress.clone());
-            let mut s9pk_reader = progress
-                .track_read_during(ctx.db.clone(), pkg_id, || {
-                    S9pkReader::from_reader(progress_reader, true)
-                })
-                .await?;
-
-            ctx.services.install(&ctx, s9pk_reader).await?;
-
-            Ok(())
-        }
-    }
-    .await
-    {
-        if let Err(e) = cleanup_failed(&ctx, pkg_id).await {
-            tracing::error!("Failed to clean up {}@{}: {}", pkg_id, version, e);
-            tracing::debug!("{:?}", e);
-        }
-
-        Err(e)
-    } else {
-        Ok::<_, Error>(())
-    }
 }

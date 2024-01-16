@@ -463,10 +463,7 @@ where
     Self: Sized,
 {
     fn with_kind(self, kind: ErrorKind) -> Result<T, Error>;
-    fn with_ctx<F: FnOnce(&E) -> (ErrorKind, D), D: Display + Send + Sync + 'static>(
-        self,
-        f: F,
-    ) -> Result<T, Error>;
+    fn with_ctx<F: FnOnce(&E) -> (ErrorKind, D), D: Display>(self, f: F) -> Result<T, Error>;
 }
 impl<T, E> ResultExt<T, E> for Result<T, E>
 where
@@ -480,10 +477,7 @@ where
         })
     }
 
-    fn with_ctx<F: FnOnce(&E) -> (ErrorKind, D), D: Display + Send + Sync + 'static>(
-        self,
-        f: F,
-    ) -> Result<T, Error> {
+    fn with_ctx<F: FnOnce(&E) -> (ErrorKind, D), D: Display>(self, f: F) -> Result<T, Error> {
         self.map_err(|e| {
             let (kind, ctx) = f(&e);
             let source = color_eyre::eyre::Error::from(e);

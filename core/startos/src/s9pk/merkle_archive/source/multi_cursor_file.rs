@@ -59,6 +59,9 @@ impl AsyncRead for FileSectionReader {
 #[async_trait::async_trait]
 impl ArchiveSource for MultiCursorFile {
     type Reader = FileSectionReader;
+    async fn size(&self) -> Option<u64> {
+        tokio::fs::metadata(self.path()).await.ok().map(|m| m.len())
+    }
     async fn fetch(&self, position: u64, size: u64) -> Result<Self::Reader, Error> {
         use tokio::io::AsyncSeekExt;
 

@@ -68,6 +68,9 @@ impl FileSource for Arc<[u8]> {
 #[async_trait::async_trait]
 pub trait ArchiveSource: Clone + Send + Sync + Sized + 'static {
     type Reader: AsyncRead + Unpin + Send;
+    async fn size(&self) -> Option<u64> {
+        None
+    }
     async fn fetch(&self, position: u64, size: u64) -> Result<Self::Reader, Error>;
     async fn copy_to<W: AsyncWrite + Unpin + Send>(
         &self,
