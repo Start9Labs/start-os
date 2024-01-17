@@ -46,9 +46,11 @@ use crate::notifications::NotificationLevel;
 use crate::prelude::*;
 use crate::registry::marketplace::with_query_params;
 use crate::s9pk::manifest::{Manifest, PackageId};
+use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, FileSource};
 use crate::s9pk::S9pk;
 use crate::status::{MainStatus, Status};
+use crate::upload::upload;
 use crate::util::clap::FromStrParser;
 use crate::util::docker::CONTAINER_TOOL;
 use crate::util::io::response_to_reader;
@@ -167,197 +169,21 @@ pub async fn install(
     let marketplace_url =
         marketplace_url.unwrap_or_else(|| crate::DEFAULT_MARKETPLACE.parse().unwrap());
     let version_priority = version_priority.unwrap_or_default();
-    let man: Manifest = ctx
-        .client
-        .get(with_query_params(
-            ctx.clone(),
+    let s9pk = S9pk::deserialize(
+        &HttpSource::new(
+            ctx.client.clone(),
             format!(
-                "{}/package/v0/manifest/{}?spec={}&version-priority={}",
+                "{}/package/v0/{}.s9pk?spec={}&version-priority={}",
                 marketplace_url, id, version, version_priority,
             )
             .parse()?,
-        ))
-        .send()
-        .await
-        .with_kind(crate::ErrorKind::Registry)?
-        .error_for_status()
-        .with_kind(crate::ErrorKind::Registry)?
-        .json()
-        .await
-        .with_kind(crate::ErrorKind::Registry)?;
-    let s9pk = ctx
-        .client
-        .get(with_query_params(
-            ctx.clone(),
-            format!(
-                "{}/package/v0/{}.s9pk?spec=={}&version-priority={}",
-                marketplace_url, id, man.version, version_priority,
-            )
-            .parse()?,
-        ))
-        .send()
-        .await
-        .with_kind(crate::ErrorKind::Registry)?
-        .error_for_status()?;
+        )
+        .await?,
+    )
+    .await?;
 
-    if *man.id != *id || !man.version.satisfies(&version) {
-        return Err(Error::new(
-            eyre!("Fetched package does not match requested id and version"),
-            ErrorKind::Registry,
-        ));
-    }
-
-    let public_dir_path = ctx
-        .datadir
-        .join(PKG_PUBLIC_DIR)
-        .join(&man.id)
-        .join(man.version.as_str());
-    tokio::fs::create_dir_all(&public_dir_path).await?;
-
-    let icon_type = todo!() as &str;
-    let (license_res, instructions_res, icon_res) = tokio::join!(
-        async {
-            tokio::io::copy(
-                &mut response_to_reader(
-                    ctx.client
-                        .get(with_query_params(
-                            ctx.clone(),
-                            format!(
-                                "{}/package/v0/license/{}?spec=={}",
-                                marketplace_url, id, man.version,
-                            )
-                            .parse()?,
-                        ))
-                        .send()
-                        .await?
-                        .error_for_status()?,
-                ),
-                &mut File::create(public_dir_path.join("LICENSE.md")).await?,
-            )
-            .await?;
-            Ok::<_, color_eyre::eyre::Report>(())
-        },
-        async {
-            tokio::io::copy(
-                &mut response_to_reader(
-                    ctx.client
-                        .get(with_query_params(
-                            ctx.clone(),
-                            format!(
-                                "{}/package/v0/instructions/{}?spec=={}",
-                                marketplace_url, id, man.version,
-                            )
-                            .parse()?,
-                        ))
-                        .send()
-                        .await?
-                        .error_for_status()?,
-                ),
-                &mut File::create(public_dir_path.join("INSTRUCTIONS.md")).await?,
-            )
-            .await?;
-            Ok::<_, color_eyre::eyre::Report>(())
-        },
-        async {
-            tokio::io::copy(
-                &mut response_to_reader(
-                    ctx.client
-                        .get(with_query_params(
-                            ctx.clone(),
-                            format!(
-                                "{}/package/v0/icon/{}?spec=={}",
-                                marketplace_url, id, man.version,
-                            )
-                            .parse()?,
-                        ))
-                        .send()
-                        .await?
-                        .error_for_status()?,
-                ),
-                &mut File::create(public_dir_path.join(format!("icon.{}", icon_type))).await?,
-            )
-            .await?;
-            Ok::<_, color_eyre::eyre::Report>(())
-        },
-    );
-    if let Err(e) = license_res {
-        tracing::warn!("Failed to pre-download license: {}", e);
-    }
-    if let Err(e) = instructions_res {
-        tracing::warn!("Failed to pre-download instructions: {}", e);
-    }
-    if let Err(e) = icon_res {
-        tracing::warn!("Failed to pre-download icon: {}", e);
-    }
-
-    let progress = Arc::new(InstallProgress::new(s9pk.content_length()));
-    let static_files = StaticFiles::local(&man.id, &man.version, icon_type);
-    ctx.db
-        .mutate(|db| {
-            let pde = match db
-                .as_package_data()
-                .as_idx(&man.id)
-                .map(|x| x.de())
-                .transpose()?
-            {
-                Some(PackageDataEntry::Installed(PackageDataEntryInstalled {
-                    installed,
-                    static_files,
-                    ..
-                })) => PackageDataEntry::Updating(PackageDataEntryUpdating {
-                    install_progress: progress.clone(),
-                    static_files,
-                    installed,
-                    manifest: man.clone(),
-                }),
-                None => PackageDataEntry::Installing(PackageDataEntryInstalling {
-                    install_progress: progress.clone(),
-                    static_files,
-                    manifest: man.clone(),
-                }),
-                _ => {
-                    return Err(Error::new(
-                        eyre!("Cannot install over a package in a transient state"),
-                        crate::ErrorKind::InvalidRequest,
-                    ))
-                }
-            };
-            db.as_package_data_mut().insert(&man.id, &pde)
-        })
-        .await?;
-
-    let downloading = download_install_s9pk(
-        ctx.clone(),
-        man.clone(),
-        Some(marketplace_url),
-        Arc::new(InstallProgress::new(s9pk.content_length())),
-        response_to_reader(s9pk),
-        None,
-    );
-    tokio::spawn(async move {
-        if let Err(e) = downloading.await {
-            let err_str = format!("Install of {}@{} Failed: {}", man.id, man.version, e);
-            tracing::error!("{}", err_str);
-            tracing::debug!("{:?}", e);
-            if let Err(e) = ctx
-                .notification_manager
-                .notify(
-                    ctx.db.clone(),
-                    Some(man.id),
-                    NotificationLevel::Error,
-                    String::from("Install Failed"),
-                    err_str,
-                    (),
-                    None,
-                )
-                .await
-            {
-                tracing::error!("Failed to issue Notification: {}", e);
-                tracing::debug!("{:?}", e);
-            }
-        }
-        Ok::<_, String>(())
-    });
+    let download = ctx.services.install(&ctx, s9pk).await?;
+    tokio::spawn(async move { download.await?.await });
 
     Ok(())
 }
@@ -370,159 +196,13 @@ pub struct SideloadParams {
 }
 
 #[instrument(skip_all)]
-pub async fn sideload(
-    ctx: RpcContext,
-    SideloadParams { manifest, icon }: SideloadParams,
-) -> Result<RequestGuid, Error> {
-    let new_ctx = ctx.clone();
-    let guid = RequestGuid::new();
-    if let Some(icon) = icon {
-        use tokio::io::AsyncWriteExt;
-
-        let public_dir_path = ctx
-            .datadir
-            .join(PKG_PUBLIC_DIR)
-            .join(&manifest.id)
-            .join(manifest.version.as_str());
-        tokio::fs::create_dir_all(&public_dir_path).await?;
-
-        let invalid_data_url =
-            || Error::new(eyre!("Invalid Icon Data URL"), ErrorKind::InvalidRequest);
-        let data = icon
-            .strip_prefix(&format!("data:image/{};base64,", todo!(),))
-            .ok_or_else(&invalid_data_url)?;
-        let mut icon_file = File::create(public_dir_path.join(format!("icon.{}", todo!()))).await?;
-        icon_file
-            .write_all(&base64::decode(data).with_kind(ErrorKind::InvalidRequest)?)
-            .await?;
-        icon_file.sync_all().await?;
-    }
-
-    let handler = Box::new(|request: Request| {
-        async move {
-            let headers = request.headers();
-            let content_length = match headers.get(CONTENT_LENGTH).map(|a| a.to_str()) {
-                None => None,
-                Some(Err(_)) => {
-                    return Response::builder()
-                        .status(StatusCode::BAD_REQUEST)
-                        .body(Body::from("Invalid Content Length"))
-                        .with_kind(ErrorKind::Network)
-                }
-                Some(Ok(a)) => match a.parse::<u64>() {
-                    Err(_) => {
-                        return Response::builder()
-                            .status(StatusCode::BAD_REQUEST)
-                            .body(Body::from("Invalid Content Length"))
-                            .with_kind(ErrorKind::Network)
-                    }
-                    Ok(a) => Some(a),
-                },
-            };
-            let progress = Arc::new(InstallProgress::new(content_length));
-            let install_progress = progress.clone();
-
-            new_ctx
-                .db
-                .mutate(|db| {
-                    let pde = match db
-                        .as_package_data()
-                        .as_idx(&manifest.id)
-                        .map(|x| x.de())
-                        .transpose()?
-                    {
-                        Some(PackageDataEntry::Installed(PackageDataEntryInstalled {
-                            installed,
-                            static_files,
-                            ..
-                        })) => PackageDataEntry::Updating(PackageDataEntryUpdating {
-                            install_progress,
-                            installed,
-                            manifest: manifest.clone(),
-                            static_files,
-                        }),
-                        None => PackageDataEntry::Installing(PackageDataEntryInstalling {
-                            install_progress,
-                            static_files: StaticFiles::local(
-                                &manifest.id,
-                                &manifest.version,
-                                todo!(),
-                            ),
-                            manifest: manifest.clone(),
-                        }),
-                        _ => {
-                            return Err(Error::new(
-                                eyre!("Cannot install over a package in a transient state"),
-                                crate::ErrorKind::InvalidRequest,
-                            ))
-                        }
-                    };
-                    db.as_package_data_mut().insert(&manifest.id, &pde)
-                })
-                .await?;
-
-            let (send, recv) = oneshot::channel();
-
-            tokio::spawn(async move {
-                if let Err(e) = download_install_s9pk(
-                    new_ctx.clone(),
-                    manifest.clone(),
-                    None,
-                    progress,
-                    tokio_util::io::StreamReader::new(
-                        request
-                            .into_body()
-                            .into_data_stream()
-                            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)),
-                    ),
-                    Some(send),
-                )
-                .await
-                {
-                    let err_str = format!(
-                        "Install of {}@{} Failed: {}",
-                        manifest.id, manifest.version, e
-                    );
-                    tracing::error!("{}", err_str);
-                    tracing::debug!("{:?}", e);
-                    if let Err(e) = new_ctx
-                        .notification_manager
-                        .notify(
-                            new_ctx.db.clone(),
-                            Some(manifest.id.clone()),
-                            NotificationLevel::Error,
-                            String::from("Install Failed"),
-                            err_str,
-                            (),
-                            None,
-                        )
-                        .await
-                    {
-                        tracing::error!("Failed to issue Notification: {}", e);
-                        tracing::debug!("{:?}", e);
-                    }
-                }
-            });
-
-            if let Ok(_) = recv.await {
-                Response::builder()
-                    .status(StatusCode::OK)
-                    .body(Body::empty())
-                    .with_kind(ErrorKind::Network)
-            } else {
-                Response::builder()
-                    .status(StatusCode::INTERNAL_SERVER_ERROR)
-                    .body(Body::from("installation aborted before upload completed"))
-                    .with_kind(ErrorKind::Network)
-            }
-        }
-        .boxed()
-    });
-    ctx.add_continuation(
-        guid.clone(),
-        RpcContinuation::rest(handler, Duration::from_secs(30)),
-    )
-    .await;
+pub async fn sideload(ctx: RpcContext) -> Result<RequestGuid, Error> {
+    let (guid, file) = upload(&ctx).await?;
+    let download = ctx
+        .services
+        .install(&ctx, S9pk::deserialize(&file).await?)
+        .await?;
+    tokio::spawn(async { download.await?.await });
     Ok(guid)
 }
 

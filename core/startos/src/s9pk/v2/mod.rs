@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::path::Path;
 
 use imbl_value::InternedString;
@@ -10,6 +11,7 @@ use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, FileSource, Section};
 use crate::s9pk::merkle_archive::MerkleArchive;
+use crate::ARCH;
 
 const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x02];
 
@@ -19,16 +21,51 @@ pub mod manifest;
 /**
     /
     ├── manifest.json
+    ├── icon.<ext>
     ├── LICENSE.md
     ├── instructions.md
-    ├── icon.<ext>
-    ├── images
-    │   └── <arch>
-    │       └── <id>.squashfs (xN)
+    ├── javascript.squashfs
     ├── assets
     │   └── <id>.squashfs (xN)
-    └── javascript.squashfs
+    └── images
+        └── <arch>
+            └── <id>.squashfs (xN)
 */
+
+fn priority(s: &str) -> Option<usize> {
+    match s {
+        "manifest.json" => Some(0),
+        a if Path::new(a).file_stem() == Some(OsStr::new("icon")) => Some(1),
+        "LICENSE.md" => Some(2),
+        "instructions.md" => Some(3),
+        "javascript.squashfs" => Some(4),
+        "assets" => Some(5),
+        "images" => Some(6),
+        _ => None,
+    }
+}
+
+fn filter(p: &Path) -> bool {
+    match p.iter().count() {
+        1 => match p {
+            p if p.file_name() == Some(OsStr::new("manifest.json")) => true,
+            p if p.file_stem() == Some(OsStr::new("icon")) => true,
+            p if p.file_name() == Some(OsStr::new("LICENSE.md")) => true,
+            p if p.file_name() == Some(OsStr::new("instructions.md")) => true,
+            p if p.file_name() == Some(OsStr::new("javascript.squashfs")) => true,
+            p if p.file_name() == Some(OsStr::new("assets")) => true,
+            p if p.file_name() == Some(OsStr::new("images")) => true,
+        },
+        2 if p.parent() == Some(Path::new("assets")) => {
+            p.extension().map_or(false, |ext| ext == "squashfs")
+        }
+        2 if p.parent() == Some(Path::new("images")) => p.file_name() == Some(OsStr::new(&*ARCH)),
+        3 if p.parent() == Some(&*Path::new("images").join(&*ARCH)) => {
+            p.extension().map_or(false, |ext| ext == "squashfs")
+        }
+        _ => false,
+    }
+}
 
 pub struct S9pk<S = Section<MultiCursorFile>> {
     manifest: Manifest,
@@ -62,13 +99,13 @@ impl<S: FileSource> S9pk<S> {
         for (path, icon) in self
             .archive
             .contents()
-            .with_prefix("icon")
+            .with_stem("icon")
             .filter(|(p, _)| {
                 Path::new(&*p)
                     .extension()
                     .and_then(|e| e.to_str())
                     .and_then(mime)
-                    .map_or(false, |e| e.starts_with("image"))
+                    .map_or(false, |e| e.starts_with("image/"))
             })
             .filter_map(|(k, v)| v.into_file().map(|f| (k, f)))
         {
@@ -112,7 +149,16 @@ impl<S: ArchiveSource> S9pk<Section<S>> {
             "Invalid Magic or Unexpected Version"
         );
 
-        let archive = MerkleArchive::deserialize(source, &mut header).await?;
+        let mut archive = MerkleArchive::deserialize(source, &mut header).await?;
+
+        archive.filter(filter);
+
+        archive.sort_by(|a, b| match (priority(a), priority(b)) {
+            (Some(a), Some(b)) => a.cmp(&b),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => std::cmp::Ordering::Equal,
+        });
 
         Self::new(archive, source.size().await).await
     }

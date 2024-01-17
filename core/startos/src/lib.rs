@@ -58,6 +58,7 @@ pub mod ssh;
 pub mod status;
 pub mod system;
 pub mod update;
+pub mod upload;
 pub mod util;
 pub mod version;
 pub mod volume;

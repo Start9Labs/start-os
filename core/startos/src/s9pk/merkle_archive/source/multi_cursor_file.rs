@@ -11,6 +11,10 @@ use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, Section};
 
+fn path_from_fd(fd: RawFd) -> PathBuf {
+    Path::new("/proc/self/fd").join(fd.to_string())
+}
+
 #[derive(Clone)]
 pub struct MultiCursorFile {
     fd: RawFd,
@@ -18,7 +22,14 @@ pub struct MultiCursorFile {
 }
 impl MultiCursorFile {
     fn path(&self) -> PathBuf {
-        Path::new("/proc/self/fd").join(self.fd.to_string())
+        path_from_fd(self.fd)
+    }
+    pub async fn open(fd: &impl AsRawFd) -> Result<Self, Error> {
+        let fd = fd.as_raw_fd();
+        Ok(Self {
+            fd,
+            file: Arc::new(Mutex::new(File::open(path_from_fd(fd)).await?)),
+        })
     }
 }
 impl From<File> for MultiCursorFile {

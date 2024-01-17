@@ -195,6 +195,17 @@ impl Error {
             revision: None,
         }
     }
+    pub fn clone_output(&self) -> Self {
+        Error {
+            source: ErrorData {
+                details: format!("{}", self.source),
+                debug: format!("{:?}", self.source),
+            }
+            .into(),
+            kind: self.kind,
+            revision: self.revision.clone(),
+        }
+    }
 }
 impl From<InvalidId> for Error {
     fn from(err: InvalidId) -> Self {

@@ -2,19 +2,30 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
+use futures::future::BoxFuture;
+use futures::{Future, FutureExt, TryFutureExt};
 use tokio::fs::File;
-use tokio::sync::RwLock;
+use tokio::sync::{OnceCell, RwLock};
 use tracing::instrument;
 
 use crate::context::RpcContext;
+use crate::db::model::{
+    PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryInstalling,
+    PackageDataEntryUpdating, StaticFiles,
+};
 use crate::install::progress::{InstallProgress, InstallProgressTracker};
 use crate::install::PKG_ARCHIVE_DIR;
+use crate::notifications::NotificationLevel;
 use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
 use crate::service::start_stop::StartStop;
 use crate::service::Service;
+use crate::util::GeneralGuard;
+
+pub type DownloadInstallFuture = BoxFuture<'static, Result<InstallFuture, Error>>;
+pub type InstallFuture = BoxFuture<'static, Result<(), Error>>;
 
 /// This is the structure to contain all the services
 #[derive(Default)]
@@ -25,20 +36,18 @@ impl ServiceMap {
         let mut res = BTreeMap::new();
         let s9pk_dir = ctx.datadir.join(PKG_ARCHIVE_DIR).join("installed");
         for (id, entry) in ctx.db.peek().await.as_package_data().as_entries()? {
-            if let Some(i) = entry.as_installed() {
-                if let Err(e) = async {
-                    let s9pk = S9pk::open(s9pk_dir.join(&id).with_extension("s9pk")).await?;
-                    let id = s9pk.as_manifest().id.clone();
-                    if let Some(service) = Service::load(ctx.clone(), s9pk, entry).await? {
-                        res.insert(id, Arc::new(service));
-                    }
-                    Ok::<_, Error>(())
+            if let Err(e) = async {
+                let s9pk = S9pk::open(s9pk_dir.join(&id).with_extension("s9pk")).await?;
+                let id = s9pk.as_manifest().id.clone();
+                if let Some(service) = Service::load(ctx.clone(), s9pk, entry).await? {
+                    res.insert(id, Arc::new(service));
                 }
-                .await
-                {
-                    tracing::error!("Error loading installed package as service: {e}");
-                    tracing::debug!("{e:?}");
-                }
+                Ok::<_, Error>(())
+            }
+            .await
+            {
+                tracing::error!("Error loading installed package as service: {e}");
+                tracing::debug!("{e:?}");
             }
         }
         *self.0.write().await = res;
@@ -50,62 +59,191 @@ impl ServiceMap {
         &self,
         ctx: &RpcContext,
         s9pk: S9pk<S>,
-    ) -> Result<Arc<Service>, Error> {
-        let id = s9pk.as_manifest().id.clone();
-        let download_path = ctx
-            .datadir
-            .join(PKG_ARCHIVE_DIR)
-            .join("downloading")
-            .join(&id)
-            .with_extension("s9pk");
+    ) -> Result<DownloadInstallFuture, Error> {
+        let manifest = s9pk.as_manifest();
+        let id = manifest.id.clone();
 
-        let progress = Arc::new(InstallProgress::new(s9pk.size()));
-        progress
-            .track_download_during(ctx.db.clone(), &id, || async {
-                let mut progress_writer = InstallProgressTracker::new(
-                    crate::util::io::create_file(&download_path).await?,
-                    progress.clone(),
-                );
-                s9pk.serialize(&mut progress_writer, true).await?;
-                progress_writer.into_inner().sync_all().await?;
-                progress.download_complete();
-                Ok(())
+        let install_progress = Arc::new(InstallProgress::new(s9pk.size()));
+
+        let error = Arc::new(OnceCell::new());
+        let cancel_error = error.clone();
+        let cancel_ctx = ctx.clone();
+        let cancel_id = id.clone();
+        let cancel_hook = GeneralGuard::new(|| {
+            tokio::spawn(async move {
+                let id = cancel_id;
+                match (
+                    cancel_ctx
+                        .db
+                        .mutate(|db| {
+                            let pde = match db
+                                .as_package_data()
+                                .as_idx(&id)
+                                .map(|x| x.de())
+                                .transpose()?
+                            {
+                                Some(PackageDataEntry::Updating(PackageDataEntryUpdating {
+                                    install_progress,
+                                    installed,
+                                    manifest,
+                                    static_files,
+                                })) => {
+                                    Some(PackageDataEntry::Installed(PackageDataEntryInstalled {
+                                        manifest: installed.manifest.clone(),
+                                        installed,
+                                        static_files,
+                                    }))
+                                }
+                                Some(PackageDataEntry::Installing(_)) => None,
+                                _ => return Ok(false),
+                            };
+                            if let Some(pde) = pde {
+                                db.as_package_data_mut().insert(&id, &pde)?;
+                            } else {
+                                db.as_package_data_mut().remove(&id)?;
+                            }
+                            Ok(true)
+                        })
+                        .await,
+                    cancel_error.get(),
+                ) {
+                    (Ok(false), _) => (),
+                    (Ok(true), Some(e)) => {
+                        let err_str = format!(
+                            "Install of {}@{} Failed: {}",
+                            manifest.id, manifest.version, e
+                        );
+                        tracing::error!("{}", err_str);
+                        tracing::debug!("{:?}", e);
+                        if let Err(e) = cancel_ctx
+                            .notification_manager
+                            .notify(
+                                cancel_ctx.db.clone(),
+                                Some(manifest.id.clone()),
+                                NotificationLevel::Error,
+                                String::from("Install Failed"),
+                                err_str,
+                                (),
+                                None,
+                            )
+                            .await
+                        {
+                            tracing::error!("Failed to issue Notification: {}", e);
+                            tracing::debug!("{:?}", e);
+                        }
+                    }
+                }
+            })
+        });
+
+        ctx.db
+            .mutate(|db| {
+                let pde = match db
+                    .as_package_data()
+                    .as_idx(&id)
+                    .map(|x| x.de())
+                    .transpose()?
+                {
+                    Some(PackageDataEntry::Installed(PackageDataEntryInstalled {
+                        installed,
+                        static_files,
+                        ..
+                    })) => PackageDataEntry::Updating(PackageDataEntryUpdating {
+                        install_progress,
+                        installed,
+                        manifest: manifest.clone(),
+                        static_files,
+                    }),
+                    None => PackageDataEntry::Installing(PackageDataEntryInstalling {
+                        install_progress,
+                        static_files: StaticFiles::local(&manifest.id, &manifest.version, todo!()),
+                        manifest: manifest.clone(),
+                    }),
+                    _ => {
+                        return Err(Error::new(
+                            eyre!("Cannot install over a package in a transient state"),
+                            crate::ErrorKind::InvalidRequest,
+                        ))
+                    }
+                };
+                db.as_package_data_mut().insert(&manifest.id, &pde)
             })
             .await?;
 
-        let installed_path = ctx
-            .datadir
-            .join(PKG_ARCHIVE_DIR)
-            .join("installed")
-            .join(&id)
-            .with_extension("s9pk");
+        Ok(async move {
+            match async {
+            let download_path = ctx
+                .datadir
+                .join(PKG_ARCHIVE_DIR)
+                .join("downloading")
+                .join(&id)
+                .with_extension("s9pk");
 
-        crate::util::io::rename(&download_path, &installed_path).await?;
+            install_progress
+                .track_download_during(ctx.db.clone(), &id, || async {
+                    let mut progress_writer = InstallProgressTracker::new(
+                        crate::util::io::create_file(&download_path).await?,
+                        install_progress.clone(),
+                    );
+                    s9pk.serialize(&mut progress_writer, true).await?;
+                    progress_writer.into_inner().sync_all().await?;
+                    install_progress.download_complete();
+                    Ok(())
+                })
+                .await?;
 
-        let s9pk = S9pk::open(&installed_path).await?;
+            let installed_path = ctx
+                .datadir
+                .join(PKG_ARCHIVE_DIR)
+                .join("installed")
+                .join(&id)
+                .with_extension("s9pk");
 
-        let mut lock = self.0.write().await;
-        if let Some(service) = lock.get(&id).cloned() {
-            drop(lock);
-            service.update(s9pk).await?;
-            Ok(service)
-        } else {
-            let service = Arc::new(
-                Service::load(
-                    ctx.clone(),
-                    s9pk,
-                    ctx.db
-                        .peek()
-                        .await
-                        .as_package_data()
-                        .as_idx(&id)
-                        .or_not_found(&id)?,
-                )
-                .await?.ok_or_else(|| Error::new(eyre!("PackageDataEntry must not be in `removing` or `restoring` state in db for Service to be `load`ed"), ErrorKind::Incoherent))?,
-            );
-            lock.insert(id, service.clone());
-            Ok(service)
+            crate::util::io::rename(&download_path, &installed_path).await?;
+
+            Ok(installed_path)
+        }.await {
+            Ok(installed_path) => Ok(async move {
+                if let Err(e) = async {
+                    let s9pk = S9pk::open(&installed_path).await?;
+
+                    let mut lock = ctx.services.0.write().await;
+                    if let Some(service) = lock.get(&id).cloned() {
+                        drop(lock);
+                        service.update(s9pk).await?;
+                        Ok(())
+                    } else {
+                        let service = Arc::new(
+                            Service::load(
+                                ctx.clone(),
+                                s9pk,
+                                ctx.db
+                                    .peek()
+                                    .await
+                                    .as_package_data()
+                                    .as_idx(&id)
+                                    .or_not_found(&id)?,
+                            )
+                            .await?.ok_or_else(|| Error::new(eyre!("PackageDataEntry must not be in `removing` or `restoring` state in db for Service to be `load`ed"), ErrorKind::Incoherent))?,
+                        );
+                        lock.insert(id, service.clone());
+                        Ok(())
+                    }
+                }.await {
+                    let _ = error.set(e.clone_output());
+                    cancel_hook.drop().await.with_kind(ErrorKind::Unknown)?;
+                    Err(e)
+                } else {
+                    Ok(())
+                }
+            }.boxed()),
+            Err(e) => {
+                let _ = error.set(e.clone_output());
+                cancel_hook.drop().await.with_kind(ErrorKind::Unknown)?;
+                Err(e)
+            }
         }
+        }.boxed())
     }
 
     /// This is ran during the cleanup, so when we are uninstalling the service

@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use ed25519_dalek::{Signature, SigningKey, VerifyingKey};
 use tokio::io::AsyncRead;
 
@@ -45,6 +47,9 @@ impl<S> MerkleArchive<S> {
     pub fn contents(&self) -> &DirectoryContents<S> {
         &self.contents
     }
+    pub fn sort_by(&mut self, sort_by: impl Fn(&str, &str) -> std::cmp::Ordering + Send + Sync) {
+        self.contents.sort_by(sort_by)
+    }
 }
 impl<S: ArchiveSource> MerkleArchive<Section<S>> {
     #[instrument(skip_all)]
@@ -79,6 +84,9 @@ impl<S: ArchiveSource> MerkleArchive<Section<S>> {
 impl<S: FileSource> MerkleArchive<S> {
     pub async fn update_hashes(&mut self, only_missing: bool) -> Result<(), Error> {
         self.contents.update_hashes(only_missing).await
+    }
+    pub fn filter(&mut self, filter: impl Fn(&Path) -> bool) -> Result<(), Error> {
+        self.contents.filter(filter)
     }
     #[instrument(skip_all)]
     pub async fn serialize<W: Sink>(&self, w: &mut W, verify: bool) -> Result<(), Error> {
@@ -162,6 +170,7 @@ impl<S> Entry<S> {
         + self.contents.header_size()
     }
 }
+impl<S: Clone> Entry<S> {}
 impl<S: ArchiveSource> Entry<Section<S>> {
     #[instrument(skip_all)]
     pub async fn deserialize(
@@ -183,6 +192,12 @@ impl<S: ArchiveSource> Entry<Section<S>> {
     }
 }
 impl<S: FileSource> Entry<S> {
+    pub fn filter(&mut self, filter: impl Fn(&Path) -> bool) -> Result<(), Error> {
+        if let EntryContents::Directory(d) = &mut self.contents {
+            d.filter(filter)?;
+        }
+        Ok(())
+    }
     pub async fn read_file_to_vec(&self) -> Result<Vec<u8>, Error> {
         match self.as_contents() {
             EntryContents::File(f) => Ok(f.to_vec(self.hash).await?),
@@ -252,6 +267,9 @@ impl<S> EntryContents<S> {
             Self::File(_) => FileContents::<S>::header_size(),
             Self::Directory(_) => DirectoryContents::<S>::header_size(),
         }
+    }
+    pub fn is_dir(&self) -> bool {
+        matches!(self, &EntryContents::Directory(_))
     }
 }
 impl<S: ArchiveSource> EntryContents<Section<S>> {

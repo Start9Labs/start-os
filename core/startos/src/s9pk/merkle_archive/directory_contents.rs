@@ -1,9 +1,13 @@
+use std::ffi::OsStr;
+use std::fmt::Debug;
 use std::path::Path;
+use std::sync::Arc;
 
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use imbl::OrdMap;
 use imbl_value::InternedString;
+use itertools::Itertools;
 use tokio::io::AsyncRead;
 
 use crate::prelude::*;
@@ -13,11 +17,29 @@ use crate::s9pk::merkle_archive::source::{ArchiveSource, FileSource, Section};
 use crate::s9pk::merkle_archive::write_queue::WriteQueue;
 use crate::s9pk::merkle_archive::{varint, Entry, EntryContents};
 
-#[derive(Debug, Clone)]
-pub struct DirectoryContents<S>(OrdMap<InternedString, Entry<S>>);
+#[derive(Clone)]
+pub struct DirectoryContents<S> {
+    contents: OrdMap<InternedString, Entry<S>>,
+    /// used to optimize files to have earliest needed information up front
+    sort_by: Option<Arc<dyn Fn(&str, &str) -> std::cmp::Ordering + Send + Sync>>,
+}
+impl<S: Debug> Debug for DirectoryContents<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DirectoryContents")
+            .field("contents", &self.contents)
+            .finish_non_exhaustive()
+    }
+}
 impl<S> DirectoryContents<S> {
     pub fn new() -> Self {
-        Self(OrdMap::new())
+        Self {
+            contents: OrdMap::new(),
+            sort_by: None,
+        }
+    }
+
+    pub fn sort_by(&mut self, sort_by: impl Fn(&str, &str) -> std::cmp::Ordering + Send + Sync) {
+        self.sort_by = Some(Arc::new(sort_by))
     }
 
     #[instrument(skip_all)]
@@ -57,8 +79,8 @@ impl<S> DirectoryContents<S> {
     }
 
     pub fn toc_size(&self) -> u64 {
-        self.0.iter().fold(
-            varint::serialized_varint_size(self.0.len() as u64),
+        self.iter().fold(
+            varint::serialized_varint_size(self.len() as u64),
             |acc, (name, entry)| {
                 acc + varint::serialized_varstring_size(&**name) + entry.header_size()
             },
@@ -66,13 +88,13 @@ impl<S> DirectoryContents<S> {
     }
 }
 impl<S: Clone> DirectoryContents<S> {
-    pub fn with_prefix(&self, prefix: &str) -> impl Iterator<Item = (InternedString, Entry<S>)> {
-        let prefix = InternedString::intern(prefix);
-        let (_, center, right) = self.0.split_lookup(&*prefix);
+    pub fn with_stem(&self, stem: &str) -> impl Iterator<Item = (InternedString, Entry<S>)> {
+        let prefix = InternedString::intern(stem);
+        let (_, center, right) = self.split_lookup(&*stem);
         center.map(|e| (prefix.clone(), e)).into_iter().chain(
-            right
-                .into_iter()
-                .take_while(move |(k, _)| k.starts_with(&*prefix)),
+            right.into_iter().take_while(move |(k, _)| {
+                Path::new(&**k).file_stem() == Some(OsStr::new(&*prefix))
+            }),
         )
     }
     pub fn insert_path(&mut self, path: impl AsRef<Path>, entry: Entry<S>) -> Result<(), Error> {
@@ -139,7 +161,10 @@ impl<S: ArchiveSource> DirectoryContents<Section<S>> {
                 );
             }
 
-            let res = Self(entries);
+            let res = Self {
+                contents: entries,
+                sort_by: None,
+            };
 
             if res.sighash().await? == sighash {
                 Ok(res)
@@ -154,11 +179,30 @@ impl<S: ArchiveSource> DirectoryContents<Section<S>> {
     }
 }
 impl<S: FileSource> DirectoryContents<S> {
+    pub fn filter(&mut self, filter: impl Fn(&Path) -> bool) -> Result<(), Error> {
+        for k in self.keys().cloned().collect::<Vec<_>>() {
+            let path = Path::new(&*k);
+            if let Some(v) = self.get_mut(&k) {
+                if !filter(path) {
+                    if v.hash.is_none() {
+                        return Err(Error::new(
+                            eyre!("cannot filter out unhashed file, run `update_hashes` first"),
+                            ErrorKind::InvalidRequest,
+                        ));
+                    }
+                    v.contents = EntryContents::Missing;
+                } else {
+                    v.filter(|p| filter(&path.join(p)))?;
+                }
+            }
+        }
+        Ok(())
+    }
     #[instrument(skip_all)]
     pub fn update_hashes<'a>(&'a mut self, only_missing: bool) -> BoxFuture<'a, Result<(), Error>> {
         async move {
-            for key in self.0.keys() {
-                if let Some(entry) = self.0.get_mut(key) {
+            for key in self.keys() {
+                if let Some(entry) = self.get_mut(key) {
                     entry.update_hash(only_missing).await?;
                 }
             }
@@ -172,12 +216,15 @@ impl<S: FileSource> DirectoryContents<S> {
         async move {
             let mut hasher = TrackingWriter::new(0, HashWriter::new());
             let mut sig_contents = OrdMap::new();
-            for (name, entry) in &self.0 {
+            for (name, entry) in &**self {
                 sig_contents.insert(name.clone(), entry.to_missing().await?);
             }
-            Self(sig_contents)
-                .serialize_toc(&mut WriteQueue::new(0), &mut hasher)
-                .await?;
+            Self {
+                contents: sig_contents,
+                sort_by: None,
+            }
+            .serialize_toc(&mut WriteQueue::new(0), &mut hasher)
+            .await?;
             Ok(hasher.into_inner().finalize())
         }
         .boxed()
@@ -189,8 +236,17 @@ impl<S: FileSource> DirectoryContents<S> {
         queue: &mut WriteQueue<'a, S>,
         w: &mut W,
     ) -> Result<(), Error> {
-        varint::serialize_varint(self.0.len() as u64, w).await?;
-        for (name, entry) in self.0.iter() {
+        varint::serialize_varint(self.len() as u64, w).await?;
+        for (name, entry) in self.iter().sorted_by(|a, b| match (a, b, &self.sort_by) {
+            ((_, a), (_, b), _) if a.as_contents().is_dir() && !b.as_contents().is_dir() => {
+                std::cmp::Ordering::Less
+            }
+            ((_, a), (_, b), _) if !a.as_contents().is_dir() && b.as_contents().is_dir() => {
+                std::cmp::Ordering::Greater
+            }
+            ((a, _), (b, _), Some(sort_by)) => sort_by(&***a, &***b),
+            _ => std::cmp::Ordering::Equal,
+        }) {
             varint::serialize_varstring(&**name, w).await?;
             entry.serialize_header(queue.add(entry).await?, w).await?;
         }
@@ -201,11 +257,11 @@ impl<S: FileSource> DirectoryContents<S> {
 impl<S> std::ops::Deref for DirectoryContents<S> {
     type Target = OrdMap<InternedString, Entry<S>>;
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.contents
     }
 }
 impl<S> std::ops::DerefMut for DirectoryContents<S> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        &mut self.contents
     }
 }

@@ -4,11 +4,11 @@ use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 use async_compression::tokio::bufread::GzipEncoder;
+use axum::body::Body;
 use axum::extract::{self as x, Request};
 use axum::response::Response;
-use axum::routing::{any, get};
+use axum::routing::{any, get, post};
 use axum::Router;
-use axum::{body::Body, routing::post};
 use digest::Digest;
 use futures::future::ready;
 use futures::{FutureExt, TryFutureExt};
