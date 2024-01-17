@@ -4,15 +4,12 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use imbl::OrdMap;
-use models::{HealthCheckId, PackageId, ProcedureName};
+use imbl_value::{InOMap, InternedString};
+use models::{ActionId, HealthCheckId, PackageId, ProcedureName};
 use persistent_container::PersistentContainer;
 use start_stop::StartStop;
 use tokio::sync::{watch, Notify};
 
-use crate::db::model::{
-    InstalledPackageInfo, PackageDataEntry, PackageDataEntryInstalled,
-    PackageDataEntryMatchModelRef,
-};
 use crate::prelude::*;
 use crate::s9pk::S9pk;
 use crate::service::transition::{TempDesiredState, TransitionKind, TransitionState};
@@ -20,6 +17,13 @@ use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::actor::{Actor, BackgroundJobs, SimpleActor};
 use crate::volume::data_dir;
+use crate::{
+    action::ActionResult,
+    db::model::{
+        InstalledPackageInfo, PackageDataEntry, PackageDataEntryInstalled,
+        PackageDataEntryMatchModelRef,
+    },
+};
 use crate::{
     config::{action::ConfigRes, ConfigurationError},
     context::RpcContext,
@@ -155,6 +159,23 @@ impl Service {
             )
             .await?
             .map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::ConfigGen))
+    }
+
+    pub async fn action(
+        &self,
+        id: ActionId,
+        input: Option<InOMap<InternedString, Value>>,
+    ) -> Result<ActionResult, Error> {
+        self.seed
+            .persistent_container
+            .borrow()
+            .execute::<ActionResult>(
+                ProcedureName::Action(id),
+                input.map(|c| to_value(&c)).transpose()?.unwrap_or_default(),
+                Some(Duration::from_secs(30)),
+            )
+            .await?
+            .map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::Action))
     }
 }
 

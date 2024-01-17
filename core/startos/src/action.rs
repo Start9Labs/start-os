@@ -78,11 +78,6 @@ pub async fn action(
         .get(&package_id)
         .await
         .or_not_found(lazy_format!("Manager for {}", package_id))?
-        .execute(
-            ProcedureName::Action(action_id.clone()),
-            input.map(|c| to_value(&c)).transpose()?.unwrap_or_default(),
-            None,
-        )
-        .await?
-        .map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::Action))
+        .action(action_id, input)
+        .await
 }
