@@ -4,12 +4,11 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use imbl::OrdMap;
-use models::{HealthCheckId, PackageId};
+use models::{HealthCheckId, PackageId, ProcedureName};
 use persistent_container::PersistentContainer;
 use start_stop::StartStop;
 use tokio::sync::{watch, Notify};
 
-use crate::context::RpcContext;
 use crate::db::model::{
     InstalledPackageInfo, PackageDataEntry, PackageDataEntryInstalled,
     PackageDataEntryMatchModelRef,
@@ -21,6 +20,10 @@ use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::actor::{Actor, BackgroundJobs, SimpleActor};
 use crate::volume::data_dir;
+use crate::{
+    config::{action::ConfigRes, ConfigurationError},
+    context::RpcContext,
+};
 
 mod control;
 pub mod persistent_container;
@@ -139,6 +142,19 @@ impl Service {
                 ErrorKind::Deserialization,
             )),
         }
+    }
+
+    pub async fn get_config(&self) -> Result<ConfigRes, Error> {
+        self.seed
+            .persistent_container
+            .borrow()
+            .execute::<ConfigRes>(
+                ProcedureName::GetConfig,
+                Value::Null,
+                Some(Duration::from_secs(30)),
+            )
+            .await?
+            .map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::ConfigGen))
     }
 }
 

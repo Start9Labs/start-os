@@ -1792,19 +1792,9 @@ impl ConfigPointer {
                     .await
                     .or_not_found(lazy_format!("Manager for {id}@{version}"))
                     .map_err(|e| ConfigurationError::SystemError(e))?
-                    .execute::<ConfigRes>(
-                        ProcedureName::GetConfig,
-                        Value::Null,
-                        Some(Duration::from_secs(30)),
-                    )
+                    .get_config()
                     .await
-                    .map_err(|e| ConfigurationError::SystemError(e))?
-                    .map_err(|e| {
-                        ConfigurationError::SystemError(Error::new(
-                            eyre!("{}", e.1),
-                            ErrorKind::ConfigGen,
-                        ))
-                    })?;
+                    .map_err(ConfigurationError::SystemError)?;
                 if let Some(cfg) = cfg_res.config {
                     Ok(self.select(&Value::Object(cfg)))
                 } else {

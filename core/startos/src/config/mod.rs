@@ -169,13 +169,8 @@ pub async fn get(ctx: RpcContext, _: Empty, id: PackageId) -> Result<ConfigRes, 
         .get(&id)
         .await
         .or_not_found(lazy_format!("Manager for {id}"))?
-        .execute(
-            ProcedureName::GetConfig,
-            Value::Null,
-            Some(Duration::from_secs(30)),
-        )
-        .await?
-        .map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::ConfigGen))
+        .get_config()
+        .await
 }
 
 #[derive(Deserialize, Serialize, Parser)]
