@@ -5,6 +5,7 @@ use futures::future::BoxFuture;
 use futures::{Future, FutureExt};
 use imbl_value::json;
 use models::{ActionId, PackageId};
+use rpc_toolkit::from_fn_async;
 use serde::de::DeserializeOwned;
 
 use crate::action::action;
@@ -260,18 +261,18 @@ mod routes {
             .clone()
             .unwrap_or_else(|| package_id.clone());
         let action_id = params.action_id.clone();
-        let input = from_value(params.input).ok();
-
-        let action_result = action(
-            context,
-            ActionParams {
-                package_id,
-                action_id,
-                input: crate::util::serde::StdinDeserializable(input),
-            },
-        )
-        .await?;
-        imbl_value::to_value(&action_result).with_kind(ErrorKind::Serialization)
+        // let input = from_value(params.input).ok();
+        // let action_result = action(
+        //     context,
+        //     ActionParams {
+        //         package_id,
+        //         action_id,
+        //         input: crate::util::serde::StdinDeserializable(input),
+        //     },
+        // )
+        // .await?;
+        todo!()
+        // imbl_value::to_value(&action_result).with_kind(ErrorKind::Serialization)
     }
     pub async fn get_configured(
         context: RpcContext,
