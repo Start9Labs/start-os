@@ -13,7 +13,7 @@ use ssh_key::private::Ed25519PrivateKey;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use zeroize::Zeroize;
 
-use crate::config::{configure, ConfigureContext};
+use crate::config::ConfigureContext;
 use crate::context::RpcContext;
 use crate::control::{restart, ControlParams};
 use crate::disk::fsck::RequiresReboot;
@@ -362,18 +362,17 @@ pub async fn rotate_key(
             .await?;
         tx.commit().await?;
         if needs_config {
-            configure(
-                &ctx,
-                &package,
-                ConfigureContext {
-                    breakages: BTreeMap::new(),
-                    timeout: None,
-                    config: None,
-                    overrides: BTreeMap::new(),
-                    dry_run: false,
-                },
-            )
-            .await?;
+            ctx.services
+                .get(&package)
+                .await
+                .ok_or_else(|| {
+                    Error::new(
+                        eyre!("There is no manager running for {package}"),
+                        ErrorKind::Unknown,
+                    )
+                })?
+                .configure(ConfigureContext::default())
+                .await?;
         } else {
             restart(ctx, ControlParams { id: package }).await?;
         }

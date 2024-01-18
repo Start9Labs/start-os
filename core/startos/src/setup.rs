@@ -2,12 +2,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use clap::Parser;
 use color_eyre::eyre::eyre;
 use josekit::jwk::Jwk;
 use openssl::x509::X509;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sqlx::Connection;
 use tokio::fs::File;
@@ -101,11 +100,10 @@ async fn setup_init(
     ))
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-#[command(rename_all = "kebab-case")]
 pub struct AttachParams {
-    #[arg(name = "embassy-password")]
+    #[serde(rename = "embassy-password")]
     password: Option<EncryptedWire>,
     guid: Arc<String>,
 }
@@ -213,9 +211,8 @@ pub fn cifs() -> ParentHandler {
     ParentHandler::new().subcommand("verify", from_fn_async(verify_cifs).no_cli())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-#[command(rename_all = "kebab-case")]
 pub struct VerifyCifsParams {
     hostname: String,
     path: PathBuf,
@@ -257,17 +254,12 @@ pub enum RecoverySource {
     Backup { target: BackupTargetFS },
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-#[command(rename_all = "kebab-case")]
 pub struct ExecuteParams {
-    #[arg(name = "embassy-logicalname")]
     embassy_logicalname: PathBuf,
-    #[arg(name = "embassy-password")]
     embassy_password: EncryptedWire,
-    #[arg(name = "recovery-source")]
     recovery_source: Option<RecoverySource>,
-    #[arg(name = "recovery-password")]
     recovery_password: Option<EncryptedWire>,
 }
 

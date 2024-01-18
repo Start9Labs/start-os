@@ -6,9 +6,7 @@ use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{
-    command, from_fn_async, AnyContext, Empty, HandleArgs, HandlerExt, ParentHandler,
-};
+use rpc_toolkit::{command, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::process::Command;
 use tokio::sync::broadcast::Receiver;

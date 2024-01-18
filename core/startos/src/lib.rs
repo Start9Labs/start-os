@@ -38,7 +38,7 @@ pub mod error;
 pub mod firmware;
 pub mod hostname;
 pub mod init;
-pub mod inspect;
+// pub mod inspect;
 pub mod install;
 pub mod logs;
 pub mod lxc;
@@ -70,9 +70,7 @@ pub use config::Config;
 pub use error::{Error, ErrorKind, ResultExt};
 use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{
-    command, from_fn, from_fn_async, from_fn_blocking, AnyContext, HandlerExt, ParentHandler,
-};
+use rpc_toolkit::{command, from_fn, from_fn_async, AnyContext, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 
 use crate::context::CliContext;
@@ -98,7 +96,7 @@ pub fn main_api() -> ParentHandler {
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_remote_cli::<CliContext>(),
         )
-        .subcommand("inspect", inspect::inspect())
+        // .subcommand("inspect", inspect::inspect())
         .subcommand("server", server())
         .subcommand("package", package())
         .subcommand("net", net::net())
@@ -174,6 +172,7 @@ pub fn package() -> ParentHandler {
         .subcommand(
             "action",
             from_fn_async(action::action)
+                .with_display_serializable()
                 .with_custom_display_fn::<AnyContext, _>(|handle, result| {
                     Ok(action::display_action_result(handle.params, result))
                 })
@@ -233,22 +232,6 @@ pub fn package() -> ParentHandler {
         )
         .subcommand("dependency", dependencies::dependency())
         .subcommand("package-backup", backup::backup())
-}
-
-pub fn portable_api() -> ParentHandler {
-    ParentHandler::new()
-        .subcommand(
-            "git-info",
-            from_fn(version::git_info).with_metadata("authenticated", Value::Bool(false)),
-        )
-        // s9pk::pack,
-        .subcommand("s9pk", developer::verify())
-        .subcommand("init", from_fn_blocking(developer::init).no_display())
-        .subcommand("inspect", inspect::inspect())
-        .subcommand(
-            "publish",
-            from_fn_async(registry::admin::publish).no_display(),
-        )
 }
 
 pub fn diagnostic_api() -> ParentHandler {

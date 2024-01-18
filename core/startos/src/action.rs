@@ -1,7 +1,6 @@
 use clap::Parser;
-use color_eyre::eyre::eyre;
 pub use models::ActionId;
-use models::{PackageId, ProcedureName};
+use models::PackageId;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -10,7 +9,6 @@ use crate::config::Config;
 use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::util::serde::{display_serializable, StdinDeserializable, WithIoFormat};
-use crate::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "version")]

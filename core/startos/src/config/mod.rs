@@ -1,13 +1,12 @@
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use clap::{CommandFactory, FromArgMatches, Parser};
+use clap::{FromArgMatches, Parser};
 use color_eyre::eyre::eyre;
 use indexmap::IndexSet;
 use itertools::Itertools;
-use models::{ErrorKind, OptionExt, PackageId, ProcedureName};
+use models::{ErrorKind, OptionExt, PackageId};
 use patch_db::value::InternedString;
 use patch_db::Value;
 use regex::Regex;
@@ -17,9 +16,7 @@ use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
-use crate::util::display_none;
-use crate::util::serde::{display_serializable, HandlerExtSerde, StdinDeserializable};
-use crate::Error;
+use crate::util::serde::{HandlerExtSerde, StdinDeserializable};
 
 pub mod action;
 pub mod spec;
@@ -155,16 +152,6 @@ pub fn config() -> ParentHandler<ConfigParams> {
 
 #[instrument(skip_all)]
 pub async fn get(ctx: RpcContext, _: Empty, id: PackageId) -> Result<ConfigRes, Error> {
-    let db = ctx.db.peek().await;
-    let manifest = db
-        .as_package_data()
-        .as_idx(&id)
-        .or_not_found(&id)?
-        .as_installed()
-        .or_not_found(&id)?
-        .as_manifest();
-    let version = manifest.as_version().de()?;
-
     ctx.services
         .get(&id)
         .await
@@ -228,11 +215,20 @@ pub async fn set_dry(
         dry_run: true,
         overrides,
     };
-    let breakages = configure(&ctx, &id, configure_context).await?;
-
-    Ok(breakages)
+    ctx.services
+        .get(&id)
+        .await
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("There is no manager running for {id}"),
+                ErrorKind::Unknown,
+            )
+        })?
+        .configure(configure_context)
+        .await
 }
 
+#[derive(Default)]
 pub struct ConfigureContext {
     pub breakages: BTreeMap<PackageId, String>,
     pub timeout: Option<Duration>,
@@ -263,24 +259,6 @@ pub async fn set_impl(
         dry_run: false,
         overrides,
     };
-    configure(&ctx, &id, configure_context).await?;
-    Ok(())
-}
-
-#[instrument(skip_all)]
-pub async fn configure(
-    ctx: &RpcContext,
-    id: &PackageId,
-    configure_context: ConfigureContext,
-) -> Result<BTreeMap<PackageId, String>, Error> {
-    let db = ctx.db.peek().await;
-    let package = db
-        .as_package_data()
-        .as_idx(id)
-        .or_not_found(&id)?
-        .as_installed()
-        .or_not_found(&id)?;
-    let version = package.as_manifest().as_version().de()?;
     ctx.services
         .get(&id)
         .await
@@ -291,15 +269,6 @@ pub async fn configure(
             )
         })?
         .configure(configure_context)
-        .await
+        .await?;
+    Ok(())
 }
-
-macro_rules! not_found {
-    ($x:expr) => {
-        crate::Error::new(
-            color_eyre::eyre::eyre!("Could not find {} at {}:{}", $x, module_path!(), line!()),
-            crate::ErrorKind::Incoherent,
-        )
-    };
-}
-pub(crate) use not_found;

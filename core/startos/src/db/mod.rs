@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::extract::ws::{self, WebSocket};
-use axum::extract::{Request, WebSocketUpgrade};
+use axum::extract::WebSocketUpgrade;
 use axum::response::Response;
 use clap::Parser;
 use futures::{FutureExt, SinkExt, StreamExt};

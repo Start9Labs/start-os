@@ -1,5 +1,6 @@
+use std::collections::BTreeMap;
+use std::path::PathBuf;
 use std::sync::Arc;
-use std::{collections::BTreeMap, path::PathBuf};
 
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
@@ -58,7 +59,7 @@ impl ServiceMap {
     pub async fn install<S: FileSource>(
         &self,
         ctx: RpcContext,
-        s9pk: S9pk<S>,
+        mut s9pk: S9pk<S>,
     ) -> Result<DownloadInstallFuture, Error> {
         let manifest = Arc::new(s9pk.as_manifest().clone());
         let id = manifest.id.clone();
@@ -88,10 +89,9 @@ impl ServiceMap {
                                     {
                                         Some(PackageDataEntry::Updating(
                                             PackageDataEntryUpdating {
-                                                install_progress,
                                                 installed,
-                                                manifest,
                                                 static_files,
+                                                ..
                                             },
                                         )) => Some(PackageDataEntry::Installed(
                                             PackageDataEntryInstalled {

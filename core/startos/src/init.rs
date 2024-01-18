@@ -14,11 +14,9 @@ use crate::account::AccountInfo;
 use crate::context::config::ServerConfig;
 use crate::db::model::ServerStatus;
 use crate::disk::mount::util::unmount;
-use crate::install::PKG_ARCHIVE_DIR;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
 use crate::util::cpupower::{get_available_governors, get_preferred_governor, set_governor};
-use crate::util::docker::{create_bridge_network, CONTAINER_DATADIR, CONTAINER_TOOL};
 use crate::util::Invoke;
 use crate::{Error, ARCH};
 

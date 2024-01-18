@@ -104,7 +104,17 @@ pub async fn configure_impl(
         dry_run: false,
         overrides,
     };
-    crate::config::configure(&ctx, &dependency_id, configure_context).await?;
+    ctx.services
+        .get(&dependency_id)
+        .await
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("There is no manager running for {dependency_id}"),
+                ErrorKind::Unknown,
+            )
+        })?
+        .configure(configure_context)
+        .await?;
     Ok(())
 }
 

@@ -10,25 +10,24 @@ use persistent_container::PersistentContainer;
 use start_stop::StartStop;
 use tokio::sync::{watch, Notify};
 
+use crate::action::ActionResult;
+use crate::config::action::ConfigRes;
+use crate::config::ConfigurationError;
+use crate::context::RpcContext;
+use crate::db::model::{
+    InstalledPackageInfo, PackageDataEntry, PackageDataEntryInstalled,
+    PackageDataEntryMatchModelRef,
+};
+use crate::prelude::*;
+use crate::s9pk;
 use crate::s9pk::S9pk;
 use crate::service::transition::{TempDesiredState, TransitionKind, TransitionState};
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::actor::{Actor, BackgroundJobs, SimpleActor};
 use crate::volume::data_dir;
-use crate::{
-    action::ActionResult,
-    db::model::{
-        InstalledPackageInfo, PackageDataEntry, PackageDataEntryInstalled,
-        PackageDataEntryMatchModelRef,
-    },
-};
-use crate::{
-    config::{action::ConfigRes, ConfigurationError},
-    context::RpcContext,
-};
-use crate::{prelude::*, s9pk};
 
+mod config;
 mod control;
 pub mod persistent_container;
 mod rpc;
@@ -153,9 +152,8 @@ impl Service {
     }
 
     pub async fn get_config(&self) -> Result<ConfigRes, Error> {
-        self.seed
-            .persistent_container
-            .borrow()
+        let container = self.seed.persistent_container.borrow().clone();
+        container
             .execute::<ConfigRes>(
                 ProcedureName::GetConfig,
                 Value::Null,
@@ -170,9 +168,8 @@ impl Service {
         id: ActionId,
         input: Option<InOMap<InternedString, Value>>,
     ) -> Result<ActionResult, Error> {
-        self.seed
-            .persistent_container
-            .borrow()
+        let container = self.seed.persistent_container.borrow().clone();
+        container
             .execute::<ActionResult>(
                 ProcedureName::Action(id),
                 input.map(|c| to_value(&c)).transpose()?.unwrap_or_default(),
@@ -188,7 +185,7 @@ impl Service {
     pub async fn uninstall(&self) -> Result<(), Error> {
         todo!()
     }
-    pub async fn install(self, version: Option<models::Version>) -> Result<Self, Error> {
+    pub async fn install(&self, version: Option<models::Version>) -> Result<Self, Error> {
         todo!()
     }
     pub async fn update(&self, s9pk: S9pk) -> Result<(), Error> {

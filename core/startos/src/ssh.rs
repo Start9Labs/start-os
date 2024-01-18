@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use chrono::Utc;
+use clap::builder::ValueParserFactory;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use rpc_toolkit::{command, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
@@ -9,6 +10,7 @@ use sqlx::{Pool, Postgres};
 use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
+use crate::util::clap::FromStrParser;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::{Error, ErrorKind};
 
@@ -20,6 +22,12 @@ pub struct PubKey(
     #[serde(deserialize_with = "crate::util::serde::deserialize_from_str")]
     openssh_keys::PublicKey,
 );
+impl ValueParserFactory for PubKey {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
+    }
+}
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]

@@ -5,7 +5,6 @@ use std::path::Path;
 use ed25519::pkcs8::EncodePrivateKey;
 use ed25519::PublicKeyBytes;
 use ed25519_dalek::{SigningKey, VerifyingKey};
-use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
 use tracing::instrument;
 
 use crate::context::CliContext;
@@ -45,8 +44,4 @@ pub fn init(ctx: CliContext) -> Result<(), Error> {
         );
     }
     Ok(())
-}
-
-pub fn verify() -> ParentHandler {
-    ParentHandler::new().subcommand("verify", from_fn_async(crate::s9pk::verify).no_display())
 }

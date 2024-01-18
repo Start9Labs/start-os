@@ -1,63 +1,30 @@
-use std::collections::BTreeMap;
-use std::io::SeekFrom;
-use std::path::{Path, PathBuf};
-use std::sync::atomic::Ordering;
-use std::sync::Arc;
-use std::time::Duration;
+use std::path::PathBuf;
 
-use axum::body::Body;
-use axum::extract::Request;
 use clap::builder::ValueParserFactory;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
-use futures::future::BoxFuture;
-use futures::{FutureExt, StreamExt, TryStreamExt};
-use http::header::CONTENT_LENGTH;
-use http::{HeaderMap, Response, StatusCode};
-use models::{mime, DataUrl};
+use futures::StreamExt;
 use reqwest::Url;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::CallRemote;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tokio::fs::{File, OpenOptions};
-use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWriteExt};
-use tokio::process::Command;
-use tokio::sync::oneshot;
-use tokio_stream::wrappers::ReadDirStream;
 use tracing::instrument;
 
-use crate::config::ConfigureContext;
 use crate::context::{CliContext, RpcContext};
-use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
+use crate::core::rpc_continuations::RequestGuid;
 use crate::db::model::{
-    CurrentDependencies, CurrentDependencyInfo, CurrentDependents, InstalledPackageInfo,
-    PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryInstalling,
-    PackageDataEntryMatchModelRef, PackageDataEntryRemoving, PackageDataEntryRestoring,
-    PackageDataEntryUpdating, StaticDependencyInfo, StaticFiles,
+    PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryMatchModelRef,
+    PackageDataEntryRemoving,
 };
-use crate::dependencies::{
-    add_dependent_to_current_dependents_lists, compute_dependency_config_errs,
-    set_dependents_with_live_pointers_to_needs_config,
-};
-use crate::install::progress::{InstallProgress, InstallProgressTracker};
 use crate::notifications::NotificationLevel;
 use crate::prelude::*;
-use crate::registry::marketplace::with_query_params;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::merkle_archive::source::http::HttpSource;
-use crate::s9pk::merkle_archive::source::{ArchiveSource, FileSource};
 use crate::s9pk::S9pk;
-use crate::status::{MainStatus, Status};
 use crate::upload::upload;
 use crate::util::clap::FromStrParser;
-use crate::util::docker::CONTAINER_TOOL;
-use crate::util::io::response_to_reader;
-use crate::util::serde::Port;
-use crate::util::{AsyncFileExt, Invoke, Version};
-use crate::volume::{asset_dir, script_dir};
-use crate::{Error, ErrorKind, ResultExt};
 
 pub mod progress;
 
@@ -217,27 +184,13 @@ async fn cli_install(
     if target.ends_with(".s9pk") {
         let path = PathBuf::from(target);
 
-        // inspect manifest no verify
-        let s9pk = S9pk::open(&path).await?;
-        let (icon_path, icon) = s9pk.icon().await?;
-        let icon_str = format!(
-            "data:{};base64,{}",
-            Path::new(&*icon_path)
-                .extension()
-                .and_then(|e| e.to_str())
-                .and_then(mime)
-                .unwrap_or("image/png"),
-            base64::encode(&icon.to_vec(None).await?)
-        );
+        // TODO: validate s9pk
 
         // rpc call remote sideload
         tracing::debug!("calling package.sideload");
         let guid = from_value::<RequestGuid>(
-            ctx.call_remote(
-                "package.sideload",
-                imbl_value::json!({ "manifest": s9pk.as_manifest(), "icon": icon_str }),
-            )
-            .await?,
+            ctx.call_remote("package.sideload", imbl_value::json!({}))
+                .await?,
         )?;
         tracing::debug!("package.sideload succeeded {:?}", guid);
 

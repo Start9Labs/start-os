@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeZone, Utc};
+use clap::builder::ValueParserFactory;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use models::PackageId;
@@ -15,6 +16,7 @@ use tracing::instrument;
 use crate::backup::BackupReport;
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
+use crate::util::clap::FromStrParser;
 use crate::util::serde::HandlerExtSerde;
 use crate::{Error, ErrorKind, ResultExt};
 
@@ -74,7 +76,7 @@ pub async fn list(
                     Ok(Notification {
                         id: r.id as u32,
                         package_id: r.package_id.and_then(|p| p.parse().ok()),
-                        created_at: DateTime::from_utc(r.created_at, Utc),
+                        created_at: Utc.from_utc_datetime(&r.created_at),
                         code: r.code as u32,
                         level: match r.level.parse::<NotificationLevel>() {
                             Ok(a) => a,
@@ -119,7 +121,7 @@ pub async fn list(
                     Ok(Notification {
                         id: r.id as u32,
                         package_id: r.package_id.and_then(|p| p.parse().ok()),
-                        created_at: DateTime::from_utc(r.created_at, Utc),
+                        created_at: Utc.from_utc_datetime(&r.created_at),
                         code: r.code as u32,
                         level: match r.level.parse::<NotificationLevel>() {
                             Ok(a) => a,
@@ -218,6 +220,13 @@ impl fmt::Display for NotificationLevel {
         }
     }
 }
+impl ValueParserFactory for NotificationLevel {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
+    }
+}
+
 pub struct InvalidNotificationLevel(String);
 impl From<InvalidNotificationLevel> for crate::Error {
     fn from(val: InvalidNotificationLevel) -> Self {
