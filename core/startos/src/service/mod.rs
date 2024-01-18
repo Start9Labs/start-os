@@ -80,24 +80,23 @@ impl Service {
         s9pk: S9pk,
         entry: &Model<PackageDataEntry>,
     ) -> Result<Option<Self>, Error> {
-        let handle_installed = |i: &Model<InstalledPackageInfo>| async {
-            for volume_id in &s9pk.as_manifest().volumes {
-                let tmp_path = data_dir(&ctx.datadir, &s9pk.as_manifest().id.clone(), volume_id);
-                if tokio::fs::metadata(&tmp_path).await.is_ok() {
-                    tokio::fs::remove_dir_all(&tmp_path).await?;
+        let handle_installed = {
+            let ctx = ctx.clone();
+            move |s9pk: S9pk, i: Model<InstalledPackageInfo>| async move {
+                for volume_id in &s9pk.as_manifest().volumes {
+                    let tmp_path =
+                        data_dir(&ctx.datadir, &s9pk.as_manifest().id.clone(), volume_id);
+                    if tokio::fs::metadata(&tmp_path).await.is_ok() {
+                        tokio::fs::remove_dir_all(&tmp_path).await?;
+                    }
                 }
-            }
-            Self::new(
-                ctx,
-                s9pk,
-                if i.as_status().as_main().de()?.running() {
+                let start_stop = if i.as_status().as_main().de()?.running() {
                     StartStop::Start
                 } else {
                     StartStop::Stop
-                },
-            )
-            .await
-            .map(Some)
+                };
+                Self::new(ctx, s9pk, start_stop).await.map(Some)
+            }
         };
         match entry.as_match() {
             PackageDataEntryMatchModelRef::Installing(_) => Self::new(ctx, s9pk, StartStop::Stop)
@@ -118,18 +117,21 @@ impl Service {
                         .map(Some)
                 } else {
                     ctx.db
-                        .mutate(|db| {
-                            db.as_package_data_mut()
-                                .as_idx_mut(&s9pk.as_manifest().id)
-                                .or_not_found(&s9pk.as_manifest().id)?
-                                .ser(&PackageDataEntry::Installed(PackageDataEntryInstalled {
-                                    static_files: e.as_static_files().de()?,
-                                    manifest: s9pk.as_manifest().clone(),
-                                    installed: e.as_installed().de()?,
-                                }))
+                        .mutate({
+                            let manifest = s9pk.as_manifest().clone();
+                            move |db| {
+                                db.as_package_data_mut()
+                                    .as_idx_mut(&manifest.id)
+                                    .or_not_found(&manifest.id)?
+                                    .ser(&PackageDataEntry::Installed(PackageDataEntryInstalled {
+                                        static_files: e.as_static_files().de()?,
+                                        manifest,
+                                        installed: e.as_installed().de()?,
+                                    }))
+                            }
                         })
                         .await?;
-                    handle_installed(e.as_installed()).await
+                    handle_installed(s9pk, e.as_installed().clone()).await
                 }
             }
             PackageDataEntryMatchModelRef::Removing(_)
@@ -140,7 +142,9 @@ impl Service {
                     .await?;
                 Ok(None)
             }
-            PackageDataEntryMatchModelRef::Installed(i) => handle_installed(i.as_installed()).await,
+            PackageDataEntryMatchModelRef::Installed(i) => {
+                handle_installed(s9pk, i.as_installed().clone()).await
+            }
             PackageDataEntryMatchModelRef::Error(e) => Err(Error::new(
                 eyre!("Failed to parse PackageDataEntry, found {e:?}"),
                 ErrorKind::Deserialization,
@@ -182,6 +186,9 @@ impl Service {
         todo!()
     }
     pub async fn uninstall(&self) -> Result<(), Error> {
+        todo!()
+    }
+    pub async fn install(self, version: Option<models::Version>) -> Result<Self, Error> {
         todo!()
     }
     pub async fn update(&self, s9pk: S9pk) -> Result<(), Error> {
