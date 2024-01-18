@@ -10,7 +10,6 @@ use persistent_container::PersistentContainer;
 use start_stop::StartStop;
 use tokio::sync::{watch, Notify};
 
-use crate::prelude::*;
 use crate::s9pk::S9pk;
 use crate::service::transition::{TempDesiredState, TransitionKind, TransitionState};
 use crate::status::health_check::HealthCheckResult;
@@ -28,6 +27,7 @@ use crate::{
     config::{action::ConfigRes, ConfigurationError},
     context::RpcContext,
 };
+use crate::{prelude::*, s9pk};
 
 mod control;
 pub mod persistent_container;
@@ -176,6 +176,16 @@ impl Service {
             )
             .await?
             .map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::Action))
+    }
+
+    pub async fn shutdown(&self) -> Result<(), Error> {
+        todo!()
+    }
+    pub async fn uninstall(&self) -> Result<(), Error> {
+        todo!()
+    }
+    pub async fn update(&self, s9pk: S9pk) -> Result<(), Error> {
+        todo!()
     }
 }
 

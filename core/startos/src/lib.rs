@@ -174,7 +174,6 @@ pub fn package() -> ParentHandler {
         .subcommand(
             "action",
             from_fn_async(action::action)
-                .with_display_serializable()
                 .with_custom_display_fn::<AnyContext, _>(|handle, result| {
                     Ok(action::display_action_result(handle.params, result))
                 })
