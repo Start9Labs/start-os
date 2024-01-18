@@ -224,26 +224,26 @@ async fn perform_backup(
             .services
             .get(package_id)
             .await
-            .ok_or_else(|| Error::new(eyre!("Manager not found"), ErrorKind::InvalidRequest))?
+            .ok_or_else(|| Error::new(eyre!("Service not found"), ErrorKind::InvalidRequest))?
             .backup(backup_guard.clone())
             .await
         {
-            BackupReturn::Ran { report, res } => (res, report),
-            BackupReturn::AlreadyRunning(report) => {
-                backup_report.insert(package_id.clone(), report);
-                continue;
-            }
-            BackupReturn::Error(error) => {
-                tracing::warn!("Backup thread error");
-                tracing::debug!("{error:?}");
-                backup_report.insert(
-                    package_id.clone(),
-                    PackageBackupReport {
-                        error: Some("Backup thread error".to_owned()),
-                    },
-                );
-                continue;
-            }
+            _ => todo!(), // BackupReturn::Ran { report, res } => (res, report),
+                          // BackupReturn::AlreadyRunning(report) => {
+                          //     backup_report.insert(package_id.clone(), report);
+                          //     continue;
+                          // }
+                          // BackupReturn::Error(error) => {
+                          //     tracing::warn!("Backup thread error");
+                          //     tracing::debug!("{error:?}");
+                          //     backup_report.insert(
+                          //         package_id.clone(),
+                          //         PackageBackupReport {
+                          //             error: Some("Backup thread error".to_owned()),
+                          //         },
+                          //     );
+                          //     continue;
+                          // }
         };
         backup_report.insert(
             package_id.clone(),

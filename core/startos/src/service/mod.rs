@@ -3,15 +3,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+use futures::{future::BoxFuture, Future};
 use imbl::OrdMap;
 use imbl_value::{InOMap, InternedString};
 use models::{ActionId, HealthCheckId, PackageId, ProcedureName};
 use persistent_container::PersistentContainer;
 use start_stop::StartStop;
-use tokio::sync::{watch, Notify};
+use tokio::sync::{watch, Mutex, Notify};
 
-use crate::action::ActionResult;
-use crate::config::action::ConfigRes;
 use crate::config::ConfigurationError;
 use crate::context::RpcContext;
 use crate::db::model::{
@@ -20,12 +19,20 @@ use crate::db::model::{
 };
 use crate::prelude::*;
 use crate::s9pk;
-use crate::s9pk::S9pk;
-use crate::service::transition::{TempDesiredState, TransitionKind, TransitionState};
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::actor::{Actor, BackgroundJobs, SimpleActor};
 use crate::volume::data_dir;
+use crate::{
+    action::ActionResult,
+    disk::mount::{backup::BackupMountGuard, guard::TmpMountGuard},
+    s9pk::S9pk,
+};
+use crate::{config::action::ConfigRes, disk::mount::backup::PackageBackupMountGuard};
+use crate::{
+    install::progress::InstallProgress,
+    service::transition::{TempDesiredState, TransitionKind, TransitionState},
+};
 
 mod config;
 mod control;
@@ -42,6 +49,13 @@ pub use service_map::ServiceMap;
 pub const HEALTH_CHECK_COOLDOWN_SECONDS: u64 = 15;
 pub const HEALTH_CHECK_GRACE_PERIOD_SECONDS: u64 = 5;
 pub const SYNC_RETRY_COOLDOWN_SECONDS: u64 = 10;
+
+pub type Task<'a> = BoxFuture<'a, Result<(), Error>>;
+
+/// TODO
+pub enum BackupReturn {
+    TODO,
+}
 
 pub struct Service {
     actor: SimpleActor<ServiceActor>,
@@ -189,6 +203,18 @@ impl Service {
         todo!()
     }
     pub async fn update(&self, s9pk: S9pk) -> Result<(), Error> {
+        todo!()
+    }
+    pub fn backup(
+        &self,
+        guard: Arc<Mutex<BackupMountGuard<TmpMountGuard>>>,
+    ) -> Result<BackupReturn, Error> {
+        todo!()
+    }
+    pub async fn restore(
+        service: Arc<Self>,
+        guard: PackageBackupMountGuard,
+    ) -> Result<(InstallProgress, Task<'static>), Error> {
         todo!()
     }
 }

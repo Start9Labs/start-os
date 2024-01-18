@@ -16,7 +16,6 @@ use torut::onion::OnionAddressV3;
 use tracing::instrument;
 
 use super::target::BackupTargetId;
-use crate::backup::os::OsBackup;
 use crate::backup::BackupMetadata;
 use crate::context::{RpcContext, SetupContext};
 use crate::db::model::{PackageDataEntry, PackageDataEntryRestoring, StaticFiles};
@@ -26,7 +25,7 @@ use crate::disk::mount::guard::TmpMountGuard;
 use crate::hostname::Hostname;
 use crate::init::init;
 use crate::install::progress::InstallProgress;
-use crate::install::{download_install_s9pk, PKG_PUBLIC_DIR};
+use crate::install::PKG_PUBLIC_DIR;
 use crate::notifications::NotificationLevel;
 use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
@@ -35,6 +34,7 @@ use crate::setup::SetupStatus;
 use crate::util::io::dir_size;
 use crate::util::serde::IoFormat;
 use crate::volume::{backup_dir, BACKUP_DIR, PKG_VOLUME_DIR};
+use crate::{backup::os::OsBackup, service::Service};
 
 fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<Vec<PackageId>, Error> {
     arg.split(',')
@@ -281,10 +281,17 @@ async fn restore_packages(
     let mut tasks = Vec::with_capacity(guards.len());
     for (manifest, guard) in guards {
         let id = manifest.id.clone();
-        let (progress, task) = restore_package(ctx.clone(), manifest, guard).await?;
+        let ctx = ctx.clone();
+        let service = ctx.services.get(&id).await.ok_or_else(|| {
+            Error::new(
+                eyre!("Service not found with {id}"),
+                ErrorKind::InvalidRequest,
+            )
+        })?;
+        let (install_progress, task) = Service::restore(service, guard).await?;
         progress_info
             .package_installs
-            .insert(id.clone(), progress.clone());
+            .insert(id.clone(), Arc::new(install_progress));
         progress_info
             .src_volume_size
             .insert(id.clone(), dir_size(backup_dir(&id), None).await?);
