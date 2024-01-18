@@ -182,7 +182,7 @@ pub async fn install(
     )
     .await?;
 
-    let download = ctx.services.install(&ctx, s9pk).await?;
+    let download = ctx.services.install(ctx.clone(), s9pk).await?;
     tokio::spawn(async move { download.await?.await });
 
     Ok(())
@@ -200,7 +200,7 @@ pub async fn sideload(ctx: RpcContext) -> Result<RequestGuid, Error> {
     let (guid, file) = upload(&ctx).await?;
     let download = ctx
         .services
-        .install(&ctx, S9pk::deserialize(&file).await?)
+        .install(ctx.clone(), S9pk::deserialize(&file).await?)
         .await?;
     tokio::spawn(async { download.await?.await });
     Ok(guid)
