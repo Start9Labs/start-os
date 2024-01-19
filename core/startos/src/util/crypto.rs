@@ -1,4 +1,3 @@
-use clap::builder::{TypedValueParser, ValueParserFactory};
 use ed25519_dalek::{SecretKey, EXPANDED_SECRET_KEY_LENGTH};
 
 #[inline]

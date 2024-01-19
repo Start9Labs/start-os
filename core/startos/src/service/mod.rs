@@ -3,7 +3,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use futures::{future::BoxFuture, Future};
+use futures::future::BoxFuture;
+use futures::Future;
 use imbl::OrdMap;
 use imbl_value::{InOMap, InternedString};
 use models::{ActionId, HealthCheckId, PackageId, ProcedureName};
@@ -11,28 +12,25 @@ use persistent_container::PersistentContainer;
 use start_stop::StartStop;
 use tokio::sync::{watch, Mutex, Notify};
 
+use crate::action::ActionResult;
+use crate::config::action::ConfigRes;
 use crate::config::ConfigurationError;
 use crate::context::RpcContext;
 use crate::db::model::{
     InstalledPackageInfo, PackageDataEntry, PackageDataEntryInstalled,
     PackageDataEntryMatchModelRef,
 };
+use crate::disk::mount::backup::{BackupMountGuard, PackageBackupMountGuard};
+use crate::disk::mount::guard::TmpMountGuard;
+use crate::install::progress::InstallProgress;
 use crate::prelude::*;
 use crate::s9pk;
+use crate::s9pk::S9pk;
+use crate::service::transition::{TempDesiredState, TransitionKind, TransitionState};
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::actor::{Actor, BackgroundJobs, SimpleActor};
 use crate::volume::data_dir;
-use crate::{
-    action::ActionResult,
-    disk::mount::{backup::BackupMountGuard, guard::TmpMountGuard},
-    s9pk::S9pk,
-};
-use crate::{config::action::ConfigRes, disk::mount::backup::PackageBackupMountGuard};
-use crate::{
-    install::progress::InstallProgress,
-    service::transition::{TempDesiredState, TransitionKind, TransitionState},
-};
 
 mod config;
 mod control;
@@ -205,7 +203,7 @@ impl Service {
     pub async fn update(&self, s9pk: S9pk) -> Result<(), Error> {
         todo!()
     }
-    pub fn backup(
+    pub async fn backup(
         &self,
         guard: Arc<Mutex<BackupMountGuard<TmpMountGuard>>>,
     ) -> Result<BackupReturn, Error> {
