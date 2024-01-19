@@ -36,7 +36,7 @@ mod config;
 mod control;
 pub mod persistent_container;
 mod rpc;
-mod service_effects_service;
+mod service_effect_handler;
 mod service_map;
 mod start_stop;
 mod transition;
