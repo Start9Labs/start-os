@@ -11,7 +11,8 @@ use tokio::sync::{mpsc, oneshot};
 use crate::prelude::*;
 use crate::util::Never;
 
-pub trait Actor: Send {
+pub trait Actor: Send + 'static {
+    #[allow(unused_variables)]
     fn init(&mut self, jobs: &mut BackgroundJobs) {}
 }
 
@@ -60,14 +61,15 @@ impl Future for BackgroundJobs {
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
-        let complete =
-            self.jobs
-                .iter_mut()
-                .enumerate()
-                .filter_map(|(i, f)| match f.poll_unpin(cx) {
-                    std::task::Poll::Pending => None,
-                    std::task::Poll::Ready(_) => Some(i),
-                });
+        let complete = self
+            .jobs
+            .iter_mut()
+            .enumerate()
+            .filter_map(|(i, f)| match f.poll_unpin(cx) {
+                std::task::Poll::Pending => None,
+                std::task::Poll::Ready(_) => Some(i),
+            })
+            .collect::<Vec<_>>();
         for idx in complete.into_iter().rev() {
             #[allow(clippy::let_underscore_future)]
             let _ = self.jobs.swap_remove(idx);
@@ -82,21 +84,21 @@ pub struct SimpleActor<A: Actor> {
     messenger: mpsc::UnboundedSender<Request<A>>,
 }
 impl<A: Actor> SimpleActor<A> {
-    pub fn new(actor: A) -> Self {
-        let (shutdown_send, shutdown_recv) = oneshot::channel();
-        let (messenger_send, messenger_recv) = mpsc::unbounded_channel::<Request<A>>();
+    pub fn new(mut actor: A) -> Self {
+        let (shutdown_send, mut shutdown_recv) = oneshot::channel();
+        let (messenger_send, mut messenger_recv) = mpsc::unbounded_channel::<Request<A>>();
         let runtime = NonDetachingJoinHandle::from(tokio::spawn(async move {
             let mut bg = BackgroundJobs::default();
             actor.init(&mut bg);
             loop {
                 tokio::select! {
-                    _ = bg => (),
+                    _ = &mut bg => (),
                     msg = messenger_recv.recv() => match msg {
                         Some((msg, reply)) if shutdown_recv.try_recv() == Err(TryRecvError::Empty) => {
                             let mut new_bg = BackgroundJobs::default();
                             tokio::select! {
                                 res = msg.handle_with(&mut actor, &mut new_bg) => { reply.send(res); },
-                                _ = bg => (),
+                                _ = &mut bg => (),
                             }
                             bg.jobs.append(&mut new_bg.jobs);
                         }

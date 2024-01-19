@@ -47,15 +47,13 @@ fn priority(s: &str) -> Option<usize> {
 
 fn filter(p: &Path) -> bool {
     match p.iter().count() {
-        1 => match p {
-            p if p.file_name() == Some(OsStr::new("manifest.json")) => true,
-            p if p.file_stem() == Some(OsStr::new("icon")) => true,
-            p if p.file_name() == Some(OsStr::new("LICENSE.md")) => true,
-            p if p.file_name() == Some(OsStr::new("instructions.md")) => true,
-            p if p.file_name() == Some(OsStr::new("javascript.squashfs")) => true,
-            p if p.file_name() == Some(OsStr::new("assets")) => true,
-            p if p.file_name() == Some(OsStr::new("images")) => true,
-        },
+        1 if p.file_name() == Some(OsStr::new("manifest.json")) => true,
+        1 if p.file_stem() == Some(OsStr::new("icon")) => true,
+        1 if p.file_name() == Some(OsStr::new("LICENSE.md")) => true,
+        1 if p.file_name() == Some(OsStr::new("instructions.md")) => true,
+        1 if p.file_name() == Some(OsStr::new("javascript.squashfs")) => true,
+        1 if p.file_name() == Some(OsStr::new("assets")) => true,
+        1 if p.file_name() == Some(OsStr::new("images")) => true,
         2 if p.parent() == Some(Path::new("assets")) => {
             p.extension().map_or(false, |ext| ext == "squashfs")
         }

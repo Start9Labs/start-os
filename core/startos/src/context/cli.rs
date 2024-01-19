@@ -64,7 +64,7 @@ impl CliContext {
     #[instrument(skip_all)]
     pub fn init(config: ClientConfig) -> Result<Self, Error> {
         let mut url = if let Some(host) = config.host {
-            host.parse()?
+            host
         } else {
             "http://localhost".parse()?
         };

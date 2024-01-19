@@ -29,7 +29,7 @@ fn select_executable(name: &str) -> Option<fn(VecDeque<OsString>)> {
 }
 
 pub fn startbox() {
-    let args = std::env::args_os().collect::<VecDeque<_>>();
+    let mut args = std::env::args_os().collect::<VecDeque<_>>();
     for _ in 0..2 {
         if let Some(s) = args.pop_front() {
             if let Some(x) = Path::new(&*s)

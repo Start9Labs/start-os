@@ -25,7 +25,7 @@ pub struct TransitionState {
 }
 
 impl TransitionState {
-    pub fn kind(self) -> TransitionKind {
+    pub fn kind(&self) -> TransitionKind {
         self.kind
     }
     pub async fn abort(mut self) {

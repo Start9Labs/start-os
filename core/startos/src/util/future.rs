@@ -112,8 +112,8 @@ async fn test_cancellable() {
         futures::future::pending::<()>().await;
         drop(arc)
     });
-    let handle = cancellable.cancellation_handle();
-    let a = tokio::spawn(cancellable);
+    let mut handle = cancellable.cancellation_handle();
+    tokio::spawn(cancellable);
     handle.cancel_and_wait().await;
     assert!(weak.strong_count() == 0);
 }

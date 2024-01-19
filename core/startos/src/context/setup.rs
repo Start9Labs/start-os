@@ -65,7 +65,7 @@ impl SetupContext {
         let datadir = config.datadir().to_owned();
         Ok(Self(Arc::new(SetupContextSeed {
             config: config.clone(),
-            os_partitions: config.os_partitions.ok_or_else(|| {
+            os_partitions: config.os_partitions.clone().ok_or_else(|| {
                 Error::new(
                     eyre!("missing required configuration: `os-partitions`"),
                     ErrorKind::NotFound,

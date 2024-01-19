@@ -44,7 +44,7 @@ pub trait ContextConfig: DeserializeOwned + Default {
     }
     fn load_path_rec(&mut self, path: Option<impl AsRef<Path>>) -> Result<(), Error> {
         if let Some(path) = path.filter(|p| p.as_ref().exists()) {
-            let other = Self::from_path(path)?;
+            let mut other = Self::from_path(path)?;
             let path = other.next();
             self.merge_with(other);
             self.load_path_rec(path)?;

@@ -47,7 +47,10 @@ impl<S> MerkleArchive<S> {
     pub fn contents(&self) -> &DirectoryContents<S> {
         &self.contents
     }
-    pub fn sort_by(&mut self, sort_by: impl Fn(&str, &str) -> std::cmp::Ordering + Send + Sync) {
+    pub fn sort_by(
+        &mut self,
+        sort_by: impl Fn(&str, &str) -> std::cmp::Ordering + Send + Sync + 'static,
+    ) {
         self.contents.sort_by(sort_by)
     }
 }
@@ -134,10 +137,6 @@ impl<S> Entry<S> {
     pub fn as_contents(&self) -> &EntryContents<S> {
         &self.contents
     }
-    pub fn as_contents_mut(&mut self) -> &mut EntryContents<S> {
-        self.hash = None;
-        &mut self.contents
-    }
     pub fn as_file(&self) -> Option<&FileContents<S>> {
         match self.as_contents() {
             EntryContents::File(f) => Some(f),
@@ -150,16 +149,20 @@ impl<S> Entry<S> {
             _ => None,
         }
     }
+    pub fn as_contents_mut(&mut self) -> &mut EntryContents<S> {
+        self.hash = None;
+        &mut self.contents
+    }
     pub fn into_contents(self) -> EntryContents<S> {
         self.contents
     }
-    pub fn into_file(&self) -> Option<FileContents<S>> {
+    pub fn into_file(self) -> Option<FileContents<S>> {
         match self.into_contents() {
             EntryContents::File(f) => Some(f),
             _ => None,
         }
     }
-    pub fn into_directory(&self) -> Option<DirectoryContents<S>> {
+    pub fn into_directory(self) -> Option<DirectoryContents<S>> {
         match self.into_contents() {
             EntryContents::Directory(d) => Some(d),
             _ => None,

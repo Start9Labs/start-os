@@ -239,16 +239,16 @@ impl Actor for ServiceActor {
     fn init(&mut self, jobs: &mut BackgroundJobs) {
         let id = self.0.id.clone();
         let ctx = self.0.ctx.clone();
-        let persistent_container = self.0.persistent_container.subscribe();
-        let desired = self.0.desired_state.subscribe();
-        let temp_desired = self.0.temp_desired_state.subscribe();
-        let transition = self.0.transition_state.subscribe();
-        let running = self.0.running_status.clone();
+        let mut persistent_container = self.0.persistent_container.subscribe();
+        let mut desired = self.0.desired_state.subscribe();
+        let mut temp_desired = self.0.temp_desired_state.subscribe();
+        let mut transition = self.0.transition_state.subscribe();
+        let mut running = self.0.running_status.clone();
         let synchronized = self.0.synchronized.clone();
         jobs.add_job(async move {
             loop {
                 let container = persistent_container.borrow().clone();
-                let current = container.current_state.subscribe();
+                let mut current = container.current_state.subscribe();
                 loop {
                     let (desired_state, current_state, transition_kind, running_status) = (
                         temp_desired.borrow().unwrap_or(*desired.borrow()),

@@ -234,21 +234,7 @@ async fn main_embassy_ui(req: Request, ctx: RpcContext) -> Result<Response, Erro
             .split_once('/'),
     ) {
         (&Method::GET, Some(("public", path))) => {
-            if_authorized(&ctx, &request_parts, || async {
-                let sub_path = Path::new(path);
-                if let Ok(rest) = sub_path.strip_prefix("package-data") {
-                    FileData::from_path(
-                        &request_parts,
-                        &ctx.datadir.join(PKG_PUBLIC_DIR).join(rest),
-                    )
-                    .await?
-                    .into_response(&request_parts)
-                    .await
-                } else {
-                    Ok(not_found())
-                }
-            })
-            .await
+            todo!("pull directly from s9pk")
         }
         (&Method::GET, Some(("proxy", target))) => {
             if_authorized(&ctx, &request_parts, || async {

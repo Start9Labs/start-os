@@ -36,7 +36,7 @@ impl Middleware<DiagnosticContext> for DiagnosticMode {
                 *e = Error::new(
                     eyre!(
                         "{} is not available on the Diagnostic API",
-                        self.method.unwrap_or_default()
+                        self.method.as_ref().map(|s| s.as_str()).unwrap_or_default()
                     ),
                     crate::ErrorKind::DiagnosticMode,
                 )

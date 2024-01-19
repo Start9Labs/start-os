@@ -38,7 +38,10 @@ impl<S> DirectoryContents<S> {
         }
     }
 
-    pub fn sort_by(&mut self, sort_by: impl Fn(&str, &str) -> std::cmp::Ordering + Send + Sync) {
+    pub fn sort_by(
+        &mut self,
+        sort_by: impl Fn(&str, &str) -> std::cmp::Ordering + Send + Sync + 'static,
+    ) {
         self.sort_by = Some(Arc::new(sort_by))
     }
 
@@ -201,8 +204,8 @@ impl<S: FileSource> DirectoryContents<S> {
     #[instrument(skip_all)]
     pub fn update_hashes<'a>(&'a mut self, only_missing: bool) -> BoxFuture<'a, Result<(), Error>> {
         async move {
-            for key in self.keys() {
-                if let Some(entry) = self.get_mut(key) {
+            for key in self.keys().cloned().collect::<Vec<_>>() {
+                if let Some(entry) = self.get_mut(&key) {
                     entry.update_hash(only_missing).await?;
                 }
             }

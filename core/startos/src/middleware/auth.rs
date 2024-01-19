@@ -314,7 +314,7 @@ impl Middleware<RpcContext> for Auth {
                 let res = std::mem::replace(&mut response.result, Err(INTERNAL_ERROR));
                 response.result = async {
                     let res = res?;
-                    let login_res = from_value::<LoginRes>(res)?;
+                    let login_res = from_value::<LoginRes>(res.clone())?;
                     self.set_cookie = Some(
                         HeaderValue::from_str(&format!(
                         "session={}; Path=/; SameSite=Lax; Expires=Fri, 31 Dec 9999 23:59:59 GMT;",
