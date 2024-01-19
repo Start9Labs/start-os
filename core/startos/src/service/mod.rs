@@ -175,16 +175,12 @@ impl Service {
             .map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::ConfigGen))
     }
 
-    pub async fn action(
-        &self,
-        id: ActionId,
-        input: Option<InOMap<InternedString, Value>>,
-    ) -> Result<ActionResult, Error> {
+    pub async fn action(&self, id: ActionId, input: Value) -> Result<ActionResult, Error> {
         let container = self.seed.persistent_container.borrow().clone();
         container
             .execute::<ActionResult>(
                 ProcedureName::Action(id),
-                input.map(|c| to_value(&c)).transpose()?.unwrap_or_default(),
+                input,
                 Some(Duration::from_secs(30)),
             )
             .await?

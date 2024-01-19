@@ -79,24 +79,24 @@ struct ExecuteAction {
     action_id: ActionId,
     input: Value,
 }
-async fn execute_action(_: RpcContext, _: ExecuteAction) -> Result<Value, Error> {
-    // let package_id = params
-    //     .service_id
-    //     .clone()
-    //     .unwrap_or_else(|| params.from_service.clone());
-    // let action_id = params.action_id.clone();
-    // let input = from_value(params.input).ok();
-    // let action_result = action(
-    //     context,
-    //     ActionParams {
-    //         package_id,
-    //         action_id,
-    //         input: crate::util::serde::StdinDeserializable(input),
-    //     },
-    // )
-    // .await?;
-    todo!("@BluJ")
-    // imbl_value::to_value(&action_result).with_kind(ErrorKind::Serialization)
+async fn execute_action(
+    ctx: RpcContext,
+    ExecuteAction {
+        from_service,
+        action_id,
+        input,
+        service_id,
+    }: ExecuteAction,
+) -> Result<Value, Error> {
+    let package_id = service_id.clone().unwrap_or_else(|| from_service.clone());
+    let service = ctx.services.get(&package_id).await.ok_or_else(|| {
+        Error::new(
+            eyre!("Could not find package {package_id}"),
+            ErrorKind::Unknown,
+        )
+    })?;
+
+    Ok(json!(service.action(action_id, input).await?))
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
