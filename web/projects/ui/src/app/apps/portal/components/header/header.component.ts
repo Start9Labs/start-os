@@ -1,119 +1,93 @@
-import { CommonModule } from '@angular/common'
-import { Router } from '@angular/router'
-import { TuiSidebarModule } from '@taiga-ui/addon-mobile'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  ElementRef,
-  HostListener,
-  inject,
-  ViewChild,
-} from '@angular/core'
-import { tuiContainsOrAfter, tuiIsElement, TuiLetModule } from '@taiga-ui/cdk'
-import {
-  TuiDataListModule,
-  TuiHostedDropdownModule,
-  TuiSvgModule,
-} from '@taiga-ui/core'
-import {
-  TuiBadgedContentModule,
-  TuiBadgeNotificationModule,
-  TuiButtonModule,
-} from '@taiga-ui/experimental'
-import { Subject } from 'rxjs'
-import { SidebarDirective } from '../../../../app/sidebar-host.component'
-import { HeaderMenuComponent } from './header-menu.component'
-import { HeaderNotificationsComponent } from './header-notifications.component'
-import { NotificationService } from '../../services/notification.service'
-import { HeaderConnectionComponent } from './header-connection.component'
+import { AsyncPipe } from '@angular/common'
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { RouterLink, RouterLinkActive } from '@angular/router'
+import { HeaderConnectionComponent } from './connection.component'
+import { HeaderHomeComponent } from './home.component'
+import { HeaderCornerComponent } from './corner.component'
+import { HeaderBreadcrumbComponent } from './breadcrumb.component'
+import { BreadcrumbsService } from '../../services/breadcrumbs.service'
 
 @Component({
   selector: 'header[appHeader]',
   template: `
-    <ng-content></ng-content>
-    <header-connection [style.margin-left]="'auto'" />
-    <tui-badged-content
-      *tuiLet="notificationService.unreadCount$ | async as unread"
-      [style.--tui-radius.%]="50"
-    >
-      <tui-badge-notification *ngIf="unread" tuiSlot="bottom" size="s">
-        {{ unread }}
-      </tui-badge-notification>
-      <button
-        tuiIconButton
-        iconLeft="tuiIconBellLarge"
-        appearance="icon-warning"
-        (click)="handleNotificationsClick(unread || 0)"
+    <a headerHome routerLink="/portal/desktop" routerLinkActive="active">
+      <div class="plank"></div>
+    </a>
+    @for (item of breadcrumbs$ | async; track $index) {
+      <a
+        routerLinkActive="active"
+        [routerLink]="item.routerLink"
+        [routerLinkActiveOptions]="{ exact: true }"
+        [headerBreadcrumb]="item"
       >
-        Notifications
-      </button>
-    </tui-badged-content>
-    <header-menu></header-menu>
-    <header-notifications
-      (onEmpty)="this.open$.next(false)"
-      *tuiSidebar="!!(open$ | async); direction: 'right'; autoWidth: true"
-    />
+        <div class="plank"></div>
+      </a>
+    }
+    <div [style.flex]="1"><div class="plank"></div></div>
+    <header-connection><div class="plank"></div></header-connection>
+    <header-corner><div class="plank"></div></header-corner>
   `,
   styles: [
     `
+      @import '@taiga-ui/core/styles/taiga-ui-local';
+
       :host {
         display: flex;
-        align-items: center;
-        height: 4.5rem;
-        padding: 0 1rem 0 2rem;
-        font-size: 1.5rem;
-        // TODO: Theme
-        background: rgb(51 51 51 / 84%);
+        height: 3.5rem;
+        padding: 0.375rem;
+        --clip-path: polygon(
+          0% 0%,
+          calc(100% - 1.75rem) 0%,
+          100% 100%,
+          1.75rem 100%
+        );
+
+        > * {
+          @include transition(clip-path);
+          position: relative;
+          margin-left: -1.25rem;
+          backdrop-filter: blur(1rem);
+          clip-path: var(--clip-path);
+        }
+      }
+
+      .plank {
+        @include transition(opacity);
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        filter: url(#round-corners);
+        opacity: 0.5;
+
+        .active & {
+          opacity: 0.25;
+        }
+
+        &::before {
+          @include transition(clip-path);
+          content: '';
+          position: absolute;
+          inset: 0;
+          clip-path: var(--clip-path);
+          // TODO: Theme
+          background: #5f5f5f;
+          box-shadow: inset 0 1px rgb(255 255 255 / 25%);
+        }
       }
     `,
   ],
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
-    TuiBadgedContentModule,
-    TuiBadgeNotificationModule,
-    TuiButtonModule,
-    TuiHostedDropdownModule,
-    TuiDataListModule,
-    TuiSvgModule,
-    TuiSidebarModule,
-    SidebarDirective,
-    HeaderMenuComponent,
-    HeaderNotificationsComponent,
+    RouterLink,
+    RouterLinkActive,
     HeaderConnectionComponent,
-    TuiLetModule,
+    HeaderHomeComponent,
+    HeaderCornerComponent,
+    AsyncPipe,
+    HeaderBreadcrumbComponent,
   ],
 })
 export class HeaderComponent {
-  private readonly router = inject(Router)
-  readonly notificationService = inject(NotificationService)
-
-  @ViewChild(HeaderNotificationsComponent, { read: ElementRef })
-  private readonly panel?: ElementRef<HTMLElement>
-
-  private readonly _ = this.router.events.subscribe(() => {
-    this.open$.next(false)
-  })
-
-  readonly open$ = new Subject<boolean>()
-
-  @HostListener('document:click.capture', ['$event.target'])
-  onClick(target: EventTarget | null) {
-    if (
-      tuiIsElement(target) &&
-      this.panel?.nativeElement &&
-      !tuiContainsOrAfter(this.panel.nativeElement, target)
-    ) {
-      this.open$.next(false)
-    }
-  }
-
-  handleNotificationsClick(unread: number) {
-    if (unread) {
-      this.open$.next(true)
-    } else {
-      this.router.navigateByUrl('/portal/system/notifications')
-    }
-  }
+  readonly breadcrumbs$ = inject(BreadcrumbsService)
 }

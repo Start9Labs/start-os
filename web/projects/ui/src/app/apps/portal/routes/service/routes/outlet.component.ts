@@ -4,12 +4,8 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router'
 import { TuiIconModule } from '@taiga-ui/experimental'
 import { PatchDB } from 'patch-db-client'
 import { distinctUntilChanged, filter, map, switchMap, tap } from 'rxjs'
-import {
-  DataModel,
-  PackageDataEntry,
-} from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { toRouterLink } from '../../../utils/to-router-link'
-import { NavigationService } from '../../../services/navigation.service'
 
 @Component({
   template: `
@@ -18,7 +14,6 @@ import { NavigationService } from '../../../services/navigation.service'
       routerLinkActive="_current"
       [routerLinkActiveOptions]="{ exact: true }"
       [routerLink]="getLink(service.manifest.id)"
-      (isActiveChange)="onActive(service, $event)"
     >
       <tui-icon icon="tuiIconChevronLeft" />
       {{ service.manifest.title }}
@@ -50,7 +45,6 @@ export class ServiceOutletComponent {
   private readonly patch = inject(PatchDB<DataModel>)
   private readonly route = inject(ActivatedRoute)
   private readonly router = inject(Router)
-  private readonly navigation = inject(NavigationService)
 
   readonly service$ = this.router.events.pipe(
     map(() => this.route.firstChild?.snapshot.paramMap?.get('pkgId')),
@@ -61,26 +55,11 @@ export class ServiceOutletComponent {
       // if package disappears, navigate to list page
       if (!pkg) {
         this.router.navigate(['./portal/desktop'])
-      } else {
-        this.onActive(
-          pkg,
-          !this.navigation.hasSubtab(this.getLink(pkg.manifest.id)),
-        )
       }
     }),
   )
 
   getLink(id: string): string {
     return toRouterLink(id)
-  }
-
-  onActive({ icon, manifest }: PackageDataEntry, active: boolean): void {
-    if (!active) return
-
-    this.navigation.addTab({
-      icon,
-      title: manifest.title,
-      routerLink: this.getLink(manifest.id),
-    })
   }
 }

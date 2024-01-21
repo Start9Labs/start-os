@@ -36,7 +36,6 @@ import {
 } from 'src/app/services/dep-error.service'
 import { DependencyInfo } from '../types/dependency-info'
 import { Manifest } from '@start9labs/marketplace'
-import { NavigationService } from '../../../services/navigation.service'
 import { toRouterLink } from '../../../utils/to-router-link'
 import { PackageConfigData } from '../types/package-config-data'
 import { ServiceConfigModal } from '../modals/config.component'
@@ -108,7 +107,6 @@ export class ServiceRoute {
   private readonly patch = inject(PatchDB<DataModel>)
   private readonly pkgId = getPkgId(inject(ActivatedRoute))
   private readonly depErrorService = inject(DepErrorService)
-  private readonly navigation = inject(NavigationService)
   private readonly router = inject(Router)
   private readonly formDialog = inject(FormDialogService)
 
@@ -193,11 +191,6 @@ export class ServiceRoute {
       action:
         fixAction ||
         (() => {
-          this.navigation.addTab({
-            icon: depInfo.icon,
-            title: depInfo.title,
-            routerLink: toRouterLink(depId),
-          })
           this.router.navigate([`portal`, `service`, depId])
         }),
     }

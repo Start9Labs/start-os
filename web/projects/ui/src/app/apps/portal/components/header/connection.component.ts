@@ -1,24 +1,34 @@
+import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { TuiIconModule } from '@taiga-ui/experimental'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map, Observable, startWith } from 'rxjs'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { AsyncPipe } from '@angular/common'
 
 @Component({
   standalone: true,
   selector: 'header-connection',
   template: `
+    <ng-content />
     @if (connection$ | async; as connection) {
       <tui-icon
-        [title]="connection.message"
         [icon]="connection.icon"
         [style.color]="connection.color"
-        [style.margin.rem]="0.5"
       ></tui-icon>
+      {{ connection.message }}
     }
   `,
+  styles: [
+    `
+      :host {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0 2rem;
+      }
+    `,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiIconModule, AsyncPipe],
 })

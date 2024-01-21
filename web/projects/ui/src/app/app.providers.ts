@@ -27,7 +27,6 @@ import { ThemeSwitcherService } from './services/theme-switcher.service'
 import { DateTransformerService } from './services/date-transformer.service'
 import { DatetimeTransformerService } from './services/datetime-transformer.service'
 import { MarketplaceService } from './services/marketplace.service'
-import { RoutingStrategyService } from './apps/portal/services/routing-strategy.service'
 import { CategoryService } from './services/category.service'
 
 const {
@@ -79,10 +78,6 @@ export const APP_PROVIDERS: Provider[] = [
   {
     provide: AbstractMarketplaceService,
     useClass: MarketplaceService,
-  },
-  {
-    provide: RouteReuseStrategy,
-    useExisting: RoutingStrategyService,
   },
   {
     provide: AbstractCategoryService,

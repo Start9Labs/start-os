@@ -3,7 +3,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   HostListener,
-  inject,
   Input,
 } from '@angular/core'
 import {
@@ -15,9 +14,7 @@ import {
 import { RouterLink } from '@angular/router'
 import { TickerModule } from '@start9labs/shared'
 import { TuiDataListModule, TuiHostedDropdownModule } from '@taiga-ui/core'
-import { NavigationService } from '../services/navigation.service'
 import { Action, ActionsComponent } from './actions.component'
-import { toRouterLink } from '../utils/to-router-link'
 
 @Component({
   selector: '[appCard]',
@@ -123,8 +120,6 @@ import { toRouterLink } from '../utils/to-router-link'
   ],
 })
 export class CardComponent {
-  private readonly navigation = inject(NavigationService)
-
   @Input({ required: true })
   id!: string
 
@@ -142,14 +137,6 @@ export class CardComponent {
 
   get isService(): boolean {
     return !this.id.includes('/')
-  }
-
-  @HostListener('click')
-  onClick() {
-    const { id, icon, title } = this
-    const routerLink = toRouterLink(id)
-
-    this.navigation.addTab({ icon, title, routerLink })
   }
 
   // Prevents Firefox from starting a native drag

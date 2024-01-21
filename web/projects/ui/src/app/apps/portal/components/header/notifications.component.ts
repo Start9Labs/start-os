@@ -18,7 +18,7 @@ import {
 import { PatchDB } from 'patch-db-client'
 import { Subject, first, tap } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { HeaderNotificationComponent } from './header-notification.component'
+import { HeaderNotificationComponent } from './notification.component'
 import { toRouterLink } from '../../utils/to-router-link'
 import {
   ServerNotification,

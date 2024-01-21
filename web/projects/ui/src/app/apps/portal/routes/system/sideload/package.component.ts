@@ -23,8 +23,6 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
 
-import { NavigationService } from '../../../services/navigation.service'
-
 @Component({
   selector: 'sideload-package',
   template: `
@@ -83,7 +81,6 @@ export class SideloadPackageComponent {
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
   private readonly router = inject(Router)
-  private readonly navigation = inject(NavigationService)
   private readonly alerts = inject(TuiAlertService)
   private readonly emver = inject(Emver)
 
@@ -133,7 +130,6 @@ export class SideloadPackageComponent {
       await this.api.uploadPackage(pkg, this.file)
       await this.router.navigate(['/portal/service', manifest.id])
 
-      this.navigation.removeTab('/portal/system/sideload')
       this.alerts
         .open('Package uploaded successfully', { status: 'success' })
         .subscribe()
