@@ -1,30 +1,15 @@
-use std::collections::{BTreeMap, BTreeSet};
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
-use color_eyre::eyre::eyre;
-use helpers::AtomicFile;
-use models::{ImageId, OptionExt, PackageId, ProcedureName};
+use models::PackageId;
 use reqwest::Url;
-use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
-use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
-use tracing::instrument;
 
-use self::target::PackageBackupInfo;
-use crate::context::{CliContext, RpcContext};
-use crate::install::PKG_ARCHIVE_DIR;
+use crate::context::CliContext;
 use crate::net::interface::InterfaceId;
-use crate::net::keys::Key;
 use crate::prelude::*;
-use crate::service::persistent_container::PersistentContainer;
-use crate::util::serde::{Base32, Base64, IoFormat, NoOutput};
-use crate::util::Version;
-use crate::version::{Current, VersionT};
-use crate::volume::{backup_dir, Volume, VolumeId, Volumes, BACKUP_DIR};
-use crate::{Error, ErrorKind, ResultExt};
+use crate::util::serde::{Base32, Base64};
 
 pub mod backup_bulk;
 pub mod os;
@@ -68,39 +53,4 @@ struct BackupMetadata {
     #[serde(default)]
     pub tor_keys: BTreeMap<InterfaceId, Base32<[u8; 64]>>, // DEPRECATED
     pub marketplace_url: Option<Url>,
-}
-
-#[instrument(skip_all)]
-pub async fn restore(
-    ctx: &RpcContext,
-    pkg_id: &PackageId,
-    pkg_version: &Version,
-    volumes: &Volumes,
-) -> Result<Option<Url>, Error> {
-    // let mut volumes = volumes.clone();
-    // volumes.insert(VolumeId::Backup, Volume::Backup { readonly: true });
-    // self.restore
-    //     .execute::<(), NoOutput>(
-    //         ctx,
-    //         pkg_id,
-    //         pkg_version,
-    //         ProcedureName::RestoreBackup,
-    //         &volumes,
-    //         None,
-    //         None,
-    //     )
-    //     .await?
-    //     .map_err(|e| eyre!("{}", e.1))
-    //     .with_kind(crate::ErrorKind::Restore)?;
-    // let metadata_path = Path::new(BACKUP_DIR).join(pkg_id).join("metadata.cbor");
-    // let metadata: BackupMetadata =
-    //     IoFormat::Cbor.from_slice(&tokio::fs::read(&metadata_path).await.with_ctx(|_| {
-    //         (
-    //             crate::ErrorKind::Filesystem,
-    //             metadata_path.display().to_string(),
-    //         )
-    //     })?)?;
-
-    // Ok(metadata.marketplace_url)
-    todo!()
 }

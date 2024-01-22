@@ -11,7 +11,7 @@ use super::{BackupTarget, BackupTargetId};
 use crate::context::{CliContext, RpcContext};
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::filesystem::ReadOnly;
-use crate::disk::mount::guard::TmpMountGuard;
+use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::disk::util::{recovery_info, EmbassyOsRecoveryInfo};
 use crate::prelude::*;
 use crate::util::serde::KeyVal;
@@ -74,7 +74,7 @@ pub async fn add(
         password,
     };
     let guard = TmpMountGuard::mount(&cifs, ReadOnly).await?;
-    let embassy_os = recovery_info(&guard).await?;
+    let embassy_os = recovery_info(guard.path()).await?;
     guard.unmount().await?;
     let path_string = Path::new("/").join(&cifs.path).display().to_string();
     let id: i32 = sqlx::query!(
@@ -134,7 +134,7 @@ pub async fn update(
         password,
     };
     let guard = TmpMountGuard::mount(&cifs, ReadOnly).await?;
-    let embassy_os = recovery_info(&guard).await?;
+    let embassy_os = recovery_info(guard.path()).await?;
     guard.unmount().await?;
     let path_string = Path::new("/").join(&cifs.path).display().to_string();
     if sqlx::query!(
@@ -235,7 +235,7 @@ where
             };
             let embassy_os = async {
                 let guard = TmpMountGuard::mount(&mount_info, ReadOnly).await?;
-                let embassy_os = recovery_info(&guard).await?;
+                let embassy_os = recovery_info(guard.path()).await?;
                 guard.unmount().await?;
                 Ok::<_, Error>(embassy_os)
             }

@@ -11,7 +11,7 @@ use tokio::process::Command;
 use tracing::instrument;
 
 use super::{FileSystem, MountType, ReadOnly};
-use crate::disk::mount::guard::TmpMountGuard;
+use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::util::Invoke;
 use crate::Error;
 

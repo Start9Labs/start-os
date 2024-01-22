@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
@@ -17,7 +18,7 @@ use crate::util::crypto::{decrypt_slice, encrypt_slice};
 use crate::util::serde::IoFormat;
 use crate::{Error, ErrorKind, ResultExt};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BackupMountGuard<G: GenericMountGuard> {
     backup_disk_mount_guard: Option<G>,
     encrypted_guard: Option<TmpMountGuard>,
@@ -28,7 +29,7 @@ pub struct BackupMountGuard<G: GenericMountGuard> {
 impl<G: GenericMountGuard> BackupMountGuard<G> {
     fn backup_disk_path(&self) -> &Path {
         if let Some(guard) = &self.backup_disk_mount_guard {
-            guard.as_ref()
+            guard.path()
         } else {
             unreachable!()
         }
@@ -36,7 +37,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
 
     #[instrument(skip_all)]
     pub async fn mount(backup_disk_mount_guard: G, password: &str) -> Result<Self, Error> {
-        let backup_disk_path = backup_disk_mount_guard.as_ref();
+        let backup_disk_path = backup_disk_mount_guard.path();
         let unencrypted_metadata_path =
             backup_disk_path.join("EmbassyBackups/unencrypted-metadata.cbor");
         let mut unencrypted_metadata: EmbassyOsRecoveryInfo =
@@ -107,7 +108,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
         let encrypted_guard =
             TmpMountGuard::mount(&EcryptFS::new(&crypt_path, &enc_key), ReadWrite).await?;
 
-        let metadata_path = encrypted_guard.as_ref().join("metadata.cbor");
+        let metadata_path = encrypted_guard.path().join("metadata.cbor");
         let metadata: BackupInfo = if tokio::fs::metadata(&metadata_path).await.is_ok() {
             IoFormat::Cbor.from_slice(&tokio::fs::read(&metadata_path).await.with_ctx(|_| {
                 (
@@ -145,18 +146,13 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
     }
 
     #[instrument(skip_all)]
-    pub async fn package_backup(&self, id: &PackageId) -> Result<SubPath<TmpMountGuard>, Error> {
-        Ok(SubPath::new(
-            self.encrypted_guard
-                .clone()
-                .ok_or_else(|| Error::new(eyre!("Disk is not unlocked"), ErrorKind::Filesystem))?,
-            id,
-        ))
+    pub fn package_backup(self: Arc<Self>, id: &PackageId) -> SubPath<Arc<Self>> {
+        SubPath::new(self.clone(), id)
     }
 
     #[instrument(skip_all)]
     pub async fn save(&self) -> Result<(), Error> {
-        let metadata_path = self.as_ref().join("metadata.cbor");
+        let metadata_path = self.path().join("metadata.cbor");
         let backup_disk_path = self.backup_disk_path();
         let mut file = AtomicFile::new(&metadata_path, None::<PathBuf>)
             .await
@@ -176,7 +172,22 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
     }
 
     #[instrument(skip_all)]
-    pub async fn unmount(mut self) -> Result<(), Error> {
+    pub async fn save_and_unmount(self) -> Result<(), Error> {
+        self.save().await?;
+        self.unmount().await?;
+        Ok(())
+    }
+}
+#[async_trait::async_trait]
+impl<G: GenericMountGuard> GenericMountGuard for BackupMountGuard<G> {
+    fn path(&self) -> &Path {
+        if let Some(guard) = &self.encrypted_guard {
+            guard.path()
+        } else {
+            unreachable!()
+        }
+    }
+    async fn unmount(mut self) -> Result<(), Error> {
         if let Some(guard) = self.encrypted_guard.take() {
             guard.unmount().await?;
         }
@@ -184,22 +195,6 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
             guard.unmount().await?;
         }
         Ok(())
-    }
-
-    #[instrument(skip_all)]
-    pub async fn save_and_unmount(self) -> Result<(), Error> {
-        self.save().await?;
-        self.unmount().await?;
-        Ok(())
-    }
-}
-impl<G: GenericMountGuard> AsRef<Path> for BackupMountGuard<G> {
-    fn as_ref(&self) -> &Path {
-        if let Some(guard) = &self.encrypted_guard {
-            guard.as_ref()
-        } else {
-            unreachable!()
-        }
     }
 }
 impl<G: GenericMountGuard> Drop for BackupMountGuard<G> {

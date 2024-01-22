@@ -12,7 +12,7 @@ use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::efivarfs::EfiVarFs;
 use crate::disk::mount::filesystem::{MountType, ReadWrite};
-use crate::disk::mount::guard::{MountGuard, TmpMountGuard};
+use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::disk::util::{DiskInfo, PartitionTable};
 use crate::disk::OsPartitionInfo;
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
@@ -180,21 +180,21 @@ pub async fn execute(
         {
             if let Err(e) = async {
                 // cp -r ${guard}/config /tmp/config
-                if tokio::fs::metadata(guard.as_ref().join("config/upgrade"))
+                if tokio::fs::metadata(guard.path().join("config/upgrade"))
                     .await
                     .is_ok()
                 {
-                    tokio::fs::remove_file(guard.as_ref().join("config/upgrade")).await?;
+                    tokio::fs::remove_file(guard.path().join("config/upgrade")).await?;
                 }
-                if tokio::fs::metadata(guard.as_ref().join("config/disk.guid"))
+                if tokio::fs::metadata(guard.path().join("config/disk.guid"))
                     .await
                     .is_ok()
                 {
-                    tokio::fs::remove_file(guard.as_ref().join("config/disk.guid")).await?;
+                    tokio::fs::remove_file(guard.path().join("config/disk.guid")).await?;
                 }
                 Command::new("cp")
                     .arg("-r")
-                    .arg(guard.as_ref().join("config"))
+                    .arg(guard.path().join("config"))
                     .arg("/tmp/config.bak")
                     .invoke(crate::ErrorKind::Filesystem)
                     .await?;
@@ -228,14 +228,14 @@ pub async fn execute(
         Command::new("cp")
             .arg("-r")
             .arg("/tmp/config.bak")
-            .arg(rootfs.as_ref().join("config"))
+            .arg(rootfs.path().join("config"))
             .invoke(crate::ErrorKind::Filesystem)
             .await?;
     } else {
-        tokio::fs::create_dir(rootfs.as_ref().join("config")).await?;
+        tokio::fs::create_dir(rootfs.path().join("config")).await?;
     }
-    tokio::fs::create_dir(rootfs.as_ref().join("next")).await?;
-    let current = rootfs.as_ref().join("current");
+    tokio::fs::create_dir(rootfs.path().join("next")).await?;
+    let current = rootfs.path().join("current");
     tokio::fs::create_dir(&current).await?;
 
     tokio::fs::create_dir(current.join("boot")).await?;
@@ -262,7 +262,7 @@ pub async fn execute(
         .await?;
 
     tokio::fs::write(
-        rootfs.as_ref().join("config/config.yaml"),
+        rootfs.path().join("config/config.yaml"),
         IoFormat::Yaml.to_vec(&PostInstallConfig {
             os_partitions: part_info.clone(),
             ethernet_interface: eth_iface,
@@ -300,7 +300,7 @@ pub async fn execute(
         .await?;
 
     let embassy_fs = MountGuard::mount(
-        &Bind::new(rootfs.as_ref()),
+        &Bind::new(rootfs.path()),
         current.join("media/embassy/embassyfs"),
         MountType::ReadOnly,
     )

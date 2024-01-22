@@ -38,7 +38,7 @@ mod control;
 pub mod persistent_container;
 mod rpc;
 mod service_effect_handler;
-mod service_map;
+pub mod service_map;
 mod start_stop;
 mod transition;
 mod util;
@@ -260,8 +260,6 @@ struct ServiceActorSeed {
     running_status: watch::Receiver<Option<RunningStatus>>,
     synchronized: Arc<Notify>,
 }
-
-
 
 struct ServiceActor(Arc<ServiceActorSeed>);
 impl Actor for ServiceActor {

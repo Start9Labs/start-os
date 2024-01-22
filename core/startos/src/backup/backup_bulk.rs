@@ -24,7 +24,7 @@ use crate::db::model::BackupProgress;
 use crate::db::package::get_packages;
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::ReadWrite;
-use crate::disk::mount::guard::TmpMountGuard;
+use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::notifications::NotificationLevel;
 use crate::prelude::*;
 use crate::util::io::dir_copy;
@@ -265,7 +265,7 @@ async fn perform_backup(
     let ui = ctx.db.peek().await.into_ui().de()?;
 
     let mut os_backup_file = AtomicFile::new(
-        backup_guard.lock().await.as_ref().join("os-backup.cbor"),
+        backup_guard.lock().await.path().join("os-backup.cbor"),
         None::<PathBuf>,
     )
     .await
@@ -281,11 +281,11 @@ async fn perform_backup(
         .await
         .with_kind(ErrorKind::Filesystem)?;
 
-    let luks_folder_old = backup_guard.lock().await.as_ref().join("luks.old");
+    let luks_folder_old = backup_guard.lock().await.path().join("luks.old");
     if tokio::fs::metadata(&luks_folder_old).await.is_ok() {
         tokio::fs::remove_dir_all(&luks_folder_old).await?;
     }
-    let luks_folder_bak = backup_guard.lock().await.as_ref().join("luks");
+    let luks_folder_bak = backup_guard.lock().await.path().join("luks");
     if tokio::fs::metadata(&luks_folder_bak).await.is_ok() {
         tokio::fs::rename(&luks_folder_bak, &luks_folder_old).await?;
     }

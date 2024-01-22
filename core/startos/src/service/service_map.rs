@@ -87,7 +87,19 @@ impl ServiceMap {
         let install_progress = Arc::new(InstallProgress::new(s9pk.size()));
         let restoring = recovery_source.is_some();
 
-        let mut reload_guard = ServiceReloadGuard::new(ctx.clone(), id.clone(), "Install");
+        let mut reload_guard = ServiceReloadGuard::new(
+            ctx.clone(),
+            id.clone(),
+            if recovery_source.is_none() {
+                if service.is_none() {
+                    "Install"
+                } else {
+                    "Update"
+                }
+            } else {
+                "Restore"
+            },
+        );
 
         reload_guard
             .handle(ctx.db.mutate({

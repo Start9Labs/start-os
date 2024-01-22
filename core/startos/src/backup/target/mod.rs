@@ -22,7 +22,7 @@ use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::filesystem::{FileSystem, MountType, ReadWrite};
-use crate::disk::mount::guard::TmpMountGuard;
+use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::disk::util::PartitionInfo;
 use crate::prelude::*;
 use crate::util::clap::FromStrParser;
@@ -306,7 +306,7 @@ pub async fn mount(
     let mut mounts = USER_MOUNTS.lock().await;
 
     if let Some(existing) = mounts.get(&target_id) {
-        return Ok(existing.as_ref().display().to_string());
+        return Ok(existing.path().display().to_string());
     }
 
     let guard = BackupMountGuard::mount(
@@ -322,7 +322,7 @@ pub async fn mount(
     )
     .await?;
 
-    let res = guard.as_ref().display().to_string();
+    let res = guard.path().display().to_string();
 
     mounts.insert(target_id, guard);
 

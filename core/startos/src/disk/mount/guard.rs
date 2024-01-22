@@ -15,14 +15,34 @@ use crate::Error;
 pub const TMP_MOUNTPOINT: &'static str = "/media/embassy/tmp";
 
 #[async_trait::async_trait]
-pub trait GenericMountGuard: AsRef<Path> + std::fmt::Debug + Send + Sync + 'static {
+pub trait GenericMountGuard: std::fmt::Debug + Send + Sync + 'static {
+    fn path(&self) -> &Path;
     async fn unmount(mut self) -> Result<(), Error>;
 }
 
 #[async_trait::async_trait]
 impl GenericMountGuard for Never {
+    fn path(&self) -> &Path {
+        match self {}
+    }
     async fn unmount(mut self) -> Result<(), Error> {
         match self {}
+    }
+}
+
+#[async_trait::async_trait]
+impl<T> GenericMountGuard for Arc<T>
+where
+    T: GenericMountGuard,
+{
+    fn path(&self) -> &Path {
+        (&*self).path()
+    }
+    async fn unmount(mut self) -> Result<(), Error> {
+        if let Ok(guard) = Arc::try_unwrap(self) {
+            guard.unmount().await?;
+        }
+        Ok(())
     }
 }
 
@@ -64,11 +84,6 @@ impl MountGuard {
         Ok(())
     }
 }
-impl AsRef<Path> for MountGuard {
-    fn as_ref(&self) -> &Path {
-        &self.mountpoint
-    }
-}
 impl Drop for MountGuard {
     fn drop(&mut self) {
         if self.mounted {
@@ -79,6 +94,9 @@ impl Drop for MountGuard {
 }
 #[async_trait::async_trait]
 impl GenericMountGuard for MountGuard {
+    fn path(&self) -> &Path {
+        &self.mountpoint
+    }
     async fn unmount(mut self) -> Result<(), Error> {
         MountGuard::unmount(self, false).await
     }
@@ -129,22 +147,14 @@ impl TmpMountGuard {
             Ok(TmpMountGuard { guard })
         }
     }
-    pub async fn unmount(self) -> Result<(), Error> {
-        if let Ok(guard) = Arc::try_unwrap(self.guard) {
-            guard.unmount(true).await?;
-        }
-        Ok(())
-    }
-}
-impl AsRef<Path> for TmpMountGuard {
-    fn as_ref(&self) -> &Path {
-        (&*self.guard).as_ref()
-    }
 }
 #[async_trait::async_trait]
 impl GenericMountGuard for TmpMountGuard {
+    fn path(&self) -> &Path {
+        self.guard.path()
+    }
     async fn unmount(mut self) -> Result<(), Error> {
-        TmpMountGuard::unmount(self).await
+        self.guard.unmount().await
     }
 }
 
@@ -156,17 +166,15 @@ pub struct SubPath<G: GenericMountGuard> {
 impl<G: GenericMountGuard> SubPath<G> {
     pub fn new(guard: G, path: impl AsRef<Path>) -> Self {
         let path = path.as_ref();
-        let path = guard.as_ref().join(path.strip_prefix("/").unwrap_or(path));
+        let path = guard.path().join(path.strip_prefix("/").unwrap_or(path));
         Self { guard, path }
-    }
-}
-impl<G: GenericMountGuard> AsRef<Path> for SubPath<G> {
-    fn as_ref(&self) -> &Path {
-        self.path.as_path()
     }
 }
 #[async_trait::async_trait]
 impl<G: GenericMountGuard> GenericMountGuard for SubPath<G> {
+    fn path(&self) -> &Path {
+        self.path.as_path()
+    }
     async fn unmount(mut self) -> Result<(), Error> {
         self.guard.unmount().await
     }

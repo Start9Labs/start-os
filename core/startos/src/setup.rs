@@ -24,7 +24,7 @@ use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::filesystem::ReadWrite;
-use crate::disk::mount::guard::TmpMountGuard;
+use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::disk::util::{pvscan, recovery_info, DiskInfo, EmbassyOsRecoveryInfo};
 use crate::disk::REPAIR_DISK_PATH;
 use crate::hostname::Hostname;
@@ -241,7 +241,7 @@ pub async fn verify_cifs(
         ReadWrite,
     )
     .await?;
-    let embassy_os = recovery_info(&guard).await?;
+    let embassy_os = recovery_info(guard.path()).await?;
     guard.unmount().await?;
     embassy_os.ok_or_else(|| Error::new(eyre!("No Backup Found"), crate::ErrorKind::NotFound))
 }

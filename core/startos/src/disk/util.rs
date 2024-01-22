@@ -17,6 +17,7 @@ use tracing::instrument;
 use super::mount::filesystem::block_dev::BlockDev;
 use super::mount::filesystem::ReadOnly;
 use super::mount::guard::TmpMountGuard;
+use crate::disk::mount::guard::GenericMountGuard;
 use crate::disk::OsPartitionInfo;
 use crate::util::serde::IoFormat;
 use crate::util::{Invoke, Version};
@@ -403,13 +404,13 @@ async fn part_info(part: PathBuf) -> PartitionInfo {
     match TmpMountGuard::mount(&BlockDev::new(&part), ReadOnly).await {
         Err(e) => tracing::warn!("Could not collect usage information: {}", e.source),
         Ok(mount_guard) => {
-            used = get_used(&mount_guard)
+            used = get_used(mount_guard.path())
                 .await
                 .map_err(|e| {
                     tracing::warn!("Could not get usage of {}: {}", part.display(), e.source)
                 })
                 .ok();
-            if let Some(recovery_info) = match recovery_info(&mount_guard).await {
+            if let Some(recovery_info) = match recovery_info(mount_guard.path()).await {
                 Ok(a) => a,
                 Err(e) => {
                     tracing::error!("Error fetching unencrypted backup metadata: {}", e);
