@@ -76,6 +76,9 @@ pub async fn action(
         .get(&package_id)
         .await
         .or_not_found(lazy_format!("Manager for {}", package_id))?
-        .action(action_id, input)
+        .action(
+            action_id,
+            input.map(|c| to_value(&c)).transpose()?.unwrap_or_default(),
+        )
         .await
 }

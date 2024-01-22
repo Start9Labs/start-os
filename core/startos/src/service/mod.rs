@@ -37,7 +37,7 @@ mod config;
 mod control;
 pub mod persistent_container;
 mod rpc;
-mod service_effects_service;
+mod service_effect_handler;
 mod service_map;
 mod start_stop;
 mod transition;
@@ -217,16 +217,12 @@ impl Service {
             .map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::ConfigGen))
     }
 
-    pub async fn action(
-        &self,
-        id: ActionId,
-        input: Option<InOMap<InternedString, Value>>,
-    ) -> Result<ActionResult, Error> {
+    pub async fn action(&self, id: ActionId, input: Value) -> Result<ActionResult, Error> {
         let container = self.seed.persistent_container.borrow().clone();
         container
             .execute::<ActionResult>(
                 ProcedureName::Action(id),
-                input.map(|c| to_value(&c)).transpose()?.unwrap_or_default(),
+                input,
                 Some(Duration::from_secs(30)),
             )
             .await?
@@ -264,6 +260,8 @@ struct ServiceActorSeed {
     running_status: watch::Receiver<Option<RunningStatus>>,
     synchronized: Arc<Notify>,
 }
+
+
 
 struct ServiceActor(Arc<ServiceActorSeed>);
 impl Actor for ServiceActor {
