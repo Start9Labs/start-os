@@ -107,6 +107,7 @@ pub async fn configure_impl(
     ctx.services
         .get(&dependency_id)
         .await
+        .as_ref()
         .ok_or_else(|| {
             Error::new(
                 eyre!("There is no manager running for {dependency_id}"),

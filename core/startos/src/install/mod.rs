@@ -4,7 +4,6 @@ use clap::builder::ValueParserFactory;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
-use futures::StreamExt;
 use reqwest::Url;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::CallRemote;
@@ -18,7 +17,6 @@ use crate::db::model::{
     PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryMatchModelRef,
     PackageDataEntryRemoving,
 };
-use crate::notifications::NotificationLevel;
 use crate::prelude::*;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::merkle_archive::source::http::HttpSource;
@@ -278,29 +276,7 @@ pub async fn uninstall(
 
     let return_id = id.clone();
 
-    tokio::spawn(async move {
-        if let Err(e) = ctx.services.uninstall(&id).await {
-            let err_str = format!("Uninstall of {} Failed: {}", id, e);
-            tracing::error!("{}", err_str);
-            tracing::debug!("{:?}", e);
-            if let Err(e) = ctx
-                .notification_manager
-                .notify(
-                    ctx.db.clone(), // allocating separate handle here because the lifetime of the previous one is the expression
-                    Some(id),
-                    NotificationLevel::Error,
-                    String::from("Uninstall Failed"),
-                    err_str,
-                    (),
-                    None,
-                )
-                .await
-            {
-                tracing::error!("Failed to issue Notification: {}", e);
-                tracing::debug!("{:?}", e);
-            }
-        }
-    });
+    tokio::spawn(async move { ctx.services.uninstall(&ctx, &id).await });
 
     Ok(return_id)
 }

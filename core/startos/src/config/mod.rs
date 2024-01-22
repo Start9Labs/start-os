@@ -155,6 +155,7 @@ pub async fn get(ctx: RpcContext, _: Empty, id: PackageId) -> Result<ConfigRes, 
     ctx.services
         .get(&id)
         .await
+        .as_ref()
         .or_not_found(lazy_format!("Manager for {id}"))?
         .get_config()
         .await
@@ -218,6 +219,7 @@ pub async fn set_dry(
     ctx.services
         .get(&id)
         .await
+        .as_ref()
         .ok_or_else(|| {
             Error::new(
                 eyre!("There is no manager running for {id}"),
@@ -262,6 +264,7 @@ pub async fn set_impl(
     ctx.services
         .get(&id)
         .await
+        .as_ref()
         .ok_or_else(|| {
             Error::new(
                 eyre!("There is no manager running for {id}"),

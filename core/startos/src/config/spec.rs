@@ -1790,6 +1790,7 @@ impl ConfigPointer {
                     .services
                     .get(&id)
                     .await
+                    .as_ref()
                     .or_not_found(lazy_format!("Manager for {id}@{version}"))
                     .map_err(|e| ConfigurationError::SystemError(e))?
                     .get_config()

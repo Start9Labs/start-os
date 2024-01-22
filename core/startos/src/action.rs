@@ -75,6 +75,7 @@ pub async fn action(
     ctx.services
         .get(&package_id)
         .await
+        .as_ref()
         .or_not_found(lazy_format!("Manager for {}", package_id))?
         .action(
             action_id,

@@ -186,7 +186,7 @@ impl RpcContext {
 
     #[instrument(skip_all)]
     pub async fn shutdown(self) -> Result<(), Error> {
-        self.services.empty().await?;
+        self.services.shutdown_all().await?;
         self.secret_store.close().await;
         self.is_closed.store(true, Ordering::SeqCst);
         tracing::info!("RPC Context is shutdown");

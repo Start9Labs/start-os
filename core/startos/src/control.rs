@@ -21,6 +21,7 @@ pub async fn start(ctx: RpcContext, ControlParams { id }: ControlParams) -> Resu
     ctx.services
         .get(&id)
         .await
+        .as_ref()
         .or_not_found(lazy_format!("Manager for {id}"))?
         .start()
         .await;
@@ -33,6 +34,7 @@ pub async fn stop(ctx: RpcContext, ControlParams { id }: ControlParams) -> Resul
     ctx.services
         .get(&id)
         .await
+        .as_ref()
         .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
         .stop()
         .await;
@@ -44,6 +46,7 @@ pub async fn restart(ctx: RpcContext, ControlParams { id }: ControlParams) -> Re
     ctx.services
         .get(&id)
         .await
+        .as_ref()
         .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
         .restart()
         .await;

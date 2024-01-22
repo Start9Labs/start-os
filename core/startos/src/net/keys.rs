@@ -365,6 +365,7 @@ pub async fn rotate_key(
             ctx.services
                 .get(&package)
                 .await
+                .as_ref()
                 .ok_or_else(|| {
                     Error::new(
                         eyre!("There is no manager running for {package}"),

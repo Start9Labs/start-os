@@ -133,7 +133,7 @@ pub async fn publish(
             .with_prefix("[1/3]")
             .with_message("Querying s9pk");
         pb.enable_steady_tick(Duration::from_millis(200));
-        let mut s9pk = S9pk::open(&path).await?;
+        let mut s9pk = S9pk::open(&path, None).await?;
         let m = s9pk.as_manifest().clone();
         pb.set_style(plain_line_style.clone());
         pb.abandon();
@@ -144,7 +144,7 @@ pub async fn publish(
             .with_prefix("[1/3]")
             .with_message("Verifying s9pk");
         pb.enable_steady_tick(Duration::from_millis(200));
-        let mut s9pk = S9pk::open(&path).await?;
+        let mut s9pk = S9pk::open(&path, None).await?;
         // s9pk.validate().await?;
         todo!();
         let m = s9pk.as_manifest().clone();
