@@ -1,6 +1,4 @@
-use std::collections::BTreeMap;
-
-use clap::{ArgMatches, Parser};
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use models::{Id, InterfaceId, PackageId};
 use openssl::pkey::{PKey, Private};

@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::context::CliContext;
 use crate::net::interface::InterfaceId;
+#[allow(unused_imports)]
 use crate::prelude::*;
 use crate::util::serde::{Base32, Base64};
 

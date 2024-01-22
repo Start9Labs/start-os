@@ -99,7 +99,8 @@ async fn execute_action(
     }: ExecuteAction,
 ) -> Result<Value, Error> {
     let package_id = service_id.clone().unwrap_or_else(|| package_id.clone());
-    let service = ctx.services.get(&package_id).await.ok_or_else(|| {
+    let service = ctx.services.get(&package_id).await;
+    let service = service.as_ref().ok_or_else(|| {
         Error::new(
             eyre!("Could not find package {package_id}"),
             ErrorKind::Unknown,
@@ -167,13 +168,14 @@ async fn restart(
     EffectContext { ctx, package_id }: EffectContext,
     _: Empty,
 ) -> Result<Value, Error> {
-    let manager = ctx.services.get(&package_id).await.ok_or_else(|| {
+    let service = ctx.services.get(&package_id).await;
+    let service = service.as_ref().ok_or_else(|| {
         Error::new(
             eyre!("Could not find package {package_id}"),
             ErrorKind::Unknown,
         )
     })?;
-    manager.restart().await;
+    service.restart().await;
     Ok(json!(()))
 }
 
@@ -181,13 +183,14 @@ async fn shutdown(
     EffectContext { ctx, package_id }: EffectContext,
     _: Empty,
 ) -> Result<Value, Error> {
-    let manager = ctx.services.get(&package_id).await.ok_or_else(|| {
+    let service = ctx.services.get(&package_id).await;
+    let service = service.as_ref().ok_or_else(|| {
         Error::new(
             eyre!("Could not find package {package_id}"),
             ErrorKind::Unknown,
         )
     })?;
-    manager.stop().await;
+    service.stop().await;
     Ok(json!(()))
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

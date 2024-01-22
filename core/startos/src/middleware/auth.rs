@@ -226,7 +226,7 @@ impl Borrow<str> for HashSessionToken {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
-struct Metadata {
+pub struct Metadata {
     #[serde(default = "const_true")]
     authenticated: bool,
     #[serde(default)]
@@ -257,7 +257,7 @@ impl Middleware<RpcContext> for Auth {
     type Metadata = Metadata;
     async fn process_http_request(
         &mut self,
-        context: &RpcContext,
+        _: &RpcContext,
         request: &mut Request,
     ) -> Result<(), Response> {
         self.cookie = request.headers_mut().get(COOKIE).cloned();
@@ -299,7 +299,7 @@ impl Middleware<RpcContext> for Auth {
         }
         Ok(())
     }
-    async fn process_rpc_response(&mut self, context: &RpcContext, response: &mut RpcResponse) {
+    async fn process_rpc_response(&mut self, _: &RpcContext, response: &mut RpcResponse) {
         if self.is_login {
             let mut guard = self.rate_limiter.lock().await;
             if guard.1.elapsed() < Duration::from_secs(20) {
@@ -329,7 +329,7 @@ impl Middleware<RpcContext> for Auth {
             }
         }
     }
-    async fn process_http_response(&mut self, context: &RpcContext, response: &mut Response) {
+    async fn process_http_response(&mut self, _: &RpcContext, response: &mut Response) {
         if let Some(set_cookie) = self.set_cookie.take() {
             response.headers_mut().insert("set-cookie", set_cookie);
         }

@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use emver::VersionRange;
-use imbl::OrdMap;
 use imbl_value::InternedString;
 use ipnet::{Ipv4Net, Ipv6Net};
 use isocountry::CountryCode;
@@ -461,8 +460,8 @@ pub struct InstalledPackageInfo {
     pub current_dependencies: CurrentDependencies,
     pub interface_addresses: InterfaceAddressMap,
     pub store: Value,
-    pub storeExposedUi: Vec<ExposedUI>,
-    pub storeExposedDepedents: Vec<String>,
+    pub store_exposed_ui: Vec<ExposedUI>,
+    pub store_exposed_dependents: Vec<String>,
 }
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[model = "Model<Self>"]

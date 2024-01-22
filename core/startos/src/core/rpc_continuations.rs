@@ -7,6 +7,7 @@ use futures::future::BoxFuture;
 use helpers::TimedResource;
 use imbl_value::InternedString;
 
+#[allow(unused_imports)]
 use crate::prelude::*;
 use crate::util::new_guid;
 

@@ -1,17 +1,13 @@
 use std::fs::File;
 use std::io::BufReader;
-use std::net::Ipv4Addr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use clap::Parser;
-use color_eyre::eyre::eyre;
 use cookie_store::{CookieStore, RawCookie};
 use josekit::jwk::Jwk;
 use reqwest::Proxy;
 use reqwest_cookie_store::CookieStoreMutex;
 use rpc_toolkit::reqwest::{Client, Url};
-use rpc_toolkit::url::Host;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{call_remote_http, CallRemote, Context};
 use tokio::runtime::Runtime;
@@ -53,9 +49,6 @@ impl Drop for CliContextSeed {
         std::fs::rename(tmp, &self.cookie_path).unwrap();
     }
 }
-
-const DEFAULT_HOST: Host<&'static str> = Host::Ipv4(Ipv4Addr::new(127, 0, 0, 1));
-const DEFAULT_PORT: u16 = 5959;
 
 #[derive(Debug, Clone)]
 pub struct CliContext(Arc<CliContextSeed>);

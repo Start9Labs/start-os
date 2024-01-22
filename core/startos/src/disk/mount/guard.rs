@@ -23,7 +23,7 @@ pub trait GenericMountGuard: std::fmt::Debug + Send + Sync + 'static {
 #[async_trait::async_trait]
 impl GenericMountGuard for Never {
     fn path(&self) -> &Path {
-        match self {}
+        match *self {}
     }
     async fn unmount(mut self) -> Result<(), Error> {
         match self {}
@@ -36,7 +36,7 @@ where
     T: GenericMountGuard,
 {
     fn path(&self) -> &Path {
-        (&*self).path()
+        (&**self).path()
     }
     async fn unmount(mut self) -> Result<(), Error> {
         if let Ok(guard) = Arc::try_unwrap(self) {

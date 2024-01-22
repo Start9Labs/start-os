@@ -8,7 +8,7 @@ use crate::context::RpcContext;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
-struct Metadata {
+pub struct Metadata {
     #[serde(default)]
     sync_db: bool,
 }
@@ -28,9 +28,9 @@ impl Middleware<RpcContext> for SyncDb {
     type Metadata = Metadata;
     async fn process_rpc_request(
         &mut self,
-        context: &RpcContext,
+        _: &RpcContext,
         metadata: Self::Metadata,
-        request: &mut RpcRequest,
+        _: &mut RpcRequest,
     ) -> Result<(), RpcResponse> {
         self.sync_db = metadata.sync_db;
         Ok(())

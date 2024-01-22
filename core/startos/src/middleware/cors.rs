@@ -49,13 +49,13 @@ impl<Context: Send + 'static> Middleware<Context> for Cors {
     type Metadata = Empty;
     async fn process_http_request(
         &mut self,
-        context: &Context,
+        _: &Context,
         request: &mut Request,
     ) -> Result<(), Response> {
         self.get_cors_headers(request);
         Ok(())
     }
-    async fn process_http_response(&mut self, context: &Context, response: &mut Response) {
+    async fn process_http_response(&mut self, _: &Context, response: &mut Response) {
         response
             .headers_mut()
             .extend(std::mem::take(&mut self.headers))

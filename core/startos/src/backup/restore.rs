@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use clap::{ArgMatches, Parser};
+use clap::Parser;
 use futures::{stream, StreamExt};
 use models::PackageId;
 use openssl::x509::X509;
@@ -21,12 +21,6 @@ use crate::prelude::*;
 use crate::s9pk::S9pk;
 use crate::service::service_map::DownloadInstallFuture;
 use crate::util::serde::IoFormat;
-
-fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<Vec<PackageId>, Error> {
-    arg.split(',')
-        .map(|s| s.trim().parse().map_err(Error::from))
-        .collect()
-}
 
 #[derive(Deserialize, Serialize, Parser)]
 #[serde(rename_all = "kebab-case")]

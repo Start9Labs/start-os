@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use clap::{FromArgMatches, Parser};
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use indexmap::IndexSet;
 use itertools::Itertools;

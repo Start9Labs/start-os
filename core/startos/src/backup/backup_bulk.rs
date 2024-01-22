@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use chrono::Utc;
-use clap::{ArgMatches, Parser};
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
 use imbl::OrdSet;
@@ -28,12 +28,6 @@ use crate::prelude::*;
 use crate::util::io::dir_copy;
 use crate::util::serde::IoFormat;
 use crate::version::VersionT;
-
-fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<OrdSet<PackageId>, Error> {
-    arg.split(',')
-        .map(|s| s.trim().parse::<PackageId>().map_err(Error::from))
-        .collect()
-}
 
 #[derive(Deserialize, Serialize, Parser)]
 #[serde(rename_all = "kebab-case")]
