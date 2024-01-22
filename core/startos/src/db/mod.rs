@@ -1,5 +1,4 @@
 pub mod model;
-pub mod package;
 pub mod prelude;
 
 use std::path::PathBuf;
@@ -9,7 +8,7 @@ use axum::extract::ws::{self, WebSocket};
 use axum::extract::WebSocketUpgrade;
 use axum::response::Response;
 use clap::Parser;
-use futures::{FutureExt, SinkExt, StreamExt};
+use futures::{FutureExt, StreamExt};
 use http::header::COOKIE;
 use http::HeaderMap;
 use patch_db::json_ptr::JsonPointer;

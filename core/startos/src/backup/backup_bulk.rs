@@ -8,10 +8,9 @@ use clap::{ArgMatches, Parser};
 use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
 use imbl::OrdSet;
-use models::{PackageId, Version};
+use models::PackageId;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
-use tokio::sync::Mutex;
 use tracing::instrument;
 
 use super::target::BackupTargetId;
@@ -21,7 +20,6 @@ use crate::backup::os::OsBackup;
 use crate::backup::{BackupReport, ServerBackupReport};
 use crate::context::RpcContext;
 use crate::db::model::BackupProgress;
-use crate::db::package::get_packages;
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
@@ -59,7 +57,6 @@ pub async fn backup_all(
         password,
     }: BackupParams,
 ) -> Result<(), Error> {
-    let db = ctx.db.peek().await;
     let old_password_decrypted = old_password
         .as_ref()
         .unwrap_or(&password)
@@ -76,20 +73,9 @@ pub async fn backup_all(
     )
     .await?;
     let package_ids = if let Some(ids) = package_ids {
-        ids.into_iter()
-            .flat_map(|package_id| {
-                let version = db
-                    .as_package_data()
-                    .as_idx(&package_id)?
-                    .as_manifest()
-                    .as_version()
-                    .de()
-                    .ok()?;
-                Some((package_id, version))
-            })
-            .collect()
+        ids.into_iter().collect()
     } else {
-        get_packages(db.clone())?.into_iter().collect()
+        todo!("all installed packages");
     };
     if old_password.is_some() {
         backup_guard.change_password(&password)?;
@@ -175,7 +161,7 @@ pub async fn backup_all(
 #[instrument(skip(db, packages))]
 async fn assure_backing_up(
     db: &PatchDb,
-    packages: impl IntoIterator<Item = &(PackageId, Version)> + UnwindSafe + Send,
+    packages: impl IntoIterator<Item = &PackageId> + UnwindSafe + Send,
 ) -> Result<(), Error> {
     db.mutate(|v| {
         let backing_up = v
@@ -202,7 +188,7 @@ async fn assure_backing_up(
         backing_up.ser(&Some(
             packages
                 .into_iter()
-                .map(|(x, _)| (x.clone(), BackupProgress { complete: false }))
+                .map(|x| (x.clone(), BackupProgress { complete: false }))
                 .collect(),
         ))?;
         Ok(())
@@ -214,62 +200,39 @@ async fn assure_backing_up(
 async fn perform_backup(
     ctx: &RpcContext,
     backup_guard: BackupMountGuard<TmpMountGuard>,
-    package_ids: &OrdSet<(PackageId, Version)>,
+    package_ids: &OrdSet<PackageId>,
 ) -> Result<BTreeMap<PackageId, PackageBackupReport>, Error> {
     let mut backup_report = BTreeMap::new();
-    let backup_guard = Arc::new(Mutex::new(backup_guard));
+    let backup_guard = Arc::new(backup_guard);
 
-    for (package_id, version) in package_ids {
-        // let (response, _report) = match ctx
-        //     .services
-        //     .get(package_id)
-        //     .await
-        //     .ok_or_else(|| Error::new(eyre!("Service not found"), ErrorKind::InvalidRequest))?
-        //     .backup(backup_guard.clone())
-        //     .await
-        // {
-        //     _ => todo!(), // BackupReturn::Ran { report, res } => (res, report),
-        //                   // BackupReturn::AlreadyRunning(report) => {
-        //                   //     backup_report.insert(package_id.clone(), report);
-        //                   //     continue;
-        //                   // }
-        //                   // BackupReturn::Error(error) => {
-        //                   //     tracing::warn!("Backup thread error");
-        //                   //     tracing::debug!("{error:?}");
-        //                   //     backup_report.insert(
-        //                   //         package_id.clone(),
-        //                   //         PackageBackupReport {
-        //                   //             error: Some("Backup thread error".to_owned()),
-        //                   //         },
-        //                   //     );
-        //                   //     continue;
-        //                   // }
-        // };
-        // backup_report.insert(
-        //     package_id.clone(),
-        //     PackageBackupReport {
-        //         error: response.as_ref().err().map(|e| e.to_string()),
-        //     },
-        // );
-        //
-        // if let Ok(pkg_meta) = response {
-        //     backup_guard
-        //         .lock()
-        //         .await
-        //         .metadata
-        //         .package_backups
-        //         .insert(package_id.clone(), pkg_meta);
-        // }
+    for id in package_ids {
+        if let Some(service) = &*ctx.services.get(id).await {
+            backup_report.insert(
+                id.clone(),
+                PackageBackupReport {
+                    error: service
+                        .backup(backup_guard.package_backup(id))
+                        .await
+                        .err()
+                        .map(|e| e.to_string()),
+                },
+            );
+        }
     }
+
+    let mut backup_guard = Arc::try_unwrap(backup_guard).map_err(|_| {
+        Error::new(
+            eyre!("leaked reference to BackupMountGuard"),
+            ErrorKind::Incoherent,
+        )
+    })?;
 
     let ui = ctx.db.peek().await.into_ui().de()?;
 
-    let mut os_backup_file = AtomicFile::new(
-        backup_guard.lock().await.path().join("os-backup.cbor"),
-        None::<PathBuf>,
-    )
-    .await
-    .with_kind(ErrorKind::Filesystem)?;
+    let mut os_backup_file =
+        AtomicFile::new(backup_guard.path().join("os-backup.cbor"), None::<PathBuf>)
+            .await
+            .with_kind(ErrorKind::Filesystem)?;
     os_backup_file
         .write_all(&IoFormat::Cbor.to_vec(&OsBackup {
             account: ctx.account.read().await.clone(),
@@ -281,11 +244,11 @@ async fn perform_backup(
         .await
         .with_kind(ErrorKind::Filesystem)?;
 
-    let luks_folder_old = backup_guard.lock().await.path().join("luks.old");
+    let luks_folder_old = backup_guard.path().join("luks.old");
     if tokio::fs::metadata(&luks_folder_old).await.is_ok() {
         tokio::fs::remove_dir_all(&luks_folder_old).await?;
     }
-    let luks_folder_bak = backup_guard.lock().await.path().join("luks");
+    let luks_folder_bak = backup_guard.path().join("luks");
     if tokio::fs::metadata(&luks_folder_bak).await.is_ok() {
         tokio::fs::rename(&luks_folder_bak, &luks_folder_old).await?;
     }
@@ -295,14 +258,6 @@ async fn perform_backup(
     }
 
     let timestamp = Some(Utc::now());
-    let mut backup_guard = Arc::try_unwrap(backup_guard)
-        .map_err(|_err| {
-            Error::new(
-                eyre!("Backup guard could not ensure that the others where dropped"),
-                ErrorKind::Unknown,
-            )
-        })?
-        .into_inner();
 
     backup_guard.unencrypted_metadata.version = crate::version::Current::new().semver().into();
     backup_guard.unencrypted_metadata.full = true;

@@ -2,11 +2,10 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use clap::{ArgMatches, Parser};
-use futures::{stream, FutureExt, StreamExt};
+use futures::{stream, StreamExt};
 use models::PackageId;
 use openssl::x509::X509;
 use serde::{Deserialize, Serialize};
-use sqlx::Connection;
 use torut::onion::OnionAddressV3;
 use tracing::instrument;
 
@@ -15,7 +14,7 @@ use crate::backup::os::OsBackup;
 use crate::context::{RpcContext, SetupContext};
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::ReadWrite;
-use crate::disk::mount::guard::{GenericMountGuard, SubPath, TmpMountGuard};
+use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::hostname::Hostname;
 use crate::init::init;
 use crate::prelude::*;
@@ -160,7 +159,7 @@ async fn restore_packages(
                     Some(&id),
                 )
                 .await?,
-                Some(SubPath::new(backup_dir, "data")),
+                Some(backup_dir),
             )
             .await?;
         tasks.insert(id, task);

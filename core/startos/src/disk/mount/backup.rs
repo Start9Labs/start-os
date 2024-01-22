@@ -146,7 +146,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
     }
 
     #[instrument(skip_all)]
-    pub fn package_backup(self: Arc<Self>, id: &PackageId) -> SubPath<Arc<Self>> {
+    pub fn package_backup(self: &Arc<Self>, id: &PackageId) -> SubPath<Arc<Self>> {
         SubPath::new(self.clone(), id)
     }
 

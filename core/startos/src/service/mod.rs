@@ -236,10 +236,7 @@ impl Service {
     pub async fn uninstall(self, target_version: Option<models::Version>) -> Result<(), Error> {
         todo!()
     }
-    pub async fn backup(
-        &self,
-        guard: Arc<Mutex<BackupMountGuard<TmpMountGuard>>>,
-    ) -> Result<BackupReturn, Error> {
+    pub async fn backup(&self, guard: impl GenericMountGuard) -> Result<BackupReturn, Error> {
         todo!()
     }
 }
