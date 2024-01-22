@@ -5,9 +5,7 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use futures::future::BoxFuture;
-use futures::Future;
 use imbl::OrdMap;
-use imbl_value::{InOMap, InternedString};
 use models::{ActionId, HealthCheckId, PackageId, ProcedureName};
 use persistent_container::PersistentContainer;
 use start_stop::StartStop;
@@ -15,7 +13,6 @@ use tokio::sync::{watch, Mutex, Notify};
 
 use crate::action::ActionResult;
 use crate::config::action::ConfigRes;
-use crate::config::ConfigurationError;
 use crate::context::RpcContext;
 use crate::db::model::{
     InstalledPackageInfo, PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryMatchModel,
@@ -25,7 +22,6 @@ use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::install::progress::InstallProgress;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::prelude::*;
-use crate::s9pk;
 use crate::s9pk::S9pk;
 use crate::service::transition::{TempDesiredState, TransitionKind, TransitionState};
 use crate::status::health_check::HealthCheckResult;

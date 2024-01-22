@@ -37,10 +37,12 @@ pub fn service_effect_handler() -> ParentHandler {
         .subcommand("shutdown", from_fn_async(shutdown).no_cli())
         .subcommand("setConfigured", from_fn_async(set_configured).no_cli())
         .subcommand("setHealth", from_fn_async(set_health).no_cli())
-    // TODO @DrBonez when we get the new api for 4.0?
-    // .subcommand("setDependencies",from_fn(set_dependencies))
     // .subcommand("getStore",from_fn(get_store))
-    // .subcommand("setStore",from_fn(set_store))
+    // .subcommand("setStore",from_fn(set_store))?
+    // .subcommand("exposeForDependents",from_fn(expose_for_dependents))
+    // .subcommand("exposeUi",from_fn(expose_ui))
+    // TODO @DrBonez when we get the new api for 4.0
+    // .subcommand("setDependencies",from_fn(set_dependencies))
     // .subcommand("embassyGetInterface",from_fn(embassy_get_interface))
     // .subcommand("mount",from_fn(mount))
     // .subcommand("getSslCertificate",from_fn(get_ssl_certificate))
@@ -51,8 +53,6 @@ pub fn service_effect_handler() -> ParentHandler {
     // .subcommand("bind",from_fn(bind))
     // .subcommand("clearNetworkInterfaces",from_fn(clear_network_interfaces))
     // .subcommand("exportNetworkInterface",from_fn(export_network_interface))
-    // .subcommand("exposeForDependents",from_fn(expose_for_dependents))
-    // .subcommand("exposeUi",from_fn(expose_ui))
     // .subcommand("clearBindings",from_fn(clear_bindings))
     // .subcommand("getHostnames",from_fn(get_hostnames))
     // .subcommand("getInterface",from_fn(get_interface))

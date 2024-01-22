@@ -20,6 +20,15 @@ function isDependencies(path: string): path is DependencyPath {
 
 export const jsonPath = some(
   literals(
+    "setConfig",
+    "getConfig",
+    "createBackup",
+    "restoreBackup",
+    "actionsMetadata",
+    "actionsRun/*",
+    "actionsGetConfig/*",
+    "dependencyConfigQuery/*",
+    "depedencyConfigUpdate/*",
     "/createBackup",
     "/restoreBackup",
     "/getConfig",

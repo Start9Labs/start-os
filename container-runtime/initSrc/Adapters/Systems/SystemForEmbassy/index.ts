@@ -25,6 +25,8 @@ import { HostSystemStartOs } from "../../HostSystemStartOs"
 const MANIFEST_LOCATION = "/lib/startos/embassyManifest.json"
 const EMBASSY_JS_LOCATION = "/usr/lib/javascript/embassy.js"
 const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig"
+
+// TODO BLU-J Property: 30 sec poll on the main, and after a set for config
 export class SystemForEmbassy implements System {
   moduleCode: Promise<Partial<U.ExpectedExports>> = Promise.resolve({})
   currentRunning: T.DaemonReturned | undefined
@@ -84,6 +86,7 @@ export class SystemForEmbassy implements System {
         | "/setConfig"
         | "migration"
         | "/properties"
+        | '/main'
         | `/action/${string}`
         | `/dependencies/${string}/check`
         | `/dependencies/${string}/autoConfigure`

@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use emver::VersionRange;
+use imbl::OrdMap;
 use imbl_value::InternedString;
 use ipnet::{Ipv4Net, Ipv6Net};
 use isocountry::CountryCode;
@@ -459,6 +460,29 @@ pub struct InstalledPackageInfo {
     pub current_dependents: CurrentDependents,
     pub current_dependencies: CurrentDependencies,
     pub interface_addresses: InterfaceAddressMap,
+    pub store: Value,
+    pub storeExposedUi: Vec<ExposedUI>,
+    pub storeExposedDepedents: Vec<String>,
+}
+#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[model = "Model<Self>"]
+pub struct ExposedDependent {
+    path: String,
+    title: String,
+    description: Option<String>,
+    masked: Option<bool>,
+    copyable: Option<bool>,
+    qr: Option<bool>,
+}
+#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[model = "Model<Self>"]
+pub struct ExposedUI {
+    path: Vec<String>,
+    title: String,
+    description: Option<String>,
+    masked: Option<bool>,
+    copyable: Option<bool>,
+    qr: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -478,7 +502,6 @@ impl Map for CurrentDependents {
     type Key = PackageId;
     type Value = CurrentDependencyInfo;
 }
-
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct CurrentDependencies(pub BTreeMap<PackageId, CurrentDependencyInfo>);
 impl CurrentDependencies {
