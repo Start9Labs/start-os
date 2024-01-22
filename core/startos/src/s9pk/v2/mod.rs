@@ -2,7 +2,7 @@ use std::ffi::OsStr;
 use std::path::Path;
 
 use imbl_value::InternedString;
-use models::mime;
+use models::{mime, PackageId};
 
 use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
@@ -162,8 +162,17 @@ impl<S: ArchiveSource> S9pk<Section<S>> {
     }
 }
 impl S9pk {
-    pub async fn open(path: impl AsRef<Path>) -> Result<Self, Error> {
-        Self::deserialize(&MultiCursorFile::from(tokio::fs::File::open(path).await?)).await
+    pub async fn open(path: impl AsRef<Path>, id: Option<&PackageId>) -> Result<Self, Error> {
+        let res =
+            Self::deserialize(&MultiCursorFile::from(tokio::fs::File::open(path).await?)).await?;
+        if let Some(id) = id {
+            ensure_code!(
+                &res.as_manifest().id == id,
+                ErrorKind::ValidateS9pk,
+                "manifest.id does not match expected"
+            );
+        }
+        Ok(res)
     }
 }
 

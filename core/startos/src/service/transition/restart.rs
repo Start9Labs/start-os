@@ -13,13 +13,7 @@ impl Handler<Restart> for ServiceActor {
     type Response = ();
     async fn handle(&mut self, _: Restart, jobs: &mut BackgroundJobs) -> Self::Response {
         let temp = self.0.temp_desired_state.clone();
-        let mut current = self
-            .0
-            .persistent_container
-            .borrow()
-            .clone()
-            .current_state
-            .subscribe();
+        let mut current = self.0.persistent_container.current_state.subscribe();
         let transition = RemoteCancellable::new(async move {
             temp.stop();
             current.wait_for(|s| *s == StartStop::Stop).await;

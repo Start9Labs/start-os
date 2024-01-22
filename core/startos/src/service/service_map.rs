@@ -1,19 +1,19 @@
-use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
-use futures::{Future, FutureExt, TryFutureExt};
-use tokio::fs::File;
-use tokio::sync::{OnceCell, RwLock};
+use futures::{Future, FutureExt};
+use imbl::OrdMap;
+use tokio::sync::{Mutex, OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::db::model::{
     PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryInstalling,
-    PackageDataEntryUpdating, StaticFiles,
+    PackageDataEntryRestoring, PackageDataEntryUpdating, StaticFiles,
 };
+use crate::disk::mount::guard::GenericMountGuard;
 use crate::install::progress::{InstallProgress, InstallProgressTracker};
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::notifications::NotificationLevel;
@@ -21,37 +21,55 @@ use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
-use crate::service::start_stop::StartStop;
 use crate::service::Service;
-use crate::util::GeneralGuard;
 
 pub type DownloadInstallFuture = BoxFuture<'static, Result<InstallFuture, Error>>;
 pub type InstallFuture = BoxFuture<'static, Result<(), Error>>;
 
 /// This is the structure to contain all the services
 #[derive(Default)]
-pub struct ServiceMap(RwLock<BTreeMap<PackageId, Arc<Service>>>);
+pub struct ServiceMap(Mutex<OrdMap<PackageId, Arc<RwLock<Option<Service>>>>>);
 impl ServiceMap {
+    async fn entry(&self, id: &PackageId) -> Arc<RwLock<Option<Service>>> {
+        self.0
+            .lock()
+            .await
+            .entry(id.clone())
+            .or_insert_with(|| Arc::new(RwLock::new(None)))
+            .clone()
+    }
+
+    #[instrument(skip_all)]
+    pub async fn get(&self, id: &PackageId) -> OwnedRwLockReadGuard<Option<Service>> {
+        self.entry(id).await.read_owned().await
+    }
+
+    #[instrument(skip_all)]
+    pub async fn get_mut(&self, id: &PackageId) -> OwnedRwLockWriteGuard<Option<Service>> {
+        self.entry(id).await.write_owned().await
+    }
+
     #[instrument(skip_all)]
     pub async fn init(&self, ctx: &RpcContext) -> Result<(), Error> {
-        let mut res = BTreeMap::new();
-        let s9pk_dir = ctx.datadir.join(PKG_ARCHIVE_DIR).join("installed");
-        for (id, entry) in ctx.db.peek().await.as_package_data().as_entries()? {
-            if let Err(e) = async {
-                let s9pk = S9pk::open(s9pk_dir.join(&id).with_extension("s9pk")).await?;
-                let id = s9pk.as_manifest().id.clone();
-                if let Some(service) = Service::load(ctx.clone(), s9pk, entry).await? {
-                    res.insert(id, Arc::new(service));
-                }
-                Ok::<_, Error>(())
-            }
-            .await
-            {
+        for id in ctx.db.peek().await.as_package_data().keys()? {
+            if let Err(e) = self.load(ctx, &id).await {
                 tracing::error!("Error loading installed package as service: {e}");
                 tracing::debug!("{e:?}");
             }
         }
-        *self.0.write().await = res;
+        Ok(())
+    }
+
+    #[instrument(skip_all)]
+    pub async fn load(&self, ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
+        let mut shutdown_err = Ok(());
+        let mut service = self.get_mut(id).await;
+        if let Some(service) = service.take() {
+            shutdown_err = service.shutdown().await;
+        }
+        // TODO: retry on error?
+        *service = Service::load(ctx, id).await?;
+        shutdown_err?;
         Ok(())
     }
 
@@ -60,93 +78,19 @@ impl ServiceMap {
         &self,
         ctx: RpcContext,
         mut s9pk: S9pk<S>,
+        recovery_source: Option<impl GenericMountGuard>,
     ) -> Result<DownloadInstallFuture, Error> {
         let manifest = Arc::new(s9pk.as_manifest().clone());
         let id = manifest.id.clone();
+        let mut service = self.get_mut(&id).await;
 
         let install_progress = Arc::new(InstallProgress::new(s9pk.size()));
+        let restoring = recovery_source.is_some();
 
-        let error = Arc::new(OnceCell::new());
-        let cancel_hook = GeneralGuard::new({
-            let manifest = manifest.clone();
-            let cancel_error = error.clone();
-            let cancel_ctx = ctx.clone();
-            let cancel_id = id.clone();
-            move || {
-                tokio::spawn({
-                    let manifest = manifest.clone();
-                    async move {
-                        let id = cancel_id;
-                        match (
-                            cancel_ctx
-                                .db
-                                .mutate(|db| {
-                                    let pde = match db
-                                        .as_package_data()
-                                        .as_idx(&id)
-                                        .map(|x| x.de())
-                                        .transpose()?
-                                    {
-                                        Some(PackageDataEntry::Updating(
-                                            PackageDataEntryUpdating {
-                                                installed,
-                                                static_files,
-                                                ..
-                                            },
-                                        )) => Some(PackageDataEntry::Installed(
-                                            PackageDataEntryInstalled {
-                                                manifest: installed.manifest.clone(),
-                                                installed,
-                                                static_files,
-                                            },
-                                        )),
-                                        Some(PackageDataEntry::Installing(_)) => None,
-                                        _ => return Ok::<bool, Error>(false),
-                                    };
-                                    if let Some(pde) = pde {
-                                        db.as_package_data_mut().insert(&id, &pde)?;
-                                    } else {
-                                        db.as_package_data_mut().remove(&id)?;
-                                    }
-                                    Ok::<bool, Error>(true)
-                                })
-                                .await,
-                            cancel_error.get(),
-                        ) {
-                            (Ok(false), _) => (),
-                            (Ok(true), Some(e)) => {
-                                let err_str = format!(
-                                    "Install of {}@{} Failed: {}",
-                                    manifest.id, manifest.version, e
-                                );
-                                tracing::error!("{}", err_str);
-                                tracing::debug!("{:?}", e);
-                                if let Err(e) = cancel_ctx
-                                    .notification_manager
-                                    .notify(
-                                        cancel_ctx.db.clone(),
-                                        Some(manifest.id.clone()),
-                                        NotificationLevel::Error,
-                                        String::from("Install Failed"),
-                                        err_str,
-                                        (),
-                                        None,
-                                    )
-                                    .await
-                                {
-                                    tracing::error!("Failed to issue Notification: {}", e);
-                                    tracing::debug!("{:?}", e);
-                                }
-                            }
-                            _ => todo!(),
-                        }
-                    }
-                })
-            }
-        });
+        let mut reload_guard = ServiceReloadGuard::new(ctx.clone(), id.clone(), "Install");
 
-        ctx.db
-            .mutate({
+        reload_guard
+            .handle(ctx.db.mutate({
                 let manifest = manifest.clone();
                 let id = id.clone();
                 let install_progress = install_progress.clone();
@@ -167,6 +111,17 @@ impl ServiceMap {
                             manifest: (*manifest).clone(),
                             static_files,
                         }),
+                        None if restoring => {
+                            PackageDataEntry::Restoring(PackageDataEntryRestoring {
+                                install_progress,
+                                static_files: StaticFiles::local(
+                                    &manifest.id,
+                                    &manifest.version,
+                                    todo!(),
+                                ),
+                                manifest: (*manifest).clone(),
+                            })
+                        }
                         None => PackageDataEntry::Installing(PackageDataEntryInstalling {
                             install_progress,
                             static_files: StaticFiles::local(
@@ -185,123 +140,173 @@ impl ServiceMap {
                     };
                     db.as_package_data_mut().insert(&manifest.id, &pde)
                 }
-            })
+            }))
             .await?;
 
         Ok(async move {
-            match async {
-            let download_path = ctx
-                .datadir
-                .join(PKG_ARCHIVE_DIR)
-                .join("downloading")
-                .join(&id)
-                .with_extension("s9pk");
+            let installed_path = reload_guard
+                .handle(async {
+                    let download_path = ctx
+                        .datadir
+                        .join(PKG_ARCHIVE_DIR)
+                        .join("downloading")
+                        .join(&id)
+                        .with_extension("s9pk");
 
-            install_progress
-                .track_download_during(ctx.db.clone(), &id, || async {
-                    let mut progress_writer = InstallProgressTracker::new(
-                        crate::util::io::create_file(&download_path).await?,
-                        install_progress.clone(),
-                    );
-                    s9pk.serialize(&mut progress_writer, true).await?;
-                    progress_writer.into_inner().sync_all().await?;
-                    install_progress.download_complete();
-                    Ok(())
+                    install_progress
+                        .track_download_during(ctx.db.clone(), &id, || async {
+                            let mut progress_writer = InstallProgressTracker::new(
+                                crate::util::io::create_file(&download_path).await?,
+                                install_progress.clone(),
+                            );
+                            s9pk.serialize(&mut progress_writer, true).await?;
+                            progress_writer.into_inner().sync_all().await?;
+                            install_progress.download_complete();
+                            Ok(())
+                        })
+                        .await?;
+
+                    let installed_path = ctx
+                        .datadir
+                        .join(PKG_ARCHIVE_DIR)
+                        .join("installed")
+                        .join(&id)
+                        .with_extension("s9pk");
+
+                    crate::util::io::rename(&download_path, &installed_path).await?;
+
+                    Ok::<PathBuf, Error>(installed_path)
                 })
                 .await?;
-
-            let installed_path = ctx
-                .datadir
-                .join(PKG_ARCHIVE_DIR)
-                .join("installed")
-                .join(&id)
-                .with_extension("s9pk");
-
-            crate::util::io::rename(&download_path, &installed_path).await?;
-
-            Ok::<PathBuf, Error>(installed_path)
-        }.await {
-            Ok(installed_path) => Ok(async move {
-                if let Err(e) = async {
-                    let s9pk = S9pk::open(&installed_path).await?;
-
-                    let mut lock = ctx.services.0.write().await;
-                    if let Some(service) = lock.get(&id).cloned() {
-                        drop(lock);
-                        service.update(s9pk).await?;
-                        Ok::<_, Error>(())
-                    } else {
-                        let service = Arc::new(
-                            Service::load(
-                                ctx.clone(),
-                                s9pk,
-                                ctx.db
-                                    .peek()
-                                    .await
-                                    .as_package_data()
-                                    .as_idx(&id)
-                                    .or_not_found(&id)?,
-                            )
-                            .await?.ok_or_else(|| Error::new(eyre!("PackageDataEntry must not be in `removing` or `restoring` state in db for Service to be `load`ed"), ErrorKind::Incoherent))?,
+            Ok(reload_guard
+                .handle_last(async move {
+                    let s9pk = S9pk::open(&installed_path, Some(&id)).await?;
+                    let prev = if let Some(service) = service.take() {
+                        ensure_code!(
+                            recovery_source.is_none(),
+                            ErrorKind::InvalidRequest,
+                            "cannot restore over existing package"
                         );
-                        lock.insert(id, service.clone());
-                        Ok(())
+                        let version = service
+                            .seed
+                            .persistent_container
+                            .s9pk
+                            .as_manifest()
+                            .version
+                            .clone();
+                        service
+                            .uninstall(Some(s9pk.as_manifest().version.clone()))
+                            .await?;
+                        Some(version)
+                    } else {
+                        None
+                    };
+                    if let Some(recovery_source) = recovery_source {
+                        *service = Some(Service::restore(ctx, s9pk, recovery_source).await?);
+                    } else {
+                        *service = Some(Service::install(ctx, s9pk, prev).await?);
                     }
-                }.await {
-                    let _ = error.set(e.clone_output());
-                    cancel_hook.drop().await.with_kind(ErrorKind::Unknown)?;
-                    Err(e)
-                } else {
                     Ok(())
-                }
-            }.boxed()),
-            Err(e) => {
-                let _ = error.set(e.clone_output());
-                cancel_hook.drop().await.with_kind(ErrorKind::Unknown)?;
-                Err(e)
-            }
+                })
+                .boxed())
         }
-        }.boxed())
+        .boxed())
     }
 
     /// This is ran during the cleanup, so when we are uninstalling the service
     #[instrument(skip_all)]
-    pub async fn uninstall(&self, id: &PackageId) -> Result<(), Error> {
-        if let Some(service) = self.0.write().await.remove(id) {
-            service.uninstall().await?;
+    pub async fn uninstall(&self, ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
+        if let Some(service) = self.get_mut(id).await.take() {
+            ServiceReloadGuard::new(ctx.clone(), id.clone(), "Uninstall")
+                .handle_last(service.uninstall(None))
+                .await?;
         }
         Ok(())
     }
 
-    /// Used during a shutdown
-    #[instrument(skip_all)]
-    pub async fn empty(&self) -> Result<(), Error> {
-        let res =
-            futures::future::join_all(std::mem::take(&mut *self.0.write().await).into_iter().map(
-                |(id, service)| async move {
-                    tracing::debug!("Service for {id} shutting down");
-                    service.shutdown().await?;
-                    tracing::debug!("Service for {id} is shutdown");
-                    if let Err(e) = Arc::try_unwrap(service) {
-                        tracing::trace!(
-                            "Service for {} still has {} other open references",
-                            id,
-                            Arc::strong_count(&e) - 1
-                        );
-                    }
-                    Ok::<_, Error>(())
-                },
-            ))
-            .await;
-        res.into_iter().fold(Ok(()), |res, x| match (res, x) {
-            (Ok(()), x) => x,
-            (Err(e), Ok(())) => Err(e),
-            (Err(e1), Err(e2)) => Err(Error::new(eyre!("{}, {}", e1.source, e2.source), e1.kind)),
-        })
+    pub async fn shutdown_all(&self) -> Result<(), Error> {
+        let lock = self.0.lock().await;
+        let mut futs = Vec::with_capacity(lock.len());
+        for service in lock.values().cloned() {
+            futs.push(async move {
+                if let Some(service) = service.write_owned().await.take() {
+                    service.shutdown().await?
+                }
+                Ok::<_, Error>(())
+            });
+        }
+        drop(lock);
+        let mut errors = ErrorCollection::new();
+        for res in futures::future::join_all(futs).await {
+            errors.handle(res);
+        }
+        errors.into_result()
     }
+}
 
-    #[instrument(skip_all)]
-    pub async fn get(&self, id: &PackageId) -> Option<Arc<Service>> {
-        self.0.read().await.get(id).cloned()
+pub struct ServiceReloadGuard(Option<ServiceReloadInfo>);
+impl Drop for ServiceReloadGuard {
+    fn drop(&mut self) {
+        if let Some(info) = self.0.take() {
+            tokio::spawn(info.reload(None));
+        }
+    }
+}
+impl ServiceReloadGuard {
+    pub fn new(ctx: RpcContext, id: PackageId, operation: &'static str) -> Self {
+        Self(Some(ServiceReloadInfo { ctx, id, operation }))
+    }
+    pub async fn handle<T>(
+        &mut self,
+        operation: impl Future<Output = Result<T, Error>>,
+    ) -> Result<T, Error> {
+        let mut errors = ErrorCollection::new();
+        match operation.await {
+            Ok(a) => {
+                self.0.take();
+                Ok(a)
+            }
+            Err(e) => {
+                if let Some(info) = self.0.take() {
+                    errors.handle(info.reload(Some(e.clone_output())).await);
+                }
+                errors.handle::<(), _>(Err(e));
+                errors.into_result().map(|_| unreachable!()) // TODO: there's gotta be a more elegant way?
+            }
+        }
+    }
+    pub async fn handle_last<T>(
+        mut self,
+        operation: impl Future<Output = Result<T, Error>>,
+    ) -> Result<T, Error> {
+        let res = self.handle(operation).await;
+        self.0.take();
+        res
+    }
+}
+
+struct ServiceReloadInfo {
+    ctx: RpcContext,
+    id: PackageId,
+    operation: &'static str,
+}
+impl ServiceReloadInfo {
+    async fn reload(self, error: Option<Error>) -> Result<(), Error> {
+        self.ctx.services.load(&self.ctx, &self.id).await?;
+        if let Some(error) = error {
+            self.ctx
+                .notification_manager
+                .notify(
+                    self.ctx.db.clone(),
+                    Some(self.id.clone()),
+                    NotificationLevel::Error,
+                    format!("{} Failed", self.operation),
+                    error.to_string(),
+                    (),
+                    None,
+                )
+                .await?;
+        }
+        Ok(())
     }
 }

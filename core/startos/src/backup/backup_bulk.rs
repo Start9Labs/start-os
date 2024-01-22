@@ -220,46 +220,46 @@ async fn perform_backup(
     let backup_guard = Arc::new(Mutex::new(backup_guard));
 
     for (package_id, version) in package_ids {
-        let (response, _report) = match ctx
-            .services
-            .get(package_id)
-            .await
-            .ok_or_else(|| Error::new(eyre!("Service not found"), ErrorKind::InvalidRequest))?
-            .backup(backup_guard.clone())
-            .await
-        {
-            _ => todo!(), // BackupReturn::Ran { report, res } => (res, report),
-                          // BackupReturn::AlreadyRunning(report) => {
-                          //     backup_report.insert(package_id.clone(), report);
-                          //     continue;
-                          // }
-                          // BackupReturn::Error(error) => {
-                          //     tracing::warn!("Backup thread error");
-                          //     tracing::debug!("{error:?}");
-                          //     backup_report.insert(
-                          //         package_id.clone(),
-                          //         PackageBackupReport {
-                          //             error: Some("Backup thread error".to_owned()),
-                          //         },
-                          //     );
-                          //     continue;
-                          // }
-        };
-        backup_report.insert(
-            package_id.clone(),
-            PackageBackupReport {
-                error: response.as_ref().err().map(|e| e.to_string()),
-            },
-        );
-
-        if let Ok(pkg_meta) = response {
-            backup_guard
-                .lock()
-                .await
-                .metadata
-                .package_backups
-                .insert(package_id.clone(), pkg_meta);
-        }
+        // let (response, _report) = match ctx
+        //     .services
+        //     .get(package_id)
+        //     .await
+        //     .ok_or_else(|| Error::new(eyre!("Service not found"), ErrorKind::InvalidRequest))?
+        //     .backup(backup_guard.clone())
+        //     .await
+        // {
+        //     _ => todo!(), // BackupReturn::Ran { report, res } => (res, report),
+        //                   // BackupReturn::AlreadyRunning(report) => {
+        //                   //     backup_report.insert(package_id.clone(), report);
+        //                   //     continue;
+        //                   // }
+        //                   // BackupReturn::Error(error) => {
+        //                   //     tracing::warn!("Backup thread error");
+        //                   //     tracing::debug!("{error:?}");
+        //                   //     backup_report.insert(
+        //                   //         package_id.clone(),
+        //                   //         PackageBackupReport {
+        //                   //             error: Some("Backup thread error".to_owned()),
+        //                   //         },
+        //                   //     );
+        //                   //     continue;
+        //                   // }
+        // };
+        // backup_report.insert(
+        //     package_id.clone(),
+        //     PackageBackupReport {
+        //         error: response.as_ref().err().map(|e| e.to_string()),
+        //     },
+        // );
+        //
+        // if let Ok(pkg_meta) = response {
+        //     backup_guard
+        //         .lock()
+        //         .await
+        //         .metadata
+        //         .package_backups
+        //         .insert(package_id.clone(), pkg_meta);
+        // }
     }
 
     let ui = ctx.db.peek().await.into_ui().de()?;

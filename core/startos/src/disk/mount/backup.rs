@@ -8,17 +8,16 @@ use tracing::instrument;
 
 use super::filesystem::ecryptfs::EcryptFS;
 use super::guard::{GenericMountGuard, TmpMountGuard};
-use super::util::{bind, unmount};
 use crate::auth::check_password;
 use crate::backup::target::BackupInfo;
 use crate::disk::mount::filesystem::ReadWrite;
+use crate::disk::mount::guard::SubPath;
 use crate::disk::util::EmbassyOsRecoveryInfo;
 use crate::util::crypto::{decrypt_slice, encrypt_slice};
 use crate::util::serde::IoFormat;
-use crate::util::FileLock;
-use crate::volume::BACKUP_DIR;
 use crate::{Error, ErrorKind, ResultExt};
 
+#[derive(Clone)]
 pub struct BackupMountGuard<G: GenericMountGuard> {
     backup_disk_mount_guard: Option<G>,
     encrypted_guard: Option<TmpMountGuard>,
@@ -146,17 +145,13 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
     }
 
     #[instrument(skip_all)]
-    pub async fn mount_package_backup(
-        &self,
-        id: &PackageId,
-    ) -> Result<PackageBackupMountGuard, Error> {
-        let lock = FileLock::new(Path::new(BACKUP_DIR).join(format!("{}.lock", id)), false).await?;
-        let mountpoint = Path::new(BACKUP_DIR).join(id);
-        bind(self.as_ref().join(id), &mountpoint, false).await?;
-        Ok(PackageBackupMountGuard {
-            mountpoint: Some(mountpoint),
-            lock: Some(lock),
-        })
+    pub async fn package_backup(&self, id: &PackageId) -> Result<SubPath<TmpMountGuard>, Error> {
+        Ok(SubPath::new(
+            self.encrypted_guard
+                .clone()
+                .ok_or_else(|| Error::new(eyre!("Disk is not unlocked"), ErrorKind::Filesystem))?,
+            id,
+        ))
     }
 
     #[instrument(skip_all)]
@@ -217,45 +212,6 @@ impl<G: GenericMountGuard> Drop for BackupMountGuard<G> {
             }
             if let Some(guard) = second {
                 guard.unmount().await.unwrap();
-            }
-        });
-    }
-}
-
-pub struct PackageBackupMountGuard {
-    mountpoint: Option<PathBuf>,
-    lock: Option<FileLock>,
-}
-impl PackageBackupMountGuard {
-    pub async fn unmount(mut self) -> Result<(), Error> {
-        if let Some(mountpoint) = self.mountpoint.take() {
-            unmount(&mountpoint).await?;
-        }
-        if let Some(lock) = self.lock.take() {
-            lock.unlock().await?;
-        }
-        Ok(())
-    }
-}
-impl AsRef<Path> for PackageBackupMountGuard {
-    fn as_ref(&self) -> &Path {
-        if let Some(mountpoint) = &self.mountpoint {
-            mountpoint
-        } else {
-            unreachable!()
-        }
-    }
-}
-impl Drop for PackageBackupMountGuard {
-    fn drop(&mut self) {
-        let mountpoint = self.mountpoint.take();
-        let lock = self.lock.take();
-        tokio::spawn(async move {
-            if let Some(mountpoint) = mountpoint {
-                unmount(&mountpoint).await.unwrap();
-            }
-            if let Some(lock) = lock {
-                lock.unlock().await.unwrap();
             }
         });
     }

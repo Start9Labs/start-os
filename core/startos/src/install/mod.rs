@@ -25,6 +25,7 @@ use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::S9pk;
 use crate::upload::upload;
 use crate::util::clap::FromStrParser;
+use crate::util::Never;
 
 pub mod progress;
 
@@ -149,7 +150,10 @@ pub async fn install(
     )
     .await?;
 
-    let download = ctx.services.install(ctx.clone(), s9pk).await?;
+    let download = ctx
+        .services
+        .install(ctx.clone(), s9pk, None::<Never>)
+        .await?;
     tokio::spawn(async move { download.await?.await });
 
     Ok(())
@@ -167,7 +171,7 @@ pub async fn sideload(ctx: RpcContext) -> Result<RequestGuid, Error> {
     let (guid, file) = upload(&ctx).await?;
     let download = ctx
         .services
-        .install(ctx.clone(), S9pk::deserialize(&file).await?)
+        .install(ctx.clone(), S9pk::deserialize(&file).await?, None::<Never>)
         .await?;
     tokio::spawn(async { download.await?.await });
     Ok(guid)

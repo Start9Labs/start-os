@@ -9,7 +9,7 @@ use tracing::instrument;
 
 use super::filesystem::{FileSystem, MountType, ReadOnly, ReadWrite};
 use super::util::unmount;
-use crate::util::Invoke;
+use crate::util::{Invoke, Never};
 use crate::Error;
 
 pub const TMP_MOUNTPOINT: &'static str = "/media/embassy/tmp";
@@ -17,6 +17,13 @@ pub const TMP_MOUNTPOINT: &'static str = "/media/embassy/tmp";
 #[async_trait::async_trait]
 pub trait GenericMountGuard: AsRef<Path> + std::fmt::Debug + Send + Sync + 'static {
     async fn unmount(mut self) -> Result<(), Error>;
+}
+
+#[async_trait::async_trait]
+impl GenericMountGuard for Never {
+    async fn unmount(mut self) -> Result<(), Error> {
+        match self {}
+    }
 }
 
 #[derive(Debug)]
@@ -89,7 +96,7 @@ lazy_static! {
         Mutex::new(BTreeMap::new());
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TmpMountGuard {
     guard: Arc<MountGuard>,
 }
@@ -138,5 +145,29 @@ impl AsRef<Path> for TmpMountGuard {
 impl GenericMountGuard for TmpMountGuard {
     async fn unmount(mut self) -> Result<(), Error> {
         TmpMountGuard::unmount(self).await
+    }
+}
+
+#[derive(Debug)]
+pub struct SubPath<G: GenericMountGuard> {
+    guard: G,
+    path: PathBuf,
+}
+impl<G: GenericMountGuard> SubPath<G> {
+    pub fn new(guard: G, path: impl AsRef<Path>) -> Self {
+        let path = path.as_ref();
+        let path = guard.as_ref().join(path.strip_prefix("/").unwrap_or(path));
+        Self { guard, path }
+    }
+}
+impl<G: GenericMountGuard> AsRef<Path> for SubPath<G> {
+    fn as_ref(&self) -> &Path {
+        self.path.as_path()
+    }
+}
+#[async_trait::async_trait]
+impl<G: GenericMountGuard> GenericMountGuard for SubPath<G> {
+    async fn unmount(mut self) -> Result<(), Error> {
+        self.guard.unmount().await
     }
 }

@@ -50,6 +50,11 @@ impl std::fmt::Display for Never {
     }
 }
 impl std::error::Error for Never {}
+impl<T: ?Sized> AsRef<T> for Never {
+    fn as_ref(&self) -> &T {
+        match self {}
+    }
+}
 
 #[async_trait::async_trait]
 pub trait Invoke<'a> {

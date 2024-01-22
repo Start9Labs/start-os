@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -17,12 +18,12 @@ use crate::config::action::ConfigRes;
 use crate::config::ConfigurationError;
 use crate::context::RpcContext;
 use crate::db::model::{
-    InstalledPackageInfo, PackageDataEntry, PackageDataEntryInstalled,
-    PackageDataEntryMatchModelRef,
+    InstalledPackageInfo, PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryMatchModel,
 };
-use crate::disk::mount::backup::{BackupMountGuard, PackageBackupMountGuard};
-use crate::disk::mount::guard::TmpMountGuard;
+use crate::disk::mount::backup::BackupMountGuard;
+use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::install::progress::InstallProgress;
+use crate::install::PKG_ARCHIVE_DIR;
 use crate::prelude::*;
 use crate::s9pk;
 use crate::s9pk::S9pk;
@@ -74,7 +75,7 @@ impl Service {
         let seed = Arc::new(ServiceActorSeed {
             id,
             running_status: persistent_container.running_status.subscribe(),
-            persistent_container: watch::channel(Arc::new(persistent_container)).0,
+            persistent_container,
             ctx,
             desired_state,
             temp_desired_state,
@@ -86,11 +87,8 @@ impl Service {
             seed,
         })
     }
-    pub async fn load(
-        ctx: RpcContext,
-        s9pk: S9pk,
-        entry: &Model<PackageDataEntry>,
-    ) -> Result<Option<Self>, Error> {
+
+    pub async fn load(ctx: &RpcContext, id: &PackageId) -> Result<Option<Self>, Error> {
         let handle_installed = {
             let ctx = ctx.clone();
             move |s9pk: S9pk, i: Model<InstalledPackageInfo>| async move {
@@ -109,28 +107,47 @@ impl Service {
                 Self::new(ctx, s9pk, start_stop).await.map(Some)
             }
         };
-        match entry.as_match() {
-            PackageDataEntryMatchModelRef::Installing(_) => Self::new(ctx, s9pk, StartStop::Stop)
-                .await?
-                .install(None)
-                .await
-                .map(Some),
-            PackageDataEntryMatchModelRef::Updating(e) => {
+        let s9pk_path = ctx
+            .datadir
+            .join(PKG_ARCHIVE_DIR)
+            .join("installed")
+            .join(&id)
+            .with_extension("s9pk");
+        match ctx
+            .db
+            .peek()
+            .await
+            .into_package_data()
+            .into_idx(id)
+            .map(|pde| pde.into_match())
+        {
+            Some(PackageDataEntryMatchModel::Installing(_)) => {
+                if let Ok(s9pk) = S9pk::open(s9pk_path, Some(id)).await {
+                    Self::install(ctx.clone(), s9pk, None).await.map(Some)
+                } else {
+                    // TODO: delete s9pk?
+                    Ok(None)
+                }
+            }
+            Some(PackageDataEntryMatchModel::Updating(e)) => {
                 if e.as_install_progress()
                     .de()?
                     .download_complete
                     .load(std::sync::atomic::Ordering::Relaxed)
                 {
-                    Self::new(ctx, s9pk, StartStop::Stop)
-                        .await?
-                        .install(Some(e.as_installed().as_manifest().as_version().de()?))
-                        .await
-                        .map(Some)
+                    Self::install(
+                        ctx.clone(),
+                        S9pk::open(s9pk_path, Some(id)).await?,
+                        Some(e.as_installed().as_manifest().as_version().de()?),
+                    )
+                    .await
+                    .map(Some)
                 } else {
+                    let s9pk = S9pk::open(s9pk_path, Some(id)).await?;
                     ctx.db
                         .mutate({
                             let manifest = s9pk.as_manifest().clone();
-                            move |db| {
+                            |db| {
                                 db.as_package_data_mut()
                                     .as_idx_mut(&manifest.id)
                                     .or_not_found(&manifest.id)?
@@ -145,22 +162,47 @@ impl Service {
                     handle_installed(s9pk, e.as_installed().clone()).await
                 }
             }
-            PackageDataEntryMatchModelRef::Removing(_)
-            | PackageDataEntryMatchModelRef::Restoring(_) => {
-                Self::new(ctx, s9pk, StartStop::Stop)
-                    .await?
-                    .uninstall()
-                    .await?;
+            Some(PackageDataEntryMatchModel::Removing(_))
+            | Some(PackageDataEntryMatchModel::Restoring(_)) => {
+                Self::new(
+                    ctx.clone(),
+                    S9pk::open(s9pk_path, Some(id)).await?,
+                    StartStop::Stop,
+                )
+                .await?
+                .uninstall(None)
+                .await?;
                 Ok(None)
             }
-            PackageDataEntryMatchModelRef::Installed(i) => {
-                handle_installed(s9pk, i.as_installed().clone()).await
+            Some(PackageDataEntryMatchModel::Installed(i)) => {
+                handle_installed(
+                    S9pk::open(s9pk_path, Some(id)).await?,
+                    i.as_installed().clone(),
+                )
+                .await
             }
-            PackageDataEntryMatchModelRef::Error(e) => Err(Error::new(
+            Some(PackageDataEntryMatchModel::Error(e)) => Err(Error::new(
                 eyre!("Failed to parse PackageDataEntry, found {e:?}"),
                 ErrorKind::Deserialization,
             )),
+            None => Ok(None),
         }
+    }
+
+    pub async fn install(
+        ctx: RpcContext,
+        s9pk: S9pk,
+        src_version: Option<models::Version>,
+    ) -> Result<Self, Error> {
+        todo!()
+    }
+
+    pub async fn restore(
+        ctx: RpcContext,
+        s9pk: S9pk,
+        guard: impl GenericMountGuard,
+    ) -> Result<Self, Error> {
+        todo!()
     }
 
     pub async fn get_config(&self) -> Result<ConfigRes, Error> {
@@ -191,28 +233,17 @@ impl Service {
             .map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::Action))
     }
 
-    pub async fn shutdown(&self) -> Result<(), Error> {
+    pub async fn shutdown(self) -> Result<(), Error> {
         todo!()
     }
-    pub async fn uninstall(&self) -> Result<(), Error> {
-        todo!()
-    }
-    pub async fn install(&self, version: Option<models::Version>) -> Result<Self, Error> {
-        todo!()
-    }
-    pub async fn update(&self, s9pk: S9pk) -> Result<(), Error> {
+
+    pub async fn uninstall(self, target_version: Option<models::Version>) -> Result<(), Error> {
         todo!()
     }
     pub async fn backup(
         &self,
         guard: Arc<Mutex<BackupMountGuard<TmpMountGuard>>>,
     ) -> Result<BackupReturn, Error> {
-        todo!()
-    }
-    pub async fn restore(
-        service: Arc<Self>,
-        guard: PackageBackupMountGuard,
-    ) -> Result<(InstallProgress, Task<'static>), Error> {
         todo!()
     }
 }
@@ -226,7 +257,7 @@ struct RunningStatus {
 struct ServiceActorSeed {
     ctx: RpcContext,
     id: PackageId,
-    persistent_container: watch::Sender<Arc<PersistentContainer>>,
+    persistent_container: PersistentContainer,
     desired_state: watch::Sender<StartStop>,
     temp_desired_state: TempDesiredState,
     transition_state: Arc<watch::Sender<Option<TransitionState>>>,
@@ -237,111 +268,107 @@ struct ServiceActorSeed {
 struct ServiceActor(Arc<ServiceActorSeed>);
 impl Actor for ServiceActor {
     fn init(&mut self, jobs: &mut BackgroundJobs) {
-        let id = self.0.id.clone();
-        let ctx = self.0.ctx.clone();
-        let mut persistent_container = self.0.persistent_container.subscribe();
-        let mut desired = self.0.desired_state.subscribe();
-        let mut temp_desired = self.0.temp_desired_state.subscribe();
-        let mut transition = self.0.transition_state.subscribe();
-        let mut running = self.0.running_status.clone();
-        let synchronized = self.0.synchronized.clone();
+        let seed = self.0.clone();
         jobs.add_job(async move {
+            let id = seed.id.clone();
+            let mut current = seed.persistent_container.current_state.subscribe();
+            let mut desired = seed.desired_state.subscribe();
+            let mut temp_desired = seed.temp_desired_state.subscribe();
+            let mut transition = seed.transition_state.subscribe();
+            let mut running = seed.running_status.clone();
             loop {
-                let container = persistent_container.borrow().clone();
-                let mut current = container.current_state.subscribe();
-                loop {
-                    let (desired_state, current_state, transition_kind, running_status) = (
-                        temp_desired.borrow().unwrap_or(*desired.borrow()),
-                        *current.borrow(),
-                        transition.borrow().as_ref().map(|t| t.kind()),
-                        running.borrow().clone(),
-                    );
+                let (desired_state, current_state, transition_kind, running_status) = (
+                    temp_desired.borrow().unwrap_or(*desired.borrow()),
+                    *current.borrow(),
+                    transition.borrow().as_ref().map(|t| t.kind()),
+                    running.borrow().clone(),
+                );
 
-                    if let Err(e) = async {
-                        ctx.db
-                            .mutate(|d| {
-                                if let Some(i) = d
-                                    .as_package_data_mut()
-                                    .as_idx_mut(&id)
-                                    .and_then(|p| p.as_installed_mut())
-                                {
-                                    i.as_status_mut().as_main_mut().ser(&match (
-                                        transition_kind,
-                                        desired_state,
-                                        current_state,
-                                        running_status,
-                                    ) {
-                                        (Some(TransitionKind::Restarting), _, _, _) => {
-                                            MainStatus::Restarting
+                if let Err(e) = async {
+                    seed.ctx
+                        .db
+                        .mutate(|d| {
+                            if let Some(i) = d
+                                .as_package_data_mut()
+                                .as_idx_mut(&id)
+                                .and_then(|p| p.as_installed_mut())
+                            {
+                                i.as_status_mut().as_main_mut().ser(&match (
+                                    transition_kind,
+                                    desired_state,
+                                    current_state,
+                                    running_status,
+                                ) {
+                                    (Some(TransitionKind::Restarting), _, _, _) => {
+                                        MainStatus::Restarting
+                                    }
+                                    (Some(TransitionKind::BackingUp), _, _, Some(status)) => {
+                                        MainStatus::BackingUp {
+                                            started: Some(status.started),
+                                            health: status.health.clone(),
                                         }
-                                        (Some(TransitionKind::BackingUp), _, _, Some(status)) => {
-                                            MainStatus::BackingUp {
-                                                started: Some(status.started),
-                                                health: status.health.clone(),
-                                            }
+                                    }
+                                    (Some(TransitionKind::BackingUp), _, _, None) => {
+                                        MainStatus::BackingUp {
+                                            started: None,
+                                            health: OrdMap::new(),
                                         }
-                                        (Some(TransitionKind::BackingUp), _, _, None) => {
-                                            MainStatus::BackingUp {
-                                                started: None,
-                                                health: OrdMap::new(),
-                                            }
-                                        }
-                                        (None, StartStop::Stop, StartStop::Stop, _) => {
-                                            MainStatus::Stopped
-                                        }
-                                        (None, StartStop::Stop, StartStop::Start, _) => {
-                                            MainStatus::Stopping
-                                        }
-                                        (None, StartStop::Start, StartStop::Stop, _) => {
-                                            MainStatus::Starting
-                                        }
-                                        (None, StartStop::Start, StartStop::Start, None) => {
-                                            MainStatus::Starting
-                                        }
-                                        (
-                                            None,
-                                            StartStop::Start,
-                                            StartStop::Start,
-                                            Some(status),
-                                        ) => MainStatus::Running {
+                                    }
+                                    (None, StartStop::Stop, StartStop::Stop, _) => {
+                                        MainStatus::Stopped
+                                    }
+                                    (None, StartStop::Stop, StartStop::Start, _) => {
+                                        MainStatus::Stopping
+                                    }
+                                    (None, StartStop::Start, StartStop::Stop, _) => {
+                                        MainStatus::Starting
+                                    }
+                                    (None, StartStop::Start, StartStop::Start, None) => {
+                                        MainStatus::Starting
+                                    }
+                                    (None, StartStop::Start, StartStop::Start, Some(status)) => {
+                                        MainStatus::Running {
                                             started: status.started,
                                             health: status.health.clone(),
-                                        },
-                                    })?;
-                                }
-                                Ok(())
-                            })
-                            .await?;
-                        match (desired_state, current_state) {
-                            (StartStop::Start, StartStop::Stop) => container.start().await,
-                            (StartStop::Stop, StartStop::Start) => {
-                                container.stop(todo!("s9pk sigterm timeout")).await
+                                        }
+                                    }
+                                })?;
                             }
-                            _ => Ok(()),
+                            Ok(())
+                        })
+                        .await?;
+                    match (desired_state, current_state) {
+                        (StartStop::Start, StartStop::Stop) => {
+                            seed.persistent_container.start().await
                         }
+                        (StartStop::Stop, StartStop::Start) => {
+                            seed.persistent_container
+                                .stop(todo!("s9pk sigterm timeout"))
+                                .await
+                        }
+                        _ => Ok(()),
                     }
-                    .await
-                    {
-                        tracing::error!("error synchronizing state of service: {e}");
-                        tracing::debug!("{e:?}");
+                }
+                .await
+                {
+                    tracing::error!("error synchronizing state of service: {e}");
+                    tracing::debug!("{e:?}");
 
-                        synchronized.notify_waiters();
+                    seed.synchronized.notify_waiters();
 
-                        tracing::error!("Retrying in {}s...", SYNC_RETRY_COOLDOWN_SECONDS);
-                        tokio::time::sleep(Duration::from_secs(SYNC_RETRY_COOLDOWN_SECONDS)).await;
-                        continue;
-                    }
+                    tracing::error!("Retrying in {}s...", SYNC_RETRY_COOLDOWN_SECONDS);
+                    tokio::time::sleep(Duration::from_secs(SYNC_RETRY_COOLDOWN_SECONDS)).await;
+                    continue;
+                }
 
-                    synchronized.notify_waiters();
+                seed.synchronized.notify_waiters();
 
-                    tokio::select! {
-                        _ = current.changed() => (),
-                        _ = desired.changed() => (),
-                        _ = temp_desired.changed() => (),
-                        _ = transition.changed() => (),
-                        _ = running.changed() => (),
-                        _ = persistent_container.changed() => break,
-                    }
+                tokio::select! {
+                    _ = current.changed() => (),
+                    _ = desired.changed() => (),
+                    _ = temp_desired.changed() => (),
+                    _ = transition.changed() => (),
+                    _ = running.changed() => (),
                 }
             }
         })

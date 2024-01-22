@@ -28,7 +28,7 @@ struct ProcedureId(u64);
 /// that can be used via a JSON RPC Client connected to a unix domain
 /// socket served by the container
 pub struct PersistentContainer {
-    s9pk: S9pk,
+    pub(super) s9pk: S9pk,
     lxc_container: LxcContainer,
     rpc_client: UnixRpcClient,
     procedures: Mutex<Vec<(ProcedureName, ProcedureId)>>,
