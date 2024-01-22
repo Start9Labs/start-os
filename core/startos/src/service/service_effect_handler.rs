@@ -26,7 +26,6 @@ struct RpcData {
     params: Value,
 }
 pub fn service_effect_handler() -> ParentHandler {
-    // TODO @dr-bonez @Blu-J Need to convert to have the use of the package_id in the routes, instead of from_service
     ParentHandler::new()
         .subcommand("exists", from_fn_async(exists).no_cli())
         .subcommand("executeAction", from_fn_async(execute_action).no_cli())
@@ -225,7 +224,7 @@ async fn set_health(
     EffectContext { ctx, package_id }: EffectContext,
     params: SetHealth,
 ) -> Result<Value, Error> {
-    // TODO DrBonez + BLUJ Need to change the type from
+    // TODO DrBonez + BLU-J Need to change the type from
     // ```rs
     // #[serde(tag = "result")]
     // pub enum HealthCheckResult {
