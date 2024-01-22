@@ -19,7 +19,10 @@ use crate::service::start_stop::StartStop;
 use crate::service::RunningStatus;
 use crate::ARCH;
 
-use super::service_effect_handler::service_effect_handler;
+use super::{
+    service_effect_handler::{service_effect_handler, EffectContext},
+    ServiceActorSeed,
+};
 
 const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -52,6 +55,7 @@ impl PersistentContainer {
     ) -> Result<Self, Error> {
         let lxc_container = ctx.lxc_manager.create(LxcConfig::default()).await?;
 
+        let socket_server_context = EffectContext::new(ctx.clone(), s9pk.as_manifest().id.clone());
         // @todo @Blu-J @dr-bonez  Make it so the persistent cointainer uses as socket server for the effects.
         // let socket_server = run_unix(service_effect_handler(s9pk.as_manifest().id.clone()));
         let js_mount = MountGuard::mount(

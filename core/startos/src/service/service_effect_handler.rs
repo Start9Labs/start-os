@@ -1,18 +1,31 @@
 use imbl_value::json;
 use models::{ActionId, HealthCheckId, PackageId};
-use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 
 use crate::prelude::*;
 use crate::status::MainStatus;
 use crate::{context::RpcContext, status::health_check::HealthCheckResult};
 
+#[derive(Clone)]
+pub struct EffectContext {
+    ctx: RpcContext,
+    package_id: PackageId,
+}
+
+impl EffectContext {
+    pub fn new(ctx: RpcContext, package_id: PackageId) -> Self {
+        Self { ctx, package_id }
+    }
+}
+
+impl Context for EffectContext {}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct RpcData {
     id: i64,
     method: String,
     params: Value,
 }
-pub fn service_effect_handler(package_id: PackageId) -> ParentHandler {
+pub fn service_effect_handler() -> ParentHandler {
     // TODO @dr-bonez @Blu-J Need to convert to have the use of the package_id in the routes, instead of from_service
     ParentHandler::new()
         .subcommand("exists", from_fn_async(exists).no_cli())
@@ -61,12 +74,11 @@ struct ParamsPackageId {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ParamsMaybePackageId {
-    from_service: PackageId,
     package_id: Option<PackageId>,
 }
 
-async fn exists(context: RpcContext, params: ParamsPackageId) -> Result<Value, Error> {
-    let peeked = context.db.peek().await;
+async fn exists(context: EffectContext, params: ParamsPackageId) -> Result<Value, Error> {
+    let peeked = context.ctx.db.peek().await;
     let package = peeked.as_package_data().as_idx(&params.package).is_some();
     Ok(json!(package))
 }
@@ -74,21 +86,19 @@ async fn exists(context: RpcContext, params: ParamsPackageId) -> Result<Value, E
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ExecuteAction {
-    from_service: PackageId,
     service_id: Option<PackageId>,
     action_id: ActionId,
     input: Value,
 }
 async fn execute_action(
-    ctx: RpcContext,
+    EffectContext { ctx, package_id }: EffectContext,
     ExecuteAction {
-        from_service,
         action_id,
         input,
         service_id,
     }: ExecuteAction,
 ) -> Result<Value, Error> {
-    let package_id = service_id.clone().unwrap_or_else(|| from_service.clone());
+    let package_id = service_id.clone().unwrap_or_else(|| package_id.clone());
     let service = ctx.services.get(&package_id).await.ok_or_else(|| {
         Error::new(
             eyre!("Could not find package {package_id}"),
@@ -100,16 +110,12 @@ async fn execute_action(
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct FromService {
-    from_service: PackageId,
-}
+struct FromService {}
 async fn get_configured(
-    context: RpcContext,
-    FromService {
-        from_service: package_id,
-    }: FromService,
+    EffectContext { ctx, package_id }: EffectContext,
+    _: Empty,
 ) -> Result<Value, Error> {
-    let peeked = context.db.peek().await;
+    let peeked = ctx.db.peek().await;
     let package = peeked
         .as_package_data()
         .as_idx(&package_id)
@@ -122,9 +128,12 @@ async fn get_configured(
     Ok(json!(package))
 }
 
-async fn stopped(context: RpcContext, params: ParamsMaybePackageId) -> Result<Value, Error> {
-    let peeked = context.db.peek().await;
-    let package_id = params.package_id.unwrap_or(params.from_service);
+async fn stopped(
+    EffectContext { ctx, package_id }: EffectContext,
+    params: ParamsMaybePackageId,
+) -> Result<Value, Error> {
+    let peeked = ctx.db.peek().await;
+    let package_id = params.package_id.unwrap_or(package_id);
     let package = peeked
         .as_package_data()
         .as_idx(&package_id)
@@ -136,9 +145,12 @@ async fn stopped(context: RpcContext, params: ParamsMaybePackageId) -> Result<Va
         .de()?;
     Ok(json!(matches!(package, MainStatus::Stopped)))
 }
-async fn running(context: RpcContext, params: ParamsMaybePackageId) -> Result<Value, Error> {
-    let peeked = context.db.peek().await;
-    let package_id = params.package_id.unwrap_or(params.from_service);
+async fn running(
+    EffectContext { ctx, package_id }: EffectContext,
+    params: ParamsMaybePackageId,
+) -> Result<Value, Error> {
+    let peeked = ctx.db.peek().await;
+    let package_id = params.package_id.unwrap_or(package_id);
     let package = peeked
         .as_package_data()
         .as_idx(&package_id)
@@ -152,12 +164,10 @@ async fn running(context: RpcContext, params: ParamsMaybePackageId) -> Result<Va
 }
 
 async fn restart(
-    context: RpcContext,
-    FromService {
-        from_service: package_id,
-    }: FromService,
+    EffectContext { ctx, package_id }: EffectContext,
+    _: Empty,
 ) -> Result<Value, Error> {
-    let manager = context.services.get(&package_id).await.ok_or_else(|| {
+    let manager = ctx.services.get(&package_id).await.ok_or_else(|| {
         Error::new(
             eyre!("Could not find package {package_id}"),
             ErrorKind::Unknown,
@@ -168,12 +178,10 @@ async fn restart(
 }
 
 async fn shutdown(
-    context: RpcContext,
-    FromService {
-        from_service: package_id,
-    }: FromService,
+    EffectContext { ctx, package_id }: EffectContext,
+    _: Empty,
 ) -> Result<Value, Error> {
-    let manager = context.services.get(&package_id).await.ok_or_else(|| {
+    let manager = ctx.services.get(&package_id).await.ok_or_else(|| {
         Error::new(
             eyre!("Could not find package {package_id}"),
             ErrorKind::Unknown,
@@ -186,12 +194,13 @@ async fn shutdown(
 #[serde(rename_all = "camelCase")]
 struct SetConfigured {
     configured: bool,
-    from_service: PackageId,
 }
-async fn set_configured(context: RpcContext, params: SetConfigured) -> Result<Value, Error> {
-    let package_id = &params.from_service;
-    context
-        .db
+async fn set_configured(
+    EffectContext { ctx, package_id }: EffectContext,
+    params: SetConfigured,
+) -> Result<Value, Error> {
+    let package_id = &package_id;
+    ctx.db
         .mutate(|db| {
             db.as_package_data_mut()
                 .as_idx_mut(package_id)
@@ -210,10 +219,12 @@ async fn set_configured(context: RpcContext, params: SetConfigured) -> Result<Va
 struct SetHealth {
     name: HealthCheckId,
     health_result: Option<HealthCheckResult>,
-    from_service: PackageId,
 }
 
-async fn set_health(context: RpcContext, params: SetHealth) -> Result<Value, Error> {
+async fn set_health(
+    EffectContext { ctx, package_id }: EffectContext,
+    params: SetHealth,
+) -> Result<Value, Error> {
     // TODO DrBonez + BLUJ Need to change the type from
     // ```rs
     // #[serde(tag = "result")]
@@ -233,10 +244,9 @@ async fn set_health(context: RpcContext, params: SetHealth) -> Result<Value, Err
     //     message?: string
     //   }): Promise<void>
     // ```
-    context
-        .db
+    ctx.db
         .mutate(move |db| {
-            let package_id = &params.from_service;
+            let package_id = &package_id;
             let mut main = db
                 .as_package_data()
                 .as_idx(package_id)
@@ -253,7 +263,6 @@ async fn set_health(context: RpcContext, params: SetHealth) -> Result<Value, Err
                     if let SetHealth {
                         name,
                         health_result: Some(health_result),
-                        from_service: _,
                     } = params
                     {
                         health.insert(name, health_result);
