@@ -27,9 +27,6 @@ import { ServiceActionComponent } from '../components/action.component'
 import { ServiceActionSuccessComponent } from '../components/action-success.component'
 import { DesktopService } from '../../../services/desktop.service'
 import { GroupActionsPipe } from '../pipes/group-actions.pipe'
-import { updateTab } from '../utils/update-tab'
-import { NavigationService } from '../../../services/navigation.service'
-import { toRouterLink } from '../../../utils/to-router-link'
 
 @Component({
   template: `
@@ -88,10 +85,7 @@ export class ServiceActionsRoute {
     private readonly patch: PatchDB<DataModel>,
     private readonly formDialog: FormDialogService,
     private readonly desktop: DesktopService,
-    private readonly navigation: NavigationService,
-  ) {
-    updateTab('/actions')
-  }
+  ) {}
 
   async handleAction(action: WithId<Action>) {
     if (action.disabled) {
@@ -168,7 +162,6 @@ export class ServiceActionsRoute {
       this.embassyApi
         .setDbValue<boolean>(['ack-instructions', this.id], false)
         .catch(e => console.error('Failed to mark instructions as unseen', e))
-      this.navigation.removeTab(toRouterLink(this.id))
       this.desktop.remove(this.id)
       this.router.navigate(['portal', 'desktop'])
     } catch (e: any) {

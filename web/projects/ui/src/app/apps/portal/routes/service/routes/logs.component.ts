@@ -4,7 +4,6 @@ import { getPkgId } from '@start9labs/shared'
 import { LogsComponentModule } from 'src/app/common/logs/logs.component.module'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { RR } from 'src/app/services/api/api.types'
-import { updateTab } from '../utils/update-tab'
 
 @Component({
   template: '<logs [fetchLogs]="fetch" [followLogs]="follow" [context]="id" />',
@@ -36,8 +35,4 @@ export class ServiceLogsRoute {
 
   readonly fetch = async (params: RR.GetServerLogsReq) =>
     this.api.getPackageLogs({ id: this.id, ...params })
-
-  constructor() {
-    updateTab('/logs')
-  }
 }

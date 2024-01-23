@@ -13,7 +13,7 @@ tui-root {
 
 .menu {
   :host-context(body[data-theme='Light']) & {
-    --ion-color-base: #F4F4F5 !important;
+    --ion-color-base: #f4f4f5 !important;
   }
 }
 
@@ -123,4 +123,11 @@ tui-root {
   &_collapse:after {
     transform: rotate(45deg);
   }
+}
+
+.definitions {
+  position: absolute;
+  width: 0;
+  height: 0;
+  visibility: hidden;
 }
