@@ -3,14 +3,71 @@ import { PolyfillEffects } from "./polyfillEffects"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import { SystemForEmbassy } from "."
 import { HostSystemStartOs } from "../../HostSystemStartOs"
+import { createUtils } from "@start9labs/start-sdk/lib/util"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
-export class EmbassyHealth {
+const EMBASSY_PROPERTIES_LOOP = 30 * 1000
+/**
+ * We wanted something to represent what the main loop is doing, and
+ * in this case it used to run the properties, health, and the docker/ js main.
+ * Also, this has an ability to clean itself up too if need be.
+ */
+export class MainLoop {
   constructor(
     readonly system: SystemForEmbassy,
     readonly effects: HostSystemStartOs,
+    readonly runProperties: () => Promise<void>,
   ) {}
-  private healthLoops = this.constructHealthLoops()
+  private healthLoops:
+    | {
+        name: string
+        interval: NodeJS.Timeout
+      }[]
+    | undefined = this.constructHealthLoops()
+  private mainEvent:
+    | Promise<{
+        daemon: T.DaemonReturned
+        wait: Promise<unknown>
+      }>
+    | undefined = this.constructMainEvent()
+  private propertiesEvent: NodeJS.Timeout | undefined =
+    this.constructPropertiesEvent()
+
+  private async constructMainEvent() {
+    const { system, effects } = this
+    const utils = createUtils(effects)
+    const currentCommand: [string, ...string[]] = [
+      system.manifest.main.entrypoint,
+      ...system.manifest.main.args,
+    ]
+
+    await effects.setMainStatus({ status: "running" })
+    const daemon = await utils.runDaemon(currentCommand, {})
+    return {
+      daemon,
+      wait: daemon.wait().finally(() => {
+        this.clean()
+        effects.setMainStatus({ status: "stopped" })
+      }),
+    }
+  }
+
+  public async clean(options?: { timeout?: number }) {
+    const { mainEvent, healthLoops, propertiesEvent } = this
+    delete this.mainEvent
+    delete this.healthLoops
+    delete this.propertiesEvent
+    if (mainEvent) await (await mainEvent).daemon.term(options)
+    clearInterval(propertiesEvent)
+    if (healthLoops) healthLoops.forEach((x) => clearInterval(x.interval))
+  }
+
+  private constructPropertiesEvent() {
+    const { runProperties } = this
+    return setInterval(() => {
+      runProperties()
+    }, EMBASSY_PROPERTIES_LOOP)
+  }
 
   private constructHealthLoops() {
     const { manifest } = this.system
@@ -54,13 +111,5 @@ export class EmbassyHealth {
 
       return { name, interval }
     })
-  }
-
-  async during<A>(fn: () => Promise<A>): Promise<A> {
-    try {
-      return await fn()
-    } finally {
-      Object.values(this.healthLoops).forEach((x) => clearInterval(x.interval))
-    }
   }
 }
