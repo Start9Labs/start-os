@@ -23,12 +23,6 @@
         {{ page.title }}
       </ion-label>
       <ion-icon
-        *ngIf="page.url === '/system' && (warning$ | async)"
-        color="warning"
-        size="small"
-        name="warning"
-      ></ion-icon>
-      <ion-icon
         *ngIf="page.url === '/system' && (showEOSUpdate$ | async)"
         color="success"
         size="small"

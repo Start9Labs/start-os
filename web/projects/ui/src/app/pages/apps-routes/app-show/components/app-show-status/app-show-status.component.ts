@@ -6,7 +6,7 @@ import {
   PrimaryStatus,
 } from 'src/app/services/pkg-status-rendering.service'
 import {
-  InterfaceDef,
+  InstalledPackageDataEntry,
   PackageDataEntry,
   PackageState,
   Status,
@@ -45,8 +45,10 @@ export class AppShowStatusComponent {
     private readonly connectionService: ConnectionService,
   ) {}
 
-  get interfaces(): Record<string, InterfaceDef> {
-    return this.pkg.manifest.interfaces || {}
+  get interfaces():
+    | InstalledPackageDataEntry['network-interfaces']
+    | undefined {
+    return this.pkg.installed?.['network-interfaces']
   }
 
   get pkgStatus(): Status | null {
@@ -73,8 +75,8 @@ export class AppShowStatusComponent {
     return this.status.primary === PrimaryStatus.Stopped
   }
 
-  launchUi(): void {
-    this.launcherService.launch(this.pkg)
+  launchUi(interfaces: InstalledPackageDataEntry['network-interfaces']): void {
+    this.launcherService.launch(interfaces)
   }
 
   async presentModalConfig(): Promise<void> {

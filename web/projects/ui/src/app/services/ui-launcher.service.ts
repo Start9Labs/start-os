@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@angular/core'
 import { WINDOW } from '@ng-web-apis/common'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { InstalledPackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { ConfigService } from './config.service'
 
 @Injectable({
@@ -12,7 +12,11 @@ export class UiLauncherService {
     private readonly config: ConfigService,
   ) {}
 
-  launch(pkg: PackageDataEntry): void {
-    this.windowRef.open(this.config.launchableURL(pkg), '_blank', 'noreferrer')
+  launch(interfaces: InstalledPackageDataEntry['network-interfaces']): void {
+    this.windowRef.open(
+      this.config.launchableAddress(interfaces),
+      '_blank',
+      'noreferrer',
+    )
   }
 }

@@ -97,40 +97,6 @@ export module Mock {
     },
     volumes: {},
     'min-os-version': '0.2.12',
-    interfaces: {
-      ui: {
-        name: 'Node Visualizer',
-        description:
-          'Web application for viewing information about your node and the Bitcoin network.',
-        ui: true,
-        'tor-config': {
-          'port-mapping': {},
-        },
-        'lan-config': {},
-        protocols: [],
-      },
-      rpc: {
-        name: 'RPC',
-        description: 'Used by wallets to interact with your Bitcoin Core node.',
-        ui: false,
-        'tor-config': {
-          'port-mapping': {},
-        },
-        'lan-config': {},
-        protocols: [],
-      },
-      p2p: {
-        name: 'P2P',
-        description:
-          'Used by other Bitcoin nodes to communicate and interact with your node.',
-        ui: false,
-        'tor-config': {
-          'port-mapping': {},
-        },
-        'lan-config': {},
-        protocols: [],
-      },
-    },
     backup: {
       create: {
         type: 'docker',
@@ -401,38 +367,6 @@ export module Mock {
     },
     volumes: {},
     'min-os-version': '0.2.12',
-    interfaces: {
-      rpc: {
-        name: 'RPC interface',
-        description: 'Good for connecting to your node at a distance.',
-        ui: true,
-        'tor-config': {
-          'port-mapping': {},
-        },
-        'lan-config': {
-          '44': {
-            ssl: true,
-            mapping: 33,
-          },
-        },
-        protocols: [],
-      },
-      grpc: {
-        name: 'GRPC',
-        description: 'Certain wallet use grpc.',
-        ui: false,
-        'tor-config': {
-          'port-mapping': {},
-        },
-        'lan-config': {
-          '66': {
-            ssl: true,
-            mapping: 55,
-          },
-        },
-        protocols: [],
-      },
-    },
     backup: {
       create: {
         type: 'docker',
@@ -551,23 +485,6 @@ export module Mock {
     config: { get: {} as any, set: {} as any },
     volumes: {},
     'min-os-version': '0.2.12',
-    interfaces: {
-      rpc: {
-        name: 'RPC interface',
-        description: 'Good for connecting to your node at a distance.',
-        ui: false,
-        'tor-config': {
-          'port-mapping': {},
-        },
-        'lan-config': {
-          44: {
-            ssl: true,
-            mapping: 33,
-          },
-        },
-        protocols: [],
-      },
-    },
     backup: {
       create: {
         type: 'docker',
@@ -1887,18 +1804,84 @@ export module Mock {
         },
         'dependency-config-errors': {},
       },
-      'interface-addresses': {
+      'network-interfaces': {
         ui: {
-          'tor-address': 'bitcoind-ui-address.onion',
-          'lan-address': 'bitcoind-ui-address.local',
+          name: 'Web UI',
+          description:
+            'A launchable web app for you to interact with your Bitcoin node',
+          type: 'ui',
+          addresses: {
+            tor: { name: 'Tor', url: 'http://bitcoin-ui-address.onion' },
+            local: { name: 'Local', url: 'https://adjective-noun.local:1234' },
+            'elan0-ipv4': {
+              name: 'Ethernet (IPv4)',
+              url: 'https://192.168.1.5:1234',
+            },
+            'elan0-ipv6': {
+              name: 'Ethernet (IPv6)',
+              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:547GF]:1234',
+            },
+            'wlan0-ipv4': {
+              name: 'WiFi (IPv4)',
+              url: 'https://192.168.1.7:1234',
+            },
+            'wlan0-ipv6': {
+              name: 'WiFi (IPv6)',
+              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]:1234',
+            },
+          },
         },
         rpc: {
-          'tor-address': 'bitcoind-rpc-address.onion',
-          'lan-address': 'bitcoind-rpc-address.local',
+          name: 'RPC',
+          description:
+            'Used by dependent services and client wallets for connecting to your node',
+          type: 'api',
+          addresses: {
+            tor: { name: 'Tor', url: 'http://bitcoin-rpc-address.onion' },
+            local: { name: 'Local', url: 'https://adjective-noun.local:2345' },
+            'elan0-ipv4': {
+              name: 'Ethernet (IPv4)',
+              url: 'https://192.168.1.5:2345',
+            },
+            'elan0-ipv6': {
+              name: 'Ethernet (IPv6)',
+              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:547GF]:2345',
+            },
+            'wlan0-ipv4': {
+              name: 'WiFi (IPv4)',
+              url: 'https://192.168.1.7:2345',
+            },
+            'wlan0-ipv6': {
+              name: 'WiFi (IPv6)',
+              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]:2345',
+            },
+          },
         },
         p2p: {
-          'tor-address': 'bitcoind-p2p-address.onion',
-          'lan-address': 'bitcoind-p2p-address.local',
+          name: 'P2P',
+          description:
+            'Used for connecting to other nodes on the Bitcoin network',
+          type: 'p2p',
+          addresses: {
+            tor: { name: 'Tor', url: 'http://bitcoin-p2p-address.onion' },
+            local: { name: 'Local', url: 'https://adjective-noun.local:3456' },
+            'elan0-ipv4': {
+              name: 'Ethernet (IPv4)',
+              url: 'https://192.168.1.5:3456',
+            },
+            'elan0-ipv6': {
+              name: 'Ethernet (IPv6)',
+              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:547GF]:3456',
+            },
+            'wlan0-ipv4': {
+              name: 'WiFi (IPv4)',
+              url: 'https://192.168.1.7:3456',
+            },
+            'wlan0-ipv6': {
+              name: 'WiFi (IPv6)',
+              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]:3456',
+            },
+          },
         },
       },
       'system-pointers': [],
@@ -1934,10 +1917,32 @@ export module Mock {
         'dependency-config-errors': {},
       },
       manifest: MockManifestBitcoinProxy,
-      'interface-addresses': {
-        rpc: {
-          'tor-address': 'bitcoinproxy-rpc-address.onion',
-          'lan-address': 'bitcoinproxy-rpc-address.local',
+      'network-interfaces': {
+        ui: {
+          name: 'Web UI',
+          description:
+            'A launchable web app for you to interact with Bitcoin Proxy',
+          type: 'ui',
+          addresses: {
+            tor: { name: 'Tor', url: 'http://proxy-ui-address.onion' },
+            local: { name: 'Local', url: 'https://adjective-noun.local:4321' },
+            'elan0-ipv4': {
+              name: 'Ethernet (IPv4)',
+              url: 'https://192.168.1.5:4321',
+            },
+            'elan0-ipv6': {
+              name: 'Ethernet (IPv6)',
+              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:547GF]:4321',
+            },
+            'wlan0-ipv4': {
+              name: 'WiFi (IPv4)',
+              url: 'https://192.168.1.7:4321',
+            },
+            'wlan0-ipv6': {
+              name: 'WiFi (IPv6)',
+              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]:4321',
+            },
+          },
         },
       },
       'system-pointers': [],
@@ -1985,14 +1990,58 @@ export module Mock {
         },
       },
       manifest: MockManifestLnd,
-      'interface-addresses': {
+      'network-interfaces': {
         rpc: {
-          'tor-address': 'lnd-rpc-address.onion',
-          'lan-address': 'lnd-rpc-address.local',
+          name: 'GRPC',
+          description:
+            'Used by dependent services and client wallets for connecting to your node',
+          type: 'api',
+          addresses: {
+            tor: { name: 'Tor', url: 'http://lnd-rpc-address.onion' },
+            local: { name: 'Local', url: 'https://adjective-noun.local:4567' },
+            'elan0-ipv4': {
+              name: 'Ethernet (IPv4)',
+              url: 'https://192.168.1.5:4567',
+            },
+            'elan0-ipv6': {
+              name: 'Ethernet (IPv6)',
+              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:547GF]:4567',
+            },
+            'wlan0-ipv4': {
+              name: 'WiFi (IPv4)',
+              url: 'https://192.168.1.7:4567',
+            },
+            'wlan0-ipv6': {
+              name: 'WiFi (IPv6)',
+              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]:4567',
+            },
+          },
         },
-        grpc: {
-          'tor-address': 'lnd-grpc-address.onion',
-          'lan-address': 'lnd-grpc-address.local',
+        p2p: {
+          name: 'P2P',
+          description:
+            'Used for connecting to other nodes on the Lightning network',
+          type: 'p2p',
+          addresses: {
+            tor: { name: 'Tor', url: 'http://lnd-p2p-address.onion' },
+            local: { name: 'Local', url: 'https://adjective-noun.local:6789' },
+            'elan0-ipv4': {
+              name: 'Ethernet (IPv4)',
+              url: 'https://192.168.1.5:6789',
+            },
+            'elan0-ipv6': {
+              name: 'Ethernet (IPv6)',
+              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:547GF]:6789',
+            },
+            'wlan0-ipv4': {
+              name: 'WiFi (IPv4)',
+              url: 'https://192.168.1.7:6789',
+            },
+            'wlan0-ipv6': {
+              name: 'WiFi (IPv6)',
+              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]:6789',
+            },
+          },
         },
       },
       'system-pointers': [],

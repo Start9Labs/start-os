@@ -56,13 +56,11 @@
         </ion-button>
 
         <ion-button
-          *ngIf="pkgStatus && (interfaces | hasUi)"
+          *ngIf="pkgStatus && interfaces && (interfaces | hasUi)"
           class="action-button"
           color="primary"
-          [disabled]="
-            !(pkg.state | isLaunchable: pkgStatus.main.status:interfaces)
-          "
-          (click)="launchUi()"
+          [disabled]="!(pkg.state | isLaunchable: pkgStatus.main.status)"
+          (click)="launchUi(interfaces)"
         >
           <ion-icon slot="start" name="open-outline"></ion-icon>
           Launch UI

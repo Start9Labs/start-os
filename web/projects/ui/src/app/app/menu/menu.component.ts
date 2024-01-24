@@ -114,11 +114,6 @@ export class MenuComponent {
 
   readonly theme$ = inject(THEME)
 
-  readonly warning$ = merge(
-    of(this.config.isTorHttp()),
-    this.patch.watch$('server-info', 'ntp-synced').pipe(map(synced => !synced)),
-  )
-
   constructor(
     private readonly patch: PatchDB<DataModel>,
     private readonly eosService: EOSService,

@@ -21,12 +21,14 @@
     ></status>
   </ion-label>
   <ion-button
-    *ngIf="manifest.interfaces | hasUi"
+    *ngIf="
+      pkg.entry.installed && (pkg.entry.installed['network-interfaces'] | hasUi)
+    "
     slot="end"
     fill="clear"
     color="primary"
-    (click)="launchUi($event)"
-    [disabled]="!(pkg.entry.state | isLaunchable: status:manifest.interfaces)"
+    (click)="launchUi($event, pkg.entry.installed['network-interfaces'])"
+    [disabled]="!(pkg.entry.state | isLaunchable: status)"
   >
     <ion-icon slot="icon-only" name="open-outline"></ion-icon>
   </ion-button>

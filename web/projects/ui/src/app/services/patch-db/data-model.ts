@@ -139,8 +139,15 @@ export interface InstalledPackageDataEntry {
       icon: Url
     }
   }
-  'interface-addresses': {
-    [id: string]: { 'tor-address': string; 'lan-address': string }
+  'network-interfaces': {
+    [id: string]: {
+      name: string
+      description: string
+      type: 'ui' | 'p2p' | 'api'
+      addresses: {
+        [key: string]: { name: string; url: string }
+      }
+    }
   }
   'marketplace-url': string | null
   'developer-key': string
@@ -168,7 +175,6 @@ export interface Manifest extends MarketplaceManifest<DependencyConfig | null> {
   config: ConfigActions | null
   volumes: Record<string, Volume>
   'min-os-version': string
-  interfaces: Record<string, InterfaceDef>
   backup: BackupActions
   migrations: Migrations | null
   actions: Record<string, Action>
@@ -239,15 +245,6 @@ export enum VolumeType {
   Pointer = 'pointer',
   Certificate = 'certificate',
   Backup = 'backup',
-}
-
-export interface InterfaceDef {
-  name: string
-  description: string
-  'tor-config': TorConfig | null
-  'lan-config': LanConfig | null
-  ui: boolean
-  protocols: string[]
 }
 
 export interface TorConfig {
