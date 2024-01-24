@@ -75,19 +75,23 @@ export class RpcListener {
     this.unixSocketServer.listen(SOCKET_PATH)
 
     this.unixSocketServer.on("connection", (s) => {
+      const logData = (x: unknown) => {
+        console.log("x", JSON.stringify(x), typeof x)
+        return x
+      }
+      const logError = (error: any) => ({
+        error: { message: error?.message ?? String(error) },
+      })
+      const writeDataToSocket = (x: unknown) =>
+        new Promise((resolve) => s.write("" + x, resolve))
       s.on("data", (a) =>
         Promise.resolve(a)
           .then(jsonParse)
           .then((x) => this.dealWithInput(x))
-          .then((x) => {
-            console.log("x", JSON.stringify(x), typeof x)
-            return x
-          })
-          .catch((error) => ({
-            error: { message: error?.message ?? String(error) },
-          }))
+          .then(logData)
+          .catch(logError)
           .then(JSON.stringify)
-          .then((x) => new Promise((resolve) => s.write("" + x, resolve)))
+          .then(writeDataToSocket)
           .finally(() => void s.end()),
       )
     })
