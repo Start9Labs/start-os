@@ -295,6 +295,7 @@ impl Handler {
     }
 
     fn killall(pid: ProcessId, signal: Signal) -> Result<(), RpcError> {
+        #[cfg(target_os = "linux")]
         for proc in procfs::process::all_processes()? {
             let stat = proc?.stat()?;
             if ProcessId::from(stat.ppid) == pid {

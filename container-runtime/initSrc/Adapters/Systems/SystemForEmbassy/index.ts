@@ -21,6 +21,11 @@ import {
   unknown,
 } from "ts-matches"
 import { HostSystemStartOs } from "../../HostSystemStartOs"
+import { JsonPath, unNestPath } from "../../../Models/JsonPath"
+
+function todo(): never {
+  throw new Error("Not implemented")
+}
 
 const MANIFEST_LOCATION = "/lib/startos/embassyManifest.json"
 const EMBASSY_JS_LOCATION = "/usr/lib/javascript/embassy.js"
@@ -31,7 +36,7 @@ export class SystemForEmbassy implements System {
   moduleCode: Promise<Partial<U.ExpectedExports>> = Promise.resolve({})
   currentRunning: T.DaemonReturned | undefined
   static async of(manifestLocation: string = MANIFEST_LOCATION) {
-    return fs.readFile(manifestLocation, "utf-8").then((manifest) => {
+    return fs.readFile(manifestLocation, "utf-8").then((manifest: string) => {
       return new SystemForEmbassy(
         matchManifest.unsafeCast(JSON.parse(manifest)),
       )
@@ -79,47 +84,43 @@ export class SystemForEmbassy implements System {
   async execute(
     effects: HostSystemStartOs,
     options: {
-      procedure:
-        | "/createBackup"
-        | "/restoreBackup"
-        | "/getConfig"
-        | "/setConfig"
-        | "migration"
-        | "/properties"
-        | '/main'
-        | `/action/${string}`
-        | `/dependencies/${string}/check`
-        | `/dependencies/${string}/autoConfigure`
+      procedure: JsonPath
       input: unknown
       timeout?: number | undefined
     },
   ): Promise<unknown> {
     const input = options.input
     switch (options.procedure) {
-      case "/createBackup":
+      case "/backup/create":
         return this.createBackup(effects)
-      case "/restoreBackup":
+      case "/backup/restore":
         return this.restoreBackup(effects)
-      case "/getConfig":
+      case "/config/get":
         return this.getConfig(effects)
-      case "/setConfig":
+      case "/config/set":
         return this.setConfig(effects, input)
-      case "migration":
-        return this.migration(effects, input)
-      case "/properties":
-        return this.properties(effects)
+      case "/actions/metadata":
+        return todo()
+      case "/init":
+        return todo()
+      case "/uninit":
+        return todo()
+      case "/main/start":
+        return todo()
+      case "/main/stop":
+        return todo()
       default:
-        const procedure = options.procedure.split("/")
+        const procedures = unNestPath(options.procedure)
         switch (true) {
-          case options.procedure.startsWith("/action/"):
-            return this.action(effects, procedure[2], input)
-          case options.procedure.startsWith("/dependencies/") &&
-            procedure[3] === "check":
-            return this.dependenciesCheck(effects, procedure[2], input)
+          case procedures[1] === "actions" && procedures[3] === "get":
+            return this.action(effects, procedures[2], input)
+          case procedures[1] === "actions" && procedures[3] === "run":
+            return this.action(effects, procedures[2], input)
+          case procedures[1] === "dependencies" && procedures[3] === "query":
+            return this.dependenciesAutoconfig(effects, procedures[2], input)
 
-          case options.procedure.startsWith("/dependencies/") &&
-            procedure[3] === "autoConfigure":
-            return this.dependenciesAutoconfig(effects, procedure[2], input)
+          case procedures[1] === "dependencies" && procedures[3] === "update":
+            return this.dependenciesAutoconfig(effects, procedures[2], input)
         }
     }
   }
