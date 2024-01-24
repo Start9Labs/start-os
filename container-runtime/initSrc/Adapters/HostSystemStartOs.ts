@@ -6,14 +6,11 @@ import { CallbackHolder } from "../Models/CallbackHolder"
 const SOCKET_PATH = "/start9/sockets/startDaemon.sock"
 const MAIN = "/main" as const
 export class HostSystemStartOs implements T.Effects {
-  static of(method: string, callbackHolder: CallbackHolder) {
-    return new HostSystemStartOs(method, callbackHolder)
+  static of(callbackHolder: CallbackHolder) {
+    return new HostSystemStartOs(callbackHolder)
   }
 
-  constructor(
-    readonly method: string,
-    readonly callbackHolder: CallbackHolder,
-  ) {}
+  constructor(readonly callbackHolder: CallbackHolder) {}
   id = 0
   rpcRound(method: string, params: unknown) {
     const id = this.id++
