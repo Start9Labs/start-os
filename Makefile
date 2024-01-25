@@ -9,7 +9,7 @@ IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo 
 BINS := core/target/$(ARCH)-unknown-linux-gnu/release/startbox
 WEB_UIS := web/dist/raw/ui web/dist/raw/setup-wizard web/dist/raw/diagnostic-ui web/dist/raw/install-wizard
 FIRMWARE_ROMS := ./firmware/$(PLATFORM) $(shell jq --raw-output '.[] | select(.platform[] | contains("$(PLATFORM)")) | "./firmware/$(PLATFORM)/" + .id + ".rom.gz"' build/lib/firmware.json)
-BUILD_SRC := $(shell git ls-files build) build/lib/depends build/lib/conflicts $(FIRMWARE_ROMS)
+BUILD_SRC := $(shell git ls-files build) build/lib/depends build/lib/conflicts build/lib/container-runtime/lxc/rootfs.squashfs $(FIRMWARE_ROMS)
 DEBIAN_SRC := $(shell git ls-files debian/)
 IMAGE_RECIPE_SRC := $(shell git ls-files image-recipe/)
 STARTD_SRC := core/startos/startd.service $(BUILD_SRC)

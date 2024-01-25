@@ -87,8 +87,7 @@ async fn setup_or_init(config: &ServerConfig) -> Result<Option<Shutdown>, Error>
         let server = WebServer::install(
             SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
             ctx.clone(),
-        )
-        .await?;
+        )?;
 
         drop(song);
         tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
@@ -114,20 +113,18 @@ async fn setup_or_init(config: &ServerConfig) -> Result<Option<Shutdown>, Error>
         let server = WebServer::setup(
             SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
             ctx.clone(),
-        )
-        .await?;
+        )?;
 
         drop(song);
         tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
         CHIME.play().await?;
 
-        ctx.shutdown
-            .subscribe()
-            .recv()
-            .await
-            .expect("context dropped");
+        let mut shutdown = ctx.shutdown.subscribe();
+        shutdown.recv().await.expect("context dropped");
 
         server.shutdown().await;
+
+        drop(shutdown);
 
         tokio::task::yield_now().await;
         if let Err(e) = Command::new("killall")
@@ -235,8 +232,7 @@ async fn inner_main(config: &ServerConfig) -> Result<Option<Shutdown>, Error> {
                 let server = WebServer::diagnostic(
                     SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
                     ctx.clone(),
-                )
-                .await?;
+                )?;
 
                 let shutdown = ctx.shutdown.subscribe().recv().await.unwrap();
 

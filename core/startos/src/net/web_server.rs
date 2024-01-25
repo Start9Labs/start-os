@@ -21,13 +21,13 @@ impl WebServer {
         let (shutdown, shutdown_recv) = oneshot::channel();
         let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {
             let handle = Handle::new();
-            let mut server = axum_server::bind(bind);
+            let mut server = axum_server::bind(bind).handle(handle.clone());
             server.http_builder().http1().preserve_header_case(true);
             server.http_builder().http1().title_case_headers(true);
 
             if let (Err(e), _) = tokio::join!(server.serve(router.into_make_service()), async {
                 shutdown_recv.await;
-                handle.graceful_shutdown(Some(Duration::from_secs(60)));
+                handle.graceful_shutdown(Some(Duration::from_secs(0)));
             }) {
                 tracing::error!("Spawning hyper server error: {}", e);
             }
@@ -40,19 +40,19 @@ impl WebServer {
         self.thread.await.unwrap()
     }
 
-    pub async fn main(bind: SocketAddr, ctx: RpcContext) -> Result<Self, Error> {
+    pub fn main(bind: SocketAddr, ctx: RpcContext) -> Result<Self, Error> {
         Ok(Self::new(bind, main_ui_server_router(ctx)))
     }
 
-    pub async fn setup(bind: SocketAddr, ctx: SetupContext) -> Result<Self, Error> {
+    pub fn setup(bind: SocketAddr, ctx: SetupContext) -> Result<Self, Error> {
         Ok(Self::new(bind, setup_ui_file_router(ctx)))
     }
 
-    pub async fn diagnostic(bind: SocketAddr, ctx: DiagnosticContext) -> Result<Self, Error> {
+    pub fn diagnostic(bind: SocketAddr, ctx: DiagnosticContext) -> Result<Self, Error> {
         Ok(Self::new(bind, diag_ui_file_router(ctx)))
     }
 
-    pub async fn install(bind: SocketAddr, ctx: InstallContext) -> Result<Self, Error> {
+    pub fn install(bind: SocketAddr, ctx: InstallContext) -> Result<Self, Error> {
         Ok(Self::new(bind, install_ui_file_router(ctx)))
     }
 }

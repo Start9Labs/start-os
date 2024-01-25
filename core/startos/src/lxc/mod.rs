@@ -114,9 +114,9 @@ impl LxcContainer {
         let guid = new_guid();
         let container_dir = Path::new(LXC_CONTAINER_DIR).join(&*guid);
         tokio::fs::create_dir_all(&container_dir).await?;
-        tokio::fs::copy(
+        tokio::fs::write(
             "/usr/lib/startos/container-runtime/lxc/config",
-            container_dir.join("config"),
+            format!(include_str!("./config.template"), guid = &*guid),
         )
         .await?;
         // TODO: append config
@@ -128,6 +128,12 @@ impl LxcContainer {
         .await?;
         Command::new("mount")
             .arg("--make-rshared")
+            .arg(rootfs.path())
+            .invoke(ErrorKind::Filesystem)
+            .await?;
+        Command::new("chown")
+            .arg("-R")
+            .arg("100000:100000")
             .arg(rootfs.path())
             .invoke(ErrorKind::Filesystem)
             .await?;

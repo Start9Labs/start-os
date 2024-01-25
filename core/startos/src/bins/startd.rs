@@ -34,8 +34,7 @@ async fn inner_main(config: &ServerConfig) -> Result<Option<Shutdown>, Error> {
         let server = WebServer::main(
             SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
             rpc_ctx.clone(),
-        )
-        .await?;
+        )?;
 
         let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
@@ -149,8 +148,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
                         let server = WebServer::diagnostic(
                             SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
                             ctx.clone(),
-                        )
-                        .await?;
+                        )?;
 
                         let mut shutdown = ctx.shutdown.subscribe();
 
