@@ -108,6 +108,7 @@ pub fn main_api() -> ParentHandler {
         .subcommand("notification", notifications::notification())
         .subcommand("backup", backup::backup())
         .subcommand("marketplace", registry::marketplace::marketplace())
+        .subcommand("lxc", lxc::lxc())
 }
 
 pub fn server() -> ParentHandler {

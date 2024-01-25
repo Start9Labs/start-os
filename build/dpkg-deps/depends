@@ -26,6 +26,7 @@ linux-cpupower
 lm-sensors
 lshw
 lvm2
+lxc
 magic-wormhole
 man-db
 ncdu

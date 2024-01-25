@@ -195,7 +195,8 @@ impl<S: FileSource> DirectoryContents<S> {
                     }
                     v.contents = EntryContents::Missing;
                 } else {
-                    v.filter(|p| filter(&path.join(p)))?;
+                    let filter: Box<dyn Fn(&Path) -> bool> = Box::new(|p| filter(&path.join(p)));
+                    v.filter(filter)?;
                 }
             }
         }
