@@ -73,7 +73,6 @@ ed25519-dalek = { version = "2.0.0", features = [
   "digest",
 ] }
 ed25519-dalek-v1 = { package = "ed25519-dalek", version = "1" }
-container-init = { path = "../container-init" }
 emver = { version = "0.1.7", git = "https://github.com/Start9Labs/emver-rs.git", features = [
   "serde",
 ] }
