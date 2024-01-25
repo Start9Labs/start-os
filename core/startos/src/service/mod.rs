@@ -219,7 +219,7 @@ impl Service {
         let container = self.seed.persistent_container.borrow().clone();
         container
             .execute::<ActionResult>(
-                ProcedureName::RunAction(id),
+                ProcedureName::Action(id),
                 input,
                 Some(Duration::from_secs(30)),
             )
