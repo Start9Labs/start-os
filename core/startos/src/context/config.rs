@@ -17,7 +17,7 @@ use crate::init::init_postgres;
 use crate::prelude::*;
 use crate::util::serde::IoFormat;
 
-pub const DEVICE_CONFIG_PATH: &str = "/media/startos/config/config.yaml";
+pub const DEVICE_CONFIG_PATH: &str = "/media/embassy/config/config.yaml"; // "/media/startos/config/config.yaml";
 pub const CONFIG_PATH: &str = "/etc/startos/config.yaml";
 pub const CONFIG_PATH_LOCAL: &str = ".startos/config.yaml";
 

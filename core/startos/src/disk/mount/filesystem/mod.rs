@@ -15,6 +15,7 @@ pub mod efivarfs;
 pub mod httpdirfs;
 pub mod label;
 pub mod loop_dev;
+pub mod overlayfs;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MountType {

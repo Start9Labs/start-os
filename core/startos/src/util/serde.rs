@@ -8,7 +8,7 @@ use clap::builder::ValueParserFactory;
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use color_eyre::eyre::eyre;
 use imbl::OrdMap;
-use rpc_toolkit::{AnyContext, HandleArgs, Handler, HandlerTypes, PrintCliResult};
+use rpc_toolkit::{AnyContext, Handler, HandlerArgs, HandlerArgsFor, HandlerTypes, PrintCliResult};
 use serde::de::DeserializeOwned;
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -505,16 +505,16 @@ impl<T: Handler> Handler for DisplaySerializable<T> {
     type Context = T::Context;
     fn handle_sync(
         &self,
-        HandleArgs {
+        HandlerArgs {
             context,
             parent_method,
             method,
             params,
             inherited_params,
             raw_params,
-        }: HandleArgs<Self::Context, Self>,
+        }: HandlerArgsFor<Self::Context, Self>,
     ) -> Result<Self::Ok, Self::Err> {
-        self.0.handle_sync(HandleArgs {
+        self.0.handle_sync(HandlerArgs {
             context,
             parent_method,
             method,
@@ -525,17 +525,17 @@ impl<T: Handler> Handler for DisplaySerializable<T> {
     }
     async fn handle_async(
         &self,
-        HandleArgs {
+        HandlerArgs {
             context,
             parent_method,
             method,
             params,
             inherited_params,
             raw_params,
-        }: HandleArgs<Self::Context, Self>,
+        }: HandlerArgsFor<Self::Context, Self>,
     ) -> Result<Self::Ok, Self::Err> {
         self.0
-            .handle_async(HandleArgs {
+            .handle_async(HandlerArgs {
                 context,
                 parent_method,
                 method,
@@ -566,14 +566,7 @@ where
     type Context = AnyContext;
     fn print(
         &self,
-        HandleArgs {
-            context,
-            parent_method,
-            method,
-            params,
-            inherited_params,
-            raw_params,
-        }: HandleArgs<Self::Context, Self>,
+        HandlerArgs { params, .. }: HandlerArgsFor<Self::Context, Self>,
         result: Self::Ok,
     ) -> Result<(), Self::Err> {
         display_serializable(params.format.unwrap_or_default(), result);

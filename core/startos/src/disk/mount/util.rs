@@ -44,7 +44,7 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
 pub async fn unmount<P: AsRef<Path>>(mountpoint: P) -> Result<(), Error> {
     tracing::debug!("Unmounting {}.", mountpoint.as_ref().display());
     tokio::process::Command::new("umount")
-        .arg("-l")
+        .arg("-Rl")
         .arg(mountpoint.as_ref())
         .invoke(crate::ErrorKind::Filesystem)
         .await?;

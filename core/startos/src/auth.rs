@@ -191,7 +191,7 @@ pub async fn login_impl(
     check_password_against_db(handle.as_mut(), &password).await?;
 
     let hash_token = HashSessionToken::new();
-    let user_agent = todo!() as String;
+    let user_agent = "".to_string(); // todo!() as String;
     let metadata = serde_json::to_string(&metadata).with_kind(crate::ErrorKind::Database)?;
     let hash_token_hashed = hash_token.hashed();
     sqlx::query!(

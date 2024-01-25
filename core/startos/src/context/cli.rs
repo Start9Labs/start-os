@@ -5,17 +5,20 @@ use std::sync::Arc;
 
 use cookie_store::{CookieStore, RawCookie};
 use josekit::jwk::Jwk;
+use once_cell::sync::OnceCell;
 use reqwest::Proxy;
 use reqwest_cookie_store::CookieStoreMutex;
 use rpc_toolkit::reqwest::{Client, Url};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{call_remote_http, CallRemote, Context};
+use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
-use tokio::sync::OnceCell;
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
 use crate::context::config::{local_config_path, ClientConfig};
+use crate::core::rpc_continuations::RequestGuid;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
 
@@ -139,6 +142,36 @@ impl CliContext {
         })?;
         Ok(secret.into())
     }
+
+    pub async fn ws_continuation(
+        &self,
+        guid: RequestGuid,
+    ) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, Error> {
+        let mut url = self.base_url.clone();
+        let ws_scheme = match url.scheme() {
+            "https" => "wss",
+            "http" => "ws",
+            _ => {
+                return Err(Error::new(
+                    eyre!("Cannot parse scheme from base URL"),
+                    crate::ErrorKind::ParseUrl,
+                )
+                .into())
+            }
+        };
+        url.set_scheme(ws_scheme)
+            .map_err(|_| Error::new(eyre!("Cannot set URL scheme"), crate::ErrorKind::ParseUrl))?;
+        url.path_segments_mut()
+            .map_err(|_| eyre!("Url cannot be base"))
+            .with_kind(crate::ErrorKind::ParseUrl)?
+            .push("ws")
+            .push("rpc")
+            .push(guid.as_ref());
+        let (stream, _) =
+                // base_url is "http://127.0.0.1/", with a trailing slash, so we don't put a leading slash in this path:
+                tokio_tungstenite::connect_async(url).await.with_kind(ErrorKind::Network)?;
+        Ok(stream)
+    }
 }
 impl AsRef<Jwk> for CliContext {
     fn as_ref(&self) -> &Jwk {
@@ -153,19 +186,15 @@ impl std::ops::Deref for CliContext {
 }
 impl Context for CliContext {
     fn runtime(&self) -> tokio::runtime::Handle {
-        if let Some(rt) = self.runtime.get() {
-            rt.handle().clone()
-        } else {
-            self.runtime
-                .set(
-                    tokio::runtime::Builder::new_current_thread()
-                        .enable_all()
-                        .build()
-                        .unwrap(),
-                )
-                .unwrap();
-            self.runtime.get().unwrap().handle().clone()
-        }
+        self.runtime
+            .get_or_init(|| {
+                tokio::runtime::Builder::new_multi_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap()
+            })
+            .handle()
+            .clone()
     }
 }
 #[async_trait::async_trait]
@@ -173,4 +202,16 @@ impl CallRemote for CliContext {
     async fn call_remote(&self, method: &str, params: Value) -> Result<Value, RpcError> {
         call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
     }
+}
+
+#[test]
+fn test() {
+    let ctx = CliContext::init(ClientConfig::default()).unwrap();
+    ctx.runtime().block_on(async {
+        reqwest::Client::new()
+            .get("http://example.com")
+            .send()
+            .await
+            .unwrap();
+    });
 }

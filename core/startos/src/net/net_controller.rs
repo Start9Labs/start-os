@@ -22,7 +22,7 @@ pub struct NetController {
     pub(super) tor: TorController,
     pub(super) mdns: MdnsController,
     pub(super) vhost: VHostController,
-    pub(super) dns: DnsController,
+    // pub(super) dns: DnsController,
     pub(super) ssl: Arc<SslManager>,
     pub(super) os_bindings: Vec<Arc<()>>,
 }
@@ -42,7 +42,7 @@ impl NetController {
             tor: TorController::new(tor_control, tor_socks),
             mdns: MdnsController::init().await?,
             vhost: VHostController::new(ssl.clone()),
-            dns: DnsController::init(dns_bind).await?,
+            // dns: DnsController::init(dns_bind).await?,
             ssl,
             os_bindings: Vec::new(),
         };
@@ -63,8 +63,8 @@ impl NetController {
                 alpn.clone(),
             )
             .await?;
-        self.os_bindings
-            .push(self.dns.add(None, HOST_IP.into()).await?);
+        // self.os_bindings
+        //     .push(self.dns.add(None, HOST_IP.into()).await?);
 
         // LAN IP
         self.os_bindings.push(
@@ -150,13 +150,13 @@ impl NetController {
         package: PackageId,
         ip: Ipv4Addr,
     ) -> Result<NetService, Error> {
-        let dns = self.dns.add(Some(package.clone()), ip).await?;
+        // let dns = self.dns.add(Some(package.clone()), ip).await?;
 
         Ok(NetService {
             shutdown: false,
             id: package,
             ip,
-            dns,
+            // dns,
             controller: Arc::downgrade(self),
             tor: BTreeMap::new(),
             lan: BTreeMap::new(),
@@ -213,7 +213,7 @@ pub struct NetService {
     shutdown: bool,
     id: PackageId,
     ip: Ipv4Addr,
-    dns: Arc<()>,
+    // dns: Arc<()>,
     controller: Weak<NetController>,
     tor: BTreeMap<(InterfaceId, u16), (Key, Vec<Arc<()>>)>,
     lan: BTreeMap<(InterfaceId, u16), (Key, Vec<Arc<()>>)>,
@@ -333,8 +333,8 @@ impl NetService {
             for ((_, external), (key, rcs)) in std::mem::take(&mut self.tor) {
                 errors.handle(ctrl.remove_tor(&key, external, rcs).await);
             }
-            std::mem::take(&mut self.dns);
-            errors.handle(ctrl.dns.gc(Some(self.id.clone()), self.ip).await);
+            // std::mem::take(&mut self.dns);
+            // errors.handle(ctrl.dns.gc(Some(self.id.clone()), self.ip).await);
             errors.into_result()
         } else {
             tracing::warn!("NetService dropped after NetController is shutdown");
@@ -356,7 +356,7 @@ impl Drop for NetService {
                     shutdown: true,
                     id: Default::default(),
                     ip: Ipv4Addr::new(0, 0, 0, 0),
-                    dns: Default::default(),
+                    // dns: Default::default(),
                     controller: Default::default(),
                     tor: Default::default(),
                     lan: Default::default(),

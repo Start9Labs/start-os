@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use imbl_value::InternedString;
 use josekit::jwk::Jwk;
 use patch_db::PatchDb;
 use reqwest::{Client, Proxy};
@@ -24,7 +25,7 @@ use crate::db::prelude::PatchDbExt;
 use crate::dependencies::compute_dependency_config_errs;
 use crate::disk::OsPartitionInfo;
 use crate::init::check_time_is_synchronized;
-use crate::lxc::LxcManager;
+use crate::lxc::{LxcContainer, LxcManager};
 use crate::middleware::auth::HashSessionToken;
 use crate::net::net_controller::NetController;
 use crate::net::ssl::{root_ca_start_time, SslManager};
@@ -62,6 +63,11 @@ pub struct RpcContextSeed {
     pub client: Client,
     pub hardware: Hardware,
     pub start_time: Instant,
+    pub dev: Dev,
+}
+
+pub struct Dev {
+    pub lxc: Mutex<BTreeMap<InternedString, LxcContainer>>,
 }
 
 pub struct Hardware {
@@ -176,6 +182,9 @@ impl RpcContext {
                 .with_kind(crate::ErrorKind::ParseUrl)?,
             hardware: Hardware { devices, ram },
             start_time: Instant::now(),
+            dev: Dev {
+                lxc: Mutex::new(BTreeMap::new()),
+            },
         });
 
         let res = Self(seed.clone());

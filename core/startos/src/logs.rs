@@ -341,24 +341,7 @@ pub async fn cli_logs_generic_follow(
         .await?,
     )?;
 
-    let mut base_url = ctx.base_url.clone();
-    let ws_scheme = match base_url.scheme() {
-        "https" => "wss",
-        "http" => "ws",
-        _ => {
-            return Err(Error::new(
-                eyre!("Cannot parse scheme from base URL"),
-                crate::ErrorKind::ParseUrl,
-            )
-            .into())
-        }
-    };
-    base_url
-        .set_scheme(ws_scheme)
-        .map_err(|_| Error::new(eyre!("Cannot set URL scheme"), crate::ErrorKind::ParseUrl))?;
-    let (mut stream, _) =
-                // base_url is "http://127.0.0.1/", with a trailing slash, so we don't put a leading slash in this path:
-                tokio_tungstenite::connect_async(format!("{}ws/rpc/{}", base_url, res.guid)).await?;
+    let mut stream = ctx.ws_continuation(res.guid).await?;
     while let Some(log) = stream.try_next().await? {
         if let Message::Text(log) = log {
             println!("{}", serde_json::from_str::<LogEntry>(&log)?);

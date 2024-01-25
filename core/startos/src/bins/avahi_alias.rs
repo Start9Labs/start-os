@@ -1,3 +1,5 @@
+use std::ffi::OsString;
+
 use avahi_sys::{
     self, avahi_client_errno, avahi_entry_group_add_service, avahi_entry_group_commit,
     avahi_strerror, AvahiClient,
@@ -14,8 +16,12 @@ fn log_str_error(action: &str, e: i32) {
     }
 }
 
-pub fn main() {
-    let aliases: Vec<_> = std::env::args().skip(1).collect();
+pub fn main(args: impl IntoIterator<Item = OsString>) {
+    let aliases: Vec<_> = args
+        .into_iter()
+        .skip(1)
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
     unsafe {
         let simple_poll = avahi_sys::avahi_simple_poll_new();
         let poll = avahi_sys::avahi_simple_poll_get(simple_poll);

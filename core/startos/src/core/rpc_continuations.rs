@@ -30,6 +30,12 @@ impl RequestGuid {
         Some(RequestGuid(InternedString::intern(r)))
     }
 }
+impl AsRef<str> for RequestGuid {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
 #[test]
 fn parse_guid() {
     println!(
