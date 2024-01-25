@@ -9,6 +9,7 @@ import {
   array,
   number,
   matches,
+  any,
 } from "ts-matches"
 
 import * as T from "@start9labs/start-sdk/lib/types"
@@ -18,6 +19,7 @@ import * as Mod from "module"
 import { CallbackHolder } from "../Models/CallbackHolder"
 import { AllGetDependencies } from "../Interfaces/AllGetDependencies"
 import { HostSystem } from "../Interfaces/HostSystem"
+import { jsonPath } from "../Models/JsonPath"
 
 const SOCKET_PATH = "/start9/sockets/rpc.sock"
 const LOCATION_OF_SERVICE_JS = "/services/service.js"
@@ -25,16 +27,15 @@ const LOCATION_OF_SERVICE_JS = "/services/service.js"
 const idType = some(string, number)
 const runType = object({
   id: idType,
-  method: literal("run"),
-  params: object({
-    methodName: string.map((x) => {
-      const splitValue = x.split("/")
-      if (splitValue.length === 1)
-        throw new Error(`X (${x}) is not a valid path`)
-      return splitValue.slice(1)
-    }),
-    methodArgs: object,
-  }),
+  method: literal("execute"),
+  params: object(
+    {
+      procedure: string,
+      input: any,
+      timeout: number,
+    },
+    ["timeout"],
+  ),
 })
 const callbackType = object({
   id: idType,
@@ -65,23 +66,31 @@ function reduceMethod(
 export class RpcListener {
   unixSocketServer = net.createServer(async (server) => {})
   #callbacks = new CallbackHolder()
-  constructor(readonly getDependencies: AllGetDependencies) {
+
+  constructor(
+    readonly getDependencies: AllGetDependencies,
+    private callbacks = new CallbackHolder(),
+    private effects = getDependencies.hostSystem()(callbacks),
+  ) {
     this.unixSocketServer.listen(SOCKET_PATH)
 
     this.unixSocketServer.on("connection", (s) => {
+      const logData = (x: unknown) => {
+        console.log("x", JSON.stringify(x), typeof x)
+        return x
+      }
+      const logError = (error: any) => ({
+        error: { message: error?.message ?? String(error) },
+      })
+      const writeDataToSocket = (x: unknown) =>
+        new Promise((resolve) => s.write(JSON.stringify(x), resolve))
       s.on("data", (a) =>
         Promise.resolve(a)
           .then(jsonParse)
           .then((x) => this.dealWithInput(x))
-          .then((x) => {
-            console.log("x", JSON.stringify(x), typeof x)
-            return x
-          })
-          .catch((error) => ({
-            error: { message: error?.message ?? String(error) },
-          }))
-          .then(JSON.stringify)
-          .then((x) => new Promise((resolve) => s.write("" + x, resolve)))
+          .then(logData)
+          .catch(logError)
+          .then(writeDataToSocket)
           .finally(() => void s.end()),
       )
     })
@@ -89,20 +98,19 @@ export class RpcListener {
 
   private dealWithInput(input: unknown) {
     return matches(input)
-      .when(runType, async ({ id, params: { methodName, methodArgs } }) => {
-        const hostSystem = await this.getDependencies
-          .hostSystem()
-          .then((x) => x(`/${methodName.join("/")}`, this.#callbacks))
-        // @ts-ignore
-        return import(LOCATION_OF_SERVICE_JS)
-          .then((x) =>
-            methodName.reduce(reduceMethod(methodArgs, hostSystem), x),
-          )
-          .then()
-          .then((result) => ({ id, result }))
+      .when(runType, async ({ id, params }) => {
+        const system = await this.getDependencies.system()
+        const procedure = jsonPath.unsafeCast(params.procedure)
+        return system
+          .execute(this.effects, {
+            procedure,
+            input: params.input,
+            timeout: params.timeout,
+          })
+          .then((result) => ({ result, id }))
           .catch((error) => ({
             id,
-            error: { message: error?.message ?? String(error) },
+            result: { err: { code: 0, message: "" + error } },
           }))
       })
       .when(callbackType, async ({ id, params: { callback, args } }) =>
@@ -110,7 +118,9 @@ export class RpcListener {
           .then((result) => ({ id, result }))
           .catch((error) => ({
             id,
-            error: { message: error?.message ?? String(error) },
+            error: {
+              err: { code: 1, message: error?.message ?? String(error) },
+            },
           })),
       )
 
@@ -118,7 +128,7 @@ export class RpcListener {
         console.warn(`Coudln't parse the following input ${input}`)
         return {
           id: (input as any)?.id,
-          error: { message: "Could not figure out shape" },
+          error: { err: { code: 2, message: "Could not figure out shape" } },
         }
       })
   }

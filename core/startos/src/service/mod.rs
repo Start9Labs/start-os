@@ -213,11 +213,13 @@ impl Service {
             .map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::ConfigGen))
     }
 
+    // TODO DO the Action Get
+
     pub async fn action(&self, id: ActionId, input: Value) -> Result<ActionResult, Error> {
         let container = self.seed.persistent_container.borrow().clone();
         container
             .execute::<ActionResult>(
-                ProcedureName::Action(id),
+                ProcedureName::RunAction(id),
                 input,
                 Some(Duration::from_secs(30)),
             )

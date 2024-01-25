@@ -2,16 +2,17 @@ import * as T from "@start9labs/start-sdk/lib/types"
 import * as fs from "fs/promises"
 
 import { PolyfillEffects } from "./polyfillEffects"
-import { System } from "../../../Interfaces/System"
+import { ExecuteResult, System } from "../../../Interfaces/System"
 import { createUtils } from "@start9labs/start-sdk/lib/util"
 import { matchManifest, Manifest, Procedure } from "./matchManifest"
 import { create } from "domain"
 import { DockerProcedure } from "../../../Models/DockerProcedure"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import * as U from "./oldEmbassyTypes"
-import { EmbassyHealth } from "./EmbassyHealth"
+import { MainLoop } from "./MainLoop"
 import { EmVer } from "@start9labs/start-sdk/lib/emverLite/mod"
 import {
+  matches,
   boolean,
   dictionary,
   literal,
@@ -19,111 +20,166 @@ import {
   object,
   string,
   unknown,
+  any,
+  tuple,
+  number,
 } from "ts-matches"
 import { HostSystemStartOs } from "../../HostSystemStartOs"
+import { JsonPath, unNestPath } from "../../../Models/JsonPath"
+import { Optional } from "ts-matches/types/src/parsers/interfaces"
+import { HostSystem } from "../../../Interfaces/HostSystem"
+
+function todo(): never {
+  throw new Error("Not implemented")
+}
 
 const MANIFEST_LOCATION = "/lib/startos/embassyManifest.json"
 const EMBASSY_JS_LOCATION = "/usr/lib/javascript/embassy.js"
 const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig"
 
-// TODO BLU-J Property: 30 sec poll on the main, and after a set for config
 export class SystemForEmbassy implements System {
   moduleCode: Promise<Partial<U.ExpectedExports>> = Promise.resolve({})
-  currentRunning: T.DaemonReturned | undefined
+  currentRunning: MainLoop | undefined
   static async of(manifestLocation: string = MANIFEST_LOCATION) {
-    return fs.readFile(manifestLocation, "utf-8").then((manifest) => {
+    return fs.readFile(manifestLocation, "utf-8").then((manifest: string) => {
       return new SystemForEmbassy(
         matchManifest.unsafeCast(JSON.parse(manifest)),
       )
     })
   }
-  constructor(readonly manifest: Manifest) {}
-  async init(effects: HostSystemStartOs): Promise<void> {
+  constructor(readonly manifest: Manifest) {
     this.moduleCode = Promise.resolve()
       .then(() => require(EMBASSY_JS_LOCATION))
       .catch(() => ({}))
-    await effects.setMainStatus({ status: "stopped" })
-  }
-  async exit(effects: HostSystemStartOs): Promise<void> {
-    await this.stop(effects)
-  }
-  async start(effects: HostSystemStartOs): Promise<void> {
-    if (!!this.currentRunning) return
-    const utils = createUtils(effects)
-
-    new EmbassyHealth(this, effects).during(async () => {
-      const currentCommand: [string, ...string[]] = [
-        this.manifest.main.entrypoint,
-        ...this.manifest.main.args,
-      ]
-
-      await effects.setMainStatus({ status: "running" })
-      this.currentRunning = await utils.runDaemon(currentCommand, {})
-      this.currentRunning
-        .wait()
-        .finally(() => effects.setMainStatus({ status: "stopped" }))
-    })
-  }
-  async stop(
-    effects: HostSystemStartOs,
-    options?: { timeout?: number },
-  ): Promise<void> {
-    if (this.currentRunning) {
-      await this.currentRunning.term({
-        signal: "SIGTERM",
-        timeout: options?.timeout || this.manifest.main["sigterm-timeout"],
-      })
-    }
-    this.currentRunning = undefined
   }
   async execute(
     effects: HostSystemStartOs,
     options: {
-      procedure:
-        | "/createBackup"
-        | "/restoreBackup"
-        | "/getConfig"
-        | "/setConfig"
-        | "migration"
-        | "/properties"
-        | '/main'
-        | `/action/${string}`
-        | `/dependencies/${string}/check`
-        | `/dependencies/${string}/autoConfigure`
+      procedure: JsonPath
+      input: unknown
+      timeout?: number | undefined
+    },
+  ): Promise<ExecuteResult> {
+    return this._execute(effects, options)
+      .then((x) =>
+        matches(x)
+          .when(
+            object({
+              result: any,
+            }),
+            (x) => ({
+              ok: x.result,
+            }),
+          )
+          .when(
+            object({
+              error: string,
+            }),
+            (x) => ({
+              err: {
+                code: 0,
+                message: x.error,
+              },
+            }),
+          )
+          .when(
+            object({
+              "error-code": tuple(number, string),
+            }),
+            ({ "error-code": [code, message] }) => ({
+              err: {
+                code,
+                message,
+              },
+            }),
+          )
+          .defaultTo({ ok: x }),
+      )
+      .catch((error) => ({
+        err: {
+          code: 0,
+          message: "" + error,
+        },
+      }))
+  }
+  async _execute(
+    effects: HostSystemStartOs,
+    options: {
+      procedure: JsonPath
       input: unknown
       timeout?: number | undefined
     },
   ): Promise<unknown> {
     const input = options.input
     switch (options.procedure) {
-      case "/createBackup":
+      case "/backup/create":
         return this.createBackup(effects)
-      case "/restoreBackup":
+      case "/backup/restore":
         return this.restoreBackup(effects)
-      case "/getConfig":
+      case "/config/get":
         return this.getConfig(effects)
-      case "/setConfig":
+      case "/config/set":
         return this.setConfig(effects, input)
-      case "migration":
-        return this.migration(effects, input)
-      case "/properties":
-        return this.properties(effects)
+      case "/actions/metadata":
+        return todo()
+      case "/init":
+        return this.init(effects, string.optional().unsafeCast(input))
+      case "/uninit":
+        return this.uninit(effects, string.optional().unsafeCast(input))
+      case "/main/start":
+        return this.mainStart(effects)
+      case "/main/stop":
+        return this.mainStop(effects)
       default:
-        const procedure = options.procedure.split("/")
+        const procedures = unNestPath(options.procedure)
         switch (true) {
-          case options.procedure.startsWith("/action/"):
-            return this.action(effects, procedure[2], input)
-          case options.procedure.startsWith("/dependencies/") &&
-            procedure[3] === "check":
-            return this.dependenciesCheck(effects, procedure[2], input)
+          case procedures[1] === "actions" && procedures[3] === "get":
+            return this.action(effects, procedures[2], input)
+          case procedures[1] === "actions" && procedures[3] === "run":
+            return this.action(effects, procedures[2], input)
+          case procedures[1] === "dependencies" && procedures[3] === "query":
+            return this.dependenciesAutoconfig(effects, procedures[2], input)
 
-          case options.procedure.startsWith("/dependencies/") &&
-            procedure[3] === "autoConfigure":
-            return this.dependenciesAutoconfig(effects, procedure[2], input)
+          case procedures[1] === "dependencies" && procedures[3] === "update":
+            return this.dependenciesAutoconfig(effects, procedures[2], input)
         }
     }
   }
-  async createBackup(effects: HostSystemStartOs): Promise<void> {
+  private async init(
+    effects: HostSystemStartOs,
+    previousVersion: Optional<string>,
+  ): Promise<void> {
+    if (previousVersion) await this.migration(effects, previousVersion)
+    await this.properties(effects)
+    await effects.setMainStatus({ status: "stopped" })
+  }
+  private async uninit(
+    effects: HostSystemStartOs,
+    nextVersion: Optional<string>,
+  ): Promise<void> {
+    // TODO Do a migration down if the version exists
+    await effects.setMainStatus({ status: "stopped" })
+  }
+  private async mainStart(effects: HostSystemStartOs): Promise<void> {
+    if (!!this.currentRunning) return
+
+    this.currentRunning = new MainLoop(this, effects, () =>
+      this.properties(effects),
+    )
+  }
+  private async mainStop(
+    effects: HostSystemStartOs,
+    options?: { timeout?: number },
+  ): Promise<void> {
+    const { currentRunning } = this
+    delete this.currentRunning
+    if (currentRunning) {
+      await currentRunning.clean({
+        timeout: options?.timeout || this.manifest.main["sigterm-timeout"],
+      })
+    }
+  }
+  private async createBackup(effects: HostSystemStartOs): Promise<void> {
     const backup = this.manifest.backup.create
     if (backup.type === "docker") {
       const container = await DockerProcedureContainer.of(backup)
@@ -133,7 +189,7 @@ export class SystemForEmbassy implements System {
       await moduleCode.createBackup?.(new PolyfillEffects(effects))
     }
   }
-  async restoreBackup(effects: HostSystemStartOs): Promise<void> {
+  private async restoreBackup(effects: HostSystemStartOs): Promise<void> {
     const restoreBackup = this.manifest.backup.restore
     if (restoreBackup.type === "docker") {
       const container = await DockerProcedureContainer.of(restoreBackup)
@@ -143,10 +199,12 @@ export class SystemForEmbassy implements System {
       await moduleCode.restoreBackup?.(new PolyfillEffects(effects))
     }
   }
-  async getConfig(effects: HostSystemStartOs): Promise<T.ConfigRes> {
+  private async getConfig(effects: HostSystemStartOs): Promise<T.ConfigRes> {
     return this.getConfigUncleaned(effects).then(removePointers)
   }
-  async getConfigUncleaned(effects: HostSystemStartOs): Promise<T.ConfigRes> {
+  private async getConfigUncleaned(
+    effects: HostSystemStartOs,
+  ): Promise<T.ConfigRes> {
     const config = this.manifest.config?.get
     if (!config) return { spec: {} }
     if (config.type === "docker") {
@@ -165,7 +223,7 @@ export class SystemForEmbassy implements System {
       })) as any
     }
   }
-  async setConfig(
+  private async setConfig(
     effects: HostSystemStartOs,
     newConfigWithoutPointers: unknown,
   ): Promise<T.SetResult> {
@@ -202,11 +260,10 @@ export class SystemForEmbassy implements System {
       })
     }
   }
-  async migration(
+  private async migration(
     effects: HostSystemStartOs,
-    fromVersion: unknown,
+    fromVersion: string,
   ): Promise<T.MigrationRes> {
-    if (!string.test(fromVersion)) throw new Error("Expecting a string")
     const fromEmver = EmVer.from(fromVersion)
     const currentEmver = EmVer.from(this.manifest.version)
 
@@ -260,9 +317,10 @@ export class SystemForEmbassy implements System {
     }
     return { configured: true }
   }
-  async properties(effects: HostSystemStartOs): Promise<unknown> {
+  private async properties(effects: HostSystemStartOs): Promise<undefined> {
+    // TODO BLU-J set the properties ever so often
     const setConfigValue = this.manifest.properties
-    if (!setConfigValue) return {}
+    if (!setConfigValue) return
     if (setConfigValue.type === "docker") {
       const container = await DockerProcedureContainer.of(setConfigValue)
       return JSON.parse(
@@ -278,14 +336,14 @@ export class SystemForEmbassy implements System {
       const method = moduleCode.properties
       if (!method)
         throw new Error("Expecting that the method properties exists")
-      return await method(new PolyfillEffects(effects)).then((x) => {
+      await method(new PolyfillEffects(effects)).then((x) => {
         if ("result" in x) return x.result
         if ("error" in x) throw new Error("Error getting config: " + x.error)
         throw new Error("Error getting config: " + x["error-code"][1])
       })
     }
   }
-  async health(
+  private async health(
     effects: HostSystemStartOs,
     healthId: string,
     timeSinceStarted: unknown,
@@ -317,7 +375,7 @@ export class SystemForEmbassy implements System {
       )
     }
   }
-  async action(
+  private async action(
     effects: HostSystemStartOs,
     actionId: string,
     formData: unknown,
@@ -348,7 +406,7 @@ export class SystemForEmbassy implements System {
       )) as any
     }
   }
-  async dependenciesCheck(
+  private async dependenciesCheck(
     effects: HostSystemStartOs,
     id: string,
     oldConfig: unknown,
@@ -382,7 +440,7 @@ export class SystemForEmbassy implements System {
       )) as any
     }
   }
-  async dependenciesAutoconfig(
+  private async dependenciesAutoconfig(
     effects: HostSystemStartOs,
     id: string,
     oldConfig: unknown,
@@ -401,7 +459,7 @@ export class SystemForEmbassy implements System {
       },
     )) as any
   }
-  async sandbox(
+  private async sandbox(
     effects: HostSystemStartOs,
     options: {
       procedure:
@@ -448,7 +506,7 @@ export class SystemForEmbassy implements System {
     }
   }
 
-  async roCreateBackup(effects: HostSystemStartOs): Promise<void> {
+  private async roCreateBackup(effects: HostSystemStartOs): Promise<void> {
     const backup = this.manifest.backup.create
     if (backup.type === "docker") {
       const container = await DockerProcedureContainer.readonlyOf(backup)
@@ -458,7 +516,7 @@ export class SystemForEmbassy implements System {
       await moduleCode.createBackup?.(new PolyfillEffects(effects))
     }
   }
-  async roRestoreBackup(effects: HostSystemStartOs): Promise<void> {
+  private async roRestoreBackup(effects: HostSystemStartOs): Promise<void> {
     const restoreBackup = this.manifest.backup.restore
     if (restoreBackup.type === "docker") {
       const container = await DockerProcedureContainer.readonlyOf(restoreBackup)
@@ -468,7 +526,7 @@ export class SystemForEmbassy implements System {
       await moduleCode.restoreBackup?.(new PolyfillEffects(effects))
     }
   }
-  async roGetConfig(effects: HostSystemStartOs): Promise<T.ConfigRes> {
+  private async roGetConfig(effects: HostSystemStartOs): Promise<T.ConfigRes> {
     const config = this.manifest.config?.get
     if (!config) return { spec: {} }
     if (config.type === "docker") {
@@ -487,7 +545,7 @@ export class SystemForEmbassy implements System {
       })) as any
     }
   }
-  async roSetConfig(
+  private async roSetConfig(
     effects: HostSystemStartOs,
     newConfig: unknown,
   ): Promise<T.SetResult> {
@@ -520,13 +578,13 @@ export class SystemForEmbassy implements System {
       })
     }
   }
-  async roMigration(
+  private async roMigration(
     effects: HostSystemStartOs,
     fromVersion: unknown,
   ): Promise<T.MigrationRes> {
     throw new Error("Migrations should never be ran in the sandbox mode")
   }
-  async roProperties(effects: HostSystemStartOs): Promise<unknown> {
+  private async roProperties(effects: HostSystemStartOs): Promise<unknown> {
     const setConfigValue = this.manifest.properties
     if (!setConfigValue) return {}
     if (setConfigValue.type === "docker") {
@@ -553,7 +611,7 @@ export class SystemForEmbassy implements System {
       })
     }
   }
-  async roHealth(
+  private async roHealth(
     effects: HostSystemStartOs,
     healthId: string,
     timeSinceStarted: unknown,
@@ -587,7 +645,7 @@ export class SystemForEmbassy implements System {
       )
     }
   }
-  async roAction(
+  private async roAction(
     effects: HostSystemStartOs,
     actionId: string,
     formData: unknown,
@@ -620,7 +678,7 @@ export class SystemForEmbassy implements System {
       )) as any
     }
   }
-  async roDependenciesCheck(
+  private async roDependenciesCheck(
     effects: HostSystemStartOs,
     id: string,
     oldConfig: unknown,
@@ -656,7 +714,7 @@ export class SystemForEmbassy implements System {
       )) as any
     }
   }
-  async roDependenciesAutoconfig(
+  private async roDependenciesAutoconfig(
     effects: HostSystemStartOs,
     id: string,
     oldConfig: unknown,

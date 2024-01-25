@@ -7,7 +7,7 @@ import { once } from "@start9labs/start-sdk/lib/util/once"
 
 const getDependencies: AllGetDependencies = {
   system: once(getSystem),
-  hostSystem: async () => HostSystemStartOs.of,
+  hostSystem: () => HostSystemStartOs.of,
 }
 
 new RpcListener(getDependencies)

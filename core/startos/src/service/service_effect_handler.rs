@@ -1,11 +1,12 @@
 use imbl_value::json;
 use models::{ActionId, HealthCheckId, PackageId};
+use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 
-use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
+use crate::{context::RpcContext, db::model::ExposedUI};
 
 #[derive(Clone)]
 pub struct EffectContext {
@@ -37,10 +38,13 @@ pub fn service_effect_handler() -> ParentHandler {
         .subcommand("shutdown", from_fn_async(shutdown).no_cli())
         .subcommand("setConfigured", from_fn_async(set_configured).no_cli())
         .subcommand("setHealth", from_fn_async(set_health).no_cli())
-    // .subcommand("getStore",from_fn(get_store))
-    // .subcommand("setStore",from_fn(set_store))?
-    // .subcommand("exposeForDependents",from_fn(expose_for_dependents))
-    // .subcommand("exposeUi",from_fn(expose_ui))
+        .subcommand("getStore", from_fn_async(get_store).no_cli())
+        .subcommand("setStore", from_fn_async(set_store).no_cli())
+        .subcommand(
+            "exposeForDependents",
+            from_fn_async(expose_for_dependents).no_cli(),
+        )
+        .subcommand("exposeUi", from_fn_async(expose_ui).no_cli())
     // TODO @DrBonez when we get the new api for 4.0
     // .subcommand("setDependencies",from_fn(set_dependencies))
     // .subcommand("embassyGetInterface",from_fn(embassy_get_interface))
@@ -65,8 +69,119 @@ pub fn service_effect_handler() -> ParentHandler {
     // .subcommand("getServiceTorHostname",from_fn(get_service_tor_hostname))
     // .subcommand("getSystemSmtp",from_fn(get_system_smtp))
     // .subcommand("reverseProxy",from_fn(reverse_pro)xy)
+    // TODO Callbacks
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GetStoreParams {
+    package_id: Option<PackageId>,
+    path: JsonPointer,
 }
 
+async fn get_store(
+    context: EffectContext,
+    GetStoreParams { package_id, path }: GetStoreParams,
+) -> Result<Value, Error> {
+    let peeked = context.ctx.db.peek().await;
+    let package_id = package_id.unwrap_or(context.package_id);
+    let value = peeked
+        .as_package_data()
+        .as_idx(&package_id)
+        .or_not_found(&package_id)?
+        .as_installed()
+        .or_not_found(&package_id)?
+        .as_store()
+        .de()?;
+
+    Ok(path
+        .get(&value)
+        .ok_or_else(|| Error::new(eyre!("Did not find value at path"), ErrorKind::NotFound))?
+        .clone())
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SetStoreParams {
+    value: Value,
+    path: JsonPointer,
+}
+
+async fn set_store(
+    context: EffectContext,
+    SetStoreParams { value, path }: SetStoreParams,
+) -> Result<(), Error> {
+    let package_id = context.package_id;
+    context
+        .ctx
+        .db
+        .mutate(|db| {
+            let model = db
+                .as_package_data_mut()
+                .as_idx_mut(&package_id)
+                .or_not_found(&package_id)?
+                .as_installed_mut()
+                .or_not_found(&package_id)?
+                .as_store_mut();
+            let mut model_value = model.de()?;
+            path.set(&mut model_value, value, true)
+                .with_kind(ErrorKind::ParseDbField)?;
+            model.ser(&model_value)
+        })
+        .await?;
+    Ok(())
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ExposeForDependentsParams {
+    paths: Vec<JsonPointer>,
+}
+
+async fn expose_for_dependents(
+    context: EffectContext,
+    ExposeForDependentsParams { paths }: ExposeForDependentsParams,
+) -> Result<(), Error> {
+    let package_id = context.package_id;
+    context
+        .ctx
+        .db
+        .mutate(|db| {
+            db.as_package_data_mut()
+                .as_idx_mut(&package_id)
+                .or_not_found(&package_id)?
+                .as_installed_mut()
+                .or_not_found(&package_id)?
+                .as_store_exposed_dependents_mut()
+                .ser(&paths)
+        })
+        .await?;
+    Ok(())
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ExposeUiParams {
+    paths: Vec<ExposedUI>,
+}
+
+async fn expose_ui(
+    context: EffectContext,
+    ExposeUiParams { paths }: ExposeUiParams,
+) -> Result<(), Error> {
+    let package_id = context.package_id;
+    context
+        .ctx
+        .db
+        .mutate(|db| {
+            db.as_package_data_mut()
+                .as_idx_mut(&package_id)
+                .or_not_found(&package_id)?
+                .as_installed_mut()
+                .or_not_found(&package_id)?
+                .as_store_exposed_ui_mut()
+                .ser(&paths)
+        })
+        .await?;
+    Ok(())
+}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct ParamsPackageId {
     package: PackageId,

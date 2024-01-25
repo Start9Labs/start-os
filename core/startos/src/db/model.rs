@@ -10,7 +10,7 @@ use isocountry::CountryCode;
 use itertools::Itertools;
 use models::{DataUrl, HealthCheckId, InterfaceId, PackageId};
 use openssl::hash::MessageDigest;
-use patch_db::{HasModel, Value};
+use patch_db::{json_ptr::JsonPointer, HasModel, Value};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use ssh_key::public::Ed25519PublicKey;
@@ -461,7 +461,7 @@ pub struct InstalledPackageInfo {
     pub interface_addresses: InterfaceAddressMap,
     pub store: Value,
     pub store_exposed_ui: Vec<ExposedUI>,
-    pub store_exposed_dependents: Vec<String>,
+    pub store_exposed_dependents: Vec<JsonPointer>,
 }
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[model = "Model<Self>"]
@@ -473,10 +473,10 @@ pub struct ExposedDependent {
     copyable: Option<bool>,
     qr: Option<bool>,
 }
-#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[model = "Model<Self>"]
 pub struct ExposedUI {
-    path: Vec<String>,
+    path: Vec<JsonPointer>,
     title: String,
     description: Option<String>,
     masked: Option<bool>,
