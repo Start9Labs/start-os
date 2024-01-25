@@ -2,10 +2,10 @@
   "name": "start-init",
   "version": "0.0.0",
   "description": "We want to be the sdk intermitent for the system",
+  "type": "module",
   "scripts": {
-    "bundle:esbuild": "esbuild initSrc/index.ts --platform=node --bundle --outfile=startInit.js",
-    "bundle:service": "esbuild /service/startos/procedures/index.ts --platform=node --bundle --outfile=service.js",
-    "run:manifest": "esbuild /service/startos/procedures/index.ts --platform=node --bundle --outfile=service.js"
+    "bundle": "rm -rf dist; esbuild initSrc/index.ts --platform=node --target=es2022 --bundle --outfile=dist/index.js",
+    "tsc": "rm -rf dist; tsc"
   },
   "author": "",
   "prettier": {
