@@ -6,7 +6,7 @@ BASENAME := $(shell ./basename.sh)
 PLATFORM := $(shell if [ -f ./PLATFORM.txt ]; then cat ./PLATFORM.txt; else echo unknown; fi)
 ARCH := $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo aarch64; else echo $(PLATFORM) | sed 's/-nonfree$$//g'; fi)
 IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo iso; fi)
-BINS := core/target/$(ARCH)-unknown-linux-gnu/release/startbox core/target/aarch64-unknown-linux-musl/release/container-init core/target/x86_64-unknown-linux-musl/release/container-init
+BINS := core/target/$(ARCH)-unknown-linux-gnu/release/startbox
 WEB_UIS := web/dist/raw/ui web/dist/raw/setup-wizard web/dist/raw/diagnostic-ui web/dist/raw/install-wizard
 FIRMWARE_ROMS := ./firmware/$(PLATFORM) $(shell jq --raw-output '.[] | select(.platform[] | contains("$(PLATFORM)")) | "./firmware/$(PLATFORM)/" + .id + ".rom.gz"' build/lib/firmware.json)
 BUILD_SRC := $(shell git ls-files build) build/lib/depends build/lib/conflicts $(FIRMWARE_ROMS)
@@ -128,10 +128,6 @@ install: $(ALL_TARGETS)
 	$(call cp,GIT_HASH.txt,$(DESTDIR)/usr/lib/startos/GIT_HASH.txt)
 	$(call cp,VERSION.txt,$(DESTDIR)/usr/lib/startos/VERSION.txt)
 
-	$(call mkdir,$(DESTDIR)/usr/lib/startos/container)
-	$(call cp,core/target/aarch64-unknown-linux-musl/release/container-init,$(DESTDIR)/usr/lib/startos/container/container-init.arm64)
-	$(call cp,core/target/x86_64-unknown-linux-musl/release/container-init,$(DESTDIR)/usr/lib/startos/container/container-init.amd64)
-
 	$(call mkdir,$(DESTDIR)/usr/lib/startos/system-images)
 	$(call cp,system-images/compat/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/startos/system-images/compat.tar)
 	$(call cp,system-images/utils/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/startos/system-images/utils.tar)
@@ -165,6 +161,9 @@ emulate-reflash: $(ALL_TARGETS)
 
 upload-ota: results/$(BASENAME).squashfs
 	TARGET=$(TARGET) KEY=$(KEY) ./upload-ota.sh
+
+build/lib/container-runtime/lxc/rootfs.squashfs: container-runtime/alpine.squashfs container-runtime/update-image.sh
+	./container-runtime/update-image.sh
 
 build/lib/depends build/lib/conflicts: build/dpkg-deps/*
 	build/dpkg-deps/generate.sh

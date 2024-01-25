@@ -673,6 +673,7 @@ impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
 
 pub struct TmpFile {}
 
+#[derive(Debug)]
 pub struct TmpDir {
     path: PathBuf,
 }
