@@ -2,7 +2,7 @@
   "name": "start-init",
   "version": "0.0.0",
   "description": "We want to be the sdk intermitent for the system",
-  "type": "module",
+  "type": "commonjs",
   "scripts": {
     "bundle": "rm -rf dist; esbuild initSrc/index.ts --platform=node --target=es2022 --bundle --outfile=dist/index.js",
     "tsc": "rm -rf dist; tsc"
