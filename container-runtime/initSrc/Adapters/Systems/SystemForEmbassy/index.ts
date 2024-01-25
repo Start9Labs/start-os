@@ -33,8 +33,8 @@ function todo(): never {
   throw new Error("Not implemented")
 }
 
-const MANIFEST_LOCATION = "/lib/startos/embassyManifest.json"
-const EMBASSY_JS_LOCATION = "/usr/lib/javascript/embassy.js"
+const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
+const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
 const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig"
 
 export class SystemForEmbassy implements System {

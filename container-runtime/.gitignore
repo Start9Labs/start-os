@@ -4,3 +4,5 @@ bundle.js
 startInit.js
 service/
 service.js
+alpine.squashfs
+/tmp

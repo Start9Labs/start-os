@@ -64,6 +64,12 @@ impl MountGuard {
             mounted: true,
         })
     }
+    pub(super) fn take(&mut self) -> Self {
+        Self {
+            mountpoint: self.mountpoint.clone(),
+            mounted: std::mem::replace(&mut self.mounted, false),
+        }
+    }
     pub async fn unmount(mut self, delete_mountpoint: bool) -> Result<(), Error> {
         if self.mounted {
             unmount(&self.mountpoint).await?;

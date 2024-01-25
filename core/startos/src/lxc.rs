@@ -22,9 +22,9 @@ use tokio::time::Instant;
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::disk::mount::filesystem::block_dev::BlockDev;
-use crate::disk::mount::filesystem::overlayfs::OverlayFs;
+use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::disk::mount::filesystem::ReadWrite;
-use crate::disk::mount::guard::MountGuard;
+use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
 use crate::disk::mount::util::unmount;
 use crate::prelude::*;
 use crate::util::serde::IoFormat;
@@ -32,7 +32,7 @@ use crate::util::{new_guid, Invoke};
 
 const LXC_IMAGE_NAME: &str = "startos-service";
 const LXC_CONTAINER_DIR: &str = "/var/lib/lxc";
-const CONTAINER_RPC_SERVER_SOCKET: &str = "run/rpc.sock"; // must not be absolute path
+const CONTAINER_RPC_SERVER_SOCKET: &str = "run/startos/rpc.sock"; // must not be absolute path
 
 pub struct LxcManager {
     containers: Mutex<Vec<Weak<InternedString>>>,
@@ -74,9 +74,25 @@ impl LxcManager {
         .map(|s| s.trim())
         {
             if !expected.contains(container) {
-                unmount(Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs")).await?;
+                let rootfs_path = Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs");
+                if tokio::fs::metadata(&rootfs_path).await.is_ok() {
+                    unmount(Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs")).await?;
+                    if tokio_stream::wrappers::ReadDirStream::new(
+                        tokio::fs::read_dir(&rootfs_path).await?,
+                    )
+                    .count()
+                    .await
+                        > 0
+                    {
+                        return Err(Error::new(
+                            eyre!("rootfs is not empty, refusing to delete"),
+                            ErrorKind::InvalidRequest,
+                        ));
+                    }
+                }
                 Command::new("lxc-destroy")
                     .arg("--force")
+                    .arg("--name")
                     .arg(container)
                     .invoke(ErrorKind::Lxc)
                     .await?;
@@ -88,7 +104,7 @@ impl LxcManager {
 
 pub struct LxcContainer {
     manager: Weak<LxcManager>,
-    rootfs: Option<MountGuard>,
+    rootfs: Option<OverlayGuard>,
     guid: Arc<InternedString>,
     config: LxcConfig,
     exited: bool,
@@ -105,12 +121,16 @@ impl LxcContainer {
         .await?;
         // TODO: append config
         let rootfs_dir = container_dir.join("rootfs");
-        let rootfs = MountGuard::mount(
-            &OverlayFs::new("/usr/lib/startos/container-runtime/lxc/rootfs"),
+        let rootfs = OverlayGuard::mount(
+            &BlockDev::new("/usr/lib/startos/container-runtime/lxc/rootfs.squashfs"),
             &rootfs_dir,
-            ReadWrite,
         )
         .await?;
+        Command::new("mount")
+            .arg("--make-rshared")
+            .arg(rootfs.path())
+            .invoke(ErrorKind::Filesystem)
+            .await?;
         Command::new("lxc-start")
             .arg("-d")
             .arg("--name")
@@ -133,26 +153,25 @@ impl LxcContainer {
     }
 
     pub async fn exit(mut self) -> Result<(), Error> {
-        for mountpoint in String::from_utf8(
-            Command::new("find")
-                .arg(self.rootfs_dir())
-                .arg("-depth")
-                .arg("!")
-                .arg("-exec")
-                .arg("mountpoint")
-                .arg("-q")
-                .arg("{}")
-                .arg(";")
-                .arg("-print")
-                .invoke(ErrorKind::Filesystem)
-                .await?,
-        )?
-        .lines()
-        {
-            unmount(mountpoint).await?;
+        if let Some(guard) = self.rootfs.take() {
+            guard.unmount(true).await?;
         }
-        Command::new("lxc")
-            .arg("stop")
+        let rootfs_path = self.rootfs_dir();
+        if tokio::fs::metadata(&rootfs_path).await.is_ok() {
+            if tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(&rootfs_path).await?)
+                .count()
+                .await
+                > 0
+            {
+                return Err(Error::new(
+                    eyre!("rootfs is not empty, refusing to delete"),
+                    ErrorKind::InvalidRequest,
+                ));
+            }
+        }
+        Command::new("lxc-destroy")
+            .arg("--force")
+            .arg("--name")
             .arg(&**self.guid)
             .invoke(ErrorKind::Lxc)
             .await?;
@@ -189,7 +208,7 @@ impl Drop for LxcContainer {
             if let Some(manager) = self.manager.upgrade() {
                 tokio::spawn(async move {
                     if let Some(rootfs) = rootfs {
-                        rootfs.unmount(false).await;
+                        rootfs.unmount(true).await.unwrap();
                     }
                     drop(guid);
                     if let Err(e) = manager.gc().await {
