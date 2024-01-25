@@ -2,7 +2,7 @@ import * as T from "@start9labs/start-sdk/lib/types"
 import * as fs from "fs/promises"
 
 import { PolyfillEffects } from "./polyfillEffects"
-import { System } from "../../../Interfaces/System"
+import { ExecuteResult, System } from "../../../Interfaces/System"
 import { createUtils } from "@start9labs/start-sdk/lib/util"
 import { matchManifest, Manifest, Procedure } from "./matchManifest"
 import { create } from "domain"
@@ -12,6 +12,7 @@ import * as U from "./oldEmbassyTypes"
 import { MainLoop } from "./MainLoop"
 import { EmVer } from "@start9labs/start-sdk/lib/emverLite/mod"
 import {
+  matches,
   boolean,
   dictionary,
   literal,
@@ -19,6 +20,9 @@ import {
   object,
   string,
   unknown,
+  any,
+  tuple,
+  number,
 } from "ts-matches"
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { JsonPath, unNestPath } from "../../../Models/JsonPath"
@@ -49,6 +53,56 @@ export class SystemForEmbassy implements System {
       .catch(() => ({}))
   }
   async execute(
+    effects: HostSystemStartOs,
+    options: {
+      procedure: JsonPath
+      input: unknown
+      timeout?: number | undefined
+    },
+  ): Promise<ExecuteResult> {
+    return this._execute(effects, options)
+      .then((x) =>
+        matches(x)
+          .when(
+            object({
+              result: any,
+            }),
+            (x) => ({
+              ok: x.result,
+            }),
+          )
+          .when(
+            object({
+              error: string,
+            }),
+            (x) => ({
+              err: {
+                code: 0,
+                message: x.error,
+              },
+            }),
+          )
+          .when(
+            object({
+              "error-code": tuple(number, string),
+            }),
+            ({ "error-code": [code, message] }) => ({
+              err: {
+                code,
+                message,
+              },
+            }),
+          )
+          .defaultTo({ ok: x }),
+      )
+      .catch((error) => ({
+        err: {
+          code: 0,
+          message: "" + error,
+        },
+      }))
+  }
+  async _execute(
     effects: HostSystemStartOs,
     options: {
       procedure: JsonPath

@@ -83,14 +83,13 @@ export class RpcListener {
         error: { message: error?.message ?? String(error) },
       })
       const writeDataToSocket = (x: unknown) =>
-        new Promise((resolve) => s.write("" + x, resolve))
+        new Promise((resolve) => s.write(JSON.stringify(x), resolve))
       s.on("data", (a) =>
         Promise.resolve(a)
           .then(jsonParse)
           .then((x) => this.dealWithInput(x))
           .then(logData)
           .catch(logError)
-          .then(JSON.stringify)
           .then(writeDataToSocket)
           .finally(() => void s.end()),
       )
@@ -102,18 +101,26 @@ export class RpcListener {
       .when(runType, async ({ id, params }) => {
         const system = await this.getDependencies.system()
         const procedure = jsonPath.unsafeCast(params.procedure)
-        return system.execute(this.effects, {
-          procedure,
-          input: params.input,
-          timeout: params.timeout,
-        })
+        return system
+          .execute(this.effects, {
+            procedure,
+            input: params.input,
+            timeout: params.timeout,
+          })
+          .then((result) => ({ result, id }))
+          .catch((error) => ({
+            id,
+            result: { err: { code: 0, message: "" + error } },
+          }))
       })
       .when(callbackType, async ({ id, params: { callback, args } }) =>
         Promise.resolve(this.#callbacks.callCallback(callback, args))
           .then((result) => ({ id, result }))
           .catch((error) => ({
             id,
-            error: { message: error?.message ?? String(error) },
+            error: {
+              err: { code: 1, message: error?.message ?? String(error) },
+            },
           })),
       )
 
@@ -121,7 +128,7 @@ export class RpcListener {
         console.warn(`Coudln't parse the following input ${input}`)
         return {
           id: (input as any)?.id,
-          error: { message: "Could not figure out shape" },
+          error: { err: { code: 2, message: "Could not figure out shape" } },
         }
       })
   }

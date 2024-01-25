@@ -1,6 +1,9 @@
 import { Effects } from "@start9labs/start-sdk/lib/types"
 import { JsonPath } from "../Models/JsonPath"
 
+export type ExecuteResult =
+  | { ok: unknown }
+  | { err: { code: number; message: string } }
 export interface System {
   // init(effects: Effects): Promise<void>
   // exit(effects: Effects): Promise<void>
@@ -14,7 +17,7 @@ export interface System {
       input: unknown
       timeout?: number
     },
-  ): Promise<unknown>
+  ): Promise<ExecuteResult>
   // sandbox(
   //   effects: Effects,
   //   options: {
