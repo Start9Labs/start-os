@@ -6,8 +6,11 @@ import { ExecuteResult, System } from "../../../Interfaces/System"
 import { createUtils } from "@start9labs/start-sdk/lib/util"
 import { matchManifest, Manifest, Procedure } from "./matchManifest"
 import { create } from "domain"
+import * as childProcess from "node:child_process"
+import { Volume } from "../../../Models/Volume"
 import { DockerProcedure } from "../../../Models/DockerProcedure"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
+import { promisify } from "node:util"
 import * as U from "./oldEmbassyTypes"
 import { MainLoop } from "./MainLoop"
 import { EmVer } from "@start9labs/start-sdk/lib/emverLite/mod"
@@ -26,12 +29,12 @@ import {
 } from "ts-matches"
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { JsonPath, unNestPath } from "../../../Models/JsonPath"
-import { Optional } from "ts-matches/types/src/parsers/interfaces"
 import { HostSystem } from "../../../Interfaces/HostSystem"
-
+type Optional<A> = A | undefined | null
 function todo(): never {
   throw new Error("Not implemented")
 }
+const spawn = promisify(childProcess.spawn)
 
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
 const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
@@ -149,6 +152,7 @@ export class SystemForEmbassy implements System {
     effects: HostSystemStartOs,
     previousVersion: Optional<string>,
   ): Promise<void> {
+    this.mountMainVolumes()
     if (previousVersion) await this.migration(effects, previousVersion)
     await this.properties(effects)
     await effects.setMainStatus({ status: "stopped" })
@@ -732,6 +736,24 @@ export class SystemForEmbassy implements System {
         throw new Error("Error getting config: " + x["error-code"][1])
       },
     )) as any
+  }
+  private async mountMainVolumes() {
+    const { main } = this.manifest
+    const { mounts } = main
+    for (const imageId in mounts) {
+      try {
+        const pathToMount = mounts[imageId]
+        if (await fs.stat(pathToMount).catch(() => false)) continue
+        const volume = new Volume(imageId)
+        await spawn(
+          "mount",
+          ["--target", pathToMount, "--source", volume.path],
+          {},
+        )
+      } catch (error) {
+        console.error(error)
+      }
+    }
   }
 }
 async function removePointers(value: T.ConfigRes): Promise<T.ConfigRes> {

@@ -18,6 +18,7 @@ export class MainLoop {
     readonly effects: HostSystemStartOs,
     readonly runProperties: () => Promise<void>,
   ) {}
+
   private healthLoops:
     | {
         name: string
@@ -57,7 +58,7 @@ export class MainLoop {
     delete this.mainEvent
     delete this.healthLoops
     delete this.propertiesEvent
-    if (mainEvent) await (await mainEvent).daemon.term(options)
+    if (mainEvent) await (await mainEvent).daemon.term()
     clearInterval(propertiesEvent)
     if (healthLoops) healthLoops.forEach((x) => clearInterval(x.interval))
   }
