@@ -162,7 +162,10 @@ emulate-reflash: $(ALL_TARGETS)
 upload-ota: results/$(BASENAME).squashfs
 	TARGET=$(TARGET) KEY=$(KEY) ./upload-ota.sh
 
-build/lib/container-runtime/lxc/rootfs.squashfs: container-runtime/alpine.squashfs container-runtime/update-image.sh
+container-runtime/alpine.squashfs: $(PLATFORM_FILE)
+	ARCH=$(ARCH) ./container-runtime/download-base-image.sh
+
+build/lib/container-runtime/lxc/rootfs.squashfs: container-runtime/alpine.squashfs container-runtime/update-image.sh | sudo
 	./container-runtime/update-image.sh
 
 build/lib/depends build/lib/conflicts: build/dpkg-deps/*

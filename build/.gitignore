@@ -1,3 +1,3 @@
 /lib/depends
 /lib/conflicts
-/lib/container-runtime/lxc/rootfs.squashfs
+/lib/container-runtime/rootfs.squashfs
