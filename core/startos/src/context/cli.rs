@@ -128,7 +128,7 @@ impl CliContext {
     #[instrument(skip_all)]
     pub fn developer_key(&self) -> Result<ed25519_dalek::SigningKey, Error> {
         if !self.developer_key_path.exists() {
-            return Err(Error::new(eyre!("Developer Key does not exist! Please run `start-sdk init` before running this command."), crate::ErrorKind::Uninitialized));
+            return Err(Error::new(eyre!("Developer Key does not exist! Please run `start-cli init` before running this command."), crate::ErrorKind::Uninitialized));
         }
         let pair = <ed25519::KeypairBytes as ed25519::pkcs8::DecodePrivateKey>::from_pkcs8_pem(
             &std::fs::read_to_string(&self.developer_key_path)?,
@@ -171,6 +171,28 @@ impl CliContext {
                 // base_url is "http://127.0.0.1/", with a trailing slash, so we don't put a leading slash in this path:
                 tokio_tungstenite::connect_async(url).await.with_kind(ErrorKind::Network)?;
         Ok(stream)
+    }
+
+    pub async fn rest_continuation(
+        &self,
+        guid: RequestGuid,
+        body: reqwest::Body,
+        headers: reqwest::header::HeaderMap,
+    ) -> Result<reqwest::Response, Error> {
+        let mut url = self.base_url.clone();
+        url.path_segments_mut()
+            .map_err(|_| eyre!("Url cannot be base"))
+            .with_kind(crate::ErrorKind::ParseUrl)?
+            .push("rest")
+            .push("rpc")
+            .push(guid.as_ref());
+        self.client
+            .post(url)
+            .headers(headers)
+            .body(body)
+            .send()
+            .await
+            .with_kind(ErrorKind::Network)
     }
 }
 impl AsRef<Jwk> for CliContext {

@@ -129,6 +129,7 @@ impl<S: FileSource> S9pk<S> {
 }
 
 impl<S: ArchiveSource> S9pk<Section<S>> {
+    #[instrument(skip_all)]
     pub async fn deserialize(source: &S) -> Result<Self, Error> {
         use tokio::io::AsyncReadExt;
 
@@ -149,7 +150,7 @@ impl<S: ArchiveSource> S9pk<Section<S>> {
 
         let mut archive = MerkleArchive::deserialize(source, &mut header).await?;
 
-        archive.filter(filter);
+        archive.filter(filter)?;
 
         archive.sort_by(|a, b| match (priority(a), priority(b)) {
             (Some(a), Some(b)) => a.cmp(&b),

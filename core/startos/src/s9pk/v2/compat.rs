@@ -20,6 +20,8 @@ use crate::util::Invoke;
 use crate::volume::Volume;
 use crate::ARCH;
 
+pub const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x01];
+
 const CONTAINER_TOOL: &str = "podman";
 
 type DynRead = Box<dyn AsyncRead + Unpin + Send + Sync + 'static>;
@@ -147,14 +149,15 @@ impl S9pk<Section<MultiCursorFile>> {
             Command::new("bash")
                 .arg("-c")
                 .arg(format!(
-                    "{CONTAINER_TOOL} export {id} | tar2sqfs {}",
-                    sqfs_path.display()
+                    "{CONTAINER_TOOL} export {id} | tar2sqfs {sqfs}",
+                    id = id.trim(),
+                    sqfs = sqfs_path.display()
                 ))
                 .invoke(ErrorKind::Docker)
                 .await?;
             Command::new(CONTAINER_TOOL)
                 .arg("rm")
-                .arg(&id)
+                .arg(id.trim())
                 .invoke(ErrorKind::Docker)
                 .await?;
             archive.insert_path(
@@ -165,7 +168,7 @@ impl S9pk<Section<MultiCursorFile>> {
         Command::new(CONTAINER_TOOL)
             .arg("image")
             .arg("prune")
-            .arg("-a")
+            .arg("-af")
             .invoke(ErrorKind::Docker)
             .await?;
 
@@ -203,7 +206,7 @@ impl S9pk<Section<MultiCursorFile>> {
             js_file.sync_all().await?;
         }
         {
-            let mut js_file = File::create(js_dir.join("manifest-v1.json")).await?;
+            let mut js_file = File::create(js_dir.join("embassyManifest.json")).await?;
             js_file
                 .write_all(&serde_json::to_vec(&manifest_raw).with_kind(ErrorKind::Serialization)?)
                 .await?;
@@ -222,6 +225,7 @@ impl S9pk<Section<MultiCursorFile>> {
         let mut s9pk = S9pk::new(MerkleArchive::new(archive, signer), None).await?;
         let mut dest_file = File::create(destination.as_ref()).await?;
         s9pk.serialize(&mut dest_file, false).await?;
+        dest_file.sync_all().await?;
 
         scratch_dir.delete().await?;
 

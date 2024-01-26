@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use tokio::fs::File;
-use tokio::io::AsyncRead;
+use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::sync::{Mutex, OwnedMutexGuard};
 
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
@@ -58,8 +58,8 @@ impl AsyncRead for FileSectionReader {
             return std::task::Poll::Ready(Ok(()));
         }
         let before = buf.filled().len() as u64;
-        let res = std::pin::Pin::new(&mut **this.file.get_mut())
-            .poll_read(cx, &mut buf.take(*this.remaining as usize));
+        let res = std::pin::Pin::new(&mut (&mut **this.file.get_mut()).take(*this.remaining))
+            .poll_read(cx, buf);
         *this.remaining = this
             .remaining
             .saturating_sub(buf.filled().len() as u64 - before);

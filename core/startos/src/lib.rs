@@ -70,7 +70,9 @@ pub use config::Config;
 pub use error::{Error, ErrorKind, ResultExt};
 use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{command, from_fn, from_fn_async, AnyContext, HandlerExt, ParentHandler};
+use rpc_toolkit::{
+    command, from_fn, from_fn_async, from_fn_blocking, AnyContext, HandlerExt, ParentHandler,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::context::CliContext;
@@ -83,7 +85,7 @@ pub struct EchoParams {
     message: String,
 }
 
-pub fn echo(ctx: AnyContext, EchoParams { message }: EchoParams) -> Result<String, RpcError> {
+pub fn echo(_: AnyContext, EchoParams { message }: EchoParams) -> Result<String, RpcError> {
     Ok(message)
 }
 
@@ -96,7 +98,7 @@ pub fn main_api() -> ParentHandler {
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_remote_cli::<CliContext>(),
         )
-        // .subcommand("inspect", inspect::inspect())
+        .subcommand("init", from_fn_blocking(developer::init).no_display())
         .subcommand("server", server())
         .subcommand("package", package())
         .subcommand("net", net::net())
@@ -183,10 +185,10 @@ pub fn package() -> ParentHandler {
             "install",
             from_fn_async(install::install)
                 .with_metadata("sync_db", Value::Bool(true))
-                .no_display()
-                .with_remote_cli::<CliContext>(),
+                .no_cli(),
         )
         .subcommand("sideload", from_fn_async(install::sideload).no_cli())
+        .subcommand("install", from_fn_async(install::cli_install).no_display())
         .subcommand(
             "uninstall",
             from_fn_async(install::uninstall)

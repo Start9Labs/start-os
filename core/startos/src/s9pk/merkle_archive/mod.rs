@@ -42,6 +42,7 @@ impl<S> MerkleArchive<S> {
     pub const fn header_size() -> u64 {
         32 // pubkey
                  + 64 // signature
+                 + 32 // sighash
                  + DirectoryContents::<Section<S>>::header_size()
     }
     pub fn contents(&self) -> &DirectoryContents<S> {

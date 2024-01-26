@@ -13,6 +13,13 @@ use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use crate::db::model::Database;
 use crate::prelude::*;
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum Progress {
+    Complete(bool),
+    Progress { done: u64, total: u64 },
+}
+
 #[derive(Debug, Deserialize, Serialize, HasModel, Default)]
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
