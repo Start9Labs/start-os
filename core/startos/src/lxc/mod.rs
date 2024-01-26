@@ -115,7 +115,7 @@ impl LxcContainer {
         let container_dir = Path::new(LXC_CONTAINER_DIR).join(&*guid);
         tokio::fs::create_dir_all(&container_dir).await?;
         tokio::fs::write(
-            "/usr/lib/startos/container-runtime/lxc/config",
+            container_dir.join("config"),
             format!(include_str!("./config.template"), guid = &*guid),
         )
         .await?;
@@ -126,6 +126,13 @@ impl LxcContainer {
             &rootfs_dir,
         )
         .await?;
+        tokio::fs::write(rootfs_dir.join("etc/hostname"), format!("{guid}\n")).await?;
+        Command::new("sed")
+            .arg("-i")
+            .arg(format!("s/LXC_NAME/{guid}/g"))
+            .arg(rootfs_dir.join("etc/hosts"))
+            .invoke(ErrorKind::Filesystem)
+            .await?;
         Command::new("mount")
             .arg("--make-rshared")
             .arg(rootfs.path())

@@ -32,7 +32,6 @@ cli = []
 daemon = []
 default = ["cli", "daemon"]
 dev = []
-docker = []
 unstable = ["console-subscriber", "tokio/tracing"]
 
 [dependencies]

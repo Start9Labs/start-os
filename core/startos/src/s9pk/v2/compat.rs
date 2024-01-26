@@ -15,11 +15,12 @@ use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
 use crate::s9pk::v1::manifest::Manifest as ManifestV1;
 use crate::s9pk::v1::reader::S9pkReader;
 use crate::s9pk::v2::S9pk;
-use crate::util::docker::CONTAINER_TOOL;
 use crate::util::io::TmpDir;
 use crate::util::Invoke;
 use crate::volume::Volume;
 use crate::ARCH;
+
+const CONTAINER_TOOL: &str = "podman";
 
 type DynRead = Box<dyn AsyncRead + Unpin + Send + Sync + 'static>;
 fn into_dyn_read<R: AsyncRead + Unpin + Send + Sync + 'static>(r: R) -> DynRead {
