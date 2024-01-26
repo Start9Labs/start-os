@@ -1,26 +1,36 @@
-use imbl_value::json;
-use models::{ActionId, HealthCheckId, PackageId};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+use imbl_value::{json, InternedString};
+use models::{ActionId, HealthCheckId, ImageId, PackageId};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 
+use crate::db::model::ExposedUI;
+use crate::disk::mount::filesystem::loop_dev::LoopDev;
+use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::prelude::*;
+use crate::service::ServiceActorSeed;
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
-use crate::{context::RpcContext, db::model::ExposedUI};
+use crate::util::new_guid;
+use crate::ARCH;
 
 #[derive(Clone)]
-pub struct EffectContext {
-    ctx: RpcContext,
-    package_id: PackageId,
-}
-
+pub(super) struct EffectContext(Arc<ServiceActorSeed>);
 impl EffectContext {
-    pub fn new(ctx: RpcContext, package_id: PackageId) -> Self {
-        Self { ctx, package_id }
+    pub fn new(seed: Arc<ServiceActorSeed>) -> Self {
+        Self(seed)
+    }
+}
+impl Context for EffectContext {}
+impl std::ops::Deref for EffectContext {
+    type Target = ServiceActorSeed;
+    fn deref(&self) -> &Self::Target {
+        self.0.deref()
     }
 }
 
-impl Context for EffectContext {}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct RpcData {
     id: i64,
@@ -45,6 +55,10 @@ pub fn service_effect_handler() -> ParentHandler {
             from_fn_async(expose_for_dependents).no_cli(),
         )
         .subcommand("exposeUi", from_fn_async(expose_ui).no_cli())
+        .subcommand(
+            "createOverlayedImage",
+            from_fn_async(create_overlayed_image).no_cli(),
+        )
     // TODO @DrBonez when we get the new api for 4.0
     // .subcommand("setDependencies",from_fn(set_dependencies))
     // .subcommand("embassyGetInterface",from_fn(embassy_get_interface))
@@ -83,7 +97,7 @@ async fn get_store(
     GetStoreParams { package_id, path }: GetStoreParams,
 ) -> Result<Value, Error> {
     let peeked = context.ctx.db.peek().await;
-    let package_id = package_id.unwrap_or(context.package_id);
+    let package_id = package_id.unwrap_or(context.id.clone());
     let value = peeked
         .as_package_data()
         .as_idx(&package_id)
@@ -109,7 +123,7 @@ async fn set_store(
     context: EffectContext,
     SetStoreParams { value, path }: SetStoreParams,
 ) -> Result<(), Error> {
-    let package_id = context.package_id;
+    let package_id = context.id.clone();
     context
         .ctx
         .db
@@ -140,7 +154,7 @@ async fn expose_for_dependents(
     context: EffectContext,
     ExposeForDependentsParams { paths }: ExposeForDependentsParams,
 ) -> Result<(), Error> {
-    let package_id = context.package_id;
+    let package_id = context.id.clone();
     context
         .ctx
         .db
@@ -166,7 +180,7 @@ async fn expose_ui(
     context: EffectContext,
     ExposeUiParams { paths }: ExposeUiParams,
 ) -> Result<(), Error> {
-    let package_id = context.package_id;
+    let package_id = context.id.clone();
     context
         .ctx
         .db
@@ -206,15 +220,15 @@ struct ExecuteAction {
     input: Value,
 }
 async fn execute_action(
-    EffectContext { ctx, package_id }: EffectContext,
+    context: EffectContext,
     ExecuteAction {
         action_id,
         input,
         service_id,
     }: ExecuteAction,
 ) -> Result<Value, Error> {
-    let package_id = service_id.clone().unwrap_or_else(|| package_id.clone());
-    let service = ctx.services.get(&package_id).await;
+    let package_id = service_id.clone().unwrap_or_else(|| context.id.clone());
+    let service = context.ctx.services.get(&package_id).await;
     let service = service.as_ref().ok_or_else(|| {
         Error::new(
             eyre!("Could not find package {package_id}"),
@@ -227,11 +241,9 @@ async fn execute_action(
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct FromService {}
-async fn get_configured(
-    EffectContext { ctx, package_id }: EffectContext,
-    _: Empty,
-) -> Result<Value, Error> {
-    let peeked = ctx.db.peek().await;
+async fn get_configured(context: EffectContext, _: Empty) -> Result<Value, Error> {
+    let peeked = context.ctx.db.peek().await;
+    let package_id = &context.id;
     let package = peeked
         .as_package_data()
         .as_idx(&package_id)
@@ -244,12 +256,9 @@ async fn get_configured(
     Ok(json!(package))
 }
 
-async fn stopped(
-    EffectContext { ctx, package_id }: EffectContext,
-    params: ParamsMaybePackageId,
-) -> Result<Value, Error> {
-    let peeked = ctx.db.peek().await;
-    let package_id = params.package_id.unwrap_or(package_id);
+async fn stopped(context: EffectContext, params: ParamsMaybePackageId) -> Result<Value, Error> {
+    let peeked = context.ctx.db.peek().await;
+    let package_id = params.package_id.unwrap_or_else(|| context.id.clone());
     let package = peeked
         .as_package_data()
         .as_idx(&package_id)
@@ -261,12 +270,9 @@ async fn stopped(
         .de()?;
     Ok(json!(matches!(package, MainStatus::Stopped)))
 }
-async fn running(
-    EffectContext { ctx, package_id }: EffectContext,
-    params: ParamsMaybePackageId,
-) -> Result<Value, Error> {
-    let peeked = ctx.db.peek().await;
-    let package_id = params.package_id.unwrap_or(package_id);
+async fn running(context: EffectContext, params: ParamsMaybePackageId) -> Result<Value, Error> {
+    let peeked = context.ctx.db.peek().await;
+    let package_id = params.package_id.unwrap_or_else(|| context.id.clone());
     let package = peeked
         .as_package_data()
         .as_idx(&package_id)
@@ -279,33 +285,27 @@ async fn running(
     Ok(json!(matches!(package, MainStatus::Running { .. })))
 }
 
-async fn restart(
-    EffectContext { ctx, package_id }: EffectContext,
-    _: Empty,
-) -> Result<Value, Error> {
-    let service = ctx.services.get(&package_id).await;
+async fn restart(context: EffectContext, _: Empty) -> Result<Value, Error> {
+    let service = context.ctx.services.get(&context.id).await;
     let service = service.as_ref().ok_or_else(|| {
         Error::new(
-            eyre!("Could not find package {package_id}"),
+            eyre!("Could not find package {}", context.id),
             ErrorKind::Unknown,
         )
     })?;
-    service.restart().await;
+    service.restart().await?;
     Ok(json!(()))
 }
 
-async fn shutdown(
-    EffectContext { ctx, package_id }: EffectContext,
-    _: Empty,
-) -> Result<Value, Error> {
-    let service = ctx.services.get(&package_id).await;
+async fn shutdown(context: EffectContext, _: Empty) -> Result<Value, Error> {
+    let service = context.ctx.services.get(&context.id).await;
     let service = service.as_ref().ok_or_else(|| {
         Error::new(
-            eyre!("Could not find package {package_id}"),
+            eyre!("Could not find package {}", context.id),
             ErrorKind::Unknown,
         )
     })?;
-    service.stop().await;
+    service.stop().await?;
     Ok(json!(()))
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -313,12 +313,11 @@ async fn shutdown(
 struct SetConfigured {
     configured: bool,
 }
-async fn set_configured(
-    EffectContext { ctx, package_id }: EffectContext,
-    params: SetConfigured,
-) -> Result<Value, Error> {
-    let package_id = &package_id;
-    ctx.db
+async fn set_configured(context: EffectContext, params: SetConfigured) -> Result<Value, Error> {
+    let package_id = &context.id;
+    context
+        .ctx
+        .db
         .mutate(|db| {
             db.as_package_data_mut()
                 .as_idx_mut(package_id)
@@ -339,10 +338,7 @@ struct SetHealth {
     health_result: Option<HealthCheckResult>,
 }
 
-async fn set_health(
-    EffectContext { ctx, package_id }: EffectContext,
-    params: SetHealth,
-) -> Result<Value, Error> {
+async fn set_health(context: EffectContext, params: SetHealth) -> Result<Value, Error> {
     // TODO DrBonez + BLU-J Need to change the type from
     // ```rs
     // #[serde(tag = "result")]
@@ -362,9 +358,12 @@ async fn set_health(
     //     message?: string
     //   }): Promise<void>
     // ```
-    ctx.db
+
+    let package_id = &context.id;
+    context
+        .ctx
+        .db
         .mutate(move |db| {
-            let package_id = &package_id;
             let mut main = db
                 .as_package_data()
                 .as_idx(package_id)
@@ -399,4 +398,54 @@ async fn set_health(
         })
         .await?;
     Ok(json!(()))
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateOverlayedImageParams {
+    image_id: ImageId,
+}
+
+#[instrument(skip_all)]
+pub async fn create_overlayed_image(
+    ctx: EffectContext,
+    CreateOverlayedImageParams { image_id }: CreateOverlayedImageParams,
+) -> Result<PathBuf, Error> {
+    let path = Path::new("images")
+        .join(&*ARCH)
+        .join(&image_id)
+        .with_extension("squashfs");
+    if let Some(image) = ctx
+        .persistent_container
+        .s9pk
+        .as_archive()
+        .contents()
+        .get_path(&path)
+        .and_then(|e| e.as_file())
+    {
+        let guid = new_guid();
+        let mountpoint = ctx
+            .persistent_container
+            .lxc_container
+            .rootfs_dir()
+            .join("media/images/overlays")
+            .join(&*guid);
+        let container_mountpoint = Path::new("/").join(
+            mountpoint
+                .strip_prefix(ctx.persistent_container.lxc_container.rootfs_dir())
+                .with_kind(ErrorKind::Incoherent)?,
+        );
+        let guard = OverlayGuard::mount(&LoopDev::from(&**image), mountpoint).await?;
+        ctx.persistent_container
+            .overlays
+            .lock()
+            .await
+            .insert(guid.clone(), guard);
+        Ok(container_mountpoint)
+    } else {
+        Err(Error::new(
+            eyre!("image {image_id} not found in s9pk"),
+            ErrorKind::NotFound,
+        ))
+    }
 }

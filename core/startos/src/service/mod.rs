@@ -61,7 +61,7 @@ impl Service {
         let id = s9pk.as_manifest().id.clone();
         let desired_state = watch::channel(start).0;
         let temp_desired_state = TempDesiredState(Arc::new(watch::channel(None).0));
-        let persistent_container = PersistentContainer::init(
+        let persistent_container = PersistentContainer::new(
             &ctx,
             s9pk,
             desired_state.subscribe(),
@@ -78,6 +78,7 @@ impl Service {
             transition_state: Arc::new(watch::channel(None).0),
             synchronized: Arc::new(Notify::new()),
         });
+        seed.persistent_container.init(seed.clone()).await?;
         Ok(Self {
             actor: SimpleActor::new(ServiceActor(seed.clone())),
             seed,
@@ -245,7 +246,7 @@ struct RunningStatus {
     started: DateTime<Utc>,
 }
 
-struct ServiceActorSeed {
+pub(self) struct ServiceActorSeed {
     ctx: RpcContext,
     id: PackageId,
     persistent_container: PersistentContainer,

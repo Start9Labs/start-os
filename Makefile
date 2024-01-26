@@ -165,7 +165,14 @@ upload-ota: results/$(BASENAME).squashfs
 container-runtime/alpine.squashfs: $(PLATFORM_FILE)
 	ARCH=$(ARCH) ./container-runtime/download-base-image.sh
 
-build/lib/container-runtime/lxc/rootfs.squashfs: container-runtime/alpine.squashfs container-runtime/update-image.sh | sudo
+container-runtime/node_modules: container-runtime/package.json container-runtime/package-lock.json
+	npm --prefix container-runtime ci
+	touch container-runtime/node_modules
+
+container-runtime/dist: container-runtime/node_modules $(shell git ls-files container-runtime/initSrc) container-runtime/package.json container-runtime/tsconfig.json
+	npm --prefix container-runtime run bundle
+
+build/lib/container-runtime/lxc/rootfs.squashfs: container-runtime/alpine.squashfs container-runtime/update-image.sh container-runtime/dist | sudo
 	./container-runtime/update-image.sh
 
 build/lib/depends build/lib/conflicts: build/dpkg-deps/*

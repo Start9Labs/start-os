@@ -1,0 +1,10 @@
+#!/sbin/openrc-run
+
+name=containerRuntime
+#cfgfile="/etc/containerRuntime/containerRuntime.conf"
+command="/usr/bin/node"
+command_args="/root/cr/dist/index.js"
+pidfile="/run/containerRuntime.pid"
+command_background="yes"
+output_log="/var/log/containerRuntime.log"
+error_log="/var/log/containerRuntime.err"

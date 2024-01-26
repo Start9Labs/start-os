@@ -12,8 +12,11 @@ sudo mount -t overlay -olowerdir=tmp/lower,upperdir=tmp/upper,workdir=tmp/work o
 echo "nameserver 8.8.8.8" | sudo tee tmp/combined/etc/resolv.conf # TODO - delegate to host resolver?
 sudo chroot tmp/combined apk add nodejs
 sudo mkdir -p tmp/combined/usr/lib/startos/
-# cp -r dist tmp/combined/usr/lib/startos/init
-# TODO: add init system file
+sudo cp -r dist tmp/combined/usr/lib/startos/init
+sudo cp containerRuntime.rc tmp/combined/etc/init.d/containerRuntime
+sudo chown -R 0:0 tmp/combined
+sudo chmod +x tmp/combined/etc/init.d/containerRuntime
+sudo chroot tmp/combined rc-update add containerRuntime default
 sudo truncate -s 0 tmp/combined/etc/resolv.conf
 rm -f ../build/lib/container-runtime/rootfs.squashfs
 mkdir -p ../build/lib/container-runtime
