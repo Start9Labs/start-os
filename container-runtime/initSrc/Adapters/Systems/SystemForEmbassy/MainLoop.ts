@@ -4,6 +4,10 @@ import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import { SystemForEmbassy } from "."
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { createUtils } from "@start9labs/start-sdk/lib/util"
+import * as fs from "node:fs/promises"
+import * as childProcess from "node:child_process"
+import { promisify } from "node:util"
+const spawn = promisify(childProcess.spawn)
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
 const EMBASSY_PROPERTIES_LOOP = 30 * 1000
@@ -17,7 +21,31 @@ export class MainLoop {
     readonly system: SystemForEmbassy,
     readonly effects: HostSystemStartOs,
     readonly runProperties: () => Promise<void>,
-  ) {}
+  ) {
+    this.mountMainVolumes()
+  }
+
+  private async mountMainVolumes() {
+    const { system, effects } = this
+    const { manifest } = system
+    const { main } = manifest
+    const { mounts } = main
+    for (const imageId in mounts) {
+      try {
+        const pathToMount = mounts[imageId]
+        if (await fs.stat(pathToMount).catch(() => false)) continue
+        const mountFrom = await effects.createOverlayedImage({ imageId })
+        await spawn(
+          "mount",
+          ["--target", pathToMount, "--source", mountFrom],
+          {},
+        )
+      } catch (error) {
+        console.error(error)
+      }
+    }
+  }
+
   private healthLoops:
     | {
         name: string
@@ -57,7 +85,7 @@ export class MainLoop {
     delete this.mainEvent
     delete this.healthLoops
     delete this.propertiesEvent
-    if (mainEvent) await (await mainEvent).daemon.term(options)
+    if (mainEvent) await (await mainEvent).daemon.term()
     clearInterval(propertiesEvent)
     if (healthLoops) healthLoops.forEach((x) => clearInterval(x.interval))
   }

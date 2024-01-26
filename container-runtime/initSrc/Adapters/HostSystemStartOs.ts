@@ -56,7 +56,7 @@ export class HostSystemStartOs implements T.Effects {
       T.Effects["clearNetworkInterfaces"]
     >
   }
-  createOverlayedImage(options: { imageId: string }): Promise<String> {
+  createOverlayedImage(options: { imageId: string }): Promise<string> {
     return this.rpcRound("createOverlayedImage", options) as ReturnType<
       T.Effects["createOverlayedImage"]
     >

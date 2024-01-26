@@ -26,9 +26,8 @@ import {
 } from "ts-matches"
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { JsonPath, unNestPath } from "../../../Models/JsonPath"
-import { Optional } from "ts-matches/types/src/parsers/interfaces"
 import { HostSystem } from "../../../Interfaces/HostSystem"
-
+type Optional<A> = A | undefined | null
 function todo(): never {
   throw new Error("Not implemented")
 }
