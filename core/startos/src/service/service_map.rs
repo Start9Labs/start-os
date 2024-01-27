@@ -1,10 +1,12 @@
-use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::{Future, FutureExt};
+use helpers::NonDetachingJoinHandle;
 use imbl::OrdMap;
+use imbl_value::InternedString;
 use tokio::sync::{Mutex, OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tracing::instrument;
 
@@ -14,10 +16,10 @@ use crate::db::model::{
     PackageDataEntryRestoring, PackageDataEntryUpdating, StaticFiles,
 };
 use crate::disk::mount::guard::GenericMountGuard;
-use crate::install::progress::{InstallProgress, InstallProgressTracker};
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::notifications::NotificationLevel;
 use crate::prelude::*;
+use crate::progress::{FullProgressTracker, ProgressTrackerWriter};
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
@@ -90,28 +92,40 @@ impl ServiceMap {
         let icon = s9pk.icon_data_url().await?;
         let mut service = self.get_mut(&id).await;
 
-        let install_progress = Arc::new(InstallProgress::new(s9pk.size()));
+        let op_name = if recovery_source.is_none() {
+            if service.is_none() {
+                "Install"
+            } else {
+                "Update"
+            }
+        } else {
+            "Restore"
+        };
+
+        let size = s9pk.size();
+        let mut progress = FullProgressTracker::new();
+        let download_progress_contribution = size.unwrap_or(60);
+        let progress_handle = progress.handle();
+        let mut download_progress = progress_handle.add_phase(
+            InternedString::intern("Download"),
+            Some(download_progress_contribution),
+        );
+        if let Some(size) = size {
+            download_progress.set_total(size);
+        }
+        let mut finalization_progress = progress_handle.add_phase(
+            InternedString::intern(op_name),
+            Some(download_progress_contribution / 2),
+        );
         let restoring = recovery_source.is_some();
 
-        let mut reload_guard = ServiceReloadGuard::new(
-            ctx.clone(),
-            id.clone(),
-            if recovery_source.is_none() {
-                if service.is_none() {
-                    "Install"
-                } else {
-                    "Update"
-                }
-            } else {
-                "Restore"
-            },
-        );
+        let mut reload_guard = ServiceReloadGuard::new(ctx.clone(), id.clone(), op_name);
 
         reload_guard
             .handle(ctx.db.mutate({
                 let manifest = manifest.clone();
                 let id = id.clone();
-                let install_progress = install_progress.clone();
+                let install_progress = progress.snapshot();
                 move |db| {
                     let pde = match db
                         .as_package_data()
@@ -158,7 +172,7 @@ impl ServiceMap {
             .await?;
 
         Ok(async move {
-            let installed_path = reload_guard
+            let (installed_path, sync_progress_task) = reload_guard
                 .handle(async {
                     let download_path = ctx
                         .datadir
@@ -167,18 +181,26 @@ impl ServiceMap {
                         .join(&id)
                         .with_extension("s9pk");
 
-                    install_progress
-                        .track_download_during(ctx.db.clone(), &id, || async {
-                            let mut progress_writer = InstallProgressTracker::new(
-                                crate::util::io::create_file(&download_path).await?,
-                                install_progress.clone(),
-                            );
-                            s9pk.serialize(&mut progress_writer, true).await?;
-                            progress_writer.into_inner().sync_all().await?;
-                            install_progress.download_complete();
-                            Ok(())
-                        })
-                        .await?;
+                    let deref_id = id.clone();
+                    let sync_progress_task =
+                        NonDetachingJoinHandle::from(tokio::spawn(progress.sync_to_db(
+                            ctx.db.clone(),
+                            move |v| {
+                                v.as_package_data_mut()
+                                    .as_idx_mut(&deref_id)
+                                    .and_then(|e| e.as_install_progress_mut())
+                            },
+                            Some(Duration::from_millis(250)),
+                        )));
+
+                    let mut progress_writer = ProgressTrackerWriter::new(
+                        crate::util::io::create_file(&download_path).await?,
+                        download_progress,
+                    );
+                    s9pk.serialize(&mut progress_writer, true).await?;
+                    let (file, mut download_progress) = progress_writer.into_inner();
+                    file.sync_all().await?;
+                    download_progress.complete();
 
                     let installed_path = ctx
                         .datadir
@@ -189,7 +211,7 @@ impl ServiceMap {
 
                     crate::util::io::rename(&download_path, &installed_path).await?;
 
-                    Ok::<PathBuf, Error>(installed_path)
+                    Ok::<_, Error>((installed_path, sync_progress_task))
                 })
                 .await?;
             Ok(reload_guard
@@ -211,15 +233,24 @@ impl ServiceMap {
                         service
                             .uninstall(Some(s9pk.as_manifest().version.clone()))
                             .await?;
+                        finalization_progress.complete();
+                        progress_handle.complete();
                         Some(version)
                     } else {
                         None
                     };
                     if let Some(recovery_source) = recovery_source {
                         *service = Some(Service::restore(ctx, s9pk, recovery_source).await?);
+                        finalization_progress.complete();
+                        progress_handle.complete();
                     } else {
                         *service = Some(Service::install(ctx, s9pk, prev).await?);
+                        finalization_progress.complete();
+                        progress_handle.complete();
                     }
+                    sync_progress_task.await.map_err(|_| {
+                        Error::new(eyre!("progress sync task panicked"), ErrorKind::Unknown)
+                    })??;
                     Ok(())
                 })
                 .boxed())

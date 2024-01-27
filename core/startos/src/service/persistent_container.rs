@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
-use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
 use futures::future::ready;
+use futures::Future;
 use helpers::{NonDetachingJoinHandle, UnixRpcClient};
 use imbl_value::InternedString;
 use models::ProcedureName;
@@ -25,7 +25,6 @@ use crate::s9pk::S9pk;
 use crate::service::rpc::{self, convert_rpc_error, StopParams};
 use crate::service::start_stop::StartStop;
 use crate::service::RunningStatus;
-use crate::{shutdown, ARCH};
 
 const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -37,15 +36,15 @@ struct ProcedureId(u64);
 /// socket served by the container
 pub struct PersistentContainer {
     pub(super) s9pk: S9pk,
-    pub(super) lxc_container: LxcContainer,
+    pub(super) lxc_container: OnceCell<LxcContainer>,
     rpc_client: UnixRpcClient,
     rpc_server: OnceCell<(NonDetachingJoinHandle<()>, ShutdownHandle)>,
-    procedures: Mutex<Vec<(ProcedureName, ProcedureId)>>,
+    // procedures: Mutex<Vec<(ProcedureName, ProcedureId)>>,
     js_mount: MountGuard,
     pub(super) overlays: Mutex<BTreeMap<InternedString, OverlayGuard>>,
     pub(super) current_state: watch::Sender<StartStop>,
-    pub(super) desired_state: watch::Receiver<StartStop>,
-    pub(super) temp_desired_state: watch::Receiver<Option<StartStop>>,
+    // pub(super) desired_state: watch::Receiver<StartStop>,
+    // pub(super) temp_desired_state: watch::Receiver<Option<StartStop>>,
     pub(super) running_status: watch::Sender<Option<RunningStatus>>,
 }
 
@@ -53,10 +52,11 @@ impl PersistentContainer {
     pub async fn new(
         ctx: &RpcContext,
         s9pk: S9pk,
-        desired_state: watch::Receiver<StartStop>,
-        temp_desired_state: watch::Receiver<Option<StartStop>>,
+        // desired_state: watch::Receiver<StartStop>,
+        // temp_desired_state: watch::Receiver<Option<StartStop>>,
     ) -> Result<Self, Error> {
         let lxc_container = ctx.lxc_manager.create(LxcConfig::default()).await?;
+        let rpc_client = lxc_container.connect_rpc(Some(RPC_CONNECT_TIMEOUT)).await?;
         let js_mount = MountGuard::mount(
             &LoopDev::from(
                 &**s9pk
@@ -70,18 +70,17 @@ impl PersistentContainer {
             ReadOnly,
         )
         .await?;
-        let rpc_client = lxc_container.connect_rpc(Some(RPC_CONNECT_TIMEOUT)).await?;
         Ok(Self {
             s9pk,
-            lxc_container,
+            lxc_container: OnceCell::new_with(Some(lxc_container)),
             rpc_client,
             rpc_server: OnceCell::new(),
-            procedures: Default::default(),
+            // procedures: Default::default(),
             js_mount,
             overlays: Mutex::new(BTreeMap::new()),
             current_state: watch::channel(StartStop::Stop).0,
-            desired_state,
-            temp_desired_state,
+            // desired_state,
+            // temp_desired_state,
             running_status: watch::channel(None).0,
         })
     }
@@ -92,31 +91,44 @@ impl PersistentContainer {
             move || ready(Ok(socket_server_context.clone())),
             service_effect_handler(),
         );
-        let path = self.lxc_container.rootfs_dir().join(HOST_RPC_SERVER_SOCKET);
+        let path = self
+            .lxc_container
+            .get()
+            .ok_or_else(|| {
+                Error::new(
+                    eyre!("PersistentContainer has been destroyed"),
+                    ErrorKind::Incoherent,
+                )
+            })?
+            .rootfs_dir()
+            .join(HOST_RPC_SERVER_SOCKET);
         let (send, recv) = oneshot::channel();
-        let handle = NonDetachingJoinHandle::spawn(async move {
+        let handle = NonDetachingJoinHandle::from(tokio::spawn(async move {
             let (shutdown, fut) = match server.run_unix(&path, |err| {
-                tracing::error!("error on unix socket {}: {e}", path.display())
+                tracing::error!("error on unix socket {}: {err}", path.display())
             }) {
-                Ok((shutdown, fut)) = (Ok(shutdown), Some(fut)),
+                Ok((shutdown, fut)) => (Ok(shutdown), Some(fut)),
                 Err(e) => (Err(e), None),
+            };
+            if send.send(shutdown).is_err() {
+                panic!("failed to send shutdown handle");
             }
-            send.send(shutdown);
             if let Some(fut) = fut {
                 fut.await
             }
-        });
-        let shutdown = recv.await?;
-        self.rpc_server
-            .set(
-                (handle, shutdown),
+        }));
+        let shutdown = recv.await.map_err(|_| {
+            Error::new(
+                eyre!("unix socket server thread panicked"),
+                ErrorKind::Unknown,
             )
-            .map_err(|_| {
-                Error::new(
-                    eyre!("PersistentContainer already initialized"),
-                    ErrorKind::InvalidRequest,
-                )
-            })?;
+        })??;
+        self.rpc_server.set((handle, shutdown)).map_err(|_| {
+            Error::new(
+                eyre!("PersistentContainer already initialized"),
+                ErrorKind::InvalidRequest,
+            )
+        })?;
         // @todo @Blu-J @dr-bonez  Make it so the persistent cointainer uses as socket server for the effects.
         // let socket_server = run_unix(service_effect_handler(s9pk.as_manifest().id.clone()));
 
@@ -128,23 +140,34 @@ impl PersistentContainer {
         Ok(())
     }
 
-    pub async fn exit(self) -> Result<(), Error> {
-        let Self {
-            rpc_client,
-            js_mount,
-            overlays,
-            lxc_container,
-            ..
-        } = self;
-        rpc_client
-            .request(rpc::Exit, ())
-            .await
-            .map_err(convert_rpc_error)?;
-        js_mount.unmount(true).await?;
-        for (_, overlay) in std::mem::take(&mut *overlays.lock().await) {
-            overlay.unmount(true).await?;
+    fn destroy(&mut self) -> impl Future<Output = Result<(), Error>> + 'static {
+        let rpc_client = self.rpc_client.clone();
+        let rpc_server = self.rpc_server.take();
+        let js_mount = self.js_mount.take();
+        let overlays = std::mem::take(&mut *self.overlays.blocking_lock());
+        let lxc_container = self.lxc_container.take();
+        async move {
+            rpc_client
+                .request(rpc::Exit, ())
+                .await
+                .map_err(convert_rpc_error)?;
+            if let Some((hdl, shutdown)) = rpc_server {
+                shutdown.shutdown();
+                hdl.await.with_kind(ErrorKind::Cancelled)?;
+            }
+            js_mount.unmount(true).await?;
+            for (_, overlay) in overlays {
+                overlay.unmount(true).await?;
+            }
+            if let Some(lxc_container) = lxc_container {
+                lxc_container.exit().await?;
+            }
+            Ok(())
         }
-        lxc_container.exit().await?;
+    }
+
+    pub async fn exit(mut self) -> Result<(), Error> {
+        self.destroy().await?;
 
         Ok(())
     }
@@ -233,5 +256,12 @@ impl PersistentContainer {
             fut.await
         }
         .map_err(|e| (e.code, e.message.into_owned())))
+    }
+}
+
+impl Drop for PersistentContainer {
+    fn drop(&mut self) {
+        let destroy = self.destroy();
+        tokio::spawn(async move { destroy.await.unwrap() });
     }
 }

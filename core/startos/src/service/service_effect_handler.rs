@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use imbl_value::{json, InternedString};
+use imbl_value::json;
 use models::{ActionId, HealthCheckId, ImageId, PackageId};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
@@ -424,15 +424,21 @@ pub async fn create_overlayed_image(
         .and_then(|e| e.as_file())
     {
         let guid = new_guid();
-        let mountpoint = ctx
+        let rootfs_dir = ctx
             .persistent_container
             .lxc_container
-            .rootfs_dir()
-            .join("media/images/overlays")
-            .join(&*guid);
+            .get()
+            .ok_or_else(|| {
+                Error::new(
+                    eyre!("PersistentContainer has been destroyed"),
+                    ErrorKind::Incoherent,
+                )
+            })?
+            .rootfs_dir();
+        let mountpoint = rootfs_dir.join("media/images/overlays").join(&*guid);
         let container_mountpoint = Path::new("/").join(
             mountpoint
-                .strip_prefix(ctx.persistent_container.lxc_container.rootfs_dir())
+                .strip_prefix(rootfs_dir)
                 .with_kind(ErrorKind::Incoherent)?,
         );
         let guard = OverlayGuard::mount(&LoopDev::from(&**image), mountpoint).await?;

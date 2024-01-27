@@ -38,6 +38,7 @@ pub mod error;
 pub mod firmware;
 pub mod hostname;
 pub mod init;
+pub mod progress;
 // pub mod inspect;
 pub mod install;
 pub mod logs;

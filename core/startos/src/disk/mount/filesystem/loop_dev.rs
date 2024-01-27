@@ -24,8 +24,10 @@ pub async fn mount(
         opts += ",ro";
     }
 
+    let logicalname = tokio::fs::canonicalize(logicalname).await?;
+
     tokio::process::Command::new("mount")
-        .arg(logicalname.as_ref())
+        .arg(logicalname)
         .arg(mountpoint.as_ref())
         .arg("-o")
         .arg(opts)

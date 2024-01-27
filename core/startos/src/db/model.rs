@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::{Ipv4Addr, Ipv6Addr};
-use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use emver::VersionRange;
@@ -18,9 +17,9 @@ use ssh_key::public::Ed25519PublicKey;
 
 use crate::account::AccountInfo;
 use crate::config::spec::PackagePointerSpec;
-use crate::install::progress::InstallProgress;
 use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::prelude::*;
+use crate::progress::FullProgress;
 use crate::s9pk::manifest::Manifest;
 use crate::status::Status;
 use crate::util::cpupower::Governor;
@@ -244,7 +243,7 @@ impl StaticFiles {
 pub struct PackageDataEntryInstalling {
     pub static_files: StaticFiles,
     pub manifest: Manifest,
-    pub install_progress: Arc<InstallProgress>,
+    pub install_progress: FullProgress,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
@@ -254,7 +253,7 @@ pub struct PackageDataEntryUpdating {
     pub static_files: StaticFiles,
     pub manifest: Manifest,
     pub installed: InstalledPackageInfo,
-    pub install_progress: Arc<InstallProgress>,
+    pub install_progress: FullProgress,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
@@ -263,7 +262,7 @@ pub struct PackageDataEntryUpdating {
 pub struct PackageDataEntryRestoring {
     pub static_files: StaticFiles,
     pub manifest: Manifest,
-    pub install_progress: Arc<InstallProgress>,
+    pub install_progress: FullProgress,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
@@ -423,7 +422,7 @@ impl Model<PackageDataEntry> {
             PackageDataEntryMatchModelMut::Error(_) => None,
         }
     }
-    pub fn as_install_progress(&self) -> Option<&Model<Arc<InstallProgress>>> {
+    pub fn as_install_progress(&self) -> Option<&Model<FullProgress>> {
         match self.as_match() {
             PackageDataEntryMatchModelRef::Installing(a) => Some(a.as_install_progress()),
             PackageDataEntryMatchModelRef::Updating(a) => Some(a.as_install_progress()),
@@ -433,7 +432,7 @@ impl Model<PackageDataEntry> {
             PackageDataEntryMatchModelRef::Error(_) => None,
         }
     }
-    pub fn as_install_progress_mut(&mut self) -> Option<&mut Model<Arc<InstallProgress>>> {
+    pub fn as_install_progress_mut(&mut self) -> Option<&mut Model<FullProgress>> {
         match self.as_match_mut() {
             PackageDataEntryMatchModelMut::Installing(a) => Some(a.as_install_progress_mut()),
             PackageDataEntryMatchModelMut::Updating(a) => Some(a.as_install_progress_mut()),

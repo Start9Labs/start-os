@@ -131,6 +131,7 @@ impl RpcClient {
     }
 }
 
+#[derive(Clone)]
 pub struct UnixRpcClient {
     pool: Pool<
         RpcClient,

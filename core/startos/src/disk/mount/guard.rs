@@ -64,7 +64,7 @@ impl MountGuard {
             mounted: true,
         })
     }
-    pub(super) fn take(&mut self) -> Self {
+    pub fn take(&mut self) -> Self {
         Self {
             mountpoint: self.mountpoint.clone(),
             mounted: std::mem::replace(&mut self.mounted, false),

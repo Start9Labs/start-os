@@ -1,5 +1,5 @@
+use std::ascii::AsciiExt;
 use std::borrow::Borrow;
-use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -9,7 +9,7 @@ use imbl::OrdMap;
 use models::{ActionId, HealthCheckId, PackageId, ProcedureName};
 use persistent_container::PersistentContainer;
 use start_stop::StartStop;
-use tokio::sync::{watch, Mutex, Notify};
+use tokio::sync::{watch, Notify};
 
 use crate::action::ActionResult;
 use crate::config::action::ConfigRes;
@@ -17,11 +17,10 @@ use crate::context::RpcContext;
 use crate::db::model::{
     InstalledPackageInfo, PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryMatchModel,
 };
-use crate::disk::mount::backup::BackupMountGuard;
-use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
-use crate::install::progress::InstallProgress;
+use crate::disk::mount::guard::GenericMountGuard;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::prelude::*;
+use crate::progress::{NamedProgress, Progress};
 use crate::s9pk::S9pk;
 use crate::service::transition::{TempDesiredState, TransitionKind, TransitionState};
 use crate::status::health_check::HealthCheckResult;
@@ -70,8 +69,8 @@ impl Service {
         let persistent_container = PersistentContainer::new(
             &ctx,
             s9pk,
-            desired_state.subscribe(),
-            temp_desired_state.subscribe(),
+            // desired_state.subscribe(),
+            // temp_desired_state.subscribe(),
         )
         .await?;
         let seed = Arc::new(ServiceActorSeed {
@@ -148,10 +147,12 @@ impl Service {
             }
             Some(PackageDataEntryMatchModel::Updating(e)) => {
                 if disposition == LoadDisposition::Retry
-                    && e.as_install_progress()
-                        .de()?
-                        .download_complete
-                        .load(std::sync::atomic::Ordering::Relaxed)
+                    && e.as_install_progress().de()?.phases.iter().any(
+                        |NamedProgress { name, progress }| {
+                            name.eq_ignore_ascii_case("download")
+                                && progress == &Progress::Complete(true)
+                        },
+                    )
                 {
                     if let Ok(s9pk) = S9pk::open(&s9pk_path, Some(id)).await.map_err(|e| {
                         tracing::error!("Error opening s9pk for update: {e}");
@@ -242,8 +243,14 @@ impl Service {
         s9pk: S9pk,
         src_version: Option<models::Version>,
     ) -> Result<Self, Error> {
-        // TODO
-        Err(Error::new(eyre!("not yet implemented"), ErrorKind::Unknown))
+        let service = Self::new(ctx, s9pk, StartStop::Stop).await?;
+        service
+            .seed
+            .persistent_container
+            .execute(ProcedureName::Init, to_value(&src_version)?, None)
+            .await?
+            .map_err(|(_, e)| Error::new(eyre!("{e}"), ErrorKind::MigrationFailed))?; // TODO: handle cancellation
+        Ok(service)
     }
 
     pub async fn restore(
@@ -256,7 +263,7 @@ impl Service {
     }
 
     pub async fn get_config(&self) -> Result<ConfigRes, Error> {
-        let container = self.seed.persistent_container.borrow().clone();
+        let container = &self.seed.persistent_container;
         container
             .execute::<ConfigRes>(
                 ProcedureName::GetConfig,
@@ -270,7 +277,7 @@ impl Service {
     // TODO DO the Action Get
 
     pub async fn action(&self, id: ActionId, input: Value) -> Result<ActionResult, Error> {
-        let container = self.seed.persistent_container.borrow().clone();
+        let container = &self.seed.persistent_container;
         container
             .execute::<ActionResult>(
                 ProcedureName::RunAction(id),

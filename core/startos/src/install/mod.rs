@@ -30,8 +30,6 @@ use crate::upload::upload;
 use crate::util::clap::FromStrParser;
 use crate::util::Never;
 
-pub mod progress;
-
 pub const PKG_ARCHIVE_DIR: &str = "package-data/archive";
 pub const PKG_PUBLIC_DIR: &str = "package-data/public";
 pub const PKG_WASM_DIR: &str = "package-data/wasm";
@@ -168,8 +166,15 @@ pub async fn install(
     Ok(())
 }
 
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct SideloadResponse {
+    pub upload: RequestGuid,
+    pub progress: RequestGuid,
+}
+
 #[instrument(skip_all)]
-pub async fn sideload(ctx: RpcContext) -> Result<RequestGuid, Error> {
+pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
     let (guid, file) = upload(&ctx).await?;
     tokio::spawn(async move {
         if let Err(e) = async {
@@ -186,7 +191,10 @@ pub async fn sideload(ctx: RpcContext) -> Result<RequestGuid, Error> {
             tracing::debug!("{e:?}");
         }
     });
-    Ok(guid)
+    Ok(SideloadResponse {
+        upload: guid,
+        progress: RequestGuid::new(), // TODO
+    })
 }
 
 #[derive(Deserialize, Serialize)]
@@ -253,21 +261,20 @@ pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<()
                 .await?;
                 tokio::fs::rename(&new_path, &path).await?;
                 file = tokio::fs::File::open(&path).await?;
+                tracing::info!("Converted s9pk successfully");
             }
 
             // rpc call remote sideload
-            tracing::debug!("calling package.sideload");
-            let guid = from_value::<RequestGuid>(
+            let sideload_res = from_value::<SideloadResponse>(
                 ctx.call_remote("package.sideload", imbl_value::json!({}))
                     .await?,
             )?;
-            tracing::debug!("package.sideload succeeded {:?}", guid);
 
             // hit continuation api with guid that comes back
             let content_length = file.metadata().await?.len();
             let res = ctx
                 .rest_continuation(
-                    guid,
+                    sideload_res.upload,
                     reqwest::Body::wrap_stream(tokio_util::io::ReaderStream::new(file)),
                     {
                         let mut map = HeaderMap::new();
