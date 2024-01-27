@@ -404,7 +404,7 @@ impl PhasedProgressBar {
     pub fn new() -> Self {
         let multi = MultiProgress::new();
         Self {
-            overall: multi.add(ProgressBar::new(0)),
+            overall: multi.add(ProgressBar::new(1)),
             multi,
             phases: InOMap::new(),
         }
@@ -413,7 +413,7 @@ impl PhasedProgressBar {
         for phase in progress.phases.iter() {
             if !self.phases.contains_key(&phase.name) {
                 self.phases
-                    .insert(phase.name.clone(), self.multi.add(ProgressBar::new(0)));
+                    .insert(phase.name.clone(), self.multi.add(ProgressBar::new(1)));
             }
         }
         progress.overall.update_bar(&self.overall);
