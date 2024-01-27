@@ -46,7 +46,7 @@ impl Progress {
                 done,
                 total: Some(total),
             } => {
-                bar.set_style(BYTES.clone());
+                bar.set_style(PERCENTAGE.clone());
                 bar.set_position(done);
                 bar.set_length(total);
                 bar.tick();
