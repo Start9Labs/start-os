@@ -21,7 +21,7 @@ use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
-use crate::service::Service;
+use crate::service::{LoadDisposition, Service};
 
 pub type DownloadInstallFuture = BoxFuture<'static, Result<InstallFuture, Error>>;
 pub type InstallFuture = BoxFuture<'static, Result<(), Error>>;
@@ -52,7 +52,7 @@ impl ServiceMap {
     #[instrument(skip_all)]
     pub async fn init(&self, ctx: &RpcContext) -> Result<(), Error> {
         for id in ctx.db.peek().await.as_package_data().keys()? {
-            if let Err(e) = self.load(ctx, &id).await {
+            if let Err(e) = self.load(ctx, &id, LoadDisposition::Retry).await {
                 tracing::error!("Error loading installed package as service: {e}");
                 tracing::debug!("{e:?}");
             }
@@ -61,14 +61,19 @@ impl ServiceMap {
     }
 
     #[instrument(skip_all)]
-    pub async fn load(&self, ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
+    pub async fn load(
+        &self,
+        ctx: &RpcContext,
+        id: &PackageId,
+        disposition: LoadDisposition,
+    ) -> Result<(), Error> {
         let mut shutdown_err = Ok(());
         let mut service = self.get_mut(id).await;
         if let Some(service) = service.take() {
             shutdown_err = service.shutdown().await;
         }
         // TODO: retry on error?
-        *service = Service::load(ctx, id).await?;
+        *service = Service::load(ctx, id, disposition).await?;
         shutdown_err?;
         Ok(())
     }
@@ -271,10 +276,7 @@ impl ServiceReloadGuard {
     ) -> Result<T, Error> {
         let mut errors = ErrorCollection::new();
         match operation.await {
-            Ok(a) => {
-                self.0.take();
-                Ok(a)
-            }
+            Ok(a) => Ok(a),
             Err(e) => {
                 if let Some(info) = self.0.take() {
                     errors.handle(info.reload(Some(e.clone_output())).await);
@@ -301,7 +303,10 @@ struct ServiceReloadInfo {
 }
 impl ServiceReloadInfo {
     async fn reload(self, error: Option<Error>) -> Result<(), Error> {
-        self.ctx.services.load(&self.ctx, &self.id).await?;
+        self.ctx
+            .services
+            .load(&self.ctx, &self.id, LoadDisposition::Undo)
+            .await?;
         if let Some(error) = error {
             self.ctx
                 .notification_manager

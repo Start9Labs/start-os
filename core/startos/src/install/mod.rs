@@ -241,9 +241,9 @@ pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<()
             let mut magic = [0_u8; MAGIC_LEN];
             let mut file = tokio::fs::File::open(&path).await?;
             file.read_exact(&mut magic).await?;
+            file.seek(SeekFrom::Start(0)).await?;
             if magic == compat::MAGIC_AND_VERSION {
                 tracing::info!("Converting package to v2 s9pk");
-                file.seek(SeekFrom::Start(0)).await?;
                 let new_path = path.with_extension("compat.s9pk");
                 S9pk::from_v1(
                     S9pkReader::from_reader(file, true).await?,
@@ -276,7 +276,7 @@ pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<()
                     },
                 )
                 .await?;
-            if res.status().as_u16() == 200 {
+            if res.status().is_success() {
                 tracing::info!("Package Uploaded")
             } else {
                 tracing::error!(

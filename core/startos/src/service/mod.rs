@@ -52,6 +52,12 @@ pub enum BackupReturn {
     TODO,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum LoadDisposition {
+    Retry,
+    Undo,
+}
+
 pub struct Service {
     actor: SimpleActor<ServiceActor>,
     seed: Arc<ServiceActorSeed>,
@@ -85,7 +91,11 @@ impl Service {
         })
     }
 
-    pub async fn load(ctx: &RpcContext, id: &PackageId) -> Result<Option<Self>, Error> {
+    pub async fn load(
+        ctx: &RpcContext,
+        id: &PackageId,
+        disposition: LoadDisposition,
+    ) -> Result<Option<Self>, Error> {
         let handle_installed = {
             let ctx = ctx.clone();
             move |s9pk: S9pk, i: Model<InstalledPackageInfo>| async move {
@@ -104,12 +114,8 @@ impl Service {
                 Self::new(ctx, s9pk, start_stop).await.map(Some)
             }
         };
-        let s9pk_path = ctx
-            .datadir
-            .join(PKG_ARCHIVE_DIR)
-            .join("installed")
-            .join(&id)
-            .with_extension("s9pk");
+        let s9pk_dir = ctx.datadir.join(PKG_ARCHIVE_DIR).join("installed"); // TODO: make this based on hash
+        let s9pk_path = s9pk_dir.join(id).with_extension("s9pk");
         match ctx
             .db
             .peek()
@@ -119,56 +125,101 @@ impl Service {
             .map(|pde| pde.into_match())
         {
             Some(PackageDataEntryMatchModel::Installing(_)) => {
-                if let Ok(s9pk) = S9pk::open(s9pk_path, Some(id)).await {
-                    Self::install(ctx.clone(), s9pk, None).await.map(Some)
-                } else {
-                    // TODO: delete s9pk?
-                    Ok(None)
+                if disposition == LoadDisposition::Retry {
+                    if let Ok(s9pk) = S9pk::open(s9pk_path, Some(id)).await.map_err(|e| {
+                        tracing::error!("Error opening s9pk for install: {e}");
+                        tracing::debug!("{e:?}")
+                    }) {
+                        if let Ok(service) =
+                            Self::install(ctx.clone(), s9pk, None).await.map_err(|e| {
+                                tracing::error!("Error installing service: {e}");
+                                tracing::debug!("{e:?}")
+                            })
+                        {
+                            return Ok(Some(service));
+                        }
+                    }
                 }
+                // TODO: delete s9pk?
+                ctx.db
+                    .mutate(|v| v.as_package_data_mut().remove(id))
+                    .await?;
+                Ok(None)
             }
             Some(PackageDataEntryMatchModel::Updating(e)) => {
-                if e.as_install_progress()
-                    .de()?
-                    .download_complete
-                    .load(std::sync::atomic::Ordering::Relaxed)
+                if disposition == LoadDisposition::Retry
+                    && e.as_install_progress()
+                        .de()?
+                        .download_complete
+                        .load(std::sync::atomic::Ordering::Relaxed)
                 {
-                    Self::install(
-                        ctx.clone(),
-                        S9pk::open(s9pk_path, Some(id)).await?,
-                        Some(e.as_installed().as_manifest().as_version().de()?),
-                    )
-                    .await
-                    .map(Some)
-                } else {
-                    let s9pk = S9pk::open(s9pk_path, Some(id)).await?;
-                    ctx.db
-                        .mutate({
-                            let manifest = s9pk.as_manifest().clone();
-                            |db| {
-                                db.as_package_data_mut()
-                                    .as_idx_mut(&manifest.id)
-                                    .or_not_found(&manifest.id)?
-                                    .ser(&PackageDataEntry::Installed(PackageDataEntryInstalled {
-                                        static_files: e.as_static_files().de()?,
-                                        manifest,
-                                        installed: e.as_installed().de()?,
-                                    }))
-                            }
-                        })
-                        .await?;
-                    handle_installed(s9pk, e.as_installed().clone()).await
+                    if let Ok(s9pk) = S9pk::open(&s9pk_path, Some(id)).await.map_err(|e| {
+                        tracing::error!("Error opening s9pk for update: {e}");
+                        tracing::debug!("{e:?}")
+                    }) {
+                        if let Ok(service) = Self::install(
+                            ctx.clone(),
+                            s9pk,
+                            Some(e.as_installed().as_manifest().as_version().de()?),
+                        )
+                        .await
+                        .map_err(|e| {
+                            tracing::error!("Error installing service: {e}");
+                            tracing::debug!("{e:?}")
+                        }) {
+                            return Ok(Some(service));
+                        }
+                    }
                 }
+                let s9pk = S9pk::open(s9pk_path, Some(id)).await?;
+                ctx.db
+                    .mutate({
+                        let manifest = s9pk.as_manifest().clone();
+                        |db| {
+                            db.as_package_data_mut()
+                                .as_idx_mut(&manifest.id)
+                                .or_not_found(&manifest.id)?
+                                .ser(&PackageDataEntry::Installed(PackageDataEntryInstalled {
+                                    static_files: e.as_static_files().de()?,
+                                    manifest,
+                                    installed: e.as_installed().de()?,
+                                }))
+                        }
+                    })
+                    .await?;
+                handle_installed(s9pk, e.as_installed().clone()).await
             }
             Some(PackageDataEntryMatchModel::Removing(_))
             | Some(PackageDataEntryMatchModel::Restoring(_)) => {
-                Self::new(
-                    ctx.clone(),
-                    S9pk::open(s9pk_path, Some(id)).await?,
-                    StartStop::Stop,
-                )
-                .await?
-                .uninstall(None)
-                .await?;
+                if let Ok(s9pk) = S9pk::open(s9pk_path, Some(id)).await.map_err(|e| {
+                    tracing::error!("Error opening s9pk for removal: {e}");
+                    tracing::debug!("{e:?}")
+                }) {
+                    if let Ok(service) = Self::new(ctx.clone(), s9pk, StartStop::Stop)
+                        .await
+                        .map_err(|e| {
+                            tracing::error!("Error loading service for removal: {e}");
+                            tracing::debug!("{e:?}")
+                        })
+                    {
+                        if service
+                            .uninstall(None)
+                            .await
+                            .map_err(|e| {
+                                tracing::error!("Error uninstalling service: {e}");
+                                tracing::debug!("{e:?}")
+                            })
+                            .is_ok()
+                        {
+                            return Ok(None);
+                        }
+                    }
+                }
+
+                ctx.db
+                    .mutate(|v| v.as_package_data_mut().remove(id))
+                    .await?;
+
                 Ok(None)
             }
             Some(PackageDataEntryMatchModel::Installed(i)) => {
@@ -191,7 +242,8 @@ impl Service {
         s9pk: S9pk,
         src_version: Option<models::Version>,
     ) -> Result<Self, Error> {
-        todo!()
+        // TODO
+        Err(Error::new(eyre!("not yet implemented"), ErrorKind::Unknown))
     }
 
     pub async fn restore(
@@ -199,7 +251,8 @@ impl Service {
         s9pk: S9pk,
         guard: impl GenericMountGuard,
     ) -> Result<Self, Error> {
-        todo!()
+        // TODO
+        Err(Error::new(eyre!("not yet implemented"), ErrorKind::Unknown))
     }
 
     pub async fn get_config(&self) -> Result<ConfigRes, Error> {
@@ -229,14 +282,17 @@ impl Service {
     }
 
     pub async fn shutdown(self) -> Result<(), Error> {
-        todo!()
+        // TODO
+        Err(Error::new(eyre!("not yet implemented"), ErrorKind::Unknown))
     }
 
     pub async fn uninstall(self, target_version: Option<models::Version>) -> Result<(), Error> {
-        todo!()
+        // TODO
+        Err(Error::new(eyre!("not yet implemented"), ErrorKind::Unknown))
     }
     pub async fn backup(&self, guard: impl GenericMountGuard) -> Result<BackupReturn, Error> {
-        todo!()
+        // TODO
+        Err(Error::new(eyre!("not yet implemented"), ErrorKind::Unknown))
     }
 }
 

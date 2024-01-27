@@ -247,29 +247,11 @@ impl RpcContext {
             })
             .await?;
 
-        let peek = self
-            .db
-            .mutate(|v| {
-                for (_, pde) in v.as_package_data_mut().as_entries_mut()? {
-                    let status = pde
-                        .expect_as_installed_mut()?
-                        .as_installed_mut()
-                        .as_status_mut()
-                        .as_main_mut();
-                    let running = status.clone().de()?.running();
-                    status.ser(&if running {
-                        MainStatus::Starting
-                    } else {
-                        MainStatus::Stopped
-                    })?;
-                }
-                Ok(v.clone())
-            })
-            .await?;
         self.services.init(&self).await?;
         tracing::info!("Initialized Package Managers");
 
         let mut all_dependency_config_errs = BTreeMap::new();
+        let peek = self.db.peek().await;
         for (package_id, package) in peek.as_package_data().as_entries()?.into_iter() {
             let package = package.clone();
             if let Some(current_dependencies) = package
