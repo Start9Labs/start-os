@@ -152,7 +152,7 @@ impl<'a> Invoke<'a> for ExtendedCommand<'a> {
         }
         self.cmd.stdout(Stdio::piped());
         self.cmd.stderr(Stdio::piped());
-        let mut child = self.cmd.spawn()?;
+        let mut child = self.cmd.spawn().with_kind(error_kind)?;
         if let (Some(mut stdin), Some(input)) = (child.stdin.take(), self.input.take()) {
             use tokio::io::AsyncWriteExt;
             tokio::io::copy(input, &mut stdin).await?;

@@ -52,6 +52,7 @@ impl FileSource for CompatSource {
 }
 
 impl S9pk<Section<MultiCursorFile>> {
+    #[instrument(skip_all)]
     pub async fn from_v1<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         mut reader: S9pkReader<R>,
         destination: impl AsRef<Path>,

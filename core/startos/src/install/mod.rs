@@ -1,3 +1,4 @@
+use std::io::SeekFrom;
 use std::path::PathBuf;
 
 use clap::builder::ValueParserFactory;
@@ -10,7 +11,7 @@ use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::CallRemote;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
@@ -242,9 +243,10 @@ pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<()
             file.read_exact(&mut magic).await?;
             if magic == compat::MAGIC_AND_VERSION {
                 tracing::info!("Converting package to v2 s9pk");
+                file.seek(SeekFrom::Start(0)).await?;
                 let new_path = path.with_extension("compat.s9pk");
                 S9pk::from_v1(
-                    S9pkReader::open(&path, true).await?,
+                    S9pkReader::from_reader(file, true).await?,
                     &new_path,
                     ctx.developer_key()?,
                 )
