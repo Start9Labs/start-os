@@ -82,6 +82,7 @@ impl ServiceMap {
     ) -> Result<DownloadInstallFuture, Error> {
         let manifest = Arc::new(s9pk.as_manifest().clone());
         let id = manifest.id.clone();
+        let icon = s9pk.icon_data_url().await?;
         let mut service = self.get_mut(&id).await;
 
         let install_progress = Arc::new(InstallProgress::new(s9pk.size()));
@@ -129,18 +130,14 @@ impl ServiceMap {
                                 static_files: StaticFiles::local(
                                     &manifest.id,
                                     &manifest.version,
-                                    todo!(),
+                                    icon,
                                 ),
                                 manifest: (*manifest).clone(),
                             })
                         }
                         None => PackageDataEntry::Installing(PackageDataEntryInstalling {
                             install_progress,
-                            static_files: StaticFiles::local(
-                                &manifest.id,
-                                &manifest.version,
-                                todo!(),
-                            ),
+                            static_files: StaticFiles::local(&manifest.id, &manifest.version, icon),
                             manifest: (*manifest).clone(),
                         }),
                         _ => {

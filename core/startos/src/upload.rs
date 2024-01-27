@@ -84,7 +84,8 @@ pub async fn upload(ctx: &RpcContext) -> Result<(RequestGuid, UploadingFile), Er
             }),
             Duration::from_secs(30),
         ),
-    );
+    )
+    .await;
     Ok((guid, file))
 }
 

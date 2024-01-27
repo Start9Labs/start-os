@@ -251,7 +251,8 @@ pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<()
                     ctx.developer_key()?,
                 )
                 .await?;
-                file = tokio::fs::File::open(&new_path).await?;
+                tokio::fs::rename(&new_path, &path).await?;
+                file = tokio::fs::File::open(&path).await?;
             }
 
             // rpc call remote sideload
@@ -278,7 +279,11 @@ pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<()
             if res.status().as_u16() == 200 {
                 tracing::info!("Package Uploaded")
             } else {
-                tracing::error!("Package Upload failed: {}", res.text().await?)
+                tracing::error!(
+                    "Package Upload failed: {} {}",
+                    res.status().as_str(),
+                    res.text().await?
+                )
             }
         }
         CliInstallParams::Marketplace(params) => {

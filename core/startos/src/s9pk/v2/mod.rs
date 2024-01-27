@@ -2,7 +2,7 @@ use std::ffi::OsStr;
 use std::path::Path;
 
 use imbl_value::InternedString;
-use models::{mime, PackageId};
+use models::{mime, DataUrl, PackageId};
 
 use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
@@ -116,6 +116,16 @@ impl<S: FileSource> S9pk<S> {
         best_icon
             .map(|(_, a)| a)
             .ok_or_else(|| Error::new(eyre!("no icon found in archive"), ErrorKind::ParseS9pk))
+    }
+
+    pub async fn icon_data_url(&self) -> Result<DataUrl<'static>, Error> {
+        let (name, contents) = self.icon().await?;
+        let mime = Path::new(&*name)
+            .extension()
+            .and_then(|e| e.to_str())
+            .and_then(mime)
+            .unwrap_or("image/png");
+        DataUrl::from_reader(mime, contents.reader().await?, Some(contents.size().await?)).await
     }
 
     pub async fn serialize<W: Sink>(&mut self, w: &mut W, verify: bool) -> Result<(), Error> {

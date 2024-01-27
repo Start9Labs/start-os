@@ -10,7 +10,8 @@ use isocountry::CountryCode;
 use itertools::Itertools;
 use models::{DataUrl, HealthCheckId, InterfaceId, PackageId};
 use openssl::hash::MessageDigest;
-use patch_db::{json_ptr::JsonPointer, HasModel, Value};
+use patch_db::json_ptr::JsonPointer;
+use patch_db::{HasModel, Value};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use ssh_key::public::Ed25519PublicKey;
@@ -225,14 +226,14 @@ impl Map for AllPackageData {
 pub struct StaticFiles {
     license: String,
     instructions: String,
-    icon: String,
+    icon: DataUrl<'static>,
 }
 impl StaticFiles {
-    pub fn local(id: &PackageId, version: &Version, icon_type: &str) -> Self {
+    pub fn local(id: &PackageId, version: &Version, icon: DataUrl<'static>) -> Self {
         StaticFiles {
             license: format!("/public/package-data/{}/{}/LICENSE.md", id, version),
             instructions: format!("/public/package-data/{}/{}/INSTRUCTIONS.md", id, version),
-            icon: format!("/public/package-data/{}/{}/icon.{}", id, version, icon_type),
+            icon,
         }
     }
 }
