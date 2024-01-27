@@ -185,6 +185,7 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
     let (err_send, err_recv) = oneshot::channel();
     let progress = RequestGuid::new();
     let db = ctx.db.clone();
+    let mut sub = db.subscribe().await;
     ctx.add_continuation(
         progress.clone(),
         RpcContinuation::ws(
@@ -198,14 +199,13 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
                                 ErrorKind::Cancelled,
                             )
                         })?;
-                        let mut sub = db.subscribe().await;
                         let progress_path =
                             JsonPointer::parse(format!("/package-data/{id}/install-progress"))
                                 .with_kind(ErrorKind::Database)?;
                         tokio::select! {
                             res = async {
                                 while let Some(rev) = sub.recv().await {
-                                    // if rev.patch.affects_path(&progress_path) {
+                                    if rev.patch.affects_path(&progress_path) {
                                         ws.send(Message::Text(
                                             serde_json::to_string(&if let Some(p) = db
                                                 .peek()
@@ -224,7 +224,7 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
                                         ))
                                         .await
                                         .with_kind(ErrorKind::Network)?;
-                                    // }
+                                    }
                                 }
                                 Ok::<_, Error>(())
                             } => res?,

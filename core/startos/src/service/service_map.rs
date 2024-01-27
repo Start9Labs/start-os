@@ -190,7 +190,7 @@ impl ServiceMap {
                                     .as_idx_mut(&deref_id)
                                     .and_then(|e| e.as_install_progress_mut())
                             },
-                            Some(Duration::from_millis(250)),
+                            Some(Duration::from_millis(100)),
                         )));
 
                     let mut progress_writer = ProgressTrackerWriter::new(
