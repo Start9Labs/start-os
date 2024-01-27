@@ -402,10 +402,14 @@ pub struct PhasedProgressBar {
     phases: InOMap<InternedString, ProgressBar>,
 }
 impl PhasedProgressBar {
-    pub fn new() -> Self {
+    pub fn new(name: &str) -> Self {
         let multi = MultiProgress::new();
         Self {
-            overall: multi.add(ProgressBar::new(0).with_style(SPINNER.clone())),
+            overall: multi.add(
+                ProgressBar::new(0)
+                    .with_style(SPINNER.clone())
+                    .with_message(name.to_owned()),
+            ),
             multi,
             phases: InOMap::new(),
         }
@@ -416,7 +420,8 @@ impl PhasedProgressBar {
                 self.phases.insert(
                     phase.name.clone(),
                     self.multi
-                        .add(ProgressBar::new(0).with_style(SPINNER.clone())),
+                        .add(ProgressBar::new(0).with_style(SPINNER.clone()))
+                        .with_message((&*phase.name).to_owned()),
                 );
             }
         }

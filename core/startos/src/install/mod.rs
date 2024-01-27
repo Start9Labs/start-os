@@ -205,7 +205,7 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
                         tokio::select! {
                             res = async {
                                 while let Some(rev) = sub.recv().await {
-                                    if rev.patch.affects_path(&progress_path) {
+                                    // if rev.patch.affects_path(&progress_path) {
                                         ws.send(Message::Text(
                                             serde_json::to_string(&if let Some(p) = db
                                                 .peek()
@@ -224,7 +224,7 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
                                         ))
                                         .await
                                         .with_kind(ErrorKind::Network)?;
-                                    }
+                                    // }
                                 }
                                 Ok::<_, Error>(())
                             } => res?,
@@ -368,7 +368,7 @@ pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<()
             let progress = async {
                 use tokio_tungstenite::tungstenite::Message;
 
-                let mut bar = PhasedProgressBar::new();
+                let mut bar = PhasedProgressBar::new("Sideloading package");
 
                 let mut ws = ctx.ws_continuation(progress).await?;
                 while let Some(msg) = ws.next().await {
