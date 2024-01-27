@@ -122,13 +122,12 @@ fn gen_pwd() {
 #[command(rename_all = "kebab-case")]
 pub struct CliLoginParams {
     password: Option<PasswordType>,
-    metadata: Value,
 }
 
 #[instrument(skip_all)]
 async fn cli_login(
     ctx: CliContext,
-    CliLoginParams { password, metadata }: CliLoginParams,
+    CliLoginParams { password }: CliLoginParams,
 ) -> Result<(), RpcError> {
     let password = if let Some(password) = password {
         password.decrypt(&ctx)?
@@ -138,7 +137,12 @@ async fn cli_login(
 
     ctx.call_remote(
         "auth.login",
-        json!({ "password": password, "metadata": metadata }),
+        json!({
+            "password": password,
+            "metadata": {
+                "platforms": ["cli"],
+            },
+        }),
     )
     .await?;
 
