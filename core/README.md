@@ -9,7 +9,6 @@
 
 - `startos`: This contains the core library for StartOS that supports building `startbox`.
 - `js-engine`: This contains the library required to build `deno` to support running `.js` maintainer scripts for v0.3
-- `snapshot-creator`: This contains a binary used to build `v8` runtime snapshots, required for initializing `start-deno`
 - `helpers`: This contains utility functions used across both `startos` and `js-engine`
 - `models`: This contains types that are shared across `startos`, `js-engine`, and `helpers`
 

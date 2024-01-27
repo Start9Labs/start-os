@@ -30,9 +30,9 @@ use crate::prelude::*;
 use crate::util::serde::IoFormat;
 use crate::util::{new_guid, Invoke};
 
-const LXC_IMAGE_NAME: &str = "startos-service";
 const LXC_CONTAINER_DIR: &str = "/var/lib/lxc";
-const CONTAINER_RPC_SERVER_SOCKET: &str = "run/startos/rpc.sock"; // must not be absolute path
+pub const CONTAINER_RPC_SERVER_SOCKET: &str = "run/startos/service.sock"; // must not be absolute path
+pub const HOST_RPC_SERVER_SOCKET: &str = "run/startos/host.sock"; // must not be absolute path
 
 pub struct LxcManager {
     containers: Mutex<Vec<Weak<InternedString>>>,

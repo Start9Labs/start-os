@@ -4,12 +4,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures::future::ready;
-use helpers::UnixRpcClient;
+use helpers::{NonDetachingJoinHandle, UnixRpcClient};
 use imbl_value::InternedString;
 use models::ProcedureName;
-use rpc_toolkit::Server;
+use rpc_toolkit::{Server, ShutdownHandle};
 use serde::de::DeserializeOwned;
-use tokio::sync::{watch, Mutex, OnceCell};
+use tokio::sync::{oneshot, watch, Mutex, OnceCell};
 use tracing::instrument;
 
 use super::service_effect_handler::{service_effect_handler, EffectContext};
@@ -19,13 +19,13 @@ use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::MountGuard;
-use crate::lxc::{LxcConfig, LxcContainer};
+use crate::lxc::{LxcConfig, LxcContainer, HOST_RPC_SERVER_SOCKET};
 use crate::prelude::*;
 use crate::s9pk::S9pk;
 use crate::service::rpc::{self, convert_rpc_error, StopParams};
 use crate::service::start_stop::StartStop;
 use crate::service::RunningStatus;
-use crate::ARCH;
+use crate::{shutdown, ARCH};
 
 const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -39,7 +39,7 @@ pub struct PersistentContainer {
     pub(super) s9pk: S9pk,
     pub(super) lxc_container: LxcContainer,
     rpc_client: UnixRpcClient,
-    rpc_server: OnceCell<Server<EffectContext>>,
+    rpc_server: OnceCell<(NonDetachingJoinHandle<()>, ShutdownHandle)>,
     procedures: Mutex<Vec<(ProcedureName, ProcedureId)>>,
     js_mount: MountGuard,
     pub(super) overlays: Mutex<BTreeMap<InternedString, OverlayGuard>>,
@@ -88,11 +88,29 @@ impl PersistentContainer {
     #[instrument(skip_all)]
     pub async fn init(&self, seed: Arc<ServiceActorSeed>) -> Result<(), Error> {
         let socket_server_context = EffectContext::new(seed);
+        let server = Server::new(
+            move || ready(Ok(socket_server_context.clone())),
+            service_effect_handler(),
+        );
+        let path = self.lxc_container.rootfs_dir().join(HOST_RPC_SERVER_SOCKET);
+        let (send, recv) = oneshot::channel();
+        let handle = NonDetachingJoinHandle::spawn(async move {
+            let (shutdown, fut) = match server.run_unix(&path, |err| {
+                tracing::error!("error on unix socket {}: {e}", path.display())
+            }) {
+                Ok((shutdown, fut)) = (Ok(shutdown), Some(fut)),
+                Err(e) => (Err(e), None),
+            }
+            send.send(shutdown);
+            if let Some(fut) = fut {
+                fut.await
+            }
+        });
+        let shutdown = recv.await?;
         self.rpc_server
-            .set(Server::new(
-                move || ready(Ok(socket_server_context.clone())),
-                service_effect_handler(),
-            ))
+            .set(
+                (handle, shutdown),
+            )
             .map_err(|_| {
                 Error::new(
                     eyre!("PersistentContainer already initialized"),

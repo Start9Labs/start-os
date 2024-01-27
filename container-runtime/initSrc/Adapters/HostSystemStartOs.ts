@@ -3,7 +3,7 @@ import * as net from "net"
 
 import { CallbackHolder } from "../Models/CallbackHolder"
 
-const SOCKET_PATH = "/start9/sockets/startDaemon.sock"
+const SOCKET_PATH = "/run/startos/host.sock"
 const MAIN = "/main" as const
 export class HostSystemStartOs implements T.Effects {
   static of(callbackHolder: CallbackHolder) {

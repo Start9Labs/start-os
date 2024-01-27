@@ -21,7 +21,7 @@ import { AllGetDependencies } from "../Interfaces/AllGetDependencies"
 import { HostSystem } from "../Interfaces/HostSystem"
 import { jsonPath } from "../Models/JsonPath"
 
-const SOCKET_PATH = "/run/startos/rpc.sock"
+const SOCKET_PATH = "/run/startos/service.sock"
 
 const idType = some(string, number)
 const runType = object({
