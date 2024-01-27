@@ -15,12 +15,14 @@ import {
 import * as T from "@start9labs/start-sdk/lib/types"
 import * as CP from "child_process"
 import * as Mod from "module"
+import * as fs from "fs"
 
 import { CallbackHolder } from "../Models/CallbackHolder"
 import { AllGetDependencies } from "../Interfaces/AllGetDependencies"
 import { HostSystem } from "../Interfaces/HostSystem"
 import { jsonPath } from "../Models/JsonPath"
 
+const SOCKET_PARENT = "/run/startos/service.sock"
 const SOCKET_PATH = "/run/startos/service.sock"
 
 const idType = some(string, number)
@@ -71,6 +73,9 @@ export class RpcListener {
     private callbacks = new CallbackHolder(),
     private effects = getDependencies.hostSystem()(callbacks),
   ) {
+    if (!fs.existsSync(SOCKET_PARENT)) {
+      fs.mkdirSync(SOCKET_PARENT, { recursive: true })
+    }
     this.unixSocketServer.listen(SOCKET_PATH)
 
     this.unixSocketServer.on("connection", (s) => {
