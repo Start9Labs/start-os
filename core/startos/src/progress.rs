@@ -13,6 +13,12 @@ use tokio::sync::{mpsc, watch};
 use crate::db::model::DatabaseModel;
 use crate::prelude::*;
 
+lazy_static::lazy_static! {
+    static ref SPINNER: ProgressStyle = ProgressStyle::with_template("{spinner} {wide_msg}...").unwrap();
+    static ref PERCENTAGE: ProgressStyle = ProgressStyle::with_template("{msg} {percent}% {wide_bar} [{bytes}/{total_bytes}] [{binary_bytes_per_sec} {eta}]").unwrap();
+    static ref BYTES: ProgressStyle = ProgressStyle::with_template("{spinner} {wide_msg} [{bytes}/?] [{binary_bytes_per_sec} {elapsed}]").unwrap();
+}
+
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(untagged)]
 pub enum Progress {
@@ -24,11 +30,6 @@ impl Progress {
         Progress::Complete(false)
     }
     pub fn update_bar(self, bar: &ProgressBar) {
-        lazy_static::lazy_static! {
-            static ref SPINNER: ProgressStyle = ProgressStyle::with_template("{spinner} {wide_msg}...").unwrap();
-            static ref PERCENTAGE: ProgressStyle = ProgressStyle::with_template("{msg} {percent}% {wide_bar} [{bytes}/{total_bytes}] [{binary_bytes_per_sec} {eta}]").unwrap();
-            static ref BYTES: ProgressStyle = ProgressStyle::with_template("{spinner} {wide_msg} [{bytes}/?] [{binary_bytes_per_sec} {elapsed}]").unwrap();
-        }
         match self {
             Self::Complete(false) => {
                 bar.set_style(SPINNER.clone());
@@ -404,7 +405,7 @@ impl PhasedProgressBar {
     pub fn new() -> Self {
         let multi = MultiProgress::new();
         Self {
-            overall: multi.add(ProgressBar::new(1)),
+            overall: multi.add(ProgressBar::new(0).with_style(SPINNER.clone())),
             multi,
             phases: InOMap::new(),
         }
@@ -412,8 +413,11 @@ impl PhasedProgressBar {
     pub fn update(&mut self, progress: &FullProgress) {
         for phase in progress.phases.iter() {
             if !self.phases.contains_key(&phase.name) {
-                self.phases
-                    .insert(phase.name.clone(), self.multi.add(ProgressBar::new(1)));
+                self.phases.insert(
+                    phase.name.clone(),
+                    self.multi
+                        .add(ProgressBar::new(0).with_style(SPINNER.clone())),
+                );
             }
         }
         progress.overall.update_bar(&self.overall);
