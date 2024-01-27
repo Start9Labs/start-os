@@ -202,7 +202,7 @@ impl VHostServer {
                                                     PrivateKeyDer::from(PrivatePkcs8KeyDer::from(
                                                         key.key()
                                                             .openssl_key_ed25519()
-                                                            .private_key_to_der()?,
+                                                            .private_key_to_pkcs8()?,
                                                     )),
                                                 )
                                             } else {
@@ -218,8 +218,8 @@ impl VHostServer {
                                                     PrivateKeyDer::from(PrivatePkcs8KeyDer::from(
                                                         key.key()
                                                             .openssl_key_nistp256()
-                                                            .private_key_to_der()?,)
-                                                    ),
+                                                            .private_key_to_pkcs8()?,
+                                                    )),
                                                 )
                                             }
                                             .with_kind(crate::ErrorKind::OpenSsl)?;

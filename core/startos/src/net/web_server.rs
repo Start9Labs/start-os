@@ -26,7 +26,7 @@ impl WebServer {
             server.http_builder().http1().title_case_headers(true);
 
             if let (Err(e), _) = tokio::join!(server.serve(router.into_make_service()), async {
-                shutdown_recv.await;
+                let _ = shutdown_recv.await;
                 handle.graceful_shutdown(Some(Duration::from_secs(0)));
             }) {
                 tracing::error!("Spawning hyper server error: {}", e);
