@@ -122,7 +122,7 @@ impl LxcContainer {
         // TODO: append config
         let rootfs_dir = container_dir.join("rootfs");
         let rootfs = OverlayGuard::mount(
-            &BlockDev::new("/usr/lib/startos/container-runtime/lxc/rootfs.squashfs"),
+            &BlockDev::new("/usr/lib/startos/container-runtime/rootfs.squashfs"),
             &rootfs_dir,
         )
         .await?;
