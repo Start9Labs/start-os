@@ -49,7 +49,7 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all metadata install clean format sdk snapshots uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole test
+.PHONY: all metadata install clean format sdk uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole test
 
 all: $(ALL_TARGETS)
 
@@ -110,7 +110,6 @@ install: $(ALL_TARGETS)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/startd)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/start-cli)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/start-sdk)
-	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/start-deno)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/avahi-alias)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/embassy-cli)
 	if [ "$(PLATFORM)" = "raspberrypi" ]; then $(call cp,cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep,$(DESTDIR)/usr/bin/pi-beep); fi
@@ -189,10 +188,6 @@ system-images/utils/docker-images/$(ARCH).tar: $(UTILS_SRC)
 
 system-images/binfmt/docker-images/$(ARCH).tar: $(BINFMT_SRC)
 	cd system-images/binfmt && make docker-images/$(ARCH).tar && touch docker-images/$(ARCH).tar
-
-snapshots: core/snapshot-creator/Cargo.toml
-	cd core/ && ARCH=aarch64 ./build-v8-snapshot.sh
-	cd core/ && ARCH=x86_64 ./build-v8-snapshot.sh
 
 $(BINS): $(CORE_SRC) $(ENVIRONMENT_FILE)
 	cd core && ARCH=$(ARCH) ./build-prod.sh

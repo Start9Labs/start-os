@@ -257,7 +257,7 @@ impl fmt::Display for InvalidNotificationLevel {
 #[serde(rename_all = "kebab-case")]
 pub struct Notification {
     id: u32,
-    package_id: Option<PackageId>, // TODO change for package id newtype
+    package_id: Option<PackageId>,
     created_at: DateTime<Utc>,
     code: u32,
     level: NotificationLevel,

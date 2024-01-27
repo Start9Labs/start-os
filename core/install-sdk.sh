@@ -12,6 +12,4 @@ if [ -z "$PLATFORM" ]; then
   export PLATFORM=$(uname -m)
 fi
 
-cargo install --path=./startos --no-default-features --features=cli --locked
-startbox_loc=$(which startbox)
-ln -sf $startbox_loc $(dirname $startbox_loc)/start-cli
+cargo install --path=./startos --no-default-features --features=cli --bin start-cli --locked

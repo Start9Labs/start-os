@@ -22,6 +22,10 @@ name = "startos"
 path = "src/lib.rs"
 
 [[bin]]
+name = "start-cli"
+path = "src/main.rs"
+
+[[bin]]
 name = "startbox"
 path = "src/main.rs"
 

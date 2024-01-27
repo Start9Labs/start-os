@@ -270,19 +270,3 @@ impl AsyncWrite for UploadHandle {
         }
     }
 }
-
-// #[derive(Deserialize, Serialize, Parser)]
-// pub struct CliUploadParams {
-//     path: PathBuf,
-// }
-
-// /// BLOCKING
-// pub fn cli_upload(ctx: CliContext, CliUploadParams { path }: CliUploadParams) -> Result<(), Error> {
-//     todo!()
-// }
-
-// pub fn rpc_upload(ctx: RpcContext) -> Result<RequestGuid, Error> {
-//     let guid = RequestGuid::new();
-//     let uploads: Uploads = todo!();
-//     uploads.0.insert(key, value)
-// }
