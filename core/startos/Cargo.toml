@@ -108,6 +108,7 @@ jaq-core = "0.10.1"
 jaq-std = "0.10.0"
 josekit = "0.8.4"
 jsonpath_lib = { git = "https://github.com/Start9Labs/jsonpath.git" }
+lazy_async_pool = "0.3.3"
 lazy_format = "2.0"
 lazy_static = "1.4.0"
 libc = "0.2.149"

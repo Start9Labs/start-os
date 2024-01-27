@@ -171,7 +171,7 @@ container-runtime/node_modules: container-runtime/package.json container-runtime
 container-runtime/dist: container-runtime/node_modules $(shell git ls-files container-runtime/initSrc) container-runtime/package.json container-runtime/tsconfig.json
 	npm --prefix container-runtime run bundle
 
-build/lib/container-runtime/rootfs.squashfs: container-runtime/alpine.squashfs container-runtime/update-image.sh container-runtime/dist | sudo
+build/lib/container-runtime/rootfs.squashfs: container-runtime/alpine.squashfs container-runtime/containerRuntime.rc container-runtime/update-image.sh container-runtime/dist | sudo
 	./container-runtime/update-image.sh
 
 build/lib/depends build/lib/conflicts: build/dpkg-deps/*

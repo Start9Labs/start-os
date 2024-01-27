@@ -6,7 +6,6 @@ use std::time::Duration;
 
 use clap::Parser;
 use futures::{FutureExt, StreamExt};
-use helpers::UnixRpcClient;
 use imbl_value::{InOMap, InternedString};
 use rpc_toolkit::yajrc::{RpcError, RpcResponse};
 use rpc_toolkit::{
@@ -27,6 +26,7 @@ use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
 use crate::disk::mount::util::unmount;
 use crate::prelude::*;
+use crate::util::rpc_client::UnixRpcClient;
 use crate::util::serde::IoFormat;
 use crate::util::{new_guid, Invoke};
 

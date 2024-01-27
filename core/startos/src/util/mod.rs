@@ -33,6 +33,7 @@ pub mod http_reader;
 pub mod io;
 pub mod logger;
 pub mod lshw;
+pub mod rpc_client;
 pub mod serde;
 
 #[derive(Clone, Copy, Debug, ::serde::Deserialize, ::serde::Serialize)]

@@ -4806,6 +4806,7 @@ dependencies = [
  "jaq-std",
  "josekit",
  "jsonpath_lib",
+ "lazy_async_pool",
  "lazy_format",
  "lazy_static",
  "libc",

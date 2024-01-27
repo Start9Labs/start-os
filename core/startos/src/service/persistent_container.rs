@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use futures::future::ready;
 use futures::Future;
-use helpers::{NonDetachingJoinHandle, UnixRpcClient};
+use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
 use models::ProcedureName;
 use rpc_toolkit::{Server, ShutdownHandle};
@@ -25,6 +25,7 @@ use crate::s9pk::S9pk;
 use crate::service::rpc::{self, convert_rpc_error, StopParams};
 use crate::service::start_stop::StartStop;
 use crate::service::RunningStatus;
+use crate::util::rpc_client::UnixRpcClient;
 
 const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 

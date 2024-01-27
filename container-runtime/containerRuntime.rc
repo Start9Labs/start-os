@@ -3,7 +3,7 @@
 name=containerRuntime
 #cfgfile="/etc/containerRuntime/containerRuntime.conf"
 command="/usr/bin/node"
-command_args="/root/cr/dist/index.js"
+command_args="/usr/lib/startos/init/index.js"
 pidfile="/run/containerRuntime.pid"
 command_background="yes"
 output_log="/var/log/containerRuntime.log"
