@@ -1,10 +1,13 @@
 use std::io::SeekFrom;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use clap::builder::ValueParserFactory;
 use clap::{value_parser, CommandFactory, FromArgMatches, Parser};
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
+use futures::{FutureExt, StreamExt};
+use patch_db::json_ptr::JsonPointer;
 use reqwest::header::{HeaderMap, CONTENT_LENGTH};
 use reqwest::Url;
 use rpc_toolkit::yajrc::RpcError;
@@ -12,15 +15,17 @@ use rpc_toolkit::CallRemote;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
+use tokio::sync::oneshot;
 use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
-use crate::core::rpc_continuations::RequestGuid;
+use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{
     PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryMatchModelRef,
     PackageDataEntryRemoving,
 };
 use crate::prelude::*;
+use crate::progress::{FullProgress, PhasedProgressBar};
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::v1::reader::S9pkReader;
@@ -175,11 +180,86 @@ pub struct SideloadResponse {
 
 #[instrument(skip_all)]
 pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
-    let (guid, file) = upload(&ctx).await?;
+    let (upload, file) = upload(&ctx).await?;
+    let (id_send, id_recv) = oneshot::channel();
+    let (err_send, err_recv) = oneshot::channel();
+    let progress = RequestGuid::new();
+    let db = ctx.db.clone();
+    ctx.add_continuation(
+        progress.clone(),
+        RpcContinuation::ws(
+            Box::new(|mut ws| {
+                use axum::extract::ws::Message;
+                async move {
+                    if let Err(e) = async {
+                        let id = id_recv.await.map_err(|_| {
+                            Error::new(
+                                eyre!("Could not get id to watch progress"),
+                                ErrorKind::Cancelled,
+                            )
+                        })?;
+                        let mut sub = db.subscribe().await;
+                        let progress_path =
+                            JsonPointer::parse(format!("/package-data/{id}/install-progress"))
+                                .with_kind(ErrorKind::Database)?;
+                        tokio::select! {
+                            res = async {
+                                while let Some(rev) = sub.recv().await {
+                                    if rev.patch.affects_path(&progress_path) {
+                                        ws.send(Message::Text(
+                                            serde_json::to_string(&if let Some(p) = db
+                                                .peek()
+                                                .await
+                                                .as_package_data()
+                                                .as_idx(&id)
+                                                .and_then(|e| e.as_install_progress())
+                                            {
+                                                Ok::<_, ()>(p.de()?)
+                                            } else {
+                                                let mut p = FullProgress::new();
+                                                p.overall.complete();
+                                                Ok(p)
+                                            })
+                                            .with_kind(ErrorKind::Serialization)?,
+                                        ))
+                                        .await
+                                        .with_kind(ErrorKind::Network)?;
+                                    }
+                                }
+                                Ok::<_, Error>(())
+                            } => res?,
+                            err = err_recv => {
+                                if let Ok(e) = err {
+                                ws.send(Message::Text(
+                                    serde_json::to_string(&Err::<(), _>(e))
+                                    .with_kind(ErrorKind::Serialization)?,
+                                ))
+                                .await
+                                .with_kind(ErrorKind::Network)?;
+                                }
+                            }
+                        }
+
+                        Ok::<_, Error>(())
+                    }
+                    .await
+                    {
+                        tracing::error!("Error tracking sideload progress: {e}");
+                        tracing::debug!("{e:?}");
+                    }
+                }
+                .boxed()
+            }),
+            Duration::from_secs(30),
+        ),
+    )
+    .await;
     tokio::spawn(async move {
         if let Err(e) = async {
+            let s9pk = S9pk::deserialize(&file).await?;
+            let _ = id_send.send(s9pk.as_manifest().id.clone());
             ctx.services
-                .install(ctx.clone(), S9pk::deserialize(&file).await?, None::<Never>)
+                .install(ctx.clone(), s9pk, None::<Never>)
                 .await?
                 .await?
                 .await?;
@@ -187,12 +267,13 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
         }
         .await
         {
+            let _ = err_send.send(RpcError::from(e.clone_output()));
             tracing::error!("Error sideloading package: {e}");
             tracing::debug!("{e:?}");
         }
     });
     Ok(SideloadResponse {
-        upload: guid,
+        upload,
         progress: RequestGuid::new(), // TODO
     })
 }
@@ -265,16 +346,15 @@ pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<()
             }
 
             // rpc call remote sideload
-            let sideload_res = from_value::<SideloadResponse>(
+            let SideloadResponse { upload, progress } = from_value::<SideloadResponse>(
                 ctx.call_remote("package.sideload", imbl_value::json!({}))
                     .await?,
             )?;
 
-            // hit continuation api with guid that comes back
-            let content_length = file.metadata().await?.len();
-            let res = ctx
-                .rest_continuation(
-                    sideload_res.upload,
+            let upload = async {
+                let content_length = file.metadata().await?.len();
+                ctx.rest_continuation(
+                    upload,
                     reqwest::Body::wrap_stream(tokio_util::io::ReaderStream::new(file)),
                     {
                         let mut map = HeaderMap::new();
@@ -282,22 +362,37 @@ pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<()
                         map
                     },
                 )
-                .await?;
-            if res.status().is_success() {
-                tracing::info!("Package Uploaded")
-            } else {
-                tracing::error!(
-                    "Package Upload failed: {} {}",
-                    res.status().as_str(),
-                    res.text().await?
-                )
-            }
+                .await?
+                .error_for_status()
+                .with_kind(ErrorKind::Network)?;
+                Ok::<_, Error>(())
+            };
+
+            let progress = async {
+                use tokio_tungstenite::tungstenite::Message;
+
+                let mut bar = PhasedProgressBar::new();
+
+                let mut ws = ctx.ws_continuation(progress).await?;
+                while let Some(msg) = ws.next().await {
+                    if let Message::Text(t) = msg.with_kind(ErrorKind::Network)? {
+                        let progress: FullProgress =
+                            serde_json::from_str::<Result<_, RpcError>>(&t)
+                                .with_kind(ErrorKind::Deserialization)??;
+                        bar.update(&progress);
+                    }
+                }
+
+                Ok::<_, Error>(())
+            };
+
+            let (upload, progress) = tokio::join!(upload, progress);
+            progress?;
+            upload?;
         }
         CliInstallParams::Marketplace(params) => {
-            tracing::debug!("calling package.install");
             ctx.call_remote("package.install", to_value(&params)?)
                 .await?;
-            tracing::debug!("package.install succeeded");
         }
     }
     Ok(())

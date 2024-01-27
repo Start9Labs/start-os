@@ -53,6 +53,9 @@ impl HttpSource {
 #[async_trait::async_trait]
 impl ArchiveSource for HttpSource {
     type Reader = HttpReader;
+    async fn size(&self) -> Option<u64> {
+        self.size
+    }
     async fn fetch(&self, position: u64, size: u64) -> Result<Self::Reader, Error> {
         match self.range_support {
             Ok(_) => Ok(HttpReader::Range(StreamReader::new(if size > 0 {

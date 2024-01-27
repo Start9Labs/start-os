@@ -17,13 +17,9 @@ use tracing::instrument;
 
 use super::header::{FileSection, Header, TableOfContents};
 use super::SIG_CONTEXT;
-use crate::install::progress::InstallProgressTracker;
 use crate::prelude::*;
 use crate::s9pk::v1::docker::DockerReader;
 use crate::util::Version;
-
-const MAX_REPLACES: usize = 10;
-const MAX_TITLE_LEN: usize = 30;
 
 #[pin_project::pin_project]
 #[derive(Debug)]
@@ -158,11 +154,6 @@ impl S9pkReader {
             .with_ctx(|_| (crate::error::ErrorKind::Filesystem, p.display().to_string()))?;
 
         Self::from_reader(rdr, check_sig).await
-    }
-}
-impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<InstallProgressTracker<R>> {
-    pub fn validated(&mut self) {
-        self.rdr.validated()
     }
 }
 impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {

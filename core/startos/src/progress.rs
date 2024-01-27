@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use futures::Future;
 use imbl_value::{InOMap, InternedString};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncSeek, AsyncWrite};
@@ -21,6 +22,36 @@ pub enum Progress {
 impl Progress {
     pub fn new() -> Self {
         Progress::Complete(false)
+    }
+    pub fn update_bar(self, bar: &ProgressBar) {
+        lazy_static::lazy_static! {
+            static ref SPINNER: ProgressStyle = ProgressStyle::with_template("{spinner} {wide_msg}...").unwrap();
+            static ref PERCENTAGE: ProgressStyle = ProgressStyle::with_template("{msg} {percent}% {wide_bar} [{bytes}/{total_bytes}] [{eta}]").unwrap();
+            static ref BYTES: ProgressStyle = ProgressStyle::with_template("{spinner} {wide_msg} [{bytes}/?] [{binary_bytes_per_sec}]").unwrap();
+        }
+        match self {
+            Self::Complete(false) => {
+                bar.set_style(SPINNER.clone());
+                bar.tick();
+            }
+            Self::Complete(true) => {
+                bar.finish();
+            }
+            Self::Progress { done, total: None } => {
+                bar.set_style(BYTES.clone());
+                bar.set_position(done);
+                bar.tick();
+            }
+            Self::Progress {
+                done,
+                total: Some(total),
+            } => {
+                bar.set_style(BYTES.clone());
+                bar.set_position(done);
+                bar.set_length(total);
+                bar.tick();
+            }
+        }
     }
     pub fn set_done(&mut self, done: u64) {
         *self = match *self {
@@ -360,6 +391,42 @@ impl<W: AsyncSeek> AsyncSeek for ProgressTrackerWriter<W> {
                 std::task::Poll::Ready(Ok(n))
             }
             a => a,
+        }
+    }
+}
+
+pub struct PhasedProgressBar {
+    multi: MultiProgress,
+    overall: ProgressBar,
+    phases: InOMap<InternedString, ProgressBar>,
+}
+impl PhasedProgressBar {
+    pub fn new() -> Self {
+        let multi = MultiProgress::new();
+        Self {
+            overall: multi.add(ProgressBar::new(0)),
+            multi,
+            phases: InOMap::new(),
+        }
+    }
+    pub fn update(&mut self, progress: &FullProgress) {
+        for phase in progress.phases.iter() {
+            if !self.phases.contains_key(&phase.name) {
+                self.phases
+                    .insert(phase.name.clone(), self.multi.add(ProgressBar::new(0)));
+            }
+        }
+        progress.overall.update_bar(&self.overall);
+        for (name, bar) in self.phases.iter() {
+            if let Some(progress) = progress.phases.iter().find_map(|p| {
+                if &p.name == name {
+                    Some(p.progress)
+                } else {
+                    None
+                }
+            }) {
+                progress.update_bar(bar);
+            }
         }
     }
 }
