@@ -26,8 +26,8 @@ impl Progress {
     pub fn update_bar(self, bar: &ProgressBar) {
         lazy_static::lazy_static! {
             static ref SPINNER: ProgressStyle = ProgressStyle::with_template("{spinner} {wide_msg}...").unwrap();
-            static ref PERCENTAGE: ProgressStyle = ProgressStyle::with_template("{msg} {percent}% {wide_bar} [{bytes}/{total_bytes}] [{eta}]").unwrap();
-            static ref BYTES: ProgressStyle = ProgressStyle::with_template("{spinner} {wide_msg} [{bytes}/?] [{binary_bytes_per_sec}]").unwrap();
+            static ref PERCENTAGE: ProgressStyle = ProgressStyle::with_template("{msg} {percent}% {wide_bar} [{bytes}/{total_bytes}] [{binary_bytes_per_sec} {eta}]").unwrap();
+            static ref BYTES: ProgressStyle = ProgressStyle::with_template("{spinner} {wide_msg} [{bytes}/?] [{binary_bytes_per_sec} {elapsed}]").unwrap();
         }
         match self {
             Self::Complete(false) => {

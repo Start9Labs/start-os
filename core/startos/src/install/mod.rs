@@ -272,10 +272,7 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
             tracing::debug!("{e:?}");
         }
     });
-    Ok(SideloadResponse {
-        upload,
-        progress: RequestGuid::new(), // TODO
-    })
+    Ok(SideloadResponse { upload, progress })
 }
 
 #[derive(Deserialize, Serialize)]
