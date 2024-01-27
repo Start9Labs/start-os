@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 
@@ -18,6 +19,7 @@ use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::{FileSectionReader, MultiCursorFile};
 use crate::s9pk::merkle_archive::source::ArchiveSource;
+use crate::util::io::TmpDir;
 
 pub async fn upload(ctx: &RpcContext) -> Result<(RequestGuid, UploadingFile), Error> {
     let guid = RequestGuid::new();
@@ -168,14 +170,17 @@ impl Progress {
 
 #[derive(Clone)]
 pub struct UploadingFile {
+    tmp_dir: Arc<TmpDir>,
     file: MultiCursorFile,
     progress: watch::Receiver<Progress>,
 }
 impl UploadingFile {
     pub async fn new() -> Result<(UploadHandle, Self), Error> {
         let progress = watch::channel(Progress::default());
-        let file = File::create(todo!() as &PathBuf).await?;
+        let tmp_dir = Arc::new(TmpDir::new().await?);
+        let file = File::create(tmp_dir.join("upload.tmp")).await?;
         let uploading = Self {
+            tmp_dir,
             file: MultiCursorFile::open(&file).await?,
             progress: progress.1,
         };
@@ -186,6 +191,12 @@ impl UploadingFile {
             },
             uploading,
         ))
+    }
+    pub async fn delete(self) -> Result<(), Error> {
+        if let Ok(tmp_dir) = Arc::try_unwrap(self.tmp_dir) {
+            tmp_dir.delete().await?;
+        }
+        Ok(())
     }
 }
 #[async_trait::async_trait]

@@ -176,7 +176,8 @@ pub async fn sideload(ctx: RpcContext) -> Result<RequestGuid, Error> {
                 .install(ctx.clone(), S9pk::deserialize(&file).await?, None::<Never>)
                 .await?
                 .await?
-                .await
+                .await?;
+            file.delete().await
         }
         .await
         {
