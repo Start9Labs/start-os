@@ -371,12 +371,26 @@ pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<()
                 let mut bar = PhasedProgressBar::new("Sideloading package");
 
                 let mut ws = ctx.ws_continuation(progress).await?;
-                while let Some(msg) = ws.next().await {
-                    if let Message::Text(t) = msg.with_kind(ErrorKind::Network)? {
-                        let progress: FullProgress =
-                            serde_json::from_str::<Result<_, RpcError>>(&t)
-                                .with_kind(ErrorKind::Deserialization)??;
-                        bar.update(&progress);
+
+                let mut progress = FullProgress::new();
+
+                loop {
+                    tokio::select! {
+                        msg = ws.next() => {
+                            if let Some(msg) = msg {
+                                if let Message::Text(t) = msg.with_kind(ErrorKind::Network)? {
+                                    progress =
+                                        serde_json::from_str::<Result<_, RpcError>>(&t)
+                                            .with_kind(ErrorKind::Deserialization)??;
+                                    bar.update(&progress);
+                                }
+                            } else {
+                                break;
+                            }
+                        }
+                        _ = tokio::time::sleep(Duration::from_millis(100)) => {
+                            bar.update(&progress);
+                        },
                     }
                 }
 

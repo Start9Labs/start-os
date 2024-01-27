@@ -148,7 +148,8 @@ impl FullProgress {
 
 pub struct FullProgressTracker {
     overall: Arc<watch::Sender<Progress>>,
-    phases: watch::Sender<InOMap<InternedString, watch::Receiver<Progress>>>,
+    overall_recv: watch::Receiver<Progress>,
+    phases: InOMap<InternedString, watch::Receiver<Progress>>,
     new_phase: (
         mpsc::UnboundedSender<(InternedString, watch::Receiver<Progress>)>,
         mpsc::UnboundedReceiver<(InternedString, watch::Receiver<Progress>)>,
@@ -156,18 +157,21 @@ pub struct FullProgressTracker {
 }
 impl FullProgressTracker {
     pub fn new() -> Self {
+        let (overall, overall_recv) = watch::channel(Progress::new());
         Self {
-            overall: Arc::new(watch::channel(Progress::new()).0),
-            phases: watch::channel(InOMap::new()).0,
+            overall: Arc::new(overall),
+            overall_recv,
+            phases: InOMap::new(),
             new_phase: mpsc::unbounded_channel(),
         }
     }
-    fn fill_phases(&mut self) {
+    fn fill_phases(&mut self) -> bool {
+        let mut changed = false;
         while let Ok((name, phase)) = self.new_phase.1.try_recv() {
-            self.phases.send_modify(|p| {
-                p.insert(name, phase);
-            });
+            self.phases.insert(name, phase);
+            changed = true;
         }
+        changed
     }
     pub fn snapshot(&mut self) -> FullProgress {
         self.fill_phases();
@@ -175,7 +179,6 @@ impl FullProgressTracker {
             overall: *self.overall.borrow(),
             phases: self
                 .phases
-                .borrow()
                 .iter()
                 .map(|(name, progress)| NamedProgress {
                     name: name.clone(),
@@ -185,20 +188,17 @@ impl FullProgressTracker {
         }
     }
     pub async fn changed(&mut self) {
-        let mut phase_cardinality = self.phases.subscribe();
-        let phase_cardinality_changed = phase_cardinality.changed();
-        self.fill_phases();
-        let mut overall = self.overall.subscribe();
-        let mut phases = self
+        if self.fill_phases() {
+            return;
+        }
+        let phases = self
             .phases
-            .borrow()
-            .iter()
-            .map(|(_, w)| w.clone())
+            .iter_mut()
+            .map(|(_, p)| Box::pin(p.changed()))
             .collect_vec();
         tokio::select! {
-            _ = phase_cardinality_changed => (),
-            _ = overall.changed() => (),
-            _ = futures::future::select_all(phases.iter_mut().map(|p| Box::pin(p.changed()))) => (),
+            _ = self.overall_recv.changed() => (),
+            _ = futures::future::select_all(phases) => (),
         }
     }
     pub fn handle(&self) -> FullProgressTrackerHandle {
@@ -223,7 +223,7 @@ impl FullProgressTracker {
                 if db
                     .mutate(|v| {
                         if let Some(p) = deref(v) {
-                            p.ser(&progress)?;
+                            p.ser(dbg!(&progress))?;
                             Ok(false)
                         } else {
                             Ok(true)
@@ -289,7 +289,7 @@ impl PhaseProgressTrackerHandle {
                 Progress::Progress {
                     done,
                     total: Some(total),
-                } => done * overall_contribution / total,
+                } => ((done as f64 / total as f64) * overall_contribution as f64) as u64,
                 _ => 0,
             };
             if contribution > self.contributed {
@@ -313,6 +313,7 @@ impl PhaseProgressTrackerHandle {
     }
     pub fn complete(&mut self) {
         self.progress.send_modify(|p| p.complete());
+        self.update_overall();
     }
 }
 impl std::ops::AddAssign<u64> for PhaseProgressTrackerHandle {
