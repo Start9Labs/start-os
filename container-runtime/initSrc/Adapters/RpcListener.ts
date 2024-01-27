@@ -22,7 +22,7 @@ import { AllGetDependencies } from "../Interfaces/AllGetDependencies"
 import { HostSystem } from "../Interfaces/HostSystem"
 import { jsonPath } from "../Models/JsonPath"
 
-const SOCKET_PARENT = "/run/startos/service.sock"
+const SOCKET_PARENT = "/run/startos"
 const SOCKET_PATH = "/run/startos/service.sock"
 
 const idType = some(string, number)
