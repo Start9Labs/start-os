@@ -368,7 +368,7 @@ pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<()
             let progress = async {
                 use tokio_tungstenite::tungstenite::Message;
 
-                let mut bar = PhasedProgressBar::new("Sideloading package");
+                let mut bar = PhasedProgressBar::new("Sideloading");
 
                 let mut ws = ctx.ws_continuation(progress).await?;
 

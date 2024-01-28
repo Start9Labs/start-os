@@ -5,7 +5,7 @@ use clap::Parser;
 use imbl_value::json;
 use models::{ActionId, HealthCheckId, ImageId, PackageId};
 use patch_db::json_ptr::JsonPointer;
-use rpc_toolkit::{from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
 
 use crate::db::model::ExposedUI;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
@@ -16,7 +16,7 @@ use crate::service::ServiceActorSeed;
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::new_guid;
-use crate::ARCH;
+use crate::{echo, ARCH};
 
 #[derive(Clone)]
 pub(super) struct EffectContext(Arc<ServiceActorSeed>);
@@ -41,6 +41,11 @@ struct RpcData {
 }
 pub fn service_effect_handler() -> ParentHandler {
     ParentHandler::new()
+        .subcommand("gitInfo", from_fn(crate::version::git_info))
+        .subcommand(
+            "echo",
+            from_fn(echo).with_remote_cli::<ContainerCliContext>(),
+        )
         .subcommand("exists", from_fn_async(exists).no_cli())
         .subcommand("executeAction", from_fn_async(execute_action).no_cli())
         .subcommand("getConfigured", from_fn_async(get_configured).no_cli())
