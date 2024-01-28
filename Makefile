@@ -6,7 +6,7 @@ BASENAME := $(shell ./basename.sh)
 PLATFORM := $(shell if [ -f ./PLATFORM.txt ]; then cat ./PLATFORM.txt; else echo unknown; fi)
 ARCH := $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo aarch64; else echo $(PLATFORM) | sed 's/-nonfree$$//g'; fi)
 IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo iso; fi)
-BINS := core/target/$(ARCH)-unknown-linux-gnu/release/startbox
+BINS := core/target/$(ARCH)-unknown-linux-gnu/release/startbox core/target/$(ARCH)-unknown-linux-musl/release/containerbox
 WEB_UIS := web/dist/raw/ui web/dist/raw/setup-wizard web/dist/raw/diagnostic-ui web/dist/raw/install-wizard
 FIRMWARE_ROMS := ./firmware/$(PLATFORM) $(shell jq --raw-output '.[] | select(.platform[] | contains("$(PLATFORM)")) | "./firmware/$(PLATFORM)/" + .id + ".rom.gz"' build/lib/firmware.json)
 BUILD_SRC := $(shell git ls-files build) build/lib/depends build/lib/conflicts build/lib/container-runtime/rootfs.squashfs $(FIRMWARE_ROMS)
@@ -171,8 +171,8 @@ container-runtime/node_modules: container-runtime/package.json container-runtime
 container-runtime/dist: container-runtime/node_modules $(shell git ls-files container-runtime/initSrc) container-runtime/package.json container-runtime/tsconfig.json
 	npm --prefix container-runtime run bundle
 
-build/lib/container-runtime/rootfs.squashfs: container-runtime/alpine.squashfs container-runtime/containerRuntime.rc container-runtime/update-image.sh container-runtime/dist | sudo
-	./container-runtime/update-image.sh
+build/lib/container-runtime/rootfs.squashfs: container-runtime/alpine.squashfs container-runtime/containerRuntime.rc container-runtime/update-image.sh container-runtime/dist core/target/$(ARCH)-unknown-linux-musl/release/containerbox | sudo
+	ARCH=$(ARCH) ./container-runtime/update-image.sh
 
 build/lib/depends build/lib/conflicts: build/dpkg-deps/*
 	build/dpkg-deps/generate.sh

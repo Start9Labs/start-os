@@ -129,7 +129,9 @@ export class RpcListener {
       )
 
       .defaultToLazy(() => {
-        console.warn(`Coudln't parse the following input ${input}`)
+        console.warn(
+          `Coudln't parse the following input ${JSON.stringify(input)}`,
+        )
         return {
           id: (input as any)?.id,
           error: { err: { code: 2, message: "Could not figure out shape" } },

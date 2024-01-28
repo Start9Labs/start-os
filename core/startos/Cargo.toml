@@ -22,6 +22,10 @@ name = "startos"
 path = "src/lib.rs"
 
 [[bin]]
+name = "containerbox"
+path = "src/main.rs"
+
+[[bin]]
 name = "start-cli"
 path = "src/main.rs"
 
@@ -33,6 +37,7 @@ path = "src/main.rs"
 avahi = ["avahi-sys"]
 avahi-alias = ["avahi"]
 cli = []
+container-runtime = []
 daemon = []
 default = ["cli", "daemon"]
 dev = []

@@ -1,5 +1,3 @@
-use std::ascii::AsciiExt;
-use std::borrow::Borrow;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -28,11 +26,12 @@ use crate::status::MainStatus;
 use crate::util::actor::{Actor, BackgroundJobs, SimpleActor};
 use crate::volume::data_dir;
 
+pub mod cli;
 mod config;
 mod control;
 pub mod persistent_container;
 mod rpc;
-mod service_effect_handler;
+pub mod service_effect_handler;
 pub mod service_map;
 mod start_stop;
 mod transition;

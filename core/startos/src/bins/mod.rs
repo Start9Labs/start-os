@@ -4,6 +4,8 @@ use std::path::Path;
 
 #[cfg(feature = "avahi-alias")]
 pub mod avahi_alias;
+#[cfg(feature = "container-runtime")]
+pub mod container_cli;
 pub mod deprecated;
 #[cfg(feature = "cli")]
 pub mod start_cli;
@@ -18,6 +20,8 @@ fn select_executable(name: &str) -> Option<fn(VecDeque<OsString>)> {
         "avahi-alias" => Some(avahi_alias::main),
         #[cfg(feature = "cli")]
         "start-cli" => Some(start_cli::main),
+        #[cfg(feature = "container-runtime")]
+        "start-cli" => Some(container_cli::main),
         #[cfg(feature = "daemon")]
         "startd" => Some(startd::main),
         "embassy-cli" => Some(|_| deprecated::renamed("embassy-cli", "start-cli")),

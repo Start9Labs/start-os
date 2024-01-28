@@ -1,15 +1,17 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use clap::Parser;
 use imbl_value::json;
 use models::{ActionId, HealthCheckId, ImageId, PackageId};
 use patch_db::json_ptr::JsonPointer;
-use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
 
 use crate::db::model::ExposedUI;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::prelude::*;
+use crate::service::cli::ContainerCliContext;
 use crate::service::ServiceActorSeed;
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
@@ -42,11 +44,36 @@ pub fn service_effect_handler() -> ParentHandler {
         .subcommand("exists", from_fn_async(exists).no_cli())
         .subcommand("executeAction", from_fn_async(execute_action).no_cli())
         .subcommand("getConfigured", from_fn_async(get_configured).no_cli())
-        .subcommand("stopped", from_fn_async(stopped).no_cli())
-        .subcommand("running", from_fn_async(running).no_cli())
-        .subcommand("restart", from_fn_async(restart).no_cli())
-        .subcommand("shutdown", from_fn_async(shutdown).no_cli())
-        .subcommand("setConfigured", from_fn_async(set_configured).no_cli())
+        .subcommand(
+            "stopped",
+            from_fn_async(stopped)
+                .no_display()
+                .with_remote_cli::<ContainerCliContext>(),
+        )
+        .subcommand(
+            "running",
+            from_fn_async(running)
+                .no_display()
+                .with_remote_cli::<ContainerCliContext>(),
+        )
+        .subcommand(
+            "restart",
+            from_fn_async(restart)
+                .no_display()
+                .with_remote_cli::<ContainerCliContext>(),
+        )
+        .subcommand(
+            "shutdown",
+            from_fn_async(shutdown)
+                .no_display()
+                .with_remote_cli::<ContainerCliContext>(),
+        )
+        .subcommand(
+            "setConfigured",
+            from_fn_async(set_configured)
+                .no_display()
+                .with_remote_cli::<ContainerCliContext>(),
+        )
         .subcommand("setHealth", from_fn_async(set_health).no_cli())
         .subcommand("getStore", from_fn_async(get_store).no_cli())
         .subcommand("setStore", from_fn_async(set_store).no_cli())
@@ -57,7 +84,11 @@ pub fn service_effect_handler() -> ParentHandler {
         .subcommand("exposeUi", from_fn_async(expose_ui).no_cli())
         .subcommand(
             "createOverlayedImage",
-            from_fn_async(create_overlayed_image).no_cli(),
+            from_fn_async(create_overlayed_image)
+                .with_custom_display_fn::<AnyContext, _>(|_, path| {
+                    Ok(println!("{}", path.display()))
+                })
+                .with_remote_cli::<ContainerCliContext>(),
         )
     // TODO @DrBonez when we get the new api for 4.0
     // .subcommand("setDependencies",from_fn(set_dependencies))
@@ -200,8 +231,9 @@ async fn expose_ui(
 struct ParamsPackageId {
     package: PackageId,
 }
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser)]
 #[serde(rename_all = "camelCase")]
+#[command(rename_all = "camelCase")]
 struct ParamsMaybePackageId {
     package_id: Option<PackageId>,
 }
@@ -308,8 +340,9 @@ async fn shutdown(context: EffectContext, _: Empty) -> Result<Value, Error> {
     service.stop().await?;
     Ok(json!(()))
 }
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser)]
 #[serde(rename_all = "camelCase")]
+#[command(rename_all = "camelCase")]
 struct SetConfigured {
     configured: bool,
 }
@@ -400,8 +433,9 @@ async fn set_health(context: EffectContext, params: SetHealth) -> Result<Value, 
     Ok(json!(()))
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Parser)]
 #[serde(rename_all = "camelCase")]
+#[command(rename_all = "camelCase")]
 pub struct CreateOverlayedImageParams {
     image_id: ImageId,
 }
