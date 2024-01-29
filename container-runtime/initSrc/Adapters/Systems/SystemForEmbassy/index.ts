@@ -43,7 +43,9 @@ const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig"
 export class SystemForEmbassy implements System {
   currentRunning: MainLoop | undefined
   static async of(manifestLocation: string = MANIFEST_LOCATION) {
-    const moduleCode = await import(EMBASSY_JS_LOCATION)
+    const moduleCode = await import(EMBASSY_JS_LOCATION).catch((_) =>
+      request(EMBASSY_JS_LOCATION),
+    )
     const manifestData = await fs.readFile(manifestLocation, "utf-8")
     return new SystemForEmbassy(
       matchManifest.unsafeCast(JSON.parse(manifestData)),
