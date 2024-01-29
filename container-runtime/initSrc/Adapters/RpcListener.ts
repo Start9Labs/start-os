@@ -114,9 +114,7 @@ export class RpcListener {
       const mapError = (error: any): SocketResponse => ({
         jsonrpc,
         id: null,
-        result: {
-          err: { message: error?.message ?? String(error), code: 0 },
-        },
+        error: { message: error?.message ?? String(error), code: 0 },
       })
       const writeDataToSocket = (x: SocketResponse) =>
         new Promise((resolve) => s.write(JSON.stringify(x), resolve))
