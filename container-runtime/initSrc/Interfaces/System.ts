@@ -26,4 +26,6 @@ export interface System {
   //     timeout?: number
   //   },
   // ): Promise<unknown>
+
+  exit(effects: Effects): Promise<void>
 }
