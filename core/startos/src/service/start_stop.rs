@@ -16,7 +16,7 @@ impl From<MainStatus> for StartStop {
         match value {
             MainStatus::Stopped => StartStop::Stop,
             MainStatus::Restarting => StartStop::Start,
-            MainStatus::Stopping => StartStop::Stop,
+            MainStatus::Stopping { .. } => StartStop::Stop,
             MainStatus::Starting => StartStop::Start,
             MainStatus::Running {
                 started: _,
