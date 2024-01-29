@@ -117,7 +117,12 @@ export class RpcListener {
       const logData =
         (location: string) =>
         <X>(x: X) => {
-          console.log(location, JSON.stringify(x), typeof x)
+          console.log({
+            location,
+            stringified: JSON.stringify(x),
+            type: typeof x,
+            id,
+          })
           return x
         }
       const mapError = (error: any): SocketResponse => ({
