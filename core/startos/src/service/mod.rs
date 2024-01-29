@@ -372,7 +372,9 @@ impl Actor for ServiceActor {
                                         MainStatus::Stopped
                                     }
                                     (None, StartStop::Stop, StartStop::Start, _) => {
-                                        MainStatus::Stopping
+                                        MainStatus::Stopping {
+                                            timeout: todo!("sigterm timeout"),
+                                        }
                                     }
                                     (None, StartStop::Start, StartStop::Stop, _) => {
                                         MainStatus::Starting
