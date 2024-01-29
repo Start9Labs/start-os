@@ -107,13 +107,18 @@ export class RpcListener {
     this.unixSocketServer.listen(SOCKET_PATH)
 
     this.unixSocketServer.on("connection", (s) => {
+      let id: IdType = null
+      const captureId = <X>(x: X) => {
+        id = (x as any)?.id || null
+        return x
+      }
       const logData = <X>(x: X) => {
         console.log("x", JSON.stringify(x), typeof x)
         return x
       }
       const mapError = (error: any): SocketResponse => ({
         jsonrpc,
-        id: null,
+        id,
         error: { message: error?.message ?? String(error), code: 0 },
       })
       const writeDataToSocket = (x: SocketResponse) =>
@@ -121,6 +126,7 @@ export class RpcListener {
       s.on("data", (a) =>
         Promise.resolve(a)
           .then(jsonParse)
+          .then(captureId)
           .then((x) => this.dealWithInput(x))
           .then(logData)
           .catch(mapError)
