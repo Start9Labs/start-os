@@ -82,7 +82,9 @@ impl Service {
             transition_state: Arc::new(watch::channel(None).0),
             synchronized: Arc::new(Notify::new()),
         });
-        seed.persistent_container.init(seed.clone()).await?;
+        seed.persistent_container
+            .init(Arc::downgrade(&seed))
+            .await?;
         Ok(Self {
             actor: SimpleActor::new(ServiceActor(seed.clone())),
             seed,
