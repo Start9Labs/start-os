@@ -32,8 +32,8 @@ const SOCKET_PARENT = "/run/startos"
 const SOCKET_PATH = "/run/startos/service.sock"
 const jsonrpc = "2.0" as const
 
-const idType = some(string, number)
-type IdType = string | number
+const idType = some(string, number, literal(null))
+type IdType = null | string | number
 const runType = object({
   id: idType,
   method: literal("execute"),
@@ -113,7 +113,7 @@ export class RpcListener {
       }
       const mapError = (error: any): SocketResponse => ({
         jsonrpc,
-        id: "TrueError",
+        id: null,
         result: {
           err: { message: error?.message ?? String(error), code: 0 },
         },
