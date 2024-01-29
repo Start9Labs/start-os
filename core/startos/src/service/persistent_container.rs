@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use futures::future::ready;
@@ -22,7 +22,7 @@ use crate::disk::mount::guard::MountGuard;
 use crate::lxc::{LxcConfig, LxcContainer, HOST_RPC_SERVER_SOCKET};
 use crate::prelude::*;
 use crate::s9pk::S9pk;
-use crate::service::rpc::{self, convert_rpc_error, StopParams};
+use crate::service::rpc::{self, StopParams};
 use crate::service::start_stop::StartStop;
 use crate::service::RunningStatus;
 use crate::util::rpc_client::UnixRpcClient;
@@ -42,7 +42,7 @@ pub struct PersistentContainer {
     rpc_server: OnceCell<(NonDetachingJoinHandle<()>, ShutdownHandle)>,
     // procedures: Mutex<Vec<(ProcedureName, ProcedureId)>>,
     js_mount: MountGuard,
-    pub(super) overlays: Mutex<BTreeMap<InternedString, OverlayGuard>>,
+    pub(super) overlays: Arc<Mutex<BTreeMap<InternedString, OverlayGuard>>>,
     pub(super) current_state: watch::Sender<StartStop>,
     // pub(super) desired_state: watch::Receiver<StartStop>,
     // pub(super) temp_desired_state: watch::Receiver<Option<StartStop>>,
@@ -78,7 +78,7 @@ impl PersistentContainer {
             rpc_server: OnceCell::new(),
             // procedures: Default::default(),
             js_mount,
-            overlays: Mutex::new(BTreeMap::new()),
+            overlays: Arc::new(Mutex::new(BTreeMap::new())),
             current_state: watch::channel(StartStop::Stop).0,
             // desired_state,
             // temp_desired_state,
@@ -86,7 +86,7 @@ impl PersistentContainer {
         })
     }
     #[instrument(skip_all)]
-    pub async fn init(&self, seed: Arc<ServiceActorSeed>) -> Result<(), Error> {
+    pub async fn init(&self, seed: Weak<ServiceActorSeed>) -> Result<(), Error> {
         let socket_server_context = EffectContext::new(seed);
         let server = Server::new(
             move || ready(Ok(socket_server_context.clone())),
@@ -133,10 +133,7 @@ impl PersistentContainer {
         // @todo @Blu-J @dr-bonez  Make it so the persistent cointainer uses as socket server for the effects.
         // let socket_server = run_unix(service_effect_handler(s9pk.as_manifest().id.clone()));
 
-        self.rpc_client
-            .request(rpc::Init, ())
-            .await
-            .map_err(convert_rpc_error)?;
+        self.rpc_client.request(rpc::Init, ()).await?;
 
         Ok(())
     }
@@ -145,19 +142,16 @@ impl PersistentContainer {
         let rpc_client = self.rpc_client.clone();
         let rpc_server = self.rpc_server.take();
         let js_mount = self.js_mount.take();
-        let overlays = std::mem::take(&mut *self.overlays.blocking_lock());
+        let overlays = self.overlays.clone();
         let lxc_container = self.lxc_container.take();
         async move {
-            rpc_client
-                .request(rpc::Exit, ())
-                .await
-                .map_err(convert_rpc_error)?;
+            rpc_client.request(rpc::Exit, ()).await?;
             if let Some((hdl, shutdown)) = rpc_server {
                 shutdown.shutdown();
                 hdl.await.with_kind(ErrorKind::Cancelled)?;
             }
             js_mount.unmount(true).await?;
-            for (_, overlay) in overlays {
+            for (_, overlay) in std::mem::take(&mut *overlays.lock().await) {
                 overlay.unmount(true).await?;
             }
             if let Some(lxc_container) = lxc_container {
@@ -174,17 +168,15 @@ impl PersistentContainer {
     }
 
     pub async fn start(&self) -> Result<(), Error> {
-        self.rpc_client
-            .request(rpc::Start, ())
-            .await
-            .map_err(convert_rpc_error)
+        self.rpc_client.request(rpc::Start, ()).await?;
+        Ok(())
     }
 
     pub async fn stop(&self, timeout: Option<Duration>) -> Result<(), Error> {
         self.rpc_client
             .request(rpc::Stop, StopParams::new(timeout))
-            .await
-            .map_err(convert_rpc_error)
+            .await?;
+        Ok(())
     }
 
     pub async fn execute<O>(

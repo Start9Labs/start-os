@@ -140,10 +140,3 @@ impl serde::Serialize for Sandbox {
         serializer.serialize_str(self.as_str())
     }
 }
-
-pub(super) fn convert_rpc_error(e: RpcError) -> Error {
-    Error::new(
-        eyre!("{}: {} ({:?})", e.code, e.message, e.data),
-        ErrorKind::Unknown, // TODO
-    )
-}

@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 use clap::Parser;
 use imbl_value::json;
@@ -19,17 +19,23 @@ use crate::util::new_guid;
 use crate::{echo, ARCH};
 
 #[derive(Clone)]
-pub(super) struct EffectContext(Arc<ServiceActorSeed>);
+pub(super) struct EffectContext(Weak<ServiceActorSeed>);
 impl EffectContext {
-    pub fn new(seed: Arc<ServiceActorSeed>) -> Self {
+    pub fn new(seed: Weak<ServiceActorSeed>) -> Self {
         Self(seed)
     }
 }
 impl Context for EffectContext {}
-impl std::ops::Deref for EffectContext {
-    type Target = ServiceActorSeed;
-    fn deref(&self) -> &Self::Target {
-        self.0.deref()
+impl EffectContext {
+    fn deref(&self) -> Result<Arc<ServiceActorSeed>, Error> {
+        if let Some(seed) = Weak::upgrade(&self.0) {
+            Ok(seed)
+        } else {
+            Err(Error::new(
+                eyre!("Service has already been destroyed"),
+                ErrorKind::InvalidRequest,
+            ))
+        }
     }
 }
 
@@ -132,6 +138,7 @@ async fn get_store(
     context: EffectContext,
     GetStoreParams { package_id, path }: GetStoreParams,
 ) -> Result<Value, Error> {
+    let context = context.deref()?;
     let peeked = context.ctx.db.peek().await;
     let package_id = package_id.unwrap_or(context.id.clone());
     let value = peeked
@@ -159,6 +166,7 @@ async fn set_store(
     context: EffectContext,
     SetStoreParams { value, path }: SetStoreParams,
 ) -> Result<(), Error> {
+    let context = context.deref()?;
     let package_id = context.id.clone();
     context
         .ctx
@@ -190,6 +198,7 @@ async fn expose_for_dependents(
     context: EffectContext,
     ExposeForDependentsParams { paths }: ExposeForDependentsParams,
 ) -> Result<(), Error> {
+    let context = context.deref()?;
     let package_id = context.id.clone();
     context
         .ctx
@@ -216,6 +225,7 @@ async fn expose_ui(
     context: EffectContext,
     ExposeUiParams { paths }: ExposeUiParams,
 ) -> Result<(), Error> {
+    let context = context.deref()?;
     let package_id = context.id.clone();
     context
         .ctx
@@ -244,6 +254,7 @@ struct ParamsMaybePackageId {
 }
 
 async fn exists(context: EffectContext, params: ParamsPackageId) -> Result<Value, Error> {
+    let context = context.deref()?;
     let peeked = context.ctx.db.peek().await;
     let package = peeked.as_package_data().as_idx(&params.package).is_some();
     Ok(json!(package))
@@ -264,6 +275,7 @@ async fn execute_action(
         service_id,
     }: ExecuteAction,
 ) -> Result<Value, Error> {
+    let context = context.deref()?;
     let package_id = service_id.clone().unwrap_or_else(|| context.id.clone());
     let service = context.ctx.services.get(&package_id).await;
     let service = service.as_ref().ok_or_else(|| {
@@ -279,6 +291,7 @@ async fn execute_action(
 #[serde(rename_all = "camelCase")]
 struct FromService {}
 async fn get_configured(context: EffectContext, _: Empty) -> Result<Value, Error> {
+    let context = context.deref()?;
     let peeked = context.ctx.db.peek().await;
     let package_id = &context.id;
     let package = peeked
@@ -294,6 +307,7 @@ async fn get_configured(context: EffectContext, _: Empty) -> Result<Value, Error
 }
 
 async fn stopped(context: EffectContext, params: ParamsMaybePackageId) -> Result<Value, Error> {
+    let context = context.deref()?;
     let peeked = context.ctx.db.peek().await;
     let package_id = params.package_id.unwrap_or_else(|| context.id.clone());
     let package = peeked
@@ -308,6 +322,7 @@ async fn stopped(context: EffectContext, params: ParamsMaybePackageId) -> Result
     Ok(json!(matches!(package, MainStatus::Stopped)))
 }
 async fn running(context: EffectContext, params: ParamsMaybePackageId) -> Result<Value, Error> {
+    let context = context.deref()?;
     let peeked = context.ctx.db.peek().await;
     let package_id = params.package_id.unwrap_or_else(|| context.id.clone());
     let package = peeked
@@ -323,6 +338,7 @@ async fn running(context: EffectContext, params: ParamsMaybePackageId) -> Result
 }
 
 async fn restart(context: EffectContext, _: Empty) -> Result<Value, Error> {
+    let context = context.deref()?;
     let service = context.ctx.services.get(&context.id).await;
     let service = service.as_ref().ok_or_else(|| {
         Error::new(
@@ -335,6 +351,7 @@ async fn restart(context: EffectContext, _: Empty) -> Result<Value, Error> {
 }
 
 async fn shutdown(context: EffectContext, _: Empty) -> Result<Value, Error> {
+    let context = context.deref()?;
     let service = context.ctx.services.get(&context.id).await;
     let service = service.as_ref().ok_or_else(|| {
         Error::new(
@@ -352,6 +369,7 @@ struct SetConfigured {
     configured: bool,
 }
 async fn set_configured(context: EffectContext, params: SetConfigured) -> Result<Value, Error> {
+    let context = context.deref()?;
     let package_id = &context.id;
     context
         .ctx
@@ -377,6 +395,7 @@ struct SetHealth {
 }
 
 async fn set_health(context: EffectContext, params: SetHealth) -> Result<Value, Error> {
+    let context = context.deref()?;
     // TODO DrBonez + BLU-J Need to change the type from
     // ```rs
     // #[serde(tag = "result")]
@@ -450,6 +469,7 @@ pub async fn create_overlayed_image(
     ctx: EffectContext,
     CreateOverlayedImageParams { image_id }: CreateOverlayedImageParams,
 ) -> Result<PathBuf, Error> {
+    let ctx = ctx.deref()?;
     let path = Path::new("images")
         .join(&*ARCH)
         .join(&image_id)
