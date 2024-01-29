@@ -104,6 +104,10 @@ export class SystemForEmbassy implements System {
         },
       }))
   }
+  async exit(effects: HostSystemStartOs): Promise<void> {
+    if (this.currentRunning) await this.currentRunning.clean()
+    delete this.currentRunning
+  }
   async _execute(
     effects: HostSystemStartOs,
     options: {

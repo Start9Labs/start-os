@@ -70,6 +70,10 @@ const initType = object({
   id: idType,
   method: literal("init"),
 })
+const exitType = object({
+  id: idType,
+  method: literal("exit"),
+})
 
 const jsonParse = (x: Buffer) => JSON.parse(x.toString())
 function reduceMethod(
@@ -187,6 +191,17 @@ export class RpcListener {
         id,
         error: { code: 2, message: `unknown method: ${method}` },
       }))
+      .when(exitType, async ({ id }) => {
+        if (this._system) this._system.exit(this.effects)
+        delete this._system
+        delete this._effects
+
+        return {
+          jsonrpc,
+          id,
+          result: {},
+        }
+      })
       .when(initType, async ({ id }) => {
         this._system = await this.getDependencies.system()
 
