@@ -116,18 +116,6 @@ export const mockPatchData: DataModel = {
           start: 'Starting Bitcoin is good for your health.',
           stop: null,
         },
-        main: {
-          type: 'docker',
-          image: '',
-          system: true,
-          entrypoint: '',
-          args: [],
-          mounts: {},
-          'io-format': DockerIoFormat.Yaml,
-          inject: false,
-          'shm-size': '',
-          'sigterm-timeout': '.49m',
-        },
         'health-checks': {
           'chain-state': {
             name: 'Chain State',
@@ -545,18 +533,6 @@ export const mockPatchData: DataModel = {
             'If this is a duplicate instance of the same LND node, you may loose your funds.',
           start: 'Starting LND is good for your health.',
           stop: null,
-        },
-        main: {
-          type: 'docker',
-          image: '',
-          system: true,
-          entrypoint: '',
-          args: [],
-          mounts: {},
-          'io-format': DockerIoFormat.Yaml,
-          inject: false,
-          'shm-size': '',
-          'sigterm-timeout': '0.5s',
         },
         'health-checks': {},
         config: {

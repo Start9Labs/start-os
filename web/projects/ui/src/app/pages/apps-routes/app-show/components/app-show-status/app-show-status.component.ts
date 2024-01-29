@@ -8,6 +8,7 @@ import {
 import {
   InstalledPackageDataEntry,
   PackageDataEntry,
+  PackageMainStatus,
   PackageState,
   Status,
 } from 'src/app/services/patch-db/data-model'
@@ -73,6 +74,12 @@ export class AppShowStatusComponent {
 
   get isStopped(): boolean {
     return this.status.primary === PrimaryStatus.Stopped
+  }
+
+  get sigtermTimeout(): string | null {
+    return this.pkgStatus?.main.status === PackageMainStatus.Stopping
+      ? this.pkgStatus.main.timeout
+      : null
   }
 
   launchUi(interfaces: InstalledPackageDataEntry['network-interfaces']): void {

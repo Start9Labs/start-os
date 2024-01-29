@@ -167,7 +167,6 @@ export interface Manifest extends MarketplaceManifest<DependencyConfig | null> {
     assets: string // path to assets folder
     scripts: string // path to scripts folder
   }
-  main: ActionImpl
   'health-checks': Record<
     string,
     ActionImpl & { name: string; 'success-message': string | null }
@@ -294,6 +293,7 @@ export interface MainStatusStopped {
 
 export interface MainStatusStopping {
   status: PackageMainStatus.Stopping
+  timeout: string
 }
 
 export interface MainStatusStarting {

@@ -17,7 +17,7 @@
       [installProgress]="pkg.entry['install-progress']"
       weight="bold"
       size="small"
-      [sigtermTimeout]="manifest.main['sigterm-timeout']"
+      [sigtermTimeout]="sigtermTimeout"
     ></status>
   </ion-label>
   <ion-button
@@ -28,7 +28,7 @@
     fill="clear"
     color="primary"
     (click)="launchUi($event, pkg.entry.installed['network-interfaces'])"
-    [disabled]="!(pkg.entry.state | isLaunchable: status)"
+    [disabled]="!(pkg.entry.state | isLaunchable: pkgMainStatus.status)"
   >
     <ion-icon slot="icon-only" name="open-outline"></ion-icon>
   </ion-button>
