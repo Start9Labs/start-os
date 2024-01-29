@@ -10,6 +10,7 @@ import {
   number,
   matches,
   any,
+  shape,
 } from "ts-matches"
 
 import * as T from "@start9labs/start-sdk/lib/types"
@@ -21,14 +22,33 @@ import { CallbackHolder } from "../Models/CallbackHolder"
 import { AllGetDependencies } from "../Interfaces/AllGetDependencies"
 import { HostSystem } from "../Interfaces/HostSystem"
 import { jsonPath } from "../Models/JsonPath"
-
+import { System } from "../Interfaces/System"
+type MaybePromise<T> = T | Promise<T>
+type SocketResponse = { jsonrpc: "2.0"; id: IdType } & (
+  | { result: unknown }
+  | { error: { code: number; message: string } }
+)
 const SOCKET_PARENT = "/run/startos"
 const SOCKET_PATH = "/run/startos/service.sock"
+const jsonrpc = "2.0" as const
 
 const idType = some(string, number)
+type IdType = string | number
 const runType = object({
   id: idType,
   method: literal("execute"),
+  params: object(
+    {
+      procedure: string,
+      input: any,
+      timeout: number,
+    },
+    ["timeout"],
+  ),
+})
+const sandboxRunType = object({
+  id: idType,
+  method: literal("sandbox"),
   params: object(
     {
       procedure: string,
@@ -45,6 +65,10 @@ const callbackType = object({
     callback: string,
     args: array,
   }),
+})
+const initType = object({
+  id: idType,
+  method: literal("init"),
 })
 
 const jsonParse = (x: Buffer) => JSON.parse(x.toString())
@@ -66,12 +90,12 @@ function reduceMethod(
 }
 export class RpcListener {
   unixSocketServer = net.createServer(async (server) => {})
-  #callbacks = new CallbackHolder()
+  private _system: System | undefined
+  private _effects: HostSystem | undefined
 
   constructor(
     readonly getDependencies: AllGetDependencies,
     private callbacks = new CallbackHolder(),
-    private effects = getDependencies.hostSystem()(callbacks),
   ) {
     if (!fs.existsSync(SOCKET_PARENT)) {
       fs.mkdirSync(SOCKET_PARENT, { recursive: true })
@@ -79,31 +103,52 @@ export class RpcListener {
     this.unixSocketServer.listen(SOCKET_PATH)
 
     this.unixSocketServer.on("connection", (s) => {
-      const logData = (x: unknown) => {
+      const logData = <X>(x: X) => {
         console.log("x", JSON.stringify(x), typeof x)
         return x
       }
-      const logError = (error: any) => ({
-        error: { message: error?.message ?? String(error) },
+      const mapError = (error: any): SocketResponse => ({
+        jsonrpc,
+        id: "TrueError",
+        result: {
+          err: { message: error?.message ?? String(error), code: 0 },
+        },
       })
-      const writeDataToSocket = (x: unknown) =>
+      const writeDataToSocket = (x: SocketResponse) =>
         new Promise((resolve) => s.write(JSON.stringify(x), resolve))
       s.on("data", (a) =>
         Promise.resolve(a)
           .then(jsonParse)
           .then((x) => this.dealWithInput(x))
           .then(logData)
-          .catch(logError)
+          .catch(mapError)
           .then(writeDataToSocket)
           .finally(() => void s.end()),
       )
     })
   }
 
-  private dealWithInput(input: unknown) {
+  private get effects() {
+    if (!this._effects) throw new Error("Effects not initialized")
+    return this._effects
+  }
+
+  private get system() {
+    if (!this._system) throw new Error("System not initialized")
+    return this._system
+  }
+
+  private dealWithInput(
+    input: unknown,
+  ): MaybePromise<
+    { jsonrpc: "2.0"; id: IdType } & (
+      | { result: unknown }
+      | { error: { code: number; message: string } }
+    )
+  > {
     return matches(input)
-      .when(runType, async ({ id, params }) => {
-        const system = await this.getDependencies.system()
+      .when(some(runType, sandboxRunType), async ({ id, params }) => {
+        const system = this.system
         const procedure = jsonPath.unsafeCast(params.procedure)
         return system
           .execute(this.effects, {
@@ -111,30 +156,56 @@ export class RpcListener {
             input: params.input,
             timeout: params.timeout,
           })
-          .then((result) => ({ result, id }))
-          .catch((error) => ({
+          .then((result) => ({
+            jsonrpc,
+            result,
             id,
-            result: { err: { code: 0, message: "" + error } },
+          }))
+          .catch((error) => ({
+            jsonrpc,
+            id,
+            error: { code: 0, message: "" + error },
           }))
       })
       .when(callbackType, async ({ id, params: { callback, args } }) =>
-        Promise.resolve(this.#callbacks.callCallback(callback, args))
-          .then((result) => ({ id, result }))
-          .catch((error) => ({
+        Promise.resolve(this.callbacks.callCallback(callback, args))
+          .then((result) => ({
+            jsonrpc,
             id,
-            error: {
+            result,
+          }))
+          .catch((error) => ({
+            jsonrpc,
+            id,
+            result: {
               err: { code: 1, message: error?.message ?? String(error) },
             },
           })),
       )
+      .when(shape({ id: idType, method: string }), ({ id, method }) => ({
+        jsonrpc,
+        id,
+        error: { code: 2, message: `unknown method: ${method}` },
+      }))
+      .when(initType, async ({ id }) => {
+        this._system = await this.getDependencies.system()
+
+        this._effects = await this.getDependencies.hostSystem()(this.callbacks)
+        return {
+          jsonrpc,
+          id,
+          result: {},
+        }
+      })
 
       .defaultToLazy(() => {
         console.warn(
           `Coudln't parse the following input ${JSON.stringify(input)}`,
         )
         return {
+          jsonrpc,
           id: (input as any)?.id,
-          error: { err: { code: 2, message: "Could not figure out shape" } },
+          error: { code: 2, message: "Could not figure out shape" },
         }
       })
   }

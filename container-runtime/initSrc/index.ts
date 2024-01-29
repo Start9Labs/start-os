@@ -6,7 +6,7 @@ import { getSystem } from "./Adapters/Systems"
 import { once } from "@start9labs/start-sdk/lib/util/once"
 
 const getDependencies: AllGetDependencies = {
-  system: once(getSystem),
+  system: getSystem,
   hostSystem: () => HostSystemStartOs.of,
 }
 

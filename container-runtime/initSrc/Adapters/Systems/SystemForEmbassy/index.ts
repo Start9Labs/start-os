@@ -41,20 +41,19 @@ const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
 const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig"
 
 export class SystemForEmbassy implements System {
-  moduleCode: Promise<Partial<U.ExpectedExports>> = Promise.resolve({})
   currentRunning: MainLoop | undefined
   static async of(manifestLocation: string = MANIFEST_LOCATION) {
-    return fs.readFile(manifestLocation, "utf-8").then((manifest: string) => {
-      return new SystemForEmbassy(
-        matchManifest.unsafeCast(JSON.parse(manifest)),
-      )
-    })
+    const moduleCode = await require(EMBASSY_JS_LOCATION)
+    const manifestData = await fs.readFile(manifestLocation, "utf-8")
+    return new SystemForEmbassy(
+      matchManifest.unsafeCast(JSON.parse(manifestData)),
+      moduleCode,
+    )
   }
-  constructor(readonly manifest: Manifest) {
-    this.moduleCode = Promise.resolve()
-      .then(() => require(EMBASSY_JS_LOCATION))
-      .catch(() => ({}))
-  }
+  constructor(
+    readonly manifest: Manifest,
+    readonly moduleCode: Partial<U.ExpectedExports>,
+  ) {}
   async execute(
     effects: HostSystemStartOs,
     options: {
