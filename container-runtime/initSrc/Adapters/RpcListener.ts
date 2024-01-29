@@ -186,11 +186,6 @@ export class RpcListener {
             },
           })),
       )
-      .when(shape({ id: idType, method: string }), ({ id, method }) => ({
-        jsonrpc,
-        id,
-        error: { code: 2, message: `unknown method: ${method}` },
-      }))
       .when(exitType, async ({ id }) => {
         if (this._system) this._system.exit(this.effects)
         delete this._system
@@ -212,6 +207,11 @@ export class RpcListener {
           result: {},
         }
       })
+      .when(shape({ id: idType, method: string }), ({ id, method }) => ({
+        jsonrpc,
+        id,
+        error: { code: 2, message: `unknown method: ${method}` },
+      }))
 
       .defaultToLazy(() => {
         console.warn(
