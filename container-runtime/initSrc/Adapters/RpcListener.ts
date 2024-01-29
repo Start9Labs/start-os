@@ -160,11 +160,11 @@ export class RpcListener {
             input: params.input,
             timeout: params.timeout,
           })
-          .then((result) => ({
-            jsonrpc,
-            result,
-            id,
-          }))
+          .then((result) =>
+            "ok" in result
+              ? { jsonrpc, id, result: result.ok }
+              : { jsonrpc, id, error: result.err },
+          )
           .catch((error) => ({
             jsonrpc,
             id,
