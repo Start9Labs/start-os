@@ -30,6 +30,7 @@ import {
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { JsonPath, unNestPath } from "../../../Models/JsonPath"
 import { HostSystem } from "../../../Interfaces/HostSystem"
+
 type Optional<A> = A | undefined | null
 function todo(): never {
   throw new Error("Not implemented")
@@ -44,7 +45,7 @@ export class SystemForEmbassy implements System {
   currentRunning: MainLoop | undefined
   static async of(manifestLocation: string = MANIFEST_LOCATION) {
     const moduleCode = await import(EMBASSY_JS_LOCATION).catch((_) =>
-      request(EMBASSY_JS_LOCATION),
+      require(EMBASSY_JS_LOCATION),
     )
     const manifestData = await fs.readFile(manifestLocation, "utf-8")
     return new SystemForEmbassy(
