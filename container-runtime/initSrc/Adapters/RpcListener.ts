@@ -92,6 +92,8 @@ function reduceMethod(
             }),
       )
 }
+
+const hasId = object({ id: idType }).test
 export class RpcListener {
   unixSocketServer = net.createServer(async (server) => {})
   private _system: System | undefined
@@ -109,13 +111,15 @@ export class RpcListener {
     this.unixSocketServer.on("connection", (s) => {
       let id: IdType = null
       const captureId = <X>(x: X) => {
-        id = (x as any)?.id || null
+        if (hasId(x)) id = x.id
         return x
       }
-      const logData = <X>(x: X) => {
-        console.log("x", JSON.stringify(x), typeof x)
-        return x
-      }
+      const logData =
+        (location: string) =>
+        <X>(x: X) => {
+          console.log(location, JSON.stringify(x), typeof x)
+          return x
+        }
       const mapError = (error: any): SocketResponse => ({
         jsonrpc,
         id,
@@ -125,11 +129,12 @@ export class RpcListener {
         new Promise((resolve) => s.write(JSON.stringify(x), resolve))
       s.on("data", (a) =>
         Promise.resolve(a)
+          .then(logData("dataIn"))
           .then(jsonParse)
           .then(captureId)
           .then((x) => this.dealWithInput(x))
-          .then(logData)
           .catch(mapError)
+          .then(logData("response"))
           .then(writeDataToSocket)
           .finally(() => void s.end()),
       )
