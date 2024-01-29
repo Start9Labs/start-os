@@ -375,6 +375,7 @@ ul {
   box-sizing: border-box;
   overflow: auto;
   isolation: isolate;
+  scroll-behavior: smooth;
 
   // TODO: Theme
   background: #373a3f;
@@ -490,4 +491,8 @@ svg:not(:root) {
 
 .externalLink {
   color: var(--ion-color-secondary);
+}
+
+.ion-page {
+  overflow: clip;
 }

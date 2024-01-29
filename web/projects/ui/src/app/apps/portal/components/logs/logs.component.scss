@@ -1,0 +1,40 @@
+:host {
+  display: flex;
+  flex-direction: column;
+}
+
+.loading-dots {
+  text-align: center;
+}
+
+.top {
+  height: 10rem;
+  margin-bottom: -10rem;
+}
+
+.bottom {
+  height: 8rem;
+}
+
+.footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1rem 3rem;
+  border-top: 1px solid var(--tui-clear);
+  // TODO: Theme
+  background: #373a3f;
+  box-shadow: 0 3rem #373a3f;
+}
+
+[data-status='reconnecting'] {
+  color: var(--tui-success-fill);
+}
+
+[data-status='disconnected'] {
+  color: var(--tui-warning-fill);
+}

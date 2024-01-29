@@ -1,29 +1,15 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
-import { LogsComponentModule } from 'src/app/common/logs/logs.component.module'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { RR } from 'src/app/services/api/api.types'
+import { LogsComponent } from 'src/app/apps/portal/components/logs/logs.component'
 
 @Component({
   template: '<logs [fetchLogs]="fetch" [followLogs]="follow" [context]="id" />',
-  styles: [
-    `
-      logs {
-        display: block;
-        height: calc(100% - 9rem);
-        min-height: 20rem;
-        margin-bottom: 5rem;
-
-        ::ng-deep ion-header {
-          display: none;
-        }
-      }
-    `,
-  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [LogsComponentModule],
+  imports: [LogsComponent],
 })
 export class ServiceLogsRoute {
   private readonly api = inject(ApiService)

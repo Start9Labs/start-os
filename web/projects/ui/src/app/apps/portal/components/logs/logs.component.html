@@ -1,0 +1,55 @@
+<section
+  class="top"
+  waIntersectionObserver
+  (logsFetch)="old = $event"
+></section>
+
+@for (log of old; track log) {
+  <pre [innerHTML]="log | dompurify"></pre>
+}
+
+@if (followLogs | logs | async; as logs) {
+  <section childList (waMutationObserver)="scrollToBottom()">
+    @for (log of logs; track log) {
+      <pre [innerHTML]="log | dompurify"></pre>
+    }
+
+    @if ((status$ | async) !== 'connected') {
+      <p class="loading-dots" [attr.data-status]="status$.value">
+        {{
+          status$.value === 'reconnecting'
+            ? 'Reconnecting'
+            : 'Waiting for network connectivity'
+        }}
+      </p>
+    }
+  </section>
+} @else {
+  <tui-loader textContent="Loading logs" />
+}
+
+<section
+  #bottom
+  class="bottom"
+  waIntersectionObserver
+  (waIntersectionObservee)="setScroll($event[$event.length - 1].isIntersecting)"
+></section>
+
+<footer class="footer">
+  <button
+    tuiButton
+    appearance="flat"
+    iconLeft="tuiIconArrowDownCircle"
+    (click)="setScroll(true); scrollToBottom()"
+  >
+    Scroll to bottom
+  </button>
+  <button
+    tuiButton
+    appearance="flat"
+    iconLeft="tuiIconDownload"
+    [logsDownload]="fetchLogs"
+  >
+    Download
+  </button>
+</footer>

@@ -1,45 +1,19 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { ActivatedRoute, Router, RouterModule } from '@angular/router'
-import { TuiIconModule } from '@taiga-ui/experimental'
+import { ActivatedRoute, Router, RouterOutlet } from '@angular/router'
 import { PatchDB } from 'patch-db-client'
 import { distinctUntilChanged, filter, map, switchMap, tap } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { toRouterLink } from '../../../utils/to-router-link'
 
 @Component({
   template: `
-    <a
-      *ngIf="service$ | async as service"
-      routerLinkActive="_current"
-      [routerLinkActiveOptions]="{ exact: true }"
-      [routerLink]="getLink(service.manifest.id)"
-    >
-      <tui-icon icon="tuiIconChevronLeft" />
-      {{ service.manifest.title }}
-    </a>
+    <ng-container *ngIf="service$ | async" />
     <router-outlet />
   `,
-  styles: [
-    `
-      a {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin: 1rem 0;
-        font-size: 1rem;
-        color: var(--tui-text-01);
-      }
-
-      ._current {
-        display: none;
-      }
-    `,
-  ],
   host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, RouterModule, TuiIconModule],
+  imports: [CommonModule, RouterOutlet],
 })
 export class ServiceOutletComponent {
   private readonly patch = inject(PatchDB<DataModel>)
@@ -58,8 +32,4 @@ export class ServiceOutletComponent {
       }
     }),
   )
-
-  getLink(id: string): string {
-    return toRouterLink(id)
-  }
 }
