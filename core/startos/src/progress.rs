@@ -223,7 +223,7 @@ impl FullProgressTracker {
                 if db
                     .mutate(|v| {
                         if let Some(p) = deref(v) {
-                            p.ser(dbg!(&progress))?;
+                            p.ser(&progress)?;
                             Ok(false)
                         } else {
                             Ok(true)
