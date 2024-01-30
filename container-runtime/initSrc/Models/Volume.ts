@@ -1,4 +1,4 @@
-import * as fs from "node:fs"
+import * as fs from "node:fs/promises"
 
 export class Volume {
   readonly path: string
@@ -6,6 +6,11 @@ export class Volume {
     const path = (this.path = `/media/startos/volumes/${volumeId}${
       !_path ? "" : `/${_path}`
     }`)
-    fs.statSync(path)
+  }
+  async exists() {
+    return fs.stat(this.path).then(
+      () => true,
+      () => false,
+    )
   }
 }
