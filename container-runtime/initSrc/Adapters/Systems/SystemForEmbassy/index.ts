@@ -35,7 +35,7 @@ type Optional<A> = A | undefined | null
 function todo(): never {
   throw new Error("Not implemented")
 }
-const spawn = promisify(childProcess.spawn)
+const execFile = promisify(childProcess.execFile)
 
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
 const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
@@ -749,11 +749,12 @@ export class SystemForEmbassy implements System {
         const pathToMount = mounts[imageId]
         if (await fs.stat(pathToMount).catch(() => false)) continue
         const volume = new Volume(imageId)
-        await spawn(
-          "mount",
-          ["--target", pathToMount, "--source", volume.path],
-          {},
-        )
+        await execFile("mount", [
+          "--target",
+          pathToMount,
+          "--source",
+          volume.path,
+        ])
       } catch (error) {
         console.error(error)
       }
