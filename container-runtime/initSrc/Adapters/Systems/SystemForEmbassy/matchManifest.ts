@@ -9,6 +9,7 @@ import {
   number,
   unknown,
   some,
+  every,
 } from "ts-matches"
 import { matchVolume } from "./matchVolume"
 import { matchDockerProcedure } from "../../../Models/DockerProcedure"
@@ -52,10 +53,12 @@ export const matchManifest = object(
     ),
     "health-checks": dictionary([
       string,
-      object({
-        name: string,
-        implementation: matchProcedure,
-      }),
+      every(
+        matchProcedure,
+        object({
+          name: string,
+        }),
+      ),
     ]),
     config: object({
       get: matchProcedure,

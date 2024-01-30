@@ -358,8 +358,7 @@ export class SystemForEmbassy implements System {
     healthId: string,
     timeSinceStarted: unknown,
   ): Promise<void> {
-    const healthProcedure =
-      this.manifest["health-checks"][healthId]?.implementation
+    const healthProcedure = this.manifest["health-checks"][healthId]
     if (!healthProcedure) return
     if (healthProcedure.type === "docker") {
       const container = await DockerProcedureContainer.of(healthProcedure)
@@ -626,8 +625,7 @@ export class SystemForEmbassy implements System {
     healthId: string,
     timeSinceStarted: unknown,
   ): Promise<void> {
-    const healthProcedure =
-      this.manifest["health-checks"][healthId]?.implementation
+    const healthProcedure = this.manifest["health-checks"][healthId]
     if (!healthProcedure) return
     if (healthProcedure.type === "docker") {
       const container = await DockerProcedureContainer.readonlyOf(
