@@ -164,7 +164,9 @@ impl UnixRpcClient {
                                     std::io::Error::new(std::io::ErrorKind::Other, e.source)
                                 })?
                                 .join("link.sock");
-                            tokio::fs::symlink(&path, &new_path).await?;
+                            if tokio::fs::metadata(&new_path).await.is_err() {
+                                tokio::fs::symlink(&path, &new_path).await?;
+                            }
                             path = new_path;
                         }
                         let (r, w) = UnixStream::connect(&path).await?.into_split();
