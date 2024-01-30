@@ -1,10 +1,11 @@
-import * as fs from "node:fs/promises"
+import * as fs from "node:fs"
 
 export class Volume {
-  constructor(
-    readonly volumeId: string,
-    readonly path = `/media/startos/volumes/${volumeId}`,
-  ) {
-    fs.stat(path)
+  readonly path: string
+  constructor(readonly volumeId: string, _path = "") {
+    const path = (this.path = `/media/startos/volumes/${volumeId}${
+      !_path ? "" : `/${_path}`
+    }`)
+    fs.statSync(path)
   }
 }

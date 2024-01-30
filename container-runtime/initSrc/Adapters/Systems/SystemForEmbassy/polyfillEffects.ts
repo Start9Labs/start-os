@@ -2,53 +2,97 @@ import fs from "fs/promises"
 import * as T from "@start9labs/start-sdk/lib/types"
 import * as oet from "./oldEmbassyTypes"
 import { HostSystemStartOs } from "../../HostSystemStartOs"
+import { Volume } from "../../../Models/Volume"
+import * as child_process from "child_process"
+import { promisify } from "util"
+import fetch from "node-fetch"
+
+const execFile = promisify(child_process.execFile)
 
 export class PolyfillEffects implements oet.Effects {
   constructor(readonly effects: HostSystemStartOs) {}
-  writeFile(input: {
+  async writeFile(input: {
     path: string
     volumeId: string
     toWrite: string
   }): Promise<void> {
-    throw new Error("Method not implemented.")
+    await fs.writeFile(
+      new Volume(input.volumeId, input.path).path,
+      input.toWrite,
+    )
   }
-  readFile(input: { volumeId: string; path: string }): Promise<string> {
-    throw new Error("Method not implemented.")
+  async readFile(input: { volumeId: string; path: string }): Promise<string> {
+    return (
+      await fs.readFile(new Volume(input.volumeId, input.path).path)
+    ).toString()
   }
-  metadata(input: { volumeId: string; path: string }): Promise<oet.Metadata> {
-    throw new Error("Method not implemented.")
+  async metadata(input: {
+    volumeId: string
+    path: string
+  }): Promise<oet.Metadata> {
+    const stats = await fs.stat(new Volume(input.volumeId, input.path).path)
+    return {
+      fileType: stats.isFile() ? "file" : "directory",
+      gid: stats.gid,
+      uid: stats.uid,
+      mode: stats.mode,
+      isDir: stats.isDirectory(),
+      isFile: stats.isFile(),
+      isSymlink: stats.isSymbolicLink(),
+      len: stats.size,
+      readonly: (stats.mode & 0o200) > 0,
+    }
   }
-  createDir(input: { volumeId: string; path: string }): Promise<string> {
-    throw new Error("Method not implemented.")
+  async createDir(input: { volumeId: string; path: string }): Promise<string> {
+    const path = new Volume(input.volumeId, input.path).path
+    await fs.mkdir(path, { recursive: true })
+    return path
   }
-  readDir(input: { volumeId: string; path: string }): Promise<string[]> {
-    throw new Error("Method not implemented.")
+  async readDir(input: { volumeId: string; path: string }): Promise<string[]> {
+    return fs.readdir(new Volume(input.volumeId, input.path).path)
   }
-  removeDir(input: { volumeId: string; path: string }): Promise<string> {
-    throw new Error("Method not implemented.")
+  async removeDir(input: { volumeId: string; path: string }): Promise<string> {
+    const path = new Volume(input.volumeId, input.path).path
+    await fs.rmdir(new Volume(input.volumeId, input.path).path, {
+      recursive: true,
+    })
+    return path
   }
   removeFile(input: { volumeId: string; path: string }): Promise<void> {
-    throw new Error("Method not implemented.")
+    return fs.rm(new Volume(input.volumeId, input.path).path)
   }
-  writeJsonFile(input: {
+  async writeJsonFile(input: {
     volumeId: string
     path: string
     toWrite: Record<string, unknown>
   }): Promise<void> {
-    throw new Error("Method not implemented.")
+    await fs.writeFile(
+      new Volume(input.volumeId, input.path).path,
+      JSON.stringify(input.toWrite),
+    )
   }
-  readJsonFile(input: {
+  async readJsonFile(input: {
     volumeId: string
     path: string
   }): Promise<Record<string, unknown>> {
-    throw new Error("Method not implemented.")
+    return JSON.parse(
+      (
+        await fs.readFile(new Volume(input.volumeId, input.path).path)
+      ).toString(),
+    )
   }
-  runCommand(input: {
+  runCommand({
+    command,
+    args,
+    timeoutMillis,
+  }: {
     command: string
     args?: string[] | undefined
     timeoutMillis?: number | undefined
   }): Promise<oet.ResultType<string>> {
-    throw new Error("Method not implemented.")
+    return execFile(command, args || [], {
+      timeout: timeoutMillis,
+    }).then((x) => (!!x.stderr ? { error: x.stderr } : { result: x.stdout }))
   }
   runDaemon(input: { command: string; args?: string[] | undefined }): {
     wait(): Promise<oet.ResultType<string>>
@@ -67,28 +111,30 @@ export class PolyfillEffects implements oet.Effects {
     throw new Error("Method not implemented.")
   }
   sleep(timeMs: number): Promise<null> {
-    throw new Error("Method not implemented.")
+    return new Promise((resolve) => setTimeout(resolve, timeMs))
   }
   trace(whatToPrint: string): void {
-    throw new Error("Method not implemented.")
+    console.trace(whatToPrint)
   }
   warn(whatToPrint: string): void {
-    throw new Error("Method not implemented.")
+    console.warn(whatToPrint)
   }
   error(whatToPrint: string): void {
-    throw new Error("Method not implemented.")
+    console.error(whatToPrint)
   }
   debug(whatToPrint: string): void {
-    throw new Error("Method not implemented.")
+    console.debug(whatToPrint)
   }
   info(whatToPrint: string): void {
-    throw new Error("Method not implemented.")
+    console.log(false)
   }
   is_sandboxed(): boolean {
-    throw new Error("Method not implemented.")
+    return false
   }
   exists(input: { volumeId: string; path: string }): Promise<boolean> {
-    throw new Error("Method not implemented.")
+    return this.metadata(input)
+      .then(() => true)
+      .catch(() => false)
   }
   bindLocal(options: {
     internalPort: number
@@ -104,7 +150,7 @@ export class PolyfillEffects implements oet.Effects {
   }): Promise<string> {
     throw new Error("Method not implemented.")
   }
-  fetch(
+  async fetch(
     url: string,
     options?:
       | {
@@ -129,7 +175,21 @@ export class PolyfillEffects implements oet.Effects {
     text(): Promise<string>
     json(): Promise<unknown>
   }> {
-    throw new Error("Method not implemented.")
+    const fetched = await fetch(url, options)
+    return {
+      method: fetched.type,
+      ok: fetched.ok,
+      status: fetched.status,
+      headers: Object.fromEntries(
+        Object.entries(fetched.headers.raw()).map(([k, v]) => [
+          k,
+          v.join(", "),
+        ]),
+      ),
+      body: await fetched.text(),
+      text: () => fetched.text(),
+      json: () => fetched.json(),
+    }
   }
   runRsync(options: {
     srcVolume: string

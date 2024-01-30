@@ -15,6 +15,7 @@
     "singleQuote": false
   },
   "dependencies": {
+    "node-fetch": "^3.1.0",
     "@iarna/toml": "^2.2.5",
     "@start9labs/start-sdk": "start9labs/start-sdk#b7064ed323f9dade4dcd0d3db3ee2f8901eae933",
     "esbuild": "0.18.4",
