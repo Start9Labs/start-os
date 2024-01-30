@@ -19,7 +19,7 @@ export const matchDockerProcedure = object(
     entrypoint: string,
     args: array(string),
     mounts: dictionary([VolumeId, Path]),
-    "iso-format": literals(
+    "io-format": literals(
       "json",
       "json-pretty",
       "yaml",
@@ -30,7 +30,10 @@ export const matchDockerProcedure = object(
     "sigterm-timeout": number,
     inject: boolean,
   },
-  ["iso-format"],
+  ["io-format", "sigterm-timeout"],
+  {
+    "sigterm-timeout": 30,
+  },
 )
 
 export type DockerProcedure = typeof matchDockerProcedure._TYPE

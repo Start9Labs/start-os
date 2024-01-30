@@ -26,7 +26,13 @@ import { System } from "../Interfaces/System"
 type MaybePromise<T> = T | Promise<T>
 type SocketResponse = { jsonrpc: "2.0"; id: IdType } & (
   | { result: unknown }
-  | { error: { code: number; message: string } }
+  | {
+      error: {
+        code: number
+        message: string
+        data: { details: string; debug?: string }
+      }
+    }
 )
 const SOCKET_PARENT = "/run/startos"
 const SOCKET_PATH = "/run/startos/service.sock"
@@ -128,7 +134,14 @@ export class RpcListener {
       const mapError = (error: any): SocketResponse => ({
         jsonrpc,
         id,
-        error: { message: error?.message ?? String(error), code: 0 },
+        error: {
+          message: typeof error,
+          data: {
+            details: error?.message ?? String(error),
+            debug: error?.stack,
+          },
+          code: 0,
+        },
       })
       const writeDataToSocket = (x: SocketResponse) =>
         new Promise((resolve) => s.write(JSON.stringify(x), resolve))
@@ -156,14 +169,7 @@ export class RpcListener {
     return this._system
   }
 
-  private dealWithInput(
-    input: unknown,
-  ): MaybePromise<
-    { jsonrpc: "2.0"; id: IdType } & (
-      | { result: unknown }
-      | { error: { code: number; message: string } }
-    )
-  > {
+  private dealWithInput(input: unknown): MaybePromise<SocketResponse> {
     return matches(input)
       .when(some(runType, sandboxRunType), async ({ id, params }) => {
         const system = this.system
@@ -177,12 +183,24 @@ export class RpcListener {
           .then((result) =>
             "ok" in result
               ? { jsonrpc, id, result: result.ok }
-              : { jsonrpc, id, error: result.err },
+              : {
+                  jsonrpc,
+                  id,
+                  error: {
+                    code: result.err.code,
+                    message: "Package Root Error",
+                    data: { details: result.err.message },
+                  },
+                },
           )
           .catch((error) => ({
             jsonrpc,
             id,
-            error: { code: 0, message: "" + error },
+            error: {
+              code: 0,
+              message: typeof error,
+              data: { details: "" + error, debug: error?.stack },
+            },
           }))
       })
       .when(callbackType, async ({ id, params: { callback, args } }) =>
@@ -195,8 +213,14 @@ export class RpcListener {
           .catch((error) => ({
             jsonrpc,
             id,
-            result: {
-              err: { code: 1, message: error?.message ?? String(error) },
+
+            error: {
+              code: 0,
+              message: typeof error,
+              data: {
+                details: error?.message ?? String(error),
+                debug: error?.stack,
+              },
             },
           })),
       )
@@ -224,7 +248,13 @@ export class RpcListener {
       .when(shape({ id: idType, method: string }), ({ id, method }) => ({
         jsonrpc,
         id,
-        error: { code: 2, message: `unknown method: ${method}` },
+        error: {
+          code: -32601,
+          message: `Method not found`,
+          data: {
+            details: method,
+          },
+        },
       }))
 
       .defaultToLazy(() => {
@@ -234,7 +264,13 @@ export class RpcListener {
         return {
           jsonrpc,
           id: (input as any)?.id,
-          error: { code: 2, message: "Could not figure out shape" },
+          error: {
+            code: -32602,
+            message: "invalid params",
+            data: {
+              details: JSON.stringify(input),
+            },
+          },
         }
       })
   }
