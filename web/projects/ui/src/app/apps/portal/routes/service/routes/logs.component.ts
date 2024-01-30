@@ -9,6 +9,7 @@ import { LogsComponent } from 'src/app/apps/portal/components/logs/logs.componen
   template: '<logs [fetchLogs]="fetch" [followLogs]="follow" [context]="id" />',
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
+  styles: [':host { height: 100%}'],
   imports: [LogsComponent],
 })
 export class ServiceLogsRoute {
