@@ -6,18 +6,20 @@ use futures::future::ready;
 use futures::Future;
 use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
-use models::ProcedureName;
+use models::{ProcedureName, VolumeId};
 use rpc_toolkit::{Server, ShutdownHandle};
 use serde::de::DeserializeOwned;
+use tokio::process::Command;
 use tokio::sync::{oneshot, watch, Mutex, OnceCell};
 use tracing::instrument;
 
 use super::service_effect_handler::{service_effect_handler, EffectContext};
 use super::ServiceActorSeed;
 use crate::context::RpcContext;
+use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
-use crate::disk::mount::filesystem::ReadOnly;
+use crate::disk::mount::filesystem::{MountType, ReadOnly};
 use crate::disk::mount::guard::MountGuard;
 use crate::lxc::{LxcConfig, LxcContainer, HOST_RPC_SERVER_SOCKET};
 use crate::prelude::*;
@@ -26,6 +28,8 @@ use crate::service::rpc::{self, StopParams};
 use crate::service::start_stop::StartStop;
 use crate::service::RunningStatus;
 use crate::util::rpc_client::UnixRpcClient;
+use crate::util::Invoke;
+use crate::volume::{asset_dir, data_dir};
 
 const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -42,6 +46,8 @@ pub struct PersistentContainer {
     rpc_server: OnceCell<(NonDetachingJoinHandle<()>, ShutdownHandle)>,
     // procedures: Mutex<Vec<(ProcedureName, ProcedureId)>>,
     js_mount: MountGuard,
+    volumes: BTreeMap<VolumeId, MountGuard>,
+    assets: BTreeMap<VolumeId, MountGuard>,
     pub(super) overlays: Arc<Mutex<BTreeMap<InternedString, OverlayGuard>>>,
     pub(super) current_state: watch::Sender<StartStop>,
     // pub(super) desired_state: watch::Receiver<StartStop>,
@@ -71,6 +77,43 @@ impl PersistentContainer {
             ReadOnly,
         )
         .await?;
+        let mut volumes = BTreeMap::new();
+        for volume in &s9pk.as_manifest().volumes {
+            volumes.insert(
+                volume.clone(),
+                MountGuard::mount(
+                    &Bind::new(data_dir(&ctx.datadir, &s9pk.as_manifest().id, volume)),
+                    lxc_container
+                        .rootfs_dir()
+                        .join("media/startos/volumes")
+                        .join(volume),
+                    MountType::ReadWrite,
+                )
+                .await?,
+            );
+        }
+        let mut assets = BTreeMap::new();
+        for asset in &s9pk.as_manifest().assets {
+            assets.insert(
+                asset.clone(),
+                MountGuard::mount(
+                    &Bind::new(
+                        asset_dir(
+                            &ctx.datadir,
+                            &s9pk.as_manifest().id,
+                            &s9pk.as_manifest().version,
+                        )
+                        .join(asset),
+                    ),
+                    lxc_container
+                        .rootfs_dir()
+                        .join("media/startos/assets")
+                        .join(asset),
+                    MountType::ReadWrite,
+                )
+                .await?,
+            );
+        }
         Ok(Self {
             s9pk,
             lxc_container: OnceCell::new_with(Some(lxc_container)),
@@ -78,6 +121,8 @@ impl PersistentContainer {
             rpc_server: OnceCell::new(),
             // procedures: Default::default(),
             js_mount,
+            volumes,
+            assets,
             overlays: Arc::new(Mutex::new(BTreeMap::new())),
             current_state: watch::channel(StartStop::Stop).0,
             // desired_state,
@@ -105,9 +150,19 @@ impl PersistentContainer {
             .join(HOST_RPC_SERVER_SOCKET);
         let (send, recv) = oneshot::channel();
         let handle = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            let (shutdown, fut) = match server.run_unix(&path, |err| {
-                tracing::error!("error on unix socket {}: {err}", path.display())
-            }) {
+            let (shutdown, fut) = match async {
+                let res = server.run_unix(&path, |err| {
+                    tracing::error!("error on unix socket {}: {err}", path.display())
+                })?;
+                Command::new("chown")
+                    .arg("100000:100000")
+                    .arg(&path)
+                    .invoke(ErrorKind::Filesystem)
+                    .await?;
+                Ok::<_, Error>(res)
+            }
+            .await
+            {
                 Ok((shutdown, fut)) => (Ok(shutdown), Some(fut)),
                 Err(e) => (Err(e), None),
             };
