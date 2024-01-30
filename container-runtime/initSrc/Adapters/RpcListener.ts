@@ -34,8 +34,8 @@ type SocketResponse = { jsonrpc: "2.0"; id: IdType } & (
       }
     }
 )
-const SOCKET_PARENT = "/run/startos"
-const SOCKET_PATH = "/run/startos/service.sock"
+const SOCKET_PARENT = "/media/startos/rpc"
+const SOCKET_PATH = "/media/startos/rpc/service.sock"
 const jsonrpc = "2.0" as const
 
 const idType = some(string, number, literal(null))

@@ -21,7 +21,7 @@ sudo chroot tmp/combined rc-update add containerRuntime default
 sudo truncate -s 0 tmp/combined/etc/resolv.conf
 rm -f ../build/lib/container-runtime/rootfs.squashfs
 mkdir -p ../build/lib/container-runtime
-mksquashfs tmp/combined ../build/lib/container-runtime/rootfs.squashfs
+sudo mksquashfs tmp/combined ../build/lib/container-runtime/rootfs.squashfs
 sudo umount tmp/combined
 sudo umount tmp/lower
 sudo rm -rf tmp
