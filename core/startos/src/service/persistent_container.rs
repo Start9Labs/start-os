@@ -188,11 +188,9 @@ impl PersistentContainer {
     where
         O: DeserializeOwned,
     {
-        match self._execute(name, input, timeout).await {
-            Ok(Ok(a)) => Ok(Ok(from_value(a)?)),
-            Ok(Err(e)) => Ok(Err(e)),
-            Err(e) => Err(e),
-        }
+        self._execute(name, input, timeout)
+            .await
+            .and_then(from_value)
     }
 
     pub async fn sanboxed<O>(
@@ -204,11 +202,9 @@ impl PersistentContainer {
     where
         O: DeserializeOwned,
     {
-        match self._sandboxed(name, input, timeout).await {
-            Ok(Ok(a)) => Ok(Ok(from_value(a)?)),
-            Ok(Err(e)) => Ok(Err(e)),
-            Err(e) => Err(e),
-        }
+        self._sandboxed(name, input, timeout)
+            .await
+            .and_then(from_value)
     }
 
     async fn _execute(
@@ -216,7 +212,7 @@ impl PersistentContainer {
         name: ProcedureName,
         input: Value,
         timeout: Option<Duration>,
-    ) -> Result<Result<Value, (i32, String)>, Error> {
+    ) -> Result<Value, Error> {
         let fut = self
             .rpc_client
             .request(rpc::Execute, rpc::ExecuteParams::new(name, input, timeout));
@@ -224,11 +220,10 @@ impl PersistentContainer {
         Ok(if let Some(timeout) = timeout {
             tokio::time::timeout(timeout, fut)
                 .await
-                .with_kind(ErrorKind::Timeout)?
+                .with_kind(ErrorKind::Timeout)??
         } else {
-            fut.await
-        }
-        .map_err(|e| (e.code, e.message.into_owned())))
+            fut.await?
+        })
     }
 
     async fn _sandboxed(
@@ -236,7 +231,7 @@ impl PersistentContainer {
         name: ProcedureName,
         input: Value,
         timeout: Option<Duration>,
-    ) -> Result<Result<Value, (i32, String)>, Error> {
+    ) -> Result<Value, Error> {
         let fut = self
             .rpc_client
             .request(rpc::Sandbox, rpc::ExecuteParams::new(name, input, timeout));
@@ -244,11 +239,10 @@ impl PersistentContainer {
         Ok(if let Some(timeout) = timeout {
             tokio::time::timeout(timeout, fut)
                 .await
-                .with_kind(ErrorKind::Timeout)?
+                .with_kind(ErrorKind::Timeout)??
         } else {
-            fut.await
-        }
-        .map_err(|e| (e.code, e.message.into_owned())))
+            fut.await?
+        })
     }
 }
 
