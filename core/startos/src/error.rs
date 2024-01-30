@@ -1,4 +1,3 @@
-use color_eyre::eyre::eyre;
 pub use models::{Error, ErrorKind, OptionExt, ResultExt};
 
 #[derive(Debug, Default)]
@@ -22,7 +21,7 @@ impl ErrorCollection {
         if self.0.is_empty() {
             Ok(())
         } else {
-            Err(Error::new(eyre!("{}", self), ErrorKind::MultipleErrors))
+            Err(Error::new(self, ErrorKind::MultipleErrors))
         }
     }
 }
@@ -49,6 +48,7 @@ impl std::fmt::Display for ErrorCollection {
         Ok(())
     }
 }
+impl std::error::Error for ErrorCollection {}
 
 #[macro_export]
 macro_rules! ensure_code {
