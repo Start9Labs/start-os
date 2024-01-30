@@ -232,7 +232,7 @@ export class RpcListener {
         return {
           jsonrpc,
           id,
-          result: {},
+          result: null,
         }
       })
       .when(initType, async ({ id }) => {
@@ -242,7 +242,7 @@ export class RpcListener {
         return {
           jsonrpc,
           id,
-          result: {},
+          result: null,
         }
       })
       .when(shape({ id: idType, method: string }), ({ id, method }) => ({
