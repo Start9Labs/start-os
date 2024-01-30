@@ -30,9 +30,11 @@ export const matchDockerProcedure = object(
     "sigterm-timeout": number,
     inject: boolean,
   },
-  ["io-format", "sigterm-timeout"],
+  ["io-format", "sigterm-timeout", "system", "args", "inject", "mounts"],
   {
     "sigterm-timeout": 30,
+    inject: false,
+    args: [],
   },
 )
 

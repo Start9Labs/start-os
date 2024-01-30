@@ -276,7 +276,7 @@ export class SystemForEmbassy implements System {
   ): Promise<T.MigrationRes> {
     const fromEmver = EmVer.from(fromVersion)
     const currentEmver = EmVer.from(this.manifest.version)
-
+    if (!this.manifest.migrations) return { configured: true }
     const fromMigration = Object.entries(this.manifest.migrations.from)
       .map(([version, procedure]) => [EmVer.from(version), procedure] as const)
       .find(
@@ -390,7 +390,7 @@ export class SystemForEmbassy implements System {
     actionId: string,
     formData: unknown,
   ): Promise<T.ActionResult> {
-    const actionProcedure = this.manifest.actions[actionId]?.implementation
+    const actionProcedure = this.manifest.actions?.[actionId]?.implementation
     if (!actionProcedure) return { message: "Action not found", value: null }
     if (actionProcedure.type === "docker") {
       const container = await DockerProcedureContainer.of(actionProcedure)
@@ -421,7 +421,7 @@ export class SystemForEmbassy implements System {
     id: string,
     oldConfig: unknown,
   ): Promise<object> {
-    const actionProcedure = this.manifest.dependencies[id]?.config?.check
+    const actionProcedure = this.manifest.dependencies?.[id]?.config?.check
     if (!actionProcedure) return { message: "Action not found", value: null }
     if (actionProcedure.type === "docker") {
       const container = await DockerProcedureContainer.of(actionProcedure)
@@ -660,7 +660,7 @@ export class SystemForEmbassy implements System {
     actionId: string,
     formData: unknown,
   ): Promise<T.ActionResult> {
-    const actionProcedure = this.manifest.actions[actionId]?.implementation
+    const actionProcedure = this.manifest.actions?.[actionId]?.implementation
     if (!actionProcedure) return { message: "Action not found", value: null }
     if (actionProcedure.type === "docker") {
       const container = await DockerProcedureContainer.readonlyOf(
@@ -693,7 +693,7 @@ export class SystemForEmbassy implements System {
     id: string,
     oldConfig: unknown,
   ): Promise<object> {
-    const actionProcedure = this.manifest.dependencies[id]?.config?.check
+    const actionProcedure = this.manifest.dependencies?.[id]?.config?.check
     if (!actionProcedure) return { message: "Action not found", value: null }
     if (actionProcedure.type === "docker") {
       const container = await DockerProcedureContainer.readonlyOf(

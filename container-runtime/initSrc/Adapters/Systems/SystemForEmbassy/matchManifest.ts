@@ -13,10 +13,16 @@ import {
 import { matchVolume } from "./matchVolume"
 import { matchDockerProcedure } from "../../../Models/DockerProcedure"
 
-const matchJsProcedure = object({
-  type: literal("script"),
-  args: array(unknown),
-})
+const matchJsProcedure = object(
+  {
+    type: literal("script"),
+    args: array(unknown),
+  },
+  ["args"],
+  {
+    args: [],
+  },
+)
 
 const matchProcedure = some(matchDockerProcedure, matchJsProcedure)
 export type Procedure = typeof matchProcedure._TYPE
@@ -30,7 +36,7 @@ const matchAction = object(
     "allowed-statuses": array(literals("running", "stopped")),
     "input-spec": unknown,
   },
-  ["warning", "input-spec"],
+  ["warning", "input-spec", "input-spec"],
 )
 export const matchManifest = object(
   {
@@ -105,6 +111,6 @@ export const matchManifest = object(
 
     actions: dictionary([string, matchAction]),
   },
-  ["config", "properties"],
+  ["config", "actions", "properties", "migrations", "dependencies"],
 )
 export type Manifest = typeof matchManifest._TYPE
