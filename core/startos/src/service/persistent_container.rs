@@ -24,13 +24,11 @@ use crate::disk::mount::guard::MountGuard;
 use crate::lxc::{LxcConfig, LxcContainer, HOST_RPC_SERVER_SOCKET};
 use crate::prelude::*;
 use crate::s9pk::S9pk;
-use crate::service::rpc::{self, StopParams};
 use crate::service::start_stop::StartStop;
-use crate::service::RunningStatus;
-use crate::util::io::TmpDir;
+use crate::service::{rpc, RunningStatus};
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::Invoke;
-use crate::volume::{self, asset_dir, data_dir};
+use crate::volume::{asset_dir, data_dir};
 
 const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -138,7 +136,7 @@ impl PersistentContainer {
             move || ready(Ok(socket_server_context.clone())),
             service_effect_handler(),
         );
-        let mut path = self
+        let path = self
             .lxc_container
             .get()
             .ok_or_else(|| {
@@ -147,21 +145,11 @@ impl PersistentContainer {
                     ErrorKind::Incoherent,
                 )
             })?
-            .rootfs_dir()
+            .rpc_dir()
             .join(HOST_RPC_SERVER_SOCKET);
         let (send, recv) = oneshot::channel();
         let handle = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            let mut tmpdir = None;
             let (shutdown, fut) = match async {
-                if path.as_os_str().len() >= 108
-                // libc::sockaddr_un.sun_path.len()
-                {
-                    let tmp = TmpDir::new().await?;
-                    let new_path = tmp.join("link.sock");
-                    tokio::fs::symlink(&path, &new_path).await?;
-                    path = new_path;
-                    tmpdir = Some(tmp);
-                }
                 let res = server.run_unix(&path, |err| {
                     tracing::error!("error on unix socket {}: {err}", path.display())
                 })?;
@@ -182,9 +170,6 @@ impl PersistentContainer {
             }
             if let Some(fut) = fut {
                 fut.await;
-            }
-            if let Some(tmpdir) = tmpdir {
-                tmpdir.delete().await.unwrap();
             }
         }));
         let shutdown = recv.await.map_err(|_| {
@@ -216,25 +201,26 @@ impl PersistentContainer {
         let overlays = self.overlays.clone();
         let lxc_container = self.lxc_container.take();
         async move {
-            rpc_client.request(rpc::Exit, ()).await?;
+            let mut errs = ErrorCollection::new();
+            errs.handle(rpc_client.request(rpc::Exit, ()).await);
             if let Some((hdl, shutdown)) = rpc_server {
                 shutdown.shutdown();
-                hdl.await.with_kind(ErrorKind::Cancelled)?;
+                errs.handle(hdl.await.with_kind(ErrorKind::Cancelled));
             }
             for (_, volume) in volumes {
-                volume.unmount(true).await?;
+                errs.handle(volume.unmount(true).await);
             }
             for (_, assets) in assets {
-                assets.unmount(true).await?;
+                errs.handle(assets.unmount(true).await);
             }
             for (_, overlay) in std::mem::take(&mut *overlays.lock().await) {
-                overlay.unmount(true).await?;
+                errs.handle(overlay.unmount(true).await);
             }
-            js_mount.unmount(true).await?;
+            errs.handle(js_mount.unmount(true).await);
             if let Some(lxc_container) = lxc_container {
-                lxc_container.exit().await?;
+                errs.handle(lxc_container.exit().await);
             }
-            Ok(())
+            errs.into_result()
         }
     }
 
@@ -251,7 +237,7 @@ impl PersistentContainer {
 
     pub async fn stop(&self, timeout: Option<Duration>) -> Result<(), Error> {
         self.rpc_client
-            .request(rpc::Stop, StopParams::new(timeout))
+            .request(rpc::Stop, rpc::StopParams::new(timeout))
             .await?;
         Ok(())
     }

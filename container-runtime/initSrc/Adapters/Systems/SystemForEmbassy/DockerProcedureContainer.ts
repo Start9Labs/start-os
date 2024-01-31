@@ -1,5 +1,6 @@
 import fs from "fs/promises"
 import * as T from "@start9labs/start-sdk/lib/types"
+import { Overlay } from "@start9labs/start-sdk/lib/util/Overlay"
 import cp from "child_process"
 import { promisify } from "util"
 import { DockerProcedure, VolumeId } from "../../../Models/DockerProcedure"
@@ -8,7 +9,7 @@ export const exec = promisify(cp.exec)
 export const execFile = promisify(cp.execFile)
 
 export class DockerProcedureContainer {
-  private constructor(readonly rootfs: string) {}
+  private constructor(readonly overlay: Overlay) {}
   // static async readonlyOf(data: DockerProcedure) {
   //   return DockerProcedureContainer.of(data, ["-o", "ro"])
   // }
@@ -17,34 +18,20 @@ export class DockerProcedureContainer {
     data: DockerProcedure,
     volumes: { [id: VolumeId]: Volume },
   ) {
-    const imageId = data.image
-    const rootfs = await effects.createOverlayedImage({ imageId })
+    const overlay = await Overlay.of(effects, data.image)
 
-    for (const dirPart of ["dev", "sys", "proc", "run"] as const) {
-      const dir = await fs.mkdir(`${rootfs}/${dirPart}`, { recursive: true })
-      if (!dir) break
-      await execFile("mount", ["--bind", `/${dirPart}`, dir])
-    }
     if (data.mounts) {
       const mounts = data.mounts
       for (const mount in mounts) {
         const path = mounts[mount].startsWith("/")
-          ? `${rootfs}${mounts[mount]}`
-          : `${rootfs}/${mounts[mount]}`
+          ? `${overlay.rootfs}${mounts[mount]}`
+          : `${overlay.rootfs}/${mounts[mount]}`
         await fs.mkdir(path, { recursive: true })
         const volumeMount = volumes[mount]
         if (volumeMount.type === "data") {
-          await execFile("mount", [
-            "--bind",
-            `/media/startos/volumes/${mount}`,
-            path,
-          ])
+          await overlay.mount({ type: "volume", id: mount }, mounts[mount])
         } else if (volumeMount.type === "assets") {
-          await execFile("mount", [
-            "--bind",
-            `/media/startos/assets/${mount}`,
-            path,
-          ])
+          await overlay.mount({ type: "assets", id: mount }, mounts[mount])
         } else if (volumeMount.type === "certificate") {
           const certChain = await effects.getSslCertificate()
           const key = await effects.getSslKey()
@@ -72,15 +59,18 @@ export class DockerProcedureContainer {
       }
     }
 
-    return new DockerProcedureContainer(rootfs)
+    return new DockerProcedureContainer(overlay)
   }
 
   async exec(commands: string[]) {
     try {
-      return await execFile("chroot", [this.rootfs, ...commands])
+      return await this.overlay.exec(commands)
     } finally {
-      await exec(`umount --recursive ${this.rootfs}`)
-      await fs.rm(this.rootfs, { recursive: true, force: true })
+      await this.overlay.destroy()
     }
+  }
+
+  spawn(commands: string[]): cp.ChildProcessWithoutNullStreams {
+    return this.overlay.spawn(commands)
   }
 }
