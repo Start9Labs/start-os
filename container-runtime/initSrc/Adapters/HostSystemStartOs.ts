@@ -1,7 +1,33 @@
 import * as T from "@start9labs/start-sdk/lib/types"
 import * as net from "net"
+import { object, string, number, literals, some, unknown } from "ts-matches"
 
 import { CallbackHolder } from "../Models/CallbackHolder"
+const matchRpcError = object({
+  error: object(
+    {
+      code: number,
+      message: string,
+      data: some(
+        string,
+        object(
+          {
+            message: string,
+            details: string,
+            debug: string,
+          },
+          ["debug"],
+        ),
+      ),
+    },
+    ["data"],
+  ),
+})
+const testRpcError = matchRpcError.test
+const testRpcResult = object({
+  result: unknown,
+}).test
+type RpcError = typeof matchRpcError._TYPE
 
 const SOCKET_PATH = "/media/startos/rpc/host.sock"
 const MAIN = "/main" as const
@@ -29,14 +55,18 @@ export class HostSystemStartOs implements T.Effects {
         try {
           bufs.push(data)
           if (data.reduce((acc, x) => acc || x == 10, false)) {
-            const res = JSON.parse(
+            const res: unknown = JSON.parse(
               Buffer.concat(bufs).toString().split("\n")[0],
             )
-            if ("error" in res) {
-              console.error(JSON.stringify(res.error))
-              // TODO: parse RPCError into Error using tsmatches
-              reject(res.error)
-            } else if ("result" in res) {
+            if (testRpcError(res)) {
+              if (string.test(res.error.data)) console.error(res.error.data)
+              else {
+                if (res.error.data?.debug) console.debug(res.error.data.debug)
+                if (res.error.data?.details)
+                  console.error(res.error.data.details)
+              }
+              reject(res.error.message)
+            } else if (testRpcResult(res)) {
               resolve(res.result)
             } else {
               reject(new Error(`malformed response ${JSON.stringify(res)}`))
