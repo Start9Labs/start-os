@@ -105,16 +105,15 @@ export class MainLoop {
             return console.error(
               `Expecting that thejs health check ${value.name} exists`,
             )
-          return (await method(new PolyfillEffects(effects), timeChanged).then(
-            (x) => {
-              if ("result" in x) return x.result
-              if ("error" in x)
-                return console.error("Error getting config: " + x.error)
-              return console.error(
-                "Error getting config: " + x["error-code"][1],
-              )
-            },
-          )) as any
+          return (await method(
+            new PolyfillEffects(effects, this.system.manifest),
+            timeChanged,
+          ).then((x) => {
+            if ("result" in x) return x.result
+            if ("error" in x)
+              return console.error("Error getting config: " + x.error)
+            return console.error("Error getting config: " + x["error-code"][1])
+          })) as any
         }
       }, EMBASSY_HEALTH_INTERVAL)
 
