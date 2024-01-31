@@ -49,7 +49,7 @@ where
 #[derive(Debug)]
 pub struct MountGuard {
     mountpoint: PathBuf,
-    mounted: bool,
+    pub(super) mounted: bool,
 }
 impl MountGuard {
     pub async fn mount(
@@ -64,11 +64,15 @@ impl MountGuard {
             mounted: true,
         })
     }
-    pub fn take(&mut self) -> Self {
+    fn as_unmounted(&self) -> Self {
         Self {
             mountpoint: self.mountpoint.clone(),
-            mounted: std::mem::replace(&mut self.mounted, false),
+            mounted: false,
         }
+    }
+    pub fn take(&mut self) -> Self {
+        let unmounted = self.as_unmounted();
+        std::mem::replace(self, unmounted)
     }
     pub async fn unmount(mut self, delete_mountpoint: bool) -> Result<(), Error> {
         if self.mounted {
@@ -152,6 +156,13 @@ impl TmpMountGuard {
             *prev_mt = mount_type;
             Ok(TmpMountGuard { guard })
         }
+    }
+
+    pub fn take(&mut self) -> Self {
+        let unmounted = Self {
+            guard: Arc::new(self.guard.as_unmounted()),
+        };
+        std::mem::replace(self, unmounted)
     }
 }
 #[async_trait::async_trait]

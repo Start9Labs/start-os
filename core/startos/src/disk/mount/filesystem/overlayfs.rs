@@ -1,15 +1,13 @@
 use std::os::unix::ffi::OsStrExt;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
-use serde::de;
 use sha2::Sha256;
 use tokio::process::Command;
 
 use crate::disk::mount::filesystem::{FileSystem, MountType, ReadOnly, ReadWrite};
-use crate::disk::mount::guard::{self, GenericMountGuard, MountGuard, TmpMountGuard};
-use crate::disk::mount::util::unmount;
+use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::prelude::*;
 use crate::util::io::TmpDir;
 use crate::util::Invoke;
@@ -138,6 +136,13 @@ impl OverlayGuard {
         }
         Ok(())
     }
+    pub fn take(&mut self) -> Self {
+        Self {
+            lower: self.lower.take(),
+            upper: self.upper.take(),
+            inner_guard: self.inner_guard.take(),
+        }
+    }
 }
 #[async_trait::async_trait]
 impl GenericMountGuard for OverlayGuard {
@@ -153,14 +158,16 @@ impl Drop for OverlayGuard {
         let lower = self.lower.take();
         let upper = self.upper.take();
         let guard = self.inner_guard.take();
-        tokio::spawn(async move {
-            guard.unmount(false).await.unwrap();
-            if let Some(lower) = lower {
-                lower.unmount().await.unwrap();
-            }
-            if let Some(upper) = upper {
-                upper.delete().await.unwrap();
-            }
-        });
+        if lower.is_some() || upper.is_some() || guard.mounted {
+            tokio::spawn(async move {
+                guard.unmount(false).await.unwrap();
+                if let Some(lower) = lower {
+                    lower.unmount().await.unwrap();
+                }
+                if let Some(upper) = upper {
+                    upper.delete().await.unwrap();
+                }
+            });
+        }
     }
 }

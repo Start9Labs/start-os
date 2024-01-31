@@ -8,7 +8,7 @@ use futures::{FutureExt, TryFutureExt};
 use helpers::NonDetachingJoinHandle;
 use lazy_async_pool::Pool;
 use models::{Error, ErrorKind, ResultExt};
-use rpc_toolkit::yajrc::{Id, RpcError, RpcMethod, RpcRequest, RpcResponse};
+use rpc_toolkit::yajrc::{self, Id, RpcError, RpcMethod, RpcRequest, RpcResponse};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
@@ -25,7 +25,7 @@ const MAX_TRIES: u64 = 3;
 
 pub struct RpcClient {
     id: Arc<AtomicUsize>,
-    _handler: NonDetachingJoinHandle<()>,
+    handler: NonDetachingJoinHandle<()>,
     writer: DynWrite,
     responses: Weak<Mutex<ResponseMap>>,
 }
@@ -43,7 +43,7 @@ impl RpcClient {
         let weak_responses = Arc::downgrade(&responses);
         RpcClient {
             id,
-            _handler: tokio::spawn(async move {
+            handler: tokio::spawn(async move {
                 let mut lines = BufReader::new(reader).lines();
                 while let Some(line) = lines.next_line().await.transpose() {
                     match line.map_err(Error::from).and_then(|l| {
@@ -55,7 +55,7 @@ impl RpcClient {
                                 if let Some(res) = responses.lock().await.remove(&id) {
                                     if let Err(e) = res.send(l.result) {
                                         tracing::warn!(
-                                            "RpcClient Response for Unknown ID: {:?}",
+                                            "RpcClient Response after request aborted: {:?}",
                                             e
                                         );
                                     }
@@ -73,6 +73,14 @@ impl RpcClient {
                             tracing::error!("RpcClient Error: {}", e);
                             tracing::debug!("{:?}", e);
                         }
+                    }
+                }
+                for (_, res) in std::mem::take(&mut *responses.lock().await) {
+                    if let Err(e) = res.send(Err(RpcError {
+                        data: Some("client disconnected before response received".into()),
+                        ..yajrc::INTERNAL_ERROR
+                    })) {
+                        tracing::warn!("RpcClient Response after request aborted: {:?}", e);
                     }
                 }
             })
@@ -124,7 +132,7 @@ impl RpcClient {
         }
         tracing::debug!(
             "Client has finished {:?}",
-            futures::poll!(&mut self._handler)
+            futures::poll!(&mut self.handler)
         );
         let mut err = rpc_toolkit::yajrc::INTERNAL_ERROR.clone();
         err.data = Some(json!("RpcClient thread has terminated"));
@@ -192,15 +200,23 @@ impl UnixRpcClient {
     {
         let mut tries = 0;
         let res = loop {
-            tries += 1;
             let mut client = self.pool.clone().get().await?;
+            if client.handler.is_finished() {
+                client.destroy();
+                continue;
+            }
             let res = client.request(method.clone(), params.clone()).await;
             match &res {
                 Err(e) if e.code == rpc_toolkit::yajrc::INTERNAL_ERROR.code => {
+                    let mut e = Error::from(e.clone());
+                    e.kind = ErrorKind::Filesystem;
+                    tracing::error!("{e}");
+                    tracing::debug!("{e:?}");
                     client.destroy();
                 }
                 _ => break res,
             }
+            tries += 1;
             if tries > MAX_TRIES {
                 tracing::warn!("Max Tries exceeded");
                 break res;

@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 use std::ops::Deref;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
@@ -9,8 +9,8 @@ use futures::{FutureExt, StreamExt};
 use imbl_value::{InOMap, InternedString};
 use rpc_toolkit::yajrc::{RpcError, RpcResponse};
 use rpc_toolkit::{
-    from_fn_async, AnyContext, CallRemote, CallRemoteHandler, GenericRpcMethod, Handler,
-    HandlerArgs, HandlerExt, ParentHandler, RpcRequest,
+    from_fn_async, AnyContext, CallRemoteHandler, GenericRpcMethod, Handler, HandlerArgs,
+    HandlerExt, ParentHandler, RpcRequest,
 };
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncBufReadExt;
@@ -20,19 +20,20 @@ use tokio::time::Instant;
 
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
+use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::disk::mount::filesystem::ReadWrite;
-use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
+use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::disk::mount::util::unmount;
 use crate::prelude::*;
 use crate::util::rpc_client::UnixRpcClient;
-use crate::util::serde::IoFormat;
 use crate::util::{new_guid, Invoke};
 
 const LXC_CONTAINER_DIR: &str = "/var/lib/lxc";
-pub const CONTAINER_RPC_SERVER_SOCKET: &str = "media/startos/rpc/service.sock"; // must not be absolute path
-pub const HOST_RPC_SERVER_SOCKET: &str = "media/startos/rpc/host.sock"; // must not be absolute path
+const RPC_DIR: &str = "media/startos/rpc"; // must not be absolute path
+pub const CONTAINER_RPC_SERVER_SOCKET: &str = "service.sock"; // must not be absolute path
+pub const HOST_RPC_SERVER_SOCKET: &str = "host.sock"; // must not be absolute path
 
 pub struct LxcManager {
     containers: Mutex<Vec<Weak<InternedString>>>,
@@ -104,8 +105,9 @@ impl LxcManager {
 
 pub struct LxcContainer {
     manager: Weak<LxcManager>,
-    rootfs: Option<OverlayGuard>,
+    rootfs: OverlayGuard,
     guid: Arc<InternedString>,
+    rpc_bind: TmpMountGuard,
     config: LxcConfig,
     exited: bool,
 }
@@ -138,6 +140,9 @@ impl LxcContainer {
             .arg(rootfs.path())
             .invoke(ErrorKind::Filesystem)
             .await?;
+        let rpc_dir = rootfs_dir.join(RPC_DIR);
+        tokio::fs::create_dir_all(&rpc_dir).await?;
+        let rpc_bind = TmpMountGuard::mount(&Bind::new(rpc_dir), ReadWrite).await?;
         Command::new("chown")
             .arg("-R")
             .arg("100000:100000")
@@ -152,23 +157,25 @@ impl LxcContainer {
             .await?;
         Ok(Self {
             manager: Arc::downgrade(manager),
-            rootfs: Some(rootfs),
+            rootfs,
             guid: Arc::new(guid),
+            rpc_bind,
             config,
             exited: false,
         })
     }
 
-    pub fn rootfs_dir(&self) -> PathBuf {
-        Path::new(LXC_CONTAINER_DIR)
-            .join(&*self.guid)
-            .join("rootfs")
+    pub fn rootfs_dir(&self) -> &Path {
+        self.rootfs.path()
+    }
+
+    pub fn rpc_dir(&self) -> &Path {
+        self.rpc_bind.path()
     }
 
     pub async fn exit(mut self) -> Result<(), Error> {
-        if let Some(guard) = self.rootfs.take() {
-            guard.unmount(true).await?;
-        }
+        self.rpc_bind.take().unmount().await?;
+        self.rootfs.take().unmount(true).await?;
         let rootfs_path = self.rootfs_dir();
         if tokio::fs::metadata(&rootfs_path).await.is_ok() {
             if tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(&rootfs_path).await?)
@@ -196,7 +203,7 @@ impl LxcContainer {
 
     pub async fn connect_rpc(&self, timeout: Option<Duration>) -> Result<UnixRpcClient, Error> {
         let started = Instant::now();
-        let sock_path = self.rootfs_dir().join(CONTAINER_RPC_SERVER_SOCKET);
+        let sock_path = self.rpc_dir().join(CONTAINER_RPC_SERVER_SOCKET);
         while tokio::fs::metadata(&sock_path).await.is_err() {
             if timeout.map_or(false, |t| started.elapsed() > t) {
                 return Err(Error::new(
@@ -220,9 +227,7 @@ impl Drop for LxcContainer {
             let guid = std::mem::take(&mut self.guid);
             if let Some(manager) = self.manager.upgrade() {
                 tokio::spawn(async move {
-                    if let Some(rootfs) = rootfs {
-                        rootfs.unmount(true).await.unwrap();
-                    }
+                    rootfs.unmount(true).await.unwrap();
                     drop(guid);
                     if let Err(e) = manager.gc().await {
                         tracing::error!("Error cleaning up dangling LXC containers: {e}");
