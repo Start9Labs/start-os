@@ -235,7 +235,9 @@ export class SystemForEmbassy implements System {
         this.manifest.volumes,
       )
       return JSON.parse(
-        (await container.exec([config.entrypoint, ...config.args])).stdout,
+        (
+          await container.exec([config.entrypoint, ...config.args])
+        ).stdout.toString(),
       )
     } else {
       const moduleCode = await this.moduleCode
@@ -275,7 +277,7 @@ export class SystemForEmbassy implements System {
             ...setConfigValue.args,
             JSON.stringify(newConfig),
           ])
-        ).stdout,
+        ).stdout.toString(),
       )
     } else {
       const moduleCode = await this.moduleCode
@@ -337,7 +339,7 @@ export class SystemForEmbassy implements System {
               ...procedure.args,
               JSON.stringify(fromVersion),
             ])
-          ).stdout,
+          ).stdout.toString(),
         )
       } else {
         const moduleCode = await this.moduleCode
@@ -372,7 +374,7 @@ export class SystemForEmbassy implements System {
             setConfigValue.entrypoint,
             ...setConfigValue.args,
           ])
-        ).stdout,
+        ).stdout.toString(),
       )
     } else {
       const moduleCode = await this.moduleCode
@@ -406,7 +408,7 @@ export class SystemForEmbassy implements System {
             ...healthProcedure.args,
             JSON.stringify(timeSinceStarted),
           ])
-        ).stdout,
+        ).stdout.toString(),
       )
     } else {
       const moduleCode = await this.moduleCode
@@ -442,7 +444,7 @@ export class SystemForEmbassy implements System {
             ...actionProcedure.args,
             JSON.stringify(formData),
           ])
-        ).stdout,
+        ).stdout.toString(),
       )
     } else {
       const moduleCode = await this.moduleCode
@@ -478,7 +480,7 @@ export class SystemForEmbassy implements System {
             ...actionProcedure.args,
             JSON.stringify(oldConfig),
           ])
-        ).stdout,
+        ).stdout.toString(),
       )
     } else {
       const moduleCode = await this.moduleCode
