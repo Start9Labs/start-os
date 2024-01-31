@@ -4,6 +4,7 @@ import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import { SystemForEmbassy } from "."
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { createUtils } from "@start9labs/start-sdk/lib/util"
+import { exec } from "child_process"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
 const EMBASSY_PROPERTIES_LOOP = 30 * 1000
@@ -89,15 +90,15 @@ export class MainLoop {
             actionProcedure,
             manifest.volumes,
           )
-          const stderr = (
-            await container.exec([
-              actionProcedure.entrypoint,
-              ...actionProcedure.args,
-              JSON.stringify(timeChanged),
-            ])
-          ).stderr
+          const executed = await container.exec([
+            actionProcedure.entrypoint,
+            ...actionProcedure.args,
+            JSON.stringify(timeChanged),
+          ])
+          const stderr = executed.stderr.toString()
           if (stderr)
             console.error(`Error running health check ${value.name}: ${stderr}`)
+          return executed.stdout.toString()
         } else {
           const moduleCode = await this.system.moduleCode
           const method = moduleCode.health?.[value.name]
