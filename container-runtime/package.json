@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
-    "@start9labs/start-sdk": "start9labs/start-sdk#01ad2421b44b5923a7a242039f1ce26b7a949e78",
+    "@start9labs/start-sdk": "start9labs/start-sdk#7be894bda6068fd87da04d7cff112b9b9f5b6bb6",
     "esbuild": "0.18.4",
     "esbuild-plugin-resolve": "^2.0.0",
     "filebrowser": "^1.0.0",

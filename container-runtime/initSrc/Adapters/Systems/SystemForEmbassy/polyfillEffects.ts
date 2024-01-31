@@ -5,12 +5,17 @@ import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { Volume } from "../../../Models/Volume"
 import * as child_process from "child_process"
 import { promisify } from "util"
-import fetch from "node-fetch"
+import { utils, Utils } from "@start9labs/start-sdk/lib/util/utils"
+import { Manifest } from "./matchManifest"
 
+const fetcher = import("node-fetch")
 const execFile = promisify(child_process.execFile)
 
 export class PolyfillEffects implements oet.Effects {
-  constructor(readonly effects: HostSystemStartOs) {}
+  private utils: Utils<any, any>
+  constructor(readonly effects: HostSystemStartOs, private manifest: Manifest) {
+    this.utils = utils(effects)
+  }
   async writeFile(input: {
     path: string
     volumeId: string
@@ -90,9 +95,13 @@ export class PolyfillEffects implements oet.Effects {
     args?: string[] | undefined
     timeoutMillis?: number | undefined
   }): Promise<oet.ResultType<string>> {
-    return execFile(command, args || [], {
-      timeout: timeoutMillis,
-    }).then((x) => (!!x.stderr ? { error: x.stderr } : { result: x.stdout }))
+    return this.utils
+      .runCommand(this.manifest.main.image, [command, ...(args || [])], {})
+      .then((x) => ({
+        stderr: x.stderr.toString(),
+        stdout: x.stdout.toString(),
+      }))
+      .then((x) => (!!x.stderr ? { error: x.stderr } : { result: x.stdout }))
   }
   runDaemon(input: { command: string; args?: string[] | undefined }): {
     wait(): Promise<oet.ResultType<string>>
@@ -175,13 +184,14 @@ export class PolyfillEffects implements oet.Effects {
     text(): Promise<string>
     json(): Promise<unknown>
   }> {
+    const fetch: any = await fetcher
     const fetched = await fetch(url, options)
     return {
       method: fetched.type,
       ok: fetched.ok,
       status: fetched.status,
       headers: Object.fromEntries(
-        Object.entries(fetched.headers.raw()).map(([k, v]) => [
+        Object.entries<string[]>(fetched.headers.raw()).map(([k, v]) => [
           k,
           v.join(", "),
         ]),

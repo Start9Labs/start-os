@@ -43,7 +43,11 @@ export class MainLoop {
     ]
 
     await effects.setMainStatus({ status: "running" })
-    const daemon = await utils.runDaemon(currentCommand, {})
+    const daemon = await utils.runDaemon(
+      this.system.manifest.main.image,
+      currentCommand,
+      {},
+    )
     return {
       daemon,
       wait: daemon.wait().finally(() => {
@@ -80,7 +84,11 @@ export class MainLoop {
         const actionProcedure = value.implementation
         const timeChanged = Date.now() - start
         if (actionProcedure.type === "docker") {
-          const container = await DockerProcedureContainer.of(actionProcedure)
+          const container = await DockerProcedureContainer.of(
+            effects,
+            actionProcedure,
+            manifest.volumes,
+          )
           const stderr = (
             await container.exec([
               actionProcedure.entrypoint,
