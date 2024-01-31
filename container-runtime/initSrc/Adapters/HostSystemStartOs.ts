@@ -14,23 +14,41 @@ export class HostSystemStartOs implements T.Effects {
   id = 0
   rpcRound(method: string, params: unknown) {
     const id = this.id++
-    const client = net.createConnection(SOCKET_PATH, () => {
+    const client = net.createConnection({ path: SOCKET_PATH }, () => {
       client.write(
         JSON.stringify({
           id,
           method,
           params,
-        }),
+        }) + "\n",
       )
     })
+    let bufs: Buffer[] = []
     return new Promise((resolve, reject) => {
       client.on("data", (data) => {
         try {
-          resolve(JSON.parse(data.toString())?.result)
+          bufs.push(data)
+          if (data.reduce((acc, x) => acc || x == 10, false)) {
+            const res = JSON.parse(
+              Buffer.concat(bufs).toString().split("\n")[0],
+            )
+            if ("error" in res) {
+              console.error(JSON.stringify(res.error))
+              // TODO: parse RPCError into Error using tsmatches
+              reject(res.error)
+            } else if ("result" in res) {
+              resolve(res.result)
+            } else {
+              reject(new Error(`malformed response ${JSON.stringify(res)}`))
+            }
+          }
         } catch (error) {
           reject(error)
         }
         client.end()
+      })
+      client.on("error", (error) => {
+        reject(error)
       })
     })
   }

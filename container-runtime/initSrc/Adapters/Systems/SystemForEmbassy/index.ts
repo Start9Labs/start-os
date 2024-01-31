@@ -158,9 +158,13 @@ export class SystemForEmbassy implements System {
     effects: HostSystemStartOs,
     previousVersion: Optional<string>,
   ): Promise<void> {
+    console.log("here1")
     if (previousVersion) await this.migration(effects, previousVersion)
+    console.log("here2")
     await this.properties(effects)
+    console.log("here3")
     await effects.setMainStatus({ status: "stopped" })
+    console.log("here4")
   }
   private async uninit(
     effects: HostSystemStartOs,
