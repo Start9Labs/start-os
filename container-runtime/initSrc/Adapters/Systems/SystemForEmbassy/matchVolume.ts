@@ -32,3 +32,4 @@ export const matchVolume = some(
   matchCertificateVolume,
   matchBackupVolume,
 )
+export type Volume = typeof matchVolume._TYPE

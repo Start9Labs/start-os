@@ -4,7 +4,7 @@
   "description": "We want to be the sdk intermitent for the system",
   "type": "commonjs",
   "scripts": {
-    "bundle": "rm -rf dist; esbuild initSrc/index.ts --platform=node --target=es2022 --bundle --outfile=dist/index.js",
+    "bundle": "npm i && rm -rf dist; esbuild initSrc/index.ts --platform=node --target=es2022 --bundle --outfile=dist/index.js",
     "tsc": "rm -rf dist; tsc"
   },
   "author": "",
@@ -15,13 +15,13 @@
     "singleQuote": false
   },
   "dependencies": {
-    "node-fetch": "^3.1.0",
     "@iarna/toml": "^2.2.5",
-    "@start9labs/start-sdk": "start9labs/start-sdk#b7064ed323f9dade4dcd0d3db3ee2f8901eae933",
+    "@start9labs/start-sdk": "start9labs/start-sdk#01ad2421b44b5923a7a242039f1ce26b7a949e78",
     "esbuild": "0.18.4",
     "esbuild-plugin-resolve": "^2.0.0",
     "filebrowser": "^1.0.0",
     "isomorphic-fetch": "^3.0.0",
+    "node-fetch": "^3.1.0",
     "ts-matches": "^5.4.1",
     "tslib": "^2.5.3",
     "typescript": "^5.1.3",
@@ -30,6 +30,7 @@
   "devDependencies": {
     "@swc/cli": "^0.1.62",
     "@swc/core": "^1.3.65",
+    "@types/node": "^20.11.13",
     "prettier": "^2.8.8",
     "rollup": "^3.25.1",
     "typescript": ">5.2"

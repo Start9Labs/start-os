@@ -7,10 +7,14 @@ import {
   dictionary,
   literals,
   number,
+  Parser,
 } from "ts-matches"
 
 const VolumeId = string
 const Path = string
+
+export type VolumeId = string
+export type Path = string
 export const matchDockerProcedure = object(
   {
     type: literal("docker"),

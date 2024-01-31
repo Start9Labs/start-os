@@ -160,8 +160,7 @@ export class RpcListener {
   }
 
   private get effects() {
-    if (!this._effects) throw new Error("Effects not initialized")
-    return this._effects
+    return this.getDependencies.hostSystem()(this.callbacks)
   }
 
   private get system() {
@@ -238,7 +237,6 @@ export class RpcListener {
       .when(initType, async ({ id }) => {
         this._system = await this.getDependencies.system()
 
-        this._effects = await this.getDependencies.hostSystem()(this.callbacks)
         return {
           jsonrpc,
           id,

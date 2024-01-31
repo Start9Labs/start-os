@@ -158,7 +158,6 @@ export class SystemForEmbassy implements System {
     effects: HostSystemStartOs,
     previousVersion: Optional<string>,
   ): Promise<void> {
-    this.mountMainVolumes()
     if (previousVersion) await this.migration(effects, previousVersion)
     await this.properties(effects)
     await effects.setMainStatus({ status: "stopped" })
@@ -468,298 +467,279 @@ export class SystemForEmbassy implements System {
       },
     )) as any
   }
-  private async sandbox(
-    effects: HostSystemStartOs,
-    options: {
-      procedure:
-        | "/createBackup"
-        | "/restoreBackup"
-        | "/getConfig"
-        | "/setConfig"
-        | "migration"
-        | "/properties"
-        | `/action/${string}`
-        | `/dependencies/${string}/check`
-        | `/dependencies/${string}/autoConfigure`
-      input: unknown
-      timeout?: number | undefined
-    },
-  ): Promise<unknown> {
-    const input = options.input
-    switch (options.procedure) {
-      case "/createBackup":
-        return this.roCreateBackup(effects)
-      case "/restoreBackup":
-        return this.roRestoreBackup(effects)
-      case "/getConfig":
-        return this.roGetConfig(effects)
-      case "/setConfig":
-        return this.roSetConfig(effects, input)
-      case "migration":
-        return this.roMigration(effects, input)
-      case "/properties":
-        return this.roProperties(effects)
-      default:
-        const procedure = options.procedure.split("/")
-        switch (true) {
-          case options.procedure.startsWith("/action/"):
-            return this.roAction(effects, procedure[2], input)
-          case options.procedure.startsWith("/dependencies/") &&
-            procedure[3] === "check":
-            return this.roDependenciesCheck(effects, procedure[2], input)
+  // private async sandbox(
+  //   effects: HostSystemStartOs,
+  //   options: {
+  //     procedure:
+  //       | "/createBackup"
+  //       | "/restoreBackup"
+  //       | "/getConfig"
+  //       | "/setConfig"
+  //       | "migration"
+  //       | "/properties"
+  //       | `/action/${string}`
+  //       | `/dependencies/${string}/check`
+  //       | `/dependencies/${string}/autoConfigure`
+  //     input: unknown
+  //     timeout?: number | undefined
+  //   },
+  // ): Promise<unknown> {
+  //   const input = options.input
+  //   switch (options.procedure) {
+  //     case "/createBackup":
+  //       return this.roCreateBackup(effects)
+  //     case "/restoreBackup":
+  //       return this.roRestoreBackup(effects)
+  //     case "/getConfig":
+  //       return this.roGetConfig(effects)
+  //     case "/setConfig":
+  //       return this.roSetConfig(effects, input)
+  //     case "migration":
+  //       return this.roMigration(effects, input)
+  //     case "/properties":
+  //       return this.roProperties(effects)
+  //     default:
+  //       const procedure = options.procedure.split("/")
+  //       switch (true) {
+  //         case options.procedure.startsWith("/action/"):
+  //           return this.roAction(effects, procedure[2], input)
+  //         case options.procedure.startsWith("/dependencies/") &&
+  //           procedure[3] === "check":
+  //           return this.roDependenciesCheck(effects, procedure[2], input)
 
-          case options.procedure.startsWith("/dependencies/") &&
-            procedure[3] === "autoConfigure":
-            return this.roDependenciesAutoconfig(effects, procedure[2], input)
-        }
-    }
-  }
+  //         case options.procedure.startsWith("/dependencies/") &&
+  //           procedure[3] === "autoConfigure":
+  //           return this.roDependenciesAutoconfig(effects, procedure[2], input)
+  //       }
+  //   }
+  // }
 
-  private async roCreateBackup(effects: HostSystemStartOs): Promise<void> {
-    const backup = this.manifest.backup.create
-    if (backup.type === "docker") {
-      const container = await DockerProcedureContainer.readonlyOf(backup)
-      await container.exec([backup.entrypoint, ...backup.args])
-    } else {
-      const moduleCode = await this.moduleCode
-      await moduleCode.createBackup?.(new PolyfillEffects(effects))
-    }
-  }
-  private async roRestoreBackup(effects: HostSystemStartOs): Promise<void> {
-    const restoreBackup = this.manifest.backup.restore
-    if (restoreBackup.type === "docker") {
-      const container = await DockerProcedureContainer.readonlyOf(restoreBackup)
-      await container.exec([restoreBackup.entrypoint, ...restoreBackup.args])
-    } else {
-      const moduleCode = await this.moduleCode
-      await moduleCode.restoreBackup?.(new PolyfillEffects(effects))
-    }
-  }
-  private async roGetConfig(effects: HostSystemStartOs): Promise<T.ConfigRes> {
-    const config = this.manifest.config?.get
-    if (!config) return { spec: {} }
-    if (config.type === "docker") {
-      const container = await DockerProcedureContainer.readonlyOf(config)
-      return JSON.parse(
-        (await container.exec([config.entrypoint, ...config.args])).stdout,
-      )
-    } else {
-      const moduleCode = await this.moduleCode
-      const method = moduleCode.getConfig
-      if (!method) throw new Error("Expecting that the method getConfig exists")
-      return (await method(new PolyfillEffects(effects)).then((x) => {
-        if ("result" in x) return x.result
-        if ("error" in x) throw new Error("Error getting config: " + x.error)
-        throw new Error("Error getting config: " + x["error-code"][1])
-      })) as any
-    }
-  }
-  private async roSetConfig(
-    effects: HostSystemStartOs,
-    newConfig: unknown,
-  ): Promise<T.SetResult> {
-    const setConfigValue = this.manifest.config?.set
-    if (!setConfigValue) return { signal: "SIGTERM", "depends-on": {} }
-    if (setConfigValue.type === "docker") {
-      const container = await DockerProcedureContainer.readonlyOf(
-        setConfigValue,
-      )
-      return JSON.parse(
-        (
-          await container.exec([
-            setConfigValue.entrypoint,
-            ...setConfigValue.args,
-            JSON.stringify(newConfig),
-          ])
-        ).stdout,
-      )
-    } else {
-      const moduleCode = await this.moduleCode
-      const method = moduleCode.setConfig
-      if (!method) throw new Error("Expecting that the method setConfig exists")
-      return await method(
-        new PolyfillEffects(effects),
-        newConfig as U.Config,
-      ).then((x) => {
-        if ("result" in x) return x.result
-        if ("error" in x) throw new Error("Error getting config: " + x.error)
-        throw new Error("Error getting config: " + x["error-code"][1])
-      })
-    }
-  }
-  private async roMigration(
-    effects: HostSystemStartOs,
-    fromVersion: unknown,
-  ): Promise<T.MigrationRes> {
-    throw new Error("Migrations should never be ran in the sandbox mode")
-  }
-  private async roProperties(effects: HostSystemStartOs): Promise<unknown> {
-    const setConfigValue = this.manifest.properties
-    if (!setConfigValue) return {}
-    if (setConfigValue.type === "docker") {
-      const container = await DockerProcedureContainer.readonlyOf(
-        setConfigValue,
-      )
-      return JSON.parse(
-        (
-          await container.exec([
-            setConfigValue.entrypoint,
-            ...setConfigValue.args,
-          ])
-        ).stdout,
-      )
-    } else {
-      const moduleCode = await this.moduleCode
-      const method = moduleCode.properties
-      if (!method)
-        throw new Error("Expecting that the method properties exists")
-      return await method(new PolyfillEffects(effects)).then((x) => {
-        if ("result" in x) return x.result
-        if ("error" in x) throw new Error("Error getting config: " + x.error)
-        throw new Error("Error getting config: " + x["error-code"][1])
-      })
-    }
-  }
-  private async roHealth(
-    effects: HostSystemStartOs,
-    healthId: string,
-    timeSinceStarted: unknown,
-  ): Promise<void> {
-    const healthProcedure = this.manifest["health-checks"][healthId]
-    if (!healthProcedure) return
-    if (healthProcedure.type === "docker") {
-      const container = await DockerProcedureContainer.readonlyOf(
-        healthProcedure,
-      )
-      return JSON.parse(
-        (
-          await container.exec([
-            healthProcedure.entrypoint,
-            ...healthProcedure.args,
-            JSON.stringify(timeSinceStarted),
-          ])
-        ).stdout,
-      )
-    } else {
-      const moduleCode = await this.moduleCode
-      const method = moduleCode.health?.[healthId]
-      if (!method) throw new Error("Expecting that the method health exists")
-      await method(new PolyfillEffects(effects), Number(timeSinceStarted)).then(
-        (x) => {
-          if ("result" in x) return x.result
-          if ("error" in x) throw new Error("Error getting config: " + x.error)
-          throw new Error("Error getting config: " + x["error-code"][1])
-        },
-      )
-    }
-  }
-  private async roAction(
-    effects: HostSystemStartOs,
-    actionId: string,
-    formData: unknown,
-  ): Promise<T.ActionResult> {
-    const actionProcedure = this.manifest.actions?.[actionId]?.implementation
-    if (!actionProcedure) return { message: "Action not found", value: null }
-    if (actionProcedure.type === "docker") {
-      const container = await DockerProcedureContainer.readonlyOf(
-        actionProcedure,
-      )
-      return JSON.parse(
-        (
-          await container.exec([
-            actionProcedure.entrypoint,
-            ...actionProcedure.args,
-            JSON.stringify(formData),
-          ])
-        ).stdout,
-      )
-    } else {
-      const moduleCode = await this.moduleCode
-      const method = moduleCode.action?.[actionId]
-      if (!method) throw new Error("Expecting that the method action exists")
-      return (await method(new PolyfillEffects(effects), formData as any).then(
-        (x) => {
-          if ("result" in x) return x.result
-          if ("error" in x) throw new Error("Error getting config: " + x.error)
-          throw new Error("Error getting config: " + x["error-code"][1])
-        },
-      )) as any
-    }
-  }
-  private async roDependenciesCheck(
-    effects: HostSystemStartOs,
-    id: string,
-    oldConfig: unknown,
-  ): Promise<object> {
-    const actionProcedure = this.manifest.dependencies?.[id]?.config?.check
-    if (!actionProcedure) return { message: "Action not found", value: null }
-    if (actionProcedure.type === "docker") {
-      const container = await DockerProcedureContainer.readonlyOf(
-        actionProcedure,
-      )
-      return JSON.parse(
-        (
-          await container.exec([
-            actionProcedure.entrypoint,
-            ...actionProcedure.args,
-            JSON.stringify(oldConfig),
-          ])
-        ).stdout,
-      )
-    } else {
-      const moduleCode = await this.moduleCode
-      const method = moduleCode.dependencies?.[id]?.check
-      if (!method)
-        throw new Error(
-          `Expecting that the method dependency check ${id} exists`,
-        )
-      return (await method(new PolyfillEffects(effects), oldConfig as any).then(
-        (x) => {
-          if ("result" in x) return x.result
-          if ("error" in x) throw new Error("Error getting config: " + x.error)
-          throw new Error("Error getting config: " + x["error-code"][1])
-        },
-      )) as any
-    }
-  }
-  private async roDependenciesAutoconfig(
-    effects: HostSystemStartOs,
-    id: string,
-    oldConfig: unknown,
-  ): Promise<void> {
-    const moduleCode = await this.moduleCode
-    const method = moduleCode.dependencies?.[id]?.autoConfigure
-    if (!method)
-      throw new Error(
-        `Expecting that the method dependency autoConfigure ${id} exists`,
-      )
-    return (await method(new PolyfillEffects(effects), oldConfig as any).then(
-      (x) => {
-        if ("result" in x) return x.result
-        if ("error" in x) throw new Error("Error getting config: " + x.error)
-        throw new Error("Error getting config: " + x["error-code"][1])
-      },
-    )) as any
-  }
-  private async mountMainVolumes() {
-    const { main } = this.manifest
-    const { mounts } = main
-    for (const imageId in mounts) {
-      try {
-        const pathToMount = mounts[imageId]
-        if (await fs.stat(pathToMount).catch(() => false)) continue
-        const volume = new Volume(imageId)
-        await execFile("mount", [
-          "--target",
-          pathToMount,
-          "--source",
-          volume.path,
-        ])
-      } catch (error) {
-        console.error(error)
-      }
-    }
-  }
+  // private async roCreateBackup(effects: HostSystemStartOs): Promise<void> {
+  //   const backup = this.manifest.backup.create
+  //   if (backup.type === "docker") {
+  //     const container = await DockerProcedureContainer.readonlyOf(backup)
+  //     await container.exec([backup.entrypoint, ...backup.args])
+  //   } else {
+  //     const moduleCode = await this.moduleCode
+  //     await moduleCode.createBackup?.(new PolyfillEffects(effects))
+  //   }
+  // }
+  // private async roRestoreBackup(effects: HostSystemStartOs): Promise<void> {
+  //   const restoreBackup = this.manifest.backup.restore
+  //   if (restoreBackup.type === "docker") {
+  //     const container = await DockerProcedureContainer.readonlyOf(restoreBackup)
+  //     await container.exec([restoreBackup.entrypoint, ...restoreBackup.args])
+  //   } else {
+  //     const moduleCode = await this.moduleCode
+  //     await moduleCode.restoreBackup?.(new PolyfillEffects(effects))
+  //   }
+  // }
+  // private async roGetConfig(effects: HostSystemStartOs): Promise<T.ConfigRes> {
+  //   const config = this.manifest.config?.get
+  //   if (!config) return { spec: {} }
+  //   if (config.type === "docker") {
+  //     const container = await DockerProcedureContainer.readonlyOf(config)
+  //     return JSON.parse(
+  //       (await container.exec([config.entrypoint, ...config.args])).stdout,
+  //     )
+  //   } else {
+  //     const moduleCode = await this.moduleCode
+  //     const method = moduleCode.getConfig
+  //     if (!method) throw new Error("Expecting that the method getConfig exists")
+  //     return (await method(new PolyfillEffects(effects)).then((x) => {
+  //       if ("result" in x) return x.result
+  //       if ("error" in x) throw new Error("Error getting config: " + x.error)
+  //       throw new Error("Error getting config: " + x["error-code"][1])
+  //     })) as any
+  //   }
+  // }
+  // private async roSetConfig(
+  //   effects: HostSystemStartOs,
+  //   newConfig: unknown,
+  // ): Promise<T.SetResult> {
+  //   const setConfigValue = this.manifest.config?.set
+  //   if (!setConfigValue) return { signal: "SIGTERM", "depends-on": {} }
+  //   if (setConfigValue.type === "docker") {
+  //     const container = await DockerProcedureContainer.readonlyOf(
+  //       setConfigValue,
+  //     )
+  //     return JSON.parse(
+  //       (
+  //         await container.exec([
+  //           setConfigValue.entrypoint,
+  //           ...setConfigValue.args,
+  //           JSON.stringify(newConfig),
+  //         ])
+  //       ).stdout,
+  //     )
+  //   } else {
+  //     const moduleCode = await this.moduleCode
+  //     const method = moduleCode.setConfig
+  //     if (!method) throw new Error("Expecting that the method setConfig exists")
+  //     return await method(
+  //       new PolyfillEffects(effects),
+  //       newConfig as U.Config,
+  //     ).then((x) => {
+  //       if ("result" in x) return x.result
+  //       if ("error" in x) throw new Error("Error getting config: " + x.error)
+  //       throw new Error("Error getting config: " + x["error-code"][1])
+  //     })
+  //   }
+  // }
+  // private async roMigration(
+  //   effects: HostSystemStartOs,
+  //   fromVersion: unknown,
+  // ): Promise<T.MigrationRes> {
+  //   throw new Error("Migrations should never be ran in the sandbox mode")
+  // }
+  // private async roProperties(effects: HostSystemStartOs): Promise<unknown> {
+  //   const setConfigValue = this.manifest.properties
+  //   if (!setConfigValue) return {}
+  //   if (setConfigValue.type === "docker") {
+  //     const container = await DockerProcedureContainer.readonlyOf(
+  //       setConfigValue,
+  //     )
+  //     return JSON.parse(
+  //       (
+  //         await container.exec([
+  //           setConfigValue.entrypoint,
+  //           ...setConfigValue.args,
+  //         ])
+  //       ).stdout,
+  //     )
+  //   } else {
+  //     const moduleCode = await this.moduleCode
+  //     const method = moduleCode.properties
+  //     if (!method)
+  //       throw new Error("Expecting that the method properties exists")
+  //     return await method(new PolyfillEffects(effects)).then((x) => {
+  //       if ("result" in x) return x.result
+  //       if ("error" in x) throw new Error("Error getting config: " + x.error)
+  //       throw new Error("Error getting config: " + x["error-code"][1])
+  //     })
+  //   }
+  // }
+  // private async roHealth(
+  //   effects: HostSystemStartOs,
+  //   healthId: string,
+  //   timeSinceStarted: unknown,
+  // ): Promise<void> {
+  //   const healthProcedure = this.manifest["health-checks"][healthId]
+  //   if (!healthProcedure) return
+  //   if (healthProcedure.type === "docker") {
+  //     const container = await DockerProcedureContainer.readonlyOf(
+  //       healthProcedure,
+  //     )
+  //     return JSON.parse(
+  //       (
+  //         await container.exec([
+  //           healthProcedure.entrypoint,
+  //           ...healthProcedure.args,
+  //           JSON.stringify(timeSinceStarted),
+  //         ])
+  //       ).stdout,
+  //     )
+  //   } else {
+  //     const moduleCode = await this.moduleCode
+  //     const method = moduleCode.health?.[healthId]
+  //     if (!method) throw new Error("Expecting that the method health exists")
+  //     await method(new PolyfillEffects(effects), Number(timeSinceStarted)).then(
+  //       (x) => {
+  //         if ("result" in x) return x.result
+  //         if ("error" in x) throw new Error("Error getting config: " + x.error)
+  //         throw new Error("Error getting config: " + x["error-code"][1])
+  //       },
+  //     )
+  //   }
+  // }
+  // private async roAction(
+  //   effects: HostSystemStartOs,
+  //   actionId: string,
+  //   formData: unknown,
+  // ): Promise<T.ActionResult> {
+  //   const actionProcedure = this.manifest.actions?.[actionId]?.implementation
+  //   if (!actionProcedure) return { message: "Action not found", value: null }
+  //   if (actionProcedure.type === "docker") {
+  //     const container = await DockerProcedureContainer.readonlyOf(
+  //       actionProcedure,
+  //     )
+  //     return JSON.parse(
+  //       (
+  //         await container.exec([
+  //           actionProcedure.entrypoint,
+  //           ...actionProcedure.args,
+  //           JSON.stringify(formData),
+  //         ])
+  //       ).stdout,
+  //     )
+  //   } else {
+  //     const moduleCode = await this.moduleCode
+  //     const method = moduleCode.action?.[actionId]
+  //     if (!method) throw new Error("Expecting that the method action exists")
+  //     return (await method(new PolyfillEffects(effects), formData as any).then(
+  //       (x) => {
+  //         if ("result" in x) return x.result
+  //         if ("error" in x) throw new Error("Error getting config: " + x.error)
+  //         throw new Error("Error getting config: " + x["error-code"][1])
+  //       },
+  //     )) as any
+  //   }
+  // }
+  // private async roDependenciesCheck(
+  //   effects: HostSystemStartOs,
+  //   id: string,
+  //   oldConfig: unknown,
+  // ): Promise<object> {
+  //   const actionProcedure = this.manifest.dependencies?.[id]?.config?.check
+  //   if (!actionProcedure) return { message: "Action not found", value: null }
+  //   if (actionProcedure.type === "docker") {
+  //     const container = await DockerProcedureContainer.readonlyOf(
+  //       actionProcedure,
+  //     )
+  //     return JSON.parse(
+  //       (
+  //         await container.exec([
+  //           actionProcedure.entrypoint,
+  //           ...actionProcedure.args,
+  //           JSON.stringify(oldConfig),
+  //         ])
+  //       ).stdout,
+  //     )
+  //   } else {
+  //     const moduleCode = await this.moduleCode
+  //     const method = moduleCode.dependencies?.[id]?.check
+  //     if (!method)
+  //       throw new Error(
+  //         `Expecting that the method dependency check ${id} exists`,
+  //       )
+  //     return (await method(new PolyfillEffects(effects), oldConfig as any).then(
+  //       (x) => {
+  //         if ("result" in x) return x.result
+  //         if ("error" in x) throw new Error("Error getting config: " + x.error)
+  //         throw new Error("Error getting config: " + x["error-code"][1])
+  //       },
+  //     )) as any
+  //   }
+  // }
+  // private async roDependenciesAutoconfig(
+  //   effects: HostSystemStartOs,
+  //   id: string,
+  //   oldConfig: unknown,
+  // ): Promise<void> {
+  //   const moduleCode = await this.moduleCode
+  //   const method = moduleCode.dependencies?.[id]?.autoConfigure
+  //   if (!method)
+  //     throw new Error(
+  //       `Expecting that the method dependency autoConfigure ${id} exists`,
+  //     )
+  //   return (await method(new PolyfillEffects(effects), oldConfig as any).then(
+  //     (x) => {
+  //       if ("result" in x) return x.result
+  //       if ("error" in x) throw new Error("Error getting config: " + x.error)
+  //       throw new Error("Error getting config: " + x["error-code"][1])
+  //     },
+  //   )) as any
+  // }
 }
 async function removePointers(value: T.ConfigRes): Promise<T.ConfigRes> {
   const startingSpec = structuredClone(value.spec)
