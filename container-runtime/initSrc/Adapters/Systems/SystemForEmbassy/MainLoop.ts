@@ -81,7 +81,7 @@ export class MainLoop {
     return Object.values(manifest["health-checks"]).map((value) => {
       const name = value.name
       const interval = setInterval(async () => {
-        const actionProcedure = value.implementation
+        const actionProcedure = value
         const timeChanged = Date.now() - start
         if (actionProcedure.type === "docker") {
           const container = await DockerProcedureContainer.of(
