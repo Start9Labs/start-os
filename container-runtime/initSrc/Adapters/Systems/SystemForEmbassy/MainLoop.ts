@@ -14,26 +14,29 @@ const EMBASSY_PROPERTIES_LOOP = 30 * 1000
  * Also, this has an ability to clean itself up too if need be.
  */
 export class MainLoop {
-  constructor(
-    readonly system: SystemForEmbassy,
-    readonly effects: HostSystemStartOs,
-    readonly runProperties: () => Promise<void>,
-  ) {}
-
   private healthLoops:
     | {
         name: string
         interval: NodeJS.Timeout
       }[]
-    | undefined = this.constructHealthLoops()
+    | undefined
+
   private mainEvent:
     | Promise<{
         daemon: T.DaemonReturned
         wait: Promise<unknown>
       }>
-    | undefined = this.constructMainEvent()
-  private propertiesEvent: NodeJS.Timeout | undefined =
-    this.constructPropertiesEvent()
+    | undefined
+  private propertiesEvent: NodeJS.Timeout | undefined
+  constructor(
+    readonly system: SystemForEmbassy,
+    readonly effects: HostSystemStartOs,
+    readonly runProperties: () => Promise<void>,
+  ) {
+    this.healthLoops = this.constructHealthLoops()
+    this.mainEvent = this.constructMainEvent()
+    this.propertiesEvent = this.constructPropertiesEvent()
+  }
 
   private async constructMainEvent() {
     const { system, effects } = this
@@ -44,6 +47,22 @@ export class MainLoop {
     ]
 
     await effects.setMainStatus({ status: "running" })
+    const jsMain = (this.system.moduleCode as any).jsMain
+    if (jsMain) {
+      const mainId = this.system.manifest.main.image
+      const daemon = await jsMain({
+        effects,
+        utils,
+        mainId,
+      })
+      return {
+        daemon,
+        wait: daemon.wait().finally(() => {
+          this.clean()
+          effects.setMainStatus({ status: "stopped" })
+        }),
+      }
+    }
     const daemon = await utils.runDaemon(
       this.system.manifest.main.image,
       currentCommand,

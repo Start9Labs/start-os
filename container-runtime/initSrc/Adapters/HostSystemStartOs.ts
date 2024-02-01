@@ -1,6 +1,7 @@
 import * as T from "@start9labs/start-sdk/lib/types"
 import * as net from "net"
 import { object, string, number, literals, some, unknown } from "ts-matches"
+import { Effects } from "../Models/ Effects"
 
 import { CallbackHolder } from "../Models/CallbackHolder"
 const matchRpcError = object({
@@ -31,7 +32,7 @@ type RpcError = typeof matchRpcError._TYPE
 
 const SOCKET_PATH = "/media/startos/rpc/host.sock"
 const MAIN = "/main" as const
-export class HostSystemStartOs implements T.Effects {
+export class HostSystemStartOs implements Effects {
   static of(callbackHolder: CallbackHolder) {
     return new HostSystemStartOs(callbackHolder)
   }
