@@ -104,18 +104,43 @@ export class SystemForStartOs implements System {
       }
       default:
         const procedures = unNestPath(options.procedure)
-        throw new Error("Method not implemented.")
-      // switch (true) {
-      //   case procedures[1] === "actions" && procedures[3] === "get":
-      //     return this.action(effects, procedures[2], input)
-      //   case procedures[1] === "actions" && procedures[3] === "run":
-      //     return this.action(effects, procedures[2], input)
-      //   case procedures[1] === "dependencies" && procedures[3] === "query":
-      //     return this.dependenciesAutoconfig(effects, procedures[2], input)
-
-      //   case procedures[1] === "dependencies" && procedures[3] === "update":
-      //     return this.dependenciesAutoconfig(effects, procedures[2], input)
-      // }
+        const id = procedures[2]
+        switch (true) {
+          case procedures[1] === "actions" && procedures[3] === "get": {
+            const path = `${LOCATION}/procedures/actions`
+            const action: any = (await import(path).catch(() => require(path)))
+              .actions[id]
+            if (!action) throw new Error(`Action ${id} not found`)
+            return action.get({ effects })
+          }
+          case procedures[1] === "actions" && procedures[3] === "run": {
+            const path = `${LOCATION}/procedures/actions`
+            const action: any = (await import(path).catch(() => require(path)))
+              .actions[id]
+            if (!action) throw new Error(`Action ${id} not found`)
+            const input = options.input
+            return action.run({ effects, input })
+          }
+          case procedures[1] === "dependencies" && procedures[3] === "query": {
+            const path = `${LOCATION}/procedures/dependencies`
+            const dependencyConfig: any = (
+              await import(path).catch(() => require(path))
+            ).dependencyConfig[id]
+            if (!dependencyConfig)
+              throw new Error(`dependencyConfig ${id} not found`)
+            const localConfig = options.input
+            return dependencyConfig.query({ effects, localConfig })
+          }
+          case procedures[1] === "dependencies" && procedures[3] === "update": {
+            const path = `${LOCATION}/procedures/dependencies`
+            const dependencyConfig: any = (
+              await import(path).catch(() => require(path))
+            ).dependencyConfig[id]
+            if (!dependencyConfig)
+              throw new Error(`dependencyConfig ${id} not found`)
+            return dependencyConfig.update(options.input)
+          }
+        }
     }
     throw new Error("Method not implemented.")
   }
