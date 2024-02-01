@@ -181,7 +181,11 @@ export class RpcListener {
           })
           .then((result) =>
             "ok" in result
-              ? { jsonrpc, id, result: result.ok }
+              ? {
+                  jsonrpc,
+                  id,
+                  result: result.ok === undefined ? null : result.ok,
+                }
               : {
                   jsonrpc,
                   id,

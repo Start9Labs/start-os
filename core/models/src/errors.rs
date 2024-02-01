@@ -502,6 +502,29 @@ where
         })
     }
 }
+impl<T> ResultExt<T, Error> for Result<T, Error> {
+    fn with_kind(self, kind: ErrorKind) -> Result<T, Error> {
+        self.map_err(|e| Error {
+            source: e.source,
+            kind,
+            revision: e.revision,
+        })
+    }
+
+    fn with_ctx<F: FnOnce(&Error) -> (ErrorKind, D), D: Display>(self, f: F) -> Result<T, Error> {
+        self.map_err(|e| {
+            let (kind, ctx) = f(&e);
+            let source = e.source;
+            let ctx = format!("{}: {}", ctx, source);
+            let source = source.wrap_err(ctx);
+            Error {
+                kind,
+                source,
+                revision: e.revision,
+            }
+        })
+    }
+}
 
 pub trait OptionExt<T>
 where

@@ -7,7 +7,7 @@ use futures::Future;
 use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
 use models::{ProcedureName, VolumeId};
-use rpc_toolkit::{Server, ShutdownHandle};
+use rpc_toolkit::{Empty, Server, ShutdownHandle};
 use serde::de::DeserializeOwned;
 use tokio::process::Command;
 use tokio::sync::{oneshot, watch, Mutex, OnceCell};
@@ -55,6 +55,7 @@ pub struct PersistentContainer {
 }
 
 impl PersistentContainer {
+    #[instrument(skip_all)]
     pub async fn new(
         ctx: &RpcContext,
         s9pk: S9pk,
@@ -129,6 +130,7 @@ impl PersistentContainer {
             running_status: watch::channel(None).0,
         })
     }
+
     #[instrument(skip_all)]
     pub async fn init(&self, seed: Weak<ServiceActorSeed>) -> Result<(), Error> {
         let socket_server_context = EffectContext::new(seed);
@@ -184,14 +186,13 @@ impl PersistentContainer {
                 ErrorKind::InvalidRequest,
             )
         })?;
-        // @todo @Blu-J @dr-bonez  Make it so the persistent cointainer uses as socket server for the effects.
-        // let socket_server = run_unix(service_effect_handler(s9pk.as_manifest().id.clone()));
 
-        self.rpc_client.request(rpc::Init, ()).await?;
+        self.rpc_client.request(rpc::Init, Empty {}).await?;
 
         Ok(())
     }
 
+    #[instrument(skip_all)]
     fn destroy(&mut self) -> impl Future<Output = Result<(), Error>> + 'static {
         let rpc_client = self.rpc_client.clone();
         let rpc_server = self.rpc_server.take();
@@ -202,7 +203,7 @@ impl PersistentContainer {
         let lxc_container = self.lxc_container.take();
         async move {
             let mut errs = ErrorCollection::new();
-            errs.handle(rpc_client.request(rpc::Exit, ()).await);
+            errs.handle(dbg!(rpc_client.request(rpc::Exit, Empty {}).await));
             if let Some((hdl, shutdown)) = rpc_server {
                 shutdown.shutdown();
                 errs.handle(hdl.await.with_kind(ErrorKind::Cancelled));
@@ -224,30 +225,38 @@ impl PersistentContainer {
         }
     }
 
+    #[instrument(skip_all)]
     pub async fn exit(mut self) -> Result<(), Error> {
         self.destroy().await?;
 
         Ok(())
     }
 
+    #[instrument(skip_all)]
     pub async fn start(&self) -> Result<(), Error> {
-        self.rpc_client.request(rpc::Start, ()).await?;
+        self.execute(
+            ProcedureName::StartMain,
+            Value::Null,
+            Some(Duration::from_secs(5)), // TODO
+        )
+        .await?;
         Ok(())
     }
 
+    #[instrument(skip_all)]
     pub async fn stop(&self, timeout: Option<Duration>) -> Result<(), Error> {
-        self.rpc_client
-            .request(rpc::Stop, rpc::StopParams::new(timeout))
+        self.execute(ProcedureName::StopMain, Value::Null, timeout)
             .await?;
         Ok(())
     }
 
+    #[instrument(skip_all)]
     pub async fn execute<O>(
         &self,
         name: ProcedureName,
         input: Value,
         timeout: Option<Duration>,
-    ) -> Result<Result<O, (i32, String)>, Error>
+    ) -> Result<O, Error>
     where
         O: DeserializeOwned,
     {
@@ -256,12 +265,13 @@ impl PersistentContainer {
             .and_then(from_value)
     }
 
+    #[instrument(skip_all)]
     pub async fn sanboxed<O>(
         &self,
         name: ProcedureName,
         input: Value,
         timeout: Option<Duration>,
-    ) -> Result<Result<O, (i32, String)>, Error>
+    ) -> Result<O, Error>
     where
         O: DeserializeOwned,
     {
@@ -270,6 +280,7 @@ impl PersistentContainer {
             .and_then(from_value)
     }
 
+    #[instrument(skip_all)]
     async fn _execute(
         &self,
         name: ProcedureName,
@@ -289,6 +300,7 @@ impl PersistentContainer {
         })
     }
 
+    #[instrument(skip_all)]
     async fn _sandboxed(
         &self,
         name: ProcedureName,

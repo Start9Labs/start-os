@@ -12,14 +12,17 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::db::model::{
-    PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryInstalling,
+    InstalledPackageInfo, PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryInstalling,
     PackageDataEntryRestoring, PackageDataEntryUpdating, StaticFiles,
 };
 use crate::disk::mount::guard::GenericMountGuard;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::notifications::NotificationLevel;
 use crate::prelude::*;
-use crate::progress::{FullProgressTracker, ProgressTrackerWriter};
+use crate::progress::{
+    FullProgressTracker, FullProgressTrackerHandle, PhaseProgressTrackerHandle,
+    ProgressTrackerWriter,
+};
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
@@ -27,6 +30,11 @@ use crate::service::{LoadDisposition, Service};
 
 pub type DownloadInstallFuture = BoxFuture<'static, Result<InstallFuture, Error>>;
 pub type InstallFuture = BoxFuture<'static, Result<(), Error>>;
+
+pub(super) struct InstallProgressHandles {
+    pub(super) finalization_progress: PhaseProgressTrackerHandle,
+    pub(super) progress_handle: FullProgressTrackerHandle,
+}
 
 /// This is the structure to contain all the services
 #[derive(Default)]
@@ -240,13 +248,31 @@ impl ServiceMap {
                         None
                     };
                     if let Some(recovery_source) = recovery_source {
-                        *service = Some(Service::restore(ctx, s9pk, recovery_source).await?);
-                        finalization_progress.complete();
-                        progress_handle.complete();
+                        *service = Some(
+                            Service::restore(
+                                ctx,
+                                s9pk,
+                                recovery_source,
+                                Some(InstallProgressHandles {
+                                    finalization_progress,
+                                    progress_handle,
+                                }),
+                            )
+                            .await?,
+                        );
                     } else {
-                        *service = Some(Service::install(ctx, s9pk, prev).await?);
-                        finalization_progress.complete();
-                        progress_handle.complete();
+                        *service = Some(
+                            Service::install(
+                                ctx,
+                                s9pk,
+                                prev,
+                                Some(InstallProgressHandles {
+                                    finalization_progress,
+                                    progress_handle,
+                                }),
+                            )
+                            .await?,
+                        );
                     }
                     sync_progress_task.await.map_err(|_| {
                         Error::new(eyre!("progress sync task panicked"), ErrorKind::Unknown)

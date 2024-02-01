@@ -13,16 +13,18 @@ use crate::action::ActionResult;
 use crate::config::action::ConfigRes;
 use crate::context::RpcContext;
 use crate::db::model::{
-    InstalledPackageInfo, PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryMatchModel,
+    CurrentDependencies, CurrentDependents, InstalledPackageInfo, PackageDataEntry,
+    PackageDataEntryInstalled, PackageDataEntryMatchModel, StaticFiles,
 };
 use crate::disk::mount::guard::GenericMountGuard;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::prelude::*;
-use crate::progress::{NamedProgress, Progress};
+use crate::progress::{self, NamedProgress, Progress};
 use crate::s9pk::S9pk;
+use crate::service::service_map::InstallProgressHandles;
 use crate::service::transition::{TempDesiredState, TransitionKind, TransitionState};
 use crate::status::health_check::HealthCheckResult;
-use crate::status::MainStatus;
+use crate::status::{DependencyConfigErrors, MainStatus, Status};
 use crate::util::actor::{Actor, BackgroundJobs, SimpleActor};
 use crate::volume::data_dir;
 
@@ -61,6 +63,7 @@ pub struct Service {
     seed: Arc<ServiceActorSeed>,
 }
 impl Service {
+    #[instrument(skip_all)]
     async fn new(ctx: RpcContext, s9pk: S9pk, start: StartStop) -> Result<Self, Error> {
         let id = s9pk.as_manifest().id.clone();
         let desired_state = watch::channel(start).0;
@@ -91,6 +94,7 @@ impl Service {
         })
     }
 
+    #[instrument(skip_all)]
     pub async fn load(
         ctx: &RpcContext,
         id: &PackageId,
@@ -130,8 +134,9 @@ impl Service {
                         tracing::error!("Error opening s9pk for install: {e}");
                         tracing::debug!("{e:?}")
                     }) {
-                        if let Ok(service) =
-                            Self::install(ctx.clone(), s9pk, None).await.map_err(|e| {
+                        if let Ok(service) = Self::install(ctx.clone(), s9pk, None, None)
+                            .await
+                            .map_err(|e| {
                                 tracing::error!("Error installing service: {e}");
                                 tracing::debug!("{e:?}")
                             })
@@ -163,6 +168,7 @@ impl Service {
                             ctx.clone(),
                             s9pk,
                             Some(e.as_installed().as_manifest().as_version().de()?),
+                            None,
                         )
                         .await
                         .map_err(|e| {
@@ -239,18 +245,58 @@ impl Service {
         }
     }
 
+    #[instrument(skip_all)]
     pub async fn install(
         ctx: RpcContext,
         s9pk: S9pk,
         src_version: Option<models::Version>,
+        progress: Option<InstallProgressHandles>,
     ) -> Result<Self, Error> {
-        let service = Self::new(ctx, s9pk, StartStop::Stop).await?;
+        let manifest = s9pk.as_manifest().clone();
+        let developer_key = s9pk.as_archive().signer();
+        let icon = s9pk.icon_data_url().await?;
+        let static_files = StaticFiles::local(&manifest.id, &manifest.version, icon);
+        let service = Self::new(ctx.clone(), s9pk, StartStop::Stop).await?;
         service
             .seed
             .persistent_container
             .execute(ProcedureName::Init, to_value(&src_version)?, None)
-            .await?
-            .map_err(|(_, e)| Error::new(eyre!("{e}"), ErrorKind::MigrationFailed))?; // TODO: handle cancellation
+            .await
+            .with_kind(ErrorKind::MigrationFailed)?; // TODO: handle cancellation
+        if let Some(mut progress) = progress {
+            progress.finalization_progress.complete();
+            progress.progress_handle.complete();
+            tokio::task::yield_now().await;
+        }
+        ctx.db
+            .mutate(|d| {
+                d.as_package_data_mut()
+                    .as_idx_mut(&manifest.id)
+                    .or_not_found(&manifest.id)?
+                    .ser(&PackageDataEntry::Installed(PackageDataEntryInstalled {
+                        installed: InstalledPackageInfo {
+                            current_dependencies: Default::default(), // TODO
+                            current_dependents: Default::default(),   // TODO
+                            dependency_info: Default::default(),      // TODO
+                            developer_key,
+                            status: Status {
+                                configured: false,                            // TODO
+                                main: MainStatus::Stopped,                    // TODO
+                                dependency_config_errors: Default::default(), // TODO
+                            },
+                            interface_addresses: Default::default(), // TODO
+                            marketplace_url: None,                   // TODO
+                            manifest: manifest.clone(),
+                            last_backup: None,                            // TODO
+                            store: Value::Null,                           // TODO
+                            store_exposed_dependents: Default::default(), // TODO
+                            store_exposed_ui: Default::default(),         // TODO
+                        },
+                        manifest,
+                        static_files,
+                    }))
+            })
+            .await?;
         Ok(service)
     }
 
@@ -258,6 +304,7 @@ impl Service {
         ctx: RpcContext,
         s9pk: S9pk,
         guard: impl GenericMountGuard,
+        progress: Option<InstallProgressHandles>,
     ) -> Result<Self, Error> {
         // TODO
         Err(Error::new(eyre!("not yet implemented"), ErrorKind::Unknown))
@@ -271,8 +318,8 @@ impl Service {
                 Value::Null,
                 Some(Duration::from_secs(30)),
             )
-            .await?
-            .map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::ConfigGen))
+            .await
+            .with_kind(ErrorKind::ConfigGen)
     }
 
     // TODO DO the Action Get
@@ -285,8 +332,8 @@ impl Service {
                 input,
                 Some(Duration::from_secs(30)),
             )
-            .await?
-            .map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::Action))
+            .await
+            .with_kind(ErrorKind::Action)
     }
 
     pub async fn shutdown(self) -> Result<(), Error> {

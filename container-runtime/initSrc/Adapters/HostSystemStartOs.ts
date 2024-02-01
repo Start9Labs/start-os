@@ -59,13 +59,21 @@ export class HostSystemStartOs implements T.Effects {
               Buffer.concat(bufs).toString().split("\n")[0],
             )
             if (testRpcError(res)) {
-              if (string.test(res.error.data)) console.error(res.error.data)
-              else {
-                if (res.error.data?.debug) console.debug(res.error.data.debug)
-                if (res.error.data?.details)
+              let message = res.error.message
+              if (string.test(res.error.data)) {
+                message += ": " + res.error.data
+                console.error(res.error.data)
+              } else {
+                if (res.error.data?.details) {
+                  message += ": " + res.error.data.details
                   console.error(res.error.data.details)
+                }
+                if (res.error.data?.debug) {
+                  message += "\n" + res.error.data.debug
+                  console.debug(res.error.data.debug)
+                }
               }
-              reject(res.error.message)
+              reject(new Error(message))
             } else if (testRpcResult(res)) {
               resolve(res.result)
             } else {
@@ -269,7 +277,9 @@ export class HostSystemStartOs implements T.Effects {
   }
 
   setMainStatus(o: { status: "running" | "stopped" }): Promise<void> {
-    return this.rpcRound("setHealth", o) as ReturnType<T.Effects["setHealth"]>
+    return this.rpcRound("setMainStatus", o) as ReturnType<
+      T.Effects["setHealth"]
+    >
   }
 
   shutdown(...[]: Parameters<T.Effects["shutdown"]>) {

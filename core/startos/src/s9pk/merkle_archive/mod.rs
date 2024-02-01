@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use ed25519::signature::Keypair;
 use ed25519_dalek::{Signature, SigningKey, VerifyingKey};
 use tokio::io::AsyncRead;
 
@@ -37,6 +38,12 @@ impl<S> MerkleArchive<S> {
         Self {
             signer: Signer::Signer(signer),
             contents,
+        }
+    }
+    pub fn signer(&self) -> VerifyingKey {
+        match &self.signer {
+            Signer::Signed(k, _) => *k,
+            Signer::Signer(k) => k.verifying_key(),
         }
     }
     pub const fn header_size() -> u64 {

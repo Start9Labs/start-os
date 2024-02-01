@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::sync::{Arc, Weak};
 
+use clap::builder::{TypedValueParser, ValueParserFactory};
 use clap::Parser;
 use imbl_value::json;
 use models::{ActionId, HealthCheckId, ImageId, PackageId};
@@ -12,9 +14,11 @@ use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::prelude::*;
 use crate::service::cli::ContainerCliContext;
-use crate::service::ServiceActorSeed;
+use crate::service::start_stop::StartStop;
+use crate::service::{RunningStatus, ServiceActorSeed};
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
+use crate::util::clap::FromStrParser;
 use crate::util::new_guid;
 use crate::{echo, ARCH};
 
@@ -84,6 +88,10 @@ pub fn service_effect_handler() -> ParentHandler {
             from_fn_async(set_configured)
                 .no_display()
                 .with_remote_cli::<ContainerCliContext>(),
+        )
+        .subcommand(
+            "setMainStatus",
+            from_fn_async(set_main_status).with_remote_cli::<ContainerCliContext>(),
         )
         .subcommand("setHealth", from_fn_async(set_health).no_cli())
         .subcommand("getStore", from_fn_async(get_store).no_cli())
@@ -362,6 +370,7 @@ async fn shutdown(context: EffectContext, _: Empty) -> Result<Value, Error> {
     service.stop().await?;
     Ok(json!(()))
 }
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "camelCase")]
@@ -387,6 +396,48 @@ async fn set_configured(context: EffectContext, params: SetConfigured) -> Result
         .await?;
     Ok(json!(()))
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+enum Status {
+    Running,
+    Stopped,
+}
+impl FromStr for Status {
+    type Err = color_eyre::eyre::Report;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "running" => Ok(Self::Running),
+            "stopped" => Ok(Self::Stopped),
+            _ => Err(eyre!("unknown status {s}")),
+        }
+    }
+}
+impl ValueParserFactory for Status {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "camelCase")]
+struct SetMainStatus {
+    status: Status,
+}
+async fn set_main_status(context: EffectContext, params: SetMainStatus) -> Result<Value, Error> {
+    let context = context.deref()?;
+    context
+        .persistent_container
+        .current_state
+        .send_replace(match params.status {
+            Status::Running => StartStop::Start,
+            Status::Stopped => StartStop::Stop,
+        });
+    Ok(Value::Null)
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SetHealth {

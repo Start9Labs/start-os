@@ -173,6 +173,7 @@ impl LxcContainer {
         self.rpc_bind.path()
     }
 
+    #[instrument(skip_all)]
     pub async fn exit(mut self) -> Result<(), Error> {
         self.rpc_bind.take().unmount().await?;
         self.rootfs.take().unmount(true).await?;

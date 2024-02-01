@@ -23,7 +23,7 @@ if [[ "${ENVIRONMENT}" =~ (^|-)unstable($|-) ]]; then
 fi
 
 alias 'rust-gnu-builder'='docker run $USE_TTY --rm -e "RUSTFLAGS=$RUSTFLAGS" -v "$HOME/.cargo/registry":/usr/local/cargo/registry -v "$(pwd)":/home/rust/src -w /home/rust/src -P start9/rust-arm-cross:aarch64'
-alias 'rust-musl-builder'='docker run $USE_TTY --rm -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src -P messense/rust-musl-cross:$ARCH-musl'
+alias 'rust-musl-builder'='docker run $USE_TTY --rm -e "RUSTFLAGS=$RUSTFLAGS" -v "$HOME/.cargo/registry":/usr/local/cargo/registry -v "$(pwd)":/home/rust/src -w /home/rust/src -P messense/rust-musl-cross:$ARCH-musl'
 
 set +e
 fail=
@@ -32,9 +32,9 @@ echo "RUSTFLAGS=\"$RUSTFLAGS\""
 if ! rust-gnu-builder sh -c "(cd core && cargo build --release --features avahi-alias,$FEATURES --locked --bin startbox --target=$ARCH-unknown-linux-gnu)"; then 
 	fail=true
 fi
-if ! rust-musl-builder sh -c "(cd core && cargo build --release --no-default-features --features container-runtime,$FEATURES --locked --bin containerbox --target=$ARCH-unknown-linux-musl)"; then 
-	fail=true
-fi
+# if ! rust-musl-builder sh -c "(cd core && cargo build --release --no-default-features --features container-runtime,$FEATURES --locked --bin containerbox --target=$ARCH-unknown-linux-musl)"; then 
+# 	fail=true
+# fi
 set -e
 cd core
 

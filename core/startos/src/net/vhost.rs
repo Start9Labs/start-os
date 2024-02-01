@@ -8,7 +8,9 @@ use helpers::NonDetachingJoinHandle;
 use models::ResultExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Mutex, RwLock};
-use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
+use tokio_rustls::rustls::pki_types::{
+    CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer, ServerName,
+};
 use tokio_rustls::rustls::server::Acceptor;
 use tokio_rustls::rustls::{RootCertStore, ServerConfig};
 use tokio_rustls::{LazyConfigAcceptor, TlsConnector};
@@ -247,8 +249,9 @@ impl VHostServer {
                                                 let mut target_stream =
                                                     TlsConnector::from(Arc::new(client_cfg))
                                                         .connect_with(
-                                                            key.key()
-                                                        .internal_address().try_into().with_kind(crate::ErrorKind::OpenSsl)?,
+                                                            ServerName::try_from(
+                                                                key.key().internal_address(),
+                                                            ).with_kind(crate::ErrorKind::OpenSsl)?,
                                                             tcp_stream,
                                                             |conn| {
                                                                 cfg.alpn_protocols.extend(

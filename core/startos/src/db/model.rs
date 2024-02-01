@@ -536,7 +536,7 @@ pub struct CurrentDependencyInfo {
     pub health_checks: BTreeSet<HealthCheckId>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct InterfaceAddressMap(pub BTreeMap<InterfaceId, InterfaceAddresses>);
 impl Map for InterfaceAddressMap {
     type Key = InterfaceId;
