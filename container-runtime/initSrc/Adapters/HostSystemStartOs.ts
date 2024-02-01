@@ -1,7 +1,7 @@
 import * as T from "@start9labs/start-sdk/lib/types"
 import * as net from "net"
 import { object, string, number, literals, some, unknown } from "ts-matches"
-import { Effects } from "../Models/ Effects"
+import { Effects } from "../Models/Effects"
 
 import { CallbackHolder } from "../Models/CallbackHolder"
 const matchRpcError = object({

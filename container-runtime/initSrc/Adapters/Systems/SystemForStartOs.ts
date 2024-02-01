@@ -2,7 +2,7 @@ import { ExecuteResult, System } from "../../Interfaces/System"
 import { unNestPath } from "../../Models/JsonPath"
 import { string } from "ts-matches"
 import { HostSystemStartOs } from "../HostSystemStartOs"
-import { Effects } from "../../Models/ Effects"
+import { Effects } from "../../Models/Effects"
 const LOCATION = "/usr/lib/startos/package/startos"
 export class SystemForStartOs implements System {
   private onTerm: (() => Promise<void>) | undefined
