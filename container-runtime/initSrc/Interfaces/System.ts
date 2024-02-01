@@ -1,5 +1,6 @@
 import { Effects } from "@start9labs/start-sdk/lib/types"
 import { JsonPath } from "../Models/JsonPath"
+import { HostSystemStartOs } from "../Adapters/HostSystemStartOs"
 
 export type ExecuteResult =
   | { ok: unknown }
