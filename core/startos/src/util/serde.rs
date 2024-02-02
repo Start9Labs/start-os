@@ -272,7 +272,7 @@ impl<'de> serde::de::Deserialize<'de> for ValuePrimative {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "kebab-case")]
 pub enum IoFormat {
     Json,
@@ -434,7 +434,10 @@ impl IoFormat {
 pub fn display_serializable<T: Serialize>(format: IoFormat, result: T) {
     format
         .to_writer(std::io::stdout(), &result)
-        .expect("Error serializing result to stdout")
+        .expect("Error serializing result to stdout");
+    if format == IoFormat::JsonPretty {
+        println!()
+    }
 }
 
 #[derive(Deserialize, Serialize)]
