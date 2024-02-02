@@ -1,6 +1,6 @@
 use std::ffi::OsStr;
 use std::fmt::Debug;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use futures::future::BoxFuture;
@@ -59,6 +59,21 @@ impl<S> DirectoryContents<S> {
                 dir = Some(d);
             } else {
                 dir = None
+            }
+        }
+        res
+    }
+
+    pub fn file_paths(&self, prefix: impl AsRef<Path>) -> Vec<PathBuf> {
+        let prefix = prefix.as_ref();
+        let mut res = Vec::new();
+        for (name, entry) in &self.contents {
+            let path = prefix.join(name);
+            if let EntryContents::Directory(d) = entry.as_contents() {
+                res.push(path.join(""));
+                res.append(&mut d.file_paths(path));
+            } else {
+                res.push(path);
             }
         }
         res

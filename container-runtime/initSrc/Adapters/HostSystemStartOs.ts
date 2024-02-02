@@ -13,7 +13,6 @@ const matchRpcError = object({
         string,
         object(
           {
-            message: string,
             details: string,
             debug: string,
           },

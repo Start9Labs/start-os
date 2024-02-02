@@ -255,15 +255,16 @@ export class RpcListener {
         }
       })
       .when(evalType, async ({ id, params }) => {
+        const result = await new Function(
+          `return (async () => { return (${params.script}) }).call(this)`,
+        ).call({
+          listener: this,
+          require: require,
+        })
         return {
           jsonrpc,
           id,
-          result: await new Function(
-            `return (async () => { return (${params.script}) }).call(this)`,
-          ).call({
-            listener: this,
-            require: require,
-          }),
+          result: result === undefined ? null : result,
         }
       })
       .when(shape({ id: idType, method: string }), ({ id, method }) => ({

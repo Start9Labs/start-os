@@ -545,7 +545,7 @@ pub async fn create_overlayed_image(
                 )
             })?
             .rootfs_dir();
-        let mountpoint = rootfs_dir.join("media/images/overlays").join(&*guid);
+        let mountpoint = rootfs_dir.join("media/startos/overlays").join(&*guid);
         let container_mountpoint = Path::new("/").join(
             mountpoint
                 .strip_prefix(rootfs_dir)

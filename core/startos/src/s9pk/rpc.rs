@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use clap::Parser;
 use models::ImageId;
-use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, AnyContext, Empty, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::process::Command;
@@ -14,10 +14,13 @@ use crate::s9pk::merkle_archive::Entry;
 use crate::s9pk::v2::compat::CONTAINER_TOOL;
 use crate::s9pk::S9pk;
 use crate::util::io::TmpDir;
+use crate::util::serde::HandlerExtSerde;
 use crate::util::Invoke;
 
 pub fn s9pk() -> ParentHandler {
-    ParentHandler::new().subcommand("edit", edit())
+    ParentHandler::new()
+        .subcommand("edit", edit())
+        .subcommand("inspect", inspect())
 }
 
 #[derive(Deserialize, Serialize, Parser)]
@@ -32,6 +35,16 @@ fn edit() -> ParentHandler<S9pkPath> {
         from_fn_async(add_image)
             .with_inherited(only_parent)
             .no_display(),
+    )
+}
+
+fn inspect() -> ParentHandler<S9pkPath> {
+    let only_parent = |a, _| a;
+    ParentHandler::<S9pkPath>::new().subcommand(
+        "file-tree",
+        from_fn_async(file_tree)
+            .with_inherited(only_parent)
+            .with_display_serializable(),
     )
 }
 
@@ -98,4 +111,13 @@ async fn add_image(
     tokio::fs::rename(&tmp_path, &s9pk_path).await?;
 
     Ok(())
+}
+
+async fn file_tree(
+    ctx: CliContext,
+    _: Empty,
+    S9pkPath { s9pk }: S9pkPath,
+) -> Result<Vec<PathBuf>, Error> {
+    let s9pk = S9pk::from_file(super::load(&ctx, &s9pk).await?).await?;
+    Ok(s9pk.as_archive().contents().file_paths(""))
 }
