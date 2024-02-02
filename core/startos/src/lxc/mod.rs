@@ -12,7 +12,7 @@ use rpc_toolkit::{
     from_fn_async, AnyContext, CallRemoteHandler, GenericRpcMethod, Handler, HandlerArgs,
     HandlerExt, ParentHandler, RpcRequest,
 };
-use rustyline_async::ReadlineEvent;
+use rustyline_async::{ReadlineEvent, SharedWriter};
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncBufReadExt;
 use tokio::process::Command;
@@ -385,6 +385,40 @@ pub async fn connect_cli(ctx: &CliContext, guid: RequestGuid) -> Result<(), Erro
     let mut ws = ctx.ws_continuation(guid).await?;
     let (mut input, mut output) =
         rustyline_async::Readline::new("> ".into()).with_kind(ErrorKind::Filesystem)?;
+
+    async fn handle_message(
+        msg: Option<Result<Message, tokio_tungstenite::tungstenite::Error>>,
+        output: &mut SharedWriter,
+    ) -> Result<bool, Error> {
+        match msg {
+            None => return Ok(true),
+            Some(Ok(Message::Text(txt))) => match serde_json::from_str::<RpcResponse>(&txt) {
+                Ok(RpcResponse { result: Ok(a), .. }) => {
+                    output
+                        .write_all(
+                            (serde_json::to_string(&a).with_kind(ErrorKind::Serialization)? + "\n")
+                                .as_bytes(),
+                        )
+                        .await?;
+                }
+                Ok(RpcResponse { result: Err(e), .. }) => {
+                    let e: Error = e.into();
+                    tracing::error!("{e}");
+                    tracing::debug!("{e:?}");
+                }
+                Err(e) => {
+                    tracing::error!("Error Parsing RPC response: {e}");
+                    tracing::debug!("{e:?}");
+                }
+            },
+            Some(Ok(_)) => (),
+            Some(Err(e)) => {
+                return Err(Error::new(e, ErrorKind::Network));
+            }
+        };
+        Ok(false)
+    }
+
     loop {
         tokio::select! {
             line = input.readline() => {
@@ -427,6 +461,9 @@ pub async fn connect_cli(ctx: &CliContext, guid: RequestGuid) -> Result<(), Erro
                                             continue;
                                         }
                                     })).await.with_kind(ErrorKind::Network)?;
+                                    if handle_message(ws.next().await, &mut output).await? {
+                                        break
+                                    }
                                 }
                             }
                             Err(e) => {
@@ -440,33 +477,8 @@ pub async fn connect_cli(ctx: &CliContext, guid: RequestGuid) -> Result<(), Erro
                 }
             }
             msg = ws.next() => {
-                match msg {
-                    None => break,
-                    Some(Ok(Message::Text(txt))) => {
-                        match serde_json::from_str::<RpcResponse>(&txt) {
-                            Ok(RpcResponse { result: Ok(a), .. }) => {
-                                output
-                                    .write_all(
-                                        (serde_json::to_string(&a).with_kind(ErrorKind::Serialization)? + "\n")
-                                            .as_bytes(),
-                                    )
-                                    .await?;
-                            }
-                            Ok(RpcResponse { result: Err(e), .. }) => {
-                                let e: Error = e.into();
-                                tracing::error!("{e}");
-                                tracing::debug!("{e:?}");
-                            }
-                            Err(e) => {
-                                tracing::error!("Error Parsing RPC response: {e}");
-                                tracing::debug!("{e:?}");
-                            }
-                        }
-                    }
-                    Some(Ok(_)) => (),
-                    Some(Err(e)) => {
-                        return Err(Error::new(e, ErrorKind::Network));
-                    }
+                if handle_message(msg, &mut output).await? {
+                    break;
                 }
             }
         }
