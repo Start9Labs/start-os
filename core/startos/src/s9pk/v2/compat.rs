@@ -162,7 +162,10 @@ impl S9pk<Section<MultiCursorFile>> {
                 .invoke(ErrorKind::Docker)
                 .await?;
             archive.insert_path(
-                Path::new("images").join(&*ARCH).join(&image),
+                Path::new("images")
+                    .join(&*ARCH)
+                    .join(&image)
+                    .with_extension("squashfs"),
                 Entry::file(CompatSource::File(sqfs_path)),
             )?;
         }

@@ -530,7 +530,7 @@ pub async fn create_overlayed_image(
         .s9pk
         .as_archive()
         .contents()
-        .get_path(&path)
+        .get_path(dbg!(&path))
         .and_then(|e| e.as_file())
     {
         let guid = new_guid();
