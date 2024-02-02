@@ -8,10 +8,12 @@ use imbl_value::json;
 use models::{ActionId, HealthCheckId, ImageId, PackageId};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
+use tokio::process::Command;
 
 use crate::db::model::ExposedUI;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
+use crate::disk::mount::guard::GenericMountGuard;
 use crate::prelude::*;
 use crate::service::cli::ContainerCliContext;
 use crate::service::start_stop::StartStop;
@@ -19,7 +21,7 @@ use crate::service::{RunningStatus, ServiceActorSeed};
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::clap::FromStrParser;
-use crate::util::new_guid;
+use crate::util::{new_guid, Invoke};
 use crate::{echo, ARCH};
 
 #[derive(Clone)]
@@ -552,6 +554,12 @@ pub async fn create_overlayed_image(
                 .with_kind(ErrorKind::Incoherent)?,
         );
         let guard = OverlayGuard::mount(&LoopDev::from(&**image), mountpoint).await?;
+        Command::new("chown")
+            .arg("-R")
+            .arg("100000:100000")
+            .arg(guard.path())
+            .invoke(ErrorKind::Filesystem)
+            .await?;
         ctx.persistent_container
             .overlays
             .lock()

@@ -2,6 +2,7 @@ use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use models::ImageId;
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWriteExt};
 use tokio::process::Command;
@@ -65,14 +66,7 @@ impl S9pk<Section<MultiCursorFile>> {
         // manifest.json
         let manifest_raw = reader.manifest().await?;
         let manifest = from_value::<ManifestV1>(manifest_raw.clone())?;
-        archive.insert_path(
-            "manifest.json",
-            Entry::file(CompatSource::Buffered(
-                serde_json::to_vec::<Manifest>(&manifest.clone().into())
-                    .with_kind(ErrorKind::Serialization)?
-                    .into(),
-            )),
-        )?;
+        let mut new_manifest = Manifest::from(manifest.clone());
 
         // LICENSE.md
         let license: Arc<[u8]> = reader.license().await?.to_vec().await?.into();
@@ -138,6 +132,7 @@ impl S9pk<Section<MultiCursorFile>> {
             i.strip_prefix(&format!("start9/{}/", manifest.id))
                 .map(|s| s.to_owned())
         }) {
+            new_manifest.images.push(image.parse()?);
             let sqfs_path = images_dir.join(&image).with_extension("squashfs");
             let image_name = format!("start9/{}/{}:{}", manifest.id, image, manifest.version);
             let id = String::from_utf8(
@@ -226,6 +221,15 @@ impl S9pk<Section<MultiCursorFile>> {
             Entry::file(CompatSource::File(sqfs_path)),
         )?;
 
+        archive.insert_path(
+            "manifest.json",
+            Entry::file(CompatSource::Buffered(
+                serde_json::to_vec::<Manifest>(&new_manifest)
+                    .with_kind(ErrorKind::Serialization)?
+                    .into(),
+            )),
+        )?;
+
         let mut s9pk = S9pk::new(MerkleArchive::new(archive, signer), None).await?;
         let mut dest_file = File::create(destination.as_ref()).await?;
         s9pk.serialize(&mut dest_file, false).await?;
@@ -256,7 +260,7 @@ impl From<ManifestV1> for Manifest {
             marketing_site: value.marketing_site.unwrap_or_else(|| default_url.clone()),
             donation_url: value.donation_url,
             description: value.description,
-            images: vec!["main".parse().unwrap()], // TODO
+            images: Vec::new(),
             assets: value
                 .volumes
                 .iter()

@@ -23,7 +23,7 @@ use tracing::instrument;
 use crate::context::{CliContext, RpcContext};
 use crate::middleware::auth::{HasValidSession, HashSessionToken};
 use crate::prelude::*;
-use crate::util::serde::HandlerExtSerde;
+use crate::util::serde::{apply_expr, HandlerExtSerde};
 
 #[instrument(skip_all)]
 async fn ws_handler(
@@ -202,57 +202,6 @@ pub struct DumpParams {
 // )]
 pub async fn dump(ctx: RpcContext, _: DumpParams) -> Result<Dump, Error> {
     Ok(ctx.db.dump().await)
-}
-
-fn apply_expr(input: jaq_core::Val, expr: &str) -> Result<jaq_core::Val, Error> {
-    let (expr, errs) = jaq_core::parse::parse(expr, jaq_core::parse::main());
-
-    let Some(expr) = expr else {
-        return Err(Error::new(
-            eyre!("Failed to parse expression: {:?}", errs),
-            crate::ErrorKind::InvalidRequest,
-        ));
-    };
-
-    let mut errs = Vec::new();
-
-    let mut defs = jaq_core::Definitions::core();
-    for def in jaq_std::std() {
-        defs.insert(def, &mut errs);
-    }
-
-    let filter = defs.finish(expr, Vec::new(), &mut errs);
-
-    if !errs.is_empty() {
-        return Err(Error::new(
-            eyre!("Failed to compile expression: {:?}", errs),
-            crate::ErrorKind::InvalidRequest,
-        ));
-    };
-
-    let inputs = jaq_core::RcIter::new(std::iter::empty());
-    let mut res_iter = filter.run(jaq_core::Ctx::new([], &inputs), input);
-
-    let Some(res) = res_iter
-        .next()
-        .transpose()
-        .map_err(|e| eyre!("{e}"))
-        .with_kind(crate::ErrorKind::Deserialization)?
-    else {
-        return Err(Error::new(
-            eyre!("expr returned no results"),
-            crate::ErrorKind::InvalidRequest,
-        ));
-    };
-
-    if res_iter.next().is_some() {
-        return Err(Error::new(
-            eyre!("expr returned too many results"),
-            crate::ErrorKind::InvalidRequest,
-        ));
-    }
-
-    Ok(res)
 }
 
 #[instrument(skip_all)]

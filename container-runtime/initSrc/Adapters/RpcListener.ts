@@ -264,7 +264,11 @@ export class RpcListener {
         return {
           jsonrpc,
           id,
-          result: result === undefined ? null : result,
+          result: !["string", "number", "boolean", "null", "object"].includes(
+            typeof result,
+          )
+            ? null
+            : result,
         }
       })
       .when(shape({ id: idType, method: string }), ({ id, method }) => ({

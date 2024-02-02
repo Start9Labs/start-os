@@ -23,13 +23,13 @@ mod test;
 pub mod varint;
 pub mod write_queue;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Signer {
     Signed(VerifyingKey, Signature),
     Signer(SigningKey),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MerkleArchive<S> {
     signer: Signer,
     contents: DirectoryContents<S>,

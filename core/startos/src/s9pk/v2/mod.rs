@@ -1,5 +1,6 @@
 use std::ffi::OsStr;
 use std::path::Path;
+use std::sync::Arc;
 
 use imbl_value::InternedString;
 use models::{mime, DataUrl, PackageId};
@@ -11,7 +12,7 @@ use crate::s9pk::merkle_archive::file_contents::FileContents;
 use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
-use crate::s9pk::merkle_archive::MerkleArchive;
+use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
 use crate::ARCH;
 
 const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x02];
@@ -66,14 +67,20 @@ fn filter(p: &Path) -> bool {
     }
 }
 
+#[derive(Clone)]
 pub struct S9pk<S = Section<MultiCursorFile>> {
     manifest: Manifest,
+    manifest_dirty: bool,
     archive: MerkleArchive<S>,
     size: Option<u64>,
 }
 impl<S> S9pk<S> {
     pub fn as_manifest(&self) -> &Manifest {
         &self.manifest
+    }
+    pub fn as_manifest_mut(&mut self) -> &mut Manifest {
+        self.manifest_dirty = true;
+        &mut self.manifest
     }
     pub fn as_archive(&self) -> &MerkleArchive<S> {
         &self.archive
@@ -91,6 +98,7 @@ impl<S: FileSource> S9pk<S> {
         let manifest = extract_manifest(&archive).await?;
         Ok(Self {
             manifest,
+            manifest_dirty: false,
             archive,
             size,
         })
@@ -136,7 +144,18 @@ impl<S: FileSource> S9pk<S> {
         use tokio::io::AsyncWriteExt;
 
         w.write_all(MAGIC_AND_VERSION).await?;
-        self.archive.serialize(w, verify).await?;
+        if !self.manifest_dirty {
+            self.archive.serialize(w, verify).await?;
+        } else {
+            let mut dyn_s9pk = self.clone().into_dyn();
+            dyn_s9pk.as_archive_mut().contents_mut().insert_path(
+                "manifest.json",
+                Entry::file(DynFileSource::new(Arc::<[u8]>::from(
+                    serde_json::to_vec(&self.manifest).with_kind(ErrorKind::Serialization)?,
+                ))),
+            )?;
+            dyn_s9pk.archive.serialize(w, verify).await?;
+        }
 
         Ok(())
     }
@@ -144,6 +163,7 @@ impl<S: FileSource> S9pk<S> {
     pub fn into_dyn(self) -> S9pk<DynFileSource> {
         S9pk {
             manifest: self.manifest,
+            manifest_dirty: self.manifest_dirty,
             archive: self.archive.into_dyn(),
             size: self.size,
         }

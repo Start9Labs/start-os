@@ -15,7 +15,7 @@ use crate::s9pk::merkle_archive::Entry;
 use crate::s9pk::v2::compat::CONTAINER_TOOL;
 use crate::s9pk::S9pk;
 use crate::util::io::TmpDir;
-use crate::util::serde::HandlerExtSerde;
+use crate::util::serde::{apply_expr, HandlerExtSerde};
 use crate::util::Invoke;
 
 pub fn s9pk() -> ParentHandler {
@@ -31,12 +31,19 @@ struct S9pkPath {
 
 fn edit() -> ParentHandler<S9pkPath> {
     let only_parent = |a, _| a;
-    ParentHandler::<S9pkPath>::new().subcommand(
-        "add-image",
-        from_fn_async(add_image)
-            .with_inherited(only_parent)
-            .no_display(),
-    )
+    ParentHandler::<S9pkPath>::new()
+        .subcommand(
+            "add-image",
+            from_fn_async(add_image)
+                .with_inherited(only_parent)
+                .no_display(),
+        )
+        .subcommand(
+            "manifest",
+            from_fn_async(edit_manifest)
+                .with_inherited(only_parent)
+                .with_display_serializable(),
+        )
 }
 
 fn inspect() -> ParentHandler<S9pkPath> {
@@ -119,6 +126,29 @@ async fn add_image(
     tokio::fs::rename(&tmp_path, &s9pk_path).await?;
 
     Ok(())
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+struct EditManifestParams {
+    expression: String,
+}
+async fn edit_manifest(
+    ctx: CliContext,
+    EditManifestParams { expression }: EditManifestParams,
+    S9pkPath { s9pk: s9pk_path }: S9pkPath,
+) -> Result<Manifest, Error> {
+    let mut s9pk = S9pk::from_file(super::load(&ctx, &s9pk_path).await?).await?;
+    let old = serde_json::to_value(s9pk.as_manifest()).with_kind(ErrorKind::Serialization)?;
+    *s9pk.as_manifest_mut() = serde_json::from_value(apply_expr(old.into(), &expression)?.into())
+        .with_kind(ErrorKind::Serialization)?;
+    let manifest = s9pk.as_manifest().clone();
+    let tmp_path = s9pk_path.with_extension("s9pk.tmp");
+    let mut tmp_file = File::create(&tmp_path).await?;
+    s9pk.serialize(&mut tmp_file, true).await?;
+    tmp_file.sync_all().await?;
+    tokio::fs::rename(&tmp_path, &s9pk_path).await?;
+
+    Ok(manifest)
 }
 
 async fn file_tree(
