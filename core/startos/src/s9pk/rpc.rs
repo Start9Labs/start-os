@@ -9,6 +9,7 @@ use tokio::process::Command;
 
 use crate::context::CliContext;
 use crate::prelude::*;
+use crate::s9pk::manifest::Manifest;
 use crate::s9pk::merkle_archive::source::DynFileSource;
 use crate::s9pk::merkle_archive::Entry;
 use crate::s9pk::v2::compat::CONTAINER_TOOL;
@@ -40,12 +41,19 @@ fn edit() -> ParentHandler<S9pkPath> {
 
 fn inspect() -> ParentHandler<S9pkPath> {
     let only_parent = |a, _| a;
-    ParentHandler::<S9pkPath>::new().subcommand(
-        "file-tree",
-        from_fn_async(file_tree)
-            .with_inherited(only_parent)
-            .with_display_serializable(),
-    )
+    ParentHandler::<S9pkPath>::new()
+        .subcommand(
+            "file-tree",
+            from_fn_async(file_tree)
+                .with_inherited(only_parent)
+                .with_display_serializable(),
+        )
+        .subcommand(
+            "manifest",
+            from_fn_async(inspect_manifest)
+                .with_inherited(only_parent)
+                .with_display_serializable(),
+        )
 }
 
 #[derive(Deserialize, Serialize, Parser)]
@@ -120,4 +128,13 @@ async fn file_tree(
 ) -> Result<Vec<PathBuf>, Error> {
     let s9pk = S9pk::from_file(super::load(&ctx, &s9pk).await?).await?;
     Ok(s9pk.as_archive().contents().file_paths(""))
+}
+
+async fn inspect_manifest(
+    ctx: CliContext,
+    _: Empty,
+    S9pkPath { s9pk }: S9pkPath,
+) -> Result<Manifest, Error> {
+    let s9pk = S9pk::from_file(super::load(&ctx, &s9pk).await?).await?;
+    Ok(s9pk.as_manifest().clone())
 }
