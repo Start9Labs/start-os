@@ -144,6 +144,7 @@ async fn edit_manifest(
     let manifest = s9pk.as_manifest().clone();
     let tmp_path = s9pk_path.with_extension("s9pk.tmp");
     let mut tmp_file = File::create(&tmp_path).await?;
+    archive.set_signer(ctx.developer_key()?.clone());
     s9pk.serialize(&mut tmp_file, true).await?;
     tmp_file.sync_all().await?;
     tokio::fs::rename(&tmp_path, &s9pk_path).await?;
