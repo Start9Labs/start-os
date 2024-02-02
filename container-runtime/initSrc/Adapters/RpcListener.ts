@@ -80,6 +80,13 @@ const exitType = object({
   id: idType,
   method: literal("exit"),
 })
+const evalType = object({
+  id: idType,
+  method: literal("eval"),
+  params: object({
+    script: string,
+  }),
+})
 
 const jsonParse = (x: Buffer) => JSON.parse(x.toString())
 function reduceMethod(
@@ -245,6 +252,18 @@ export class RpcListener {
           jsonrpc,
           id,
           result: null,
+        }
+      })
+      .when(evalType, async ({ id, params }) => {
+        return {
+          jsonrpc,
+          id,
+          result: await new Function(
+            `return (async () => { return (${params.script}) }).call(this)`,
+          ).call({
+            listener: this,
+            require: require,
+          }),
         }
       })
       .when(shape({ id: idType, method: string }), ({ id, method }) => ({

@@ -2,9 +2,9 @@
   "name": "start-init",
   "version": "0.0.0",
   "description": "We want to be the sdk intermitent for the system",
-  "type": "commonjs",
   "scripts": {
-    "bundle": "npm i && tsc --noEmit && rm -rf dist && esbuild initSrc/index.ts --platform=node --target=es2022 --bundle --outfile=dist/index.js",
+    "check": "tsc --noEmit",
+    "build": "rm -rf dist && tsc",
     "tsc": "rm -rf dist; tsc"
   },
   "author": "",
@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
-    "@start9labs/start-sdk": "start9labs/start-sdk#e202b5640cb1dda9bdd4f804c7df38c6065d45c1",
+    "@start9labs/start-sdk": "0.4.0-rev0.lib0.rc8.beta8",
     "esbuild": "0.18.4",
     "esbuild-plugin-resolve": "^2.0.0",
     "filebrowser": "^1.0.0",
@@ -34,5 +34,10 @@
     "prettier": "^2.8.8",
     "rollup": "^3.25.1",
     "typescript": ">5.2"
+  },
+  "ts-node": {
+    "compilerOptions": {
+      "module": "commonjs"
+    }
   }
 }

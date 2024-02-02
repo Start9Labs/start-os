@@ -6,7 +6,7 @@
     "initSrc/index.ts",
     "effects.ts"
   ],
-  "exclude": [],
+  "exclude": ["dist"],
   "inputs": ["./lib/index.ts"],
   "compilerOptions": {
     "target": "es2022",

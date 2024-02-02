@@ -236,6 +236,11 @@ pub fn package() -> ParentHandler {
         )
         .subcommand("dependency", dependencies::dependency())
         .subcommand("package-backup", backup::backup())
+        .subcommand("connect", from_fn_async(service::connect_rpc).no_cli())
+        .subcommand(
+            "connect",
+            from_fn_async(service::connect_rpc_cli).no_display(),
+        )
 }
 
 pub fn diagnostic_api() -> ParentHandler {

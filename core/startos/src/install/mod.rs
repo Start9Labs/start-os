@@ -323,24 +323,7 @@ impl FromArgMatches for CliInstallParams {
 pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<(), RpcError> {
     match params {
         CliInstallParams::Sideload(path) => {
-            const MAGIC_LEN: usize = MAGIC_AND_VERSION.len();
-            let mut magic = [0_u8; MAGIC_LEN];
-            let mut file = tokio::fs::File::open(&path).await?;
-            file.read_exact(&mut magic).await?;
-            file.seek(SeekFrom::Start(0)).await?;
-            if magic == compat::MAGIC_AND_VERSION {
-                tracing::info!("Converting package to v2 s9pk");
-                let new_path = path.with_extension("compat.s9pk");
-                S9pk::from_v1(
-                    S9pkReader::from_reader(file, true).await?,
-                    &new_path,
-                    ctx.developer_key()?,
-                )
-                .await?;
-                tokio::fs::rename(&new_path, &path).await?;
-                file = tokio::fs::File::open(&path).await?;
-                tracing::info!("Converted s9pk successfully");
-            }
+            let file = crate::s9pk::load(&ctx, path).await?;
 
             // rpc call remote sideload
             let SideloadResponse { upload, progress } = from_value::<SideloadResponse>(

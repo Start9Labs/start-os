@@ -31,6 +31,7 @@ pub struct CliContextSeed {
     pub cookie_store: Arc<CookieStoreMutex>,
     pub cookie_path: PathBuf,
     pub developer_key_path: PathBuf,
+    pub developer_key: OnceCell<ed25519_dalek::SigningKey>,
 }
 impl Drop for CliContextSeed {
     fn drop(&mut self) {
@@ -121,26 +122,29 @@ impl CliContext {
                     .unwrap_or(Path::new("/"))
                     .join("developer.key.pem")
             }),
+            developer_key: OnceCell::new(),
         })))
     }
 
     /// BLOCKING
     #[instrument(skip_all)]
-    pub fn developer_key(&self) -> Result<ed25519_dalek::SigningKey, Error> {
-        if !self.developer_key_path.exists() {
-            return Err(Error::new(eyre!("Developer Key does not exist! Please run `start-cli init` before running this command."), crate::ErrorKind::Uninitialized));
-        }
-        let pair = <ed25519::KeypairBytes as ed25519::pkcs8::DecodePrivateKey>::from_pkcs8_pem(
-            &std::fs::read_to_string(&self.developer_key_path)?,
-        )
-        .with_kind(crate::ErrorKind::Pem)?;
-        let secret = ed25519_dalek::SecretKey::try_from(&pair.secret_key[..]).map_err(|_| {
-            Error::new(
-                eyre!("pkcs8 key is of incorrect length"),
-                ErrorKind::OpenSsl,
+    pub fn developer_key(&self) -> Result<&ed25519_dalek::SigningKey, Error> {
+        self.developer_key.get_or_try_init(|| {
+            if !self.developer_key_path.exists() {
+                return Err(Error::new(eyre!("Developer Key does not exist! Please run `start-cli init` before running this command."), crate::ErrorKind::Uninitialized));
+            }
+            let pair = <ed25519::KeypairBytes as ed25519::pkcs8::DecodePrivateKey>::from_pkcs8_pem(
+                &std::fs::read_to_string(&self.developer_key_path)?,
             )
-        })?;
-        Ok(secret.into())
+            .with_kind(crate::ErrorKind::Pem)?;
+            let secret = ed25519_dalek::SecretKey::try_from(&pair.secret_key[..]).map_err(|_| {
+                Error::new(
+                    eyre!("pkcs8 key is of incorrect length"),
+                    ErrorKind::OpenSsl,
+                )
+            })?;
+            Ok(secret.into())
+        })
     }
 
     pub async fn ws_continuation(

@@ -2,16 +2,20 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+use clap::Parser;
 use futures::future::BoxFuture;
 use imbl::OrdMap;
 use models::{ActionId, HealthCheckId, PackageId, ProcedureName};
 use persistent_container::PersistentContainer;
+use rpc_toolkit::{from_fn_async, CallRemoteHandler, Handler, HandlerArgs};
+use serde::{Deserialize, Serialize};
 use start_stop::StartStop;
 use tokio::sync::{watch, Notify};
 
 use crate::action::ActionResult;
 use crate::config::action::ConfigRes;
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
+use crate::core::rpc_continuations::RequestGuid;
 use crate::db::model::{
     CurrentDependencies, CurrentDependents, InstalledPackageInfo, PackageDataEntry,
     PackageDataEntryInstalled, PackageDataEntryMatchModel, StaticFiles,
@@ -478,4 +482,41 @@ impl Actor for ServiceActor {
             }
         })
     }
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+pub struct ConnectParams {
+    pub id: PackageId,
+}
+
+pub async fn connect_rpc(
+    ctx: RpcContext,
+    ConnectParams { id }: ConnectParams,
+) -> Result<RequestGuid, Error> {
+    let id_ref = &id;
+    crate::lxc::connect(
+        &ctx,
+        ctx.services
+            .get(&id)
+            .await
+            .as_ref()
+            .or_not_found(lazy_format!("service for {id_ref}"))?
+            .seed
+            .persistent_container
+            .lxc_container
+            .get()
+            .or_not_found(lazy_format!("container for {id_ref}"))?,
+    )
+    .await
+}
+
+pub async fn connect_rpc_cli(
+    handle_args: HandlerArgs<CliContext, ConnectParams>,
+) -> Result<(), Error> {
+    let ctx = handle_args.context.clone();
+    let guid = CallRemoteHandler::<CliContext, _>::new(from_fn_async(connect_rpc))
+        .handle_async(handle_args)
+        .await?;
+
+    crate::lxc::connect_cli(&ctx, guid).await
 }

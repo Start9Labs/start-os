@@ -3,13 +3,14 @@ use std::path::Path;
 
 use imbl_value::InternedString;
 use models::{mime, DataUrl, PackageId};
+use tokio::fs::File;
 
 use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::merkle_archive::file_contents::FileContents;
 use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
-use crate::s9pk::merkle_archive::source::{ArchiveSource, FileSource, Section};
+use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
 use crate::s9pk::merkle_archive::MerkleArchive;
 use crate::ARCH;
 
@@ -77,6 +78,9 @@ impl<S> S9pk<S> {
     pub fn as_archive(&self) -> &MerkleArchive<S> {
         &self.archive
     }
+    pub fn as_archive_mut(&mut self) -> &mut MerkleArchive<S> {
+        &mut self.archive
+    }
     pub fn size(&self) -> Option<u64> {
         self.size
     }
@@ -136,6 +140,14 @@ impl<S: FileSource> S9pk<S> {
 
         Ok(())
     }
+
+    pub fn into_dyn(self) -> S9pk<DynFileSource> {
+        S9pk {
+            manifest: self.manifest,
+            archive: self.archive.into_dyn(),
+            size: self.size,
+        }
+    }
 }
 
 impl<S: ArchiveSource> S9pk<Section<S>> {
@@ -173,9 +185,11 @@ impl<S: ArchiveSource> S9pk<Section<S>> {
     }
 }
 impl S9pk {
+    pub async fn from_file(file: File) -> Result<Self, Error> {
+        Self::deserialize(&MultiCursorFile::from(file)).await
+    }
     pub async fn open(path: impl AsRef<Path>, id: Option<&PackageId>) -> Result<Self, Error> {
-        let res =
-            Self::deserialize(&MultiCursorFile::from(tokio::fs::File::open(path).await?)).await?;
+        let res = Self::from_file(tokio::fs::File::open(path).await?).await?;
         if let Some(id) = id {
             ensure_code!(
                 &res.as_manifest().id == id,

@@ -145,6 +145,7 @@ reqwest_cookie_store = "0.6.0"
 rpassword = "7.2.0"
 rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", branch = "refactor/traits" }
 rust-argon2 = "2.0.0"
+rustyline-async = "0.4.1"
 scopeguard = "1.1" # because avahi-sys fucks your shit up
 semver = { version = "1.0.20", features = ["serde"] }
 serde = { version = "1.0", features = ["derive", "rc"] }

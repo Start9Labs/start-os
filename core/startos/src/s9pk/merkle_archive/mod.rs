@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::sync::Arc;
 
 use ed25519::signature::Keypair;
 use ed25519_dalek::{Signature, SigningKey, VerifyingKey};
@@ -9,7 +10,7 @@ use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::file_contents::FileContents;
 use crate::s9pk::merkle_archive::hash::Hash;
 use crate::s9pk::merkle_archive::sink::Sink;
-use crate::s9pk::merkle_archive::source::{ArchiveSource, FileSource, Section};
+use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
 use crate::s9pk::merkle_archive::write_queue::WriteQueue;
 
 pub mod directory_contents;
@@ -54,6 +55,12 @@ impl<S> MerkleArchive<S> {
     }
     pub fn contents(&self) -> &DirectoryContents<S> {
         &self.contents
+    }
+    pub fn contents_mut(&mut self) -> &mut DirectoryContents<S> {
+        &mut self.contents
+    }
+    pub fn set_signer(&mut self, key: SigningKey) {
+        self.signer = Signer::Signer(key);
     }
     pub fn sort_by(
         &mut self,
@@ -121,6 +128,12 @@ impl<S: FileSource> MerkleArchive<S> {
         self.contents.serialize_toc(&mut queue, w).await?;
         queue.serialize(w, verify).await?;
         Ok(())
+    }
+    pub fn into_dyn(self) -> MerkleArchive<DynFileSource> {
+        MerkleArchive {
+            signer: self.signer,
+            contents: self.contents.into_dyn(),
+        }
     }
 }
 
@@ -255,6 +268,12 @@ impl<S: FileSource> Entry<S> {
         w.write_all(hash.as_bytes()).await?;
         self.contents.serialize_header(position, w).await
     }
+    pub fn into_dyn(self) -> Entry<DynFileSource> {
+        Entry {
+            hash: self.hash,
+            contents: self.contents.into_dyn(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -332,5 +351,12 @@ impl<S: FileSource> EntryContents<S> {
             Self::File(f) => Some(f.serialize_header(position, w).await?),
             Self::Directory(d) => Some(d.serialize_header(position, w).await?),
         })
+    }
+    pub fn into_dyn(self) -> EntryContents<DynFileSource> {
+        match self {
+            Self::Missing => EntryContents::Missing,
+            Self::File(f) => EntryContents::File(f.into_dyn()),
+            Self::Directory(d) => EntryContents::Directory(d.into_dyn()),
+        }
     }
 }

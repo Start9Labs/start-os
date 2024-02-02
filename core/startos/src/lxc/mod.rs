@@ -5,13 +5,14 @@ use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use clap::Parser;
-use futures::{FutureExt, StreamExt};
+use futures::{AsyncWriteExt, FutureExt, StreamExt};
 use imbl_value::{InOMap, InternedString};
 use rpc_toolkit::yajrc::{RpcError, RpcResponse};
 use rpc_toolkit::{
     from_fn_async, AnyContext, CallRemoteHandler, GenericRpcMethod, Handler, HandlerArgs,
     HandlerExt, ParentHandler, RpcRequest,
 };
+use rustyline_async::ReadlineEvent;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncBufReadExt;
 use tokio::process::Command;
@@ -271,8 +272,8 @@ pub fn lxc() -> ParentHandler {
                 .no_display()
                 .with_remote_cli::<CliContext>(),
         )
-        .subcommand("connect", from_fn_async(connect).no_cli())
-        .subcommand("connect", from_fn_async(connect_cli).no_display())
+        .subcommand("connect", from_fn_async(connect_rpc).no_cli())
+        .subcommand("connect", from_fn_async(connect_rpc_cli).no_display())
 }
 
 pub async fn create(ctx: RpcContext) -> Result<InternedString, Error> {
@@ -303,21 +304,23 @@ pub struct ConnectParams {
     pub guid: InternedString,
 }
 
-pub async fn connect(
+pub async fn connect_rpc(
     ctx: RpcContext,
     ConnectParams { guid }: ConnectParams,
 ) -> Result<RequestGuid, Error> {
+    connect(
+        &ctx,
+        ctx.dev.lxc.lock().await.get(&guid).ok_or_else(|| {
+            Error::new(eyre!("No container with guid: {guid}"), ErrorKind::NotFound)
+        })?,
+    )
+    .await
+}
+
+pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<RequestGuid, Error> {
     use axum::extract::ws::Message;
 
-    let rpc = ctx
-        .dev
-        .lxc
-        .lock()
-        .await
-        .get(&guid)
-        .ok_or_else(|| Error::new(eyre!("No container with guid: {guid}"), ErrorKind::NotFound))?
-        .connect_rpc(Some(Duration::from_secs(30)))
-        .await?;
+    let rpc = container.connect_rpc(Some(Duration::from_secs(30))).await?;
     let guid = RequestGuid::new();
     ctx.add_continuation(
         guid.clone(),
@@ -375,20 +378,19 @@ pub async fn connect(
     Ok(guid)
 }
 
-pub async fn connect_cli(handle_args: HandlerArgs<CliContext, ConnectParams>) -> Result<(), Error> {
+pub async fn connect_cli(ctx: &CliContext, guid: RequestGuid) -> Result<(), Error> {
     use futures::SinkExt;
     use tokio_tungstenite::tungstenite::Message;
 
-    let ctx = handle_args.context.clone();
-    let guid = CallRemoteHandler::<CliContext, _>::new(from_fn_async(connect))
-        .handle_async(handle_args)
-        .await?;
     let mut ws = ctx.ws_continuation(guid).await?;
-    let mut input = tokio::io::BufReader::new(tokio::io::stdin()).lines();
+    let (mut input, mut output) =
+        rustyline_async::Readline::new("> ".into()).with_kind(ErrorKind::Filesystem)?;
     loop {
         tokio::select! {
-            line = input.next_line() => {
-                if let Some(line) = line? {
+            line = input.readline() => {
+                let line = line.with_kind(ErrorKind::Filesystem)?;
+                if let ReadlineEvent::Line(line) = line {
+                    input.add_history_entry(line.clone());
                     if serde_json::from_str::<RpcRequest>(&line).is_ok() {
                         ws.send(Message::Text(line))
                             .await
@@ -443,7 +445,12 @@ pub async fn connect_cli(handle_args: HandlerArgs<CliContext, ConnectParams>) ->
                     Some(Ok(Message::Text(txt))) => {
                         match serde_json::from_str::<RpcResponse>(&txt) {
                             Ok(RpcResponse { result: Ok(a), .. }) => {
-                                println!("{a:?}");
+                                output
+                                    .write_all(
+                                        (serde_json::to_string(&a).with_kind(ErrorKind::Serialization)? + "\n")
+                                            .as_bytes(),
+                                    )
+                                    .await?;
                             }
                             Ok(RpcResponse { result: Err(e), .. }) => {
                                 let e: Error = e.into();
@@ -466,4 +473,15 @@ pub async fn connect_cli(handle_args: HandlerArgs<CliContext, ConnectParams>) ->
     }
 
     Ok(())
+}
+
+pub async fn connect_rpc_cli(
+    handle_args: HandlerArgs<CliContext, ConnectParams>,
+) -> Result<(), Error> {
+    let ctx = handle_args.context.clone();
+    let guid = CallRemoteHandler::<CliContext, _>::new(from_fn_async(connect_rpc))
+        .handle_async(handle_args)
+        .await?;
+
+    connect_cli(&ctx, guid).await
 }

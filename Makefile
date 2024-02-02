@@ -169,9 +169,18 @@ container-runtime/node_modules: container-runtime/package.json container-runtime
 	touch container-runtime/node_modules
 
 container-runtime/dist: container-runtime/node_modules $(shell git ls-files container-runtime/initSrc) container-runtime/package.json container-runtime/tsconfig.json
-	npm --prefix container-runtime run bundle
+	npm --prefix container-runtime run build
 
-build/lib/container-runtime/rootfs.squashfs: container-runtime/alpine.squashfs container-runtime/containerRuntime.rc container-runtime/update-image.sh container-runtime/dist core/target/$(ARCH)-unknown-linux-musl/release/containerbox | sudo
+container-runtime/dist/package.json: container-runtime/dist container-runtime/package.json
+	cp container-runtime/package.json container-runtime/dist/package.json
+
+container-runtime/dist/package-lock.json: container-runtime/dist container-runtime/package-lock.json
+	cp container-runtime/package-lock.json container-runtime/dist/package-lock.json
+
+container-runtime/dist/node_modules: container-runtime/dist/package.json container-runtime/dist/package-lock.json
+	npm --prefix container-runtime/dist ci --production
+
+build/lib/container-runtime/rootfs.squashfs: container-runtime/alpine.squashfs container-runtime/containerRuntime.rc container-runtime/update-image.sh container-runtime/dist container-runtime/dist/node_modules core/target/$(ARCH)-unknown-linux-musl/release/containerbox | sudo
 	ARCH=$(ARCH) ./container-runtime/update-image.sh
 
 build/lib/depends build/lib/conflicts: build/dpkg-deps/*

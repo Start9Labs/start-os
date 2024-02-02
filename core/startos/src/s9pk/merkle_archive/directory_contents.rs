@@ -13,7 +13,7 @@ use tokio::io::AsyncRead;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::hash::{Hash, HashWriter};
 use crate::s9pk::merkle_archive::sink::{Sink, TrackingWriter};
-use crate::s9pk::merkle_archive::source::{ArchiveSource, FileSource, Section};
+use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
 use crate::s9pk::merkle_archive::write_queue::WriteQueue;
 use crate::s9pk::merkle_archive::{varint, Entry, EntryContents};
 
@@ -256,6 +256,16 @@ impl<S: FileSource> DirectoryContents<S> {
         }
 
         Ok(())
+    }
+    pub fn into_dyn(self) -> DirectoryContents<DynFileSource> {
+        DirectoryContents {
+            contents: self
+                .contents
+                .into_iter()
+                .map(|(k, v)| (k, v.into_dyn()))
+                .collect(),
+            sort_by: self.sort_by,
+        }
     }
 }
 impl<S> std::ops::Deref for DirectoryContents<S> {

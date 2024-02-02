@@ -22,7 +22,7 @@ use crate::ARCH;
 
 pub const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x01];
 
-const CONTAINER_TOOL: &str = "podman";
+pub const CONTAINER_TOOL: &str = "podman";
 
 type DynRead = Box<dyn AsyncRead + Unpin + Send + Sync + 'static>;
 fn into_dyn_read<R: AsyncRead + Unpin + Send + Sync + 'static>(r: R) -> DynRead {
