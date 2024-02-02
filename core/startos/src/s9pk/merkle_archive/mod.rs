@@ -91,7 +91,7 @@ impl<S: ArchiveSource> MerkleArchive<Section<S>> {
 
         let contents = DirectoryContents::deserialize(source, header, sighash).await?;
 
-        // pubkey.verify_strict(contents.sighash().await?.as_bytes(), &signature)?;
+        pubkey.verify_strict(contents.sighash().await?.as_bytes(), &signature)?;
 
         Ok(Self {
             signer: Signer::Signed(pubkey, signature),
