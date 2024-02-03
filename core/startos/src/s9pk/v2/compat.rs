@@ -2,6 +2,7 @@ use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use itertools::Itertools;
 use models::ImageId;
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWriteExt};
@@ -13,6 +14,7 @@ use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::{FileSource, Section};
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
+use crate::s9pk::rpc::SKIP_ENV;
 use crate::s9pk::v1::manifest::Manifest as ManifestV1;
 use crate::s9pk::v1::reader::S9pkReader;
 use crate::s9pk::v2::S9pk;
@@ -142,6 +144,24 @@ impl S9pk<Section<MultiCursorFile>> {
                     .invoke(ErrorKind::Docker)
                     .await?,
             )?;
+            let env = String::from_utf8(
+                Command::new(CONTAINER_TOOL)
+                    .arg("run")
+                    .arg("--rm")
+                    .arg("--entrypoint")
+                    .arg("env")
+                    .arg(&image_name)
+                    .invoke(ErrorKind::Docker)
+                    .await?,
+            )?
+            .lines()
+            .filter(|l| {
+                l.trim()
+                    .split_once("=")
+                    .map_or(false, |(v, _)| !SKIP_ENV.contains(&v))
+            })
+            .join("\n")
+                + "\n";
             Command::new("bash")
                 .arg("-c")
                 .arg(format!(
@@ -162,6 +182,13 @@ impl S9pk<Section<MultiCursorFile>> {
                     .join(&image)
                     .with_extension("squashfs"),
                 Entry::file(CompatSource::File(sqfs_path)),
+            )?;
+            archive.insert_path(
+                Path::new("images")
+                    .join(&*ARCH)
+                    .join(&image)
+                    .with_extension("env"),
+                Entry::file(CompatSource::Buffered(Vec::from(env).into())),
             )?;
         }
         Command::new(CONTAINER_TOOL)
