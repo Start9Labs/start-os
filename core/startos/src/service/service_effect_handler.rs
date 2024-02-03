@@ -1,3 +1,5 @@
+use std::ffi::OsString;
+use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
@@ -15,6 +17,7 @@ use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::disk::mount::guard::GenericMountGuard;
 use crate::prelude::*;
+use crate::s9pk::rpc::SKIP_ENV;
 use crate::service::cli::ContainerCliContext;
 use crate::service::start_stop::StartStop;
 use crate::service::{RunningStatus, ServiceActorSeed};
@@ -58,6 +61,7 @@ pub fn service_effect_handler() -> ParentHandler {
             "echo",
             from_fn(echo).with_remote_cli::<ContainerCliContext>(),
         )
+        .subcommand("chroot", from_fn(chroot).no_display())
         .subcommand("exists", from_fn_async(exists).no_cli())
         .subcommand("executeAction", from_fn_async(execute_action).no_cli())
         .subcommand("getConfigured", from_fn_async(get_configured).no_cli())
@@ -137,6 +141,68 @@ pub fn service_effect_handler() -> ParentHandler {
     // .subcommand("reverseProxy",from_fn(reverse_pro)xy)
     // TODO Callbacks
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser)]
+#[serde(rename_all = "camelCase")]
+struct ChrootParams {
+    #[arg(short = 'e', long = "env")]
+    env: Option<PathBuf>,
+    #[arg(short = 'w', long = "workdir")]
+    workdir: Option<PathBuf>,
+    #[arg(short = 'u', long = "user")]
+    user: Option<String>,
+    path: PathBuf,
+    command: OsString,
+    args: Vec<OsString>,
+}
+fn chroot(
+    _: AnyContext,
+    ChrootParams {
+        env,
+        workdir,
+        user,
+        path,
+        command,
+        args,
+    }: ChrootParams,
+) -> Result<(), Error> {
+    let mut cmd = std::process::Command::new(command);
+    if let Some(env) = env {
+        for (k, v) in std::fs::read_to_string(env)?
+            .lines()
+            .map(|l| l.trim())
+            .filter_map(|l| l.split_once("="))
+            .filter(|(k, _)| !SKIP_ENV.contains(&k))
+        {
+            cmd.env(k, v);
+        }
+    }
+    std::os::unix::fs::chroot(path)?;
+    if let Some(uid) = user.as_deref().and_then(|u| u.parse::<u32>().ok()) {
+        cmd.uid(uid);
+    } else if let Some(user) = user {
+        let (uid, gid) = std::fs::read_to_string("/etc/passwd")?
+            .lines()
+            .find_map(|l| {
+                let mut split = l.trim().split(":");
+                if user != split.next()? {
+                    return None;
+                }
+                split.next(); // throw away x
+                Some((split.next()?.parse().ok()?, split.next()?.parse().ok()?))
+                // uid gid
+            })
+            .or_not_found(lazy_format!("{user} in /etc/passwd"))?;
+        cmd.uid(uid);
+        cmd.gid(gid);
+    };
+    if let Some(workdir) = workdir {
+        cmd.current_dir(workdir);
+    }
+    cmd.args(args);
+    Err(cmd.exec().into())
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct GetStoreParams {

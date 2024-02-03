@@ -31,6 +31,7 @@ pub mod manifest;
     │   └── <id>.squashfs (xN)
     └── images
         └── <arch>
+            ├── <id>.env (xN)
             └── <id>.squashfs (xN)
 */
 
@@ -60,9 +61,9 @@ fn filter(p: &Path) -> bool {
             p.extension().map_or(false, |ext| ext == "squashfs")
         }
         2 if p.parent() == Some(Path::new("images")) => p.file_name() == Some(OsStr::new(&*ARCH)),
-        3 if p.parent() == Some(&*Path::new("images").join(&*ARCH)) => {
-            p.extension().map_or(false, |ext| ext == "squashfs")
-        }
+        3 if p.parent() == Some(&*Path::new("images").join(&*ARCH)) => p
+            .extension()
+            .map_or(false, |ext| ext == "squashfs" || ext == "env"),
         _ => false,
     }
 }

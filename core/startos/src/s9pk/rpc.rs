@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use clap::Parser;
+use itertools::Itertools;
 use models::ImageId;
 use rpc_toolkit::{from_fn_async, AnyContext, Empty, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
@@ -17,6 +19,8 @@ use crate::s9pk::S9pk;
 use crate::util::io::TmpDir;
 use crate::util::serde::{apply_expr, HandlerExtSerde};
 use crate::util::Invoke;
+
+pub const SKIP_ENV: &[&str] = &["TERM", "container", "HOME", "HOSTNAME"];
 
 pub fn s9pk() -> ParentHandler {
     ParentHandler::new()
@@ -86,6 +90,24 @@ async fn add_image(
             .invoke(ErrorKind::Docker)
             .await?,
     )?;
+    let env = String::from_utf8(
+        Command::new(CONTAINER_TOOL)
+            .arg("run")
+            .arg("--rm")
+            .arg("--entrypoint")
+            .arg("env")
+            .arg(&image)
+            .invoke(ErrorKind::Docker)
+            .await?,
+    )?
+    .lines()
+    .filter(|l| {
+        l.trim()
+            .split_once("=")
+            .map_or(false, |(v, _)| !SKIP_ENV.contains(&v))
+    })
+    .join("\n")
+        + "\n";
     let container_id = String::from_utf8(
         Command::new(CONTAINER_TOOL)
             .arg("create")
@@ -119,6 +141,13 @@ async fn add_image(
             .with_extension("squashfs"),
         Entry::file(DynFileSource::new(sqfs_path)),
     )?;
+    archive.contents_mut().insert_path(
+        Path::new("images")
+            .join(arch.trim())
+            .join(&id)
+            .with_extension("env"),
+        Entry::file(DynFileSource::new(Arc::from(Vec::from(env)))),
+    )?;
     let tmp_path = s9pk_path.with_extension("s9pk.tmp");
     let mut tmp_file = File::create(&tmp_path).await?;
     s9pk.serialize(&mut tmp_file, true).await?;
@@ -144,7 +173,8 @@ async fn edit_manifest(
     let manifest = s9pk.as_manifest().clone();
     let tmp_path = s9pk_path.with_extension("s9pk.tmp");
     let mut tmp_file = File::create(&tmp_path).await?;
-    s9pk.as_archive_mut().set_signer(ctx.developer_key()?.clone());
+    s9pk.as_archive_mut()
+        .set_signer(ctx.developer_key()?.clone());
     s9pk.serialize(&mut tmp_file, true).await?;
     tmp_file.sync_all().await?;
     tokio::fs::rename(&tmp_path, &s9pk_path).await?;

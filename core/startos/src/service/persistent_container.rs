@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
@@ -9,6 +10,7 @@ use imbl_value::InternedString;
 use models::{ProcedureName, VolumeId};
 use rpc_toolkit::{Empty, Server, ShutdownHandle};
 use serde::de::DeserializeOwned;
+use tokio::fs::File;
 use tokio::process::Command;
 use tokio::sync::{oneshot, watch, Mutex, OnceCell};
 use tracing::instrument;
@@ -23,12 +25,14 @@ use crate::disk::mount::filesystem::{MountType, ReadOnly};
 use crate::disk::mount::guard::MountGuard;
 use crate::lxc::{LxcConfig, LxcContainer, HOST_RPC_SERVER_SOCKET};
 use crate::prelude::*;
+use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
 use crate::service::start_stop::StartStop;
 use crate::service::{rpc, RunningStatus};
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::Invoke;
 use crate::volume::{asset_dir, data_dir};
+use crate::ARCH;
 
 const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -113,6 +117,20 @@ impl PersistentContainer {
                 )
                 .await?,
             );
+        }
+        let env_path = lxc_container.rootfs_dir().join("media/startos/env");
+        tokio::fs::create_dir_all(&env_path).await?;
+        for image in &s9pk.as_manifest().images {
+            let filename = Path::new(image.as_ref()).with_extension("env");
+            if let Some(env) = s9pk
+                .as_archive()
+                .contents()
+                .get_path(Path::new("images").join(&*ARCH).join(&filename))
+                .and_then(|e| e.as_file())
+            {
+                env.copy(&mut File::open(env_path.join(&filename)).await?)
+                    .await?;
+            }
         }
         Ok(Self {
             s9pk,

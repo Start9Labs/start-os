@@ -32,9 +32,9 @@ echo "RUSTFLAGS=\"$RUSTFLAGS\""
 if ! rust-gnu-builder sh -c "(cd core && cargo build --release --features avahi-alias,$FEATURES --locked --bin startbox --target=$ARCH-unknown-linux-gnu)"; then 
 	fail=true
 fi
-# if ! rust-musl-builder sh -c "(cd core && cargo build --release --no-default-features --features container-runtime,$FEATURES --locked --bin containerbox --target=$ARCH-unknown-linux-musl)"; then 
-# 	fail=true
-# fi
+if ! rust-musl-builder sh -c "(cd core && cargo build --release --no-default-features --features container-runtime,$FEATURES --locked --bin containerbox --target=$ARCH-unknown-linux-musl)"; then 
+	fail=true
+fi
 set -e
 cd core
 

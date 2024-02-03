@@ -5,7 +5,7 @@ import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { Volume } from "../../../Models/Volume"
 import * as child_process from "child_process"
 import { promisify } from "util"
-import { utils, Utils } from "@start9labs/start-sdk/lib/util/utils"
+import { createUtils, Utils } from "@start9labs/start-sdk/lib/util/utils"
 import { Manifest } from "./matchManifest"
 
 const fetcher = import("node-fetch")
@@ -14,7 +14,7 @@ const execFile = promisify(child_process.execFile)
 export class PolyfillEffects implements oet.Effects {
   private utils: Utils<any, any>
   constructor(readonly effects: HostSystemStartOs, private manifest: Manifest) {
-    this.utils = utils(effects)
+    this.utils = createUtils(effects)
   }
   async writeFile(input: {
     path: string
