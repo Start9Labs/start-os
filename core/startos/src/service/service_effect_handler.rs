@@ -619,13 +619,9 @@ pub async fn create_overlayed_image(
                 .strip_prefix(rootfs_dir)
                 .with_kind(ErrorKind::Incoherent)?,
         );
+        tracing::info!("Mounting overlay {guid} for {image_id}");
         let guard = OverlayGuard::mount(&LoopDev::from(&**image), mountpoint).await?;
-        Command::new("chown")
-            .arg("-R")
-            .arg("100000:100000")
-            .arg(guard.path())
-            .invoke(ErrorKind::Filesystem)
-            .await?;
+        tracing::info!("Mounted overlay {guid} for {image_id}");
         ctx.persistent_container
             .overlays
             .lock()
