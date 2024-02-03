@@ -145,7 +145,7 @@ impl S9pk<Section<MultiCursorFile>> {
             Command::new("bash")
                 .arg("-c")
                 .arg(format!(
-                    "{CONTAINER_TOOL} export {id} | mksquashfs -tar -force-uid 100000 -force-gid 100000 {sqfs}",
+                    "{CONTAINER_TOOL} export {id} | mksquashfs -tar -force-uid 100000 -force-gid 100000 {sqfs}", // TODO: real uid mapping
                     id = id.trim(),
                     sqfs = sqfs_path.display()
                 ))
