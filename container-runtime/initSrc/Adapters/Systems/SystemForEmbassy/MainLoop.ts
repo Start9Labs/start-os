@@ -5,6 +5,7 @@ import { SystemForEmbassy } from "."
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { createUtils } from "@start9labs/start-sdk/lib/util"
 import { exec } from "child_process"
+import { Daemons } from "@start9labs/start-sdk/lib/mainFn/Daemons"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
 const EMBASSY_PROPERTIES_LOOP = 30 * 1000
@@ -49,19 +50,19 @@ export class MainLoop {
     await effects.setMainStatus({ status: "running" })
     const jsMain = (this.system.moduleCode as any).jsMain
     if (jsMain) {
-      const mainId = this.system.manifest.main.image
-      const daemon = await jsMain({
+      const daemons = Daemons.of({
         effects,
-        utils,
-        mainId,
+        started: (_) => null,
+        healthReceipts: [],
       })
-      return {
-        daemon,
-        wait: daemon.wait().finally(() => {
-          this.clean()
-          effects.setMainStatus({ status: "stopped" })
-        }),
-      }
+      throw new Error("todo")
+      // return {
+      //   daemon,
+      //   wait: daemon.wait().finally(() => {
+      //     this.clean()
+      //     effects.setMainStatus({ status: "stopped" })
+      //   }),
+      // }
     }
     const daemon = await utils.runDaemon(
       this.system.manifest.main.image,
