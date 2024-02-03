@@ -12,7 +12,7 @@ use futures::TryStreamExt;
 use models::{ImageId, PackageId};
 use sha2::{Digest, Sha512};
 use tokio::fs::File;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, ReadBuf};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, BufReader, ReadBuf};
 use tracing::instrument;
 
 use super::header::{FileSection, Header, TableOfContents};
@@ -138,7 +138,7 @@ impl FromStr for ImageTag {
     }
 }
 
-pub struct S9pkReader<R: AsyncRead + AsyncSeek + Unpin + Send + Sync = File> {
+pub struct S9pkReader<R: AsyncRead + AsyncSeek + Unpin + Send + Sync = BufReader<File>> {
     hash: Option<Output<Sha512>>,
     hash_string: Option<String>,
     developer_key: VerifyingKey,
@@ -153,7 +153,7 @@ impl S9pkReader {
             .await
             .with_ctx(|_| (crate::error::ErrorKind::Filesystem, p.display().to_string()))?;
 
-        Self::from_reader(rdr, check_sig).await
+        Self::from_reader(BufReader::new(rdr), check_sig).await
     }
 }
 impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {

@@ -118,7 +118,7 @@ async fn add_image(
     Command::new("bash")
         .arg("-c")
         .arg(format!(
-            "{CONTAINER_TOOL} export {container_id} | mksquashfs -tar -force-uid 100000 -force-gid 100000 {sqfs}", // TODO: real uid mapping
+            "{CONTAINER_TOOL} export {container_id} | mksquashfs - {sqfs} -tar -force-uid 100000 -force-gid 100000", // TODO: real uid mapping
             container_id = container_id.trim(),
             sqfs = sqfs_path.display()
         ))

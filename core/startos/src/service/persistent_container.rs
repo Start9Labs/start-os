@@ -22,7 +22,7 @@ use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::disk::mount::filesystem::{MountType, ReadOnly};
-use crate::disk::mount::guard::MountGuard;
+use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
 use crate::lxc::{LxcConfig, LxcContainer, HOST_RPC_SERVER_SOCKET};
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::FileSource;
@@ -83,18 +83,21 @@ impl PersistentContainer {
         .await?;
         let mut volumes = BTreeMap::new();
         for volume in &s9pk.as_manifest().volumes {
-            volumes.insert(
-                volume.clone(),
-                MountGuard::mount(
-                    &Bind::new(data_dir(&ctx.datadir, &s9pk.as_manifest().id, volume)),
-                    lxc_container
-                        .rootfs_dir()
-                        .join("media/startos/volumes")
-                        .join(volume),
-                    MountType::ReadWrite,
-                )
-                .await?,
-            );
+            let mount = MountGuard::mount(
+                &Bind::new(data_dir(&ctx.datadir, &s9pk.as_manifest().id, volume)),
+                lxc_container
+                    .rootfs_dir()
+                    .join("media/startos/volumes")
+                    .join(volume),
+                MountType::ReadWrite,
+            )
+            .await?;
+            Command::new("chown")
+                .arg("100000:100000")
+                .arg(mount.path())
+                .invoke(ErrorKind::Filesystem)
+                .await?;
+            volumes.insert(volume.clone(), mount);
         }
         let mut assets = BTreeMap::new();
         for asset in &s9pk.as_manifest().assets {
