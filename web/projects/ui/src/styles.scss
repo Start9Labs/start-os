@@ -380,6 +380,55 @@ ul {
   background: #373a3f;
 }
 
+.g-edged {
+  position: relative;
+  display: block;
+  height: calc(100% - 1rem);
+  box-sizing: border-box;
+  overflow: auto;
+  isolation: isolate;
+  padding: 2rem 3rem;
+  margin: 0 2.75rem 1rem;
+  backdrop-filter: blur(2rem);
+  clip-path: var(--clip-path);
+
+  --clip-path: polygon(
+    1.75rem 0%,
+    calc(100% - 3.35rem) 0%,
+    100% 5rem,
+    100% calc(100% - 4rem),
+    calc(100% - 3rem) 100%,
+    3rem 100%,
+    0% calc(100% - 2rem),
+    0% 3rem
+  );
+
+  .g-plaque {
+    @include transition(opacity);
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    filter: url(#round-corners);
+    opacity: 0.9;
+    // TODO: Theme
+    box-shadow: inset 0 0 2rem white;
+
+    &::before {
+      @include transition(clip-path);
+      content: '';
+      position: absolute;
+      inset: 0;
+      clip-path: var(--clip-path);
+      // TODO: Theme
+      background: #17181d;
+      box-shadow:
+        inset 0 1px rgba(255, 255, 255, 0.2),
+        inset -1px 0 rgba(255, 255, 255, 0.1),
+        inset 1px 0 rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
 .g-table {
   width: 100%;
   min-width: 40rem;

@@ -63,7 +63,7 @@ import { NotificationsTableComponent } from './table.component'
     TuiLetModule,
   ],
 })
-export class NotificationsComponent {
+export default class NotificationsComponent {
   readonly service = inject(NotificationService)
   readonly api = inject(ApiService)
   readonly errorService = inject(ErrorService)

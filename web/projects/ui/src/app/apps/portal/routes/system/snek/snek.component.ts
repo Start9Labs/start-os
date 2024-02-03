@@ -5,4 +5,4 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SnekComponent {}
+export default class SnekComponent {}

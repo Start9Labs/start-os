@@ -40,7 +40,7 @@ import { JOBS } from './modals/jobs.component'
     BackupsUpcomingComponent,
   ],
 })
-export class BackupsComponent {
+export default class BackupsComponent {
   private readonly dialogs = inject(TuiDialogService)
 
   readonly options = [
