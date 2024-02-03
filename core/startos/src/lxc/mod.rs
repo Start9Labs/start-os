@@ -147,7 +147,7 @@ impl LxcContainer {
         Command::new("chown")
             .arg("-R")
             .arg("100000:100000")
-            .arg(rootfs.path())
+            .arg(rpc_bind.path())
             .invoke(ErrorKind::Filesystem)
             .await?;
         Command::new("lxc-start")

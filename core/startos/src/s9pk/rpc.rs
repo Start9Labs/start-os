@@ -118,7 +118,7 @@ async fn add_image(
     Command::new("bash")
         .arg("-c")
         .arg(format!(
-            "{CONTAINER_TOOL} export {container_id} | tar2sqfs {sqfs}",
+            "{CONTAINER_TOOL} export {container_id} | mksquashfs -tar -force-uid 100000 -force-gid 100000 {sqfs}",
             container_id = container_id.trim(),
             sqfs = sqfs_path.display()
         ))
