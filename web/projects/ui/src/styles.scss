@@ -389,7 +389,7 @@ ul {
   isolation: isolate;
   padding: 2rem 3rem;
   margin: 0 2.75rem 1rem;
-  backdrop-filter: blur(2rem);
+  backdrop-filter: blur(2rem) brightness(0.75) saturate(0.75);
   clip-path: var(--clip-path);
 
   --clip-path: polygon(
@@ -409,7 +409,7 @@ ul {
     inset: 0;
     z-index: -1;
     filter: url(#round-corners);
-    opacity: 0.9;
+    opacity: 0.75;
     // TODO: Theme
     box-shadow: inset 0 0 2rem white;
 
@@ -420,7 +420,7 @@ ul {
       inset: 0;
       clip-path: var(--clip-path);
       // TODO: Theme
-      background: #17181d;
+      background: #333;
       box-shadow:
         inset 0 1px rgba(255, 255, 255, 0.2),
         inset -1px 0 rgba(255, 255, 255, 0.1),

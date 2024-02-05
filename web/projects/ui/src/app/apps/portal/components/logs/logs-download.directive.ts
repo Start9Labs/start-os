@@ -1,12 +1,12 @@
 import { Directive, HostListener, inject, Input } from '@angular/core'
 import {
+  convertAnsi,
   DownloadHTMLService,
   ErrorService,
   FetchLogsReq,
   FetchLogsRes,
   LoadingService,
 } from '@start9labs/shared'
-import { convertAnsi } from '../../utils/convert-ansi'
 import { LogsComponent } from './logs.component'
 
 @Directive({

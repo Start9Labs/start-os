@@ -1,6 +1,9 @@
 import { CommonModule } from '@angular/common'
 import { Component, ElementRef, Input, ViewChild } from '@angular/core'
-import { IntersectionObserverModule } from '@ng-web-apis/intersection-observer'
+import {
+  INTERSECTION_ROOT,
+  IntersectionObserverModule,
+} from '@ng-web-apis/intersection-observer'
 import { MutationObserverModule } from '@ng-web-apis/mutation-observer'
 import { FetchLogsReq, FetchLogsRes } from '@start9labs/shared'
 import {
@@ -32,6 +35,12 @@ import { BehaviorSubject } from 'rxjs'
     LogsDownloadDirective,
     LogsFetchDirective,
     LogsPipe,
+  ],
+  providers: [
+    {
+      provide: INTERSECTION_ROOT,
+      useExisting: ElementRef,
+    },
   ],
 })
 export class LogsComponent {

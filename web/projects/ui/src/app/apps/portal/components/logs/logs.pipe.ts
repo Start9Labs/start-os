@@ -1,5 +1,5 @@
 import { inject, Pipe, PipeTransform } from '@angular/core'
-import { toLocalIsoString } from '@start9labs/shared'
+import { convertAnsi, toLocalIsoString } from '@start9labs/shared'
 import {
   bufferTime,
   catchError,
@@ -20,7 +20,6 @@ import {
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { convertAnsi } from '../../utils/convert-ansi'
 import { LogsComponent } from './logs.component'
 
 @Pipe({
@@ -48,7 +47,7 @@ export class LogsPipe implements PipeTransform {
         switchMap(r => this.api.openLogsWebsocket$(this.toConfig(r.guid))),
         bufferTime(1000),
         filter(logs => !!logs.length),
-        map((logs, index) => convertAnsi(logs)),
+        map(convertAnsi),
       ),
     ).pipe(
       catchError(() =>

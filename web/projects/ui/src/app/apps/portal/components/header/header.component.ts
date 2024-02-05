@@ -43,11 +43,15 @@ import { BreadcrumbsService } from '../../services/breadcrumbs.service'
         );
 
         > * {
-          @include transition(clip-path);
+          @include transition(all);
           position: relative;
           margin-left: -1.25rem;
           backdrop-filter: blur(1rem);
           clip-path: var(--clip-path);
+
+          &:active {
+            backdrop-filter: blur(2rem) brightness(0.75) saturate(0.75);
+          }
         }
       }
 
@@ -60,11 +64,16 @@ import { BreadcrumbsService } from '../../services/breadcrumbs.service'
         opacity: 0.5;
 
         .active & {
-          opacity: 0.25;
+          opacity: 0.75;
+
+          &::before {
+            // TODO: Theme
+            background: #363636;
+          }
         }
 
         &::before {
-          @include transition(clip-path);
+          @include transition(all);
           content: '';
           position: absolute;
           inset: 0;

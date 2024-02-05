@@ -8,11 +8,15 @@ ion-card-title {
   margin: auto auto 40px;
 }
 
-.logs-container {
-  margin-top: 24px;
-  height: 280px;
+.logs {
+  display: flex;
+  flex-direction: column;
+  height: 18rem;
+  padding: 1rem;
+  margin: 1.5rem 0.75rem;
   text-align: left;
   overflow: hidden;
-  border-radius: 31px;
-  margin-inline: 10px;
+  border-radius: 2rem;
+  // TODO: Theme
+  background: #181818;
 }

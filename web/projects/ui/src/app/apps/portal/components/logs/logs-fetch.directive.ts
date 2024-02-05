@@ -1,9 +1,8 @@
 import { Directive, inject, Output } from '@angular/core'
 import { IntersectionObserveeService } from '@ng-web-apis/intersection-observer'
-import { ErrorService } from '@start9labs/shared'
+import { convertAnsi, ErrorService } from '@start9labs/shared'
 import { catchError, defer, filter, from, map, of, switchMap, tap } from 'rxjs'
 import { LogsComponent } from './logs.component'
-import { convertAnsi } from '../../utils/convert-ansi'
 
 @Directive({
   standalone: true,

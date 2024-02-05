@@ -1,4 +1,5 @@
-import { Log, toLocalIsoString } from '@start9labs/shared'
+import { Log } from '../types/api'
+import { toLocalIsoString } from './to-local-iso-string'
 
 const Convert = require('ansi-to-html')
 const CONVERT = new Convert({
