@@ -93,7 +93,7 @@ import { SideloadPackageComponent } from './package.component'
     SideloadPackageComponent,
   ],
 })
-export class SideloadComponent {
+export default class SideloadComponent {
   readonly refresh$ = new Subject<void>()
   readonly isTor = inject(ConfigService).isTor()
 

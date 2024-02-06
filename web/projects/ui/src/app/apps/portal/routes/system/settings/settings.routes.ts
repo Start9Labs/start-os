@@ -1,8 +1,6 @@
-import { Routes } from '@angular/router'
-
 import { SettingsComponent } from './settings.component'
 
-export const SETTINGS_ROUTES: Routes = [
+export default [
   {
     path: '',
     component: SettingsComponent,

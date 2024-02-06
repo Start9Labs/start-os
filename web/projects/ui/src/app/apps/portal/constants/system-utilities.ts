@@ -4,6 +4,10 @@ export const SYSTEM_UTILITIES: Record<string, { icon: string; title: string }> =
       icon: 'tuiIconSave',
       title: 'Backups',
     },
+    '/portal/system/logs': {
+      icon: 'tuiIconFileText',
+      title: 'Logs',
+    },
     '/portal/system/marketplace': {
       icon: 'tuiIconShoppingCart',
       title: 'Marketplace',

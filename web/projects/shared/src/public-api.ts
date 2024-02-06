@@ -5,7 +5,7 @@
 export * from './classes/http-error'
 export * from './classes/rpc-error'
 
-export * from './components/initializing/logs-window/logs-window.component'
+export * from './components/initializing/logs-window.component'
 export * from './components/initializing/initializing.module'
 export * from './components/initializing/initializing.component'
 export * from './components/loading/loading.component'
@@ -63,6 +63,7 @@ export * from './tokens/relative-url'
 export * from './tokens/theme'
 
 export * from './util/base-64'
+export * from './util/convert-ansi'
 export * from './util/copy-to-clipboard'
 export * from './util/get-new-entries'
 export * from './util/get-pkg-id'

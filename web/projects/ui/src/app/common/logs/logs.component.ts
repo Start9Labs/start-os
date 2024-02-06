@@ -40,7 +40,7 @@ var convert = new Convert({
   selector: 'logs',
   templateUrl: './logs.component.html',
   styleUrls: ['./logs.component.scss'],
-  providers: [TuiDestroyService, DownloadHTMLService],
+  providers: [TuiDestroyService],
 })
 export class LogsComponent {
   @ViewChild(IonContent)

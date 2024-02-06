@@ -34,7 +34,7 @@ import { SkeletonListComponent } from '../../../components/skeleton-list.compone
         </p>
         <updates-item
           *ngFor="
-            let pkg of data.mp[host.url]?.packages | filterUpdates : data.local;
+            let pkg of data.mp[host.url]?.packages | filterUpdates: data.local;
             else: loading;
             empty: blank
           "
@@ -61,7 +61,7 @@ import { SkeletonListComponent } from '../../../components/skeleton-list.compone
     SkeletonListComponent,
   ],
 })
-export class UpdatesComponent {
+export default class UpdatesComponent {
   private readonly marketplace = inject(
     AbstractMarketplaceService,
   ) as MarketplaceService
