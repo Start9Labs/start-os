@@ -42,6 +42,7 @@ daemon = []
 default = ["cli", "daemon"]
 dev = []
 unstable = ["console-subscriber", "tokio/tracing"]
+docker = []
 
 [dependencies]
 aes = { version = "0.7.5", features = ["ctr"] }

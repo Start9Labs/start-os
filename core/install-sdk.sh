@@ -12,4 +12,4 @@ if [ -z "$PLATFORM" ]; then
   export PLATFORM=$(uname -m)
 fi
 
-cargo install --path=./startos --no-default-features --features=cli --bin start-cli --locked
+cargo install --path=./startos --no-default-features --features=cli,docker --bin start-cli --locked

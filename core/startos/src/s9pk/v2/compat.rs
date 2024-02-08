@@ -25,7 +25,11 @@ use crate::ARCH;
 
 pub const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x01];
 
+#[cfg(not(feature = "docker"))]
 pub const CONTAINER_TOOL: &str = "podman";
+
+#[cfg(feature = "docker")]
+pub const CONTAINER_TOOL: &str = "docker";
 
 type DynRead = Box<dyn AsyncRead + Unpin + Send + Sync + 'static>;
 fn into_dyn_read<R: AsyncRead + Unpin + Send + Sync + 'static>(r: R) -> DynRead {
