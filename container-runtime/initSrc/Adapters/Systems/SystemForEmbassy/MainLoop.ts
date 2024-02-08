@@ -52,7 +52,7 @@ export class MainLoop {
     if (jsMain) {
       const daemons = Daemons.of({
         effects,
-        started: (_) => null,
+        started: async (_) => {},
         healthReceipts: [],
       })
       throw new Error("todo")

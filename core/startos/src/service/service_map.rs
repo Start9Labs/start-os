@@ -327,6 +327,7 @@ impl ServiceReloadGuard {
     pub fn new(ctx: RpcContext, id: PackageId, operation: &'static str) -> Self {
         Self(Some(ServiceReloadInfo { ctx, id, operation }))
     }
+
     pub async fn handle<T>(
         &mut self,
         operation: impl Future<Output = Result<T, Error>>,
