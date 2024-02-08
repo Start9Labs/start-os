@@ -110,8 +110,8 @@ impl Service {
                 for volume_id in &s9pk.as_manifest().volumes {
                     let tmp_path =
                         data_dir(&ctx.datadir, &s9pk.as_manifest().id.clone(), volume_id);
-                    if tokio::fs::metadata(&tmp_path).await.is_ok() {
-                        tokio::fs::remove_dir_all(&tmp_path).await?;
+                    if tokio::fs::metadata(&tmp_path).await.is_err() {
+                        tokio::fs::create_dir_all(&tmp_path).await?;
                     }
                 }
                 let start_stop = if i.as_status().as_main().de()?.running() {

@@ -131,7 +131,7 @@ impl PersistentContainer {
                 .get_path(Path::new("images").join(&*ARCH).join(&filename))
                 .and_then(|e| e.as_file())
             {
-                env.copy(&mut File::open(env_path.join(&filename)).await?)
+                env.copy(&mut File::create(env_path.join(&filename)).await?)
                     .await?;
             }
         }
