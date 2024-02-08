@@ -111,15 +111,32 @@ impl S9pk<Section<MultiCursorFile>> {
             #[serde(default)]
             names: Vec<String>,
         }
-        for image in serde_json::from_slice::<Vec<DockerImagesOut>>(
-            &Command::new(CONTAINER_TOOL)
-                .arg("images")
-                .arg("--format=json")
-                .invoke(ErrorKind::Docker)
-                .await?,
-        )
-        .with_kind(ErrorKind::Deserialization)?
-        .into_iter()
+        for image in {
+            #[cfg(feature = "docker")]
+            let images = std::str::from_utf8(
+                &Command::new(CONTAINER_TOOL)
+                    .arg("images")
+                    .arg("--format=json")
+                    .invoke(ErrorKind::Docker)
+                    .await?,
+            )?
+            .lines()
+            .map(|l| serde_json::from_str::<DockerImagesOut>(l))
+            .collect::<Result<Vec<_>, _>>()
+            .with_kind(ErrorKind::Deserialization)?
+            .into_iter();
+            #[cfg(not(feature = "docker"))]
+            let images = serde_json::from_slice::<Vec<DockerImagesOut>>(
+                &Command::new(CONTAINER_TOOL)
+                    .arg("images")
+                    .arg("--format=json")
+                    .invoke(ErrorKind::Docker)
+                    .await?,
+            )
+            .with_kind(ErrorKind::Deserialization)?
+            .into_iter();
+            images
+        }
         .flat_map(|i| {
             if let (Some(repository), Some(tag)) = (i.repository, i.tag) {
                 vec![format!("{repository}:{tag}")]
