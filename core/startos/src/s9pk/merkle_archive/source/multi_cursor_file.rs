@@ -1,5 +1,5 @@
 use std::io::SeekFrom;
-use std::os::fd::{AsRawFd, RawFd};
+use std::os::fd::{AsRawFd, FromRawFd, RawFd};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -79,7 +79,19 @@ impl ArchiveSource for MultiCursorFile {
         let mut file = if let Ok(file) = self.file.clone().try_lock_owned() {
             file
         } else {
-            Arc::new(Mutex::new(File::open(self.path()).await?))
+            #[cfg(target_os = "linux")]
+            let file = File::open(self.path()).await?;
+            #[cfg(not(target_os = "linux"))] // here be dragons
+            let file = unsafe {
+                let c_file = libc::fdopen(
+                    self.fd,
+                    std::ffi::CStr::from_bytes_with_nul_unchecked(b"r\0").as_ptr(),
+                );
+                let newfd = libc::dup(libc::fileno(c_file));
+                libc::fclose(c_file);
+                File::from_raw_fd(newfd)
+            };
+            Arc::new(Mutex::new(file))
                 .try_lock_owned()
                 .expect("freshly created")
         };
