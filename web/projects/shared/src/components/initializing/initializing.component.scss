@@ -1,11 +1,22 @@
-ion-card-title {
-  font-size: 42px;
+.card {
+  border-radius: 0.25rem;
+  padding: 1rem;
+  margin: 1.5rem;
+  text-align: center;
+  // TODO: Theme
+  background: #e0e0e0;
+  color: #333;
+  --tui-clear-inverse: rgba(0, 0, 0, 0.1);
+}
+
+.title {
+  font-size: 2.5rem;
+  margin: 1rem;
 }
 
 .progress {
-  max-width: 700px;
-  padding-bottom: 20px;
-  margin: auto auto 40px;
+  max-width: 40rem;
+  margin: 1rem auto;
 }
 
 .logs {
@@ -13,7 +24,7 @@ ion-card-title {
   flex-direction: column;
   height: 18rem;
   padding: 1rem;
-  margin: 1.5rem 0.75rem;
+  margin: 0 1.5rem auto;
   text-align: left;
   overflow: hidden;
   border-radius: 2rem;

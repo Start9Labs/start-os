@@ -1,8 +1,6 @@
-<ion-item *ngIf="error$ | async as error">
-  <ion-label>
-    <ion-text safeLinks color="danger">{{ error }}</ion-text>
-  </ion-label>
-</ion-item>
+<tui-notification *ngIf="error$ | async as error" status="error" safeLinks>
+  {{ error }}
+</tui-notification>
 
 <div
   *ngIf="content$ | async as result; else loading"
@@ -12,5 +10,5 @@
 ></div>
 
 <ng-template #loading>
-  <text-spinner [text]="'Loading ' + title | titlecase"></text-spinner>
+  <tui-loader [textContent]="'Loading ' + title | titlecase" />
 </ng-template>

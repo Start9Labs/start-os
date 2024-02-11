@@ -1,11 +1,11 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import { IonicModule } from '@ionic/angular'
+import { TuiIconModule } from '@taiga-ui/experimental'
 import { StoreIconComponent } from './store-icon.component'
 
 @NgModule({
   declarations: [StoreIconComponent],
-  imports: [CommonModule, IonicModule],
+  imports: [CommonModule, TuiIconModule],
   exports: [StoreIconComponent],
 })
 export class StoreIconComponentModule {}

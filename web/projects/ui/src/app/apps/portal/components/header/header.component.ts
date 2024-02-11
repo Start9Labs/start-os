@@ -1,10 +1,18 @@
 import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { RouterLink, RouterLinkActive } from '@angular/router'
+import {
+  IsActiveMatchOptions,
+  RouterLink,
+  RouterLinkActive,
+} from '@angular/router'
+import { PatchDB } from 'patch-db-client'
 import { HeaderConnectionComponent } from './connection.component'
 import { HeaderHomeComponent } from './home.component'
 import { HeaderCornerComponent } from './corner.component'
 import { HeaderBreadcrumbComponent } from './breadcrumb.component'
+import { HeaderSnekDirective } from './snek.directive'
+import { HeaderMobileComponent } from './mobile.component'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { BreadcrumbsService } from '../../services/breadcrumbs.service'
 
 @Component({
@@ -17,13 +25,21 @@ import { BreadcrumbsService } from '../../services/breadcrumbs.service'
       <a
         routerLinkActive="active"
         [routerLink]="item.routerLink"
-        [routerLinkActiveOptions]="{ exact: true }"
+        [routerLinkActiveOptions]="options"
         [headerBreadcrumb]="item"
       >
         <div class="plank"></div>
       </a>
     }
-    <div [style.flex]="1"><div class="plank"></div></div>
+    <div [style.flex]="1" [headerMobile]="breadcrumbs$ | async">
+      <div class="plank"></div>
+      <img
+        [appSnek]="(snekScore$ | async) || 0"
+        class="snek"
+        alt="Play Snake"
+        src="assets/img/icons/snek.png"
+      />
+    </div>
     <header-connection><div class="plank"></div></header-connection>
     <header-corner><div class="plank"></div></header-corner>
   `,
@@ -52,6 +68,34 @@ import { BreadcrumbsService } from '../../services/breadcrumbs.service'
           &:active {
             backdrop-filter: blur(2rem) brightness(0.75) saturate(0.75);
           }
+        }
+
+        &:has([data-connection='error']) {
+          --status: var(--tui-error-fill);
+        }
+
+        &:has([data-connection='warning']) {
+          --status: var(--tui-warning-fill);
+        }
+
+        &:has([data-connection='neutral']) {
+          --status: var(--tui-neutral-fill);
+        }
+
+        &:has([data-connection='success']) {
+          --status: var(--tui-success-fill);
+        }
+      }
+
+      :host-context(tui-root._mobile) {
+        a {
+          display: none;
+        }
+
+        header-corner .plank::before {
+          box-shadow:
+            inset 0 1px rgb(255 255 255 / 25%),
+            inset -0.375rem 0 var(--status);
         }
       }
 
@@ -83,6 +127,19 @@ import { BreadcrumbsService } from '../../services/breadcrumbs.service'
           box-shadow: inset 0 1px rgb(255 255 255 / 25%);
         }
       }
+
+      .snek {
+        @include center-top();
+        @include transition(opacity);
+        right: 2rem;
+        width: 1rem;
+        opacity: 0.2;
+        cursor: pointer;
+
+        &:hover {
+          opacity: 1;
+        }
+      }
     `,
   ],
   standalone: true,
@@ -90,13 +147,29 @@ import { BreadcrumbsService } from '../../services/breadcrumbs.service'
   imports: [
     RouterLink,
     RouterLinkActive,
+    AsyncPipe,
     HeaderConnectionComponent,
     HeaderHomeComponent,
     HeaderCornerComponent,
-    AsyncPipe,
+    HeaderSnekDirective,
     HeaderBreadcrumbComponent,
+    HeaderMobileComponent,
   ],
 })
 export class HeaderComponent {
+  readonly options = OPTIONS
   readonly breadcrumbs$ = inject(BreadcrumbsService)
+  readonly snekScore$ = inject(PatchDB<DataModel>).watch$(
+    'ui',
+    'gaming',
+    'snake',
+    'high-score',
+  )
+}
+
+const OPTIONS: IsActiveMatchOptions = {
+  paths: 'exact',
+  queryParams: 'ignored',
+  fragment: 'ignored',
+  matrixParams: 'ignored',
 }

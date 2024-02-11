@@ -13,7 +13,7 @@ import { MarketplaceSidebarService } from '../services/sidebar.service'
     `
       :host {
         position: fixed;
-        inset: 7.5rem 0 0;
+        inset: 3.5rem 0 0;
         pointer-events: none;
         transform: translate3d(0, 0, 0);
       }

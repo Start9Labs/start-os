@@ -2,9 +2,10 @@ import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
-  Inject,
+  inject,
   Input,
 } from '@angular/core'
+import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import {
   TuiButtonModule,
   TuiDialogContext,
@@ -13,7 +14,6 @@ import {
 import { TuiCarouselModule } from '@taiga-ui/kit'
 import { MarketplacePkg } from '../../../types'
 import { PolymorpheusContent } from '@tinkoff/ng-polymorpheus'
-import { isPlatform } from '@ionic/angular'
 
 @Component({
   selector: 'marketplace-package-screenshots',
@@ -77,15 +77,14 @@ import { isPlatform } from '@ionic/angular'
   imports: [CommonModule, TuiCarouselModule, TuiButtonModule],
 })
 export class MarketplacePackageScreenshotComponent {
+  private readonly dialogs = inject(TuiDialogService)
+
   @Input({ required: true })
   pkg!: MarketplacePkg
 
-  constructor(
-    @Inject(TuiDialogService) private readonly dialogs: TuiDialogService,
-  ) {}
   index = 0
 
-  isMobile = isPlatform(window, 'ios') || isPlatform(window, 'android')
+  isMobile = inject(TUI_IS_MOBILE)
 
   presentModalImg(content: PolymorpheusContent<TuiDialogContext>) {
     this.dialogs
