@@ -25,18 +25,17 @@ import {
 } from '@taiga-ui/experimental'
 import { PatchDB } from 'patch-db-client'
 import { catchError, defer, merge, Observable, of, Subject, map } from 'rxjs'
+import {
+  FormComponent,
+  FormContext,
+} from 'src/app/apps/portal/components/form.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { WifiInfoComponent } from './info.component'
 import { WifiTableComponent } from './table.component'
 import { parseWifi, WifiData, WiFiForm } from './utils'
-import { RR } from '../../../../../../../services/api/api.types'
-import {
-  FormContext,
-  FormPage,
-} from '../../../../../../ui/modals/form/form.page'
 import { wifiSpec } from '../../../../../../ui/pages/system/wifi/wifi.const'
-import { FormDialogService } from '../../../../../../../services/form-dialog.service'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
 
 @Component({
   template: `
@@ -143,7 +142,7 @@ export class SettingsWifiComponent {
       },
     }
 
-    this.formDialog.open(FormPage, options)
+    this.formDialog.open(FormComponent, options)
   }
 
   async saveAndConnect(ssid: string, password?: string): Promise<boolean> {

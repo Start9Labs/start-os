@@ -6,14 +6,16 @@ import { TuiButtonModule } from '@taiga-ui/experimental'
 import { TUI_PROMPT } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { filter, firstValueFrom, map } from 'rxjs'
-import { DataModel } from 'src/app/services/patch-db/data-model'
-import { FormContext, FormPage } from 'src/app/apps/ui/modals/form/form.page'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
+import {
+  FormComponent,
+  FormContext,
+} from 'src/app/apps/portal/components/form.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { getCustomSpec } from 'src/app/apps/ui/pages/system/domains/domain.const'
-import { getStart9ToSpec } from './constants'
-import { DomainsTableComponent } from './table.component'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
+import { getCustomSpec, getStart9ToSpec } from './constants'
 import { DomainsInfoComponent } from './info.component'
+import { DomainsTableComponent } from './table.component'
 
 @Component({
   template: `
@@ -121,7 +123,7 @@ export class SettingsDomainsComponent {
       },
     }
 
-    this.formDialog.open(FormPage, options)
+    this.formDialog.open(FormComponent, options)
   }
 
   async claim() {
@@ -146,7 +148,7 @@ export class SettingsDomainsComponent {
       },
     }
 
-    this.formDialog.open(FormPage, options)
+    this.formDialog.open(FormComponent, options)
   }
 
   private getNetworkStrategy(strategy: any) {

@@ -17,9 +17,12 @@ import {
 } from '@taiga-ui/core'
 import { TUI_PROMPT } from '@taiga-ui/kit'
 import { filter } from 'rxjs'
+import {
+  FormComponent,
+  FormContext,
+} from 'src/app/apps/portal/components/form.component'
 import { Proxy } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { FormContext, FormPage } from 'src/app/apps/ui/modals/form/form.page'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DELETE_OPTIONS, ProxyUpdate } from './constants'
 
@@ -132,6 +135,6 @@ export class ProxiesMenuComponent {
       },
     }
 
-    this.formDialog.open(FormPage, options)
+    this.formDialog.open(FormComponent, options)
   }
 }
