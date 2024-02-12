@@ -166,9 +166,11 @@ container-runtime/alpine.squashfs: $(PLATFORM_FILE)
 
 container-runtime/node_modules: container-runtime/package.json container-runtime/package-lock.json
 	npm --prefix container-runtime ci
+	(cd container-runtime && npm link @start9labs/start-sdk)
 	touch container-runtime/node_modules
 
-container-runtime/dist: container-runtime/node_modules $(shell git ls-files container-runtime/initSrc) container-runtime/package.json container-runtime/tsconfig.json
+container-runtime/dist: container-runtime/node_modules $(shell git ls-files container-runtime/initSrc) container-runtime/package.json container-runtime/tsconfig.json	
+	(cd container-runtime && npm link @start9labs/start-sdk)
 	npm --prefix container-runtime run build
 
 container-runtime/dist/package.json: container-runtime/dist container-runtime/package.json

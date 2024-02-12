@@ -1,7 +1,6 @@
 import * as fs from "fs/promises"
-import * as T from "@start9labs/start-sdk/lib/types"
-import { Overlay } from "@start9labs/start-sdk/lib/util/Overlay"
 import * as cp from "child_process"
+import { Overlay, types as T } from "@start9labs/start-sdk"
 import { promisify } from "util"
 import { DockerProcedure, VolumeId } from "../../../Models/DockerProcedure"
 import { Volume } from "./matchVolume"

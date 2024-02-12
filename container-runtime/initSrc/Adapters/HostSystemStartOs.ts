@@ -293,12 +293,12 @@ export class HostSystemStartOs implements Effects {
     >
   }
   store: T.Effects["store"] = {
-    get: (options) =>
+    get: async (options: any) =>
       this.rpcRound("getStore", {
         ...options,
         callback: this.callbackHolder.addCallback(options.callback),
-      }) as ReturnType<T.Effects["store"]["get"]>,
-    set: (options) =>
+      }) as any,
+    set: async (options: any) =>
       this.rpcRound("setStore", options) as ReturnType<
         T.Effects["store"]["set"]
       >,
