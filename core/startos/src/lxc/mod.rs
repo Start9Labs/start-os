@@ -14,7 +14,8 @@ use rpc_toolkit::{
 };
 use rustyline_async::{ReadlineEvent, SharedWriter};
 use serde::{Deserialize, Serialize};
-use tokio::io::AsyncBufReadExt;
+use tokio::fs::File;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::Mutex;
 use tokio::time::Instant;
@@ -179,6 +180,14 @@ impl LxcContainer {
         self.rpc_bind.take().unmount().await?;
         self.rootfs.take().unmount(true).await?;
         let rootfs_path = self.rootfs_dir();
+        let err_path = rootfs_path.join("var/log/containerRuntime.err");
+        if tokio::fs::metadata(&err_path).await.is_ok() {
+            let mut lines = BufReader::new(File::open(&err_path).await?).lines();
+            while let Some(line) = lines.next_line().await? {
+                let container = &**self.guid;
+                tracing::error!(container, "{}", line);
+            }
+        }
         if tokio::fs::metadata(&rootfs_path).await.is_ok() {
             if tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(&rootfs_path).await?)
                 .count()
