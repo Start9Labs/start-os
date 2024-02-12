@@ -238,6 +238,22 @@ impl Drop for LxcContainer {
             let guid = std::mem::take(&mut self.guid);
             if let Some(manager) = self.manager.upgrade() {
                 tokio::spawn(async move {
+                    if let Err(e) = async {
+                        let err_path = rootfs.path().join("var/log/containerRuntime.err");
+                        if tokio::fs::metadata(&err_path).await.is_ok() {
+                            let mut lines = BufReader::new(File::open(&err_path).await?).lines();
+                            while let Some(line) = lines.next_line().await? {
+                                let container = &**guid;
+                                tracing::error!(container, "{}", line);
+                            }
+                        }
+                        Ok::<_, Error>(())
+                    }
+                    .await
+                    {
+                        tracing::error!("Error reading logs from crashed container: {e}");
+                        tracing::debug!("{e:?}")
+                    }
                     rootfs.unmount(true).await.unwrap();
                     drop(guid);
                     if let Err(e) = manager.gc().await {
