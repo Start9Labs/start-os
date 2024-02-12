@@ -1,4 +1,4 @@
-import fs from "fs/promises"
+import * as fs from "fs/promises"
 import * as T from "@start9labs/start-sdk/lib/types"
 import * as oet from "./oldEmbassyTypes"
 import { HostSystemStartOs } from "../../HostSystemStartOs"

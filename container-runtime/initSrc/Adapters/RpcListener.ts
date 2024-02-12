@@ -13,7 +13,7 @@ import {
   shape,
 } from "ts-matches"
 
-import * as T from "@start9labs/start-sdk/lib/types"
+import { types as T } from "@start9labs/start-sdk"
 import * as CP from "child_process"
 import * as Mod from "module"
 import * as fs from "fs"

@@ -1,7 +1,6 @@
-import { Effects } from "@start9labs/start-sdk/lib/types"
+import { types as T } from "@start9labs/start-sdk"
 import { JsonPath } from "../Models/JsonPath"
 import { HostSystemStartOs } from "../Adapters/HostSystemStartOs"
-
 export type ExecuteResult =
   | { ok: unknown }
   | { err: { code: number; message: string } }
@@ -12,7 +11,7 @@ export interface System {
   // stop(effects: Effects, options: { timeout: number, signal?: number }): Promise<void>
 
   execute(
-    effects: Effects,
+    effects: T.Effects,
     options: {
       procedure: JsonPath
       input: unknown
@@ -28,5 +27,5 @@ export interface System {
   //   },
   // ): Promise<unknown>
 
-  exit(effects: Effects): Promise<void>
+  exit(effects: T.Effects): Promise<void>
 }

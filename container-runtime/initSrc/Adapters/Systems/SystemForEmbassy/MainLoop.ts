@@ -1,11 +1,8 @@
-import * as T from "@start9labs/start-sdk/lib/types"
 import { PolyfillEffects } from "./polyfillEffects"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import { SystemForEmbassy } from "."
 import { HostSystemStartOs } from "../../HostSystemStartOs"
-import { createUtils } from "@start9labs/start-sdk/lib/util"
-import { exec } from "child_process"
-import { Daemons } from "@start9labs/start-sdk/lib/mainFn/Daemons"
+import { util, Daemons, types as T } from "@start9labs/start-sdk"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
 const EMBASSY_PROPERTIES_LOOP = 30 * 1000
@@ -40,8 +37,12 @@ export class MainLoop {
   }
 
   private async constructMainEvent() {
+    console.error({
+      keys: Object.keys(util),
+      typeOfCreateUtils: typeof util.createUtils,
+    })
     const { system, effects } = this
-    const utils = createUtils(effects)
+    const utils = util.createUtils(effects)
     const currentCommand: [string, ...string[]] = [
       system.manifest.main.entrypoint,
       ...system.manifest.main.args,

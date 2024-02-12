@@ -3,7 +3,6 @@ import { SystemForEmbassy } from "./Adapters/Systems/SystemForEmbassy"
 import { HostSystemStartOs } from "./Adapters/HostSystemStartOs"
 import { AllGetDependencies } from "./Interfaces/AllGetDependencies"
 import { getSystem } from "./Adapters/Systems"
-import { once } from "@start9labs/start-sdk/lib/util/once"
 
 const getDependencies: AllGetDependencies = {
   system: getSystem,

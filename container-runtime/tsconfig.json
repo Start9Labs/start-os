@@ -16,9 +16,9 @@
     "lib": ["es2022", "dom"],
     "moduleResolution": "node16",
     "allowJs": true,
-    "esModuleInterop": true,
+    "esModuleInterop": false,
     "forceConsistentCasingInFileNames": true,
-    "allowSyntheticDefaultImports": true,
+    // "allowSyntheticDefaultImports": true,
     "strict": true,
     "skipLibCheck": true
   },
