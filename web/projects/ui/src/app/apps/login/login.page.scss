@@ -1,76 +1,35 @@
-.content {
-  --background: #333333;
+@import '@taiga-ui/core/styles/taiga-ui-local';
+
+:host {
+  background: var(--tui-base-02);
 }
 
-.grid {
-  height: 100%;
-  max-width: 540px;
-}
-
-.row {
-  height: 100%;
+.card {
+  @include center-all();
+  overflow: visible;
   align-items: center;
   text-align: center;
+  width: max(50%, 20rem);
 }
 
-.banner {
-  position: absolute;
-  padding: 20px;
-  width: 100%;
-  display: inline-block;
-
-  ion-item {
-    max-width: 800px;
-    margin: auto;
-  }
-}
-
-ion-card {
-  background: #414141;
-  box-shadow: 0 4px 4px rgba(17, 17, 17, 0.144);
-  border-radius: 35px;
-  min-height: 16rem;
-  contain: unset;
-  overflow: unset;
-  position: relative;
-}
-
-ion-item {
-  --background: transparent;
-  --border-radius: 0px;
-}
-  
-.title {
-  padding-top: 55px;
-  color: #e0e0e0;
-  font-size: 1.3rem;
+.logo {
+  @include center-left();
+  top: -17%;
+  width: 6rem;
 }
 
 .header {
-  &-icon {
-    width: 100px;
-    position: absolute;
-    left: 50%;
-    margin-left: -50px;
-    top: -17%;
-    z-index: 100;
-  }
-}
-
-.login-button {
-  height: 45px;
-  width: 120px;
-  --border-radius: 50px;
-  margin: 0 auto;
-  margin-top: 27px;
-  margin-bottom: 10px;
-}
-
-.item-interactive {
-  --highlight-background: #5260ff !important;
+  margin: 2rem 0 1rem;
+  text-align: center;
+  font-size: 2rem;
 }
 
 .error {
-  display: block;
-  padding-top: 4px;
+  min-height: 2.5rem;
+}
+
+.button {
+  width: 10rem;
+  border-radius: 10rem;
+  margin-bottom: 1rem;
 }

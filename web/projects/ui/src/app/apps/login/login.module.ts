@@ -1,12 +1,17 @@
-import { NgModule } from '@angular/core'
-import { RouterModule, Routes } from '@angular/router'
 import { CommonModule } from '@angular/common'
+import { NgModule } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { IonicModule } from '@ionic/angular'
-import { LoginPage } from './login.page'
+import { RouterModule, Routes } from '@angular/router'
+import { TuiErrorModule, TuiTextfieldControllerModule } from '@taiga-ui/core'
+import {
+  TuiButtonModule,
+  TuiCardModule,
+  TuiSurfaceModule,
+} from '@taiga-ui/experimental'
+import { TuiInputPasswordModule } from '@taiga-ui/kit'
 import { CAWizardComponent } from './ca-wizard/ca-wizard.component'
-import { SharedPipesModule } from '@start9labs/shared'
-import { TuiHintModule, TuiTooltipModule } from '@taiga-ui/core'
+import { LoginPage } from './login.page'
+import { LoginWarningComponent } from './warning.component'
 
 const routes: Routes = [
   {
@@ -19,12 +24,16 @@ const routes: Routes = [
   imports: [
     CommonModule,
     FormsModule,
-    IonicModule,
-    SharedPipesModule,
+    CAWizardComponent,
+    LoginWarningComponent,
+    TuiButtonModule,
+    TuiCardModule,
+    TuiSurfaceModule,
+    TuiInputPasswordModule,
+    TuiTextfieldControllerModule,
+    TuiErrorModule,
     RouterModule.forChild(routes),
-    TuiTooltipModule,
-    TuiHintModule,
   ],
-  declarations: [LoginPage, CAWizardComponent],
+  declarations: [LoginPage],
 })
 export class LoginPageModule {}

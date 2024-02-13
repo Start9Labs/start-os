@@ -8,7 +8,6 @@ import { LoadingService } from '@start9labs/shared'
 import { TuiDestroyService } from '@taiga-ui/cdk'
 import { takeUntil } from 'rxjs'
 import { DOCUMENT } from '@angular/common'
-import { WINDOW } from '@ng-web-apis/common'
 
 @Component({
   selector: 'login',
@@ -18,7 +17,6 @@ import { WINDOW } from '@ng-web-apis/common'
 })
 export class LoginPage {
   password = ''
-  unmasked = false
   error = ''
 
   constructor(
@@ -29,13 +27,7 @@ export class LoginPage {
     private readonly api: ApiService,
     public readonly config: ConfigService,
     @Inject(DOCUMENT) public readonly document: Document,
-    @Inject(WINDOW) private readonly windowRef: Window,
   ) {}
-
-  launchHttps() {
-    const host = this.config.getHost()
-    this.windowRef.open(`https://${host}`, '_self')
-  }
 
   async submit() {
     this.error = ''
