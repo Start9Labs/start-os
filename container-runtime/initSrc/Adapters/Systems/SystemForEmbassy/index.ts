@@ -44,7 +44,13 @@ export class SystemForEmbassy implements System {
   static async of(manifestLocation: string = MANIFEST_LOCATION) {
     const moduleCode = await import(EMBASSY_JS_LOCATION)
       .catch((_) => require(EMBASSY_JS_LOCATION))
-      .catch((_) => ({}))
+      .catch(async (_) => {
+        console.error("Could not load the js")
+        console.error({
+          exists: await fs.stat(EMBASSY_JS_LOCATION),
+        })
+        return {}
+      })
     const manifestData = await fs.readFile(manifestLocation, "utf-8")
     return new SystemForEmbassy(
       matchManifest.unsafeCast(JSON.parse(manifestData)),
@@ -385,7 +391,8 @@ export class SystemForEmbassy implements System {
         ).stdout.toString(),
       )
     } else if (setConfigValue.type === "script") {
-      const moduleCode = await this.moduleCode
+      console.error({ Keys: Object.keys(this.moduleCode) })
+      const moduleCode = this.moduleCode
       const method = moduleCode.properties
       if (!method)
         throw new Error("Expecting that the method properties exists")

@@ -9,18 +9,18 @@
   "exclude": ["dist"],
   "inputs": ["./initSrc/index.ts"],
   "compilerOptions": {
-    "module": "CommonJS",
+    "module": "Node16",
     "strict": true,
     "outDir": "dist",
     "preserveConstEnums": true,
     "sourceMap": true,
-    "target": "es2017",
+    "target": "ES2022",
     "pretty": true,
     "declaration": true,
     "noImplicitAny": true,
     "esModuleInterop": true,
     "types": ["node"],
-    "moduleResolution": "Node10",
+    "moduleResolution": "Node16",
     "skipLibCheck": true
   },
   "ts-node": {
