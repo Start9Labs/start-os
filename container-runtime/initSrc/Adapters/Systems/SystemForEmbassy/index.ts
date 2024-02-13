@@ -1,9 +1,8 @@
-import * as T from "@start9labs/start-sdk/lib/types"
+import { types as T, util, EmVer } from "@start9labs/start-sdk"
 import * as fs from "fs/promises"
 
 import { PolyfillEffects } from "./polyfillEffects"
 import { ExecuteResult, System } from "../../../Interfaces/System"
-import { createUtils } from "@start9labs/start-sdk/lib/util"
 import { matchManifest, Manifest, Procedure } from "./matchManifest"
 import { create } from "domain"
 import * as childProcess from "node:child_process"
@@ -13,7 +12,6 @@ import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import { promisify } from "node:util"
 import * as U from "./oldEmbassyTypes"
 import { MainLoop } from "./MainLoop"
-import { EmVer } from "@start9labs/start-sdk/lib/emverLite/mod"
 import {
   matches,
   boolean,
@@ -46,7 +44,13 @@ export class SystemForEmbassy implements System {
   static async of(manifestLocation: string = MANIFEST_LOCATION) {
     const moduleCode = await import(EMBASSY_JS_LOCATION)
       .catch((_) => require(EMBASSY_JS_LOCATION))
-      .catch((_) => ({}))
+      .catch(async (_) => {
+        console.error("Could not load the js")
+        console.error({
+          exists: await fs.stat(EMBASSY_JS_LOCATION),
+        })
+        return {}
+      })
     const manifestData = await fs.readFile(manifestLocation, "utf-8")
     return new SystemForEmbassy(
       matchManifest.unsafeCast(JSON.parse(manifestData)),
@@ -284,7 +288,7 @@ export class SystemForEmbassy implements System {
           ])
         ).stdout.toString(),
       )
-    } else {
+    } else if (setConfigValue.type === "script") {
       const moduleCode = await this.moduleCode
       const method = moduleCode.setConfig
       if (!method) throw new Error("Expecting that the method setConfig exists")
@@ -300,6 +304,11 @@ export class SystemForEmbassy implements System {
         if ("error" in x) throw new Error("Error getting config: " + x.error)
         throw new Error("Error getting config: " + x["error-code"][1])
       })
+    } else {
+      return {
+        "depends-on": {},
+        signal: "SIGTERM",
+      }
     }
   }
   private async migration(
@@ -346,7 +355,7 @@ export class SystemForEmbassy implements System {
             ])
           ).stdout.toString(),
         )
-      } else {
+      } else if (procedure.type === "script") {
         const moduleCode = await this.moduleCode
         const method = moduleCode.migration
         if (!method)
@@ -381,8 +390,8 @@ export class SystemForEmbassy implements System {
           ])
         ).stdout.toString(),
       )
-    } else {
-      const moduleCode = await this.moduleCode
+    } else if (setConfigValue.type === "script") {
+      const moduleCode = this.moduleCode
       const method = moduleCode.properties
       if (!method)
         throw new Error("Expecting that the method properties exists")
@@ -415,7 +424,7 @@ export class SystemForEmbassy implements System {
           ])
         ).stdout.toString(),
       )
-    } else {
+    } else if (healthProcedure.type === "script") {
       const moduleCode = await this.moduleCode
       const method = moduleCode.health?.[healthId]
       if (!method) throw new Error("Expecting that the method health exists")
@@ -487,7 +496,7 @@ export class SystemForEmbassy implements System {
           ])
         ).stdout.toString(),
       )
-    } else {
+    } else if (actionProcedure.type === "script") {
       const moduleCode = await this.moduleCode
       const method = moduleCode.dependencies?.[id]?.check
       if (!method)
@@ -502,6 +511,8 @@ export class SystemForEmbassy implements System {
         if ("error" in x) throw new Error("Error getting config: " + x.error)
         throw new Error("Error getting config: " + x["error-code"][1])
       })) as any
+    } else {
+      return {}
     }
   }
   private async dependenciesAutoconfig(

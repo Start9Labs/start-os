@@ -2,9 +2,11 @@
   "name": "start-init",
   "version": "0.0.0",
   "description": "We want to be the sdk intermitent for the system",
+  "module": "./index.js",
   "scripts": {
     "check": "tsc --noEmit",
-    "build": "rm -rf dist && tsc",
+    "build": "rm -rf dist && cp -R initSrc/ dist/ && tsc",
+    "buildA": "rm -rf dist && cp -R initSrc/ dist/ && esbuild initSrc/index.ts --bundle --platform=node --target=node10.4 --outdir=dist/",
     "tsc": "rm -rf dist; tsc"
   },
   "author": "",
@@ -17,7 +19,6 @@
   "dependencies": {
     "@iarna/toml": "^2.2.5",
     "@start9labs/start-sdk": "0.4.0-rev0.lib0.rc8.beta8",
-    "esbuild": "0.18.4",
     "esbuild-plugin-resolve": "^2.0.0",
     "filebrowser": "^1.0.0",
     "isomorphic-fetch": "^3.0.0",
@@ -31,8 +32,8 @@
     "@swc/cli": "^0.1.62",
     "@swc/core": "^1.3.65",
     "@types/node": "^20.11.13",
+    "esbuild": "^0.20.0",
     "prettier": "^2.8.8",
-    "rollup": "^3.25.1",
     "typescript": ">5.2"
   },
   "ts-node": {

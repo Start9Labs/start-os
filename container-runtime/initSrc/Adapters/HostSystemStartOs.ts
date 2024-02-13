@@ -1,4 +1,4 @@
-import * as T from "@start9labs/start-sdk/lib/types"
+import { types as T } from "@start9labs/start-sdk"
 import * as net from "net"
 import { object, string, number, literals, some, unknown } from "ts-matches"
 import { Effects } from "../Models/Effects"
@@ -265,7 +265,9 @@ export class HostSystemStartOs implements Effects {
       T.Effects["setConfigured"]
     >
   }
-  setDependencies(...[dependencies]: Parameters<T.Effects["setDependencies"]>) {
+  setDependencies(
+    ...[dependencies]: Parameters<T.Effects["setDependencies"]>
+  ): ReturnType<T.Effects["setDependencies"]> {
     return this.rpcRound("setDependencies", { dependencies }) as ReturnType<
       T.Effects["setDependencies"]
     >
@@ -291,12 +293,12 @@ export class HostSystemStartOs implements Effects {
     >
   }
   store: T.Effects["store"] = {
-    get: (options) =>
+    get: async (options: any) =>
       this.rpcRound("getStore", {
         ...options,
         callback: this.callbackHolder.addCallback(options.callback),
-      }) as ReturnType<T.Effects["store"]["get"]>,
-    set: (options) =>
+      }) as any,
+    set: async (options: any) =>
       this.rpcRound("setStore", options) as ReturnType<
         T.Effects["store"]["set"]
       >,

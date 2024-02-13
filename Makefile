@@ -166,9 +166,11 @@ container-runtime/alpine.squashfs: $(PLATFORM_FILE)
 
 container-runtime/node_modules: container-runtime/package.json container-runtime/package-lock.json
 	npm --prefix container-runtime ci
+	(cd container-runtime && npm link @start9labs/start-sdk)
 	touch container-runtime/node_modules
 
-container-runtime/dist: container-runtime/node_modules $(shell git ls-files container-runtime/initSrc) container-runtime/package.json container-runtime/tsconfig.json
+container-runtime/dist: container-runtime/node_modules $(shell git ls-files container-runtime/initSrc) container-runtime/package.json container-runtime/tsconfig.json	
+	(cd container-runtime && npm link @start9labs/start-sdk)
 	npm --prefix container-runtime run build
 
 container-runtime/dist/package.json: container-runtime/dist container-runtime/package.json
@@ -177,11 +179,11 @@ container-runtime/dist/package.json: container-runtime/dist container-runtime/pa
 container-runtime/dist/package-lock.json: container-runtime/dist container-runtime/package-lock.json
 	cp container-runtime/package-lock.json container-runtime/dist/package-lock.json
 
-container-runtime/dist/node_modules: container-runtime/dist/package.json container-runtime/dist/package-lock.json container-runtime/install-dist-deps.sh
+container-runtime/dist/node_modules: container-runtime/dist/package.json container-runtime/dist/package-lock.json container-runtime/install-dist-deps.sh $(ENVIRONMENT_FILE)
 	./container-runtime/install-dist-deps.sh
 	touch container-runtime/dist/node_modules
 
-build/lib/container-runtime/rootfs.squashfs: container-runtime/alpine.squashfs container-runtime/containerRuntime.rc container-runtime/update-image.sh container-runtime/dist container-runtime/dist/node_modules core/target/$(ARCH)-unknown-linux-musl/release/containerbox | sudo
+build/lib/container-runtime/rootfs.squashfs: container-runtime/alpine.squashfs container-runtime/containerRuntime.rc container-runtime/update-image.sh container-runtime/dist container-runtime/dist/node_modules core/target/$(ARCH)-unknown-linux-musl/release/containerbox $(PLATFORM_FILE) | sudo
 	ARCH=$(ARCH) ./container-runtime/update-image.sh
 
 build/lib/depends build/lib/conflicts: build/dpkg-deps/*
