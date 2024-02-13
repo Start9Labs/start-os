@@ -391,7 +391,6 @@ export class SystemForEmbassy implements System {
         ).stdout.toString(),
       )
     } else if (setConfigValue.type === "script") {
-      console.error({ Keys: Object.keys(this.moduleCode) })
       const moduleCode = this.moduleCode
       const method = moduleCode.properties
       if (!method)

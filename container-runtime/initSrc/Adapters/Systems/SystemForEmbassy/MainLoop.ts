@@ -37,10 +37,6 @@ export class MainLoop {
   }
 
   private async constructMainEvent() {
-    console.error({
-      keys: Object.keys(util),
-      typeOfCreateUtils: typeof util.createUtils,
-    })
     const { system, effects } = this
     const utils = util.createUtils(effects)
     const currentCommand: [string, ...string[]] = [
@@ -49,7 +45,12 @@ export class MainLoop {
     ]
 
     await effects.setMainStatus({ status: "running" })
-    const jsMain = (this.system.moduleCode as any).jsMain
+    const jsMain = (this.system.moduleCode as any)?.jsMain
+    const dockerProcedureContainer = await DockerProcedureContainer.of(
+      effects,
+      this.system.manifest.main,
+      this.system.manifest.volumes,
+    )
     if (jsMain) {
       const daemons = Daemons.of({
         effects,
@@ -68,7 +69,9 @@ export class MainLoop {
     const daemon = await utils.runDaemon(
       this.system.manifest.main.image,
       currentCommand,
-      {},
+      {
+        overlay: dockerProcedureContainer.overlay,
+      },
     )
     return {
       daemon,

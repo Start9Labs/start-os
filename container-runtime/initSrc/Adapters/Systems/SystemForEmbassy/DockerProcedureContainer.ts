@@ -32,6 +32,7 @@ export class DockerProcedureContainer {
         } else if (volumeMount.type === "assets") {
           await overlay.mount({ type: "assets", id: mount }, mounts[mount])
         } else if (volumeMount.type === "certificate") {
+          volumeMount
           const certChain = await effects.getSslCertificate()
           const key = await effects.getSslKey()
           await fs.writeFile(
