@@ -282,7 +282,7 @@ export class SystemForEmbassy implements System {
           ])
         ).stdout.toString(),
       )
-    } else {
+    } else if (setConfigValue.type === "script") {
       const moduleCode = await this.moduleCode
       const method = moduleCode.setConfig
       if (!method) throw new Error("Expecting that the method setConfig exists")
@@ -298,6 +298,11 @@ export class SystemForEmbassy implements System {
         if ("error" in x) throw new Error("Error getting config: " + x.error)
         throw new Error("Error getting config: " + x["error-code"][1])
       })
+    } else {
+      return {
+        "depends-on": {},
+        signal: "SIGTERM",
+      }
     }
   }
   private async migration(
@@ -344,7 +349,7 @@ export class SystemForEmbassy implements System {
             ])
           ).stdout.toString(),
         )
-      } else {
+      } else if (procedure.type === "script") {
         const moduleCode = await this.moduleCode
         const method = moduleCode.migration
         if (!method)
@@ -379,7 +384,7 @@ export class SystemForEmbassy implements System {
           ])
         ).stdout.toString(),
       )
-    } else {
+    } else if (setConfigValue.type === "script") {
       const moduleCode = await this.moduleCode
       const method = moduleCode.properties
       if (!method)
@@ -413,7 +418,7 @@ export class SystemForEmbassy implements System {
           ])
         ).stdout.toString(),
       )
-    } else {
+    } else if (healthProcedure.type === "script") {
       const moduleCode = await this.moduleCode
       const method = moduleCode.health?.[healthId]
       if (!method) throw new Error("Expecting that the method health exists")
@@ -485,7 +490,7 @@ export class SystemForEmbassy implements System {
           ])
         ).stdout.toString(),
       )
-    } else {
+    } else if (actionProcedure.type === "script") {
       const moduleCode = await this.moduleCode
       const method = moduleCode.dependencies?.[id]?.check
       if (!method)
@@ -500,6 +505,8 @@ export class SystemForEmbassy implements System {
         if ("error" in x) throw new Error("Error getting config: " + x.error)
         throw new Error("Error getting config: " + x["error-code"][1])
       })) as any
+    } else {
+      return {}
     }
   }
   private async dependenciesAutoconfig(
