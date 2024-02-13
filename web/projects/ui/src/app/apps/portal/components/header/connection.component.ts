@@ -16,6 +16,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       <tui-icon
         [icon]="connection.icon"
         [style.color]="connection.color"
+        [style.font-size.em]="1.5"
         [attr.data-connection]="connection.status"
       ></tui-icon>
       {{ connection.message }}
@@ -32,6 +33,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 
       :host-context(tui-root._mobile) {
         display: none;
+        font-size: 1rem;
       }
     `,
   ],

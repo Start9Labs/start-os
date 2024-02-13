@@ -19,7 +19,7 @@ import { BreadcrumbsService } from '../../services/breadcrumbs.service'
   selector: 'header[appHeader]',
   template: `
     <a headerHome routerLink="/portal/desktop" routerLinkActive="active">
-      <div class="plank"></div>
+      <div class="plaque"></div>
     </a>
     @for (item of breadcrumbs$ | async; track $index) {
       <a
@@ -28,11 +28,11 @@ import { BreadcrumbsService } from '../../services/breadcrumbs.service'
         [routerLinkActiveOptions]="options"
         [headerBreadcrumb]="item"
       >
-        <div class="plank"></div>
+        <div class="plaque"></div>
       </a>
     }
     <div [style.flex]="1" [headerMobile]="breadcrumbs$ | async">
-      <div class="plank"></div>
+      <div class="plaque"></div>
       <img
         [appSnek]="(snekScore$ | async) || 0"
         class="snek"
@@ -40,8 +40,8 @@ import { BreadcrumbsService } from '../../services/breadcrumbs.service'
         src="assets/img/icons/snek.png"
       />
     </div>
-    <header-connection><div class="plank"></div></header-connection>
-    <header-corner><div class="plank"></div></header-corner>
+    <header-connection><div class="plaque"></div></header-connection>
+    <header-corner><div class="plaque"></div></header-corner>
   `,
   styles: [
     `
@@ -87,19 +87,25 @@ import { BreadcrumbsService } from '../../services/breadcrumbs.service'
         }
       }
 
+      header-connection .plaque::before {
+        box-shadow:
+          inset 0 1px rgba(255, 255, 255, 0.25),
+          inset 0 -0.25rem var(--tui-success-fill);
+      }
+
       :host-context(tui-root._mobile) {
         a {
           display: none;
         }
 
-        header-corner .plank::before {
+        header-corner .plaque::before {
           box-shadow:
             inset 0 1px rgb(255 255 255 / 25%),
             inset -0.375rem 0 var(--status);
         }
       }
 
-      .plank {
+      .plaque {
         @include transition(opacity);
         position: absolute;
         inset: 0;
