@@ -1,3 +1,18 @@
+import { HttpClientModule } from '@angular/common/http'
+import { NgModule } from '@angular/core'
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
+import { ServiceWorkerModule } from '@angular/service-worker'
+import { IonicModule } from '@ionic/angular'
+import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
+import {
+  DarkThemeModule,
+  EnterModule,
+  LightThemeModule,
+  LoadingModule,
+  MarkdownModule,
+  ResponsiveColViewportDirective,
+  SharedPipesModule,
+} from '@start9labs/shared'
 import {
   TuiAlertModule,
   TuiDialogModule,
@@ -5,36 +20,19 @@ import {
   TuiRootModule,
   TuiThemeNightModule,
 } from '@taiga-ui/core'
-import { HttpClientModule } from '@angular/common/http'
-import { NgModule } from '@angular/core'
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
-import { IonicModule } from '@ionic/angular'
-import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
-import {
-  DarkThemeModule,
-  SharedPipesModule,
-  LightThemeModule,
-  LoadingModule,
-  ResponsiveColViewportDirective,
-  EnterModule,
-  MarkdownModule,
-} from '@start9labs/shared'
-
+import { WidgetsPageModule } from 'src/app/apps/ui/pages/widgets/widgets.module'
+import { environment } from '../environments/environment'
 import { AppComponent } from './app.component'
-import { RoutingModule } from './routing.module'
-import { OSWelcomePageModule } from './common/os-welcome/os-welcome.module'
-import { QRComponentModule } from './common/qr/qr.module'
-import { PreloaderModule } from './app/preloader/preloader.module'
+import { APP_PROVIDERS } from './app.providers'
+import { ConnectionBarComponentModule } from './app/connection-bar/connection-bar.component.module'
 import { FooterModule } from './app/footer/footer.module'
 import { MenuModule } from './app/menu/menu.module'
-import { APP_PROVIDERS } from './app.providers'
-import { PatchDbModule } from './services/patch-db/patch-db.module'
-import { ToastContainerModule } from './common/toast-container/toast-container.module'
-import { ConnectionBarComponentModule } from './app/connection-bar/connection-bar.component.module'
-import { WidgetsPageModule } from 'src/app/apps/ui/pages/widgets/widgets.module'
-import { ServiceWorkerModule } from '@angular/service-worker'
-import { environment } from '../environments/environment'
+import { PreloaderModule } from './app/preloader/preloader.module'
 import { SidebarHostComponent } from './app/sidebar-host.component'
+import { OSWelcomePageModule } from './common/os-welcome/os-welcome.module'
+import { QRComponentModule } from './common/qr/qr.module'
+import { ToastContainerModule } from './common/toast-container/toast-container.module'
+import { RoutingModule } from './routing.module'
 
 @NgModule({
   declarations: [AppComponent],
@@ -53,7 +51,6 @@ import { SidebarHostComponent } from './app/sidebar-host.component'
     MarkdownModule,
     MonacoEditorModule,
     SharedPipesModule,
-    PatchDbModule,
     ToastContainerModule,
     ConnectionBarComponentModule,
     TuiRootModule,

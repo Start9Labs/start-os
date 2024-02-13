@@ -15,9 +15,12 @@ import {
   TuiIconModule,
   TuiTitleModule,
 } from '@taiga-ui/experimental'
+import {
+  FormComponent,
+  FormContext,
+} from 'src/app/apps/portal/components/form.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { FormContext, FormPage } from 'src/app/apps/ui/modals/form/form.page'
 import { Wifi, WiFiForm, wifiSpec } from './utils'
 import { SettingsWifiComponent } from './wifi.component'
 
@@ -142,7 +145,7 @@ export class WifiTableComponent {
         },
       }
 
-      this.formDialog.open(FormPage, options)
+      this.formDialog.open(FormComponent, options)
     }
   }
 }

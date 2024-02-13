@@ -4,8 +4,11 @@ import { ErrorService, LoadingService } from '@start9labs/shared'
 import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
 import { TuiButtonModule } from '@taiga-ui/experimental'
 import { PatchDB } from 'patch-db-client'
+import {
+  FormComponent,
+  FormContext,
+} from 'src/app/apps/portal/components/form.component'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { FormContext, FormPage } from 'src/app/apps/ui/modals/form/form.page'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ProxiesTableComponent } from './table.component'
@@ -58,7 +61,7 @@ export class SettingsProxiesComponent {
       },
     }
 
-    this.formDialog.open(FormPage, options)
+    this.formDialog.open(FormComponent, options)
   }
 
   private async save({ name, config }: WireguardSpec): Promise<boolean> {

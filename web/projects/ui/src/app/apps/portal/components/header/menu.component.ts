@@ -16,6 +16,7 @@ import { AuthService } from 'src/app/services/auth.service'
 import { ABOUT } from './about.component'
 import { getAllPackages } from 'src/app/util/get-package-data'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { HeaderConnectionComponent } from './connection.component'
 
 @Component({
   selector: 'header-menu',
@@ -26,7 +27,9 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       </button>
       <ng-template #content>
         <tui-data-list>
-          <h3 class="title">StartOS</h3>
+          <header-connection class="status">
+            <h3 class="title">StartOS</h3>
+          </header-connection>
           <button tuiOption class="item" (click)="about()">
             <tui-icon icon="tuiIconInfo" />
             About this server
@@ -75,9 +78,16 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
         gap: 0.75rem;
       }
 
+      .status {
+        display: flex !important;
+        font-size: 0;
+        padding: 0 0.5rem;
+        height: 2rem;
+        width: 14rem;
+      }
+
       .title {
-        margin: 0;
-        padding: 0 0.5rem 0.25rem;
+        margin: 0 auto 0 0;
         font: var(--tui-font-text-l);
         font-weight: bold;
       }
@@ -96,6 +106,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     TuiSvgModule,
     TuiButtonModule,
     TuiIconModule,
+    HeaderConnectionComponent,
   ],
 })
 export class HeaderMenuComponent {

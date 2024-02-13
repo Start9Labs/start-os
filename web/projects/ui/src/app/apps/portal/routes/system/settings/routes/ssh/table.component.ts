@@ -12,11 +12,11 @@ import {
   TuiLinkModule,
 } from '@taiga-ui/core'
 import { TuiButtonModule } from '@taiga-ui/experimental'
+import { PROMPT } from 'src/app/apps/portal/modals/prompt.component'
 import { SSHKey } from 'src/app/services/api/api.types'
-import { PROMPT } from '../../../../../../ui/modals/prompt/prompt.component'
 import { filter, take } from 'rxjs'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { ApiService } from '../../../../../../../services/api/embassy-api.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
 import { TuiForModule } from '@taiga-ui/cdk'
 
@@ -35,7 +35,7 @@ import { TuiForModule } from '@taiga-ui/cdk'
     <tbody>
       <tr *ngFor="let key of keys; else: loading">
         <td>{{ key.hostname }}</td>
-        <td>{{ key['created-at'] | date : 'medium' }}</td>
+        <td>{{ key['created-at'] | date: 'medium' }}</td>
         <td>{{ key.alg }}</td>
         <td>{{ key.fingerprint }}</td>
         <td>

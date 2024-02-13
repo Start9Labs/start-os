@@ -29,8 +29,10 @@ import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { getAllPackages, getPackage } from 'src/app/util/get-package-data'
 import { Breakages } from 'src/app/services/api/api.types'
 import { InvalidService } from 'src/app/common/form/invalid.service'
-import { ActionButton, FormPage } from 'src/app/apps/ui/modals/form/form.page'
-import { FormPageModule } from 'src/app/apps/ui/modals/form/form.module'
+import {
+  ActionButton,
+  FormComponent,
+} from 'src/app/apps/portal/components/form.component'
 import { PackageConfigData } from '../types/package-config-data'
 import { ConfigDepComponent } from '../components/config-dep.component'
 
@@ -68,7 +70,7 @@ import { ConfigDepComponent } from '../components/config-dep.component'
         {{ pkg.manifest.version }}.
       </tui-notification>
 
-      <form-page
+      <app-form
         tuiMode="onDark"
         [spec]="spec"
         [value]="value || {}"
@@ -83,7 +85,7 @@ import { ConfigDepComponent } from '../components/config-dep.component'
         >
           Reset Defaults
         </button>
-      </form-page>
+      </app-form>
     </ng-container>
   `,
   styles: [
@@ -97,7 +99,7 @@ import { ConfigDepComponent } from '../components/config-dep.component'
   standalone: true,
   imports: [
     CommonModule,
-    FormPageModule,
+    FormComponent,
     TuiLoaderModule,
     TuiNotificationModule,
     TuiButtonModule,
@@ -107,8 +109,8 @@ import { ConfigDepComponent } from '../components/config-dep.component'
   providers: [InvalidService],
 })
 export class ServiceConfigModal {
-  @ViewChild(FormPage)
-  private readonly form?: FormPage<Record<string, any>>
+  @ViewChild(FormComponent)
+  private readonly form?: FormComponent<Record<string, any>>
 
   readonly pkgId = this.context.data.pkgId
   readonly dependentInfo = this.context.data.dependentInfo

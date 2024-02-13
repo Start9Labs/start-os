@@ -1,26 +1,25 @@
-import { NgModule } from "@angular/core";
-import { CommonModule } from "@angular/common";
+import { NgModule } from '@angular/core'
+import { CommonModule } from '@angular/common'
 import {
   EmverPipesModule,
   MarkdownPipeModule,
   SafeLinksDirective,
-  TextSpinnerComponentModule,
-} from "@start9labs/shared";
-import { NgDompurifyModule } from "@tinkoff/ng-dompurify";
-import { ReleaseNotesComponent } from "./release-notes.component";
-import { TuiButtonModule } from "@taiga-ui/core";
-import { TuiAccordionModule } from "@taiga-ui/kit";
+} from '@start9labs/shared'
+import { TuiAccordionModule } from '@taiga-ui/kit'
+import { TuiButtonModule, TuiLoaderModule } from '@taiga-ui/core'
+import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
+import { ReleaseNotesComponent } from './release-notes.component'
 
 @NgModule({
   imports: [
     CommonModule,
-    TextSpinnerComponentModule,
     EmverPipesModule,
     MarkdownPipeModule,
     NgDompurifyModule,
     SafeLinksDirective,
     TuiButtonModule,
     TuiAccordionModule,
+    TuiLoaderModule,
   ],
   declarations: [ReleaseNotesComponent],
   exports: [ReleaseNotesComponent],

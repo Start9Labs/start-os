@@ -30,7 +30,7 @@ export class BreadcrumbsService extends BehaviorSubject<readonly Breadcrumb[]> {
     const packages = await getAllPackages(this.patch)
 
     try {
-      this.next(toBreadcrumbs(page, packages))
+      this.next(toBreadcrumbs(page.split('?')[0], packages))
     } catch (e) {
       this.next([])
     }

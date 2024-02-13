@@ -6,14 +6,14 @@ import { TUI_PROMPT } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { filter, from, take } from 'rxjs'
 import { switchMap } from 'rxjs/operators'
+import { FormComponent } from 'src/app/apps/portal/components/form.component'
+import { PROMPT } from 'src/app/apps/portal/modals/prompt.component'
 import { ProxyService } from 'src/app/services/proxy.service'
-import { FormPage } from 'src/app/apps/ui/modals/form/form.page'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { getServerInfo } from 'src/app/util/get-server-info'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { PROMPT } from 'src/app/apps/ui/modals/prompt/prompt.component'
 
 import { passwordSpec, PasswordSpec, SettingBtn } from './settings.types'
 
@@ -160,7 +160,7 @@ export class SettingsService {
         switchMap(() => from(configBuilderToSpec(passwordSpec))),
       )
       .subscribe(spec => {
-        this.formDialog.open(FormPage, {
+        this.formDialog.open(FormComponent, {
           label: 'Change Master Password',
           data: {
             spec,

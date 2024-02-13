@@ -24,24 +24,22 @@ import { EmailInfoComponent } from './info.component'
   template: `
     <email-info />
     <ng-container *ngIf="form$ | async as form">
-      <form [formGroup]="form">
+      <form [formGroup]="form" [style.text-align]="'right'">
         <h3 class="g-title">SMTP Credentials</h3>
         <form-group
           *ngIf="spec | async as resolved"
           [spec]="resolved"
         ></form-group>
-        <div class="ion-text-right ion-padding-top">
-          <button
-            tuiButton
-            size="m"
-            [disabled]="form.invalid"
-            (click)="save(form.value)"
-          >
-            Save
-          </button>
-        </div>
+        <button
+          tuiButton
+          [style.margin-top.rem]="1"
+          [disabled]="form.invalid"
+          (click)="save(form.value)"
+        >
+          Save
+        </button>
       </form>
-      <form>
+      <form [style.text-align]="'right'">
         <h3 class="g-title">Test Email</h3>
         <tui-input
           [(ngModel)]="testAddress"
@@ -50,17 +48,15 @@ import { EmailInfoComponent } from './info.component'
           Firstname Lastname &lt;email&#64;example.com&gt;
           <input tuiTextfield inputmode="email" />
         </tui-input>
-        <div class="ion-text-right ion-padding-top">
-          <button
-            tuiButton
-            appearance="secondary"
-            size="m"
-            [disabled]="!testAddress || form.invalid"
-            (click)="sendTestEmail(form)"
-          >
-            Send Test Email
-          </button>
-        </div>
+        <button
+          tuiButton
+          appearance="secondary"
+          [style.margin-top.rem]="1"
+          [disabled]="!testAddress || form.invalid"
+          (click)="sendTestEmail(form)"
+        >
+          Send Test Email
+        </button>
       </form>
     </ng-container>
   `,

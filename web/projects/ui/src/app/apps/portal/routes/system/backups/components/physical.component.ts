@@ -9,9 +9,8 @@ import {
 import { TuiForModule } from '@taiga-ui/cdk'
 import { TuiSvgModule } from '@taiga-ui/core'
 import { TuiButtonModule } from '@taiga-ui/experimental'
-import { UnknownDisk } from 'src/app/services/api/api.types'
-import { IonicModule } from '@ionic/angular'
 import { UnitConversionPipesModule } from '@start9labs/shared'
+import { UnknownDisk } from 'src/app/services/api/api.types'
 
 @Component({
   selector: 'table[backupsPhysical]',
@@ -69,7 +68,6 @@ import { UnitConversionPipesModule } from '@start9labs/shared'
     TuiForModule,
     TuiSvgModule,
     TuiButtonModule,
-    IonicModule,
     UnitConversionPipesModule,
   ],
 })

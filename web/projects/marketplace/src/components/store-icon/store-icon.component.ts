@@ -3,8 +3,18 @@ import { MarketplaceConfig, sameUrl } from '@start9labs/shared'
 
 @Component({
   selector: 'store-icon',
-  templateUrl: './store-icon.component.html',
-  styleUrls: ['./store-icon.component.scss'],
+  template: `
+    <img
+      *ngIf="icon; else noIcon"
+      [style.border-radius.%]="100"
+      [style.max-width]="size || '100%'"
+      [src]="icon"
+      alt="Service Icon"
+    />
+    <ng-template #noIcon>
+      <tui-icon icon="tuiIconShoppingCart" [style.font-size]="size" />
+    </ng-template>
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StoreIconComponent {

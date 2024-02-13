@@ -9,7 +9,7 @@ import { TuiNotificationModule } from '@taiga-ui/core'
 import { TuiButtonModule, TuiFadeModule } from '@taiga-ui/experimental'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { BehaviorSubject } from 'rxjs'
-import { FormPage } from 'src/app/apps/ui/modals/form/form.page'
+import { FormComponent } from 'src/app/apps/portal/components/form.component'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import {
   cifsSpec,
@@ -17,7 +17,7 @@ import {
   dropboxSpec,
   googleDriveSpec,
   remoteBackupTargetSpec,
-} from 'src/app/apps/ui/pages/backups/types/target-types'
+} from '../types/target'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import {
   BackupTarget,
@@ -126,7 +126,7 @@ export class BackupsTargetsModal implements OnInit {
   }
 
   async onUpdate(value: BackupTarget) {
-    this.formDialog.open(FormPage, {
+    this.formDialog.open(FormComponent, {
       label: 'Update Target',
       data: {
         value,
@@ -147,7 +147,7 @@ export class BackupsTargetsModal implements OnInit {
   }
 
   async addPhysical(disk: UnknownDisk) {
-    this.formDialog.open(FormPage, {
+    this.formDialog.open(FormComponent, {
       label: 'New Physical Target',
       data: {
         spec: await configBuilderToSpec(diskBackupTargetSpec),
@@ -173,7 +173,7 @@ export class BackupsTargetsModal implements OnInit {
   }
 
   async addRemote() {
-    this.formDialog.open(FormPage, {
+    this.formDialog.open(FormComponent, {
       label: 'New Remote Target',
       data: {
         spec: await configBuilderToSpec(remoteBackupTargetSpec),

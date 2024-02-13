@@ -14,12 +14,12 @@ import {
   take,
   tap,
 } from 'rxjs'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { BackupTarget } from 'src/app/services/api/api.types'
 import {
   PROMPT,
   PromptOptions,
-} from 'src/app/apps/ui/modals/prompt/prompt.component'
+} from 'src/app/apps/portal/modals/prompt.component'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { BackupTarget } from 'src/app/services/api/api.types'
 import { TARGET, TARGET_RESTORE } from '../modals/target.component'
 import { RECOVER } from '../modals/recover.component'
 import { RecoverData } from '../types/recover-data'

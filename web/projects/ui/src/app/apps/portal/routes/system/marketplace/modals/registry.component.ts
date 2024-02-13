@@ -21,11 +21,11 @@ import { TUI_PROMPT } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, filter, firstValueFrom, map, Subscription } from 'rxjs'
+import { FormComponent } from 'src/app/apps/portal/components/form.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { FormPage } from 'src/app/apps/ui/modals/form/form.page'
 import { MarketplaceRegistryComponent } from '../components/registry.component'
 import { getMarketplaceValueSpec, getPromptOptions } from '../utils/registry'
 
@@ -112,7 +112,7 @@ export class MarketplaceRegistryModal {
   add() {
     const { name, spec } = getMarketplaceValueSpec()
 
-    this.formDialog.open(FormPage, {
+    this.formDialog.open(FormComponent, {
       label: name,
       data: {
         spec,

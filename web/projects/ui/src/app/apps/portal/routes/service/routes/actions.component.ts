@@ -13,6 +13,7 @@ import { TUI_PROMPT } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { filter, switchMap, timer } from 'rxjs'
+import { FormComponent } from 'src/app/apps/portal/components/form.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   Action,
@@ -22,7 +23,6 @@ import {
 } from 'src/app/services/patch-db/data-model'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { FormPage } from 'src/app/apps/ui/modals/form/form.page'
 import { ServiceActionComponent } from '../components/action.component'
 import { ServiceActionSuccessComponent } from '../components/action-success.component'
 import { DesktopService } from '../../../services/desktop.service'
@@ -97,7 +97,7 @@ export class ServiceActionsRoute {
         .subscribe()
     } else {
       if (action['input-spec'] && !isEmptyObject(action['input-spec'])) {
-        this.formDialog.open(FormPage, {
+        this.formDialog.open(FormComponent, {
           label: action.name,
           data: {
             spec: action['input-spec'],

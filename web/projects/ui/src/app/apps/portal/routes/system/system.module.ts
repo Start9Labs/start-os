@@ -46,12 +46,6 @@ const ROUTES: Routes = [
     loadComponent: () => import('./updates/updates.component'),
     data: toNavigationItem('/portal/system/updates'),
   },
-  {
-    title: systemTabResolver,
-    path: 'snek',
-    loadComponent: () => import('./snek/snek.component'),
-    data: toNavigationItem('/portal/system/snek'),
-  },
 ]
 
 @NgModule({ imports: [RouterModule.forChild(ROUTES)] })

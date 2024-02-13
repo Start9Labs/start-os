@@ -10,7 +10,7 @@
       >
         <span class="small-caps">Latest Release</span>
         &nbsp;-&nbsp;
-        <span class="text-sm">{{ published | date : 'medium' }}</span>
+        <span class="text-sm">{{ published | date: 'medium' }}</span>
       </p>
     </div>
     <div class="flex flex-wrap justify-between gap-6">
@@ -41,7 +41,7 @@
     <tui-accordion
       class="max-w-lg"
       [closeOthers]="false"
-      *ngFor="let note of notes | keyvalue : asIsOrder"
+      *ngFor="let note of notes | keyvalue: asIsOrder"
     >
       <tui-accordion-item class="my-1">
         {{ note.key | displayEmver }}
@@ -53,6 +53,6 @@
   </ng-container>
 
   <ng-template #loading>
-    <text-spinner text="Loading Release Notes"></text-spinner>
+    <tui-loader textContent="Loading Release Notes" />
   </ng-template>
 </ng-template>
