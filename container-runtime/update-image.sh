@@ -24,7 +24,6 @@ sudo mkdir -p tmp/combined/usr/lib/startos/
 sudo rsync -a dist/ tmp/combined/usr/lib/startos/init/
 sudo cp containerRuntime.rc tmp/combined/etc/init.d/containerRuntime
 sudo cp ../core/target/$ARCH-unknown-linux-musl/release/containerbox tmp/combined/usr/bin/start-cli
-sudo chown -R 0:0 tmp/combined
 sudo chmod +x tmp/combined/etc/init.d/containerRuntime
 sudo chroot tmp/combined $QEMU /sbin/rc-update add containerRuntime default
 
@@ -33,7 +32,7 @@ if [ -n "$QEMU" ]; then
 fi
 
 sudo truncate -s 0 tmp/combined/etc/resolv.conf
-sudo chown -R 100000:100000 tmp/combined
+sudo chown -R 0:0 tmp/combined
 rm -f ../build/lib/container-runtime/rootfs.squashfs
 mkdir -p ../build/lib/container-runtime
 sudo mksquashfs tmp/combined ../build/lib/container-runtime/rootfs.squashfs

@@ -1,46 +1,15 @@
+use std::fmt::Display;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
 use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
 use sha2::Sha256;
-use tokio::process::Command;
 
-use crate::disk::mount::filesystem::{FileSystem, MountType, ReadOnly, ReadWrite};
+use crate::disk::mount::filesystem::{FileSystem, ReadOnly, ReadWrite};
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::prelude::*;
 use crate::util::io::TmpDir;
-use crate::util::Invoke;
-
-pub async fn mount(
-    lower: impl AsRef<Path>,
-    upper: impl AsRef<Path>,
-    mountpoint: impl AsRef<Path>,
-    mount_type: MountType,
-) -> Result<(), Error> {
-    tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
-    let work = upper.as_ref().join("work");
-    tokio::fs::create_dir_all(&work).await?;
-    let upper = upper.as_ref().join("upper");
-    tokio::fs::create_dir_all(&upper).await?;
-    let mut cmd = Command::new("mount");
-    if mount_type == ReadOnly {
-        cmd.arg("-o").arg("ro");
-    }
-    cmd.arg("-t")
-        .arg("overlay")
-        .arg(format!(
-            "-olowerdir={},upperdir={},workdir={}",
-            lower.as_ref().display(),
-            upper.display(),
-            work.display()
-        ))
-        .arg("overlay")
-        .arg(mountpoint.as_ref())
-        .invoke(ErrorKind::Filesystem)
-        .await?;
-    Ok(())
-}
 
 struct OverlayFs<P0: AsRef<Path>, P1: AsRef<Path>> {
     lower: P0,
@@ -51,22 +20,33 @@ impl<P0: AsRef<Path>, P1: AsRef<Path>> OverlayFs<P0, P1> {
         Self { lower, upper }
     }
 }
-#[async_trait::async_trait]
 impl<P0: AsRef<Path> + Send + Sync, P1: AsRef<Path> + Send + Sync> FileSystem
     for OverlayFs<P0, P1>
 {
-    async fn mount<P: AsRef<Path> + Send + Sync>(
-        &self,
-        mountpoint: P,
-        mount_type: MountType,
-    ) -> Result<(), Error> {
-        mount(
-            self.lower.as_ref(),
-            self.upper.as_ref(),
-            mountpoint,
-            mount_type,
-        )
-        .await
+    fn mount_type(&self) -> Option<impl AsRef<str>> {
+        Some("overlay")
+    }
+    fn source(&self) -> Option<impl AsRef<Path>> {
+        Some("overlay")
+    }
+    fn mount_options(&self) -> impl IntoIterator<Item = impl Display> {
+        [
+            Box::new(lazy_format!("lowerdir={}", self.lower.as_ref().display()))
+                as Box<dyn Display>,
+            Box::new(lazy_format!(
+                "upperdir={}/upper",
+                self.upper.as_ref().display()
+            )),
+            Box::new(lazy_format!(
+                "workdir={}/work",
+                self.upper.as_ref().display()
+            )),
+        ]
+    }
+    async fn pre_mount(&self) -> Result<(), Error> {
+        tokio::fs::create_dir_all(self.upper.as_ref().join("upper")).await?;
+        tokio::fs::create_dir_all(self.upper.as_ref().join("work")).await?;
+        Ok(())
     }
     async fn source_hash(
         &self,

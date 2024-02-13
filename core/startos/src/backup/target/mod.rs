@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use clap::builder::ValueParserFactory;
 use clap::Parser;
@@ -118,9 +117,8 @@ pub enum BackupTargetFS {
     Disk(BlockDev<PathBuf>),
     Cifs(Cifs),
 }
-#[async_trait]
 impl FileSystem for BackupTargetFS {
-    async fn mount<P: AsRef<Path> + Send + Sync>(
+    async fn mount<P: AsRef<Path> + Send>(
         &self,
         mountpoint: P,
         mount_type: MountType,

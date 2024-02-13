@@ -13,6 +13,7 @@ use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt
 use tokio::process::Command;
 
 use crate::db::model::ExposedUI;
+use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::disk::mount::guard::GenericMountGuard;
@@ -620,7 +621,11 @@ pub async fn create_overlayed_image(
                 .with_kind(ErrorKind::Incoherent)?,
         );
         tracing::info!("Mounting overlay {guid} for {image_id}");
-        let guard = OverlayGuard::mount(&LoopDev::from(&**image), mountpoint).await?;
+        let guard = OverlayGuard::mount(
+            &IdMapped::new(LoopDev::from(&**image), 0, 100000, 65536),
+            mountpoint,
+        )
+        .await?;
         tracing::info!("Mounted overlay {guid} for {image_id}");
         ctx.persistent_container
             .overlays
