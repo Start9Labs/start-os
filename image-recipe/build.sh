@@ -227,9 +227,9 @@ usermod -aG sudo start9
 
 echo "start9 ALL=(ALL:ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/010_start9-nopasswd"
 
-# if [ "${IB_TARGET_PLATFORM}" != "raspberrypi" ]; then
-# 	/usr/lib/startos/scripts/enable-kiosk
-# fi
+if [ "${IB_TARGET_PLATFORM}" != "raspberrypi" ]; then
+	/usr/lib/startos/scripts/enable-kiosk
+fi
 
 if ! [[ "${IB_OS_ENV}" =~ (^|-)dev($|-) ]]; then
 	passwd -l start9
