@@ -19,6 +19,7 @@ use super::service_effect_handler::{service_effect_handler, EffectContext};
 use super::ServiceActorSeed;
 use crate::context::RpcContext;
 use crate::disk::mount::filesystem::bind::Bind;
+use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::disk::mount::filesystem::{MountType, ReadOnly};
@@ -84,7 +85,12 @@ impl PersistentContainer {
         let mut volumes = BTreeMap::new();
         for volume in &s9pk.as_manifest().volumes {
             let mount = MountGuard::mount(
-                &Bind::new(data_dir(&ctx.datadir, &s9pk.as_manifest().id, volume)),
+                &IdMapped::new(
+                    Bind::new(data_dir(&ctx.datadir, &s9pk.as_manifest().id, volume)),
+                    0,
+                    100000,
+                    65536,
+                ),
                 lxc_container
                     .rootfs_dir()
                     .join("media/startos/volumes")
@@ -92,11 +98,6 @@ impl PersistentContainer {
                 MountType::ReadWrite,
             )
             .await?;
-            Command::new("chown")
-                .arg("100000:100000")
-                .arg(mount.path())
-                .invoke(ErrorKind::Filesystem)
-                .await?;
             volumes.insert(volume.clone(), mount);
         }
         let mut assets = BTreeMap::new();

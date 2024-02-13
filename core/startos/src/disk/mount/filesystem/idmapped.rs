@@ -44,7 +44,7 @@ impl<Fs: FileSystem> FileSystem for IdMapped<Fs> {
             .into_iter()
             .map(|a| Box::new(a) as Box<dyn Display>)
             .chain(std::iter::once(Box::new(lazy_format!(
-                "X-mount.idmapped=b:{}:{}:{}",
+                "X-mount.idmap=b:{}:{}:{}",
                 self.from_id,
                 self.to_id,
                 self.range,
