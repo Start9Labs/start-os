@@ -1,7 +1,7 @@
 <button
   *ngFor="let cat of categories || ['', '', '', '', '', '']"
   class="flex relative gap-2 hover:no-underline hover:cursor-pointer sm:hover:bg-[#222428] sm:hover:opacity-90 sm:w-[120%] rounded-l-lg ease-in-out delay-75 duration-300 mb-5 sm:p-2 sm:mb-3 z-50"
-  routerLink="/marketplace"
+  routerLink="../"
   (click)="switchCategory(cat)"
   [class.category_selected]="cat === category"
 >
