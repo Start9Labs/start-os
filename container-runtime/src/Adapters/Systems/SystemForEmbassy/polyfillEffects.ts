@@ -6,15 +6,18 @@ import { promisify } from "util"
 import { util, Utils } from "@start9labs/start-sdk"
 import { Manifest } from "./matchManifest"
 import { HostSystemStartOs } from "../../HostSystemStartOs"
+import "isomorphic-fetch"
 
 const { createUtils } = util
 
-const fetcher = import("node-fetch")
 const execFile = promisify(child_process.execFile)
 
 export class PolyfillEffects implements oet.Effects {
   private utils: Utils<any, any>
-  constructor(readonly effects: HostSystemStartOs, private manifest: Manifest) {
+  constructor(
+    readonly effects: HostSystemStartOs,
+    private manifest: Manifest,
+  ) {
     this.utils = createUtils(effects as any)
   }
   async writeFile(input: {
@@ -185,18 +188,12 @@ export class PolyfillEffects implements oet.Effects {
     text(): Promise<string>
     json(): Promise<unknown>
   }> {
-    const fetch: any = await fetcher
     const fetched = await fetch(url, options)
     return {
       method: fetched.type,
       ok: fetched.ok,
       status: fetched.status,
-      headers: Object.fromEntries(
-        Object.entries<string[]>(fetched.headers.raw()).map(([k, v]) => [
-          k,
-          v.join(", "),
-        ]),
-      ),
+      headers: Object.fromEntries(fetched.headers.entries()),
       body: await fetched.text(),
       text: () => fetched.text(),
       json: () => fetched.json(),
