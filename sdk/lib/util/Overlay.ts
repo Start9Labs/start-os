@@ -113,7 +113,7 @@ export class Overlay {
       "start-cli",
       [
         "chroot",
-        `--env=/media/startos/env/${this.imageId}.env`,
+        `--env=/media/startos/images/${this.imageId}.env`,
         `--workdir=${workdir}`,
         ...extra,
         this.rootfs,
