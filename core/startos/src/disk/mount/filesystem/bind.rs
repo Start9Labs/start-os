@@ -23,6 +23,10 @@ impl<SrcDir: AsRef<Path> + Send + Sync> FileSystem for Bind<SrcDir> {
     fn extra_args(&self) -> impl IntoIterator<Item = impl AsRef<std::ffi::OsStr>> {
         ["--bind"]
     }
+    async fn pre_mount(&self) -> Result<(), Error> {
+        tokio::fs::create_dir_all(self.src_dir.as_ref()).await?;
+        Ok(())
+    }
     async fn source_hash(
         &self,
     ) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error> {
