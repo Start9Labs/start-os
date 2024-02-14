@@ -6,7 +6,7 @@ BASENAME := $(shell ./basename.sh)
 PLATFORM := $(shell if [ -f ./PLATFORM.txt ]; then cat ./PLATFORM.txt; else echo unknown; fi)
 ARCH := $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo aarch64; else echo $(PLATFORM) | sed 's/-nonfree$$//g'; fi)
 IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo iso; fi)
-BINS := core/target/$(ARCH)-unknown-linux-gnu/release/startbox core/target/$(ARCH)-unknown-linux-musl/release/containerbox
+BINS := core/target/$(ARCH)-unknown-linux-musl/release/startbox core/target/$(ARCH)-unknown-linux-musl/release/containerbox
 WEB_UIS := web/dist/raw/ui web/dist/raw/setup-wizard web/dist/raw/diagnostic-ui web/dist/raw/install-wizard
 FIRMWARE_ROMS := ./firmware/$(PLATFORM) $(shell jq --raw-output '.[] | select(.platform[] | contains("$(PLATFORM)")) | "./firmware/$(PLATFORM)/" + .id + ".rom.gz"' build/lib/firmware.json)
 BUILD_SRC := $(shell git ls-files build) build/lib/depends build/lib/conflicts build/lib/container-runtime/rootfs.squashfs $(FIRMWARE_ROMS)
@@ -26,7 +26,7 @@ PATCH_DB_CLIENT_SRC := $(shell git ls-files --recurse-submodules patch-db/client
 GZIP_BIN := $(shell which pigz || which gzip)
 TAR_BIN := $(shell which gtar || which tar)
 COMPILED_TARGETS := $(BINS) system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar
-ALL_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE) $(COMPILED_TARGETS) $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep; fi)  $(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]; then echo cargo-deps/$(ARCH)-unknown-linux-gnu/release/tokio-console; fi') $(PLATFORM_FILE)
+ALL_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE) $(COMPILED_TARGETS) $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-musl/release/pi-beep; fi)  $(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]; then echo cargo-deps/$(ARCH)-unknown-linux-musl/release/tokio-console; fi') $(PLATFORM_FILE)
 
 ifeq ($(REMOTE),)
 	mkdir = mkdir -p $1
@@ -49,7 +49,7 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all metadata install clean format sdk uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole test
+.PHONY: all metadata install clean format cli uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole test
 
 all: $(ALL_TARGETS)
 
@@ -77,6 +77,8 @@ clean:
 	rm -rf container-runtime/dist
 	rm -rf container-runtime/node_modules
 	rm -f build/lib/container-runtime/rootfs.squashfs
+	rm -rf sdk/dist
+	rm -rf sdk/node_modules
 	rm -f ENVIRONMENT.txt
 	rm -f PLATFORM.txt
 	rm -f GIT_HASH.txt
@@ -88,8 +90,8 @@ format:
 test: $(CORE_SRC) $(ENVIRONMENT_FILE)
 	cd core && cargo build && cargo test
 
-sdk:
-	cd core && ./install-sdk.sh
+cli:
+	cd core && ./install-cli.sh
 
 deb: results/$(BASENAME).deb
 
@@ -109,14 +111,13 @@ results/$(BASENAME).$(IMAGE_TYPE) results/$(BASENAME).squashfs: $(IMAGE_RECIPE_S
 # For creating os images. DO NOT USE
 install: $(ALL_TARGETS)
 	$(call mkdir,$(DESTDIR)/usr/bin)
-	$(call cp,core/target/$(ARCH)-unknown-linux-gnu/release/startbox,$(DESTDIR)/usr/bin/startbox)
+	$(call cp,core/target/$(ARCH)-unknown-linux-musl/release/startbox,$(DESTDIR)/usr/bin/startbox)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/startd)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/start-cli)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/start-sdk)
-	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/avahi-alias)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/embassy-cli)
-	if [ "$(PLATFORM)" = "raspberrypi" ]; then $(call cp,cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep,$(DESTDIR)/usr/bin/pi-beep); fi
-	if /bin/bash -c '[[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]'; then $(call cp,cargo-deps/$(ARCH)-unknown-linux-gnu/release/tokio-console,$(DESTDIR)/usr/bin/tokio-console); fi
+	if [ "$(PLATFORM)" = "raspberrypi" ]; then $(call cp,cargo-deps/aarch64-unknown-linux-musl/release/pi-beep,$(DESTDIR)/usr/bin/pi-beep); fi
+	if /bin/bash -c '[[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]'; then $(call cp,cargo-deps/$(ARCH)-unknown-linux-musl/release/tokio-console,$(DESTDIR)/usr/bin/tokio-console); fi
 	
 	$(call mkdir,$(DESTDIR)/lib/systemd/system)
 	$(call cp,core/startos/startd.service,$(DESTDIR)/lib/systemd/system/startd.service)
@@ -146,8 +147,8 @@ update-overlay: $(ALL_TARGETS)
 	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) PLATFORM=$(PLATFORM)
 	$(call ssh,"sudo systemctl start startd")
 
-wormhole: core/target/$(ARCH)-unknown-linux-gnu/release/startbox
-	@wormhole send core/target/$(ARCH)-unknown-linux-gnu/release/startbox 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/startos/scripts/chroot-and-upgrade \"cd /usr/bin && rm startbox && wormhole receive --accept-file %s && chmod +x startbox\"\n", $$3 }'
+wormhole: core/target/$(ARCH)-unknown-linux-musl/release/startbox
+	@wormhole send core/target/$(ARCH)-unknown-linux-musl/release/startbox 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/startos/scripts/chroot-and-upgrade \"cd /usr/bin && rm startbox && wormhole receive --accept-file %s && chmod +x startbox\"\n", $$3 }'
 
 update: $(ALL_TARGETS)
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
@@ -177,7 +178,7 @@ sdk/dist: $(shell git ls-files sdk)
 container-runtime/dist: container-runtime/node_modules $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
 	npm --prefix container-runtime run build
 
-container-runtime/dist/node_modules container-runtime/dist/package.json container-runtime/dist/package-lock.json: container-runtime/package.json container-runtime/package-lock.json sdk/dist container-runtime/install-dist-deps.sh $(ENVIRONMENT_FILE)
+container-runtime/dist/node_modules container-runtime/dist/package.json container-runtime/dist/package-lock.json: container-runtime/package.json container-runtime/package-lock.json sdk/dist container-runtime/install-dist-deps.sh
 	./container-runtime/install-dist-deps.sh
 	touch container-runtime/dist/node_modules
 
@@ -245,8 +246,8 @@ uis: $(WEB_UIS)
 # this is a convenience step to build the UI
 ui: web/dist/raw/ui
 
-cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep:
+cargo-deps/aarch64-unknown-linux-musl/release/pi-beep:
 	ARCH=aarch64 ./build-cargo-dep.sh pi-beep
 
-cargo-deps/$(ARCH)-unknown-linux-gnu/release/tokio-console:
+cargo-deps/$(ARCH)-unknown-linux-musl/release/tokio-console:
 	ARCH=$(ARCH) ./build-cargo-dep.sh tokio-console

@@ -2,8 +2,6 @@ use std::collections::VecDeque;
 use std::ffi::OsString;
 use std::path::Path;
 
-#[cfg(feature = "avahi-alias")]
-pub mod avahi_alias;
 #[cfg(feature = "container-runtime")]
 pub mod container_cli;
 pub mod deprecated;
@@ -16,8 +14,6 @@ pub mod startd;
 
 fn select_executable(name: &str) -> Option<fn(VecDeque<OsString>)> {
     match name {
-        #[cfg(feature = "avahi-alias")]
-        "avahi-alias" => Some(avahi_alias::main),
         #[cfg(feature = "cli")]
         "start-cli" => Some(start_cli::main),
         #[cfg(feature = "container-runtime")]
