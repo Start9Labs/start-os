@@ -4,7 +4,7 @@ use std::sync::Arc;
 use clap::Parser;
 use itertools::Itertools;
 use models::ImageId;
-use rpc_toolkit::{from_fn_async, AnyContext, Empty, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::process::Command;
@@ -108,6 +108,20 @@ async fn add_image(
     })
     .join("\n")
         + "\n";
+    let workdir = Path::new(
+        String::from_utf8(
+            Command::new(CONTAINER_TOOL)
+                .arg("run")
+                .arg("--rm")
+                .arg("--entrypoint")
+                .arg("pwd")
+                .arg(&image)
+                .invoke(ErrorKind::Docker)
+                .await?,
+        )?
+        .trim(),
+    )
+    .to_owned();
     let container_id = String::from_utf8(
         Command::new(CONTAINER_TOOL)
             .arg("create")
@@ -147,6 +161,18 @@ async fn add_image(
             .join(&id)
             .with_extension("env"),
         Entry::file(DynFileSource::new(Arc::from(Vec::from(env)))),
+    )?;
+    archive.contents_mut().insert_path(
+        Path::new("images")
+            .join(arch.trim())
+            .join(&id)
+            .with_extension("json"),
+        Entry::file(DynFileSource::new(Arc::from(
+            serde_json::to_vec(&serde_json::json!({
+                "workdir": workdir
+            }))
+            .with_kind(ErrorKind::Serialization)?,
+        ))),
     )?;
     let tmp_path = s9pk_path.with_extension("s9pk.tmp");
     let mut tmp_file = File::create(&tmp_path).await?;

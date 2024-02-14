@@ -122,17 +122,27 @@ impl PersistentContainer {
                 .await?,
             );
         }
-        let env_path = lxc_container.rootfs_dir().join("media/startos/env");
-        tokio::fs::create_dir_all(&env_path).await?;
+        let image_path = lxc_container.rootfs_dir().join("media/startos/images");
+        tokio::fs::create_dir_all(&image_path).await?;
         for image in &s9pk.as_manifest().images {
-            let filename = Path::new(image.as_ref()).with_extension("env");
+            let env_filename = Path::new(image.as_ref()).with_extension("env");
             if let Some(env) = s9pk
                 .as_archive()
                 .contents()
-                .get_path(Path::new("images").join(&*ARCH).join(&filename))
+                .get_path(Path::new("images").join(&*ARCH).join(&env_filename))
                 .and_then(|e| e.as_file())
             {
-                env.copy(&mut File::create(env_path.join(&filename)).await?)
+                env.copy(&mut File::create(image_path.join(&env_filename)).await?)
+                    .await?;
+            }
+            let json_filename = Path::new(image.as_ref()).with_extension("json");
+            if let Some(json) = s9pk
+                .as_archive()
+                .contents()
+                .get_path(Path::new("images").join(&*ARCH).join(&json_filename))
+                .and_then(|e| e.as_file())
+            {
+                json.copy(&mut File::create(image_path.join(&json_filename)).await?)
                     .await?;
             }
         }

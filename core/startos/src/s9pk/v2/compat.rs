@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use itertools::Itertools;
-use models::ImageId;
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWriteExt};
 use tokio::process::Command;
@@ -183,6 +182,20 @@ impl S9pk<Section<MultiCursorFile>> {
             })
             .join("\n")
                 + "\n";
+            let workdir = Path::new(
+                String::from_utf8(
+                    Command::new(CONTAINER_TOOL)
+                        .arg("run")
+                        .arg("--rm")
+                        .arg("--entrypoint")
+                        .arg("pwd")
+                        .arg(&image_name)
+                        .invoke(ErrorKind::Docker)
+                        .await?,
+                )?
+                .trim(),
+            )
+            .to_owned();
             Command::new("bash")
                 .arg("-c")
                 .arg(format!(
@@ -210,6 +223,19 @@ impl S9pk<Section<MultiCursorFile>> {
                     .join(&image)
                     .with_extension("env"),
                 Entry::file(CompatSource::Buffered(Vec::from(env).into())),
+            )?;
+            archive.insert_path(
+                Path::new("images")
+                    .join(&*ARCH)
+                    .join(&image)
+                    .with_extension("json"),
+                Entry::file(CompatSource::Buffered(
+                    serde_json::to_vec(&serde_json::json!({
+                        "workdir": workdir
+                    }))
+                    .with_kind(ErrorKind::Serialization)?
+                    .into(),
+                )),
             )?;
         }
         Command::new(CONTAINER_TOOL)
