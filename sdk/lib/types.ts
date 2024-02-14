@@ -114,8 +114,8 @@ export type ValidIfNoStupidEscape<A> = A extends
   | `${string}\\"${string}`
   ? never
   : "" extends A & ""
-  ? never
-  : A
+    ? never
+    : A
 
 export type ConfigRes = {
   /** This should be the previous config, that way during set config we start with the previous */

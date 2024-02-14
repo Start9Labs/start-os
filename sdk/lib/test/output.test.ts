@@ -9,11 +9,8 @@ import * as _I from "../index"
 import { camelCase } from "../../scripts/oldSpecToBuilder"
 import { deepMerge } from "../util/deepMerge"
 
-export type IfEquals<T, U, Y = unknown, N = never> = (<G>() => G extends T
-  ? 1
-  : 2) extends <G>() => G extends U ? 1 : 2
-  ? Y
-  : N
+export type IfEquals<T, U, Y = unknown, N = never> =
+  (<G>() => G extends T ? 1 : 2) extends <G>() => G extends U ? 1 : 2 ? Y : N
 export function testOutput<A, B>(): (c: IfEquals<A, B>) => null {
   return () => null
 }

@@ -2,7 +2,10 @@ import { Address } from "../types"
 import { Host, PortOptions } from "./Host"
 
 export class Origin<T extends Host> {
-  constructor(readonly host: T, readonly options: PortOptions) {}
+  constructor(
+    readonly host: T,
+    readonly options: PortOptions,
+  ) {}
 
   build({ username, path, search }: BuildOptions): Address {
     const qpEntries = Object.entries(search)
