@@ -10,6 +10,7 @@ use imbl_value::json;
 use models::{ActionId, HealthCheckId, ImageId, PackageId};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
+use tokio::process::Command;
 
 use crate::db::model::ExposedUI;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
@@ -651,6 +652,12 @@ pub async fn create_overlayed_image(
             })?
             .rootfs_dir();
         let mountpoint = rootfs_dir.join("media/startos/overlays").join(&*guid);
+        tokio::fs::create_dir_all(&mountpoint).await?;
+        Command::new("chown")
+            .arg("100000:100000")
+            .arg(&mountpoint)
+            .invoke(ErrorKind::Filesystem)
+            .await?;
         let container_mountpoint = Path::new("/").join(
             mountpoint
                 .strip_prefix(rootfs_dir)
