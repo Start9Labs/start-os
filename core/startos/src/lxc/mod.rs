@@ -24,6 +24,7 @@ use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
+use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
@@ -126,7 +127,12 @@ impl LxcContainer {
         // TODO: append config
         let rootfs_dir = container_dir.join("rootfs");
         let rootfs = OverlayGuard::mount(
-            &BlockDev::new("/usr/lib/startos/container-runtime/rootfs.squashfs"),
+            &IdMapped::new(
+                BlockDev::new("/usr/lib/startos/container-runtime/rootfs.squashfs"),
+                0,
+                100000,
+                65536,
+            ),
             &rootfs_dir,
         )
         .await?;

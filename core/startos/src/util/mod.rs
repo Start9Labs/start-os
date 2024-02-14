@@ -56,7 +56,6 @@ impl<T: ?Sized> AsRef<T> for Never {
     }
 }
 
-#[async_trait::async_trait]
 pub trait Invoke<'a> {
     type Extended<'ext>
     where
@@ -67,7 +66,10 @@ pub trait Invoke<'a> {
         &'ext mut self,
         input: Option<&'ext mut Input>,
     ) -> Self::Extended<'ext>;
-    async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error>;
+    fn invoke(
+        &mut self,
+        error_kind: crate::ErrorKind,
+    ) -> impl Future<Output = Result<Vec<u8>, Error>> + Send;
 }
 
 pub struct ExtendedCommand<'a> {
@@ -87,7 +89,6 @@ impl<'a> std::ops::DerefMut for ExtendedCommand<'a> {
     }
 }
 
-#[async_trait::async_trait]
 impl<'a> Invoke<'a> for tokio::process::Command {
     type Extended<'ext> = ExtendedCommand<'ext>
     where
@@ -125,7 +126,6 @@ impl<'a> Invoke<'a> for tokio::process::Command {
     }
 }
 
-#[async_trait::async_trait]
 impl<'a> Invoke<'a> for ExtendedCommand<'a> {
     type Extended<'ext> = &'ext mut ExtendedCommand<'ext>
     where

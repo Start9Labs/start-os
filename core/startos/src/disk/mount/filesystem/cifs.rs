@@ -2,7 +2,6 @@ use std::net::IpAddr;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 
-use async_trait::async_trait;
 use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
 use serde::{Deserialize, Serialize};
@@ -78,9 +77,8 @@ impl Cifs {
         Ok(())
     }
 }
-#[async_trait]
 impl FileSystem for Cifs {
-    async fn mount<P: AsRef<std::path::Path> + Send + Sync>(
+    async fn mount<P: AsRef<std::path::Path> + Send>(
         &self,
         mountpoint: P,
         mount_type: MountType,
