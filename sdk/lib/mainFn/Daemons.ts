@@ -123,7 +123,7 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
                 ({
                   status: "failing",
                   message: "message" in err ? err.message : String(err),
-                } as CheckResult),
+                }) as CheckResult,
             )
             currentInput.lastResult = response.status || null
             if (!currentInput.hadSuccess && response.status === "passing") {

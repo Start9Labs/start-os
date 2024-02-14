@@ -175,7 +175,7 @@ container-runtime/node_modules: container-runtime/package.json container-runtime
 sdk/dist: $(shell git ls-files sdk)
 	(cd sdk && make bundle)
 
-container-runtime/dist: container-runtime/node_modules $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json	
+container-runtime/dist: container-runtime/node_modules $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json sdk/dist
 	npm --prefix container-runtime run build
 
 container-runtime/dist/node_modules container-runtime/dist/package.json container-runtime/dist/package-lock.json: container-runtime/package.json container-runtime/package-lock.json sdk/dist container-runtime/install-dist-deps.sh
