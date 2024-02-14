@@ -60,6 +60,7 @@ export class HostSystemStartOs implements Effects {
             )
             if (testRpcError(res)) {
               let message = res.error.message
+              console.error({ method, params, hostSystemStartOs: true })
               if (string.test(res.error.data)) {
                 message += ": " + res.error.data
                 console.error(res.error.data)
@@ -70,7 +71,7 @@ export class HostSystemStartOs implements Effects {
                 }
                 if (res.error.data?.debug) {
                   message += "\n" + res.error.data.debug
-                  console.debug(res.error.data.debug)
+                  console.error("Debug: " + res.error.data.debug)
                 }
               }
               reject(new Error(message))
@@ -242,7 +243,7 @@ export class HostSystemStartOs implements Effects {
     >
   }
   restart(...[]: Parameters<T.Effects["restart"]>) {
-    this.rpcRound("restart", null)
+    return this.rpcRound("restart", null)
   }
   reverseProxy(...[options]: Parameters<T.Effects["reverseProxy"]>) {
     return this.rpcRound("reverseProxy", options) as ReturnType<

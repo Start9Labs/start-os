@@ -44,7 +44,7 @@ export class DockerProcedureContainer {
             key,
           )
         } else if (volumeMount.type === "pointer") {
-          effects.mount({
+          await effects.mount({
             location: path,
             target: {
               packageId: volumeMount["package-id"],

@@ -77,7 +77,9 @@ export class MainLoop {
       daemon,
       wait: daemon.wait().finally(() => {
         this.clean()
-        effects.setMainStatus({ status: "stopped" })
+        effects
+          .setMainStatus({ status: "stopped" })
+          .catch((e) => console.error("Could not set the status to stopped"))
       }),
     }
   }
