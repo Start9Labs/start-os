@@ -10,7 +10,6 @@ use imbl_value::json;
 use models::{ActionId, HealthCheckId, ImageId, PackageId};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
-use tokio::process::Command;
 
 use crate::db::model::ExposedUI;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
@@ -21,7 +20,7 @@ use crate::prelude::*;
 use crate::s9pk::rpc::SKIP_ENV;
 use crate::service::cli::ContainerCliContext;
 use crate::service::start_stop::StartStop;
-use crate::service::{RunningStatus, ServiceActorSeed};
+use crate::service::ServiceActorSeed;
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::clap::FromStrParser;
@@ -116,12 +115,15 @@ pub fn service_effect_handler() -> ParentHandler {
                 })
                 .with_remote_cli::<ContainerCliContext>(),
         )
+        .subcommand(
+            "getSslCertificate",
+            from_fn_async(get_ssl_certificate).no_cli(),
+        )
+        .subcommand("getSslKey", from_fn_async(get_ssl_key).no_cli())
     // TODO @DrBonez when we get the new api for 4.0
     // .subcommand("setDependencies",from_fn(set_dependencies))
     // .subcommand("embassyGetInterface",from_fn(embassy_get_interface))
     // .subcommand("mount",from_fn(mount))
-    // .subcommand("getSslCertificate",from_fn(get_ssl_certificate))
-    // .subcommand("getSslKey",from_fn(get_ssl_key))
     // .subcommand("removeAction",from_fn(remove_action))
     // .subcommand("removeAddress",from_fn(remove_address))
     // .subcommand("exportAction",from_fn(export_action))
@@ -203,7 +205,41 @@ fn chroot(
     cmd.args(args);
     Err(cmd.exec().into())
 }
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GetSslCertificateParams {
+    package_id: Option<String>,
+    algorithm: Option<String>, //"ecdsa" | "ed25519"
+}
 
+async fn get_ssl_certificate(
+    context: EffectContext,
+    GetSslCertificateParams {
+        package_id,
+        algorithm,
+    }: GetSslCertificateParams,
+) -> Result<Value, Error> {
+    let fake = include_str!("./fake.cert.pem");
+    Ok(json!([fake, fake, fake]))
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GetSslKeyParams {
+    package_id: Option<String>,
+    algorithm: Option<String>, //"ecdsa" | "ed25519"
+}
+
+async fn get_ssl_key(
+    context: EffectContext,
+    GetSslKeyParams {
+        package_id,
+        algorithm,
+    }: GetSslKeyParams,
+) -> Result<Value, Error> {
+    let fake = include_str!("./fake.cert.key");
+    Ok(json!(fake))
+}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct GetStoreParams {
