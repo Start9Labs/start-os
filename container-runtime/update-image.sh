@@ -21,7 +21,7 @@ fi
 echo "nameserver 8.8.8.8" | sudo tee tmp/combined/etc/resolv.conf # TODO - delegate to host resolver?
 sudo chroot tmp/combined $QEMU /sbin/apk add nodejs
 sudo mkdir -p tmp/combined/usr/lib/startos/
-sudo rsync -a dist/ tmp/combined/usr/lib/startos/init/
+sudo rsync -a --copy-unsafe-links dist/ tmp/combined/usr/lib/startos/init/
 sudo cp containerRuntime.rc tmp/combined/etc/init.d/containerRuntime
 sudo cp ../core/target/$ARCH-unknown-linux-musl/release/containerbox tmp/combined/usr/bin/start-cli
 sudo chmod +x tmp/combined/etc/init.d/containerRuntime

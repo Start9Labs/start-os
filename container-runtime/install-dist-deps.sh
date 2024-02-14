@@ -4,8 +4,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 
 set -e
 
-if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
-    rsync -a --copy-unsafe-links node_modules/ dist/node_modules/
-else
-    npm --prefix dist ci --omit=dev
-fi
+cat ./package.json | sed 's/file:\.\([.\/]\)/file:..\/.\1/g' > ./dist/package.json
+cat ./package-lock.json | sed 's/"\.\([.\/]\)/"..\/.\1/g' > ./dist/package-lock.json
+
+npm --prefix dist ci --omit=dev

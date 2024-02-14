@@ -2,12 +2,12 @@
   "include": [
     "./**/*.mjs",
     "./**/*.js",
-    "initSrc/Adapters/RpcListener.ts",
-    "initSrc/index.ts",
+    "src/Adapters/RpcListener.ts",
+    "src/index.ts",
     "effects.ts"
   ],
   "exclude": ["dist"],
-  "inputs": ["./initSrc/index.ts"],
+  "inputs": ["./src/index.ts"],
   "compilerOptions": {
     "module": "Node16",
     "strict": true,
