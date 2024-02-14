@@ -233,7 +233,7 @@ export const createUtils = <
       for (let mount of options.mounts || []) {
         await overlay.mount(mount.options, mount.path)
       }
-      const childProcess = overlay.spawn(commands, {
+      const childProcess = await overlay.spawn(commands, {
         env: options.env,
       })
       const answer = new Promise<null>((resolve, reject) => {

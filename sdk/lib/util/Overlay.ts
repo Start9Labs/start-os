@@ -4,7 +4,7 @@ import * as cp from "child_process"
 import { promisify } from "util"
 import { Buffer } from "node:buffer"
 export const execFile = promisify(cp.execFile)
-
+const WORKDIR = (imageId: string) => `/media/startos/images/${imageId}/`
 export class Overlay {
   private constructor(
     readonly effects: T.Effects,
@@ -59,20 +59,28 @@ export class Overlay {
     command: string[],
     options?: CommandOptions,
   ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
+    const imageMeta = await fs
+      .readFile(`/media/startos/images/${this.imageId}.json`, {
+        encoding: "utf8",
+      })
+      .catch(() => "{}")
+      .then(JSON.parse)
     let extra: string[] = []
-    if (options?.cwd) {
-      extra.push(`--workdir=${options.cwd}`)
-      delete options.cwd
-    }
     if (options?.user) {
       extra.push(`--user=${options.user}`)
       delete options.user
+    }
+    let workdir = imageMeta.workdir || "/"
+    if (options?.cwd) {
+      workdir = options.cwd
+      delete options.cwd
     }
     return await execFile(
       "start-cli",
       [
         "chroot",
-        `--env=/media/startos/env/${this.imageId}.env`,
+        `--env=/media/startos/images/${this.imageId}.env`,
+        `--workdir=${workdir}`,
         ...extra,
         this.rootfs,
         ...command,
@@ -81,24 +89,32 @@ export class Overlay {
     )
   }
 
-  spawn(
+  async spawn(
     command: string[],
     options?: CommandOptions,
-  ): cp.ChildProcessWithoutNullStreams {
+  ): Promise<cp.ChildProcessWithoutNullStreams> {
+    const imageMeta = await fs
+      .readFile(`/media/startos/images/${this.imageId}.json`, {
+        encoding: "utf8",
+      })
+      .catch(() => "{}")
+      .then(JSON.parse)
     let extra: string[] = []
-    if (options?.cwd) {
-      extra.push(`--workdir=${options.cwd}`)
-      delete options.cwd
-    }
     if (options?.user) {
       extra.push(`--user=${options.user}`)
       delete options.user
+    }
+    let workdir = imageMeta.workdir || "/"
+    if (options?.cwd) {
+      workdir = options.cwd
+      delete options.cwd
     }
     return cp.spawn(
       "start-cli",
       [
         "chroot",
         `--env=/media/startos/env/${this.imageId}.env`,
+        `--workdir=${workdir}`,
         ...extra,
         this.rootfs,
         ...command,

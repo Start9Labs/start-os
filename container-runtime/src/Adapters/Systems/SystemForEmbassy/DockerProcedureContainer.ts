@@ -70,7 +70,7 @@ export class DockerProcedureContainer {
     }
   }
 
-  spawn(commands: string[]): cp.ChildProcessWithoutNullStreams {
-    return this.overlay.spawn(commands)
+  async spawn(commands: string[]): Promise<cp.ChildProcessWithoutNullStreams> {
+    return await this.overlay.spawn(commands)
   }
 }

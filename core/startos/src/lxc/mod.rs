@@ -126,6 +126,12 @@ impl LxcContainer {
         .await?;
         // TODO: append config
         let rootfs_dir = container_dir.join("rootfs");
+        tokio::fs::create_dir_all(&rootfs_dir).await?;
+        Command::new("chown")
+            .arg("100000:100000")
+            .arg(&rootfs_dir)
+            .invoke(ErrorKind::Filesystem)
+            .await?;
         let rootfs = OverlayGuard::mount(
             &IdMapped::new(
                 BlockDev::new("/usr/lib/startos/container-runtime/rootfs.squashfs"),
