@@ -4798,7 +4798,6 @@ dependencies = [
  "rpc-toolkit 0.2.3 (git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/traits)",
  "rust-argon2 2.1.0",
  "rustyline-async",
- "scopeguard",
  "semver",
  "serde",
  "serde_json",
