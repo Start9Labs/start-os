@@ -47,7 +47,7 @@ pub struct PersistentContainer {
     pub(super) s9pk: S9pk,
     pub(super) lxc_container: OnceCell<LxcContainer>,
     rpc_client: UnixRpcClient,
-    rpc_server: OnceCell<(NonDetachingJoinHandle<()>, ShutdownHandle)>,
+    pub(super) rpc_server: watch::Sender<Option<(NonDetachingJoinHandle<()>, ShutdownHandle)>>,
     // procedures: Mutex<Vec<(ProcedureName, ProcedureId)>>,
     js_mount: MountGuard,
     volumes: BTreeMap<VolumeId, MountGuard>,
@@ -140,7 +140,7 @@ impl PersistentContainer {
             s9pk,
             lxc_container: OnceCell::new_with(Some(lxc_container)),
             rpc_client,
-            rpc_server: OnceCell::new(),
+            rpc_server: watch::channel(None).0,
             // procedures: Default::default(),
             js_mount,
             volumes,
@@ -202,12 +202,16 @@ impl PersistentContainer {
                 ErrorKind::Unknown,
             )
         })??;
-        self.rpc_server.set((handle, shutdown)).map_err(|_| {
-            Error::new(
+        if self
+            .rpc_server
+            .send_replace(Some((handle, shutdown)))
+            .is_some()
+        {
+            return Err(Error::new(
                 eyre!("PersistentContainer already initialized"),
                 ErrorKind::InvalidRequest,
-            )
-        })?;
+            ));
+        }
 
         self.rpc_client.request(rpc::Init, Empty {}).await?;
 
@@ -217,7 +221,7 @@ impl PersistentContainer {
     #[instrument(skip_all)]
     fn destroy(&mut self) -> impl Future<Output = Result<(), Error>> + 'static {
         let rpc_client = self.rpc_client.clone();
-        let rpc_server = self.rpc_server.take();
+        let rpc_server = self.rpc_server.send_replace(None);
         let js_mount = self.js_mount.take();
         let volumes = std::mem::take(&mut self.volumes);
         let assets = std::mem::take(&mut self.assets);

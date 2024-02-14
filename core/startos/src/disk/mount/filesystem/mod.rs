@@ -39,6 +39,7 @@ pub(self) async fn default_mount_command(
     if mount_type == ReadOnly {
         cmd.arg("-r");
     }
+    cmd.args(fs.extra_args());
     if let Some(ty) = fs.mount_type() {
         cmd.arg("-t").arg(ty.as_ref());
     }
@@ -47,7 +48,7 @@ pub(self) async fn default_mount_command(
         .into_iter()
         .fold(None, |acc: Option<String>, x| match acc {
             Some(mut s) => {
-                write!(s, ",{}", x);
+                write!(s, ",{}", x).unwrap();
                 Some(s)
             }
             None => Some(x.to_string()),
@@ -55,7 +56,6 @@ pub(self) async fn default_mount_command(
     {
         cmd.arg("-o").arg(options);
     }
-    cmd.args(fs.extra_args());
     if let Some(source) = fs.source().await? {
         cmd.arg(source.as_ref());
     }

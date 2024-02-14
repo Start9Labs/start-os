@@ -15,7 +15,6 @@ use crate::db::model::ExposedUI;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
-use crate::disk::mount::guard::GenericMountGuard;
 use crate::prelude::*;
 use crate::s9pk::rpc::SKIP_ENV;
 use crate::service::cli::ContainerCliContext;
@@ -24,7 +23,7 @@ use crate::service::ServiceActorSeed;
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::clap::FromStrParser;
-use crate::util::{new_guid, Invoke};
+use crate::util::new_guid;
 use crate::{echo, ARCH};
 
 #[derive(Clone)]

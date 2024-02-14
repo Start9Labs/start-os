@@ -264,7 +264,7 @@ impl Service {
         service
             .seed
             .persistent_container
-            .execute(ProcedureName::Init, to_value(&src_version)?, None)
+            .execute(ProcedureName::Init, to_value(&src_version)?, None) // TODO timeout
             .await
             .with_kind(ErrorKind::MigrationFailed)?; // TODO: handle cancellation
         if let Some(mut progress) = progress {
@@ -320,7 +320,7 @@ impl Service {
             .execute::<ConfigRes>(
                 ProcedureName::GetConfig,
                 Value::Null,
-                Some(Duration::from_secs(30)),
+                Some(Duration::from_secs(30)), // TODO timeout
             )
             .await
             .with_kind(ErrorKind::ConfigGen)
@@ -341,13 +341,33 @@ impl Service {
     }
 
     pub async fn shutdown(self) -> Result<(), Error> {
-        // TODO
-        Err(Error::new(eyre!("not yet implemented"), ErrorKind::Unknown))
+        self.actor
+            .shutdown(crate::util::actor::PendingMessageStrategy::FinishAll { timeout: None }) // TODO timeout
+            .await;
+        if let Some((hdl, shutdown)) = self.seed.persistent_container.rpc_server.send_replace(None)
+        {
+            shutdown.shutdown();
+            hdl.await.with_kind(ErrorKind::Cancelled)?;
+        }
+        Arc::try_unwrap(self.seed)
+            .map_err(|_| {
+                Error::new(
+                    eyre!("ServiceActorSeed held somewhere after actor shutdown"),
+                    ErrorKind::Unknown,
+                )
+            })?
+            .persistent_container
+            .exit()
+            .await?;
+        Ok(())
     }
 
     pub async fn uninstall(self, target_version: Option<models::Version>) -> Result<(), Error> {
-        // TODO
-        Err(Error::new(eyre!("not yet implemented"), ErrorKind::Unknown))
+        self.seed
+            .persistent_container
+            .execute(ProcedureName::Uninit, to_value(&target_version)?, None) // TODO timeout
+            .await?;
+        self.shutdown().await
     }
     pub async fn backup(&self, guard: impl GenericMountGuard) -> Result<BackupReturn, Error> {
         // TODO
