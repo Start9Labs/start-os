@@ -50,10 +50,10 @@
   "devDependencies": {
     "@types/jest": "^29.4.0",
     "jest": "^29.4.3",
+    "prettier": "^3.2.5",
     "ts-jest": "^29.0.5",
     "ts-node": "^10.9.1",
     "tsx": "^4.7.1",
-    "prettier": "^3.2.5",
     "typescript": "^5.0.4"
   }
 }
