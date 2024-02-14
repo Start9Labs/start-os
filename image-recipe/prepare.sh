@@ -26,6 +26,8 @@ apt-get install -yq \
 apt-get install -yq \
 	git \
 	build-essential \
+	crossbuild-essential-arm64 \
+	crossbuild-essential-amd64 \
 	automake \
 	autoconf \
 	gettext \

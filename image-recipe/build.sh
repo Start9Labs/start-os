@@ -32,8 +32,8 @@ cd $base_dir
 git clone --depth=1 --branch=v2.39.3 https://github.com/util-linux/util-linux.git
 cd util-linux
 ./autogen.sh
-./configure --host=$QEMU_ARCH-linux-gnu --disable-all-programs --enable-mount --enable-libmount --enable-libblkid --enable-libuuid --enable-static-programs
-make -j mount.static
+CC=aarch64-linux-gnu-gcc ./configure --host=$QEMU_ARCH-linux-gnu --disable-all-programs --enable-mount --enable-libmount --enable-libblkid --enable-libuuid --enable-static-programs
+CC=aarch64-linux-gnu-gcc make -j mount.static
 
 mkdir -p $prep_results_dir
 
