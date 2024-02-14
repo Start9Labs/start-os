@@ -18,8 +18,8 @@ if [ -z "$ARCH" ]; then
 fi
 
 mkdir -p cargo-deps
-alias 'rust-arm64-builder'='docker run $USE_TTY --rm -v "$HOME/.cargo/registry":/usr/local/cargo/registry -v "$(pwd)"/cargo-deps:/home/rust/src -P start9/rust-arm-cross:aarch64'
+alias 'rust-musl-builder'='docker run $USE_TTY --rm -e "RUSTFLAGS=$RUSTFLAGS" -v "$HOME/.cargo/registry":/usr/local/cargo/registry -v "$(pwd)":/home/rust/src -w /home/rust/src -P messense/rust-musl-cross:$ARCH-musl'
 
-rust-arm64-builder cargo install "$1" --target-dir /home/rust/src --target=$ARCH-unknown-linux-gnu
+rust-musl-builder cargo install "$1" --target-dir /home/rust/src --target=$ARCH-unknown-linux-musl
 sudo chown -R $USER cargo-deps
 sudo chown -R $USER ~/.cargo
