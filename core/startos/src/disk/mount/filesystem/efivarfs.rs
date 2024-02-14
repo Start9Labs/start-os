@@ -12,8 +12,8 @@ impl FileSystem for EfiVarFs {
     fn mount_type(&self) -> Option<impl AsRef<str>> {
         Some("efivarfs")
     }
-    fn source(&self) -> Option<impl AsRef<Path>> {
-        Some("efivarfs")
+    async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
+        Ok(Some("efivarfs"))
     }
     async fn source_hash(
         &self,

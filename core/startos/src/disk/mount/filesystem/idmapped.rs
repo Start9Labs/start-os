@@ -50,8 +50,8 @@ impl<Fs: FileSystem> FileSystem for IdMapped<Fs> {
                 self.range,
             )) as Box<dyn Display>))
     }
-    fn source(&self) -> Option<impl AsRef<Path>> {
-        self.filesystem.source()
+    async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
+        self.filesystem.source().await
     }
     async fn pre_mount(&self) -> Result<(), Error> {
         self.filesystem.pre_mount().await
@@ -64,7 +64,11 @@ impl<Fs: FileSystem> FileSystem for IdMapped<Fs> {
         self.pre_mount().await?;
         tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
         Command::new("mount.next")
-            .args(default_mount_command(self, mountpoint, mount_type).get_args())
+            .args(
+                default_mount_command(self, mountpoint, mount_type)
+                    .await?
+                    .get_args(),
+            )
             .invoke(ErrorKind::Filesystem)
             .await?;
 

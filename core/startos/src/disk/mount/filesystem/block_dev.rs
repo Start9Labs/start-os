@@ -20,8 +20,8 @@ impl<LogicalName: AsRef<Path>> BlockDev<LogicalName> {
     }
 }
 impl<LogicalName: AsRef<Path> + Send + Sync> FileSystem for BlockDev<LogicalName> {
-    fn source(&self) -> Option<impl AsRef<Path>> {
-        Some(&self.logicalname)
+    async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
+        Ok(Some(&self.logicalname))
     }
     async fn source_hash(
         &self,

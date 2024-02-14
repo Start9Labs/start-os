@@ -30,11 +30,11 @@ pub enum MountType {
 
 pub use MountType::*;
 
-pub(self) fn default_mount_command(
+pub(self) async fn default_mount_command(
     fs: &(impl FileSystem + ?Sized),
     mountpoint: impl AsRef<Path> + Send,
     mount_type: MountType,
-) -> std::process::Command {
+) -> Result<std::process::Command, Error> {
     let mut cmd = std::process::Command::new("mount");
     if mount_type == ReadOnly {
         cmd.arg("-r");
@@ -56,11 +56,11 @@ pub(self) fn default_mount_command(
         cmd.arg("-o").arg(options);
     }
     cmd.args(fs.extra_args());
-    if let Some(source) = fs.source() {
+    if let Some(source) = fs.source().await? {
         cmd.arg(source.as_ref());
     }
     cmd.arg(mountpoint.as_ref());
-    cmd
+    Ok(cmd)
 }
 
 pub(self) async fn default_mount_impl(
@@ -70,7 +70,7 @@ pub(self) async fn default_mount_impl(
 ) -> Result<(), Error> {
     fs.pre_mount().await?;
     tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
-    Command::from(default_mount_command(fs, mountpoint, mount_type))
+    Command::from(default_mount_command(fs, mountpoint, mount_type).await?)
         .invoke(ErrorKind::Filesystem)
         .await?;
 
@@ -87,8 +87,8 @@ pub trait FileSystem: Send + Sync {
     fn mount_options(&self) -> impl IntoIterator<Item = impl Display> {
         [] as [&str; 0]
     }
-    fn source(&self) -> Option<impl AsRef<Path>> {
-        None::<&Path>
+    fn source(&self) -> impl Future<Output = Result<Option<impl AsRef<Path>>, Error>> + Send {
+        async { Ok(None::<&Path>) }
     }
     fn pre_mount(&self) -> impl Future<Output = Result<(), Error>> + Send {
         async { Ok(()) }

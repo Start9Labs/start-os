@@ -19,8 +19,8 @@ impl<S: AsRef<str> + Send + Sync> FileSystem for Label<S> {
     fn extra_args(&self) -> impl IntoIterator<Item = impl AsRef<std::ffi::OsStr>> {
         ["-L", self.label.as_ref()]
     }
-    fn source(&self) -> Option<impl AsRef<Path>> {
-        None::<&Path>
+    async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
+        Ok(None::<&Path>)
     }
     async fn source_hash(
         &self,

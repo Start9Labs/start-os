@@ -17,8 +17,8 @@ impl<SrcDir: AsRef<Path>> Bind<SrcDir> {
     }
 }
 impl<SrcDir: AsRef<Path> + Send + Sync> FileSystem for Bind<SrcDir> {
-    fn source(&self) -> Option<impl AsRef<Path>> {
-        Some(&self.src_dir)
+    async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
+        Ok(Some(&self.src_dir))
     }
     fn extra_args(&self) -> impl IntoIterator<Item = impl AsRef<std::ffi::OsStr>> {
         ["--bind"]

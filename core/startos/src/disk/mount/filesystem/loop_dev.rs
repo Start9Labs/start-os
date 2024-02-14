@@ -2,10 +2,8 @@ use std::fmt::Display;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
-use async_trait::async_trait;
 use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
-use futures::Future;
 use lazy_format::lazy_format;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -29,10 +27,11 @@ impl<LogicalName: AsRef<Path>> LoopDev<LogicalName> {
         }
     }
 }
-#[async_trait]
 impl<LogicalName: AsRef<Path> + Send + Sync> FileSystem for LoopDev<LogicalName> {
-    fn source(&self) -> Option<impl AsRef<Path>> {
-        Some(self.logicalname.as_ref())
+    async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
+        Ok(Some(
+            tokio::fs::canonicalize(self.logicalname.as_ref()).await?,
+        ))
     }
     fn mount_options(&self) -> impl IntoIterator<Item = impl Display> {
         [
@@ -41,27 +40,24 @@ impl<LogicalName: AsRef<Path> + Send + Sync> FileSystem for LoopDev<LogicalName>
             Box::new(lazy_format!("sizelimit={}", self.size)),
         ]
     }
-    fn source_hash(
+    async fn source_hash(
         &self,
-    ) -> impl Future<Output = Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error>>
-           + Send {
-        async move {
-            let mut sha = Sha256::new();
-            sha.update("LoopDev");
-            sha.update(
-                tokio::fs::canonicalize(self.logicalname.as_ref())
-                    .await
-                    .with_ctx(|_| {
-                        (
-                            crate::ErrorKind::Filesystem,
-                            self.logicalname.as_ref().display().to_string(),
-                        )
-                    })?
-                    .as_os_str()
-                    .as_bytes(),
-            );
-            sha.update(&u64::to_be_bytes(self.offset)[..]);
-            Ok(sha.finalize())
-        }
+    ) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error> {
+        let mut sha = Sha256::new();
+        sha.update("LoopDev");
+        sha.update(
+            tokio::fs::canonicalize(self.logicalname.as_ref())
+                .await
+                .with_ctx(|_| {
+                    (
+                        crate::ErrorKind::Filesystem,
+                        self.logicalname.as_ref().display().to_string(),
+                    )
+                })?
+                .as_os_str()
+                .as_bytes(),
+        );
+        sha.update(&u64::to_be_bytes(self.offset)[..]);
+        Ok(sha.finalize())
     }
 }

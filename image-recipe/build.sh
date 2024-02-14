@@ -18,19 +18,6 @@ echo "Saving results in: $RESULTS_DIR"
 
 IMAGE_BASENAME=startos-${VERSION_FULL}_${IB_TARGET_PLATFORM}
 
-# TODO: remove when util-linux is released at v2.39
-cd $base_dir
-git clone https://github.com/util-linux/util-linux.git
-cd util-linux
-git checkout v2.39.3
-./autogen.sh
-./configure --disable-all-programs --enable-mount --enable-libmount --enable-libblkid --enable-libuuid --enable-static-programs
-make mount.static
-
-mkdir -p $prep_results_dir
-
-cd $prep_results_dir
-
 QEMU_ARCH=${IB_TARGET_ARCH}
 BOOTLOADERS=grub-efi,syslinux
 if [ "$QEMU_ARCH" = 'amd64' ]; then
@@ -39,6 +26,19 @@ elif [ "$QEMU_ARCH" = 'arm64' ]; then
 	QEMU_ARCH=aarch64
 	BOOTLOADERS=grub-efi
 fi
+
+# TODO: remove when util-linux is released at v2.39
+cd $base_dir
+git clone --depth=1 --branch=v2.39.3 https://github.com/util-linux/util-linux.git
+cd util-linux
+./autogen.sh
+./configure --host=$QEMU_ARCH-linux-gnu --disable-all-programs --enable-mount --enable-libmount --enable-libblkid --enable-libuuid --enable-static-programs
+make -j mount.static
+
+mkdir -p $prep_results_dir
+
+cd $prep_results_dir
+
 NON_FREE=
 if [[ "${IB_TARGET_PLATFORM}" =~ -nonfree$ ]] || [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	NON_FREE=1

@@ -28,8 +28,8 @@ impl<EncryptedDir: AsRef<Path> + Send + Sync, Key: AsRef<str> + Send + Sync> Fil
     fn mount_type(&self) -> Option<impl AsRef<str>> {
         Some("ecryptfs")
     }
-    fn source(&self) -> Option<impl AsRef<Path>> {
-        Some(&self.encrypted_dir)
+    async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
+        Ok(Some(&self.encrypted_dir))
     }
     fn mount_options(&self) -> impl IntoIterator<Item = impl Display> {
         [
@@ -52,7 +52,11 @@ impl<EncryptedDir: AsRef<Path> + Send + Sync, Key: AsRef<str> + Send + Sync> Fil
         self.pre_mount().await?;
         tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
         Command::new("mount")
-            .args(default_mount_command(self, mountpoint, mount_type).get_args())
+            .args(
+                default_mount_command(self, mountpoint, mount_type)
+                    .await?
+                    .get_args(),
+            )
             .input(Some(&mut std::io::Cursor::new(b"\n")))
             .invoke(crate::ErrorKind::Filesystem)
             .await?;

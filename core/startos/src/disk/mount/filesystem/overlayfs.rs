@@ -26,8 +26,8 @@ impl<P0: AsRef<Path> + Send + Sync, P1: AsRef<Path> + Send + Sync> FileSystem
     fn mount_type(&self) -> Option<impl AsRef<str>> {
         Some("overlay")
     }
-    fn source(&self) -> Option<impl AsRef<Path>> {
-        Some("overlay")
+    async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
+        Ok(Some("overlay"))
     }
     fn mount_options(&self) -> impl IntoIterator<Item = impl Display> {
         [
