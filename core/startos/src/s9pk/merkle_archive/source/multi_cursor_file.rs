@@ -1,7 +1,7 @@
-use std::io::SeekFrom;
 use std::os::fd::{AsRawFd, FromRawFd, RawFd};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::{borrow::Borrow, io::SeekFrom};
 
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt};
@@ -81,15 +81,23 @@ impl ArchiveSource for MultiCursorFile {
         } else {
             #[cfg(target_os = "linux")]
             let file = File::open(self.path()).await?;
-            #[cfg(not(target_os = "linux"))] // here be dragons
+            #[cfg(target_os = "macos")] // here be dragons
             let file = unsafe {
-                let c_file = libc::fdopen(
+                let mut buf = [0u8; libc::PATH_MAX as usize];
+                if libc::fcntl(
                     self.fd,
-                    std::ffi::CStr::from_bytes_with_nul_unchecked(b"r\0").as_ptr(),
-                );
-                let newfd = libc::dup(libc::fileno(c_file));
-                libc::fclose(c_file);
-                File::from_raw_fd(newfd)
+                    libc::F_GETPATH,
+                    buf.as_mut_ptr().cast::<libc::c_char>(),
+                ) == -1
+                {
+                    return Err(std::io::Error::last_os_error().into());
+                }
+                File::open(
+                    &*std::ffi::CStr::from_bytes_until_nul(&buf)
+                        .with_kind(ErrorKind::Utf8)?
+                        .to_string_lossy(),
+                )
+                .await?
             };
             Arc::new(Mutex::new(file))
                 .try_lock_owned()
