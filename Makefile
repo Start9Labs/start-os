@@ -74,6 +74,9 @@ clean:
 	rm -rf image-recipe/deb
 	rm -rf results
 	rm -rf build/lib/firmware
+	rm -rf container-runtime/dist
+	rm -rf container-runtime/node_modules
+	rm -f build/lib/container-runtime/rootfs.squashfs
 	rm -f ENVIRONMENT.txt
 	rm -f PLATFORM.txt
 	rm -f GIT_HASH.txt
@@ -166,20 +169,15 @@ container-runtime/alpine.squashfs: $(PLATFORM_FILE)
 
 container-runtime/node_modules: container-runtime/package.json container-runtime/package-lock.json
 	npm --prefix container-runtime ci
-	(cd container-runtime && npm link @start9labs/start-sdk)
 	touch container-runtime/node_modules
 
-container-runtime/dist: container-runtime/node_modules $(shell git ls-files container-runtime/initSrc) container-runtime/package.json container-runtime/tsconfig.json	
-	(cd container-runtime && npm link @start9labs/start-sdk)
+sdk/dist: $(shell git ls-files sdk)
+	(cd sdk && make bundle)
+
+container-runtime/dist: container-runtime/node_modules $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json	
 	npm --prefix container-runtime run build
 
-container-runtime/dist/package.json: container-runtime/dist container-runtime/package.json
-	cp container-runtime/package.json container-runtime/dist/package.json
-
-container-runtime/dist/package-lock.json: container-runtime/dist container-runtime/package-lock.json
-	cp container-runtime/package-lock.json container-runtime/dist/package-lock.json
-
-container-runtime/dist/node_modules: container-runtime/dist/package.json container-runtime/dist/package-lock.json container-runtime/install-dist-deps.sh $(ENVIRONMENT_FILE)
+container-runtime/dist/node_modules container-runtime/dist/package.json container-runtime/dist/package-lock.json: container-runtime/package.json container-runtime/package-lock.json sdk/dist container-runtime/install-dist-deps.sh $(ENVIRONMENT_FILE)
 	./container-runtime/install-dist-deps.sh
 	touch container-runtime/dist/node_modules
 

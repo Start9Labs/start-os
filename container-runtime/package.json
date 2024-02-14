@@ -5,8 +5,8 @@
   "module": "./index.js",
   "scripts": {
     "check": "tsc --noEmit",
-    "build": "rm -rf dist && cp -R initSrc/ dist/ && tsc",
-    "buildA": "rm -rf dist && cp -R initSrc/ dist/ && esbuild initSrc/index.ts --bundle --platform=node --target=node10.4 --outdir=dist/",
+    "build": "rm -rf dist && tsc",
+    "buildA": "rm -rf dist && esbuild src/index.ts --bundle --platform=node --target=node10.4 --outdir=dist/",
     "tsc": "rm -rf dist; tsc"
   },
   "author": "",
@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
-    "@start9labs/start-sdk": "0.4.0-rev0.lib0.rc8.beta8",
+    "@start9labs/start-sdk": "file:../sdk/dist",
     "esbuild-plugin-resolve": "^2.0.0",
     "filebrowser": "^1.0.0",
     "isomorphic-fetch": "^3.0.0",
