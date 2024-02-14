@@ -8,7 +8,6 @@
 ## Structure
 
 - `startos`: This contains the core library for StartOS that supports building `startbox`.
-- `js-engine`: This contains the library required to build `deno` to support running `.js` maintainer scripts for v0.3
 - `helpers`: This contains utility functions used across both `startos` and `js-engine`
 - `models`: This contains types that are shared across `startos`, `js-engine`, and `helpers`
 
@@ -22,8 +21,6 @@ several different names for different behaviour:
   `startd` and control it similarly to the UI
 - `start-sdk`: This is a CLI tool that aids in building and packaging services
   you wish to deploy to StartOS
-- `start-deno`: This is a CLI tool invoked by startd to run `.js` maintainer scripts for v0.3
-- `avahi-alias`: This is a CLI tool invoked by startd to create aliases in `avahi` for mDNS
 
 ## Questions
 

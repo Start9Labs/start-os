@@ -29,7 +29,7 @@ set +e
 fail=
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-if ! rust-gnu-builder sh -c "(cd core && cargo build --release --features avahi-alias,$FEATURES --locked --bin startbox --target=$ARCH-unknown-linux-gnu)"; then 
+if ! rust-musl-builder sh -c "(cd core && cargo build --release $(if [ -n "$FEATURES"]; then echo "--features $FEATURES"; fi) --locked --bin startbox --target=$ARCH-unknown-linux-gnu)"; then 
 	fail=true
 fi
 if ! rust-musl-builder sh -c "(cd core && cargo build --release --no-default-features --features container-runtime,$FEATURES --locked --bin containerbox --target=$ARCH-unknown-linux-musl)"; then 
