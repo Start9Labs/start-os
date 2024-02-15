@@ -12,7 +12,6 @@ use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
 use tokio::process::Command;
 
-use crate::db::model::ExposedUI;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
@@ -25,6 +24,7 @@ use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::clap::FromStrParser;
 use crate::util::new_guid;
+use crate::{db::model::ExposedUI, util::Invoke};
 use crate::{echo, ARCH};
 
 #[derive(Clone)]
