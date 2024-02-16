@@ -1,20 +1,23 @@
 import { Injectable } from '@angular/core'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
+import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
+import { Variants } from '@start9labs/start-sdk/lib/config/builder/variants'
+import { TuiDialogOptions } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
+import { firstValueFrom } from 'rxjs'
+import {
+  FormComponent,
+  FormContext,
+} from 'src/app/apps/portal/components/form.component'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
+import { ApiService } from './api/embassy-api.service'
 import {
   DataModel,
   OsOutboundProxy,
   ServiceOutboundProxy,
 } from './patch-db/data-model'
-import { firstValueFrom } from 'rxjs'
-import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
-import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
-import { Variants } from '@start9labs/start-sdk/lib/config/builder/variants'
-import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
-import { TuiDialogOptions } from '@taiga-ui/core'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { FormContext, FormPage } from '../apps/ui/modals/form/form.page'
-import { ApiService } from './api/embassy-api.service'
-import { ErrorService, LoadingService } from '@start9labs/shared'
 
 @Injectable({
   providedIn: 'root',
@@ -42,10 +45,10 @@ export class ProxyService {
     const defaultValue = !outboundProxy
       ? 'none'
       : outboundProxy === 'primary'
-      ? 'primary'
-      : outboundProxy === 'mirror'
-      ? 'mirror'
-      : 'other'
+        ? 'primary'
+        : outboundProxy === 'mirror'
+          ? 'mirror'
+          : 'other'
 
     let variants: Record<string, { name: string; spec: Config<any> }> = {}
 
@@ -126,10 +129,10 @@ export class ProxyService {
                 value.proxy.unionSelectKey === 'none'
                   ? null
                   : value.proxy.unionSelectKey === 'primary'
-                  ? 'primary'
-                  : value.proxy.unionSelectKey === 'mirror'
-                  ? 'mirror'
-                  : { proxyId: value.proxy.unionValueKey.proxyId }
+                    ? 'primary'
+                    : value.proxy.unionSelectKey === 'mirror'
+                      ? 'mirror'
+                      : { proxyId: value.proxy.unionValueKey.proxyId }
               await this.saveOutboundProxy(proxy, serviceContext?.packageId)
               return true
             },
@@ -137,7 +140,7 @@ export class ProxyService {
         ],
       },
     }
-    this.formDialog.open(FormPage, options)
+    this.formDialog.open(FormComponent, options)
   }
 
   private async saveOutboundProxy(

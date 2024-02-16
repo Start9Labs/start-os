@@ -30,9 +30,8 @@ const routes: Routes = [
   },
   {
     path: '',
-    canActivate: [AuthGuard],
-    canActivateChild: [AuthGuard],
-    loadChildren: () => import('./apps/ui/ui.module').then(m => m.UiModule),
+    redirectTo: 'portal',
+    pathMatch: 'full',
   },
 ]
 
