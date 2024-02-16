@@ -20,7 +20,6 @@ import {
   TuiRootModule,
   TuiThemeNightModule,
 } from '@taiga-ui/core'
-import { WidgetsPageModule } from 'src/app/apps/ui/pages/widgets/widgets.module'
 import { environment } from '../environments/environment'
 import { AppComponent } from './app.component'
 import { APP_PROVIDERS } from './app.providers'
@@ -58,7 +57,6 @@ import { RoutingModule } from './routing.module'
     TuiAlertModule,
     TuiModeModule,
     TuiThemeNightModule,
-    WidgetsPageModule,
     ResponsiveColViewportDirective,
     DarkThemeModule,
     LightThemeModule,

@@ -1,5 +1,4 @@
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { BUILT_IN_WIDGETS } from 'src/app/apps/ui/pages/widgets/built-in/widgets'
 import { Mock } from './api.fixures'
 
 export const mockPatchData: DataModel = {
@@ -8,13 +7,7 @@ export const mockPatchData: DataModel = {
     'ack-welcome': '1.0.0',
     theme: 'Dark',
     desktop: ['lnd'],
-    widgets: BUILT_IN_WIDGETS.filter(
-      ({ id }) =>
-        id === 'favorites' ||
-        id === 'health' ||
-        id === 'network' ||
-        id === 'metrics',
-    ),
+    widgets: [],
     marketplace: {
       'selected-url': 'https://registry.start9.com/',
       'known-hosts': {

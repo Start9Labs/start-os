@@ -24,18 +24,18 @@ import {
   TuiToggleModule,
 } from '@taiga-ui/experimental'
 import { PatchDB } from 'patch-db-client'
-import { catchError, defer, merge, Observable, of, Subject, map } from 'rxjs'
+import { catchError, defer, map, merge, Observable, of, Subject } from 'rxjs'
 import {
   FormComponent,
   FormContext,
 } from 'src/app/apps/portal/components/form.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { WifiInfoComponent } from './info.component'
 import { WifiTableComponent } from './table.component'
 import { parseWifi, WifiData, WiFiForm } from './utils'
-import { wifiSpec } from '../../../../../../ui/pages/system/wifi/wifi.const'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { wifiSpec } from './wifi.const'
 
 @Component({
   template: `
