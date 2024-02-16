@@ -11,7 +11,6 @@ import {
 import { TuiInputPasswordModule } from '@taiga-ui/kit'
 import { CAWizardComponent } from './ca-wizard/ca-wizard.component'
 import { LoginPage } from './login.page'
-import { LoginWarningComponent } from './warning.component'
 
 const routes: Routes = [
   {
@@ -25,7 +24,6 @@ const routes: Routes = [
     CommonModule,
     FormsModule,
     CAWizardComponent,
-    LoginWarningComponent,
     TuiButtonModule,
     TuiCardModule,
     TuiSurfaceModule,

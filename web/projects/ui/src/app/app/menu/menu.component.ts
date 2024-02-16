@@ -11,9 +11,7 @@ import {
   filter,
   first,
   map,
-  merge,
   Observable,
-  of,
   pairwise,
   startWith,
   switchMap,
@@ -114,10 +112,9 @@ export class MenuComponent {
 
   readonly theme$ = inject(THEME)
 
-  readonly warning$ = merge(
-    of(this.config.isTorHttp()),
-    this.patch.watch$('server-info', 'ntp-synced').pipe(map(synced => !synced)),
-  )
+  readonly warning$ = this.patch
+    .watch$('server-info', 'ntp-synced')
+    .pipe(map(synced => !synced))
 
   constructor(
     private readonly patch: PatchDB<DataModel>,

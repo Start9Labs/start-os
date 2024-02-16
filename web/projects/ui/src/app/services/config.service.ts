@@ -64,10 +64,6 @@ export class ConfigService {
     )
   }
 
-  isTorHttp(): boolean {
-    return this.isTor() && !this.isHttps()
-  }
-
   isLanHttp(): boolean {
     return !this.isTor() && !this.isLocalhost() && !this.isHttps()
   }
@@ -80,12 +76,12 @@ export class ConfigService {
     return this.isTor()
       ? info.addressInfo.torHostname
       : this.isLocalhost()
-      ? `https://${info.addressInfo.lanHostname}`
-      : this.isLocal() || this.isIpv4() || this.isIpv6()
-      ? `https://${this.hostname}`
-      : info.addressInfo.domainInfo?.subdomain
-      ? `https://${info.addressInfo.domainInfo.subdomain}${info.addressInfo.domainInfo.domain}`
-      : `https://${info.addressInfo.domainInfo?.domain}`
+        ? `https://${info.addressInfo.lanHostname}`
+        : this.isLocal() || this.isIpv4() || this.isIpv6()
+          ? `https://${this.hostname}`
+          : info.addressInfo.domainInfo?.subdomain
+            ? `https://${info.addressInfo.domainInfo.subdomain}${info.addressInfo.domainInfo.domain}`
+            : `https://${info.addressInfo.domainInfo?.domain}`
   }
 
   getHost(): string {

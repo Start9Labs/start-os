@@ -14,7 +14,7 @@ import { InstallProgressPipeModule } from 'src/app/common/install-progress/insta
   template: `
     <strong *ngIf="!installProgress; else installing">
       {{ connected ? rendering.display : 'Unknown' }}
-      <!-- @TODO should show 'this may take a while' if sigterm-timeout is > 30s -->
+      <!-- @TODO should show 'this may take a while' if sigtermTimeout is > 30s -->
       <span *ngIf="rendering.showDots" class="loading-dots"></span>
     </strong>
     <ng-template #installing>

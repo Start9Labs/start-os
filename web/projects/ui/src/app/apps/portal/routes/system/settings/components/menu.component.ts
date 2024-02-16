@@ -3,12 +3,10 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { TuiAlertService, TuiLoaderModule } from '@taiga-ui/core'
 import { TuiButtonModule } from '@taiga-ui/experimental'
 import { PatchDB } from 'patch-db-client'
-import { ConfigService } from 'src/app/services/config.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
 import { SettingsService } from '../settings.service'
 import { SettingsSyncComponent } from './sync.component'
-import { SettingsHttpsComponent } from './http.component'
 import { SettingsButtonComponent } from './button.component'
 import { SettingsUpdateComponent } from './update.component'
 
@@ -17,19 +15,7 @@ import { SettingsUpdateComponent } from './update.component'
   template: `
     <ng-container *ngIf="server$ | async as server; else loading">
       <settings-sync *ngIf="!server['ntp-synced']" />
-      <settings-http *ngIf="isTorHttp">
-        <a
-          tuiButton
-          appearance="glass"
-          iconRight="tuiIconExternalLinkLarge"
-          target="_self"
-          size="s"
-          [href]="'https://' + server.ui.torHostname"
-        >
-          Open Https
-        </a>
-      </settings-http>
-      <section *ngFor="let cat of service.settings | keyvalue : asIsOrder">
+      <section *ngFor="let cat of service.settings | keyvalue: asIsOrder">
         <h3 class="g-title" (click)="addClick(cat.key)">{{ cat.key }}</h3>
         <ng-container *ngFor="let btn of cat.value">
           <settings-button [button]="btn">
@@ -46,8 +32,8 @@ import { SettingsUpdateComponent } from './update.component'
                 !server.network.outboundProxy
                   ? 'None'
                   : server.network.outboundProxy === 'primary'
-                  ? 'System Primary'
-                  : server.network.outboundProxy.proxyId
+                    ? 'System Primary'
+                    : server.network.outboundProxy.proxyId
               }}
             </div>
           </settings-button>
@@ -82,7 +68,6 @@ import { SettingsUpdateComponent } from './update.component'
     TuiLoaderModule,
     TuiButtonModule,
     SettingsSyncComponent,
-    SettingsHttpsComponent,
     SettingsButtonComponent,
     SettingsUpdateComponent,
   ],
@@ -91,7 +76,6 @@ export class SettingsMenuComponent {
   private readonly clientStorageService = inject(ClientStorageService)
   private readonly alerts = inject(TuiAlertService)
 
-  readonly isTorHttp = inject(ConfigService).isTorHttp()
   readonly server$ = inject(PatchDB<DataModel>).watch$('server-info')
   readonly service = inject(SettingsService)
 
