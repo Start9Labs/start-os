@@ -87,6 +87,8 @@ type PortOptionsByKnownProtocol =
     }
 type PortOptionsByProtocol = PortOptionsByKnownProtocol | PortOptions
 
+export type HostKind = "static" | "single" | "multi"
+
 const hasStringProtocol = object({
   protocol: string,
 }).test
@@ -95,7 +97,7 @@ export class Host {
   constructor(
     readonly options: {
       effects: Effects
-      kind: "static" | "single" | "multi"
+      kind: HostKind
       id: string
     },
   ) {}
