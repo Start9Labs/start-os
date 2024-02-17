@@ -12,9 +12,6 @@ on:
           - dev
           - unstable
           - dev-unstable
-          - docker
-          - dev-docker
-          - dev-unstable-docker
       runner:
         type: choice
         description: Runner

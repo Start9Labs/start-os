@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::{Ipv4Addr, Ipv6Addr};
-use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use emver::VersionRange;
@@ -8,8 +7,9 @@ use imbl_value::InternedString;
 use ipnet::{Ipv4Net, Ipv6Net};
 use isocountry::CountryCode;
 use itertools::Itertools;
-use models::{DataUrl, HealthCheckId, InterfaceId};
+use models::{DataUrl, HealthCheckId, InterfaceId, PackageId};
 use openssl::hash::MessageDigest;
+use patch_db::json_ptr::JsonPointer;
 use patch_db::{HasModel, Value};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -17,12 +17,12 @@ use ssh_key::public::Ed25519PublicKey;
 
 use crate::account::AccountInfo;
 use crate::config::spec::PackagePointerSpec;
-use crate::install::progress::InstallProgress;
 use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::prelude::*;
-use crate::s9pk::manifest::{Manifest, PackageId};
+use crate::progress::FullProgress;
+use crate::s9pk::manifest::Manifest;
 use crate::status::Status;
-use crate::util::cpupower::{Governor};
+use crate::util::cpupower::Governor;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::{ARCH, PLATFORM};
@@ -225,14 +225,14 @@ impl Map for AllPackageData {
 pub struct StaticFiles {
     license: String,
     instructions: String,
-    icon: String,
+    icon: DataUrl<'static>,
 }
 impl StaticFiles {
-    pub fn local(id: &PackageId, version: &Version, icon_type: &str) -> Self {
+    pub fn local(id: &PackageId, version: &Version, icon: DataUrl<'static>) -> Self {
         StaticFiles {
             license: format!("/public/package-data/{}/{}/LICENSE.md", id, version),
             instructions: format!("/public/package-data/{}/{}/INSTRUCTIONS.md", id, version),
-            icon: format!("/public/package-data/{}/{}/icon.{}", id, version, icon_type),
+            icon,
         }
     }
 }
@@ -243,7 +243,7 @@ impl StaticFiles {
 pub struct PackageDataEntryInstalling {
     pub static_files: StaticFiles,
     pub manifest: Manifest,
-    pub install_progress: Arc<InstallProgress>,
+    pub install_progress: FullProgress,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
@@ -253,7 +253,7 @@ pub struct PackageDataEntryUpdating {
     pub static_files: StaticFiles,
     pub manifest: Manifest,
     pub installed: InstalledPackageInfo,
-    pub install_progress: Arc<InstallProgress>,
+    pub install_progress: FullProgress,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
@@ -262,7 +262,7 @@ pub struct PackageDataEntryUpdating {
 pub struct PackageDataEntryRestoring {
     pub static_files: StaticFiles,
     pub manifest: Manifest,
-    pub install_progress: Arc<InstallProgress>,
+    pub install_progress: FullProgress,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
@@ -422,7 +422,7 @@ impl Model<PackageDataEntry> {
             PackageDataEntryMatchModelMut::Error(_) => None,
         }
     }
-    pub fn as_install_progress(&self) -> Option<&Model<Arc<InstallProgress>>> {
+    pub fn as_install_progress(&self) -> Option<&Model<FullProgress>> {
         match self.as_match() {
             PackageDataEntryMatchModelRef::Installing(a) => Some(a.as_install_progress()),
             PackageDataEntryMatchModelRef::Updating(a) => Some(a.as_install_progress()),
@@ -432,7 +432,7 @@ impl Model<PackageDataEntry> {
             PackageDataEntryMatchModelRef::Error(_) => None,
         }
     }
-    pub fn as_install_progress_mut(&mut self) -> Option<&mut Model<Arc<InstallProgress>>> {
+    pub fn as_install_progress_mut(&mut self) -> Option<&mut Model<FullProgress>> {
         match self.as_match_mut() {
             PackageDataEntryMatchModelMut::Installing(a) => Some(a.as_install_progress_mut()),
             PackageDataEntryMatchModelMut::Updating(a) => Some(a.as_install_progress_mut()),
@@ -459,6 +459,29 @@ pub struct InstalledPackageInfo {
     pub current_dependents: CurrentDependents,
     pub current_dependencies: CurrentDependencies,
     pub interface_addresses: InterfaceAddressMap,
+    pub store: Value,
+    pub store_exposed_ui: Vec<ExposedUI>,
+    pub store_exposed_dependents: Vec<JsonPointer>,
+}
+#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[model = "Model<Self>"]
+pub struct ExposedDependent {
+    path: String,
+    title: String,
+    description: Option<String>,
+    masked: Option<bool>,
+    copyable: Option<bool>,
+    qr: Option<bool>,
+}
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[model = "Model<Self>"]
+pub struct ExposedUI {
+    path: Vec<JsonPointer>,
+    title: String,
+    description: Option<String>,
+    masked: Option<bool>,
+    copyable: Option<bool>,
+    qr: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -478,7 +501,6 @@ impl Map for CurrentDependents {
     type Key = PackageId;
     type Value = CurrentDependencyInfo;
 }
-
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct CurrentDependencies(pub BTreeMap<PackageId, CurrentDependencyInfo>);
 impl CurrentDependencies {
@@ -514,7 +536,7 @@ pub struct CurrentDependencyInfo {
     pub health_checks: BTreeSet<HealthCheckId>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct InterfaceAddressMap(pub BTreeMap<InterfaceId, InterfaceAddresses>);
 impl Map for InterfaceAddressMap {
     type Key = InterfaceId;

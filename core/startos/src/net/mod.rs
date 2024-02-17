@@ -1,10 +1,6 @@
-use std::sync::Arc;
+use rpc_toolkit::{from_fn_async, AnyContext, HandlerExt, ParentHandler};
 
-use futures::future::BoxFuture;
-use hyper::{Body, Error as HyperError, Request, Response};
-use rpc_toolkit::command;
-
-use crate::Error;
+use crate::context::CliContext;
 
 pub mod dhcp;
 pub mod dns;
@@ -22,11 +18,17 @@ pub mod wifi;
 
 pub const PACKAGE_CERT_PATH: &str = "/var/lib/embassy/ssl";
 
-#[command(subcommands(tor::tor, dhcp::dhcp, ssl::ssl, keys::rotate_key))]
-pub fn net() -> Result<(), Error> {
-    Ok(())
+pub fn net() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand("tor", tor::tor())
+        .subcommand("dhcp", dhcp::dhcp())
+        .subcommand("ssl", ssl::ssl())
+        .subcommand(
+            "rotate-key",
+            from_fn_async(keys::rotate_key)
+                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                    Ok(keys::display_requires_reboot(handle.params, result))
+                })
+                .with_remote_cli::<CliContext>(),
+        )
 }
-
-pub type HttpHandler = Arc<
-    dyn Fn(Request<Body>) -> BoxFuture<'static, Result<Response<Body>, HyperError>> + Send + Sync,
->;

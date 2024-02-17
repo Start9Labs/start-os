@@ -1,13 +1,14 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use clap::ArgMatches;
+use clap::Parser;
 use color_eyre::eyre::{eyre, Result};
 use emver::Version;
 use helpers::{Rsync, RsyncOptions};
 use lazy_static::lazy_static;
 use reqwest::Url;
 use rpc_toolkit::command;
+use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio_stream::StreamExt;
 use tracing::instrument;
@@ -33,17 +34,19 @@ lazy_static! {
     static ref UPDATED: AtomicBool = AtomicBool::new(false);
 }
 
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct UpdateSystemParams {
+    marketplace_url: Url,
+}
+
 /// An user/ daemon would call this to update the system to the latest version and do the updates available,
 /// and this will return something if there is an update, and in that case there will need to be a restart.
-#[command(
-    rename = "update",
-    display(display_update_result),
-    metadata(sync_db = true)
-)]
 #[instrument(skip_all)]
 pub async fn update_system(
-    #[context] ctx: RpcContext,
-    #[arg(rename = "marketplace-url")] marketplace_url: Url,
+    ctx: RpcContext,
+    UpdateSystemParams { marketplace_url }: UpdateSystemParams,
 ) -> Result<UpdateResult, Error> {
     if UPDATED.load(Ordering::SeqCst) {
         return Ok(UpdateResult::NoUpdates);
@@ -63,7 +66,7 @@ pub enum UpdateResult {
     Updating,
 }
 
-fn display_update_result(status: UpdateResult, _: &ArgMatches) {
+pub fn display_update_result(params: UpdateSystemParams, status: UpdateResult) {
     match status {
         UpdateResult::Updating => {
             println!("Updating...");

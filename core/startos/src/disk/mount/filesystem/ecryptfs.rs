@@ -1,33 +1,17 @@
+use std::fmt::Display;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
-use async_trait::async_trait;
 use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
+use lazy_format::lazy_format;
 use sha2::Sha256;
+use tokio::process::Command;
 
-use super::{FileSystem, MountType};
+use super::FileSystem;
+use crate::disk::mount::filesystem::default_mount_command;
+use crate::prelude::*;
 use crate::util::Invoke;
-use crate::{Error, ResultExt};
-
-pub async fn mount_ecryptfs<P0: AsRef<Path>, P1: AsRef<Path>>(
-    src: P0,
-    dst: P1,
-    key: &str,
-) -> Result<(), Error> {
-    tokio::fs::create_dir_all(dst.as_ref()).await?;
-    tokio::process::Command::new("mount")
-        .arg("-t")
-        .arg("ecryptfs")
-        .arg(src.as_ref())
-        .arg(dst.as_ref())
-        .arg("-o")
-        // for more information `man ecryptfs` 
-        .arg(format!("key=passphrase:passphrase_passwd={},ecryptfs_cipher=aes,ecryptfs_key_bytes=32,ecryptfs_passthrough=n,ecryptfs_enable_filename_crypto=y,no_sig_cache", key))
-        .input(Some(&mut std::io::Cursor::new(b"\n")))
-        .invoke(crate::ErrorKind::Filesystem).await?;
-    Ok(())
-}
 
 pub struct EcryptFS<EncryptedDir: AsRef<Path>, Key: AsRef<str>> {
     encrypted_dir: EncryptedDir,
@@ -38,16 +22,45 @@ impl<EncryptedDir: AsRef<Path>, Key: AsRef<str>> EcryptFS<EncryptedDir, Key> {
         EcryptFS { encrypted_dir, key }
     }
 }
-#[async_trait]
 impl<EncryptedDir: AsRef<Path> + Send + Sync, Key: AsRef<str> + Send + Sync> FileSystem
     for EcryptFS<EncryptedDir, Key>
 {
-    async fn mount<P: AsRef<Path> + Send + Sync>(
+    fn mount_type(&self) -> Option<impl AsRef<str>> {
+        Some("ecryptfs")
+    }
+    async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
+        Ok(Some(&self.encrypted_dir))
+    }
+    fn mount_options(&self) -> impl IntoIterator<Item = impl Display> {
+        [
+            Box::new(lazy_format!(
+                "key=passphrase:passphrase_passwd={}",
+                self.key.as_ref()
+            )) as Box<dyn Display>,
+            Box::new("ecryptfs_cipher=aes"),
+            Box::new("ecryptfs_key_bytes=32"),
+            Box::new("ecryptfs_passthrough=n"),
+            Box::new("ecryptfs_enable_filename_crypto=y"),
+            Box::new("no_sig_cache"),
+        ]
+    }
+    async fn mount<P: AsRef<Path> + Send>(
         &self,
         mountpoint: P,
-        _mount_type: MountType, // ignored - inherited from parent fs
+        mount_type: super::MountType,
     ) -> Result<(), Error> {
-        mount_ecryptfs(self.encrypted_dir.as_ref(), mountpoint, self.key.as_ref()).await
+        self.pre_mount().await?;
+        tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
+        Command::new("mount")
+            .args(
+                default_mount_command(self, mountpoint, mount_type)
+                    .await?
+                    .get_args(),
+            )
+            .input(Some(&mut std::io::Cursor::new(b"\n")))
+            .invoke(crate::ErrorKind::Filesystem)
+            .await?;
+        Ok(())
     }
     async fn source_hash(
         &self,

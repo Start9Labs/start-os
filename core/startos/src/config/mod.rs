@@ -1,24 +1,22 @@
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use indexmap::IndexSet;
 use itertools::Itertools;
-use models::{ErrorKind, OptionExt};
+use models::{ErrorKind, OptionExt, PackageId};
 use patch_db::value::InternedString;
 use patch_db::Value;
 use regex::Regex;
-use rpc_toolkit::command;
+use rpc_toolkit::{from_fn_async, Empty, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
-use crate::s9pk::manifest::PackageId;
-use crate::util::display_none;
-use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
-use crate::Error;
+use crate::util::serde::{HandlerExtSerde, StdinDeserializable};
 
 pub mod action;
 pub mod spec;
@@ -132,96 +130,107 @@ pub enum MatchError {
     ListUniquenessViolation,
 }
 
-#[command(rename = "config-spec", cli_only, blocking, display(display_none))]
-pub fn verify_spec(#[arg] path: PathBuf) -> Result<(), Error> {
-    let mut file = std::fs::File::open(&path)?;
-    let format = match path.extension().and_then(|s| s.to_str()) {
-        Some("yaml") | Some("yml") => IoFormat::Yaml,
-        Some("json") => IoFormat::Json,
-        Some("toml") => IoFormat::Toml,
-        Some("cbor") => IoFormat::Cbor,
-        _ => {
-            return Err(Error::new(
-                eyre!("Unknown file format. Expected one of yaml, json, toml, cbor."),
-                crate::ErrorKind::Deserialization,
-            ));
-        }
-    };
-    let _: ConfigSpec = format.from_reader(&mut file)?;
-
-    Ok(())
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct ConfigParams {
+    pub id: PackageId,
 }
 
-#[command(subcommands(get, set))]
-pub fn config(#[arg] id: PackageId) -> Result<PackageId, Error> {
-    Ok(id)
+// #[command(subcommands(get, set))]
+pub fn config() -> ParentHandler<ConfigParams> {
+    ParentHandler::new()
+        .subcommand(
+            "get",
+            from_fn_async(get)
+                .with_inherited(|ConfigParams { id }, _| id)
+                .with_display_serializable()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand("set", set().with_inherited(|ConfigParams { id }, _| id))
 }
 
-#[command(display(display_serializable))]
 #[instrument(skip_all)]
-pub async fn get(
-    #[context] ctx: RpcContext,
-    #[parent_data] id: PackageId,
-    #[allow(unused_variables)]
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
-) -> Result<ConfigRes, Error> {
-    let db = ctx.db.peek().await;
-    let manifest = db
-        .as_package_data()
-        .as_idx(&id)
-        .or_not_found(&id)?
-        .as_installed()
-        .or_not_found(&id)?
-        .as_manifest();
-    let action = manifest
-        .as_config()
-        .de()?
-        .ok_or_else(|| Error::new(eyre!("{} has no config", id), crate::ErrorKind::NotFound))?;
-
-    let volumes = manifest.as_volumes().de()?;
-    let version = manifest.as_version().de()?;
-    action.get(&ctx, &id, &version, &volumes).await
+pub async fn get(ctx: RpcContext, _: Empty, id: PackageId) -> Result<ConfigRes, Error> {
+    ctx.services
+        .get(&id)
+        .await
+        .as_ref()
+        .or_not_found(lazy_format!("Manager for {id}"))?
+        .get_config()
+        .await
 }
 
-#[command(
-    subcommands(self(set_impl(async, context(RpcContext))), set_dry),
-    display(display_none),
-    metadata(sync_db = true)
-)]
-#[instrument(skip_all)]
-pub fn set(
-    #[parent_data] id: PackageId,
-    #[allow(unused_variables)]
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
-    #[arg(long = "timeout")] timeout: Option<crate::util::serde::Duration>,
-    #[arg(stdin, parse(parse_stdin_deserializable))] config: Option<Config>,
-) -> Result<(PackageId, Option<Config>, Option<Duration>), Error> {
-    Ok((id, config, timeout.map(|d| *d)))
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+pub struct SetParams {
+    #[arg(long = "timeout")]
+    pub timeout: Option<crate::util::serde::Duration>,
+    #[command(flatten)]
+    pub config: StdinDeserializable<Option<Config>>,
 }
 
-#[command(rename = "dry", display(display_serializable))]
+// TODO Dr Why isn't this used?
+// #[command(
+//     subcommands(self(set_impl(async, context(RpcContext))), set_dry),
+//     display(display_none),
+//     metadata(sync_db = true)
+// )]
 #[instrument(skip_all)]
+pub fn set() -> ParentHandler<SetParams, PackageId> {
+    ParentHandler::new()
+        .root_handler(
+            from_fn_async(set_impl)
+                .with_metadata("sync_db", Value::Bool(true))
+                .with_inherited(|set_params, id| (id, set_params))
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "dry",
+            from_fn_async(set_dry)
+                .with_inherited(|set_params, id| (id, set_params))
+                .with_display_serializable()
+                .with_remote_cli::<CliContext>(),
+        )
+}
+
 pub async fn set_dry(
-    #[context] ctx: RpcContext,
-    #[parent_data] (id, config, timeout): (PackageId, Option<Config>, Option<Duration>),
+    ctx: RpcContext,
+    _: Empty,
+    (
+        id,
+        SetParams {
+            timeout,
+            config: StdinDeserializable(config),
+        },
+    ): (PackageId, SetParams),
 ) -> Result<BTreeMap<PackageId, String>, Error> {
     let breakages = BTreeMap::new();
     let overrides = Default::default();
 
     let configure_context = ConfigureContext {
         breakages,
-        timeout,
+        timeout: timeout.map(|t| *t),
         config,
         dry_run: true,
         overrides,
     };
-    let breakages = configure(&ctx, &id, configure_context).await?;
-
-    Ok(breakages)
+    ctx.services
+        .get(&id)
+        .await
+        .as_ref()
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("There is no manager running for {id}"),
+                ErrorKind::Unknown,
+            )
+        })?
+        .configure(configure_context)
+        .await
 }
 
+#[derive(Default)]
 pub struct ConfigureContext {
     pub breakages: BTreeMap<PackageId, String>,
     pub timeout: Option<Duration>,
@@ -233,55 +242,36 @@ pub struct ConfigureContext {
 #[instrument(skip_all)]
 pub async fn set_impl(
     ctx: RpcContext,
-    (id, config, timeout): (PackageId, Option<Config>, Option<Duration>),
+    _: Empty,
+    (
+        id,
+        SetParams {
+            timeout,
+            config: StdinDeserializable(config),
+        },
+    ): (PackageId, SetParams),
 ) -> Result<(), Error> {
     let breakages = BTreeMap::new();
     let overrides = Default::default();
 
     let configure_context = ConfigureContext {
         breakages,
-        timeout,
+        timeout: timeout.map(|t| *t),
         config,
         dry_run: false,
         overrides,
     };
-    configure(&ctx, &id, configure_context).await?;
-    Ok(())
-}
-
-#[instrument(skip_all)]
-pub async fn configure(
-    ctx: &RpcContext,
-    id: &PackageId,
-    configure_context: ConfigureContext,
-) -> Result<BTreeMap<PackageId, String>, Error> {
-    let db = ctx.db.peek().await;
-    let package = db
-        .as_package_data()
-        .as_idx(id)
-        .or_not_found(&id)?
-        .as_installed()
-        .or_not_found(&id)?;
-    let version = package.as_manifest().as_version().de()?;
-    ctx.managers
-        .get(&(id.clone(), version.clone()))
+    ctx.services
+        .get(&id)
         .await
+        .as_ref()
         .ok_or_else(|| {
             Error::new(
-                eyre!("There is no manager running for {id:?} and {version:?}"),
+                eyre!("There is no manager running for {id}"),
                 ErrorKind::Unknown,
             )
         })?
         .configure(configure_context)
-        .await
+        .await?;
+    Ok(())
 }
-
-macro_rules! not_found {
-    ($x:expr) => {
-        crate::Error::new(
-            color_eyre::eyre::eyre!("Could not find {} at {}:{}", $x, module_path!(), line!()),
-            crate::ErrorKind::Incoherent,
-        )
-    };
-}
-pub(crate) use not_found;

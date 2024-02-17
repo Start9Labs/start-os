@@ -3,7 +3,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
-use models::InterfaceId;
+use models::{InterfaceId, PackageId};
 use sqlx::PgExecutor;
 use tracing::instrument;
 
@@ -11,19 +11,16 @@ use crate::error::ErrorCollection;
 use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
 use crate::net::keys::Key;
-use crate::net::mdns::MdnsController;
 use crate::net::ssl::{export_cert, export_key, SslManager};
 use crate::net::tor::TorController;
 use crate::net::vhost::{AlpnInfo, VHostController};
-use crate::s9pk::manifest::PackageId;
 use crate::volume::cert_dir;
 use crate::{Error, HOST_IP};
 
 pub struct NetController {
     pub(super) tor: TorController,
-    pub(super) mdns: MdnsController,
     pub(super) vhost: VHostController,
-    pub(super) dns: DnsController,
+    // pub(super) dns: DnsController,
     pub(super) ssl: Arc<SslManager>,
     pub(super) os_bindings: Vec<Arc<()>>,
 }
@@ -41,9 +38,8 @@ impl NetController {
         let ssl = Arc::new(ssl);
         let mut res = Self {
             tor: TorController::new(tor_control, tor_socks),
-            mdns: MdnsController::init().await?,
             vhost: VHostController::new(ssl.clone()),
-            dns: DnsController::init(dns_bind).await?,
+            // dns: DnsController::init(dns_bind).await?,
             ssl,
             os_bindings: Vec::new(),
         };
@@ -64,8 +60,8 @@ impl NetController {
                 alpn.clone(),
             )
             .await?;
-        self.os_bindings
-            .push(self.dns.add(None, HOST_IP.into()).await?);
+        // self.os_bindings
+        //     .push(self.dns.add(None, HOST_IP.into()).await?);
 
         // LAN IP
         self.os_bindings.push(
@@ -151,13 +147,13 @@ impl NetController {
         package: PackageId,
         ip: Ipv4Addr,
     ) -> Result<NetService, Error> {
-        let dns = self.dns.add(Some(package.clone()), ip).await?;
+        // let dns = self.dns.add(Some(package.clone()), ip).await?;
 
         Ok(NetService {
             shutdown: false,
             id: package,
             ip,
-            dns,
+            // dns,
             controller: Arc::downgrade(self),
             tor: BTreeMap::new(),
             lan: BTreeMap::new(),
@@ -199,13 +195,15 @@ impl NetController {
                 )
                 .await?,
         );
-        rcs.push(self.mdns.add(key.base_address()).await?);
+        // rcs.push(self.mdns.add(key.base_address()).await?);
+        // TODO
         Ok(rcs)
     }
 
     async fn remove_lan(&self, key: &Key, external: u16, rcs: Vec<Arc<()>>) -> Result<(), Error> {
         drop(rcs);
-        self.mdns.gc(key.base_address()).await?;
+        // self.mdns.gc(key.base_address()).await?;
+        // TODO
         self.vhost.gc(Some(key.local_address()), external).await
     }
 }
@@ -214,7 +212,7 @@ pub struct NetService {
     shutdown: bool,
     id: PackageId,
     ip: Ipv4Addr,
-    dns: Arc<()>,
+    // dns: Arc<()>,
     controller: Weak<NetController>,
     tor: BTreeMap<(InterfaceId, u16), (Key, Vec<Arc<()>>)>,
     lan: BTreeMap<(InterfaceId, u16), (Key, Vec<Arc<()>>)>,
@@ -334,8 +332,8 @@ impl NetService {
             for ((_, external), (key, rcs)) in std::mem::take(&mut self.tor) {
                 errors.handle(ctrl.remove_tor(&key, external, rcs).await);
             }
-            std::mem::take(&mut self.dns);
-            errors.handle(ctrl.dns.gc(Some(self.id.clone()), self.ip).await);
+            // std::mem::take(&mut self.dns);
+            // errors.handle(ctrl.dns.gc(Some(self.id.clone()), self.ip).await);
             errors.into_result()
         } else {
             tracing::warn!("NetService dropped after NetController is shutdown");
@@ -357,7 +355,7 @@ impl Drop for NetService {
                     shutdown: true,
                     id: Default::default(),
                     ip: Ipv4Addr::new(0, 0, 0, 0),
-                    dns: Default::default(),
+                    // dns: Default::default(),
                     controller: Default::default(),
                     tor: Default::default(),
                     lan: Default::default(),

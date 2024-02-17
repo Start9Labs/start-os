@@ -2,11 +2,11 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use chrono::Utc;
-use clap::ArgMatches;
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
-use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{command, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::process::Command;
 use tokio::sync::broadcast::Receiver;
@@ -22,13 +22,27 @@ use crate::logs::{
 use crate::prelude::*;
 use crate::shutdown::Shutdown;
 use crate::util::cpupower::{get_available_governors, set_governor, Governor};
-use crate::util::serde::{display_serializable, IoFormat};
-use crate::util::{display_none, Invoke};
+use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
+use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
-#[command(subcommands(zram, governor))]
-pub async fn experimental() -> Result<(), Error> {
-    Ok(())
+pub fn experimental() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "zram",
+            from_fn_async(zram)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "governor",
+            from_fn_async(governor)
+                .with_display_serializable()
+                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                    Ok(display_governor_info(handle.params, result))
+                })
+                .with_remote_cli::<CliContext>(),
+        )
 }
 
 pub async fn enable_zram() -> Result<(), Error> {
@@ -59,8 +73,14 @@ pub async fn enable_zram() -> Result<(), Error> {
     Ok(())
 }
 
-#[command(display(display_none))]
-pub async fn zram(#[context] ctx: RpcContext, #[arg] enable: bool) -> Result<(), Error> {
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct ZramParams {
+    enable: bool,
+}
+
+pub async fn zram(ctx: RpcContext, ZramParams { enable }: ZramParams) -> Result<(), Error> {
     let db = ctx.db.peek().await;
 
     let zram = db.as_server_info().as_zram().de()?;
@@ -93,17 +113,17 @@ pub struct GovernorInfo {
     available: BTreeSet<Governor>,
 }
 
-fn display_governor_info(arg: GovernorInfo, matches: &ArgMatches) {
+fn display_governor_info(params: WithIoFormat<GovernorParams>, result: GovernorInfo) {
     use prettytable::*;
 
-    if matches.is_present("format") {
-        return display_serializable(arg, matches);
+    if let Some(format) = params.format {
+        return display_serializable(format, params);
     }
 
     let mut table = Table::new();
     table.add_row(row![bc -> "GOVERNORS"]);
-    for entry in arg.available {
-        if Some(&entry) == arg.current.as_ref() {
+    for entry in result.available {
+        if Some(&entry) == result.current.as_ref() {
             table.add_row(row![g -> format!("* {entry} (current)")]);
         } else {
             table.add_row(row![entry]);
@@ -112,13 +132,16 @@ fn display_governor_info(arg: GovernorInfo, matches: &ArgMatches) {
     table.print_tty(false).unwrap();
 }
 
-#[command(display(display_governor_info))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct GovernorParams {
+    set: Option<Governor>,
+}
+
 pub async fn governor(
-    #[context] ctx: RpcContext,
-    #[allow(unused_variables)]
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
-    #[arg] set: Option<Governor>,
+    ctx: RpcContext,
+    GovernorParams { set, .. }: GovernorParams,
 ) -> Result<GovernorInfo, Error> {
     let available = get_available_governors().await?;
     if let Some(set) = set {
@@ -143,13 +166,13 @@ pub struct TimeInfo {
     uptime: u64,
 }
 
-fn display_time(arg: TimeInfo, matches: &ArgMatches) {
+pub fn display_time(params: WithIoFormat<Empty>, arg: TimeInfo) {
     use std::fmt::Write;
 
     use prettytable::*;
 
-    if matches.is_present("format") {
-        return display_serializable(arg, matches);
+    if let Some(format) = params.format {
+        return display_serializable(format, arg);
     }
 
     let days = arg.uptime / (24 * 60 * 60);
@@ -185,35 +208,57 @@ fn display_time(arg: TimeInfo, matches: &ArgMatches) {
     table.print_tty(false).unwrap();
 }
 
-#[command(display(display_time))]
-pub async fn time(
-    #[context] ctx: RpcContext,
-    #[allow(unused_variables)]
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
-) -> Result<TimeInfo, Error> {
+pub async fn time(ctx: RpcContext, _: Empty) -> Result<TimeInfo, Error> {
     Ok(TimeInfo {
         now: Utc::now().to_rfc3339(),
         uptime: ctx.start_time.elapsed().as_secs(),
     })
 }
-
-#[command(
-    custom_cli(cli_logs(async, context(CliContext))),
-    subcommands(self(logs_nofollow(async)), logs_follow),
-    display(display_none)
-)]
-pub async fn logs(
-    #[arg(short = 'l', long = "limit")] limit: Option<usize>,
-    #[arg(short = 'c', long = "cursor")] cursor: Option<String>,
-    #[arg(short = 'B', long = "before", default)] before: bool,
-    #[arg(short = 'f', long = "follow", default)] follow: bool,
-) -> Result<(Option<usize>, Option<String>, bool, bool), Error> {
-    Ok((limit, cursor, before, follow))
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct LogsParams {
+    #[arg(short = 'l', long = "limit")]
+    limit: Option<usize>,
+    #[arg(short = 'c', long = "cursor")]
+    cursor: Option<String>,
+    #[arg(short = 'B', long = "before")]
+    #[serde(default)]
+    before: bool,
+    #[arg(short = 'f', long = "follow")]
+    #[serde(default)]
+    follow: bool,
 }
+
+pub fn logs() -> ParentHandler<LogsParams> {
+    ParentHandler::new()
+        .root_handler(
+            from_fn_async(cli_logs)
+                .no_display()
+                .with_inherited(|params, _| params),
+        )
+        .root_handler(
+            from_fn_async(logs_nofollow)
+                .with_inherited(|params, _| params)
+                .no_cli(),
+        )
+        .subcommand(
+            "follow",
+            from_fn_async(logs_follow)
+                .with_inherited(|params, _| params)
+                .no_cli(),
+        )
+}
+
 pub async fn cli_logs(
     ctx: CliContext,
-    (limit, cursor, before, follow): (Option<usize>, Option<String>, bool, bool),
+    _: Empty,
+    LogsParams {
+        limit,
+        cursor,
+        before,
+        follow,
+    }: LogsParams,
 ) -> Result<(), RpcError> {
     if follow {
         if cursor.is_some() {
@@ -234,37 +279,68 @@ pub async fn cli_logs(
     }
 }
 pub async fn logs_nofollow(
-    _ctx: (),
-    (limit, cursor, before, _): (Option<usize>, Option<String>, bool, bool),
+    _ctx: AnyContext,
+    _: Empty,
+    LogsParams {
+        limit,
+        cursor,
+        before,
+        ..
+    }: LogsParams,
 ) -> Result<LogResponse, Error> {
     fetch_logs(LogSource::System, limit, cursor, before).await
 }
 
-#[command(rpc_only, rename = "follow", display(display_none))]
 pub async fn logs_follow(
-    #[context] ctx: RpcContext,
-    #[parent_data] (limit, _, _, _): (Option<usize>, Option<String>, bool, bool),
+    ctx: RpcContext,
+    _: Empty,
+    LogsParams { limit, .. }: LogsParams,
 ) -> Result<LogFollowResponse, Error> {
     follow_logs(ctx, LogSource::System, limit).await
 }
-
-#[command(
-    rename = "kernel-logs",
-    custom_cli(cli_kernel_logs(async, context(CliContext))),
-    subcommands(self(kernel_logs_nofollow(async)), kernel_logs_follow),
-    display(display_none)
-)]
-pub async fn kernel_logs(
-    #[arg(short = 'l', long = "limit")] limit: Option<usize>,
-    #[arg(short = 'c', long = "cursor")] cursor: Option<String>,
-    #[arg(short = 'B', long = "before", default)] before: bool,
-    #[arg(short = 'f', long = "follow", default)] follow: bool,
-) -> Result<(Option<usize>, Option<String>, bool, bool), Error> {
-    Ok((limit, cursor, before, follow))
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct KernelLogsParams {
+    #[arg(short = 'l', long = "limit")]
+    limit: Option<usize>,
+    #[arg(short = 'c', long = "cursor")]
+    cursor: Option<String>,
+    #[arg(short = 'B', long = "before")]
+    #[serde(default)]
+    before: bool,
+    #[arg(short = 'f', long = "follow")]
+    #[serde(default)]
+    follow: bool,
+}
+pub fn kernel_logs() -> ParentHandler<KernelLogsParams> {
+    ParentHandler::new()
+        .root_handler(
+            from_fn_async(cli_kernel_logs)
+                .no_display()
+                .with_inherited(|params, _| params),
+        )
+        .root_handler(
+            from_fn_async(kernel_logs_nofollow)
+                .with_inherited(|params, _| params)
+                .no_cli(),
+        )
+        .subcommand(
+            "follow",
+            from_fn_async(kernel_logs_follow)
+                .with_inherited(|params, _| params)
+                .no_cli(),
+        )
 }
 pub async fn cli_kernel_logs(
     ctx: CliContext,
-    (limit, cursor, before, follow): (Option<usize>, Option<String>, bool, bool),
+    _: Empty,
+    KernelLogsParams {
+        limit,
+        cursor,
+        before,
+        follow,
+    }: KernelLogsParams,
 ) -> Result<(), RpcError> {
     if follow {
         if cursor.is_some() {
@@ -285,16 +361,22 @@ pub async fn cli_kernel_logs(
     }
 }
 pub async fn kernel_logs_nofollow(
-    _ctx: (),
-    (limit, cursor, before, _): (Option<usize>, Option<String>, bool, bool),
+    _ctx: AnyContext,
+    _: Empty,
+    KernelLogsParams {
+        limit,
+        cursor,
+        before,
+        ..
+    }: KernelLogsParams,
 ) -> Result<LogResponse, Error> {
     fetch_logs(LogSource::Kernel, limit, cursor, before).await
 }
 
-#[command(rpc_only, rename = "follow", display(display_none))]
 pub async fn kernel_logs_follow(
-    #[context] ctx: RpcContext,
-    #[parent_data] (limit, _, _, _): (Option<usize>, Option<String>, bool, bool),
+    ctx: RpcContext,
+    _: Empty,
+    KernelLogsParams { limit, .. }: KernelLogsParams,
 ) -> Result<LogFollowResponse, Error> {
     follow_logs(ctx, LogSource::Kernel, limit).await
 }
@@ -453,13 +535,8 @@ pub struct Metrics {
     disk: MetricsDisk,
 }
 
-#[command(display(display_serializable))]
-pub async fn metrics(
-    #[context] ctx: RpcContext,
-    #[allow(unused_variables)]
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
-) -> Result<Metrics, Error> {
+// #[command(display(display_serializable))]
+pub async fn metrics(ctx: RpcContext, _: Empty) -> Result<Metrics, Error> {
     match ctx.metrics_cache.read().await.clone() {
         None => Err(Error {
             source: color_eyre::eyre::eyre!("No Metrics Found"),

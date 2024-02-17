@@ -3,6 +3,7 @@ use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 
 pub use helpers::script_dir;
+use models::PackageId;
 pub use models::VolumeId;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -11,7 +12,6 @@ use crate::context::RpcContext;
 use crate::net::interface::{InterfaceId, Interfaces};
 use crate::net::PACKAGE_CERT_PATH;
 use crate::prelude::*;
-use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::{Error, ResultExt};
 

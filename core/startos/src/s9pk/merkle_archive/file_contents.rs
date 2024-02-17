@@ -3,9 +3,9 @@ use tokio::io::AsyncRead;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::hash::{Hash, HashWriter};
 use crate::s9pk::merkle_archive::sink::{Sink, TrackingWriter};
-use crate::s9pk::merkle_archive::source::{ArchiveSource, FileSource, Section};
+use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FileContents<S>(S);
 impl<S> FileContents<S> {
     pub fn new(source: S) -> Self {
@@ -72,6 +72,9 @@ impl<S: FileSource> FileContents<S> {
             );
         }
         Ok(())
+    }
+    pub fn into_dyn(self) -> FileContents<DynFileSource> {
+        FileContents(DynFileSource::new(self.0))
     }
 }
 impl<S> std::ops::Deref for FileContents<S> {

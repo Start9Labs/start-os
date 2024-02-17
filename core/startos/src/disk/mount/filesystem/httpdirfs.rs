@@ -1,6 +1,5 @@
 use std::path::Path;
 
-use async_trait::async_trait;
 use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
 use reqwest::Url;
@@ -32,9 +31,8 @@ impl HttpDirFS {
         HttpDirFS { url }
     }
 }
-#[async_trait]
 impl FileSystem for HttpDirFS {
-    async fn mount<P: AsRef<Path> + Send + Sync>(
+    async fn mount<P: AsRef<Path> + Send>(
         &self,
         mountpoint: P,
         _mount_type: MountType,
