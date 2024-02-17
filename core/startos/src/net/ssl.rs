@@ -14,12 +14,12 @@ use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::{X509Builder, X509Extension, X509NameBuilder, X509};
 use openssl::*;
-use rpc_toolkit::command;
+use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
 use tokio::sync::{Mutex, RwLock};
 use tracing::instrument;
 
 use crate::account::AccountInfo;
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::hostname::Hostname;
 use crate::init::check_time_is_synchronized;
 use crate::net::dhcp::ips;
@@ -444,13 +444,11 @@ pub fn make_leaf_cert(
     Ok(cert)
 }
 
-#[command(subcommands(size))]
-pub async fn ssl() -> Result<(), Error> {
-    Ok(())
+pub fn ssl() -> ParentHandler {
+    ParentHandler::new().subcommand("size", from_fn_async(size).with_remote_cli::<CliContext>())
 }
 
-#[command]
-pub async fn size(#[context] ctx: RpcContext) -> Result<String, Error> {
+pub async fn size(ctx: RpcContext) -> Result<String, Error> {
     Ok(format!(
         "Cert Catch size: {}",
         ctx.net_controller.ssl.cert_cache.read().await.len()

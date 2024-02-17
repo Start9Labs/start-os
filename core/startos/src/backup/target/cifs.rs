@@ -1,19 +1,19 @@
 use std::path::{Path, PathBuf};
 
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::TryStreamExt;
-use rpc_toolkit::command;
+use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sqlx::{Executor, Postgres};
 
 use super::{BackupTarget, BackupTargetId};
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::filesystem::ReadOnly;
-use crate::disk::mount::guard::TmpMountGuard;
+use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::disk::util::{recovery_info, EmbassyOsRecoveryInfo};
 use crate::prelude::*;
-use crate::util::display_none;
 use crate::util::serde::KeyVal;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -26,18 +26,46 @@ pub struct CifsBackupTarget {
     embassy_os: Option<EmbassyOsRecoveryInfo>,
 }
 
-#[command(subcommands(add, update, remove))]
-pub fn cifs() -> Result<(), Error> {
-    Ok(())
+pub fn cifs() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "add",
+            from_fn_async(add)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "update",
+            from_fn_async(update)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "remove",
+            from_fn_async(remove)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
 }
 
-#[command(display(display_none))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct AddParams {
+    pub hostname: String,
+    pub path: PathBuf,
+    pub username: String,
+    pub password: Option<String>,
+}
+
 pub async fn add(
-    #[context] ctx: RpcContext,
-    #[arg] hostname: String,
-    #[arg] path: PathBuf,
-    #[arg] username: String,
-    #[arg] password: Option<String>,
+    ctx: RpcContext,
+    AddParams {
+        hostname,
+        path,
+        username,
+        password,
+    }: AddParams,
 ) -> Result<KeyVal<BackupTargetId, BackupTarget>, Error> {
     let cifs = Cifs {
         hostname,
@@ -46,7 +74,7 @@ pub async fn add(
         password,
     };
     let guard = TmpMountGuard::mount(&cifs, ReadOnly).await?;
-    let embassy_os = recovery_info(&guard).await?;
+    let embassy_os = recovery_info(guard.path()).await?;
     guard.unmount().await?;
     let path_string = Path::new("/").join(&cifs.path).display().to_string();
     let id: i32 = sqlx::query!(
@@ -70,14 +98,26 @@ pub async fn add(
     })
 }
 
-#[command(display(display_none))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct UpdateParams {
+    pub id: BackupTargetId,
+    pub hostname: String,
+    pub path: PathBuf,
+    pub username: String,
+    pub password: Option<String>,
+}
+
 pub async fn update(
-    #[context] ctx: RpcContext,
-    #[arg] id: BackupTargetId,
-    #[arg] hostname: String,
-    #[arg] path: PathBuf,
-    #[arg] username: String,
-    #[arg] password: Option<String>,
+    ctx: RpcContext,
+    UpdateParams {
+        id,
+        hostname,
+        path,
+        username,
+        password,
+    }: UpdateParams,
 ) -> Result<KeyVal<BackupTargetId, BackupTarget>, Error> {
     let id = if let BackupTargetId::Cifs { id } = id {
         id
@@ -94,7 +134,7 @@ pub async fn update(
         password,
     };
     let guard = TmpMountGuard::mount(&cifs, ReadOnly).await?;
-    let embassy_os = recovery_info(&guard).await?;
+    let embassy_os = recovery_info(guard.path()).await?;
     guard.unmount().await?;
     let path_string = Path::new("/").join(&cifs.path).display().to_string();
     if sqlx::query!(
@@ -127,8 +167,14 @@ pub async fn update(
     })
 }
 
-#[command(display(display_none))]
-pub async fn remove(#[context] ctx: RpcContext, #[arg] id: BackupTargetId) -> Result<(), Error> {
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct RemoveParams {
+    pub id: BackupTargetId,
+}
+
+pub async fn remove(ctx: RpcContext, RemoveParams { id }: RemoveParams) -> Result<(), Error> {
     let id = if let BackupTargetId::Cifs { id } = id {
         id
     } else {
@@ -189,7 +235,7 @@ where
             };
             let embassy_os = async {
                 let guard = TmpMountGuard::mount(&mount_info, ReadOnly).await?;
-                let embassy_os = recovery_info(&guard).await?;
+                let embassy_os = recovery_info(guard.path()).await?;
                 guard.unmount().await?;
                 Ok::<_, Error>(embassy_os)
             }

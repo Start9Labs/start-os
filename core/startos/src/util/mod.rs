@@ -9,11 +9,11 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use clap::ArgMatches;
 use color_eyre::eyre::{self, eyre};
 use fd_lock_rs::FdLock;
 use helpers::canonicalize;
 pub use helpers::NonDetachingJoinHandle;
+use imbl_value::InternedString;
 use lazy_static::lazy_static;
 pub use models::Version;
 use pin_project::pin_project;
@@ -24,14 +24,16 @@ use tracing::instrument;
 
 use crate::shutdown::Shutdown;
 use crate::{Error, ErrorKind, ResultExt as _};
-pub mod config;
+pub mod actor;
+pub mod clap;
 pub mod cpupower;
 pub mod crypto;
-pub mod docker;
+pub mod future;
 pub mod http_reader;
 pub mod io;
 pub mod logger;
 pub mod lshw;
+pub mod rpc_client;
 pub mod serde;
 
 #[derive(Clone, Copy, Debug, ::serde::Deserialize, ::serde::Serialize)]
@@ -48,8 +50,12 @@ impl std::fmt::Display for Never {
     }
 }
 impl std::error::Error for Never {}
+impl<T: ?Sized> AsRef<T> for Never {
+    fn as_ref(&self) -> &T {
+        match *self {}
+    }
+}
 
-#[async_trait::async_trait]
 pub trait Invoke<'a> {
     type Extended<'ext>
     where
@@ -60,7 +66,10 @@ pub trait Invoke<'a> {
         &'ext mut self,
         input: Option<&'ext mut Input>,
     ) -> Self::Extended<'ext>;
-    async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error>;
+    fn invoke(
+        &mut self,
+        error_kind: crate::ErrorKind,
+    ) -> impl Future<Output = Result<Vec<u8>, Error>> + Send;
 }
 
 pub struct ExtendedCommand<'a> {
@@ -80,7 +89,6 @@ impl<'a> std::ops::DerefMut for ExtendedCommand<'a> {
     }
 }
 
-#[async_trait::async_trait]
 impl<'a> Invoke<'a> for tokio::process::Command {
     type Extended<'ext> = ExtendedCommand<'ext>
     where
@@ -118,7 +126,6 @@ impl<'a> Invoke<'a> for tokio::process::Command {
     }
 }
 
-#[async_trait::async_trait]
 impl<'a> Invoke<'a> for ExtendedCommand<'a> {
     type Extended<'ext> = &'ext mut ExtendedCommand<'ext>
     where
@@ -146,7 +153,7 @@ impl<'a> Invoke<'a> for ExtendedCommand<'a> {
         }
         self.cmd.stdout(Stdio::piped());
         self.cmd.stderr(Stdio::piped());
-        let mut child = self.cmd.spawn()?;
+        let mut child = self.cmd.spawn().with_kind(error_kind)?;
         if let (Some(mut stdin), Some(input)) = (child.stdin.take(), self.input.take()) {
             use tokio::io::AsyncWriteExt;
             tokio::io::copy(input, &mut stdin).await?;
@@ -274,8 +281,6 @@ impl<W: std::fmt::Write> std::io::Write for FmtWriter<W> {
         Ok(())
     }
 }
-
-pub fn display_none<T>(_: T, _: &ArgMatches) {}
 
 pub struct Container<T>(RwLock<Option<T>>);
 impl<T> Container<T> {
@@ -489,4 +494,14 @@ impl<'a, T> From<&'a T> for MaybeOwned<'a, T> {
     fn from(value: &'a T) -> Self {
         MaybeOwned::Borrowed(value)
     }
+}
+
+pub fn new_guid() -> InternedString {
+    use rand::RngCore;
+    let mut buf = [0; 40];
+    rand::thread_rng().fill_bytes(&mut buf);
+    InternedString::intern(base32::encode(
+        base32::Alphabet::RFC4648 { padding: false },
+        &buf,
+    ))
 }

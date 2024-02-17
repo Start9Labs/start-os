@@ -1,5 +1,5 @@
 use std::net::{Ipv6Addr, SocketAddr};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -7,7 +7,7 @@ use helpers::NonDetachingJoinHandle;
 use tokio::process::Command;
 use tracing::instrument;
 
-use crate::context::rpc::RpcContextConfig;
+use crate::context::config::ServerConfig;
 use crate::context::{DiagnosticContext, InstallContext, SetupContext};
 use crate::disk::fsck::{RepairStrategy, RequiresReboot};
 use crate::disk::main::DEFAULT_PASSWORD;
@@ -21,7 +21,7 @@ use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt, PLATFORM};
 
 #[instrument(skip_all)]
-async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
+async fn setup_or_init(config: &ServerConfig) -> Result<Option<Shutdown>, Error> {
     let song = NonDetachingJoinHandle::from(tokio::spawn(async {
         loop {
             BEP.play().await.unwrap();
@@ -82,13 +82,12 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Er
             .invoke(crate::ErrorKind::OpenSsh)
             .await?;
 
-        let ctx = InstallContext::init(cfg_path).await?;
+        let ctx = InstallContext::init().await?;
 
         let server = WebServer::install(
             SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
             ctx.clone(),
-        )
-        .await?;
+        )?;
 
         drop(song);
         tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
@@ -109,25 +108,23 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Er
         .await
         .is_err()
     {
-        let ctx = SetupContext::init(cfg_path).await?;
+        let ctx = SetupContext::init(config)?;
 
         let server = WebServer::setup(
             SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
             ctx.clone(),
-        )
-        .await?;
+        )?;
 
         drop(song);
         tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
         CHIME.play().await?;
 
-        ctx.shutdown
-            .subscribe()
-            .recv()
-            .await
-            .expect("context dropped");
+        let mut shutdown = ctx.shutdown.subscribe();
+        shutdown.recv().await.expect("context dropped");
 
         server.shutdown().await;
+
+        drop(shutdown);
 
         tokio::task::yield_now().await;
         if let Err(e) = Command::new("killall")
@@ -139,13 +136,12 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Er
             tracing::debug!("{:?}", e);
         }
     } else {
-        let cfg = RpcContextConfig::load(cfg_path).await?;
         let guid_string = tokio::fs::read_to_string("/media/embassy/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
             .await?;
         let guid = guid_string.trim();
         let requires_reboot = crate::disk::main::import(
             guid,
-            cfg.datadir(),
+            config.datadir(),
             if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
                 RepairStrategy::Aggressive
             } else {
@@ -164,13 +160,13 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Er
                 .with_ctx(|_| (crate::ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
         }
         if requires_reboot.0 {
-            crate::disk::main::export(guid, cfg.datadir()).await?;
+            crate::disk::main::export(guid, config.datadir()).await?;
             Command::new("reboot")
                 .invoke(crate::ErrorKind::Unknown)
                 .await?;
         }
         tracing::info!("Loaded Disk");
-        crate::init::init(&cfg).await?;
+        crate::init::init(config).await?;
         drop(song);
     }
 
@@ -196,7 +192,7 @@ async fn run_script_if_exists<P: AsRef<Path>>(path: P) {
 }
 
 #[instrument(skip_all)]
-async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
+async fn inner_main(config: &ServerConfig) -> Result<Option<Shutdown>, Error> {
     if &*PLATFORM == "raspberrypi" && tokio::fs::metadata(STANDBY_MODE_PATH).await.is_ok() {
         tokio::fs::remove_file(STANDBY_MODE_PATH).await?;
         Command::new("sync").invoke(ErrorKind::Filesystem).await?;
@@ -208,7 +204,7 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
 
     run_script_if_exists("/media/embassy/config/preinit.sh").await;
 
-    let res = match setup_or_init(cfg_path.clone()).await {
+    let res = match setup_or_init(config).await {
         Err(e) => {
             async move {
                 tracing::error!("{}", e.source);
@@ -216,7 +212,7 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
                 crate::sound::BEETHOVEN.play().await?;
 
                 let ctx = DiagnosticContext::init(
-                    cfg_path,
+                    config,
                     if tokio::fs::metadata("/media/embassy/config/disk.guid")
                         .await
                         .is_ok()
@@ -231,14 +227,12 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
                         None
                     },
                     e,
-                )
-                .await?;
+                )?;
 
                 let server = WebServer::diagnostic(
                     SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
                     ctx.clone(),
-                )
-                .await?;
+                )?;
 
                 let shutdown = ctx.shutdown.subscribe().recv().await.unwrap();
 
@@ -256,23 +250,13 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
     res
 }
 
-pub fn main() {
-    let matches = clap::App::new("start-init")
-        .arg(
-            clap::Arg::with_name("config")
-                .short('c')
-                .long("config")
-                .takes_value(true),
-        )
-        .get_matches();
-
-    let cfg_path = matches.value_of("config").map(|p| Path::new(p).to_owned());
+pub fn main(config: &ServerConfig) {
     let res = {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .expect("failed to initialize runtime");
-        rt.block_on(inner_main(cfg_path))
+        rt.block_on(inner_main(config))
     };
 
     match res {

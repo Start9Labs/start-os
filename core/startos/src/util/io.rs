@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::io::Cursor;
 use std::os::unix::prelude::MetadataExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicU64;
 use std::task::Poll;
 use std::time::Duration;
@@ -10,13 +10,14 @@ use futures::future::{BoxFuture, Fuse};
 use futures::{AsyncSeek, FutureExt, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
 use nix::unistd::{Gid, Uid};
+use tokio::fs::File;
 use tokio::io::{
     duplex, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, WriteHalf,
 };
 use tokio::net::TcpStream;
 use tokio::time::{Instant, Sleep};
 
-use crate::ResultExt;
+use crate::prelude::*;
 
 pub trait AsyncReadSeek: AsyncRead + AsyncSeek {}
 impl<T: AsyncRead + AsyncSeek> AsyncReadSeek for T {}
@@ -668,4 +669,78 @@ impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
         }
         res
     }
+}
+
+pub struct TmpFile {}
+
+#[derive(Debug)]
+pub struct TmpDir {
+    path: PathBuf,
+}
+impl TmpDir {
+    pub async fn new() -> Result<Self, Error> {
+        let path = Path::new("/var/tmp/startos").join(base32::encode(
+            base32::Alphabet::RFC4648 { padding: false },
+            &rand::random::<[u8; 8]>(),
+        ));
+        if tokio::fs::metadata(&path).await.is_ok() {
+            return Err(Error::new(
+                eyre!("{path:?} already exists"),
+                ErrorKind::Filesystem,
+            ));
+        }
+        tokio::fs::create_dir_all(&path).await?;
+        Ok(Self { path })
+    }
+
+    pub async fn delete(self) -> Result<(), Error> {
+        tokio::fs::remove_dir_all(&self.path).await?;
+        Ok(())
+    }
+}
+impl std::ops::Deref for TmpDir {
+    type Target = Path;
+    fn deref(&self) -> &Self::Target {
+        &self.path
+    }
+}
+impl AsRef<Path> for TmpDir {
+    fn as_ref(&self) -> &Path {
+        &*self
+    }
+}
+impl Drop for TmpDir {
+    fn drop(&mut self) {
+        if self.path.exists() {
+            let path = std::mem::take(&mut self.path);
+            tokio::spawn(async move {
+                tokio::fs::remove_dir_all(&path).await.unwrap();
+            });
+        }
+    }
+}
+
+pub async fn create_file(path: impl AsRef<Path>) -> Result<File, Error> {
+    let path = path.as_ref();
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("mkdir -p {parent:?}")))?;
+    }
+    File::create(path)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("create {path:?}")))
+}
+
+pub async fn rename(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), Error> {
+    let src = src.as_ref();
+    let dst = dst.as_ref();
+    if let Some(parent) = dst.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("mkdir -p {parent:?}")))?;
+    }
+    tokio::fs::rename(src, dst)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("mv {src:?} -> {dst:?}")))
 }

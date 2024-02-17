@@ -1,13 +1,14 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use clap::ArgMatches;
+use clap::builder::ValueParserFactory;
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use digest::generic_array::GenericArray;
 use digest::OutputSizeUser;
-use rpc_toolkit::command;
+use models::PackageId;
+use rpc_toolkit::{command, from_fn_async, AnyContext, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use sqlx::{Executor, Postgres};
@@ -15,17 +16,19 @@ use tokio::sync::Mutex;
 use tracing::instrument;
 
 use self::cifs::CifsBackupTarget;
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::filesystem::{FileSystem, MountType, ReadWrite};
-use crate::disk::mount::guard::TmpMountGuard;
+use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::disk::util::PartitionInfo;
 use crate::prelude::*;
-use crate::s9pk::manifest::PackageId;
-use crate::util::serde::{deserialize_from_str, display_serializable, serialize_display};
-use crate::util::{display_none, Version};
+use crate::util::clap::FromStrParser;
+use crate::util::serde::{
+    deserialize_from_str, display_serializable, serialize_display, HandlerExtSerde, WithIoFormat,
+};
+use crate::util::Version;
 
 pub mod cifs;
 
@@ -84,6 +87,12 @@ impl std::str::FromStr for BackupTargetId {
         }
     }
 }
+impl ValueParserFactory for BackupTargetId {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
+    }
+}
 impl<'de> Deserialize<'de> for BackupTargetId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -108,9 +117,8 @@ pub enum BackupTargetFS {
     Disk(BlockDev<PathBuf>),
     Cifs(Cifs),
 }
-#[async_trait]
 impl FileSystem for BackupTargetFS {
-    async fn mount<P: AsRef<Path> + Send + Sync>(
+    async fn mount<P: AsRef<Path> + Send>(
         &self,
         mountpoint: P,
         mount_type: MountType,
@@ -130,15 +138,29 @@ impl FileSystem for BackupTargetFS {
     }
 }
 
-#[command(subcommands(cifs::cifs, list, info, mount, umount))]
-pub fn target() -> Result<(), Error> {
-    Ok(())
+// #[command(subcommands(cifs::cifs, list, info, mount, umount))]
+pub fn target() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand("cifs", cifs::cifs())
+        .subcommand(
+            "list",
+            from_fn_async(list)
+                .with_display_serializable()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "info",
+            from_fn_async(info)
+                .with_display_serializable()
+                .with_custom_display_fn::<AnyContext, _>(|params, info| {
+                    Ok(display_backup_info(params.params, info))
+                })
+                .with_remote_cli::<CliContext>(),
+        )
 }
 
-#[command(display(display_serializable))]
-pub async fn list(
-    #[context] ctx: RpcContext,
-) -> Result<BTreeMap<BackupTargetId, BackupTarget>, Error> {
+// #[command(display(display_serializable))]
+pub async fn list(ctx: RpcContext) -> Result<BTreeMap<BackupTargetId, BackupTarget>, Error> {
     let mut sql_handle = ctx.secret_store.acquire().await?;
     let (disks_res, cifs) = tokio::try_join!(
         crate::disk::util::list(&ctx.os_partitions),
@@ -187,11 +209,11 @@ pub struct PackageBackupInfo {
     pub timestamp: DateTime<Utc>,
 }
 
-fn display_backup_info(info: BackupInfo, matches: &ArgMatches) {
+fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) {
     use prettytable::*;
 
-    if matches.is_present("format") {
-        return display_serializable(info, matches);
+    if let Some(format) = params.format {
+        return display_serializable(format, info);
     }
 
     let mut table = Table::new();
@@ -223,12 +245,21 @@ fn display_backup_info(info: BackupInfo, matches: &ArgMatches) {
     table.print_tty(false).unwrap();
 }
 
-#[command(display(display_backup_info))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct InfoParams {
+    target_id: BackupTargetId,
+    password: String,
+}
+
 #[instrument(skip(ctx, password))]
 pub async fn info(
-    #[context] ctx: RpcContext,
-    #[arg(rename = "target-id")] target_id: BackupTargetId,
-    #[arg] password: String,
+    ctx: RpcContext,
+    InfoParams {
+        target_id,
+        password,
+    }: InfoParams,
 ) -> Result<BackupInfo, Error> {
     let guard = BackupMountGuard::mount(
         TmpMountGuard::mount(
@@ -254,17 +285,26 @@ lazy_static::lazy_static! {
         Mutex::new(BTreeMap::new());
 }
 
-#[command]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct MountParams {
+    target_id: BackupTargetId,
+    password: String,
+}
+
 #[instrument(skip_all)]
 pub async fn mount(
-    #[context] ctx: RpcContext,
-    #[arg(rename = "target-id")] target_id: BackupTargetId,
-    #[arg] password: String,
+    ctx: RpcContext,
+    MountParams {
+        target_id,
+        password,
+    }: MountParams,
 ) -> Result<String, Error> {
     let mut mounts = USER_MOUNTS.lock().await;
 
     if let Some(existing) = mounts.get(&target_id) {
-        return Ok(existing.as_ref().display().to_string());
+        return Ok(existing.path().display().to_string());
     }
 
     let guard = BackupMountGuard::mount(
@@ -280,19 +320,23 @@ pub async fn mount(
     )
     .await?;
 
-    let res = guard.as_ref().display().to_string();
+    let res = guard.path().display().to_string();
 
     mounts.insert(target_id, guard);
 
     Ok(res)
 }
-#[command(display(display_none))]
+
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct UmountParams {
+    target_id: Option<BackupTargetId>,
+}
+
 #[instrument(skip_all)]
-pub async fn umount(
-    #[context] _ctx: RpcContext,
-    #[arg(rename = "target-id")] target_id: Option<BackupTargetId>,
-) -> Result<(), Error> {
-    let mut mounts = USER_MOUNTS.lock().await;
+pub async fn umount(_: RpcContext, UmountParams { target_id }: UmountParams) -> Result<(), Error> {
+    let mut mounts = USER_MOUNTS.lock().await; // TODO: move to context
     if let Some(target_id) = target_id {
         if let Some(existing) = mounts.remove(&target_id) {
             existing.unmount().await?;

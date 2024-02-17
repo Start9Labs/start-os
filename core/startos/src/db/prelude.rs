@@ -2,8 +2,9 @@ use std::collections::BTreeMap;
 use std::marker::PhantomData;
 use std::panic::UnwindSafe;
 
+pub use imbl_value::Value;
 use patch_db::value::InternedString;
-pub use patch_db::{HasModel, PatchDb, Value};
+pub use patch_db::{HasModel, PatchDb};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 

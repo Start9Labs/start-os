@@ -1,21 +1,19 @@
-use std::collections::BTreeMap;
-
-use clap::ArgMatches;
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use models::{Id, InterfaceId, PackageId};
 use openssl::pkey::{PKey, Private};
 use openssl::sha::Sha256;
 use openssl::x509::X509;
 use p256::elliptic_curve::pkcs8::EncodePrivateKey;
-use rpc_toolkit::command;
+use serde::{Deserialize, Serialize};
 use sqlx::{Acquire, PgExecutor};
 use ssh_key::private::Ed25519PrivateKey;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use zeroize::Zeroize;
 
-use crate::config::{configure, ConfigureContext};
+use crate::config::ConfigureContext;
 use crate::context::RpcContext;
-use crate::control::restart;
+use crate::control::{restart, ControlParams};
 use crate::disk::fsck::RequiresReboot;
 use crate::net::ssl::CertPair;
 use crate::prelude::*;
@@ -280,17 +278,23 @@ pub fn test_keygen() {
     key.openssl_key_nistp256();
 }
 
-fn display_requires_reboot(arg: RequiresReboot, _matches: &ArgMatches) {
-    if arg.0 {
+pub fn display_requires_reboot(_: RotateKeysParams, args: RequiresReboot) {
+    if args.0 {
         println!("Server must be restarted for changes to take effect");
     }
 }
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct RotateKeysParams {
+    package: Option<PackageId>,
+    interface: Option<InterfaceId>,
+}
 
-#[command(rename = "rotate-key", display(display_requires_reboot))]
+// #[command(display(display_requires_reboot))]
 pub async fn rotate_key(
-    #[context] ctx: RpcContext,
-    #[arg] package: Option<PackageId>,
-    #[arg] interface: Option<InterfaceId>,
+    ctx: RpcContext,
+    RotateKeysParams { package, interface }: RotateKeysParams,
 ) -> Result<RequiresReboot, Error> {
     let mut pgcon = ctx.secret_store.acquire().await?;
     let mut tx = pgcon.begin().await?;
@@ -337,37 +341,39 @@ pub async fn rotate_key(
                     lan.ser(&new_key.tor_address().to_string())?;
                 }
 
-                if installed
-                    .as_manifest()
-                    .as_config()
-                    .transpose_ref()
-                    .is_some()
-                {
-                    installed
-                        .as_status_mut()
-                        .as_configured_mut()
-                        .replace(&false)
-                } else {
-                    Ok(false)
-                }
+                // TODO
+                // if installed
+                //     .as_manifest()
+                //     .as_config()
+                //     .transpose_ref()
+                //     .is_some()
+                // {
+                //     installed
+                //         .as_status_mut()
+                //         .as_configured_mut()
+                //         .replace(&false)
+                // } else {
+                //     Ok(false)
+                // }
+                Ok(false)
             })
             .await?;
         tx.commit().await?;
         if needs_config {
-            configure(
-                &ctx,
-                &package,
-                ConfigureContext {
-                    breakages: BTreeMap::new(),
-                    timeout: None,
-                    config: None,
-                    overrides: BTreeMap::new(),
-                    dry_run: false,
-                },
-            )
-            .await?;
+            ctx.services
+                .get(&package)
+                .await
+                .as_ref()
+                .ok_or_else(|| {
+                    Error::new(
+                        eyre!("There is no manager running for {package}"),
+                        ErrorKind::Unknown,
+                    )
+                })?
+                .configure(ConfigureContext::default())
+                .await?;
         } else {
-            restart(ctx, package).await?;
+            restart(ctx, ControlParams { id: package }).await?;
         }
         Ok(RequiresReboot(false))
     } else {
