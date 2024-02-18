@@ -1,9 +1,8 @@
 export * as configTypes from "./config/configTypes"
 import { InputSpec } from "./config/configTypes"
 import { DependenciesReceipt } from "./config/setupConfig"
-import { PortOptions } from "./interfaces/Host"
+import { HostKind, PortOptions } from "./interfaces/Host"
 import { Daemons } from "./mainFn/Daemons"
-import { Overlay } from "./util/Overlay"
 import { UrlString } from "./util/getNetworkInterface"
 import { NetworkInterfaceType, Signals } from "./util/utils"
 
@@ -165,13 +164,75 @@ export type ActionMetadata = {
   group?: string
 }
 export declare const hostName: unique symbol
-export type HostName = string & { [hostName]: never }
+export type Hostname = string & { [hostName]: never }
 /** ${scheme}://${username}@${host}:${externalPort}${suffix} */
 export type Address = {
   username: string | null
   hostId: string
   options: PortOptions
   suffix: string
+}
+
+export type ListenKind = "onion" | "ip"
+
+export type ListenInfoBase = {
+  kind: ListenKind
+}
+
+export type ListenInfoOnion = ListenInfoBase & {
+  kind: "onion"
+}
+
+export type ListenInfoIp = ListenInfoBase & {
+  kind: "ip"
+  interfaceId: string
+}
+
+export type ListenInfo = ListenInfoOnion | ListenInfoIp
+
+export type HostBase = {
+  id: string
+  kind: HostKind
+}
+
+export type SingleHost = HostBase & {
+  kind: "single" | "static"
+} & (
+    | {
+        listen: null
+        hostname: null
+      }
+    | {
+        listen: ListenInfoOnion
+        hostname: string
+      }
+    | {
+        listen: ListenInfoIp
+        hostname:
+          | string
+          | { domain: string; subdomain: string | null; port: number }
+      }
+  )
+
+export type MultiHost = HostBase & {
+  kind: "multi"
+} & {
+  hostnames:
+    | {
+        listen: null
+        hostname: null
+      }
+    | {
+        listen: ListenInfoOnion
+        hostname: string
+      }
+    | {
+        listen: ListenInfoIp
+        hostname: (
+          | string
+          | { domain: string; subdomain: string | null; port: number }
+        )[]
+      }
 }
 
 export type InterfaceId = string
@@ -189,7 +250,7 @@ export type NetworkInterface = {
   /** All URIs */
   addresses: Address[]
 
-  /** The netowrk interface could be serveral types, something like ui, p2p, or network */
+  /** The network interface could be several types, something like ui, p2p, or network */
   type: NetworkInterfaceType
 }
 // prettier-ignore
@@ -246,13 +307,13 @@ export type Effects = {
     hostId: string
     packageId?: string
     callback: () => void
-  }): Promise<[HostName]>
+  }): Promise<[Hostname]>
   getHostnames(options: {
     kind?: "multi"
     packageId?: string
     hostId: string
     callback: () => void
-  }): Promise<[HostName, ...HostName[]]>
+  }): Promise<[Hostname, ...Hostname[]]>
 
   // /**
   //  * Run rsync between two volumes. This is used to backup data between volumes.
