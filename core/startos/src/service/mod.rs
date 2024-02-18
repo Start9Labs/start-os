@@ -7,7 +7,7 @@ use futures::future::BoxFuture;
 use imbl::OrdMap;
 use models::{ActionId, HealthCheckId, PackageId, ProcedureName};
 use persistent_container::PersistentContainer;
-use rpc_toolkit::{from_fn_async, CallRemoteHandler, Handler, HandlerArgs};
+use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, Handler, HandlerArgs};
 use serde::{Deserialize, Serialize};
 use start_stop::StartStop;
 use tokio::sync::{watch, Notify};
@@ -346,6 +346,11 @@ impl Service {
             .await;
         if let Some((hdl, shutdown)) = self.seed.persistent_container.rpc_server.send_replace(None)
         {
+            self.seed
+                .persistent_container
+                .rpc_client
+                .request(rpc::Exit, Empty {})
+                .await?;
             shutdown.shutdown();
             hdl.await.with_kind(ErrorKind::Cancelled)?;
         }
@@ -366,6 +371,12 @@ impl Service {
         self.seed
             .persistent_container
             .execute(ProcedureName::Uninit, to_value(&target_version)?, None) // TODO timeout
+            .await?;
+        let id = self.seed.persistent_container.s9pk.as_manifest().id.clone();
+        self.seed
+            .ctx
+            .db
+            .mutate(|d| d.as_package_data_mut().remove(&id))
             .await?;
         self.shutdown().await
     }
