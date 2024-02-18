@@ -4,7 +4,7 @@ use crate::context::CliContext;
 
 pub mod dhcp;
 pub mod dns;
-pub mod interface;
+pub mod host;
 pub mod keys;
 pub mod mdns;
 pub mod net_controller;

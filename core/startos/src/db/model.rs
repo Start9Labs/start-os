@@ -7,7 +7,7 @@ use imbl_value::InternedString;
 use ipnet::{Ipv4Net, Ipv6Net};
 use isocountry::CountryCode;
 use itertools::Itertools;
-use models::{DataUrl, HealthCheckId, InterfaceId, PackageId};
+use models::{DataUrl, HealthCheckId, HostId, PackageId};
 use openssl::hash::MessageDigest;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{HasModel, Value};
@@ -537,9 +537,9 @@ pub struct CurrentDependencyInfo {
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
-pub struct InterfaceAddressMap(pub BTreeMap<InterfaceId, InterfaceAddresses>);
+pub struct InterfaceAddressMap(pub BTreeMap<HostId, InterfaceAddresses>);
 impl Map for InterfaceAddressMap {
-    type Key = InterfaceId;
+    type Key = HostId;
     type Value = InterfaceAddresses;
 }
 

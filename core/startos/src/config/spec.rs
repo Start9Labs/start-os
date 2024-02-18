@@ -14,7 +14,7 @@ use imbl_value::InternedString;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jsonpath_lib::Compiled as CompiledJsonPath;
-use models::ProcedureName;
+use models::{HostId, ProcedureName};
 use patch_db::value::{Number, Value};
 use rand::{CryptoRng, Rng};
 use regex::Regex;
@@ -27,7 +27,6 @@ use super::{Config, MatchError, NoMatchWithPath, TimeoutError, TypeOf};
 use crate::config::action::ConfigRes;
 use crate::config::ConfigurationError;
 use crate::context::RpcContext;
-use crate::net::interface::InterfaceId;
 use crate::net::keys::Key;
 use crate::prelude::*;
 use crate::s9pk::manifest::{Manifest, PackageId};
@@ -1690,7 +1689,7 @@ impl ValueSpec for PackagePointerSpec {
 #[serde(rename_all = "kebab-case")]
 pub struct TorAddressPointer {
     pub package_id: PackageId,
-    interface: InterfaceId,
+    interface: HostId,
 }
 impl TorAddressPointer {
     async fn deref(&self, ctx: &RpcContext) -> Result<Value, ConfigurationError> {
@@ -1723,7 +1722,7 @@ impl fmt::Display for TorAddressPointer {
 #[serde(rename_all = "kebab-case")]
 pub struct LanAddressPointer {
     pub package_id: PackageId,
-    interface: InterfaceId,
+    interface: HostId,
 }
 impl fmt::Display for LanAddressPointer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1882,7 +1881,7 @@ impl Hash for ConfigSelector {
 #[serde(rename_all = "kebab-case")]
 pub struct TorKeyPointer {
     package_id: PackageId,
-    interface: InterfaceId,
+    interface: HostId,
 }
 impl TorKeyPointer {
     async fn deref(
@@ -1895,7 +1894,7 @@ impl TorKeyPointer {
                 ValueSpecPointer::Package(PackagePointerSpec::TorKey(self.clone())),
             ));
         }
-        let key = Key::for_interface(
+        let key = Key::for_host(
             secrets
                 .acquire()
                 .await

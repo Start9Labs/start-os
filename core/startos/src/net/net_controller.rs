@@ -3,7 +3,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
-use models::{InterfaceId, PackageId};
+use models::{HostId, PackageId};
 use sqlx::PgExecutor;
 use tracing::instrument;
 
@@ -20,7 +20,7 @@ use crate::{Error, HOST_IP};
 pub struct NetController {
     pub(super) tor: TorController,
     pub(super) vhost: VHostController,
-    // pub(super) dns: DnsController,
+    pub(super) dns: DnsController,
     pub(super) ssl: Arc<SslManager>,
     pub(super) os_bindings: Vec<Arc<()>>,
 }
@@ -39,7 +39,7 @@ impl NetController {
         let mut res = Self {
             tor: TorController::new(tor_control, tor_socks),
             vhost: VHostController::new(ssl.clone()),
-            // dns: DnsController::init(dns_bind).await?,
+            dns: DnsController::init(dns_bind).await?,
             ssl,
             os_bindings: Vec::new(),
         };
@@ -60,8 +60,8 @@ impl NetController {
                 alpn.clone(),
             )
             .await?;
-        // self.os_bindings
-        //     .push(self.dns.add(None, HOST_IP.into()).await?);
+        self.os_bindings
+            .push(self.dns.add(None, HOST_IP.into()).await?);
 
         // LAN IP
         self.os_bindings.push(
@@ -147,13 +147,13 @@ impl NetController {
         package: PackageId,
         ip: Ipv4Addr,
     ) -> Result<NetService, Error> {
-        // let dns = self.dns.add(Some(package.clone()), ip).await?;
+        let dns = self.dns.add(Some(package.clone()), ip).await?;
 
         Ok(NetService {
             shutdown: false,
             id: package,
             ip,
-            // dns,
+            dns,
             controller: Arc::downgrade(self),
             tor: BTreeMap::new(),
             lan: BTreeMap::new(),
@@ -212,10 +212,10 @@ pub struct NetService {
     shutdown: bool,
     id: PackageId,
     ip: Ipv4Addr,
-    // dns: Arc<()>,
+    dns: Arc<()>,
     controller: Weak<NetController>,
-    tor: BTreeMap<(InterfaceId, u16), (Key, Vec<Arc<()>>)>,
-    lan: BTreeMap<(InterfaceId, u16), (Key, Vec<Arc<()>>)>,
+    tor: BTreeMap<(HostId, u16), (Key, Vec<Arc<()>>)>,
+    lan: BTreeMap<(HostId, u16), (Key, Vec<Arc<()>>)>,
 }
 impl NetService {
     fn net_controller(&self) -> Result<Arc<NetController>, Error> {
@@ -229,14 +229,14 @@ impl NetService {
     pub async fn add_tor<Ex>(
         &mut self,
         secrets: &mut Ex,
-        id: InterfaceId,
+        id: HostId,
         external: u16,
         internal: u16,
     ) -> Result<(), Error>
     where
         for<'a> &'a mut Ex: PgExecutor<'a>,
     {
-        let key = Key::for_interface(secrets, Some((self.id.clone(), id.clone()))).await?;
+        let key = Key::for_host(secrets, Some((self.id.clone(), id.clone()))).await?;
         let ctrl = self.net_controller()?;
         let tor_idx = (id, external);
         let mut tor = self
@@ -251,7 +251,7 @@ impl NetService {
         self.tor.insert(tor_idx, tor);
         Ok(())
     }
-    pub async fn remove_tor(&mut self, id: InterfaceId, external: u16) -> Result<(), Error> {
+    pub async fn remove_tor(&mut self, id: HostId, external: u16) -> Result<(), Error> {
         let ctrl = self.net_controller()?;
         if let Some((key, rcs)) = self.tor.remove(&(id, external)) {
             ctrl.remove_tor(&key, external, rcs).await?;
@@ -261,7 +261,7 @@ impl NetService {
     pub async fn add_lan<Ex>(
         &mut self,
         secrets: &mut Ex,
-        id: InterfaceId,
+        id: HostId,
         external: u16,
         internal: u16,
         connect_ssl: Result<(), AlpnInfo>,
@@ -269,7 +269,7 @@ impl NetService {
     where
         for<'a> &'a mut Ex: PgExecutor<'a>,
     {
-        let key = Key::for_interface(secrets, Some((self.id.clone(), id.clone()))).await?;
+        let key = Key::for_host(secrets, Some((self.id.clone(), id.clone()))).await?;
         let ctrl = self.net_controller()?;
         let lan_idx = (id, external);
         let mut lan = self
@@ -289,7 +289,7 @@ impl NetService {
         self.lan.insert(lan_idx, lan);
         Ok(())
     }
-    pub async fn remove_lan(&mut self, id: InterfaceId, external: u16) -> Result<(), Error> {
+    pub async fn remove_lan(&mut self, id: HostId, external: u16) -> Result<(), Error> {
         let ctrl = self.net_controller()?;
         if let Some((key, rcs)) = self.lan.remove(&(id, external)) {
             ctrl.remove_lan(&key, external, rcs).await?;
@@ -299,13 +299,13 @@ impl NetService {
     pub async fn export_cert<Ex>(
         &self,
         secrets: &mut Ex,
-        id: &InterfaceId,
+        id: &HostId,
         ip: IpAddr,
     ) -> Result<(), Error>
     where
         for<'a> &'a mut Ex: PgExecutor<'a>,
     {
-        let key = Key::for_interface(secrets, Some((self.id.clone(), id.clone()))).await?;
+        let key = Key::for_host(secrets, Some((self.id.clone(), id.clone()))).await?;
         let ctrl = self.net_controller()?;
         let cert = ctrl.ssl.with_certs(key, ip).await?;
         let cert_dir = cert_dir(&self.id, id);
@@ -332,8 +332,8 @@ impl NetService {
             for ((_, external), (key, rcs)) in std::mem::take(&mut self.tor) {
                 errors.handle(ctrl.remove_tor(&key, external, rcs).await);
             }
-            // std::mem::take(&mut self.dns);
-            // errors.handle(ctrl.dns.gc(Some(self.id.clone()), self.ip).await);
+            std::mem::take(&mut self.dns);
+            errors.handle(ctrl.dns.gc(Some(self.id.clone()), self.ip).await);
             errors.into_result()
         } else {
             tracing::warn!("NetService dropped after NetController is shutdown");
@@ -355,7 +355,7 @@ impl Drop for NetService {
                     shutdown: true,
                     id: Default::default(),
                     ip: Ipv4Addr::new(0, 0, 0, 0),
-                    // dns: Default::default(),
+                    dns: Default::default(),
                     controller: Default::default(),
                     tor: Default::default(),
                     lan: Default::default(),

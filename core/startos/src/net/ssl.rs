@@ -336,7 +336,7 @@ pub struct SANInfo {
 impl SANInfo {
     pub fn new(key: &Key, hostname: &Hostname, ips: BTreeSet<IpAddr>) -> Self {
         let mut dns = BTreeSet::new();
-        if let Some((id, _)) = key.interface() {
+        if let Some((id, _)) = key.host() {
             dns.insert(MaybeWildcard::WithWildcard(format!("{id}.embassy")));
             dns.insert(MaybeWildcard::WithWildcard(key.local_address().to_string()));
         } else {

@@ -443,14 +443,16 @@ export type Effects = {
    * @returns  PEM encoded fullchain (ecdsa)
    */
   getSslCertificate: (
-    packageId?: string,
+    packageId: string | null,
+    hostId: string,
     algorithm?: "ecdsa" | "ed25519",
   ) => Promise<[string, string, string]>
   /**
    * @returns PEM encoded ssl key (ecdsa)
    */
   getSslKey: (
-    packageId?: string,
+    packageId: string | null,
+    hostId: string,
     algorithm?: "ecdsa" | "ed25519",
   ) => Promise<string>
 
