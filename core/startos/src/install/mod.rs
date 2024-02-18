@@ -230,15 +230,17 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
                             } => res?,
                             err = err_recv => {
                                 if let Ok(e) = err {
-                                ws.send(Message::Text(
-                                    serde_json::to_string(&Err::<(), _>(e))
-                                    .with_kind(ErrorKind::Serialization)?,
-                                ))
-                                .await
-                                .with_kind(ErrorKind::Network)?;
+                                    ws.send(Message::Text(
+                                        serde_json::to_string(&Err::<(), _>(e))
+                                        .with_kind(ErrorKind::Serialization)?,
+                                    ))
+                                    .await
+                                    .with_kind(ErrorKind::Network)?;
                                 }
                             }
                         }
+
+                        ws.close().await.with_kind(ErrorKind::Network)?;
 
                         Ok::<_, Error>(())
                     }
@@ -250,7 +252,7 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
                 }
                 .boxed()
             }),
-            Duration::from_secs(30),
+            Duration::from_secs(600),
         ),
     )
     .await;
