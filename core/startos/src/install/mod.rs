@@ -41,7 +41,7 @@ pub const PKG_WASM_DIR: &str = "package-data/wasm";
 
 // #[command(display(display_serializable))]
 pub async fn list(ctx: RpcContext) -> Result<Value, Error> {
-    Ok(ctx.db.peek().await.as_package_data().as_entries()?
+    Ok(ctx.db.peek().await.as_public().as_package_data().as_entries()?
         .iter()
         .filter_map(|(id, pde)| {
             let status = match pde.as_match() {
@@ -185,7 +185,13 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
     let (err_send, err_recv) = oneshot::channel();
     let progress = RequestGuid::new();
     let db = ctx.db.clone();
-    let mut sub = db.subscribe().await;
+    let mut sub = db
+        .subscribe(
+            "/package-data/{id}/install-progress"
+                .parse::<JsonPointer>()
+                .with_kind(ErrorKind::Database)?,
+        )
+        .await;
     ctx.add_continuation(
         progress.clone(),
         RpcContinuation::ws(
@@ -199,17 +205,15 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
                                 ErrorKind::Cancelled,
                             )
                         })?;
-                        let progress_path =
-                            JsonPointer::parse(format!("/package-data/{id}/install-progress"))
-                                .with_kind(ErrorKind::Database)?;
                         tokio::select! {
                             res = async {
                                 while let Some(rev) = sub.recv().await {
-                                    if rev.patch.affects_path(&progress_path) {
+                                    if !rev.patch.0.is_empty() { // TODO: don't send empty patches?
                                         ws.send(Message::Text(
                                             serde_json::to_string(&if let Some(p) = db
                                                 .peek()
                                                 .await
+                                                .as_public()
                                                 .as_package_data()
                                                 .as_idx(&id)
                                                 .and_then(|e| e.as_install_progress())
@@ -407,26 +411,31 @@ pub async fn uninstall(
 ) -> Result<PackageId, Error> {
     ctx.db
         .mutate(|db| {
-            let (manifest, static_files, installed) =
-                match db.as_package_data().as_idx(&id).or_not_found(&id)?.de()? {
-                    PackageDataEntry::Installed(PackageDataEntryInstalled {
-                        manifest,
-                        static_files,
-                        installed,
-                    }) => (manifest, static_files, installed),
-                    _ => {
-                        return Err(Error::new(
-                            eyre!("Package is not installed."),
-                            crate::ErrorKind::NotFound,
-                        ));
-                    }
-                };
+            let (manifest, static_files, installed) = match db
+                .as_public()
+                .as_package_data()
+                .as_idx(&id)
+                .or_not_found(&id)?
+                .de()?
+            {
+                PackageDataEntry::Installed(PackageDataEntryInstalled {
+                    manifest,
+                    static_files,
+                    installed,
+                }) => (manifest, static_files, installed),
+                _ => {
+                    return Err(Error::new(
+                        eyre!("Package is not installed."),
+                        crate::ErrorKind::NotFound,
+                    ));
+                }
+            };
             let pde = PackageDataEntry::Removing(PackageDataEntryRemoving {
                 manifest,
                 static_files,
                 removing: installed,
             });
-            db.as_package_data_mut().insert(&id, &pde)
+            db.as_public_mut().as_package_data_mut().insert(&id, &pde)
         })
         .await?;
 

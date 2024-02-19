@@ -128,6 +128,7 @@ impl Service {
             .db
             .peek()
             .await
+            .into_public()
             .into_package_data()
             .into_idx(id)
             .map(|pde| pde.into_match())
@@ -151,7 +152,7 @@ impl Service {
                 }
                 // TODO: delete s9pk?
                 ctx.db
-                    .mutate(|v| v.as_package_data_mut().remove(id))
+                    .mutate(|v| v.as_public_mut().as_package_data_mut().remove(id))
                     .await?;
                 Ok(None)
             }
@@ -188,7 +189,8 @@ impl Service {
                     .mutate({
                         let manifest = s9pk.as_manifest().clone();
                         |db| {
-                            db.as_package_data_mut()
+                            db.as_public_mut()
+                                .as_package_data_mut()
                                 .as_idx_mut(&manifest.id)
                                 .or_not_found(&manifest.id)?
                                 .ser(&PackageDataEntry::Installed(PackageDataEntryInstalled {
@@ -229,7 +231,7 @@ impl Service {
                 }
 
                 ctx.db
-                    .mutate(|v| v.as_package_data_mut().remove(id))
+                    .mutate(|v| v.as_public_mut().as_package_data_mut().remove(id))
                     .await?;
 
                 Ok(None)
@@ -274,7 +276,8 @@ impl Service {
         }
         ctx.db
             .mutate(|d| {
-                d.as_package_data_mut()
+                d.as_public_mut()
+                    .as_package_data_mut()
                     .as_idx_mut(&manifest.id)
                     .or_not_found(&manifest.id)?
                     .ser(&PackageDataEntry::Installed(PackageDataEntryInstalled {
@@ -376,7 +379,7 @@ impl Service {
         self.seed
             .ctx
             .db
-            .mutate(|d| d.as_package_data_mut().remove(&id))
+            .mutate(|d| d.as_public_mut().as_package_data_mut().remove(&id))
             .await?;
         self.shutdown().await
     }
@@ -427,6 +430,7 @@ impl Actor for ServiceActor {
                         .db
                         .mutate(|d| {
                             if let Some(i) = d
+                                .as_public_mut()
                                 .as_package_data_mut()
                                 .as_idx_mut(&id)
                                 .and_then(|p| p.as_installed_mut())

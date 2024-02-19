@@ -75,7 +75,8 @@ pub async fn update(
         let ip_info = IpInfo::for_interface(&interface).await?;
         ctx.db
             .mutate(|db| {
-                db.as_server_info_mut()
+                db.as_public_mut()
+                    .as_server_info_mut()
                     .as_ip_info_mut()
                     .insert(&interface, &ip_info)
             })

@@ -199,6 +199,7 @@ pub fn add_dependent_to_current_dependents_lists(
 ) -> Result<(), Error> {
     for (dependency, dep_info) in &current_dependencies.0 {
         if let Some(dependency_dependents) = db
+            .as_public_mut()
             .as_package_data_mut()
             .as_idx_mut(dependency)
             .and_then(|pde| pde.as_installed_mut())
