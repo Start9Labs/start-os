@@ -1,4 +1,4 @@
-import { getHostname } from "../util/getNetworkInterface"
+import { getHostname } from "../util/getServiceInterface"
 import { splitCommand } from "../util/splitCommand"
 
 describe("splitCommand ", () => {

@@ -1,4 +1,4 @@
-import { getHostname } from "../util/getNetworkInterface"
+import { getHostname } from "../util/getServiceInterface"
 
 describe("getHostname ", () => {
   const inputToExpected = [
