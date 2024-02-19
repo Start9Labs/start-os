@@ -106,11 +106,11 @@ export class HostSystemStartOs implements Effects {
       T.Effects["clearBindings"]
     >
   }
-  clearNetworkInterfaces(
-    ...[]: Parameters<T.Effects["clearNetworkInterfaces"]>
+  clearServiceInterfaces(
+    ...[]: Parameters<T.Effects["clearServiceInterfaces"]>
   ) {
-    return this.rpcRound("clearNetworkInterfaces", null) as ReturnType<
-      T.Effects["clearNetworkInterfaces"]
+    return this.rpcRound("clearServiceInterfaces", null) as ReturnType<
+      T.Effects["clearServiceInterfaces"]
     >
   }
   createOverlayedImage(options: { imageId: string }): Promise<string> {
@@ -131,11 +131,11 @@ export class HostSystemStartOs implements Effects {
       T.Effects["exportAction"]
     >
   }
-  exportNetworkInterface(
-    ...[options]: Parameters<T.Effects["exportNetworkInterface"]>
+  exportServiceInterface(
+    ...[options]: Parameters<T.Effects["exportServiceInterface"]>
   ) {
-    return this.rpcRound("exportNetworkInterface", options) as ReturnType<
-      T.Effects["exportNetworkInterface"]
+    return this.rpcRound("exportServiceInterface", options) as ReturnType<
+      T.Effects["exportServiceInterface"]
     >
   }
   exposeForDependents(...[options]: any) {

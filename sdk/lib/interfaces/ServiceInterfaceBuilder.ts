@@ -1,5 +1,5 @@
-import { Address, Effects } from "../types"
-import { NetworkInterfaceType } from "../util/utils"
+import { AddressInfo, Effects } from "../types"
+import { ServiceInterfaceType } from "../util/utils"
 import { AddressReceipt } from "./AddressReceipt"
 import { Host } from "./Host"
 import { Origin } from "./Origin"
@@ -15,7 +15,7 @@ import { Origin } from "./Origin"
  * @param options
  * @returns
  */
-export class NetworkInterfaceBuilder {
+export class ServiceInterfaceBuilder {
   constructor(
     readonly options: {
       effects: Effects
@@ -24,7 +24,7 @@ export class NetworkInterfaceBuilder {
       description: string
       hasPrimary: boolean
       disabled: boolean
-      type: NetworkInterfaceType
+      type: ServiceInterfaceType
       username: null | string
       path: string
       search: Record<string, string>
@@ -36,12 +36,12 @@ export class NetworkInterfaceBuilder {
    *
    * The returned addressReceipt serves as proof that the addresses were registered
    *
-   * @param addresses
+   * @param addressInfo
    * @returns
    */
-  async export<Origins extends Origin<Host>[]>(
-    origins: Origins,
-  ): Promise<Address[] & AddressReceipt> {
+  async export<OriginForHost extends Origin<Host>>(
+    origin: OriginForHost,
+  ): Promise<AddressInfo & AddressReceipt> {
     const {
       name,
       description,
@@ -54,20 +54,18 @@ export class NetworkInterfaceBuilder {
       search,
     } = this.options
 
-    const addresses = Array.from(origins).map((o) =>
-      o.build({ username, path, search, scheme: null }),
-    )
+    const addressInfo = origin.build({ username, path, search, scheme: null })
 
-    await this.options.effects.exportNetworkInterface({
-      interfaceId: id,
+    await this.options.effects.exportServiceInterface({
+      id,
       name,
       description,
       hasPrimary,
       disabled,
-      addresses,
+      addressInfo,
       type,
     })
 
-    return addresses as Address[] & AddressReceipt
+    return addressInfo as AddressInfo & AddressReceipt
   }
 }
