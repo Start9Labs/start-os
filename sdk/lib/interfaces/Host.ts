@@ -55,7 +55,7 @@ type AddSslOptions = {
   addXForwardedHeaders?: boolean /** default: false */
 }
 type Security = { secure: false; ssl: false } | { secure: true; ssl: boolean }
-export type PortOptions = {
+export type BindOptions = {
   scheme: Scheme
   preferredExternalPort: number
   addSsl: AddSslOptions | null
@@ -85,7 +85,7 @@ type PortOptionsByKnownProtocol =
       scheme?: Scheme
       addSsl?: AddSslOptions | null
     }
-type PortOptionsByProtocol = PortOptionsByKnownProtocol | PortOptions
+type PortOptionsByProtocol = PortOptionsByKnownProtocol | BindOptions
 
 export type HostKind = "static" | "single" | "multi"
 

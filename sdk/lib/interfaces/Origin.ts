@@ -1,13 +1,13 @@
-import { Address } from "../types"
-import { Host, PortOptions } from "./Host"
+import { AddressInfo } from "../types"
+import { Host, BindOptions } from "./Host"
 
 export class Origin<T extends Host> {
   constructor(
     readonly host: T,
-    readonly options: PortOptions,
+    readonly options: BindOptions,
   ) {}
 
-  build({ username, path, search }: BuildOptions): Address {
+  build({ username, path, search }: BuildOptions): AddressInfo {
     const qpEntries = Object.entries(search)
       .map(
         ([key, val]) => `${encodeURIComponent(key)}=${encodeURIComponent(val)}`,

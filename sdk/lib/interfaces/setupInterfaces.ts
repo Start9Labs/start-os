@@ -1,10 +1,10 @@
 import { Config } from "../config/builder/config"
 import { SDKManifest } from "../manifest/ManifestTypes"
-import { Address, Effects } from "../types"
+import { AddressInfo, Effects } from "../types"
 import { Utils } from "../util/utils"
 import { AddressReceipt } from "./AddressReceipt"
 
-export type InterfacesReceipt = Array<Address[] & AddressReceipt>
+export type InterfacesReceipt = Array<AddressInfo[] & AddressReceipt>
 export type SetInterfaces<
   Manifest extends SDKManifest,
   Store,

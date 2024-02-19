@@ -1,9 +1,9 @@
 import { Effects } from "../types"
 import {
-  NetworkInterfaceFilled,
+  ServiceInterfaceFilled,
   filledAddress,
-  networkInterfaceFilled,
-} from "./getNetworkInterface"
+  getHostname,
+} from "./getServiceInterface"
 
 const makeManyInterfaceFilled = async ({
   effects,
@@ -14,7 +14,7 @@ const makeManyInterfaceFilled = async ({
   packageId: string | undefined
   callback: () => void
 }) => {
-  const interfaceValues = await effects.listInterface({
+  const serviceInterfaceValues = await effects.listServiceInterfaces({
     packageId,
     callback,
   })
@@ -22,7 +22,9 @@ const makeManyInterfaceFilled = async ({
     await Promise.all(
       Array.from(
         new Set(
-          interfaceValues.flatMap((x) => x.addresses).map((x) => x.hostId),
+          serviceInterfaceValues
+            .flatMap((x) => x.addressInfo)
+            .map((x) => x.hostId),
         ),
       ).map(
         async (hostId) =>
@@ -37,25 +39,37 @@ const makeManyInterfaceFilled = async ({
       ),
     ),
   )
-  const fillAddress = filledAddress.bind(null, hostIdsRecord)
 
-  const interfacesFilled: NetworkInterfaceFilled[] = await Promise.all(
-    interfaceValues.map(async (interfaceValue) =>
-      networkInterfaceFilled(
-        interfaceValue,
-        await effects.getPrimaryUrl({
-          interfaceId: interfaceValue.interfaceId,
-          packageId,
-          callback,
-        }),
-        interfaceValue.addresses.map(fillAddress),
-      ),
-    ),
+  const serviceInterfacesFilled: ServiceInterfaceFilled[] = await Promise.all(
+    serviceInterfaceValues.map(async (serviceInterfaceValue) => {
+      const hostIdRecord = await effects.getHostnames({
+        packageId,
+        hostId: serviceInterfaceValue.addressInfo.hostId,
+        callback,
+      })
+      const primaryUrl = await effects.getPrimaryUrl({
+        serviceInterfaceId: serviceInterfaceValue.id,
+        packageId,
+        callback,
+      })
+      return {
+        ...serviceInterfaceValue,
+        primaryUrl: primaryUrl,
+        addressInfo: filledAddress(
+          hostIdRecord,
+          serviceInterfaceValue.addressInfo,
+        ),
+        get primaryHostname() {
+          if (primaryUrl == null) return null
+          return getHostname(primaryUrl)
+        },
+      }
+    }),
   )
-  return interfacesFilled
+  return serviceInterfacesFilled
 }
 
-export class GetNetworkInterfaces {
+export class GetServiceInterfaces {
   constructor(
     readonly effects: Effects,
     readonly opts: { packageId?: string },
@@ -67,7 +81,7 @@ export class GetNetworkInterfaces {
   async const() {
     const { packageId } = this.opts
     const callback = this.effects.restart
-    const interfaceFilled: NetworkInterfaceFilled[] =
+    const interfaceFilled: ServiceInterfaceFilled[] =
       await makeManyInterfaceFilled({
         effects: this.effects,
         packageId,
@@ -77,12 +91,12 @@ export class GetNetworkInterfaces {
     return interfaceFilled
   }
   /**
-   * Returns the value of NetworkInterfacesFilled at the provided path. Does nothing if the value changes
+   * Returns the value of ServiceInterfacesFilled at the provided path. Does nothing if the value changes
    */
   async once() {
     const { packageId } = this.opts
     const callback = () => {}
-    const interfaceFilled: NetworkInterfaceFilled[] =
+    const interfaceFilled: ServiceInterfaceFilled[] =
       await makeManyInterfaceFilled({
         effects: this.effects,
         packageId,
@@ -93,7 +107,7 @@ export class GetNetworkInterfaces {
   }
 
   /**
-   * Watches the value of NetworkInterfacesFilled at the provided path. Takes a custom callback function to run whenever the value changes
+   * Watches the value of ServiceInterfacesFilled at the provided path. Takes a custom callback function to run whenever the value changes
    */
   async *watch() {
     const { packageId } = this.opts
@@ -111,9 +125,9 @@ export class GetNetworkInterfaces {
     }
   }
 }
-export function getNetworkInterfaces(
+export function getServiceInterfaces(
   effects: Effects,
   opts: { packageId?: string },
 ) {
-  return new GetNetworkInterfaces(effects, opts)
+  return new GetServiceInterfaces(effects, opts)
 }

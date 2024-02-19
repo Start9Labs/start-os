@@ -1,10 +1,10 @@
 export * as configTypes from "./config/configTypes"
 import { InputSpec } from "./config/configTypes"
 import { DependenciesReceipt } from "./config/setupConfig"
-import { HostKind, PortOptions } from "./interfaces/Host"
+import { HostKind, BindOptions } from "./interfaces/Host"
 import { Daemons } from "./mainFn/Daemons"
-import { UrlString } from "./util/getNetworkInterface"
-import { NetworkInterfaceType, Signals } from "./util/utils"
+import { UrlString } from "./util/getServiceInterface"
+import { ServiceInterfaceType, Signals } from "./util/utils"
 
 export type ExportedAction = (options: {
   effects: Effects
@@ -165,80 +165,57 @@ export type ActionMetadata = {
 }
 export declare const hostName: unique symbol
 export type Hostname = string & { [hostName]: never }
+
 /** ${scheme}://${username}@${host}:${externalPort}${suffix} */
-export type Address = {
+export type AddressInfo = {
   username: string | null
   hostId: string
-  options: PortOptions
+  options: BindOptions
   suffix: string
 }
 
-export type ListenKind = "onion" | "ip"
-
-export type ListenInfoBase = {
-  kind: ListenKind
-}
-
-export type ListenInfoOnion = ListenInfoBase & {
-  kind: "onion"
-}
-
-export type ListenInfoIp = ListenInfoBase & {
+export type HostnameInfoIp = {
   kind: "ip"
-  interfaceId: string
+  networkInterfaceId: string
+  hostname:
+    | {
+        kind: "ipv4" | "ipv6" | "local"
+        value: string
+        port: number | null
+        sslPort: number | null
+      }
+    | {
+        kind: "domain"
+        domain: string
+        subdomain: string | null
+        port: number | null
+        sslPort: number | null
+      }
 }
 
-export type ListenInfo = ListenInfoOnion | ListenInfoIp
-
-export type HostBase = {
-  id: string
-  kind: HostKind
+export type HostnameInfoOnion = {
+  kind: "onion"
+  hostname: { value: string; port: number | null; sslPort: number | null }
 }
 
-export type SingleHost = HostBase & {
+export type HostnameInfo = HostnameInfoIp | HostnameInfoOnion
+
+export type SingleHost = {
   kind: "single" | "static"
-} & (
-    | {
-        listen: null
-        hostname: null
-      }
-    | {
-        listen: ListenInfoOnion
-        hostname: string
-      }
-    | {
-        listen: ListenInfoIp
-        hostname:
-          | string
-          | { domain: string; subdomain: string | null; port: number }
-      }
-  )
-
-export type MultiHost = HostBase & {
-  kind: "multi"
-} & {
-  hostnames:
-    | {
-        listen: null
-        hostname: null
-      }
-    | {
-        listen: ListenInfoOnion
-        hostname: string
-      }
-    | {
-        listen: ListenInfoIp
-        hostname: (
-          | string
-          | { domain: string; subdomain: string | null; port: number }
-        )[]
-      }
+  hostname: HostnameInfo | null
 }
 
-export type InterfaceId = string
+export type MultiHost = {
+  kind: "multi"
+  hostnames: HostnameInfo[]
+}
 
-export type NetworkInterface = {
-  interfaceId: InterfaceId
+export type HostInfo = SingleHost | MultiHost
+
+export type ServiceInterfaceId = string
+
+export type ServiceInterface = {
+  id: ServiceInterfaceId
   /** The title of this field to be displayed */
   name: string
   /** Human readable description, used as tooltip usually */
@@ -247,11 +224,10 @@ export type NetworkInterface = {
   hasPrimary: boolean
   /** Disabled interfaces do not serve, but they retain their metadata and addresses */
   disabled: boolean
-  /** All URIs */
-  addresses: Address[]
-
+  /** URI Information */
+  addressInfo: AddressInfo
   /** The network interface could be several types, something like ui, p2p, or network */
-  type: NetworkInterfaceType
+  type: ServiceInterfaceType
 }
 // prettier-ignore
 export type ExposeAllServicePaths<Store, PreviousPath extends string = ""> = 
@@ -299,7 +275,7 @@ export type Effects = {
       kind: "static" | "single" | "multi"
       id: string
       internalPort: number
-    } & PortOptions,
+    } & BindOptions,
   ): Promise<void>
   /** Retrieves the current hostname(s) associated with a host id */
   getHostnames(options: {
@@ -307,13 +283,13 @@ export type Effects = {
     hostId: string
     packageId?: string
     callback: () => void
-  }): Promise<[Hostname]>
+  }): Promise<[] | [Hostname]>
   getHostnames(options: {
     kind?: "multi"
     packageId?: string
     hostId: string
     callback: () => void
-  }): Promise<[Hostname, ...Hostname[]]>
+  }): Promise<Hostname[]>
 
   // /**
   //  * Run rsync between two volumes. This is used to backup data between volumes.
@@ -357,7 +333,7 @@ export type Effects = {
   getIPHostname(): Promise<string[]>
   /** Get the address for another service for tor interfaces */
   getServiceTorHostname(
-    interfaceId: InterfaceId,
+    serviceInterfaceId: ServiceInterfaceId,
     packageId?: string,
   ): Promise<string>
   /** Get the IP address of the container */
@@ -371,11 +347,11 @@ export type Effects = {
   ): Promise<number>
 
   /** Removes all network interfaces */
-  clearNetworkInterfaces(): Promise<void>
+  clearServiceInterfaces(): Promise<void>
   /** When we want to create a link in the front end interfaces, and example is
    * exposing a url to view a web service
    */
-  exportNetworkInterface(options: NetworkInterface): Promise<string>
+  exportServiceInterface(options: ServiceInterface): Promise<string>
 
   exposeForDependents<Store = never>(
     options: ExposeServicePaths<Store>,
@@ -388,11 +364,11 @@ export type Effects = {
    *
    * Note: any auth should be filtered out already
    */
-  getInterface(options: {
+  getServiceInterface(options: {
     packageId?: PackageId
-    interfaceId: InterfaceId
+    serviceInterfaceId: ServiceInterfaceId
     callback: () => void
-  }): Promise<NetworkInterface>
+  }): Promise<ServiceInterface>
 
   /**
    * The user sets the primary url for a interface
@@ -400,7 +376,7 @@ export type Effects = {
    */
   getPrimaryUrl(options: {
     packageId?: PackageId
-    interfaceId: InterfaceId
+    serviceInterfaceId: ServiceInterfaceId
     callback: () => void
   }): Promise<UrlString | null>
 
@@ -410,10 +386,10 @@ export type Effects = {
    *
    * Note: any auth should be filtered out already
    */
-  listInterface(options: {
+  listServiceInterfaces(options: {
     packageId?: PackageId
     callback: () => void
-  }): Promise<NetworkInterface[]>
+  }): Promise<ServiceInterface[]>
 
   /**
    *Remove an address that was exported. Used problably during main or during setConfig.

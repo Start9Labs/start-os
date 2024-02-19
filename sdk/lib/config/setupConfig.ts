@@ -68,7 +68,7 @@ export function setupConfig<
         return { error: "Set config type error for config" }
       }
       await effects.clearBindings()
-      await effects.clearNetworkInterfaces()
+      await effects.clearServiceInterfaces()
       const { restart } = await write({
         input: JSON.parse(JSON.stringify(input)),
         effects,

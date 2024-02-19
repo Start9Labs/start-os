@@ -1,6 +1,6 @@
-import { Address, Effects, Hostname, NetworkInterface } from "../types"
+import { AddressInfo, Effects, Hostname, ServiceInterface } from "../types"
 import * as regexes from "./regexes"
-import { NetworkInterfaceType } from "./utils"
+import { ServiceInterfaceType } from "./utils"
 
 export type UrlString = string
 export type HostId = string
@@ -33,9 +33,9 @@ export type Filled = {
   nonIpUrls: UrlString[]
   allUrls: UrlString[]
 }
-export type FilledAddress = Address & Filled
-export type NetworkInterfaceFilled = {
-  interfaceId: string
+export type FilledAddressInfo = AddressInfo & Filled
+export type ServiceInterfaceFilled = {
+  id: string
   /** The title of this field to be displayed */
   name: string
   /** Human readable description, used as tooltip usually */
@@ -44,15 +44,15 @@ export type NetworkInterfaceFilled = {
   hasPrimary: boolean
   /** Whether or not the interface disabled */
   disabled: boolean
-  /** All URIs */
-  addresses: FilledAddress[]
-
-  /** Indicates if we are a ui/ p2p/ api/ other for the kind of interface that this is representing */
-  type: NetworkInterfaceType
-
+  /** URI information */
+  addressInfo: FilledAddressInfo
+  /** Indicates if we are a ui/p2p/api for the kind of interface that this is representing */
+  type: ServiceInterfaceType
+  /** The primary hostname for the service, as chosen by the user */
   primaryHostname: Hostname | null
+  /** The primary URL for the service, as chosen by the user */
   primaryUrl: UrlString | null
-} & Filled
+}
 const either =
   <A>(...args: ((a: A) => boolean)[]) =>
   (a: A) =>
@@ -63,7 +63,7 @@ const negate =
     !fn(a)
 const unique = <A>(values: A[]) => Array.from(new Set(values))
 const addressHostToUrl = (
-  { options, username, suffix }: Address,
+  { options, username, suffix }: AddressInfo,
   host: Hostname,
 ): UrlString => {
   const scheme = host.endsWith(".onion")
@@ -76,15 +76,12 @@ const addressHostToUrl = (
   }${host}${suffix}`
 }
 export const filledAddress = (
-  mapHostnames: {
-    [hostId: string]: Hostname[]
-  },
-  address: Address,
-): FilledAddress => {
-  const toUrl = addressHostToUrl.bind(null, address)
-  const hostnames = mapHostnames[address.hostId] ?? []
+  hostnames: Hostname[],
+  addressInfo: AddressInfo,
+): FilledAddressInfo => {
+  const toUrl = addressHostToUrl.bind(null, addressInfo)
   return {
-    ...address,
+    ...addressInfo,
     hostnames,
     get onionHostnames() {
       return hostnames.filter(regexes.torHostname.test)
@@ -138,131 +135,60 @@ export const filledAddress = (
   }
 }
 
-export const networkInterfaceFilled = (
-  interfaceValue: NetworkInterface,
-  primaryUrl: UrlString | null,
-  addresses: FilledAddress[],
-): NetworkInterfaceFilled => {
-  return {
-    ...interfaceValue,
-    addresses,
-    get hostnames() {
-      return unique(addresses.flatMap((x) => x.hostnames))
-    },
-    get onionHostnames() {
-      return unique(addresses.flatMap((x) => x.onionHostnames))
-    },
-    get localHostnames() {
-      return unique(addresses.flatMap((x) => x.localHostnames))
-    },
-    get ipHostnames() {
-      return unique(addresses.flatMap((x) => x.ipHostnames))
-    },
-    get ipv4Hostnames() {
-      return unique(addresses.flatMap((x) => x.ipv4Hostnames))
-    },
-    get ipv6Hostnames() {
-      return unique(addresses.flatMap((x) => x.ipv6Hostnames))
-    },
-    get nonIpHostnames() {
-      return unique(addresses.flatMap((x) => x.nonIpHostnames))
-    },
-    get allHostnames() {
-      return unique(addresses.flatMap((x) => x.allHostnames))
-    },
-    get primaryHostname() {
-      if (primaryUrl == null) return null
-      return getHostname(primaryUrl)
-    },
-    get urls() {
-      return unique(addresses.flatMap((x) => x.urls))
-    },
-    get onionUrls() {
-      return unique(addresses.flatMap((x) => x.onionUrls))
-    },
-    get localUrls() {
-      return unique(addresses.flatMap((x) => x.localUrls))
-    },
-    get ipUrls() {
-      return unique(addresses.flatMap((x) => x.ipUrls))
-    },
-    get ipv4Urls() {
-      return unique(addresses.flatMap((x) => x.ipv4Urls))
-    },
-    get ipv6Urls() {
-      return unique(addresses.flatMap((x) => x.ipv6Urls))
-    },
-    get nonIpUrls() {
-      return unique(addresses.flatMap((x) => x.nonIpUrls))
-    },
-    get allUrls() {
-      return unique(addresses.flatMap((x) => x.allUrls))
-    },
-    primaryUrl,
-  }
-}
 const makeInterfaceFilled = async ({
   effects,
-  interfaceId,
+  id,
   packageId,
   callback,
 }: {
   effects: Effects
-  interfaceId: string
+  id: string
   packageId: string | undefined
   callback: () => void
 }) => {
-  const interfaceValue = await effects.getInterface({
-    interfaceId,
+  const serviceInterfaceValue = await effects.getServiceInterface({
+    serviceInterfaceId: id,
     packageId,
     callback,
   })
-  const hostIdsRecord = Promise.all(
-    unique(interfaceValue.addresses.map((x) => x.hostId)).map(
-      async (hostId) =>
-        [
-          hostId,
-          await effects.getHostnames({
-            packageId,
-            hostId,
-            callback,
-          }),
-        ] as const,
-    ),
-  )
-  const primaryUrl = effects.getPrimaryUrl({
-    interfaceId,
+  const hostIdRecord = await effects.getHostnames({
+    packageId,
+    hostId: serviceInterfaceValue.addressInfo.hostId,
+    callback,
+  })
+  const primaryUrl = await effects.getPrimaryUrl({
+    serviceInterfaceId: id,
     packageId,
     callback,
   })
 
-  const fillAddress = filledAddress.bind(
-    null,
-    Object.fromEntries(await hostIdsRecord),
-  )
-  const interfaceFilled: NetworkInterfaceFilled = networkInterfaceFilled(
-    interfaceValue,
-    await primaryUrl,
-    interfaceValue.addresses.map(fillAddress),
-  )
+  const interfaceFilled: ServiceInterfaceFilled = {
+    ...serviceInterfaceValue,
+    primaryUrl: primaryUrl,
+    addressInfo: filledAddress(hostIdRecord, serviceInterfaceValue.addressInfo),
+    get primaryHostname() {
+      if (primaryUrl == null) return null
+      return getHostname(primaryUrl)
+    },
+  }
   return interfaceFilled
 }
 
-export class GetNetworkInterface {
+export class GetServiceInterface {
   constructor(
     readonly effects: Effects,
-    readonly opts: { interfaceId: string; packageId?: string },
+    readonly opts: { id: string; packageId?: string },
   ) {}
 
   /**
    * Returns the value of Store at the provided path. Restart the service if the value changes
    */
   async const() {
-    const { interfaceId, packageId } = this.opts
+    const { id, packageId } = this.opts
     const callback = this.effects.restart
-    const interfaceFilled: NetworkInterfaceFilled = await makeInterfaceFilled({
+    const interfaceFilled: ServiceInterfaceFilled = await makeInterfaceFilled({
       effects: this.effects,
-      interfaceId,
+      id,
       packageId,
       callback,
     })
@@ -270,14 +196,14 @@ export class GetNetworkInterface {
     return interfaceFilled
   }
   /**
-   * Returns the value of NetworkInterfacesFilled at the provided path. Does nothing if the value changes
+   * Returns the value of ServiceInterfacesFilled at the provided path. Does nothing if the value changes
    */
   async once() {
-    const { interfaceId, packageId } = this.opts
+    const { id, packageId } = this.opts
     const callback = () => {}
-    const interfaceFilled: NetworkInterfaceFilled = await makeInterfaceFilled({
+    const interfaceFilled: ServiceInterfaceFilled = await makeInterfaceFilled({
       effects: this.effects,
-      interfaceId,
+      id,
       packageId,
       callback,
     })
@@ -286,10 +212,10 @@ export class GetNetworkInterface {
   }
 
   /**
-   * Watches the value of NetworkInterfacesFilled at the provided path. Takes a custom callback function to run whenever the value changes
+   * Watches the value of ServiceInterfacesFilled at the provided path. Takes a custom callback function to run whenever the value changes
    */
   async *watch() {
-    const { interfaceId, packageId } = this.opts
+    const { id, packageId } = this.opts
     while (true) {
       let callback: () => void = () => {}
       const waitForNext = new Promise<void>((resolve) => {
@@ -297,7 +223,7 @@ export class GetNetworkInterface {
       })
       yield await makeInterfaceFilled({
         effects: this.effects,
-        interfaceId,
+        id,
         packageId,
         callback,
       })
@@ -305,9 +231,9 @@ export class GetNetworkInterface {
     }
   }
 }
-export function getNetworkInterface(
+export function getServiceInterface(
   effects: Effects,
-  opts: { interfaceId: string; packageId?: string },
+  opts: { id: string; packageId?: string },
 ) {
-  return new GetNetworkInterface(effects, opts)
+  return new GetServiceInterface(effects, opts)
 }
