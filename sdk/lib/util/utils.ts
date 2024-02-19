@@ -9,13 +9,11 @@ import {
   Effects,
   EnsureStorePath,
   ExtractStore,
-  InterfaceId,
+  ServiceInterfaceId,
   PackageId,
   ValidIfNoStupidEscape,
 } from "../types"
 import { GetSystemSmtp } from "./GetSystemSmtp"
-import { DefaultString } from "../config/configTypes"
-import { getDefaultString } from "./getDefaultString"
 import { GetStore, getStore } from "../store/getStore"
 import {
   MountDependenciesOut,
@@ -27,13 +25,13 @@ import {
   NamedPath,
   Path,
 } from "../dependency/setupDependencyMounts"
-import { Host, MultiHost, SingleHost, StaticHost } from "../interfaces/Host"
-import { NetworkInterfaceBuilder } from "../interfaces/NetworkInterfaceBuilder"
-import { GetNetworkInterface, getNetworkInterface } from "./getNetworkInterface"
+import { MultiHost, SingleHost, StaticHost } from "../interfaces/Host"
+import { ServiceInterfaceBuilder } from "../interfaces/ServiceInterfaceBuilder"
+import { GetServiceInterface, getServiceInterface } from "./getServiceInterface"
 import {
-  GetNetworkInterfaces,
-  getNetworkInterfaces,
-} from "./getNetworkInterfaces"
+  GetServiceInterfaces,
+  getServiceInterfaces,
+} from "./getServiceInterfaces"
 import * as CP from "node:child_process"
 import { promisify } from "node:util"
 import { splitCommand } from "./splitCommand"
@@ -50,7 +48,7 @@ const childProcess = {
   execFile: promisify(CP.execFile),
 }
 
-export type NetworkInterfaceType = "ui" | "p2p" | "api" | "other"
+export type ServiceInterfaceType = "ui" | "p2p" | "api"
 
 export type Utils<
   Manifest extends SDKManifest,
@@ -81,11 +79,11 @@ export type Utils<
     description: string
     hasPrimary: boolean
     disabled: boolean
-    type: NetworkInterfaceType
+    type: ServiceInterfaceType
     username: null | string
     path: string
     search: Record<string, string>
-  }) => NetworkInterfaceBuilder
+  }) => ServiceInterfaceBuilder
   getSystemSmtp: () => GetSystemSmtp & WrapperOverWrite
   host: {
     static: (id: string) => StaticHost
@@ -101,16 +99,16 @@ export type Utils<
   >(
     value: In,
   ) => Promise<MountDependenciesOut<In>>
-  networkInterface: {
-    getOwn: (interfaceId: InterfaceId) => GetNetworkInterface & WrapperOverWrite
+  serviceInterface: {
+    getOwn: (id: ServiceInterfaceId) => GetServiceInterface & WrapperOverWrite
     get: (opts: {
-      interfaceId: InterfaceId
+      id: ServiceInterfaceId
       packageId: PackageId
-    }) => GetNetworkInterface & WrapperOverWrite
-    getAllOwn: () => GetNetworkInterfaces & WrapperOverWrite
+    }) => GetServiceInterface & WrapperOverWrite
+    getAllOwn: () => GetServiceInterfaces & WrapperOverWrite
     getAll: (opts: {
       packageId: PackageId
-    }) => GetNetworkInterfaces & WrapperOverWrite
+    }) => GetServiceInterfaces & WrapperOverWrite
   }
   nullIfEmpty: typeof nullIfEmpty
   runCommand: <A extends string>(
@@ -156,11 +154,11 @@ export const createUtils = <
       description: string
       hasPrimary: boolean
       disabled: boolean
-      type: NetworkInterfaceType
+      type: ServiceInterfaceType
       username: null | string
       path: string
       search: Record<string, string>
-    }) => new NetworkInterfaceBuilder({ ...options, effects }),
+    }) => new ServiceInterfaceBuilder({ ...options, effects }),
     childProcess,
     getSystemSmtp: () =>
       new GetSystemSmtp(effects) as GetSystemSmtp & WrapperOverWrite,
@@ -172,18 +170,18 @@ export const createUtils = <
     },
     nullIfEmpty,
 
-    networkInterface: {
-      getOwn: (interfaceId: InterfaceId) =>
-        getNetworkInterface(effects, { interfaceId }) as GetNetworkInterface &
+    serviceInterface: {
+      getOwn: (id: ServiceInterfaceId) =>
+        getServiceInterface(effects, { id }) as GetServiceInterface &
           WrapperOverWrite,
-      get: (opts: { interfaceId: InterfaceId; packageId: PackageId }) =>
-        getNetworkInterface(effects, opts) as GetNetworkInterface &
+      get: (opts: { id: ServiceInterfaceId; packageId: PackageId }) =>
+        getServiceInterface(effects, opts) as GetServiceInterface &
           WrapperOverWrite,
       getAllOwn: () =>
-        getNetworkInterfaces(effects, {}) as GetNetworkInterfaces &
+        getServiceInterfaces(effects, {}) as GetServiceInterfaces &
           WrapperOverWrite,
       getAll: (opts: { packageId: PackageId }) =>
-        getNetworkInterfaces(effects, opts) as GetNetworkInterfaces &
+        getServiceInterfaces(effects, opts) as GetServiceInterfaces &
           WrapperOverWrite,
     },
     store: {

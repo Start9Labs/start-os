@@ -1,4 +1,4 @@
-import { NetworkInterfaceBuilder } from "../interfaces/NetworkInterfaceBuilder"
+import { ServiceInterfaceBuilder } from "../interfaces/ServiceInterfaceBuilder"
 import { Effects } from "../types"
 import { createUtils } from "../util"
 
@@ -8,7 +8,7 @@ describe("host", () => {
       const utils = createUtils<never, never>(effects)
       const foo = utils.host.multi("foo")
       const fooOrigin = await foo.bindPort(80, { protocol: "http" as const })
-      const fooInterface = new NetworkInterfaceBuilder({
+      const fooInterface = new ServiceInterfaceBuilder({
         effects,
         name: "Foo",
         id: "foo",
