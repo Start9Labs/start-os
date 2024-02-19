@@ -28,6 +28,7 @@ import {
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { JsonPath, unNestPath } from "../../../Models/JsonPath"
 import { HostSystem } from "../../../Interfaces/HostSystem"
+import { RpcResult, matchRpcResult } from "../../RpcListener"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
@@ -68,7 +69,7 @@ export class SystemForEmbassy implements System {
       input: unknown
       timeout?: number | undefined
     },
-  ): Promise<ExecuteResult> {
+  ): Promise<RpcResult> {
     return this._execute(effects, options)
       .then((x) =>
         matches(x)
@@ -76,16 +77,14 @@ export class SystemForEmbassy implements System {
             object({
               result: any,
             }),
-            (x) => ({
-              ok: x.result,
-            }),
+            (x) => x,
           )
           .when(
             object({
               error: string,
             }),
             (x) => ({
-              err: {
+              error: {
                 code: 0,
                 message: x.error,
               },
@@ -96,20 +95,34 @@ export class SystemForEmbassy implements System {
               "error-code": tuple(number, string),
             }),
             ({ "error-code": [code, message] }) => ({
-              err: {
+              error: {
                 code,
                 message,
               },
             }),
           )
-          .defaultTo({ ok: x }),
+          .defaultTo({ result: x }),
       )
-      .catch((error) => ({
-        err: {
-          code: 0,
-          message: "" + error,
-        },
-      }))
+      .catch((error: unknown) => {
+        if (error instanceof Error)
+          return {
+            error: {
+              code: 0,
+              message: error.name,
+              data: {
+                details: error.message,
+                debug: `${error?.cause ?? "[noCause]"}:${error?.stack ?? "[noStack]"}`,
+              },
+            },
+          }
+        if (matchRpcResult.test(error)) return error
+        return {
+          error: {
+            code: 0,
+            message: String(error),
+          },
+        }
+      })
   }
   async exit(effects: HostSystemStartOs): Promise<void> {
     if (this.currentRunning) await this.currentRunning.clean()
@@ -157,6 +170,7 @@ export class SystemForEmbassy implements System {
             return this.dependenciesAutoconfig(effects, procedures[2], input)
         }
     }
+    throw new Error(`Could not find the path for ${options.procedure}`)
   }
   private async init(
     effects: HostSystemStartOs,

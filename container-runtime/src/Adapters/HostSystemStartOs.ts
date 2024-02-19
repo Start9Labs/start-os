@@ -74,7 +74,7 @@ export class HostSystemStartOs implements Effects {
                   console.error("Debug: " + res.error.data.debug)
                 }
               }
-              reject(new Error(message))
+              reject(new Error(`${message}@${method}`))
             } else if (testRpcResult(res)) {
               resolve(res.result)
             } else {
