@@ -310,11 +310,6 @@ pub async fn execute(
     tokio::task::spawn({
         async move {
             let ctx = ctx.clone();
-            let recovery_source = recovery_source;
-
-            let embassy_password = embassy_password;
-            let recovery_source = recovery_source;
-            let recovery_password = recovery_password;
             match execute_inner(
                 ctx.clone(),
                 embassy_logicalname,

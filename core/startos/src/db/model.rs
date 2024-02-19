@@ -16,7 +16,6 @@ use serde::{Deserialize, Serialize};
 use ssh_key::public::Ed25519PublicKey;
 
 use crate::account::AccountInfo;
-use crate::config::spec::PackagePointerSpec;
 use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::prelude::*;
 use crate::progress::FullProgress;
@@ -532,7 +531,6 @@ pub struct StaticDependencyInfo {
 #[model = "Model<Self>"]
 pub struct CurrentDependencyInfo {
     #[serde(default)]
-    pub pointers: BTreeSet<PackagePointerSpec>,
     pub health_checks: BTreeSet<HealthCheckId>,
 }
 

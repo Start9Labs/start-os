@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use models::PackageId;
+use models::{ActionId, PackageId, ProcedureName};
 
 use crate::config::ConfigureContext;
 use crate::prelude::*;
@@ -9,14 +9,16 @@ use crate::service::Service;
 impl Service {
     pub async fn configure(
         &self,
-        ConfigureContext {
-            breakages,
-            timeout,
-            config,
-            overrides,
-            dry_run,
-        }: ConfigureContext,
+        ConfigureContext { timeout, config }: ConfigureContext,
     ) -> Result<BTreeMap<PackageId, String>, Error> {
-        todo!()
+        let container = &self.seed.persistent_container;
+        container
+            .execute::<BTreeMap<PackageId, String>>(
+                ProcedureName::SetConfig,
+                to_value(&config)?,
+                timeout,
+            )
+            .await
+            .with_kind(ErrorKind::Action)
     }
 }
