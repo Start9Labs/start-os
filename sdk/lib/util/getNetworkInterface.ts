@@ -1,4 +1,4 @@
-import { Address, Effects, HostName, NetworkInterface } from "../types"
+import { Address, Effects, Hostname, NetworkInterface } from "../types"
 import * as regexes from "./regexes"
 import { NetworkInterfaceType } from "./utils"
 
@@ -6,23 +6,23 @@ export type UrlString = string
 export type HostId = string
 
 const getHostnameRegex = /^(\w+:\/\/)?([^\/\:]+)(:\d{1,3})?(\/)?/
-export const getHostname = (url: string): HostName | null => {
+export const getHostname = (url: string): Hostname | null => {
   const founds = url.match(getHostnameRegex)?.[2]
   if (!founds) return null
   const parts = founds.split("@")
-  const last = parts[parts.length - 1] as HostName | null
+  const last = parts[parts.length - 1] as Hostname | null
   return last
 }
 
 export type Filled = {
-  hostnames: HostName[]
-  onionHostnames: HostName[]
-  localHostnames: HostName[]
-  ipHostnames: HostName[]
-  ipv4Hostnames: HostName[]
-  ipv6Hostnames: HostName[]
-  nonIpHostnames: HostName[]
-  allHostnames: HostName[]
+  hostnames: Hostname[]
+  onionHostnames: Hostname[]
+  localHostnames: Hostname[]
+  ipHostnames: Hostname[]
+  ipv4Hostnames: Hostname[]
+  ipv6Hostnames: Hostname[]
+  nonIpHostnames: Hostname[]
+  allHostnames: Hostname[]
 
   urls: UrlString[]
   onionUrls: UrlString[]
@@ -50,7 +50,7 @@ export type NetworkInterfaceFilled = {
   /** Indicates if we are a ui/ p2p/ api/ other for the kind of interface that this is representing */
   type: NetworkInterfaceType
 
-  primaryHostname: HostName | null
+  primaryHostname: Hostname | null
   primaryUrl: UrlString | null
 } & Filled
 const either =
@@ -64,7 +64,7 @@ const negate =
 const unique = <A>(values: A[]) => Array.from(new Set(values))
 const addressHostToUrl = (
   { options, username, suffix }: Address,
-  host: HostName,
+  host: Hostname,
 ): UrlString => {
   const scheme = host.endsWith(".onion")
     ? options.scheme
@@ -77,7 +77,7 @@ const addressHostToUrl = (
 }
 export const filledAddress = (
   mapHostnames: {
-    [hostId: string]: HostName[]
+    [hostId: string]: Hostname[]
   },
   address: Address,
 ): FilledAddress => {

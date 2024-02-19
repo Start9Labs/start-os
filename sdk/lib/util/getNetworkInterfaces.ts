@@ -1,6 +1,5 @@
-import { Effects, HostName } from "../types"
+import { Effects } from "../types"
 import {
-  HostId,
   NetworkInterfaceFilled,
   filledAddress,
   networkInterfaceFilled,
