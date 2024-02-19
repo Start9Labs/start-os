@@ -78,7 +78,8 @@ impl Shutdown {
 pub async fn shutdown(ctx: RpcContext) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
-            db.as_server_info_mut()
+            db.as_public_mut()
+                .as_server_info_mut()
                 .as_status_info_mut()
                 .as_shutting_down_mut()
                 .ser(&true)
@@ -97,7 +98,8 @@ pub async fn shutdown(ctx: RpcContext) -> Result<(), Error> {
 pub async fn restart(ctx: RpcContext) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
-            db.as_server_info_mut()
+            db.as_public_mut()
+                .as_server_info_mut()
                 .as_status_info_mut()
                 .as_restarting_mut()
                 .ser(&true)

@@ -93,7 +93,7 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
         .await
         .with_kind(ErrorKind::Network)?
         .version;
-    let current_version = peeked.as_server_info().as_version().de()?;
+    let current_version = peeked.as_public().as_server_info().as_version().de()?;
     if latest_version < *current_version {
         return Ok(None);
     }
@@ -105,7 +105,7 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
     let status = ctx
         .db
         .mutate(|db| {
-            let mut status = peeked.as_server_info().as_status_info().de()?;
+            let mut status = peeked.as_public().as_server_info().as_status_info().de()?;
             if status.update_progress.is_some() {
                 return Err(Error::new(
                     eyre!("Server is already updating!"),
@@ -117,7 +117,10 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
                 size: None,
                 downloaded: 0,
             });
-            db.as_server_info_mut().as_status_info_mut().ser(&status)?;
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_status_info_mut()
+                .ser(&status)?;
             Ok(status)
         })
         .await?;
@@ -130,7 +133,8 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
         let res = do_update(ctx.clone(), eos_url).await;
         ctx.db
             .mutate(|db| {
-                db.as_server_info_mut()
+                db.as_public_mut()
+                    .as_server_info_mut()
                     .as_status_info_mut()
                     .as_update_progress_mut()
                     .ser(&None)
@@ -140,7 +144,8 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
             Ok(()) => {
                 ctx.db
                     .mutate(|db| {
-                        db.as_server_info_mut()
+                        db.as_public_mut()
+                            .as_server_info_mut()
                             .as_status_info_mut()
                             .as_updated_mut()
                             .ser(&true)
@@ -199,7 +204,8 @@ async fn do_update(ctx: RpcContext, eos_url: EosUrl) -> Result<(), Error> {
     while let Some(progress) = rsync.progress.next().await {
         ctx.db
             .mutate(|db| {
-                db.as_server_info_mut()
+                db.as_public_mut()
+                    .as_server_info_mut()
                     .as_status_info_mut()
                     .as_update_progress_mut()
                     .ser(&Some(UpdateProgress {

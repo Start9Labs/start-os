@@ -26,7 +26,7 @@ impl VersionT for Version {
     }
     async fn up(&self, db: PatchDb, _secrets: &PgPool) -> Result<(), Error> {
         db.mutate(|v| {
-            let tor_address_lens = v.as_server_info_mut().as_tor_address_mut();
+            let tor_address_lens = v.as_public_mut().as_server_info_mut().as_tor_address_mut();
             let mut tor_addr = tor_address_lens.de()?;
             tor_addr
                 .set_scheme("https")

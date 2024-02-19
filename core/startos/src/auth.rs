@@ -437,7 +437,8 @@ pub async fn reset_password_impl(
     let account_password = &account.password;
     ctx.db
         .mutate(|d| {
-            d.as_server_info_mut()
+            d.as_public_mut()
+                .as_server_info_mut()
                 .as_password_hash_mut()
                 .ser(account_password)
         })

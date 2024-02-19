@@ -321,6 +321,7 @@ pub async fn rotate_key(
             .db
             .mutate(|v| {
                 let installed = v
+                    .as_public_mut()
                     .as_package_data_mut()
                     .as_idx_mut(&package)
                     .or_not_found(&package)?
@@ -379,7 +380,12 @@ pub async fn rotate_key(
         let new_key = Key::for_host(&mut *tx, None).await?;
         let url = format!("https://{}", new_key.tor_address()).parse()?;
         ctx.db
-            .mutate(|v| v.as_server_info_mut().as_tor_address_mut().ser(&url))
+            .mutate(|v| {
+                v.as_public_mut()
+                    .as_server_info_mut()
+                    .as_tor_address_mut()
+                    .ser(&url)
+            })
             .await?;
         tx.commit().await?;
         Ok(RequiresReboot(true))

@@ -226,6 +226,7 @@ pub fn add_dependent_to_current_dependents_lists(
 ) -> Result<(), Error> {
     for (dependency, dep_info) in &current_dependencies.0 {
         if let Some(dependency_dependents) = db
+            .as_public_mut()
             .as_package_data_mut()
             .as_idx_mut(dependency)
             .and_then(|pde| pde.as_installed_mut())
@@ -243,6 +244,7 @@ pub fn set_dependents_with_live_pointers_to_needs_config(
 ) -> Result<Vec<(PackageId, Version)>, Error> {
     let mut res = Vec::new();
     for (dep, info) in db
+        .as_public_mut()
         .as_package_data()
         .as_idx(id)
         .or_not_found(id)?
@@ -261,6 +263,7 @@ pub fn set_dependents_with_live_pointers_to_needs_config(
             PackagePointerSpec::Config(_) => false,
         }) {
             let installed = db
+                .as_public_mut()
                 .as_package_data_mut()
                 .as_idx_mut(&dep)
                 .or_not_found(&dep)?

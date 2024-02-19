@@ -30,70 +30,83 @@ use crate::{ARCH, PLATFORM};
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
-// #[macro_debug]
 pub struct Database {
-    pub server_info: ServerInfo,
-    pub package_data: AllPackageData,
-    pub ui: Value,
+    pub public: Public,
+    pub private: (), // TODO
 }
 impl Database {
     pub fn init(account: &AccountInfo) -> Self {
         let lan_address = account.hostname.lan_address().parse().unwrap();
         Database {
-            server_info: ServerInfo {
-                arch: get_arch(),
-                platform: get_platform(),
-                id: account.server_id.clone(),
-                version: Current::new().semver().into(),
-                hostname: account.hostname.no_dot_host_name(),
-                last_backup: None,
-                last_wifi_region: None,
-                eos_version_compat: Current::new().compat().clone(),
-                lan_address,
-                tor_address: format!("https://{}", account.key.tor_address())
-                    .parse()
-                    .unwrap(),
-                ip_info: BTreeMap::new(),
-                status_info: ServerStatus {
-                    backup_progress: None,
-                    updated: false,
-                    update_progress: None,
-                    shutting_down: false,
-                    restarting: false,
-                },
-                wifi: WifiInfo {
-                    ssids: Vec::new(),
-                    connected: None,
-                    selected: None,
-                },
-                unread_notification_count: 0,
-                connection_addresses: ConnectionAddresses {
-                    tor: Vec::new(),
-                    clearnet: Vec::new(),
-                },
-                password_hash: account.password.clone(),
-                pubkey: ssh_key::PublicKey::from(Ed25519PublicKey::from(&account.key.ssh_key()))
+            public: Public {
+                server_info: ServerInfo {
+                    arch: get_arch(),
+                    platform: get_platform(),
+                    id: account.server_id.clone(),
+                    version: Current::new().semver().into(),
+                    hostname: account.hostname.no_dot_host_name(),
+                    last_backup: None,
+                    last_wifi_region: None,
+                    eos_version_compat: Current::new().compat().clone(),
+                    lan_address,
+                    tor_address: format!("https://{}", account.key.tor_address())
+                        .parse()
+                        .unwrap(),
+                    ip_info: BTreeMap::new(),
+                    status_info: ServerStatus {
+                        backup_progress: None,
+                        updated: false,
+                        update_progress: None,
+                        shutting_down: false,
+                        restarting: false,
+                    },
+                    wifi: WifiInfo {
+                        ssids: Vec::new(),
+                        connected: None,
+                        selected: None,
+                    },
+                    unread_notification_count: 0,
+                    connection_addresses: ConnectionAddresses {
+                        tor: Vec::new(),
+                        clearnet: Vec::new(),
+                    },
+                    password_hash: account.password.clone(),
+                    pubkey: ssh_key::PublicKey::from(Ed25519PublicKey::from(
+                        &account.key.ssh_key(),
+                    ))
                     .to_openssh()
                     .unwrap(),
-                ca_fingerprint: account
-                    .root_ca_cert
-                    .digest(MessageDigest::sha256())
-                    .unwrap()
-                    .iter()
-                    .map(|x| format!("{x:X}"))
-                    .join(":"),
-                ntp_synced: false,
-                zram: true,
-                governor: None,
+                    ca_fingerprint: account
+                        .root_ca_cert
+                        .digest(MessageDigest::sha256())
+                        .unwrap()
+                        .iter()
+                        .map(|x| format!("{x:X}"))
+                        .join(":"),
+                    ntp_synced: false,
+                    zram: true,
+                    governor: None,
+                },
+                package_data: AllPackageData::default(),
+                ui: serde_json::from_str(include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/../../web/patchdb-ui-seed.json"
+                )))
+                .unwrap(),
             },
-            package_data: AllPackageData::default(),
-            ui: serde_json::from_str(include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../web/patchdb-ui-seed.json"
-            )))
-            .unwrap(),
+            private: (), // TODO
         }
     }
+}
+
+#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
+// #[macro_debug]
+pub struct Public {
+    pub server_info: ServerInfo,
+    pub package_data: AllPackageData,
+    pub ui: Value,
 }
 
 pub type DatabaseModel = Model<Database>;

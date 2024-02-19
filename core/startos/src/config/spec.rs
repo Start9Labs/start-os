@@ -1697,6 +1697,7 @@ impl TorAddressPointer {
             .db
             .peek()
             .await
+            .as_public()
             .as_package_data()
             .as_idx(&self.package_id)
             .and_then(|pde| pde.as_installed())
@@ -1739,6 +1740,7 @@ impl LanAddressPointer {
             .db
             .peek()
             .await
+            .as_public()
             .as_package_data()
             .as_idx(&self.package_id)
             .and_then(|pde| pde.as_installed())
@@ -1778,6 +1780,7 @@ impl ConfigPointer {
                 .db
                 .peek()
                 .await
+                .as_public_mut()
                 .as_package_data()
                 .as_idx(id)
                 .and_then(|pde| pde.as_installed())
