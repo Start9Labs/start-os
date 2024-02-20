@@ -120,6 +120,10 @@ pub fn service_effect_handler() -> ParentHandler {
             from_fn_async(get_ssl_certificate).no_cli(),
         )
         .subcommand("getSslKey", from_fn_async(get_ssl_key).no_cli())
+        .subcommand(
+            "getServiceInterface",
+            from_fn_async(get_service_interface).no_cli(),
+        )
     // TODO @DrBonez when we get the new api for 4.0
     // .subcommand("setDependencies",from_fn(set_dependencies))
     // .subcommand("embassyGetInterface",from_fn(embassy_get_interface))
@@ -143,6 +147,43 @@ pub fn service_effect_handler() -> ParentHandler {
     // .subcommand("getSystemSmtp",from_fn(get_system_smtp))
     // .subcommand("reverseProxy",from_fn(reverse_pro)xy)
     // TODO Callbacks
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser)]
+#[serde(rename_all = "camelCase")]
+struct GetServiceInterfaceParams {
+    package_id: Option<PackageId>,
+    service_interface_id: String,
+    callback: String,
+}
+async fn get_service_interface(
+    _: AnyContext,
+    GetServiceInterfaceParams {
+        callback,
+        package_id,
+        service_interface_id,
+    }: GetServiceInterfaceParams,
+) -> Result<Value, Error> {
+    // TODO @Dr_Bonez
+    Ok(json!({
+        "id": service_interface_id,
+        "name": service_interface_id,
+        "description": "This is a fake",
+        "hasPrimary": false,
+        "disabled": false,
+        "addressInfo": json!({
+            "username": Value::Null,
+            "hostId": "HostId?",
+            "options": json!({
+                "scheme": Value::Null,
+                "preferredExternalPort": 80,
+                "addSsl":Value::Null,
+                "secure": false,
+                "ssl": false
+            }),
+            "suffix": "http"
+        }),
+        "type": "ui"
+    }))
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser)]

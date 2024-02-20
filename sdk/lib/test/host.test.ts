@@ -21,7 +21,7 @@ describe("host", () => {
         search: { qux: "yes" },
       })
 
-      await fooInterface.export([fooOrigin])
+      await fooInterface.export(fooOrigin)
     }
   })
 })

@@ -7,7 +7,9 @@ export class CallbackHolder {
     return this.root + (this.inc++).toString(36)
   }
   addCallback(callback: Function) {
-    return this.callbacks.set(this.newId(), callback)
+    const id = this.newId()
+    this.callbacks.set(id, callback)
+    return id
   }
   callCallback(index: string, args: any[]): Promise<unknown> {
     const callback = this.callbacks.get(index)

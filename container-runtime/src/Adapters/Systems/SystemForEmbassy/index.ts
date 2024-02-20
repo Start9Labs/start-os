@@ -904,11 +904,12 @@ async function updateConfig(
       mutConfigValue[key] = configValue
     }
     if (matchPointerPackage.test(specValue)) {
-      mutConfigValue[key] = await effects.embassyGetInterface({
-        target: specValue.target,
+      const serviceInterface = await effects.getServiceInterface({
+        callback: () => {},
+        serviceInterfaceId: specValue.interface,
         packageId: specValue["package-id"],
-        interface: specValue["interface"],
       })
+      mutConfigValue[key] = serviceInterface
     }
   }
 }

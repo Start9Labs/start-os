@@ -38,7 +38,10 @@ export class HostSystemStartOs implements Effects {
 
   constructor(readonly callbackHolder: CallbackHolder) {}
   id = 0
-  rpcRound(method: string, params: unknown) {
+  rpcRound<K extends keyof Effects | "getStore" | "setStore">(
+    method: K,
+    params: unknown,
+  ) {
     const id = this.id++
     const client = net.createConnection({ path: SOCKET_PATH }, () => {
       client.write(
@@ -91,13 +94,7 @@ export class HostSystemStartOs implements Effects {
       })
     })
   }
-  started =
-    // @ts-ignore
-    this.method !== MAIN
-      ? null
-      : () => {
-          return this.rpcRound("started", null)
-        }
+
   bind(...[options]: Parameters<T.Effects["bind"]>) {
     return this.rpcRound("bind", options) as ReturnType<T.Effects["bind"]>
   }
@@ -131,9 +128,9 @@ export class HostSystemStartOs implements Effects {
       T.Effects["exportAction"]
     >
   }
-  exportServiceInterface(
-    ...[options]: Parameters<T.Effects["exportServiceInterface"]>
-  ) {
+  exportServiceInterface: Effects["exportServiceInterface"] = (
+    ...[options]: Parameters<Effects["exportServiceInterface"]>
+  ) => {
     return this.rpcRound("exportServiceInterface", options) as ReturnType<
       T.Effects["exportServiceInterface"]
     >
@@ -158,20 +155,22 @@ export class HostSystemStartOs implements Effects {
       T.Effects["getContainerIp"]
     >
   }
-  getHostnames: any = (...[allOptions]: any[]) => {
+  getHostnames: Effects["getHostnames"] = (...[allOptions]: any[]) => {
     const options = {
       ...allOptions,
       callback: this.callbackHolder.addCallback(allOptions.callback),
     }
     return this.rpcRound("getHostnames", options) as ReturnType<
       T.Effects["getHostnames"]
-    >
+    > as any
   }
-  getInterface(...[options]: Parameters<T.Effects["getInterface"]>) {
-    return this.rpcRound("getInterface", {
+  getServiceInterface(
+    ...[options]: Parameters<T.Effects["getServiceInterface"]>
+  ) {
+    return this.rpcRound("getServiceInterface", {
       ...options,
       callback: this.callbackHolder.addCallback(options.callback),
-    }) as ReturnType<T.Effects["getInterface"]>
+    }) as ReturnType<T.Effects["getServiceInterface"]>
   }
   getIPHostname(...[]: Parameters<T.Effects["getIPHostname"]>) {
     return this.rpcRound("getIPHostname", null) as ReturnType<
@@ -223,11 +222,13 @@ export class HostSystemStartOs implements Effects {
       callback: this.callbackHolder.addCallback(options.callback),
     }) as ReturnType<T.Effects["getSystemSmtp"]>
   }
-  listInterface(...[options]: Parameters<T.Effects["listInterface"]>) {
-    return this.rpcRound("listInterface", {
+  listServiceInterfaces(
+    ...[options]: Parameters<T.Effects["listServiceInterfaces"]>
+  ) {
+    return this.rpcRound("listServiceInterfaces", {
       ...options,
       callback: this.callbackHolder.addCallback(options.callback),
-    }) as ReturnType<T.Effects["listInterface"]>
+    }) as ReturnType<T.Effects["listServiceInterfaces"]>
   }
   mount(...[options]: Parameters<T.Effects["mount"]>) {
     return this.rpcRound("mount", options) as ReturnType<T.Effects["mount"]>
@@ -303,18 +304,5 @@ export class HostSystemStartOs implements Effects {
       this.rpcRound("setStore", options) as ReturnType<
         T.Effects["store"]["set"]
       >,
-  }
-
-  /**
-   * So, this is created
-   * @param options
-   * @returns
-   */
-  embassyGetInterface(options: {
-    target: "tor-key" | "tor-address" | "lan-address"
-    packageId: string
-    interface: string
-  }) {
-    return this.rpcRound("embassyGetInterface", options) as Promise<string>
   }
 }
