@@ -44,6 +44,8 @@ export type ServiceInterfaceFilled = {
   hasPrimary: boolean
   /** Whether or not the interface disabled */
   disabled: boolean
+  /** Whether or not to mask the URIs for this interface. Useful if the URIs contain sensitive information, such as a password, macaroon, or API key */
+  masked: boolean
   /** URI information */
   addressInfo: FilledAddressInfo
   /** Indicates if we are a ui/p2p/api for the kind of interface that this is representing */
@@ -63,14 +65,14 @@ const negate =
     !fn(a)
 const unique = <A>(values: A[]) => Array.from(new Set(values))
 const addressHostToUrl = (
-  { options, username, suffix }: AddressInfo,
+  { bindOptions, username, suffix }: AddressInfo,
   host: Hostname,
 ): UrlString => {
   const scheme = host.endsWith(".onion")
-    ? options.scheme
-    : options.addSsl
-      ? options.addSsl.scheme
-      : options.scheme // TODO: encode whether hostname transport is "secure"?
+    ? bindOptions.scheme
+    : bindOptions.addSsl
+      ? bindOptions.addSsl.scheme
+      : bindOptions.scheme // TODO: encode whether hostname transport is "secure"?
   return `${scheme ? `${scheme}//` : ""}${
     username ? `${username}@` : ""
   }${host}${suffix}`

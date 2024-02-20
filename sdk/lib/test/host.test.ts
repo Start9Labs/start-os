@@ -19,9 +19,11 @@ describe("host", () => {
         username: "bar",
         path: "/baz",
         search: { qux: "yes" },
+        schemeOverride: null,
+        masked: false,
       })
 
-      await fooInterface.export(fooOrigin)
+      await fooOrigin.export([fooInterface])
     }
   })
 })

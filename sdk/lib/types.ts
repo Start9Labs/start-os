@@ -1,7 +1,7 @@
 export * as configTypes from "./config/configTypes"
 import { InputSpec } from "./config/configTypes"
 import { DependenciesReceipt } from "./config/setupConfig"
-import { HostKind, BindOptions } from "./interfaces/Host"
+import { BindOptions } from "./interfaces/Host"
 import { Daemons } from "./mainFn/Daemons"
 import { UrlString } from "./util/getServiceInterface"
 import { ServiceInterfaceType, Signals } from "./util/utils"
@@ -170,13 +170,14 @@ export type Hostname = string & { [hostName]: never }
 export type AddressInfo = {
   username: string | null
   hostId: string
-  options: BindOptions
+  bindOptions: BindOptions
   suffix: string
 }
 
 export type HostnameInfoIp = {
   kind: "ip"
   networkInterfaceId: string
+  public: boolean
   hostname:
     | {
         kind: "ipv4" | "ipv6" | "local"
@@ -224,6 +225,8 @@ export type ServiceInterface = {
   hasPrimary: boolean
   /** Disabled interfaces do not serve, but they retain their metadata and addresses */
   disabled: boolean
+  /** Whether or not to mask the URIs for this interface. Useful if the URIs contain sensitive information, such as a password, macaroon, or API key */
+  masked: boolean
   /** URI Information */
   addressInfo: AddressInfo
   /** The network interface could be several types, something like ui, p2p, or network */

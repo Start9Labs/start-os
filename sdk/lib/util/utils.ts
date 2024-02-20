@@ -25,7 +25,7 @@ import {
   NamedPath,
   Path,
 } from "../dependency/setupDependencyMounts"
-import { MultiHost, SingleHost, StaticHost } from "../interfaces/Host"
+import { MultiHost, Scheme, SingleHost, StaticHost } from "../interfaces/Host"
 import { ServiceInterfaceBuilder } from "../interfaces/ServiceInterfaceBuilder"
 import { GetServiceInterface, getServiceInterface } from "./getServiceInterface"
 import {
@@ -83,6 +83,8 @@ export type Utils<
     username: null | string
     path: string
     search: Record<string, string>
+    schemeOverride: { ssl: Scheme; noSsl: Scheme } | null
+    masked: boolean
   }) => ServiceInterfaceBuilder
   getSystemSmtp: () => GetSystemSmtp & WrapperOverWrite
   host: {
@@ -158,6 +160,8 @@ export const createUtils = <
       username: null | string
       path: string
       search: Record<string, string>
+      schemeOverride: { ssl: Scheme; noSsl: Scheme } | null
+      masked: boolean
     }) => new ServiceInterfaceBuilder({ ...options, effects }),
     childProcess,
     getSystemSmtp: () =>
