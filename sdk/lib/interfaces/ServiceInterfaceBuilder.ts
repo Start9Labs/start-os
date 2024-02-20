@@ -1,8 +1,6 @@
-import { AddressInfo, Effects } from "../types"
+import { Effects } from "../types"
 import { ServiceInterfaceType } from "../util/utils"
-import { AddressReceipt } from "./AddressReceipt"
-import { Host } from "./Host"
-import { Origin } from "./Origin"
+import { Scheme } from "./Host"
 
 /**
  * A helper class for creating a Network Interface
@@ -25,47 +23,11 @@ export class ServiceInterfaceBuilder {
       hasPrimary: boolean
       disabled: boolean
       type: ServiceInterfaceType
-      username: null | string
+      username: string | null
       path: string
       search: Record<string, string>
+      schemeOverride: { ssl: Scheme; noSsl: Scheme } | null
+      masked: boolean
     },
   ) {}
-
-  /**
-   * A function to register a group of origins (<PROTOCOL> :// <HOSTNAME> : <PORT>) with StartOS
-   *
-   * The returned addressReceipt serves as proof that the addresses were registered
-   *
-   * @param addressInfo
-   * @returns
-   */
-  async export<OriginForHost extends Origin<Host>>(
-    origin: OriginForHost,
-  ): Promise<AddressInfo & AddressReceipt> {
-    const {
-      name,
-      description,
-      hasPrimary,
-      disabled,
-      id,
-      type,
-      username,
-      path,
-      search,
-    } = this.options
-
-    const addressInfo = origin.build({ username, path, search, scheme: null })
-
-    await this.options.effects.exportServiceInterface({
-      id,
-      name,
-      description,
-      hasPrimary,
-      disabled,
-      addressInfo,
-      type,
-    })
-
-    return addressInfo as AddressInfo & AddressReceipt
-  }
 }
