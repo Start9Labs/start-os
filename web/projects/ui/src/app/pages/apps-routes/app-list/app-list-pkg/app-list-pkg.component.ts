@@ -34,10 +34,11 @@ export class AppListPkgComponent {
 
   launchUi(
     e: Event,
-    interfaces: InstalledPackageDataEntry['network-interfaces'],
+    interfaces: InstalledPackageDataEntry['service-interfaces'],
+    hosts: InstalledPackageDataEntry['hosts'],
   ): void {
     e.stopPropagation()
     e.preventDefault()
-    this.launcherService.launch(interfaces)
+    this.launcherService.launch(interfaces, hosts)
   }
 }

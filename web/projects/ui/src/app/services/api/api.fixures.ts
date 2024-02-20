@@ -1768,84 +1768,218 @@ export module Mock {
         },
         'dependency-config-errors': {},
       },
-      'network-interfaces': {
+      'service-interfaces': {
         ui: {
+          id: 'ui',
+          hasPrimary: false,
+          disabled: false,
+          masked: false,
           name: 'Web UI',
           description:
             'A launchable web app for you to interact with your Bitcoin node',
           type: 'ui',
-          addresses: {
-            tor: { name: 'Tor', url: 'http://bitcoin-ui-address.onion' },
-            local: { name: 'Local', url: 'https://adjective-noun.local:1234' },
-            'elan0-ipv4': {
-              name: 'Ethernet (IPv4)',
-              url: 'https://192.168.1.5:1234',
+          addressInfo: {
+            username: null,
+            hostId: 'abcdefg',
+            bindOptions: {
+              scheme: 'http',
+              preferredExternalPort: 80,
+              addSsl: {
+                preferredExternalPort: 443,
+                scheme: 'https',
+              },
+              secure: false,
+              ssl: false,
             },
-            'elan0-ipv6': {
-              name: 'Ethernet (IPv6)',
-              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:547GF]:1234',
-            },
-            'wlan0-ipv4': {
-              name: 'WiFi (IPv4)',
-              url: 'https://192.168.1.7:1234',
-            },
-            'wlan0-ipv6': {
-              name: 'WiFi (IPv6)',
-              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]:1234',
-            },
+            suffix: '',
           },
         },
         rpc: {
+          id: 'rpc',
+          hasPrimary: false,
+          disabled: false,
+          masked: false,
           name: 'RPC',
           description:
             'Used by dependent services and client wallets for connecting to your node',
           type: 'api',
-          addresses: {
-            tor: { name: 'Tor', url: 'http://bitcoin-rpc-address.onion' },
-            local: { name: 'Local', url: 'https://adjective-noun.local:2345' },
-            'elan0-ipv4': {
-              name: 'Ethernet (IPv4)',
-              url: 'https://192.168.1.5:2345',
+          addressInfo: {
+            username: null,
+            hostId: 'bcdefgh',
+            bindOptions: {
+              scheme: 'http',
+              preferredExternalPort: 80,
+              addSsl: {
+                preferredExternalPort: 443,
+                scheme: 'https',
+              },
+              secure: false,
+              ssl: false,
             },
-            'elan0-ipv6': {
-              name: 'Ethernet (IPv6)',
-              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:547GF]:2345',
-            },
-            'wlan0-ipv4': {
-              name: 'WiFi (IPv4)',
-              url: 'https://192.168.1.7:2345',
-            },
-            'wlan0-ipv6': {
-              name: 'WiFi (IPv6)',
-              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]:2345',
-            },
+            suffix: '',
           },
         },
         p2p: {
+          id: 'p2p',
+          hasPrimary: true,
+          disabled: false,
+          masked: false,
           name: 'P2P',
           description:
             'Used for connecting to other nodes on the Bitcoin network',
           type: 'p2p',
-          addresses: {
-            tor: { name: 'Tor', url: 'http://bitcoin-p2p-address.onion' },
-            local: { name: 'Local', url: 'https://adjective-noun.local:3456' },
-            'elan0-ipv4': {
-              name: 'Ethernet (IPv4)',
-              url: 'https://192.168.1.5:3456',
+          addressInfo: {
+            username: null,
+            hostId: 'cdefghi',
+            bindOptions: {
+              scheme: 'bitcoin',
+              preferredExternalPort: 8333,
+              addSsl: null,
+              secure: true,
+              ssl: false,
             },
-            'elan0-ipv6': {
-              name: 'Ethernet (IPv6)',
-              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:547GF]:3456',
-            },
-            'wlan0-ipv4': {
-              name: 'WiFi (IPv4)',
-              url: 'https://192.168.1.7:3456',
-            },
-            'wlan0-ipv6': {
-              name: 'WiFi (IPv6)',
-              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]:3456',
-            },
+            suffix: '',
           },
+        },
+      },
+      hosts: {
+        abcdefg: {
+          kind: 'multi',
+          hostnames: [
+            {
+              kind: 'onion',
+              hostname: {
+                value: 'bitcoin-ui-address.onion',
+                port: 80,
+                sslPort: 443,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'local',
+                value: 'adjective-noun.local',
+                port: null,
+                sslPort: 1234,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv4',
+                value: '192.168.1.5',
+                port: null,
+                sslPort: 1234,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv6',
+                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                port: null,
+                sslPort: 1234,
+              },
+            },
+          ],
+        },
+        bcdefgh: {
+          kind: 'multi',
+          hostnames: [
+            {
+              kind: 'onion',
+              hostname: {
+                value: 'bitcoin-rpc-address.onion',
+                port: 80,
+                sslPort: 443,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'local',
+                value: 'adjective-noun.local',
+                port: null,
+                sslPort: 2345,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv4',
+                value: '192.168.1.5',
+                port: null,
+                sslPort: 2345,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv6',
+                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                port: null,
+                sslPort: 2345,
+              },
+            },
+          ],
+        },
+        cdefghi: {
+          kind: 'multi',
+          hostnames: [
+            {
+              kind: 'onion',
+              hostname: {
+                value: 'bitcoin-p2p-address.onion',
+                port: 8333,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'local',
+                value: 'adjective-noun.local',
+                port: 3456,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv4',
+                value: '192.168.1.5',
+                port: 3456,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv6',
+                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                port: 3456,
+                sslPort: null,
+              },
+            },
+          ],
         },
       },
       'system-pointers': [],
@@ -1881,32 +2015,111 @@ export module Mock {
         'dependency-config-errors': {},
       },
       manifest: MockManifestBitcoinProxy,
-      'network-interfaces': {
+      'service-interfaces': {
         ui: {
+          id: 'ui',
+          hasPrimary: false,
+          disabled: false,
+          masked: false,
           name: 'Web UI',
-          description:
-            'A launchable web app for you to interact with Bitcoin Proxy',
+          description: 'A launchable web app for Bitcoin Proxy',
           type: 'ui',
-          addresses: {
-            tor: { name: 'Tor', url: 'http://proxy-ui-address.onion' },
-            local: { name: 'Local', url: 'https://adjective-noun.local:4321' },
-            'elan0-ipv4': {
-              name: 'Ethernet (IPv4)',
-              url: 'https://192.168.1.5:4321',
+          addressInfo: {
+            username: null,
+            hostId: 'hijklmnop',
+            bindOptions: {
+              scheme: 'http',
+              preferredExternalPort: 80,
+              addSsl: {
+                preferredExternalPort: 443,
+                scheme: 'https',
+              },
+              secure: true,
+              ssl: true,
             },
-            'elan0-ipv6': {
-              name: 'Ethernet (IPv6)',
-              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:547GF]:4321',
-            },
-            'wlan0-ipv4': {
-              name: 'WiFi (IPv4)',
-              url: 'https://192.168.1.7:4321',
-            },
-            'wlan0-ipv6': {
-              name: 'WiFi (IPv6)',
-              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]:4321',
-            },
+            suffix: '',
           },
+        },
+      },
+      hosts: {
+        defghij: {
+          kind: 'multi',
+          hostnames: [
+            {
+              kind: 'onion',
+              hostname: {
+                value: 'proxy-ui-address.onion',
+                port: 80,
+                sslPort: 443,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'local',
+                value: 'adjective-noun.local',
+                port: null,
+                sslPort: 4567,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv4',
+                value: '192.168.1.5',
+                port: null,
+                sslPort: 4567,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv6',
+                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                port: null,
+                sslPort: 4567,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'wlan0',
+              public: false,
+              hostname: {
+                kind: 'local',
+                value: 'adjective-noun.local',
+                port: null,
+                sslPort: 4567,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'wlan0',
+              public: false,
+              hostname: {
+                kind: 'ipv4',
+                value: '192.168.1.7',
+                port: null,
+                sslPort: 4567,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'wlan0',
+              public: false,
+              hostname: {
+                kind: 'ipv6',
+                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                port: null,
+                sslPort: 4567,
+              },
+            },
+          ],
         },
       },
       'system-pointers': [],
@@ -1954,58 +2167,166 @@ export module Mock {
         },
       },
       manifest: MockManifestLnd,
-      'network-interfaces': {
-        rpc: {
+      'service-interfaces': {
+        grpc: {
+          id: 'grpc',
+          hasPrimary: false,
+          disabled: false,
+          masked: false,
           name: 'GRPC',
           description:
             'Used by dependent services and client wallets for connecting to your node',
           type: 'api',
-          addresses: {
-            tor: { name: 'Tor', url: 'http://lnd-rpc-address.onion' },
-            local: { name: 'Local', url: 'https://adjective-noun.local:4567' },
-            'elan0-ipv4': {
-              name: 'Ethernet (IPv4)',
-              url: 'https://192.168.1.5:4567',
+          addressInfo: {
+            username: null,
+            hostId: 'qrstuv',
+            bindOptions: {
+              scheme: 'grpc',
+              preferredExternalPort: 10009,
+              addSsl: null,
+              secure: true,
+              ssl: true,
             },
-            'elan0-ipv6': {
-              name: 'Ethernet (IPv6)',
-              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:547GF]:4567',
+            suffix: '',
+          },
+        },
+        lndconnect: {
+          id: 'lndconnect',
+          hasPrimary: false,
+          disabled: false,
+          masked: true,
+          name: 'LND Connect',
+          description:
+            'Used by client wallets adhering to LND Connect protocol to connect to your node',
+          type: 'api',
+          addressInfo: {
+            username: null,
+            hostId: 'qrstuv',
+            bindOptions: {
+              scheme: 'lndconnect',
+              preferredExternalPort: 10009,
+              addSsl: null,
+              secure: true,
+              ssl: true,
             },
-            'wlan0-ipv4': {
-              name: 'WiFi (IPv4)',
-              url: 'https://192.168.1.7:4567',
-            },
-            'wlan0-ipv6': {
-              name: 'WiFi (IPv6)',
-              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]:4567',
-            },
+            suffix: 'cert=askjdfbjadnaskjnd&macaroon=ksjbdfnhjasbndjksand',
           },
         },
         p2p: {
+          id: 'p2p',
+          hasPrimary: true,
+          disabled: false,
+          masked: false,
           name: 'P2P',
           description:
-            'Used for connecting to other nodes on the Lightning network',
+            'Used for connecting to other nodes on the Bitcoin network',
           type: 'p2p',
-          addresses: {
-            tor: { name: 'Tor', url: 'http://lnd-p2p-address.onion' },
-            local: { name: 'Local', url: 'https://adjective-noun.local:6789' },
-            'elan0-ipv4': {
-              name: 'Ethernet (IPv4)',
-              url: 'https://192.168.1.5:6789',
+          addressInfo: {
+            username: null,
+            hostId: 'rstuvw',
+            bindOptions: {
+              scheme: null,
+              preferredExternalPort: 9735,
+              addSsl: null,
+              secure: true,
+              ssl: true,
             },
-            'elan0-ipv6': {
-              name: 'Ethernet (IPv6)',
-              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:547GF]:6789',
-            },
-            'wlan0-ipv4': {
-              name: 'WiFi (IPv4)',
-              url: 'https://192.168.1.7:6789',
-            },
-            'wlan0-ipv6': {
-              name: 'WiFi (IPv6)',
-              url: 'https://[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]:6789',
-            },
+            suffix: '',
           },
+        },
+      },
+      hosts: {
+        qrstuv: {
+          kind: 'multi',
+          hostnames: [
+            {
+              kind: 'onion',
+              hostname: {
+                value: 'lnd-grpc-address.onion',
+                port: 10009,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'local',
+                value: 'adjective-noun.local',
+                port: 5678,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv4',
+                value: '192.168.1.5',
+                port: 5678,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv6',
+                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                port: 5678,
+                sslPort: null,
+              },
+            },
+          ],
+        },
+        rstuvw: {
+          kind: 'multi',
+          hostnames: [
+            {
+              kind: 'onion',
+              hostname: {
+                value: 'lnd-p2p-address.onion',
+                port: 9735,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'local',
+                value: 'adjective-noun.local',
+                port: 6789,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv4',
+                value: '192.168.1.5',
+                port: 6789,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv6',
+                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                port: 6789,
+                sslPort: null,
+              },
+            },
+          ],
         },
       },
       'system-pointers': [],

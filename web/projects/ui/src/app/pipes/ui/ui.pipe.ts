@@ -7,7 +7,7 @@ import { hasUi } from '../../services/config.service'
 })
 export class UiPipe implements PipeTransform {
   transform(
-    interfaces: InstalledPackageDataEntry['network-interfaces'],
+    interfaces: InstalledPackageDataEntry['service-interfaces'],
   ): boolean {
     return interfaces ? hasUi(interfaces) : false
   }

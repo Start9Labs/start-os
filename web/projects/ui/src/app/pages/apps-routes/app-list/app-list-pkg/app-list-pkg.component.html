@@ -22,12 +22,18 @@
   </ion-label>
   <ion-button
     *ngIf="
-      pkg.entry.installed && (pkg.entry.installed['network-interfaces'] | hasUi)
+      pkg.entry.installed && (pkg.entry.installed['service-interfaces'] | hasUi)
     "
     slot="end"
     fill="clear"
     color="primary"
-    (click)="launchUi($event, pkg.entry.installed['network-interfaces'])"
+    (click)="
+      launchUi(
+        $event,
+        pkg.entry.installed['service-interfaces'],
+        pkg.entry.installed.hosts
+      )
+    "
     [disabled]="!(pkg.entry.state | isLaunchable: pkgMainStatus.status)"
   >
     <ion-icon slot="icon-only" name="open-outline"></ion-icon>

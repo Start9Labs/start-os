@@ -47,9 +47,13 @@ export class AppShowStatusComponent {
   ) {}
 
   get interfaces():
-    | InstalledPackageDataEntry['network-interfaces']
+    | InstalledPackageDataEntry['service-interfaces']
     | undefined {
-    return this.pkg.installed?.['network-interfaces']
+    return this.pkg.installed?.['service-interfaces']
+  }
+
+  get hosts(): InstalledPackageDataEntry['hosts'] | undefined {
+    return this.pkg.installed?.['hosts']
   }
 
   get pkgStatus(): Status | null {
@@ -82,8 +86,11 @@ export class AppShowStatusComponent {
       : null
   }
 
-  launchUi(interfaces: InstalledPackageDataEntry['network-interfaces']): void {
-    this.launcherService.launch(interfaces)
+  launchUi(
+    interfaces: InstalledPackageDataEntry['service-interfaces'],
+    hosts: InstalledPackageDataEntry['hosts'],
+  ): void {
+    this.launcherService.launch(interfaces, hosts)
   }
 
   async presentModalConfig(): Promise<void> {

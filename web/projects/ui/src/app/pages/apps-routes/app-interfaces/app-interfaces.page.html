@@ -8,27 +8,27 @@
 </ion-header>
 
 <ion-content class="ion-padding-top with-widgets">
-  <ion-item-group *ngIf="networkInterfaces$ | async as networkInterfaces">
-    <ng-container *ngIf="networkInterfaces.ui.length">
+  <ion-item-group *ngIf="serviceInterfaces$ | async as serviceInterfaces">
+    <ng-container *ngIf="serviceInterfaces.ui.length">
       <ion-item-divider>User Interfaces (UI)</ion-item-divider>
       <app-interfaces-item
-        *ngFor="let ui of networkInterfaces.ui"
+        *ngFor="let ui of serviceInterfaces.ui"
         [iFace]="ui"
       ></app-interfaces-item>
     </ng-container>
 
-    <ng-container *ngIf="networkInterfaces.api.length">
+    <ng-container *ngIf="serviceInterfaces.api.length">
       <ion-item-divider>Application Program Interfaces (API)</ion-item-divider>
       <app-interfaces-item
-        *ngFor="let api of networkInterfaces.api"
+        *ngFor="let api of serviceInterfaces.api"
         [iFace]="api"
       ></app-interfaces-item>
     </ng-container>
 
-    <ng-container *ngIf="networkInterfaces.p2p.length">
+    <ng-container *ngIf="serviceInterfaces.p2p.length">
       <ion-item-divider>Peer-To-Peer Interfaces (P2P)</ion-item-divider>
       <app-interfaces-item
-        *ngFor="let p2p of networkInterfaces.p2p"
+        *ngFor="let p2p of serviceInterfaces.p2p"
         [iFace]="p2p"
       ></app-interfaces-item>
     </ng-container>
