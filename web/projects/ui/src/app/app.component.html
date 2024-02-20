@@ -56,14 +56,11 @@
         </ion-menu>
 
         <ion-router-outlet
-          [responsiveColViewport]="viewport"
           id="main-content"
           class="container"
           [class.container_offline]="offline$ | async"
         >
           <ion-content
-            #viewport="viewport"
-            responsiveColViewport
             class="ion-padding with-widgets"
             style="pointer-events: none; opacity: 0"
           ></ion-content>

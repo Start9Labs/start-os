@@ -184,12 +184,7 @@
               }
             ],
             "styles": [
-              "node_modules/@taiga-ui/core/styles/taiga-ui-theme.less",
-              "projects/shared/styles/taiga.scss",
-              "projects/shared/styles/variables.scss",
-              "projects/shared/styles/global.scss",
-              "projects/shared/styles/shared.scss",
-              "projects/install-wizard/src/styles.scss"
+              "node_modules/@taiga-ui/core/styles/taiga-ui-theme.less"
             ],
             "scripts": []
           },
@@ -322,10 +317,6 @@
             ],
             "styles": [
               "node_modules/@taiga-ui/core/styles/taiga-ui-theme.less",
-              "projects/shared/styles/taiga.scss",
-              "projects/shared/styles/variables.scss",
-              "projects/shared/styles/global.scss",
-              "projects/shared/styles/shared.scss",
               "projects/setup-wizard/src/styles.scss"
             ],
             "scripts": []

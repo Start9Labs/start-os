@@ -10,7 +10,6 @@ import {
   LightThemeModule,
   LoadingModule,
   MarkdownModule,
-  ResponsiveColViewportDirective,
   SharedPipesModule,
 } from '@start9labs/shared'
 import {
@@ -57,7 +56,6 @@ import { RoutingModule } from './routing.module'
     TuiAlertModule,
     TuiModeModule,
     TuiThemeNightModule,
-    ResponsiveColViewportDirective,
     DarkThemeModule,
     LightThemeModule,
     ServiceWorkerModule.register('ngsw-worker.js', {

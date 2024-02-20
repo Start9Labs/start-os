@@ -1,30 +1,31 @@
-import { Component } from '@angular/core'
-import { NavController } from '@ionic/angular'
-import { ApiService } from './services/api/api.service'
+import { Component, inject } from '@angular/core'
+import { Router } from '@angular/router'
 import { ErrorService } from '@start9labs/shared'
+import { ApiService } from 'src/app/services/api.service'
 
 @Component({
   selector: 'app-root',
-  templateUrl: 'app.component.html',
-  styleUrls: ['app.component.scss'],
+  template: `
+    <tui-theme-night></tui-theme-night>
+    <tui-root tuiMode="onDark"><router-outlet /></tui-root>
+  `,
 })
 export class AppComponent {
-  constructor(
-    private readonly apiService: ApiService,
-    private readonly errorService: ErrorService,
-    private readonly navCtrl: NavController,
-  ) {}
+  private readonly api = inject(ApiService)
+  private readonly errorService = inject(ErrorService)
+  private readonly router = inject(Router)
 
   async ngOnInit() {
     try {
-      const inProgress = await this.apiService.getSetupStatus()
+      const inProgress = await this.api.getSetupStatus()
 
-      let route = '/home'
+      let route = 'home'
+
       if (inProgress) {
-        route = inProgress.complete ? '/success' : '/loading'
+        route = inProgress.complete ? 'success' : 'loading'
       }
 
-      await this.navCtrl.navigateForward(route)
+      await this.router.navigate([route])
     } catch (e: any) {
       this.errorService.handleError(e)
     }

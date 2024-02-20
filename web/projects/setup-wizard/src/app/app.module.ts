@@ -1,30 +1,7 @@
+import { HttpClientModule } from '@angular/common/http'
 import { NgModule } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
-import { RouteReuseStrategy } from '@angular/router'
-import { HttpClientModule } from '@angular/common/http'
-import {
-  TuiAlertModule,
-  tuiButtonOptionsProvider,
-  TuiDialogModule,
-  TuiModeModule,
-  TuiRootModule,
-  TuiThemeNightModule,
-} from '@taiga-ui/core'
-import { ApiService } from './services/api/api.service'
-import { MockApiService } from './services/api/mock-api.service'
-import { LiveApiService } from './services/api/live-api.service'
-import {
-  IonicModule,
-  IonicRouteStrategy,
-  iosTransitionAnimation,
-} from '@ionic/angular'
-import { AppComponent } from './app.component'
-import { AppRoutingModule } from './app-routing.module'
-import { SuccessPageModule } from './pages/success/success.module'
-import { HomePageModule } from './pages/home/home.module'
-import { LoadingPageModule } from './pages/loading/loading.module'
-import { RecoverPageModule } from './pages/recover/recover.module'
-import { TransferPageModule } from './pages/transfer/transfer.module'
+import { PreloadAllModules, RouterModule } from '@angular/router'
 import {
   LoadingModule,
   provideSetupLogsService,
@@ -32,6 +9,19 @@ import {
   RELATIVE_URL,
   WorkspaceConfig,
 } from '@start9labs/shared'
+import {
+  TuiAlertModule,
+  TuiDialogModule,
+  TuiModeModule,
+  TuiRootModule,
+  TuiThemeNightModule,
+} from '@taiga-ui/core'
+import { tuiButtonOptionsProvider } from '@taiga-ui/experimental'
+import { ApiService } from 'src/app/services/api.service'
+import { LiveApiService } from 'src/app/services/live-api.service'
+import { MockApiService } from 'src/app/services/mock-api.service'
+import { AppComponent } from './app.component'
+import { ROUTES } from './app.routes'
 
 const {
   useMocks,
@@ -42,21 +32,15 @@ const {
   declarations: [AppComponent],
   imports: [
     BrowserAnimationsModule,
-    IonicModule.forRoot({
-      mode: 'md',
-      navAnimation: iosTransitionAnimation,
-    }),
-    AppRoutingModule,
     HttpClientModule,
-    SuccessPageModule,
-    HomePageModule,
-    LoadingPageModule,
-    RecoverPageModule,
-    TransferPageModule,
+    RouterModule.forRoot(ROUTES, {
+      preloadingStrategy: PreloadAllModules,
+      initialNavigation: 'disabled',
+    }),
+    LoadingModule,
     TuiRootModule,
     TuiDialogModule,
     TuiAlertModule,
-    LoadingModule,
     TuiModeModule,
     TuiThemeNightModule,
   ],
@@ -64,7 +48,6 @@ const {
     provideSetupService(ApiService),
     provideSetupLogsService(ApiService),
     tuiButtonOptionsProvider({ size: 'm' }),
-    { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     {
       provide: ApiService,
       useClass: useMocks ? MockApiService : LiveApiService,
