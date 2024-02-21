@@ -10,15 +10,12 @@ impl Service {
     pub async fn configure(
         &self,
         ConfigureContext { timeout, config }: ConfigureContext,
-    ) -> Result<BTreeMap<PackageId, String>, Error> {
+    ) -> Result<(), Error> {
         let container = &self.seed.persistent_container;
         container
-            .execute::<BTreeMap<PackageId, String>>(
-                ProcedureName::SetConfig,
-                to_value(&config)?,
-                timeout,
-            )
+            .execute::<Value>(ProcedureName::SetConfig, to_value(&config)?, timeout)
             .await
-            .with_kind(ErrorKind::Action)
+            .with_kind(ErrorKind::Action)?;
+        Ok(())
     }
 }
