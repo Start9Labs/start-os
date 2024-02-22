@@ -155,13 +155,13 @@ export class HostSystemStartOs implements Effects {
       T.Effects["getContainerIp"]
     >
   }
-  getHostnames: Effects["getHostnames"] = (...[allOptions]: any[]) => {
+  getHostInfo: Effects["getHostInfo"] = (...[allOptions]: any[]) => {
     const options = {
       ...allOptions,
       callback: this.callbackHolder.addCallback(allOptions.callback),
     }
-    return this.rpcRound("getHostnames", options) as ReturnType<
-      T.Effects["getHostnames"]
+    return this.rpcRound("getHostInfo", options) as ReturnType<
+      T.Effects["getHostInfo"]
     > as any
   }
   getServiceInterface(
@@ -172,16 +172,7 @@ export class HostSystemStartOs implements Effects {
       callback: this.callbackHolder.addCallback(options.callback),
     }) as ReturnType<T.Effects["getServiceInterface"]>
   }
-  getIPHostname(...[]: Parameters<T.Effects["getIPHostname"]>) {
-    return this.rpcRound("getIPHostname", null) as ReturnType<
-      T.Effects["getIPHostname"]
-    >
-  }
-  getLocalHostname(...[]: Parameters<T.Effects["getLocalHostname"]>) {
-    return this.rpcRound("getLocalHostname", null) as ReturnType<
-      T.Effects["getLocalHostname"]
-    >
-  }
+
   getPrimaryUrl(...[options]: Parameters<T.Effects["getPrimaryUrl"]>) {
     return this.rpcRound("getPrimaryUrl", {
       ...options,
@@ -194,14 +185,6 @@ export class HostSystemStartOs implements Effects {
     return this.rpcRound("getServicePortForward", options) as ReturnType<
       T.Effects["getServicePortForward"]
     >
-  }
-  getServiceTorHostname(
-    ...[interfaceId, packageId]: Parameters<T.Effects["getServiceTorHostname"]>
-  ) {
-    return this.rpcRound("getServiceTorHostname", {
-      interfaceId,
-      packageId,
-    }) as ReturnType<T.Effects["getServiceTorHostname"]>
   }
   getSslCertificate(
     ...[packageId, algorithm]: Parameters<T.Effects["getSslCertificate"]>
