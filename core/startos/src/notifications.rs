@@ -102,7 +102,8 @@ pub async fn list(
 
             ctx.db
                 .mutate(|d| {
-                    d.as_server_info_mut()
+                    d.as_public_mut()
+                        .as_server_info_mut()
                         .as_unread_notification_count_mut()
                         .ser(&0)
                 })
@@ -308,7 +309,11 @@ impl NotificationManager {
         {
             return Ok(());
         }
-        let mut count = peek.as_server_info().as_unread_notification_count().de()?;
+        let mut count = peek
+            .as_public()
+            .as_server_info()
+            .as_unread_notification_count()
+            .de()?;
         let sql_package_id = package_id.as_ref().map(|p| &**p);
         let sql_code = T::CODE;
         let sql_level = format!("{}", level);
@@ -325,7 +330,8 @@ impl NotificationManager {
     ).execute(&self.sqlite).await?;
         count += 1;
         db.mutate(|db| {
-            db.as_server_info_mut()
+            db.as_public_mut()
+                .as_server_info_mut()
                 .as_unread_notification_count_mut()
                 .ser(&count)
         })

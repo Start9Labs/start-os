@@ -11,6 +11,7 @@ import {
   matches,
   any,
   shape,
+  anyOf,
 } from "ts-matches"
 
 import { types as T } from "@start9labs/start-sdk"
@@ -24,16 +25,28 @@ import { HostSystem } from "../Interfaces/HostSystem"
 import { jsonPath } from "../Models/JsonPath"
 import { System } from "../Interfaces/System"
 type MaybePromise<T> = T | Promise<T>
-type SocketResponse = { jsonrpc: "2.0"; id: IdType } & (
-  | { result: unknown }
-  | {
-      error: {
-        code: number
-        message: string
-        data: { details: string; debug?: string }
-      }
-    }
+export const matchRpcResult = anyOf(
+  object({ result: any }),
+  object({
+    error: object(
+      {
+        code: number,
+        message: string,
+        data: object(
+          {
+            details: string,
+            debug: any,
+          },
+          ["details", "debug"],
+        ),
+      },
+      ["data"],
+    ),
+  }),
 )
+export type RpcResult = typeof matchRpcResult._TYPE
+type SocketResponse = { jsonrpc: "2.0"; id: IdType } & RpcResult
+
 const SOCKET_PARENT = "/media/startos/rpc"
 const SOCKET_PATH = "/media/startos/rpc/service.sock"
 const jsonrpc = "2.0" as const
@@ -186,23 +199,11 @@ export class RpcListener {
             input: params.input,
             timeout: params.timeout,
           })
-          .then((result) =>
-            "ok" in result
-              ? {
-                  jsonrpc,
-                  id,
-                  result: result.ok === undefined ? null : result.ok,
-                }
-              : {
-                  jsonrpc,
-                  id,
-                  error: {
-                    code: result.err.code,
-                    message: "Package Root Error",
-                    data: { details: result.err.message },
-                  },
-                },
-          )
+          .then((result) => ({
+            jsonrpc,
+            id,
+            ...result,
+          }))
           .catch((error) => ({
             jsonrpc,
             id,

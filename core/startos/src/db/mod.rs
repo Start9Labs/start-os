@@ -11,7 +11,7 @@ use clap::Parser;
 use futures::{FutureExt, StreamExt};
 use http::header::COOKIE;
 use http::HeaderMap;
-use patch_db::json_ptr::JsonPointer;
+use patch_db::json_ptr::{JsonPointer, ROOT};
 use patch_db::{Dump, Revision};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{command, from_fn_async, CallRemote, HandlerExt, ParentHandler};
@@ -25,13 +25,17 @@ use crate::middleware::auth::{HasValidSession, HashSessionToken};
 use crate::prelude::*;
 use crate::util::serde::{apply_expr, HandlerExtSerde};
 
+lazy_static::lazy_static! {
+    static ref PUBLIC: JsonPointer = "/public".parse().unwrap();
+}
+
 #[instrument(skip_all)]
 async fn ws_handler(
     ctx: RpcContext,
     session: Option<(HasValidSession, HashSessionToken)>,
     mut stream: WebSocket,
 ) -> Result<(), Error> {
-    let (dump, sub) = ctx.db.dump_and_sub().await;
+    let (dump, sub) = ctx.db.dump_and_sub(PUBLIC.clone()).await;
 
     if let Some((session, token)) = session {
         let kill = subscribe_to_session_kill(&ctx, token).await;
@@ -181,7 +185,7 @@ pub enum RevisionsRes {
 #[instrument(skip_all)]
 async fn cli_dump(ctx: CliContext, DumpParams { path }: DumpParams) -> Result<Dump, RpcError> {
     let dump = if let Some(path) = path {
-        PatchDb::open(path).await?.dump().await
+        PatchDb::open(path).await?.dump(&ROOT).await
     } else {
         from_value::<Dump>(ctx.call_remote("db.dump", imbl_value::json!({})).await?)?
     };
@@ -201,7 +205,7 @@ pub struct DumpParams {
 //     display(display_serializable)
 // )]
 pub async fn dump(ctx: RpcContext, _: DumpParams) -> Result<Dump, Error> {
-    Ok(ctx.db.dump().await)
+    Ok(ctx.db.dump(&*PUBLIC).await)
 }
 
 #[instrument(skip_all)]

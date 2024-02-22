@@ -1,6 +1,7 @@
 import { types as T } from "@start9labs/start-sdk"
 import { JsonPath } from "../Models/JsonPath"
 import { HostSystemStartOs } from "../Adapters/HostSystemStartOs"
+import { RpcResult } from "../Adapters/RpcListener"
 export type ExecuteResult =
   | { ok: unknown }
   | { err: { code: number; message: string } }
@@ -17,7 +18,7 @@ export interface System {
       input: unknown
       timeout?: number
     },
-  ): Promise<ExecuteResult>
+  ): Promise<RpcResult>
   // sandbox(
   //   effects: Effects,
   //   options: {

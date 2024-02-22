@@ -12,6 +12,7 @@ use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
 use tokio::process::Command;
 
+use crate::db::model::ExposedUI;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
@@ -23,8 +24,7 @@ use crate::service::ServiceActorSeed;
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::clap::FromStrParser;
-use crate::util::new_guid;
-use crate::{db::model::ExposedUI, util::Invoke};
+use crate::util::{new_guid, Invoke};
 use crate::{echo, ARCH};
 
 #[derive(Clone)]
@@ -120,6 +120,10 @@ pub fn service_effect_handler() -> ParentHandler {
             from_fn_async(get_ssl_certificate).no_cli(),
         )
         .subcommand("getSslKey", from_fn_async(get_ssl_key).no_cli())
+        .subcommand(
+            "getServiceInterface",
+            from_fn_async(get_service_interface).no_cli(),
+        )
     // TODO @DrBonez when we get the new api for 4.0
     // .subcommand("setDependencies",from_fn(set_dependencies))
     // .subcommand("embassyGetInterface",from_fn(embassy_get_interface))
@@ -143,6 +147,43 @@ pub fn service_effect_handler() -> ParentHandler {
     // .subcommand("getSystemSmtp",from_fn(get_system_smtp))
     // .subcommand("reverseProxy",from_fn(reverse_pro)xy)
     // TODO Callbacks
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser)]
+#[serde(rename_all = "camelCase")]
+struct GetServiceInterfaceParams {
+    package_id: Option<PackageId>,
+    service_interface_id: String,
+    callback: String,
+}
+async fn get_service_interface(
+    _: AnyContext,
+    GetServiceInterfaceParams {
+        callback,
+        package_id,
+        service_interface_id,
+    }: GetServiceInterfaceParams,
+) -> Result<Value, Error> {
+    // TODO @Dr_Bonez
+    Ok(json!({
+        "id": service_interface_id,
+        "name": service_interface_id,
+        "description": "This is a fake",
+        "hasPrimary": false,
+        "disabled": false,
+        "addressInfo": json!({
+            "username": Value::Null,
+            "hostId": "HostId?",
+            "options": json!({
+                "scheme": Value::Null,
+                "preferredExternalPort": 80,
+                "addSsl":Value::Null,
+                "secure": false,
+                "ssl": false
+            }),
+            "suffix": "http"
+        }),
+        "type": "ui"
+    }))
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser)]
@@ -255,6 +296,7 @@ async fn get_store(
     let peeked = context.ctx.db.peek().await;
     let package_id = package_id.unwrap_or(context.id.clone());
     let value = peeked
+        .as_public()
         .as_package_data()
         .as_idx(&package_id)
         .or_not_found(&package_id)?
@@ -286,6 +328,7 @@ async fn set_store(
         .db
         .mutate(|db| {
             let model = db
+                .as_public_mut()
                 .as_package_data_mut()
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
@@ -317,7 +360,8 @@ async fn expose_for_dependents(
         .ctx
         .db
         .mutate(|db| {
-            db.as_package_data_mut()
+            db.as_public_mut()
+                .as_package_data_mut()
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
                 .as_installed_mut()
@@ -344,7 +388,8 @@ async fn expose_ui(
         .ctx
         .db
         .mutate(|db| {
-            db.as_package_data_mut()
+            db.as_public_mut()
+                .as_package_data_mut()
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
                 .as_installed_mut()
@@ -369,7 +414,11 @@ struct ParamsMaybePackageId {
 async fn exists(context: EffectContext, params: ParamsPackageId) -> Result<Value, Error> {
     let context = context.deref()?;
     let peeked = context.ctx.db.peek().await;
-    let package = peeked.as_package_data().as_idx(&params.package).is_some();
+    let package = peeked
+        .as_public()
+        .as_package_data()
+        .as_idx(&params.package)
+        .is_some();
     Ok(json!(package))
 }
 
@@ -408,6 +457,7 @@ async fn get_configured(context: EffectContext, _: Empty) -> Result<Value, Error
     let peeked = context.ctx.db.peek().await;
     let package_id = &context.id;
     let package = peeked
+        .as_public()
         .as_package_data()
         .as_idx(&package_id)
         .or_not_found(&package_id)?
@@ -424,6 +474,7 @@ async fn stopped(context: EffectContext, params: ParamsMaybePackageId) -> Result
     let peeked = context.ctx.db.peek().await;
     let package_id = params.package_id.unwrap_or_else(|| context.id.clone());
     let package = peeked
+        .as_public()
         .as_package_data()
         .as_idx(&package_id)
         .or_not_found(&package_id)?
@@ -439,6 +490,7 @@ async fn running(context: EffectContext, params: ParamsMaybePackageId) -> Result
     let peeked = context.ctx.db.peek().await;
     let package_id = params.package_id.unwrap_or_else(|| context.id.clone());
     let package = peeked
+        .as_public()
         .as_package_data()
         .as_idx(&package_id)
         .or_not_found(&package_id)?
@@ -489,7 +541,8 @@ async fn set_configured(context: EffectContext, params: SetConfigured) -> Result
         .ctx
         .db
         .mutate(|db| {
-            db.as_package_data_mut()
+            db.as_public_mut()
+                .as_package_data_mut()
                 .as_idx_mut(package_id)
                 .or_not_found(package_id)?
                 .as_installed_mut()
@@ -578,6 +631,7 @@ async fn set_health(context: EffectContext, params: SetHealth) -> Result<Value, 
         .db
         .mutate(move |db| {
             let mut main = db
+                .as_public()
                 .as_package_data()
                 .as_idx(package_id)
                 .or_not_found(package_id)?
@@ -600,7 +654,8 @@ async fn set_health(context: EffectContext, params: SetHealth) -> Result<Value, 
                 }
                 _ => return Ok(()),
             };
-            db.as_package_data_mut()
+            db.as_public_mut()
+                .as_package_data_mut()
                 .as_idx_mut(package_id)
                 .or_not_found(package_id)?
                 .as_installed_mut()

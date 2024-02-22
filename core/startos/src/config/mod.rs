@@ -1,10 +1,9 @@
-use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
 use clap::Parser;
 use color_eyre::eyre::eyre;
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use models::{ErrorKind, OptionExt, PackageId};
 use patch_db::value::InternedString;
@@ -18,15 +17,15 @@ use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
 use crate::util::serde::{HandlerExtSerde, StdinDeserializable};
 
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ConfigSpec(pub IndexMap<InternedString, Value>);
+
 pub mod action;
-pub mod spec;
 pub mod util;
 
-pub use spec::{ConfigSpec, Defaultable};
 use util::NumRange;
 
 use self::action::ConfigRes;
-use self::spec::ValueSpecPointer;
 
 pub type Config = patch_db::value::InOMap<InternedString, Value>;
 pub trait TypeOf {
@@ -53,8 +52,6 @@ pub enum ConfigurationError {
     NoMatch(#[from] NoMatchWithPath),
     #[error("System Error: {0}")]
     SystemError(Error),
-    #[error("Permission Denied: {0}")]
-    PermissionDenied(ValueSpecPointer),
 }
 impl From<ConfigurationError> for Error {
     fn from(err: ConfigurationError) -> Self {
@@ -122,8 +119,6 @@ pub enum MatchError {
     PropertyMatchesUnionTag(InternedString, String),
     #[error("Name of Property {0:?} Conflicts With Map Tag Name")]
     PropertyNameMatchesMapTag(String),
-    #[error("Pointer Is Invalid: {0}")]
-    InvalidPointer(spec::ValueSpecPointer),
     #[error("Object Key Is Invalid: {0}")]
     InvalidKey(String),
     #[error("Value In List Is Not Unique")]
@@ -178,65 +173,19 @@ pub struct SetParams {
 // )]
 #[instrument(skip_all)]
 pub fn set() -> ParentHandler<SetParams, PackageId> {
-    ParentHandler::new()
-        .root_handler(
-            from_fn_async(set_impl)
-                .with_metadata("sync_db", Value::Bool(true))
-                .with_inherited(|set_params, id| (id, set_params))
-                .no_display()
-                .with_remote_cli::<CliContext>(),
-        )
-        .subcommand(
-            "dry",
-            from_fn_async(set_dry)
-                .with_inherited(|set_params, id| (id, set_params))
-                .with_display_serializable()
-                .with_remote_cli::<CliContext>(),
-        )
-}
-
-pub async fn set_dry(
-    ctx: RpcContext,
-    _: Empty,
-    (
-        id,
-        SetParams {
-            timeout,
-            config: StdinDeserializable(config),
-        },
-    ): (PackageId, SetParams),
-) -> Result<BTreeMap<PackageId, String>, Error> {
-    let breakages = BTreeMap::new();
-    let overrides = Default::default();
-
-    let configure_context = ConfigureContext {
-        breakages,
-        timeout: timeout.map(|t| *t),
-        config,
-        dry_run: true,
-        overrides,
-    };
-    ctx.services
-        .get(&id)
-        .await
-        .as_ref()
-        .ok_or_else(|| {
-            Error::new(
-                eyre!("There is no manager running for {id}"),
-                ErrorKind::Unknown,
-            )
-        })?
-        .configure(configure_context)
-        .await
+    ParentHandler::new().root_handler(
+        from_fn_async(set_impl)
+            .with_metadata("sync_db", Value::Bool(true))
+            .with_inherited(|set_params, id| (id, set_params))
+            .no_display()
+            .with_remote_cli::<CliContext>(),
+    )
 }
 
 #[derive(Default)]
 pub struct ConfigureContext {
-    pub breakages: BTreeMap<PackageId, String>,
     pub timeout: Option<Duration>,
     pub config: Option<Config>,
-    pub overrides: BTreeMap<PackageId, Config>,
-    pub dry_run: bool,
 }
 
 #[instrument(skip_all)]
@@ -251,15 +200,9 @@ pub async fn set_impl(
         },
     ): (PackageId, SetParams),
 ) -> Result<(), Error> {
-    let breakages = BTreeMap::new();
-    let overrides = Default::default();
-
     let configure_context = ConfigureContext {
-        breakages,
         timeout: timeout.map(|t| *t),
         config,
-        dry_run: false,
-        overrides,
     };
     ctx.services
         .get(&id)

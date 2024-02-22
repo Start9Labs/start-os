@@ -3,17 +3,15 @@ use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 
 pub use helpers::script_dir;
-use models::PackageId;
 pub use models::VolumeId;
+use models::{HostId, PackageId};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::net::interface::{InterfaceId, Interfaces};
 use crate::net::PACKAGE_CERT_PATH;
 use crate::prelude::*;
 use crate::util::Version;
-use crate::{Error, ResultExt};
 
 pub const PKG_VOLUME_DIR: &str = "package-data/volumes";
 pub const BACKUP_DIR: &str = "/media/embassy/backups";
@@ -21,21 +19,6 @@ pub const BACKUP_DIR: &str = "/media/embassy/backups";
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Volumes(BTreeMap<VolumeId, Volume>);
 impl Volumes {
-    #[instrument(skip_all)]
-    pub fn validate(&self, interfaces: &Interfaces) -> Result<(), Error> {
-        for (id, volume) in &self.0 {
-            volume
-                .validate(interfaces)
-                .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, format!("Volume {}", id)))?;
-            if let Volume::Backup { .. } = volume {
-                return Err(Error::new(
-                    eyre!("Invalid volume type \"backup\""),
-                    ErrorKind::ParseS9pk,
-                )); // Volume::Backup is for internal use and shouldn't be declared in manifest
-            }
-        }
-        Ok(())
-    }
     #[instrument(skip_all)]
     pub async fn install(
         &self,
@@ -112,8 +95,8 @@ pub fn backup_dir(pkg_id: &PackageId) -> PathBuf {
     Path::new(BACKUP_DIR).join(pkg_id).join("data")
 }
 
-pub fn cert_dir(pkg_id: &PackageId, interface_id: &InterfaceId) -> PathBuf {
-    Path::new(PACKAGE_CERT_PATH).join(pkg_id).join(interface_id)
+pub fn cert_dir(pkg_id: &PackageId, host_id: &HostId) -> PathBuf {
+    Path::new(PACKAGE_CERT_PATH).join(pkg_id).join(host_id)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -135,23 +118,11 @@ pub enum Volume {
         readonly: bool,
     },
     #[serde(rename_all = "kebab-case")]
-    Certificate { interface_id: InterfaceId },
+    Certificate { interface_id: HostId },
     #[serde(rename_all = "kebab-case")]
     Backup { readonly: bool },
 }
 impl Volume {
-    #[instrument(skip_all)]
-    pub fn validate(&self, interfaces: &Interfaces) -> Result<(), color_eyre::eyre::Report> {
-        match self {
-            Volume::Certificate { interface_id } => {
-                if !interfaces.0.contains_key(interface_id) {
-                    color_eyre::eyre::bail!("unknown interface: {}", interface_id);
-                }
-            }
-            _ => (),
-        }
-        Ok(())
-    }
     pub async fn install(
         &self,
         path: &PathBuf,

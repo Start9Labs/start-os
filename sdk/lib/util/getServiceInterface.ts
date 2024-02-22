@@ -1,5 +1,10 @@
-import { AddressInfo, Effects, Hostname, ServiceInterface } from "../types"
-import * as regexes from "./regexes"
+import {
+  AddressInfo,
+  Effects,
+  HostInfo,
+  Hostname,
+  HostnameInfo,
+} from "../types"
 import { ServiceInterfaceType } from "./utils"
 
 export type UrlString = string
@@ -22,7 +27,6 @@ export type Filled = {
   ipv4Hostnames: Hostname[]
   ipv6Hostnames: Hostname[]
   nonIpHostnames: Hostname[]
-  allHostnames: Hostname[]
 
   urls: UrlString[]
   onionUrls: UrlString[]
@@ -31,7 +35,6 @@ export type Filled = {
   ipv4Urls: UrlString[]
   ipv6Urls: UrlString[]
   nonIpUrls: UrlString[]
-  allUrls: UrlString[]
 }
 export type FilledAddressInfo = AddressInfo & Filled
 export type ServiceInterfaceFilled = {
@@ -46,6 +49,8 @@ export type ServiceInterfaceFilled = {
   disabled: boolean
   /** Whether or not to mask the URIs for this interface. Useful if the URIs contain sensitive information, such as a password, macaroon, or API key */
   masked: boolean
+  /** Information about the host for this binding */
+  hostInfo: HostInfo
   /** URI information */
   addressInfo: FilledAddressInfo
   /** Indicates if we are a ui/p2p/api for the kind of interface that this is representing */
@@ -64,6 +69,24 @@ const negate =
   (a: A) =>
     !fn(a)
 const unique = <A>(values: A[]) => Array.from(new Set(values))
+function stringifyHostname(info: HostnameInfo): Hostname {
+  let base: string
+  if ("kind" in info.hostname && info.hostname.kind === "domain") {
+    base = info.hostname.subdomain
+      ? `${info.hostname.subdomain}.${info.hostname.domain}`
+      : info.hostname.domain
+  } else {
+    base = info.hostname.value
+  }
+  if (info.hostname.port && info.hostname.sslPort) {
+    return `${base}:${info.hostname.port}` as Hostname
+  } else if (info.hostname.sslPort) {
+    return `${base}:${info.hostname.sslPort}` as Hostname
+  } else if (info.hostname.port) {
+    return `${base}:${info.hostname.port}` as Hostname
+  }
+  return base as Hostname
+}
 const addressHostToUrl = (
   { bindOptions, username, suffix }: AddressInfo,
   host: Hostname,
@@ -78,61 +101,78 @@ const addressHostToUrl = (
   }${host}${suffix}`
 }
 export const filledAddress = (
-  hostnames: Hostname[],
+  hostInfo: HostInfo,
   addressInfo: AddressInfo,
 ): FilledAddressInfo => {
   const toUrl = addressHostToUrl.bind(null, addressInfo)
+  const hostnameInfo =
+    hostInfo.kind == "multi"
+      ? hostInfo.hostnames
+      : hostInfo.hostname
+        ? [hostInfo.hostname]
+        : []
   return {
     ...addressInfo,
-    hostnames,
+    hostnames: hostnameInfo.flatMap((h) => stringifyHostname(h)),
     get onionHostnames() {
-      return hostnames.filter(regexes.torHostname.test)
+      return hostnameInfo
+        .filter((h) => h.kind === "onion")
+        .map((h) => stringifyHostname(h))
     },
     get localHostnames() {
-      return hostnames.filter(regexes.localHostname.test)
+      return hostnameInfo
+        .filter((h) => h.kind === "ip" && h.hostname.kind === "local")
+        .map((h) => stringifyHostname(h))
     },
     get ipHostnames() {
-      return hostnames.filter(either(regexes.ipv4.test, regexes.ipv6.test))
+      return hostnameInfo
+        .filter(
+          (h) =>
+            h.kind === "ip" &&
+            (h.hostname.kind === "ipv4" || h.hostname.kind === "ipv6"),
+        )
+        .map((h) => stringifyHostname(h))
     },
     get ipv4Hostnames() {
-      return hostnames.filter(regexes.ipv4.test)
+      return hostnameInfo
+        .filter((h) => h.kind === "ip" && h.hostname.kind === "ipv4")
+        .map((h) => stringifyHostname(h))
     },
     get ipv6Hostnames() {
-      return hostnames.filter(regexes.ipv6.test)
+      return hostnameInfo
+        .filter((h) => h.kind === "ip" && h.hostname.kind === "ipv6")
+        .map((h) => stringifyHostname(h))
     },
     get nonIpHostnames() {
-      return hostnames.filter(
-        negate(either(regexes.ipv4.test, regexes.ipv6.test)),
-      )
+      return hostnameInfo
+        .filter(
+          (h) =>
+            h.kind === "ip" &&
+            h.hostname.kind !== "ipv4" &&
+            h.hostname.kind !== "ipv6",
+        )
+        .map((h) => stringifyHostname(h))
     },
-    allHostnames: hostnames,
     get urls() {
-      return hostnames.map(toUrl)
+      return this.hostnames.map(toUrl)
     },
     get onionUrls() {
-      return hostnames.filter(regexes.torHostname.test).map(toUrl)
+      return this.onionHostnames.map(toUrl)
     },
     get localUrls() {
-      return hostnames.filter(regexes.localHostname.test).map(toUrl)
+      return this.localHostnames.map(toUrl)
     },
     get ipUrls() {
-      return hostnames
-        .filter(either(regexes.ipv4.test, regexes.ipv6.test))
-        .map(toUrl)
+      return this.ipHostnames.map(toUrl)
     },
     get ipv4Urls() {
-      return hostnames.filter(regexes.ipv4.test).map(toUrl)
+      return this.ipv4Hostnames.map(toUrl)
     },
     get ipv6Urls() {
-      return hostnames.filter(regexes.ipv6.test).map(toUrl)
+      return this.ipv6Hostnames.map(toUrl)
     },
     get nonIpUrls() {
-      return hostnames
-        .filter(negate(either(regexes.ipv4.test, regexes.ipv6.test)))
-        .map(toUrl)
-    },
-    get allUrls() {
-      return hostnames.map(toUrl)
+      return this.nonIpHostnames.map(toUrl)
     },
   }
 }
@@ -153,9 +193,9 @@ const makeInterfaceFilled = async ({
     packageId,
     callback,
   })
-  const hostIdRecord = await effects.getHostnames({
+  const hostInfo = await effects.getHostInfo({
     packageId,
-    hostId: serviceInterfaceValue.addressInfo.hostId,
+    serviceInterfaceId: serviceInterfaceValue.id,
     callback,
   })
   const primaryUrl = await effects.getPrimaryUrl({
@@ -167,7 +207,8 @@ const makeInterfaceFilled = async ({
   const interfaceFilled: ServiceInterfaceFilled = {
     ...serviceInterfaceValue,
     primaryUrl: primaryUrl,
-    addressInfo: filledAddress(hostIdRecord, serviceInterfaceValue.addressInfo),
+    hostInfo,
+    addressInfo: filledAddress(hostInfo, serviceInterfaceValue.addressInfo),
     get primaryHostname() {
       if (primaryUrl == null) return null
       return getHostname(primaryUrl)

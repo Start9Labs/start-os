@@ -84,7 +84,8 @@ async fn setup_init(
         account.set_password(&password)?;
         account.save(secrets_tx.as_mut()).await?;
         db.mutate(|m| {
-            m.as_server_info_mut()
+            m.as_public_mut()
+                .as_server_info_mut()
                 .as_password_hash_mut()
                 .ser(&account.password)
         })
@@ -310,11 +311,6 @@ pub async fn execute(
     tokio::task::spawn({
         async move {
             let ctx = ctx.clone();
-            let recovery_source = recovery_source;
-
-            let embassy_password = embassy_password;
-            let recovery_source = recovery_source;
-            let recovery_password = recovery_password;
             match execute_inner(
                 ctx.clone(),
                 embassy_logicalname,

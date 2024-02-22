@@ -97,7 +97,7 @@ impl<A: Actor> SimpleActor<A> {
                         Some((msg, reply)) if shutdown_recv.try_recv() == Err(TryRecvError::Empty) => {
                             let mut new_bg = BackgroundJobs::default();
                             tokio::select! {
-                                res = msg.handle_with(&mut actor, &mut new_bg) => { reply.send(res); },
+                                res = msg.handle_with(&mut actor, &mut new_bg) => { let _ = reply.send(res); },
                                 _ = &mut bg => (),
                             }
                             bg.jobs.append(&mut new_bg.jobs);
@@ -129,7 +129,9 @@ impl<A: Actor> SimpleActor<A> {
             ))));
         }
         let (reply_send, reply_recv) = oneshot::channel();
-        self.messenger.send((Box::new(message), reply_send));
+        self.messenger
+            .send((Box::new(message), reply_send))
+            .unwrap();
         futures::future::Either::Right(
             reply_recv
                 .map_err(|_| Error::new(eyre!("actor runtime has exited"), ErrorKind::Unknown))
@@ -159,11 +161,11 @@ impl<A: Actor> SimpleActor<A> {
         drop(self.messenger);
         let timeout = match strategy {
             PendingMessageStrategy::CancelAll => {
-                self.shutdown.send(());
+                self.shutdown.send(()).unwrap();
                 Some(Duration::from_secs(0))
             }
             PendingMessageStrategy::FinishCurrentCancelPending { timeout } => {
-                self.shutdown.send(());
+                self.shutdown.send(()).unwrap();
                 timeout
             }
             PendingMessageStrategy::FinishAll { timeout } => timeout,

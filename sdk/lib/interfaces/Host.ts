@@ -55,8 +55,8 @@ const knownProtocols = {
 export type Scheme = string | null
 
 type AddSslOptions = {
-  preferredExternalPort: number
   scheme: Scheme
+  preferredExternalPort: number
   addXForwardedHeaders?: boolean /** default: false */
 }
 type Security = { secure: false; ssl: false } | { secure: true; ssl: boolean }

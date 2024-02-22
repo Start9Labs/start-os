@@ -10,7 +10,7 @@ export type ExportedAction = (options: {
   effects: Effects
   input?: Record<string, unknown>
 }) => Promise<ActionResult>
-export type MaybePromise<A> = A | Promise<A>
+export type MaybePromise<A> = Promise<A> | A
 export namespace ExpectedExports {
   version: 1
   /** Set configuration is called after we have modified and saved the configuration in the start9 ui. Use this to make a file for the docker to read from for configuration.  */
@@ -164,6 +164,7 @@ export type ActionMetadata = {
   group?: string
 }
 export declare const hostName: unique symbol
+// asdflkjadsf.onion | 1.2.3.4
 export type Hostname = string & { [hostName]: never }
 
 /** ${scheme}://${username}@${host}:${externalPort}${suffix} */
@@ -202,11 +203,13 @@ export type HostnameInfoOnion = {
 export type HostnameInfo = HostnameInfoIp | HostnameInfoOnion
 
 export type SingleHost = {
+  id: string
   kind: "single" | "static"
   hostname: HostnameInfo | null
 }
 
 export type MultiHost = {
+  id: string
   kind: "multi"
   hostnames: HostnameInfo[]
 }
@@ -232,6 +235,11 @@ export type ServiceInterface = {
   /** The network interface could be several types, something like ui, p2p, or network */
   type: ServiceInterfaceType
 }
+
+export type ServiceInterfaceWithHostInfo = ServiceInterface & {
+  hostInfo: HostInfo
+}
+
 // prettier-ignore
 export type ExposeAllServicePaths<Store, PreviousPath extends string = ""> = 
   Store extends Record<string, unknown> ? {[K in keyof Store & string]: ExposeAllServicePaths<Store[K], `${PreviousPath}/${K & string}`>}[keyof Store & string] :
@@ -281,18 +289,18 @@ export type Effects = {
     } & BindOptions,
   ): Promise<void>
   /** Retrieves the current hostname(s) associated with a host id */
-  getHostnames(options: {
+  getHostInfo(options: {
     kind: "static" | "single"
-    hostId: string
+    serviceInterfaceId: string
     packageId?: string
     callback: () => void
-  }): Promise<[] | [Hostname]>
-  getHostnames(options: {
+  }): Promise<SingleHost>
+  getHostInfo(options: {
     kind?: "multi"
+    serviceInterfaceId: string
     packageId?: string
-    hostId: string
     callback: () => void
-  }): Promise<Hostname[]>
+  }): Promise<MultiHost>
 
   // /**
   //  * Run rsync between two volumes. This is used to backup data between volumes.
@@ -332,13 +340,6 @@ export type Effects = {
     callback: (config: unknown, previousConfig: unknown) => void
   }): Promise<SmtpValue>
 
-  getLocalHostname(): Promise<string>
-  getIPHostname(): Promise<string[]>
-  /** Get the address for another service for tor interfaces */
-  getServiceTorHostname(
-    serviceInterfaceId: ServiceInterfaceId,
-    packageId?: string,
-  ): Promise<string>
   /** Get the IP address of the container */
   getContainerIp(): Promise<string>
   /**
@@ -422,14 +423,16 @@ export type Effects = {
    * @returns  PEM encoded fullchain (ecdsa)
    */
   getSslCertificate: (
-    packageId?: string,
+    packageId: string | null,
+    hostId: string,
     algorithm?: "ecdsa" | "ed25519",
   ) => Promise<[string, string, string]>
   /**
    * @returns PEM encoded ssl key (ecdsa)
    */
   getSslKey: (
-    packageId?: string,
+    packageId: string | null,
+    hostId: string,
     algorithm?: "ecdsa" | "ed25519",
   ) => Promise<string>
 

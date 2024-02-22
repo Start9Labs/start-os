@@ -61,7 +61,7 @@ impl ServiceMap {
 
     #[instrument(skip_all)]
     pub async fn init(&self, ctx: &RpcContext) -> Result<(), Error> {
-        for id in ctx.db.peek().await.as_package_data().keys()? {
+        for id in ctx.db.peek().await.as_public().as_package_data().keys()? {
             if let Err(e) = self.load(ctx, &id, LoadDisposition::Retry).await {
                 tracing::error!("Error loading installed package as service: {e}");
                 tracing::debug!("{e:?}");
@@ -136,6 +136,7 @@ impl ServiceMap {
                 let install_progress = progress.snapshot();
                 move |db| {
                     let pde = match db
+                        .as_public()
                         .as_package_data()
                         .as_idx(&id)
                         .map(|x| x.de())
@@ -174,7 +175,9 @@ impl ServiceMap {
                             ))
                         }
                     };
-                    db.as_package_data_mut().insert(&manifest.id, &pde)
+                    db.as_public_mut()
+                        .as_package_data_mut()
+                        .insert(&manifest.id, &pde)
                 }
             }))
             .await?;
@@ -194,7 +197,8 @@ impl ServiceMap {
                         NonDetachingJoinHandle::from(tokio::spawn(progress.sync_to_db(
                             ctx.db.clone(),
                             move |v| {
-                                v.as_package_data_mut()
+                                v.as_public_mut()
+                                    .as_package_data_mut()
                                     .as_idx_mut(&deref_id)
                                     .and_then(|e| e.as_install_progress_mut())
                             },

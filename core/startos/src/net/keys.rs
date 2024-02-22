@@ -1,6 +1,6 @@
 use clap::Parser;
 use color_eyre::eyre::eyre;
-use models::{Id, InterfaceId, PackageId};
+use models::{HostId, Id, PackageId};
 use openssl::pkey::{PKey, Private};
 use openssl::sha::Sha256;
 use openssl::x509::X509;
@@ -22,13 +22,13 @@ use crate::util::crypto::ed25519_expand_key;
 // TODO: delete once we may change tor addresses
 async fn compat(
     secrets: impl PgExecutor<'_>,
-    interface: &Option<(PackageId, InterfaceId)>,
+    host: &Option<(PackageId, HostId)>,
 ) -> Result<Option<[u8; 64]>, Error> {
-    if let Some((package, interface)) = interface {
+    if let Some((package, host)) = host {
         if let Some(r) = sqlx::query!(
             "SELECT key FROM tor WHERE package = $1 AND interface = $2",
             package,
-            interface
+            host
         )
         .fetch_optional(secrets)
         .await?
@@ -60,19 +60,19 @@ async fn compat(
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Key {
-    interface: Option<(PackageId, InterfaceId)>,
+    host: Option<(PackageId, HostId)>,
     base: [u8; 32],
     tor_key: [u8; 64], // Does NOT necessarily match base
 }
 impl Key {
-    pub fn interface(&self) -> Option<(PackageId, InterfaceId)> {
-        self.interface.clone()
+    pub fn host(&self) -> Option<(PackageId, HostId)> {
+        self.host.clone()
     }
     pub fn as_bytes(&self) -> [u8; 32] {
         self.base
     }
     pub fn internal_address(&self) -> String {
-        self.interface
+        self.host
             .as_ref()
             .map(|(pkg_id, _)| format!("{}.embassy", pkg_id))
             .unwrap_or_else(|| "embassy".to_owned())
@@ -111,21 +111,21 @@ impl Key {
         Ed25519PrivateKey::from_bytes(&self.base)
     }
     pub(crate) fn from_pair(
-        interface: Option<(PackageId, InterfaceId)>,
+        host: Option<(PackageId, HostId)>,
         bytes: [u8; 32],
         tor_key: [u8; 64],
     ) -> Self {
         Self {
-            interface,
+            host,
             tor_key,
             base: bytes,
         }
     }
-    pub fn from_bytes(interface: Option<(PackageId, InterfaceId)>, bytes: [u8; 32]) -> Self {
-        Self::from_pair(interface, bytes, ed25519_expand_key(&bytes))
+    pub fn from_bytes(host: Option<(PackageId, HostId)>, bytes: [u8; 32]) -> Self {
+        Self::from_pair(host, bytes, ed25519_expand_key(&bytes))
     }
-    pub fn new(interface: Option<(PackageId, InterfaceId)>) -> Self {
-        Self::from_bytes(interface, rand::random())
+    pub fn new(host: Option<(PackageId, HostId)>) -> Self {
+        Self::from_bytes(host, rand::random())
     }
     pub(super) fn with_certs(self, certs: CertPair, int: X509, root: X509) -> KeyInfo {
         KeyInfo {
@@ -163,10 +163,7 @@ impl Key {
         .await?
         .into_iter()
         .map(|row| {
-            let interface = Some((
-                package.clone(),
-                InterfaceId::from(Id::try_from(row.interface)?),
-            ));
+            let host = Some((package.clone(), HostId::from(Id::try_from(row.interface)?)));
             let bytes = row.key.try_into().map_err(|e: Vec<u8>| {
                 Error::new(
                     eyre!("Invalid length for network key {} expected 32", e.len()),
@@ -175,7 +172,7 @@ impl Key {
             })?;
             Ok(match row.tor_key {
                 Some(tor_key) => Key::from_pair(
-                    interface,
+                    host,
                     bytes,
                     tor_key.try_into().map_err(|e: Vec<u8>| {
                         Error::new(
@@ -184,20 +181,20 @@ impl Key {
                         )
                     })?,
                 ),
-                None => Key::from_bytes(interface, bytes),
+                None => Key::from_bytes(host, bytes),
             })
         })
         .collect()
     }
-    pub async fn for_interface<Ex>(
+    pub async fn for_host<Ex>(
         secrets: &mut Ex,
-        interface: Option<(PackageId, InterfaceId)>,
+        host: Option<(PackageId, HostId)>,
     ) -> Result<Self, Error>
     where
         for<'a> &'a mut Ex: PgExecutor<'a>,
     {
         let tentative = rand::random::<[u8; 32]>();
-        let actual = if let Some((pkg, iface)) = &interface {
+        let actual = if let Some((pkg, iface)) = &host {
             let k = tentative.as_slice();
             let actual = sqlx::query!(
                 "INSERT INTO network_keys (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO UPDATE SET package = EXCLUDED.package RETURNING key",
@@ -229,8 +226,8 @@ impl Key {
             })?);
             bytes
         };
-        let mut res = Self::from_bytes(interface, actual);
-        if let Some(tor_key) = compat(secrets, &res.interface).await? {
+        let mut res = Self::from_bytes(host, actual);
+        if let Some(tor_key) = compat(secrets, &res.host).await? {
             res.tor_key = tor_key;
         }
         Ok(res)
@@ -288,43 +285,43 @@ pub fn display_requires_reboot(_: RotateKeysParams, args: RequiresReboot) {
 #[command(rename_all = "kebab-case")]
 pub struct RotateKeysParams {
     package: Option<PackageId>,
-    interface: Option<InterfaceId>,
+    host: Option<HostId>,
 }
 
 // #[command(display(display_requires_reboot))]
 pub async fn rotate_key(
     ctx: RpcContext,
-    RotateKeysParams { package, interface }: RotateKeysParams,
+    RotateKeysParams { package, host }: RotateKeysParams,
 ) -> Result<RequiresReboot, Error> {
     let mut pgcon = ctx.secret_store.acquire().await?;
     let mut tx = pgcon.begin().await?;
     if let Some(package) = package {
-        let Some(interface) = interface else {
+        let Some(host) = host else {
             return Err(Error::new(
-                eyre!("Must specify interface"),
+                eyre!("Must specify host"),
                 ErrorKind::InvalidRequest,
             ));
         };
         sqlx::query!(
             "DELETE FROM tor WHERE package = $1 AND interface = $2",
             &package,
-            &interface,
+            &host,
         )
         .execute(&mut *tx)
         .await?;
         sqlx::query!(
             "DELETE FROM network_keys WHERE package = $1 AND interface = $2",
             &package,
-            &interface,
+            &host,
         )
         .execute(&mut *tx)
         .await?;
-        let new_key =
-            Key::for_interface(&mut *tx, Some((package.clone(), interface.clone()))).await?;
+        let new_key = Key::for_host(&mut *tx, Some((package.clone(), host.clone()))).await?;
         let needs_config = ctx
             .db
             .mutate(|v| {
                 let installed = v
+                    .as_public_mut()
                     .as_package_data_mut()
                     .as_idx_mut(&package)
                     .or_not_found(&package)?
@@ -332,8 +329,8 @@ pub async fn rotate_key(
                     .or_not_found("installed")?;
                 let addrs = installed
                     .as_interface_addresses_mut()
-                    .as_idx_mut(&interface)
-                    .or_not_found(&interface)?;
+                    .as_idx_mut(&host)
+                    .or_not_found(&host)?;
                 if let Some(lan) = addrs.as_lan_address_mut().transpose_mut() {
                     lan.ser(&new_key.local_address())?;
                 }
@@ -380,10 +377,15 @@ pub async fn rotate_key(
         sqlx::query!("UPDATE account SET tor_key = NULL, network_key = gen_random_bytes(32)")
             .execute(&mut *tx)
             .await?;
-        let new_key = Key::for_interface(&mut *tx, None).await?;
+        let new_key = Key::for_host(&mut *tx, None).await?;
         let url = format!("https://{}", new_key.tor_address()).parse()?;
         ctx.db
-            .mutate(|v| v.as_server_info_mut().as_tor_address_mut().ser(&url))
+            .mutate(|v| {
+                v.as_public_mut()
+                    .as_server_info_mut()
+                    .as_tor_address_mut()
+                    .ser(&url)
+            })
             .await?;
         tx.commit().await?;
         Ok(RequiresReboot(true))
