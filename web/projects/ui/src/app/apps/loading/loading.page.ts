@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core'
 import { NavController } from '@ionic/angular'
 import {
-  InitializingModule,
+  InitializingComponent,
   provideSetupLogsService,
   provideSetupService,
 } from '@start9labs/shared'
@@ -20,7 +20,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
     provideSetupService(ApiService),
     provideSetupLogsService(ApiService),
   ],
-  imports: [InitializingModule],
+  imports: [InitializingComponent],
 })
 export class LoadingPage {
   readonly navCtrl = inject(NavController)

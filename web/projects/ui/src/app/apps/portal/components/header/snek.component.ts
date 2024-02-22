@@ -45,10 +45,8 @@ import { TuiDialogContext } from '@taiga-ui/core'
 })
 export class HeaderSnekComponent implements AfterViewInit, OnDestroy {
   private readonly document = inject(DOCUMENT)
-  private readonly dialog = inject(POLYMORPHEUS_CONTEXT) as TuiDialogContext<
-    number,
-    number
-  >
+  private readonly dialog =
+    inject<TuiDialogContext<number, number>>(POLYMORPHEUS_CONTEXT)
 
   highScore: number = this.dialog.data
   score = 0

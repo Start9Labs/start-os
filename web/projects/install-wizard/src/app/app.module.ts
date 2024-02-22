@@ -1,24 +1,26 @@
+import { HttpClientModule } from '@angular/common/http'
 import { NgModule } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
-import { RouteReuseStrategy } from '@angular/router'
-import { IonicModule, IonicRouteStrategy } from '@ionic/angular'
 import {
-  TuiDialogModule,
-  TuiModeModule,
-  TuiRootModule,
-  TuiThemeNightModule,
-} from '@taiga-ui/core'
-import { AppComponent } from './app.component'
-import { AppRoutingModule } from './app-routing.module'
-import { HttpClientModule } from '@angular/common/http'
-import { ApiService } from './services/api/api.service'
-import { MockApiService } from './services/api/mock-api.service'
-import { LiveApiService } from './services/api/live-api.service'
-import {
+  DriveComponent,
   LoadingModule,
   RELATIVE_URL,
+  UnitConversionPipesModule,
   WorkspaceConfig,
 } from '@start9labs/shared'
+import { TuiDialogModule, TuiRootModule } from '@taiga-ui/core'
+import {
+  TuiButtonModule,
+  TuiCardModule,
+  TuiCellModule,
+  TuiIconModule,
+  TuiSurfaceModule,
+  TuiTitleModule,
+} from '@taiga-ui/experimental'
+import { ApiService } from 'src/app/services/api.service'
+import { LiveApiService } from 'src/app/services/live-api.service'
+import { MockApiService } from 'src/app/services/mock-api.service'
+import { AppComponent } from './app.component'
 
 const {
   useMocks,
@@ -30,18 +32,19 @@ const {
   imports: [
     HttpClientModule,
     BrowserAnimationsModule,
-    IonicModule.forRoot({
-      mode: 'md',
-    }),
-    AppRoutingModule,
     TuiRootModule,
     TuiDialogModule,
     LoadingModule,
-    TuiModeModule,
-    TuiThemeNightModule,
+    DriveComponent,
+    TuiButtonModule,
+    TuiCardModule,
+    TuiCellModule,
+    TuiIconModule,
+    TuiSurfaceModule,
+    TuiTitleModule,
+    UnitConversionPipesModule,
   ],
   providers: [
-    { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     {
       provide: ApiService,
       useClass: useMocks ? MockApiService : LiveApiService,

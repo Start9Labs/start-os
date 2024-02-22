@@ -105,7 +105,7 @@
     "ng-packagr": "^17.0.2",
     "node-html-parser": "^5.3.3",
     "postcss": "^8.4.21",
-    "prettier": "^3.1.1",
+    "prettier": "^3.2.5",
     "raw-loader": "^4.0.2",
     "ts-node": "^10.7.0",
     "tslint": "^6.1.3",
