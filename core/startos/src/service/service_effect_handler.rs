@@ -168,8 +168,9 @@ async fn get_service_interface(
         "id": service_interface_id,
         "name": service_interface_id,
         "description": "This is a fake",
-        "hasPrimary": false,
+        "hasPrimary": true,
         "disabled": false,
+        "masked": false,
         "addressInfo": json!({
             "username": Value::Null,
             "hostId": "HostId?",
@@ -182,7 +183,7 @@ async fn get_service_interface(
             }),
             "suffix": "http"
         }),
-        "type": "ui"
+        "type": "api"
     }))
 }
 

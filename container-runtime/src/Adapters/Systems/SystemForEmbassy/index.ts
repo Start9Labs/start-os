@@ -907,18 +907,22 @@ async function updateConfig(
       mutConfigValue[key] = configValue
     }
     if (matchPointerPackage.test(specValue)) {
+      if (specValue.target === "tor-key")
+        throw new Error("This service uses an unsupported target TorKey")
       const filled = await utils.serviceInterface
         .get({
           packageId: specValue["package-id"],
           id: specValue.interface,
         })
         .once()
-      if (specValue.target === "tor-key")
-        throw new Error("This service uses an unsupported target TorKey")
+        .catch(() => null)
+
       mutConfigValue[key] =
-        specValue.target === "lan-address"
-          ? filled.addressInfo.localHostnames[0]
-          : filled.addressInfo.onionHostnames[0]
+        filled === null
+          ? ""
+          : specValue.target === "lan-address"
+            ? filled.addressInfo.localHostnames[0]
+            : filled.addressInfo.onionHostnames[0]
     }
   }
 }
