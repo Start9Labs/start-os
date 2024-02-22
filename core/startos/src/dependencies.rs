@@ -8,7 +8,6 @@ use rpc_toolkit::{command, from_fn_async, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::config::spec::PackagePointerSpec;
 use crate::config::{Config, ConfigSpec, ConfigureContext};
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::{CurrentDependencies, Database};
@@ -66,19 +65,11 @@ pub struct ConfigureParams {
     dependency_id: PackageId,
 }
 pub fn configure() -> ParentHandler<ConfigureParams> {
-    ParentHandler::new()
-        .root_handler(
-            from_fn_async(configure_impl)
-                .with_inherited(|params, _| params)
-                .no_cli(),
-        )
-        .subcommand(
-            "dry",
-            from_fn_async(configure_dry)
-                .with_inherited(|params, _| params)
-                .with_display_serializable()
-                .with_remote_cli::<CliContext>(),
-        )
+    ParentHandler::new().root_handler(
+        from_fn_async(configure_impl)
+            .with_inherited(|params, _| params)
+            .no_cli(),
+    )
 }
 
 pub async fn configure_impl(
@@ -89,8 +80,6 @@ pub async fn configure_impl(
         dependency_id,
     }: ConfigureParams,
 ) -> Result<(), Error> {
-    let breakages = BTreeMap::new();
-    let overrides = Default::default();
     let ConfigDryRes {
         old_config: _,
         new_config,
@@ -98,11 +87,8 @@ pub async fn configure_impl(
     } = configure_logic(ctx.clone(), (dependent_id, dependency_id.clone())).await?;
 
     let configure_context = ConfigureContext {
-        breakages,
         timeout: Some(Duration::from_secs(3).into()),
         config: Some(new_config),
-        dry_run: false,
-        overrides,
     };
     ctx.services
         .get(&dependency_id)
@@ -125,19 +111,6 @@ pub struct ConfigDryRes {
     pub old_config: Config,
     pub new_config: Config,
     pub spec: ConfigSpec,
-}
-
-// #[command(rename = "dry", display(display_serializable))]
-#[instrument(skip_all)]
-pub async fn configure_dry(
-    ctx: RpcContext,
-    _: Empty,
-    ConfigureParams {
-        dependent_id,
-        dependency_id,
-    }: ConfigureParams,
-) -> Result<ConfigDryRes, Error> {
-    configure_logic(ctx, (dependent_id, dependency_id)).await
 }
 
 pub async fn configure_logic(
@@ -226,6 +199,7 @@ pub fn add_dependent_to_current_dependents_lists(
 ) -> Result<(), Error> {
     for (dependency, dep_info) in &current_dependencies.0 {
         if let Some(dependency_dependents) = db
+            .as_public_mut()
             .as_package_data_mut()
             .as_idx_mut(dependency)
             .and_then(|pde| pde.as_installed_mut())
@@ -235,46 +209,6 @@ pub fn add_dependent_to_current_dependents_lists(
         }
     }
     Ok(())
-}
-
-pub fn set_dependents_with_live_pointers_to_needs_config(
-    db: &mut Peeked,
-    id: &PackageId,
-) -> Result<Vec<(PackageId, Version)>, Error> {
-    let mut res = Vec::new();
-    for (dep, info) in db
-        .as_package_data()
-        .as_idx(id)
-        .or_not_found(id)?
-        .as_installed()
-        .or_not_found(id)?
-        .as_current_dependents()
-        .de()?
-        .0
-    {
-        if info.pointers.iter().any(|ptr| match ptr {
-            // dependency id matches the package being uninstalled
-            PackagePointerSpec::TorAddress(ptr) => &ptr.package_id == id && &dep != id,
-            PackagePointerSpec::LanAddress(ptr) => &ptr.package_id == id && &dep != id,
-            // we never need to retarget these
-            PackagePointerSpec::TorKey(_) => false,
-            PackagePointerSpec::Config(_) => false,
-        }) {
-            let installed = db
-                .as_package_data_mut()
-                .as_idx_mut(&dep)
-                .or_not_found(&dep)?
-                .as_installed_mut()
-                .or_not_found(&dep)?;
-            let version = installed.as_manifest().as_version().de()?;
-            let configured = installed.as_status_mut().as_configured_mut();
-            if configured.de()? {
-                configured.ser(&false)?;
-                res.push((dep, version));
-            }
-        }
-    }
-    Ok(res)
 }
 
 #[instrument(skip_all)]

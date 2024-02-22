@@ -163,13 +163,13 @@ impl DnsController {
 
         Command::new("resolvectl")
             .arg("dns")
-            .arg("br-start9")
+            .arg("lxcbr0")
             .arg("127.0.0.1")
             .invoke(ErrorKind::Network)
             .await?;
         Command::new("resolvectl")
             .arg("domain")
-            .arg("br-start9")
+            .arg("lxcbr0")
             .arg("embassy")
             .invoke(ErrorKind::Network)
             .await?;

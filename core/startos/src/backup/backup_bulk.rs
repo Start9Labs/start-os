@@ -141,7 +141,8 @@ pub async fn backup_all(
         }
         ctx.db
             .mutate(|v| {
-                v.as_server_info_mut()
+                v.as_public_mut()
+                    .as_server_info_mut()
                     .as_status_info_mut()
                     .as_backup_progress_mut()
                     .ser(&None)
@@ -159,6 +160,7 @@ async fn assure_backing_up(
 ) -> Result<(), Error> {
     db.mutate(|v| {
         let backing_up = v
+            .as_public_mut()
             .as_server_info_mut()
             .as_status_info_mut()
             .as_backup_progress_mut();
@@ -221,7 +223,7 @@ async fn perform_backup(
         )
     })?;
 
-    let ui = ctx.db.peek().await.into_ui().de()?;
+    let ui = ctx.db.peek().await.into_public().into_ui().de()?;
 
     let mut os_backup_file =
         AtomicFile::new(backup_guard.path().join("os-backup.cbor"), None::<PathBuf>)
@@ -261,7 +263,12 @@ async fn perform_backup(
     backup_guard.save_and_unmount().await?;
 
     ctx.db
-        .mutate(|v| v.as_server_info_mut().as_last_backup_mut().ser(&timestamp))
+        .mutate(|v| {
+            v.as_public_mut()
+                .as_server_info_mut()
+                .as_last_backup_mut()
+                .ser(&timestamp)
+        })
         .await?;
 
     Ok(backup_report)

@@ -83,7 +83,7 @@ pub struct ZramParams {
 pub async fn zram(ctx: RpcContext, ZramParams { enable }: ZramParams) -> Result<(), Error> {
     let db = ctx.db.peek().await;
 
-    let zram = db.as_server_info().as_zram().de()?;
+    let zram = db.as_public().as_server_info().as_zram().de()?;
     if enable == zram {
         return Ok(());
     }
@@ -100,7 +100,10 @@ pub async fn zram(ctx: RpcContext, ZramParams { enable }: ZramParams) -> Result<
     }
     ctx.db
         .mutate(|v| {
-            v.as_server_info_mut().as_zram_mut().ser(&enable)?;
+            v.as_public_mut()
+                .as_server_info_mut()
+                .as_zram_mut()
+                .ser(&enable)?;
             Ok(())
         })
         .await?;
@@ -153,10 +156,22 @@ pub async fn governor(
         }
         set_governor(&set).await?;
         ctx.db
-            .mutate(|d| d.as_server_info_mut().as_governor_mut().ser(&Some(set)))
+            .mutate(|d| {
+                d.as_public_mut()
+                    .as_server_info_mut()
+                    .as_governor_mut()
+                    .ser(&Some(set))
+            })
             .await?;
     }
-    let current = ctx.db.peek().await.as_server_info().as_governor().de()?;
+    let current = ctx
+        .db
+        .peek()
+        .await
+        .as_public()
+        .as_server_info()
+        .as_governor()
+        .de()?;
     Ok(GovernorInfo { current, available })
 }
 

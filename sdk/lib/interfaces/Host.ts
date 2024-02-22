@@ -35,6 +35,11 @@ const knownProtocols = {
     ssl: false,
     defaultPort: 8333,
   },
+  lightning: {
+    secure: true,
+    ssl: true,
+    defaultPort: 9735,
+  },
   grpc: {
     secure: true,
     ssl: true,
@@ -47,11 +52,11 @@ const knownProtocols = {
   },
 } as const
 
-type Scheme = string | null
+export type Scheme = string | null
 
 type AddSslOptions = {
-  preferredExternalPort: number
   scheme: Scheme
+  preferredExternalPort: number
   addXForwardedHeaders?: boolean /** default: false */
 }
 type Security = { secure: false; ssl: false } | { secure: true; ssl: boolean }
@@ -73,7 +78,7 @@ type NotProtocolsWithSslVariants = Exclude<
   ProtocolsWithSslVariants
 >
 
-type PortOptionsByKnownProtocol =
+type BindOptionsByKnownProtocol =
   | ({
       protocol: ProtocolsWithSslVariants
       preferredExternalPort?: number
@@ -85,7 +90,7 @@ type PortOptionsByKnownProtocol =
       scheme?: Scheme
       addSsl?: AddSslOptions | null
     }
-type PortOptionsByProtocol = PortOptionsByKnownProtocol | BindOptions
+type BindOptionsByProtocol = BindOptionsByKnownProtocol | BindOptions
 
 export type HostKind = "static" | "single" | "multi"
 
@@ -104,7 +109,7 @@ export class Host {
 
   async bindPort(
     internalPort: number,
-    options: PortOptionsByProtocol,
+    options: BindOptionsByProtocol,
   ): Promise<Origin<this>> {
     if (hasStringProtocol(options)) {
       return await this.bindPortForKnown(options, internalPort)
@@ -138,7 +143,7 @@ export class Host {
   }
 
   private async bindPortForKnown(
-    options: PortOptionsByKnownProtocol,
+    options: BindOptionsByKnownProtocol,
     internalPort: number,
   ) {
     const scheme =
@@ -174,7 +179,7 @@ export class Host {
   }
 
   private getAddSsl(
-    options: PortOptionsByKnownProtocol,
+    options: BindOptionsByKnownProtocol,
     protoInfo: KnownProtocols[keyof KnownProtocols],
   ): AddSslOptions | null {
     if ("noAddSsl" in options && options.noAddSsl) return null

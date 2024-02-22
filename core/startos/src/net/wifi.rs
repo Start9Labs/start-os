@@ -682,7 +682,8 @@ impl WpaCli {
     pub async fn save_config(&mut self, db: PatchDb) -> Result<(), Error> {
         let new_country = self.get_country_low().await?;
         db.mutate(|d| {
-            d.as_server_info_mut()
+            d.as_public_mut()
+                .as_server_info_mut()
                 .as_last_wifi_region_mut()
                 .ser(&new_country)
         })

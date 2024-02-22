@@ -30,7 +30,7 @@ impl VersionT for Version {
     async fn up(&self, db: PatchDb, _secrets: &PgPool) -> Result<(), Error> {
         let peek = db.peek().await;
         let mut url_replacements = BTreeMap::new();
-        for (_, pde) in peek.as_package_data().as_entries()? {
+        for (_, pde) in peek.as_public().as_package_data().as_entries()? {
             for (dependency, info) in pde
                 .as_installed()
                 .map(|i| i.as_dependency_info().as_entries())
@@ -63,7 +63,7 @@ impl VersionT for Version {
         }
         let prev_zram = db
             .mutate(|v| {
-                for (_, pde) in v.as_package_data_mut().as_entries_mut()? {
+                for (_, pde) in v.as_public_mut().as_package_data_mut().as_entries_mut()? {
                     for (dependency, info) in pde
                         .as_installed_mut()
                         .map(|i| i.as_dependency_info_mut().as_entries_mut())
@@ -95,7 +95,10 @@ impl VersionT for Version {
                         }
                     }
                 }
-                v.as_server_info_mut().as_zram_mut().replace(&true)
+                v.as_public_mut()
+                    .as_server_info_mut()
+                    .as_zram_mut()
+                    .replace(&true)
             })
             .await?;
         if !prev_zram {

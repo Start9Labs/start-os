@@ -116,15 +116,27 @@ impl RpcContext {
         let devices = lshw().await?;
         let ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
 
-        if !db.peek().await.as_server_info().as_ntp_synced().de()? {
+        if !db
+            .peek()
+            .await
+            .as_public()
+            .as_server_info()
+            .as_ntp_synced()
+            .de()?
+        {
             let db = db.clone();
             tokio::spawn(async move {
                 while !check_time_is_synchronized().await.unwrap() {
                     tokio::time::sleep(Duration::from_secs(30)).await;
                 }
-                db.mutate(|v| v.as_server_info_mut().as_ntp_synced_mut().ser(&true))
-                    .await
-                    .unwrap()
+                db.mutate(|v| {
+                    v.as_public_mut()
+                        .as_server_info_mut()
+                        .as_ntp_synced_mut()
+                        .ser(&true)
+                })
+                .await
+                .unwrap()
             });
         }
 
@@ -208,12 +220,15 @@ impl RpcContext {
         self.db
             .mutate(|f| {
                 let mut current_dependents = f
+                    .as_public_mut()
                     .as_package_data()
                     .keys()?
                     .into_iter()
                     .map(|k| (k.clone(), BTreeMap::new()))
                     .collect::<BTreeMap<_, _>>();
-                for (package_id, package) in f.as_package_data_mut().as_entries_mut()? {
+                for (package_id, package) in
+                    f.as_public_mut().as_package_data_mut().as_entries_mut()?
+                {
                     for (k, v) in package
                         .as_installed_mut()
                         .into_iter()
@@ -228,6 +243,7 @@ impl RpcContext {
                 }
                 for (package_id, current_dependents) in current_dependents {
                     if let Some(deps) = f
+                        .as_public_mut()
                         .as_package_data_mut()
                         .as_idx_mut(&package_id)
                         .and_then(|pde| pde.expect_as_installed_mut().ok())
@@ -235,6 +251,7 @@ impl RpcContext {
                     {
                         deps.ser(&CurrentDependents(current_dependents))?;
                     } else if let Some(deps) = f
+                        .as_public_mut()
                         .as_package_data_mut()
                         .as_idx_mut(&package_id)
                         .and_then(|pde| pde.expect_as_removing_mut().ok())
@@ -252,7 +269,7 @@ impl RpcContext {
 
         let mut all_dependency_config_errs = BTreeMap::new();
         let peek = self.db.peek().await;
-        for (package_id, package) in peek.as_package_data().as_entries()?.into_iter() {
+        for (package_id, package) in peek.as_public().as_package_data().as_entries()?.into_iter() {
             let package = package.clone();
             if let Some(current_dependencies) = package
                 .as_installed()
@@ -276,6 +293,7 @@ impl RpcContext {
             .mutate(|v| {
                 for (package_id, errs) in all_dependency_config_errs {
                     if let Some(config_errors) = v
+                        .as_public_mut()
                         .as_package_data_mut()
                         .as_idx_mut(&package_id)
                         .and_then(|pde| pde.as_installed_mut())

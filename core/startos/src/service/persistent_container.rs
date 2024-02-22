@@ -46,7 +46,7 @@ struct ProcedureId(u64);
 pub struct PersistentContainer {
     pub(super) s9pk: S9pk,
     pub(super) lxc_container: OnceCell<LxcContainer>,
-    rpc_client: UnixRpcClient,
+    pub(super) rpc_client: UnixRpcClient,
     pub(super) rpc_server: watch::Sender<Option<(NonDetachingJoinHandle<()>, ShutdownHandle)>>,
     // procedures: Mutex<Vec<(ProcedureName, ProcedureId)>>,
     js_mount: MountGuard,
@@ -239,8 +239,8 @@ impl PersistentContainer {
         let lxc_container = self.lxc_container.take();
         async move {
             let mut errs = ErrorCollection::new();
-            errs.handle(dbg!(rpc_client.request(rpc::Exit, Empty {}).await));
             if let Some((hdl, shutdown)) = rpc_server {
+                errs.handle(rpc_client.request(rpc::Exit, Empty {}).await);
                 shutdown.shutdown();
                 errs.handle(hdl.await.with_kind(ErrorKind::Cancelled));
             }

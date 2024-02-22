@@ -70,8 +70,12 @@ where
         let semver = self.semver().into();
         let compat = self.compat().clone();
         db.mutate(|d| {
-            d.as_server_info_mut().as_version_mut().ser(&semver)?;
-            d.as_server_info_mut()
+            d.as_public_mut()
+                .as_server_info_mut()
+                .as_version_mut()
+                .ser(&semver)?;
+            d.as_public_mut()
+                .as_server_info_mut()
                 .as_eos_version_compat_mut()
                 .ser(&compat)?;
             Ok(())
@@ -166,7 +170,14 @@ where
 }
 
 pub async fn init(db: &PatchDb, secrets: &PgPool) -> Result<(), Error> {
-    let version = Version::from_util_version(db.peek().await.as_server_info().as_version().de()?);
+    let version = Version::from_util_version(
+        db.peek()
+            .await
+            .as_public()
+            .as_server_info()
+            .as_version()
+            .de()?,
+    );
 
     match version {
         Version::V0_3_4(v) => v.0.migrate_to(&Current::new(), db.clone(), secrets).await?,

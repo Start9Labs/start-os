@@ -3,6 +3,7 @@ import { unNestPath } from "../../Models/JsonPath"
 import { string } from "ts-matches"
 import { HostSystemStartOs } from "../HostSystemStartOs"
 import { Effects } from "../../Models/Effects"
+import { RpcResult } from "../RpcListener"
 const LOCATION = "/usr/lib/startos/package/startos"
 export class SystemForStartOs implements System {
   private onTerm: (() => Promise<void>) | undefined
@@ -30,8 +31,8 @@ export class SystemForStartOs implements System {
       input: unknown
       timeout?: number | undefined
     },
-  ): Promise<ExecuteResult> {
-    return { ok: await this._execute(effects, options) }
+  ): Promise<RpcResult> {
+    return { result: await this._execute(effects, options) }
   }
   async _execute(
     effects: Effects,

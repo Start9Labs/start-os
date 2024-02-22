@@ -1,13 +1,12 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
-use models::PackageId;
+use models::{HostId, PackageId};
 use reqwest::Url;
 use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 
 use crate::context::CliContext;
-use crate::net::interface::InterfaceId;
 #[allow(unused_imports)]
 use crate::prelude::*;
 use crate::util::serde::{Base32, Base64};
@@ -50,8 +49,8 @@ pub fn backup() -> ParentHandler {
 struct BackupMetadata {
     pub timestamp: DateTime<Utc>,
     #[serde(default)]
-    pub network_keys: BTreeMap<InterfaceId, Base64<[u8; 32]>>,
+    pub network_keys: BTreeMap<HostId, Base64<[u8; 32]>>,
     #[serde(default)]
-    pub tor_keys: BTreeMap<InterfaceId, Base32<[u8; 64]>>, // DEPRECATED
+    pub tor_keys: BTreeMap<HostId, Base32<[u8; 64]>>, // DEPRECATED
     pub marketplace_url: Option<Url>,
 }

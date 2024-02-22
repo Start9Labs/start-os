@@ -218,7 +218,7 @@ pub async fn init(cfg: &ServerConfig) -> Result<InitResult, Error> {
     let db = cfg.db(&account).await?;
     tracing::info!("Opened PatchDB");
     let peek = db.peek().await;
-    let mut server_info = peek.as_server_info().de()?;
+    let mut server_info = peek.as_public().as_server_info().de()?;
 
     // write to ca cert store
     tokio::fs::write(
@@ -343,7 +343,7 @@ pub async fn init(cfg: &ServerConfig) -> Result<InitResult, Error> {
     };
 
     db.mutate(|v| {
-        v.as_server_info_mut().ser(&server_info)?;
+        v.as_public_mut().as_server_info_mut().ser(&server_info)?;
         Ok(())
     })
     .await?;

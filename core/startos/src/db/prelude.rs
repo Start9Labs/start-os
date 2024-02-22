@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use std::panic::UnwindSafe;
 
 pub use imbl_value::Value;
+use patch_db::json_ptr::ROOT;
 use patch_db::value::InternedString;
 pub use patch_db::{HasModel, PatchDb};
 use serde::de::DeserializeOwned;
@@ -42,7 +43,7 @@ pub trait PatchDbExt {
 #[async_trait::async_trait]
 impl PatchDbExt for PatchDb {
     async fn peek(&self) -> DatabaseModel {
-        DatabaseModel::from(self.dump().await.value)
+        DatabaseModel::from(self.dump(&ROOT).await.value)
     }
     async fn mutate<U: UnwindSafe + Send>(
         &self,

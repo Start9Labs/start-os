@@ -28,6 +28,9 @@ import {
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { JsonPath, unNestPath } from "../../../Models/JsonPath"
 import { HostSystem } from "../../../Interfaces/HostSystem"
+import { RpcResult, matchRpcResult } from "../../RpcListener"
+import { ServiceInterface } from "../../../../../sdk/dist/cjs/lib/types"
+import { createUtils } from "../../../../../sdk/dist/cjs/lib/util"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
@@ -68,7 +71,7 @@ export class SystemForEmbassy implements System {
       input: unknown
       timeout?: number | undefined
     },
-  ): Promise<ExecuteResult> {
+  ): Promise<RpcResult> {
     return this._execute(effects, options)
       .then((x) =>
         matches(x)
@@ -76,16 +79,14 @@ export class SystemForEmbassy implements System {
             object({
               result: any,
             }),
-            (x) => ({
-              ok: x.result,
-            }),
+            (x) => x,
           )
           .when(
             object({
               error: string,
             }),
             (x) => ({
-              err: {
+              error: {
                 code: 0,
                 message: x.error,
               },
@@ -96,20 +97,34 @@ export class SystemForEmbassy implements System {
               "error-code": tuple(number, string),
             }),
             ({ "error-code": [code, message] }) => ({
-              err: {
+              error: {
                 code,
                 message,
               },
             }),
           )
-          .defaultTo({ ok: x }),
+          .defaultTo({ result: x }),
       )
-      .catch((error) => ({
-        err: {
-          code: 0,
-          message: "" + error,
-        },
-      }))
+      .catch((error: unknown) => {
+        if (error instanceof Error)
+          return {
+            error: {
+              code: 0,
+              message: error.name,
+              data: {
+                details: error.message,
+                debug: `${error?.cause ?? "[noCause]"}:${error?.stack ?? "[noStack]"}`,
+              },
+            },
+          }
+        if (matchRpcResult.test(error)) return error
+        return {
+          error: {
+            code: 0,
+            message: String(error),
+          },
+        }
+      })
   }
   async exit(effects: HostSystemStartOs): Promise<void> {
     if (this.currentRunning) await this.currentRunning.clean()
@@ -157,6 +172,7 @@ export class SystemForEmbassy implements System {
             return this.dependenciesAutoconfig(effects, procedures[2], input)
         }
     }
+    throw new Error(`Could not find the path for ${options.procedure}`)
   }
   private async init(
     effects: HostSystemStartOs,
@@ -864,6 +880,7 @@ async function updateConfig(
 ) {
   if (!dictionary([string, unknown]).test(spec)) return
   if (!dictionary([string, unknown]).test(mutConfigValue)) return
+  const utils = createUtils(effects)
   for (const key in spec) {
     const specValue = spec[key]
 
@@ -890,11 +907,18 @@ async function updateConfig(
       mutConfigValue[key] = configValue
     }
     if (matchPointerPackage.test(specValue)) {
-      mutConfigValue[key] = await effects.embassyGetInterface({
-        target: specValue.target,
-        packageId: specValue["package-id"],
-        interface: specValue["interface"],
-      })
+      const filled = await utils.serviceInterface
+        .get({
+          packageId: specValue["package-id"],
+          id: specValue.interface,
+        })
+        .once()
+      if (specValue.target === "tor-key")
+        throw new Error("This service uses an unsupported target TorKey")
+      mutConfigValue[key] =
+        specValue.target === "lan-address"
+          ? filled.addressInfo.localHostnames[0]
+          : filled.addressInfo.onionHostnames[0]
     }
   }
 }
