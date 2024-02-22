@@ -27,10 +27,7 @@ import {
 } from "ts-matches"
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { JsonPath, unNestPath } from "../../../Models/JsonPath"
-import { HostSystem } from "../../../Interfaces/HostSystem"
 import { RpcResult, matchRpcResult } from "../../RpcListener"
-import { ServiceInterface } from "../../../../../sdk/dist/cjs/lib/types"
-import { createUtils } from "../../../../../sdk/dist/cjs/lib/util"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
@@ -880,7 +877,7 @@ async function updateConfig(
 ) {
   if (!dictionary([string, unknown]).test(spec)) return
   if (!dictionary([string, unknown]).test(mutConfigValue)) return
-  const utils = createUtils(effects)
+  const utils = util.createUtils(effects)
   for (const key in spec) {
     const specValue = spec[key]
 
@@ -907,18 +904,22 @@ async function updateConfig(
       mutConfigValue[key] = configValue
     }
     if (matchPointerPackage.test(specValue)) {
+      if (specValue.target === "tor-key")
+        throw new Error("This service uses an unsupported target TorKey")
       const filled = await utils.serviceInterface
         .get({
           packageId: specValue["package-id"],
           id: specValue.interface,
         })
         .once()
-      if (specValue.target === "tor-key")
-        throw new Error("This service uses an unsupported target TorKey")
+        .catch(() => null)
+
       mutConfigValue[key] =
-        specValue.target === "lan-address"
-          ? filled.addressInfo.localHostnames[0]
-          : filled.addressInfo.onionHostnames[0]
+        filled === null
+          ? ""
+          : specValue.target === "lan-address"
+            ? filled.addressInfo.localHostnames[0]
+            : filled.addressInfo.onionHostnames[0]
     }
   }
 }
