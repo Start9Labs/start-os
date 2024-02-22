@@ -204,6 +204,14 @@ export class RpcListener {
             id,
             ...result,
           }))
+          .then((x) => {
+            if (
+              ("result" in x && x.result === undefined) ||
+              !("error" in x || "result" in x)
+            )
+              (x as any).result = null
+            return x
+          })
           .catch((error) => ({
             jsonrpc,
             id,
