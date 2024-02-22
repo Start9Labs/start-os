@@ -12,12 +12,9 @@ export class UiLauncherService {
     private readonly config: ConfigService,
   ) {}
 
-  launch(
-    interfaces: InstalledPackageDataEntry['service-interfaces'],
-    hosts: InstalledPackageDataEntry['hosts'],
-  ): void {
+  launch(interfaces: InstalledPackageDataEntry['service-interfaces']): void {
     this.windowRef.open(
-      this.config.launchableAddress(interfaces, hosts),
+      this.config.launchableAddress(interfaces),
       '_blank',
       'noreferrer',
     )

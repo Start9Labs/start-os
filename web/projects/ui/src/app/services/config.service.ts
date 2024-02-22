@@ -65,13 +65,12 @@ export class ConfigService {
   /** ${scheme}://${username}@${host}:${externalPort}${suffix} */
   launchableAddress(
     interfaces: InstalledPackageDataEntry['service-interfaces'],
-    hosts: InstalledPackageDataEntry['hosts'],
   ): string {
     const ui = Object.values(interfaces).find(i => i.type === 'ui')
 
     if (!ui) return ''
 
-    const host = hosts[ui.addressInfo.hostId]
+    const host = ui.hostInfo
     const addressInfo = ui.addressInfo
     const scheme = this.isHttps() ? 'https' : 'http'
     const username = addressInfo.username ? addressInfo.username + '@' : ''

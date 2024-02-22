@@ -6,8 +6,11 @@ import { copyToClipboard, getPkgId } from '@start9labs/shared'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import { QRComponent } from 'src/app/components/qr/qr.component'
-import { combineLatest, map } from 'rxjs'
-import { HostInfo, ServiceInterface } from '@start9labs/start-sdk/mjs/lib/types'
+import { map } from 'rxjs'
+import {
+  ServiceInterface,
+  ServiceInterfaceWithHostInfo,
+} from '@start9labs/start-sdk/mjs/lib/types'
 
 type MappedInterface = ServiceInterface & {
   addresses: MappedAddress[]
@@ -25,32 +28,26 @@ type MappedAddress = {
 export class AppInterfacesPage {
   readonly pkgId = getPkgId(this.route)
 
-  readonly serviceInterfaces$ = combineLatest([
-    this.patch.watch$(
-      'package-data',
-      this.pkgId,
-      'installed',
-      'service-interfaces',
-    ),
-    this.patch.watch$('package-data', this.pkgId, 'installed', 'hosts'),
-  ]).pipe(
-    map(([interfaces, hosts]) => {
-      const sorted = Object.values(interfaces)
-        .sort(iface =>
-          iface.name.toLowerCase() > iface.name.toLowerCase() ? -1 : 1,
-        )
-        .map(iface => ({
-          ...iface,
-          addresses: getAddresses(iface, hosts[iface.addressInfo.hostId]),
-        }))
+  readonly serviceInterfaces$ = this.patch
+    .watch$('package-data', this.pkgId, 'installed', 'service-interfaces')
+    .pipe(
+      map(interfaces => {
+        const sorted = Object.values(interfaces)
+          .sort(iface =>
+            iface.name.toLowerCase() > iface.name.toLowerCase() ? -1 : 1,
+          )
+          .map(iface => ({
+            ...iface,
+            addresses: getAddresses(iface),
+          }))
 
-      return {
-        ui: sorted.filter(val => val.type === 'ui'),
-        api: sorted.filter(val => val.type === 'api'),
-        p2p: sorted.filter(val => val.type === 'p2p'),
-      }
-    }),
-  )
+        return {
+          ui: sorted.filter(val => val.type === 'ui'),
+          api: sorted.filter(val => val.type === 'api'),
+          p2p: sorted.filter(val => val.type === 'p2p'),
+        }
+      }),
+    )
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -105,9 +102,9 @@ export class AppInterfacesItemComponent {
 }
 
 function getAddresses(
-  serviceInterface: ServiceInterface,
-  host: HostInfo,
+  serviceInterface: ServiceInterfaceWithHostInfo,
 ): MappedAddress[] {
+  const host = serviceInterface.hostInfo
   const addressInfo = serviceInterface.addressInfo
   const username = addressInfo.username ? addressInfo.username + '@' : ''
   const suffix = addressInfo.suffix ? '/' + addressInfo.suffix : ''

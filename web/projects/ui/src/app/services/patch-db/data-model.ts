@@ -2,7 +2,7 @@ import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { Url } from '@start9labs/shared'
 import { MarketplaceManifest } from '@start9labs/marketplace'
 import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-info'
-import { HostInfo, ServiceInterface } from '@start9labs/start-sdk/mjs/lib/types'
+import { ServiceInterfaceWithHostInfo } from '@start9labs/start-sdk/mjs/lib/types'
 
 export interface DataModel {
   'server-info': ServerInfo
@@ -140,8 +140,7 @@ export interface InstalledPackageDataEntry {
       icon: Url
     }
   }
-  'service-interfaces': Record<string, ServiceInterface>
-  hosts: Record<string, HostInfo>
+  'service-interfaces': Record<string, ServiceInterfaceWithHostInfo>
   'marketplace-url': string | null
   'developer-key': string
 }
