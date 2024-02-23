@@ -107,7 +107,7 @@ function getAddresses(
   const host = serviceInterface.hostInfo
   const addressInfo = serviceInterface.addressInfo
   const username = addressInfo.username ? addressInfo.username + '@' : ''
-  const suffix = addressInfo.suffix ? '/' + addressInfo.suffix : ''
+  const suffix = addressInfo.suffix || ''
 
   const hostnames =
     host.kind === 'multi'
