@@ -40,27 +40,6 @@
       </ion-button>
     </ion-item>
 
-    <ion-item *ngIf="isTorHttp" color="warning" class="ion-margin-bottom">
-      <ion-icon slot="start" name="warning-outline"></ion-icon>
-      <ion-label>
-        <h2 style="font-weight: bold">Http detected</h2>
-        <p style="font-weight: 600">
-          Tor is faster over https.
-          <a
-            [routerLink]="['/system', 'root-ca']"
-            style="color: var(--ion-color-light)"
-          >
-            Download and trust your server's Root CA
-          </a>
-          , then switch to https.
-        </p>
-      </ion-label>
-      <ion-button slot="end" color="light" (click)="launchHttps()">
-        Open Https
-        <ion-icon slot="end" name="open-outline"></ion-icon>
-      </ion-button>
-    </ion-item>
-
     <div *ngFor="let cat of settings | keyvalue : asIsOrder">
       <ion-item-divider>
         <ion-text color="dark" (click)="addClick(cat.key)">

@@ -4,9 +4,7 @@ import {
   HostInfo,
   Hostname,
   HostnameInfo,
-  ServiceInterface,
 } from "../types"
-import * as regexes from "./regexes"
 import { ServiceInterfaceType } from "./utils"
 
 export type UrlString = string
