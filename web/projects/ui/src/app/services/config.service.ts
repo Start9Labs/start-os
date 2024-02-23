@@ -74,7 +74,7 @@ export class ConfigService {
     const addressInfo = ui.addressInfo
     const scheme = this.isHttps() ? 'https' : 'http'
     const username = addressInfo.username ? addressInfo.username + '@' : ''
-    const suffix = addressInfo.suffix ? '/' + addressInfo.suffix : ''
+    const suffix = addressInfo.suffix || ''
     const url = new URL(`${scheme}://${username}placeholder${suffix}`)
 
     if (host.kind === 'multi') {
