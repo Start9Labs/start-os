@@ -7,7 +7,7 @@ use patch_db::json_ptr::ROOT;
 use patch_db::value::InternedString;
 pub use patch_db::{HasModel, PatchDb};
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::db::model::DatabaseModel;
 use crate::prelude::*;
@@ -89,6 +89,25 @@ impl<T: Serialize> Model<T> {
     pub fn ser(&mut self, value: &T) -> Result<(), Error> {
         self.value = to_value(value)?;
         Ok(())
+    }
+}
+
+impl<T> Serialize for Model<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.value.serialize(serializer)
+    }
+}
+
+impl<'de, T: Serialize + Deserialize<'de>> Deserialize<'de> for Model<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+        Self::new(&T::deserialize(deserializer)?).map_err(D::Error::custom)
     }
 }
 
@@ -181,20 +200,38 @@ impl<T> Model<Option<T>> {
 pub trait Map: DeserializeOwned + Serialize {
     type Key;
     type Value;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error>;
+    fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
+        Ok(InternedString::intern(Self::key_str(key)?.as_ref()))
+    }
 }
 
 impl<A, B> Map for BTreeMap<A, B>
+where
+    A: serde::Serialize + serde::de::DeserializeOwned + Ord + AsRef<str>,
+    B: serde::Serialize + serde::de::DeserializeOwned,
+{
+    type Key = A;
+    type Value = B;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Ok(key.as_ref())
+    }
+}
+
+impl<A, B> Map for BTreeMap<JsonKey<A>, B>
 where
     A: serde::Serialize + serde::de::DeserializeOwned + Ord,
     B: serde::Serialize + serde::de::DeserializeOwned,
 {
     type Key = A;
     type Value = B;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        serde_json::to_string(key).with_kind(ErrorKind::Serialization)
+    }
 }
 
 impl<T: Map> Model<T>
 where
-    T::Key: AsRef<str>,
     T::Value: Serialize,
 {
     pub fn insert(&mut self, key: &T::Key, value: &T::Value) -> Result<(), Error> {
@@ -202,7 +239,7 @@ where
         let v = patch_db::value::to_value(value)?;
         match &mut self.value {
             Value::Object(o) => {
-                o.insert(InternedString::intern(key.as_ref()), v);
+                o.insert(T::key_string(key)?, v);
                 Ok(())
             }
             v => Err(patch_db::value::Error {
@@ -218,7 +255,7 @@ where
         let v = value.into_value();
         match &mut self.value {
             Value::Object(o) => {
-                o.insert(InternedString::intern(key.as_ref()), v);
+                o.insert(T::key_string(key)?, v);
                 Ok(())
             }
             v => Err(patch_db::value::Error {
@@ -333,36 +370,36 @@ where
         }
     }
 }
-impl<T: Map> Model<T>
-where
-    T::Key: AsRef<str>,
-{
+impl<T: Map> Model<T> {
     pub fn into_idx(self, key: &T::Key) -> Option<Model<T::Value>> {
         use patch_db::ModelExt;
+        let s = T::key_str(key).ok()?;
         match &self.value {
-            Value::Object(o) if o.contains_key(key.as_ref()) => Some(self.transmute(|v| {
+            Value::Object(o) if o.contains_key(s.as_ref()) => Some(self.transmute(|v| {
                 use patch_db::value::index::Index;
-                key.as_ref().index_into_owned(v).unwrap()
+                s.as_ref().index_into_owned(v).unwrap()
             })),
             _ => None,
         }
     }
     pub fn as_idx<'a>(&'a self, key: &T::Key) -> Option<&'a Model<T::Value>> {
         use patch_db::ModelExt;
+        let s = T::key_str(key).ok()?;
         match &self.value {
-            Value::Object(o) if o.contains_key(key.as_ref()) => Some(self.transmute_ref(|v| {
+            Value::Object(o) if o.contains_key(s.as_ref()) => Some(self.transmute_ref(|v| {
                 use patch_db::value::index::Index;
-                key.as_ref().index_into(v).unwrap()
+                s.as_ref().index_into(v).unwrap()
             })),
             _ => None,
         }
     }
     pub fn as_idx_mut<'a>(&'a mut self, key: &T::Key) -> Option<&'a mut Model<T::Value>> {
         use patch_db::ModelExt;
+        let s = T::key_str(key).ok()?;
         match &mut self.value {
-            Value::Object(o) if o.contains_key(key.as_ref()) => Some(self.transmute_mut(|v| {
+            Value::Object(o) if o.contains_key(s.as_ref()) => Some(self.transmute_mut(|v| {
                 use patch_db::value::index::Index;
-                key.as_ref().index_or_insert(v)
+                s.as_ref().index_or_insert(v)
             })),
             _ => None,
         }
@@ -371,7 +408,7 @@ where
         use serde::ser::Error;
         match &mut self.value {
             Value::Object(o) => {
-                let v = o.remove(key.as_ref());
+                let v = o.remove(T::key_str(key)?.as_ref());
                 Ok(v.map(patch_db::ModelExt::from_value))
             }
             v => Err(patch_db::value::Error {
@@ -380,5 +417,62 @@ where
             }
             .into()),
         }
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct JsonKey<T>(pub T);
+impl<T> From<T> for JsonKey<T> {
+    fn from(value: T) -> Self {
+        Self::new(value)
+    }
+}
+impl<T> JsonKey<T> {
+    pub fn new(value: T) -> Self {
+        Self(value)
+    }
+    pub fn unwrap(self) -> T {
+        self.0
+    }
+    pub fn new_ref(value: &T) -> &Self {
+        unsafe { std::mem::transmute(value) }
+    }
+    pub fn new_mut(value: &mut T) -> &mut Self {
+        unsafe { std::mem::transmute(value) }
+    }
+}
+impl<T> std::ops::Deref for JsonKey<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<T> std::ops::DerefMut for JsonKey<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl<T: Serialize> Serialize for JsonKey<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::Error;
+        serde_json::to_string(&self.0)
+            .map_err(S::Error::custom)?
+            .serialize(serializer)
+    }
+}
+impl<'de, T: Serialize + Deserialize<'de>> Deserialize<'de> for JsonKey<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+        let string = String::deserialize(deserializer)?;
+        Ok(Self(
+            serde_json::from_str(&string).map_err(D::Error::custom)?,
+        ))
     }
 }

@@ -83,15 +83,10 @@ where
         .await?;
         Ok(())
     }
-    async fn migrate_to<V: VersionT>(
-        &self,
-        version: &V,
-        db: PatchDb,
-        secrets: &PgPool,
-    ) -> Result<(), Error> {
+    async fn migrate_to<V: VersionT>(&self, version: &V, db: PatchDb) -> Result<(), Error> {
         match self.semver().cmp(&version.semver()) {
-            Ordering::Greater => self.rollback_to_unchecked(version, db, secrets).await,
-            Ordering::Less => version.migrate_from_unchecked(self, db, secrets).await,
+            Ordering::Greater => self.rollback_to_unchecked(version, db).await,
+            Ordering::Less => version.migrate_from_unchecked(self, db).await,
             Ordering::Equal => Ok(()),
         }
     }
@@ -169,7 +164,7 @@ where
     }
 }
 
-pub async fn init(db: &PatchDb, secrets: &PgPool) -> Result<(), Error> {
+pub async fn init(db: &PatchDb) -> Result<(), Error> {
     let version = Version::from_util_version(
         db.peek()
             .await
@@ -180,13 +175,13 @@ pub async fn init(db: &PatchDb, secrets: &PgPool) -> Result<(), Error> {
     );
 
     match version {
-        Version::V0_3_4(v) => v.0.migrate_to(&Current::new(), db.clone(), secrets).await?,
-        Version::V0_3_4_1(v) => v.0.migrate_to(&Current::new(), db.clone(), secrets).await?,
-        Version::V0_3_4_2(v) => v.0.migrate_to(&Current::new(), db.clone(), secrets).await?,
-        Version::V0_3_4_3(v) => v.0.migrate_to(&Current::new(), db.clone(), secrets).await?,
-        Version::V0_3_4_4(v) => v.0.migrate_to(&Current::new(), db.clone(), secrets).await?,
-        Version::V0_3_5(v) => v.0.migrate_to(&Current::new(), db.clone(), secrets).await?,
-        Version::V0_3_5_1(v) => v.0.migrate_to(&Current::new(), db.clone(), secrets).await?,
+        Version::V0_3_4(v) => v.0.migrate_to(&Current::new(), db.clone()).await?,
+        Version::V0_3_4_1(v) => v.0.migrate_to(&Current::new(), db.clone()).await?,
+        Version::V0_3_4_2(v) => v.0.migrate_to(&Current::new(), db.clone()).await?,
+        Version::V0_3_4_3(v) => v.0.migrate_to(&Current::new(), db.clone()).await?,
+        Version::V0_3_4_4(v) => v.0.migrate_to(&Current::new(), db.clone()).await?,
+        Version::V0_3_5(v) => v.0.migrate_to(&Current::new(), db.clone()).await?,
+        Version::V0_3_5_1(v) => v.0.migrate_to(&Current::new(), db.clone()).await?,
         Version::Other(_) => {
             return Err(Error::new(
                 eyre!("Cannot downgrade"),

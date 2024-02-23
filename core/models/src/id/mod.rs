@@ -59,6 +59,11 @@ impl TryFrom<&str> for Id {
         }
     }
 }
+impl From<Id> for InternedString {
+    fn from(value: Id) -> Self {
+        value.0
+    }
+}
 impl std::ops::Deref for Id {
     type Target = str;
     fn deref(&self) -> &Self::Target {

@@ -5,6 +5,7 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use josekit::jwk::Jwk;
 use openssl::x509::X509;
+use patch_db::json_ptr::ROOT;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
@@ -12,7 +13,7 @@ use sqlx::Connection;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tokio::try_join;
-use torut::onion::OnionAddressV3;
+use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 
 use crate::account::AccountInfo;
@@ -20,6 +21,7 @@ use crate::backup::restore::recover_full_embassy;
 use crate::backup::target::BackupTargetFS;
 use crate::context::setup::SetupResult;
 use crate::context::SetupContext;
+use crate::db::model::Database;
 use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::mount::filesystem::cifs::Cifs;
@@ -74,31 +76,24 @@ async fn setup_init(
     ctx: &SetupContext,
     password: Option<String>,
 ) -> Result<(Hostname, OnionAddressV3, X509), Error> {
-    let InitResult { secret_store, db } = init(&ctx.config).await?;
-    let mut secrets_handle = secret_store.acquire().await?;
-    let mut secrets_tx = secrets_handle.begin().await?;
+    let InitResult { db } = init(&ctx.config).await?;
 
-    let mut account = AccountInfo::load(secrets_tx.as_mut()).await?;
-
-    if let Some(password) = password {
-        account.set_password(&password)?;
-        account.save(secrets_tx.as_mut()).await?;
-        db.mutate(|m| {
+    let account = db
+        .mutate(|m| {
+            let mut account = AccountInfo::load(m)?;
+            if let Some(password) = password {
+                account.set_password(&password)?;
+            }
+            account.save(m)?;
             m.as_public_mut()
                 .as_server_info_mut()
                 .as_password_hash_mut()
-                .ser(&account.password)
+                .ser(&account.password)?;
+            Ok(account)
         })
         .await?;
-    }
 
-    secrets_tx.commit().await?;
-
-    Ok((
-        account.hostname,
-        account.key.tor_address(),
-        account.root_ca_cert,
-    ))
+    Ok((account.hostname, account.tor_address, account.root_ca_cert))
 }
 
 #[derive(Deserialize, Serialize)]
@@ -419,16 +414,10 @@ async fn fresh_setup(
     embassy_password: &str,
 ) -> Result<(Hostname, OnionAddressV3, X509), Error> {
     let account = AccountInfo::new(embassy_password, root_ca_start_time().await?)?;
-    let sqlite_pool = ctx.secret_store().await?;
-    account.save(&sqlite_pool).await?;
-    sqlite_pool.close().await;
-    let InitResult { secret_store, .. } = init(&ctx.config).await?;
-    secret_store.close().await;
-    Ok((
-        account.hostname.clone(),
-        account.key.tor_address(),
-        account.root_ca_cert.clone(),
-    ))
+    let db = ctx.db().await?;
+    db.put(&ROOT, &Database::init(&account)).await?;
+    init(&ctx.config).await?;
+    Ok((account.hostname, account.tor_address, account.root_ca_cert))
 }
 
 #[instrument(skip_all)]

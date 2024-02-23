@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use clap::{ArgMatches, Parser};
 use color_eyre::eyre::eyre;
 use imbl_value::{json, InternedString};
@@ -321,8 +321,8 @@ pub async fn list(
             Ok((
                 row.id,
                 Session {
-                    logged_in: DateTime::from_utc(row.logged_in, Utc),
-                    last_active: DateTime::from_utc(row.last_active, Utc),
+                    logged_in: Utc.from_utc_datetime(&row.logged_in),
+                    last_active: Utc.from_utc_datetime(&row.last_active),
                     user_agent: row.user_agent,
                     metadata: serde_json::from_str(&row.metadata)
                         .with_kind(crate::ErrorKind::Database)?,
@@ -433,14 +433,17 @@ pub async fn reset_password_impl(
         ));
     }
     account.set_password(&new_password)?;
-    account.save(&ctx.secret_store).await?;
     let account_password = &account.password;
+    let account = account.clone();
     ctx.db
         .mutate(|d| {
             d.as_public_mut()
                 .as_server_info_mut()
                 .as_password_hash_mut()
-                .ser(account_password)
+                .ser(account_password)?;
+            account.save(d)?;
+
+            Ok(())
         })
         .await
 }

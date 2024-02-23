@@ -2,6 +2,7 @@ use std::path::Path;
 use std::str::FromStr;
 
 use serde::{Deserialize, Deserializer, Serialize};
+use yasi::InternedString;
 
 use crate::{Id, InvalidId};
 
@@ -16,6 +17,16 @@ impl FromStr for HostId {
 impl From<Id> for HostId {
     fn from(id: Id) -> Self {
         Self(id)
+    }
+}
+impl From<HostId> for Id {
+    fn from(value: HostId) -> Self {
+        value.0
+    }
+}
+impl From<HostId> for InternedString {
+    fn from(value: HostId) -> Self {
+        value.0.into()
     }
 }
 impl std::fmt::Display for HostId {

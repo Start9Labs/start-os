@@ -28,6 +28,12 @@ pub struct Dependencies(pub BTreeMap<PackageId, DepInfo>);
 impl Map for Dependencies {
     type Key = PackageId;
     type Value = DepInfo;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Ok(key)
+    }
+    fn key_string(key: &Self::Key) -> Result<imbl_value::InternedString, Error> {
+        Ok(key.clone().into())
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

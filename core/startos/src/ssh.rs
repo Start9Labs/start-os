@@ -1,28 +1,44 @@
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use chrono::Utc;
 use clap::builder::ValueParserFactory;
 use clap::Parser;
 use color_eyre::eyre::eyre;
+use imbl_value::InternedString;
 use rpc_toolkit::{command, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
+use crate::db::model::DatabaseModel;
+use crate::prelude::*;
 use crate::util::clap::FromStrParser;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
-use crate::{Error, ErrorKind};
 
 static SSH_AUTHORIZED_KEYS_FILE: &str = "/home/start9/.ssh/authorized_keys";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct PubKey(
+pub struct SshKeys(BTreeMap<InternedString, SshPubKey>);
+impl Map for SshKeys {
+    type Key = InternedString;
+    type Value = SshPubKey;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Ok(key)
+    }
+    fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
+        Ok(key.clone())
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct SshPubKey(
     #[serde(serialize_with = "crate::util::serde::serialize_display")]
     #[serde(deserialize_with = "crate::util::serde::deserialize_from_str")]
     openssh_keys::PublicKey,
 );
-impl ValueParserFactory for PubKey {
+impl ValueParserFactory for SshPubKey {
     type Parser = FromStrParser<Self>;
     fn value_parser() -> Self::Parser {
         FromStrParser::new()
@@ -33,7 +49,7 @@ impl ValueParserFactory for PubKey {
 #[serde(rename_all = "kebab-case")]
 pub struct SshKeyResponse {
     pub alg: String,
-    pub fingerprint: String,
+    pub fingerprint: InternedString,
     pub hostname: String,
     pub created_at: String,
 }
@@ -47,10 +63,10 @@ impl std::fmt::Display for SshKeyResponse {
     }
 }
 
-impl std::str::FromStr for PubKey {
+impl std::str::FromStr for SshPubKey {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.parse().map(|pk| PubKey(pk)).map_err(|e| Error {
+        s.parse().map(|pk| SshPubKey(pk)).map_err(|e| Error {
             source: e.into(),
             kind: crate::ErrorKind::ParseSshKey,
             revision: None,
@@ -88,49 +104,33 @@ pub fn ssh() -> ParentHandler {
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct AddParams {
-    key: PubKey,
+    key: SshPubKey,
 }
 
 #[instrument(skip_all)]
 pub async fn add(ctx: RpcContext, AddParams { key }: AddParams) -> Result<SshKeyResponse, Error> {
-    let pool = &ctx.secret_store;
-    // check fingerprint for duplicates
-    let fp = key.0.fingerprint_md5();
-    match sqlx::query!("SELECT * FROM ssh_keys WHERE fingerprint = $1", fp)
-        .fetch_optional(pool)
-        .await?
-    {
-        None => {
-            // if no duplicates, insert into DB
-            let raw_key = format!("{}", key.0);
-            let created_at = Utc::now().to_rfc3339();
-            sqlx::query!(
-                "INSERT INTO ssh_keys (fingerprint, openssh_pubkey, created_at) VALUES ($1, $2, $3)",
-                fp,
-                raw_key,
-                created_at
-            )
-            .execute(pool)
-            .await?;
-            // insert into live key file, for now we actually do a wholesale replacement of the keys file, for maximum
-            // consistency
-            sync_keys_from_db(pool, Path::new(SSH_AUTHORIZED_KEYS_FILE)).await?;
+    let fingerprint = InternedString::intern(key.0.fingerprint_md5());
+    ctx.db
+        .mutate(|m| {
+            m.as_private_mut()
+                .as_ssh_keys_mut()
+                .insert(&fingerprint, &key)?;
+
             Ok(SshKeyResponse {
                 alg: key.0.keytype().to_owned(),
-                fingerprint: fp,
-                hostname: key.0.comment.unwrap_or(String::new()).to_owned(),
+                fingerprint,
+                hostname: key.0.comment.unwrap_or_default(),
                 created_at,
             })
-        }
-        Some(_) => Err(Error::new(eyre!("Duplicate ssh key"), ErrorKind::Duplicate)),
-    }
+        })
+        .await
 }
 
 #[derive(Deserialize, Serialize, Parser)]
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct DeleteParams {
-    fingerprint: String,
+    fingerprint: InternedString,
 }
 
 #[instrument(skip_all)]
@@ -138,25 +138,22 @@ pub async fn delete(
     ctx: RpcContext,
     DeleteParams { fingerprint }: DeleteParams,
 ) -> Result<(), Error> {
-    let pool = &ctx.secret_store;
-    // check if fingerprint is in DB
-    // if in DB, remove it from DB
-    let n = sqlx::query!("DELETE FROM ssh_keys WHERE fingerprint = $1", fingerprint)
-        .execute(pool)
-        .await?
-        .rows_affected();
-    // if not in DB, Err404
-    if n == 0 {
-        Err(Error {
-            source: color_eyre::eyre::eyre!("SSH Key Not Found"),
-            kind: crate::error::ErrorKind::NotFound,
-            revision: None,
+    let keys = ctx
+        .db
+        .mutate(|m| {
+            let keys_ref = m.as_private_mut().as_ssh_keys_mut();
+            if keys_ref.remove(&fingerprint)?.is_some() {
+                keys_ref.de()
+            } else {
+                Err(Error {
+                    source: color_eyre::eyre::eyre!("SSH Key Not Found"),
+                    kind: crate::error::ErrorKind::NotFound,
+                    revision: None,
+                })
+            }
         })
-    } else {
-        // AND overlay key file
-        sync_keys_from_db(pool, Path::new(SSH_AUTHORIZED_KEYS_FILE)).await?;
-        Ok(())
-    }
+        .await?;
+    sync_keys(&keys, SSH_AUTHORIZED_KEYS_FILE).await
 }
 
 fn display_all_ssh_keys(params: WithIoFormat<Empty>, result: Vec<SshKeyResponse>) {
@@ -186,43 +183,31 @@ fn display_all_ssh_keys(params: WithIoFormat<Empty>, result: Vec<SshKeyResponse>
 }
 
 #[instrument(skip_all)]
-pub async fn list(ctx: RpcContext, _: Empty) -> Result<Vec<SshKeyResponse>, Error> {
-    let pool = &ctx.secret_store;
-    // list keys in DB and return them
-    let entries = sqlx::query!("SELECT fingerprint, openssh_pubkey, created_at FROM ssh_keys")
-        .fetch_all(pool)
-        .await?;
-    Ok(entries
+pub async fn list(ctx: RpcContext) -> Result<Vec<SshKeyResponse>, Error> {
+    ctx.db
+        .peek()
+        .await
+        .into_private()
+        .into_ssh_keys()
+        .into_entries()?
         .into_iter()
-        .map(|r| {
-            let k = PubKey(r.openssh_pubkey.parse().unwrap()).0;
-            let alg = k.keytype().to_owned();
-            let fingerprint = k.fingerprint_md5();
-            let hostname = k.comment.unwrap_or("".to_owned());
-            let created_at = r.created_at;
-            SshKeyResponse {
-                alg,
+        .map(|(fingerprint, key)| {
+            let key = key.de()?;
+            Ok(SshKeyResponse {
+                alg: key.0.keytype().to_owned(),
                 fingerprint,
-                hostname,
+                hostname: key.0.comment.unwrap_or_default(),
                 created_at,
-            }
+            })
         })
-        .collect())
+        .collect()
 }
 
 #[instrument(skip_all)]
-pub async fn sync_keys_from_db<P: AsRef<Path>>(
-    pool: &Pool<Postgres>,
-    dest: P,
-) -> Result<(), Error> {
+pub async fn sync_keys<P: AsRef<Path>>(keys: &SshKeys, dest: P) -> Result<(), Error> {
+    use tokio::io::AsyncWriteExt;
+
     let dest = dest.as_ref();
-    let keys = sqlx::query!("SELECT openssh_pubkey FROM ssh_keys")
-        .fetch_all(pool)
-        .await?;
-    let contents: String = keys
-        .into_iter()
-        .map(|k| format!("{}\n", k.openssh_pubkey))
-        .collect();
     let ssh_dir = dest.parent().ok_or_else(|| {
         Error::new(
             eyre!("SSH Key File cannot be \"/\""),
@@ -232,5 +217,10 @@ pub async fn sync_keys_from_db<P: AsRef<Path>>(
     if tokio::fs::metadata(ssh_dir).await.is_err() {
         tokio::fs::create_dir_all(ssh_dir).await?;
     }
-    std::fs::write(dest, contents).map_err(|e| e.into())
+    let mut f = tokio::fs::File::create(dest).await?;
+    for key in keys.0.values() {
+        f.write_all(key.0.to_key_format().as_bytes()).await?;
+        f.write_all(b"\n").await?;
+    }
+    Ok(())
 }

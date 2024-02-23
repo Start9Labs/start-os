@@ -1,15 +1,14 @@
 use std::time::SystemTime;
 
-use ed25519_dalek::SecretKey;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
-use sqlx::PgExecutor;
+use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 
+use crate::db::model::DatabaseModel;
 use crate::hostname::{generate_hostname, generate_id, Hostname};
-use crate::net::keys::Key;
 use crate::net::ssl::{generate_key, make_root_cert};
 use crate::prelude::*;
-use crate::util::crypto::ed25519_expand_key;
+use crate::util::serde::Pem;
 
 fn hash_password(password: &str) -> Result<String, Error> {
     argon2::hash_encoded(
@@ -25,7 +24,7 @@ pub struct AccountInfo {
     pub server_id: String,
     pub hostname: Hostname,
     pub password: String,
-    pub key: Key,
+    pub tor_key: TorSecretKeyV3,
     pub root_ca_key: PKey<Private>,
     pub root_ca_cert: X509,
 }
@@ -33,95 +32,56 @@ impl AccountInfo {
     pub fn new(password: &str, start_time: SystemTime) -> Result<Self, Error> {
         let server_id = generate_id();
         let hostname = generate_hostname();
+        let tor_key = TorSecretKeyV3::generate();
         let root_ca_key = generate_key()?;
         let root_ca_cert = make_root_cert(&root_ca_key, &hostname, start_time)?;
         Ok(Self {
             server_id,
             hostname,
             password: hash_password(password)?,
-            key: Key::new(None),
+            tor_key,
             root_ca_key,
             root_ca_cert,
         })
     }
 
-    pub async fn load(secrets: impl PgExecutor<'_>) -> Result<Self, Error> {
-        let r = sqlx::query!("SELECT * FROM account WHERE id = 0")
-            .fetch_one(secrets)
-            .await?;
-
-        let server_id = r.server_id.unwrap_or_else(generate_id);
-        let hostname = r.hostname.map(Hostname).unwrap_or_else(generate_hostname);
-        let password = r.password;
-        let network_key = SecretKey::try_from(r.network_key).map_err(|e| {
-            Error::new(
-                eyre!("expected vec of len 32, got len {}", e.len()),
-                ErrorKind::ParseDbField,
-            )
-        })?;
-        let tor_key = if let Some(k) = &r.tor_key {
-            <[u8; 64]>::try_from(&k[..]).map_err(|_| {
-                Error::new(
-                    eyre!("expected vec of len 64, got len {}", k.len()),
-                    ErrorKind::ParseDbField,
-                )
-            })?
-        } else {
-            ed25519_expand_key(&network_key)
-        };
-        let key = Key::from_pair(None, network_key, tor_key);
-        let root_ca_key = PKey::private_key_from_pem(r.root_ca_key_pem.as_bytes())?;
-        let root_ca_cert = X509::from_pem(r.root_ca_cert_pem.as_bytes())?;
+    pub fn load(db: &DatabaseModel) -> Result<Self, Error> {
+        let server_id = db.as_public().as_server_info().as_id().de()?;
+        let hostname = Hostname(db.as_public().as_server_info().as_hostname().de()?);
+        let password = db.as_private().as_password().de()?;
+        let tor_key = db.as_private().as_tor_address().de()?;
+        let cert_store = db.as_private().as_key_store().as_local_certs();
+        let root_ca_key = cert_store.as_root_key().de()?.0;
+        let root_ca_cert = cert_store.as_root_cert().de()?.0;
 
         Ok(Self {
             server_id,
             hostname,
             password,
-            key,
+            tor_key,
             root_ca_key,
             root_ca_cert,
         })
     }
 
-    pub async fn save(&self, secrets: impl PgExecutor<'_>) -> Result<(), Error> {
-        let server_id = self.server_id.as_str();
-        let hostname = self.hostname.0.as_str();
-        let password = self.password.as_str();
-        let network_key = self.key.as_bytes();
-        let network_key = network_key.as_slice();
-        let root_ca_key = String::from_utf8(self.root_ca_key.private_key_to_pem_pkcs8()?)?;
-        let root_ca_cert = String::from_utf8(self.root_ca_cert.to_pem()?)?;
-
-        sqlx::query!(
-            r#"
-            INSERT INTO account (
-                id,
-                server_id,
-                hostname,
-                password,
-                network_key,
-                root_ca_key_pem,
-                root_ca_cert_pem
-            ) VALUES (
-                0, $1, $2, $3, $4, $5, $6
-            ) ON CONFLICT (id) DO UPDATE SET
-                server_id = EXCLUDED.server_id,
-                hostname = EXCLUDED.hostname,
-                password = EXCLUDED.password,
-                network_key = EXCLUDED.network_key,
-                root_ca_key_pem = EXCLUDED.root_ca_key_pem,
-                root_ca_cert_pem = EXCLUDED.root_ca_cert_pem
-            "#,
-            server_id,
-            hostname,
-            password,
-            network_key,
-            root_ca_key,
-            root_ca_cert,
-        )
-        .execute(secrets)
-        .await?;
-
+    pub fn save(&self, db: &mut DatabaseModel) -> Result<(), Error> {
+        db.as_public_mut()
+            .as_server_info_mut()
+            .as_id_mut()
+            .ser(&self.server_id)?;
+        db.as_public_mut()
+            .as_server_info_mut()
+            .as_hostname_mut()
+            .ser(&self.hostname.0)?;
+        db.as_private_mut().as_password_mut().ser(&self.password)?;
+        db.as_private_mut().as_tor_key_mut().ser(&self.tor_key)?;
+        let cert_store = db.as_private_mut().as_key_store_mut().as_local_certs_mut();
+        cert_store
+            .as_root_key_mut()
+            .ser(Pem::new_ref(&self.root_ca_key))?;
+        cert_store
+            .as_root_cert_mut()
+            .ser(Pem::new_ref(&self.root_ca_cert))?;
         Ok(())
     }
 

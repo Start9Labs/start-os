@@ -27,6 +27,12 @@ pub struct DependencyConfigErrors(pub BTreeMap<PackageId, String>);
 impl Map for DependencyConfigErrors {
     type Key = PackageId;
     type Value = String;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Ok(key)
+    }
+    fn key_string(key: &Self::Key) -> Result<imbl_value::InternedString, Error> {
+        Ok(key.clone().into())
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]

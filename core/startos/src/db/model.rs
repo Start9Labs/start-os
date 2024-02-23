@@ -14,24 +14,35 @@ use patch_db::{HasModel, Value};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use ssh_key::public::Ed25519PublicKey;
+use torut::onion::TorSecretKeyV3;
 
 use crate::account::AccountInfo;
+use crate::net::keys::KeyStore;
 use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::s9pk::manifest::Manifest;
+use crate::ssh::{SshKeys, SshPubKey};
 use crate::status::Status;
 use crate::util::cpupower::Governor;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::{ARCH, PLATFORM};
 
+fn get_arch() -> InternedString {
+    (*ARCH).into()
+}
+
+fn get_platform() -> InternedString {
+    (&*PLATFORM).into()
+}
+
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct Database {
     pub public: Public,
-    pub private: (), // TODO
+    pub private: Private,
 }
 impl Database {
     pub fn init(account: &AccountInfo) -> Self {
@@ -48,9 +59,7 @@ impl Database {
                     last_wifi_region: None,
                     eos_version_compat: Current::new().compat().clone(),
                     lan_address,
-                    tor_address: format!("https://{}", account.key.tor_address())
-                        .parse()
-                        .unwrap(),
+                    tor_address: format!("https://{}", account.tor_address).parse().unwrap(),
                     ip_info: BTreeMap::new(),
                     status_info: ServerStatus {
                         backup_progress: None,
@@ -93,10 +102,15 @@ impl Database {
                 )))
                 .unwrap(),
             },
-            private: (), // TODO
+            private: Private {
+                key_store: KeyStore::new(account),
+                password: account.password.clone(),
+            }, // TODO
         }
     }
 }
+
+pub type DatabaseModel = Model<Database>;
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
@@ -108,14 +122,15 @@ pub struct Public {
     pub ui: Value,
 }
 
-pub type DatabaseModel = Model<Database>;
-
-fn get_arch() -> InternedString {
-    (*ARCH).into()
-}
-
-fn get_platform() -> InternedString {
-    (&*PLATFORM).into()
+#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
+pub struct Private {
+    pub key_store: KeyStore,
+    pub password: String, // argon2 hash
+    pub ssh_keys: SshKeys,
+    // pub sessions: Sessions,
+    // pub notifications: Notifications
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
@@ -229,6 +244,12 @@ pub struct AllPackageData(pub BTreeMap<PackageId, PackageDataEntry>);
 impl Map for AllPackageData {
     type Key = PackageId;
     type Value = PackageDataEntry;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Ok(key)
+    }
+    fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
+        Ok(key.clone().into())
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
@@ -512,6 +533,12 @@ impl CurrentDependents {
 impl Map for CurrentDependents {
     type Key = PackageId;
     type Value = CurrentDependencyInfo;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Ok(key)
+    }
+    fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
+        Ok(key.clone().into())
+    }
 }
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct CurrentDependencies(pub BTreeMap<PackageId, CurrentDependencyInfo>);
@@ -529,6 +556,12 @@ impl CurrentDependencies {
 impl Map for CurrentDependencies {
     type Key = PackageId;
     type Value = CurrentDependencyInfo;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Ok(key)
+    }
+    fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
+        Ok(key.clone().into())
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
@@ -552,6 +585,12 @@ pub struct InterfaceAddressMap(pub BTreeMap<HostId, InterfaceAddresses>);
 impl Map for InterfaceAddressMap {
     type Key = HostId;
     type Value = InterfaceAddresses;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Ok(key)
+    }
+    fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
+        Ok(key.clone().into())
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]

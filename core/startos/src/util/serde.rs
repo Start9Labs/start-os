@@ -8,6 +8,8 @@ use clap::builder::ValueParserFactory;
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use color_eyre::eyre::eyre;
 use imbl::OrdMap;
+use openssl::pkey::{PKey, Private};
+use openssl::x509::{X509Ref, X509};
 use rpc_toolkit::{AnyContext, Handler, HandlerArgs, HandlerArgsFor, HandlerTypes, PrintCliResult};
 use serde::de::DeserializeOwned;
 use serde::ser::{SerializeMap, SerializeSeq};
@@ -1089,4 +1091,63 @@ pub fn apply_expr(input: jaq_core::Val, expr: &str) -> Result<jaq_core::Val, Err
     }
 
     Ok(res)
+}
+
+pub trait PemEncoding: Sized {
+    fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E>;
+    fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E>;
+}
+
+impl PemEncoding for X509 {
+    fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
+        X509::from_pem(pem.as_bytes()).map_err(E::custom)
+    }
+    fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
+        String::from_utf8((&**self).to_pem().map_err(E::custom)?).map_err(E::custom)
+    }
+}
+
+impl PemEncoding for PKey<Private> {
+    fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
+        PKey::<Private>::private_key_from_pem(pem.as_bytes()).map_err(E::custom)
+    }
+    fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
+        String::from_utf8((&**self).private_key_to_pem_pkcs8().map_err(E::custom)?)
+            .map_err(E::custom)
+    }
+}
+
+pub mod pem {
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    use crate::util::serde::PemEncoding;
+
+    pub fn serialize<T: PemEncoding, S: Serializer>(
+        value: &T,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&value.to_pem()?)
+    }
+
+    pub fn deserialize<'de, T: PemEncoding, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<T, D::Error> {
+        let pem = String::deserialize(deserializer)?;
+        Ok(T::from_pem(&pem)?)
+    }
+}
+
+#[repr(transparent)]
+#[derive(Deserialize, Serialize)]
+pub struct Pem<T: PemEncoding>(#[serde(with = "pem")] pub T);
+impl<T: PemEncoding> Pem<T> {
+    pub fn new(value: T) -> Self {
+        Pem(value)
+    }
+    pub fn new_ref(value: &T) -> &Self {
+        unsafe { std::mem::transmute(value) }
+    }
+    pub fn new_mut(value: &mut T) -> &mut Self {
+        unsafe { std::mem::transmute(value) }
+    }
 }

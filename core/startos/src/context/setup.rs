@@ -81,15 +81,11 @@ impl SetupContext {
         })))
     }
     #[instrument(skip_all)]
-    pub async fn db(&self, account: &AccountInfo) -> Result<PatchDb, Error> {
+    pub async fn db(&self) -> Result<PatchDb, Error> {
         let db_path = self.datadir.join("main").join("embassy.db");
         let db = PatchDb::open(&db_path)
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
-        if !db.exists(&<JsonPointer>::default()).await {
-            db.put(&<JsonPointer>::default(), &Database::init(account))
-                .await?;
-        }
         Ok(db)
     }
     #[instrument(skip_all)]

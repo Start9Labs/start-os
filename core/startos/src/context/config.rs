@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
-use patch_db::json_ptr::JsonPointer;
+use patch_db::json_ptr::{JsonPointer, ROOT};
 use reqwest::Url;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -149,15 +149,12 @@ impl ServerConfig {
             .as_deref()
             .unwrap_or_else(|| Path::new("/embassy-data"))
     }
-    pub async fn db(&self, account: &AccountInfo) -> Result<PatchDb, Error> {
+    pub async fn db(&self) -> Result<PatchDb, Error> {
         let db_path = self.datadir().join("main").join("embassy.db");
         let db = PatchDb::open(&db_path)
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
-        if !db.exists(&<JsonPointer>::default()).await {
-            db.put(&<JsonPointer>::default(), &Database::init(account))
-                .await?;
-        }
+
         Ok(db)
     }
     #[instrument(skip_all)]

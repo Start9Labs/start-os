@@ -4,14 +4,15 @@ use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
 use models::{HostId, PackageId};
+use patch_db::PatchDb;
 use sqlx::PgExecutor;
+use torut::onion::OnionAddressV3;
 use tracing::instrument;
 
 use crate::error::ErrorCollection;
 use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
-use crate::net::keys::Key;
-use crate::net::ssl::{export_cert, export_key, SslManager};
+use crate::net::ssl::{export_cert, export_key};
 use crate::net::tor::TorController;
 use crate::net::vhost::{AlpnInfo, VHostController};
 use crate::volume::cert_dir;
@@ -21,39 +22,39 @@ pub struct NetController {
     pub(super) tor: TorController,
     pub(super) vhost: VHostController,
     pub(super) dns: DnsController,
-    pub(super) ssl: Arc<SslManager>,
     pub(super) os_bindings: Vec<Arc<()>>,
 }
 
 impl NetController {
     #[instrument(skip_all)]
     pub async fn init(
+        db: PatchDb,
         tor_control: SocketAddr,
         tor_socks: SocketAddr,
         dns_bind: &[SocketAddr],
-        ssl: SslManager,
         hostname: &Hostname,
-        os_key: &Key,
+        os_tor_addr: &OnionAddressV3,
     ) -> Result<Self, Error> {
-        let ssl = Arc::new(ssl);
         let mut res = Self {
             tor: TorController::new(tor_control, tor_socks),
-            vhost: VHostController::new(ssl.clone()),
+            vhost: VHostController::new(db),
             dns: DnsController::init(dns_bind).await?,
-            ssl,
             os_bindings: Vec::new(),
         };
-        res.add_os_bindings(hostname, os_key).await?;
+        res.add_os_bindings(hostname, os_tor_addr).await?;
         Ok(res)
     }
 
-    async fn add_os_bindings(&mut self, hostname: &Hostname, key: &Key) -> Result<(), Error> {
+    async fn add_os_bindings(
+        &mut self,
+        hostname: &Hostname,
+        tor_addr: &OnionAddressV3,
+    ) -> Result<(), Error> {
         let alpn = Err(AlpnInfo::Specified(vec!["http/1.1".into(), "h2".into()]));
 
         // Internal DNS
         self.vhost
             .add(
-                key.clone(),
                 Some("embassy".into()),
                 443,
                 ([127, 0, 0, 1], 80).into(),
@@ -66,13 +67,7 @@ impl NetController {
         // LAN IP
         self.os_bindings.push(
             self.vhost
-                .add(
-                    key.clone(),
-                    None,
-                    443,
-                    ([127, 0, 0, 1], 80).into(),
-                    alpn.clone(),
-                )
+                .add(None, 443, ([127, 0, 0, 1], 80).into(), alpn.clone())
                 .await?,
         );
 
@@ -80,7 +75,6 @@ impl NetController {
         self.os_bindings.push(
             self.vhost
                 .add(
-                    key.clone(),
                     Some("localhost".into()),
                     443,
                     ([127, 0, 0, 1], 80).into(),
@@ -91,7 +85,6 @@ impl NetController {
         self.os_bindings.push(
             self.vhost
                 .add(
-                    key.clone(),
                     Some(hostname.no_dot_host_name()),
                     443,
                     ([127, 0, 0, 1], 80).into(),
@@ -104,7 +97,6 @@ impl NetController {
         self.os_bindings.push(
             self.vhost
                 .add(
-                    key.clone(),
                     Some(hostname.local_domain_name()),
                     443,
                     ([127, 0, 0, 1], 80).into(),
@@ -124,7 +116,6 @@ impl NetController {
         self.os_bindings.push(
             self.vhost
                 .add(
-                    key.clone(),
                     Some(key.tor_address().to_string()),
                     443,
                     ([127, 0, 0, 1], 80).into(),
