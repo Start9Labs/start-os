@@ -17,16 +17,18 @@
       [installProgress]="pkg.entry['install-progress']"
       weight="bold"
       size="small"
-      [sigtermTimeout]="manifest.main['sigterm-timeout']"
+      [sigtermTimeout]="sigtermTimeout"
     ></status>
   </ion-label>
   <ion-button
-    *ngIf="manifest.interfaces | hasUi"
+    *ngIf="
+      pkg.entry.installed && (pkg.entry.installed['service-interfaces'] | hasUi)
+    "
     slot="end"
     fill="clear"
     color="primary"
-    (click)="launchUi($event)"
-    [disabled]="!(pkg.entry.state | isLaunchable: status:manifest.interfaces)"
+    (click)="launchUi($event, pkg.entry.installed['service-interfaces'])"
+    [disabled]="!(pkg.entry.state | isLaunchable: pkgMainStatus.status)"
   >
     <ion-icon slot="icon-only" name="open-outline"></ion-icon>
   </ion-button>

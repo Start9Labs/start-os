@@ -3,19 +3,21 @@ import { WINDOW } from '@ng-web-apis/common'
 import { ActivatedRoute } from '@angular/router'
 import { ModalController, ToastController } from '@ionic/angular'
 import { copyToClipboard, getPkgId } from '@start9labs/shared'
-import { getUiInterfaceKey } from 'src/app/services/config.service'
-import {
-  DataModel,
-  InstalledPackageDataEntry,
-  InterfaceDef,
-} from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import { QRComponent } from 'src/app/components/qr/qr.component'
-import { getPackage } from '../../../util/get-package-data'
+import { map } from 'rxjs'
+import {
+  ServiceInterface,
+  ServiceInterfaceWithHostInfo,
+} from '@start9labs/start-sdk/mjs/lib/types'
 
-interface LocalInterface {
-  def: InterfaceDef
-  addresses: InstalledPackageDataEntry['interface-addresses'][string]
+type MappedInterface = ServiceInterface & {
+  addresses: MappedAddress[]
+}
+type MappedAddress = {
+  name: string
+  url: string
 }
 
 @Component({
@@ -24,60 +26,33 @@ interface LocalInterface {
   styleUrls: ['./app-interfaces.page.scss'],
 })
 export class AppInterfacesPage {
-  ui?: LocalInterface
-  other: LocalInterface[] = []
   readonly pkgId = getPkgId(this.route)
+
+  readonly serviceInterfaces$ = this.patch
+    .watch$('package-data', this.pkgId, 'installed', 'service-interfaces')
+    .pipe(
+      map(interfaces => {
+        const sorted = Object.values(interfaces)
+          .sort(iface =>
+            iface.name.toLowerCase() > iface.name.toLowerCase() ? -1 : 1,
+          )
+          .map(iface => ({
+            ...iface,
+            addresses: getAddresses(iface),
+          }))
+
+        return {
+          ui: sorted.filter(val => val.type === 'ui'),
+          api: sorted.filter(val => val.type === 'api'),
+          p2p: sorted.filter(val => val.type === 'p2p'),
+        }
+      }),
+    )
 
   constructor(
     private readonly route: ActivatedRoute,
     private readonly patch: PatchDB<DataModel>,
   ) {}
-
-  async ngOnInit() {
-    const pkg = await getPackage(this.patch, this.pkgId)
-    if (!pkg) return
-
-    const interfaces = pkg.manifest.interfaces
-    const uiKey = getUiInterfaceKey(interfaces)
-
-    if (!pkg.installed) return
-
-    const addressesMap = pkg.installed['interface-addresses']
-
-    if (uiKey) {
-      const uiAddresses = addressesMap[uiKey]
-      this.ui = {
-        def: interfaces[uiKey],
-        addresses: {
-          'lan-address': uiAddresses['lan-address']
-            ? 'https://' + uiAddresses['lan-address']
-            : '',
-          // leave http for services
-          'tor-address': uiAddresses['tor-address']
-            ? 'http://' + uiAddresses['tor-address']
-            : '',
-        },
-      }
-    }
-
-    this.other = Object.keys(interfaces)
-      .filter(key => key !== uiKey)
-      .map(key => {
-        const addresses = addressesMap[key]
-        return {
-          def: interfaces[key],
-          addresses: {
-            'lan-address': addresses['lan-address']
-              ? 'https://' + addresses['lan-address']
-              : '',
-            'tor-address': addresses['tor-address']
-              ? // leave http for services
-                'http://' + addresses['tor-address']
-              : '',
-          },
-        }
-      })
-  }
 }
 
 @Component({
@@ -86,8 +61,7 @@ export class AppInterfacesPage {
   styleUrls: ['./app-interfaces.page.scss'],
 })
 export class AppInterfacesItemComponent {
-  @Input()
-  interface!: LocalInterface
+  @Input() iFace!: MappedInterface
 
   constructor(
     private readonly toastCtrl: ToastController,
@@ -125,4 +99,66 @@ export class AppInterfacesItemComponent {
     })
     await toast.present()
   }
+}
+
+function getAddresses(
+  serviceInterface: ServiceInterfaceWithHostInfo,
+): MappedAddress[] {
+  const host = serviceInterface.hostInfo
+  const addressInfo = serviceInterface.addressInfo
+  const username = addressInfo.username ? addressInfo.username + '@' : ''
+  const suffix = addressInfo.suffix || ''
+
+  const hostnames =
+    host.kind === 'multi'
+      ? host.hostnames
+      : host.hostname
+      ? [host.hostname]
+      : []
+
+  return hostnames
+    .map(h => {
+      const addresses: MappedAddress[] = []
+
+      let name = ''
+      let hostname = ''
+
+      if (h.kind === 'onion') {
+        name = 'Tor'
+        hostname = h.hostname.value
+      } else {
+        name = h.hostname.kind
+        hostname =
+          h.hostname.kind === 'domain'
+            ? `${h.hostname.subdomain}.${h.hostname.domain}`
+            : h.hostname.value
+      }
+
+      if (h.hostname.sslPort) {
+        const port = h.hostname.sslPort === 443 ? '' : `:${h.hostname.sslPort}`
+        const scheme = addressInfo.bindOptions.addSsl?.scheme
+          ? `${addressInfo.bindOptions.addSsl.scheme}://`
+          : ''
+
+        addresses.push({
+          name,
+          url: `${scheme}${username}${hostname}${port}${suffix}`,
+        })
+      }
+
+      if (h.hostname.port) {
+        const port = h.hostname.port === 80 ? '' : `:${h.hostname.port}`
+        const scheme = addressInfo.bindOptions.scheme
+          ? `${addressInfo.bindOptions.scheme}://`
+          : ''
+
+        addresses.push({
+          name,
+          url: `${scheme}${username}${hostname}${port}${suffix}`,
+        })
+      }
+
+      return addresses
+    })
+    .flat()
 }

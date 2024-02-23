@@ -41,8 +41,6 @@ export class ServerShowPage {
   readonly showUpdate$ = this.eosService.showUpdate$
   readonly showDiskRepair$ = this.ClientStorageService.showDiskRepair$
 
-  readonly isTorHttp = this.config.isTorHttp()
-
   constructor(
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
@@ -56,7 +54,6 @@ export class ServerShowPage {
     private readonly ClientStorageService: ClientStorageService,
     private readonly authService: AuthService,
     private readonly toastCtrl: ToastController,
-    private readonly config: ConfigService,
     @Inject(WINDOW) private readonly windowRef: Window,
   ) {}
 
@@ -303,11 +300,6 @@ export class ServerShowPage {
       cssClass: 'alert-warning-message',
     })
     await alert.present()
-  }
-
-  async launchHttps() {
-    const { 'tor-address': torAddress } = await getServerInfo(this.patch)
-    this.windowRef.open(torAddress, '_self')
   }
 
   addClick(title: string) {

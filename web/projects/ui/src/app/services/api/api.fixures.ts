@@ -78,18 +78,6 @@ export module Mock {
       start: 'Starting Bitcoin is good for your health.',
       stop: null,
     },
-    main: {
-      type: 'docker',
-      image: '',
-      system: true,
-      entrypoint: '',
-      args: [],
-      mounts: {},
-      'io-format': DockerIoFormat.Yaml,
-      inject: false,
-      'shm-size': '',
-      'sigterm-timeout': '1ms',
-    },
     'health-checks': {},
     config: {
       get: null,
@@ -97,40 +85,6 @@ export module Mock {
     },
     volumes: {},
     'min-os-version': '0.2.12',
-    interfaces: {
-      ui: {
-        name: 'Node Visualizer',
-        description:
-          'Web application for viewing information about your node and the Bitcoin network.',
-        ui: true,
-        'tor-config': {
-          'port-mapping': {},
-        },
-        'lan-config': {},
-        protocols: [],
-      },
-      rpc: {
-        name: 'RPC',
-        description: 'Used by wallets to interact with your Bitcoin Core node.',
-        ui: false,
-        'tor-config': {
-          'port-mapping': {},
-        },
-        'lan-config': {},
-        protocols: [],
-      },
-      p2p: {
-        name: 'P2P',
-        description:
-          'Used by other Bitcoin nodes to communicate and interact with your node.',
-        ui: false,
-        'tor-config': {
-          'port-mapping': {},
-        },
-        'lan-config': {},
-        protocols: [],
-      },
-    },
     backup: {
       create: {
         type: 'docker',
@@ -382,18 +336,6 @@ export module Mock {
       start: 'Starting LND is good for your health.',
       stop: null,
     },
-    main: {
-      type: 'docker',
-      image: '',
-      system: true,
-      entrypoint: '',
-      args: [],
-      mounts: {},
-      'io-format': DockerIoFormat.Yaml,
-      inject: false,
-      'shm-size': '',
-      'sigterm-timeout': '10000µs',
-    },
     'health-checks': {},
     config: {
       get: null,
@@ -401,38 +343,6 @@ export module Mock {
     },
     volumes: {},
     'min-os-version': '0.2.12',
-    interfaces: {
-      rpc: {
-        name: 'RPC interface',
-        description: 'Good for connecting to your node at a distance.',
-        ui: true,
-        'tor-config': {
-          'port-mapping': {},
-        },
-        'lan-config': {
-          '44': {
-            ssl: true,
-            mapping: 33,
-          },
-        },
-        protocols: [],
-      },
-      grpc: {
-        name: 'GRPC',
-        description: 'Certain wallet use grpc.',
-        ui: false,
-        'tor-config': {
-          'port-mapping': {},
-        },
-        'lan-config': {
-          '66': {
-            ssl: true,
-            mapping: 55,
-          },
-        },
-        protocols: [],
-      },
-    },
     backup: {
       create: {
         type: 'docker',
@@ -535,39 +445,10 @@ export module Mock {
       start: null,
       stop: null,
     },
-    main: {
-      type: 'docker',
-      image: '',
-      system: true,
-      entrypoint: '',
-      args: [''],
-      mounts: {},
-      'io-format': DockerIoFormat.Yaml,
-      inject: false,
-      'shm-size': '',
-      'sigterm-timeout': '1m',
-    },
     'health-checks': {},
     config: { get: {} as any, set: {} as any },
     volumes: {},
     'min-os-version': '0.2.12',
-    interfaces: {
-      rpc: {
-        name: 'RPC interface',
-        description: 'Good for connecting to your node at a distance.',
-        ui: false,
-        'tor-config': {
-          'port-mapping': {},
-        },
-        'lan-config': {
-          44: {
-            ssl: true,
-            mapping: 33,
-          },
-        },
-        protocols: [],
-      },
-    },
     backup: {
       create: {
         type: 'docker',
@@ -1887,18 +1768,219 @@ export module Mock {
         },
         'dependency-config-errors': {},
       },
-      'interface-addresses': {
+      'service-interfaces': {
         ui: {
-          'tor-address': 'bitcoind-ui-address.onion',
-          'lan-address': 'bitcoind-ui-address.local',
+          id: 'ui',
+          hasPrimary: false,
+          disabled: false,
+          masked: false,
+          name: 'Web UI',
+          description:
+            'A launchable web app for you to interact with your Bitcoin node',
+          type: 'ui',
+          addressInfo: {
+            username: null,
+            hostId: 'abcdefg',
+            bindOptions: {
+              scheme: 'http',
+              preferredExternalPort: 80,
+              addSsl: {
+                preferredExternalPort: 443,
+                scheme: 'https',
+              },
+              secure: false,
+              ssl: false,
+            },
+            suffix: '',
+          },
+          hostInfo: {
+            id: 'abcdefg',
+            kind: 'multi',
+            hostnames: [
+              {
+                kind: 'onion',
+                hostname: {
+                  value: 'bitcoin-ui-address.onion',
+                  port: 80,
+                  sslPort: 443,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'local',
+                  value: 'adjective-noun.local',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv4',
+                  value: '192.168.1.5',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv6',
+                  value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+            ],
+          },
         },
         rpc: {
-          'tor-address': 'bitcoind-rpc-address.onion',
-          'lan-address': 'bitcoind-rpc-address.local',
+          id: 'rpc',
+          hasPrimary: false,
+          disabled: false,
+          masked: false,
+          name: 'RPC',
+          description:
+            'Used by dependent services and client wallets for connecting to your node',
+          type: 'api',
+          addressInfo: {
+            username: null,
+            hostId: 'bcdefgh',
+            bindOptions: {
+              scheme: 'http',
+              preferredExternalPort: 80,
+              addSsl: {
+                preferredExternalPort: 443,
+                scheme: 'https',
+              },
+              secure: false,
+              ssl: false,
+            },
+            suffix: '',
+          },
+          hostInfo: {
+            id: 'bcdefgh',
+            kind: 'multi',
+            hostnames: [
+              {
+                kind: 'onion',
+                hostname: {
+                  value: 'bitcoin-rpc-address.onion',
+                  port: 80,
+                  sslPort: 443,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'local',
+                  value: 'adjective-noun.local',
+                  port: null,
+                  sslPort: 2345,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv4',
+                  value: '192.168.1.5',
+                  port: null,
+                  sslPort: 2345,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv6',
+                  value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                  port: null,
+                  sslPort: 2345,
+                },
+              },
+            ],
+          },
         },
         p2p: {
-          'tor-address': 'bitcoind-p2p-address.onion',
-          'lan-address': 'bitcoind-p2p-address.local',
+          id: 'p2p',
+          hasPrimary: true,
+          disabled: false,
+          masked: false,
+          name: 'P2P',
+          description:
+            'Used for connecting to other nodes on the Bitcoin network',
+          type: 'p2p',
+          addressInfo: {
+            username: null,
+            hostId: 'cdefghi',
+            bindOptions: {
+              scheme: 'bitcoin',
+              preferredExternalPort: 8333,
+              addSsl: null,
+              secure: true,
+              ssl: false,
+            },
+            suffix: '',
+          },
+          hostInfo: {
+            id: 'cdefghi',
+            kind: 'multi',
+            hostnames: [
+              {
+                kind: 'onion',
+                hostname: {
+                  value: 'bitcoin-p2p-address.onion',
+                  port: 8333,
+                  sslPort: null,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'local',
+                  value: 'adjective-noun.local',
+                  port: 3456,
+                  sslPort: null,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv4',
+                  value: '192.168.1.5',
+                  port: 3456,
+                  sslPort: null,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv6',
+                  value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                  port: 3456,
+                  sslPort: null,
+                },
+              },
+            ],
+          },
         },
       },
       'system-pointers': [],
@@ -1934,10 +2016,110 @@ export module Mock {
         'dependency-config-errors': {},
       },
       manifest: MockManifestBitcoinProxy,
-      'interface-addresses': {
-        rpc: {
-          'tor-address': 'bitcoinproxy-rpc-address.onion',
-          'lan-address': 'bitcoinproxy-rpc-address.local',
+      'service-interfaces': {
+        ui: {
+          id: 'ui',
+          hasPrimary: false,
+          disabled: false,
+          masked: false,
+          name: 'Web UI',
+          description: 'A launchable web app for Bitcoin Proxy',
+          type: 'ui',
+          addressInfo: {
+            username: null,
+            hostId: 'hijklmnop',
+            bindOptions: {
+              scheme: 'http',
+              preferredExternalPort: 80,
+              addSsl: {
+                preferredExternalPort: 443,
+                scheme: 'https',
+              },
+              secure: true,
+              ssl: true,
+            },
+            suffix: '',
+          },
+          hostInfo: {
+            id: 'hijklmnop',
+            kind: 'multi',
+            hostnames: [
+              {
+                kind: 'onion',
+                hostname: {
+                  value: 'proxy-ui-address.onion',
+                  port: 80,
+                  sslPort: 443,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'local',
+                  value: 'adjective-noun.local',
+                  port: null,
+                  sslPort: 4567,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv4',
+                  value: '192.168.1.5',
+                  port: null,
+                  sslPort: 4567,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv6',
+                  value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                  port: null,
+                  sslPort: 4567,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'wlan0',
+                public: false,
+                hostname: {
+                  kind: 'local',
+                  value: 'adjective-noun.local',
+                  port: null,
+                  sslPort: 4567,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'wlan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv4',
+                  value: '192.168.1.7',
+                  port: null,
+                  sslPort: 4567,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'wlan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv6',
+                  value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                  port: null,
+                  sslPort: 4567,
+                },
+              },
+            ],
+          },
         },
       },
       'system-pointers': [],
@@ -1985,14 +2167,213 @@ export module Mock {
         },
       },
       manifest: MockManifestLnd,
-      'interface-addresses': {
-        rpc: {
-          'tor-address': 'lnd-rpc-address.onion',
-          'lan-address': 'lnd-rpc-address.local',
-        },
+      'service-interfaces': {
         grpc: {
-          'tor-address': 'lnd-grpc-address.onion',
-          'lan-address': 'lnd-grpc-address.local',
+          id: 'grpc',
+          hasPrimary: false,
+          disabled: false,
+          masked: false,
+          name: 'GRPC',
+          description:
+            'Used by dependent services and client wallets for connecting to your node',
+          type: 'api',
+          addressInfo: {
+            username: null,
+            hostId: 'qrstuv',
+            bindOptions: {
+              scheme: 'grpc',
+              preferredExternalPort: 10009,
+              addSsl: null,
+              secure: true,
+              ssl: true,
+            },
+            suffix: '',
+          },
+          hostInfo: {
+            id: 'qrstuv',
+            kind: 'multi',
+            hostnames: [
+              {
+                kind: 'onion',
+                hostname: {
+                  value: 'lnd-grpc-address.onion',
+                  port: 10009,
+                  sslPort: null,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'local',
+                  value: 'adjective-noun.local',
+                  port: 5678,
+                  sslPort: null,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv4',
+                  value: '192.168.1.5',
+                  port: 5678,
+                  sslPort: null,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv6',
+                  value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                  port: 5678,
+                  sslPort: null,
+                },
+              },
+            ],
+          },
+        },
+        lndconnect: {
+          id: 'lndconnect',
+          hasPrimary: false,
+          disabled: false,
+          masked: true,
+          name: 'LND Connect',
+          description:
+            'Used by client wallets adhering to LND Connect protocol to connect to your node',
+          type: 'api',
+          addressInfo: {
+            username: null,
+            hostId: 'qrstuv',
+            bindOptions: {
+              scheme: 'lndconnect',
+              preferredExternalPort: 10009,
+              addSsl: null,
+              secure: true,
+              ssl: true,
+            },
+            suffix: 'cert=askjdfbjadnaskjnd&macaroon=ksjbdfnhjasbndjksand',
+          },
+          hostInfo: {
+            id: 'qrstuv',
+            kind: 'multi',
+            hostnames: [
+              {
+                kind: 'onion',
+                hostname: {
+                  value: 'lnd-grpc-address.onion',
+                  port: 10009,
+                  sslPort: null,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'local',
+                  value: 'adjective-noun.local',
+                  port: 5678,
+                  sslPort: null,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv4',
+                  value: '192.168.1.5',
+                  port: 5678,
+                  sslPort: null,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv6',
+                  value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                  port: 5678,
+                  sslPort: null,
+                },
+              },
+            ],
+          },
+        },
+        p2p: {
+          id: 'p2p',
+          hasPrimary: true,
+          disabled: false,
+          masked: false,
+          name: 'P2P',
+          description:
+            'Used for connecting to other nodes on the Bitcoin network',
+          type: 'p2p',
+          addressInfo: {
+            username: null,
+            hostId: 'rstuvw',
+            bindOptions: {
+              scheme: null,
+              preferredExternalPort: 9735,
+              addSsl: null,
+              secure: true,
+              ssl: true,
+            },
+            suffix: '',
+          },
+          hostInfo: {
+            id: 'rstuvw',
+            kind: 'multi',
+            hostnames: [
+              {
+                kind: 'onion',
+                hostname: {
+                  value: 'lnd-p2p-address.onion',
+                  port: 9735,
+                  sslPort: null,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'local',
+                  value: 'adjective-noun.local',
+                  port: 6789,
+                  sslPort: null,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv4',
+                  value: '192.168.1.5',
+                  port: 6789,
+                  sslPort: null,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'elan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv6',
+                  value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                  port: 6789,
+                  sslPort: null,
+                },
+              },
+            ],
+          },
         },
       },
       'system-pointers': [],
