@@ -1,0 +1,4 @@
+{
+	"name": "start-os",
+	"workspaces": ["sdk"]
+}
