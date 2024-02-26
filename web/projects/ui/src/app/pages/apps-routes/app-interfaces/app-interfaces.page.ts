@@ -116,49 +116,54 @@ function getAddresses(
       ? [host.hostname]
       : []
 
-  return hostnames
-    .map(h => {
-      const addresses: MappedAddress[] = []
+  const addresses: MappedAddress[] = []
 
-      let name = ''
-      let hostname = ''
+  hostnames.forEach(h => {
+    let name = ''
+    let hostname = ''
 
-      if (h.kind === 'onion') {
-        name = 'Tor'
-        hostname = h.hostname.value
+    if (h.kind === 'onion') {
+      name = 'Tor'
+      hostname = h.hostname.value
+    } else {
+      const hostnameKind = h.hostname.kind
+
+      if (hostnameKind === 'domain') {
+        name = 'Domain'
+        hostname = `${h.hostname.subdomain}.${h.hostname.domain}`
       } else {
-        name = h.hostname.kind
-        hostname =
-          h.hostname.kind === 'domain'
-            ? `${h.hostname.subdomain}.${h.hostname.domain}`
-            : h.hostname.value
+        name =
+          hostnameKind === 'local'
+            ? 'Local'
+            : `${h.networkInterfaceId} (${hostnameKind})`
+        hostname = h.hostname.value
       }
+    }
 
-      if (h.hostname.sslPort) {
-        const port = h.hostname.sslPort === 443 ? '' : `:${h.hostname.sslPort}`
-        const scheme = addressInfo.bindOptions.addSsl?.scheme
-          ? `${addressInfo.bindOptions.addSsl.scheme}://`
-          : ''
+    if (h.hostname.sslPort) {
+      const port = h.hostname.sslPort === 443 ? '' : `:${h.hostname.sslPort}`
+      const scheme = addressInfo.bindOptions.addSsl?.scheme
+        ? `${addressInfo.bindOptions.addSsl.scheme}://`
+        : ''
 
-        addresses.push({
-          name,
-          url: `${scheme}${username}${hostname}${port}${suffix}`,
-        })
-      }
+      addresses.push({
+        name: name === 'Tor' ? 'Tor (HTTPS)' : name,
+        url: `${scheme}${username}${hostname}${port}${suffix}`,
+      })
+    }
 
-      if (h.hostname.port) {
-        const port = h.hostname.port === 80 ? '' : `:${h.hostname.port}`
-        const scheme = addressInfo.bindOptions.scheme
-          ? `${addressInfo.bindOptions.scheme}://`
-          : ''
+    if (h.hostname.port) {
+      const port = h.hostname.port === 80 ? '' : `:${h.hostname.port}`
+      const scheme = addressInfo.bindOptions.scheme
+        ? `${addressInfo.bindOptions.scheme}://`
+        : ''
 
-        addresses.push({
-          name,
-          url: `${scheme}${username}${hostname}${port}${suffix}`,
-        })
-      }
+      addresses.push({
+        name: name === 'Tor' ? 'Tor (HTTP)' : name,
+        url: `${scheme}${username}${hostname}${port}${suffix}`,
+      })
+    }
+  })
 
-      return addresses
-    })
-    .flat()
+  return addresses
 }
