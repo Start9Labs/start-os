@@ -1,5 +1,4 @@
 import { Component, Inject } from '@angular/core'
-import { getPlatforms } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { Router } from '@angular/router'
@@ -45,7 +44,8 @@ export class LoginPage {
       }
       await this.api.login({
         password: this.password,
-        metadata: { platforms: getPlatforms() },
+        // TODO: get platforms metadata
+        metadata: { platforms: [] },
       })
 
       this.password = ''

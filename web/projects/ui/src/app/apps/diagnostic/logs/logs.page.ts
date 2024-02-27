@@ -1,94 +1,79 @@
-import { Component, ViewChild } from '@angular/core'
-import { IonContent } from '@ionic/angular'
-import { ErrorService, toLocalIsoString } from '@start9labs/shared'
-import { DiagnosticService } from '../services/diagnostic.service'
-
-const Convert = require('ansi-to-html')
-const convert = new Convert({
-  bg: 'transparent',
-})
+import { Component, ElementRef, inject, OnInit, ViewChild } from '@angular/core'
+import { INTERSECTION_ROOT } from '@ng-web-apis/intersection-observer'
+import { convertAnsi, ErrorService } from '@start9labs/shared'
+import { TuiScrollbarComponent } from '@taiga-ui/core'
+import { DiagnosticService } from 'src/app/apps/diagnostic/services/diagnostic.service'
 
 @Component({
   selector: 'logs',
   templateUrl: './logs.page.html',
+  styles: `
+    :host {
+      max-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      padding: 1rem;
+      gap: 1rem;
+      background: var(--tui-base-01);
+    }
+  `,
+  providers: [
+    {
+      provide: INTERSECTION_ROOT,
+      useExisting: ElementRef,
+    },
+  ],
 })
-export class LogsPage {
-  @ViewChild(IonContent) private content?: IonContent
-  loading = true
-  needInfinite = true
+export class LogsPage implements OnInit {
+  @ViewChild(TuiScrollbarComponent, { read: ElementRef })
+  private readonly scrollbar?: ElementRef<HTMLElement>
+  private readonly api = inject(DiagnosticService)
+  private readonly errorService = inject(ErrorService)
+
   startCursor?: string
-  limit = 200
-  isOnBottom = true
+  loading = false
+  logs: string[] = []
+  scrollTop = 0
 
-  constructor(
-    private readonly api: DiagnosticService,
-    private readonly errorService: ErrorService,
-  ) {}
-
-  async ngOnInit() {
-    await this.getLogs()
-    this.loading = false
+  ngOnInit() {
+    this.getLogs()
   }
 
-  scrollEnd() {
-    const bottomDiv = document.getElementById('bottom-div')
-    this.isOnBottom =
-      !!bottomDiv &&
-      bottomDiv.getBoundingClientRect().top - 420 < window.innerHeight
+  onTop(top: boolean) {
+    if (top) this.getLogs()
   }
 
-  scrollToBottom() {
-    this.content?.scrollToBottom(500)
-  }
+  restoreScroll() {
+    if (this.loading || !this.scrollbar) return
 
-  async doInfinite(e: any): Promise<void> {
-    await this.getLogs()
-    e.target.complete()
+    const scrollbar = this.scrollbar.nativeElement
+    const offset = scrollbar.querySelector('pre')?.clientHeight || 0
+
+    scrollbar.scrollTop = this.scrollTop + offset
   }
 
   private async getLogs() {
+    if (this.loading) return
+
+    this.loading = true
+
     try {
-      const { 'start-cursor': startCursor, entries } = await this.api.getLogs({
+      const response = await this.api.getLogs({
         cursor: this.startCursor,
         before: !!this.startCursor,
-        limit: this.limit,
+        limit: 200,
       })
 
-      if (!entries.length) return
+      if (!response.entries.length) return
 
-      this.startCursor = startCursor
-
-      const container = document.getElementById('container')
-      const newLogs = document.getElementById('template')?.cloneNode(true)
-
-      if (!(newLogs instanceof HTMLElement)) return
-
-      newLogs.innerHTML = entries
-        .map(
-          entry =>
-            `<b>${toLocalIsoString(
-              new Date(entry.timestamp),
-            )}</b> ${convert.toHtml(entry.message)}`,
-        )
-        .join('\n')
-
-      const beforeContainerHeight = container?.scrollHeight || 0
-      container?.prepend(newLogs)
-      const afterContainerHeight = container?.scrollHeight || 0
-
-      // scroll down
-      setTimeout(() => {
-        this.content?.scrollToPoint(
-          0,
-          afterContainerHeight - beforeContainerHeight,
-        )
-      }, 50)
-
-      if (entries.length < this.limit) {
-        this.needInfinite = false
-      }
+      this.startCursor = response['start-cursor']
+      this.logs = [convertAnsi(response.entries), ...this.logs]
+      this.scrollTop = this.scrollbar?.nativeElement.scrollTop || 0
     } catch (e: any) {
       this.errorService.handleError(e)
+    } finally {
+      this.loading = false
     }
   }
 }

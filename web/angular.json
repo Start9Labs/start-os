@@ -27,11 +27,6 @@
                 "output": "assets"
               },
               {
-                "glob": "**/*.svg",
-                "input": "node_modules/ionicons/dist/svg",
-                "output": "./svg"
-              },
-              {
                 "glob": "**/*",
                 "input": "node_modules/monaco-editor",
                 "output": "assets/monaco-editor/"
@@ -46,11 +41,6 @@
                 "glob": "ngsw.json",
                 "input": "dist/raw/ui",
                 "output": "projects/ui/src"
-              },
-              {
-                "glob": "**/*",
-                "input": "node_modules/@taiga-ui/icons/src",
-                "output": "assets/taiga-ui/icons"
               }
             ],
             "styles": [

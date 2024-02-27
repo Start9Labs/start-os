@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core'
-import { NavController } from '@ionic/angular'
+import { Router } from '@angular/router'
 import {
   InitializingComponent,
   provideSetupLogsService,
@@ -13,8 +13,8 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
   template: `
     <app-initializing
       class="ion-page"
-      (finished)="navCtrl.navigateForward('/login')"
-    ></app-initializing>
+      (finished)="router.navigate(['login'])"
+    />
   `,
   providers: [
     provideSetupService(ApiService),
@@ -23,5 +23,5 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
   imports: [InitializingComponent],
 })
 export class LoadingPage {
-  readonly navCtrl = inject(NavController)
+  readonly router = inject(Router)
 }

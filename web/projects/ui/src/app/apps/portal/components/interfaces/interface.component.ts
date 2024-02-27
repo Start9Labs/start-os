@@ -14,7 +14,7 @@ import {
   TuiTitleModule,
 } from '@taiga-ui/experimental'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
-import { QRComponent } from 'src/app/common/qr/qr.component'
+import { QRComponent } from 'src/app/common/qr.component'
 
 @Component({
   standalone: true,

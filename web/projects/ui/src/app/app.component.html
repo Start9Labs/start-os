@@ -1,101 +1,31 @@
-<svg class="definitions" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <filter id="round-corners">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
-      <feColorMatrix
-        in="blur"
-        type="matrix"
-        values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -9"
-        result="flt_tag"
-      />
-      <feComposite in="SourceGraphic" in2="flt_tag" operator="atop" />
-    </filter>
-  </defs>
-</svg>
-<tui-root
-  *ngIf="widgetDrawer$ | async as drawer"
-  tuiTheme="night"
-  [tuiMode]="(theme$ | async) === 'Dark' ? 'onDark' : null"
-  [style.--widgets-width.px]="drawer.open ? drawer.width : 0"
->
-  <ion-app appEnter>
+<svg-definitions />
+<!--TODO: Theme-->
+<tui-root tuiTheme="night" tuiMode="onDark">
+  <ion-app>
     <ion-content>
-      <ion-split-pane
-        contentId="main-content"
-        [disabled]="!(navigation$ | async)"
-        (ionSplitPaneVisible)="splitPaneVisible($event)"
+      <ion-router-outlet
+        id="main-content"
+        class="container"
+        [class.container_offline]="offline$ | async"
       >
-        <ion-menu
-          *ngIf="navigation$ | async"
-          contentId="main-content"
-          type="overlay"
-          side="start"
-          class="left-menu"
-        >
-          <ion-content color="light" scrollY="false" class="menu">
-            <app-menu *ngIf="authService.isVerified$ | async" />
-          </ion-content>
-        </ion-menu>
-
-        <ion-menu
-          contentId="main-content"
-          type="overlay"
-          side="end"
-          class="right-menu container"
-          [class.container_offline]="offline$ | async"
-          [class.right-menu_hidden]="!drawer.open"
-          [style.--side-width.px]="drawer.width"
-        >
-          <div class="divider">
-            <button
-              class="widgets-button"
-              [class.widgets-button_collapse]="drawer.width === 600"
-              (click)="onResize(drawer)"
-            ></button>
-          </div>
-        </ion-menu>
-
-        <ion-router-outlet
-          id="main-content"
-          class="container"
-          [class.container_offline]="offline$ | async"
-        >
-          <ion-content
-            class="ion-padding with-widgets"
-            style="pointer-events: none; opacity: 0"
-          ></ion-content>
-        </ion-router-outlet>
-      </ion-split-pane>
-
-      <section appPreloader></section>
+        <ion-content
+          class="ion-padding with-widgets"
+          style="pointer-events: none; opacity: 0"
+        ></ion-content>
+      </ion-router-outlet>
     </ion-content>
-    <ion-footer>
-      <footer appFooter></footer>
-    </ion-footer>
-    <ion-footer
-      *ngIf="
-        (navigation$ | async) &&
-        (authService.isVerified$ | async) &&
-        !(sidebarOpen$ | async)
-      "
-    >
-      <connection-bar />
-    </ion-footer>
-    <toast-container />
   </ion-app>
+  <toast-container />
   <sidebar-host ngProjectAs="tuiOverContent" />
 </tui-root>
-<ng-container
-  *ngIf="authService.isVerified$ | async; else defaultTheme"
-  [ngSwitch]="theme$ | async"
->
-  <ng-container *ngSwitchCase="'Dark'">
-    <tui-theme-night />
-    <dark-theme />
-  </ng-container>
-  <light-theme *ngSwitchCase="'Light'" />
-</ng-container>
-<ng-template #defaultTheme>
+
+<!--TODO: Theme-->
+@if (auth.isVerified$ | async) {
+  @switch (theme$ | async) {
+    @case ('Dark') {
+      <tui-theme-night />
+    }
+  }
+} @else {
   <tui-theme-night />
-  <dark-theme />
-</ng-template>
+}

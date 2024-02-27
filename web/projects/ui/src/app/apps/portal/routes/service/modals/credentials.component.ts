@@ -1,26 +1,25 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { ErrorService, SharedPipesModule } from '@start9labs/shared'
-import { TuiForModule } from '@taiga-ui/cdk'
+import { ErrorService } from '@start9labs/shared'
+import { TuiLoaderModule } from '@taiga-ui/core'
 import { TuiButtonModule } from '@taiga-ui/experimental'
 import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
 import { BehaviorSubject } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { SkeletonListComponentModule } from 'src/app/common/skeleton-list/skeleton-list.component.module'
 import { ServiceCredentialComponent } from '../components/credential.component'
 
 @Component({
   template: `
-    <skeleton-list *ngIf="loading$ | async; else loaded"></skeleton-list>
-    <ng-template #loaded>
-      <service-credential
-        *ngFor="let cred of credentials | keyvalue : asIsOrder; empty: blank"
-        [label]="cred.key"
-        [value]="cred.value"
-      ></service-credential>
-    </ng-template>
-    <ng-template #blank>No credentials</ng-template>
-    <button tuiButton icon="tuiIconRefreshCwLarge" (click)="refresh()">
+    @if (loading$ | async) {
+      <tui-loader />
+    } @else {
+      @for (cred of credentials | keyvalue: asIsOrder; track cred) {
+        <service-credential [label]="cred.key" [value]="cred.value" />
+      } @empty {
+        No credentials
+      }
+    }
+    <button tuiButton iconLeft="tuiIconRefreshCwLarge" (click)="refresh()">
       Refresh
     </button>
   `,
@@ -36,11 +35,9 @@ import { ServiceCredentialComponent } from '../components/credential.component'
   standalone: true,
   imports: [
     CommonModule,
-    TuiForModule,
     TuiButtonModule,
-    SharedPipesModule,
-    SkeletonListComponentModule,
     ServiceCredentialComponent,
+    TuiLoaderModule,
   ],
 })
 export class ServiceCredentialsModal {

@@ -1,11 +1,12 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { InstallProgress } from '../../services/patch-db/data-model'
-import { packageLoadingProgress } from '../../util/package-loading-progress'
+import { InstallProgress } from 'src/app/services/patch-db/data-model'
+import { packageLoadingProgress } from 'src/app/util/package-loading-progress'
 
 @Pipe({
-  name: 'installProgressDisplay',
+  standalone: true,
+  name: 'installProgress',
 })
-export class InstallProgressDisplayPipe implements PipeTransform {
+export class InstallProgressPipe implements PipeTransform {
   transform(installProgress?: InstallProgress): string {
     const totalProgress =
       packageLoadingProgress(installProgress)?.totalProgress || 0

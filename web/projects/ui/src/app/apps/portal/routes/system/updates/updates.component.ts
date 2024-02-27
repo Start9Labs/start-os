@@ -4,7 +4,7 @@ import {
   AbstractMarketplaceService,
   StoreIconComponentModule,
 } from '@start9labs/marketplace'
-import { TuiForModule } from '@taiga-ui/cdk'
+import { TuiAvatarModule, TuiCellModule } from '@taiga-ui/experimental'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest } from 'rxjs'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
@@ -12,66 +12,64 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ConfigService } from 'src/app/services/config.service'
 import { FilterUpdatesPipe } from './pipes/filter-updates.pipe'
 import { UpdatesItemComponent } from './components/item.component'
-import { SkeletonListComponent } from '../../../components/skeleton-list.component'
 
 @Component({
   template: `
-    <ng-container *ngIf="data$ | async as data">
-      <section *ngFor="let host of data.hosts">
+    @if (data$ | async; as data) {
+      @for (host of data.hosts; track host) {
         <h3 class="g-title">
-          <store-icon
-            [url]="host.url"
-            [marketplace]="config.marketplace"
-            size="26px"
-          ></store-icon>
+          <store-icon [url]="host.url" [marketplace]="mp" size="26px" />
           {{ host.name }}
         </h3>
-        <p
-          *ngIf="data.errors.includes(host.url)"
-          [style.color]="'var(--tui-negative)'"
-        >
-          Request Failed
-        </p>
-        <updates-item
-          *ngFor="
-            let pkg of data.mp[host.url]?.packages | filterUpdates: data.local;
-            else: loading;
-            empty: blank
-          "
-          [marketplacePkg]="pkg"
-          [localPkg]="data.local[pkg.manifest.id]"
-          [url]="host.url"
-        ></updates-item>
-      </section>
-    </ng-container>
-    <ng-template #blank><p>All services are up to date!</p></ng-template>
-    <ng-template #loading>
-      <skeleton-list [showAvatar]="true"></skeleton-list>
-    </ng-template>
+        @if (data.errors.includes(host.url)) {
+          <p class="g-error">Request Failed</p>
+        }
+        @if (data.mp[host.url]?.packages | filterUpdates: data.local; as pkgs) {
+          @for (pkg of pkgs; track pkg) {
+            <updates-item
+              [marketplacePkg]="pkg"
+              [localPkg]="data.local[pkg.manifest.id]"
+              [url]="host.url"
+            />
+          } @empty {
+            <p>All services are up to date!</p>
+          }
+        } @else {
+          @for (i of [0, 1, 2]; track i) {
+            <section tuiCell>
+              <tui-avatar class="tui-skeleton" />
+              <span class="tui-skeleton">Loading update item</span>
+              <span class="tui-skeleton" [style.margin-left]="'auto'">
+                Loading actions
+              </span>
+            </section>
+          }
+        }
+      }
+    }
   `,
   host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [
     CommonModule,
-    TuiForModule,
+    TuiCellModule,
+    TuiAvatarModule,
     StoreIconComponentModule,
     FilterUpdatesPipe,
     UpdatesItemComponent,
-    SkeletonListComponent,
   ],
 })
 export default class UpdatesComponent {
-  private readonly marketplace = inject(
+  private readonly service = inject(
     AbstractMarketplaceService,
   ) as MarketplaceService
 
-  readonly config = inject(ConfigService)
-
+  readonly mp = inject(ConfigService).marketplace
   readonly data$ = combineLatest({
-    hosts: this.marketplace.getKnownHosts$(true),
-    mp: this.marketplace.getMarketplace$(),
+    hosts: this.service.getKnownHosts$(true),
+    mp: this.service.getMarketplace$(),
     local: inject(PatchDB<DataModel>).watch$('package-data'),
-    errors: this.marketplace.getRequestErrors$(),
+    errors: this.service.getRequestErrors$(),
   })
 }

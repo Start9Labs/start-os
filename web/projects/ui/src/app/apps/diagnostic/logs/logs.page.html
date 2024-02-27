@@ -1,57 +1,23 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-back-button defaultHref="/"></ion-back-button>
-    </ion-buttons>
-    <ion-title>Logs</ion-title>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content
-  [scrollEvents]="true"
-  (ionScrollEnd)="scrollEnd()"
-  class="ion-padding"
+<a
+  routerLink="../"
+  tuiButton
+  iconLeft="tuiIconChevronLeft"
+  appearance="icon"
+  [style.align-self]="'flex-start'"
 >
-  <ion-infinite-scroll
-    id="scroller"
-    *ngIf="!loading && needInfinite"
-    position="top"
-    threshold="0"
-    (ionInfinite)="doInfinite($event)"
+  Back
+</a>
+<tui-scrollbar childList subtree (waMutationObserver)="restoreScroll()">
+  <section
+    class="top"
+    waIntersectionObserver
+    (waIntersectionObservee)="onTop($event[0].isIntersecting)"
   >
-    <ion-infinite-scroll-content
-      loadingSpinner="lines"
-    ></ion-infinite-scroll-content>
-  </ion-infinite-scroll>
-
-  <div id="container">
-    <div id="template" style="white-space: pre-line"></div>
-  </div>
-
-  <div id="bottom-div"></div>
-
-  <div
-    [ngStyle]="{
-      'position': 'fixed',
-      'bottom': '50px',
-      'right': isOnBottom ? '-52px' : '30px',
-      'border-radius': '100%',
-      'transition': 'right 0.25s ease-out'
-    }"
-  >
-    <ion-button
-      style="
-        width: 50px;
-        height: 50px;
-        --padding-start: 0px;
-        --padding-end: 0px;
-        --border-radius: 100%;
-      "
-      color="dark"
-      (click)="scrollToBottom()"
-      strong
-    >
-      <ion-icon name="chevron-down"></ion-icon>
-    </ion-button>
-  </div>
-</ion-content>
+    @if (loading) {
+    <tui-loader textContent="Loading logs" />
+    }
+  </section>
+  @for (log of logs; track log) {
+  <pre [innerHTML]="log | dompurify"></pre>
+  }
+</tui-scrollbar>
