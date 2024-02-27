@@ -7,7 +7,7 @@ import {
 } from '@angular/core'
 import { InstallProgress } from 'src/app/services/patch-db/data-model'
 import { StatusRendering } from 'src/app/services/pkg-status-rendering.service'
-import { InstallProgressPipeModule } from 'src/app/common/install-progress/install-progress.module'
+import { InstallProgressPipe } from '../pipes/install-progress.pipe'
 
 @Component({
   selector: 'service-status',
@@ -18,7 +18,7 @@ import { InstallProgressPipeModule } from 'src/app/common/install-progress/insta
       <span *ngIf="rendering.showDots" class="loading-dots"></span>
     </strong>
     <ng-template #installing>
-      <strong *ngIf="installProgress | installProgressDisplay as progress">
+      <strong *ngIf="installProgress | installProgress as progress">
         Installing
         <span class="loading-dots"></span>
         {{ progress }}
@@ -36,7 +36,7 @@ import { InstallProgressPipeModule } from 'src/app/common/install-progress/insta
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, InstallProgressPipeModule],
+  imports: [CommonModule, InstallProgressPipe],
 })
 export class ServiceStatusComponent {
   @Input({ required: true })

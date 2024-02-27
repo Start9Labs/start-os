@@ -18,7 +18,7 @@ import {
 import { Subject } from 'rxjs'
 import { HeaderMenuComponent } from './menu.component'
 import { HeaderNotificationsComponent } from './notifications.component'
-import { SidebarDirective } from '../../../../app/sidebar-host.component'
+import { SidebarDirective } from 'src/app/common/sidebar-host.component'
 import { NotificationService } from '../../services/notification.service'
 
 @Component({

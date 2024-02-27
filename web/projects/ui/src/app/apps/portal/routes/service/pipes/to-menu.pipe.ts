@@ -56,11 +56,12 @@ export class ToMenuPipe implements PipeTransform {
         name: 'Credentials',
         description: `Password, keys, or other credentials of interest`,
         action: () =>
-          this.showDialog(
-            `${manifest.title} credentials`,
-            manifest.id,
-            ServiceCredentialsModal,
-          ),
+          this.dialogs
+            .open(new PolymorpheusComponent(ServiceCredentialsModal), {
+              label: `${manifest.title} credentials`,
+              data: manifest.id,
+            })
+            .subscribe(),
       },
       {
         icon: 'tuiIconZapLarge',
@@ -112,16 +113,6 @@ export class ToMenuPipe implements PipeTransform {
             ),
           ),
         },
-      })
-      .subscribe()
-  }
-
-  private showDialog(label: string, data: any, modal: Type<any>) {
-    this.dialogs
-      .open(new PolymorpheusComponent(modal), {
-        size: 'l',
-        label,
-        data,
       })
       .subscribe()
   }

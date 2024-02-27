@@ -1,8 +1,0 @@
-<ng-template
-  [tuiAlert]="!!(visible$ | async)"
-  [tuiAlertOptions]="{ label: 'StartOS' }"
-  (tuiAlertChange)="onDismiss()"
->
-  New notifications
-  <a routerLink="/notifications" [queryParams]="{ toast: true }">View</a>
-</ng-template>

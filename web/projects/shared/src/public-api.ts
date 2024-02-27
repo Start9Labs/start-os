@@ -18,8 +18,6 @@ export * from './components/drive.component'
 
 export * from './directives/drag-scroller.directive'
 export * from './directives/safe-links.directive'
-export * from './directives/enter/enter.directive'
-export * from './directives/enter/enter.module'
 
 export * from './mocks/get-setup-status'
 
@@ -41,11 +39,6 @@ export * from './services/error.service'
 export * from './services/http.service'
 export * from './services/setup.service'
 export * from './services/setup-logs.service'
-
-export * from './themes/dark-theme/dark-theme.component'
-export * from './themes/dark-theme/dark-theme.module'
-export * from './themes/light-theme/light-theme.component'
-export * from './themes/light-theme/light-theme.module'
 
 export * from './types/api'
 export * from './types/constructor'

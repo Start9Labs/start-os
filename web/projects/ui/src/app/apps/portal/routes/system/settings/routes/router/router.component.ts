@@ -3,8 +3,8 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { TuiTextfieldControllerModule } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { PrimaryIpPipeModule } from 'src/app/common/primary-ip/primary-ip.module'
 import { RouterInfoComponent } from './info.component'
+import { PrimaryIpPipe } from './primary-ip.pipe'
 import { RouterPortComponent } from './table.component'
 
 @Component({
@@ -58,10 +58,10 @@ import { RouterPortComponent } from './table.component'
   standalone: true,
   imports: [
     CommonModule,
-    PrimaryIpPipeModule,
     RouterInfoComponent,
     RouterPortComponent,
     TuiTextfieldControllerModule,
+    PrimaryIpPipe,
   ],
 })
 export class SettingsRouterComponent {
