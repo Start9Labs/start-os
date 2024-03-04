@@ -389,7 +389,7 @@ impl Service {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct RunningStatus {
     health: OrdMap<HealthCheckId, HealthCheckResult>,
     started: DateTime<Utc>,
@@ -406,7 +406,32 @@ pub(self) struct ServiceActorSeed {
     synchronized: Arc<Notify>,
 }
 
+impl ServiceActorSeed {
+    pub fn started(&self) {
+        self.persistent_container
+            .current_state
+            .send_replace(StartStop::Start);
+        self.persistent_container
+            .running_status
+            .send_modify(|running_status| {
+                *running_status =
+                    Some(
+                        std::mem::take(running_status).unwrap_or_else(|| RunningStatus {
+                            health: Default::default(),
+                            started: Utc::now(),
+                        }),
+                    );
+            })
+    }
+    pub fn stopped(&self) {
+        self.persistent_container
+            .current_state
+            .send_replace(StartStop::Stop);
+        self.persistent_container.running_status.send_replace(None);
+    }
+}
 struct ServiceActor(Arc<ServiceActorSeed>);
+
 impl Actor for ServiceActor {
     fn init(&mut self, jobs: &mut BackgroundJobs) {
         let seed = self.0.clone();
@@ -418,7 +443,7 @@ impl Actor for ServiceActor {
             let mut transition = seed.transition_state.subscribe();
             let mut running = seed.running_status.clone();
             loop {
-                let (desired_state, current_state, transition_kind, running_status) = (
+                let (desired_state, current_state, transition_kind, running_status) = dbg!(
                     temp_desired.borrow().unwrap_or(*desired.borrow()),
                     *current.borrow(),
                     transition.borrow().as_ref().map(|t| t.kind()),
@@ -464,10 +489,8 @@ impl Actor for ServiceActor {
                                             timeout: todo!("sigterm timeout"),
                                         }
                                     }
-                                    (None, StartStop::Start, StartStop::Stop, _) => {
-                                        MainStatus::Starting
-                                    }
-                                    (None, StartStop::Start, StartStop::Start, None) => {
+                                    (None, StartStop::Start, StartStop::Stop, _)
+                                    | (None, StartStop::Start, StartStop::Start, None) => {
                                         MainStatus::Starting
                                     }
                                     (None, StartStop::Start, StartStop::Start, Some(status)) => {

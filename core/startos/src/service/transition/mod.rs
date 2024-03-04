@@ -51,7 +51,7 @@ impl Drop for TransitionState {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct TempDesiredState(pub(super) Arc<watch::Sender<Option<StartStop>>>);
 impl TempDesiredState {
     pub fn stop(&self) {

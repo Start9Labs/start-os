@@ -1,9 +1,10 @@
-use std::ffi::OsString;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
+use std::{ffi::OsString, time::Instant};
 
+use chrono::Utc;
 use clap::builder::{TypedValueParser, ValueParserFactory};
 use clap::Parser;
 use imbl_value::json;
@@ -12,7 +13,6 @@ use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
 use tokio::process::Command;
 
-use crate::db::model::ExposedUI;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
@@ -25,6 +25,7 @@ use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::clap::FromStrParser;
 use crate::util::{new_guid, Invoke};
+use crate::{db::model::ExposedUI, service::RunningStatus};
 use crate::{echo, ARCH};
 
 #[derive(Clone)]
@@ -487,6 +488,7 @@ async fn stopped(context: EffectContext, params: ParamsMaybePackageId) -> Result
     Ok(json!(matches!(package, MainStatus::Stopped)))
 }
 async fn running(context: EffectContext, params: ParamsMaybePackageId) -> Result<Value, Error> {
+    dbg!("Starting the running {params:?}");
     let context = context.deref()?;
     let peeked = context.ctx.db.peek().await;
     let package_id = params.package_id.unwrap_or_else(|| context.id.clone());
@@ -586,14 +588,12 @@ struct SetMainStatus {
     status: Status,
 }
 async fn set_main_status(context: EffectContext, params: SetMainStatus) -> Result<Value, Error> {
+    dbg!(format!("Status for main will be is {params:?}"));
     let context = context.deref()?;
-    context
-        .persistent_container
-        .current_state
-        .send_replace(match params.status {
-            Status::Running => StartStop::Start,
-            Status::Stopped => StartStop::Stop,
-        });
+    match params.status {
+        Status::Running => context.started(),
+        Status::Stopped => context.stopped(),
+    }
     Ok(Value::Null)
 }
 
