@@ -398,11 +398,17 @@ struct RunningStatus {
 pub(self) struct ServiceActorSeed {
     ctx: RpcContext,
     id: PackageId,
+    // Needed to interact with the container for the service
     persistent_container: PersistentContainer,
+    // Setting this value causes the service actor to try to bring the service to the specified state. This is done in the background job created in ServiceActor::init
     desired_state: watch::Sender<StartStop>,
+    // Override the current desired state for the service during a transition (this is protected by a guard that sets this value to null on drop)
     temp_desired_state: TempDesiredState,
+    // This represents a currently running task that affects the service's shown state, such as BackingUp or Restarting.
     transition_state: Arc<watch::Sender<Option<TransitionState>>>,
+    // This contains the start time and health check information for when the service is running. Note: Will be overwritting to the db,
     running_status: watch::Receiver<Option<RunningStatus>>,
+    // This is notified every time the background job created in ServiceActor::init responds to a change
     synchronized: Arc<Notify>,
 }
 
