@@ -78,7 +78,6 @@ export interface ServerInfo {
   pubkey: string
   'ca-fingerprint': string
   'ntp-synced': boolean
-  zram: boolean
   platform: string
 }
 
