@@ -110,9 +110,19 @@ export class HostSystemStartOs implements Effects {
       T.Effects["clearServiceInterfaces"]
     >
   }
-  createOverlayedImage(options: { imageId: string }): Promise<string> {
+  createOverlayedImage(options: {
+    imageId: string
+  }): Promise<[string, string]> {
     return this.rpcRound("createOverlayedImage", options) as ReturnType<
       T.Effects["createOverlayedImage"]
+    >
+  }
+  destroyOverlayedImage(options: {
+    imageId: string
+    guid: string
+  }): Promise<void> {
+    return this.rpcRound("destroyOverlayedImage", options) as ReturnType<
+      T.Effects["destroyOverlayedImage"]
     >
   }
   executeAction(...[options]: Parameters<T.Effects["executeAction"]>) {

@@ -254,11 +254,21 @@ export const createUtils = <
         })
       })
 
+      const pid = childProcess.pid
       return {
-        wait() {
-          return answer
+        async wait() {
+          const pids = pid ? await psTree(pid, overlay) : []
+          try {
+            return await answer
+          } finally {
+            for (const process of pids) {
+              overlay.exec(["kill", `-9`, String(process)])
+            }
+          }
         },
         async term({ signal = SIGTERM, timeout = NO_TIMEOUT } = {}) {
+          const pids = pid ? await psTree(pid, overlay) : []
+          console.error("Bluj killing pid ", pids)
           try {
             childProcess.kill(signal)
 
@@ -269,12 +279,25 @@ export const createUtils = <
                 ),
                 answer.then(() => false),
               ])
-              if (didTimeout) childProcess.kill(SIGKILL)
-              return
+              if (didTimeout) {
+                childProcess.kill(SIGKILL)
+              }
+            } else {
+              await answer
             }
-            await answer
           } finally {
             await overlay.destroy()
+          }
+
+          console.error("Bluj actually killing pid ", pids)
+          try {
+            for (const process of pids) {
+              await overlay.exec(["kill", `-${signal}`, String(process)])
+            }
+          } finally {
+            for (const process of pids) {
+              overlay.exec(["kill", `-9`, String(process)])
+            }
           }
         },
       }
@@ -294,3 +317,11 @@ export const createUtils = <
   }
 }
 function noop(): void {}
+
+async function psTree(pid: number, overlay: Overlay): Promise<number[]> {
+  const { stdout } = await overlay.exec(["pstree", `-p`, String(pid)])
+  const regex: RegExp = /\((\d+)\)/g
+  return [...stdout.toString().matchAll(regex)].map(([_all, pid]) =>
+    parseInt(pid),
+  )
+}
