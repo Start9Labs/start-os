@@ -47,6 +47,7 @@ const childProcess = {
   exec: promisify(CP.exec),
   execFile: promisify(CP.execFile),
 }
+const cp = childProcess
 
 export type ServiceInterfaceType = "ui" | "p2p" | "api"
 
@@ -262,7 +263,7 @@ export const createUtils = <
             return await answer
           } finally {
             for (const process of pids) {
-              overlay.exec(["kill", `-9`, String(process)])
+              cp.execFile("kill", [`-9`, String(process)]).catch((_) => {})
             }
           }
         },
@@ -292,11 +293,11 @@ export const createUtils = <
           console.error("Bluj actually killing pid ", pids)
           try {
             for (const process of pids) {
-              await overlay.exec(["kill", `-${signal}`, String(process)])
+              await cp.execFile("kill", [`-${signal}`, String(process)])
             }
           } finally {
             for (const process of pids) {
-              overlay.exec(["kill", `-9`, String(process)])
+              cp.execFile("kill", [`-9`, String(process)]).catch((_) => {})
             }
           }
         },
@@ -319,7 +320,7 @@ export const createUtils = <
 function noop(): void {}
 
 async function psTree(pid: number, overlay: Overlay): Promise<number[]> {
-  const { stdout } = await overlay.exec(["pstree", `-p`, String(pid)])
+  const { stdout } = await childProcess.exec(`pstree -p ${pid}`)
   const regex: RegExp = /\((\d+)\)/g
   return [...stdout.toString().matchAll(regex)].map(([_all, pid]) =>
     parseInt(pid),
