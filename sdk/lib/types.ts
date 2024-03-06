@@ -276,7 +276,13 @@ export type Effects = {
   }): Promise<unknown>
 
   /** A low level api used by makeOverlay */
-  createOverlayedImage(options: { imageId: string }): Promise<string>
+  createOverlayedImage(options: { imageId: string }): Promise<[string, string]>
+
+  /** A low level api used by destroyOverlay + makeOverlay:destroy */
+  destroyOverlayedImage(options: {
+    imageId: string
+    guid: string
+  }): Promise<void>
 
   /** Removes all network bindings */
   clearBindings(): Promise<void>

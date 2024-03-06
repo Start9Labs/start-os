@@ -47,6 +47,7 @@ const childProcess = {
   exec: promisify(CP.exec),
   execFile: promisify(CP.execFile),
 }
+const cp = childProcess
 
 export type ServiceInterfaceType = "ui" | "p2p" | "api"
 
@@ -246,7 +247,7 @@ export const createUtils = <
           console.error(data.toString())
         })
 
-        childProcess.on("close", (code: any) => {
+        childProcess.on("exit", (code: any) => {
           if (code === 0) {
             return resolve(null)
           }
@@ -254,26 +255,50 @@ export const createUtils = <
         })
       })
 
+      const pid = childProcess.pid
       return {
-        wait() {
-          return answer
+        async wait() {
+          const pids = pid ? await psTree(pid, overlay) : []
+          try {
+            return await answer
+          } finally {
+            for (const process of pids) {
+              cp.execFile("kill", [`-9`, String(process)]).catch((_) => {})
+            }
+          }
         },
         async term({ signal = SIGTERM, timeout = NO_TIMEOUT } = {}) {
+          const pids = pid ? await psTree(pid, overlay) : []
+          console.error("Bluj killing pid ", pids)
           try {
             childProcess.kill(signal)
 
-            if (timeout <= NO_TIMEOUT) {
+            if (timeout > NO_TIMEOUT) {
               const didTimeout = await Promise.race([
                 new Promise((resolve) => setTimeout(resolve, timeout)).then(
                   () => true,
                 ),
                 answer.then(() => false),
               ])
-              if (didTimeout) childProcess.kill(SIGKILL)
+              if (didTimeout) {
+                childProcess.kill(SIGKILL)
+              }
+            } else {
+              await answer
             }
-            await answer
           } finally {
             await overlay.destroy()
+          }
+
+          console.error("Bluj actually killing pid ", pids)
+          try {
+            for (const process of pids) {
+              await cp.execFile("kill", [`-${signal}`, String(process)])
+            }
+          } finally {
+            for (const process of pids) {
+              cp.execFile("kill", [`-9`, String(process)]).catch((_) => {})
+            }
           }
         },
       }
@@ -293,3 +318,11 @@ export const createUtils = <
   }
 }
 function noop(): void {}
+
+async function psTree(pid: number, overlay: Overlay): Promise<number[]> {
+  const { stdout } = await childProcess.exec(`pstree -p ${pid}`)
+  const regex: RegExp = /\((\d+)\)/g
+  return [...stdout.toString().matchAll(regex)].map(([_all, pid]) =>
+    parseInt(pid),
+  )
+}

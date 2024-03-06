@@ -1,18 +1,18 @@
-use std::ffi::OsString;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
+use std::{ffi::OsString, time::Instant};
 
+use chrono::Utc;
 use clap::builder::{TypedValueParser, ValueParserFactory};
 use clap::Parser;
-use imbl_value::json;
+use imbl_value::{json, InternedString};
 use models::{ActionId, HealthCheckId, ImageId, PackageId};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
 use tokio::process::Command;
 
-use crate::db::model::ExposedUI;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
@@ -25,6 +25,7 @@ use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::clap::FromStrParser;
 use crate::util::{new_guid, Invoke};
+use crate::{db::model::ExposedUI, service::RunningStatus};
 use crate::{echo, ARCH};
 
 #[derive(Clone)]
@@ -110,10 +111,14 @@ pub fn service_effect_handler() -> ParentHandler {
         .subcommand(
             "createOverlayedImage",
             from_fn_async(create_overlayed_image)
-                .with_custom_display_fn::<AnyContext, _>(|_, path| {
+                .with_custom_display_fn::<AnyContext, _>(|_, (path, _)| {
                     Ok(println!("{}", path.display()))
                 })
                 .with_remote_cli::<ContainerCliContext>(),
+        )
+        .subcommand(
+            "destroyOverlayedImage",
+            from_fn_async(destroy_overlayed_image).no_cli(),
         )
         .subcommand(
             "getSslCertificate",
@@ -487,6 +492,7 @@ async fn stopped(context: EffectContext, params: ParamsMaybePackageId) -> Result
     Ok(json!(matches!(package, MainStatus::Stopped)))
 }
 async fn running(context: EffectContext, params: ParamsMaybePackageId) -> Result<Value, Error> {
+    dbg!("Starting the running {params:?}");
     let context = context.deref()?;
     let peeked = context.ctx.db.peek().await;
     let package_id = params.package_id.unwrap_or_else(|| context.id.clone());
@@ -586,14 +592,12 @@ struct SetMainStatus {
     status: Status,
 }
 async fn set_main_status(context: EffectContext, params: SetMainStatus) -> Result<Value, Error> {
+    dbg!(format!("Status for main will be is {params:?}"));
     let context = context.deref()?;
-    context
-        .persistent_container
-        .current_state
-        .send_replace(match params.status {
-            Status::Running => StartStop::Start,
-            Status::Stopped => StartStop::Stop,
-        });
+    match params.status {
+        Status::Running => context.started(),
+        Status::Stopped => context.stopped(),
+    }
     Ok(Value::Null)
 }
 
@@ -668,7 +672,32 @@ async fn set_health(context: EffectContext, params: SetHealth) -> Result<Value, 
         .await?;
     Ok(json!(()))
 }
+#[derive(serde::Deserialize, serde::Serialize, Parser)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "camelCase")]
+pub struct DestroyOverlayedImageParams {
+    image_id: ImageId,
+    guid: InternedString,
+}
 
+#[instrument(skip_all)]
+pub async fn destroy_overlayed_image(
+    ctx: EffectContext,
+    DestroyOverlayedImageParams { image_id, guid }: DestroyOverlayedImageParams,
+) -> Result<(), Error> {
+    let ctx = ctx.deref()?;
+    if ctx
+        .persistent_container
+        .overlays
+        .lock()
+        .await
+        .remove(&guid)
+        .is_none()
+    {
+        tracing::warn!("Could not find a guard to remove on the destroy overlayed image; assumming that it already is removed and will be skipping");
+    }
+    Ok(())
+}
 #[derive(serde::Deserialize, serde::Serialize, Parser)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "camelCase")]
@@ -680,10 +709,10 @@ pub struct CreateOverlayedImageParams {
 pub async fn create_overlayed_image(
     ctx: EffectContext,
     CreateOverlayedImageParams { image_id }: CreateOverlayedImageParams,
-) -> Result<PathBuf, Error> {
+) -> Result<(PathBuf, InternedString), Error> {
     let ctx = ctx.deref()?;
     let path = Path::new("images")
-        .join(&*ARCH)
+        .join(*ARCH)
         .join(&image_id)
         .with_extension("squashfs");
     if let Some(image) = ctx
@@ -730,7 +759,7 @@ pub async fn create_overlayed_image(
             .lock()
             .await
             .insert(guid.clone(), guard);
-        Ok(container_mountpoint)
+        Ok((container_mountpoint, guid))
     } else {
         Err(Error::new(
             eyre!("image {image_id} not found in s9pk"),

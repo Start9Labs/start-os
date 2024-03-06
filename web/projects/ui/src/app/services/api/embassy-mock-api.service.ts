@@ -919,8 +919,10 @@ export class MockApiService extends ApiService {
       const patch2 = [
         {
           op: PatchOp.REPLACE,
-          path: path + '/status',
-          value: PackageMainStatus.Stopped,
+          path: path,
+          value: {
+            status: PackageMainStatus.Stopped,
+          },
         },
       ]
       this.mockRevision(patch2)
@@ -929,13 +931,11 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: path + '/status',
-        value: PackageMainStatus.Stopping,
-      },
-      {
-        op: PatchOp.REPLACE,
-        path: path + '/health',
-        value: {},
+        path: path,
+        value: {
+          status: PackageMainStatus.Stopping,
+          timeout: '35s',
+        },
       },
     ]
 

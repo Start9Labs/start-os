@@ -86,10 +86,11 @@ export class MainLoop {
 
   public async clean(options?: { timeout?: number }) {
     const { mainEvent, healthLoops, propertiesEvent } = this
+    const main = await mainEvent
     delete this.mainEvent
     delete this.healthLoops
     delete this.propertiesEvent
-    if (mainEvent) await (await mainEvent).daemon.term()
+    if (mainEvent) await main?.daemon.term()
     clearInterval(propertiesEvent)
     if (healthLoops) healthLoops.forEach((x) => clearInterval(x.interval))
   }

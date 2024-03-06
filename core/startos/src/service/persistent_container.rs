@@ -16,6 +16,7 @@ use tokio::sync::{oneshot, watch, Mutex, OnceCell};
 use tracing::instrument;
 
 use super::service_effect_handler::{service_effect_handler, EffectContext};
+use super::transition::{TransitionKind, TransitionState};
 use super::ServiceActorSeed;
 use crate::context::RpcContext;
 use crate::disk::mount::filesystem::bind::Bind;
@@ -40,6 +41,43 @@ const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
 struct ProcedureId(u64);
 
+#[derive(Debug)]
+pub struct ServiceState {
+    // This contains the start time and health check information for when the service is running. Note: Will be overwritting to the db,
+    pub(super) running_status: Option<RunningStatus>,
+    /// Setting this value causes the service actor to try to bring the service to the specified state. This is done in the background job created in ServiceActor::init
+    pub(super) desired_state: StartStop,
+    /// Override the current desired state for the service during a transition (this is protected by a guard that sets this value to null on drop)
+    pub(super) temp_desired_state: Option<StartStop>,
+    /// This represents a currently running task that affects the service's shown state, such as BackingUp or Restarting.
+    pub(super) transition_state: Option<TransitionState>,
+}
+
+#[derive(Debug)]
+pub struct ServiceStateKinds {
+    pub transition_state: Option<TransitionKind>,
+    pub running_status: Option<RunningStatus>,
+    pub desired_state: StartStop,
+}
+
+impl ServiceState {
+    pub fn new(desired_state: StartStop) -> Self {
+        Self {
+            running_status: Default::default(),
+            temp_desired_state: Default::default(),
+            transition_state: Default::default(),
+            desired_state,
+        }
+    }
+    pub fn kinds(&self) -> ServiceStateKinds {
+        ServiceStateKinds {
+            transition_state: self.transition_state.as_ref().map(|x| x.kind()),
+            desired_state: self.temp_desired_state.unwrap_or(self.desired_state),
+            running_status: self.running_status.clone(),
+        }
+    }
+}
+
 // @DRB On top of this we need to also have  the procedures to have the effects and get the results back for them, maybe lock them to the running instance?
 /// This contains the LXC container running the javascript init system
 /// that can be used via a JSON RPC Client connected to a unix domain
@@ -54,21 +92,13 @@ pub struct PersistentContainer {
     volumes: BTreeMap<VolumeId, MountGuard>,
     assets: BTreeMap<VolumeId, MountGuard>,
     pub(super) overlays: Arc<Mutex<BTreeMap<InternedString, OverlayGuard>>>,
-    pub(super) current_state: watch::Sender<StartStop>,
-    // pub(super) desired_state: watch::Receiver<StartStop>,
-    // pub(super) temp_desired_state: watch::Receiver<Option<StartStop>>,
-    pub(super) running_status: watch::Sender<Option<RunningStatus>>,
+    pub(super) state: Arc<watch::Sender<ServiceState>>,
     pub(super) net_service: Mutex<NetService>,
 }
 
 impl PersistentContainer {
     #[instrument(skip_all)]
-    pub async fn new(
-        ctx: &RpcContext,
-        s9pk: S9pk,
-        // desired_state: watch::Receiver<StartStop>,
-        // temp_desired_state: watch::Receiver<Option<StartStop>>,
-    ) -> Result<Self, Error> {
+    pub async fn new(ctx: &RpcContext, s9pk: S9pk, start: StartStop) -> Result<Self, Error> {
         let lxc_container = ctx.lxc_manager.create(LxcConfig::default()).await?;
         let rpc_client = lxc_container.connect_rpc(Some(RPC_CONNECT_TIMEOUT)).await?;
         let js_mount = MountGuard::mount(
@@ -162,10 +192,7 @@ impl PersistentContainer {
             volumes,
             assets,
             overlays: Arc::new(Mutex::new(BTreeMap::new())),
-            current_state: watch::channel(StartStop::Stop).0,
-            // desired_state,
-            // temp_desired_state,
-            running_status: watch::channel(None).0,
+            state: Arc::new(watch::channel(ServiceState::new(start)).0),
             net_service: Mutex::new(net_service),
         })
     }
@@ -287,10 +314,11 @@ impl PersistentContainer {
     }
 
     #[instrument(skip_all)]
-    pub async fn stop(&self, timeout: Option<Duration>) -> Result<(), Error> {
-        self.execute(ProcedureName::StopMain, Value::Null, timeout)
+    pub async fn stop(&self) -> Result<Duration, Error> {
+        let timeout: Option<crate::util::serde::Duration> = self
+            .execute(ProcedureName::StopMain, Value::Null, None)
             .await?;
-        Ok(())
+        Ok(timeout.map(|a| *a).unwrap_or(Duration::from_secs(30)))
     }
 
     #[instrument(skip_all)]

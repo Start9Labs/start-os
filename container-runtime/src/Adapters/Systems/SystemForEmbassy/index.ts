@@ -2,6 +2,7 @@ import { types as T, util, EmVer } from "@start9labs/start-sdk"
 import * as fs from "fs/promises"
 
 import { PolyfillEffects } from "./polyfillEffects"
+import { Duration, duration } from "../../../Models/Duration"
 import { ExecuteResult, System } from "../../../Interfaces/System"
 import { matchManifest, Manifest, Procedure } from "./matchManifest"
 import { create } from "domain"
@@ -202,7 +203,7 @@ export class SystemForEmbassy implements System {
   private async mainStop(
     effects: HostSystemStartOs,
     options?: { timeout?: number },
-  ): Promise<void> {
+  ): Promise<Duration> {
     const { currentRunning } = this
     delete this.currentRunning
     if (currentRunning) {
@@ -210,6 +211,7 @@ export class SystemForEmbassy implements System {
         timeout: options?.timeout || this.manifest.main["sigterm-timeout"],
       })
     }
+    return duration(this.manifest.main["sigterm-timeout"], "s")
   }
   private async createBackup(effects: HostSystemStartOs): Promise<void> {
     const backup = this.manifest.backup.create
@@ -826,9 +828,11 @@ export class SystemForEmbassy implements System {
 }
 async function removePointers(value: T.ConfigRes): Promise<T.ConfigRes> {
   const startingSpec = structuredClone(value.spec)
+  const config =
+    value.config && cleanConfigFromPointers(value.config, startingSpec)
   const spec = cleanSpecOfPointers(startingSpec)
 
-  return { ...value, spec }
+  return { config, spec }
 }
 
 const matchPointer = object({
@@ -870,6 +874,44 @@ function cleanSpecOfPointers<T>(mutSpec: T): T {
   }
 
   return mutSpec
+}
+function isKeyOf<O extends object>(
+  key: string,
+  ofObject: O,
+): key is keyof O & string {
+  return key in ofObject
+}
+
+// prettier-ignore
+type CleanConfigFromPointers<C, S> = 
+  [C, S] extends [object, object] ? {
+    [K in (keyof C & keyof S ) & string]: (
+      S[K] extends {type: "pointer"} ? never :
+      S[K] extends {spec: object & infer B} ? CleanConfigFromPointers<C[K], B> :
+      C[K]
+    )
+  } :
+  null
+
+function cleanConfigFromPointers<C, S>(
+  config: C,
+  spec: S,
+): CleanConfigFromPointers<C, S> {
+  const newConfig = {} as CleanConfigFromPointers<C, S>
+
+  if (!(object.test(config) && object.test(spec)) || newConfig == null)
+    return null as CleanConfigFromPointers<C, S>
+
+  for (const key of Object.keys(spec)) {
+    if (!isKeyOf(key, spec)) continue
+    if (!isKeyOf(key, config)) continue
+    const partSpec = spec[key]
+    if (matchPointer.test(partSpec)) continue
+    ;(newConfig as any)[key] = matchSpec.test(partSpec)
+      ? cleanConfigFromPointers(config[key], partSpec.spec)
+      : config[key]
+  }
+  return newConfig as CleanConfigFromPointers<C, S>
 }
 
 async function updateConfig(

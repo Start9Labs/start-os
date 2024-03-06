@@ -2,6 +2,7 @@ import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { Url } from '@start9labs/shared'
 import { MarketplaceManifest } from '@start9labs/marketplace'
 import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-info'
+import { ServiceInterfaceWithHostInfo } from '@start9labs/start-sdk/mjs/lib/types'
 
 export interface DataModel {
   'server-info': ServerInfo
@@ -139,9 +140,7 @@ export interface InstalledPackageDataEntry {
       icon: Url
     }
   }
-  'interface-addresses': {
-    [id: string]: { 'tor-address': string; 'lan-address': string }
-  }
+  'service-interfaces': Record<string, ServiceInterfaceWithHostInfo>
   'marketplace-url': string | null
   'developer-key': string
 }
@@ -160,7 +159,6 @@ export interface Manifest extends MarketplaceManifest<DependencyConfig | null> {
     assets: string // path to assets folder
     scripts: string // path to scripts folder
   }
-  main: ActionImpl
   'health-checks': Record<
     string,
     ActionImpl & { name: string; 'success-message': string | null }
@@ -168,7 +166,6 @@ export interface Manifest extends MarketplaceManifest<DependencyConfig | null> {
   config: ConfigActions | null
   volumes: Record<string, Volume>
   'min-os-version': string
-  interfaces: Record<string, InterfaceDef>
   backup: BackupActions
   migrations: Migrations | null
   actions: Record<string, Action>
@@ -241,15 +238,6 @@ export enum VolumeType {
   Backup = 'backup',
 }
 
-export interface InterfaceDef {
-  name: string
-  description: string
-  'tor-config': TorConfig | null
-  'lan-config': LanConfig | null
-  ui: boolean
-  protocols: string[]
-}
-
 export interface TorConfig {
   'port-mapping': { [port: number]: number }
 }
@@ -297,6 +285,7 @@ export interface MainStatusStopped {
 
 export interface MainStatusStopping {
   status: PackageMainStatus.Stopping
+  timeout: string
 }
 
 export interface MainStatusStarting {

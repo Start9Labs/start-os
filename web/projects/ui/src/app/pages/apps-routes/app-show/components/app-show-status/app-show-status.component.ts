@@ -6,8 +6,9 @@ import {
   PrimaryStatus,
 } from 'src/app/services/pkg-status-rendering.service'
 import {
-  InterfaceDef,
+  InstalledPackageDataEntry,
   PackageDataEntry,
+  PackageMainStatus,
   PackageState,
   Status,
 } from 'src/app/services/patch-db/data-model'
@@ -45,8 +46,10 @@ export class AppShowStatusComponent {
     private readonly connectionService: ConnectionService,
   ) {}
 
-  get interfaces(): Record<string, InterfaceDef> {
-    return this.pkg.manifest.interfaces || {}
+  get interfaces():
+    | InstalledPackageDataEntry['service-interfaces']
+    | undefined {
+    return this.pkg.installed?.['service-interfaces']
   }
 
   get pkgStatus(): Status | null {
@@ -73,8 +76,14 @@ export class AppShowStatusComponent {
     return this.status.primary === PrimaryStatus.Stopped
   }
 
-  launchUi(): void {
-    this.launcherService.launch(this.pkg)
+  get sigtermTimeout(): string | null {
+    return this.pkgStatus?.main.status === PackageMainStatus.Stopping
+      ? this.pkgStatus.main.timeout
+      : null
+  }
+
+  launchUi(interfaces: InstalledPackageDataEntry['service-interfaces']): void {
+    this.launcherService.launch(interfaces)
   }
 
   async presentModalConfig(): Promise<void> {

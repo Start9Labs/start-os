@@ -9,7 +9,9 @@ struct Start;
 impl Handler<Start> for ServiceActor {
     type Response = ();
     async fn handle(&mut self, _: Start, _: &mut BackgroundJobs) -> Self::Response {
-        self.0.desired_state.send_replace(StartStop::Start);
+        self.0.persistent_container.state.send_modify(|x| {
+            x.desired_state = StartStop::Start;
+        });
         self.0.synchronized.notified().await
     }
 }
@@ -24,16 +26,15 @@ struct Stop;
 impl Handler<Stop> for ServiceActor {
     type Response = ();
     async fn handle(&mut self, _: Stop, _: &mut BackgroundJobs) -> Self::Response {
-        self.0.desired_state.send_replace(StartStop::Stop);
-        if self.0.transition_state.borrow().as_ref().map(|t| t.kind())
-            == Some(TransitionKind::Restarting)
-        {
-            if let Some(restart) = self.0.transition_state.send_replace(None) {
-                restart.abort().await;
-            } else {
-                #[cfg(feature = "unstable")]
-                unreachable!()
+        let mut transition_state = None;
+        self.0.persistent_container.state.send_modify(|x| {
+            x.desired_state = StartStop::Stop;
+            if x.transition_state.as_ref().map(|x| x.kind()) == Some(TransitionKind::Restarting) {
+                transition_state = std::mem::take(&mut x.transition_state);
             }
+        });
+        if let Some(restart) = transition_state {
+            restart.abort().await;
         }
         self.0.synchronized.notified().await
     }
