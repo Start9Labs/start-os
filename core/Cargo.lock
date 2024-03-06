@@ -2093,6 +2093,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "id-pool"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8d0df4d8a768821ee4aa2e0353f67125c4586f0e13adbf95b8ebbf8d8fdb344"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "ident_case"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4627,6 +4636,7 @@ dependencies = [
  "hex",
  "hmac",
  "http 1.0.0",
+ "id-pool",
  "imbl",
  "imbl-value",
  "include_dir",

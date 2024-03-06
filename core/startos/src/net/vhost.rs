@@ -7,6 +7,7 @@ use color_eyre::eyre::eyre;
 use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
 use models::ResultExt;
+use serde::{Deserialize, Serialize};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Mutex, RwLock};
 use tokio_rustls::rustls::pki_types::{
@@ -19,6 +20,7 @@ use tracing::instrument;
 
 use crate::prelude::*;
 use crate::util::io::{BackTrackingReader, TimeoutStream};
+use crate::util::serde::MaybeUtf8String;
 
 // not allowed: <=1024, >=32768, 5355, 5432, 9050, 6010, 9051, 5353
 
@@ -78,10 +80,16 @@ struct TargetInfo {
     connect_ssl: Result<(), AlpnInfo>,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum AlpnInfo {
     Reflect,
-    Specified(Vec<Vec<u8>>),
+    Specified(Vec<MaybeUtf8String>),
+}
+impl Default for AlpnInfo {
+    fn default() -> Self {
+        Self::Reflect
+    }
 }
 
 struct VHostServer {
@@ -315,7 +323,7 @@ impl VHostServer {
                                                 .await
                                             }
                                             Err(AlpnInfo::Specified(alpn)) => {
-                                                cfg.alpn_protocols = alpn;
+                                                cfg.alpn_protocols = alpn.into_iter().map(|a| a.0).collect();
                                                 let mut tls_stream =
                                                     match mid.into_stream(Arc::new(cfg)).await {
                                                         Ok(a) => a,

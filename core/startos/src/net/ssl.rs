@@ -27,7 +27,7 @@ use crate::prelude::*;
 use crate::util::serde::Pem;
 use crate::SOURCE_DATE;
 
-#[derive(Deserialize, Serialize, HasModel)]
+#[derive(Debug, Deserialize, Serialize, HasModel)]
 #[model = "Model<Self>"]
 #[serde(rename_all = "kebab-case")]
 pub struct CertStore {
@@ -88,8 +88,8 @@ impl Model<CertStore> {
                     == Ordering::Greater
             {
                 return Ok(FullchainCertData {
-                    root: self.as_root_cert().de()?,
-                    int: self.as_int_cert().de()?,
+                    root: self.as_root_cert().de()?.0,
+                    int: self.as_int_cert().de()?.0,
                     leaf: cert_data,
                 });
             }
@@ -120,8 +120,8 @@ impl Model<CertStore> {
         self.as_leaves_mut()
             .insert(JsonKey::new_ref(hostnames), &cert_data)?;
         Ok(FullchainCertData {
-            root: self.as_root_cert().de()?,
-            int: self.as_int_cert().de()?,
+            root: self.as_root_cert().de()?.0,
+            int: self.as_int_cert().de()?.0,
             leaf: cert_data,
         })
     }

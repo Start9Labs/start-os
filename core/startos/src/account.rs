@@ -49,7 +49,7 @@ impl AccountInfo {
         let server_id = db.as_public().as_server_info().as_id().de()?;
         let hostname = Hostname(db.as_public().as_server_info().as_hostname().de()?);
         let password = db.as_private().as_password().de()?;
-        let tor_key = db.as_private().as_tor_address().de()?;
+        let tor_key = db.as_private().as_tor_key().de()?;
         let cert_store = db.as_private().as_key_store().as_local_certs();
         let root_ca_key = cert_store.as_root_key().de()?.0;
         let root_ca_cert = cert_store.as_root_cert().de()?.0;

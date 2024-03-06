@@ -1138,7 +1138,7 @@ pub mod pem {
 }
 
 #[repr(transparent)]
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Pem<T: PemEncoding>(#[serde(with = "pem")] pub T);
 impl<T: PemEncoding> Pem<T> {
     pub fn new(value: T) -> Self {
@@ -1149,5 +1149,83 @@ impl<T: PemEncoding> Pem<T> {
     }
     pub fn new_mut(value: &mut T) -> &mut Self {
         unsafe { std::mem::transmute(value) }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct MaybeUtf8String(pub Vec<u8>);
+impl std::fmt::Debug for MaybeUtf8String {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Ok(s) = std::str::from_utf8(&self.0) {
+            s.fmt(f)
+        } else {
+            self.0.fmt(f)
+        }
+    }
+}
+impl<'de> Deserialize<'de> for MaybeUtf8String {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct Visitor;
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = Vec<u8>;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(formatter, "a string or byte array")
+            }
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(v.as_bytes().to_owned())
+            }
+            fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(v.into_bytes())
+            }
+            fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(v.to_owned())
+            }
+            fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(v)
+            }
+            fn visit_unit<E>(self) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Vec::new())
+            }
+            fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                std::iter::repeat_with(|| seq.next_element::<u8>().transpose())
+                    .take_while(|a| a.is_some())
+                    .flatten()
+                    .collect::<Result<Vec<u8>, _>>()
+            }
+        }
+        deserializer.deserialize_any(Visitor).map(Self)
+    }
+}
+impl Serialize for MaybeUtf8String {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if let Ok(s) = std::str::from_utf8(&self.0) {
+            serializer.serialize_str(s)
+        } else {
+            serializer.serialize_bytes(&self.0)
+        }
     }
 }

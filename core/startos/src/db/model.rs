@@ -17,6 +17,8 @@ use ssh_key::public::Ed25519PublicKey;
 use torut::onion::TorSecretKeyV3;
 
 use crate::account::AccountInfo;
+use crate::net::forward::AvailablePorts;
+use crate::net::host::HostInfo;
 use crate::net::keys::KeyStore;
 use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::prelude::*;
@@ -45,9 +47,9 @@ pub struct Database {
     pub private: Private,
 }
 impl Database {
-    pub fn init(account: &AccountInfo) -> Self {
+    pub fn init(account: &AccountInfo) -> Result<Self, Error> {
         let lan_address = account.hostname.lan_address().parse().unwrap();
-        Database {
+        Ok(Database {
             public: Public {
                 server_info: ServerInfo {
                     arch: get_arch(),
@@ -103,10 +105,12 @@ impl Database {
                 .unwrap(),
             },
             private: Private {
-                key_store: KeyStore::new(account),
+                key_store: KeyStore::new(account)?,
                 password: account.password.clone(),
+                ssh_keys: SshKeys::new(),
+                available_ports: AvailablePorts::new(),
             }, // TODO
-        }
+        })
     }
 }
 
@@ -129,6 +133,7 @@ pub struct Private {
     pub key_store: KeyStore,
     pub password: String, // argon2 hash
     pub ssh_keys: SshKeys,
+    pub available_ports: AvailablePorts,
     // pub sessions: Sessions,
     // pub notifications: Notifications
 }
@@ -492,6 +497,7 @@ pub struct InstalledPackageInfo {
     pub current_dependents: CurrentDependents,
     pub current_dependencies: CurrentDependencies,
     pub interface_addresses: InterfaceAddressMap,
+    pub hosts: HostInfo,
     pub store: Value,
     pub store_exposed_ui: Vec<ExposedUI>,
     pub store_exposed_dependents: Vec<JsonPointer>,

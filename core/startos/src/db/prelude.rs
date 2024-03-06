@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::marker::PhantomData;
 use std::panic::UnwindSafe;
 
+use chrono::{DateTime, Utc};
 pub use imbl_value::Value;
 use patch_db::json_ptr::ROOT;
 use patch_db::value::InternedString;
@@ -116,6 +117,12 @@ impl<T: Serialize + DeserializeOwned> Model<T> {
         let orig = self.de()?;
         self.ser(value)?;
         Ok(orig)
+    }
+    pub fn mutate<U>(&mut self, f: impl FnOnce(&mut T) -> Result<U, Error>) -> Result<U, Error> {
+        let mut orig = self.de()?;
+        let res = f(&mut orig)?;
+        self.ser(&orig)?;
+        Ok(res)
     }
 }
 impl<T> Clone for Model<T> {
@@ -249,6 +256,33 @@ where
             .into()),
         }
     }
+    pub fn upsert<F, D>(&mut self, key: &T::Key, value: F) -> Result<&mut Model<T::Value>, Error>
+    where
+        F: FnOnce() -> D,
+        D: AsRef<T::Value>,
+    {
+        use serde::ser::Error;
+        match &mut self.value {
+            Value::Object(o) => {
+                use patch_db::ModelExt;
+                let s = T::key_str(key)?;
+                let exists = o.contains_key(s.as_ref());
+                let res = self.transmute_mut(|v| {
+                    use patch_db::value::index::Index;
+                    s.as_ref().index_or_insert(v)
+                });
+                if !exists {
+                    res.ser(value().as_ref())?;
+                }
+                Ok(res)
+            }
+            v => Err(patch_db::value::Error {
+                source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),
+                kind: patch_db::value::ErrorKind::Serialization,
+            }
+            .into()),
+        }
+    }
     pub fn insert_model(&mut self, key: &T::Key, value: Model<T::Value>) -> Result<(), Error> {
         use patch_db::ModelExt;
         use serde::ser::Error;
@@ -273,7 +307,6 @@ where
 {
     pub fn keys(&self) -> Result<Vec<T::Key>, Error> {
         use serde::de::Error;
-        use serde::Deserialize;
         match &self.value {
             Value::Object(o) => o
                 .keys()
@@ -300,7 +333,6 @@ where
     pub fn into_entries(self) -> Result<Vec<(T::Key, Model<T::Value>)>, Error> {
         use patch_db::ModelExt;
         use serde::de::Error;
-        use serde::Deserialize;
         match self.value {
             Value::Object(o) => o
                 .into_iter()
@@ -324,7 +356,6 @@ where
     pub fn as_entries(&self) -> Result<Vec<(T::Key, &Model<T::Value>)>, Error> {
         use patch_db::ModelExt;
         use serde::de::Error;
-        use serde::Deserialize;
         match &self.value {
             Value::Object(o) => o
                 .iter()
@@ -348,7 +379,6 @@ where
     pub fn as_entries_mut(&mut self) -> Result<Vec<(T::Key, &mut Model<T::Value>)>, Error> {
         use patch_db::ModelExt;
         use serde::de::Error;
-        use serde::Deserialize;
         match &mut self.value {
             Value::Object(o) => o
                 .iter_mut()
@@ -474,5 +504,34 @@ impl<'de, T: Serialize + Deserialize<'de>> Deserialize<'de> for JsonKey<T> {
         Ok(Self(
             serde_json::from_str(&string).map_err(D::Error::custom)?,
         ))
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct WithTimeData<T> {
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub value: T,
+}
+impl<T> WithTimeData<T> {
+    pub fn new(value: T) -> Self {
+        let now = Utc::now();
+        Self {
+            created_at: now,
+            updated_at: now,
+            value,
+        }
+    }
+}
+impl<T> std::ops::Deref for WithTimeData<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
+impl<T> std::ops::DerefMut for WithTimeData<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.updated_at = Utc::now();
+        &mut self.value
     }
 }

@@ -87,6 +87,10 @@ helpers = { path = "../helpers" }
 hex = "0.4.3"
 hmac = "0.12.1"
 http = "1.0.0"
+id-pool = { version = "0.2.2", default-features = false, features = [
+  "serde",
+  "u16",
+] }
 imbl = "2.0.2"
 imbl-value = { git = "https://github.com/Start9Labs/imbl-value.git" }
 include_dir = "0.7.3"

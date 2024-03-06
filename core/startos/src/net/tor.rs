@@ -28,12 +28,40 @@ use crate::logs::{
     cli_logs_generic_follow, cli_logs_generic_nofollow, fetch_logs, follow_logs, journalctl,
     LogFollowResponse, LogResponse, LogSource,
 };
+use crate::prelude::*;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;
-use crate::{Error, ErrorKind, ResultExt as _};
 
 pub const SYSTEMD_UNIT: &str = "tor@default";
 const STARTING_HEALTH_TIMEOUT: u64 = 120; // 2min
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct OnionStore(BTreeMap<OnionAddressV3, TorSecretKeyV3>);
+impl Map for OnionStore {
+    type Key = OnionAddressV3;
+    type Value = TorSecretKeyV3;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Ok(key.get_address_without_dot_onion())
+    }
+}
+impl OnionStore {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn insert(&mut self, key: TorSecretKeyV3) {
+        self.0.insert(key.public().get_onion_address(), key);
+    }
+}
+impl Model<OnionStore> {
+    pub fn new_key(&mut self) -> Result<TorSecretKeyV3, Error> {
+        let key = TorSecretKeyV3::generate();
+        self.insert(&key.public().get_onion_address(), &key)?;
+        Ok(key)
+    }
+    pub fn get_key(&self, address: &OnionAddressV3) -> Result<TorSecretKeyV3, Error> {
+        self.as_idx(address).or_not_found(address)?.de()
+    }
+}
 
 enum ErrorLogSeverity {
     Fatal { wipe_state: bool },
