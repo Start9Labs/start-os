@@ -2,6 +2,7 @@ import { types as T, util, EmVer } from "@start9labs/start-sdk"
 import * as fs from "fs/promises"
 
 import { PolyfillEffects } from "./polyfillEffects"
+import { Duration, duration } from "../../../Models/Duration"
 import { ExecuteResult, System } from "../../../Interfaces/System"
 import { matchManifest, Manifest, Procedure } from "./matchManifest"
 import { create } from "domain"
@@ -202,7 +203,7 @@ export class SystemForEmbassy implements System {
   private async mainStop(
     effects: HostSystemStartOs,
     options?: { timeout?: number },
-  ): Promise<void> {
+  ): Promise<Duration> {
     const { currentRunning } = this
     delete this.currentRunning
     if (currentRunning) {
@@ -210,6 +211,7 @@ export class SystemForEmbassy implements System {
         timeout: options?.timeout || this.manifest.main["sigterm-timeout"],
       })
     }
+    return duration(this.manifest.main["sigterm-timeout"], "s")
   }
   private async createBackup(effects: HostSystemStartOs): Promise<void> {
     const backup = this.manifest.backup.create

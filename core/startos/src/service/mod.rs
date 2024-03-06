@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::time::Duration;
+use std::{ops::Deref, sync::Arc};
 
 use chrono::{DateTime, Utc};
 use clap::Parser;
@@ -70,23 +70,17 @@ impl Service {
     #[instrument(skip_all)]
     async fn new(ctx: RpcContext, s9pk: S9pk, start: StartStop) -> Result<Self, Error> {
         let id = s9pk.as_manifest().id.clone();
-        let desired_state = watch::channel(start).0;
-        let temp_desired_state = TempDesiredState(Arc::new(watch::channel(None).0));
         let persistent_container = PersistentContainer::new(
-            &ctx,
-            s9pk,
+            &ctx, s9pk,
+            start,
             // desired_state.subscribe(),
             // temp_desired_state.subscribe(),
         )
         .await?;
         let seed = Arc::new(ServiceActorSeed {
             id,
-            running_status: persistent_container.running_status.subscribe(),
             persistent_container,
             ctx,
-            desired_state,
-            temp_desired_state,
-            transition_state: Arc::new(watch::channel(None).0),
             synchronized: Arc::new(Notify::new()),
         });
         seed.persistent_container
@@ -383,7 +377,7 @@ impl Service {
             .await?;
         self.shutdown().await
     }
-    pub async fn backup(&self, guard: impl GenericMountGuard) -> Result<BackupReturn, Error> {
+    pub async fn backup(&self, _guard: impl GenericMountGuard) -> Result<BackupReturn, Error> {
         // TODO
         Err(Error::new(eyre!("not yet implemented"), ErrorKind::Unknown))
     }
@@ -395,45 +389,36 @@ struct RunningStatus {
     started: DateTime<Utc>,
 }
 
-pub(self) struct ServiceActorSeed {
+struct ServiceActorSeed {
     ctx: RpcContext,
     id: PackageId,
-    // Needed to interact with the container for the service
+    /// Needed to interact with the container for the service
     persistent_container: PersistentContainer,
-    // Setting this value causes the service actor to try to bring the service to the specified state. This is done in the background job created in ServiceActor::init
-    desired_state: watch::Sender<StartStop>,
-    // Override the current desired state for the service during a transition (this is protected by a guard that sets this value to null on drop)
-    temp_desired_state: TempDesiredState,
-    // This represents a currently running task that affects the service's shown state, such as BackingUp or Restarting.
-    transition_state: Arc<watch::Sender<Option<TransitionState>>>,
-    // This contains the start time and health check information for when the service is running. Note: Will be overwritting to the db,
-    running_status: watch::Receiver<Option<RunningStatus>>,
-    // This is notified every time the background job created in ServiceActor::init responds to a change
+    /// This is notified every time the background job created in ServiceActor::init responds to a change
     synchronized: Arc<Notify>,
 }
 
 impl ServiceActorSeed {
+    /// Used to indicate that we have finished the task of starting the service
     pub fn started(&self) {
-        self.persistent_container
-            .current_state
-            .send_replace(StartStop::Start);
-        self.persistent_container
-            .running_status
-            .send_modify(|running_status| {
-                *running_status =
-                    Some(
-                        std::mem::take(running_status).unwrap_or_else(|| RunningStatus {
+        self.persistent_container.state.send_modify(|state| {
+            state.running_status =
+                Some(
+                    state
+                        .running_status
+                        .take()
+                        .unwrap_or_else(|| RunningStatus {
                             health: Default::default(),
                             started: Utc::now(),
                         }),
-                    );
-            })
+                );
+        });
     }
+    /// Used to indicate that we have finished the task of stopping the service
     pub fn stopped(&self) {
-        self.persistent_container
-            .current_state
-            .send_replace(StartStop::Stop);
-        self.persistent_container.running_status.send_replace(None);
+        self.persistent_container.state.send_modify(|state| {
+            state.running_status = None;
+        });
     }
 }
 struct ServiceActor(Arc<ServiceActorSeed>);
@@ -443,20 +428,41 @@ impl Actor for ServiceActor {
         let seed = self.0.clone();
         jobs.add_job(async move {
             let id = seed.id.clone();
-            let mut current = seed.persistent_container.current_state.subscribe();
-            let mut desired = seed.desired_state.subscribe();
-            let mut temp_desired = seed.temp_desired_state.subscribe();
-            let mut transition = seed.transition_state.subscribe();
-            let mut running = seed.running_status.clone();
+            let mut current = seed.persistent_container.state.subscribe();
+
             loop {
-                let (desired_state, current_state, transition_kind, running_status) = dbg!(
-                    temp_desired.borrow().unwrap_or(*desired.borrow()),
-                    *current.borrow(),
-                    transition.borrow().as_ref().map(|t| t.kind()),
-                    running.borrow().clone(),
-                );
+                let kinds = dbg!(current.borrow().kinds());
 
                 if let Err(e) = async {
+                    let main_status = match (
+                        kinds.transition_state,
+                        kinds.desired_state,
+                        kinds.running_status,
+                    ) {
+                        (Some(TransitionKind::Restarting), _, _) => MainStatus::Restarting,
+                        (Some(TransitionKind::BackingUp), _, Some(status)) => {
+                            MainStatus::BackingUp {
+                                started: Some(status.started),
+                                health: status.health.clone(),
+                            }
+                        }
+                        (Some(TransitionKind::BackingUp), _, None) => MainStatus::BackingUp {
+                            started: None,
+                            health: OrdMap::new(),
+                        },
+                        (None, StartStop::Stop, None) => MainStatus::Stopped,
+                        (None, StartStop::Stop, Some(_)) => MainStatus::Stopping {
+                            timeout: seed.persistent_container.stop().await?.into(),
+                        },
+                        (None, StartStop::Start, Some(status)) => MainStatus::Running {
+                            started: status.started,
+                            health: status.health.clone(),
+                        },
+                        (None, StartStop::Start, None) => {
+                            seed.persistent_container.start().await?;
+                            MainStatus::Starting
+                        }
+                    };
                     seed.ctx
                         .db
                         .mutate(|d| {
@@ -466,61 +472,13 @@ impl Actor for ServiceActor {
                                 .as_idx_mut(&id)
                                 .and_then(|p| p.as_installed_mut())
                             {
-                                i.as_status_mut().as_main_mut().ser(&match (
-                                    transition_kind,
-                                    desired_state,
-                                    current_state,
-                                    running_status,
-                                ) {
-                                    (Some(TransitionKind::Restarting), _, _, _) => {
-                                        MainStatus::Restarting
-                                    }
-                                    (Some(TransitionKind::BackingUp), _, _, Some(status)) => {
-                                        MainStatus::BackingUp {
-                                            started: Some(status.started),
-                                            health: status.health.clone(),
-                                        }
-                                    }
-                                    (Some(TransitionKind::BackingUp), _, _, None) => {
-                                        MainStatus::BackingUp {
-                                            started: None,
-                                            health: OrdMap::new(),
-                                        }
-                                    }
-                                    (None, StartStop::Stop, StartStop::Stop, _) => {
-                                        MainStatus::Stopped
-                                    }
-                                    (None, StartStop::Stop, StartStop::Start, _) => {
-                                        MainStatus::Stopping {
-                                            timeout: todo!("sigterm timeout"),
-                                        }
-                                    }
-                                    (None, StartStop::Start, StartStop::Stop, _)
-                                    | (None, StartStop::Start, StartStop::Start, None) => {
-                                        MainStatus::Starting
-                                    }
-                                    (None, StartStop::Start, StartStop::Start, Some(status)) => {
-                                        MainStatus::Running {
-                                            started: status.started,
-                                            health: status.health.clone(),
-                                        }
-                                    }
-                                })?;
+                                i.as_status_mut().as_main_mut().ser(&main_status)?;
                             }
                             Ok(())
                         })
                         .await?;
-                    match (desired_state, current_state) {
-                        (StartStop::Start, StartStop::Stop) => {
-                            seed.persistent_container.start().await
-                        }
-                        (StartStop::Stop, StartStop::Start) => {
-                            seed.persistent_container
-                                .stop(todo!("s9pk sigterm timeout"))
-                                .await
-                        }
-                        _ => Ok(()),
-                    }
+
+                    Ok::<_, Error>(())
                 }
                 .await
                 {
@@ -538,10 +496,6 @@ impl Actor for ServiceActor {
 
                 tokio::select! {
                     _ = current.changed() => (),
-                    _ = desired.changed() => (),
-                    _ = temp_desired.changed() => (),
-                    _ = transition.changed() => (),
-                    _ = running.changed() => (),
                 }
             }
         })

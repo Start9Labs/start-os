@@ -1,5 +1,5 @@
-use std::ops::Deref;
 use std::sync::Arc;
+use std::{fmt::Display, ops::Deref};
 
 use futures::{Future, FutureExt};
 use tokio::sync::watch;
@@ -7,6 +7,8 @@ use tokio::sync::watch;
 use crate::service::start_stop::StartStop;
 use crate::util::actor::BackgroundJobs;
 use crate::util::future::{CancellationHandle, RemoteCancellable};
+
+use super::persistent_container::ServiceState;
 
 pub mod backup;
 pub mod restart;
@@ -22,6 +24,13 @@ pub enum TransitionKind {
 pub struct TransitionState {
     cancel_handle: CancellationHandle,
     kind: TransitionKind,
+}
+impl ::std::fmt::Debug for TransitionState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TransitionState")
+            .field("kind", &self.kind)
+            .finish_non_exhaustive()
+    }
 }
 
 impl TransitionState {
@@ -52,23 +61,28 @@ impl Drop for TransitionState {
 }
 
 #[derive(Debug, Clone)]
-pub struct TempDesiredState(pub(super) Arc<watch::Sender<Option<StartStop>>>);
+pub struct TempDesiredState(pub(super) Arc<watch::Sender<ServiceState>>);
 impl TempDesiredState {
+    pub fn new(state: &Arc<watch::Sender<ServiceState>>) -> Self {
+        Self(state.clone())
+    }
     pub fn stop(&self) {
-        self.0.send_replace(Some(StartStop::Stop));
+        self.0
+            .send_modify(|s| s.temp_desired_state = Some(StartStop::Stop));
     }
     pub fn start(&self) {
-        self.0.send_replace(Some(StartStop::Start));
+        self.0
+            .send_modify(|s| s.temp_desired_state = Some(StartStop::Start));
     }
 }
 impl Drop for TempDesiredState {
     fn drop(&mut self) {
-        self.0.send_replace(None);
+        self.0.send_modify(|s| s.temp_desired_state = None);
     }
 }
-impl Deref for TempDesiredState {
-    type Target = watch::Sender<Option<StartStop>>;
-    fn deref(&self) -> &Self::Target {
-        &*self.0
-    }
-}
+// impl Deref for TempDesiredState {
+//     type Target = watch::Sender<Option<StartStop>>;
+//     fn deref(&self) -> &Self::Target {
+//         &*self.0
+//     }
+// }
