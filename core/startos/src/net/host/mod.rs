@@ -45,7 +45,7 @@ pub enum HostKind {
     // Static,
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Default, Deserialize, Serialize, HasModel)]
 #[model = "Model<Self>"]
 pub struct HostInfo(BTreeMap<HostId, Host>);
 

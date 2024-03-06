@@ -41,7 +41,7 @@ impl VHostController {
         hostname: Option<String>,
         external: u16,
         target: SocketAddr,
-        connect_ssl: Result<(), AlpnInfo>,
+        connect_ssl: Result<(), AlpnInfo>, // Ok: yes, connect using ssl, pass through alpn; Err: connect tcp, use provided strategy for alpn
     ) -> Result<Arc<()>, Error> {
         let mut writable = self.servers.lock().await;
         let server = if let Some(server) = writable.remove(&external) {

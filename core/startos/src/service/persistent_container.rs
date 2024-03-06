@@ -23,8 +23,9 @@ use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::disk::mount::filesystem::{MountType, ReadOnly};
-use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
+use crate::disk::mount::guard::MountGuard;
 use crate::lxc::{LxcConfig, LxcContainer, HOST_RPC_SERVER_SOCKET};
+use crate::net::net_controller::NetService;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
@@ -57,6 +58,7 @@ pub struct PersistentContainer {
     // pub(super) desired_state: watch::Receiver<StartStop>,
     // pub(super) temp_desired_state: watch::Receiver<Option<StartStop>>,
     pub(super) running_status: watch::Sender<Option<RunningStatus>>,
+    pub(super) net_service: Mutex<NetService>,
 }
 
 impl PersistentContainer {
@@ -146,6 +148,10 @@ impl PersistentContainer {
                     .await?;
             }
         }
+        let net_service = ctx
+            .net_controller
+            .create_service(s9pk.as_manifest().id.clone(), lxc_container.ip())
+            .await?;
         Ok(Self {
             s9pk,
             lxc_container: OnceCell::new_with(Some(lxc_container)),
@@ -160,6 +166,7 @@ impl PersistentContainer {
             // desired_state,
             // temp_desired_state,
             running_status: watch::channel(None).0,
+            net_service: Mutex::new(net_service),
         })
     }
 

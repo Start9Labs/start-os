@@ -102,7 +102,7 @@ impl RpcContext {
                     .as_deref()
                     .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
                 &account.hostname,
-                &account.tor_key.public().get_onion_address(),
+                account.tor_key.clone(),
             )
             .await?,
         );

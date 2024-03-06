@@ -59,7 +59,7 @@ pub struct BindOptions {
     pub ssl: bool,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AddSslOptions {
     pub scheme: InternedString,

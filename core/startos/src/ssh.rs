@@ -119,7 +119,7 @@ pub async fn add(ctx: RpcContext, AddParams { key }: AddParams) -> Result<SshKey
     ctx.db
         .mutate(move |m| {
             m.as_private_mut()
-                .as_ssh_keys_mut()
+                .as_ssh_pubkeys_mut()
                 .insert(&fingerprint, &key)?;
 
             Ok(SshKeyResponse {
@@ -147,7 +147,7 @@ pub async fn delete(
     let keys = ctx
         .db
         .mutate(|m| {
-            let keys_ref = m.as_private_mut().as_ssh_keys_mut();
+            let keys_ref = m.as_private_mut().as_ssh_pubkeys_mut();
             if keys_ref.remove(&fingerprint)?.is_some() {
                 keys_ref.de()
             } else {
@@ -194,7 +194,7 @@ pub async fn list(ctx: RpcContext) -> Result<Vec<SshKeyResponse>, Error> {
         .peek()
         .await
         .into_private()
-        .into_ssh_keys()
+        .into_ssh_pubkeys()
         .into_entries()?
         .into_iter()
         .map(|(fingerprint, key)| {

@@ -212,7 +212,7 @@ pub async fn init(cfg: &ServerConfig) -> Result<InitResult, Error> {
     tracing::info!("Opened PatchDB");
 
     crate::ssh::sync_keys(
-        &peek.as_private().as_ssh_keys().de()?,
+        &peek.as_private().as_ssh_pubkeys().de()?,
         "/home/start9/.ssh/authorized_keys",
     )
     .await?;

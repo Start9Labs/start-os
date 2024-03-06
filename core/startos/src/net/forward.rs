@@ -66,9 +66,9 @@ impl LanPortForwardController {
         update_forward(port, prev, next).await?;
         Ok(rc)
     }
-    pub async fn gc(&self, port: u16) -> Result<(), Error> {
+    pub async fn gc(&self, external: u16) -> Result<(), Error> {
         let mut writable = self.forwards.lock().await;
-        let (prev, forward) = if let Some(forward) = writable.remove(&port) {
+        let (prev, forward) = if let Some(forward) = writable.remove(&external) {
             (
                 forward.keys().next().cloned(),
                 forward
@@ -81,24 +81,24 @@ impl LanPortForwardController {
         };
         let next = forward.keys().next().cloned();
         if !forward.is_empty() {
-            writable.insert(port, forward);
+            writable.insert(external, forward);
         }
 
-        update_forward(port, prev, next).await
+        update_forward(external, prev, next).await
     }
 }
 
 async fn update_forward(
-    port: u16,
+    external: u16,
     prev: Option<SocketAddr>,
     next: Option<SocketAddr>,
 ) -> Result<(), Error> {
     if prev != next {
         if let Some(prev) = prev {
-            unforward(START9_BRIDGE_IFACE, port, prev).await?;
+            unforward(START9_BRIDGE_IFACE, external, prev).await?;
         }
         if let Some(next) = next {
-            forward(START9_BRIDGE_IFACE, port, next).await?;
+            forward(START9_BRIDGE_IFACE, external, next).await?;
         }
     }
     Ok(())
@@ -106,7 +106,7 @@ async fn update_forward(
 
 // iptables -I FORWARD -o br-start9 -p tcp -d 172.18.0.2 --dport 8333 -j ACCEPT
 // iptables -t nat -I PREROUTING -p tcp --dport 32768 -j DNAT --to 172.18.0.2:8333
-async fn forward(iface: &str, port: u16, addr: SocketAddr) -> Result<(), Error> {
+async fn forward(iface: &str, external: u16, addr: SocketAddr) -> Result<(), Error> {
     Command::new("iptables")
         .arg("-I")
         .arg("FORWARD")
@@ -130,7 +130,7 @@ async fn forward(iface: &str, port: u16, addr: SocketAddr) -> Result<(), Error> 
         .arg("-p")
         .arg("tcp")
         .arg("--dport")
-        .arg(port.to_string())
+        .arg(external.to_string())
         .arg("-j")
         .arg("DNAT")
         .arg("--to")
@@ -142,7 +142,7 @@ async fn forward(iface: &str, port: u16, addr: SocketAddr) -> Result<(), Error> 
 
 // iptables -D FORWARD -o br-start9 -p tcp -d 172.18.0.2 --dport 8333 -j ACCEPT
 // iptables -t nat -D PREROUTING -p tcp --dport 32768 -j DNAT --to 172.18.0.2:8333
-async fn unforward(iface: &str, port: u16, addr: SocketAddr) -> Result<(), Error> {
+async fn unforward(iface: &str, external: u16, addr: SocketAddr) -> Result<(), Error> {
     Command::new("iptables")
         .arg("-D")
         .arg("FORWARD")
@@ -166,7 +166,7 @@ async fn unforward(iface: &str, port: u16, addr: SocketAddr) -> Result<(), Error
         .arg("-p")
         .arg("tcp")
         .arg("--dport")
-        .arg(port.to_string())
+        .arg(external.to_string())
         .arg("-j")
         .arg("DNAT")
         .arg("--to")

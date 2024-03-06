@@ -295,6 +295,7 @@ impl Service {
                             marketplace_url: None,                   // TODO
                             manifest: manifest.clone(),
                             last_backup: None,                            // TODO
+                            hosts: Default::default(),                    // TODO
                             store: Value::Null,                           // TODO
                             store_exposed_dependents: Default::default(), // TODO
                             store_exposed_ui: Default::default(),         // TODO

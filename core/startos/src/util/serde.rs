@@ -1117,6 +1117,17 @@ impl PemEncoding for PKey<Private> {
     }
 }
 
+impl PemEncoding for ssh_key::PrivateKey {
+    fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
+        ssh_key::PrivateKey::from_openssh(pem.as_bytes()).map_err(E::custom)
+    }
+    fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
+        self.to_openssh(ssh_key::LineEnding::LF)
+            .map_err(E::custom)
+            .map(|s| (&*s).clone())
+    }
+}
+
 pub mod pem {
     use serde::{Deserialize, Deserializer, Serializer};
 

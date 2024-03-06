@@ -93,7 +93,11 @@ async fn setup_init(
         })
         .await?;
 
-    Ok((account.hostname, account.tor_address, account.root_ca_cert))
+    Ok((
+        account.hostname,
+        account.tor_key.public().get_onion_address(),
+        account.root_ca_cert,
+    ))
 }
 
 #[derive(Deserialize, Serialize)]
@@ -415,9 +419,13 @@ async fn fresh_setup(
 ) -> Result<(Hostname, OnionAddressV3, X509), Error> {
     let account = AccountInfo::new(embassy_password, root_ca_start_time().await?)?;
     let db = ctx.db().await?;
-    db.put(&ROOT, &Database::init(&account)).await?;
+    db.put(&ROOT, &Database::init(&account)?).await?;
     init(&ctx.config).await?;
-    Ok((account.hostname, account.tor_address, account.root_ca_cert))
+    Ok((
+        account.hostname,
+        account.tor_key.public().get_onion_address(),
+        account.root_ca_cert,
+    ))
 }
 
 #[instrument(skip_all)]

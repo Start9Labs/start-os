@@ -13,10 +13,10 @@ use patch_db::json_ptr::JsonPointer;
 use patch_db::{HasModel, Value};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use ssh_key::public::Ed25519PublicKey;
-use torut::onion::TorSecretKeyV3;
+use torut::onion::OnionAddressV3;
 
 use crate::account::AccountInfo;
+use crate::auth::Sessions;
 use crate::net::forward::AvailablePorts;
 use crate::net::host::HostInfo;
 use crate::net::keys::KeyStore;
@@ -24,9 +24,10 @@ use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::s9pk::manifest::Manifest;
-use crate::ssh::{SshKeys, SshPubKey};
+use crate::ssh::SshKeys;
 use crate::status::Status;
 use crate::util::cpupower::Governor;
+use crate::util::serde::Pem;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::{ARCH, PLATFORM};
@@ -61,7 +62,13 @@ impl Database {
                     last_wifi_region: None,
                     eos_version_compat: Current::new().compat().clone(),
                     lan_address,
-                    tor_address: format!("https://{}", account.tor_address).parse().unwrap(),
+                    onion_address: account.tor_key.public().get_onion_address(),
+                    tor_address: format!(
+                        "https://{}",
+                        account.tor_key.public().get_onion_address()
+                    )
+                    .parse()
+                    .unwrap(),
                     ip_info: BTreeMap::new(),
                     status_info: ServerStatus {
                         backup_progress: None,
@@ -81,11 +88,9 @@ impl Database {
                         clearnet: Vec::new(),
                     },
                     password_hash: account.password.clone(),
-                    pubkey: ssh_key::PublicKey::from(Ed25519PublicKey::from(
-                        &account.key.ssh_key(),
-                    ))
-                    .to_openssh()
-                    .unwrap(),
+                    pubkey: ssh_key::PublicKey::from(&account.ssh_key)
+                        .to_openssh()
+                        .unwrap(),
                     ca_fingerprint: account
                         .root_ca_cert
                         .digest(MessageDigest::sha256())
@@ -107,8 +112,10 @@ impl Database {
             private: Private {
                 key_store: KeyStore::new(account)?,
                 password: account.password.clone(),
-                ssh_keys: SshKeys::new(),
+                ssh_privkey: Pem(account.ssh_key),
+                ssh_pubkeys: SshKeys::new(),
                 available_ports: AvailablePorts::new(),
+                sessions: Sessions::new(),
             }, // TODO
         })
     }
@@ -132,9 +139,10 @@ pub struct Public {
 pub struct Private {
     pub key_store: KeyStore,
     pub password: String, // argon2 hash
-    pub ssh_keys: SshKeys,
+    pub ssh_privkey: Pem<ssh_key::PrivateKey>,
+    pub ssh_pubkeys: SshKeys,
     pub available_ports: AvailablePorts,
-    // pub sessions: Sessions,
+    pub sessions: Sessions,
     // pub notifications: Notifications
 }
 
@@ -154,6 +162,8 @@ pub struct ServerInfo {
     pub last_wifi_region: Option<CountryCode>,
     pub eos_version_compat: VersionRange,
     pub lan_address: Url,
+    pub onion_address: OnionAddressV3,
+    /// for backwards compatibility
     pub tor_address: Url,
     pub ip_info: BTreeMap<String, IpInfo>,
     #[serde(default)]
