@@ -10,9 +10,10 @@ export class Overlay {
     readonly effects: T.Effects,
     readonly imageId: string,
     readonly rootfs: string,
+    readonly guid: string,
   ) {}
   static async of(effects: T.Effects, imageId: string) {
-    const rootfs = await effects.createOverlayedImage({ imageId })
+    const [rootfs, guid] = await effects.createOverlayedImage({ imageId })
 
     for (const dirPart of ["dev", "sys", "proc", "run"] as const) {
       await fs.mkdir(`${rootfs}/${dirPart}`, { recursive: true })
@@ -23,7 +24,7 @@ export class Overlay {
       ])
     }
 
-    return new Overlay(effects, imageId, rootfs)
+    return new Overlay(effects, imageId, rootfs, guid)
   }
 
   async mount(options: MountOptions, path: string): Promise<Overlay> {
@@ -51,8 +52,9 @@ export class Overlay {
   }
 
   async destroy() {
-    await execFile("umount", ["-R", this.rootfs])
-    await fs.rm(this.rootfs, { recursive: true, force: true })
+    const imageId = this.imageId
+    const guid = this.guid
+    await this.effects.destroyOverlayedImage({ imageId, guid })
   }
 
   async exec(

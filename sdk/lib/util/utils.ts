@@ -246,7 +246,7 @@ export const createUtils = <
           console.error(data.toString())
         })
 
-        childProcess.on("close", (code: any) => {
+        childProcess.on("exit", (code: any) => {
           if (code === 0) {
             return resolve(null)
           }
@@ -262,7 +262,7 @@ export const createUtils = <
           try {
             childProcess.kill(signal)
 
-            if (timeout <= NO_TIMEOUT) {
+            if (timeout > NO_TIMEOUT) {
               const didTimeout = await Promise.race([
                 new Promise((resolve) => setTimeout(resolve, timeout)).then(
                   () => true,
@@ -270,6 +270,7 @@ export const createUtils = <
                 answer.then(() => false),
               ])
               if (didTimeout) childProcess.kill(SIGKILL)
+              return
             }
             await answer
           } finally {
