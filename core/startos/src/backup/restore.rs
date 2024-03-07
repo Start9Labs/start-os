@@ -5,6 +5,7 @@ use clap::Parser;
 use futures::{stream, StreamExt};
 use models::PackageId;
 use openssl::x509::X509;
+use patch_db::json_ptr::ROOT;
 use serde::{Deserialize, Serialize};
 use torut::onion::OnionAddressV3;
 use tracing::instrument;
@@ -12,6 +13,7 @@ use tracing::instrument;
 use super::target::BackupTargetId;
 use crate::backup::os::OsBackup;
 use crate::context::{RpcContext, SetupContext};
+use crate::db::model::Database;
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
@@ -42,9 +44,7 @@ pub async fn restore_packages_rpc(
         password,
     }: RestorePackageParams,
 ) -> Result<(), Error> {
-    let fs = target_id
-        .load(ctx.secret_store.acquire().await?.as_mut())
-        .await?;
+    let fs = target_id.load(&ctx.db.peek().await)?;
     let backup_guard =
         BackupMountGuard::mount(TmpMountGuard::mount(&fs, ReadWrite).await?, &password).await?;
 
@@ -95,11 +95,8 @@ pub async fn recover_full_embassy(
     )
     .with_kind(ErrorKind::PasswordHashGeneration)?;
 
-    let secret_store = ctx.secret_store().await?;
-
-    os_backup.account.save(&secret_store).await?;
-
-    secret_store.close().await;
+    let db = ctx.db().await?;
+    db.put(&ROOT, &Database::init(&os_backup.account)?).await?;
 
     init(&ctx.config).await?;
 
@@ -129,7 +126,7 @@ pub async fn recover_full_embassy(
     Ok((
         disk_guid,
         os_backup.account.hostname,
-        os_backup.account.key.tor_address(),
+        os_backup.account.tor_key.public().get_onion_address(),
         os_backup.account.root_ca_cert,
     ))
 }

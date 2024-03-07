@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
 use std::panic::UnwindSafe;
+use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
 pub use imbl_value::Value;
@@ -303,7 +304,8 @@ where
 
 impl<T: Map> Model<T>
 where
-    T::Key: DeserializeOwned + Ord + Clone,
+    T::Key: FromStr + Ord + Clone,
+    Error: From<<T::Key as FromStr>::Err>,
 {
     pub fn keys(&self) -> Result<Vec<T::Key>, Error> {
         use serde::de::Error;
@@ -311,16 +313,7 @@ where
             Value::Object(o) => o
                 .keys()
                 .cloned()
-                .map(|k| {
-                    T::Key::deserialize(patch_db::value::de::InternedStringDeserializer::from(k))
-                        .map_err(|e| {
-                            patch_db::value::Error {
-                                kind: patch_db::value::ErrorKind::Deserialization,
-                                source: e,
-                            }
-                            .into()
-                        })
-                })
+                .map(|k| Ok(T::Key::from_str(&*k)?))
                 .collect(),
             v => Err(patch_db::value::Error {
                 source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),
@@ -336,15 +329,7 @@ where
         match self.value {
             Value::Object(o) => o
                 .into_iter()
-                .map(|(k, v)| {
-                    Ok((
-                        T::Key::deserialize(patch_db::value::de::InternedStringDeserializer::from(
-                            k,
-                        ))
-                        .with_kind(ErrorKind::Deserialization)?,
-                        Model::from_value(v),
-                    ))
-                })
+                .map(|(k, v)| Ok((T::Key::from_str(&*k)?, Model::from_value(v))))
                 .collect(),
             v => Err(patch_db::value::Error {
                 source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),
@@ -359,15 +344,7 @@ where
         match &self.value {
             Value::Object(o) => o
                 .iter()
-                .map(|(k, v)| {
-                    Ok((
-                        T::Key::deserialize(patch_db::value::de::InternedStringDeserializer::from(
-                            k.clone(),
-                        ))
-                        .with_kind(ErrorKind::Deserialization)?,
-                        Model::value_as(v),
-                    ))
-                })
+                .map(|(k, v)| Ok((T::Key::from_str(&**k)?, Model::value_as(v))))
                 .collect(),
             v => Err(patch_db::value::Error {
                 source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),
@@ -382,15 +359,7 @@ where
         match &mut self.value {
             Value::Object(o) => o
                 .iter_mut()
-                .map(|(k, v)| {
-                    Ok((
-                        T::Key::deserialize(patch_db::value::de::InternedStringDeserializer::from(
-                            k.clone(),
-                        ))
-                        .with_kind(ErrorKind::Deserialization)?,
-                        Model::value_as_mut(v),
-                    ))
-                })
+                .map(|(k, v)| Ok((T::Key::from_str(&**k)?, Model::value_as_mut(v))))
                 .collect(),
             v => Err(patch_db::value::Error {
                 source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),

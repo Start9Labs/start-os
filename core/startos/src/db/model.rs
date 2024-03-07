@@ -17,6 +17,7 @@ use torut::onion::OnionAddressV3;
 
 use crate::account::AccountInfo;
 use crate::auth::Sessions;
+use crate::backup::target::cifs::CifsTargets;
 use crate::net::forward::AvailablePorts;
 use crate::net::host::HostInfo;
 use crate::net::keys::KeyStore;
@@ -116,6 +117,7 @@ impl Database {
                 ssh_pubkeys: SshKeys::new(),
                 available_ports: AvailablePorts::new(),
                 sessions: Sessions::new(),
+                cifs: CifsTargets::new(),
             }, // TODO
         })
     }
@@ -144,6 +146,7 @@ pub struct Private {
     pub available_ports: AvailablePorts,
     pub sessions: Sessions,
     // pub notifications: Notifications
+    pub cifs: CifsTargets,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]

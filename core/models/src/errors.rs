@@ -207,6 +207,11 @@ impl Error {
         }
     }
 }
+impl From<std::convert::Infallible> for Error {
+    fn from(value: std::convert::Infallible) -> Self {
+        match value {}
+    }
+}
 impl From<InvalidId> for Error {
     fn from(err: InvalidId) -> Self {
         Error::new(err, ErrorKind::InvalidPackageId)
