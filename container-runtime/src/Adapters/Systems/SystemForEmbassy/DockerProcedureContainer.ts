@@ -73,6 +73,15 @@ export class DockerProcedureContainer {
     }
   }
 
+  async execSpawn(commands: string[]) {
+    try {
+      const spawned = await this.overlay.spawn(commands)
+      return spawned
+    } finally {
+      await this.overlay.destroy()
+    }
+  }
+
   async spawn(commands: string[]): Promise<cp.ChildProcessWithoutNullStreams> {
     return await this.overlay.spawn(commands)
   }

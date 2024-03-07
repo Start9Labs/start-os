@@ -3,6 +3,7 @@ import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import { SystemForEmbassy } from "."
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { util, Daemons, types as T } from "@start9labs/start-sdk"
+import { exec } from "child_process"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
 const EMBASSY_PROPERTIES_LOOP = 30 * 1000
@@ -117,17 +118,54 @@ export class MainLoop {
               actionProcedure,
               manifest.volumes,
             )
-            const executed = await container.exec([
+            const executed = await container.execSpawn([
               actionProcedure.entrypoint,
               ...actionProcedure.args,
               JSON.stringify(timeChanged),
             ])
-            const stderr = executed.stderr.toString()
-            if (stderr)
-              console.error(
-                `Error running health check ${value.name}: ${stderr}`,
-              )
-            return executed.stdout.toString()
+            if (executed.exitCode === 59) {
+              await effects.setHealth({
+                name: healthId,
+                status: "disabled",
+                message:
+                  executed.stderr.toString() || executed.stdout.toString(),
+              })
+              return
+            }
+            if (executed.exitCode === 60) {
+              await effects.setHealth({
+                name: healthId,
+                status: "starting",
+                message:
+                  executed.stderr.toString() || executed.stdout.toString(),
+              })
+              return
+            }
+            if (executed.exitCode === 61) {
+              await effects.setHealth({
+                name: healthId,
+                status: "warning",
+                message:
+                  executed.stderr.toString() || executed.stdout.toString(),
+              })
+              return
+            }
+            const errorMessage = executed.stderr.toString()
+            const message = executed.stdout.toString()
+            if (!!errorMessage) {
+              await effects.setHealth({
+                name: healthId,
+                status: "failure",
+                message: errorMessage,
+              })
+              return
+            }
+            await effects.setHealth({
+              name: healthId,
+              status: "passing",
+              message,
+            })
+            return
           } else {
             actionProcedure
             const moduleCode = await this.system.moduleCode
