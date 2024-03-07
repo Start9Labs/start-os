@@ -11,7 +11,7 @@ use chrono::Utc;
 use color_eyre::eyre::eyre;
 use digest::Digest;
 use helpers::const_true;
-use http::header::COOKIE;
+use http::header::{COOKIE, USER_AGENT};
 use http::HeaderValue;
 use imbl_value::InternedString;
 use rpc_toolkit::yajrc::INTERNAL_ERROR;
@@ -261,6 +261,7 @@ pub struct Auth {
     cookie: Option<HeaderValue>,
     is_login: bool,
     set_cookie: Option<HeaderValue>,
+    user_agent: Option<HeaderValue>,
 }
 impl Auth {
     pub fn new() -> Self {
@@ -269,6 +270,7 @@ impl Auth {
             cookie: None,
             is_login: false,
             set_cookie: None,
+            user_agent: None,
         }
     }
 }
@@ -280,7 +282,8 @@ impl Middleware<RpcContext> for Auth {
         _: &RpcContext,
         request: &mut Request,
     ) -> Result<(), Response> {
-        self.cookie = request.headers_mut().get(COOKIE).cloned();
+        self.cookie = request.headers_mut().remove(COOKIE);
+        self.user_agent = request.headers_mut().remove(USER_AGENT);
         Ok(())
     }
     async fn process_rpc_request(
@@ -301,6 +304,10 @@ impl Middleware<RpcContext> for Auth {
                     )
                     .into()),
                 });
+            }
+            if let Some(user_agent) = self.user_agent.as_ref().and_then(|h| h.to_str().ok()) {
+                request.params["user-agent"] = Value::String(Arc::new(user_agent.to_owned()))
+                // TODO: will this panic?
             }
         } else if metadata.authenticated {
             match HasValidSession::from_header(self.cookie.as_ref(), &context).await {
