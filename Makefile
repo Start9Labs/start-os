@@ -191,7 +191,7 @@ build/lib/depends build/lib/conflicts: build/dpkg-deps/*
 $(FIRMWARE_ROMS): build/lib/firmware.json download-firmware.sh $(PLATFORM_FILE)
 	./download-firmware.sh $(PLATFORM)
 
-system-images/compat/docker-images/$(ARCH).tar: $(COMPAT_SRC) core/Cargo.lock
+system-images/compat/docker-images/$(ARCH).tar: $(COMPAT_SRC)
 	cd system-images/compat && make docker-images/$(ARCH).tar && touch docker-images/$(ARCH).tar
 
 system-images/utils/docker-images/$(ARCH).tar: $(UTILS_SRC)
