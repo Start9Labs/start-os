@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::future::Future;
 use std::marker::PhantomData;
 use std::panic::UnwindSafe;
 use std::str::FromStr;
@@ -30,19 +31,17 @@ where
     patch_db::value::from_value(value).with_kind(ErrorKind::Deserialization)
 }
 
-#[async_trait::async_trait]
 pub trait PatchDbExt {
-    async fn peek(&self) -> DatabaseModel;
-    async fn mutate<U: UnwindSafe + Send>(
+    fn peek(&self) -> impl Future<Output = DatabaseModel> + Send;
+    fn mutate<U: UnwindSafe + Send>(
         &self,
         f: impl FnOnce(&mut DatabaseModel) -> Result<U, Error> + UnwindSafe + Send,
-    ) -> Result<U, Error>;
-    async fn map_mutate(
+    ) -> impl Future<Output = Result<U, Error>> + Send;
+    fn map_mutate(
         &self,
         f: impl FnOnce(DatabaseModel) -> Result<DatabaseModel, Error> + UnwindSafe + Send,
-    ) -> Result<DatabaseModel, Error>;
+    ) -> impl Future<Output = Result<DatabaseModel, Error>> + Send;
 }
-#[async_trait::async_trait]
 impl PatchDbExt for PatchDb {
     async fn peek(&self) -> DatabaseModel {
         DatabaseModel::from(self.dump(&ROOT).await.value)

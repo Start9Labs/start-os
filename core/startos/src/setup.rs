@@ -419,6 +419,7 @@ async fn fresh_setup(
     let account = AccountInfo::new(embassy_password, root_ca_start_time().await?)?;
     let db = ctx.db().await?;
     db.put(&ROOT, &Database::init(&account)?).await?;
+    drop(db);
     init(&ctx.config).await?;
     Ok((
         account.hostname,

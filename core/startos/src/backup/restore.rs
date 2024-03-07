@@ -97,6 +97,7 @@ pub async fn recover_full_embassy(
 
     let db = ctx.db().await?;
     db.put(&ROOT, &Database::init(&os_backup.account)?).await?;
+    drop(db);
 
     init(&ctx.config).await?;
 

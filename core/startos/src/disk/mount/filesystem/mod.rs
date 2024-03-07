@@ -60,7 +60,7 @@ pub(self) async fn default_mount_command(
         cmd.arg(source.as_ref());
     }
     cmd.arg(mountpoint.as_ref());
-    Ok(dbg!(cmd))
+    Ok(cmd)
 }
 
 pub(self) async fn default_mount_impl(
