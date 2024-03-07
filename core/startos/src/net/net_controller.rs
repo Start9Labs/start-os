@@ -117,14 +117,7 @@ impl NetController {
                 .await?,
         );
 
-        // Tor (http)
-        self.os_bindings.extend(
-            self.tor
-                .add(tor_key.clone(), vec![(80, ([127, 0, 0, 1], 80).into())])
-                .await?,
-        );
-
-        // Tor (https)
+        // Tor
         self.os_bindings.push(
             self.vhost
                 .add(
@@ -137,7 +130,13 @@ impl NetController {
         );
         self.os_bindings.extend(
             self.tor
-                .add(tor_key, vec![(443, ([127, 0, 0, 1], 443).into())])
+                .add(
+                    tor_key,
+                    vec![
+                        (80, ([127, 0, 0, 1], 80).into()),   // http
+                        (443, ([127, 0, 0, 1], 443).into()), // https
+                    ],
+                )
                 .await?,
         );
 
