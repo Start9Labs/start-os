@@ -13,7 +13,6 @@ use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
 use tokio::process::Command;
 
-use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::prelude::*;
@@ -26,6 +25,7 @@ use crate::status::MainStatus;
 use crate::util::clap::FromStrParser;
 use crate::util::{new_guid, Invoke};
 use crate::{db::model::ExposedUI, service::RunningStatus};
+use crate::{disk::mount::filesystem::idmapped::IdMapped, status::health_check::HealthCheckString};
 use crate::{echo, ARCH};
 
 #[derive(Clone)]
@@ -605,30 +605,22 @@ async fn set_main_status(context: EffectContext, params: SetMainStatus) -> Resul
 #[serde(rename_all = "camelCase")]
 struct SetHealth {
     name: HealthCheckId,
-    health_result: Option<HealthCheckResult>,
+    status: HealthCheckString,
+    message: Option<String>,
 }
 
-async fn set_health(context: EffectContext, params: SetHealth) -> Result<Value, Error> {
+async fn set_health(
+    context: EffectContext,
+    SetHealth {
+        name,
+        status,
+        message,
+    }: SetHealth,
+) -> Result<Value, Error> {
+    dbg!(&name);
+    dbg!(&status);
+    dbg!(&message);
     let context = context.deref()?;
-    // TODO DrBonez + BLU-J Need to change the type from
-    // ```rs
-    // #[serde(tag = "result")]
-    // pub enum HealthCheckResult {
-    //     Success,
-    //     Disabled,
-    //     Starting,
-    //     Loading { message: String },
-    //     Failure { error: String },
-    // }
-    // ```
-    // to
-    // ```ts
-    // setHealth(o: {
-    //     name: string
-    //     status: HealthStatus
-    //     message?: string
-    //   }): Promise<void>
-    // ```
 
     let package_id = &context.id;
     context
@@ -648,14 +640,22 @@ async fn set_health(context: EffectContext, params: SetHealth) -> Result<Value, 
             match &mut main {
                 &mut MainStatus::Running { ref mut health, .. }
                 | &mut MainStatus::BackingUp { ref mut health, .. } => {
-                    health.remove(&params.name);
-                    if let SetHealth {
+                    health.remove(&name);
+
+                    health.insert(
                         name,
-                        health_result: Some(health_result),
-                    } = params
-                    {
-                        health.insert(name, health_result);
-                    }
+                        match status {
+                            HealthCheckString::Disabled => HealthCheckResult::Disabled,
+                            HealthCheckString::Passing => HealthCheckResult::Success,
+                            HealthCheckString::Starting => HealthCheckResult::Starting,
+                            HealthCheckString::Warning => HealthCheckResult::Loading {
+                                message: message.unwrap_or_default(),
+                            },
+                            HealthCheckString::Failure => HealthCheckResult::Failure {
+                                error: message.unwrap_or_default(),
+                            },
+                        },
+                    );
                 }
                 _ => return Ok(()),
             };

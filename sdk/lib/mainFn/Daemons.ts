@@ -121,7 +121,7 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
             const response = await Promise.resolve(daemon.ready.fn()).catch(
               (err) =>
                 ({
-                  status: "failing",
+                  status: "failure",
                   message: "message" in err ? err.message : String(err),
                 }) as CheckResult,
             )

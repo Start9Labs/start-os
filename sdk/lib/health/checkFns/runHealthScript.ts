@@ -29,7 +29,7 @@ export const runHealthScript = async (
     console.warn(errorMessage)
     console.warn(JSON.stringify(e))
     console.warn(e.toString())
-    throw { status: "failing", message: errorMessage } as CheckResult
+    throw { status: "failure", message: errorMessage } as CheckResult
   })
   return {
     status: "passing",
