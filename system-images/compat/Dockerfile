@@ -1,8 +1,8 @@
 FROM alpine:latest
 
-ARG ARCH
+ARG TARGETARCH
 
 RUN apk update && apk add duplicity curl
-ADD ./target/$ARCH-unknown-linux-musl/release/compat /usr/local/bin/compat
+ADD ./target/$TARGETARCH/release/compat /usr/local/bin/compat
 
 ENTRYPOINT ["compat"]
