@@ -1,14 +1,10 @@
-use std::collections::BTreeMap;
 use std::net::Ipv4Addr;
-use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
-use tokio::process::{Child, Command};
-use tokio::sync::Mutex;
-use tracing::instrument;
+use tokio::process::Command;
 
+use crate::prelude::*;
 use crate::util::Invoke;
-use crate::{Error, ResultExt};
 
 pub async fn resolve_mdns(hostname: &str) -> Result<Ipv4Addr, Error> {
     Ok(String::from_utf8(

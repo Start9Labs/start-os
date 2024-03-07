@@ -21,7 +21,7 @@ impl VersionT for Version {
         &V0_3_0_COMPAT
     }
     async fn up(&self, _db: &PatchDb) -> Result<(), Error> {
-        Ok(())
+        Err(Error::new(eyre!("unimplemented"), ErrorKind::Unknown))
     }
     async fn down(&self, _db: &PatchDb) -> Result<(), Error> {
         Ok(())

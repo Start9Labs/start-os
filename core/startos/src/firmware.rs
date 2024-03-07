@@ -2,7 +2,6 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use async_compression::tokio::bufread::GzipDecoder;
-use clap::Parser;
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::io::BufReader;

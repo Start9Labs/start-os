@@ -9,11 +9,10 @@ use patch_db::json_ptr::ROOT;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
-use sqlx::Connection;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tokio::try_join;
-use torut::onion::{OnionAddressV3, TorSecretKeyV3};
+use torut::onion::OnionAddressV3;
 use tracing::instrument;
 
 use crate::account::AccountInfo;

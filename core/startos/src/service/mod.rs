@@ -1,5 +1,5 @@
+use std::sync::Arc;
 use std::time::Duration;
-use std::{ops::Deref, sync::Arc};
 
 use chrono::{DateTime, Utc};
 use clap::Parser;
@@ -10,25 +10,25 @@ use persistent_container::PersistentContainer;
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, Handler, HandlerArgs};
 use serde::{Deserialize, Serialize};
 use start_stop::StartStop;
-use tokio::sync::{watch, Notify};
+use tokio::sync::Notify;
 
 use crate::action::ActionResult;
 use crate::config::action::ConfigRes;
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::RequestGuid;
 use crate::db::model::{
-    CurrentDependencies, CurrentDependents, InstalledPackageInfo, PackageDataEntry,
-    PackageDataEntryInstalled, PackageDataEntryMatchModel, StaticFiles,
+    InstalledPackageInfo, PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryMatchModel,
+    StaticFiles,
 };
 use crate::disk::mount::guard::GenericMountGuard;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::prelude::*;
-use crate::progress::{self, NamedProgress, Progress};
+use crate::progress::{NamedProgress, Progress};
 use crate::s9pk::S9pk;
 use crate::service::service_map::InstallProgressHandles;
-use crate::service::transition::{TempDesiredState, TransitionKind, TransitionState};
+use crate::service::transition::TransitionKind;
 use crate::status::health_check::HealthCheckResult;
-use crate::status::{DependencyConfigErrors, MainStatus, Status};
+use crate::status::{MainStatus, Status};
 use crate::util::actor::{Actor, BackgroundJobs, SimpleActor};
 use crate::volume::data_dir;
 

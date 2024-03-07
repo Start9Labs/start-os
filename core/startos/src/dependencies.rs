@@ -9,13 +9,11 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::config::{Config, ConfigSpec, ConfigureContext};
-use crate::context::{CliContext, RpcContext};
+use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencies, Database};
 use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
 use crate::status::DependencyConfigErrors;
-use crate::util::serde::HandlerExtSerde;
-use crate::util::Version;
 use crate::Error;
 
 pub fn dependency() -> ParentHandler {

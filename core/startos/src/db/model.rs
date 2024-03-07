@@ -22,6 +22,7 @@ use crate::net::forward::AvailablePorts;
 use crate::net::host::HostInfo;
 use crate::net::keys::KeyStore;
 use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
+use crate::notifications::Notifications;
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::s9pk::manifest::Manifest;
@@ -113,10 +114,11 @@ impl Database {
             private: Private {
                 key_store: KeyStore::new(account)?,
                 password: account.password.clone(),
-                ssh_privkey: Pem(account.ssh_key),
+                ssh_privkey: Pem(account.ssh_key.clone()),
                 ssh_pubkeys: SshKeys::new(),
                 available_ports: AvailablePorts::new(),
                 sessions: Sessions::new(),
+                notifications: Notifications::new(),
                 cifs: CifsTargets::new(),
             }, // TODO
         })
@@ -145,7 +147,7 @@ pub struct Private {
     pub ssh_pubkeys: SshKeys,
     pub available_ports: AvailablePorts,
     pub sessions: Sessions,
-    // pub notifications: Notifications
+    pub notifications: Notifications,
     pub cifs: CifsTargets,
 }
 

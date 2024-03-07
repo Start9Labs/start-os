@@ -1,7 +1,5 @@
 use std::path::Path;
-use std::sync::Arc;
 
-use ed25519::signature::Keypair;
 use ed25519_dalek::{Signature, SigningKey, VerifyingKey};
 use tokio::io::AsyncRead;
 

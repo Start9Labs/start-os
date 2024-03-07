@@ -1,14 +1,13 @@
 use std::collections::BTreeMap;
 
-use chrono::{DateTime, TimeZone, Utc};
-use clap::{ArgMatches, Parser};
+use chrono::{DateTime, Utc};
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use imbl_value::{json, InternedString};
 use josekit::jwk::Jwk;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{command, from_fn_async, AnyContext, CallRemote, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
-use sqlx::{Executor, Postgres};
 use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
@@ -323,10 +322,6 @@ pub async fn list(
         current: HashSessionToken::from_token(session).hashed().clone(),
         sessions: ctx.db.peek().await.into_private().into_sessions().de()?,
     })
-}
-
-fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<Vec<String>, RpcError> {
-    Ok(arg.split(",").map(|s| s.trim().to_owned()).collect())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

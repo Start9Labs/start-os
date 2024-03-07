@@ -11,7 +11,6 @@ use axum::routing::{any, get, post};
 use axum::Router;
 use digest::Digest;
 use futures::future::ready;
-use futures::{FutureExt, TryFutureExt};
 use http::header::ACCEPT_ENCODING;
 use http::request::Parts as RequestParts;
 use http::{HeaderMap, Method, StatusCode};
@@ -28,7 +27,6 @@ use crate::context::{DiagnosticContext, InstallContext, RpcContext, SetupContext
 use crate::core::rpc_continuations::RequestGuid;
 use crate::db::subscribe;
 use crate::hostname::Hostname;
-use crate::install::PKG_PUBLIC_DIR;
 use crate::middleware::auth::{Auth, HasValidSession};
 use crate::middleware::cors::Cors;
 use crate::middleware::db::SyncDb;
@@ -131,8 +129,7 @@ pub fn main_ui_server_router(ctx: RpcContext) -> Router {
             "/ws/rpc/*path",
             get({
                 let ctx = ctx.clone();
-                move |headers: HeaderMap,
-                      x::Path(path): x::Path<String>,
+                move |x::Path(path): x::Path<String>,
                       ws: axum::extract::ws::WebSocketUpgrade| async move {
                     match RequestGuid::from(&path) {
                         None => {
@@ -155,7 +152,6 @@ pub fn main_ui_server_router(ctx: RpcContext) -> Router {
                     let path = request
                         .uri()
                         .path()
-                        .clone()
                         .strip_prefix("/rest/rpc/")
                         .unwrap_or_default();
                     match RequestGuid::from(&path) {

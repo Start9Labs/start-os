@@ -1,14 +1,12 @@
 use std::sync::Arc;
-use std::{fmt::Display, ops::Deref};
 
 use futures::{Future, FutureExt};
 use tokio::sync::watch;
 
+use super::persistent_container::ServiceState;
 use crate::service::start_stop::StartStop;
 use crate::util::actor::BackgroundJobs;
 use crate::util::future::{CancellationHandle, RemoteCancellable};
-
-use super::persistent_container::ServiceState;
 
 pub mod backup;
 pub mod restart;

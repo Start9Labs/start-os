@@ -463,7 +463,8 @@ impl<T: Serialize> Serialize for JsonKey<T> {
             .serialize(serializer)
     }
 }
-impl<'de, T: Serialize + Deserialize<'de>> Deserialize<'de> for JsonKey<T> {
+// { "foo": "bar" } -> "{ \"foo\": \"bar\" }"
+impl<'de, T: Serialize + DeserializeOwned> Deserialize<'de> for JsonKey<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,

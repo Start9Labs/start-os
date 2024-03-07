@@ -6,7 +6,6 @@ use std::time::{Duration, SystemTime};
 use color_eyre::eyre::eyre;
 use models::ResultExt;
 use rand::random;
-use sqlx::{Pool, Postgres};
 use tokio::process::Command;
 use tracing::instrument;
 

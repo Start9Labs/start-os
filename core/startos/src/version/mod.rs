@@ -38,6 +38,7 @@ impl Version {
             Version::LT0_3_5(LTWrapper(_, x)) => x.clone(),
             Version::V0_3_5(Wrapper(x)) => x.semver(),
             Version::V0_3_5_1(Wrapper(x)) => x.semver(),
+            Version::V0_3_6(Wrapper(x)) => x.semver(),
             Version::Other(x) => x.clone(),
         }
     }

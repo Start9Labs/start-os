@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
@@ -6,18 +5,17 @@ use std::time::Duration;
 
 use axum::body::Body;
 use axum::response::Response;
-use clap::Parser;
 use futures::{FutureExt, StreamExt};
 use http::header::CONTENT_LENGTH;
 use http::StatusCode;
 use tokio::fs::File;
-use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
-use tokio::sync::{watch, OwnedMutexGuard};
+use tokio::io::{AsyncWrite, AsyncWriteExt};
+use tokio::sync::watch;
 
 use crate::context::RpcContext;
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::prelude::*;
-use crate::s9pk::merkle_archive::source::multi_cursor_file::{FileSectionReader, MultiCursorFile};
+use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::ArchiveSource;
 use crate::util::io::TmpDir;
 

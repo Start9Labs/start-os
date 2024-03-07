@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::panic::UnwindSafe;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -23,7 +22,7 @@ use crate::db::model::{BackupProgress, DatabaseModel};
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
-use crate::notifications::NotificationLevel;
+use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
 use crate::util::io::dir_copy;
 use crate::util::serde::IoFormat;
@@ -62,51 +61,52 @@ impl BackupStatusGuard {
         }
         if let Some(db) = self.0.take() {
             match result {
-                Ok(report) if report.iter().all(|(_, rep)| rep.error.is_none()) => ctx
-                    .notification_manager
-                    .notify(
-                        ctx.db.clone(),
-                        None,
-                        NotificationLevel::Success,
-                        "Backup Complete".to_owned(),
-                        "Your backup has completed".to_owned(),
-                        BackupReport {
-                            server: ServerBackupReport {
-                                attempted: true,
-                                error: None,
+                Ok(report) if report.iter().all(|(_, rep)| rep.error.is_none()) => {
+                    db.mutate(|db| {
+                        notify(
+                            db,
+                            None,
+                            NotificationLevel::Success,
+                            "Backup Complete".to_owned(),
+                            "Your backup has completed".to_owned(),
+                            BackupReport {
+                                server: ServerBackupReport {
+                                    attempted: true,
+                                    error: None,
+                                },
+                                packages: report,
                             },
-                            packages: report,
-                        },
-                        None,
-                    )
+                        )
+                    })
                     .await
-                    .expect("failed to send notification"),
-                Ok(report) => ctx
-                    .notification_manager
-                    .notify(
-                        ctx.db.clone(),
-                        None,
-                        NotificationLevel::Warning,
-                        "Backup Complete".to_owned(),
-                        "Your backup has completed, but some package(s) failed to backup"
-                            .to_owned(),
-                        BackupReport {
-                            server: ServerBackupReport {
-                                attempted: true,
-                                error: None,
+                }
+                Ok(report) => {
+                    db.mutate(|db| {
+                        notify(
+                            db,
+                            None,
+                            NotificationLevel::Warning,
+                            "Backup Complete".to_owned(),
+                            "Your backup has completed, but some package(s) failed to backup"
+                                .to_owned(),
+                            BackupReport {
+                                server: ServerBackupReport {
+                                    attempted: true,
+                                    error: None,
+                                },
+                                packages: report,
                             },
-                            packages: report,
-                        },
-                        None,
-                    )
+                        )
+                    })
                     .await
-                    .expect("failed to send notification"),
+                }
                 Err(e) => {
                     tracing::error!("Backup Failed: {}", e);
                     tracing::debug!("{:?}", e);
-                    ctx.notification_manager
-                        .notify(
-                            ctx.db.clone(),
+                    let err_string = e.to_string();
+                    db.mutate(|db| {
+                        notify(
+                            db,
                             None,
                             NotificationLevel::Error,
                             "Backup Failed".to_owned(),
@@ -114,17 +114,17 @@ impl BackupStatusGuard {
                             BackupReport {
                                 server: ServerBackupReport {
                                     attempted: true,
-                                    error: Some(e.to_string()),
+                                    error: Some(err_string),
                                 },
                                 packages: BTreeMap::new(),
                             },
-                            None,
                         )
-                        .await
-                        .expect("failed to send notification");
+                    })
+                    .await
                 }
-            }
+            }?;
         }
+        Ok(())
     }
 }
 impl Drop for BackupStatusGuard {

@@ -12,12 +12,12 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::db::model::{
-    InstalledPackageInfo, PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryInstalling,
+    PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryInstalling,
     PackageDataEntryRestoring, PackageDataEntryUpdating, StaticFiles,
 };
 use crate::disk::mount::guard::GenericMountGuard;
 use crate::install::PKG_ARCHIVE_DIR;
-use crate::notifications::NotificationLevel;
+use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
 use crate::progress::{
     FullProgressTracker, FullProgressTrackerHandle, PhaseProgressTrackerHandle,
@@ -370,17 +370,19 @@ impl ServiceReloadInfo {
             .load(&self.ctx, &self.id, LoadDisposition::Undo)
             .await?;
         if let Some(error) = error {
+            let error_string = error.to_string();
             self.ctx
-                .notification_manager
-                .notify(
-                    self.ctx.db.clone(),
-                    Some(self.id.clone()),
-                    NotificationLevel::Error,
-                    format!("{} Failed", self.operation),
-                    error.to_string(),
-                    (),
-                    None,
-                )
+                .db
+                .mutate(|db| {
+                    notify(
+                        db,
+                        Some(self.id.clone()),
+                        NotificationLevel::Error,
+                        format!("{} Failed", self.operation),
+                        error_string,
+                        (),
+                    )
+                })
                 .await?;
         }
         Ok(())

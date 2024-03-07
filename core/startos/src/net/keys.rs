@@ -1,7 +1,4 @@
-use std::collections::BTreeMap;
-
 use serde::{Deserialize, Serialize};
-use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 
 use crate::account::AccountInfo;
 use crate::net::ssl::CertStore;

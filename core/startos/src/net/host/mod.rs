@@ -72,7 +72,7 @@ impl Model<HostInfo> {
         self.upsert(id, || Host::new(kind))?
             .as_bindings_mut()
             .mutate(|b| {
-                let mut info = if let Some(info) = b.remove(&internal_port) {
+                let info = if let Some(info) = b.remove(&internal_port) {
                     info.update(available_ports, options)?
                 } else {
                     BindInfo::new(available_ports, options)?

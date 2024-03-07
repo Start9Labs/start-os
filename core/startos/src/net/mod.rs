@@ -1,6 +1,4 @@
-use rpc_toolkit::{from_fn_async, AnyContext, HandlerExt, ParentHandler};
-
-use crate::context::CliContext;
+use rpc_toolkit::ParentHandler;
 
 pub mod dhcp;
 pub mod dns;

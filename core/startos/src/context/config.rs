@@ -3,15 +3,12 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
-use patch_db::json_ptr::{JsonPointer, ROOT};
 use reqwest::Url;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgConnectOptions;
 use sqlx::PgPool;
 
-use crate::account::AccountInfo;
-use crate::db::model::Database;
 use crate::disk::OsPartitionInfo;
 use crate::init::init_postgres;
 use crate::prelude::*;

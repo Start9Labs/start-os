@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use josekit::jwk::Jwk;
-use patch_db::json_ptr::JsonPointer;
 use patch_db::PatchDb;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::Context;
@@ -14,9 +13,7 @@ use tokio::sync::broadcast::Sender;
 use tokio::sync::RwLock;
 use tracing::instrument;
 
-use crate::account::AccountInfo;
 use crate::context::config::ServerConfig;
-use crate::db::model::Database;
 use crate::disk::OsPartitionInfo;
 use crate::init::init_postgres;
 use crate::prelude::*;

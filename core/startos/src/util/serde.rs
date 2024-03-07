@@ -1215,7 +1215,7 @@ impl<'de> Deserialize<'de> for MaybeUtf8String {
             {
                 Ok(Vec::new())
             }
-            fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
             where
                 A: serde::de::SeqAccess<'de>,
             {

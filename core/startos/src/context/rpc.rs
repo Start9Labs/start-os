@@ -29,7 +29,6 @@ use crate::middleware::auth::HashSessionToken;
 use crate::net::net_controller::NetController;
 use crate::net::utils::find_eth_iface;
 use crate::net::wifi::WpaCli;
-use crate::notifications::NotificationManager;
 use crate::prelude::*;
 use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
@@ -50,7 +49,6 @@ pub struct RpcContextSeed {
     pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
     pub shutdown: broadcast::Sender<Option<Shutdown>>,
     pub tor_socks: SocketAddr,
-    pub notification_manager: NotificationManager,
     pub lxc_manager: Arc<LxcManager>,
     pub open_authed_websockets: Mutex<BTreeMap<HashSessionToken, Vec<oneshot::Sender<()>>>>,
     pub rpc_stream_continuations: Mutex<BTreeMap<RequestGuid, RpcContinuation>>,
@@ -106,7 +104,6 @@ impl RpcContext {
         tracing::info!("Initialized Net Controller");
         let services = ServiceMap::default();
         let metrics_cache = RwLock::<Option<crate::system::Metrics>>::new(None);
-        let notification_manager = NotificationManager::new(db.clone());
         tracing::info!("Initialized Notification Manager");
         let tor_proxy_url = format!("socks5h://{tor_proxy}");
         let devices = lshw().await?;
@@ -159,7 +156,6 @@ impl RpcContext {
             metrics_cache,
             shutdown,
             tor_socks: tor_proxy,
-            notification_manager,
             lxc_manager: Arc::new(LxcManager::new()),
             open_authed_websockets: Mutex::new(BTreeMap::new()),
             rpc_stream_continuations: Mutex::new(BTreeMap::new()),
