@@ -87,14 +87,10 @@ helpers = { path = "../helpers" }
 hex = "0.4.3"
 hmac = "0.12.1"
 http = "1.0.0"
-# http-body-util = "0.1.0"
-# hyper = { version = "1.1.0", features = ["full"] }
-# hyper-util = { version = "0.1.2", features = [
-#   "server",
-#   "server-auto",
-#   "tokio",
-# ] }
-# hyper-ws-listener = "0.3.0"
+id-pool = { version = "0.2.2", default-features = false, features = [
+  "serde",
+  "u16",
+] }
 imbl = "2.0.2"
 imbl-value = { git = "https://github.com/Start9Labs/imbl-value.git" }
 include_dir = "0.7.3"
@@ -169,7 +165,9 @@ tokio-stream = { version = "0.1.14", features = ["io-util", "sync", "net"] }
 tokio-tar = { git = "https://github.com/dr-bonez/tokio-tar.git" }
 tokio-tungstenite = { version = "0.21.0", features = ["native-tls"] }
 tokio-util = { version = "0.7.9", features = ["io"] }
-torut = "0.2.1"
+torut = { git = "https://github.com/Start9Labs/torut.git", branch = "update/dependencies", features = [
+  "serialize",
+] }
 tracing = "0.1.39"
 tracing-error = "0.2.0"
 tracing-futures = "0.2.5"

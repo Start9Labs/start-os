@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::stream::BoxStream;
-use futures::{FutureExt, SinkExt, Stream, StreamExt, TryStreamExt};
+use futures::{FutureExt, Stream, StreamExt, TryStreamExt};
 use models::PackageId;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{command, from_fn_async, CallRemote, Empty, HandlerExt, ParentHandler};

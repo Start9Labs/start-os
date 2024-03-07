@@ -9,13 +9,11 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::config::{Config, ConfigSpec, ConfigureContext};
-use crate::context::{CliContext, RpcContext};
+use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencies, Database};
 use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
 use crate::status::DependencyConfigErrors;
-use crate::util::serde::HandlerExtSerde;
-use crate::util::Version;
 use crate::Error;
 
 pub fn dependency() -> ParentHandler {
@@ -28,6 +26,12 @@ pub struct Dependencies(pub BTreeMap<PackageId, DepInfo>);
 impl Map for Dependencies {
     type Key = PackageId;
     type Value = DepInfo;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Ok(key)
+    }
+    fn key_string(key: &Self::Key) -> Result<imbl_value::InternedString, Error> {
+        Ok(key.clone().into())
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

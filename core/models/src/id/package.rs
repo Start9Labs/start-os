@@ -3,6 +3,7 @@ use std::path::Path;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize, Serializer};
+use yasi::InternedString;
 
 use crate::{Id, InvalidId, SYSTEM_ID};
 
@@ -20,6 +21,16 @@ impl FromStr for PackageId {
 impl From<Id> for PackageId {
     fn from(id: Id) -> Self {
         PackageId(id)
+    }
+}
+impl From<PackageId> for Id {
+    fn from(value: PackageId) -> Self {
+        value.0
+    }
+}
+impl From<PackageId> for InternedString {
+    fn from(value: PackageId) -> Self {
+        value.0.into()
     }
 }
 impl std::ops::Deref for PackageId {

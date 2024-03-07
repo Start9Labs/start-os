@@ -18,6 +18,7 @@ use trust_dns_server::proto::rr::{Name, Record, RecordType};
 use trust_dns_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 use trust_dns_server::ServerFuture;
 
+use crate::net::forward::START9_BRIDGE_IFACE;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
@@ -163,13 +164,13 @@ impl DnsController {
 
         Command::new("resolvectl")
             .arg("dns")
-            .arg("lxcbr0")
+            .arg(START9_BRIDGE_IFACE)
             .arg("127.0.0.1")
             .invoke(ErrorKind::Network)
             .await?;
         Command::new("resolvectl")
             .arg("domain")
-            .arg("lxcbr0")
+            .arg(START9_BRIDGE_IFACE)
             .arg("embassy")
             .invoke(ErrorKind::Network)
             .await?;

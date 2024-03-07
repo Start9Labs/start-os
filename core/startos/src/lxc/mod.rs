@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::net::Ipv4Addr;
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::{Arc, Weak};
@@ -109,6 +110,7 @@ impl LxcManager {
 pub struct LxcContainer {
     manager: Weak<LxcManager>,
     rootfs: OverlayGuard,
+    ip: Ipv4Addr,
     guid: Arc<InternedString>,
     rpc_bind: TmpMountGuard,
     config: LxcConfig,
@@ -169,9 +171,20 @@ impl LxcContainer {
             .arg(&*guid)
             .invoke(ErrorKind::Lxc)
             .await?;
+        let ip = String::from_utf8(
+            Command::new("lxc-info")
+                .arg("--name")
+                .arg(&*guid)
+                .arg("-iH")
+                .invoke(ErrorKind::Docker)
+                .await?,
+        )?
+        .trim()
+        .parse()?;
         Ok(Self {
             manager: Arc::downgrade(manager),
             rootfs,
+            ip,
             guid: Arc::new(guid),
             rpc_bind,
             config,
@@ -181,6 +194,10 @@ impl LxcContainer {
 
     pub fn rootfs_dir(&self) -> &Path {
         self.rootfs.path()
+    }
+
+    pub fn ip(&self) -> Ipv4Addr {
+        self.ip
     }
 
     pub fn rpc_dir(&self) -> &Path {

@@ -11,12 +11,12 @@ use models::PackageId;
 use rpc_toolkit::{command, from_fn_async, AnyContext, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-use sqlx::{Executor, Postgres};
 use tokio::sync::Mutex;
 use tracing::instrument;
 
 use self::cifs::CifsBackupTarget;
 use crate::context::{CliContext, RpcContext};
+use crate::db::model::DatabaseModel;
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::cifs::Cifs;
@@ -49,18 +49,15 @@ pub enum BackupTarget {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum BackupTargetId {
     Disk { logicalname: PathBuf },
-    Cifs { id: i32 },
+    Cifs { id: u32 },
 }
 impl BackupTargetId {
-    pub async fn load<Ex>(self, secrets: &mut Ex) -> Result<BackupTargetFS, Error>
-    where
-        for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
-    {
+    pub fn load(self, db: &DatabaseModel) -> Result<BackupTargetFS, Error> {
         Ok(match self {
             BackupTargetId::Disk { logicalname } => {
                 BackupTargetFS::Disk(BlockDev::new(logicalname))
             }
-            BackupTargetId::Cifs { id } => BackupTargetFS::Cifs(cifs::load(secrets, id).await?),
+            BackupTargetId::Cifs { id } => BackupTargetFS::Cifs(cifs::load(db, id)?),
         })
     }
 }
@@ -161,10 +158,10 @@ pub fn target() -> ParentHandler {
 
 // #[command(display(display_serializable))]
 pub async fn list(ctx: RpcContext) -> Result<BTreeMap<BackupTargetId, BackupTarget>, Error> {
-    let mut sql_handle = ctx.secret_store.acquire().await?;
+    let peek = ctx.db.peek().await;
     let (disks_res, cifs) = tokio::try_join!(
         crate::disk::util::list(&ctx.os_partitions),
-        cifs::list(sql_handle.as_mut()),
+        cifs::list(&peek),
     )?;
     Ok(disks_res
         .into_iter()
@@ -262,13 +259,7 @@ pub async fn info(
     }: InfoParams,
 ) -> Result<BackupInfo, Error> {
     let guard = BackupMountGuard::mount(
-        TmpMountGuard::mount(
-            &target_id
-                .load(ctx.secret_store.acquire().await?.as_mut())
-                .await?,
-            ReadWrite,
-        )
-        .await?,
+        TmpMountGuard::mount(&target_id.load(&ctx.db.peek().await)?, ReadWrite).await?,
         &password,
     )
     .await?;
@@ -308,14 +299,7 @@ pub async fn mount(
     }
 
     let guard = BackupMountGuard::mount(
-        TmpMountGuard::mount(
-            &target_id
-                .clone()
-                .load(ctx.secret_store.acquire().await?.as_mut())
-                .await?,
-            ReadWrite,
-        )
-        .await?,
+        TmpMountGuard::mount(&target_id.clone().load(&ctx.db.peek().await)?, ReadWrite).await?,
         &password,
     )
     .await?;

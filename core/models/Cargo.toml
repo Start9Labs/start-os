@@ -34,6 +34,6 @@ sqlx = { version = "0.7.2", features = [
 ssh-key = "0.6.2"
 thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
-torut = "0.2.1"
+torut = { git = "https://github.com/Start9Labs/torut.git", branch = "update/dependencies" }
 tracing = "0.1.39"
 yasi = "0.1.5"

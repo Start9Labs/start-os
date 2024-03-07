@@ -1,7 +1,7 @@
-use std::os::fd::{AsRawFd, FromRawFd, RawFd};
+use std::io::SeekFrom;
+use std::os::fd::{AsRawFd, RawFd};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::{borrow::Borrow, io::SeekFrom};
 
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt};

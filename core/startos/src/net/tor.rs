@@ -28,12 +28,43 @@ use crate::logs::{
     cli_logs_generic_follow, cli_logs_generic_nofollow, fetch_logs, follow_logs, journalctl,
     LogFollowResponse, LogResponse, LogSource,
 };
+use crate::prelude::*;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;
-use crate::{Error, ErrorKind, ResultExt as _};
 
 pub const SYSTEMD_UNIT: &str = "tor@default";
 const STARTING_HEALTH_TIMEOUT: u64 = 120; // 2min
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct OnionStore(BTreeMap<OnionAddressV3, TorSecretKeyV3>);
+impl Map for OnionStore {
+    type Key = OnionAddressV3;
+    type Value = TorSecretKeyV3;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Ok(key.get_address_without_dot_onion())
+    }
+}
+impl OnionStore {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn insert(&mut self, key: TorSecretKeyV3) {
+        self.0.insert(key.public().get_onion_address(), key);
+    }
+}
+impl Model<OnionStore> {
+    pub fn new_key(&mut self) -> Result<TorSecretKeyV3, Error> {
+        let key = TorSecretKeyV3::generate();
+        self.insert(&key.public().get_onion_address(), &key)?;
+        Ok(key)
+    }
+    pub fn insert_key(&mut self, key: &TorSecretKeyV3) -> Result<(), Error> {
+        self.insert(&key.public().get_onion_address(), &key)
+    }
+    pub fn get_key(&self, address: &OnionAddressV3) -> Result<TorSecretKeyV3, Error> {
+        self.as_idx(address).or_not_found(address)?.de()
+    }
+}
 
 enum ErrorLogSeverity {
     Fatal { wipe_state: bool },
@@ -208,33 +239,29 @@ impl TorController {
     pub async fn add(
         &self,
         key: TorSecretKeyV3,
-        external: u16,
-        target: SocketAddr,
-    ) -> Result<Arc<()>, Error> {
+        bindings: Vec<(u16, SocketAddr)>,
+    ) -> Result<Vec<Arc<()>>, Error> {
         let (reply, res) = oneshot::channel();
         self.0
             .send
             .send(TorCommand::AddOnion {
                 key,
-                external,
-                target,
+                bindings,
                 reply,
             })
-            .ok()
-            .ok_or_else(|| Error::new(eyre!("TorControl died"), ErrorKind::Tor))?;
+            .map_err(|_| Error::new(eyre!("TorControl died"), ErrorKind::Tor))?;
         res.await
-            .ok()
-            .ok_or_else(|| Error::new(eyre!("TorControl died"), ErrorKind::Tor))
+            .map_err(|_| Error::new(eyre!("TorControl died"), ErrorKind::Tor))
     }
 
     pub async fn gc(
         &self,
-        key: Option<TorSecretKeyV3>,
+        addr: Option<OnionAddressV3>,
         external: Option<u16>,
     ) -> Result<(), Error> {
         self.0
             .send
-            .send(TorCommand::GC { key, external })
+            .send(TorCommand::GC { addr, external })
             .ok()
             .ok_or_else(|| Error::new(eyre!("TorControl died"), ErrorKind::Tor))
     }
@@ -279,12 +306,11 @@ type AuthenticatedConnection = AuthenticatedConn<
 enum TorCommand {
     AddOnion {
         key: TorSecretKeyV3,
-        external: u16,
-        target: SocketAddr,
-        reply: oneshot::Sender<Arc<()>>,
+        bindings: Vec<(u16, SocketAddr)>,
+        reply: oneshot::Sender<Vec<Arc<()>>>,
     },
     GC {
-        key: Option<TorSecretKeyV3>,
+        addr: Option<OnionAddressV3>,
         external: Option<u16>,
     },
     GetInfo {
@@ -302,7 +328,13 @@ async fn torctl(
     tor_control: SocketAddr,
     tor_socks: SocketAddr,
     recv: &mut mpsc::UnboundedReceiver<TorCommand>,
-    services: &mut BTreeMap<[u8; 64], BTreeMap<u16, BTreeMap<SocketAddr, Weak<()>>>>,
+    services: &mut BTreeMap<
+        OnionAddressV3,
+        (
+            TorSecretKeyV3,
+            BTreeMap<u16, BTreeMap<SocketAddr, Weak<()>>>,
+        ),
+    >,
     wipe_state: &AtomicBool,
     health_timeout: &mut Duration,
 ) -> Result<(), Error> {
@@ -420,27 +452,32 @@ async fn torctl(
             match command {
                 TorCommand::AddOnion {
                     key,
-                    external,
-                    target,
+                    bindings,
                     reply,
                 } => {
-                    let mut service = if let Some(service) = services.remove(&key.as_bytes()) {
+                    let addr = key.public().get_onion_address();
+                    let mut service = if let Some((_key, service)) = services.remove(&addr) {
+                        debug_assert_eq!(key, _key);
                         service
                     } else {
                         BTreeMap::new()
                     };
-                    let mut binding = service.remove(&external).unwrap_or_default();
-                    let rc = if let Some(rc) =
-                        Weak::upgrade(&binding.remove(&target).unwrap_or_default())
-                    {
-                        rc
-                    } else {
-                        Arc::new(())
-                    };
-                    binding.insert(target, Arc::downgrade(&rc));
-                    service.insert(external, binding);
-                    services.insert(key.as_bytes(), service);
-                    reply.send(rc).unwrap_or_default();
+                    let mut rcs = Vec::with_capacity(bindings.len());
+                    for (external, target) in bindings {
+                        let mut binding = service.remove(&external).unwrap_or_default();
+                        let rc = if let Some(rc) =
+                            Weak::upgrade(&binding.remove(&target).unwrap_or_default())
+                        {
+                            rc
+                        } else {
+                            Arc::new(())
+                        };
+                        binding.insert(target, Arc::downgrade(&rc));
+                        service.insert(external, binding);
+                        rcs.push(rc);
+                    }
+                    services.insert(addr, (key, service));
+                    reply.send(rcs).unwrap_or_default();
                 }
                 TorCommand::GetInfo { reply, .. } => {
                     reply
@@ -480,8 +517,7 @@ async fn torctl(
         )
         .await?;
 
-    for (key, service) in std::mem::take(services) {
-        let key = TorSecretKeyV3::from(key);
+    for (addr, (key, service)) in std::mem::take(services) {
         let bindings = service
             .iter()
             .flat_map(|(ext, int)| {
@@ -491,7 +527,7 @@ async fn torctl(
             })
             .collect::<Vec<_>>();
         if !bindings.is_empty() {
-            services.insert(key.as_bytes(), service);
+            services.insert(addr, (key.clone(), service));
             connection
                 .add_onion_v3(&key, false, false, false, None, &mut bindings.iter())
                 .await?;
@@ -503,31 +539,33 @@ async fn torctl(
             match command {
                 TorCommand::AddOnion {
                     key,
-                    external,
-                    target,
+                    bindings,
                     reply,
                 } => {
                     let mut rm_res = Ok(());
-                    let onion_base = key
-                        .public()
-                        .get_onion_address()
-                        .get_address_without_dot_onion();
-                    let mut service = if let Some(service) = services.remove(&key.as_bytes()) {
+                    let addr = key.public().get_onion_address();
+                    let onion_base = addr.get_address_without_dot_onion();
+                    let mut service = if let Some((_key, service)) = services.remove(&addr) {
+                        debug_assert_eq!(_key, key);
                         rm_res = connection.del_onion(&onion_base).await;
                         service
                     } else {
                         BTreeMap::new()
                     };
-                    let mut binding = service.remove(&external).unwrap_or_default();
-                    let rc = if let Some(rc) =
-                        Weak::upgrade(&binding.remove(&target).unwrap_or_default())
-                    {
-                        rc
-                    } else {
-                        Arc::new(())
-                    };
-                    binding.insert(target, Arc::downgrade(&rc));
-                    service.insert(external, binding);
+                    let mut rcs = Vec::with_capacity(bindings.len());
+                    for (external, target) in bindings {
+                        let mut binding = service.remove(&external).unwrap_or_default();
+                        let rc = if let Some(rc) =
+                            Weak::upgrade(&binding.remove(&target).unwrap_or_default())
+                        {
+                            rc
+                        } else {
+                            Arc::new(())
+                        };
+                        binding.insert(target, Arc::downgrade(&rc));
+                        service.insert(external, binding);
+                        rcs.push(rc);
+                    }
                     let bindings = service
                         .iter()
                         .flat_map(|(ext, int)| {
@@ -536,25 +574,21 @@ async fn torctl(
                                 .map(|(addr, _)| (*ext, SocketAddr::from(*addr)))
                         })
                         .collect::<Vec<_>>();
-                    services.insert(key.as_bytes(), service);
-                    reply.send(rc).unwrap_or_default();
+                    services.insert(addr, (key.clone(), service));
+                    reply.send(rcs).unwrap_or_default();
                     rm_res?;
                     connection
                         .add_onion_v3(&key, false, false, false, None, &mut bindings.iter())
                         .await?;
                 }
-                TorCommand::GC { key, external } => {
-                    for key in if key.is_some() {
-                        itertools::Either::Left(key.into_iter().map(|k| k.as_bytes()))
+                TorCommand::GC { addr, external } => {
+                    for addr in if addr.is_some() {
+                        itertools::Either::Left(addr.into_iter())
                     } else {
                         itertools::Either::Right(services.keys().cloned().collect_vec().into_iter())
                     } {
-                        let key = TorSecretKeyV3::from(key);
-                        let onion_base = key
-                            .public()
-                            .get_onion_address()
-                            .get_address_without_dot_onion();
-                        if let Some(mut service) = services.remove(&key.as_bytes()) {
+                        if let Some((key, mut service)) = services.remove(&addr) {
+                            let onion_base: String = addr.get_address_without_dot_onion();
                             for external in if external.is_some() {
                                 itertools::Either::Left(external.into_iter())
                             } else {
@@ -583,7 +617,7 @@ async fn torctl(
                                     })
                                     .collect::<Vec<_>>();
                                 if !bindings.is_empty() {
-                                    services.insert(key.as_bytes(), service);
+                                    services.insert(addr, (key.clone(), service));
                                 }
                                 rm_res?;
                                 if !bindings.is_empty() {

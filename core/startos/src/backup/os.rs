@@ -1,13 +1,15 @@
-use openssl::pkey::PKey;
+use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use patch_db::Value;
 use serde::{Deserialize, Serialize};
+use ssh_key::private::Ed25519Keypair;
+use torut::onion::TorSecretKeyV3;
 
 use crate::account::AccountInfo;
 use crate::hostname::{generate_hostname, generate_id, Hostname};
-use crate::net::keys::Key;
 use crate::prelude::*;
-use crate::util::serde::Base64;
+use crate::util::crypto::ed25519_expand_key;
+use crate::util::serde::{Base32, Base64, Pem};
 
 pub struct OsBackup {
     pub account: AccountInfo,
@@ -19,19 +21,23 @@ impl<'de> Deserialize<'de> for OsBackup {
         D: serde::Deserializer<'de>,
     {
         let tagged = OsBackupSerDe::deserialize(deserializer)?;
-        match tagged.version {
+        Ok(match tagged.version {
             0 => patch_db::value::from_value::<OsBackupV0>(tagged.rest)
                 .map_err(serde::de::Error::custom)?
                 .project()
-                .map_err(serde::de::Error::custom),
+                .map_err(serde::de::Error::custom)?,
             1 => patch_db::value::from_value::<OsBackupV1>(tagged.rest)
                 .map_err(serde::de::Error::custom)?
-                .project()
-                .map_err(serde::de::Error::custom),
-            v => Err(serde::de::Error::custom(&format!(
-                "Unknown backup version {v}"
-            ))),
-        }
+                .project(),
+            2 => patch_db::value::from_value::<OsBackupV2>(tagged.rest)
+                .map_err(serde::de::Error::custom)?
+                .project(),
+            v => {
+                return Err(serde::de::Error::custom(&format!(
+                    "Unknown backup version {v}"
+                )))
+            }
+        })
     }
 }
 impl Serialize for OsBackup {
@@ -40,11 +46,9 @@ impl Serialize for OsBackup {
         S: serde::Serializer,
     {
         OsBackupSerDe {
-            version: 1,
-            rest: patch_db::value::to_value(
-                &OsBackupV1::unproject(self).map_err(serde::ser::Error::custom)?,
-            )
-            .map_err(serde::ser::Error::custom)?,
+            version: 2,
+            rest: patch_db::value::to_value(&OsBackupV2::unproject(self))
+                .map_err(serde::ser::Error::custom)?,
         }
         .serialize(serializer)
     }
@@ -62,10 +66,10 @@ struct OsBackupSerDe {
 #[derive(Deserialize)]
 #[serde(rename = "kebab-case")]
 struct OsBackupV0 {
-    // tor_key: Base32<[u8; 64]>,
-    root_ca_key: String,  // PEM Encoded OpenSSL Key
-    root_ca_cert: String, // PEM Encoded OpenSSL X509 Certificate
-    ui: Value,            // JSON Value
+    tor_key: Base32<[u8; 64]>, // Base32 Encoded Ed25519 Expanded Secret Key
+    root_ca_key: Pem<PKey<Private>>, // PEM Encoded OpenSSL Key
+    root_ca_cert: Pem<X509>,   // PEM Encoded OpenSSL X509 Certificate
+    ui: Value,                 // JSON Value
 }
 impl OsBackupV0 {
     fn project(self) -> Result<OsBackup, Error> {
@@ -74,9 +78,13 @@ impl OsBackupV0 {
                 server_id: generate_id(),
                 hostname: generate_hostname(),
                 password: Default::default(),
-                key: Key::new(None),
-                root_ca_key: PKey::private_key_from_pem(self.root_ca_key.as_bytes())?,
-                root_ca_cert: X509::from_pem(self.root_ca_cert.as_bytes())?,
+                root_ca_key: self.root_ca_key.0,
+                root_ca_cert: self.root_ca_cert.0,
+                ssh_key: ssh_key::PrivateKey::random(
+                    &mut rand::thread_rng(),
+                    ssh_key::Algorithm::Ed25519,
+                )?,
+                tor_key: TorSecretKeyV3::from(self.tor_key.0),
             },
             ui: self.ui,
         })
@@ -87,36 +95,67 @@ impl OsBackupV0 {
 #[derive(Deserialize, Serialize)]
 #[serde(rename = "kebab-case")]
 struct OsBackupV1 {
-    server_id: String,         // uuidv4
-    hostname: String,          // embassy-<adjective>-<noun>
-    net_key: Base64<[u8; 32]>, // Ed25519 Secret Key
-    root_ca_key: String,       // PEM Encoded OpenSSL Key
-    root_ca_cert: String,      // PEM Encoded OpenSSL X509 Certificate
-    ui: Value,                 // JSON Value
-                               // TODO add more
+    server_id: String,               // uuidv4
+    hostname: String,                // embassy-<adjective>-<noun>
+    net_key: Base64<[u8; 32]>,       // Ed25519 Secret Key
+    root_ca_key: Pem<PKey<Private>>, // PEM Encoded OpenSSL Key
+    root_ca_cert: Pem<X509>,         // PEM Encoded OpenSSL X509 Certificate
+    ui: Value,                       // JSON Value
 }
 impl OsBackupV1 {
-    fn project(self) -> Result<OsBackup, Error> {
-        Ok(OsBackup {
+    fn project(self) -> OsBackup {
+        OsBackup {
             account: AccountInfo {
                 server_id: self.server_id,
                 hostname: Hostname(self.hostname),
                 password: Default::default(),
-                key: Key::from_bytes(None, self.net_key.0),
-                root_ca_key: PKey::private_key_from_pem(self.root_ca_key.as_bytes())?,
-                root_ca_cert: X509::from_pem(self.root_ca_cert.as_bytes())?,
+                root_ca_key: self.root_ca_key.0,
+                root_ca_cert: self.root_ca_cert.0,
+                ssh_key: ssh_key::PrivateKey::from(Ed25519Keypair::from_seed(&self.net_key.0)),
+                tor_key: TorSecretKeyV3::from(ed25519_expand_key(&self.net_key.0)),
             },
             ui: self.ui,
-        })
+        }
     }
-    fn unproject(backup: &OsBackup) -> Result<Self, Error> {
-        Ok(Self {
+}
+
+/// V2
+#[derive(Deserialize, Serialize)]
+#[serde(rename = "kebab-case")]
+
+struct OsBackupV2 {
+    server_id: String,                 // uuidv4
+    hostname: String,                  // <adjective>-<noun>
+    root_ca_key: Pem<PKey<Private>>,   // PEM Encoded OpenSSL Key
+    root_ca_cert: Pem<X509>,           // PEM Encoded OpenSSL X509 Certificate
+    ssh_key: Pem<ssh_key::PrivateKey>, // PEM Encoded OpenSSH Key
+    tor_key: TorSecretKeyV3,           // Base64 Encoded Ed25519 Expanded Secret Key
+    ui: Value,                         // JSON Value
+}
+impl OsBackupV2 {
+    fn project(self) -> OsBackup {
+        OsBackup {
+            account: AccountInfo {
+                server_id: self.server_id,
+                hostname: Hostname(self.hostname),
+                password: Default::default(),
+                root_ca_key: self.root_ca_key.0,
+                root_ca_cert: self.root_ca_cert.0,
+                ssh_key: self.ssh_key.0,
+                tor_key: self.tor_key,
+            },
+            ui: self.ui,
+        }
+    }
+    fn unproject(backup: &OsBackup) -> Self {
+        Self {
             server_id: backup.account.server_id.clone(),
             hostname: backup.account.hostname.0.clone(),
-            net_key: Base64(backup.account.key.as_bytes()),
-            root_ca_key: String::from_utf8(backup.account.root_ca_key.private_key_to_pem_pkcs8()?)?,
-            root_ca_cert: String::from_utf8(backup.account.root_ca_cert.to_pem()?)?,
+            root_ca_key: Pem(backup.account.root_ca_key.clone()),
+            root_ca_cert: Pem(backup.account.root_ca_cert.clone()),
+            ssh_key: Pem(backup.account.ssh_key.clone()),
+            tor_key: backup.account.tor_key.clone(),
             ui: backup.ui.clone(),
-        })
+        }
     }
 }

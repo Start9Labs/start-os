@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::panic::UnwindSafe;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -19,11 +18,11 @@ use crate::auth::check_password_against_db;
 use crate::backup::os::OsBackup;
 use crate::backup::{BackupReport, ServerBackupReport};
 use crate::context::RpcContext;
-use crate::db::model::BackupProgress;
+use crate::db::model::{BackupProgress, DatabaseModel};
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
-use crate::notifications::NotificationLevel;
+use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
 use crate::util::io::dir_copy;
 use crate::util::serde::IoFormat;
@@ -39,6 +38,111 @@ pub struct BackupParams {
     #[arg(long = "package-ids")]
     package_ids: Option<Vec<PackageId>>,
     password: crate::auth::PasswordType,
+}
+
+struct BackupStatusGuard(Option<PatchDb>);
+impl BackupStatusGuard {
+    fn new(db: PatchDb) -> Self {
+        Self(Some(db))
+    }
+    async fn handle_result(
+        mut self,
+        result: Result<BTreeMap<PackageId, PackageBackupReport>, Error>,
+    ) -> Result<(), Error> {
+        if let Some(db) = self.0.as_ref() {
+            db.mutate(|v| {
+                v.as_public_mut()
+                    .as_server_info_mut()
+                    .as_status_info_mut()
+                    .as_backup_progress_mut()
+                    .ser(&None)
+            })
+            .await?;
+        }
+        if let Some(db) = self.0.take() {
+            match result {
+                Ok(report) if report.iter().all(|(_, rep)| rep.error.is_none()) => {
+                    db.mutate(|db| {
+                        notify(
+                            db,
+                            None,
+                            NotificationLevel::Success,
+                            "Backup Complete".to_owned(),
+                            "Your backup has completed".to_owned(),
+                            BackupReport {
+                                server: ServerBackupReport {
+                                    attempted: true,
+                                    error: None,
+                                },
+                                packages: report,
+                            },
+                        )
+                    })
+                    .await
+                }
+                Ok(report) => {
+                    db.mutate(|db| {
+                        notify(
+                            db,
+                            None,
+                            NotificationLevel::Warning,
+                            "Backup Complete".to_owned(),
+                            "Your backup has completed, but some package(s) failed to backup"
+                                .to_owned(),
+                            BackupReport {
+                                server: ServerBackupReport {
+                                    attempted: true,
+                                    error: None,
+                                },
+                                packages: report,
+                            },
+                        )
+                    })
+                    .await
+                }
+                Err(e) => {
+                    tracing::error!("Backup Failed: {}", e);
+                    tracing::debug!("{:?}", e);
+                    let err_string = e.to_string();
+                    db.mutate(|db| {
+                        notify(
+                            db,
+                            None,
+                            NotificationLevel::Error,
+                            "Backup Failed".to_owned(),
+                            "Your backup failed to complete.".to_owned(),
+                            BackupReport {
+                                server: ServerBackupReport {
+                                    attempted: true,
+                                    error: Some(err_string),
+                                },
+                                packages: BTreeMap::new(),
+                            },
+                        )
+                    })
+                    .await
+                }
+            }?;
+        }
+        Ok(())
+    }
+}
+impl Drop for BackupStatusGuard {
+    fn drop(&mut self) {
+        if let Some(db) = self.0.take() {
+            tokio::spawn(async move {
+                db.mutate(|v| {
+                    v.as_public_mut()
+                        .as_server_info_mut()
+                        .as_status_info_mut()
+                        .as_backup_progress_mut()
+                        .ser(&None)
+                })
+                .await
+                .unwrap()
+            });
+        }
+    }
 }
 
 #[instrument(skip(ctx, old_password, password))]
@@ -57,139 +161,81 @@ pub async fn backup_all(
         .clone()
         .decrypt(&ctx)?;
     let password = password.decrypt(&ctx)?;
-    check_password_against_db(ctx.secret_store.acquire().await?.as_mut(), &password).await?;
-    let fs = target_id
-        .load(ctx.secret_store.acquire().await?.as_mut())
-        .await?;
+
+    let ((fs, package_ids), status_guard) = (
+        ctx.db
+            .mutate(|db| {
+                check_password_against_db(db, &password)?;
+                let fs = target_id.load(db)?;
+                let package_ids = if let Some(ids) = package_ids {
+                    ids.into_iter().collect()
+                } else {
+                    db.as_public()
+                        .as_package_data()
+                        .as_entries()?
+                        .into_iter()
+                        .filter(|(_, m)| m.expect_as_installed().is_ok())
+                        .map(|(id, _)| id)
+                        .collect()
+                };
+                assure_backing_up(db, &package_ids)?;
+                Ok((fs, package_ids))
+            })
+            .await?,
+        BackupStatusGuard::new(ctx.db.clone()),
+    );
+
     let mut backup_guard = BackupMountGuard::mount(
         TmpMountGuard::mount(&fs, ReadWrite).await?,
         &old_password_decrypted,
     )
     .await?;
-    let package_ids = if let Some(ids) = package_ids {
-        ids.into_iter().collect()
-    } else {
-        todo!("all installed packages");
-    };
     if old_password.is_some() {
         backup_guard.change_password(&password)?;
     }
-    assure_backing_up(&ctx.db, &package_ids).await?;
     tokio::task::spawn(async move {
-        let backup_res = perform_backup(&ctx, backup_guard, &package_ids).await;
-        match backup_res {
-            Ok(report) if report.iter().all(|(_, rep)| rep.error.is_none()) => ctx
-                .notification_manager
-                .notify(
-                    ctx.db.clone(),
-                    None,
-                    NotificationLevel::Success,
-                    "Backup Complete".to_owned(),
-                    "Your backup has completed".to_owned(),
-                    BackupReport {
-                        server: ServerBackupReport {
-                            attempted: true,
-                            error: None,
-                        },
-                        packages: report,
-                    },
-                    None,
-                )
-                .await
-                .expect("failed to send notification"),
-            Ok(report) => ctx
-                .notification_manager
-                .notify(
-                    ctx.db.clone(),
-                    None,
-                    NotificationLevel::Warning,
-                    "Backup Complete".to_owned(),
-                    "Your backup has completed, but some package(s) failed to backup".to_owned(),
-                    BackupReport {
-                        server: ServerBackupReport {
-                            attempted: true,
-                            error: None,
-                        },
-                        packages: report,
-                    },
-                    None,
-                )
-                .await
-                .expect("failed to send notification"),
-            Err(e) => {
-                tracing::error!("Backup Failed: {}", e);
-                tracing::debug!("{:?}", e);
-                ctx.notification_manager
-                    .notify(
-                        ctx.db.clone(),
-                        None,
-                        NotificationLevel::Error,
-                        "Backup Failed".to_owned(),
-                        "Your backup failed to complete.".to_owned(),
-                        BackupReport {
-                            server: ServerBackupReport {
-                                attempted: true,
-                                error: Some(e.to_string()),
-                            },
-                            packages: BTreeMap::new(),
-                        },
-                        None,
-                    )
-                    .await
-                    .expect("failed to send notification");
-            }
-        }
-        ctx.db
-            .mutate(|v| {
-                v.as_public_mut()
-                    .as_server_info_mut()
-                    .as_status_info_mut()
-                    .as_backup_progress_mut()
-                    .ser(&None)
-            })
-            .await?;
-        Ok::<(), Error>(())
+        status_guard
+            .handle_result(perform_backup(&ctx, backup_guard, &package_ids).await)
+            .await
+            .unwrap();
     });
     Ok(())
 }
 
 #[instrument(skip(db, packages))]
-async fn assure_backing_up(
-    db: &PatchDb,
-    packages: impl IntoIterator<Item = &PackageId> + UnwindSafe + Send,
+fn assure_backing_up<'a>(
+    db: &mut DatabaseModel,
+    packages: impl IntoIterator<Item = &'a PackageId>,
 ) -> Result<(), Error> {
-    db.mutate(|v| {
-        let backing_up = v
-            .as_public_mut()
-            .as_server_info_mut()
-            .as_status_info_mut()
-            .as_backup_progress_mut();
-        if backing_up
-            .clone()
-            .de()?
-            .iter()
-            .flat_map(|x| x.values())
-            .fold(false, |acc, x| {
-                if !x.complete {
-                    return true;
-                }
-                acc
-            })
-        {
-            return Err(Error::new(
-                eyre!("Server is already backing up!"),
-                ErrorKind::InvalidRequest,
-            ));
-        }
-        backing_up.ser(&Some(
-            packages
-                .into_iter()
-                .map(|x| (x.clone(), BackupProgress { complete: false }))
-                .collect(),
-        ))?;
-        Ok(())
-    })
-    .await
+    let backing_up = db
+        .as_public_mut()
+        .as_server_info_mut()
+        .as_status_info_mut()
+        .as_backup_progress_mut();
+    if backing_up
+        .clone()
+        .de()?
+        .iter()
+        .flat_map(|x| x.values())
+        .fold(false, |acc, x| {
+            if !x.complete {
+                return true;
+            }
+            acc
+        })
+    {
+        return Err(Error::new(
+            eyre!("Server is already backing up!"),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+    backing_up.ser(&Some(
+        packages
+            .into_iter()
+            .map(|x| (x.clone(), BackupProgress { complete: false }))
+            .collect(),
+    ))?;
+    Ok(())
 }
 
 #[instrument(skip(ctx, backup_guard))]

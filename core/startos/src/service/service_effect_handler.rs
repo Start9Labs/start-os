@@ -1,11 +1,10 @@
+use std::ffi::OsString;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
-use std::{ffi::OsString, time::Instant};
 
-use chrono::Utc;
-use clap::builder::{TypedValueParser, ValueParserFactory};
+use clap::builder::ValueParserFactory;
 use clap::Parser;
 use imbl_value::{json, InternedString};
 use models::{ActionId, HealthCheckId, ImageId, PackageId};
@@ -13,19 +12,18 @@ use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
 use tokio::process::Command;
 
+use crate::db::model::ExposedUI;
+use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::prelude::*;
 use crate::s9pk::rpc::SKIP_ENV;
 use crate::service::cli::ContainerCliContext;
-use crate::service::start_stop::StartStop;
 use crate::service::ServiceActorSeed;
-use crate::status::health_check::HealthCheckResult;
+use crate::status::health_check::{HealthCheckResult, HealthCheckString};
 use crate::status::MainStatus;
 use crate::util::clap::FromStrParser;
 use crate::util::{new_guid, Invoke};
-use crate::{db::model::ExposedUI, service::RunningStatus};
-use crate::{disk::mount::filesystem::idmapped::IdMapped, status::health_check::HealthCheckString};
 use crate::{echo, ARCH};
 
 #[derive(Clone)]

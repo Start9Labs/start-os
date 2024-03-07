@@ -8,6 +8,8 @@ use clap::builder::ValueParserFactory;
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use color_eyre::eyre::eyre;
 use imbl::OrdMap;
+use openssl::pkey::{PKey, Private};
+use openssl::x509::{X509Ref, X509};
 use rpc_toolkit::{AnyContext, Handler, HandlerArgs, HandlerArgsFor, HandlerTypes, PrintCliResult};
 use serde::de::DeserializeOwned;
 use serde::ser::{SerializeMap, SerializeSeq};
@@ -1089,4 +1091,152 @@ pub fn apply_expr(input: jaq_core::Val, expr: &str) -> Result<jaq_core::Val, Err
     }
 
     Ok(res)
+}
+
+pub trait PemEncoding: Sized {
+    fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E>;
+    fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E>;
+}
+
+impl PemEncoding for X509 {
+    fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
+        X509::from_pem(pem.as_bytes()).map_err(E::custom)
+    }
+    fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
+        String::from_utf8((&**self).to_pem().map_err(E::custom)?).map_err(E::custom)
+    }
+}
+
+impl PemEncoding for PKey<Private> {
+    fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
+        PKey::<Private>::private_key_from_pem(pem.as_bytes()).map_err(E::custom)
+    }
+    fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
+        String::from_utf8((&**self).private_key_to_pem_pkcs8().map_err(E::custom)?)
+            .map_err(E::custom)
+    }
+}
+
+impl PemEncoding for ssh_key::PrivateKey {
+    fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
+        ssh_key::PrivateKey::from_openssh(pem.as_bytes()).map_err(E::custom)
+    }
+    fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
+        self.to_openssh(ssh_key::LineEnding::LF)
+            .map_err(E::custom)
+            .map(|s| (&*s).clone())
+    }
+}
+
+pub mod pem {
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    use crate::util::serde::PemEncoding;
+
+    pub fn serialize<T: PemEncoding, S: Serializer>(
+        value: &T,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&value.to_pem()?)
+    }
+
+    pub fn deserialize<'de, T: PemEncoding, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<T, D::Error> {
+        let pem = String::deserialize(deserializer)?;
+        Ok(T::from_pem(&pem)?)
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Pem<T: PemEncoding>(#[serde(with = "pem")] pub T);
+impl<T: PemEncoding> Pem<T> {
+    pub fn new(value: T) -> Self {
+        Pem(value)
+    }
+    pub fn new_ref(value: &T) -> &Self {
+        unsafe { std::mem::transmute(value) }
+    }
+    pub fn new_mut(value: &mut T) -> &mut Self {
+        unsafe { std::mem::transmute(value) }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct MaybeUtf8String(pub Vec<u8>);
+impl std::fmt::Debug for MaybeUtf8String {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Ok(s) = std::str::from_utf8(&self.0) {
+            s.fmt(f)
+        } else {
+            self.0.fmt(f)
+        }
+    }
+}
+impl<'de> Deserialize<'de> for MaybeUtf8String {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct Visitor;
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = Vec<u8>;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(formatter, "a string or byte array")
+            }
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(v.as_bytes().to_owned())
+            }
+            fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(v.into_bytes())
+            }
+            fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(v.to_owned())
+            }
+            fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(v)
+            }
+            fn visit_unit<E>(self) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Vec::new())
+            }
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                std::iter::repeat_with(|| seq.next_element::<u8>().transpose())
+                    .take_while(|a| a.is_some())
+                    .flatten()
+                    .collect::<Result<Vec<u8>, _>>()
+            }
+        }
+        deserializer.deserialize_any(Visitor).map(Self)
+    }
+}
+impl Serialize for MaybeUtf8String {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if let Ok(s) = std::str::from_utf8(&self.0) {
+            serializer.serialize_str(s)
+        } else {
+            serializer.serialize_bytes(&self.0)
+        }
+    }
 }

@@ -11,7 +11,6 @@ use josekit::jwk::Jwk;
 use patch_db::PatchDb;
 use reqwest::{Client, Proxy};
 use rpc_toolkit::Context;
-use sqlx::PgPool;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tokio::time::Instant;
 use tracing::instrument;
@@ -28,14 +27,11 @@ use crate::init::check_time_is_synchronized;
 use crate::lxc::{LxcContainer, LxcManager};
 use crate::middleware::auth::HashSessionToken;
 use crate::net::net_controller::NetController;
-use crate::net::ssl::{root_ca_start_time, SslManager};
 use crate::net::utils::find_eth_iface;
 use crate::net::wifi::WpaCli;
-use crate::notifications::NotificationManager;
 use crate::prelude::*;
 use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
-use crate::status::MainStatus;
 use crate::system::get_mem_info;
 use crate::util::lshw::{lshw, LshwDevice};
 
@@ -47,14 +43,12 @@ pub struct RpcContextSeed {
     pub datadir: PathBuf,
     pub disk_guid: Arc<String>,
     pub db: PatchDb,
-    pub secret_store: PgPool,
     pub account: RwLock<AccountInfo>,
     pub net_controller: Arc<NetController>,
     pub services: ServiceMap,
     pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
     pub shutdown: broadcast::Sender<Option<Shutdown>>,
     pub tor_socks: SocketAddr,
-    pub notification_manager: NotificationManager,
     pub lxc_manager: Arc<LxcManager>,
     pub open_authed_websockets: Mutex<BTreeMap<HashSessionToken, Vec<oneshot::Sender<()>>>>,
     pub rpc_stream_continuations: Mutex<BTreeMap<RequestGuid, RpcContinuation>>,
@@ -86,13 +80,14 @@ impl RpcContext {
             9050,
         )));
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
-        let secret_store = config.secret_store().await?;
-        tracing::info!("Opened Pg DB");
-        let account = AccountInfo::load(&secret_store).await?;
-        let db = config.db(&account).await?;
+
+        let db = config.db().await?;
+        let peek = db.peek().await;
+        let account = AccountInfo::load(&peek)?;
         tracing::info!("Opened PatchDB");
         let net_controller = Arc::new(
             NetController::init(
+                db.clone(),
                 config
                     .tor_control
                     .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
@@ -101,16 +96,14 @@ impl RpcContext {
                     .dns_bind
                     .as_deref()
                     .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
-                SslManager::new(&account, root_ca_start_time().await?)?,
                 &account.hostname,
-                &account.key,
+                account.tor_key.clone(),
             )
             .await?,
         );
         tracing::info!("Initialized Net Controller");
         let services = ServiceMap::default();
         let metrics_cache = RwLock::<Option<crate::system::Metrics>>::new(None);
-        let notification_manager = NotificationManager::new(secret_store.clone());
         tracing::info!("Initialized Notification Manager");
         let tor_proxy_url = format!("socks5h://{tor_proxy}");
         let devices = lshw().await?;
@@ -157,14 +150,12 @@ impl RpcContext {
             },
             disk_guid,
             db,
-            secret_store,
             account: RwLock::new(account),
             net_controller,
             services,
             metrics_cache,
             shutdown,
             tor_socks: tor_proxy,
-            notification_manager,
             lxc_manager: Arc::new(LxcManager::new()),
             open_authed_websockets: Mutex::new(BTreeMap::new()),
             rpc_stream_continuations: Mutex::new(BTreeMap::new()),
@@ -208,7 +199,6 @@ impl RpcContext {
     #[instrument(skip_all)]
     pub async fn shutdown(self) -> Result<(), Error> {
         self.services.shutdown_all().await?;
-        self.secret_store.close().await;
         self.is_closed.store(true, Ordering::SeqCst);
         tracing::info!("RPC Context is shutdown");
         // TODO: shutdown http servers

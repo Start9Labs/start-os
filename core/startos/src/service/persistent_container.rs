@@ -15,19 +15,18 @@ use tokio::process::Command;
 use tokio::sync::{oneshot, watch, Mutex, OnceCell};
 use tracing::instrument;
 
-use super::{
-    service_effect_handler::{service_effect_handler, EffectContext},
-    transition::{TempDesiredState, TransitionKind},
-};
-use super::{transition::TransitionState, ServiceActorSeed};
+use super::service_effect_handler::{service_effect_handler, EffectContext};
+use super::transition::{TransitionKind, TransitionState};
+use super::ServiceActorSeed;
 use crate::context::RpcContext;
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::disk::mount::filesystem::{MountType, ReadOnly};
-use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
+use crate::disk::mount::guard::MountGuard;
 use crate::lxc::{LxcConfig, LxcContainer, HOST_RPC_SERVER_SOCKET};
+use crate::net::net_controller::NetService;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
@@ -94,6 +93,7 @@ pub struct PersistentContainer {
     assets: BTreeMap<VolumeId, MountGuard>,
     pub(super) overlays: Arc<Mutex<BTreeMap<InternedString, OverlayGuard>>>,
     pub(super) state: Arc<watch::Sender<ServiceState>>,
+    pub(super) net_service: Mutex<NetService>,
 }
 
 impl PersistentContainer {
@@ -178,6 +178,10 @@ impl PersistentContainer {
                     .await?;
             }
         }
+        let net_service = ctx
+            .net_controller
+            .create_service(s9pk.as_manifest().id.clone(), lxc_container.ip())
+            .await?;
         Ok(Self {
             s9pk,
             lxc_container: OnceCell::new_with(Some(lxc_container)),
@@ -189,6 +193,7 @@ impl PersistentContainer {
             assets,
             overlays: Arc::new(Mutex::new(BTreeMap::new())),
             state: Arc::new(watch::channel(ServiceState::new(start)).0),
+            net_service: Mutex::new(net_service),
         })
     }
 

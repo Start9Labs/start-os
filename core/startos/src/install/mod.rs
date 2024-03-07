@@ -1,4 +1,3 @@
-use std::io::SeekFrom;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -14,7 +13,6 @@ use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::CallRemote;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio::sync::oneshot;
 use tracing::instrument;
 
@@ -28,8 +26,6 @@ use crate::prelude::*;
 use crate::progress::{FullProgress, PhasedProgressBar};
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
-use crate::s9pk::v1::reader::S9pkReader;
-use crate::s9pk::v2::compat::{self, MAGIC_AND_VERSION};
 use crate::s9pk::S9pk;
 use crate::upload::upload;
 use crate::util::clap::FromStrParser;

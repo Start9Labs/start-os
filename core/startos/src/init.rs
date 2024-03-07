@@ -6,7 +6,6 @@ use std::time::{Duration, SystemTime};
 use color_eyre::eyre::eyre;
 use models::ResultExt;
 use rand::random;
-use sqlx::{Pool, Postgres};
 use tokio::process::Command;
 use tracing::instrument;
 
@@ -179,7 +178,6 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
 }
 
 pub struct InitResult {
-    pub secret_store: Pool<Postgres>,
     pub db: patch_db::PatchDb,
 }
 
@@ -208,16 +206,19 @@ pub async fn init(cfg: &ServerConfig) -> Result<InitResult, Error> {
             .await?;
     }
 
-    let secret_store = cfg.secret_store().await?;
-    tracing::info!("Opened Postgres");
+    let db = cfg.db().await?;
+    let peek = db.peek().await;
+    tracing::info!("Opened PatchDB");
 
-    crate::ssh::sync_keys_from_db(&secret_store, "/home/start9/.ssh/authorized_keys").await?;
+    crate::ssh::sync_keys(
+        &peek.as_private().as_ssh_pubkeys().de()?,
+        "/home/start9/.ssh/authorized_keys",
+    )
+    .await?;
     tracing::info!("Synced SSH Keys");
 
-    let account = AccountInfo::load(&secret_store).await?;
-    let db = cfg.db(&account).await?;
-    tracing::info!("Opened PatchDB");
-    let peek = db.peek().await;
+    let account = AccountInfo::load(&peek)?;
+
     let mut server_info = peek.as_public().as_server_info().de()?;
 
     // write to ca cert store
@@ -348,7 +349,7 @@ pub async fn init(cfg: &ServerConfig) -> Result<InitResult, Error> {
     })
     .await?;
 
-    crate::version::init(&db, &secret_store).await?;
+    crate::version::init(&db).await?;
 
     db.mutate(|d| {
         let model = d.de()?;
@@ -366,5 +367,5 @@ pub async fn init(cfg: &ServerConfig) -> Result<InitResult, Error> {
 
     tracing::info!("System initialized.");
 
-    Ok(InitResult { secret_store, db })
+    Ok(InitResult { db })
 }

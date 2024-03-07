@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use imbl_value::Value;
 use models::ProcedureName;
-use rpc_toolkit::yajrc::{RpcError, RpcMethod};
+use rpc_toolkit::yajrc::RpcMethod;
 use rpc_toolkit::Empty;
 
 use crate::prelude::*;

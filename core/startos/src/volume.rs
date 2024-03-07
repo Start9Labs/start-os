@@ -3,6 +3,7 @@ use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 
 pub use helpers::script_dir;
+use imbl_value::InternedString;
 pub use models::VolumeId;
 use models::{HostId, PackageId};
 use serde::{Deserialize, Serialize};
@@ -71,6 +72,15 @@ impl DerefMut for Volumes {
 impl Map for Volumes {
     type Key = VolumeId;
     type Value = Volume;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Ok(key)
+    }
+    fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
+        match key {
+            VolumeId::Custom(id) => Ok(id.clone().into()),
+            _ => Self::key_str(key).map(|s| InternedString::intern(s.as_ref())),
+        }
+    }
 }
 
 pub fn data_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, volume_id: &VolumeId) -> PathBuf {
