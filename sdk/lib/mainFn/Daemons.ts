@@ -137,7 +137,6 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
     }
     return {
       async term(options?: { signal?: Signals; timeout?: number }) {
-        console.error("Bluj Daemons term")
         await Promise.all(
           Object.values<Promise<DaemonReturned>>(daemonsStarted).map((x) =>
             x.then((x) => x.term(options)),
@@ -145,7 +144,6 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
         )
       },
       async wait() {
-        console.error("Bluj Daemons wait")
         await Promise.all(
           Object.values<Promise<DaemonReturned>>(daemonsStarted).map((x) =>
             x.then((x) => x.wait()),

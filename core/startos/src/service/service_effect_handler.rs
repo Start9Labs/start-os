@@ -617,9 +617,6 @@ async fn set_health(
         message,
     }: SetHealth,
 ) -> Result<Value, Error> {
-    dbg!(&name);
-    dbg!(&status);
-    dbg!(&message);
     let context = context.deref()?;
 
     let package_id = &context.id;

@@ -268,7 +268,6 @@ export class HostSystemStartOs implements Effects {
     >
   }
   setHealth(...[options]: Parameters<T.Effects["setHealth"]>) {
-    console.error("BLUJ sethealth", options)
     return this.rpcRound("setHealth", options) as ReturnType<
       T.Effects["setHealth"]
     >
