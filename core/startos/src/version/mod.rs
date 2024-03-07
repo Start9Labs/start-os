@@ -1,7 +1,8 @@
 use std::cmp::Ordering;
 
 use color_eyre::eyre::eyre;
-use futures::Future;
+use futures::future::BoxFuture;
+use futures::{Future, FutureExt};
 use imbl_value::InternedString;
 
 use crate::prelude::*;
@@ -86,11 +87,11 @@ where
             }
         }
     }
-    fn migrate_from_unchecked<V: VersionT>(
-        &self,
-        version: &V,
-        db: &PatchDb,
-    ) -> impl Future<Output = Result<(), Error>> + Send {
+    fn migrate_from_unchecked<'a, V: VersionT>(
+        &'a self,
+        version: &'a V,
+        db: &'a PatchDb,
+    ) -> BoxFuture<'a, Result<(), Error>> {
         async {
             let previous = Self::Previous::new();
             if version.semver() < previous.semver() {
@@ -109,12 +110,13 @@ where
             self.commit(db).await?;
             Ok(())
         }
+        .boxed()
     }
-    fn rollback_to_unchecked<V: VersionT>(
-        &self,
-        version: &V,
-        db: &PatchDb,
-    ) -> impl Future<Output = Result<(), Error>> + Send {
+    fn rollback_to_unchecked<'a, V: VersionT>(
+        &'a self,
+        version: &'a V,
+        db: &'a PatchDb,
+    ) -> BoxFuture<'a, Result<(), Error>> {
         async {
             let previous = Self::Previous::new();
             tracing::info!("{} -> {}", self.semver(), previous.semver(),);
@@ -133,6 +135,7 @@ where
             }
             Ok(())
         }
+        .boxed()
     }
 }
 
