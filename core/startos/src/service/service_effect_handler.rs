@@ -20,7 +20,7 @@ use crate::prelude::*;
 use crate::s9pk::rpc::SKIP_ENV;
 use crate::service::cli::ContainerCliContext;
 use crate::service::ServiceActorSeed;
-use crate::status::health_check::HealthCheckResult;
+use crate::status::health_check::{HealthCheckResult, HealthCheckString};
 use crate::status::MainStatus;
 use crate::util::clap::FromStrParser;
 use crate::util::{new_guid, Invoke};
@@ -603,30 +603,19 @@ async fn set_main_status(context: EffectContext, params: SetMainStatus) -> Resul
 #[serde(rename_all = "camelCase")]
 struct SetHealth {
     name: HealthCheckId,
-    health_result: Option<HealthCheckResult>,
+    status: HealthCheckString,
+    message: Option<String>,
 }
 
-async fn set_health(context: EffectContext, params: SetHealth) -> Result<Value, Error> {
+async fn set_health(
+    context: EffectContext,
+    SetHealth {
+        name,
+        status,
+        message,
+    }: SetHealth,
+) -> Result<Value, Error> {
     let context = context.deref()?;
-    // TODO DrBonez + BLU-J Need to change the type from
-    // ```rs
-    // #[serde(tag = "result")]
-    // pub enum HealthCheckResult {
-    //     Success,
-    //     Disabled,
-    //     Starting,
-    //     Loading { message: String },
-    //     Failure { error: String },
-    // }
-    // ```
-    // to
-    // ```ts
-    // setHealth(o: {
-    //     name: string
-    //     status: HealthStatus
-    //     message?: string
-    //   }): Promise<void>
-    // ```
 
     let package_id = &context.id;
     context
@@ -646,14 +635,22 @@ async fn set_health(context: EffectContext, params: SetHealth) -> Result<Value, 
             match &mut main {
                 &mut MainStatus::Running { ref mut health, .. }
                 | &mut MainStatus::BackingUp { ref mut health, .. } => {
-                    health.remove(&params.name);
-                    if let SetHealth {
+                    health.remove(&name);
+
+                    health.insert(
                         name,
-                        health_result: Some(health_result),
-                    } = params
-                    {
-                        health.insert(name, health_result);
-                    }
+                        match status {
+                            HealthCheckString::Disabled => HealthCheckResult::Disabled,
+                            HealthCheckString::Passing => HealthCheckResult::Success,
+                            HealthCheckString::Starting => HealthCheckResult::Starting,
+                            HealthCheckString::Warning => HealthCheckResult::Loading {
+                                message: message.unwrap_or_default(),
+                            },
+                            HealthCheckString::Failure => HealthCheckResult::Failure {
+                                error: message.unwrap_or_default(),
+                            },
+                        },
+                    );
                 }
                 _ => return Ok(()),
             };

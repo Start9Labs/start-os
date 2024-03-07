@@ -47,10 +47,10 @@ export function healthCheck(o: {
       } catch (e) {
         await o.effects.setHealth({
           name: o.name,
-          status: "failing",
+          status: "failure",
           message: asMessage(e),
         })
-        currentValue.lastResult = "failing"
+        currentValue.lastResult = "failure"
       }
     }
   })

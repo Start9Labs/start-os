@@ -269,7 +269,6 @@ export const createUtils = <
         },
         async term({ signal = SIGTERM, timeout = NO_TIMEOUT } = {}) {
           const pids = pid ? await psTree(pid, overlay) : []
-          console.error("Bluj killing pid ", pids)
           try {
             childProcess.kill(signal)
 
@@ -290,7 +289,6 @@ export const createUtils = <
             await overlay.destroy()
           }
 
-          console.error("Bluj actually killing pid ", pids)
           try {
             for (const process of pids) {
               await cp.execFile("kill", [`-${signal}`, String(process)])
