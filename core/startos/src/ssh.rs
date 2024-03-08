@@ -14,7 +14,7 @@ use crate::prelude::*;
 use crate::util::clap::FromStrParser;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 
-static SSH_AUTHORIZED_KEYS_FILE: &str = "/home/start9/.ssh/authorized_keys";
+pub const SSH_AUTHORIZED_KEYS_FILE: &str = "/home/start9/.ssh/authorized_keys";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SshKeys(BTreeMap<InternedString, WithTimeData<SshPubKey>>);
@@ -113,20 +113,26 @@ pub struct AddParams {
 pub async fn add(ctx: RpcContext, AddParams { key }: AddParams) -> Result<SshKeyResponse, Error> {
     let mut key = WithTimeData::new(key);
     let fingerprint = InternedString::intern(key.0.fingerprint_md5());
-    ctx.db
+    let (keys, res) = ctx
+        .db
         .mutate(move |m| {
             m.as_private_mut()
                 .as_ssh_pubkeys_mut()
                 .insert(&fingerprint, &key)?;
 
-            Ok(SshKeyResponse {
-                alg: key.0.keytype().to_owned(),
-                fingerprint,
-                hostname: key.0.comment.take().unwrap_or_default(),
-                created_at: key.created_at.to_rfc3339(),
-            })
+            Ok((
+                m.as_private().as_ssh_pubkeys().de()?,
+                SshKeyResponse {
+                    alg: key.0.keytype().to_owned(),
+                    fingerprint,
+                    hostname: key.0.comment.take().unwrap_or_default(),
+                    created_at: key.created_at.to_rfc3339(),
+                },
+            ))
         })
-        .await
+        .await?;
+    sync_keys(&keys, SSH_AUTHORIZED_KEYS_FILE).await?;
+    Ok(res)
 }
 
 #[derive(Deserialize, Serialize, Parser)]
