@@ -228,7 +228,6 @@ export class SystemForEmbassy implements System {
     previousVersion: Optional<string>,
   ): Promise<void> {
     if (previousVersion) await this.migration(effects, previousVersion)
-    await this.properties(effects)
     await effects.setMainStatus({ status: "stopped" })
   }
   private async uninit(
