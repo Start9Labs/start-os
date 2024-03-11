@@ -340,6 +340,9 @@ async fn set_store(
                 .or_not_found(&package_id)?
                 .as_store_mut();
             let mut model_value = model.de()?;
+            if model_value.is_null() {
+                model_value = json!({});
+            }
             path.set(&mut model_value, value, true)
                 .with_kind(ErrorKind::ParseDbField)?;
             model.ser(&model_value)

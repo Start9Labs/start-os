@@ -32,7 +32,7 @@ export function setupInit<Manifest extends SDKManifest, Store>(
         utils,
       })
       await opts.effects.exposeForDependents(services)
-      await opts.effects.exposeUi(ui)
+      await opts.effects.exposeUi({ paths: ui })
     },
     uninit: async (opts) => {
       await migrations.uninit(opts)
