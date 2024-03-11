@@ -38,6 +38,7 @@ const LXC_CONTAINER_DIR: &str = "/var/lib/lxc";
 const RPC_DIR: &str = "media/startos/rpc"; // must not be absolute path
 pub const CONTAINER_RPC_SERVER_SOCKET: &str = "service.sock"; // must not be absolute path
 pub const HOST_RPC_SERVER_SOCKET: &str = "host.sock"; // must not be absolute path
+const CONTAINER_DHCP_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub struct LxcManager {
     containers: Mutex<Vec<Weak<InternedString>>>,
@@ -110,7 +111,6 @@ impl LxcManager {
 pub struct LxcContainer {
     manager: Weak<LxcManager>,
     rootfs: OverlayGuard,
-    ip: Ipv4Addr,
     guid: Arc<InternedString>,
     rpc_bind: TmpMountGuard,
     config: LxcConfig,
@@ -171,20 +171,9 @@ impl LxcContainer {
             .arg(&*guid)
             .invoke(ErrorKind::Lxc)
             .await?;
-        let ip = String::from_utf8(
-            Command::new("lxc-info")
-                .arg("--name")
-                .arg(&*guid)
-                .arg("-iH")
-                .invoke(ErrorKind::Docker)
-                .await?,
-        )?
-        .trim()
-        .parse()?;
         Ok(Self {
             manager: Arc::downgrade(manager),
             rootfs,
-            ip,
             guid: Arc::new(guid),
             rpc_bind,
             config,
@@ -196,8 +185,29 @@ impl LxcContainer {
         self.rootfs.path()
     }
 
-    pub fn ip(&self) -> Ipv4Addr {
-        self.ip
+    pub async fn ip(&self) -> Result<Ipv4Addr, Error> {
+        let start = Instant::now();
+        loop {
+            let output = String::from_utf8(
+                Command::new("lxc-info")
+                    .arg("--name")
+                    .arg(&*self.guid)
+                    .arg("-iH")
+                    .invoke(ErrorKind::Docker)
+                    .await?,
+            )?;
+            let out_str = output.trim();
+            if !out_str.is_empty() {
+                return Ok(out_str.parse()?);
+            }
+            if start.elapsed() > CONTAINER_DHCP_TIMEOUT {
+                return Err(Error::new(
+                    eyre!("Timed out waiting for container to acquire DHCP lease"),
+                    ErrorKind::Timeout,
+                ));
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
     }
 
     pub fn rpc_dir(&self) -> &Path {

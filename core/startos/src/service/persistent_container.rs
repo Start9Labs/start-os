@@ -180,7 +180,7 @@ impl PersistentContainer {
         }
         let net_service = ctx
             .net_controller
-            .create_service(s9pk.as_manifest().id.clone(), lxc_container.ip())
+            .create_service(s9pk.as_manifest().id.clone(), lxc_container.ip().await?)
             .await?;
         Ok(Self {
             s9pk,

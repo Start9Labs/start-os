@@ -148,6 +148,7 @@ update-overlay: $(ALL_TARGETS)
 	$(call ssh,"sudo systemctl start startd")
 
 wormhole: core/target/$(ARCH)-unknown-linux-musl/release/startbox
+	@echo "Paste the following command into the shell of your start-os server:"
 	@wormhole send core/target/$(ARCH)-unknown-linux-musl/release/startbox 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/startos/scripts/chroot-and-upgrade \"cd /usr/bin && rm startbox && wormhole receive --accept-file %s && chmod +x startbox\"\n", $$3 }'
 
 update: $(ALL_TARGETS)
