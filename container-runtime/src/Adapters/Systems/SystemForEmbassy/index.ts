@@ -227,13 +227,9 @@ export class SystemForEmbassy implements System {
     effects: HostSystemStartOs,
     previousVersion: Optional<string>,
   ): Promise<void> {
-    console.log("here1")
     if (previousVersion) await this.migration(effects, previousVersion)
-    console.log("here2")
     await this.properties(effects)
-    console.log("here3")
     await effects.setMainStatus({ status: "stopped" })
-    console.log("here4")
   }
   private async uninit(
     effects: HostSystemStartOs,
@@ -456,7 +452,8 @@ export class SystemForEmbassy implements System {
           ])
         ).stdout.toString(),
       )
-      const exposeUis = propertiesToExportUi(properties)
+      if (!matchProperties.test(properties)) return
+      const exposeUis = propertiesToExportUi(properties.data)
       await effects.store.set<any, any>({
         path: "/properties",
         value: exposeUis.map((x) => x.value),
@@ -469,11 +466,22 @@ export class SystemForEmbassy implements System {
       const method = moduleCode.properties
       if (!method)
         throw new Error("Expecting that the method properties exists")
-      await method(new PolyfillEffects(effects, this.manifest)).then((x) => {
+      const properties = await method(
+        new PolyfillEffects(effects, this.manifest),
+      ).then((x) => {
         if ("result" in x) return x.result
         if ("error" in x) throw new Error("Error getting config: " + x.error)
         throw new Error("Error getting config: " + x["error-code"][1])
       })
+      if (!matchProperties.test(properties)) return
+      const exposeUis = propertiesToExportUi(properties.data)
+      await effects.store.set<any, any>({
+        path: "/properties",
+        value: exposeUis.map((x) => x.value),
+      })
+      await effects.exposeUi(
+        exposeUis.map((x, i) => ({ ...x, path: `/properties/${i}` }) as any),
+      )
     }
   }
   private async health(
