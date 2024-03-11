@@ -530,12 +530,12 @@ pub struct ExposedDependent {
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[model = "Model<Self>"]
 pub struct ExposedUI {
-    path: Vec<JsonPointer>,
-    title: String,
-    description: Option<String>,
-    masked: Option<bool>,
-    copyable: Option<bool>,
-    qr: Option<bool>,
+    pub path: JsonPointer,
+    pub title: String,
+    pub description: Option<String>,
+    pub masked: Option<bool>,
+    pub copyable: Option<bool>,
+    pub qr: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]

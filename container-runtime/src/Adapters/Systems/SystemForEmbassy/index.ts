@@ -1,14 +1,11 @@
-import { types as T, util, EmVer } from "@start9labs/start-sdk"
+import { types as T, util, EmVer, Utils } from "@start9labs/start-sdk"
 import * as fs from "fs/promises"
 
 import { PolyfillEffects } from "./polyfillEffects"
 import { Duration, duration } from "../../../Models/Duration"
-import { ExecuteResult, System } from "../../../Interfaces/System"
+import { System } from "../../../Interfaces/System"
 import { matchManifest, Manifest, Procedure } from "./matchManifest"
-import { create } from "domain"
 import * as childProcess from "node:child_process"
-import { Volume } from "../../../Models/Volume"
-import { DockerProcedure } from "../../../Models/DockerProcedure"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import { promisify } from "node:util"
 import * as U from "./oldEmbassyTypes"
@@ -28,9 +25,7 @@ import {
 } from "ts-matches"
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { JsonPath, unNestPath } from "../../../Models/JsonPath"
-import { HostSystem } from "../../../Interfaces/HostSystem"
 import { RpcResult, matchRpcResult } from "../../RpcListener"
-import { ServiceInterface } from "../../../../../sdk/dist/cjs/lib/types"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
@@ -41,6 +36,60 @@ const execFile = promisify(childProcess.execFile)
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
 const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
 const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig"
+
+const matchPackagePropertyObject = object({
+  value: any,
+  type: literal("object"),
+  description: string,
+})
+
+const matchPackagePropertyString = object(
+  {
+    type: literal("string"),
+    description: string,
+    value: string,
+    copyable: boolean,
+    qr: boolean,
+    masked: boolean,
+  },
+  ["copyable", "description", "qr", "masked"],
+)
+
+const matchProperties = object({
+  version: literal(2),
+  data: any,
+})
+
+type ExportUi = {
+  value: string
+  title: string
+  description?: string | undefined
+  masked?: boolean | undefined
+  copyable?: boolean | undefined
+  qr?: boolean | undefined
+}
+
+function propertiesToExportUi(properties: unknown): ExportUi[] {
+  if (!object.test(properties)) return []
+  const paths: ExportUi[] = []
+  for (const key in properties) {
+    const value: unknown = (properties as any)[key]
+    if (matchPackagePropertyObject.test(value)) {
+      paths.push(...propertiesToExportUi(value))
+      continue
+    }
+    if (!matchPackagePropertyString.test(value)) continue
+    paths.push({
+      value: value.value,
+      title: key,
+      description: value.description,
+      masked: value.masked,
+      copyable: value.copyable,
+      qr: value.qr,
+    })
+  }
+  return paths
+}
 
 export class SystemForEmbassy implements System {
   currentRunning: MainLoop | undefined
@@ -178,13 +227,9 @@ export class SystemForEmbassy implements System {
     effects: HostSystemStartOs,
     previousVersion: Optional<string>,
   ): Promise<void> {
-    console.log("here1")
     if (previousVersion) await this.migration(effects, previousVersion)
-    console.log("here2")
     await this.properties(effects)
-    console.log("here3")
     await effects.setMainStatus({ status: "stopped" })
-    console.log("here4")
   }
   private async uninit(
     effects: HostSystemStartOs,
@@ -399,7 +444,7 @@ export class SystemForEmbassy implements System {
         setConfigValue,
         this.manifest.volumes,
       )
-      return JSON.parse(
+      const properties = JSON.parse(
         (
           await container.exec([
             setConfigValue.entrypoint,
@@ -407,16 +452,36 @@ export class SystemForEmbassy implements System {
           ])
         ).stdout.toString(),
       )
+      if (!matchProperties.test(properties)) return
+      const exposeUis = propertiesToExportUi(properties.data)
+      await effects.store.set<any, any>({
+        path: "/properties",
+        value: exposeUis.map((x) => x.value),
+      })
+      await effects.exposeUi(
+        exposeUis.map((x, i) => ({ ...x, path: `/properties/${i}` }) as any),
+      )
     } else if (setConfigValue.type === "script") {
       const moduleCode = this.moduleCode
       const method = moduleCode.properties
       if (!method)
         throw new Error("Expecting that the method properties exists")
-      await method(new PolyfillEffects(effects, this.manifest)).then((x) => {
+      const properties = await method(
+        new PolyfillEffects(effects, this.manifest),
+      ).then((x) => {
         if ("result" in x) return x.result
         if ("error" in x) throw new Error("Error getting config: " + x.error)
         throw new Error("Error getting config: " + x["error-code"][1])
       })
+      if (!matchProperties.test(properties)) return
+      const exposeUis = propertiesToExportUi(properties.data)
+      await effects.store.set<any, any>({
+        path: "/properties",
+        value: exposeUis.map((x) => x.value),
+      })
+      await effects.exposeUi(
+        exposeUis.map((x, i) => ({ ...x, path: `/properties/${i}` }) as any),
+      )
     }
   }
   private async health(
