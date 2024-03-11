@@ -228,7 +228,6 @@ export class SystemForEmbassy implements System {
     previousVersion: Optional<string>,
   ): Promise<void> {
     if (previousVersion) await this.migration(effects, previousVersion)
-    await this.properties(effects)
     await effects.setMainStatus({ status: "stopped" })
   }
   private async uninit(
@@ -458,9 +457,12 @@ export class SystemForEmbassy implements System {
         path: "/properties",
         value: exposeUis.map((x) => x.value),
       })
-      await effects.exposeUi(
-        exposeUis.map((x, i) => ({ ...x, path: `/properties/${i}` }) as any),
-      )
+      await effects.exposeUi({
+        paths: exposeUis.map((x, i) => ({
+          ...x,
+          path: `/properties/${i}`,
+        })) as any[],
+      })
     } else if (setConfigValue.type === "script") {
       const moduleCode = this.moduleCode
       const method = moduleCode.properties
@@ -479,9 +481,12 @@ export class SystemForEmbassy implements System {
         path: "/properties",
         value: exposeUis.map((x) => x.value),
       })
-      await effects.exposeUi(
-        exposeUis.map((x, i) => ({ ...x, path: `/properties/${i}` }) as any),
-      )
+      await effects.exposeUi({
+        paths: exposeUis.map((x, i) => ({
+          ...x,
+          path: `/properties/${i}`,
+        })) as any[],
+      })
     }
   }
   private async health(

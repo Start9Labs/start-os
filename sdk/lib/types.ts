@@ -372,7 +372,9 @@ export type Effects = {
     options: ExposeServicePaths<Store>,
   ): Promise<void>
 
-  exposeUi<Store = never>(options: ExposeUiPaths<Store>): Promise<void>
+  exposeUi<Store = never>(options: {
+    paths: ExposeUiPaths<Store>
+  }): Promise<void>
   /**
    * There are times that we want to see the addresses that where exported
    * @param options.addressId If we want to filter the address id
