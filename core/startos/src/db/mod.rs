@@ -182,8 +182,18 @@ pub enum RevisionsRes {
     Dump(Dump),
 }
 
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct CliDumpParams {
+    path: Option<PathBuf>,
+}
+
 #[instrument(skip_all)]
-async fn cli_dump(ctx: CliContext, DumpParams { path }: DumpParams) -> Result<Dump, RpcError> {
+async fn cli_dump(
+    ctx: CliContext,
+    CliDumpParams { path }: CliDumpParams,
+) -> Result<Dump, RpcError> {
     let dump = if let Some(path) = path {
         PatchDb::open(path).await?.dump(&ROOT).await
     } else {
@@ -197,15 +207,23 @@ async fn cli_dump(ctx: CliContext, DumpParams { path }: DumpParams) -> Result<Du
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct DumpParams {
-    path: Option<PathBuf>,
+    #[arg(long = "include-private", short = 'p')]
+    #[serde(default)]
+    include_private: bool,
 }
 
-// #[command(
-//     custom_cli(cli_dump(async, context(CliContext))),
-//     display(display_serializable)
-// )]
-pub async fn dump(ctx: RpcContext, _: DumpParams) -> Result<Dump, Error> {
-    Ok(ctx.db.dump(&*PUBLIC).await)
+pub async fn dump(
+    ctx: RpcContext,
+    DumpParams { include_private }: DumpParams,
+) -> Result<Dump, Error> {
+    Ok(ctx
+        .db
+        .dump(&if include_private {
+            ROOT
+        } else {
+            PUBLIC.borrowed()
+        })
+        .await)
 }
 
 #[instrument(skip_all)]
