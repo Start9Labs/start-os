@@ -49,6 +49,8 @@ export class CategoriesComponent {
         return 'globe-outline'
       case 'social':
         return 'people-outline'
+      case 'ai':
+        return 'hardware-chip-outline'
       default:
         return 'cube-outline'
     }

@@ -23,6 +23,10 @@
     [class.tui-skeleton]="!categories"
     [class.tui-skeleton_rounded]="!categories"
   >
-    {{ (cat | titlecase) || 'loading category...' }}
+    {{
+      cat === 'ai'
+        ? (cat | uppercase)
+        : (cat | titlecase) || 'loading category...'
+    }}
   </span>
 </button>

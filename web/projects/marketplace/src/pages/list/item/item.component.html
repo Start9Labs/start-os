@@ -6,7 +6,7 @@
     class="overflow-hidden absolute w-full h-full top-0 left-0 -z-50 rounded-3xl bg-zinc-800"
   >
     <img
-      [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
+      [src]="pkg | mimeType | trustUrl"
       class="absolute object-cover pointer-events-none w-[150%] h-[150%] max-w-[200%] blur-[100px]"
       alt="{{ pkg.manifest.title }} Icon"
     />
@@ -17,8 +17,8 @@
   ></div>
   <!-- icon -->
   <img
-    [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
-    class="w-[5.5rem] h-[5.5rem] pointer-events-none absolute -top-10 rounded-full object-cover shadow-lg z-10"
+    [src]="pkg | mimeType | trustUrl"
+    class="w-[5.5rem] h-[5.5rem] pointer-events-none absolute -top-10 rounded-full object-cover shadow-lg z-10 backdrop-blur-xl bg-black/50"
     alt="{{ pkg.manifest.title }} Icon"
     style="transform: none"
   />
