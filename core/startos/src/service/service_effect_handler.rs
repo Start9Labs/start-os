@@ -300,13 +300,10 @@ async fn get_store(
     let peeked = context.ctx.db.peek().await;
     let package_id = package_id.unwrap_or(context.id.clone());
     let value = peeked
-        .as_public()
-        .as_package_data()
+        .as_private()
+        .as_package_stores()
         .as_idx(&package_id)
         .or_not_found(&package_id)?
-        .as_installed()
-        .or_not_found(&package_id)?
-        .as_store()
         .de()?;
 
     Ok(path
@@ -332,13 +329,9 @@ async fn set_store(
         .db
         .mutate(|db| {
             let model = db
-                .as_public_mut()
-                .as_package_data_mut()
-                .as_idx_mut(&package_id)
-                .or_not_found(&package_id)?
-                .as_installed_mut()
-                .or_not_found(&package_id)?
-                .as_store_mut();
+                .as_private_mut()
+                .as_package_stores_mut()
+                .upsert(&package_id, || Box::new(json!({})))?;
             let mut model_value = model.de()?;
             if model_value.is_null() {
                 model_value = json!({});

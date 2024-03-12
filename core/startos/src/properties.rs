@@ -49,14 +49,11 @@ pub async fn properties(
 ) -> Result<Value, Error> {
     let peeked = ctx.db.peek().await;
     let data = peeked
-        .as_public()
-        .as_package_data()
+        .as_private()
+        .as_package_stores()
         .as_idx(&id)
-        .or_not_found(&id)?
-        .as_installed()
-        .or_not_found(&id)?
-        .as_store()
-        .de()?;
+        .map(|x| x.de())
+        .unwrap_or_else(|| Ok(json!({})))?;
     Ok(peeked
         .as_public()
         .as_package_data()

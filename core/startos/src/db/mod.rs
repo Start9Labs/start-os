@@ -186,18 +186,30 @@ pub enum RevisionsRes {
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct CliDumpParams {
+    #[arg(long = "include-private", short = 'p')]
+    #[serde(default)]
+    include_private: bool,
     path: Option<PathBuf>,
 }
 
 #[instrument(skip_all)]
 async fn cli_dump(
     ctx: CliContext,
-    CliDumpParams { path }: CliDumpParams,
+    CliDumpParams {
+        path,
+        include_private,
+    }: CliDumpParams,
 ) -> Result<Dump, RpcError> {
     let dump = if let Some(path) = path {
         PatchDb::open(path).await?.dump(&ROOT).await
     } else {
-        from_value::<Dump>(ctx.call_remote("db.dump", imbl_value::json!({})).await?)?
+        from_value::<Dump>(
+            ctx.call_remote(
+                "db.dump",
+                imbl_value::json!({ "include-private":include_private }),
+            )
+            .await?,
+        )?
     };
 
     Ok(dump)
@@ -216,14 +228,11 @@ pub async fn dump(
     ctx: RpcContext,
     DumpParams { include_private }: DumpParams,
 ) -> Result<Dump, Error> {
-    Ok(ctx
-        .db
-        .dump(&if include_private {
-            ROOT
-        } else {
-            PUBLIC.borrowed()
-        })
-        .await)
+    Ok(if include_private {
+        ctx.db.dump(&ROOT).await
+    } else {
+        ctx.db.dump(&PUBLIC).await
+    })
 }
 
 #[instrument(skip_all)]

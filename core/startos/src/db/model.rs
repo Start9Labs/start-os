@@ -120,6 +120,7 @@ impl Database {
                 sessions: Sessions::new(),
                 notifications: Notifications::new(),
                 cifs: CifsTargets::new(),
+                package_stores: BTreeMap::new(),
             }, // TODO
         })
     }
@@ -149,6 +150,8 @@ pub struct Private {
     pub sessions: Sessions,
     pub notifications: Notifications,
     pub cifs: CifsTargets,
+    #[serde(default)]
+    pub package_stores: BTreeMap<PackageId, Value>,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
@@ -513,7 +516,6 @@ pub struct InstalledPackageInfo {
     pub current_dependencies: CurrentDependencies,
     pub interface_addresses: InterfaceAddressMap,
     pub hosts: HostInfo,
-    pub store: Value,
     pub store_exposed_ui: Vec<ExposedUI>,
     pub store_exposed_dependents: Vec<JsonPointer>,
 }
