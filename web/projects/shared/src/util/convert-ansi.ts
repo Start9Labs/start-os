@@ -1,7 +1,7 @@
 import { Log } from '../types/api'
 import { toLocalIsoString } from './to-local-iso-string'
+import Convert from 'ansi-to-html'
 
-const Convert = require('ansi-to-html')
 const CONVERT = new Convert({
   bg: 'transparent',
   colors: { 4: 'Cyan' },
