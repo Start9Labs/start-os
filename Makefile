@@ -173,7 +173,11 @@ container-runtime/node_modules: container-runtime/package.json container-runtime
 	npm --prefix container-runtime ci
 	touch container-runtime/node_modules
 
-sdk/dist: $(shell git ls-files sdk)
+core/startos/bindings: $(CORE_SRC) $(ENVIRONMENT_FILE) $(PLATFORM_FILE)
+	(cd core/ && cargo test)
+	touch core/startos/bindings
+
+sdk/dist: $(shell git ls-files sdk) core/startos/bindings
 	(cd sdk && make bundle)
 
 container-runtime/dist: container-runtime/node_modules $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 

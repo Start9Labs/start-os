@@ -177,14 +177,17 @@ export const createUtils = <
 
     serviceInterface: {
       getOwn: (id: ServiceInterfaceId) =>
-        getServiceInterface(effects, { id }) as GetServiceInterface &
-          WrapperOverWrite,
+        getServiceInterface(effects, {
+          id,
+          packageId: null,
+        }) as GetServiceInterface & WrapperOverWrite,
       get: (opts: { id: ServiceInterfaceId; packageId: PackageId }) =>
         getServiceInterface(effects, opts) as GetServiceInterface &
           WrapperOverWrite,
       getAllOwn: () =>
-        getServiceInterfaces(effects, {}) as GetServiceInterfaces &
-          WrapperOverWrite,
+        getServiceInterfaces(effects, {
+          packageId: null,
+        }) as GetServiceInterfaces & WrapperOverWrite,
       getAll: (opts: { packageId: PackageId }) =>
         getServiceInterfaces(effects, opts) as GetServiceInterfaces &
           WrapperOverWrite,

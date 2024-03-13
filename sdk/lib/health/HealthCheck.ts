@@ -60,6 +60,6 @@ function asMessage(e: unknown) {
   if (typeof e === "object" && e != null && "message" in e)
     return String(e.message)
   const value = String(e)
-  if (value.length == null) return undefined
+  if (value.length == null) return null
   return value
 }

@@ -57,7 +57,7 @@ export type Scheme = string | null
 type AddSslOptions = {
   scheme: Scheme
   preferredExternalPort: number
-  addXForwardedHeaders?: boolean /** default: false */
+  addXForwardedHeaders: boolean | null /** default: false */
 }
 type Security = { secure: false; ssl: false } | { secure: true; ssl: boolean }
 export type BindOptions = {
@@ -82,13 +82,13 @@ type BindOptionsByKnownProtocol =
   | ({
       protocol: ProtocolsWithSslVariants
       preferredExternalPort?: number
-      scheme?: Scheme
+      scheme: Scheme | null
     } & ({ noAddSsl: true } | { addSsl?: Partial<AddSslOptions> }))
   | {
       protocol: NotProtocolsWithSslVariants
       preferredExternalPort?: number
-      scheme?: Scheme
-      addSsl?: AddSslOptions | null
+      scheme: Scheme | null
+      addSsl: AddSslOptions | null
     }
 type BindOptionsByProtocol = BindOptionsByKnownProtocol | BindOptions
 
@@ -185,6 +185,7 @@ export class Host {
     if ("noAddSsl" in options && options.noAddSsl) return null
     if ("withSsl" in protoInfo && protoInfo.withSsl)
       return {
+        addXForwardedHeaders: null,
         preferredExternalPort: knownProtocols[protoInfo.withSsl].defaultPort,
         scheme: protoInfo.withSsl,
         ...("addSsl" in options ? options.addSsl : null),

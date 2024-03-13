@@ -11,7 +11,7 @@ const makeManyInterfaceFilled = async ({
   callback,
 }: {
   effects: Effects
-  packageId: string | undefined
+  packageId: string | null
   callback: () => void
 }) => {
   const serviceInterfaceValues = await effects.listServiceInterfaces({
@@ -25,6 +25,7 @@ const makeManyInterfaceFilled = async ({
           [
             id,
             await effects.getHostInfo({
+              kind: null,
               packageId,
               serviceInterfaceId: id,
               callback,
@@ -37,6 +38,7 @@ const makeManyInterfaceFilled = async ({
   const serviceInterfacesFilled: ServiceInterfaceFilled[] = await Promise.all(
     serviceInterfaceValues.map(async (serviceInterfaceValue) => {
       const hostInfo = await effects.getHostInfo({
+        kind: null,
         packageId,
         serviceInterfaceId: serviceInterfaceValue.id,
         callback,
@@ -64,7 +66,7 @@ const makeManyInterfaceFilled = async ({
 export class GetServiceInterfaces {
   constructor(
     readonly effects: Effects,
-    readonly opts: { packageId?: string },
+    readonly opts: { packageId: string | null },
   ) {}
 
   /**
@@ -119,7 +121,7 @@ export class GetServiceInterfaces {
 }
 export function getServiceInterfaces(
   effects: Effects,
-  opts: { packageId?: string },
+  opts: { packageId: string | null },
 ) {
   return new GetServiceInterfaces(effects, opts)
 }

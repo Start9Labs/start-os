@@ -529,9 +529,10 @@ pub struct ExposedDependent {
     copyable: Option<bool>,
     qr: Option<bool>,
 }
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel, ts_rs::TS)]
 #[model = "Model<Self>"]
 pub struct ExposedUI {
+    #[ts(type = "string")]
     pub path: JsonPointer,
     pub title: String,
     pub description: Option<String>,
