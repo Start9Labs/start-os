@@ -3,7 +3,7 @@ import { NgModule } from '@angular/core'
 import { SharedPipesModule } from '@start9labs/shared'
 
 import { MenuComponent } from './menu.component'
-import { TuiButtonModule, TuiLoaderModule } from '@taiga-ui/core'
+import { TuiButtonModule, TuiLoaderModule, TuiSvgModule } from '@taiga-ui/core'
 import { TuiActiveZoneModule, TuiLetModule } from '@taiga-ui/cdk'
 import { TuiSidebarModule } from '@taiga-ui/addon-mobile'
 import { SearchModule } from '../../pages/list/search/search.module'
@@ -23,6 +23,7 @@ import { StoreIconComponentModule } from '../store-icon/store-icon.component.mod
     CategoriesModule,
     StoreIconComponentModule,
     TuiLetModule,
+    TuiSvgModule,
   ],
   declarations: [MenuComponent],
   exports: [MenuComponent],
