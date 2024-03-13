@@ -1,34 +1,24 @@
-<header
-  class="header overflow-hidden w-full fixed sm:w-[34vw] md:w-[28vw] lg:w-[22vw] 2xl:w-[280px] sm:bg-zinc-700/90 sm:backdrop-blur-2xl sm:min-h-screen overflow-y-auto flex flex-col sm:py-6 sm:after:block sm:after:absolute sm:after:top-0 sm:after:bottom-0 sm:after:right-0 sm:after:w-0.5 after:h-[calc(100vh - 20px)] sm:after:bg-gradient-to-b from-zinc-700 to-zinc-400"
->
+<header>
   <ng-container *tuiLet="store$ | async as store">
-    <div class="hidden sm:flex flex-col mx-6 pb-3 items-center">
-      <div
-        class="mb-3 rounded-full"
+    <div class="title">
+      <store-icon
         [class.tui-skeleton]="!store"
         [class.tui-skeleton_rounded]="!store"
-      >
-        <store-icon
-          size="64px"
-          [url]="store?.url || ''"
-          [marketplace]="iconConfig"
-        ></store-icon>
-      </div>
-      <h1
-        class="font-semibold text-2xl text-zinc-100 text-center mb-3"
-        [class.tui-skeleton]="!store"
-      >
+        size="64px"
+        [url]="store?.url || ''"
+        [marketplace]="iconConfig"
+      ></store-icon>
+      <h1 [class.tui-skeleton]="!store">
         {{ store?.info?.name || 'Loading store' }}
       </h1>
       <!-- change registry modal -->
       <ng-content select="[slot=desktop]"></ng-content>
     </div>
     <!-- mobile nav -->
-    <div class="sm:hidden bg-zinc-700/90 backdrop-blur-3xl">
-      <div class="flex justify-between items-center py-4 px-4 w-[100vw]">
+    <div class="nav-mobile">
+      <div class="nav-mobile-bar">
         <!-- mobile search -->
         <marketplace-search
-          class="max-w-fit"
           [(query)]="query"
           (queryChange)="onQueryChange($event)"
         ></marketplace-search>
@@ -45,84 +35,66 @@
             size="48px"
             [url]="store?.url || ''"
             [marketplace]="iconConfig"
-            class="rounded-full"
             [class.tui-skeleton]="!store"
             [class.tui-skeleton_rounded]="!store"
           ></store-icon>
           <nav
             *tuiSidebar="open; direction: 'right'; autoWidth: true"
-            class="bg-zinc-700/90 h-screen w-[70vw]"
+            class="nav-mobile-sidebar divide-bar"
           >
-            <div class="flex flex-col divide-y divide-zinc-500 h-full">
-              <div class="flex items-center p-4">
-                <h1
-                  class="font-semibold text-xl text-zinc-200 flex-grow"
-                  [class.tui-skeleton]="!store"
-                >
-                  {{ store?.info?.name }}
-                </h1>
-                <button
-                  [style.--tui-padding]="0"
-                  class="place-self-end"
-                  tuiButton
-                  type="button"
-                  appearance="icon"
-                  icon="tuiIconClose"
-                  (tuiActiveZoneChange)="toggleMenu($event)"
-                  (click)="toggleMenu(false)"
-                ></button>
-              </div>
-              <!-- change registry modal -->
-              <ng-content select="[slot=mobile]"></ng-content>
-              <div
-                class="flex flex-col justify-between divide-y divide-zinc-500 h-full"
+            <div class="nav-mobile-sidebar-top">
+              <h1 [class.tui-skeleton]="!store">
+                {{ store?.info?.name }}
+              </h1>
+              <button
+                [style.--tui-padding]="0"
+                tuiButton
+                type="button"
+                appearance="icon"
+                icon="tuiIconClose"
+                (tuiActiveZoneChange)="toggleMenu($event)"
+                (click)="toggleMenu(false)"
+              ></button>
+            </div>
+            <!-- change registry modal -->
+            <ng-content select="[slot=mobile]"></ng-content>
+            <div class="nav-mobile-sidebar-bottom divide-bar">
+              <marketplace-categories
+                [categories]="store?.info?.categories"
+                [category]="query ? '' : category"
+                (categoryChange)="onCategoryChange($event); toggleMenu(false)"
+              ></marketplace-categories>
+              <a
+                target="_blank"
+                href="https://github.com/Start9Labs/service-pipeline#readme"
               >
-                <marketplace-categories
-                  [categories]="store?.info?.categories"
-                  [category]="query ? '' : category"
-                  (categoryChange)="onCategoryChange($event); toggleMenu(false)"
-                  class="grow pt-5 pl-5 pr-5"
-                ></marketplace-categories>
-                <a
-                  class="flex relative gap-2 hover:no-underline p-5"
-                  target="_blank"
-                  href="https://github.com/Start9Labs/service-pipeline#readme"
-                >
-                  <img
-                    alt="Launch icon"
-                    width="24"
-                    height="24"
-                    class="opacity-70 invert"
-                    src="svg/rocket-outline.svg"
-                  />
-                  <span
-                    class="text-base text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
-                  >
-                    Launch your project
-                  </span>
-                </a>
-              </div>
+                <img
+                  alt="Launch icon"
+                  width="24"
+                  height="24"
+                  src="svg/rocket-outline.svg"
+                />
+                <span>Launch your project</span>
+              </a>
             </div>
           </nav>
         </button>
       </div>
     </div>
     <!-- desktop nav -->
-    <nav class="hidden sm:flex grow flex-col py-3 px-4">
+    <nav class="nav-desktop">
       <!-- desktop search -->
       <marketplace-search
-        class="place-self-center md:pb-8"
         [query]="query"
         (queryChange)="onQueryChange($event)"
       ></marketplace-search>
-      <div class="flex grow flex-col justify-between">
+      <div class="nav-desktop-container">
         <marketplace-categories
           [categories]="store?.info?.categories"
           [category]="query ? '' : category"
           (categoryChange)="onCategoryChange($event)"
         ></marketplace-categories>
         <a
-          class="flex gap-2 p-2 hover:no-underline sm:hover:bg-[#222428] hover:cursor-pointer sm:w-[120%] z-50 rounded-l-lg ease-in-out delay-75 duration-300"
           target="_blank"
           href="https://github.com/Start9Labs/service-pipeline#readme"
         >
@@ -130,14 +102,9 @@
             alt="Rocket Icon"
             width="24"
             height="24"
-            class="opacity-70 invert"
             src="svg/rocket-outline.svg"
           />
-          <span
-            class="text-base text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
-          >
-            Launch your project
-          </span>
+          <span>Launch your project</span>
         </a>
       </div>
     </nav>

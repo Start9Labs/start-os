@@ -80,6 +80,45 @@
   --ion-text-color-rgb: var(--ion-color-dark-rgb);
 
   --tui-skeleton-radius: 1rem;
+
+  // @TODO rename
+  --tw-color-black: 0 0 0;
+  --tw-color-white: 255 255 255;
+  --tw-color-slate-50: 248 250 252;
+  --tw-color-slate-100: 241 245 249;
+  --tw-color-slate-200: 226 232 240;
+  --tw-color-slate-300: 203 213 225;
+  --tw-color-slate-400: 148 163 184;
+  --tw-color-slate-500: 100 116 139;
+  --tw-color-slate-600: 71 85 105;
+  --tw-color-slate-700: 51 65 85;
+  --tw-color-slate-800: 30 41 59;
+  --tw-color-slate-900: 15 23 42;
+  --tw-color-slate-950: 2 6 23;
+  --tw-color-gray-50: 249 250 251;
+  --tw-color-gray-100: 243 244 246;
+  --tw-color-gray-200: 229 231 235;
+  --tw-color-gray-300: 209 213 219;
+  --tw-color-gray-400: 156 163 175;
+  --tw-color-gray-500: 107 114 128;
+  --tw-color-gray-600: 75 85 99;
+  --tw-color-gray-700: 55 65 81;
+  --tw-color-gray-800: 31 41 55;
+  --tw-color-gray-900: 17 24 39;
+  --tw-color-gray-950: 3 7 18;
+  --tw-color-zinc-50: 250 250 250;
+  --tw-color-zinc-100: 244 244 245;
+  --tw-color-zinc-200: 228 228 231;
+  --tw-color-zinc-300: 212 212 216;
+  --tw-color-zinc-400: 161 161 170;
+  --tw-color-zinc-500: 113 113 122;
+  --tw-color-zinc-600: 82 82 91;
+  --tw-color-zinc-700: 63 63 70;
+  --tw-color-zinc-800: 39 39 42;
+  --tw-color-zinc-900: 24 24 27;
+  --tw-color-zinc-950: 9 9 11;
+
+  --portal-header-height: 56px;
 }
 
 $subheader-height: 48px;
