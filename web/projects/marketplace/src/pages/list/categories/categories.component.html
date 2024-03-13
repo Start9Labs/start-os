@@ -1,25 +1,18 @@
 <button
   *ngFor="let cat of categories || ['', '', '', '', '', '']"
-  class="flex relative gap-2 hover:no-underline hover:cursor-pointer sm:hover:bg-[#222428] sm:hover:opacity-90 sm:w-[120%] rounded-l-lg ease-in-out delay-75 duration-300 mb-5 sm:p-2 sm:mb-3 z-50"
   routerLink="../"
   (click)="switchCategory(cat)"
   [class.category_selected]="cat === category"
 >
   <div
-    class="relative flex"
+    class="category-wrapper"
     [class.tui-skeleton]="!categories"
     [class.tui-skeleton_rounded]="!categories"
   >
-    <img
-      alt="Category Icon"
-      width="24"
-      height="24"
-      class="opacity-70 invert"
-      src="/svg/{{ determineIcon(cat) }}.svg"
-    />
+    <tui-svg src="{{ determineIcon(cat) }}"></tui-svg>
   </div>
   <span
-    class="text-base text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
+    class="category-title"
     [class.tui-skeleton]="!categories"
     [class.tui-skeleton_rounded]="!categories"
   >
