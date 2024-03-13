@@ -269,7 +269,7 @@ export type ExposeUiPaths<Store> = Array<{
   /** A human readable description or explanation of the value */
   description?: string
   /** (string/number only) Whether or not to mask the value, for example, when displaying a password */
-  masked?: boolean
+  masked: boolean
   /** (string/number only) Whether or not to include a button for copying the value to clipboard */
   copyable?: boolean
   /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
@@ -278,7 +278,7 @@ export type ExposeUiPaths<Store> = Array<{
 /** Used to reach out from the pure js runtime */
 export type Effects = {
   executeAction<Input>(opts: {
-    serviceId?: string
+    serviceId: string | null
     input: Input
   }): Promise<unknown>
 
@@ -362,10 +362,10 @@ export type Effects = {
   /**
    * Get the port address for another service
    */
-  getServicePortForward(
-    internalPort: number,
-    packageId?: string,
-  ): Promise<number>
+  getServicePortForward(options: {
+    internalPort: number
+    packageId: string | null
+  }): Promise<number>
 
   /** Removes all network interfaces */
   clearServiceInterfaces(): Promise<void>
@@ -379,11 +379,11 @@ export type Effects = {
   exposeUi<Store = never>(options: {
     paths: {
       path: string
-      title: string
-      description?: string | undefined
-      masked?: boolean | undefined
-      copyable?: boolean | undefined
-      qr?: boolean | undefined
+      title: string | null
+      description: string | null
+      masked: boolean | null
+      copyable: boolean | null
+      qr: boolean | null
     }[]
   }): Promise<void>
   /**
