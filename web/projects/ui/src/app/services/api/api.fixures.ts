@@ -1785,6 +1785,7 @@ export module Mock {
               scheme: 'http',
               preferredExternalPort: 80,
               addSsl: {
+                addXForwardedHeaders: null,
                 preferredExternalPort: 443,
                 scheme: 'https',
               },
@@ -1857,6 +1858,7 @@ export module Mock {
               scheme: 'http',
               preferredExternalPort: 80,
               addSsl: {
+                addXForwardedHeaders: null,
                 preferredExternalPort: 443,
                 scheme: 'https',
               },
@@ -2032,6 +2034,7 @@ export module Mock {
               scheme: 'http',
               preferredExternalPort: 80,
               addSsl: {
+                addXForwardedHeaders: null,
                 preferredExternalPort: 443,
                 scheme: 'https',
               },
