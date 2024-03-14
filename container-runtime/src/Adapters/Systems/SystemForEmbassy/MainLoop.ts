@@ -186,6 +186,7 @@ export class MainLoop {
 
             if ("result" in result) {
               await effects.setHealth({
+                message: null,
                 name: healthId,
                 status: "passing",
               })

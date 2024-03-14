@@ -209,7 +209,8 @@ $(BINS): $(CORE_SRC) $(ENVIRONMENT_FILE)
 	cd core && ARCH=$(ARCH) ./build-prod.sh
 	touch $(BINS)
 
-web/node_modules: web/package.json
+web/node_modules: web/package.json 
+	(cd sdk && make bundle)
 	npm --prefix web ci
 
 web/dist/raw/ui: $(WEB_UI_SRC) $(WEB_SHARED_SRC)
