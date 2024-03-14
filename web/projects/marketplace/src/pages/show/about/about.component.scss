@@ -1,0 +1,35 @@
+.box-container {
+  background-color: rgb(39 39 42);
+  border-radius: 0.75rem;
+  padding: 1.75rem;
+
+  @media (min-width: 1024px) {
+    grid-column: span 5 / span 5;
+  }
+  @media (min-width: 1280px) {
+    grid-column: span 4 / span 4;
+  }
+
+  h2 {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+    font-weight: 700;
+    padding-bottom: 0.75rem;
+    font-variant: all-small-caps;
+  }
+
+  p {
+    font-size: 1rem;
+    line-height: 1.5rem;
+    margin-bottom: 0.75rem;
+  }
+}
+
+.tag-margin-full {
+  margin-left: 0.375rem;
+  margin-top: 0.5rem;
+}
+
+.tag-margin-empty {
+  margin-top: 0.5rem;
+}

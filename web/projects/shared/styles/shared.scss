@@ -86,10 +86,12 @@ ion-modal {
 }
 
 .divider {
-  background: linear-gradient(90deg,
-      var(--ion-color-light) 0,
-      var(--ion-color-dark) 50%,
-      var(--ion-color-light) 100%);
+  background: linear-gradient(
+    90deg,
+    var(--ion-color-light) 0,
+    var(--ion-color-dark) 50%,
+    var(--ion-color-light) 100%
+  );
   height: 1px;
 }
 
@@ -112,11 +114,11 @@ ion-modal {
 }
 
 .color-success-shade {
-  color: var(--ion-color-success-shade)
+  color: var(--ion-color-success-shade);
 }
 
 .color-primary-shade {
-  color: var(--ion-color-primary-shade)
+  color: var(--ion-color-primary-shade);
 }
 
 @keyframes ellipsis-dot {
@@ -166,4 +168,32 @@ a {
   justify-content: flex-end;
   gap: 16px;
   margin-top: 24px;
+}
+
+// marketplace
+.background-border {
+  border-radius: 0.75rem;
+  background-image: linear-gradient(
+    to bottom left,
+    rgb(161 161 170 / 0.75),
+    #52525b
+  );
+  padding: 1px;
+  margin-top: 1.5rem;
+}
+
+.box-shadow-lg {
+  --tw-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1),
+    0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --tw-shadow-colored: 0 10px 15px -3px var(--tw-shadow-color),
+    0 4px 6px -4px var(--tw-shadow-color);
+  box-shadow:
+    0 0 #0000,
+    0 0 #0000,
+    var(--tw-shadow);
+}
+
+.shadow-color-light {
+  --tw-shadow-color: rgb(161 161 170 / 0.1);
+  --tw-shadow: var(--tw-shadow-colored);
 }

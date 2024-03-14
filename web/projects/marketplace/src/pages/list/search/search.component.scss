@@ -1,15 +1,15 @@
 .search-box {
   color: rgb(244 244 245);
   background-color: rgb(113 113 122);
-  padding-left: 0.75rem /* 12px */;
-  padding-right: 0.75rem /* 12px */;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
   border-radius: 9999px;
   position: relative;
   display: flex;
   align-items: center;
 
   input {
-    margin-top: 0.25rem /* 4px */;
+    margin-top: 0.25rem;
     background-color: transparent;
     padding: 0.5rem 0.75rem;
     &::placeholder {

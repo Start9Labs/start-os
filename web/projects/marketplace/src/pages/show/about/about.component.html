@@ -1,18 +1,16 @@
-<div
-  class="rounded-xl bg-gradient-to-bl from-zinc-400/75 to-zinc-600 p-px shadow-lg shadow-zinc-400/10"
->
-  <div class="lg:col-span-5 xl:col-span-4 bg-zinc-800 rounded-xl p-7">
-    <h2 class="text-lg font-bold small-caps pb-3">Description</h2>
-    <p class="text-base mb-3">
+<div class="background-border box-shadow-lg shadow-color-light">
+  <div class="box-container">
+    <h2>Description</h2>
+    <p>
       {{ pkg.manifest.description.long }}
     </p>
     <ng-container *ngIf="pkg.manifest.replaces as replaces">
       <div *ngIf="replaces.length">
-        <h2 class="text-lg font-bold small-caps pb-3">Intended to replace</h2>
+        <h2>Intended to replace</h2>
         <tui-tag
           *ngFor="let app; index as i; of: replaces"
           size="l"
-          [class]="i > 0 ? 'ml-1.5 mt-2' : 'mt-2'"
+          [class]="i > 0 ? 'tag-margin-full' : 'tag-margin-empty'"
           [value]="app"
         ></tui-tag>
       </div>
