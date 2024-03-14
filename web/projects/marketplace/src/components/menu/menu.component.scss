@@ -44,23 +44,23 @@ header {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-left: 1.5rem /* 24px */;
-    margin-right: 1.5rem /* 24px */;
-    padding-bottom: 0.75rem /* 12px */;
+    margin-left: 1.5rem;
+    margin-right: 1.5rem;
+    padding-bottom: 0.75rem;
   }
 
   store-icon {
-    margin-bottom: 0.75rem /* 12px */;
+    margin-bottom: 0.75rem;
     border-radius: 9999px;
   }
 
   h1 {
     font-weight: 600;
-    font-size: 1.5rem /* 24px */;
-    line-height: 2rem /* 32px */;
+    font-size: 1.5rem;
+    line-height: 2rem;
     color: rgb(244 244 245);
     text-align: center;
-    margin-bottom: 0.75rem /* 12px */;
+    margin-bottom: 0.75rem;
   }
 }
 
@@ -71,7 +71,7 @@ header {
 
     marketplace-search {
       place-self: center;
-      padding-bottom: 2rem /* 32px */;
+      padding-bottom: 2rem;
     }
 
     @media (min-width: 640px) {
@@ -88,11 +88,11 @@ header {
 
       a {
         display: flex;
-        gap: 0.5rem /* 8px */;
-        padding: 0.5rem /* 8px */;
+        gap: 0.5rem;
+        padding: 0.5rem;
         z-index: 50;
-        border-top-left-radius: 0.5rem /* 8px */;
-        border-bottom-left-radius: 0.5rem /* 8px */;
+        border-top-left-radius: 0.5rem;
+        border-bottom-left-radius: 0.5rem;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-delay: 75ms;
         transition-duration: 300ms;
@@ -108,8 +108,8 @@ header {
         }
 
         span {
-          font-size: 1rem /* 16px */;
-          line-height: 1.5rem /* 24px */;
+          font-size: 1rem;
+          line-height: 1.5rem;
           color: rgb(250 250 250);
           text-overflow: ellipsis;
           overflow: hidden;
@@ -159,8 +159,8 @@ header {
 
         h1 {
           font-weight: 600;
-          font-size: 1.25rem /* 20px */;
-          line-height: 1.75rem /* 28px */;
+          font-size: 1.25rem;
+          line-height: 1.75rem;
           color: rgb(228 228 231);
           flex-grow: 1;
         }
@@ -185,8 +185,8 @@ header {
         a {
           display: flex;
           position: relative;
-          gap: 0.5rem /* 8px */;
-          padding: 1.25rem /* 20px */;
+          gap: 0.5rem;
+          padding: 1.25rem;
 
           &:hover {
             text-decoration-line: none;
@@ -198,8 +198,8 @@ header {
           }
 
           span {
-            font-size: 1rem /* 16px */;
-            line-height: 1.5rem /* 24px */;
+            font-size: 1rem;
+            line-height: 1.5rem;
             color: rgb(250 250 250);
             text-overflow: ellipsis;
             overflow: hidden;

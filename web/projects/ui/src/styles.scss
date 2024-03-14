@@ -81,6 +81,19 @@
 
   --tui-skeleton-radius: 1rem;
 
+  --portal-header-height: 56px;
+
+  .box-shadow-lg {
+    --tw-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1),
+      0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --tw-shadow-colored: 0 10px 15px -3px var(--tw-shadow-color),
+      0 4px 6px -4px var(--tw-shadow-color);
+    box-shadow:
+      0 0 #0000,
+      0 0 #0000,
+      var(--tw-shadow);
+  }
+
   // @TODO rename
   --tw-color-black: 0 0 0;
   --tw-color-white: 255 255 255;
@@ -117,8 +130,6 @@
   --tw-color-zinc-800: 39 39 42;
   --tw-color-zinc-900: 24 24 27;
   --tw-color-zinc-950: 9 9 11;
-
-  --portal-header-height: 56px;
 }
 
 $subheader-height: 48px;
