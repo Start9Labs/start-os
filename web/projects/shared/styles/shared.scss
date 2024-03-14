@@ -197,3 +197,19 @@ a {
   --tw-shadow-color: rgb(161 161 170 / 0.1);
   --tw-shadow: var(--tw-shadow-colored);
 }
+
+.detail-title {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+  padding-bottom: 0.75rem;
+  font-variant: all-small-caps;
+}
+
+.buttons {
+  margin-top: 0.5rem;
+
+  :first-child {
+    margin-right: 0.5rem;
+  }
+}
