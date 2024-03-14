@@ -19,7 +19,7 @@ use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
 use crate::context::config::ServerConfig;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation, WebSocketHandler};
-use crate::db::model::CurrentDependents;
+use crate::db::model::package::CurrentDependents;
 use crate::db::prelude::PatchDbExt;
 use crate::dependencies::compute_dependency_config_errs;
 use crate::disk::OsPartitionInfo;
@@ -219,12 +219,7 @@ impl RpcContext {
                 for (package_id, package) in
                     f.as_public_mut().as_package_data_mut().as_entries_mut()?
                 {
-                    for (k, v) in package
-                        .as_installed_mut()
-                        .into_iter()
-                        .flat_map(|i| i.clone().into_current_dependencies().into_entries())
-                        .flatten()
-                    {
+                    for (k, v) in package.clone().into_current_dependencies().into_entries()? {
                         let mut entry: BTreeMap<_, _> =
                             current_dependents.remove(&k).unwrap_or_default();
                         entry.insert(package_id.clone(), v.de()?);
@@ -236,16 +231,7 @@ impl RpcContext {
                         .as_public_mut()
                         .as_package_data_mut()
                         .as_idx_mut(&package_id)
-                        .and_then(|pde| pde.expect_as_installed_mut().ok())
-                        .map(|i| i.as_installed_mut().as_current_dependents_mut())
-                    {
-                        deps.ser(&CurrentDependents(current_dependents))?;
-                    } else if let Some(deps) = f
-                        .as_public_mut()
-                        .as_package_data_mut()
-                        .as_idx_mut(&package_id)
-                        .and_then(|pde| pde.expect_as_removing_mut().ok())
-                        .map(|i| i.as_removing_mut().as_current_dependents_mut())
+                        .map(|i| i.as_current_dependents_mut())
                     {
                         deps.ser(&CurrentDependents(current_dependents))?;
                     }
@@ -261,23 +247,19 @@ impl RpcContext {
         let peek = self.db.peek().await;
         for (package_id, package) in peek.as_public().as_package_data().as_entries()?.into_iter() {
             let package = package.clone();
-            if let Some(current_dependencies) = package
-                .as_installed()
-                .and_then(|x| x.as_current_dependencies().de().ok())
-            {
-                let manifest = package.as_manifest().de()?;
-                all_dependency_config_errs.insert(
-                    package_id.clone(),
-                    compute_dependency_config_errs(
-                        self,
-                        &peek,
-                        &manifest,
-                        &current_dependencies,
-                        &Default::default(),
-                    )
-                    .await?,
-                );
-            }
+            let current_dependencies = package.as_current_dependencies().de()?;
+            let manifest = todo!(); // package.as_manifest().de()?;
+            all_dependency_config_errs.insert(
+                package_id.clone(),
+                compute_dependency_config_errs(
+                    self,
+                    &peek,
+                    &manifest,
+                    &current_dependencies,
+                    &Default::default(),
+                )
+                .await?,
+            );
         }
         self.db
             .mutate(|v| {
@@ -286,7 +268,6 @@ impl RpcContext {
                         .as_public_mut()
                         .as_package_data_mut()
                         .as_idx_mut(&package_id)
-                        .and_then(|pde| pde.as_installed_mut())
                         .map(|i| i.as_status_mut().as_dependency_config_errors_mut())
                     {
                         config_errors.ser(&errs)?;

@@ -18,7 +18,8 @@ use crate::auth::check_password_against_db;
 use crate::backup::os::OsBackup;
 use crate::backup::{BackupReport, ServerBackupReport};
 use crate::context::RpcContext;
-use crate::db::model::{BackupProgress, DatabaseModel};
+use crate::db::model::public::BackupProgress;
+use crate::db::model::DatabaseModel;
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
@@ -174,7 +175,7 @@ pub async fn backup_all(
                         .as_package_data()
                         .as_entries()?
                         .into_iter()
-                        .filter(|(_, m)| m.expect_as_installed().is_ok())
+                        .filter(|(_, m)| m.as_state_info().expect_installed().is_ok())
                         .map(|(id, _)| id)
                         .collect()
                 };

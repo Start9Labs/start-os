@@ -7,13 +7,14 @@ use std::sync::{Arc, Weak};
 use clap::builder::ValueParserFactory;
 use clap::Parser;
 use imbl_value::{json, InternedString};
-use models::{ActionId, HealthCheckId, ImageId, PackageId};
+use models::{ActionId, HealthCheckId, ImageId, InvalidId, PackageId};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
 
-use crate::db::model::ExposedUI;
+use crate::db::model::package::ExposedUI;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
@@ -131,8 +132,11 @@ pub fn service_effect_handler() -> ParentHandler {
         .subcommand("clearBindings", from_fn_async(clear_bindings).no_cli())
         .subcommand("bind", from_fn_async(bind).no_cli())
         .subcommand("getHostInfo", from_fn_async(get_host_info).no_cli())
+        .subcommand(
+            "setDependencies",
+            from_fn_async(set_dependencies).with_remote_cli::<ContainerCliContext>(),
+        )
     // TODO @DrBonez when we get the new api for 4.0
-    // .subcommand("setDependencies",from_fn_async(set_dependencies).no_cli())
     // .subcommand("embassyGetInterface",from_fn_async(embassy_get_interface).no_cli())
     // .subcommand("mount",from_fn_async(mount).no_cli())
     // .subcommand("removeAction",from_fn_async(remove_action).no_cli())
@@ -771,7 +775,6 @@ async fn set_health(
 #[command(rename_all = "camelCase")]
 #[ts(export)]
 pub struct DestroyOverlayedImageParams {
-    image_id: ImageId,
     #[ts(type = "string")]
     guid: InternedString,
 }
@@ -779,7 +782,7 @@ pub struct DestroyOverlayedImageParams {
 #[instrument(skip_all)]
 pub async fn destroy_overlayed_image(
     ctx: EffectContext,
-    DestroyOverlayedImageParams { image_id, guid }: DestroyOverlayedImageParams,
+    DestroyOverlayedImageParams { guid }: DestroyOverlayedImageParams,
 ) -> Result<(), Error> {
     let ctx = ctx.deref()?;
     if ctx
@@ -863,4 +866,60 @@ pub async fn create_overlayed_image(
             ErrorKind::NotFound,
         ))
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+enum DependencyKind {
+    Exists,
+    Running,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DependencyRequirement {
+    id: PackageId,
+    kind: DependencyKind,
+}
+// filebrowser:exists,bitcoind:running
+impl FromStr for DependencyRequirement {
+    type Err = InvalidId;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.split_once(":") {
+            Some((id, "e")) | Some((id, "exists")) => Ok(Self {
+                id: id.parse()?,
+                kind: DependencyKind::Exists,
+            }),
+            Some((id, "r")) | Some((id, "running")) => Ok(Self {
+                id: id.parse()?,
+                kind: DependencyKind::Exists,
+            }),
+            _ => Ok(Self {
+                id: s.parse()?,
+                kind: DependencyKind::Running,
+            }),
+        }
+    }
+}
+impl ValueParserFactory for DependencyRequirement {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
+    }
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "camelCase")]
+pub struct SetDependenciesParams {
+    dependencies: Vec<DependencyRequirement>,
+}
+
+pub async fn set_dependencies(
+    ctx: EffectContext,
+    SetDependenciesParams { dependencies }: SetDependenciesParams,
+) -> Result<(), Error> {
+    let ctx = ctx.deref()?;
+    let id = &ctx.id;
+    // ctx.ctx.db.mutate(|db| db.as_public_mut().as_package_data_mut().as_idx_mut(id).or_not_found(id)?.).await
 }

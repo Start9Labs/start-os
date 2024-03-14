@@ -10,7 +10,8 @@ use tracing::instrument;
 
 use crate::config::{Config, ConfigSpec, ConfigureContext};
 use crate::context::RpcContext;
-use crate::db::model::{CurrentDependencies, Database};
+use crate::db::model::package::CurrentDependencies;
+use crate::db::model::Database;
 use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
 use crate::status::DependencyConfigErrors;

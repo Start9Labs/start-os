@@ -4,9 +4,10 @@ use models::PackageId;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 
+use crate::context::RpcContext;
+use crate::db::model::package::ExposedUI;
 use crate::prelude::*;
 use crate::Error;
-use crate::{context::RpcContext, db::model::ExposedUI};
 
 pub fn display_properties(response: Value) {
     println!("{}", response);
@@ -58,8 +59,6 @@ pub async fn properties(
         .as_public()
         .as_package_data()
         .as_idx(&id)
-        .or_not_found(&id)?
-        .as_installed()
         .or_not_found(&id)?
         .as_store_exposed_ui()
         .de()?
