@@ -10,7 +10,8 @@ use tracing::instrument;
 
 use crate::config::{Config, ConfigSpec, ConfigureContext};
 use crate::context::RpcContext;
-use crate::db::model::{CurrentDependencies, Database};
+use crate::db::model::package::CurrentDependencies;
+use crate::db::model::Database;
 use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
 use crate::status::DependencyConfigErrors;
@@ -196,51 +197,18 @@ pub async fn configure_logic(
 }
 
 #[instrument(skip_all)]
-pub fn add_dependent_to_current_dependents_lists(
-    db: &mut Model<Database>,
-    dependent_id: &PackageId,
-    current_dependencies: &CurrentDependencies,
-) -> Result<(), Error> {
-    for (dependency, dep_info) in &current_dependencies.0 {
-        if let Some(dependency_dependents) = db
-            .as_public_mut()
-            .as_package_data_mut()
-            .as_idx_mut(dependency)
-            .and_then(|pde| pde.as_installed_mut())
-            .map(|i| i.as_current_dependents_mut())
-        {
-            dependency_dependents.insert(dependent_id, dep_info)?;
-        }
-    }
-    Ok(())
-}
-
-#[instrument(skip_all)]
 pub async fn compute_dependency_config_errs(
     ctx: &RpcContext,
     db: &Peeked,
-    manifest: &Manifest,
+    id: &PackageId,
     current_dependencies: &CurrentDependencies,
     dependency_config: &BTreeMap<PackageId, Config>,
 ) -> Result<DependencyConfigErrors, Error> {
     let mut dependency_config_errs = BTreeMap::new();
-    for (dependency, _dep_info) in current_dependencies
-        .0
-        .iter()
-        .filter(|(dep_id, _)| dep_id != &&manifest.id)
-    {
+    for (dependency, _dep_info) in current_dependencies.0.iter() {
         // check if config passes dependency check
-        if let Some(cfg) = &manifest
-            .dependencies
-            .0
-            .get(dependency)
-            .or_not_found(dependency)?
-            .config
-        {
-            let error = todo!();
-            {
-                dependency_config_errs.insert(dependency.clone(), error);
-            }
+        if let Some(error) = todo!() {
+            dependency_config_errs.insert(dependency.clone(), error);
         }
     }
     Ok(DependencyConfigErrors(dependency_config_errs))

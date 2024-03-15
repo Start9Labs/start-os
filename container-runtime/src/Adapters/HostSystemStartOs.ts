@@ -117,10 +117,7 @@ export class HostSystemStartOs implements Effects {
       T.Effects["createOverlayedImage"]
     >
   }
-  destroyOverlayedImage(options: {
-    imageId: string
-    guid: string
-  }): Promise<void> {
+  destroyOverlayedImage(options: { guid: string }): Promise<void> {
     return this.rpcRound("destroyOverlayedImage", options) as ReturnType<
       T.Effects["destroyOverlayedImage"]
     >

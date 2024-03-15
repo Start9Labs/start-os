@@ -11,7 +11,7 @@ use tracing::instrument;
 
 use crate::account::AccountInfo;
 use crate::context::config::ServerConfig;
-use crate::db::model::ServerStatus;
+use crate::db::model::public::ServerStatus;
 use crate::disk::mount::util::unmount;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;

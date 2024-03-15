@@ -13,6 +13,7 @@ import { ExposeUiParams } from "../../../core/startos/bindings/ExposeUiParams"
 import { GetSslCertificateParams } from "../../../core/startos/bindings/GetSslCertificateParams"
 import { GetSslKeyParams } from "../../../core/startos/bindings/GetSslKeyParams"
 import { GetServiceInterfaceParams } from "../../../core/startos/bindings/GetServiceInterfaceParams"
+import { SetDependenciesParams } from "../../../core/startos/bindings/SetDependenciesParams"
 
 function typeEquality<ExpectedType>(_a: ExpectedType) {}
 describe("startosTypeValidation ", () => {
@@ -46,6 +47,7 @@ describe("startosTypeValidation ", () => {
           | "clearBindings"
           | "bind"
           | "getHostInfo"
+          | "setDependencies"
         )]: Effects[K] extends Function ? Parameters<Effects[K]>[0] : never
     }>({
       executeAction: {} as ExecuteAction,
@@ -67,6 +69,7 @@ describe("startosTypeValidation ", () => {
       getSslCertificate: {} as GetSslCertificateParams,
       getSslKey: {} as GetSslKeyParams,
       getServiceInterface: {} as GetServiceInterfaceParams,
+      setDependencies: {} as SetDependenciesParams,
     })
     typeEquality<Parameters<Effects["executeAction"]>[0]>(
       testInput as ExecuteAction,

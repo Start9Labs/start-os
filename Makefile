@@ -173,7 +173,7 @@ container-runtime/node_modules: container-runtime/package.json container-runtime
 	npm --prefix container-runtime ci
 	touch container-runtime/node_modules
 
-core/startos/bindings: $(CORE_SRC) $(ENVIRONMENT_FILE) $(PLATFORM_FILE)
+core/startos/bindings: $(shell git ls-files core) $(ENVIRONMENT_FILE) $(PLATFORM_FILE)
 	(cd core/ && cargo test)
 	touch core/startos/bindings
 

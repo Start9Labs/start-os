@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::ffi::OsString;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
@@ -7,13 +8,14 @@ use std::sync::{Arc, Weak};
 use clap::builder::ValueParserFactory;
 use clap::Parser;
 use imbl_value::{json, InternedString};
-use models::{ActionId, HealthCheckId, ImageId, PackageId};
+use models::{ActionId, HealthCheckId, ImageId, InvalidId, PackageId};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
 
-use crate::db::model::ExposedUI;
+use crate::db::model::package::{CurrentDependencies, CurrentDependencyInfo, ExposedUI};
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
@@ -131,8 +133,13 @@ pub fn service_effect_handler() -> ParentHandler {
         .subcommand("clearBindings", from_fn_async(clear_bindings).no_cli())
         .subcommand("bind", from_fn_async(bind).no_cli())
         .subcommand("getHostInfo", from_fn_async(get_host_info).no_cli())
+        .subcommand(
+            "setDependencies",
+            from_fn_async(set_dependencies)
+                .no_display()
+                .with_remote_cli::<ContainerCliContext>(),
+        )
     // TODO @DrBonez when we get the new api for 4.0
-    // .subcommand("setDependencies",from_fn_async(set_dependencies).no_cli())
     // .subcommand("embassyGetInterface",from_fn_async(embassy_get_interface).no_cli())
     // .subcommand("mount",from_fn_async(mount).no_cli())
     // .subcommand("removeAction",from_fn_async(remove_action).no_cli())
@@ -459,8 +466,6 @@ async fn expose_for_dependents(
                 .as_package_data_mut()
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
-                .as_installed_mut()
-                .or_not_found(&package_id)?
                 .as_store_exposed_dependents_mut()
                 .ser(&paths)
         })
@@ -487,8 +492,6 @@ async fn expose_ui(
             db.as_public_mut()
                 .as_package_data_mut()
                 .as_idx_mut(&package_id)
-                .or_not_found(&package_id)?
-                .as_installed_mut()
                 .or_not_found(&package_id)?
                 .as_store_exposed_ui_mut()
                 .ser(&paths)
@@ -566,8 +569,6 @@ async fn get_configured(context: EffectContext, _: Empty) -> Result<Value, Error
         .as_package_data()
         .as_idx(&package_id)
         .or_not_found(&package_id)?
-        .as_installed()
-        .or_not_found(&package_id)?
         .as_status()
         .as_configured()
         .de()?;
@@ -583,8 +584,6 @@ async fn stopped(context: EffectContext, params: ParamsMaybePackageId) -> Result
         .as_package_data()
         .as_idx(&package_id)
         .or_not_found(&package_id)?
-        .as_installed()
-        .or_not_found(&package_id)?
         .as_status()
         .as_main()
         .de()?;
@@ -599,8 +598,6 @@ async fn running(context: EffectContext, params: ParamsPackageId) -> Result<Valu
         .as_public()
         .as_package_data()
         .as_idx(&package_id)
-        .or_not_found(&package_id)?
-        .as_installed()
         .or_not_found(&package_id)?
         .as_status()
         .as_main()
@@ -651,8 +648,6 @@ async fn set_configured(context: EffectContext, params: SetConfigured) -> Result
             db.as_public_mut()
                 .as_package_data_mut()
                 .as_idx_mut(package_id)
-                .or_not_found(package_id)?
-                .as_installed_mut()
                 .or_not_found(package_id)?
                 .as_status_mut()
                 .as_configured_mut()
@@ -733,8 +728,6 @@ async fn set_health(
                 .as_package_data()
                 .as_idx(package_id)
                 .or_not_found(package_id)?
-                .as_installed()
-                .or_not_found(package_id)?
                 .as_status()
                 .as_main()
                 .de()?;
@@ -764,8 +757,6 @@ async fn set_health(
                 .as_package_data_mut()
                 .as_idx_mut(package_id)
                 .or_not_found(package_id)?
-                .as_installed_mut()
-                .or_not_found(package_id)?
                 .as_status_mut()
                 .as_main_mut()
                 .ser(&main)
@@ -778,8 +769,6 @@ async fn set_health(
 #[command(rename_all = "camelCase")]
 #[ts(export)]
 pub struct DestroyOverlayedImageParams {
-    #[ts(type = "string ")]
-    image_id: ImageId,
     #[ts(type = "string")]
     guid: InternedString,
 }
@@ -787,7 +776,7 @@ pub struct DestroyOverlayedImageParams {
 #[instrument(skip_all)]
 pub async fn destroy_overlayed_image(
     ctx: EffectContext,
-    DestroyOverlayedImageParams { image_id, guid }: DestroyOverlayedImageParams,
+    DestroyOverlayedImageParams { guid }: DestroyOverlayedImageParams,
 ) -> Result<(), Error> {
     let ctx = ctx.deref()?;
     if ctx
@@ -872,4 +861,126 @@ pub async fn create_overlayed_image(
             ErrorKind::NotFound,
         ))
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+enum DependencyKind {
+    Exists,
+    Running,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+struct DependencyRequirement {
+    id: PackageId,
+    kind: DependencyKind,
+    #[serde(default)]
+    health_checks: BTreeSet<HealthCheckId>,
+}
+// filebrowser:exists,bitcoind:running:foo+bar+baz
+impl FromStr for DependencyRequirement {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.split_once(":") {
+            Some((id, "e")) | Some((id, "exists")) => Ok(Self {
+                id: id.parse()?,
+                kind: DependencyKind::Exists,
+                health_checks: BTreeSet::new(),
+            }),
+            Some((id, rest)) => {
+                let health_checks = match rest.split_once(":") {
+                    Some(("r", rest)) | Some(("running", rest)) => rest
+                        .split("+")
+                        .map(|id| id.parse().map_err(Error::from))
+                        .collect(),
+                    Some((kind, _)) => Err(Error::new(
+                        eyre!("unknown dependency kind {kind}"),
+                        ErrorKind::InvalidRequest,
+                    )),
+                    None => match rest {
+                        "r" | "running" => Ok(BTreeSet::new()),
+                        kind => Err(Error::new(
+                            eyre!("unknown dependency kind {kind}"),
+                            ErrorKind::InvalidRequest,
+                        )),
+                    },
+                }?;
+                Ok(Self {
+                    id: id.parse()?,
+                    kind: DependencyKind::Running,
+                    health_checks,
+                })
+            }
+            None => Ok(Self {
+                id: s.parse()?,
+                kind: DependencyKind::Running,
+                health_checks: BTreeSet::new(),
+            }),
+        }
+    }
+}
+impl ValueParserFactory for DependencyRequirement {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
+    }
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SetDependenciesParams {
+    dependencies: Vec<DependencyRequirement>,
+}
+
+pub async fn set_dependencies(
+    ctx: EffectContext,
+    SetDependenciesParams { dependencies }: SetDependenciesParams,
+) -> Result<(), Error> {
+    let ctx = ctx.deref()?;
+    let id = &ctx.id;
+    ctx.ctx
+        .db
+        .mutate(|db| {
+            let dependencies = CurrentDependencies(
+                dependencies
+                    .into_iter()
+                    .map(
+                        |DependencyRequirement {
+                             id,
+                             kind,
+                             health_checks,
+                         }| {
+                            (
+                                id,
+                                match kind {
+                                    DependencyKind::Exists => CurrentDependencyInfo::Exists,
+                                    DependencyKind::Running => {
+                                        CurrentDependencyInfo::Running { health_checks }
+                                    }
+                                },
+                            )
+                        },
+                    )
+                    .collect(),
+            );
+            for (dep, entry) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
+                if let Some(info) = dependencies.0.get(&dep) {
+                    entry.as_current_dependents_mut().insert(id, info)?;
+                } else {
+                    entry.as_current_dependents_mut().remove(id)?;
+                }
+            }
+            db.as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(id)
+                .or_not_found(id)?
+                .as_current_dependencies_mut()
+                .ser(&dependencies)
+        })
+        .await
 }
