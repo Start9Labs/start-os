@@ -875,16 +875,18 @@ enum DependencyKind {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 struct DependencyRequirement {
+    #[ts(type = "string")]
     id: PackageId,
     kind: DependencyKind,
     #[serde(default)]
+    #[ts(type = "string[]")]
     health_checks: BTreeSet<HealthCheckId>,
 }
 // filebrowser:exists,bitcoind:running:foo+bar+baz
 impl FromStr for DependencyRequirement {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.split_once(":") {
+        match s.split_once(':') {
             Some((id, "e")) | Some((id, "exists")) => Ok(Self {
                 id: id.parse()?,
                 kind: DependencyKind::Exists,
