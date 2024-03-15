@@ -585,7 +585,7 @@ export type KnownError =
 export type Dependency = {
   id: PackageId
   kind: DependencyKind
-}
+} & ({ kind: "exists" } | { kind: "running"; healthChecks: string[] })
 export type Dependencies = Array<Dependency>
 
 export type DeepPartial<T> = T extends {}

@@ -197,26 +197,6 @@ pub async fn configure_logic(
 }
 
 #[instrument(skip_all)]
-pub fn add_dependent_to_current_dependents_lists(
-    db: &mut Model<Database>,
-    dependent_id: &PackageId,
-    current_dependencies: &CurrentDependencies,
-) -> Result<(), Error> {
-    for (dependency, dep_info) in &current_dependencies.0 {
-        if let Some(dependency_dependents) = db
-            .as_public_mut()
-            .as_package_data_mut()
-            .as_idx_mut(dependency)
-            .and_then(|pde| pde.as_installed_mut())
-            .map(|i| i.as_current_dependents_mut())
-        {
-            dependency_dependents.insert(dependent_id, dep_info)?;
-        }
-    }
-    Ok(())
-}
-
-#[instrument(skip_all)]
 pub async fn compute_dependency_config_errs(
     ctx: &RpcContext,
     db: &Peeked,

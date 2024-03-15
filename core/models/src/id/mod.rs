@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::str::FromStr;
 
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -57,6 +58,12 @@ impl TryFrom<&str> for Id {
         } else {
             Err(InvalidId)
         }
+    }
+}
+impl FromStr for Id {
+    type Err = InvalidId;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s)
     }
 }
 impl From<Id> for InternedString {
