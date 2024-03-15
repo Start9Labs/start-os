@@ -170,7 +170,7 @@ a {
   margin-top: 24px;
 }
 
-// marketplace
+/* marketplace */
 .background-border {
   border-radius: 0.75rem;
   background-image: linear-gradient(
@@ -212,4 +212,20 @@ a {
   :first-child {
     margin-right: 0.5rem;
   }
+}
+
+a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+hr,
+p {
+  margin: 0;
 }

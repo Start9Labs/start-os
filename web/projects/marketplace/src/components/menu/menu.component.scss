@@ -51,7 +51,8 @@ header {
 
   store-icon {
     margin-bottom: 0.75rem;
-    border-radius: 9999px;
+    border-radius: 100%;
+    height: 64px;
   }
 
   h1 {
@@ -215,4 +216,13 @@ header {
       }
     }
   }
+}
+
+*,
+::before,
+::after {
+  box-sizing: border-box;
+  border-width: 0;
+  border-style: solid;
+  border-color: rgb(var(--tw-color-gray-200) / 1);
 }

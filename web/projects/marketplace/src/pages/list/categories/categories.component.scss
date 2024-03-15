@@ -44,11 +44,6 @@ button {
   &-wrapper {
     position: relative;
     display: flex;
-
-    img {
-      opacity: 0.7;
-      filter: invert(100%);
-    }
   }
 
   &-title {

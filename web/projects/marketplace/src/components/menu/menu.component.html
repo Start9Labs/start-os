@@ -33,6 +33,8 @@
         >
           <store-icon
             size="48px"
+            [style.height]="'48px'"
+            [style.border-radius]="'100%'"
             [url]="store?.url || ''"
             [marketplace]="iconConfig"
             [class.tui-skeleton]="!store"
@@ -69,7 +71,10 @@
                 href="https://github.com/Start9Labs/service-pipeline#readme"
               >
                 <!-- @TODO need rocket icon -->
-                <tui-svg src="tuiIconExternalLinkLarge"></tui-svg>
+                <tui-icon
+                  tuiAppearance="icon"
+                  icon="tuiIconExternalLinkLarge"
+                ></tui-icon>
                 <span>Launch your project</span>
               </a>
             </div>
@@ -95,7 +100,10 @@
           href="https://github.com/Start9Labs/service-pipeline#readme"
         >
           <!-- @TODO need rocket icon -->
-          <tui-svg src="tuiIconExternalLinkLarge"></tui-svg>
+          <tui-icon
+            tuiAppearance="icon"
+            icon="tuiIconExternalLinkLarge"
+          ></tui-icon>
           <span>Launch your project</span>
         </a>
       </div>

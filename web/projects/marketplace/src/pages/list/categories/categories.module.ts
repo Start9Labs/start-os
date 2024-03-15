@@ -2,10 +2,10 @@ import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
 
 import { CategoriesComponent } from './categories.component'
-import { TuiSvgModule } from '@taiga-ui/core'
+import { TuiAppearanceModule, TuiIconModule } from '@taiga-ui/experimental'
 
 @NgModule({
-  imports: [CommonModule, TuiSvgModule],
+  imports: [CommonModule, TuiAppearanceModule, TuiIconModule],
   declarations: [CategoriesComponent],
   exports: [CategoriesComponent],
 })

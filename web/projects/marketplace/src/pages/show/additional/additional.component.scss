@@ -41,3 +41,12 @@
 ::ng-deep .t-text {
   font-weight: 600;
 }
+
+*,
+::before,
+::after {
+  box-sizing: border-box;
+  border-width: 0;
+  border-style: solid;
+  border-color: rgb(var(--tw-color-gray-200) / 1);
+}

@@ -9,7 +9,7 @@
     [class.tui-skeleton]="!categories"
     [class.tui-skeleton_rounded]="!categories"
   >
-    <tui-svg src="{{ determineIcon(cat) }}"></tui-svg>
+    <tui-icon tuiAppearance="icon" icon="{{ determineIcon(cat) }}"></tui-icon>
   </div>
   <span
     class="category-title"

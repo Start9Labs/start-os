@@ -55,6 +55,16 @@ import { MarketplaceSidebarsComponent } from './components/sidebars.component'
           right;
       }
 
+      ::ng-deep menu {
+        margin: 0;
+        padding: 0;
+      }
+
+      ::ng-deep button {
+        background-color: transparent;
+        background-image: none;
+      }
+
       .marketplace-content {
         &-wrapper {
           display: flex;
