@@ -324,6 +324,7 @@ pub struct ExposedDependent {
 }
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
 #[model = "Model<Self>"]
+#[ts(export)]
 pub struct ExposedUI {
     #[ts(type = "string")]
     pub path: JsonPointer,

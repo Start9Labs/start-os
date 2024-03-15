@@ -229,6 +229,7 @@ async fn bind(_: AnyContext, BindParams { .. }: BindParams) -> Result<Value, Err
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 struct GetServiceInterfaceParams {
+    #[ts(type = "string | null")]
     package_id: Option<PackageId>,
     service_interface_id: String,
     callback: Callback,
@@ -382,6 +383,7 @@ async fn get_ssl_key(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 struct GetStoreParams {
+    #[ts(type = "string | null")]
     package_id: Option<PackageId>,
     #[ts(type = "string")]
     path: JsonPointer,
@@ -497,10 +499,11 @@ async fn expose_ui(
         .await?;
     Ok(())
 }
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 struct ParamsPackageId {
+    #[ts(type = "string")]
     package_id: PackageId,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
@@ -508,6 +511,7 @@ struct ParamsPackageId {
 #[command(rename_all = "camelCase")]
 #[ts(export)]
 struct ParamsMaybePackageId {
+    #[ts(type = "string | null")]
     package_id: Option<PackageId>,
 }
 
@@ -526,7 +530,9 @@ async fn exists(context: EffectContext, params: ParamsPackageId) -> Result<Value
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 struct ExecuteAction {
+    #[ts(type = "string | null")]
     service_id: Option<PackageId>,
+    #[ts(type = "string")]
     action_id: ActionId,
     #[ts(type = "any")]
     input: Value,
@@ -583,11 +589,11 @@ async fn stopped(context: EffectContext, params: ParamsMaybePackageId) -> Result
         .de()?;
     Ok(json!(matches!(package, MainStatus::Stopped)))
 }
-async fn running(context: EffectContext, params: ParamsMaybePackageId) -> Result<Value, Error> {
+async fn running(context: EffectContext, params: ParamsPackageId) -> Result<Value, Error> {
     dbg!("Starting the running {params:?}");
     let context = context.deref()?;
     let peeked = context.ctx.db.peek().await;
-    let package_id = params.package_id.unwrap_or_else(|| context.id.clone());
+    let package_id = params.package_id;
     let package = peeked
         .as_public()
         .as_package_data()
@@ -696,6 +702,7 @@ async fn set_main_status(context: EffectContext, params: SetMainStatus) -> Resul
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 struct SetHealth {
+    #[ts(type = "string")]
     name: HealthCheckId,
     status: HealthCheckString,
     message: Option<String>,
@@ -789,6 +796,7 @@ pub async fn destroy_overlayed_image(
 #[command(rename_all = "camelCase")]
 #[ts(export)]
 pub struct CreateOverlayedImageParams {
+    #[ts(type = "string")]
     image_id: ImageId,
 }
 

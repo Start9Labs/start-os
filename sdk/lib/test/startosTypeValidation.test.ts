@@ -57,7 +57,7 @@ describe("startosTypeValidation ", () => {
       exists: {} as ParamsPackageId,
       getConfigured: undefined,
       stopped: {} as ParamsMaybePackageId,
-      running: {} as ParamsMaybePackageId,
+      running: {} as ParamsPackageId,
       restart: undefined,
       shutdown: undefined,
       setConfigured: {} as SetConfigured,
