@@ -7,6 +7,7 @@ use std::sync::{Arc, Weak};
 
 use clap::builder::ValueParserFactory;
 use clap::Parser;
+use imbl::OrdMap;
 use imbl_value::{json, InternedString};
 use models::{ActionId, HealthCheckId, ImageId, InvalidId, PackageId};
 use patch_db::json_ptr::JsonPointer;
@@ -139,26 +140,205 @@ pub fn service_effect_handler() -> ParentHandler {
                 .no_display()
                 .with_remote_cli::<ContainerCliContext>(),
         )
-    // TODO @DrBonez when we get the new api for 4.0
-    // .subcommand("embassyGetInterface",from_fn_async(embassy_get_interface).no_cli())
-    // .subcommand("mount",from_fn_async(mount).no_cli())
-    // .subcommand("removeAction",from_fn_async(remove_action).no_cli())
-    // .subcommand("removeAddress",from_fn_async(remove_address).no_cli())
-    // .subcommand("exportAction",from_fn_async(export_action).no_cli())
-    // .subcommand("clearServiceInterfaces",from_fn_async(clear_network_interfaces).no_cli())
-    // .subcommand("exportServiceInterface",from_fn_async(export_network_interface).no_cli())
-    // .subcommand("getHostnames",from_fn_async(get_hostnames).no_cli())
-    // .subcommand("getInterface",from_fn_async(get_interface).no_cli())
-    // .subcommand("listInterface",from_fn_async(list_interface).no_cli())
-    // .subcommand("getIPHostname",from_fn_async(get_ip_hostname).no_cli())
-    // .subcommand("getContainerIp",from_fn_async(get_container_ip).no_cli())
-    // .subcommand("getLocalHostname",from_fn_async(get_local_hostname).no_cli())
-    // .subcommand("getPrimaryUrl",from_fn_async(get_primary_url).no_cli())
-    // .subcommand("getServicePortForward",from_fn_async(get_service_port_forward).no_cli())
-    // .subcommand("getServiceTorHostname",from_fn_async(get_service_tor_hostname).no_cli())
-    // .subcommand("getSystemSmtp",from_fn_async(get_system_smtp).no_cli())
-    // .subcommand("reverseProxy",from_fn_async(reverse_proxy).no_cli())
+        .subcommand("getSystemSmtp", from_fn_async(get_system_smtp).no_cli())
+        .subcommand("getContainerIp", from_fn_async(get_container_ip).no_cli())
+        .subcommand(
+            "getServicePortForward",
+            from_fn_async(get_service_port_forward).no_cli(),
+        )
+        .subcommand(
+            "clearServiceInterfaces",
+            from_fn_async(clear_network_interfaces).no_cli(),
+        )
+        .subcommand(
+            "exportServiceInterface",
+            from_fn_async(export_service_interface).no_cli(),
+        )
+        .subcommand("getPrimaryUrl", from_fn_async(get_primary_url).no_cli())
+        .subcommand(
+            "listServiceInterfaces",
+            from_fn_async(list_service_interfaces).no_cli(),
+        )
+        .subcommand("removeAddress", from_fn_async(remove_address).no_cli())
+        .subcommand("exportAction", from_fn_async(export_action).no_cli())
+        .subcommand("removeAction", from_fn_async(remove_action).no_cli())
+        .subcommand("reverseProxy", from_fn_async(reverse_proxy).no_cli())
+        .subcommand("mount", from_fn_async(mount).no_cli())
     // TODO Callbacks
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct GetSystemSmtpParams {
+    callback: Callback,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct GetServicePortForwardParams {
+    #[ts(type = "string | null")]
+    package_id: Option<PackageId>,
+    internal_port: u32,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct ExportServiceInterfaceParams {
+    #[ts(type = "string | null")]
+    package_id: Option<PackageId>,
+    service_interface_id: String,
+    callback: Callback,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct GetPrimaryUrlParams {
+    #[ts(type = "string | null")]
+    package_id: Option<PackageId>,
+    service_interface_id: String,
+    callback: Callback,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct ListServiceInterfacesParams {
+    #[ts(type = "string | null")]
+    package_id: Option<PackageId>,
+    callback: Callback,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct RemoveAddressParams {
+    id: String,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "kebab-case")]
+enum AllowedStatuses {
+    OnlyRunning,
+    OnlyStopped,
+    Any,
+    Disabled,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct ExportActionParams {
+    name: String,
+    description: String,
+    id: String,
+    #[ts(type = "{[key: string]: any}")]
+    input: Value,
+    allowed_statuses: AllowedStatuses,
+    group: Option<String>,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct RemoveActionParams {
+    id: String,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct ReverseProxyBind {
+    ip: Option<String>,
+    port: u32,
+    ssl: bool,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct ReverseProxyDestination {
+    ip: Option<String>,
+    port: u32,
+    ssl: bool,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct ReverseProxyHttp {
+    #[ts(type = "null | {[key: string]: string}")]
+    headers: Option<OrdMap<String, String>>,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct ReverseProxyParams {
+    bind: ReverseProxyBind,
+    dst: ReverseProxyDestination,
+    http: ReverseProxyHttp,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct MountTarget {
+    #[ts(type = "string")]
+    packageId: PackageId,
+    volumeId: String,
+    path: String,
+    readonly: bool,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct MountParams {
+    location: String,
+    target: MountTarget,
+}
+async fn get_system_smtp(
+    context: EffectContext,
+    data: GetSystemSmtpParams,
+) -> Result<Value, Error> {
+    todo!()
+}
+async fn get_container_ip(context: EffectContext, _: Empty) -> Result<Value, Error> {
+    todo!()
+}
+async fn get_service_port_forward(
+    context: EffectContext,
+    data: GetServicePortForwardParams,
+) -> Result<Value, Error> {
+    todo!()
+}
+async fn clear_network_interfaces(context: EffectContext, _: Empty) -> Result<Value, Error> {
+    todo!()
+}
+async fn export_service_interface(
+    context: EffectContext,
+    data: ExportServiceInterfaceParams,
+) -> Result<Value, Error> {
+    todo!()
+}
+async fn get_primary_url(
+    context: EffectContext,
+    data: GetPrimaryUrlParams,
+) -> Result<Value, Error> {
+    todo!()
+}
+async fn list_service_interfaces(
+    context: EffectContext,
+    data: ListServiceInterfacesParams,
+) -> Result<Value, Error> {
+    todo!()
+}
+async fn remove_address(context: EffectContext, data: RemoveAddressParams) -> Result<Value, Error> {
+    todo!()
+}
+async fn export_action(context: EffectContext, data: ExportActionParams) -> Result<Value, Error> {
+    todo!()
+}
+async fn remove_action(context: EffectContext, data: RemoveActionParams) -> Result<Value, Error> {
+    todo!()
+}
+async fn reverse_proxy(context: EffectContext, data: ReverseProxyParams) -> Result<Value, Error> {
+    todo!()
+}
+async fn mount(context: EffectContext, data: MountParams) -> Result<Value, Error> {
+    todo!()
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
@@ -177,7 +357,8 @@ enum GetHostInfoParamsKind {
 struct GetHostInfoParams {
     kind: Option<GetHostInfoParamsKind>,
     service_interface_id: String,
-    package_id: Option<String>,
+    #[ts(type = "string | null")]
+    package_id: Option<PackageId>,
     callback: Callback,
 }
 async fn get_host_info(
@@ -895,7 +1076,7 @@ impl FromStr for DependencyRequirement {
             Some((id, rest)) => {
                 let health_checks = match rest.split_once(":") {
                     Some(("r", rest)) | Some(("running", rest)) => rest
-                        .split("+")
+                        .split('+')
                         .map(|id| id.parse().map_err(Error::from))
                         .collect(),
                     Some((kind, _)) => Err(Error::new(
@@ -935,11 +1116,11 @@ impl ValueParserFactory for DependencyRequirement {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "camelCase")]
 #[ts(export)]
-pub struct SetDependenciesParams {
+struct SetDependenciesParams {
     dependencies: Vec<DependencyRequirement>,
 }
 
-pub async fn set_dependencies(
+async fn set_dependencies(
     ctx: EffectContext,
     SetDependenciesParams { dependencies }: SetDependenciesParams,
 ) -> Result<(), Error> {

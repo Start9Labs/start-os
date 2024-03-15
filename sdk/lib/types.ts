@@ -167,7 +167,7 @@ export type ActionMetadata = {
   /**
    * So the ordering of the actions is by alphabetical order of the group, then followed by the alphabetical of the actions
    */
-  group?: string
+  group: string | null
 }
 export declare const hostName: unique symbol
 // asdflkjadsf.onion | 1.2.3.4
@@ -275,6 +275,9 @@ export type ExposeUiPaths<Store> = Array<{
   /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
   qr?: boolean
 }>
+
+type tset = keyof Effects
+
 /** Used to reach out from the pure js runtime */
 export type Effects = {
   executeAction<Input>(opts: {
@@ -476,20 +479,22 @@ export type Effects = {
   reverseProxy(options: {
     bind: {
       /** Optional, default is 0.0.0.0 */
-      ip?: string
+      ip: string | null
       port: number
       ssl: boolean
     }
     dst: {
       /** Optional: default is 127.0.0.1 */
-      ip?: string // optional, default 127.0.0.1
+      ip: string | null // optional, default 127.0.0.1
       port: number
       ssl: boolean
     }
-    http?: {
+    http: {
       // optional, will do TCP layer proxy only if not present
-      headers?: (headers: Record<string, string>) => Record<string, string>
-    }
+      headers:
+        | ((headers: Record<string, string>) => Record<string, string>)
+        | null
+    } | null
   }): Promise<{ stop(): Promise<void> }>
   restart(): void
   shutdown(): void
