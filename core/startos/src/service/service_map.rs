@@ -11,13 +11,12 @@ use tokio::sync::{Mutex, OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::db::model::{
-    InstalledPackageInfo, PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryInstalling,
-    PackageDataEntryRestoring, PackageDataEntryUpdating, StaticFiles,
+use crate::db::model::package::{
+    InstallingInfo, InstallingState, PackageDataEntry, PackageState, UpdatingState,
 };
 use crate::disk::mount::guard::GenericMountGuard;
 use crate::install::PKG_ARCHIVE_DIR;
-use crate::notifications::NotificationLevel;
+use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
 use crate::progress::{
     FullProgressTracker, FullProgressTrackerHandle, PhaseProgressTrackerHandle,
@@ -27,6 +26,7 @@ use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
 use crate::service::{LoadDisposition, Service};
+use crate::status::{MainStatus, Status};
 
 pub type DownloadInstallFuture = BoxFuture<'static, Result<InstallFuture, Error>>;
 pub type InstallFuture = BoxFuture<'static, Result<(), Error>>;
@@ -95,9 +95,10 @@ impl ServiceMap {
         mut s9pk: S9pk<S>,
         recovery_source: Option<impl GenericMountGuard>,
     ) -> Result<DownloadInstallFuture, Error> {
-        let manifest = Arc::new(s9pk.as_manifest().clone());
+        let manifest = s9pk.as_manifest().clone();
         let id = manifest.id.clone();
         let icon = s9pk.icon_data_url().await?;
+        let developer_key = s9pk.as_archive().signer();
         let mut service = self.get_mut(&id).await;
 
         let op_name = if recovery_source.is_none() {
@@ -135,49 +136,51 @@ impl ServiceMap {
                 let id = id.clone();
                 let install_progress = progress.snapshot();
                 move |db| {
-                    let pde = match db
-                        .as_public()
-                        .as_package_data()
-                        .as_idx(&id)
-                        .map(|x| x.de())
-                        .transpose()?
-                    {
-                        Some(PackageDataEntry::Installed(PackageDataEntryInstalled {
-                            installed,
-                            static_files,
-                            ..
-                        })) => PackageDataEntry::Updating(PackageDataEntryUpdating {
-                            install_progress,
-                            installed,
-                            manifest: (*manifest).clone(),
-                            static_files,
-                        }),
-                        None if restoring => {
-                            PackageDataEntry::Restoring(PackageDataEntryRestoring {
-                                install_progress,
-                                static_files: StaticFiles::local(
-                                    &manifest.id,
-                                    &manifest.version,
-                                    icon,
-                                ),
-                                manifest: (*manifest).clone(),
-                            })
-                        }
-                        None => PackageDataEntry::Installing(PackageDataEntryInstalling {
-                            install_progress,
-                            static_files: StaticFiles::local(&manifest.id, &manifest.version, icon),
-                            manifest: (*manifest).clone(),
-                        }),
-                        _ => {
-                            return Err(Error::new(
-                                eyre!("Cannot install over a package in a transient state"),
-                                crate::ErrorKind::InvalidRequest,
-                            ))
-                        }
+                    if let Some(pde) = db.as_public_mut().as_package_data_mut().as_idx_mut(&id) {
+                        let prev = pde.as_state_info().expect_installed()?.de()?;
+                        pde.as_state_info_mut()
+                            .ser(&PackageState::Updating(UpdatingState {
+                                manifest: prev.manifest,
+                                installing_info: InstallingInfo {
+                                    new_manifest: manifest,
+                                    progress: install_progress,
+                                },
+                            }))?;
+                    } else {
+                        let installing = InstallingState {
+                            installing_info: InstallingInfo {
+                                new_manifest: manifest,
+                                progress: install_progress,
+                            },
+                        };
+                        db.as_public_mut().as_package_data_mut().insert(
+                            &id,
+                            &PackageDataEntry {
+                                state_info: if restoring {
+                                    PackageState::Restoring(installing)
+                                } else {
+                                    PackageState::Installing(installing)
+                                },
+                                status: Status {
+                                    configured: false,
+                                    main: MainStatus::Stopped,
+                                    dependency_config_errors: Default::default(),
+                                },
+                                marketplace_url: None,
+                                developer_key,
+                                icon,
+                                last_backup: None,
+                                dependency_info: Default::default(),
+                                current_dependents: Default::default(), // TODO: initialize
+                                current_dependencies: Default::default(),
+                                interface_addresses: Default::default(),
+                                hosts: Default::default(),
+                                store_exposed_ui: Default::default(),
+                                store_exposed_dependents: Default::default(),
+                            },
+                        )?;
                     };
-                    db.as_public_mut()
-                        .as_package_data_mut()
-                        .insert(&manifest.id, &pde)
+                    Ok(())
                 }
             }))
             .await?;
@@ -200,7 +203,8 @@ impl ServiceMap {
                                 v.as_public_mut()
                                     .as_package_data_mut()
                                     .as_idx_mut(&deref_id)
-                                    .and_then(|e| e.as_install_progress_mut())
+                                    .and_then(|e| e.as_state_info_mut().as_installing_info_mut())
+                                    .map(|i| i.as_progress_mut())
                             },
                             Some(Duration::from_millis(100)),
                         )));
@@ -370,17 +374,19 @@ impl ServiceReloadInfo {
             .load(&self.ctx, &self.id, LoadDisposition::Undo)
             .await?;
         if let Some(error) = error {
+            let error_string = error.to_string();
             self.ctx
-                .notification_manager
-                .notify(
-                    self.ctx.db.clone(),
-                    Some(self.id.clone()),
-                    NotificationLevel::Error,
-                    format!("{} Failed", self.operation),
-                    error.to_string(),
-                    (),
-                    None,
-                )
+                .db
+                .mutate(|db| {
+                    notify(
+                        db,
+                        Some(self.id.clone()),
+                        NotificationLevel::Error,
+                        format!("{} Failed", self.operation),
+                        error_string,
+                        (),
+                    )
+                })
                 .await?;
         }
         Ok(())

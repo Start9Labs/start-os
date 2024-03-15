@@ -7,10 +7,10 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import { QRComponent } from 'src/app/components/qr/qr.component'
 import { map } from 'rxjs'
-import {
-  ServiceInterface,
-  ServiceInterfaceWithHostInfo,
-} from '@start9labs/start-sdk/mjs/lib/types'
+import { types as T } from '@start9labs/start-sdk'
+
+type ServiceInterface = T.ServiceInterface
+type ServiceInterfaceWithHostInfo = T.ServiceInterfaceWithHostInfo
 
 type MappedInterface = ServiceInterface & {
   addresses: MappedAddress[]

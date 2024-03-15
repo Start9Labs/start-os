@@ -14,11 +14,11 @@ use tokio_stream::StreamExt;
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::db::model::UpdateProgress;
+use crate::db::model::public::UpdateProgress;
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::MountGuard;
-use crate::notifications::NotificationLevel;
+use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
 use crate::registry::marketplace::with_query_params;
 use crate::sound::{
@@ -66,7 +66,7 @@ pub enum UpdateResult {
     Updating,
 }
 
-pub fn display_update_result(params: UpdateSystemParams, status: UpdateResult) {
+pub fn display_update_result(_: UpdateSystemParams, status: UpdateResult) {
     match status {
         UpdateResult::Updating => {
             println!("Updating...");
@@ -131,24 +131,14 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
 
     tokio::spawn(async move {
         let res = do_update(ctx.clone(), eos_url).await;
-        ctx.db
-            .mutate(|db| {
-                db.as_public_mut()
-                    .as_server_info_mut()
-                    .as_status_info_mut()
-                    .as_update_progress_mut()
-                    .ser(&None)
-            })
-            .await?;
         match res {
             Ok(()) => {
                 ctx.db
                     .mutate(|db| {
-                        db.as_public_mut()
-                            .as_server_info_mut()
-                            .as_status_info_mut()
-                            .as_updated_mut()
-                            .ser(&true)
+                        let status_info =
+                            db.as_public_mut().as_server_info_mut().as_status_info_mut();
+                        status_info.as_update_progress_mut().ser(&None)?;
+                        status_info.as_updated_mut().ser(&true)
                     })
                     .await?;
                 CIRCLE_OF_5THS_SHORT
@@ -157,18 +147,25 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
                     .expect("could not play sound");
             }
             Err(e) => {
-                ctx.notification_manager
-                    .notify(
-                        ctx.db.clone(),
-                        None,
-                        NotificationLevel::Error,
-                        "StartOS Update Failed".to_owned(),
-                        format!("Update was not successful because of {}", e),
-                        (),
-                        None,
-                    )
+                let err_string = format!("Update was not successful because of {}", e);
+                ctx.db
+                    .mutate(|db| {
+                        db.as_public_mut()
+                            .as_server_info_mut()
+                            .as_status_info_mut()
+                            .as_update_progress_mut()
+                            .ser(&None)?;
+                        notify(
+                            db,
+                            None,
+                            NotificationLevel::Error,
+                            "StartOS Update Failed".to_owned(),
+                            err_string,
+                            (),
+                        )
+                    })
                     .await
-                    .expect("");
+                    .unwrap();
                 // TODO: refactor sound lib to make compound tempos easier to deal with
                 UPDATE_FAILED_1
                     .play()

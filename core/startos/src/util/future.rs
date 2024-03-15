@@ -3,7 +3,7 @@ use std::task::{Context, Poll};
 
 use futures::future::abortable;
 use futures::stream::{AbortHandle, Abortable};
-use futures::{Future, FutureExt};
+use futures::Future;
 use tokio::sync::watch;
 
 #[pin_project::pin_project(PinnedDrop)]
@@ -44,7 +44,7 @@ impl<F> PinnedDrop for DropSignaling<F> {
 pub struct DropHandle(watch::Receiver<bool>);
 impl DropHandle {
     pub async fn wait(&mut self) {
-        self.0.wait_for(|a| *a).await;
+        let _ = self.0.wait_for(|a| *a).await;
     }
 }
 

@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::str::FromStr;
 
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -27,12 +28,12 @@ lazy_static::lazy_static! {
     pub static ref SYSTEM_ID: Id = Id(InternedString::intern("x_system"));
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-pub struct Id(InternedString);
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default, ts_rs::TS)]
+pub struct Id(#[ts(type = "string")] InternedString);
 impl TryFrom<InternedString> for Id {
     type Error = InvalidId;
     fn try_from(value: InternedString) -> Result<Self, Self::Error> {
-        if ID_REGEX.is_match(&*value) {
+        if ID_REGEX.is_match(&value) {
             Ok(Id(value))
         } else {
             Err(InvalidId)
@@ -52,17 +53,28 @@ impl TryFrom<String> for Id {
 impl TryFrom<&str> for Id {
     type Error = InvalidId;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if ID_REGEX.is_match(&value) {
+        if ID_REGEX.is_match(value) {
             Ok(Id(InternedString::intern(value)))
         } else {
             Err(InvalidId)
         }
     }
 }
+impl FromStr for Id {
+    type Err = InvalidId;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s)
+    }
+}
+impl From<Id> for InternedString {
+    fn from(value: Id) -> Self {
+        value.0
+    }
+}
 impl std::ops::Deref for Id {
     type Target = str;
     fn deref(&self) -> &Self::Target {
-        &*self.0
+        &self.0
     }
 }
 impl std::fmt::Display for Id {
@@ -72,7 +84,7 @@ impl std::fmt::Display for Id {
 }
 impl AsRef<str> for Id {
     fn as_ref(&self) -> &str {
-        &*self.0
+        &self.0
     }
 }
 impl Borrow<str> for Id {
@@ -94,7 +106,7 @@ impl Serialize for Id {
     where
         Ser: Serializer,
     {
-        serializer.serialize_str(&*self)
+        serializer.serialize_str(self)
     }
 }
 impl<'q> sqlx::Encode<'q, sqlx::Postgres> for Id {

@@ -47,10 +47,10 @@ export function healthCheck(o: {
       } catch (e) {
         await o.effects.setHealth({
           name: o.name,
-          status: "failing",
+          status: "failure",
           message: asMessage(e),
         })
-        currentValue.lastResult = "failing"
+        currentValue.lastResult = "failure"
       }
     }
   })
@@ -60,6 +60,6 @@ function asMessage(e: unknown) {
   if (typeof e === "object" && e != null && "message" in e)
     return String(e.message)
   const value = String(e)
-  if (value.length == null) return undefined
+  if (value.length == null) return null
   return value
 }

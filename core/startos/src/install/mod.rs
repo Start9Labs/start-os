@@ -1,4 +1,3 @@
-use std::io::SeekFrom;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -14,22 +13,16 @@ use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::CallRemote;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio::sync::oneshot;
 use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
-use crate::db::model::{
-    PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryMatchModelRef,
-    PackageDataEntryRemoving,
-};
+use crate::db::model::package::{ManifestPreference, PackageState, PackageStateMatchModelRef};
 use crate::prelude::*;
 use crate::progress::{FullProgress, PhasedProgressBar};
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
-use crate::s9pk::v1::reader::S9pkReader;
-use crate::s9pk::v2::compat::{self, MAGIC_AND_VERSION};
 use crate::s9pk::S9pk;
 use crate::upload::upload;
 use crate::util::clap::FromStrParser;
@@ -44,27 +37,27 @@ pub async fn list(ctx: RpcContext) -> Result<Value, Error> {
     Ok(ctx.db.peek().await.as_public().as_package_data().as_entries()?
         .iter()
         .filter_map(|(id, pde)| {
-            let status = match pde.as_match() {
-                PackageDataEntryMatchModelRef::Installed(_) => {
+            let status = match pde.as_state_info().as_match() {
+                PackageStateMatchModelRef::Installed(_) => {
                     "installed"
                 }
-                PackageDataEntryMatchModelRef::Installing(_) => {
+                PackageStateMatchModelRef::Installing(_) => {
                     "installing"
                 }
-                PackageDataEntryMatchModelRef::Updating(_) => {
+                PackageStateMatchModelRef::Updating(_) => {
                     "updating"
                 }
-                PackageDataEntryMatchModelRef::Restoring(_) => {
+                PackageStateMatchModelRef::Restoring(_) => {
                     "restoring"
                 }
-                PackageDataEntryMatchModelRef::Removing(_) => {
+                PackageStateMatchModelRef::Removing(_) => {
                     "removing"
                 }
-                PackageDataEntryMatchModelRef::Error(_) => {
+                PackageStateMatchModelRef::Error(_) => {
                     "error"
                 }
             };
-            serde_json::to_value(json!({ "status":status, "id": id.clone(), "version": pde.as_manifest().as_version().de().ok()?}))
+            serde_json::to_value(json!({ "status": status, "id": id.clone(), "version": pde.as_state_info().as_manifest(ManifestPreference::Old).as_version().de().ok()?}))
             .ok()
         })
         .collect())
@@ -216,7 +209,7 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
                                                 .as_public()
                                                 .as_package_data()
                                                 .as_idx(&id)
-                                                .and_then(|e| e.as_install_progress())
+                                                .and_then(|e| e.as_state_info().as_installing_info()).map(|i| i.as_progress())
                                             {
                                                 Ok::<_, ()>(p.de()?)
                                             } else {
@@ -411,31 +404,18 @@ pub async fn uninstall(
 ) -> Result<PackageId, Error> {
     ctx.db
         .mutate(|db| {
-            let (manifest, static_files, installed) = match db
-                .as_public()
-                .as_package_data()
-                .as_idx(&id)
-                .or_not_found(&id)?
-                .de()?
-            {
-                PackageDataEntry::Installed(PackageDataEntryInstalled {
-                    manifest,
-                    static_files,
-                    installed,
-                }) => (manifest, static_files, installed),
-                _ => {
-                    return Err(Error::new(
-                        eyre!("Package is not installed."),
-                        crate::ErrorKind::NotFound,
-                    ));
-                }
-            };
-            let pde = PackageDataEntry::Removing(PackageDataEntryRemoving {
-                manifest,
-                static_files,
-                removing: installed,
-            });
-            db.as_public_mut().as_package_data_mut().insert(&id, &pde)
+            let entry = db
+                .as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&id)
+                .or_not_found(&id)?;
+            entry.as_state_info_mut().map_mutate(|s| match s {
+                PackageState::Installed(s) => Ok(PackageState::Removing(s)),
+                _ => Err(Error::new(
+                    eyre!("Package {id} is not installed."),
+                    crate::ErrorKind::NotFound,
+                )),
+            })
         })
         .await?;
 

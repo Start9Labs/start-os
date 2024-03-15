@@ -11,7 +11,6 @@ use josekit::jwk::Jwk;
 use patch_db::PatchDb;
 use reqwest::{Client, Proxy};
 use rpc_toolkit::Context;
-use sqlx::PgPool;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tokio::time::Instant;
 use tracing::instrument;
@@ -20,7 +19,7 @@ use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
 use crate::context::config::ServerConfig;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation, WebSocketHandler};
-use crate::db::model::CurrentDependents;
+use crate::db::model::package::CurrentDependents;
 use crate::db::prelude::PatchDbExt;
 use crate::dependencies::compute_dependency_config_errs;
 use crate::disk::OsPartitionInfo;
@@ -28,14 +27,11 @@ use crate::init::check_time_is_synchronized;
 use crate::lxc::{LxcContainer, LxcManager};
 use crate::middleware::auth::HashSessionToken;
 use crate::net::net_controller::NetController;
-use crate::net::ssl::{root_ca_start_time, SslManager};
 use crate::net::utils::find_eth_iface;
 use crate::net::wifi::WpaCli;
-use crate::notifications::NotificationManager;
 use crate::prelude::*;
 use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
-use crate::status::MainStatus;
 use crate::system::get_mem_info;
 use crate::util::lshw::{lshw, LshwDevice};
 
@@ -47,14 +43,12 @@ pub struct RpcContextSeed {
     pub datadir: PathBuf,
     pub disk_guid: Arc<String>,
     pub db: PatchDb,
-    pub secret_store: PgPool,
     pub account: RwLock<AccountInfo>,
     pub net_controller: Arc<NetController>,
     pub services: ServiceMap,
     pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
     pub shutdown: broadcast::Sender<Option<Shutdown>>,
     pub tor_socks: SocketAddr,
-    pub notification_manager: NotificationManager,
     pub lxc_manager: Arc<LxcManager>,
     pub open_authed_websockets: Mutex<BTreeMap<HashSessionToken, Vec<oneshot::Sender<()>>>>,
     pub rpc_stream_continuations: Mutex<BTreeMap<RequestGuid, RpcContinuation>>,
@@ -86,13 +80,14 @@ impl RpcContext {
             9050,
         )));
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
-        let secret_store = config.secret_store().await?;
-        tracing::info!("Opened Pg DB");
-        let account = AccountInfo::load(&secret_store).await?;
-        let db = config.db(&account).await?;
+
+        let db = config.db().await?;
+        let peek = db.peek().await;
+        let account = AccountInfo::load(&peek)?;
         tracing::info!("Opened PatchDB");
         let net_controller = Arc::new(
             NetController::init(
+                db.clone(),
                 config
                     .tor_control
                     .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
@@ -101,16 +96,14 @@ impl RpcContext {
                     .dns_bind
                     .as_deref()
                     .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
-                SslManager::new(&account, root_ca_start_time().await?)?,
                 &account.hostname,
-                &account.key,
+                account.tor_key.clone(),
             )
             .await?,
         );
         tracing::info!("Initialized Net Controller");
         let services = ServiceMap::default();
         let metrics_cache = RwLock::<Option<crate::system::Metrics>>::new(None);
-        let notification_manager = NotificationManager::new(secret_store.clone());
         tracing::info!("Initialized Notification Manager");
         let tor_proxy_url = format!("socks5h://{tor_proxy}");
         let devices = lshw().await?;
@@ -157,14 +150,12 @@ impl RpcContext {
             },
             disk_guid,
             db,
-            secret_store,
             account: RwLock::new(account),
             net_controller,
             services,
             metrics_cache,
             shutdown,
             tor_socks: tor_proxy,
-            notification_manager,
             lxc_manager: Arc::new(LxcManager::new()),
             open_authed_websockets: Mutex::new(BTreeMap::new()),
             rpc_stream_continuations: Mutex::new(BTreeMap::new()),
@@ -208,7 +199,6 @@ impl RpcContext {
     #[instrument(skip_all)]
     pub async fn shutdown(self) -> Result<(), Error> {
         self.services.shutdown_all().await?;
-        self.secret_store.close().await;
         self.is_closed.store(true, Ordering::SeqCst);
         tracing::info!("RPC Context is shutdown");
         // TODO: shutdown http servers
@@ -229,12 +219,7 @@ impl RpcContext {
                 for (package_id, package) in
                     f.as_public_mut().as_package_data_mut().as_entries_mut()?
                 {
-                    for (k, v) in package
-                        .as_installed_mut()
-                        .into_iter()
-                        .flat_map(|i| i.clone().into_current_dependencies().into_entries())
-                        .flatten()
-                    {
+                    for (k, v) in package.clone().into_current_dependencies().into_entries()? {
                         let mut entry: BTreeMap<_, _> =
                             current_dependents.remove(&k).unwrap_or_default();
                         entry.insert(package_id.clone(), v.de()?);
@@ -246,16 +231,7 @@ impl RpcContext {
                         .as_public_mut()
                         .as_package_data_mut()
                         .as_idx_mut(&package_id)
-                        .and_then(|pde| pde.expect_as_installed_mut().ok())
-                        .map(|i| i.as_installed_mut().as_current_dependents_mut())
-                    {
-                        deps.ser(&CurrentDependents(current_dependents))?;
-                    } else if let Some(deps) = f
-                        .as_public_mut()
-                        .as_package_data_mut()
-                        .as_idx_mut(&package_id)
-                        .and_then(|pde| pde.expect_as_removing_mut().ok())
-                        .map(|i| i.as_removing_mut().as_current_dependents_mut())
+                        .map(|i| i.as_current_dependents_mut())
                     {
                         deps.ser(&CurrentDependents(current_dependents))?;
                     }
@@ -271,23 +247,18 @@ impl RpcContext {
         let peek = self.db.peek().await;
         for (package_id, package) in peek.as_public().as_package_data().as_entries()?.into_iter() {
             let package = package.clone();
-            if let Some(current_dependencies) = package
-                .as_installed()
-                .and_then(|x| x.as_current_dependencies().de().ok())
-            {
-                let manifest = package.as_manifest().de()?;
-                all_dependency_config_errs.insert(
-                    package_id.clone(),
-                    compute_dependency_config_errs(
-                        self,
-                        &peek,
-                        &manifest,
-                        &current_dependencies,
-                        &Default::default(),
-                    )
-                    .await?,
-                );
-            }
+            let current_dependencies = package.as_current_dependencies().de()?;
+            all_dependency_config_errs.insert(
+                package_id.clone(),
+                compute_dependency_config_errs(
+                    self,
+                    &peek,
+                    &package_id,
+                    &current_dependencies,
+                    &Default::default(),
+                )
+                .await?,
+            );
         }
         self.db
             .mutate(|v| {
@@ -296,7 +267,6 @@ impl RpcContext {
                         .as_public_mut()
                         .as_package_data_mut()
                         .as_idx_mut(&package_id)
-                        .and_then(|pde| pde.as_installed_mut())
                         .map(|i| i.as_status_mut().as_dependency_config_errors_mut())
                     {
                         config_errors.ser(&errs)?;

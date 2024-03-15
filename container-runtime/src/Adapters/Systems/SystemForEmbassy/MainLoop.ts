@@ -3,6 +3,7 @@ import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import { SystemForEmbassy } from "."
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { util, Daemons, types as T } from "@start9labs/start-sdk"
+import { exec } from "child_process"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
 const EMBASSY_PROPERTIES_LOOP = 30 * 1000
@@ -86,10 +87,11 @@ export class MainLoop {
 
   public async clean(options?: { timeout?: number }) {
     const { mainEvent, healthLoops, propertiesEvent } = this
+    const main = await mainEvent
     delete this.mainEvent
     delete this.healthLoops
     delete this.propertiesEvent
-    if (mainEvent) await (await mainEvent).daemon.term()
+    if (mainEvent) await main?.daemon.term()
     clearInterval(propertiesEvent)
     if (healthLoops) healthLoops.forEach((x) => clearInterval(x.interval))
   }
@@ -105,46 +107,144 @@ export class MainLoop {
     const { manifest } = this.system
     const effects = this.effects
     const start = Date.now()
-    return Object.values(manifest["health-checks"]).map((value) => {
-      const name = value.name
-      const interval = setInterval(async () => {
-        const actionProcedure = value
-        const timeChanged = Date.now() - start
-        if (actionProcedure.type === "docker") {
-          const container = await DockerProcedureContainer.of(
-            effects,
-            actionProcedure,
-            manifest.volumes,
-          )
-          const executed = await container.exec([
-            actionProcedure.entrypoint,
-            ...actionProcedure.args,
-            JSON.stringify(timeChanged),
-          ])
-          const stderr = executed.stderr.toString()
-          if (stderr)
-            console.error(`Error running health check ${value.name}: ${stderr}`)
-          return executed.stdout.toString()
-        } else {
-          const moduleCode = await this.system.moduleCode
-          const method = moduleCode.health?.[value.name]
-          if (!method)
-            return console.error(
-              `Expecting that thejs health check ${value.name} exists`,
+    return Object.entries(manifest["health-checks"]).map(
+      ([healthId, value]) => {
+        const interval = setInterval(async () => {
+          const actionProcedure = value
+          const timeChanged = Date.now() - start
+          if (actionProcedure.type === "docker") {
+            const container = await DockerProcedureContainer.of(
+              effects,
+              actionProcedure,
+              manifest.volumes,
             )
-          return (await method(
-            new PolyfillEffects(effects, this.system.manifest),
-            timeChanged,
-          ).then((x) => {
-            if ("result" in x) return x.result
-            if ("error" in x)
-              return console.error("Error getting config: " + x.error)
-            return console.error("Error getting config: " + x["error-code"][1])
-          })) as any
-        }
-      }, EMBASSY_HEALTH_INTERVAL)
+            const executed = await container.execSpawn([
+              actionProcedure.entrypoint,
+              ...actionProcedure.args,
+              JSON.stringify(timeChanged),
+            ])
+            if (executed.exitCode === 59) {
+              await effects.setHealth({
+                name: healthId,
+                status: "disabled",
+                message:
+                  executed.stderr.toString() || executed.stdout.toString(),
+              })
+              return
+            }
+            if (executed.exitCode === 60) {
+              await effects.setHealth({
+                name: healthId,
+                status: "starting",
+                message:
+                  executed.stderr.toString() || executed.stdout.toString(),
+              })
+              return
+            }
+            if (executed.exitCode === 61) {
+              await effects.setHealth({
+                name: healthId,
+                status: "warning",
+                message:
+                  executed.stderr.toString() || executed.stdout.toString(),
+              })
+              return
+            }
+            const errorMessage = executed.stderr.toString()
+            const message = executed.stdout.toString()
+            if (!!errorMessage) {
+              await effects.setHealth({
+                name: healthId,
+                status: "failure",
+                message: errorMessage,
+              })
+              return
+            }
+            await effects.setHealth({
+              name: healthId,
+              status: "passing",
+              message,
+            })
+            return
+          } else {
+            actionProcedure
+            const moduleCode = await this.system.moduleCode
+            const method = moduleCode.health?.[healthId]
+            if (!method) {
+              await effects.setHealth({
+                name: healthId,
+                status: "failure",
+                message: `Expecting that thejs health check ${healthId} exists`,
+              })
+              return
+            }
 
-      return { name, interval }
-    })
+            const result = await method(
+              new PolyfillEffects(effects, this.system.manifest),
+              timeChanged,
+            )
+
+            if ("result" in result) {
+              await effects.setHealth({
+                message: null,
+                name: healthId,
+                status: "passing",
+              })
+              return
+            }
+            if ("error" in result) {
+              await effects.setHealth({
+                name: healthId,
+                status: "failure",
+                message: result.error,
+              })
+              return
+            }
+            if (!("error-code" in result)) {
+              await effects.setHealth({
+                name: healthId,
+                status: "failure",
+                message: `Unknown error type ${JSON.stringify(result)}`,
+              })
+              return
+            }
+            const [code, message] = result["error-code"]
+            if (code === 59) {
+              await effects.setHealth({
+                name: healthId,
+                status: "disabled",
+                message,
+              })
+              return
+            }
+            if (code === 60) {
+              await effects.setHealth({
+                name: healthId,
+                status: "starting",
+                message,
+              })
+              return
+            }
+            if (code === 61) {
+              await effects.setHealth({
+                name: healthId,
+                status: "warning",
+                message,
+              })
+              return
+            }
+
+            await effects.setHealth({
+              name: healthId,
+              status: "failure",
+              message: `${result["error-code"][0]}: ${result["error-code"][1]}`,
+            })
+            return
+          }
+        }, EMBASSY_HEALTH_INTERVAL)
+
+        return { name: healthId, interval }
+      },
+    )
   }
 }

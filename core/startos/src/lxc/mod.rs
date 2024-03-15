@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::net::Ipv4Addr;
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::{Arc, Weak};
@@ -37,6 +38,7 @@ const LXC_CONTAINER_DIR: &str = "/var/lib/lxc";
 const RPC_DIR: &str = "media/startos/rpc"; // must not be absolute path
 pub const CONTAINER_RPC_SERVER_SOCKET: &str = "service.sock"; // must not be absolute path
 pub const HOST_RPC_SERVER_SOCKET: &str = "host.sock"; // must not be absolute path
+const CONTAINER_DHCP_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub struct LxcManager {
     containers: Mutex<Vec<Weak<InternedString>>>,
@@ -181,6 +183,31 @@ impl LxcContainer {
 
     pub fn rootfs_dir(&self) -> &Path {
         self.rootfs.path()
+    }
+
+    pub async fn ip(&self) -> Result<Ipv4Addr, Error> {
+        let start = Instant::now();
+        loop {
+            let output = String::from_utf8(
+                Command::new("lxc-info")
+                    .arg("--name")
+                    .arg(&*self.guid)
+                    .arg("-iH")
+                    .invoke(ErrorKind::Docker)
+                    .await?,
+            )?;
+            let out_str = output.trim();
+            if !out_str.is_empty() {
+                return Ok(out_str.parse()?);
+            }
+            if start.elapsed() > CONTAINER_DHCP_TIMEOUT {
+                return Err(Error::new(
+                    eyre!("Timed out waiting for container to acquire DHCP lease"),
+                    ErrorKind::Timeout,
+                ));
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
     }
 
     pub fn rpc_dir(&self) -> &Path {

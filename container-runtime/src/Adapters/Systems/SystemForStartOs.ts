@@ -4,6 +4,7 @@ import { string } from "ts-matches"
 import { HostSystemStartOs } from "../HostSystemStartOs"
 import { Effects } from "../../Models/Effects"
 import { RpcResult } from "../RpcListener"
+import { duration } from "../../Models/Duration"
 const LOCATION = "/usr/lib/startos/package/startos"
 export class SystemForStartOs implements System {
   private onTerm: (() => Promise<void>) | undefined
@@ -82,7 +83,7 @@ export class SystemForStartOs implements System {
         await effects.setMainStatus({ status: "stopped" })
         if (this.onTerm) await this.onTerm()
         delete this.onTerm
-        return
+        return duration(30, "s")
       }
       case "/config/set": {
         const path = `${LOCATION}/procedures/config`

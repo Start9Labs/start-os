@@ -3,7 +3,7 @@ import { Dependency } from "../types"
 
 export type ConfigDependencies<T extends SDKManifest> = {
   exists(id: keyof T["dependencies"]): Dependency
-  running(id: keyof T["dependencies"]): Dependency
+  running(id: keyof T["dependencies"], healthChecks: string[]): Dependency
 }
 
 export const configDependenciesSet = <
@@ -16,10 +16,11 @@ export const configDependenciesSet = <
     } as Dependency
   },
 
-  running(id: keyof T["dependencies"]) {
+  running(id: keyof T["dependencies"], healthChecks: string[]) {
     return {
       id,
       kind: "running",
+      healthChecks,
     } as Dependency
   },
 })

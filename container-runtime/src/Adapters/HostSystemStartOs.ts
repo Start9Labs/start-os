@@ -110,9 +110,16 @@ export class HostSystemStartOs implements Effects {
       T.Effects["clearServiceInterfaces"]
     >
   }
-  createOverlayedImage(options: { imageId: string }): Promise<string> {
+  createOverlayedImage(options: {
+    imageId: string
+  }): Promise<[string, string]> {
     return this.rpcRound("createOverlayedImage", options) as ReturnType<
       T.Effects["createOverlayedImage"]
+    >
+  }
+  destroyOverlayedImage(options: { guid: string }): Promise<void> {
+    return this.rpcRound("destroyOverlayedImage", options) as ReturnType<
+      T.Effects["destroyOverlayedImage"]
     >
   }
   executeAction(...[options]: Parameters<T.Effects["executeAction"]>) {
@@ -186,16 +193,13 @@ export class HostSystemStartOs implements Effects {
       T.Effects["getServicePortForward"]
     >
   }
-  getSslCertificate(
-    ...[packageId, algorithm]: Parameters<T.Effects["getSslCertificate"]>
-  ) {
-    return this.rpcRound("getSslCertificate", {
-      packageId,
-      algorithm,
-    }) as ReturnType<T.Effects["getSslCertificate"]>
+  getSslCertificate(options: Parameters<T.Effects["getSslCertificate"]>[0]) {
+    return this.rpcRound("getSslCertificate", options) as ReturnType<
+      T.Effects["getSslCertificate"]
+    >
   }
-  getSslKey(...[packageId, algorithm]: Parameters<T.Effects["getSslKey"]>) {
-    return this.rpcRound("getSslKey", { packageId, algorithm }) as ReturnType<
+  getSslKey(options: Parameters<T.Effects["getSslKey"]>[0]) {
+    return this.rpcRound("getSslKey", options) as ReturnType<
       T.Effects["getSslKey"]
     >
   }

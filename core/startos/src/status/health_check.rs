@@ -22,3 +22,14 @@ impl std::fmt::Display for HealthCheckResult {
         }
     }
 }
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum HealthCheckString {
+    Passing,
+    Disabled,
+    Starting,
+    Warning,
+    Failure,
+}

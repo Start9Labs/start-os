@@ -1,17 +1,17 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
-use clap::{ArgMatches, Parser};
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use imbl_value::{json, InternedString};
 use josekit::jwk::Jwk;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{command, from_fn_async, AnyContext, CallRemote, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
-use sqlx::{Executor, Postgres};
 use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
+use crate::db::model::DatabaseModel;
 use crate::middleware::auth::{
     AsLogoutSessionId, HasLoggedOutSessions, HashSessionToken, LoginRes,
 };
@@ -19,6 +19,25 @@ use crate::prelude::*;
 use crate::util::crypto::EncryptedWire;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::{ensure_code, Error, ResultExt};
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct Sessions(pub BTreeMap<InternedString, Session>);
+impl Sessions {
+    pub fn new() -> Self {
+        Self(BTreeMap::new())
+    }
+}
+impl Map for Sessions {
+    type Key = InternedString;
+    type Value = Session;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Ok(key)
+    }
+    fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
+        Ok(key.clone())
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum PasswordType {
@@ -95,16 +114,6 @@ pub fn auth() -> ParentHandler {
         )
 }
 
-pub fn cli_metadata() -> Value {
-    imbl_value::json!({
-        "platforms": ["cli"],
-    })
-}
-
-pub fn parse_metadata(_: &str, _: &ArgMatches) -> Result<Value, Error> {
-    Ok(cli_metadata())
-}
-
 #[test]
 fn gen_pwd() {
     println!(
@@ -163,14 +172,8 @@ pub fn check_password(hash: &str, password: &str) -> Result<(), Error> {
     Ok(())
 }
 
-pub async fn check_password_against_db<Ex>(secrets: &mut Ex, password: &str) -> Result<(), Error>
-where
-    for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
-{
-    let pw_hash = sqlx::query!("SELECT password FROM account")
-        .fetch_one(secrets)
-        .await?
-        .password;
+pub fn check_password_against_db(db: &DatabaseModel, password: &str) -> Result<(), Error> {
+    let pw_hash = db.as_private().as_password().de()?;
     check_password(&pw_hash, password)?;
     Ok(())
 }
@@ -180,7 +183,8 @@ where
 #[command(rename_all = "kebab-case")]
 pub struct LoginParams {
     password: Option<PasswordType>,
-    #[arg(skip = cli_metadata())]
+    #[serde(default)]
+    user_agent: Option<String>,
     #[serde(default)]
     metadata: Value,
 }
@@ -188,26 +192,31 @@ pub struct LoginParams {
 #[instrument(skip_all)]
 pub async fn login_impl(
     ctx: RpcContext,
-    LoginParams { password, metadata }: LoginParams,
-) -> Result<LoginRes, Error> {
-    let password = password.unwrap_or_default().decrypt(&ctx)?;
-    let mut handle = ctx.secret_store.acquire().await?;
-    check_password_against_db(handle.as_mut(), &password).await?;
-
-    let hash_token = HashSessionToken::new();
-    let user_agent = "".to_string(); // todo!() as String;
-    let metadata = serde_json::to_string(&metadata).with_kind(crate::ErrorKind::Database)?;
-    let hash_token_hashed = hash_token.hashed();
-    sqlx::query!(
-        "INSERT INTO session (id, user_agent, metadata) VALUES ($1, $2, $3)",
-        hash_token_hashed,
+    LoginParams {
+        password,
         user_agent,
         metadata,
-    )
-    .execute(handle.as_mut())
-    .await?;
+    }: LoginParams,
+) -> Result<LoginRes, Error> {
+    let password = password.unwrap_or_default().decrypt(&ctx)?;
 
-    Ok(hash_token.to_login_res())
+    ctx.db
+        .mutate(|db| {
+            check_password_against_db(db, &password)?;
+            let hash_token = HashSessionToken::new();
+            db.as_private_mut().as_sessions_mut().insert(
+                hash_token.hashed(),
+                &Session {
+                    logged_in: Utc::now(),
+                    last_active: Utc::now(),
+                    user_agent,
+                    metadata,
+                },
+            )?;
+
+            Ok(hash_token.to_login_res())
+        })
+        .await
 }
 
 #[derive(Deserialize, Serialize, Parser)]
@@ -226,20 +235,20 @@ pub async fn logout(
     ))
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Session {
-    logged_in: DateTime<Utc>,
-    last_active: DateTime<Utc>,
-    user_agent: Option<String>,
-    metadata: Value,
+    pub logged_in: DateTime<Utc>,
+    pub last_active: DateTime<Utc>,
+    pub user_agent: Option<String>,
+    pub metadata: Value,
 }
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct SessionList {
-    current: String,
-    sessions: BTreeMap<String, Session>,
+    current: InternedString,
+    sessions: Sessions,
 }
 
 pub fn session() -> ParentHandler {
@@ -277,7 +286,7 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) {
         "USER AGENT",
         "METADATA",
     ]);
-    for (id, session) in arg.sessions {
+    for (id, session) in arg.sessions.0 {
         let mut row = row![
             &id,
             &format!("{}", session.logged_in),
@@ -310,31 +319,9 @@ pub async fn list(
     ListParams { session, .. }: ListParams,
 ) -> Result<SessionList, Error> {
     Ok(SessionList {
-        current: HashSessionToken::from_token(session).hashed().to_owned(),
-        sessions: sqlx::query!(
-            "SELECT * FROM session WHERE logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP"
-        )
-        .fetch_all(ctx.secret_store.acquire().await?.as_mut())
-        .await?
-        .into_iter()
-        .map(|row| {
-            Ok((
-                row.id,
-                Session {
-                    logged_in: DateTime::from_utc(row.logged_in, Utc),
-                    last_active: DateTime::from_utc(row.last_active, Utc),
-                    user_agent: row.user_agent,
-                    metadata: serde_json::from_str(&row.metadata)
-                        .with_kind(crate::ErrorKind::Database)?,
-                },
-            ))
-        })
-        .collect::<Result<_, Error>>()?,
+        current: HashSessionToken::from_token(session).hashed().clone(),
+        sessions: ctx.db.peek().await.into_private().into_sessions().de()?,
     })
-}
-
-fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<Vec<String>, RpcError> {
-    Ok(arg.split(",").map(|s| s.trim().to_owned()).collect())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -433,14 +420,17 @@ pub async fn reset_password_impl(
         ));
     }
     account.set_password(&new_password)?;
-    account.save(&ctx.secret_store).await?;
     let account_password = &account.password;
+    let account = account.clone();
     ctx.db
         .mutate(|d| {
             d.as_public_mut()
                 .as_server_info_mut()
                 .as_password_hash_mut()
-                .ser(account_password)
+                .ser(account_password)?;
+            account.save(d)?;
+
+            Ok(())
         })
         .await
 }

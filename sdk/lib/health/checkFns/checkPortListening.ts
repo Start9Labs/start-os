@@ -48,7 +48,7 @@ export async function checkPortListening(
         return { status: "passing", message: options.successMessage }
       }
       return {
-        status: "failing",
+        status: "failure",
         message: options.errorMessage,
       }
     }),
@@ -56,7 +56,7 @@ export async function checkPortListening(
       setTimeout(
         () =>
           resolve({
-            status: "failing",
+            status: "failure",
             message:
               options.timeoutMessage || `Timeout trying to check port ${port}`,
           }),

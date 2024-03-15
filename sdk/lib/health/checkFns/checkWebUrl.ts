@@ -19,14 +19,17 @@ export const checkWebUrl = async (
   } = {},
 ): Promise<CheckResult> => {
   return Promise.race([fetch(url), timeoutPromise(timeout)])
-    .then((x) => ({
-      status: "passing" as const,
-      message: successMessage,
-    }))
+    .then(
+      (x) =>
+        ({
+          status: "passing",
+          message: successMessage,
+        }) as const,
+    )
     .catch((e) => {
       console.warn(`Error while fetching URL: ${url}`)
       console.error(JSON.stringify(e))
       console.error(e.toString())
-      return { status: "failing" as const, message: errorMessage }
+      return { status: "failure" as const, message: errorMessage }
     })
 }
