@@ -10,11 +10,13 @@ import {
 } from 'patch-db-client'
 import {
   DataModel,
-  InstallProgress,
+  FullProgress,
+  InstallingState,
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
   ServerStatus,
+  UpdatingState,
 } from 'src/app/services/patch-db/data-model'
 import { CifsBackupTarget, RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
@@ -39,14 +41,34 @@ import { AuthService } from '../auth.service'
 import { ConnectionService } from '../connection.service'
 import { StoreInfo } from '@start9labs/marketplace'
 
-const PROGRESS: InstallProgress = {
-  size: 120,
-  downloaded: 0,
-  'download-complete': false,
-  validated: 0,
-  'validation-complete': false,
-  unpacked: 0,
-  'unpack-complete': false,
+const PROGRESS: FullProgress = {
+  overall: {
+    done: 0,
+    total: 120,
+  },
+  phases: [
+    {
+      name: 'Downloading',
+      progress: {
+        done: 0,
+        total: 40,
+      },
+    },
+    {
+      name: 'Validating',
+      progress: {
+        done: 0,
+        total: 40,
+      },
+    },
+    {
+      name: 'Installing',
+      progress: {
+        done: 0,
+        total: 40,
+      },
+    },
+  ],
 }
 
 @Injectable()
@@ -670,15 +692,25 @@ export class MockApiService extends ApiService {
       this.updateProgress(params.id)
     }, 1000)
 
-    const patch: Operation<PackageDataEntry>[] = [
+    const manifest = Mock.LocalPkgs[params.id]['state-info'].manifest
+
+    const patch: Operation<InstallingState | UpdatingState>[] = [
       {
         op: PatchOp.ADD,
-        path: `/package-data/${params.id}`,
+        path: `/package-data/${params.id}/state-info`,
         value: {
-          ...Mock.LocalPkgs[params.id],
-          // state: PackageState.Installing,
-          state: PackageState.Updating,
-          'install-progress': { ...PROGRESS },
+          // if installing
+          state: PackageState.Installing,
+
+          // if updating
+          // state: PackageState.Updating,
+          // manifest,
+
+          // both
+          'installing-info': {
+            'new-manifest': manifest,
+            progress: PROGRESS,
+          },
         },
       },
     ]
@@ -734,9 +766,13 @@ export class MockApiService extends ApiService {
         path: `/package-data/${id}`,
         value: {
           ...Mock.LocalPkgs[id],
-          state: PackageState.Restoring,
-          'install-progress': { ...PROGRESS },
-          installed: undefined,
+          'state-info': {
+            state: PackageState.Restoring,
+            'installing-info': {
+              'new-manifest': Mock.LocalPkgs[id]['state-info'].manifest!,
+              progress: PROGRESS,
+            },
+          },
         },
       }
     })
@@ -962,7 +998,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: `/package-data/${params.id}/state`,
+        path: `/package-data/${params.id}/state-info/state`,
         value: PackageState.Removing,
       },
     ]
@@ -992,28 +1028,23 @@ export class MockApiService extends ApiService {
 
   private async updateProgress(id: string): Promise<void> {
     const progress = { ...PROGRESS }
-    const phases = [
-      { progress: 'downloaded', completion: 'download-complete' },
-      { progress: 'validated', completion: 'validation-complete' },
-      { progress: 'unpacked', completion: 'unpack-complete' },
-    ] as const
 
-    for (let phase of phases) {
-      let i = progress[phase.progress]
-      const size = progress?.size || 0
-      while (i < size) {
+    for (let phase of progress.phases) {
+      if (typeof phase.progress !== 'object' || !phase.progress.total) continue
+
+      while (phase.progress.done < phase.progress.total) {
         await pauseFor(250)
-        i = Math.min(i + 5, size)
-        progress[phase.progress] = i
+        // i = Math.min(i + 5, size)
+        // progress[phase.progress] = i
 
-        if (i === progress.size) {
-          progress[phase.completion] = true
-        }
+        // if (i === progress.size) {
+        //   progress[phase.completion] = true
+        // }
 
         const patch = [
           {
             op: PatchOp.REPLACE,
-            path: `/package-data/${id}/install-progress`,
+            path: `/package-data/${id}/state-info/installing-info/progress`,
             value: { ...progress },
           },
         ]
@@ -1025,17 +1056,16 @@ export class MockApiService extends ApiService {
       const patch2: Operation<any>[] = [
         {
           op: PatchOp.REPLACE,
-          path: `/package-data/${id}/state`,
+          path: `/package-data/${id}/state-info/state`,
           value: PackageState.Installed,
         },
         {
-          op: PatchOp.ADD,
-          path: `/package-data/${id}/installed`,
-          value: { ...Mock.LocalPkgs[id].installed },
+          op: PatchOp.REMOVE,
+          path: `/package-data/${id}/state-info/installing-info`,
         },
         {
           op: PatchOp.REMOVE,
-          path: `/package-data/${id}/install-progress`,
+          path: `/package-data/${id}/state-info/new-manifest`,
         },
       ]
       this.mockRevision(patch2)

@@ -20,11 +20,18 @@ import {
 } from 'rxjs'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { DataModel } from 'src/app/services/patch-db/data-model'
+import { DataModel, PackageState } from 'src/app/services/patch-db/data-model'
 import { SplitPaneTracker } from 'src/app/services/split-pane.service'
 import { Emver, THEME } from '@start9labs/shared'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { ConfigService } from 'src/app/services/config.service'
+import {
+  getManifest,
+  isInstalled,
+  isInstalling,
+  isRestoring,
+  isUpdating,
+} from 'src/app/util/get-package-data'
 
 @Component({
   selector: 'app-menu',
@@ -79,8 +86,14 @@ export class MenuComponent {
         filter(([prev, curr]) =>
           Object.values(prev).some(
             p =>
-              p['install-progress'] &&
-              !curr[p.manifest.id]?.['install-progress'],
+              [
+                PackageState.Installing,
+                PackageState.Updating,
+                PackageState.Restoring,
+              ].includes(p['state-info'].state) &&
+              [PackageState.Installed, PackageState.Removing].includes(
+                curr[getManifest(p).id]['state-info'].state,
+              ),
           ),
         ),
         map(([_, curr]) => curr),
@@ -99,7 +112,7 @@ export class MenuComponent {
           if (
             this.emver.compare(
               version,
-              local[id]?.installed?.manifest.version || '',
+              getManifest(local[id]).version || '',
             ) === 1
           )
             list.add(id)

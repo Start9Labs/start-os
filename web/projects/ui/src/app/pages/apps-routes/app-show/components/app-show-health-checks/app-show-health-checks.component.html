@@ -1,5 +1,5 @@
 <ng-container
-  *ngIf="pkg | toHealthChecks | async | keyvalue: asIsOrder as checks"
+  *ngIf="manifest | toHealthChecks | async | keyvalue: asIsOrder as checks"
 >
   <ng-container *ngIf="checks.length">
     <ion-item-divider>Health Checks</ion-item-divider>
@@ -34,7 +34,7 @@
           ></ion-icon>
           <ion-label>
             <h2 class="bold">
-              {{ pkg.manifest['health-checks'][health.key].name }}
+              {{ manifest['health-checks'][health.key].name }}
             </h2>
             <ion-text [color]="result | healthColor">
               <p>
@@ -49,13 +49,11 @@
                 <span
                   *ngIf="
                     result === HealthResult.Success &&
-                    pkg.manifest['health-checks'][health.key]['success-message']
+                    manifest['health-checks'][health.key]['success-message']
                   "
                 >
                   :
-                  {{
-                    pkg.manifest['health-checks'][health.key]['success-message']
-                  }}
+                  {{ manifest['health-checks'][health.key]['success-message'] }}
                 </span>
               </p>
             </ion-text>
@@ -70,7 +68,7 @@
           ></ion-spinner>
           <ion-label>
             <h2 class="bold">
-              {{ pkg.manifest['health-checks'][health.key].name }}
+              {{ manifest['health-checks'][health.key].name }}
             </h2>
             <p class="primary">Awaiting result...</p>
           </ion-label>

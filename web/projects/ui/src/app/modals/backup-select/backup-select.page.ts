@@ -4,6 +4,7 @@ import { map, take } from 'rxjs/operators'
 import { DataModel, PackageState } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
+import { getManifest } from 'src/app/util/get-package-data'
 
 @Component({
   selector: 'backup-select',
@@ -32,13 +33,13 @@ export class BackupSelectPage {
         map(pkgs => {
           return Object.values(pkgs)
             .map(pkg => {
-              const { id, title } = pkg.manifest
+              const { id, title } = getManifest(pkg)
               return {
                 id,
                 title,
-                icon: pkg['static-files'].icon,
-                disabled: pkg.state !== PackageState.Installed,
-                checked: pkg.state === PackageState.Installed,
+                icon: pkg.icon,
+                disabled: pkg['state-info'].state !== PackageState.Installed,
+                checked: false,
               }
             })
             .sort((a, b) =>

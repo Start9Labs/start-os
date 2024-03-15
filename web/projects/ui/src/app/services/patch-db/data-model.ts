@@ -107,31 +107,11 @@ export enum ServerStatus {
   BackingUp = 'backing-up',
 }
 
-export interface PackageDataEntry {
-  state: PackageState
-  'static-files': {
-    license: Url
-    instructions: Url
-    icon: Url
-  }
-  manifest: Manifest
-  installed?: InstalledPackageDataEntry // exists when: installed, updating
-  'install-progress'?: InstallProgress // exists when: installing, updating
-}
-
-export enum PackageState {
-  Installing = 'installing',
-  Installed = 'installed',
-  Updating = 'updating',
-  Removing = 'removing',
-  Restoring = 'restoring',
-}
-
-export interface InstalledPackageDataEntry {
+export type PackageDataEntry<T extends StateInfo = StateInfo> = {
+  'state-info': T
+  icon: Url
   status: Status
-  manifest: Manifest
   'last-backup': string | null
-  'system-pointers': any[]
   'current-dependents': { [id: string]: CurrentDependencyInfo }
   'current-dependencies': { [id: string]: CurrentDependencyInfo }
   'dependency-info': {
@@ -143,6 +123,32 @@ export interface InstalledPackageDataEntry {
   'service-interfaces': Record<string, ServiceInterfaceWithHostInfo>
   'marketplace-url': string | null
   'developer-key': string
+}
+
+export type StateInfo = InstalledState | InstallingState | UpdatingState
+
+export type InstalledState = {
+  state: PackageState.Installed | PackageState.Removing
+  manifest: Manifest
+}
+
+export type InstallingState = {
+  state: PackageState.Installing | PackageState.Restoring
+  'installing-info': InstallingInfo
+}
+
+export type UpdatingState = {
+  state: PackageState.Updating
+  'installing-info': InstallingInfo
+  manifest: Manifest
+}
+
+export enum PackageState {
+  Installing = 'installing',
+  Installed = 'installed',
+  Updating = 'updating',
+  Removing = 'removing',
+  Restoring = 'restoring',
 }
 
 export interface CurrentDependencyInfo {
@@ -354,12 +360,13 @@ export interface HealthCheckResultFailure {
   error: string
 }
 
-export interface InstallProgress {
-  readonly size: number | null
-  readonly downloaded: number
-  readonly 'download-complete': boolean
-  readonly validated: number
-  readonly 'validation-complete': boolean
-  readonly unpacked: number
-  readonly 'unpack-complete': boolean
+export type InstallingInfo = {
+  progress: FullProgress
+  'new-manifest': Manifest
 }
+
+export type FullProgress = {
+  overall: Progress
+  phases: { name: string; progress: Progress }[]
+}
+export type Progress = boolean | { done: number; total: number | null } // false means indeterminate. true means complete

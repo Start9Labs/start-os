@@ -18,7 +18,7 @@ import { AppShowAdditionalComponent } from './components/app-show-additional/app
 import { HealthColorPipe } from './pipes/health-color.pipe'
 import { ToHealthChecksPipe } from './pipes/to-health-checks.pipe'
 import { ToButtonsPipe } from './pipes/to-buttons.pipe'
-import { ProgressDataPipe } from './pipes/progress-data.pipe'
+import { InstallingProgressPipeModule } from 'src/app/pipes/install-progress/install-progress.module'
 
 const routes: Routes = [
   {
@@ -31,7 +31,6 @@ const routes: Routes = [
   declarations: [
     AppShowPage,
     HealthColorPipe,
-    ProgressDataPipe,
     ToHealthChecksPipe,
     ToButtonsPipe,
     AppShowHeaderComponent,
@@ -44,7 +43,7 @@ const routes: Routes = [
   ],
   imports: [
     CommonModule,
-    StatusComponentModule,
+    InstallingProgressPipeModule,
     IonicModule,
     RouterModule.forChild(routes),
     AppConfigPageModule,
@@ -52,6 +51,7 @@ const routes: Routes = [
     LaunchablePipeModule,
     UiPipeModule,
     ResponsiveColModule,
+    StatusComponentModule,
   ],
 })
 export class AppShowPageModule {}
