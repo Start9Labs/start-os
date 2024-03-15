@@ -37,3 +37,7 @@
     background-color: rgb(113 113 122 / 0.1);
   }
 }
+
+::ng-deep .t-text {
+  font-weight: 600;
+}
