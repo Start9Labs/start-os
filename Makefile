@@ -26,7 +26,7 @@ PATCH_DB_CLIENT_SRC := $(shell git ls-files --recurse-submodules patch-db/client
 GZIP_BIN := $(shell which pigz || which gzip)
 TAR_BIN := $(shell which gtar || which tar)
 COMPILED_TARGETS := $(BINS) system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar
-ALL_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE) $(COMPILED_TARGETS) $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-musl/release/pi-beep; fi)  $(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]; then echo cargo-deps/$(ARCH)-unknown-linux-musl/release/tokio-console; fi') $(PLATFORM_FILE)
+ALL_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE) $(COMPILED_TARGETS) $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-musl/release/pi-beep; fi)  $(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]; then echo cargo-deps/$(ARCH)-unknown-linux-musl/release/tokio-console; fi') $(PLATFORM_FILE) sdk/lib/test 
 
 ifeq ($(REMOTE),)
 	mkdir = mkdir -p $1
@@ -87,7 +87,7 @@ clean:
 format:
 	cd core && cargo +nightly fmt
 
-test: $(CORE_SRC) $(ENVIRONMENT_FILE)
+test: $(CORE_SRC) $(ENVIRONMENT_FILE) 
 	cd core && cargo build && cargo test
 
 cli:
@@ -109,7 +109,7 @@ results/$(BASENAME).$(IMAGE_TYPE) results/$(BASENAME).squashfs: $(IMAGE_RECIPE_S
 	./image-recipe/run-local-build.sh "results/$(BASENAME).deb"
 
 # For creating os images. DO NOT USE
-install: $(ALL_TARGETS)
+install: $(ALL_TARGETS) 
 	$(call mkdir,$(DESTDIR)/usr/bin)
 	$(call cp,core/target/$(ARCH)-unknown-linux-musl/release/startbox,$(DESTDIR)/usr/bin/startbox)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/startd)
@@ -177,7 +177,10 @@ core/startos/bindings: $(CORE_SRC) $(ENVIRONMENT_FILE) $(PLATFORM_FILE)
 	(cd core/ && cargo test)
 	touch core/startos/bindings
 
-sdk/dist: $(shell git ls-files sdk) core/startos/bindings
+sdk/lib/test: $(shell git ls-files sdk) core/startos/bindings
+	(cd sdk && make test)
+
+sdk/dist: $(shell git ls-files sdk)
 	(cd sdk && make bundle)
 
 container-runtime/dist: container-runtime/node_modules $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
@@ -209,7 +212,7 @@ $(BINS): $(CORE_SRC) $(ENVIRONMENT_FILE)
 	cd core && ARCH=$(ARCH) ./build-prod.sh
 	touch $(BINS)
 
-web/node_modules: web/package.json 
+web/node_modules: web/package.json sdk/dist
 	(cd sdk && make bundle)
 	npm --prefix web ci
 
