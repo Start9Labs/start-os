@@ -20,16 +20,23 @@ import { MARKETPLACE_REGISTRY } from '../modals/registry.component'
       >
         Change Registry
       </button>
-      <button
-        slot="mobile"
-        class="flex gap-2 p-5 text-base"
-        (click)="changeRegistry()"
-      >
+      <button slot="mobile" class="mobile-button" (click)="changeRegistry()">
         <tui-icon tuiAppearance="icon" icon="tuiIconRepeat"></tui-icon>
         Change Registry
       </button>
     </menu>
   `,
+  styles: [
+    `
+      .mobile-button {
+        display: flex;
+        gap: 0.5rem;
+        padding: 1.25rem;
+        font-size: 1rem;
+        line-height: 1.5rem;
+      }
+    `,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MenuModule, TuiButtonModule, TuiIconModule, TuiAppearanceModule],
 })
