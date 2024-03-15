@@ -200,28 +200,15 @@ pub async fn configure_logic(
 pub async fn compute_dependency_config_errs(
     ctx: &RpcContext,
     db: &Peeked,
-    manifest: &Manifest,
+    id: &PackageId,
     current_dependencies: &CurrentDependencies,
     dependency_config: &BTreeMap<PackageId, Config>,
 ) -> Result<DependencyConfigErrors, Error> {
     let mut dependency_config_errs = BTreeMap::new();
-    for (dependency, _dep_info) in current_dependencies
-        .0
-        .iter()
-        .filter(|(dep_id, _)| dep_id != &&manifest.id)
-    {
+    for (dependency, _dep_info) in current_dependencies.0.iter() {
         // check if config passes dependency check
-        if let Some(cfg) = &manifest
-            .dependencies
-            .0
-            .get(dependency)
-            .or_not_found(dependency)?
-            .config
-        {
-            let error = todo!();
-            {
-                dependency_config_errs.insert(dependency.clone(), error);
-            }
+        if let Some(error) = todo!() {
+            dependency_config_errs.insert(dependency.clone(), error);
         }
     }
     Ok(DependencyConfigErrors(dependency_config_errs))

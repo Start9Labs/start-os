@@ -286,10 +286,7 @@ export type Effects = {
   createOverlayedImage(options: { imageId: string }): Promise<[string, string]>
 
   /** A low level api used by destroyOverlay + makeOverlay:destroy */
-  destroyOverlayedImage(options: {
-    imageId: string
-    guid: string
-  }): Promise<void>
+  destroyOverlayedImage(options: { guid: string }): Promise<void>
 
   /** Removes all network bindings */
   clearBindings(): Promise<void>
@@ -467,7 +464,9 @@ export type Effects = {
   }): Promise<void>
 
   /** Set the dependencies of what the service needs, usually ran during the set config as a best practice */
-  setDependencies(dependencies: Dependencies): Promise<DependenciesReceipt>
+  setDependencies(options: {
+    dependencies: Dependencies
+  }): Promise<DependenciesReceipt>
   /** Exists could be useful during the runtime to know if some service exists, option dep */
   exists(options: { packageId: PackageId }): Promise<boolean>
   /** Exists could be useful during the runtime to know if some service is running, option dep */

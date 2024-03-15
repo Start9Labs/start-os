@@ -248,13 +248,12 @@ impl RpcContext {
         for (package_id, package) in peek.as_public().as_package_data().as_entries()?.into_iter() {
             let package = package.clone();
             let current_dependencies = package.as_current_dependencies().de()?;
-            let manifest = todo!(); // package.as_manifest().de()?;
             all_dependency_config_errs.insert(
                 package_id.clone(),
                 compute_dependency_config_errs(
                     self,
                     &peek,
-                    &manifest,
+                    &package_id,
                     &current_dependencies,
                     &Default::default(),
                 )

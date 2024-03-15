@@ -863,15 +863,17 @@ pub async fn create_overlayed_image(
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 enum DependencyKind {
     Exists,
     Running,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 struct DependencyRequirement {
     id: PackageId,
     kind: DependencyKind,
@@ -927,9 +929,10 @@ impl ValueParserFactory for DependencyRequirement {
     }
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "camelCase")]
+#[ts(export)]
 pub struct SetDependenciesParams {
     dependencies: Vec<DependencyRequirement>,
 }
