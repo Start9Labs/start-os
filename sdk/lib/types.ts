@@ -1,7 +1,8 @@
 export * as configTypes from "./config/configTypes"
+import { AddSslOptions } from "../../core/startos/bindings/AddSslOptions"
 import { InputSpec } from "./config/configTypes"
 import { DependenciesReceipt } from "./config/setupConfig"
-import { BindOptions } from "./interfaces/Host"
+import { BindOptions, Scheme } from "./interfaces/Host"
 import { Daemons } from "./mainFn/Daemons"
 import { UrlString } from "./util/getServiceInterface"
 import { ServiceInterfaceType, Signals } from "./util/utils"
@@ -247,6 +248,7 @@ export type ServiceInterfaceWithHostInfo = ServiceInterface & {
 
 // prettier-ignore
 export type ExposeAllServicePaths<Store, PreviousPath extends string = ""> = 
+  Store extends never ? string :
   Store extends Record<string, unknown> ? {[K in keyof Store & string]: ExposeAllServicePaths<Store[K], `${PreviousPath}/${K & string}`>}[keyof Store & string] :
   PreviousPath
 // prettier-ignore
@@ -254,10 +256,10 @@ export type ExposeAllUiPaths<Store, PreviousPath extends string = ""> =
   Store extends Record<string, unknown> ? {[K in keyof Store & string]: ExposeAllUiPaths<Store[K], `${PreviousPath}/${K & string}`>}[keyof Store & string] :
   Store extends string ? PreviousPath : 
   never
-export type ExposeServicePaths<Store> = Array<{
+export type ExposeServicePaths<Store = never> = {
   /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
-  path: ExposeAllServicePaths<Store>
-}>
+  paths: Store extends never ? string[] : ExposeAllServicePaths<Store>[]
+}
 
 export type ExposeUiPaths<Store> = Array<{
   /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
@@ -267,7 +269,7 @@ export type ExposeUiPaths<Store> = Array<{
   /** A human readable description or explanation of the value */
   description?: string
   /** (string/number only) Whether or not to mask the value, for example, when displaying a password */
-  masked?: boolean
+  masked: boolean
   /** (string/number only) Whether or not to include a button for copying the value to clipboard */
   copyable?: boolean
   /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
@@ -276,7 +278,7 @@ export type ExposeUiPaths<Store> = Array<{
 /** Used to reach out from the pure js runtime */
 export type Effects = {
   executeAction<Input>(opts: {
-    serviceId?: string
+    serviceId: string | null
     input: Input
   }): Promise<unknown>
 
@@ -284,32 +286,33 @@ export type Effects = {
   createOverlayedImage(options: { imageId: string }): Promise<[string, string]>
 
   /** A low level api used by destroyOverlay + makeOverlay:destroy */
-  destroyOverlayedImage(options: {
-    imageId: string
-    guid: string
-  }): Promise<void>
+  destroyOverlayedImage(options: { guid: string }): Promise<void>
 
   /** Removes all network bindings */
   clearBindings(): Promise<void>
   /** Creates a host connected to the specified port with the provided options */
-  bind(
-    options: {
-      kind: "static" | "single" | "multi"
-      id: string
-      internalPort: number
-    } & BindOptions,
-  ): Promise<void>
+  bind(options: {
+    kind: "static" | "single" | "multi"
+    id: string
+    internalPort: number
+
+    scheme: Scheme
+    preferredExternalPort: number
+    addSsl: AddSslOptions | null
+    secure: boolean
+    ssl: boolean
+  }): Promise<void>
   /** Retrieves the current hostname(s) associated with a host id */
+  // getHostInfo(options: {
+  //   kind: "static" | "single"
+  //   serviceInterfaceId: string
+  //   packageId: string | null
+  //   callback: () => void
+  // }): Promise<SingleHost>
   getHostInfo(options: {
-    kind: "static" | "single"
+    kind: "multi" | null
     serviceInterfaceId: string
-    packageId?: string
-    callback: () => void
-  }): Promise<SingleHost>
-  getHostInfo(options: {
-    kind?: "multi"
-    serviceInterfaceId: string
-    packageId?: string
+    packageId: string | null
     callback: () => void
   }): Promise<MultiHost>
 
@@ -356,10 +359,10 @@ export type Effects = {
   /**
    * Get the port address for another service
    */
-  getServicePortForward(
-    internalPort: number,
-    packageId?: string,
-  ): Promise<number>
+  getServicePortForward(options: {
+    internalPort: number
+    packageId: string | null
+  }): Promise<number>
 
   /** Removes all network interfaces */
   clearServiceInterfaces(): Promise<void>
@@ -368,12 +371,17 @@ export type Effects = {
    */
   exportServiceInterface(options: ServiceInterface): Promise<string>
 
-  exposeForDependents<Store = never>(
-    options: ExposeServicePaths<Store>,
-  ): Promise<void>
+  exposeForDependents(options: { paths: string[] }): Promise<void>
 
   exposeUi<Store = never>(options: {
-    paths: ExposeUiPaths<Store>
+    paths: {
+      path: string
+      title: string | null
+      description: string | null
+      masked: boolean | null
+      copyable: boolean | null
+      qr: boolean | null
+    }[]
   }): Promise<void>
   /**
    * There are times that we want to see the addresses that where exported
@@ -382,7 +390,7 @@ export type Effects = {
    * Note: any auth should be filtered out already
    */
   getServiceInterface(options: {
-    packageId?: PackageId
+    packageId: PackageId | null
     serviceInterfaceId: ServiceInterfaceId
     callback: () => void
   }): Promise<ServiceInterface>
@@ -392,7 +400,7 @@ export type Effects = {
    * @param options
    */
   getPrimaryUrl(options: {
-    packageId?: PackageId
+    packageId: PackageId | null
     serviceInterfaceId: ServiceInterfaceId
     callback: () => void
   }): Promise<UrlString | null>
@@ -404,7 +412,7 @@ export type Effects = {
    * Note: any auth should be filtered out already
    */
   listServiceInterfaces(options: {
-    packageId?: PackageId
+    packageId: PackageId | null
     callback: () => void
   }): Promise<ServiceInterface[]>
 
@@ -429,38 +437,40 @@ export type Effects = {
    * This called after a valid set config as well as during init.
    * @param configured
    */
-  setConfigured(configured: boolean): Promise<void>
+  setConfigured(options: { configured: boolean }): Promise<void>
 
   /**
    *
    * @returns  PEM encoded fullchain (ecdsa)
    */
-  getSslCertificate: (
-    packageId: string | null,
-    hostId: string,
-    algorithm?: "ecdsa" | "ed25519",
-  ) => Promise<[string, string, string]>
+  getSslCertificate: (options: {
+    packageId: string | null
+    hostId: string
+    algorithm: "ecdsa" | "ed25519" | null
+  }) => Promise<[string, string, string]>
   /**
    * @returns PEM encoded ssl key (ecdsa)
    */
-  getSslKey: (
-    packageId: string | null,
-    hostId: string,
-    algorithm?: "ecdsa" | "ed25519",
-  ) => Promise<string>
+  getSslKey: (options: {
+    packageId: string | null
+    hostId: string
+    algorithm: "ecdsa" | "ed25519" | null
+  }) => Promise<string>
 
   setHealth(o: {
     name: string
     status: HealthStatus
-    message?: string
+    message: string | null
   }): Promise<void>
 
   /** Set the dependencies of what the service needs, usually ran during the set config as a best practice */
-  setDependencies(dependencies: Dependencies): Promise<DependenciesReceipt>
+  setDependencies(options: {
+    dependencies: Dependencies
+  }): Promise<DependenciesReceipt>
   /** Exists could be useful during the runtime to know if some service exists, option dep */
-  exists(packageId: PackageId): Promise<boolean>
+  exists(options: { packageId: PackageId }): Promise<boolean>
   /** Exists could be useful during the runtime to know if some service is running, option dep */
-  running(packageId: PackageId): Promise<boolean>
+  running(options: { packageId: PackageId }): Promise<boolean>
 
   /** Instead of creating proxies with nginx, we have a utility to create and maintain a proxy in the lifetime of this running. */
   reverseProxy(options: {
@@ -494,7 +504,7 @@ export type Effects = {
     }
   }): Promise<string>
 
-  stopped(packageId?: string): Promise<boolean>
+  stopped(options: { packageId: string | null }): Promise<boolean>
 }
 
 // prettier-ignore
@@ -574,7 +584,7 @@ export type KnownError =
 export type Dependency = {
   id: PackageId
   kind: DependencyKind
-}
+} & ({ kind: "exists" } | { kind: "running"; healthChecks: string[] })
 export type Dependencies = Array<Dependency>
 
 export type DeepPartial<T> = T extends {}

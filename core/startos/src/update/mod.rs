@@ -14,7 +14,7 @@ use tokio_stream::StreamExt;
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::db::model::UpdateProgress;
+use crate::db::model::public::UpdateProgress;
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::MountGuard;

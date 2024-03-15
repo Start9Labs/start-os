@@ -117,7 +117,7 @@ function getAddresses(
       : []
 
   return hostnames
-    .map(h => {
+    .map((h: any) => {
       const addresses: MappedAddress[] = []
 
       let name = ''

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Id, InvalidId};
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, ts_rs::TS)]
 pub struct ActionId(Id);
 impl FromStr for ActionId {
     type Err = InvalidId;

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::IpInfo;
+use crate::db::model::public::IpInfo;
 use crate::net::utils::{iface_is_physical, list_interfaces};
 use crate::prelude::*;
 use crate::Error;

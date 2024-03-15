@@ -1,15 +1,15 @@
 import { DOCUMENT } from '@angular/common'
 import { Inject, Injectable } from '@angular/core'
 import { WorkspaceConfig } from '@start9labs/shared'
-import {
-  HostnameInfoIp,
-  HostnameInfoOnion,
-} from '@start9labs/start-sdk/mjs/lib/types'
+import { types } from '@start9labs/start-sdk'
 import {
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
+
+type HostnameInfoIp = types.HostnameInfoIp
+type HostnameInfoOnion = types.HostnameInfoOnion
 
 const {
   gitHash,
@@ -79,14 +79,14 @@ export class ConfigService {
 
     if (host.kind === 'multi') {
       const onionHostname = host.hostnames.find(
-        h => h.kind === 'onion',
+        (h: any) => h.kind === 'onion',
       ) as HostnameInfoOnion
 
       if (this.isTor() && onionHostname) {
         url.hostname = onionHostname.hostname.value
       } else {
         const ipHostname = host.hostnames.find(
-          h => h.kind === 'ip',
+          (h: any) => h.kind === 'ip',
         ) as HostnameInfoIp
 
         if (!ipHostname) return ''
