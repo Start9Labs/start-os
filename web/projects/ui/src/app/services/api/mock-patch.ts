@@ -203,6 +203,7 @@ export const mockPatchData: DataModel = {
               scheme: 'http',
               preferredExternalPort: 80,
               addSsl: {
+                addXForwardedHeaders: false,
                 preferredExternalPort: 443,
                 scheme: 'https',
               },
