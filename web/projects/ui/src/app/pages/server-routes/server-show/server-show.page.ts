@@ -54,6 +54,7 @@ export class ServerShowPage {
     private readonly ClientStorageService: ClientStorageService,
     private readonly authService: AuthService,
     private readonly toastCtrl: ToastController,
+    private readonly config: ConfigService,
     @Inject(WINDOW) private readonly windowRef: Window,
   ) {}
 
@@ -173,6 +174,73 @@ export class ServerShowPage {
     } catch (e: any) {
       this.errToast.present(e)
       return false
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  async presentAlertResetTor() {
+    const isTor = this.config.isTor()
+    const shared =
+      'Optionally wipe state to forcibly acquire new guard nodes. It is recommended to try without wiping state first.'
+    const alert = await this.alertCtrl.create({
+      header: isTor ? 'Warning' : 'Confirm',
+      message: isTor
+        ? `You are currently connected over Tor. If you reset the Tor daemon, you will loose connectivity until it comes back online.<br/><br/>${shared}`
+        : `Reset Tor?<br/><br/>${shared}`,
+      inputs: [
+        {
+          label: 'Wipe state',
+          type: 'checkbox',
+          value: 'wipe',
+        },
+      ],
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Reset',
+          handler: (value: string[]) => {
+            this.resetTor(value.some(v => v === 'wipe'))
+          },
+          cssClass: 'enter-click',
+        },
+      ],
+      cssClass: isTor ? 'alert-warning-message' : '',
+    })
+    await alert.present()
+  }
+
+  private async resetTor(wipeState: boolean) {
+    const loader = await this.loadingCtrl.create({
+      message: 'Resetting Tor...',
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.resetTor({
+        'wipe-state': wipeState,
+        reason: 'User triggered',
+      })
+      const toast = await this.toastCtrl.create({
+        header: 'Tor reset in progress',
+        position: 'bottom',
+        duration: 4000,
+        buttons: [
+          {
+            side: 'start',
+            icon: 'close',
+            handler: () => {
+              return true
+            },
+          },
+        ],
+      })
+      await toast.present()
+    } catch (e: any) {
+      this.errToast.present(e)
     } finally {
       loader.dismiss()
     }
@@ -512,14 +580,11 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
-        title: 'Experimental Features',
-        description: 'Try out new and potentially unstable new features',
-        icon: 'flask-outline',
-        action: () =>
-          this.navCtrl.navigateForward(['experimental-features'], {
-            relativeTo: this.route,
-          }),
-        detail: true,
+        title: 'Reset Tor',
+        description: 'May help resolve Tor connectivity issues.',
+        icon: 'reload-circle-outline',
+        action: () => this.presentAlertResetTor(),
+        detail: false,
         disabled$: of(false),
       },
     ],
