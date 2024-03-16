@@ -110,6 +110,7 @@ export class MenuComponent {
       Object.entries(marketplace).reduce((list, [_, store]) => {
         store?.packages.forEach(({ manifest: { id, version } }) => {
           if (
+            local[id] &&
             this.emver.compare(
               version,
               getManifest(local[id]).version || '',
