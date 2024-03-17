@@ -1,4 +1,4 @@
-import { inject, Pipe, PipeTransform, Type } from '@angular/core'
+import { inject, Pipe, PipeTransform } from '@angular/core'
 import { Params } from '@angular/router'
 import { Manifest } from '@start9labs/marketplace'
 import { MarkdownComponent } from '@start9labs/shared'
@@ -6,14 +6,16 @@ import { TuiDialogService } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { from } from 'rxjs'
 import {
+  PackageConfigData,
+  ServiceConfigModal,
+} from 'src/app/apps/portal/modals/config.component'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import {
   InstalledPackageInfo,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { ProxyService } from 'src/app/services/proxy.service'
-import { PackageConfigData } from '../types/package-config-data'
-import { ServiceConfigModal } from '../modals/config.component'
 import { ServiceCredentialsModal } from '../modals/credentials.component'
 
 export interface ServiceMenu {

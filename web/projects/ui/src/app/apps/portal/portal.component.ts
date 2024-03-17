@@ -7,7 +7,6 @@ import { PatchDB } from 'patch-db-client'
 import { filter } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { HeaderComponent } from './components/header/header.component'
-import { DrawerComponent } from './components/drawer/drawer.component'
 import { BreadcrumbsService } from './services/breadcrumbs.service'
 
 @Component({
@@ -15,7 +14,6 @@ import { BreadcrumbsService } from './services/breadcrumbs.service'
   template: `
     <header appHeader>{{ name$ | async }}</header>
     <main><router-outlet /></main>
-    <app-drawer />
   `,
   styles: [
     `
@@ -32,7 +30,7 @@ import { BreadcrumbsService } from './services/breadcrumbs.service'
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, RouterOutlet, HeaderComponent, DrawerComponent],
+  imports: [CommonModule, RouterOutlet, HeaderComponent],
   providers: [
     // TODO: Move to global
     tuiDropdownOptionsProvider({

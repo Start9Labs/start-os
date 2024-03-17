@@ -62,7 +62,7 @@ export class HeaderMobileComponent {
   get back() {
     return (
       this.headerMobile?.[this.headerMobile?.length - 2]?.routerLink ||
-      '/portal/desktop'
+      '/portal/dashboard'
     )
   }
 }

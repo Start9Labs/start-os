@@ -1,9 +1,17 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ActivatedRoute, NavigationExtras, Router } from '@angular/router'
+import { Manifest } from '@start9labs/marketplace'
 import { getPkgId, isEmptyObject } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map } from 'rxjs'
+import { ConnectionService } from 'src/app/services/connection.service'
+import {
+  DependencyErrorType,
+  DepErrorService,
+  PkgDependencyErrors,
+} from 'src/app/services/dep-error.service'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
 import {
   DataModel,
   HealthCheckResult,
@@ -16,31 +24,24 @@ import {
   PackageStatus,
   PrimaryRendering,
   PrimaryStatus,
-  StatusRendering,
   renderPkgStatus,
+  StatusRendering,
 } from 'src/app/services/pkg-status-rendering.service'
-import { ConnectionService } from 'src/app/services/connection.service'
+import { DependentInfo } from 'src/app/types/dependent-info'
+import { ServiceActionsComponent } from '../components/actions.component'
+import { ServiceAdditionalComponent } from '../components/additional.component'
+import { ServiceDependenciesComponent } from '../components/dependencies.component'
+import { ServiceHealthChecksComponent } from '../components/health-checks.component'
+import { ServiceInterfacesComponent } from '../components/interfaces.component'
+import { ServiceMenuComponent } from '../components/menu.component'
 import { ServiceProgressComponent } from '../components/progress.component'
 import { ServiceStatusComponent } from '../components/status.component'
-import { ServiceActionsComponent } from '../components/actions.component'
-import { ServiceInterfacesComponent } from '../components/interfaces.component'
-import { ServiceHealthChecksComponent } from '../components/health-checks.component'
-import { ServiceDependenciesComponent } from '../components/dependencies.component'
-import { ServiceMenuComponent } from '../components/menu.component'
-import { ServiceAdditionalComponent } from '../components/additional.component'
-import { ProgressDataPipe } from '../pipes/progress-data.pipe'
 import {
-  DepErrorService,
-  DependencyErrorType,
-  PkgDependencyErrors,
-} from 'src/app/services/dep-error.service'
+  PackageConfigData,
+  ServiceConfigModal,
+} from 'src/app/apps/portal/modals/config.component'
+import { ProgressDataPipe } from '../pipes/progress-data.pipe'
 import { DependencyInfo } from '../types/dependency-info'
-import { Manifest } from '@start9labs/marketplace'
-import { toRouterLink } from '../../../utils/to-router-link'
-import { PackageConfigData } from '../types/package-config-data'
-import { ServiceConfigModal } from '../modals/config.component'
-import { DependentInfo } from 'src/app/types/dependent-info'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
 
 const STATES = [
   PackageState.Installing,
@@ -68,7 +69,8 @@ const STATES = [
         />
         <service-actions
           *ngIf="isInstalled(service.pkg) && (connected$ | async)"
-          [service]="service"
+          [service]="service.pkg"
+          [dependencies]="service.dependencies"
         />
 
         <ng-container
@@ -148,20 +150,16 @@ export class ServiceRoute {
   }
 
   private getDepInfo(
-    pkg: PackageDataEntry,
+    { installed, manifest }: PackageDataEntry,
     depErrors: PkgDependencyErrors,
   ): DependencyInfo[] {
-    const pkgInstalled = pkg.installed
-
-    if (!pkgInstalled) return []
-
-    const pkgManifest = pkg.manifest
-
-    return Object.keys(pkgInstalled['current-dependencies'])
-      .filter(depId => !!pkg.manifest.dependencies[depId])
-      .map(depId =>
-        this.getDepValues(pkgInstalled, pkgManifest, depId, depErrors),
-      )
+    return installed
+      ? Object.keys(installed['current-dependencies'])
+          .filter(depId => !!manifest.dependencies[depId])
+          .map(depId =>
+            this.getDepValues(installed, manifest, depId, depErrors),
+          )
+      : []
   }
 
   private getDepValues(

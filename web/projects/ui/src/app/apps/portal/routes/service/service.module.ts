@@ -33,7 +33,7 @@ const ROUTES: Routes = [
       {
         path: '',
         pathMatch: 'full',
-        redirectTo: '/portal/desktop',
+        redirectTo: '/portal/dashboard',
       },
     ],
   },

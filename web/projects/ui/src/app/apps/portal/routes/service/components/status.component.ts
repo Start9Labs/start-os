@@ -12,18 +12,17 @@ import { InstallProgressPipe } from '../pipes/install-progress.pipe'
 @Component({
   selector: 'service-status',
   template: `
-    <strong *ngIf="!installProgress; else installing">
+    @if (installProgress) {
+      <strong>
+        Installing
+        <span class="loading-dots"></span>
+        {{ installProgress | installProgress }}
+      </strong>
+    } @else {
       {{ connected ? rendering.display : 'Unknown' }}
       <!-- @TODO should show 'this may take a while' if sigtermTimeout is > 30s -->
       <span *ngIf="rendering.showDots" class="loading-dots"></span>
-    </strong>
-    <ng-template #installing>
-      <strong *ngIf="installProgress | installProgress as progress">
-        Installing
-        <span class="loading-dots"></span>
-        {{ progress }}
-      </strong>
-    </ng-template>
+    }
   `,
   styles: [
     `

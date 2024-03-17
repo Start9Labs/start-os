@@ -20,6 +20,7 @@ import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
 import { compare, Operation } from 'fast-json-patch'
 import { PatchDB } from 'patch-db-client'
 import { endWith, firstValueFrom, Subscription } from 'rxjs'
+import { ConfigDepComponent } from 'src/app/apps/portal/modals/config-dep.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   DataModel,
@@ -33,16 +34,16 @@ import {
   ActionButton,
   FormComponent,
 } from 'src/app/apps/portal/components/form.component'
-import { PackageConfigData } from '../types/package-config-data'
-import { ConfigDepComponent } from '../components/config-dep.component'
+import { DependentInfo } from 'src/app/types/dependent-info'
+
+export interface PackageConfigData {
+  readonly pkgId: string
+  readonly dependentInfo?: DependentInfo
+}
 
 @Component({
   template: `
-    <tui-loader
-      *ngIf="loadingText"
-      size="l"
-      [textContent]="loadingText"
-    ></tui-loader>
+    <tui-loader *ngIf="loadingText" size="l" [textContent]="loadingText" />
 
     <tui-notification
       *ngIf="!loadingText && (loadingError || !pkg)"
@@ -63,7 +64,7 @@ import { ConfigDepComponent } from '../components/config-dep.component'
         [dep]="dependentInfo.title"
         [original]="original"
         [value]="value"
-      ></config-dep>
+      />
 
       <tui-notification *ngIf="!pkg.installed?.['has-config']" status="warning">
         No config options for {{ pkg.manifest.title }}

@@ -1,7 +1,12 @@
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { SYSTEM_UTILITIES } from '../constants/system-utilities'
-import { NavigationItem } from '../types/navigation-item'
 import { toRouterLink } from './to-router-link'
+
+export interface NavigationItem {
+  readonly routerLink: string
+  readonly icon: string
+  readonly title: string
+}
 
 export function toNavigationItem(
   id: string,

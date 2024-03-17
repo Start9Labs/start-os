@@ -7,15 +7,15 @@ const ROUTES: Routes = [
     component: PortalComponent,
     children: [
       {
-        redirectTo: 'desktop',
+        redirectTo: 'dashboard',
         pathMatch: 'full',
         path: '',
       },
       {
-        path: 'desktop',
+        path: 'dashboard',
         loadComponent: () =>
-          import('./routes/desktop/desktop.component').then(
-            m => m.DesktopComponent,
+          import('./routes/dashboard/dashboard.component').then(
+            m => m.DashboardComponent,
           ),
       },
       {

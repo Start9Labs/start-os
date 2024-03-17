@@ -1,4 +1,4 @@
-import { DOCUMENT, CommonModule } from '@angular/common'
+import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -8,7 +8,6 @@ import {
 import { TuiSvgModule } from '@taiga-ui/core'
 import { TuiButtonModule } from '@taiga-ui/experimental'
 import { ConfigService } from 'src/app/services/config.service'
-import { InterfaceInfo } from 'src/app/services/patch-db/data-model'
 import { ExtendedInterfaceInfo } from '../pipes/interface-info.pipe'
 
 @Component({
@@ -20,22 +19,23 @@ import { ExtendedInterfaceInfo } from '../pipes/interface-info.pipe'
       <div>{{ info.description }}</div>
       <div [style.color]="info.color">{{ info.typeDetail }}</div>
     </div>
-    <button
+    <a
       *ngIf="info.type === 'ui'"
       tuiIconButton
       appearance="flat"
       iconLeft="tuiIconExternalLinkLarge"
+      target="_blank"
+      rel="noreferrer"
       [style.border-radius.%]="100"
-      (click.stop.prevent)="launchUI(info)"
-      [disabled]="disabled"
-    ></button>
+      [attr.href]="href"
+      (click.stop)="(0)"
+    ></a>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [TuiButtonModule, CommonModule, TuiSvgModule],
 })
 export class ServiceInterfaceComponent {
-  private readonly document = inject(DOCUMENT)
   private readonly config = inject(ConfigService)
 
   @Input({ required: true, alias: 'serviceInterface' })
@@ -44,11 +44,7 @@ export class ServiceInterfaceComponent {
   @Input()
   disabled = false
 
-  launchUI(info: InterfaceInfo) {
-    this.document.defaultView?.open(
-      this.config.launchableAddress(info),
-      '_blank',
-      'noreferrer',
-    )
+  get href(): string | null {
+    return this.disabled ? null : this.config.launchableAddress(this.info)
   }
 }

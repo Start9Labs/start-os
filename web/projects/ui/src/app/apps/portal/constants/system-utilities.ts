@@ -24,10 +24,6 @@ export const SYSTEM_UTILITIES: Record<string, { icon: string; title: string }> =
       icon: 'tuiIconTool',
       title: 'Settings',
     },
-    '/portal/system/snek': {
-      icon: 'assets/img/icon_transparent.png',
-      title: 'Snek',
-    },
     '/portal/system/notifications': {
       icon: 'tuiIconBell',
       title: 'Notifications',
