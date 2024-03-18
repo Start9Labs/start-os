@@ -4,6 +4,8 @@ import { List } from "../config/builder/list"
 import { Value } from "../config/builder/value"
 import { Variants } from "../config/builder/variants"
 import { ValueSpec } from "../config/configTypes"
+import { setupManifest } from "../manifest/setupManifest"
+import { StartSdk } from "../StartSdk"
 
 describe("builder tests", () => {
   test("text", async () => {
@@ -379,17 +381,61 @@ describe("values", () => {
       })
     })
     test("datetime", async () => {
-      const value = Value.dynamicDatetime<{ test: "a" }>(async ({ utils }) => {
-        ;async () => {
-          ;(await utils.store.getOwn("/test").once()) satisfies "a"
-        }
+      const sdk = StartSdk.of()
+        .withManifest(
+          setupManifest({
+            id: "testOutput",
+            title: "",
+            version: "1.0",
+            releaseNotes: "",
+            license: "",
+            replaces: [],
+            wrapperRepo: "",
+            upstreamRepo: "",
+            supportSite: "",
+            marketingSite: "",
+            donationUrl: null,
+            description: {
+              short: "",
+              long: "",
+            },
+            containers: {},
+            images: [],
+            volumes: [],
+            assets: [],
+            alerts: {
+              install: null,
+              update: null,
+              uninstall: null,
+              restore: null,
+              start: null,
+              stop: null,
+            },
+            dependencies: {
+              remoteTest: {
+                description: "",
+                requirement: { how: "", type: "opt-in" },
+                version: "1.0",
+              },
+            },
+          }),
+        )
+        .withStore<{ test: "a" }>()
+        .build(true)
 
-        return {
-          name: "Testing",
-          required: { default: null },
-          inputmode: "date",
-        }
-      })
+      const value = Value.dynamicDatetime<{ test: "a" }>(
+        async ({ effects }) => {
+          ;async () => {
+            ;(await sdk.store.getOwn(effects, "/test").once()) satisfies "a"
+          }
+
+          return {
+            name: "Testing",
+            required: { default: null },
+            inputmode: "date",
+          }
+        },
+      )
       const validator = value.validator
       validator.unsafeCast("2021-01-01")
       validator.unsafeCast(null)

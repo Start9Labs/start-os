@@ -19,9 +19,14 @@ import {
   BackupOptions,
   DeepPartial,
   MaybePromise,
+  ServiceInterfaceId,
+  PackageId,
+  EnsureStorePath,
+  ExtractStore,
+  DaemonReturned,
+  ValidIfNoStupidEscape,
 } from "./types"
 import * as patterns from "./util/patterns"
-import { Utils } from "./util/utils"
 import { DependencyConfig, Update } from "./dependencyConfig/DependencyConfig"
 import { BackupSet, Backups } from "./backup/Backups"
 import { smtpConfig } from "./config/configConstants"
@@ -46,7 +51,13 @@ import { setupMain } from "./mainFn"
 import { defaultTrigger } from "./trigger/defaultTrigger"
 import { changeOnFirstSuccess, cooldownTrigger } from "./trigger"
 import setupConfig, { Read, Save } from "./config/setupConfig"
-import { setupDependencyMounts } from "./dependency/setupDependencyMounts"
+import {
+  ManifestId,
+  NamedPath,
+  Path,
+  VolumeName,
+  setupDependencyMounts,
+} from "./dependency/setupDependencyMounts"
 import {
   InterfacesReceipt,
   SetInterfaces,
@@ -55,6 +66,19 @@ import {
 import { successFailure } from "./trigger/successFailure"
 import { SetupExports } from "./inits/setupExports"
 import { HealthReceipt } from "./health/HealthReceipt"
+import { MultiHost, Scheme, SingleHost, StaticHost } from "./interfaces/Host"
+import { ServiceInterfaceBuilder } from "./interfaces/ServiceInterfaceBuilder"
+import { GetSystemSmtp } from "./util/GetSystemSmtp"
+import nullIfEmpty from "./util/nullIfEmpty"
+import {
+  GetServiceInterface,
+  getServiceInterface,
+} from "./util/getServiceInterface"
+import { getServiceInterfaces } from "./util/getServiceInterfaces"
+import { getStore } from "./store/getStore"
+import { mountDependencies } from "./dependency/mountDependencies"
+import { CommandOptions, MountOptions, Overlay } from "./util/Overlay"
+import { splitCommand } from "./util/splitCommand"
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
@@ -62,6 +86,17 @@ type AnyNeverCond<T extends any[], Then, Else> =
     T extends [never, ...Array<any>] ? Then :
     T extends [any, ...infer U] ? AnyNeverCond<U,Then, Else> :
     never
+
+export type ServiceInterfaceType = "ui" | "p2p" | "api"
+export type MainEffects = Effects & { _type: "main" }
+export type Signals = NodeJS.Signals
+export const SIGTERM: Signals = "SIGTERM"
+export const SIGKILL: Signals = "SIGTERM"
+export const NO_TIMEOUT = -1
+
+function removeConstType<E>() {
+  return <T>(t: T) => t as T & (E extends MainEffects ? {} : { const: never })
+}
 
 export class StartSdk<Manifest extends SDKManifest, Store> {
   private constructor(readonly manifest: Manifest) {}
@@ -77,7 +112,78 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
 
   build(isReady: AnyNeverCond<[Manifest, Store], "Build not ready", true>) {
     return {
+      serviceInterface: {
+        getOwn: <E extends Effects>(effects: E, id: ServiceInterfaceId) =>
+          removeConstType<E>()(
+            getServiceInterface(effects, {
+              id,
+              packageId: null,
+            }),
+          ),
+        get: <E extends Effects>(
+          effects: E,
+          opts: { id: ServiceInterfaceId; packageId: PackageId },
+        ) => removeConstType<E>()(getServiceInterface(effects, opts)),
+        getAllOwn: <E extends Effects>(effects: E) =>
+          removeConstType<E>()(
+            getServiceInterfaces(effects, {
+              packageId: null,
+            }),
+          ),
+        getAll: <E extends Effects>(
+          effects: E,
+          opts: { packageId: PackageId },
+        ) => removeConstType<E>()(getServiceInterfaces(effects, opts)),
+      },
+
+      store: {
+        get: <E extends Effects, Path extends string = never>(
+          effects: E,
+          packageId: string,
+          path: EnsureStorePath<Store, Path>,
+        ) =>
+          removeConstType<E>()(
+            getStore<Store, Path>(effects, path as any, {
+              packageId,
+            }),
+          ),
+        getOwn: <E extends Effects, Path extends string>(
+          effects: E,
+          path: EnsureStorePath<Store, Path>,
+        ) => removeConstType<E>()(getStore<Store, Path>(effects, path as any)),
+        setOwn: <E extends Effects, Path extends string | never>(
+          effects: E,
+          path: EnsureStorePath<Store, Path>,
+          value: ExtractStore<Store, Path>,
+        ) => effects.store.set<Store, Path>({ value, path: path as any }),
+      },
+
+      host: {
+        static: (effects: Effects, id: string) =>
+          new StaticHost({ id, effects }),
+        single: (effects: Effects, id: string) =>
+          new SingleHost({ id, effects }),
+        multi: (effects: Effects, id: string) => new MultiHost({ id, effects }),
+      },
+      nullIfEmpty,
+
       configConstants: { smtpConfig },
+      createInterface: (
+        effects: Effects,
+        options: {
+          name: string
+          id: string
+          description: string
+          hasPrimary: boolean
+          disabled: boolean
+          type: ServiceInterfaceType
+          username: null | string
+          path: string
+          search: Record<string, string>
+          schemeOverride: { ssl: Scheme; noSsl: Scheme } | null
+          masked: boolean
+        },
+      ) => new ServiceInterfaceBuilder({ ...options, effects }),
       createAction: <
         ConfigType extends
           | Record<string, any>
@@ -90,13 +196,44 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         },
         fn: (options: {
           effects: Effects
-          utils: Utils<Manifest, Store>
           input: Type
         }) => Promise<ActionResult>,
       ) => {
         const { input, ...rest } = metaData
         return createAction<Manifest, Store, ConfigType, Type>(rest, fn, input)
       },
+      getSystemSmtp: <E extends Effects>(effects: E) =>
+        removeConstType<E>()(new GetSystemSmtp(effects)),
+      runCommand: async <A extends string>(
+        effects: Effects,
+        imageId: Manifest["images"][number],
+        command: ValidIfNoStupidEscape<A> | [string, ...string[]],
+        options: CommandOptions & {
+          mounts?: { path: string; options: MountOptions }[]
+        },
+      ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> => {
+        const commands = splitCommand(command)
+        const overlay = await Overlay.of(effects, imageId)
+        try {
+          for (let mount of options.mounts || []) {
+            await overlay.mount(mount.options, mount.path)
+          }
+          return await overlay.exec(commands)
+        } finally {
+          await overlay.destroy()
+        }
+      },
+
+      mountDependencies: <
+        In extends
+          | Record<ManifestId, Record<VolumeName, Record<NamedPath, Path>>>
+          | Record<VolumeName, Record<NamedPath, Path>>
+          | Record<NamedPath, Path>
+          | Path,
+      >(
+        effects: Effects,
+        value: In,
+      ) => mountDependencies(effects, value),
       createDynamicAction: <
         ConfigType extends
           | Record<string, any>
@@ -106,11 +243,9 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
       >(
         metaData: (options: {
           effects: Effects
-          utils: Utils<Manifest, Store>
         }) => MaybePromise<Omit<ActionMetadata, "input">>,
         fn: (options: {
           effects: Effects
-          utils: Utils<Manifest, Store>
           input: Type
         }) => Promise<ActionResult>,
         input: Config<Type, Store> | Config<Type, never>,
@@ -196,9 +331,8 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
       ) => setupInterfaces(config, fn),
       setupMain: (
         fn: (o: {
-          effects: Effects
+          effects: MainEffects
           started(onTerm: () => PromiseLike<void>): PromiseLike<void>
-          utils: Utils<Manifest, Store, {}>
         }) => Promise<Daemons<Manifest, any>>,
       ) => setupMain<Manifest, Store>(fn),
       setupMigrations: <
@@ -259,7 +393,6 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           dependencyConfig: (options: {
             effects: Effects
             localConfig: LocalConfig
-            utils: Utils<Manifest, Store>
           }) => Promise<void | DeepPartial<RemoteConfig>>
           update?: Update<void | DeepPartial<RemoteConfig>, RemoteConfig>
         }) {
@@ -343,14 +476,8 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
       Migration: {
         of: <Version extends ManifestVersion>(options: {
           version: Version
-          up: (opts: {
-            effects: Effects
-            utils: Utils<Manifest, Store>
-          }) => Promise<void>
-          down: (opts: {
-            effects: Effects
-            utils: Utils<Manifest, Store>
-          }) => Promise<void>
+          up: (opts: { effects: Effects }) => Promise<void>
+          down: (opts: { effects: Effects }) => Promise<void>
         }) => Migration.of<Manifest, Store, Version>(options),
       },
       Value: {

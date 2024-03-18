@@ -1,11 +1,11 @@
 export * as configTypes from "./config/configTypes"
 import { AddSslOptions } from "../../core/startos/bindings/AddSslOptions"
+import { MainEffects, ServiceInterfaceType, Signals } from "./StartSdk"
 import { InputSpec } from "./config/configTypes"
 import { DependenciesReceipt } from "./config/setupConfig"
 import { BindOptions, Scheme } from "./interfaces/Host"
 import { Daemons } from "./mainFn/Daemons"
 import { UrlString } from "./util/getServiceInterface"
-import { ServiceInterfaceType, Signals } from "./util/utils"
 
 export type ExportedAction = (options: {
   effects: Effects
@@ -59,7 +59,7 @@ export namespace ExpectedExports {
    * package represents, like running a bitcoind in a bitcoind-wrapper.
    */
   export type main = (options: {
-    effects: Effects
+    effects: MainEffects
     started(onTerm: () => PromiseLike<void>): PromiseLike<void>
   }) => Promise<Daemons<any, any>>
 

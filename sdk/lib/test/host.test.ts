@@ -1,12 +1,11 @@
 import { ServiceInterfaceBuilder } from "../interfaces/ServiceInterfaceBuilder"
 import { Effects } from "../types"
-import { createUtils } from "../util"
+import { sdk } from "./output.sdk"
 
 describe("host", () => {
   test("Testing that the types work", () => {
     async function test(effects: Effects) {
-      const utils = createUtils<never, never>(effects)
-      const foo = utils.host.multi("foo")
+      const foo = sdk.host.multi(effects, "foo")
       const fooOrigin = await foo.bindPort(80, {
         protocol: "http" as const,
       })

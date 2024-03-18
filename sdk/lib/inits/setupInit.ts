@@ -1,7 +1,6 @@
 import { SetInterfaces } from "../interfaces/setupInterfaces"
 import { SDKManifest } from "../manifest/ManifestTypes"
 import { ExpectedExports, ExposeUiPaths, ExposeUiPathsAll } from "../types"
-import { createUtils } from "../util"
 import { Migrations } from "./migrations/setupMigrations"
 import { SetupExports } from "./setupExports"
 import { Install } from "./setupInstall"
@@ -19,18 +18,13 @@ export function setupInit<Manifest extends SDKManifest, Store>(
 } {
   return {
     init: async (opts) => {
-      const utils = createUtils<Manifest, Store>(opts.effects)
       await migrations.init(opts)
       await install.init(opts)
       await setInterfaces({
         ...opts,
         input: null,
-        utils,
       })
-      const { services, ui } = await setupExports({
-        ...opts,
-        utils,
-      })
+      const { services, ui } = await setupExports(opts)
       await opts.effects.exposeForDependents(services)
       await opts.effects.exposeUi(
         forExpose({
