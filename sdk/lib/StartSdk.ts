@@ -335,10 +335,11 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
       },
 
       Backups: {
-        volumes: (...volumeNames: Array<keyof Manifest["volumes"] & string>) =>
-          Backups.volumes<Manifest>(...volumeNames),
+        volumes: (
+          ...volumeNames: Array<Manifest["volumes"][number] & string>
+        ) => Backups.volumes<Manifest>(...volumeNames),
         addSets: (
-          ...options: BackupSet<keyof Manifest["volumes"] & string>[]
+          ...options: BackupSet<Manifest["volumes"][number] & string>[]
         ) => Backups.addSets<Manifest>(...options),
         withOptions: (options?: Partial<BackupOptions>) =>
           Backups.with_options<Manifest>(options),
