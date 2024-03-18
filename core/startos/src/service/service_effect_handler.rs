@@ -695,9 +695,10 @@ async fn expose_for_dependents(
 #[ts(export)]
 enum ExposeUiParams {
     Object {
-        value: Record<String, ExposeUiParams>,
+        #[ts(type = "{[key: string]: ExposeUiParams}")]
+        value: OrdMap<String, ExposeUiParams>,
     },
-    r#String {
+    String {
         path: String,
         description: Option<String>,
         masked: bool,
@@ -706,25 +707,23 @@ enum ExposeUiParams {
     },
 }
 
-async fn expose_ui(
-    context: EffectContext,
-    ExposeUiParams { paths }: ExposeUiParams,
-) -> Result<(), Error> {
-    let context = context.deref()?;
-    let package_id = context.id.clone();
-    context
-        .ctx
-        .db
-        .mutate(|db| {
-            db.as_public_mut()
-                .as_package_data_mut()
-                .as_idx_mut(&package_id)
-                .or_not_found(&package_id)?
-                .as_store_exposed_ui_mut()
-                .ser(&paths)
-        })
-        .await?;
-    Ok(())
+async fn expose_ui(context: EffectContext, params: ExposeUiParams) -> Result<(), Error> {
+    todo!()
+    // let context = context.deref()?;
+    // let package_id = context.id.clone();
+    // context
+    //     .ctx
+    //     .db
+    //     .mutate(|db| {
+    //         db.as_public_mut()
+    //             .as_package_data_mut()
+    //             .as_idx_mut(&package_id)
+    //             .or_not_found(&package_id)?
+    //             .as_store_exposed_ui_mut()
+    //             .ser(&paths)
+    //     })
+    //     .await?;
+    // Ok(())
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
 #[ts(export)]
