@@ -691,9 +691,19 @@ async fn expose_for_dependents(
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[serde(tag = "type")]
 #[ts(export)]
-struct ExposeUiParams {
-    paths: Vec<ExposedUI>,
+enum ExposeUiParams {
+    Object {
+        value: Record<String, ExposeUiParams>,
+    },
+    r#String {
+        path: String,
+        description: Option<String>,
+        masked: bool,
+        copyable: Option<bool>,
+        qr: Option<bool>,
+    },
 }
 
 async fn expose_ui(

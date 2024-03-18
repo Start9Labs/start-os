@@ -4,7 +4,7 @@ import { ExpectedExports } from "../types"
 import { _ } from "../util"
 
 export type SetupBackupsParams<M extends SDKManifest> = Array<
-  M["volumes"][0] | Backups<M>
+  M["volumes"][number] | Backups<M>
 >
 
 export function setupBackups<M extends SDKManifest>(

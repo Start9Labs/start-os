@@ -6,11 +6,11 @@ export type SetupExports<Store> = (opts: {
   utils: Utils<any, Store>
 }) =>
   | {
-      ui: ExposeUiPaths<Store>
+      ui: { [k: string]: ExposeUiPaths<Store> }
       services: ExposeServicePaths<Store>
     }
   | Promise<{
-      ui: ExposeUiPaths<Store>
+      ui: { [k: string]: ExposeUiPaths<Store> }
       services: ExposeServicePaths<Store>
     }>
 

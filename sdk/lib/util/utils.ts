@@ -56,23 +56,6 @@ export type Utils<
   Store,
   WrapperOverWrite = { const: never },
 > = {
-  checkPortListening(
-    port: number,
-    options: {
-      errorMessage: string
-      successMessage: string
-      timeoutMessage?: string
-      timeout?: number
-    },
-  ): Promise<CheckResult>
-  checkWebUrl(
-    url: string,
-    options?: {
-      timeout?: number
-      successMessage?: string
-      errorMessage?: string
-    },
-  ): Promise<CheckResult>
   childProcess: typeof childProcess
   createInterface: (options: {
     name: string
@@ -304,8 +287,6 @@ export const createUtils = <
         },
       }
     },
-    checkPortListening: checkPortListening.bind(null, effects),
-    checkWebUrl: checkWebUrl.bind(null, effects),
 
     mountDependencies: <
       In extends

@@ -54,6 +54,7 @@ import {
 } from "./interfaces/setupInterfaces"
 import { successFailure } from "./trigger/successFailure"
 import { SetupExports } from "./inits/setupExports"
+import { HealthReceipt } from "./health/HealthReceipt"
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
@@ -234,7 +235,15 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           spec: Spec,
         ) => Config.of<Spec, Store>(spec),
       },
-      Daemons: { of: Daemons.of },
+      Daemons: {
+        of(config: {
+          effects: Effects
+          started: (onTerm: () => PromiseLike<void>) => PromiseLike<void>
+          healthReceipts: HealthReceipt[]
+        }) {
+          return Daemons.of<Manifest>(config)
+        },
+      },
       DependencyConfig: {
         of<
           LocalConfig extends Record<string, any>,

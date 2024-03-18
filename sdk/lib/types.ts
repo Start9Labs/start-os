@@ -261,22 +261,42 @@ export type ExposeServicePaths<Store = never> = {
   paths: Store extends never ? string[] : ExposeAllServicePaths<Store>[]
 }
 
-export type ExposeUiPaths<Store> = Array<{
-  /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
-  path: ExposeAllUiPaths<Store>
-  /** A human readable title for the value */
-  title: string
-  /** A human readable description or explanation of the value */
-  description?: string
-  /** (string/number only) Whether or not to mask the value, for example, when displaying a password */
-  masked: boolean
-  /** (string/number only) Whether or not to include a button for copying the value to clipboard */
-  copyable?: boolean
-  /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
-  qr?: boolean
-}>
-
-type tset = keyof Effects
+export type ExposeUiPaths<Store> =
+  | {
+      type: "object"
+      value: { [k: string]: ExposeUiPaths<Store> }
+    }
+  | {
+      type: "string"
+      /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
+      path: ExposeAllUiPaths<Store>
+      /** A human readable description or explanation of the value */
+      description?: string
+      /** (string/number only) Whether or not to mask the value, for example, when displaying a password */
+      masked: boolean
+      /** (string/number only) Whether or not to include a button for copying the value to clipboard */
+      copyable?: boolean
+      /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
+      qr?: boolean
+    }
+export type ExposeUiPathsAll =
+  | {
+      type: "object"
+      value: { [k: string]: ExposeUiPathsAll }
+    }
+  | {
+      type: "string"
+      /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
+      path: string
+      /** A human readable description or explanation of the value */
+      description: string | null
+      /** (string/number only) Whether or not to mask the value, for example, when displaying a password */
+      masked: boolean
+      /** (string/number only) Whether or not to include a button for copying the value to clipboard */
+      copyable: boolean | null
+      /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
+      qr: boolean | null
+    }
 
 /** Used to reach out from the pure js runtime */
 export type Effects = {
@@ -375,16 +395,7 @@ export type Effects = {
 
   exposeForDependents(options: { paths: string[] }): Promise<void>
 
-  exposeUi<Store = never>(options: {
-    paths: {
-      path: string
-      title: string | null
-      description: string | null
-      masked: boolean | null
-      copyable: boolean | null
-      qr: boolean | null
-    }[]
-  }): Promise<void>
+  exposeUi(options: ExposeUiPathsAll): Promise<void>
   /**
    * There are times that we want to see the addresses that where exported
    * @param options.addressId If we want to filter the address id
