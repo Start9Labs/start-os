@@ -9,7 +9,7 @@ use clap::builder::ValueParserFactory;
 use clap::Parser;
 use imbl::OrdMap;
 use imbl_value::{json, InternedString};
-use models::{ActionId, HealthCheckId, ImageId, InvalidId, PackageId};
+use models::{ActionId, HealthCheckId, ImageId, PackageId, VolumeId};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
@@ -315,8 +315,9 @@ struct ReverseProxyParams {
 struct MountTarget {
     #[ts(type = "string")]
     package_id: PackageId,
-    volume_id: String,
-    subpath: Option<String>,
+    #[ts(type = "string")]
+    volume_id: VolumeId,
+    subpath: Option<PathBuf>,
     readonly: bool,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
