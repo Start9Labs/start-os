@@ -184,11 +184,48 @@ struct GetServicePortForwardParams {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
+struct BindOptionsSecure {
+    ssl: bool,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct BindOptions {
+    scheme: Option<String>,
+    preferred_external_port: u32,
+    add_ssl: Option<AddSslOptions>,
+    secure: Option<BindOptionsSecure>,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct AddressInfo {
+    username: Option<String>,
+    host_id: String,
+    bind_options: BindOptions,
+    suffix: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+enum ServiceInterfaceType {
+    Ui,
+    P2p,
+    Api,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
 struct ExportServiceInterfaceParams {
-    #[ts(type = "string | null")]
-    package_id: Option<PackageId>,
-    service_interface_id: String,
-    callback: Callback,
+    id: String,
+    name: String,
+    description: String,
+    has_primary: bool,
+    disabled: bool,
+    masked: bool,
+    address_info: AddressInfo,
+    r#type: ServiceInterfaceType,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
@@ -277,8 +314,8 @@ struct ReverseProxyParams {
 #[serde(rename_all = "camelCase")]
 struct MountTarget {
     #[ts(type = "string")]
-    packageId: PackageId,
-    volumeId: String,
+    package_id: PackageId,
+    volume_id: String,
     path: String,
     readonly: bool,
 }
@@ -399,8 +436,7 @@ struct BindParams {
     scheme: String,
     preferred_external_port: u32,
     add_ssl: Option<AddSslOptions>,
-    secure: bool,
-    ssl: bool,
+    secure: Option<BindOptionsSecure>,
 }
 async fn bind(_: AnyContext, BindParams { .. }: BindParams) -> Result<Value, Error> {
     todo!()

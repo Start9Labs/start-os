@@ -302,8 +302,7 @@ export type Effects = {
     scheme: Scheme
     preferredExternalPort: number
     addSsl: AddSslOptions | null
-    secure: boolean
-    ssl: boolean
+    secure: { ssl: boolean } | null
   }): Promise<void>
   /** Retrieves the current hostname(s) associated with a host id */
   // getHostInfo(options: {
@@ -491,9 +490,7 @@ export type Effects = {
     }
     http: {
       // optional, will do TCP layer proxy only if not present
-      headers:
-        | ((headers: Record<string, string>) => Record<string, string>)
-        | null
+      headers: Record<string, string> | null
     } | null
   }): Promise<{ stop(): Promise<void> }>
   restart(): void

@@ -10,6 +10,8 @@ describe("host", () => {
       const fooOrigin = await foo.bindPort(80, {
         protocol: "http" as const,
         scheme: null,
+        addSsl: null,
+        preferredExternalPort: null,
       })
       const fooInterface = new ServiceInterfaceBuilder({
         effects,
