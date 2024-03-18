@@ -15,16 +15,6 @@ import {
 } from "../types"
 import { GetSystemSmtp } from "./GetSystemSmtp"
 import { GetStore, getStore } from "../store/getStore"
-import {
-  MountDependenciesOut,
-  mountDependencies,
-} from "../dependency/mountDependencies"
-import {
-  ManifestId,
-  VolumeName,
-  NamedPath,
-  Path,
-} from "../dependency/setupDependencyMounts"
 import { MultiHost, Scheme, SingleHost, StaticHost } from "../interfaces/Host"
 import { ServiceInterfaceBuilder } from "../interfaces/ServiceInterfaceBuilder"
 import { GetServiceInterface, getServiceInterface } from "./getServiceInterface"
@@ -93,15 +83,6 @@ export type Utils<
     single: (id: string) => SingleHost
     multi: (id: string) => MultiHost
   }
-  mountDependencies: <
-    In extends
-      | Record<ManifestId, Record<VolumeName, Record<NamedPath, Path>>>
-      | Record<VolumeName, Record<NamedPath, Path>>
-      | Record<NamedPath, Path>
-      | Path,
-  >(
-    value: In,
-  ) => Promise<MountDependenciesOut<In>>
   serviceInterface: {
     getOwn: (id: ServiceInterfaceId) => GetServiceInterface & WrapperOverWrite
     get: (opts: {
@@ -306,16 +287,6 @@ export const createUtils = <
     },
     checkPortListening: checkPortListening.bind(null, effects),
     checkWebUrl: checkWebUrl.bind(null, effects),
-
-    mountDependencies: <
-      In extends
-        | Record<ManifestId, Record<VolumeName, Record<NamedPath, Path>>>
-        | Record<VolumeName, Record<NamedPath, Path>>
-        | Record<NamedPath, Path>
-        | Path,
-    >(
-      value: In,
-    ) => mountDependencies(effects, value),
   }
 }
 function noop(): void {}

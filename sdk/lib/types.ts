@@ -500,7 +500,7 @@ export type Effects = {
     target: {
       packageId: string
       volumeId: string
-      path: string
+      subpath: string | null
       readonly: boolean
     }
   }): Promise<string>

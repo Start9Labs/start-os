@@ -7,6 +7,7 @@ import { defaultTrigger } from "../trigger/defaultTrigger"
 import { DaemonReturned, Effects, ValidIfNoStupidEscape } from "../types"
 import { createUtils } from "../util"
 import { Signals } from "../util/utils"
+import { Mounts } from "./Mounts"
 type Daemon<
   Manifest extends SDKManifest,
   Ids extends string,
@@ -16,6 +17,7 @@ type Daemon<
   id: "" extends Id ? never : Id
   command: ValidIfNoStupidEscape<Command> | [string, ...string[]]
   imageId: Manifest["images"][number]
+  mounts: Mounts<Manifest>
   env?: Record<string, string>
   ready: {
     display: string | null
@@ -106,7 +108,10 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
         const { command, imageId } = daemon
         const utils = createUtils<Manifest>(effects)
 
-        const child = utils.runDaemon(imageId, command, { env: daemon.env })
+        const child = utils.runDaemon(imageId, command, {
+          env: daemon.env,
+          mounts: daemon.mounts.build(),
+        })
         let currentInput: TriggerInput = {}
         const getCurrentInput = () => currentInput
         const trigger = (daemon.ready.trigger ?? defaultTrigger)(

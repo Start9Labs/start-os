@@ -46,7 +46,6 @@ import { setupMain } from "./mainFn"
 import { defaultTrigger } from "./trigger/defaultTrigger"
 import { changeOnFirstSuccess, cooldownTrigger } from "./trigger"
 import setupConfig, { Read, Save } from "./config/setupConfig"
-import { setupDependencyMounts } from "./dependency/setupDependencyMounts"
 import {
   InterfacesReceipt,
   SetInterfaces,
@@ -170,7 +169,6 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         },
       ) => setupDependencyConfig<Store, Input, Manifest>(config, autoConfigs),
       setupExports: (fn: SetupExports<Store>) => fn,
-      setupDependencyMounts,
       setupInit: (
         migrations: Migrations<Manifest, Store>,
         install: Install<Manifest, Store>,
