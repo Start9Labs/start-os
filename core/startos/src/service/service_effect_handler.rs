@@ -316,7 +316,7 @@ struct MountTarget {
     #[ts(type = "string")]
     package_id: PackageId,
     volume_id: String,
-    path: String,
+    subpath: Option<String>,
     readonly: bool,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
