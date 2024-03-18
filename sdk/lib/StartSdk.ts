@@ -71,6 +71,7 @@ import { getServiceInterfaces } from "./util/getServiceInterfaces"
 import { getStore } from "./store/getStore"
 import { CommandOptions, MountOptions, Overlay } from "./util/Overlay"
 import { splitCommand } from "./util/splitCommand"
+import { Mounts } from "./mainFn/Mounts"
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
@@ -239,6 +240,11 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         )
       },
 
+      Mounts: {
+        of() {
+          return Mounts.of<Manifest>()
+        },
+      },
       HealthCheck: {
         of: healthCheck,
       },
