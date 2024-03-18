@@ -43,11 +43,13 @@ import { MimeTypePipeModule } from '../../../pipes/mime-type.pipe'
         display: flex;
         justify-content: center;
         margin-top: 2.5rem;
+        z-index: 0;
+
         @media (min-width: 768px) {
           margin-top: 0px;
         }
-        z-index: 0;
       }
+
       .inner-container {
         display: flex;
         flex-direction: column;
@@ -76,43 +78,11 @@ import { MimeTypePipeModule } from '../../../pipes/mime-type.pipe'
           z-index: 10;
         }
 
-        .color-background {
-          overflow: hidden;
-          position: absolute;
-          width: 100%;
-          height: 100%;
-          top: 0px;
-          left: 0px;
-          z-index: -50;
-          border-radius: 1.5rem;
-          background-color: rgb(39 39 42);
-
-          img {
-            position: absolute;
-            object-fit: cover;
-            pointer-events: none;
-            width: 200%;
-            height: 200%;
-            max-width: 200%;
-            filter: blur(100px) saturate(1.5);
-          }
-        }
-        .dark-overlay {
-          overflow: hidden;
-          position: absolute;
-          width: 100%;
-          height: 100%;
-          top: 0px;
-          left: 0px;
-          border-radius: 1.5rem;
-          background-color: rgb(63 63 70);
-          opacity: 0.7;
-        }
-
-        &-title {
+        .inner-container-title {
           margin: 1rem 0;
           color: rgb(250 250 250);
           mix-blend-mode: plus-lighter;
+          z-index: 50;
 
           h2 {
             font-size: 1.5rem;
@@ -134,6 +104,40 @@ import { MimeTypePipeModule } from '../../../pipes/mime-type.pipe'
             -webkit-box-orient: vertical;
             -webkit-line-clamp: 2;
           }
+        }
+
+        .color-background {
+          overflow: hidden;
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          top: 0px;
+          left: 0px;
+          z-index: -50;
+          border-radius: 1.5rem;
+          background-color: rgb(39 39 42);
+
+          img {
+            position: absolute;
+            object-fit: cover;
+            pointer-events: none;
+            width: 200%;
+            height: 200%;
+            max-width: 200%;
+            filter: blur(100px) saturate(1.5);
+          }
+        }
+
+        .dark-overlay {
+          overflow: hidden;
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          top: 0px;
+          left: 0px;
+          border-radius: 1.5rem;
+          background-color: rgb(63 63 70);
+          opacity: 0.7;
         }
       }
     `,

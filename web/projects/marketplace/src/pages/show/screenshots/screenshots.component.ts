@@ -110,7 +110,7 @@ import { PolymorpheusContent } from '@tinkoff/ng-polymorpheus'
           border-radius: 0.75rem;
         }
 
-        &-img {
+        .screenshot-item-img {
           width: 100%;
           height: 100%;
           border-radius: 0.5rem;
@@ -119,7 +119,7 @@ import { PolymorpheusContent } from '@tinkoff/ng-polymorpheus'
             border-radius: 0.75rem;
           }
 
-          &-enlarged {
+          .screenshot-item-img-enlarged {
             border-radius: 0px;
           }
         }
