@@ -1,4 +1,5 @@
 import { SmtpValue } from "../types"
+import { GetSystemSmtp } from "../util/GetSystemSmtp"
 import { email } from "../util/patterns"
 import { Config, ConfigSpecOf } from "./builder/config"
 import { Value } from "./builder/value"
@@ -47,8 +48,8 @@ export const customSmtp = Config.of<ConfigSpecOf<SmtpValue>, never>({
  * For service config. Gives users 3 options for SMTP: (1) disabled, (2) use system SMTP settings, (3) use custom SMTP settings
  */
 export const smtpConfig = Value.filteredUnion(
-  async ({ effects, utils }) => {
-    const smtp = await utils.getSystemSmtp().once()
+  async ({ effects }) => {
+    const smtp = await new GetSystemSmtp(effects).once()
     return smtp ? [] : ["system"]
   },
   {

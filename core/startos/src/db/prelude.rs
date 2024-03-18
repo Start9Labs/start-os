@@ -124,6 +124,12 @@ impl<T: Serialize + DeserializeOwned> Model<T> {
         self.ser(&orig)?;
         Ok(res)
     }
+    pub fn map_mutate(&mut self, f: impl FnOnce(T) -> Result<T, Error>) -> Result<T, Error> {
+        let mut orig = self.de()?;
+        let res = f(orig)?;
+        self.ser(&res)?;
+        Ok(res)
+    }
 }
 impl<T> Clone for Model<T> {
     fn clone(&self) -> Self {

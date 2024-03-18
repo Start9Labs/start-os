@@ -1,11 +1,11 @@
 export * as configTypes from "./config/configTypes"
 import { AddSslOptions } from "../../core/startos/bindings/AddSslOptions"
+import { MainEffects, ServiceInterfaceType, Signals } from "./StartSdk"
 import { InputSpec } from "./config/configTypes"
 import { DependenciesReceipt } from "./config/setupConfig"
 import { BindOptions, Scheme } from "./interfaces/Host"
 import { Daemons } from "./mainFn/Daemons"
 import { UrlString } from "./util/getServiceInterface"
-import { ServiceInterfaceType, Signals } from "./util/utils"
 
 export type ExportedAction = (options: {
   effects: Effects
@@ -59,7 +59,7 @@ export namespace ExpectedExports {
    * package represents, like running a bitcoind in a bitcoind-wrapper.
    */
   export type main = (options: {
-    effects: Effects
+    effects: MainEffects
     started(onTerm: () => PromiseLike<void>): PromiseLike<void>
   }) => Promise<Daemons<any, any>>
 
@@ -167,7 +167,7 @@ export type ActionMetadata = {
   /**
    * So the ordering of the actions is by alphabetical order of the group, then followed by the alphabetical of the actions
    */
-  group?: string
+  group: string | null
 }
 export declare const hostName: unique symbol
 // asdflkjadsf.onion | 1.2.3.4
@@ -261,24 +261,47 @@ export type ExposeServicePaths<Store = never> = {
   paths: Store extends never ? string[] : ExposeAllServicePaths<Store>[]
 }
 
-export type ExposeUiPaths<Store> = Array<{
-  /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
-  path: ExposeAllUiPaths<Store>
-  /** A human readable title for the value */
-  title: string
-  /** A human readable description or explanation of the value */
-  description?: string
-  /** (string/number only) Whether or not to mask the value, for example, when displaying a password */
-  masked?: boolean
-  /** (string/number only) Whether or not to include a button for copying the value to clipboard */
-  copyable?: boolean
-  /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
-  qr?: boolean
-}>
+export type ExposeUiPaths<Store> =
+  | {
+      type: "object"
+      value: { [k: string]: ExposeUiPaths<Store> }
+    }
+  | {
+      type: "string"
+      /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
+      path: ExposeAllUiPaths<Store>
+      /** A human readable description or explanation of the value */
+      description?: string
+      /** (string/number only) Whether or not to mask the value, for example, when displaying a password */
+      masked: boolean
+      /** (string/number only) Whether or not to include a button for copying the value to clipboard */
+      copyable?: boolean
+      /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
+      qr?: boolean
+    }
+export type ExposeUiPathsAll =
+  | {
+      type: "object"
+      value: { [k: string]: ExposeUiPathsAll }
+    }
+  | {
+      type: "string"
+      /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
+      path: string
+      /** A human readable description or explanation of the value */
+      description: string | null
+      /** (string/number only) Whether or not to mask the value, for example, when displaying a password */
+      masked: boolean
+      /** (string/number only) Whether or not to include a button for copying the value to clipboard */
+      copyable: boolean | null
+      /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
+      qr: boolean | null
+    }
+
 /** Used to reach out from the pure js runtime */
 export type Effects = {
   executeAction<Input>(opts: {
-    serviceId?: string
+    serviceId: string | null
     input: Input
   }): Promise<unknown>
 
@@ -286,10 +309,7 @@ export type Effects = {
   createOverlayedImage(options: { imageId: string }): Promise<[string, string]>
 
   /** A low level api used by destroyOverlay + makeOverlay:destroy */
-  destroyOverlayedImage(options: {
-    imageId: string
-    guid: string
-  }): Promise<void>
+  destroyOverlayedImage(options: { guid: string }): Promise<void>
 
   /** Removes all network bindings */
   clearBindings(): Promise<void>
@@ -302,8 +322,7 @@ export type Effects = {
     scheme: Scheme
     preferredExternalPort: number
     addSsl: AddSslOptions | null
-    secure: boolean
-    ssl: boolean
+    secure: { ssl: boolean } | null
   }): Promise<void>
   /** Retrieves the current hostname(s) associated with a host id */
   // getHostInfo(options: {
@@ -362,10 +381,10 @@ export type Effects = {
   /**
    * Get the port address for another service
    */
-  getServicePortForward(
-    internalPort: number,
-    packageId?: string,
-  ): Promise<number>
+  getServicePortForward(options: {
+    internalPort: number
+    packageId: string | null
+  }): Promise<number>
 
   /** Removes all network interfaces */
   clearServiceInterfaces(): Promise<void>
@@ -376,16 +395,7 @@ export type Effects = {
 
   exposeForDependents(options: { paths: string[] }): Promise<void>
 
-  exposeUi<Store = never>(options: {
-    paths: {
-      path: string
-      title: string
-      description?: string | undefined
-      masked?: boolean | undefined
-      copyable?: boolean | undefined
-      qr?: boolean | undefined
-    }[]
-  }): Promise<void>
+  exposeUi(options: ExposeUiPathsAll): Promise<void>
   /**
    * There are times that we want to see the addresses that where exported
    * @param options.addressId If we want to filter the address id
@@ -467,7 +477,9 @@ export type Effects = {
   }): Promise<void>
 
   /** Set the dependencies of what the service needs, usually ran during the set config as a best practice */
-  setDependencies(dependencies: Dependencies): Promise<DependenciesReceipt>
+  setDependencies(options: {
+    dependencies: Dependencies
+  }): Promise<DependenciesReceipt>
   /** Exists could be useful during the runtime to know if some service exists, option dep */
   exists(options: { packageId: PackageId }): Promise<boolean>
   /** Exists could be useful during the runtime to know if some service is running, option dep */
@@ -477,20 +489,20 @@ export type Effects = {
   reverseProxy(options: {
     bind: {
       /** Optional, default is 0.0.0.0 */
-      ip?: string
+      ip: string | null
       port: number
       ssl: boolean
     }
     dst: {
       /** Optional: default is 127.0.0.1 */
-      ip?: string // optional, default 127.0.0.1
+      ip: string | null // optional, default 127.0.0.1
       port: number
       ssl: boolean
     }
-    http?: {
+    http: {
       // optional, will do TCP layer proxy only if not present
-      headers?: (headers: Record<string, string>) => Record<string, string>
-    }
+      headers: Record<string, string> | null
+    } | null
   }): Promise<{ stop(): Promise<void> }>
   restart(): void
   shutdown(): void
@@ -585,7 +597,7 @@ export type KnownError =
 export type Dependency = {
   id: PackageId
   kind: DependencyKind
-}
+} & ({ kind: "exists" } | { kind: "running"; healthChecks: string[] })
 export type Dependencies = Array<Dependency>
 
 export type DeepPartial<T> = T extends {}

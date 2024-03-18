@@ -1,7 +1,12 @@
 import { Effects } from "../../types"
-import { createUtils } from "../../util"
 import { stringFromStdErrOut } from "../../util/stringFromStdErrOut"
 import { CheckResult } from "./CheckResult"
+
+import { promisify } from "node:util"
+import * as CP from "node:child_process"
+
+const cpExec = promisify(CP.exec)
+const cpExecFile = promisify(CP.execFile)
 export function containsAddress(x: string, port: number) {
   const readPorts = x
     .split("\n")
@@ -28,20 +33,15 @@ export async function checkPortListening(
     timeout?: number
   },
 ): Promise<CheckResult> {
-  const utils = createUtils(effects)
   return Promise.race<CheckResult>([
     Promise.resolve().then(async () => {
       const hasAddress =
         containsAddress(
-          await utils.childProcess
-            .exec(`cat /proc/net/tcp`, {})
-            .then(stringFromStdErrOut),
+          await cpExec(`cat /proc/net/tcp`, {}).then(stringFromStdErrOut),
           port,
         ) ||
         containsAddress(
-          await utils.childProcess
-            .exec("cat /proc/net/udp", {})
-            .then(stringFromStdErrOut),
+          await cpExec("cat /proc/net/udp", {}).then(stringFromStdErrOut),
           port,
         )
       if (hasAddress) {

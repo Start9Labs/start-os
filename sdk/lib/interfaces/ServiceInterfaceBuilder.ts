@@ -1,5 +1,5 @@
+import { ServiceInterfaceType } from "../StartSdk"
 import { Effects } from "../types"
-import { ServiceInterfaceType } from "../util/utils"
 import { Scheme } from "./Host"
 
 /**

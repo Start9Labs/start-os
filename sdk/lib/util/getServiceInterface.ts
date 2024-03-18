@@ -1,3 +1,4 @@
+import { ServiceInterfaceType } from "../StartSdk"
 import {
   AddressInfo,
   Effects,
@@ -5,7 +6,6 @@ import {
   Hostname,
   HostnameInfo,
 } from "../types"
-import { ServiceInterfaceType } from "./utils"
 
 export type UrlString = string
 export type HostId = string

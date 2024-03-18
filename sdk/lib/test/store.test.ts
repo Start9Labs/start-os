@@ -1,6 +1,5 @@
+import { MainEffects, StartSdk } from "../StartSdk"
 import { Effects } from "../types"
-import { createMainUtils } from "../util"
-import { createUtils } from "../util/utils"
 
 type Store = {
   config: {
@@ -12,26 +11,31 @@ const todo = <A>(): A => {
   throw new Error("not implemented")
 }
 const noop = () => {}
+
+const sdk = StartSdk.of()
+  .withManifest({} as Manifest)
+  .withStore<Store>()
+  .build(true)
+
 describe("Store", () => {
   test("types", async () => {
     ;async () => {
-      createUtils<Manifest, Store>(todo<Effects>()).store.setOwn("/config", {
+      sdk.store.setOwn(todo<Effects>(), "/config", {
         someValue: "a",
       })
-      createUtils<Manifest, Store>(todo<Effects>()).store.setOwn(
-        "/config/someValue",
-        "b",
-      )
-      createUtils<Manifest, Store>(todo<Effects>()).store.setOwn("", {
+      sdk.store.setOwn(todo<Effects>(), "/config/someValue", "b")
+      sdk.store.setOwn(todo<Effects>(), "", {
         config: { someValue: "b" },
       })
-      createUtils<Manifest, Store>(todo<Effects>()).store.setOwn(
+      sdk.store.setOwn(
+        todo<Effects>(),
         "/config/someValue",
 
         // @ts-expect-error Type is wrong for the setting value
         5,
       )
-      createUtils(todo<Effects>()).store.setOwn(
+      sdk.store.setOwn(
+        todo<Effects>(),
         // @ts-expect-error Path is wrong
         "/config/someVae3lue",
         "someValue",
@@ -52,49 +56,47 @@ describe("Store", () => {
         path: "/config/some2Value",
         value: "a",
       })
-      ;(await createMainUtils<Manifest, Store>(todo<Effects>())
-        .store.getOwn("/config/someValue")
+      ;(await sdk.store
+        .getOwn(todo<MainEffects>(), "/config/someValue")
         .const()) satisfies string
-      ;(await createMainUtils<Manifest, Store>(todo<Effects>())
-        .store.getOwn("/config")
+      ;(await sdk.store
+        .getOwn(todo<MainEffects>(), "/config")
         .const()) satisfies Store["config"]
-      await createMainUtils(todo<Effects>())
-        // @ts-expect-error Path is wrong
-        .store.getOwn("/config/somdsfeValue")
+      await sdk.store // @ts-expect-error Path is wrong
+        .getOwn(todo<MainEffects>(), "/config/somdsfeValue")
         .const()
       ///  ----------------- ERRORS -----------------
 
-      createUtils<Manifest, Store>(todo<Effects>()).store.setOwn("", {
+      sdk.store.setOwn(todo<MainEffects>(), "", {
         // @ts-expect-error Type is wrong for the setting value
         config: { someValue: "notInAOrB" },
       })
-      createUtils<Manifest, Store>(todo<Effects>()).store.setOwn(
+      sdk.store.setOwn(
+        todo<MainEffects>(),
         "/config/someValue",
         // @ts-expect-error Type is wrong for the setting value
         "notInAOrB",
       )
-      ;(await createUtils<Manifest, Store>(todo<Effects>())
-        .store.getOwn("/config/someValue")
+      ;(await sdk.store
+        .getOwn(todo<Effects>(), "/config/someValue")
         // @ts-expect-error Const should normally not be callable
         .const()) satisfies string
-      ;(await createUtils<Manifest, Store>(todo<Effects>())
-        .store.getOwn("/config")
+      ;(await sdk.store
+        .getOwn(todo<Effects>(), "/config")
         // @ts-expect-error Const should normally not be callable
         .const()) satisfies Store["config"]
-      await createUtils<Manifest, Store>(todo<Effects>())
-        // @ts-expect-error Path is wrong
-        .store.getOwn("/config/somdsfeValue")
+      await sdk.store // @ts-expect-error Path is wrong
+        .getOwn("/config/somdsfeValue")
         // @ts-expect-error Const should normally not be callable
         .const()
 
       ///
-      ;(await createUtils<Manifest, Store>(todo<Effects>())
-        .store.getOwn("/config/someValue")
+      ;(await sdk.store
+        .getOwn(todo<MainEffects>(), "/config/someValue")
         // @ts-expect-error satisfies type is wrong
         .const()) satisfies number
-      ;(await createMainUtils(todo<Effects>())
-        // @ts-expect-error Path is wrong
-        .store.getOwn("/config/")
+      ;(await sdk.store // @ts-expect-error Path is wrong
+        .getOwn(todo<MainEffects>(), "/config/")
         .const()) satisfies Store["config"]
       ;(await todo<Effects>().store.get<Store, "/config/someValue">({
         path: "/config/someValue",

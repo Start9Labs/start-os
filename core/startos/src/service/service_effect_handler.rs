@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::ffi::OsString;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
@@ -6,14 +7,16 @@ use std::sync::{Arc, Weak};
 
 use clap::builder::ValueParserFactory;
 use clap::Parser;
+use imbl::OrdMap;
 use imbl_value::{json, InternedString};
-use models::{ActionId, HealthCheckId, ImageId, PackageId};
+use models::{ActionId, HealthCheckId, ImageId, InvalidId, PackageId};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
 
-use crate::db::model::ExposedUI;
+use crate::db::model::package::{CurrentDependencies, CurrentDependencyInfo, ExposedUI};
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
@@ -131,27 +134,248 @@ pub fn service_effect_handler() -> ParentHandler {
         .subcommand("clearBindings", from_fn_async(clear_bindings).no_cli())
         .subcommand("bind", from_fn_async(bind).no_cli())
         .subcommand("getHostInfo", from_fn_async(get_host_info).no_cli())
-    // TODO @DrBonez when we get the new api for 4.0
-    // .subcommand("setDependencies",from_fn_async(set_dependencies).no_cli())
-    // .subcommand("embassyGetInterface",from_fn_async(embassy_get_interface).no_cli())
-    // .subcommand("mount",from_fn_async(mount).no_cli())
-    // .subcommand("removeAction",from_fn_async(remove_action).no_cli())
-    // .subcommand("removeAddress",from_fn_async(remove_address).no_cli())
-    // .subcommand("exportAction",from_fn_async(export_action).no_cli())
-    // .subcommand("clearServiceInterfaces",from_fn_async(clear_network_interfaces).no_cli())
-    // .subcommand("exportServiceInterface",from_fn_async(export_network_interface).no_cli())
-    // .subcommand("getHostnames",from_fn_async(get_hostnames).no_cli())
-    // .subcommand("getInterface",from_fn_async(get_interface).no_cli())
-    // .subcommand("listInterface",from_fn_async(list_interface).no_cli())
-    // .subcommand("getIPHostname",from_fn_async(get_ip_hostname).no_cli())
-    // .subcommand("getContainerIp",from_fn_async(get_container_ip).no_cli())
-    // .subcommand("getLocalHostname",from_fn_async(get_local_hostname).no_cli())
-    // .subcommand("getPrimaryUrl",from_fn_async(get_primary_url).no_cli())
-    // .subcommand("getServicePortForward",from_fn_async(get_service_port_forward).no_cli())
-    // .subcommand("getServiceTorHostname",from_fn_async(get_service_tor_hostname).no_cli())
-    // .subcommand("getSystemSmtp",from_fn_async(get_system_smtp).no_cli())
-    // .subcommand("reverseProxy",from_fn_async(reverse_proxy).no_cli())
+        .subcommand(
+            "setDependencies",
+            from_fn_async(set_dependencies)
+                .no_display()
+                .with_remote_cli::<ContainerCliContext>(),
+        )
+        .subcommand("getSystemSmtp", from_fn_async(get_system_smtp).no_cli())
+        .subcommand("getContainerIp", from_fn_async(get_container_ip).no_cli())
+        .subcommand(
+            "getServicePortForward",
+            from_fn_async(get_service_port_forward).no_cli(),
+        )
+        .subcommand(
+            "clearServiceInterfaces",
+            from_fn_async(clear_network_interfaces).no_cli(),
+        )
+        .subcommand(
+            "exportServiceInterface",
+            from_fn_async(export_service_interface).no_cli(),
+        )
+        .subcommand("getPrimaryUrl", from_fn_async(get_primary_url).no_cli())
+        .subcommand(
+            "listServiceInterfaces",
+            from_fn_async(list_service_interfaces).no_cli(),
+        )
+        .subcommand("removeAddress", from_fn_async(remove_address).no_cli())
+        .subcommand("exportAction", from_fn_async(export_action).no_cli())
+        .subcommand("removeAction", from_fn_async(remove_action).no_cli())
+        .subcommand("reverseProxy", from_fn_async(reverse_proxy).no_cli())
+        .subcommand("mount", from_fn_async(mount).no_cli())
     // TODO Callbacks
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct GetSystemSmtpParams {
+    callback: Callback,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct GetServicePortForwardParams {
+    #[ts(type = "string | null")]
+    package_id: Option<PackageId>,
+    internal_port: u32,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct BindOptionsSecure {
+    ssl: bool,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct BindOptions {
+    scheme: Option<String>,
+    preferred_external_port: u32,
+    add_ssl: Option<AddSslOptions>,
+    secure: Option<BindOptionsSecure>,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct AddressInfo {
+    username: Option<String>,
+    host_id: String,
+    bind_options: BindOptions,
+    suffix: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+enum ServiceInterfaceType {
+    Ui,
+    P2p,
+    Api,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct ExportServiceInterfaceParams {
+    id: String,
+    name: String,
+    description: String,
+    has_primary: bool,
+    disabled: bool,
+    masked: bool,
+    address_info: AddressInfo,
+    r#type: ServiceInterfaceType,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct GetPrimaryUrlParams {
+    #[ts(type = "string | null")]
+    package_id: Option<PackageId>,
+    service_interface_id: String,
+    callback: Callback,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct ListServiceInterfacesParams {
+    #[ts(type = "string | null")]
+    package_id: Option<PackageId>,
+    callback: Callback,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct RemoveAddressParams {
+    id: String,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "kebab-case")]
+enum AllowedStatuses {
+    OnlyRunning,
+    OnlyStopped,
+    Any,
+    Disabled,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct ExportActionParams {
+    name: String,
+    description: String,
+    id: String,
+    #[ts(type = "{[key: string]: any}")]
+    input: Value,
+    allowed_statuses: AllowedStatuses,
+    group: Option<String>,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct RemoveActionParams {
+    id: String,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct ReverseProxyBind {
+    ip: Option<String>,
+    port: u32,
+    ssl: bool,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct ReverseProxyDestination {
+    ip: Option<String>,
+    port: u32,
+    ssl: bool,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct ReverseProxyHttp {
+    #[ts(type = "null | {[key: string]: string}")]
+    headers: Option<OrdMap<String, String>>,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct ReverseProxyParams {
+    bind: ReverseProxyBind,
+    dst: ReverseProxyDestination,
+    http: ReverseProxyHttp,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct MountTarget {
+    #[ts(type = "string")]
+    package_id: PackageId,
+    volume_id: String,
+    path: String,
+    readonly: bool,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct MountParams {
+    location: String,
+    target: MountTarget,
+}
+async fn get_system_smtp(
+    context: EffectContext,
+    data: GetSystemSmtpParams,
+) -> Result<Value, Error> {
+    todo!()
+}
+async fn get_container_ip(context: EffectContext, _: Empty) -> Result<Value, Error> {
+    todo!()
+}
+async fn get_service_port_forward(
+    context: EffectContext,
+    data: GetServicePortForwardParams,
+) -> Result<Value, Error> {
+    todo!()
+}
+async fn clear_network_interfaces(context: EffectContext, _: Empty) -> Result<Value, Error> {
+    todo!()
+}
+async fn export_service_interface(
+    context: EffectContext,
+    data: ExportServiceInterfaceParams,
+) -> Result<Value, Error> {
+    todo!()
+}
+async fn get_primary_url(
+    context: EffectContext,
+    data: GetPrimaryUrlParams,
+) -> Result<Value, Error> {
+    todo!()
+}
+async fn list_service_interfaces(
+    context: EffectContext,
+    data: ListServiceInterfacesParams,
+) -> Result<Value, Error> {
+    todo!()
+}
+async fn remove_address(context: EffectContext, data: RemoveAddressParams) -> Result<Value, Error> {
+    todo!()
+}
+async fn export_action(context: EffectContext, data: ExportActionParams) -> Result<Value, Error> {
+    todo!()
+}
+async fn remove_action(context: EffectContext, data: RemoveActionParams) -> Result<Value, Error> {
+    todo!()
+}
+async fn reverse_proxy(context: EffectContext, data: ReverseProxyParams) -> Result<Value, Error> {
+    todo!()
+}
+async fn mount(context: EffectContext, data: MountParams) -> Result<Value, Error> {
+    todo!()
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
@@ -170,7 +394,8 @@ enum GetHostInfoParamsKind {
 struct GetHostInfoParams {
     kind: Option<GetHostInfoParamsKind>,
     service_interface_id: String,
-    package_id: Option<String>,
+    #[ts(type = "string | null")]
+    package_id: Option<PackageId>,
     callback: Callback,
 }
 async fn get_host_info(
@@ -211,8 +436,7 @@ struct BindParams {
     scheme: String,
     preferred_external_port: u32,
     add_ssl: Option<AddSslOptions>,
-    secure: bool,
-    ssl: bool,
+    secure: Option<BindOptionsSecure>,
 }
 async fn bind(_: AnyContext, BindParams { .. }: BindParams) -> Result<Value, Error> {
     todo!()
@@ -222,6 +446,7 @@ async fn bind(_: AnyContext, BindParams { .. }: BindParams) -> Result<Value, Err
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 struct GetServiceInterfaceParams {
+    #[ts(type = "string | null")]
     package_id: Option<PackageId>,
     service_interface_id: String,
     callback: Callback,
@@ -375,6 +600,7 @@ async fn get_ssl_key(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 struct GetStoreParams {
+    #[ts(type = "string | null")]
     package_id: Option<PackageId>,
     #[ts(type = "string")]
     path: JsonPointer,
@@ -457,8 +683,6 @@ async fn expose_for_dependents(
                 .as_package_data_mut()
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
-                .as_installed_mut()
-                .or_not_found(&package_id)?
                 .as_store_exposed_dependents_mut()
                 .ser(&paths)
         })
@@ -467,37 +691,45 @@ async fn expose_for_dependents(
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[serde(tag = "type")]
 #[ts(export)]
-struct ExposeUiParams {
-    paths: Vec<ExposedUI>,
+enum ExposeUiParams {
+    Object {
+        #[ts(type = "{[key: string]: ExposeUiParams}")]
+        value: OrdMap<String, ExposeUiParams>,
+    },
+    String {
+        path: String,
+        description: Option<String>,
+        masked: bool,
+        copyable: Option<bool>,
+        qr: Option<bool>,
+    },
 }
 
-async fn expose_ui(
-    context: EffectContext,
-    ExposeUiParams { paths }: ExposeUiParams,
-) -> Result<(), Error> {
-    let context = context.deref()?;
-    let package_id = context.id.clone();
-    context
-        .ctx
-        .db
-        .mutate(|db| {
-            db.as_public_mut()
-                .as_package_data_mut()
-                .as_idx_mut(&package_id)
-                .or_not_found(&package_id)?
-                .as_installed_mut()
-                .or_not_found(&package_id)?
-                .as_store_exposed_ui_mut()
-                .ser(&paths)
-        })
-        .await?;
-    Ok(())
+async fn expose_ui(context: EffectContext, params: ExposeUiParams) -> Result<(), Error> {
+    todo!()
+    // let context = context.deref()?;
+    // let package_id = context.id.clone();
+    // context
+    //     .ctx
+    //     .db
+    //     .mutate(|db| {
+    //         db.as_public_mut()
+    //             .as_package_data_mut()
+    //             .as_idx_mut(&package_id)
+    //             .or_not_found(&package_id)?
+    //             .as_store_exposed_ui_mut()
+    //             .ser(&paths)
+    //     })
+    //     .await?;
+    // Ok(())
 }
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 struct ParamsPackageId {
+    #[ts(type = "string")]
     package_id: PackageId,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
@@ -505,6 +737,7 @@ struct ParamsPackageId {
 #[command(rename_all = "camelCase")]
 #[ts(export)]
 struct ParamsMaybePackageId {
+    #[ts(type = "string | null")]
     package_id: Option<PackageId>,
 }
 
@@ -523,7 +756,9 @@ async fn exists(context: EffectContext, params: ParamsPackageId) -> Result<Value
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 struct ExecuteAction {
+    #[ts(type = "string | null")]
     service_id: Option<PackageId>,
+    #[ts(type = "string")]
     action_id: ActionId,
     #[ts(type = "any")]
     input: Value,
@@ -560,8 +795,6 @@ async fn get_configured(context: EffectContext, _: Empty) -> Result<Value, Error
         .as_package_data()
         .as_idx(&package_id)
         .or_not_found(&package_id)?
-        .as_installed()
-        .or_not_found(&package_id)?
         .as_status()
         .as_configured()
         .de()?;
@@ -577,24 +810,20 @@ async fn stopped(context: EffectContext, params: ParamsMaybePackageId) -> Result
         .as_package_data()
         .as_idx(&package_id)
         .or_not_found(&package_id)?
-        .as_installed()
-        .or_not_found(&package_id)?
         .as_status()
         .as_main()
         .de()?;
     Ok(json!(matches!(package, MainStatus::Stopped)))
 }
-async fn running(context: EffectContext, params: ParamsMaybePackageId) -> Result<Value, Error> {
+async fn running(context: EffectContext, params: ParamsPackageId) -> Result<Value, Error> {
     dbg!("Starting the running {params:?}");
     let context = context.deref()?;
     let peeked = context.ctx.db.peek().await;
-    let package_id = params.package_id.unwrap_or_else(|| context.id.clone());
+    let package_id = params.package_id;
     let package = peeked
         .as_public()
         .as_package_data()
         .as_idx(&package_id)
-        .or_not_found(&package_id)?
-        .as_installed()
         .or_not_found(&package_id)?
         .as_status()
         .as_main()
@@ -645,8 +874,6 @@ async fn set_configured(context: EffectContext, params: SetConfigured) -> Result
             db.as_public_mut()
                 .as_package_data_mut()
                 .as_idx_mut(package_id)
-                .or_not_found(package_id)?
-                .as_installed_mut()
                 .or_not_found(package_id)?
                 .as_status_mut()
                 .as_configured_mut()
@@ -701,6 +928,7 @@ async fn set_main_status(context: EffectContext, params: SetMainStatus) -> Resul
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 struct SetHealth {
+    #[ts(type = "string")]
     name: HealthCheckId,
     status: HealthCheckString,
     message: Option<String>,
@@ -725,8 +953,6 @@ async fn set_health(
                 .as_public()
                 .as_package_data()
                 .as_idx(package_id)
-                .or_not_found(package_id)?
-                .as_installed()
                 .or_not_found(package_id)?
                 .as_status()
                 .as_main()
@@ -757,8 +983,6 @@ async fn set_health(
                 .as_package_data_mut()
                 .as_idx_mut(package_id)
                 .or_not_found(package_id)?
-                .as_installed_mut()
-                .or_not_found(package_id)?
                 .as_status_mut()
                 .as_main_mut()
                 .ser(&main)
@@ -771,7 +995,6 @@ async fn set_health(
 #[command(rename_all = "camelCase")]
 #[ts(export)]
 pub struct DestroyOverlayedImageParams {
-    image_id: ImageId,
     #[ts(type = "string")]
     guid: InternedString,
 }
@@ -779,7 +1002,7 @@ pub struct DestroyOverlayedImageParams {
 #[instrument(skip_all)]
 pub async fn destroy_overlayed_image(
     ctx: EffectContext,
-    DestroyOverlayedImageParams { image_id, guid }: DestroyOverlayedImageParams,
+    DestroyOverlayedImageParams { guid }: DestroyOverlayedImageParams,
 ) -> Result<(), Error> {
     let ctx = ctx.deref()?;
     if ctx
@@ -799,6 +1022,7 @@ pub async fn destroy_overlayed_image(
 #[command(rename_all = "camelCase")]
 #[ts(export)]
 pub struct CreateOverlayedImageParams {
+    #[ts(type = "string")]
     image_id: ImageId,
 }
 
@@ -863,4 +1087,128 @@ pub async fn create_overlayed_image(
             ErrorKind::NotFound,
         ))
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+enum DependencyKind {
+    Exists,
+    Running,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+struct DependencyRequirement {
+    #[ts(type = "string")]
+    id: PackageId,
+    kind: DependencyKind,
+    #[serde(default)]
+    #[ts(type = "string[]")]
+    health_checks: BTreeSet<HealthCheckId>,
+}
+// filebrowser:exists,bitcoind:running:foo+bar+baz
+impl FromStr for DependencyRequirement {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.split_once(':') {
+            Some((id, "e")) | Some((id, "exists")) => Ok(Self {
+                id: id.parse()?,
+                kind: DependencyKind::Exists,
+                health_checks: BTreeSet::new(),
+            }),
+            Some((id, rest)) => {
+                let health_checks = match rest.split_once(":") {
+                    Some(("r", rest)) | Some(("running", rest)) => rest
+                        .split('+')
+                        .map(|id| id.parse().map_err(Error::from))
+                        .collect(),
+                    Some((kind, _)) => Err(Error::new(
+                        eyre!("unknown dependency kind {kind}"),
+                        ErrorKind::InvalidRequest,
+                    )),
+                    None => match rest {
+                        "r" | "running" => Ok(BTreeSet::new()),
+                        kind => Err(Error::new(
+                            eyre!("unknown dependency kind {kind}"),
+                            ErrorKind::InvalidRequest,
+                        )),
+                    },
+                }?;
+                Ok(Self {
+                    id: id.parse()?,
+                    kind: DependencyKind::Running,
+                    health_checks,
+                })
+            }
+            None => Ok(Self {
+                id: s.parse()?,
+                kind: DependencyKind::Running,
+                health_checks: BTreeSet::new(),
+            }),
+        }
+    }
+}
+impl ValueParserFactory for DependencyRequirement {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
+    }
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "camelCase")]
+#[ts(export)]
+struct SetDependenciesParams {
+    dependencies: Vec<DependencyRequirement>,
+}
+
+async fn set_dependencies(
+    ctx: EffectContext,
+    SetDependenciesParams { dependencies }: SetDependenciesParams,
+) -> Result<(), Error> {
+    let ctx = ctx.deref()?;
+    let id = &ctx.id;
+    ctx.ctx
+        .db
+        .mutate(|db| {
+            let dependencies = CurrentDependencies(
+                dependencies
+                    .into_iter()
+                    .map(
+                        |DependencyRequirement {
+                             id,
+                             kind,
+                             health_checks,
+                         }| {
+                            (
+                                id,
+                                match kind {
+                                    DependencyKind::Exists => CurrentDependencyInfo::Exists,
+                                    DependencyKind::Running => {
+                                        CurrentDependencyInfo::Running { health_checks }
+                                    }
+                                },
+                            )
+                        },
+                    )
+                    .collect(),
+            );
+            for (dep, entry) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
+                if let Some(info) = dependencies.0.get(&dep) {
+                    entry.as_current_dependents_mut().insert(id, info)?;
+                } else {
+                    entry.as_current_dependents_mut().remove(id)?;
+                }
+            }
+            db.as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(id)
+                .or_not_found(id)?
+                .as_current_dependencies_mut()
+                .ser(&dependencies)
+        })
+        .await
 }

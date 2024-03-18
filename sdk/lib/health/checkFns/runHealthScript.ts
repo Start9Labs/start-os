@@ -1,5 +1,5 @@
-import { CommandType, Effects } from "../../types"
-import { createUtils } from "../../util"
+import { Effects } from "../../types"
+import { Overlay } from "../../util/Overlay"
 import { stringFromStdErrOut } from "../../util/stringFromStdErrOut"
 import { CheckResult } from "./CheckResult"
 import { timeoutPromise } from "./index"
@@ -13,7 +13,8 @@ import { timeoutPromise } from "./index"
  */
 export const runHealthScript = async (
   effects: Effects,
-  runCommand: string,
+  runCommand: string[],
+  overlay: Overlay,
   {
     timeout = 30000,
     errorMessage = `Error while running command: ${runCommand}`,
@@ -21,9 +22,8 @@ export const runHealthScript = async (
       `Have ran script ${runCommand} and the result: ${res}`,
   } = {},
 ): Promise<CheckResult> => {
-  const utils = createUtils(effects)
   const res = await Promise.race([
-    utils.childProcess.exec(runCommand, { timeout }).then(stringFromStdErrOut),
+    overlay.exec(runCommand),
     timeoutPromise(timeout),
   ]).catch((e) => {
     console.warn(errorMessage)
@@ -33,6 +33,6 @@ export const runHealthScript = async (
   })
   return {
     status: "passing",
-    message: message(res),
+    message: message(res.stdout.toString()),
   } as CheckResult
 }

@@ -64,7 +64,7 @@ export class Overlay {
   async destroy() {
     const imageId = this.imageId
     const guid = this.guid
-    await this.effects.destroyOverlayedImage({ imageId, guid })
+    await this.effects.destroyOverlayedImage({ guid })
   }
 
   async exec(

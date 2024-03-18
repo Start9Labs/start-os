@@ -1785,11 +1785,11 @@ export module Mock {
               scheme: 'http',
               preferredExternalPort: 80,
               addSsl: {
+                addXForwardedHeaders: false,
                 preferredExternalPort: 443,
                 scheme: 'https',
               },
-              secure: false,
-              ssl: false,
+              secure: null,
             },
             suffix: '',
           },
@@ -1797,14 +1797,6 @@ export module Mock {
             id: 'abcdefg',
             kind: 'multi',
             hostnames: [
-              {
-                kind: 'onion',
-                hostname: {
-                  value: 'bitcoin-ui-address.onion',
-                  port: 80,
-                  sslPort: 443,
-                },
-              },
               {
                 kind: 'ip',
                 networkInterfaceId: 'elan0',
@@ -1814,6 +1806,14 @@ export module Mock {
                   value: 'adjective-noun.local',
                   port: null,
                   sslPort: 1234,
+                },
+              },
+              {
+                kind: 'onion',
+                hostname: {
+                  value: 'bitcoin-ui-address.onion',
+                  port: 80,
+                  sslPort: 443,
                 },
               },
               {
@@ -1857,11 +1857,11 @@ export module Mock {
               scheme: 'http',
               preferredExternalPort: 80,
               addSsl: {
+                addXForwardedHeaders: false,
                 preferredExternalPort: 443,
                 scheme: 'https',
               },
-              secure: false,
-              ssl: false,
+              secure: null,
             },
             suffix: '',
           },
@@ -1869,14 +1869,6 @@ export module Mock {
             id: 'bcdefgh',
             kind: 'multi',
             hostnames: [
-              {
-                kind: 'onion',
-                hostname: {
-                  value: 'bitcoin-rpc-address.onion',
-                  port: 80,
-                  sslPort: 443,
-                },
-              },
               {
                 kind: 'ip',
                 networkInterfaceId: 'elan0',
@@ -1886,6 +1878,14 @@ export module Mock {
                   value: 'adjective-noun.local',
                   port: null,
                   sslPort: 2345,
+                },
+              },
+              {
+                kind: 'onion',
+                hostname: {
+                  value: 'bitcoin-rpc-address.onion',
+                  port: 80,
+                  sslPort: 443,
                 },
               },
               {
@@ -1929,8 +1929,7 @@ export module Mock {
               scheme: 'bitcoin',
               preferredExternalPort: 8333,
               addSsl: null,
-              secure: true,
-              ssl: false,
+              secure: { ssl: false },
             },
             suffix: '',
           },
@@ -1939,14 +1938,6 @@ export module Mock {
             kind: 'multi',
             hostnames: [
               {
-                kind: 'onion',
-                hostname: {
-                  value: 'bitcoin-p2p-address.onion',
-                  port: 8333,
-                  sslPort: null,
-                },
-              },
-              {
                 kind: 'ip',
                 networkInterfaceId: 'elan0',
                 public: false,
@@ -1954,6 +1945,14 @@ export module Mock {
                   kind: 'local',
                   value: 'adjective-noun.local',
                   port: 3456,
+                  sslPort: null,
+                },
+              },
+              {
+                kind: 'onion',
+                hostname: {
+                  value: 'bitcoin-p2p-address.onion',
+                  port: 8333,
                   sslPort: null,
                 },
               },
@@ -2032,11 +2031,11 @@ export module Mock {
               scheme: 'http',
               preferredExternalPort: 80,
               addSsl: {
+                addXForwardedHeaders: false,
                 preferredExternalPort: 443,
                 scheme: 'https',
               },
-              secure: true,
-              ssl: true,
+              secure: { ssl: true },
             },
             suffix: '',
           },
@@ -2044,14 +2043,6 @@ export module Mock {
             id: 'hijklmnop',
             kind: 'multi',
             hostnames: [
-              {
-                kind: 'onion',
-                hostname: {
-                  value: 'proxy-ui-address.onion',
-                  port: 80,
-                  sslPort: 443,
-                },
-              },
               {
                 kind: 'ip',
                 networkInterfaceId: 'elan0',
@@ -2061,6 +2052,14 @@ export module Mock {
                   value: 'adjective-noun.local',
                   port: null,
                   sslPort: 4567,
+                },
+              },
+              {
+                kind: 'onion',
+                hostname: {
+                  value: 'proxy-ui-address.onion',
+                  port: 80,
+                  sslPort: 443,
                 },
               },
               {
@@ -2184,8 +2183,7 @@ export module Mock {
               scheme: 'grpc',
               preferredExternalPort: 10009,
               addSsl: null,
-              secure: true,
-              ssl: true,
+              secure: { ssl: true },
             },
             suffix: '',
           },
@@ -2194,14 +2192,6 @@ export module Mock {
             kind: 'multi',
             hostnames: [
               {
-                kind: 'onion',
-                hostname: {
-                  value: 'lnd-grpc-address.onion',
-                  port: 10009,
-                  sslPort: null,
-                },
-              },
-              {
                 kind: 'ip',
                 networkInterfaceId: 'elan0',
                 public: false,
@@ -2209,6 +2199,14 @@ export module Mock {
                   kind: 'local',
                   value: 'adjective-noun.local',
                   port: 5678,
+                  sslPort: null,
+                },
+              },
+              {
+                kind: 'onion',
+                hostname: {
+                  value: 'lnd-grpc-address.onion',
+                  port: 10009,
                   sslPort: null,
                 },
               },
@@ -2253,8 +2251,7 @@ export module Mock {
               scheme: 'lndconnect',
               preferredExternalPort: 10009,
               addSsl: null,
-              secure: true,
-              ssl: true,
+              secure: { ssl: true },
             },
             suffix: 'cert=askjdfbjadnaskjnd&macaroon=ksjbdfnhjasbndjksand',
           },
@@ -2263,14 +2260,6 @@ export module Mock {
             kind: 'multi',
             hostnames: [
               {
-                kind: 'onion',
-                hostname: {
-                  value: 'lnd-grpc-address.onion',
-                  port: 10009,
-                  sslPort: null,
-                },
-              },
-              {
                 kind: 'ip',
                 networkInterfaceId: 'elan0',
                 public: false,
@@ -2278,6 +2267,14 @@ export module Mock {
                   kind: 'local',
                   value: 'adjective-noun.local',
                   port: 5678,
+                  sslPort: null,
+                },
+              },
+              {
+                kind: 'onion',
+                hostname: {
+                  value: 'lnd-grpc-address.onion',
+                  port: 10009,
                   sslPort: null,
                 },
               },
@@ -2322,8 +2319,7 @@ export module Mock {
               scheme: null,
               preferredExternalPort: 9735,
               addSsl: null,
-              secure: true,
-              ssl: true,
+              secure: { ssl: true },
             },
             suffix: '',
           },
@@ -2332,14 +2328,6 @@ export module Mock {
             kind: 'multi',
             hostnames: [
               {
-                kind: 'onion',
-                hostname: {
-                  value: 'lnd-p2p-address.onion',
-                  port: 9735,
-                  sslPort: null,
-                },
-              },
-              {
                 kind: 'ip',
                 networkInterfaceId: 'elan0',
                 public: false,
@@ -2347,6 +2335,14 @@ export module Mock {
                   kind: 'local',
                   value: 'adjective-noun.local',
                   port: 6789,
+                  sslPort: null,
+                },
+              },
+              {
+                kind: 'onion',
+                hostname: {
+                  value: 'lnd-p2p-address.onion',
+                  port: 9735,
                   sslPort: null,
                 },
               },

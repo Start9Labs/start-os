@@ -59,12 +59,13 @@ type AddSslOptions = {
   preferredExternalPort: number
   addXForwardedHeaders: boolean | null /** default: false */
 }
-type Security = { secure: false; ssl: false } | { secure: true; ssl: boolean }
+type Security = { ssl: boolean }
 export type BindOptions = {
   scheme: Scheme
   preferredExternalPort: number
   addSsl: AddSslOptions | null
-} & Security
+  secure: Security | null
+}
 type KnownProtocols = typeof knownProtocols
 type ProtocolsWithSslVariants = {
   [K in keyof KnownProtocols]: KnownProtocols[K] extends {
@@ -79,16 +80,17 @@ type NotProtocolsWithSslVariants = Exclude<
 >
 
 type BindOptionsByKnownProtocol =
-  | ({
+  | {
       protocol: ProtocolsWithSslVariants
       preferredExternalPort?: number
-      scheme: Scheme | null
-    } & ({ noAddSsl: true } | { addSsl?: Partial<AddSslOptions> }))
+      scheme?: Scheme
+      addSsl?: Partial<AddSslOptions>
+    }
   | {
       protocol: NotProtocolsWithSslVariants
       preferredExternalPort?: number
-      scheme: Scheme | null
-      addSsl: AddSslOptions | null
+      scheme?: Scheme
+      addSsl?: AddSslOptions
     }
 type BindOptionsByProtocol = BindOptionsByKnownProtocol | BindOptions
 
@@ -120,17 +122,12 @@ export class Host {
 
   private async bindPortForUnknown(
     internalPort: number,
-    options:
-      | ({
-          scheme: Scheme
-          preferredExternalPort: number
-          addSsl: AddSslOptions | null
-        } & { secure: false; ssl: false })
-      | ({
-          scheme: Scheme
-          preferredExternalPort: number
-          addSsl: AddSslOptions | null
-        } & { secure: true; ssl: boolean }),
+    options: {
+      scheme: Scheme
+      preferredExternalPort: number
+      addSsl: AddSslOptions | null
+      secure: { ssl: boolean } | null
+    },
   ) {
     await this.options.effects.bind({
       kind: this.options.kind,
@@ -154,18 +151,13 @@ export class Host {
       knownProtocols[options.protocol].defaultPort
     const addSsl = this.getAddSsl(options, protoInfo)
 
-    const security: Security = !protoInfo.secure
-      ? {
-          secure: protoInfo.secure,
-          ssl: protoInfo.ssl,
-        }
-      : { secure: false, ssl: false }
+    const secure: Security | null = !protoInfo.secure ? null : { ssl: false }
 
     const newOptions = {
       scheme,
       preferredExternalPort,
       addSsl,
-      ...security,
+      secure,
     }
 
     await this.options.effects.bind({

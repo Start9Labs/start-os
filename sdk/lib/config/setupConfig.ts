@@ -2,7 +2,6 @@ import { Effects, ExpectedExports } from "../types"
 import { SDKManifest } from "../manifest/ManifestTypes"
 import * as D from "./configDependencies"
 import { Config, ExtractConfigType } from "./builder/config"
-import { Utils, createUtils } from "../util/utils"
 import nullIfEmpty from "../util/nullIfEmpty"
 import { InterfaceReceipt } from "../interfaces/interfaceReceipt"
 import { InterfacesReceipt as InterfacesReceipt } from "../interfaces/setupInterfaces"
@@ -22,7 +21,6 @@ export type Save<
 > = (options: {
   effects: Effects
   input: ExtractConfigType<A> & Record<string, any>
-  utils: Utils<Manifest, Store>
   dependencies: D.ConfigDependencies<Manifest>
 }) => Promise<{
   dependenciesReceipt: DependenciesReceipt
@@ -38,7 +36,6 @@ export type Read<
     | Config<Record<string, any>, never>,
 > = (options: {
   effects: Effects
-  utils: Utils<Manifest, Store>
 }) => Promise<void | (ExtractConfigType<A> & Record<string, any>)>
 /**
  * We want to setup a config export with a get and set, this
@@ -72,7 +69,6 @@ export function setupConfig<
       const { restart } = await write({
         input: JSON.parse(JSON.stringify(input)),
         effects,
-        utils: createUtils(effects),
         dependencies: D.configDependenciesSet<Manifest>(),
       })
       if (restart) {
@@ -80,14 +76,10 @@ export function setupConfig<
       }
     }) as ExpectedExports.setConfig,
     getConfig: (async ({ effects }) => {
-      const myUtils = createUtils<Manifest, Store>(effects)
-      const configValue = nullIfEmpty(
-        (await read({ effects, utils: myUtils })) || null,
-      )
+      const configValue = nullIfEmpty((await read({ effects })) || null)
       return {
         spec: await spec.build({
           effects,
-          utils: myUtils as any,
         }),
         config: configValue,
       }

@@ -10,7 +10,7 @@
 <ion-content class="ion-padding-top with-widgets">
   <ion-item-group *ngIf="serviceInterfaces$ | async as serviceInterfaces">
     <ng-container *ngIf="serviceInterfaces.ui.length">
-      <ion-item-divider>User Interfaces (UI)</ion-item-divider>
+      <ion-item-divider>User Interfaces</ion-item-divider>
       <app-interfaces-item
         *ngFor="let ui of serviceInterfaces.ui"
         [iFace]="ui"
@@ -18,7 +18,7 @@
     </ng-container>
 
     <ng-container *ngIf="serviceInterfaces.api.length">
-      <ion-item-divider>Application Program Interfaces (API)</ion-item-divider>
+      <ion-item-divider>Application Program Interfaces</ion-item-divider>
       <app-interfaces-item
         *ngFor="let api of serviceInterfaces.api"
         [iFace]="api"
@@ -26,7 +26,7 @@
     </ng-container>
 
     <ng-container *ngIf="serviceInterfaces.p2p.length">
-      <ion-item-divider>Peer-To-Peer Interfaces (P2P)</ion-item-divider>
+      <ion-item-divider>Peer-To-Peer Interfaces</ion-item-divider>
       <app-interfaces-item
         *ngFor="let p2p of serviceInterfaces.p2p"
         [iFace]="p2p"

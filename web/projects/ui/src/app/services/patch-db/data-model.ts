@@ -2,7 +2,8 @@ import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { Url } from '@start9labs/shared'
 import { MarketplaceManifest } from '@start9labs/marketplace'
 import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-info'
-import { ServiceInterfaceWithHostInfo } from '@start9labs/start-sdk/mjs/lib/types'
+import { types } from '@start9labs/start-sdk'
+type ServiceInterfaceWithHostInfo = types.ServiceInterfaceWithHostInfo
 
 export interface DataModel {
   'server-info': ServerInfo
@@ -78,7 +79,6 @@ export interface ServerInfo {
   pubkey: string
   'ca-fingerprint': string
   'ntp-synced': boolean
-  zram: boolean
   platform: string
 }
 

@@ -42,7 +42,7 @@ export class Backups<M extends SDKManifest> {
 
   private constructor(
     private options = DEFAULT_OPTIONS,
-    private backupSet = [] as BackupSet<M["volumes"][0]>[],
+    private backupSet = [] as BackupSet<M["volumes"][number]>[],
   ) {}
   static volumes<M extends SDKManifest = never>(
     ...volumeNames: Array<M["volumes"][0]>

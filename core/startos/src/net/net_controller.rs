@@ -205,8 +205,6 @@ impl NetService {
                     .as_package_data_mut()
                     .as_idx_mut(pkg_id)
                     .or_not_found(pkg_id)?
-                    .as_installed_mut()
-                    .or_not_found(pkg_id)?
                     .as_hosts_mut();
                 hosts.add_binding(&mut ports, kind, &id, internal_port, options)?;
                 let host = hosts

@@ -2,15 +2,15 @@
   "name": "@start9labs/start-sdk",
   "version": "0.4.0-rev0.lib0.rc8.beta10",
   "description": "Software development kit to facilitate packaging services for StartOS",
-  "main": "./cjs/lib/index.js",
-  "types": "./cjs/lib/index.d.ts",
-  "module": "./mjs/lib/index.js",
+  "main": "./cjs/sdk/lib/index.js",
+  "types": "./cjs/sdk/lib/index.d.ts",
+  "module": "./mjs/sdk/lib/index.js",
   "sideEffects": true,
   "exports": {
     ".": {
-      "import": "./mjs/lib/index.js",
-      "require": "./cjs/lib/index.js",
-      "types": "./cjs/lib/index.d.ts"
+      "import": "./mjs/sdk/lib/index.js",
+      "require": "./cjs/sdk/lib/index.js",
+      "types": "./cjs/sdk/lib/index.d.ts"
     }
   },
   "typesVersion": {
