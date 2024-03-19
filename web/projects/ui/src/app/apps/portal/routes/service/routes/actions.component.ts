@@ -25,7 +25,6 @@ import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { ServiceActionComponent } from '../components/action.component'
 import { ServiceActionSuccessComponent } from '../components/action-success.component'
-import { DesktopService } from '../../../services/desktop.service'
 import { GroupActionsPipe } from '../pipes/group-actions.pipe'
 
 @Component({
@@ -84,7 +83,6 @@ export class ServiceActionsRoute {
     private readonly router: Router,
     private readonly patch: PatchDB<DataModel>,
     private readonly formDialog: FormDialogService,
-    private readonly desktop: DesktopService,
   ) {}
 
   async handleAction(action: WithId<Action>) {
@@ -162,8 +160,7 @@ export class ServiceActionsRoute {
       this.embassyApi
         .setDbValue<boolean>(['ack-instructions', this.id], false)
         .catch(e => console.error('Failed to mark instructions as unseen', e))
-      this.desktop.remove(this.id)
-      this.router.navigate(['portal', 'desktop'])
+      this.router.navigate(['./portal/dashboard'])
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

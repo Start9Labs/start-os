@@ -1,9 +1,17 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ActivatedRoute, NavigationExtras, Router } from '@angular/router'
+import { Manifest } from '@start9labs/marketplace'
 import { getPkgId, isEmptyObject } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
-import { combineLatest, map } from 'rxjs'
+import { combineLatest, map, switchMap } from 'rxjs'
+import { ConnectionService } from 'src/app/services/connection.service'
+import {
+  DependencyErrorType,
+  DepErrorService,
+  PkgDependencyErrors,
+} from 'src/app/services/dep-error.service'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
 import {
   DataModel,
   HealthCheckResult,
@@ -16,31 +24,24 @@ import {
   PackageStatus,
   PrimaryRendering,
   PrimaryStatus,
-  StatusRendering,
   renderPkgStatus,
+  StatusRendering,
 } from 'src/app/services/pkg-status-rendering.service'
-import { ConnectionService } from 'src/app/services/connection.service'
+import { DependentInfo } from 'src/app/types/dependent-info'
+import { ServiceActionsComponent } from '../components/actions.component'
+import { ServiceAdditionalComponent } from '../components/additional.component'
+import { ServiceDependenciesComponent } from '../components/dependencies.component'
+import { ServiceHealthChecksComponent } from '../components/health-checks.component'
+import { ServiceInterfacesComponent } from '../components/interfaces.component'
+import { ServiceMenuComponent } from '../components/menu.component'
 import { ServiceProgressComponent } from '../components/progress.component'
 import { ServiceStatusComponent } from '../components/status.component'
-import { ServiceActionsComponent } from '../components/actions.component'
-import { ServiceInterfacesComponent } from '../components/interfaces.component'
-import { ServiceHealthChecksComponent } from '../components/health-checks.component'
-import { ServiceDependenciesComponent } from '../components/dependencies.component'
-import { ServiceMenuComponent } from '../components/menu.component'
-import { ServiceAdditionalComponent } from '../components/additional.component'
-import { ProgressDataPipe } from '../pipes/progress-data.pipe'
 import {
-  DepErrorService,
-  DependencyErrorType,
-  PkgDependencyErrors,
-} from 'src/app/services/dep-error.service'
+  PackageConfigData,
+  ServiceConfigModal,
+} from 'src/app/apps/portal/modals/config.component'
+import { ProgressDataPipe } from '../pipes/progress-data.pipe'
 import { DependencyInfo } from '../types/dependency-info'
-import { Manifest } from '@start9labs/marketplace'
-import { toRouterLink } from '../../../utils/to-router-link'
-import { PackageConfigData } from '../types/package-config-data'
-import { ServiceConfigModal } from '../modals/config.component'
-import { DependentInfo } from 'src/app/types/dependent-info'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
 
 const STATES = [
   PackageState.Installing,
@@ -50,41 +51,44 @@ const STATES = [
 
 @Component({
   template: `
-    <ng-container *ngIf="service$ | async as service">
-      <ng-container *ngIf="showProgress(service.pkg); else installed">
-        <ng-container *ngIf="service.pkg | progressData as progress">
+    @if (service$ | async; as service) {
+      @if (showProgress(service.pkg)) {
+        @if (service.pkg | progressData; as progress) {
           <p [progress]="progress.downloadProgress">Downloading</p>
           <p [progress]="progress.validateProgress">Validating</p>
           <p [progress]="progress.unpackProgress">Unpacking</p>
-        </ng-container>
-      </ng-container>
-
-      <ng-template #installed>
+        }
+      } @else {
         <h3 class="g-title">Status</h3>
         <service-status
           [connected]="!!(connected$ | async)"
           [installProgress]="service.pkg['install-progress']"
           [rendering]="$any(getRendering(service.status))"
         />
-        <service-actions
-          *ngIf="isInstalled(service.pkg) && (connected$ | async)"
-          [service]="service"
-        />
 
-        <ng-container
-          *ngIf="isInstalled(service.pkg) && !isBackingUp(service.status)"
-        >
-          <service-interfaces [service]="service" />
-          <service-health-checks
-            *ngIf="isRunning(service.status) && (health$ | async) as checks"
-            [checks]="checks"
+        @if (isInstalled(service.pkg) && (connected$ | async)) {
+          <service-actions
+            [service]="service.pkg"
+            [dependencies]="service.dependencies"
           />
-          <service-dependencies [dependencies]="service.dependencies" />
+        }
+
+        @if (isInstalled(service.pkg) && !isBackingUp(service.status)) {
+          <service-interfaces [service]="service" />
+
+          @if (isRunning(service.status) && (health$ | async); as checks) {
+            <service-health-checks [checks]="checks" />
+          }
+
+          @if (service.dependencies.length) {
+            <service-dependencies [dependencies]="service.dependencies" />
+          }
+
           <service-menu [service]="service.pkg" />
           <service-additional [service]="service.pkg" />
-        </ng-container>
-      </ng-template>
-    </ng-container>
+        }
+      }
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
@@ -105,16 +109,21 @@ const STATES = [
 })
 export class ServiceRoute {
   private readonly patch = inject(PatchDB<DataModel>)
-  private readonly pkgId = getPkgId(inject(ActivatedRoute))
+  private readonly pkgId$ = inject(ActivatedRoute).paramMap.pipe(
+    map(params => params.get('pkgId')!),
+  )
   private readonly depErrorService = inject(DepErrorService)
   private readonly router = inject(Router)
   private readonly formDialog = inject(FormDialogService)
 
   readonly connected$ = inject(ConnectionService).connected$
-  readonly service$ = combineLatest([
-    this.patch.watch$('package-data', this.pkgId),
-    this.depErrorService.getPkgDepErrors$(this.pkgId),
-  ]).pipe(
+  readonly service$ = this.pkgId$.pipe(
+    switchMap(pkgId =>
+      combineLatest([
+        this.patch.watch$('package-data', pkgId),
+        this.depErrorService.getPkgDepErrors$(pkgId),
+      ]),
+    ),
     map(([pkg, depErrors]) => {
       return {
         pkg,
@@ -123,9 +132,12 @@ export class ServiceRoute {
       }
     }),
   )
-  readonly health$ = this.patch
-    .watch$('package-data', this.pkgId, 'installed', 'status', 'main')
-    .pipe(map(toHealthCheck))
+  readonly health$ = this.pkgId$.pipe(
+    switchMap(pkgId =>
+      this.patch.watch$('package-data', pkgId, 'installed', 'status', 'main'),
+    ),
+    map(toHealthCheck),
+  )
 
   getRendering({ primary }: PackageStatus): StatusRendering {
     return PrimaryRendering[primary]
@@ -148,20 +160,16 @@ export class ServiceRoute {
   }
 
   private getDepInfo(
-    pkg: PackageDataEntry,
+    { installed, manifest }: PackageDataEntry,
     depErrors: PkgDependencyErrors,
   ): DependencyInfo[] {
-    const pkgInstalled = pkg.installed
-
-    if (!pkgInstalled) return []
-
-    const pkgManifest = pkg.manifest
-
-    return Object.keys(pkgInstalled['current-dependencies'])
-      .filter(depId => !!pkg.manifest.dependencies[depId])
-      .map(depId =>
-        this.getDepValues(pkgInstalled, pkgManifest, depId, depErrors),
-      )
+    return installed
+      ? Object.keys(installed['current-dependencies'])
+          .filter(depId => !!manifest.dependencies[depId])
+          .map(depId =>
+            this.getDepValues(installed, manifest, depId, depErrors),
+          )
+      : []
   }
 
   private getDepValues(

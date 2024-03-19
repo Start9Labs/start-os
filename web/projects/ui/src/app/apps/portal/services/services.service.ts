@@ -13,15 +13,8 @@ export class ServicesService extends Observable<readonly PackageDataEntry[]> {
   private readonly services$ = inject(PatchDB<DataModel>)
     .watch$('package-data')
     .pipe(
-      map(pkgs => Object.values(pkgs)),
-      startWith([]),
-      pairwise(),
-      filter(([prev, next]) => {
-        const length = next.length
-        return !length || prev.length !== length
-      }),
-      map(([_, pkgs]) =>
-        pkgs.sort((a, b) =>
+      map(pkgs =>
+        Object.values(pkgs).sort((a, b) =>
           b.manifest.title.toLowerCase() > a.manifest.title.toLowerCase()
             ? -1
             : 1,

@@ -72,16 +72,16 @@ export class ConfigService {
     return window.isSecureContext || this.isTor()
   }
 
-  launchableAddress(info: InterfaceInfo): string {
+  launchableAddress({ addressInfo }: InterfaceInfo): string {
     return this.isTor()
-      ? info.addressInfo.torHostname
+      ? addressInfo.torHostname
       : this.isLocalhost()
-        ? `https://${info.addressInfo.lanHostname}`
+        ? `https://${addressInfo.lanHostname}`
         : this.isLocal() || this.isIpv4() || this.isIpv6()
           ? `https://${this.hostname}`
-          : info.addressInfo.domainInfo?.subdomain
-            ? `https://${info.addressInfo.domainInfo.subdomain}${info.addressInfo.domainInfo.domain}`
-            : `https://${info.addressInfo.domainInfo?.domain}`
+          : addressInfo.domainInfo?.subdomain
+            ? `https://${addressInfo.domainInfo.subdomain}${addressInfo.domainInfo.domain}`
+            : `https://${addressInfo.domainInfo?.domain}`
   }
 
   getHost(): string {

@@ -17,6 +17,10 @@ import { SettingsUpdateComponent } from './update.component'
       <settings-sync *ngIf="!server['ntp-synced']" />
       <section *ngFor="let cat of service.settings | keyvalue: asIsOrder">
         <h3 class="g-title" (click)="addClick(cat.key)">{{ cat.key }}</h3>
+        <settings-update
+          *ngIf="cat.key === 'General'"
+          [updated]="server['status-info'].updated"
+        />
         <ng-container *ngFor="let btn of cat.value">
           <settings-button [button]="btn">
             <div
@@ -37,10 +41,6 @@ import { SettingsUpdateComponent } from './update.component'
               }}
             </div>
           </settings-button>
-          <settings-update
-            *ngIf="btn.title === 'About'"
-            [updated]="server['status-info'].updated"
-          />
         </ng-container>
       </section>
     </ng-container>

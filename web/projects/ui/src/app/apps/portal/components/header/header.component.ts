@@ -18,7 +18,7 @@ import { BreadcrumbsService } from '../../services/breadcrumbs.service'
 @Component({
   selector: 'header[appHeader]',
   template: `
-    <a headerHome routerLink="/portal/desktop" routerLinkActive="active">
+    <a headerHome routerLink="/portal/dashboard" routerLinkActive="active">
       <div class="plaque"></div>
     </a>
     @for (item of breadcrumbs$ | async; track $index) {

@@ -408,30 +408,25 @@ ul {
     0% calc(100% - 2rem),
     0% 3rem
   );
+}
 
-  .g-plaque {
-    @include transition(opacity);
+.g-plaque {
+  @include transition(opacity);
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  filter: url(#round-corners) url(#bevel-light) url(#bevel-dark);
+  font-size: 0;
+  opacity: 0.75;
+
+  &::before {
+    @include transition(clip-path);
+    content: '';
     position: absolute;
     inset: 0;
-    z-index: -1;
-    filter: url(#round-corners);
-    opacity: 0.75;
+    clip-path: var(--clip-path);
     // TODO: Theme
-    box-shadow: inset 0 0 2rem white;
-
-    &::before {
-      @include transition(clip-path);
-      content: '';
-      position: absolute;
-      inset: 0;
-      clip-path: var(--clip-path);
-      // TODO: Theme
-      background: #333;
-      box-shadow:
-        inset 0 1px rgba(255, 255, 255, 0.2),
-        inset -1px 0 rgba(255, 255, 255, 0.1),
-        inset 1px 0 rgba(255, 255, 255, 0.1);
-    }
+    background: #333;
   }
 }
 
@@ -529,6 +524,22 @@ button.g-action {
 .g-hidden-scrollbar {
   @include scrollbar-hidden;
   overflow: auto !important;
+}
+
+.g-success {
+  color: var(--tui-success-fill);
+}
+
+.g-warning {
+  color: var(--tui-warning-fill);
+}
+
+.g-error {
+  color: var(--tui-error-fill);
+}
+
+.g-info {
+  color: var(--tui-info-fill);
 }
 
 ng-component {
