@@ -70,7 +70,6 @@ export class StatusComponent {
   }
 
   get status(): string {
-    // TODO: updating, removing, restoring?
     if (this.appStatus['install-progress']) {
       return `Installing... ${packageLoadingProgress(this.appStatus['install-progress'])?.totalProgress || 0}%`
     }
@@ -83,7 +82,7 @@ export class StatusComponent {
       case PackageState.NeedsUpdate:
         return 'Needs Update'
       case PrimaryStatus.NeedsConfig:
-        return 'Needs Update'
+        return 'Needs Config'
       case PrimaryStatus.Updating:
         return 'Updating...'
       case PrimaryStatus.Stopping:
