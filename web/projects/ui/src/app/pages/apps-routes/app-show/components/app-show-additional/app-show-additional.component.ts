@@ -3,7 +3,7 @@ import { ModalController, ToastController } from '@ionic/angular'
 import { copyToClipboard, MarkdownComponent } from '@start9labs/shared'
 import { from } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { Manifest } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'app-show-additional',
@@ -12,7 +12,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 })
 export class AppShowAdditionalComponent {
   @Input()
-  pkg!: PackageDataEntry
+  manifest!: Manifest
 
   constructor(
     private readonly modalCtrl: ModalController,
@@ -35,10 +35,16 @@ export class AppShowAdditionalComponent {
   }
 
   async presentModalLicense() {
+    const { id, version } = this.manifest
+
     const modal = await this.modalCtrl.create({
       componentProps: {
         title: 'License',
-        content: from(this.api.getStatic(this.pkg['static-files']['license'])),
+        content: from(
+          this.api.getStatic(
+            `/public/package-data/${id}/${version}/LICENSE.md`,
+          ),
+        ),
       },
       component: MarkdownComponent,
     })

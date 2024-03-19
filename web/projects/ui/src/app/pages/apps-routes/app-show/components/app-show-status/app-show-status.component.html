@@ -4,14 +4,14 @@
     <status
       size="x-large"
       weight="600"
-      [installProgress]="pkg['install-progress']"
+      [installingInfo]="$any(pkg['state-info'])['installing-info']"
       [rendering]="PR[status.primary]"
       [sigtermTimeout]="sigtermTimeout"
     ></status>
   </ion-label>
 </ion-item>
 
-<ng-container *ngIf="isInstalled && (connected$ | async)">
+<ng-container *ngIf="isInstalled(pkg) && (connected$ | async)">
   <ion-grid>
     <ion-row style="padding-left: 12px">
       <ion-col>
@@ -59,7 +59,9 @@
           *ngIf="pkgStatus && interfaces && (interfaces | hasUi)"
           class="action-button"
           color="primary"
-          [disabled]="!(pkg.state | isLaunchable: pkgStatus.main.status)"
+          [disabled]="
+            !(pkg['state-info'].state | isLaunchable: pkgStatus.main.status)
+          "
           (click)="launchUi(interfaces)"
         >
           <ion-icon slot="start" name="open-outline"></ion-icon>

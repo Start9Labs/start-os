@@ -8,7 +8,7 @@
     View Installed
   </ion-button>
   <ng-container *ngIf="localPkg; else install">
-    <ng-container *ngIf="localPkg.state === PackageState.Installed">
+    <ng-container *ngIf="localPkg['state-info'].state === 'installed'">
       <ion-button
         *ngIf="(localVersion | compareEmver: pkg.manifest.version) === -1"
         expand="block"

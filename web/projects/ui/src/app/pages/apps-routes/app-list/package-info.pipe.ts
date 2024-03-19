@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { Observable, combineLatest, firstValueFrom } from 'rxjs'
+import { Observable, combineLatest } from 'rxjs'
 import { filter, map } from 'rxjs/operators'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getPackageInfo, PkgInfo } from '../../../util/get-package-info'

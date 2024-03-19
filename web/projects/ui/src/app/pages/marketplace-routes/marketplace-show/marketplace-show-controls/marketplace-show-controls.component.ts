@@ -24,7 +24,7 @@ import { ClientStorageService } from 'src/app/services/client-storage.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { PatchDB } from 'patch-db-client'
-import { getAllPackages } from 'src/app/util/get-package-data'
+import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
 import { firstValueFrom } from 'rxjs'
 import { dryUpdate } from 'src/app/util/dry-update'
 
@@ -46,8 +46,6 @@ export class MarketplaceShowControlsComponent {
 
   readonly showDevTools$ = this.ClientStorageService.showDevTools$
 
-  readonly PackageState = PackageState
-
   constructor(
     private readonly alertCtrl: AlertController,
     private readonly ClientStorageService: ClientStorageService,
@@ -60,7 +58,7 @@ export class MarketplaceShowControlsComponent {
   ) {}
 
   get localVersion(): string {
-    return this.localPkg?.manifest.version || ''
+    return this.localPkg ? getManifest(this.localPkg).version : ''
   }
 
   async tryInstall() {
@@ -72,7 +70,7 @@ export class MarketplaceShowControlsComponent {
     if (!this.localPkg) {
       this.alertInstall(url)
     } else {
-      const originalUrl = this.localPkg.installed?.['marketplace-url']
+      const originalUrl = this.localPkg['marketplace-url']
 
       if (!sameUrl(url, originalUrl)) {
         const proceed = await this.presentAlertDifferentMarketplace(

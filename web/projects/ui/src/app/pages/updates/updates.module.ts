@@ -12,7 +12,7 @@ import {
 } from '@start9labs/shared'
 import { SkeletonListComponentModule } from 'src/app/components/skeleton-list/skeleton-list.component.module'
 import { RoundProgressModule } from 'angular-svg-round-progressbar'
-import { InstallProgressPipeModule } from 'src/app/pipes/install-progress/install-progress.module'
+import { InstallingProgressPipeModule } from 'src/app/pipes/install-progress/install-progress.module'
 import { StoreIconComponentModule } from 'src/app/components/store-icon/store-icon.component.module'
 import { MimeTypePipeModule } from '@start9labs/marketplace'
 
@@ -34,7 +34,7 @@ const routes: Routes = [
     SkeletonListComponentModule,
     MarkdownPipeModule,
     RoundProgressModule,
-    InstallProgressPipeModule,
+    InstallingProgressPipeModule,
     StoreIconComponentModule,
     EmverPipesModule,
     MimeTypePipeModule,

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import {
-  InstalledPackageDataEntry,
   MainStatus,
+  PackageDataEntry,
   PackageMainStatus,
 } from 'src/app/services/patch-db/data-model'
 import { PkgInfo } from 'src/app/util/get-package-info'
@@ -20,7 +20,7 @@ export class AppListPkgComponent {
 
   get pkgMainStatus(): MainStatus {
     return (
-      this.pkg.entry.installed?.status.main || {
+      this.pkg.entry.status.main || {
         status: PackageMainStatus.Stopped,
       }
     )
@@ -32,10 +32,7 @@ export class AppListPkgComponent {
       : null
   }
 
-  launchUi(
-    e: Event,
-    interfaces: InstalledPackageDataEntry['service-interfaces'],
-  ): void {
+  launchUi(e: Event, interfaces: PackageDataEntry['service-interfaces']): void {
     e.stopPropagation()
     e.preventDefault()
     this.launcherService.launch(interfaces)

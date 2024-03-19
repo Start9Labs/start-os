@@ -1,34 +1,34 @@
 <ion-item
   button
-  *ngIf="pkg.entry.manifest as manifest"
+  *ngIf="pkg.entry | toManifest as manifest"
   detail="false"
   class="service-card"
   [routerLink]="['/services', manifest.id]"
 >
   <app-list-icon slot="start" [pkg]="pkg"></app-list-icon>
   <ion-thumbnail slot="start">
-    <img alt="" [src]="pkg.entry['static-files'].icon" />
+    <img alt="" [src]="pkg.entry.icon" />
   </ion-thumbnail>
   <ion-label>
     <h2 ticker>{{ manifest.title }}</h2>
     <p>{{ manifest.version | displayEmver }}</p>
     <status
       [rendering]="pkg.primaryRendering"
-      [installProgress]="pkg.entry['install-progress']"
+      [installingInfo]="$any(pkg.entry['state-info'])['installing-info']"
       weight="bold"
       size="small"
       [sigtermTimeout]="sigtermTimeout"
     ></status>
   </ion-label>
   <ion-button
-    *ngIf="
-      pkg.entry.installed && (pkg.entry.installed['service-interfaces'] | hasUi)
-    "
+    *ngIf="pkg.entry['service-interfaces'] | hasUi"
     slot="end"
     fill="clear"
     color="primary"
-    (click)="launchUi($event, pkg.entry.installed['service-interfaces'])"
-    [disabled]="!(pkg.entry.state | isLaunchable: pkgMainStatus.status)"
+    (click)="launchUi($event, pkg.entry['service-interfaces'])"
+    [disabled]="
+      !(pkg.entry['state-info'].state | isLaunchable: pkgMainStatus.status)
+    "
   >
     <ion-icon slot="icon-only" name="open-outline"></ion-icon>
   </ion-button>

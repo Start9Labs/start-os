@@ -240,6 +240,11 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         )
       },
 
+      Mounts: {
+        of() {
+          return Mounts.of<Manifest>()
+        },
+      },
       HealthCheck: {
         of: healthCheck,
       },
