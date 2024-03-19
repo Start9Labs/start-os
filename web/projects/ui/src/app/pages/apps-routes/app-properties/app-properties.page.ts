@@ -41,7 +41,7 @@ export class AppPropertiesPage {
   unmasked: { [key: string]: boolean } = {}
 
   stopped$ = this.patch
-    .watch$('package-data', this.pkgId, 'installed', 'status', 'main', 'status')
+    .watch$('package-data', this.pkgId, 'status', 'main', 'status')
     .pipe(map(status => status === PackageMainStatus.Stopped))
 
   @ViewChild(IonBackButtonDelegate, { static: false })

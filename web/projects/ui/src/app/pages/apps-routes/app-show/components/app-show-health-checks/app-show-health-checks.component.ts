@@ -1,9 +1,6 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { ConnectionService } from 'src/app/services/connection.service'
-import {
-  HealthResult,
-  PackageDataEntry,
-} from 'src/app/services/patch-db/data-model'
+import { HealthResult, Manifest } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'app-show-health-checks',
@@ -13,7 +10,7 @@ import {
 })
 export class AppShowHealthChecksComponent {
   @Input()
-  pkg!: PackageDataEntry
+  manifest!: Manifest
 
   HealthResult = HealthResult
 

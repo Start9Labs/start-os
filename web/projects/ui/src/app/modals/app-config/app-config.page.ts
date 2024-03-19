@@ -16,6 +16,7 @@ import { DependentInfo } from 'src/app/types/dependent-info'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import {
   DataModel,
+  InstalledState,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
@@ -26,7 +27,12 @@ import {
 } from 'src/app/services/form.service'
 import { compare, Operation, getValueByPointer } from 'fast-json-patch'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
-import { getAllPackages, getPackage } from 'src/app/util/get-package-data'
+import {
+  getAllPackages,
+  getManifest,
+  getPackage,
+  isInstalled,
+} from 'src/app/util/get-package-data'
 import { Breakages } from 'src/app/services/api/api.types'
 
 @Component({
@@ -39,7 +45,7 @@ export class AppConfigPage {
 
   @Input() dependentInfo?: DependentInfo
 
-  pkg!: PackageDataEntry
+  pkg!: PackageDataEntry<InstalledState>
   loadingText = ''
 
   configSpec?: ConfigSpec
@@ -68,10 +74,11 @@ export class AppConfigPage {
   async ngOnInit() {
     try {
       const pkg = await getPackage(this.patch, this.pkgId)
-      if (!pkg) return
+      if (!pkg || !isInstalled(pkg)) return
+
       this.pkg = pkg
 
-      if (!this.pkg.manifest.config) return
+      if (!this.pkg['state-info'].manifest.config) return
 
       let newConfig: object | undefined
       let patch: Operation[] | undefined
@@ -210,7 +217,7 @@ export class AppConfigPage {
       'As a result of this change, the following services will no longer work properly and may crash:<ul>'
     const localPkgs = await getAllPackages(this.patch)
     const bullets = Object.keys(breakages).map(id => {
-      const title = localPkgs[id].manifest.title
+      const title = getManifest(localPkgs[id]).title
       return `<li><b>${title}</b></li>`
     })
     message = `${message}${bullets}</ul>`

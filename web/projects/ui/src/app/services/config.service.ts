@@ -3,7 +3,7 @@ import { Inject, Injectable } from '@angular/core'
 import { WorkspaceConfig } from '@start9labs/shared'
 import { types } from '@start9labs/start-sdk'
 import {
-  InstalledPackageDataEntry,
+  PackageDataEntry,
   PackageMainStatus,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
@@ -64,7 +64,7 @@ export class ConfigService {
 
   /** ${scheme}://${username}@${host}:${externalPort}${suffix} */
   launchableAddress(
-    interfaces: InstalledPackageDataEntry['service-interfaces'],
+    interfaces: PackageDataEntry['service-interfaces'],
   ): string {
     const ui = Object.values(interfaces).find(i => i.type === 'ui')
 
@@ -128,7 +128,7 @@ export class ConfigService {
 }
 
 export function hasUi(
-  interfaces: InstalledPackageDataEntry['service-interfaces'],
+  interfaces: PackageDataEntry['service-interfaces'],
 ): boolean {
   return Object.values(interfaces).some(iface => iface.type === 'ui')
 }

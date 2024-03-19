@@ -22,15 +22,15 @@ export function renderPkgStatus(
   let dependency: DependencyStatus | null = null
   let health: HealthStatus | null = null
 
-  if (pkg.state === PackageState.Installed && pkg.installed) {
-    primary = getPrimaryStatus(pkg.installed.status)
+  if (pkg['state-info'].state === PackageState.Installed) {
+    primary = getPrimaryStatus(pkg.status)
     dependency = getDependencyStatus(depErrors)
     health = getHealthStatus(
-      pkg.installed.status,
-      !isEmptyObject(pkg.manifest['health-checks']),
+      pkg.status,
+      !isEmptyObject(pkg['state-info'].manifest['health-checks']),
     )
   } else {
-    primary = pkg.state as string as PrimaryStatus
+    primary = pkg['state-info'].state as string as PrimaryStatus
   }
 
   return { primary, dependency, health }

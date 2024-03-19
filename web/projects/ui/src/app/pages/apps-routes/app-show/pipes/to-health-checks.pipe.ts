@@ -2,7 +2,7 @@ import { Pipe, PipeTransform } from '@angular/core'
 import {
   DataModel,
   HealthCheckResult,
-  PackageDataEntry,
+  Manifest,
   PackageMainStatus,
 } from 'src/app/services/patch-db/data-model'
 import { isEmptyObject } from '@start9labs/shared'
@@ -17,15 +17,15 @@ export class ToHealthChecksPipe implements PipeTransform {
   constructor(private readonly patch: PatchDB<DataModel>) {}
 
   transform(
-    pkg: PackageDataEntry,
+    manifest: Manifest,
   ): Observable<Record<string, HealthCheckResult | null>> | null {
-    const healthChecks = Object.keys(pkg.manifest['health-checks']).reduce(
+    const healthChecks = Object.keys(manifest['health-checks']).reduce(
       (obj, key) => ({ ...obj, [key]: null }),
       {},
     )
 
     const healthChecks$ = this.patch
-      .watch$('package-data', pkg.manifest.id, 'installed', 'status', 'main')
+      .watch$('package-data', manifest.id, 'status', 'main')
       .pipe(
         map(main => {
           // Question: is this ok or do we have to use Object.keys

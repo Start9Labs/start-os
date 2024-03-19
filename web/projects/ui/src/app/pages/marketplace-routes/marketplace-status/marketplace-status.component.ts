@@ -1,8 +1,13 @@
 import { Component, Input } from '@angular/core'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import {
-  PackageDataEntry,
-  PackageState,
-} from 'src/app/services/patch-db/data-model'
+  isInstalled,
+  isInstalling,
+  isUpdating,
+  isRemoving,
+  isRestoring,
+  getManifest,
+} from 'src/app/util/get-package-data'
 
 @Component({
   selector: 'marketplace-status',
@@ -14,9 +19,13 @@ export class MarketplaceStatusComponent {
 
   @Input() localPkg?: PackageDataEntry
 
-  PackageState = PackageState
+  isInstalled = isInstalled
+  isInstalling = isInstalling
+  isUpdating = isUpdating
+  isRemoving = isRemoving
+  isRestoring = isRestoring
 
   get localVersion(): string {
-    return this.localPkg?.manifest.version || ''
+    return this.localPkg ? getManifest(this.localPkg).version : ''
   }
 }

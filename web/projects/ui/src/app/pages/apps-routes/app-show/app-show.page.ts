@@ -3,16 +3,12 @@ import { NavController } from '@ionic/angular'
 import { PatchDB } from 'patch-db-client'
 import {
   DataModel,
-  InstalledPackageDataEntry,
+  InstallingState,
   Manifest,
   PackageDataEntry,
-  PackageState,
+  UpdatingState,
 } from 'src/app/services/patch-db/data-model'
-import {
-  PackageStatus,
-  PrimaryStatus,
-  renderPkgStatus,
-} from 'src/app/services/pkg-status-rendering.service'
+import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { map, tap } from 'rxjs/operators'
 import { ActivatedRoute, NavigationExtras } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
@@ -24,6 +20,13 @@ import {
   PkgDependencyErrors,
 } from 'src/app/services/dep-error.service'
 import { combineLatest } from 'rxjs'
+import {
+  getManifest,
+  isInstalled,
+  isInstalling,
+  isRestoring,
+  isUpdating,
+} from 'src/app/util/get-package-data'
 
 export interface DependencyInfo {
   id: string
@@ -34,12 +37,6 @@ export interface DependencyInfo {
   actionText: string
   action: () => any
 }
-
-const STATES = [
-  PackageState.Installing,
-  PackageState.Updating,
-  PackageState.Restoring,
-]
 
 @Component({
   selector: 'app-show',
@@ -66,6 +63,8 @@ export class AppShowPage {
     }),
   )
 
+  isInstalled = isInstalled
+
   constructor(
     private readonly route: ActivatedRoute,
     private readonly navCtrl: NavController,
@@ -74,55 +73,44 @@ export class AppShowPage {
     private readonly depErrorService: DepErrorService,
   ) {}
 
-  isInstalled({ state }: PackageDataEntry): boolean {
-    return state === PackageState.Installed
-  }
-
-  isRunning({ primary }: PackageStatus): boolean {
-    return primary === PrimaryStatus.Running
-  }
-
-  isBackingUp({ primary }: PackageStatus): boolean {
-    return primary === PrimaryStatus.BackingUp
-  }
-
-  showProgress({ state }: PackageDataEntry): boolean {
-    return STATES.includes(state)
+  showProgress(
+    pkg: PackageDataEntry,
+  ): pkg is PackageDataEntry<InstallingState | UpdatingState> {
+    return isInstalling(pkg) || isUpdating(pkg) || isRestoring(pkg)
   }
 
   private getDepInfo(
     pkg: PackageDataEntry,
     depErrors: PkgDependencyErrors,
   ): DependencyInfo[] {
-    const pkgInstalled = pkg.installed
+    const manifest = getManifest(pkg)
 
-    if (!pkgInstalled) return []
-
-    return Object.keys(pkgInstalled['current-dependencies'])
-      .filter(id => !!pkgInstalled.manifest.dependencies[id])
-      .map(id => this.getDepValues(pkgInstalled, id, depErrors))
+    return Object.keys(pkg['current-dependencies'])
+      .filter(id => !!manifest.dependencies[id])
+      .map(id => this.getDepValues(pkg, manifest, id, depErrors))
   }
 
   private getDepValues(
-    pkgInstalled: InstalledPackageDataEntry,
+    pkg: PackageDataEntry,
+    manifest: Manifest,
     depId: string,
     depErrors: PkgDependencyErrors,
   ): DependencyInfo {
     const { errorText, fixText, fixAction } = this.getDepErrors(
-      pkgInstalled,
+      manifest,
       depId,
       depErrors,
     )
 
-    const depInfo = pkgInstalled['dependency-info'][depId]
+    const depInfo = pkg['dependency-info'][depId]
 
     return {
       id: depId,
-      version: pkgInstalled.manifest.dependencies[depId].version, // do we want this version range?
+      version: manifest.dependencies[depId].version, // do we want this version range?
       title: depInfo?.title || depId,
       icon: depInfo?.icon || '',
       errorText: errorText
-        ? `${errorText}. ${pkgInstalled.manifest.title} will not work as expected.`
+        ? `${errorText}. ${manifest.title} will not work as expected.`
         : '',
       actionText: fixText || 'View',
       action:
@@ -131,11 +119,10 @@ export class AppShowPage {
   }
 
   private getDepErrors(
-    pkgInstalled: InstalledPackageDataEntry,
+    manifest: Manifest,
     depId: string,
     depErrors: PkgDependencyErrors,
   ) {
-    const pkgManifest = pkgInstalled.manifest
     const depError = depErrors[depId]
 
     let errorText: string | null = null
@@ -146,15 +133,15 @@ export class AppShowPage {
       if (depError.type === DependencyErrorType.NotInstalled) {
         errorText = 'Not installed'
         fixText = 'Install'
-        fixAction = () => this.fixDep(pkgManifest, 'install', depId)
+        fixAction = () => this.fixDep(manifest, 'install', depId)
       } else if (depError.type === DependencyErrorType.IncorrectVersion) {
         errorText = 'Incorrect version'
         fixText = 'Update'
-        fixAction = () => this.fixDep(pkgManifest, 'update', depId)
+        fixAction = () => this.fixDep(manifest, 'update', depId)
       } else if (depError.type === DependencyErrorType.ConfigUnsatisfied) {
         errorText = 'Config not satisfied'
         fixText = 'Auto config'
-        fixAction = () => this.fixDep(pkgManifest, 'configure', depId)
+        fixAction = () => this.fixDep(manifest, 'configure', depId)
       } else if (depError.type === DependencyErrorType.NotRunning) {
         errorText = 'Not running'
         fixText = 'Start'
