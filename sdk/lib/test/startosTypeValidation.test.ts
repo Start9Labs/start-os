@@ -24,6 +24,7 @@ import { ExportActionParams } from "../../../core/startos/bindings/ExportActionP
 import { RemoveActionParams } from "../../../core/startos/bindings/RemoveActionParams"
 import { ReverseProxyParams } from "../../../core/startos/bindings/ReverseProxyParams"
 import { MountParams } from "../../../core/startos/bindings/MountParams"
+import { ExposedUI } from "../../../core/startos/bindings/ExposedUI"
 function typeEquality<ExpectedType>(_a: ExpectedType) {}
 describe("startosTypeValidation ", () => {
   test(`checking the params match`, () => {
@@ -48,7 +49,7 @@ describe("startosTypeValidation ", () => {
       setConfigured: {} as SetConfigured,
       setHealth: {} as SetHealth,
       exposeForDependents: {} as ExposeForDependentsParams,
-      exposeUi: {} as ExposeUiParams,
+      exposeUi: {} as { [key: string]: ExposedUI },
       getSslCertificate: {} as GetSslCertificateParams,
       getSslKey: {} as GetSslKeyParams,
       getServiceInterface: {} as GetServiceInterfaceParams,

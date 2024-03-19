@@ -265,6 +265,7 @@ export type ExposeUiPaths<Store> =
   | {
       type: "object"
       value: { [k: string]: ExposeUiPaths<Store> }
+      description?: string
     }
   | {
       type: "string"
@@ -283,6 +284,7 @@ export type ExposeUiPathsAll =
   | {
       type: "object"
       value: { [k: string]: ExposeUiPathsAll }
+      description: string | null
     }
   | {
       type: "string"
@@ -395,7 +397,7 @@ export type Effects = {
 
   exposeForDependents(options: { paths: string[] }): Promise<void>
 
-  exposeUi(options: ExposeUiPathsAll): Promise<void>
+  exposeUi(options: { [key: string]: ExposeUiPathsAll }): Promise<void>
   /**
    * There are times that we want to see the addresses that where exported
    * @param options.addressId If we want to filter the address id

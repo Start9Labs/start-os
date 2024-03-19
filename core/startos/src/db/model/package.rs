@@ -303,7 +303,7 @@ pub struct PackageDataEntry {
     pub current_dependencies: CurrentDependencies,
     pub interface_addresses: InterfaceAddressMap,
     pub hosts: HostInfo,
-    pub store_exposed_ui: Vec<ExposedUI>,
+    pub store_exposed_ui: StoreExposedUI,
     pub store_exposed_dependents: Vec<JsonPointer>,
 }
 impl AsRef<PackageDataEntry> for PackageDataEntry {
@@ -322,17 +322,39 @@ pub struct ExposedDependent {
     copyable: Option<bool>,
     qr: Option<bool>,
 }
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
-#[model = "Model<Self>"]
+#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoreExposedUI(pub BTreeMap<InternedString, ExposedUI>);
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "type")]
 #[ts(export)]
-pub struct ExposedUI {
-    #[ts(type = "string")]
-    pub path: JsonPointer,
-    pub title: String,
-    pub description: Option<String>,
-    pub masked: Option<bool>,
-    pub copyable: Option<bool>,
-    pub qr: Option<bool>,
+pub enum ExposedUI {
+    Object {
+        #[ts(type = "{[key: string]: ExposedUI}")]
+        value: BTreeMap<String, ExposedUI>,
+        #[serde(default)]
+        #[ts(type = "string | null")]
+        description: String,
+    },
+    String {
+        #[ts(type = "string")]
+        path: JsonPointer,
+        description: Option<String>,
+        masked: bool,
+        copyable: Option<bool>,
+        qr: Option<bool>,
+    },
+}
+
+impl Default for ExposedUI {
+    fn default() -> Self {
+        ExposedUI::Object {
+            value: BTreeMap::new(),
+            description: "".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]

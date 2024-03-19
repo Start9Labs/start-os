@@ -1,13 +1,15 @@
+use std::collections::BTreeMap;
+
 use clap::Parser;
-use imbl_value::{json, Value};
+use imbl_value::{json, InOMap, InternedString, Value};
 use models::PackageId;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 
-use crate::context::RpcContext;
 use crate::db::model::package::ExposedUI;
 use crate::prelude::*;
 use crate::Error;
+use crate::{context::RpcContext, db::model::package::StoreExposedUI};
 
 pub fn display_properties(response: Value) {
     println!("{}", response);
@@ -16,24 +18,42 @@ pub fn display_properties(response: Value) {
 trait IntoProperties {
     fn into_properties(self, store: &Value) -> Value;
 }
-impl IntoProperties for Vec<ExposedUI> {
+impl IntoProperties for ExposedUI {
     fn into_properties(self, store: &Value) -> Value {
-        let mut data = json!({});
-        for ui in self {
-            let value = ui.path.get(store);
-            data[ui.title] = json!({
+        match self {
+            ExposedUI::Object { value, description } => {
+                json!({
+                    "type": "object",
+                    "description": description,
+                    "value": value.into_iter().map(|(k, v)| (k, v.into_properties(store))).collect::<BTreeMap<String,_>>()
+                })
+            }
+            ExposedUI::String {
+                path,
+                description,
+                masked,
+                copyable,
+                qr,
+            } => json!({
                 "type": "string",
-                "description": ui.description,
-                "value": value.map(|x| x.to_string()).unwrap_or_default(),
-                "copyable": ui.copyable,
-                "qr": ui.qr,
-                "masked": ui.masked,
-            });
+                "description": description,
+                "value": path.get(store).cloned().unwrap_or_default(),
+                "copyable": copyable,
+                "qr": qr,
+                "masked": masked
+            }),
         }
-        json!({
-            "version": 2,
-            "data": data
-        })
+    }
+}
+
+impl IntoProperties for StoreExposedUI {
+    fn into_properties(self, store: &Value) -> Value {
+        Value::Object(
+            self.0
+                .into_iter()
+                .map(|(k, v)| (k, v.into_properties(store)))
+                .collect::<InOMap<InternedString, Value>>(),
+        )
     }
 }
 

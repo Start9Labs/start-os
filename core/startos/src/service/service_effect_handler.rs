@@ -16,7 +16,9 @@ use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
 
-use crate::db::model::package::{CurrentDependencies, CurrentDependencyInfo, ExposedUI};
+use crate::db::model::package::{
+    CurrentDependencies, CurrentDependencyInfo, ExposedUI, StoreExposedUI,
+};
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
@@ -674,6 +676,10 @@ async fn expose_for_dependents(
     context: EffectContext,
     ExposeForDependentsParams { paths }: ExposeForDependentsParams,
 ) -> Result<(), Error> {
+    Ok(())
+}
+
+async fn expose_ui(context: EffectContext, params: StoreExposedUI) -> Result<(), Error> {
     let context = context.deref()?;
     let package_id = context.id.clone();
     context
@@ -684,47 +690,11 @@ async fn expose_for_dependents(
                 .as_package_data_mut()
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
-                .as_store_exposed_dependents_mut()
-                .ser(&paths)
+                .as_store_exposed_ui_mut()
+                .ser(&params)
         })
         .await?;
     Ok(())
-}
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[serde(tag = "type")]
-#[ts(export)]
-enum ExposeUiParams {
-    Object {
-        #[ts(type = "{[key: string]: ExposeUiParams}")]
-        value: OrdMap<String, ExposeUiParams>,
-    },
-    String {
-        path: String,
-        description: Option<String>,
-        masked: bool,
-        copyable: Option<bool>,
-        qr: Option<bool>,
-    },
-}
-
-async fn expose_ui(context: EffectContext, params: ExposeUiParams) -> Result<(), Error> {
-    todo!()
-    // let context = context.deref()?;
-    // let package_id = context.id.clone();
-    // context
-    //     .ctx
-    //     .db
-    //     .mutate(|db| {
-    //         db.as_public_mut()
-    //             .as_package_data_mut()
-    //             .as_idx_mut(&package_id)
-    //             .or_not_found(&package_id)?
-    //             .as_store_exposed_ui_mut()
-    //             .ser(&paths)
-    //     })
-    //     .await?;
-    // Ok(())
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
 #[ts(export)]

@@ -26,12 +26,7 @@ export function setupInit<Manifest extends SDKManifest, Store>(
       })
       const { services, ui } = await setupExports(opts)
       await opts.effects.exposeForDependents(services)
-      await opts.effects.exposeUi(
-        forExpose({
-          type: "object",
-          value: ui,
-        }),
-      )
+      await opts.effects.exposeUi(forExpose(ui))
     },
     uninit: async (opts) => {
       await migrations.uninit(opts)
@@ -39,14 +34,23 @@ export function setupInit<Manifest extends SDKManifest, Store>(
     },
   }
 }
+function forExpose<Store>(ui: { [key: string]: ExposeUiPaths<Store> }) {
+  return Object.fromEntries(
+    Object.entries(ui).map(([key, value]) => [key, forExpose_(value)]),
+  )
+}
 
-function forExpose<Store>(ui: ExposeUiPaths<Store>): ExposeUiPathsAll {
+function forExpose_<Store>(ui: ExposeUiPaths<Store>): ExposeUiPathsAll {
   if (ui.type === ("object" as const)) {
     return {
       type: "object" as const,
       value: Object.fromEntries(
-        Object.entries(ui.value).map(([key, value]) => [key, forExpose(value)]),
+        Object.entries(ui.value).map(([key, value]) => [
+          key,
+          forExpose_(value),
+        ]),
       ),
+      description: ui.description ?? null,
     }
   }
   return {
