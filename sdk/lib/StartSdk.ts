@@ -239,12 +239,6 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           input,
         )
       },
-
-      Mounts: {
-        of() {
-          return Mounts.of<Manifest>()
-        },
-      },
       HealthCheck: {
         of: healthCheck,
       },
