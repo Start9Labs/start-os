@@ -11,13 +11,17 @@ import { PatchDB } from 'patch-db-client'
 import {
   Action,
   DataModel,
+  InstalledState,
   PackageDataEntry,
   PackageMainStatus,
+  StateInfo,
+  Status,
 } from 'src/app/services/patch-db/data-model'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { isEmptyObject, ErrorToastService, getPkgId } from '@start9labs/shared'
 import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
+import { getManifest } from 'src/app/util/get-package-data'
 
 @Component({
   selector: 'app-actions',
@@ -40,11 +44,7 @@ export class AppActionsPage {
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
-  async handleAction(
-    pkg: PackageDataEntry,
-    action: { key: string; value: Action },
-  ) {
-    const status = pkg.installed?.status
+  async handleAction(status: Status, action: { key: string; value: Action }) {
     if (
       status &&
       (action.value['allowed-statuses'] as PackageMainStatus[]).includes(
@@ -120,7 +120,7 @@ export class AppActionsPage {
   }
 
   async tryUninstall(pkg: PackageDataEntry): Promise<void> {
-    const { title, alerts } = pkg.manifest
+    const { title, alerts } = getManifest(pkg)
 
     let message =
       alerts.uninstall ||

@@ -25,8 +25,6 @@ export class BackingUpComponent {
     'backup-progress',
   )
 
-  PackageMainStatus = PackageMainStatus
-
   constructor(private readonly patch: PatchDB<DataModel>) {}
 }
 
@@ -35,14 +33,7 @@ export class BackingUpComponent {
 })
 export class PkgMainStatusPipe implements PipeTransform {
   transform(pkgId: string): Observable<PackageMainStatus> {
-    return this.patch.watch$(
-      'package-data',
-      pkgId,
-      'installed',
-      'status',
-      'main',
-      'status',
-    )
+    return this.patch.watch$('package-data', pkgId, 'status', 'main', 'status')
   }
 
   constructor(private readonly patch: PatchDB<DataModel>) {}

@@ -9,6 +9,7 @@ import { PrimaryStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getPackageInfo, PkgInfo } from '../../../../util/get-package-info'
 import { combineLatest } from 'rxjs'
 import { DepErrorService } from 'src/app/services/dep-error.service'
+import { getManifest } from 'src/app/util/get-package-data'
 
 @Component({
   selector: 'widget-health',
@@ -31,7 +32,7 @@ export class HealthComponent {
   ]).pipe(
     map(([data, depErrors]) => {
       const pkgs = Object.values<PackageDataEntry>(data).map(pkg =>
-        getPackageInfo(pkg, depErrors[pkg.manifest.id]),
+        getPackageInfo(pkg, depErrors[getManifest(pkg).id]),
       )
       const result = this.labels.reduce<Record<string, number>>(
         (acc, label) => ({

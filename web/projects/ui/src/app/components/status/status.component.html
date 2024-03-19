@@ -12,12 +12,9 @@
     . This may take a while
   </span>
 
-  <span *ngIf="installProgress">
-    <ion-text
-      *ngIf="installProgress | installProgressDisplay as progress"
-      color="primary"
-    >
-      {{ progress }}
+  <span *ngIf="installingInfo">
+    <ion-text color="primary">
+      {{ installingInfo.progress.overall | installingProgressString }}
     </ion-text>
   </span>
 
