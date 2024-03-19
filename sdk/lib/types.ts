@@ -1,11 +1,11 @@
 export * as configTypes from "./config/configTypes"
 import { AddSslOptions } from "../../core/startos/bindings/AddSslOptions"
+import { MainEffects, ServiceInterfaceType, Signals } from "./StartSdk"
 import { InputSpec } from "./config/configTypes"
 import { DependenciesReceipt } from "./config/setupConfig"
 import { BindOptions, Scheme } from "./interfaces/Host"
 import { Daemons } from "./mainFn/Daemons"
 import { UrlString } from "./util/getServiceInterface"
-import { ServiceInterfaceType, Signals } from "./util/utils"
 
 export type ExportedAction = (options: {
   effects: Effects
@@ -59,7 +59,7 @@ export namespace ExpectedExports {
    * package represents, like running a bitcoind in a bitcoind-wrapper.
    */
   export type main = (options: {
-    effects: Effects
+    effects: MainEffects
     started(onTerm: () => PromiseLike<void>): PromiseLike<void>
   }) => Promise<Daemons<any, any>>
 
@@ -261,22 +261,42 @@ export type ExposeServicePaths<Store = never> = {
   paths: Store extends never ? string[] : ExposeAllServicePaths<Store>[]
 }
 
-export type ExposeUiPaths<Store> = Array<{
-  /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
-  path: ExposeAllUiPaths<Store>
-  /** A human readable title for the value */
-  title: string
-  /** A human readable description or explanation of the value */
-  description?: string
-  /** (string/number only) Whether or not to mask the value, for example, when displaying a password */
-  masked: boolean
-  /** (string/number only) Whether or not to include a button for copying the value to clipboard */
-  copyable?: boolean
-  /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
-  qr?: boolean
-}>
-
-type tset = keyof Effects
+export type ExposeUiPaths<Store> =
+  | {
+      type: "object"
+      value: { [k: string]: ExposeUiPaths<Store> }
+    }
+  | {
+      type: "string"
+      /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
+      path: ExposeAllUiPaths<Store>
+      /** A human readable description or explanation of the value */
+      description?: string
+      /** (string/number only) Whether or not to mask the value, for example, when displaying a password */
+      masked: boolean
+      /** (string/number only) Whether or not to include a button for copying the value to clipboard */
+      copyable?: boolean
+      /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
+      qr?: boolean
+    }
+export type ExposeUiPathsAll =
+  | {
+      type: "object"
+      value: { [k: string]: ExposeUiPathsAll }
+    }
+  | {
+      type: "string"
+      /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
+      path: string
+      /** A human readable description or explanation of the value */
+      description: string | null
+      /** (string/number only) Whether or not to mask the value, for example, when displaying a password */
+      masked: boolean
+      /** (string/number only) Whether or not to include a button for copying the value to clipboard */
+      copyable: boolean | null
+      /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
+      qr: boolean | null
+    }
 
 /** Used to reach out from the pure js runtime */
 export type Effects = {
@@ -302,8 +322,7 @@ export type Effects = {
     scheme: Scheme
     preferredExternalPort: number
     addSsl: AddSslOptions | null
-    secure: boolean
-    ssl: boolean
+    secure: { ssl: boolean } | null
   }): Promise<void>
   /** Retrieves the current hostname(s) associated with a host id */
   // getHostInfo(options: {
@@ -376,16 +395,7 @@ export type Effects = {
 
   exposeForDependents(options: { paths: string[] }): Promise<void>
 
-  exposeUi<Store = never>(options: {
-    paths: {
-      path: string
-      title: string | null
-      description: string | null
-      masked: boolean | null
-      copyable: boolean | null
-      qr: boolean | null
-    }[]
-  }): Promise<void>
+  exposeUi(options: ExposeUiPathsAll): Promise<void>
   /**
    * There are times that we want to see the addresses that where exported
    * @param options.addressId If we want to filter the address id
@@ -491,9 +501,7 @@ export type Effects = {
     }
     http: {
       // optional, will do TCP layer proxy only if not present
-      headers:
-        | ((headers: Record<string, string>) => Record<string, string>)
-        | null
+      headers: Record<string, string> | null
     } | null
   }): Promise<{ stop(): Promise<void> }>
   restart(): void
@@ -504,7 +512,7 @@ export type Effects = {
     target: {
       packageId: string
       volumeId: string
-      path: string
+      subpath: string | null
       readonly: boolean
     }
   }): Promise<string>

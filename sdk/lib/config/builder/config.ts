@@ -1,5 +1,4 @@
 import { ValueSpec } from "../configTypes"
-import { Utils } from "../../util/utils"
 import { Value } from "./value"
 import { _ } from "../../util"
 import { Effects } from "../../types"
@@ -7,7 +6,6 @@ import { Parser, object } from "ts-matches"
 
 export type LazyBuildOptions<Store> = {
   effects: Effects
-  utils: Utils<any, Store>
 }
 export type LazyBuild<Store, ExpectedOut> = (
   options: LazyBuildOptions<Store>,

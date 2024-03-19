@@ -14,41 +14,24 @@ import { GetSslCertificateParams } from "../../../core/startos/bindings/GetSslCe
 import { GetSslKeyParams } from "../../../core/startos/bindings/GetSslKeyParams"
 import { GetServiceInterfaceParams } from "../../../core/startos/bindings/GetServiceInterfaceParams"
 import { SetDependenciesParams } from "../../../core/startos/bindings/SetDependenciesParams"
-
+import { GetSystemSmtpParams } from "../../../core/startos/bindings/GetSystemSmtpParams"
+import { GetServicePortForwardParams } from "../../../core/startos/bindings/GetServicePortForwardParams"
+import { ExportServiceInterfaceParams } from "../../../core/startos/bindings/ExportServiceInterfaceParams"
+import { GetPrimaryUrlParams } from "../../../core/startos/bindings/GetPrimaryUrlParams"
+import { ListServiceInterfacesParams } from "../../../core/startos/bindings/ListServiceInterfacesParams"
+import { RemoveAddressParams } from "../../../core/startos/bindings/RemoveAddressParams"
+import { ExportActionParams } from "../../../core/startos/bindings/ExportActionParams"
+import { RemoveActionParams } from "../../../core/startos/bindings/RemoveActionParams"
+import { ReverseProxyParams } from "../../../core/startos/bindings/ReverseProxyParams"
+import { MountParams } from "../../../core/startos/bindings/MountParams"
 function typeEquality<ExpectedType>(_a: ExpectedType) {}
 describe("startosTypeValidation ", () => {
   test(`checking the params match`, () => {
     const testInput: any = {}
     typeEquality<{
-      [K in keyof Effects &
-        (
-          | "gitInfo"
-          | "echo"
-          | "chroot"
-          | "exists"
-          | "executeAction"
-          | "getConfigured"
-          | "stopped"
-          | "running"
-          | "restart"
-          | "shutdown"
-          | "setConfigured"
-          | "setMainStatus"
-          | "setHealth"
-          | "getStore"
-          | "setStore"
-          | "exposeForDependents"
-          | "exposeUi"
-          | "createOverlayedImage"
-          | "destroyOverlayedImage"
-          | "getSslCertificate"
-          | "getSslKey"
-          | "getServiceInterface"
-          | "clearBindings"
-          | "bind"
-          | "getHostInfo"
-          | "setDependencies"
-        )]: Effects[K] extends Function ? Parameters<Effects[K]>[0] : never
+      [K in keyof Effects]: Effects[K] extends (args: infer A) => any
+        ? A
+        : never
     }>({
       executeAction: {} as ExecuteAction,
       createOverlayedImage: {} as CreateOverlayedImageParams,
@@ -70,6 +53,19 @@ describe("startosTypeValidation ", () => {
       getSslKey: {} as GetSslKeyParams,
       getServiceInterface: {} as GetServiceInterfaceParams,
       setDependencies: {} as SetDependenciesParams,
+      store: {} as never,
+      getSystemSmtp: {} as GetSystemSmtpParams,
+      getContainerIp: undefined,
+      getServicePortForward: {} as GetServicePortForwardParams,
+      clearServiceInterfaces: undefined,
+      exportServiceInterface: {} as ExportServiceInterfaceParams,
+      getPrimaryUrl: {} as GetPrimaryUrlParams,
+      listServiceInterfaces: {} as ListServiceInterfacesParams,
+      removeAddress: {} as RemoveAddressParams,
+      exportAction: {} as ExportActionParams,
+      removeAction: {} as RemoveActionParams,
+      reverseProxy: {} as ReverseProxyParams,
+      mount: {} as MountParams,
     })
     typeEquality<Parameters<Effects["executeAction"]>[0]>(
       testInput as ExecuteAction,

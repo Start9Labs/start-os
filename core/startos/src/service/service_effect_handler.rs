@@ -9,7 +9,7 @@ use clap::builder::ValueParserFactory;
 use clap::Parser;
 use imbl::OrdMap;
 use imbl_value::{json, InternedString};
-use models::{ActionId, HealthCheckId, ImageId, InvalidId, PackageId};
+use models::{ActionId, HealthCheckId, ImageId, PackageId, VolumeId};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
@@ -184,11 +184,48 @@ struct GetServicePortForwardParams {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
+struct BindOptionsSecure {
+    ssl: bool,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct BindOptions {
+    scheme: Option<String>,
+    preferred_external_port: u32,
+    add_ssl: Option<AddSslOptions>,
+    secure: Option<BindOptionsSecure>,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct AddressInfo {
+    username: Option<String>,
+    host_id: String,
+    bind_options: BindOptions,
+    suffix: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+enum ServiceInterfaceType {
+    Ui,
+    P2p,
+    Api,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
 struct ExportServiceInterfaceParams {
-    #[ts(type = "string | null")]
-    package_id: Option<PackageId>,
-    service_interface_id: String,
-    callback: Callback,
+    id: String,
+    name: String,
+    description: String,
+    has_primary: bool,
+    disabled: bool,
+    masked: bool,
+    address_info: AddressInfo,
+    r#type: ServiceInterfaceType,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
@@ -277,9 +314,10 @@ struct ReverseProxyParams {
 #[serde(rename_all = "camelCase")]
 struct MountTarget {
     #[ts(type = "string")]
-    packageId: PackageId,
-    volumeId: String,
-    path: String,
+    package_id: PackageId,
+    #[ts(type = "string")]
+    volume_id: VolumeId,
+    subpath: Option<PathBuf>,
     readonly: bool,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
@@ -399,8 +437,7 @@ struct BindParams {
     scheme: String,
     preferred_external_port: u32,
     add_ssl: Option<AddSslOptions>,
-    secure: bool,
-    ssl: bool,
+    secure: Option<BindOptionsSecure>,
 }
 async fn bind(_: AnyContext, BindParams { .. }: BindParams) -> Result<Value, Error> {
     todo!()
@@ -655,30 +692,39 @@ async fn expose_for_dependents(
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[serde(tag = "type")]
 #[ts(export)]
-struct ExposeUiParams {
-    paths: Vec<ExposedUI>,
+enum ExposeUiParams {
+    Object {
+        #[ts(type = "{[key: string]: ExposeUiParams}")]
+        value: OrdMap<String, ExposeUiParams>,
+    },
+    String {
+        path: String,
+        description: Option<String>,
+        masked: bool,
+        copyable: Option<bool>,
+        qr: Option<bool>,
+    },
 }
 
-async fn expose_ui(
-    context: EffectContext,
-    ExposeUiParams { paths }: ExposeUiParams,
-) -> Result<(), Error> {
-    let context = context.deref()?;
-    let package_id = context.id.clone();
-    context
-        .ctx
-        .db
-        .mutate(|db| {
-            db.as_public_mut()
-                .as_package_data_mut()
-                .as_idx_mut(&package_id)
-                .or_not_found(&package_id)?
-                .as_store_exposed_ui_mut()
-                .ser(&paths)
-        })
-        .await?;
-    Ok(())
+async fn expose_ui(context: EffectContext, params: ExposeUiParams) -> Result<(), Error> {
+    todo!()
+    // let context = context.deref()?;
+    // let package_id = context.id.clone();
+    // context
+    //     .ctx
+    //     .db
+    //     .mutate(|db| {
+    //         db.as_public_mut()
+    //             .as_package_data_mut()
+    //             .as_idx_mut(&package_id)
+    //             .or_not_found(&package_id)?
+    //             .as_store_exposed_ui_mut()
+    //             .ser(&paths)
+    //     })
+    //     .await?;
+    // Ok(())
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
 #[ts(export)]

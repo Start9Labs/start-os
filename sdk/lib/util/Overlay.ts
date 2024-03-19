@@ -32,15 +32,25 @@ export class Overlay {
       ? `${this.rootfs}${path}`
       : `${this.rootfs}/${path}`
     if (options.type === "volume") {
+      const subpath = options.subpath
+        ? options.subpath.startsWith("/")
+          ? options.subpath
+          : `/${options.subpath}`
+        : "/"
       await execFile("mount", [
         "--bind",
-        `/media/startos/volumes/${options.id}`,
+        `/media/startos/volumes/${options.id}${subpath}`,
         path,
       ])
     } else if (options.type === "assets") {
+      const subpath = options.subpath
+        ? options.subpath.startsWith("/")
+          ? options.subpath
+          : `/${options.subpath}`
+        : "/"
       await execFile("mount", [
         "--bind",
-        `/media/startos/assets/${options.id}`,
+        `/media/startos/assets/${options.id}${subpath}`,
         path,
       ])
     } else if (options.type === "pointer") {
@@ -140,17 +150,20 @@ export type MountOptions =
 export type MountOptionsVolume = {
   type: "volume"
   id: string
+  subpath: string | null
+  readonly: boolean
 }
 
 export type MountOptionsAssets = {
   type: "assets"
   id: string
+  subpath: string | null
 }
 
 export type MountOptionsPointer = {
   type: "pointer"
   packageId: string
   volumeId: string
-  path: string
+  subpath: string | null
   readonly: boolean
 }

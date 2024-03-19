@@ -1,16 +1,12 @@
 import { Effects, ExposeServicePaths, ExposeUiPaths } from "../types"
-import { Utils } from "../util/utils"
 
-export type SetupExports<Store> = (opts: {
-  effects: Effects
-  utils: Utils<any, Store>
-}) =>
+export type SetupExports<Store> = (opts: { effects: Effects }) =>
   | {
-      ui: ExposeUiPaths<Store>
+      ui: { [k: string]: ExposeUiPaths<Store> }
       services: ExposeServicePaths<Store>
     }
   | Promise<{
-      ui: ExposeUiPaths<Store>
+      ui: { [k: string]: ExposeUiPaths<Store> }
       services: ExposeServicePaths<Store>
     }>
 

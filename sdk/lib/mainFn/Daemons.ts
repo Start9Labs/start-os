@@ -1,3 +1,4 @@
+import { NO_TIMEOUT, SIGKILL, SIGTERM, Signals } from "../StartSdk"
 import { HealthReceipt } from "../health/HealthReceipt"
 import { CheckResult } from "../health/checkFns"
 import { SDKManifest } from "../manifest/ManifestTypes"
@@ -5,8 +6,22 @@ import { Trigger } from "../trigger"
 import { TriggerInput } from "../trigger/TriggerInput"
 import { defaultTrigger } from "../trigger/defaultTrigger"
 import { DaemonReturned, Effects, ValidIfNoStupidEscape } from "../types"
-import { createUtils } from "../util"
-import { Signals } from "../util/utils"
+import { Mounts } from "./Mounts"
+import { CommandOptions, MountOptions, Overlay } from "../util/Overlay"
+import { splitCommand } from "../util/splitCommand"
+
+import { promisify } from "node:util"
+import * as CP from "node:child_process"
+
+const cpExec = promisify(CP.exec)
+const cpExecFile = promisify(CP.execFile)
+async function psTree(pid: number, overlay: Overlay): Promise<number[]> {
+  const { stdout } = await cpExec(`pstree -p ${pid}`)
+  const regex: RegExp = /\((\d+)\)/g
+  return [...stdout.toString().matchAll(regex)].map(([_all, pid]) =>
+    parseInt(pid),
+  )
+}
 type Daemon<
   Manifest extends SDKManifest,
   Ids extends string,
@@ -16,6 +31,7 @@ type Daemon<
   id: "" extends Id ? never : Id
   command: ValidIfNoStupidEscape<Command> | [string, ...string[]]
   imageId: Manifest["images"][number]
+  mounts: Mounts<Manifest>
   env?: Record<string, string>
   ready: {
     display: string | null
@@ -26,6 +42,89 @@ type Daemon<
 }
 
 type ErrorDuplicateId<Id extends string> = `The id '${Id}' is already used`
+
+const runDaemon =
+  <Manifest extends SDKManifest>() =>
+  async <A extends string>(
+    effects: Effects,
+    imageId: Manifest["images"][number],
+    command: ValidIfNoStupidEscape<A> | [string, ...string[]],
+    options: CommandOptions & {
+      mounts?: { path: string; options: MountOptions }[]
+      overlay?: Overlay
+    },
+  ): Promise<DaemonReturned> => {
+    const commands = splitCommand(command)
+    const overlay = options.overlay || (await Overlay.of(effects, imageId))
+    for (let mount of options.mounts || []) {
+      await overlay.mount(mount.options, mount.path)
+    }
+    const childProcess = await overlay.spawn(commands, {
+      env: options.env,
+    })
+    const answer = new Promise<null>((resolve, reject) => {
+      childProcess.stdout.on("data", (data: any) => {
+        console.log(data.toString())
+      })
+      childProcess.stderr.on("data", (data: any) => {
+        console.error(data.toString())
+      })
+
+      childProcess.on("exit", (code: any) => {
+        if (code === 0) {
+          return resolve(null)
+        }
+        return reject(new Error(`${commands[0]} exited with code ${code}`))
+      })
+    })
+
+    const pid = childProcess.pid
+    return {
+      async wait() {
+        const pids = pid ? await psTree(pid, overlay) : []
+        try {
+          return await answer
+        } finally {
+          for (const process of pids) {
+            cpExecFile("kill", [`-9`, String(process)]).catch((_) => {})
+          }
+        }
+      },
+      async term({ signal = SIGTERM, timeout = NO_TIMEOUT } = {}) {
+        const pids = pid ? await psTree(pid, overlay) : []
+        try {
+          childProcess.kill(signal)
+
+          if (timeout > NO_TIMEOUT) {
+            const didTimeout = await Promise.race([
+              new Promise((resolve) => setTimeout(resolve, timeout)).then(
+                () => true,
+              ),
+              answer.then(() => false),
+            ])
+            if (didTimeout) {
+              childProcess.kill(SIGKILL)
+            }
+          } else {
+            await answer
+          }
+        } finally {
+          await overlay.destroy()
+        }
+
+        try {
+          for (const process of pids) {
+            await cpExecFile("kill", [`-${signal}`, String(process)])
+          }
+        } finally {
+          for (const process of pids) {
+            cpExecFile("kill", [`-9`, String(process)]).catch((_) => {})
+          }
+        }
+      },
+    }
+  }
+
 /**
  * A class for defining and controlling the service daemons
 ```ts
@@ -104,9 +203,11 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
       )
       daemonsStarted[daemon.id] = requiredPromise.then(async () => {
         const { command, imageId } = daemon
-        const utils = createUtils<Manifest>(effects)
 
-        const child = utils.runDaemon(imageId, command, { env: daemon.env })
+        const child = runDaemon<Manifest>()(effects, imageId, command, {
+          env: daemon.env,
+          mounts: daemon.mounts.build(),
+        })
         let currentInput: TriggerInput = {}
         const getCurrentInput = () => currentInput
         const trigger = (daemon.ready.trigger ?? defaultTrigger)(
