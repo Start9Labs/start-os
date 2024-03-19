@@ -10,9 +10,11 @@ import {
   map,
   Observable,
   pairwise,
+  shareReplay,
   startWith,
   switchMap,
 } from 'rxjs'
+import { EOSService } from 'src/app/services/eos.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { ConnectionService } from 'src/app/services/connection.service'
@@ -23,6 +25,10 @@ import { ConnectionService } from 'src/app/services/connection.service'
 export class BadgeService {
   private readonly emver = inject(Emver)
   private readonly patch = inject(PatchDB<DataModel>)
+  private readonly settings$ = combineLatest([
+    this.patch.watch$('server-info', 'ntp-synced'),
+    inject(EOSService).updateAvailable$,
+  ]).pipe(map(([synced, update]) => Number(!synced) + Number(update)))
   private readonly marketplace = inject(
     AbstractMarketplaceService,
   ) as MarketplaceService
@@ -47,7 +53,7 @@ export class BadgeService {
     ),
   )
 
-  private readonly updateCount$ = combineLatest([
+  private readonly updates$ = combineLatest([
     this.marketplace.getMarketplace$(true),
     this.local$,
   ]).pipe(
@@ -65,12 +71,15 @@ export class BadgeService {
           new Set<string>(),
         ).size,
     ),
+    shareReplay(1),
   )
 
   getCount(id: string): Observable<number> {
     switch (id) {
       case '/portal/system/updates':
-        return this.updateCount$
+        return this.updates$
+      case '/portal/system/settings':
+        return this.settings$
       default:
         return EMPTY
     }

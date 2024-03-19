@@ -2,6 +2,7 @@ import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ServiceComponent } from 'src/app/apps/portal/routes/dashboard/service.component'
 import { ServicesService } from 'src/app/apps/portal/services/services.service'
+import { DepErrorService } from 'src/app/services/dep-error.service'
 
 @Component({
   standalone: true,
@@ -19,12 +20,17 @@ import { ServicesService } from 'src/app/apps/portal/services/services.service'
         </tr>
       </thead>
       <tbody>
-        @for (service of services$ | async; track $index) {
-          <tr [appService]="service"></tr>
-        } @empty {
-          <tr>
-            <td colspan="5">No services installed</td>
-          </tr>
+        @if (errors$ | async; as errors) {
+          @for (service of services$ | async; track $index) {
+            <tr
+              [appService]="service"
+              [appServiceError]="errors[service.manifest.id]"
+            ></tr>
+          } @empty {
+            <tr>
+              <td colspan="5">No services installed</td>
+            </tr>
+          }
         }
       </tbody>
     </table>
@@ -49,7 +55,7 @@ import { ServicesService } from 'src/app/apps/portal/services/services.service'
     }
 
     table {
-      width: stretch;
+      width: calc(100% - 4rem);
       margin: 2rem;
     }
 
@@ -76,4 +82,5 @@ import { ServicesService } from 'src/app/apps/portal/services/services.service'
 })
 export class ServicesComponent {
   readonly services$ = inject(ServicesService)
+  readonly errors$ = inject(DepErrorService).depErrors$
 }

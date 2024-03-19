@@ -1,7 +1,12 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { AsyncPipe } from '@angular/common'
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { RouterLink } from '@angular/router'
-import { TuiIconModule } from '@taiga-ui/experimental'
+import {
+  TuiBadgeNotificationModule,
+  TuiIconModule,
+} from '@taiga-ui/experimental'
 import { SYSTEM_UTILITIES } from 'src/app/apps/portal/constants/system-utilities'
+import { BadgeService } from 'src/app/apps/portal/services/badge.service'
 
 @Component({
   standalone: true,
@@ -13,6 +18,9 @@ import { SYSTEM_UTILITIES } from 'src/app/apps/portal/constants/system-utilities
         <a class="link" [routerLink]="item.routerLink">
           <tui-icon [icon]="item.icon" />
           {{ item.title }}
+          @if (item.notification$ | async; as value) {
+            <tui-badge-notification>{{ value }}</tui-badge-notification>
+          }
         </a>
       }
     </div>
@@ -45,6 +53,7 @@ import { SYSTEM_UTILITIES } from 'src/app/apps/portal/constants/system-utilities
 
     .link {
       @include transition(background);
+      position: relative;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -58,19 +67,27 @@ import { SYSTEM_UTILITIES } from 'src/app/apps/portal/constants/system-utilities
         height: 50%;
       }
 
+      tui-badge-notification {
+        position: absolute;
+        top: 10%;
+        right: 10%;
+      }
+
       &:hover {
         background: var(--tui-clear);
       }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiIconModule, RouterLink],
+  imports: [TuiIconModule, RouterLink, TuiBadgeNotificationModule, AsyncPipe],
 })
 export class UtilitiesComponent {
+  private readonly badge = inject(BadgeService)
   readonly items = Object.keys(SYSTEM_UTILITIES)
     .filter(key => key !== '/portal/system/notifications')
     .map(key => ({
       ...SYSTEM_UTILITIES[key],
       routerLink: key,
+      notification$: this.badge.getCount(key),
     }))
 }

@@ -4,7 +4,7 @@ import { ActivatedRoute, NavigationExtras, Router } from '@angular/router'
 import { Manifest } from '@start9labs/marketplace'
 import { getPkgId, isEmptyObject } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
-import { combineLatest, map } from 'rxjs'
+import { combineLatest, map, switchMap } from 'rxjs'
 import { ConnectionService } from 'src/app/services/connection.service'
 import {
   DependencyErrorType,
@@ -51,42 +51,44 @@ const STATES = [
 
 @Component({
   template: `
-    <ng-container *ngIf="service$ | async as service">
-      <ng-container *ngIf="showProgress(service.pkg); else installed">
-        <ng-container *ngIf="service.pkg | progressData as progress">
+    @if (service$ | async; as service) {
+      @if (showProgress(service.pkg)) {
+        @if (service.pkg | progressData; as progress) {
           <p [progress]="progress.downloadProgress">Downloading</p>
           <p [progress]="progress.validateProgress">Validating</p>
           <p [progress]="progress.unpackProgress">Unpacking</p>
-        </ng-container>
-      </ng-container>
-
-      <ng-template #installed>
+        }
+      } @else {
         <h3 class="g-title">Status</h3>
         <service-status
           [connected]="!!(connected$ | async)"
           [installProgress]="service.pkg['install-progress']"
           [rendering]="$any(getRendering(service.status))"
         />
-        <service-actions
-          *ngIf="isInstalled(service.pkg) && (connected$ | async)"
-          [service]="service.pkg"
-          [dependencies]="service.dependencies"
-        />
 
-        <ng-container
-          *ngIf="isInstalled(service.pkg) && !isBackingUp(service.status)"
-        >
-          <service-interfaces [service]="service" />
-          <service-health-checks
-            *ngIf="isRunning(service.status) && (health$ | async) as checks"
-            [checks]="checks"
+        @if (isInstalled(service.pkg) && (connected$ | async)) {
+          <service-actions
+            [service]="service.pkg"
+            [dependencies]="service.dependencies"
           />
-          <service-dependencies [dependencies]="service.dependencies" />
+        }
+
+        @if (isInstalled(service.pkg) && !isBackingUp(service.status)) {
+          <service-interfaces [service]="service" />
+
+          @if (isRunning(service.status) && (health$ | async); as checks) {
+            <service-health-checks [checks]="checks" />
+          }
+
+          @if (service.dependencies.length) {
+            <service-dependencies [dependencies]="service.dependencies" />
+          }
+
           <service-menu [service]="service.pkg" />
           <service-additional [service]="service.pkg" />
-        </ng-container>
-      </ng-template>
-    </ng-container>
+        }
+      }
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
@@ -107,16 +109,21 @@ const STATES = [
 })
 export class ServiceRoute {
   private readonly patch = inject(PatchDB<DataModel>)
-  private readonly pkgId = getPkgId(inject(ActivatedRoute))
+  private readonly pkgId$ = inject(ActivatedRoute).paramMap.pipe(
+    map(params => params.get('pkgId')!),
+  )
   private readonly depErrorService = inject(DepErrorService)
   private readonly router = inject(Router)
   private readonly formDialog = inject(FormDialogService)
 
   readonly connected$ = inject(ConnectionService).connected$
-  readonly service$ = combineLatest([
-    this.patch.watch$('package-data', this.pkgId),
-    this.depErrorService.getPkgDepErrors$(this.pkgId),
-  ]).pipe(
+  readonly service$ = this.pkgId$.pipe(
+    switchMap(pkgId =>
+      combineLatest([
+        this.patch.watch$('package-data', pkgId),
+        this.depErrorService.getPkgDepErrors$(pkgId),
+      ]),
+    ),
     map(([pkg, depErrors]) => {
       return {
         pkg,
@@ -125,9 +132,12 @@ export class ServiceRoute {
       }
     }),
   )
-  readonly health$ = this.patch
-    .watch$('package-data', this.pkgId, 'installed', 'status', 'main')
-    .pipe(map(toHealthCheck))
+  readonly health$ = this.pkgId$.pipe(
+    switchMap(pkgId =>
+      this.patch.watch$('package-data', pkgId, 'installed', 'status', 'main'),
+    ),
+    map(toHealthCheck),
+  )
 
   getRendering({ primary }: PackageStatus): StatusRendering {
     return PrimaryRendering[primary]

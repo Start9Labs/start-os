@@ -6,13 +6,16 @@ import {
   Input,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
+import { tuiPure } from '@taiga-ui/cdk'
 import { ControlsComponent } from 'src/app/apps/portal/routes/dashboard/controls.component'
 import { StatusComponent } from 'src/app/apps/portal/routes/dashboard/status.component'
 import { ConnectionService } from 'src/app/services/connection.service'
+import { PkgDependencyErrors } from 'src/app/services/dep-error.service'
 import {
   PackageDataEntry,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
+import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 
 @Component({
   standalone: true,
@@ -23,7 +26,10 @@ import {
       <a [routerLink]="routerLink">{{ appService.manifest.title }}</a>
     </td>
     <td>{{ appService.manifest.version }}</td>
-    <td [appStatus]="appService"></td>
+    <td
+      [appStatus]="appService"
+      [appStatusError]="hasError(appServiceError)"
+    ></td>
     <td [style.text-align]="'center'">
       <fieldset
         [disabled]="!installed || !(connected$ | async)"
@@ -53,6 +59,9 @@ export class ServiceComponent {
   @Input()
   appService!: PackageDataEntry
 
+  @Input()
+  appServiceError?: PkgDependencyErrors
+
   readonly connected$ = inject(ConnectionService).connected$
 
   get routerLink() {
@@ -61,5 +70,10 @@ export class ServiceComponent {
 
   get installed(): boolean {
     return this.appService.state === PackageState.Installed
+  }
+
+  @tuiPure
+  hasError(errors: PkgDependencyErrors = {}): boolean {
+    return Object.values(errors).some(Boolean)
   }
 }

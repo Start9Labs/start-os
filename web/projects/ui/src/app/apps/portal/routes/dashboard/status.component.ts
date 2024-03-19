@@ -1,18 +1,17 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { tuiPure } from '@taiga-ui/cdk'
 import { TuiLoaderModule } from '@taiga-ui/core'
 import { TuiIconModule } from '@taiga-ui/experimental'
 import {
   PackageDataEntry,
-  PackageMainStatus,
+  PackageState,
 } from 'src/app/services/patch-db/data-model'
+import {
+  HealthStatus,
+  PrimaryStatus,
+  renderPkgStatus,
+} from 'src/app/services/pkg-status-rendering.service'
 import { packageLoadingProgress } from 'src/app/util/package-loading-progress'
-
-const LOADING: any[] = [
-  PackageMainStatus.BackingUp,
-  PackageMainStatus.Starting,
-  PackageMainStatus.Stopping,
-  PackageMainStatus.Restarting,
-]
 
 @Component({
   standalone: true,
@@ -27,7 +26,7 @@ const LOADING: any[] = [
         <tui-icon icon="tuiIconAlertTriangle" class="g-warning" />
       }
     }
-    <b [style.color]="textColor">{{ status }}</b>
+    <b [style.color]="color">{{ status }}</b>
   `,
   styles: `
     :host {
@@ -44,15 +43,30 @@ export class StatusComponent {
   @Input()
   appStatus!: PackageDataEntry
 
+  @Input()
+  appStatusError = false
+
   get healthy(): boolean {
-    return !!this.appStatus.installed?.status.configured
+    const status = this.getStatus(this.appStatus)
+
+    return (
+      !this.appStatusError && // no deps error
+      !!this.appStatus.installed?.status.configured && // no config needed
+      status.primary !== PackageState.NeedsUpdate && // no update needed
+      status.health !== HealthStatus.Failure // no health issues
+    )
   }
 
   get loading(): boolean {
     return (
       !!this.appStatus['install-progress'] ||
-      LOADING.includes(this.appStatus.installed?.status.main.status)
+      this.color === 'var(--tui-info-fill)'
     )
+  }
+
+  @tuiPure
+  getStatus(pkg: PackageDataEntry) {
+    return renderPkgStatus(pkg, {})
   }
 
   get status(): string {
@@ -61,40 +75,52 @@ export class StatusComponent {
       return `Installing... ${packageLoadingProgress(this.appStatus['install-progress'])?.totalProgress || 0}%`
     }
 
-    switch (this.appStatus.installed?.status.main.status) {
-      case PackageMainStatus.Running:
+    switch (this.getStatus(this.appStatus).primary) {
+      case PrimaryStatus.Running:
         return 'Running'
-      case PackageMainStatus.Stopped:
+      case PrimaryStatus.Stopped:
         return 'Stopped'
-      case PackageMainStatus.Starting:
-        return 'Starting...'
-      case PackageMainStatus.Stopping:
+      case PackageState.NeedsUpdate:
+        return 'Needs Update'
+      case PrimaryStatus.NeedsConfig:
+        return 'Needs Update'
+      case PrimaryStatus.Updating:
+        return 'Updating...'
+      case PrimaryStatus.Stopping:
         return 'Stopping...'
-      case PackageMainStatus.BackingUp:
+      case PrimaryStatus.Starting:
+        return 'Starting...'
+      case PrimaryStatus.BackingUp:
         return 'Backing Up...'
-      case PackageMainStatus.Restarting:
+      case PrimaryStatus.Restarting:
         return 'Restarting...'
+      case PrimaryStatus.Removing:
+        return 'Removing...'
+      case PrimaryStatus.Restoring:
+        return 'Restoring...'
       default:
-        return !this.appStatus.installed?.status.configured
-          ? 'Needs Config'
-          : 'Unknown'
+        return 'Unknown'
     }
   }
 
-  get textColor(): string {
+  get color(): string {
     if (this.appStatus['install-progress']) {
       return 'var(--tui-info-fill)'
     }
 
-    switch (this.status) {
-      case 'Running':
+    switch (this.getStatus(this.appStatus).primary) {
+      case PrimaryStatus.Running:
         return 'var(--tui-success-fill)'
-      case 'Needs Config':
+      case PackageState.NeedsUpdate:
+      case PrimaryStatus.NeedsConfig:
         return 'var(--tui-warning-fill)'
-      case 'Starting...':
-      case 'Stopping...':
-      case 'Backing Up...':
-      case 'Restarting...':
+      case PrimaryStatus.Updating:
+      case PrimaryStatus.Stopping:
+      case PrimaryStatus.Starting:
+      case PrimaryStatus.BackingUp:
+      case PrimaryStatus.Restarting:
+      case PrimaryStatus.Removing:
+      case PrimaryStatus.Restoring:
         return 'var(--tui-info-fill)'
       default:
         return 'var(--tui-text-02)'
