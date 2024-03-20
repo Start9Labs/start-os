@@ -25,7 +25,7 @@ export function setupInit<Manifest extends SDKManifest, Store>(
         input: null,
       })
       const { services, ui } = await setupExports(opts)
-      await opts.effects.exposeForDependents(services)
+      await opts.effects.exposeForDependents({ paths: services })
       await opts.effects.exposeUi(forExpose(ui))
     },
     uninit: async (opts) => {

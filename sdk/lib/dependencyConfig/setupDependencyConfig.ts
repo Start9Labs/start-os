@@ -15,7 +15,7 @@ export function setupDependencyConfig<
       Store,
       Input,
       any
-    >
+    > | null
   },
 ): ExpectedExports.dependencyConfig {
   return autoConfigs

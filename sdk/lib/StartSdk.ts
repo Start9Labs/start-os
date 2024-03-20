@@ -275,7 +275,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
             Store,
             Input,
             any
-          >
+          > | null
         },
       ) => setupDependencyConfig<Store, Input, Manifest>(config, autoConfigs),
       setupExports: (fn: SetupExports<Store>) => fn,

@@ -7,7 +7,6 @@ import "./deepEqual"
 import "./deepMerge"
 import "./Overlay"
 import "./once"
-import { SDKManifest } from "../manifest/ManifestTypes"
 
 export { GetServiceInterface, getServiceInterface } from "./getServiceInterface"
 export { getServiceInterfaces } from "./getServiceInterfaces"
@@ -30,3 +29,5 @@ export type NoAny<A> = NeverPossible extends A
     ? never
     : A
   : A
+
+export { getDefaultString } from "./getDefaultString"

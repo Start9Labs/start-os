@@ -92,7 +92,7 @@ export namespace ExpectedExports {
   /** Auto configure is used to make sure that other dependencies have the values t
    * that this service could use.
    */
-  export type dependencyConfig = Record<PackageId, DependencyConfig>
+  export type dependencyConfig = Record<PackageId, DependencyConfig | null>
 }
 export type TimeMs = number
 export type VersionString = string

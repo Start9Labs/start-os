@@ -4,6 +4,7 @@ use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
+use std::net::Ipv4Addr;
 
 use clap::builder::ValueParserFactory;
 use clap::Parser;
@@ -335,7 +336,7 @@ async fn get_system_smtp(
 ) -> Result<Value, Error> {
     todo!()
 }
-async fn get_container_ip(context: EffectContext, _: Empty) -> Result<Value, Error> {
+async fn get_container_ip(context: EffectContext, _: Empty) -> Result<Ipv4Addr, Error> {
     todo!()
 }
 async fn get_service_port_forward(
