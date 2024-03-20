@@ -1,92 +1,63 @@
-use std::collections::BTreeMap;
-use std::io::SeekFrom;
-use std::marker::PhantomData;
-use std::path::{Path, PathBuf};
-use std::sync::atomic::Ordering;
-use std::sync::Arc;
+use std::path::PathBuf;
 use std::time::Duration;
 
+use clap::builder::ValueParserFactory;
+use clap::{value_parser, CommandFactory, FromArgMatches, Parser};
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
-use futures::future::BoxFuture;
-use futures::{FutureExt, StreamExt, TryStreamExt};
-use http::header::CONTENT_LENGTH;
-use http::{Request, Response, StatusCode};
-use hyper::Body;
-use models::{mime, DataUrl};
+use futures::{FutureExt, StreamExt};
+use patch_db::json_ptr::JsonPointer;
+use reqwest::header::{HeaderMap, CONTENT_LENGTH};
 use reqwest::Url;
-use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::CallRemote;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tokio::fs::{File, OpenOptions};
-use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWriteExt};
-use tokio::process::Command;
 use tokio::sync::oneshot;
-use tokio_stream::wrappers::ReadDirStream;
 use tracing::instrument;
 
-use self::cleanup::{cleanup_failed, remove_from_current_dependents_lists};
-use crate::config::ConfigureContext;
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
-use crate::db::model::{
-    CurrentDependencies, CurrentDependencyInfo, CurrentDependents, InstalledPackageInfo,
-    PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryInstalling,
-    PackageDataEntryMatchModelRef, PackageDataEntryRemoving, PackageDataEntryRestoring,
-    PackageDataEntryUpdating, StaticDependencyInfo, StaticFiles,
-};
-use crate::dependencies::{
-    add_dependent_to_current_dependents_lists, compute_dependency_config_errs,
-    set_dependents_with_live_pointers_to_needs_config,
-};
-use crate::install::cleanup::cleanup;
-use crate::install::progress::{InstallProgress, InstallProgressTracker};
-use crate::notifications::NotificationLevel;
+use crate::db::model::package::{ManifestPreference, PackageState, PackageStateMatchModelRef};
 use crate::prelude::*;
-use crate::registry::marketplace::with_query_params;
-use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::s9pk::reader::S9pkReader;
-use crate::status::{MainStatus, Status};
-use crate::util::docker::CONTAINER_TOOL;
-use crate::util::io::response_to_reader;
-use crate::util::serde::{display_serializable, Port};
-use crate::util::{display_none, AsyncFileExt, Invoke, Version};
-use crate::volume::{asset_dir, script_dir};
-use crate::{Error, ErrorKind, ResultExt};
-
-pub mod cleanup;
-pub mod progress;
+use crate::progress::{FullProgress, PhasedProgressBar};
+use crate::s9pk::manifest::PackageId;
+use crate::s9pk::merkle_archive::source::http::HttpSource;
+use crate::s9pk::S9pk;
+use crate::upload::upload;
+use crate::util::clap::FromStrParser;
+use crate::util::Never;
 
 pub const PKG_ARCHIVE_DIR: &str = "package-data/archive";
 pub const PKG_PUBLIC_DIR: &str = "package-data/public";
 pub const PKG_WASM_DIR: &str = "package-data/wasm";
 
-#[command(display(display_serializable))]
-pub async fn list(#[context] ctx: RpcContext) -> Result<Value, Error> {
-    Ok(ctx.db.peek().await.as_package_data().as_entries()?
+// #[command(display(display_serializable))]
+pub async fn list(ctx: RpcContext) -> Result<Value, Error> {
+    Ok(ctx.db.peek().await.as_public().as_package_data().as_entries()?
         .iter()
         .filter_map(|(id, pde)| {
-            let status = match pde.as_match() {
-                PackageDataEntryMatchModelRef::Installed(_) => {
+            let status = match pde.as_state_info().as_match() {
+                PackageStateMatchModelRef::Installed(_) => {
                     "installed"
                 }
-                PackageDataEntryMatchModelRef::Installing(_) => {
+                PackageStateMatchModelRef::Installing(_) => {
                     "installing"
                 }
-                PackageDataEntryMatchModelRef::Updating(_) => {
+                PackageStateMatchModelRef::Updating(_) => {
                     "updating"
                 }
-                PackageDataEntryMatchModelRef::Restoring(_) => {
+                PackageStateMatchModelRef::Restoring(_) => {
                     "restoring"
                 }
-                PackageDataEntryMatchModelRef::Removing(_) => {
+                PackageStateMatchModelRef::Removing(_) => {
                     "removing"
                 }
-                PackageDataEntryMatchModelRef::Error(_) => {
+                PackageStateMatchModelRef::Error(_) => {
                     "error"
                 }
             };
-            serde_json::to_value(json!({ "status":status, "id": id.clone(), "version": pde.as_manifest().as_version().de().ok()?}))
+            serde_json::to_value(json!({ "status": status, "id": id.clone(), "version": pde.as_state_info().as_manifest(ManifestPreference::Old).as_version().de().ok()?}))
             .ok()
         })
         .collect())
@@ -116,6 +87,12 @@ impl std::str::FromStr for MinMax {
         }
     }
 }
+impl ValueParserFactory for MinMax {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
+    }
+}
 impl std::fmt::Display for MinMax {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -125,21 +102,31 @@ impl std::fmt::Display for MinMax {
     }
 }
 
-#[command(
-    custom_cli(cli_install(async, context(CliContext))),
-    display(display_none),
-    metadata(sync_db = true)
-)]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct InstallParams {
+    id: PackageId,
+    #[arg(short = 'm', long = "marketplace-url")]
+    marketplace_url: Option<Url>,
+    #[arg(short = 'v', long = "version-spec")]
+    version_spec: Option<String>,
+    #[arg(long = "version-priority")]
+    version_priority: Option<MinMax>,
+}
+
+// #[command(
+//     custom_cli(cli_install(async, context(CliContext))),
+// )]
 #[instrument(skip_all)]
 pub async fn install(
-    #[context] ctx: RpcContext,
-    #[arg] id: String,
-    #[arg(short = 'm', long = "marketplace-url", rename = "marketplace-url")]
-    marketplace_url: Option<Url>,
-    #[arg(short = 'v', long = "version-spec", rename = "version-spec")] version_spec: Option<
-        String,
-    >,
-    #[arg(long = "version-priority", rename = "version-priority")] version_priority: Option<MinMax>,
+    ctx: RpcContext,
+    InstallParams {
+        id,
+        marketplace_url,
+        version_spec,
+        version_priority,
+    }: InstallParams,
 ) -> Result<(), Error> {
     let version_str = match &version_spec {
         None => "*",
@@ -149,1169 +136,292 @@ pub async fn install(
     let marketplace_url =
         marketplace_url.unwrap_or_else(|| crate::DEFAULT_MARKETPLACE.parse().unwrap());
     let version_priority = version_priority.unwrap_or_default();
-    let man: Manifest = ctx
-        .client
-        .get(with_query_params(
-            ctx.clone(),
+    let s9pk = S9pk::deserialize(
+        &HttpSource::new(
+            ctx.client.clone(),
             format!(
-                "{}/package/v0/manifest/{}?spec={}&version-priority={}",
+                "{}/package/v0/{}.s9pk?spec={}&version-priority={}",
                 marketplace_url, id, version, version_priority,
             )
             .parse()?,
-        ))
-        .send()
-        .await
-        .with_kind(crate::ErrorKind::Registry)?
-        .error_for_status()
-        .with_kind(crate::ErrorKind::Registry)?
-        .json()
-        .await
-        .with_kind(crate::ErrorKind::Registry)?;
-    let s9pk = ctx
-        .client
-        .get(with_query_params(
-            ctx.clone(),
-            format!(
-                "{}/package/v0/{}.s9pk?spec=={}&version-priority={}",
-                marketplace_url, id, man.version, version_priority,
-            )
-            .parse()?,
-        ))
-        .send()
-        .await
-        .with_kind(crate::ErrorKind::Registry)?
-        .error_for_status()?;
+        )
+        .await?,
+    )
+    .await?;
 
-    if *man.id != *id || !man.version.satisfies(&version) {
-        return Err(Error::new(
-            eyre!("Fetched package does not match requested id and version"),
-            ErrorKind::Registry,
-        ));
-    }
-
-    let public_dir_path = ctx
-        .datadir
-        .join(PKG_PUBLIC_DIR)
-        .join(&man.id)
-        .join(man.version.as_str());
-    tokio::fs::create_dir_all(&public_dir_path).await?;
-
-    let icon_type = man.assets.icon_type();
-    let (license_res, instructions_res, icon_res) = tokio::join!(
-        async {
-            tokio::io::copy(
-                &mut response_to_reader(
-                    ctx.client
-                        .get(with_query_params(
-                            ctx.clone(),
-                            format!(
-                                "{}/package/v0/license/{}?spec=={}",
-                                marketplace_url, id, man.version,
-                            )
-                            .parse()?,
-                        ))
-                        .send()
-                        .await?
-                        .error_for_status()?,
-                ),
-                &mut File::create(public_dir_path.join("LICENSE.md")).await?,
-            )
-            .await?;
-            Ok::<_, color_eyre::eyre::Report>(())
-        },
-        async {
-            tokio::io::copy(
-                &mut response_to_reader(
-                    ctx.client
-                        .get(with_query_params(
-                            ctx.clone(),
-                            format!(
-                                "{}/package/v0/instructions/{}?spec=={}",
-                                marketplace_url, id, man.version,
-                            )
-                            .parse()?,
-                        ))
-                        .send()
-                        .await?
-                        .error_for_status()?,
-                ),
-                &mut File::create(public_dir_path.join("INSTRUCTIONS.md")).await?,
-            )
-            .await?;
-            Ok::<_, color_eyre::eyre::Report>(())
-        },
-        async {
-            tokio::io::copy(
-                &mut response_to_reader(
-                    ctx.client
-                        .get(with_query_params(
-                            ctx.clone(),
-                            format!(
-                                "{}/package/v0/icon/{}?spec=={}",
-                                marketplace_url, id, man.version,
-                            )
-                            .parse()?,
-                        ))
-                        .send()
-                        .await?
-                        .error_for_status()?,
-                ),
-                &mut File::create(public_dir_path.join(format!("icon.{}", icon_type))).await?,
-            )
-            .await?;
-            Ok::<_, color_eyre::eyre::Report>(())
-        },
+    ensure_code!(
+        &s9pk.as_manifest().id == &id,
+        ErrorKind::ValidateS9pk,
+        "manifest.id does not match expected"
     );
-    if let Err(e) = license_res {
-        tracing::warn!("Failed to pre-download license: {}", e);
-    }
-    if let Err(e) = instructions_res {
-        tracing::warn!("Failed to pre-download instructions: {}", e);
-    }
-    if let Err(e) = icon_res {
-        tracing::warn!("Failed to pre-download icon: {}", e);
-    }
 
-    let progress = Arc::new(InstallProgress::new(s9pk.content_length()));
-    let static_files = StaticFiles::local(&man.id, &man.version, icon_type);
-    ctx.db
-        .mutate(|db| {
-            let pde = match db
-                .as_package_data()
-                .as_idx(&man.id)
-                .map(|x| x.de())
-                .transpose()?
-            {
-                Some(PackageDataEntry::Installed(PackageDataEntryInstalled {
-                    installed,
-                    static_files,
-                    ..
-                })) => PackageDataEntry::Updating(PackageDataEntryUpdating {
-                    install_progress: progress.clone(),
-                    static_files,
-                    installed,
-                    manifest: man.clone(),
-                }),
-                None => PackageDataEntry::Installing(PackageDataEntryInstalling {
-                    install_progress: progress.clone(),
-                    static_files,
-                    manifest: man.clone(),
-                }),
-                _ => {
-                    return Err(Error::new(
-                        eyre!("Cannot install over a package in a transient state"),
-                        crate::ErrorKind::InvalidRequest,
-                    ))
-                }
-            };
-            db.as_package_data_mut().insert(&man.id, &pde)
-        })
+    let download = ctx
+        .services
+        .install(ctx.clone(), s9pk, None::<Never>)
         .await?;
-
-    let downloading = download_install_s9pk(
-        ctx.clone(),
-        man.clone(),
-        Some(marketplace_url),
-        Arc::new(InstallProgress::new(s9pk.content_length())),
-        response_to_reader(s9pk),
-        None,
-    );
-    tokio::spawn(async move {
-        if let Err(e) = downloading.await {
-            let err_str = format!("Install of {}@{} Failed: {}", man.id, man.version, e);
-            tracing::error!("{}", err_str);
-            tracing::debug!("{:?}", e);
-            if let Err(e) = ctx
-                .notification_manager
-                .notify(
-                    ctx.db.clone(),
-                    Some(man.id),
-                    NotificationLevel::Error,
-                    String::from("Install Failed"),
-                    err_str,
-                    (),
-                    None,
-                )
-                .await
-            {
-                tracing::error!("Failed to issue Notification: {}", e);
-                tracing::debug!("{:?}", e);
-            }
-        }
-        Ok::<_, String>(())
-    });
+    tokio::spawn(async move { download.await?.await });
 
     Ok(())
 }
-#[command(rpc_only, display(display_none))]
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct SideloadResponse {
+    pub upload: RequestGuid,
+    pub progress: RequestGuid,
+}
+
 #[instrument(skip_all)]
-pub async fn sideload(
-    #[context] ctx: RpcContext,
-    #[arg] manifest: Manifest,
-    #[arg] icon: Option<String>,
-) -> Result<RequestGuid, Error> {
-    let new_ctx = ctx.clone();
-    let guid = RequestGuid::new();
-    if let Some(icon) = icon {
-        use tokio::io::AsyncWriteExt;
-
-        let public_dir_path = ctx
-            .datadir
-            .join(PKG_PUBLIC_DIR)
-            .join(&manifest.id)
-            .join(manifest.version.as_str());
-        tokio::fs::create_dir_all(&public_dir_path).await?;
-
-        let invalid_data_url =
-            || Error::new(eyre!("Invalid Icon Data URL"), ErrorKind::InvalidRequest);
-        let data = icon
-            .strip_prefix(&format!(
-                "data:image/{};base64,",
-                manifest.assets.icon_type()
-            ))
-            .ok_or_else(&invalid_data_url)?;
-        let mut icon_file =
-            File::create(public_dir_path.join(format!("icon.{}", manifest.assets.icon_type())))
-                .await?;
-        icon_file
-            .write_all(&base64::decode(data).with_kind(ErrorKind::InvalidRequest)?)
-            .await?;
-        icon_file.sync_all().await?;
-    }
-
-    let handler = Box::new(|req: Request<Body>| {
-        async move {
-            let content_length = match req.headers().get(CONTENT_LENGTH).map(|a| a.to_str()) {
-                None => None,
-                Some(Err(_)) => {
-                    return Response::builder()
-                        .status(StatusCode::BAD_REQUEST)
-                        .body(Body::from("Invalid Content Length"))
-                        .with_kind(ErrorKind::Network)
-                }
-                Some(Ok(a)) => match a.parse::<u64>() {
-                    Err(_) => {
-                        return Response::builder()
-                            .status(StatusCode::BAD_REQUEST)
-                            .body(Body::from("Invalid Content Length"))
-                            .with_kind(ErrorKind::Network)
-                    }
-                    Ok(a) => Some(a),
-                },
-            };
-            let progress = Arc::new(InstallProgress::new(content_length));
-            let install_progress = progress.clone();
-
-            new_ctx
-                .db
-                .mutate(|db| {
-                    let pde = match db
-                        .as_package_data()
-                        .as_idx(&manifest.id)
-                        .map(|x| x.de())
-                        .transpose()?
-                    {
-                        Some(PackageDataEntry::Installed(PackageDataEntryInstalled {
-                            installed,
-                            static_files,
-                            ..
-                        })) => PackageDataEntry::Updating(PackageDataEntryUpdating {
-                            install_progress,
-                            installed,
-                            manifest: manifest.clone(),
-                            static_files,
-                        }),
-                        None => PackageDataEntry::Installing(PackageDataEntryInstalling {
-                            install_progress,
-                            static_files: StaticFiles::local(
-                                &manifest.id,
-                                &manifest.version,
-                                &manifest.assets.icon_type(),
-                            ),
-                            manifest: manifest.clone(),
-                        }),
-                        _ => {
-                            return Err(Error::new(
-                                eyre!("Cannot install over a package in a transient state"),
-                                crate::ErrorKind::InvalidRequest,
-                            ))
-                        }
-                    };
-                    db.as_package_data_mut().insert(&manifest.id, &pde)
-                })
-                .await?;
-
-            let (send, recv) = oneshot::channel();
-
-            tokio::spawn(async move {
-                if let Err(e) = download_install_s9pk(
-                    new_ctx.clone(),
-                    manifest.clone(),
-                    None,
-                    progress,
-                    tokio_util::io::StreamReader::new(req.into_body().map_err(|e| {
-                        std::io::Error::new(
-                            match &e {
-                                e if e.is_connect() => std::io::ErrorKind::ConnectionRefused,
-                                e if e.is_timeout() => std::io::ErrorKind::TimedOut,
-                                _ => std::io::ErrorKind::Other,
-                            },
-                            e,
-                        )
-                    })),
-                    Some(send),
-                )
-                .await
-                {
-                    let err_str = format!(
-                        "Install of {}@{} Failed: {}",
-                        manifest.id, manifest.version, e
-                    );
-                    tracing::error!("{}", err_str);
-                    tracing::debug!("{:?}", e);
-                    if let Err(e) = new_ctx
-                        .notification_manager
-                        .notify(
-                            new_ctx.db.clone(),
-                            Some(manifest.id.clone()),
-                            NotificationLevel::Error,
-                            String::from("Install Failed"),
-                            err_str,
-                            (),
-                            None,
-                        )
-                        .await
-                    {
-                        tracing::error!("Failed to issue Notification: {}", e);
-                        tracing::debug!("{:?}", e);
-                    }
-                }
-            });
-
-            if let Ok(_) = recv.await {
-                Response::builder()
-                    .status(StatusCode::OK)
-                    .body(Body::empty())
-                    .with_kind(ErrorKind::Network)
-            } else {
-                Response::builder()
-                    .status(StatusCode::INTERNAL_SERVER_ERROR)
-                    .body(Body::from("installation aborted before upload completed"))
-                    .with_kind(ErrorKind::Network)
-            }
-        }
-        .boxed()
-    });
+pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
+    let (upload, file) = upload(&ctx).await?;
+    let (id_send, id_recv) = oneshot::channel();
+    let (err_send, err_recv) = oneshot::channel();
+    let progress = RequestGuid::new();
+    let db = ctx.db.clone();
+    let mut sub = db
+        .subscribe(
+            "/package-data/{id}/install-progress"
+                .parse::<JsonPointer>()
+                .with_kind(ErrorKind::Database)?,
+        )
+        .await;
     ctx.add_continuation(
-        guid.clone(),
-        RpcContinuation::rest(handler, Duration::from_secs(30)),
+        progress.clone(),
+        RpcContinuation::ws(
+            Box::new(|mut ws| {
+                use axum::extract::ws::Message;
+                async move {
+                    if let Err(e) = async {
+                        let id = id_recv.await.map_err(|_| {
+                            Error::new(
+                                eyre!("Could not get id to watch progress"),
+                                ErrorKind::Cancelled,
+                            )
+                        })?;
+                        tokio::select! {
+                            res = async {
+                                while let Some(rev) = sub.recv().await {
+                                    if !rev.patch.0.is_empty() { // TODO: don't send empty patches?
+                                        ws.send(Message::Text(
+                                            serde_json::to_string(&if let Some(p) = db
+                                                .peek()
+                                                .await
+                                                .as_public()
+                                                .as_package_data()
+                                                .as_idx(&id)
+                                                .and_then(|e| e.as_state_info().as_installing_info()).map(|i| i.as_progress())
+                                            {
+                                                Ok::<_, ()>(p.de()?)
+                                            } else {
+                                                let mut p = FullProgress::new();
+                                                p.overall.complete();
+                                                Ok(p)
+                                            })
+                                            .with_kind(ErrorKind::Serialization)?,
+                                        ))
+                                        .await
+                                        .with_kind(ErrorKind::Network)?;
+                                    }
+                                }
+                                Ok::<_, Error>(())
+                            } => res?,
+                            err = err_recv => {
+                                if let Ok(e) = err {
+                                    ws.send(Message::Text(
+                                        serde_json::to_string(&Err::<(), _>(e))
+                                        .with_kind(ErrorKind::Serialization)?,
+                                    ))
+                                    .await
+                                    .with_kind(ErrorKind::Network)?;
+                                }
+                            }
+                        }
+
+                        ws.close().await.with_kind(ErrorKind::Network)?;
+
+                        Ok::<_, Error>(())
+                    }
+                    .await
+                    {
+                        tracing::error!("Error tracking sideload progress: {e}");
+                        tracing::debug!("{e:?}");
+                    }
+                }
+                .boxed()
+            }),
+            Duration::from_secs(600),
+        ),
     )
     .await;
-    Ok(guid)
+    tokio::spawn(async move {
+        if let Err(e) = async {
+            let s9pk = S9pk::deserialize(&file).await?;
+            let _ = id_send.send(s9pk.as_manifest().id.clone());
+            ctx.services
+                .install(ctx.clone(), s9pk, None::<Never>)
+                .await?
+                .await?
+                .await?;
+            file.delete().await
+        }
+        .await
+        {
+            let _ = err_send.send(RpcError::from(e.clone_output()));
+            tracing::error!("Error sideloading package: {e}");
+            tracing::debug!("{e:?}");
+        }
+    });
+    Ok(SideloadResponse { upload, progress })
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CliInstallParams {
+    Marketplace(InstallParams),
+    Sideload(PathBuf),
+}
+impl CommandFactory for CliInstallParams {
+    fn command() -> clap::Command {
+        use clap::{Arg, Command};
+        Command::new("install")
+            .arg(
+                Arg::new("sideload")
+                    .long("sideload")
+                    .short('s')
+                    .required_unless_present("id")
+                    .value_parser(value_parser!(PathBuf)),
+            )
+            .args(InstallParams::command().get_arguments().cloned().map(|a| {
+                if a.get_id() == "id" {
+                    a.required(false).required_unless_present("sideload")
+                } else {
+                    a
+                }
+                .conflicts_with("sideload")
+            }))
+    }
+    fn command_for_update() -> clap::Command {
+        Self::command()
+    }
+}
+impl FromArgMatches for CliInstallParams {
+    fn from_arg_matches(matches: &clap::ArgMatches) -> Result<Self, clap::Error> {
+        if let Some(sideload) = matches.get_one::<PathBuf>("sideload") {
+            Ok(Self::Sideload(sideload.clone()))
+        } else {
+            Ok(Self::Marketplace(InstallParams::from_arg_matches(matches)?))
+        }
+    }
+    fn update_from_arg_matches(&mut self, matches: &clap::ArgMatches) -> Result<(), clap::Error> {
+        *self = Self::from_arg_matches(matches)?;
+        Ok(())
+    }
 }
 
 #[instrument(skip_all)]
-async fn cli_install(
-    ctx: CliContext,
-    target: String,
-    marketplace_url: Option<Url>,
-    version_spec: Option<String>,
-    version_priority: Option<MinMax>,
-) -> Result<(), RpcError> {
-    if target.ends_with(".s9pk") {
-        let path = PathBuf::from(target);
+pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<(), RpcError> {
+    match params {
+        CliInstallParams::Sideload(path) => {
+            let file = crate::s9pk::load(&ctx, path).await?;
 
-        // inspect manifest no verify
-        let mut reader = S9pkReader::open(&path, false).await?;
-        let manifest = reader.manifest().await?;
-        let icon = reader.icon().await?.to_vec().await?;
-        let icon_str = format!(
-            "data:image/{};base64,{}",
-            manifest.assets.icon_type(),
-            base64::encode(&icon)
-        );
+            // rpc call remote sideload
+            let SideloadResponse { upload, progress } = from_value::<SideloadResponse>(
+                ctx.call_remote("package.sideload", imbl_value::json!({}))
+                    .await?,
+            )?;
 
-        // rpc call remote sideload
-        tracing::debug!("calling package.sideload");
-        let guid = rpc_toolkit::command_helpers::call_remote(
-            ctx.clone(),
-            "package.sideload",
-            serde_json::json!({ "manifest": manifest, "icon": icon_str }),
-            PhantomData::<RequestGuid>,
-        )
-        .await?
-        .result?;
-        tracing::debug!("package.sideload succeeded {:?}", guid);
-
-        // hit continuation api with guid that comes back
-        let file = tokio::fs::File::open(path).await?;
-        let content_length = file.metadata().await?.len();
-        let body = Body::wrap_stream(tokio_util::io::ReaderStream::new(file));
-        let res = ctx
-            .client
-            .post(format!("{}rest/rpc/{}", ctx.base_url, guid,))
-            .header(CONTENT_LENGTH, content_length)
-            .body(body)
-            .send()
-            .await?;
-        if res.status().as_u16() == 200 {
-            tracing::info!("Package Uploaded")
-        } else {
-            tracing::info!("Package Upload failed: {}", res.text().await?)
-        }
-    } else {
-        let params = match (target.split_once("@"), version_spec) {
-            (Some((pkg, v)), None) => {
-                serde_json::json!({ "id": pkg, "marketplace-url": marketplace_url, "version-spec": v, "version-priority": version_priority })
-            }
-            (Some(_), Some(_)) => {
-                return Err(crate::Error::new(
-                    eyre!("Invalid package id {}", target),
-                    ErrorKind::InvalidRequest,
+            let upload = async {
+                let content_length = file.metadata().await?.len();
+                ctx.rest_continuation(
+                    upload,
+                    reqwest::Body::wrap_stream(tokio_util::io::ReaderStream::new(file)),
+                    {
+                        let mut map = HeaderMap::new();
+                        map.insert(CONTENT_LENGTH, content_length.into());
+                        map
+                    },
                 )
-                .into())
-            }
-            (None, Some(v)) => {
-                serde_json::json!({ "id": target, "marketplace-url": marketplace_url, "version-spec": v, "version-priority": version_priority })
-            }
-            (None, None) => {
-                serde_json::json!({ "id": target, "marketplace-url": marketplace_url, "version-priority": version_priority })
-            }
-        };
-        tracing::debug!("calling package.install");
-        rpc_toolkit::command_helpers::call_remote(
-            ctx,
-            "package.install",
-            params,
-            PhantomData::<()>,
-        )
-        .await?
-        .result?;
-        tracing::debug!("package.install succeeded");
+                .await?
+                .error_for_status()
+                .with_kind(ErrorKind::Network)?;
+                Ok::<_, Error>(())
+            };
+
+            let progress = async {
+                use tokio_tungstenite::tungstenite::Message;
+
+                let mut bar = PhasedProgressBar::new("Sideloading");
+
+                let mut ws = ctx.ws_continuation(progress).await?;
+
+                let mut progress = FullProgress::new();
+
+                loop {
+                    tokio::select! {
+                        msg = ws.next() => {
+                            if let Some(msg) = msg {
+                                if let Message::Text(t) = msg.with_kind(ErrorKind::Network)? {
+                                    progress =
+                                        serde_json::from_str::<Result<_, RpcError>>(&t)
+                                            .with_kind(ErrorKind::Deserialization)??;
+                                    bar.update(&progress);
+                                }
+                            } else {
+                                break;
+                            }
+                        }
+                        _ = tokio::time::sleep(Duration::from_millis(100)) => {
+                            bar.update(&progress);
+                        },
+                    }
+                }
+
+                Ok::<_, Error>(())
+            };
+
+            let (upload, progress) = tokio::join!(upload, progress);
+            progress?;
+            upload?;
+        }
+        CliInstallParams::Marketplace(params) => {
+            ctx.call_remote("package.install", to_value(&params)?)
+                .await?;
+        }
     }
     Ok(())
 }
 
-#[command(display(display_none), metadata(sync_db = true))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct UninstallParams {
+    id: PackageId,
+}
+
 pub async fn uninstall(
-    #[context] ctx: RpcContext,
-    #[arg] id: PackageId,
+    ctx: RpcContext,
+    UninstallParams { id }: UninstallParams,
 ) -> Result<PackageId, Error> {
     ctx.db
         .mutate(|db| {
-            let (manifest, static_files, installed) =
-                match db.as_package_data().as_idx(&id).or_not_found(&id)?.de()? {
-                    PackageDataEntry::Installed(PackageDataEntryInstalled {
-                        manifest,
-                        static_files,
-                        installed,
-                    }) => (manifest, static_files, installed),
-                    _ => {
-                        return Err(Error::new(
-                            eyre!("Package is not installed."),
-                            crate::ErrorKind::NotFound,
-                        ));
-                    }
-                };
-            let pde = PackageDataEntry::Removing(PackageDataEntryRemoving {
-                manifest,
-                static_files,
-                removing: installed,
-            });
-            db.as_package_data_mut().insert(&id, &pde)
+            let entry = db
+                .as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&id)
+                .or_not_found(&id)?;
+            entry.as_state_info_mut().map_mutate(|s| match s {
+                PackageState::Installed(s) => Ok(PackageState::Removing(s)),
+                _ => Err(Error::new(
+                    eyre!("Package {id} is not installed."),
+                    crate::ErrorKind::NotFound,
+                )),
+            })
         })
         .await?;
 
     let return_id = id.clone();
 
-    tokio::spawn(async move {
-        if let Err(e) = async {
-            cleanup::uninstall(&ctx, ctx.secret_store.acquire().await?.as_mut(), &id).await
-        }
-        .await
-        {
-            let err_str = format!("Uninstall of {} Failed: {}", id, e);
-            tracing::error!("{}", err_str);
-            tracing::debug!("{:?}", e);
-            if let Err(e) = ctx
-                .notification_manager
-                .notify(
-                    ctx.db.clone(), // allocating separate handle here because the lifetime of the previous one is the expression
-                    Some(id),
-                    NotificationLevel::Error,
-                    String::from("Uninstall Failed"),
-                    err_str,
-                    (),
-                    None,
-                )
-                .await
-            {
-                tracing::error!("Failed to issue Notification: {}", e);
-                tracing::debug!("{:?}", e);
-            }
-        }
-    });
+    tokio::spawn(async move { ctx.services.uninstall(&ctx, &id).await });
 
     Ok(return_id)
-}
-
-#[instrument(skip_all)]
-pub async fn download_install_s9pk(
-    ctx: RpcContext,
-    temp_manifest: Manifest,
-    marketplace_url: Option<Url>,
-    progress: Arc<InstallProgress>,
-    mut s9pk: impl AsyncRead + Unpin,
-    download_complete: Option<oneshot::Sender<()>>,
-) -> Result<(), Error> {
-    let pkg_id = &temp_manifest.id;
-    let version = &temp_manifest.version;
-    let db = ctx.db.peek().await;
-
-    if let Result::<(), Error>::Err(e) = {
-        let ctx = ctx.clone();
-        async move {
-            // // Build set of existing manifests
-            let mut manifests = Vec::new();
-            for (_id, pkg) in db.as_package_data().as_entries()? {
-                let m = pkg.as_manifest().de()?;
-                manifests.push(m);
-            }
-            // Build map of current port -> ssl mappings
-            let port_map = ssl_port_status(&manifests);
-            tracing::info!("SSL Port Map: {:?}", &port_map);
-
-            // if any of the requested interface lan configs conflict with current state, fail the install
-            for (_id, iface) in &temp_manifest.interfaces.0 {
-                if let Some(cfg) = &iface.lan_config {
-                    for (p, lan) in cfg {
-                        if p.0 == 80 && lan.ssl || p.0 == 443 && !lan.ssl {
-                            return Err(Error::new(
-                                eyre!("SSL Conflict with StartOS"),
-                                ErrorKind::LanPortConflict,
-                            ));
-                        }
-                        match port_map.get(&p) {
-                            Some((ssl, pkg)) => {
-                                if *ssl != lan.ssl {
-                                    return Err(Error::new(
-                                        eyre!("SSL Conflict with package: {}", pkg),
-                                        ErrorKind::LanPortConflict,
-                                    ));
-                                }
-                            }
-                            None => {
-                                continue;
-                            }
-                        }
-                    }
-                }
-            }
-
-            let pkg_archive_dir = ctx
-                .datadir
-                .join(PKG_ARCHIVE_DIR)
-                .join(pkg_id)
-                .join(version.as_str());
-            tokio::fs::create_dir_all(&pkg_archive_dir).await?;
-            let pkg_archive =
-                pkg_archive_dir.join(AsRef::<Path>::as_ref(pkg_id).with_extension("s9pk"));
-
-            File::delete(&pkg_archive).await?;
-            let mut dst = OpenOptions::new()
-                .create(true)
-                .write(true)
-                .read(true)
-                .open(&pkg_archive)
-                .await?;
-
-            progress
-                .track_download_during(ctx.db.clone(), pkg_id, || async {
-                    let mut progress_writer =
-                        InstallProgressTracker::new(&mut dst, progress.clone());
-                    tokio::io::copy(&mut s9pk, &mut progress_writer).await?;
-                    progress.download_complete();
-                    if let Some(complete) = download_complete {
-                        complete.send(()).unwrap_or_default();
-                    }
-                    Ok(())
-                })
-                .await?;
-
-            dst.seek(SeekFrom::Start(0)).await?;
-
-            let progress_reader = InstallProgressTracker::new(dst, progress.clone());
-            let mut s9pk_reader = progress
-                .track_read_during(ctx.db.clone(), pkg_id, || {
-                    S9pkReader::from_reader(progress_reader, true)
-                })
-                .await?;
-
-            install_s9pk(
-                ctx.clone(),
-                pkg_id,
-                version,
-                marketplace_url,
-                &mut s9pk_reader,
-                progress,
-            )
-            .await?;
-
-            Ok(())
-        }
-    }
-    .await
-    {
-        if let Err(e) = cleanup_failed(&ctx, pkg_id).await {
-            tracing::error!("Failed to clean up {}@{}: {}", pkg_id, version, e);
-            tracing::debug!("{:?}", e);
-        }
-
-        Err(e)
-    } else {
-        Ok::<_, Error>(())
-    }
-}
-
-#[instrument(skip_all)]
-pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
-    ctx: RpcContext,
-    pkg_id: &PackageId,
-    version: &Version,
-    marketplace_url: Option<Url>,
-    rdr: &mut S9pkReader<InstallProgressTracker<R>>,
-    progress: Arc<InstallProgress>,
-) -> Result<(), Error> {
-    rdr.validate().await?;
-    rdr.validated();
-    let developer_key = rdr.developer_key().clone();
-    rdr.reset().await?;
-    let db = ctx.db.peek().await;
-
-    tracing::info!("Install {}@{}: Unpacking Manifest", pkg_id, version);
-    let manifest = progress
-        .track_read_during(ctx.db.clone(), pkg_id, || rdr.manifest())
-        .await?;
-    tracing::info!("Install {}@{}: Unpacked Manifest", pkg_id, version);
-
-    tracing::info!("Install {}@{}: Fetching Dependency Info", pkg_id, version);
-    let mut dependency_info = BTreeMap::new();
-    for (dep, info) in &manifest.dependencies.0 {
-        let manifest: Option<Manifest> = if let Some(local_man) = db
-            .as_package_data()
-            .as_idx(dep)
-            .map(|pde| pde.as_manifest().de())
-        {
-            Some(local_man?)
-        } else if let Some(marketplace_url) = &marketplace_url {
-            match ctx
-                .client
-                .get(with_query_params(
-                    ctx.clone(),
-                    format!(
-                        "{}/package/v0/manifest/{}?spec={}",
-                        marketplace_url, dep, info.version,
-                    )
-                    .parse()?,
-                ))
-                .send()
-                .await
-                .with_kind(crate::ErrorKind::Registry)?
-                .error_for_status()
-            {
-                Ok(a) => Ok(Some(
-                    a.json()
-                        .await
-                        .with_kind(crate::ErrorKind::Deserialization)?,
-                )),
-                Err(e)
-                    if e.status() == Some(StatusCode::BAD_REQUEST)
-                        || e.status() == Some(StatusCode::NOT_FOUND) =>
-                {
-                    Ok(None)
-                }
-                Err(e) => Err(e),
-            }
-            .with_kind(crate::ErrorKind::Registry)?
-        } else {
-            None
-        };
-
-        let icon_path = if let Some(manifest) = &manifest {
-            let dir = ctx
-                .datadir
-                .join(PKG_PUBLIC_DIR)
-                .join(&manifest.id)
-                .join(manifest.version.as_str());
-            let icon_path = dir.join(format!("icon.{}", manifest.assets.icon_type()));
-            if tokio::fs::metadata(&icon_path).await.is_err() {
-                if let Some(marketplace_url) = &marketplace_url {
-                    tokio::fs::create_dir_all(&dir).await?;
-                    let icon = ctx
-                        .client
-                        .get(with_query_params(
-                            ctx.clone(),
-                            format!(
-                                "{}/package/v0/icon/{}?spec={}",
-                                marketplace_url, dep, info.version,
-                            )
-                            .parse()?,
-                        ))
-                        .send()
-                        .await
-                        .with_kind(crate::ErrorKind::Registry)?;
-                    let mut dst = File::create(&icon_path).await?;
-                    tokio::io::copy(&mut response_to_reader(icon), &mut dst).await?;
-                    dst.sync_all().await?;
-                    Some(icon_path)
-                } else {
-                    None
-                }
-            } else {
-                Some(icon_path)
-            }
-        } else {
-            None
-        };
-
-        dependency_info.insert(
-            dep.clone(),
-            StaticDependencyInfo {
-                title: manifest
-                    .as_ref()
-                    .map(|x| x.title.clone())
-                    .unwrap_or_else(|| dep.to_string()),
-                icon: if let Some(icon_path) = &icon_path {
-                    DataUrl::from_path(icon_path).await?
-                } else {
-                    DataUrl::from_slice("image/png", include_bytes!("./package-icon.png"))
-                },
-            },
-        );
-    }
-    tracing::info!("Install {}@{}: Fetched Dependency Info", pkg_id, version);
-
-    let icon = progress
-        .track_read_during(ctx.db.clone(), pkg_id, || {
-            unpack_s9pk(&ctx.datadir, &manifest, rdr)
-        })
-        .await?;
-
-    progress.unpack_complete.store(true, Ordering::SeqCst);
-
-    progress
-        .track_read(
-            ctx.db.clone(),
-            pkg_id.clone(),
-            Arc::new(::std::sync::atomic::AtomicBool::new(true)),
-        )
-        .await?;
-
-    let peek = ctx.db.peek().await;
-    let prev = peek
-        .as_package_data()
-        .as_idx(pkg_id)
-        .or_not_found(pkg_id)?
-        .de()?;
-    let mut sql_tx = ctx.secret_store.begin().await?;
-
-    tracing::info!("Install {}@{}: Creating volumes", pkg_id, version);
-    manifest.volumes.install(&ctx, pkg_id, version).await?;
-    tracing::info!("Install {}@{}: Created volumes", pkg_id, version);
-
-    tracing::info!("Install {}@{}: Installing interfaces", pkg_id, version);
-    let interface_addresses = manifest.interfaces.install(sql_tx.as_mut(), pkg_id).await?;
-    tracing::info!(
-        "Install {}@{}: Installed interfaces {:?}",
-        pkg_id,
-        version,
-        interface_addresses
-    );
-
-    tracing::info!("Install {}@{}: Creating manager", pkg_id, version);
-    let manager = ctx.managers.add(ctx.clone(), manifest.clone()).await?;
-    tracing::info!("Install {}@{}: Created manager", pkg_id, version);
-
-    let static_files = StaticFiles::local(pkg_id, version, manifest.assets.icon_type());
-    let current_dependencies: CurrentDependencies = CurrentDependencies(
-        manifest
-            .dependencies
-            .0
-            .iter()
-            .filter_map(|(id, info)| {
-                if info.requirement.required() {
-                    Some((id.clone(), CurrentDependencyInfo::default()))
-                } else {
-                    None
-                }
-            })
-            .collect(),
-    );
-    let mut dependents_static_dependency_info = BTreeMap::new();
-    let current_dependents = {
-        let mut deps = BTreeMap::new();
-        for package in db.as_package_data().keys()? {
-            if db
-                .as_package_data()
-                .as_idx(&package)
-                .or_not_found(&package)?
-                .as_installed()
-                .and_then(|i| i.as_dependency_info().as_idx(&pkg_id))
-                .is_some()
-            {
-                dependents_static_dependency_info.insert(package.clone(), icon.clone());
-            }
-            if let Some(dep) = db
-                .as_package_data()
-                .as_idx(&package)
-                .or_not_found(&package)?
-                .as_installed()
-                .and_then(|i| i.as_current_dependencies().as_idx(pkg_id))
-            {
-                deps.insert(package, dep.de()?);
-            }
-        }
-
-        CurrentDependents(deps)
-    };
-
-    let installed = InstalledPackageInfo {
-        status: Status {
-            configured: manifest.config.is_none(),
-            main: MainStatus::Stopped,
-            dependency_config_errors: compute_dependency_config_errs(
-                &ctx,
-                &peek,
-                &manifest,
-                &current_dependencies,
-                &Default::default(),
-            )
-            .await?,
-        },
-        marketplace_url,
-        developer_key,
-        manifest: manifest.clone(),
-        last_backup: match prev {
-            PackageDataEntry::Updating(PackageDataEntryUpdating {
-                installed:
-                    InstalledPackageInfo {
-                        last_backup: Some(time),
-                        ..
-                    },
-                ..
-            }) => Some(time),
-            _ => None,
-        },
-        dependency_info,
-        current_dependents: current_dependents.clone(),
-        current_dependencies: current_dependencies.clone(),
-        interface_addresses,
-    };
-    let mut next = PackageDataEntryInstalled {
-        installed,
-        manifest: manifest.clone(),
-        static_files,
-    };
-
-    let mut auto_start = false;
-    let mut configured = false;
-
-    let mut to_cleanup = None;
-
-    if let PackageDataEntry::Updating(PackageDataEntryUpdating {
-        installed: prev, ..
-    }) = &prev
-    {
-        let prev_is_configured = prev.status.configured;
-        let prev_migration = prev
-            .manifest
-            .migrations
-            .to(
-                &ctx,
-                version,
-                pkg_id,
-                &prev.manifest.version,
-                &prev.manifest.volumes,
-            )
-            .map(futures::future::Either::Left);
-        let migration = manifest
-            .migrations
-            .from(
-                &manifest.containers,
-                &ctx,
-                &prev.manifest.version,
-                pkg_id,
-                version,
-                &manifest.volumes,
-            )
-            .map(futures::future::Either::Right);
-
-        let viable_migration = if prev.manifest.version > manifest.version {
-            prev_migration.or(migration)
-        } else {
-            migration.or(prev_migration)
-        };
-
-        if let Some(f) = viable_migration {
-            configured = f.await?.configured && prev_is_configured;
-        }
-        if configured || manifest.config.is_none() {
-            auto_start = prev.status.main.running();
-        }
-        if &prev.manifest.version != version {
-            to_cleanup = Some((prev.manifest.id.clone(), prev.manifest.version.clone()));
-        }
-    } else if let PackageDataEntry::Restoring(PackageDataEntryRestoring { .. }) = prev {
-        next.installed.marketplace_url = manifest
-            .backup
-            .restore(&ctx, pkg_id, version, &manifest.volumes)
-            .await?;
-    }
-
-    sql_tx.commit().await?;
-
-    let to_configure = ctx
-        .db
-        .mutate(|db| {
-            for (package, icon) in dependents_static_dependency_info {
-                db.as_package_data_mut()
-                    .as_idx_mut(&package)
-                    .or_not_found(&package)?
-                    .as_installed_mut()
-                    .or_not_found(&package)?
-                    .as_dependency_info_mut()
-                    .insert(
-                        &pkg_id,
-                        &StaticDependencyInfo {
-                            icon,
-                            title: manifest.title.clone(),
-                        },
-                    )?;
-            }
-            db.as_package_data_mut()
-                .insert(&pkg_id, &PackageDataEntry::Installed(next))?;
-            if let PackageDataEntry::Updating(PackageDataEntryUpdating {
-                installed: prev, ..
-            }) = &prev
-            {
-                remove_from_current_dependents_lists(db, pkg_id, &prev.current_dependencies)?;
-            }
-            add_dependent_to_current_dependents_lists(db, pkg_id, &current_dependencies)?;
-
-            set_dependents_with_live_pointers_to_needs_config(db, pkg_id)
-        })
-        .await?;
-
-    if let Some((id, version)) = to_cleanup {
-        cleanup(&ctx, &id, &version).await?;
-    }
-
-    if configured && manifest.config.is_some() {
-        let breakages = BTreeMap::new();
-        let overrides = Default::default();
-
-        let configure_context = ConfigureContext {
-            breakages,
-            timeout: None,
-            config: None,
-            dry_run: false,
-            overrides,
-        };
-        manager.configure(configure_context).await?;
-    }
-
-    for to_configure in to_configure.into_iter().filter(|(dep, _)| dep != pkg_id) {
-        if let Err(e) = async {
-            ctx.managers
-                .get(&to_configure)
-                .await
-                .or_not_found(format!("manager for {}", to_configure.0))?
-                .configure(ConfigureContext {
-                    breakages: BTreeMap::new(),
-                    timeout: None,
-                    config: None,
-                    overrides: BTreeMap::new(),
-                    dry_run: false,
-                })
-                .await
-        }
-        .await
-        {
-            tracing::error!("error configuring dependent: {e}");
-            tracing::debug!("{e:?}")
-        }
-    }
-
-    if auto_start {
-        manager.start().await;
-    }
-
-    tracing::info!("Install {}@{}: Complete", pkg_id, version);
-
-    Ok(())
-}
-
-#[instrument(skip_all)]
-pub async fn unpack_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
-    datadir: impl AsRef<Path>,
-    manifest: &Manifest,
-    rdr: &mut S9pkReader<R>,
-) -> Result<DataUrl<'static>, Error> {
-    let datadir = datadir.as_ref();
-    let pkg_id = &manifest.id;
-    let version = &manifest.version;
-
-    let public_dir_path = datadir
-        .join(PKG_PUBLIC_DIR)
-        .join(pkg_id)
-        .join(version.as_str());
-    tokio::fs::create_dir_all(&public_dir_path).await?;
-
-    tracing::info!("Install {}@{}: Unpacking LICENSE.md", pkg_id, version);
-    let license_path = public_dir_path.join("LICENSE.md");
-    let mut dst = File::create(&license_path).await?;
-    tokio::io::copy(&mut rdr.license().await?, &mut dst).await?;
-    dst.sync_all().await?;
-    tracing::info!("Install {}@{}: Unpacked LICENSE.md", pkg_id, version);
-
-    tracing::info!("Install {}@{}: Unpacking INSTRUCTIONS.md", pkg_id, version);
-    let instructions_path = public_dir_path.join("INSTRUCTIONS.md");
-    let mut dst = File::create(&instructions_path).await?;
-    tokio::io::copy(&mut rdr.instructions().await?, &mut dst).await?;
-    dst.sync_all().await?;
-    tracing::info!("Install {}@{}: Unpacked INSTRUCTIONS.md", pkg_id, version);
-
-    let icon_filename = Path::new("icon").with_extension(manifest.assets.icon_type());
-    let icon_path = public_dir_path.join(&icon_filename);
-    tracing::info!(
-        "Install {}@{}: Unpacking {}",
-        pkg_id,
-        version,
-        icon_path.display()
-    );
-    let icon_buf = rdr.icon().await?.to_vec().await?;
-    let mut dst = File::create(&icon_path).await?;
-    dst.write_all(&icon_buf).await?;
-    dst.sync_all().await?;
-    let icon = DataUrl::from_vec(
-        mime(manifest.assets.icon_type()).unwrap_or("image/png"),
-        icon_buf,
-    );
-    tracing::info!(
-        "Install {}@{}: Unpacked {}",
-        pkg_id,
-        version,
-        icon_filename.display()
-    );
-
-    tracing::info!("Install {}@{}: Unpacking Docker Images", pkg_id, version);
-    Command::new(CONTAINER_TOOL)
-        .arg("load")
-        .input(Some(&mut rdr.docker_images().await?))
-        .invoke(ErrorKind::Docker)
-        .await?;
-    tracing::info!("Install {}@{}: Unpacked Docker Images", pkg_id, version,);
-
-    tracing::info!("Install {}@{}: Unpacking Assets", pkg_id, version);
-    let asset_dir = asset_dir(datadir, pkg_id, version);
-    if tokio::fs::metadata(&asset_dir).await.is_ok() {
-        tokio::fs::remove_dir_all(&asset_dir).await?;
-    }
-    tokio::fs::create_dir_all(&asset_dir).await?;
-    let mut tar = tokio_tar::Archive::new(rdr.assets().await?);
-    tar.unpack(asset_dir).await?;
-
-    let script_dir = script_dir(datadir, pkg_id, version);
-    if tokio::fs::metadata(&script_dir).await.is_err() {
-        tokio::fs::create_dir_all(&script_dir).await?;
-    }
-    if let Some(mut hdl) = rdr.scripts().await? {
-        tokio::io::copy(
-            &mut hdl,
-            &mut File::create(script_dir.join("embassy.js")).await?,
-        )
-        .await?;
-    }
-    tracing::info!("Install {}@{}: Unpacked Assets", pkg_id, version);
-
-    Ok(icon)
-}
-
-#[instrument(skip_all)]
-pub fn rebuild_from<'a>(
-    source: impl AsRef<Path> + 'a + Send + Sync,
-    datadir: impl AsRef<Path> + 'a + Send + Sync,
-) -> BoxFuture<'a, Result<(), Error>> {
-    async move {
-        let source_dir = source.as_ref();
-        let datadir = datadir.as_ref();
-        if tokio::fs::metadata(&source_dir).await.is_ok() {
-            ReadDirStream::new(tokio::fs::read_dir(&source_dir).await?)
-                .map(|r| {
-                    r.with_ctx(|_| (crate::ErrorKind::Filesystem, format!("{:?}", &source_dir)))
-                })
-                .try_for_each(|entry| async move {
-                    let m = entry.metadata().await?;
-                    if m.is_file() {
-                        let path = entry.path();
-                        let ext = path.extension().and_then(|ext| ext.to_str());
-                        if ext == Some("tar") || ext == Some("s9pk") {
-                            if let Err(e) = async {
-                                match ext {
-                                    Some("tar") => {
-                                        Command::new(CONTAINER_TOOL)
-                                            .arg("load")
-                                            .input(Some(&mut File::open(&path).await?))
-                                            .invoke(ErrorKind::Docker)
-                                            .await?;
-                                        Ok::<_, Error>(())
-                                    }
-                                    Some("s9pk") => {
-                                        let mut s9pk = S9pkReader::open(&path, true).await?;
-                                        unpack_s9pk(datadir, &s9pk.manifest().await?, &mut s9pk)
-                                            .await?;
-                                        Ok(())
-                                    }
-                                    _ => unreachable!(),
-                                }
-                            }
-                            .await
-                            {
-                                tracing::error!("Error unpacking {path:?}: {e}");
-                                tracing::debug!("{e:?}");
-                            }
-                            Ok(())
-                        } else {
-                            Ok(())
-                        }
-                    } else if m.is_dir() {
-                        rebuild_from(entry.path(), datadir).await?;
-                        Ok(())
-                    } else {
-                        Ok(())
-                    }
-                })
-                .await
-        } else {
-            Ok(())
-        }
-    }
-    .boxed()
-}
-
-fn ssl_port_status(manifests: &Vec<Manifest>) -> BTreeMap<Port, (bool, PackageId)> {
-    let mut ret = BTreeMap::new();
-    for m in manifests {
-        for (_id, iface) in &m.interfaces.0 {
-            match &iface.lan_config {
-                None => {}
-                Some(cfg) => {
-                    for (p, lan) in cfg {
-                        ret.insert(p.clone(), (lan.ssl, m.id.clone()));
-                    }
-                }
-            }
-        }
-    }
-    ret
 }

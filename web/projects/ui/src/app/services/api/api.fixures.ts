@@ -1,5 +1,5 @@
 import {
-  HealthResult,
+  InstalledState,
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
@@ -11,7 +11,6 @@ import {
   RR,
   ServerNotifications,
 } from './api.types'
-
 import { BTC_ICON, LND_ICON, PROXY_ICON } from './api-icons'
 import {
   DependencyMetadata,
@@ -903,7 +902,7 @@ export module Mock {
                   integer: false,
                 }),
               }),
-              displayAs: 'I\'m {{last-name}}, {{first-name}} {{last-name}}',
+              displayAs: "I'm {{last-name}}, {{first-name}} {{last-name}}",
               uniqueBy: 'last-name',
             },
           ),
@@ -1277,261 +1276,652 @@ export module Mock {
 
   export const MockDependencyConfig = MockConfig
 
-  export const bitcoind: PackageDataEntry = {
-    state: PackageState.Installed,
+  export const bitcoind: PackageDataEntry<InstalledState> = {
+    'state-info': {
+      state: PackageState.Installed,
+      manifest: MockManifestBitcoind,
+    },
     icon: '/assets/img/service-icons/bitcoind.svg',
-    manifest: MockManifestBitcoind,
-    installed: {
-      'last-backup': null,
-      'installed-at': new Date().toISOString(),
-      status: {
-        configured: true,
-        main: {
-          status: PackageMainStatus.Running,
-          started: '2021-06-14T20:49:17.774Z',
-          health: {
-            'ephemeral-health-check': {
-              name: 'Ephemeral Health Check',
-              result: HealthResult.Starting,
-            },
-            'chain-state': {
-              name: 'Chain State',
-              result: HealthResult.Loading,
-              message: 'Bitcoin is syncing from genesis',
-            },
-            'p2p-interface': {
-              name: 'P2P Interface',
-              result: HealthResult.Success,
-              message: 'the health check ran successfully',
-            },
-            'rpc-interface': {
-              name: 'RPC Interface',
-              result: HealthResult.Failure,
-              error: 'RPC interface unreachable.',
-            },
-            'unnecessary-health-check': {
-              name: 'Totally Unnecessary',
-              result: HealthResult.Disabled,
-              reason: 'You disabled this on purpose',
-            },
-          },
-        },
-        'dependency-config-errors': {},
+    'last-backup': null,
+    status: {
+      configured: true,
+      main: {
+        status: PackageMainStatus.Running,
+        started: new Date().toISOString(),
+        health: {},
       },
-      interfaceInfo: {
-        rpc: {
-          name: 'Bitcoin RPC',
-          description: `Bitcoin's RPC interface`,
-          addressInfo: {
-            ipInfo: {
-              eth0: {
-                wireless: false,
-                ipv4: '192.168.1.1:8333',
-                ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD:8333',
-              },
-            },
-            lanHostname: 'adjective-noun:8333',
-            torHostname: 'bitcoind-rpc-address.onion',
-            domainInfo: null,
-          },
-          type: 'ui',
-        },
-        p2p: {
-          name: 'Bitcoin P2P',
-          description: `Bitcoin's P2P interface`,
-          addressInfo: {
-            ipInfo: {
-              eth0: {
-                wireless: false,
-                ipv4: '192.168.1.1:8332',
-                ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD:8332',
-              },
-            },
-            lanHostname: 'adjective-noun:8332',
-            torHostname: 'bitcoind-p2p-address.onion',
-            domainInfo: null,
-          },
-          type: 'ui',
-        },
-      },
-      'current-dependencies': {},
-      'current-dependents': {},
-      'dependency-info': {},
-      'marketplace-url': 'https://registry.start9.com/',
-      'developer-key': 'developer-key',
-      'has-config': true,
-      outboundProxy: null,
+      'dependency-config-errors': {},
     },
-    actions: {
-      resync: {
-        name: 'Resync Blockchain',
-        description: 'Use this to resync the Bitcoin blockchain from genesis',
-        warning: 'This will take a couple of days.',
-        disabled: null,
-        group: null,
-        'input-spec': {
-          reason: {
-            type: 'text',
-            inputmode: 'text',
-            name: 'Re-sync Reason',
-            description: 'Your reason for re-syncing. Why are you doing this?',
-            placeholder: null,
-            required: true,
-            masked: false,
-            minLength: null,
-            maxLength: null,
-            patterns: [
-              {
-                regex: '^[a-zA-Z]+$',
-                description: 'must contain only letters.',
-              },
-            ],
-            warning: null,
-            default: null,
-            disabled: false,
-            immutable: false,
-            generate: null,
+    'service-interfaces': {
+      ui: {
+        id: 'ui',
+        hasPrimary: false,
+        disabled: false,
+        masked: false,
+        name: 'Web UI',
+        description:
+          'A launchable web app for you to interact with your Bitcoin node',
+        type: 'ui',
+        addressInfo: {
+          username: null,
+          hostId: 'abcdefg',
+          bindOptions: {
+            scheme: 'http',
+            preferredExternalPort: 80,
+            addSsl: {
+              addXForwardedHeaders: false,
+              preferredExternalPort: 443,
+              scheme: 'https',
+            },
+            secure: null,
           },
+          suffix: '',
+        },
+        hostInfo: {
+          id: 'abcdefg',
+          kind: 'multi',
+          hostnames: [
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'local',
+                value: 'adjective-noun.local',
+                port: null,
+                sslPort: 1234,
+              },
+            },
+            {
+              kind: 'onion',
+              hostname: {
+                value: 'bitcoin-ui-address.onion',
+                port: 80,
+                sslPort: 443,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv4',
+                value: '192.168.1.5',
+                port: null,
+                sslPort: 1234,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv6',
+                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                port: null,
+                sslPort: 1234,
+              },
+            },
+          ],
+        },
+      },
+      rpc: {
+        id: 'rpc',
+        hasPrimary: false,
+        disabled: false,
+        masked: false,
+        name: 'RPC',
+        description:
+          'Used by dependent services and client wallets for connecting to your node',
+        type: 'api',
+        addressInfo: {
+          username: null,
+          hostId: 'bcdefgh',
+          bindOptions: {
+            scheme: 'http',
+            preferredExternalPort: 80,
+            addSsl: {
+              addXForwardedHeaders: false,
+              preferredExternalPort: 443,
+              scheme: 'https',
+            },
+            secure: null,
+          },
+          suffix: '',
+        },
+        hostInfo: {
+          id: 'bcdefgh',
+          kind: 'multi',
+          hostnames: [
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'local',
+                value: 'adjective-noun.local',
+                port: null,
+                sslPort: 2345,
+              },
+            },
+            {
+              kind: 'onion',
+              hostname: {
+                value: 'bitcoin-rpc-address.onion',
+                port: 80,
+                sslPort: 443,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv4',
+                value: '192.168.1.5',
+                port: null,
+                sslPort: 2345,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv6',
+                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                port: null,
+                sslPort: 2345,
+              },
+            },
+          ],
+        },
+      },
+      p2p: {
+        id: 'p2p',
+        hasPrimary: true,
+        disabled: false,
+        masked: false,
+        name: 'P2P',
+        description:
+          'Used for connecting to other nodes on the Bitcoin network',
+        type: 'p2p',
+        addressInfo: {
+          username: null,
+          hostId: 'cdefghi',
+          bindOptions: {
+            scheme: 'bitcoin',
+            preferredExternalPort: 8333,
+            addSsl: null,
+            secure: {
+              ssl: false,
+            },
+          },
+          suffix: '',
+        },
+        hostInfo: {
+          id: 'cdefghi',
+          kind: 'multi',
+          hostnames: [
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'local',
+                value: 'adjective-noun.local',
+                port: 3456,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'onion',
+              hostname: {
+                value: 'bitcoin-p2p-address.onion',
+                port: 8333,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv4',
+                value: '192.168.1.5',
+                port: 3456,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv6',
+                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                port: 3456,
+                sslPort: null,
+              },
+            },
+          ],
         },
       },
     },
+    'current-dependents': {
+      lnd: {
+        'health-checks': [],
+      },
+    },
+    'current-dependencies': {},
+    'dependency-info': {},
+    'marketplace-url': 'https://registry.start9.com/',
+    'developer-key': 'developer-key',
+    'has-config': true,
+    outboundProxy: null,
   }
 
-  export const bitcoinProxy: PackageDataEntry = {
-    state: PackageState.Installed,
+  export const bitcoinProxy: PackageDataEntry<InstalledState> = {
+    'state-info': {
+      state: PackageState.Installed,
+      manifest: MockManifestBitcoinProxy,
+    },
     icon: '/assets/img/service-icons/btc-rpc-proxy.png',
-    manifest: MockManifestBitcoinProxy,
-    installed: {
-      'last-backup': null,
-      'installed-at': new Date().toISOString(),
-      status: {
-        configured: false,
-        main: {
-          status: PackageMainStatus.Stopped,
-        },
-        'dependency-config-errors': {},
+    'last-backup': null,
+    status: {
+      configured: false,
+      main: {
+        status: PackageMainStatus.Stopped,
       },
-      interfaceInfo: {
-        rpc: {
-          name: 'Proxy RPC addresses',
-          description: `Use these addresses to access Proxy's RPC interface`,
-          addressInfo: {
-            ipInfo: {
-              eth0: {
-                wireless: false,
-                ipv4: '192.168.1.1:8459',
-                ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD:8459',
+      'dependency-config-errors': {},
+    },
+    'service-interfaces': {
+      ui: {
+        id: 'ui',
+        hasPrimary: false,
+        disabled: false,
+        masked: false,
+        name: 'Web UI',
+        description: 'A launchable web app for Bitcoin Proxy',
+        type: 'ui',
+        addressInfo: {
+          username: null,
+          hostId: 'hijklmnop',
+          bindOptions: {
+            scheme: 'http',
+            preferredExternalPort: 80,
+            addSsl: {
+              addXForwardedHeaders: false,
+              preferredExternalPort: 443,
+              scheme: 'https',
+            },
+            secure: {
+              ssl: true,
+            },
+          },
+          suffix: '',
+        },
+        hostInfo: {
+          id: 'hijklmnop',
+          kind: 'multi',
+          hostnames: [
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'local',
+                value: 'adjective-noun.local',
+                port: null,
+                sslPort: 4567,
               },
             },
-            lanHostname: 'adjective-noun.local:8459',
-            torHostname: 'btcrpc-proxy-address.onion',
-            domainInfo: null,
-          },
-          type: 'api',
+            {
+              kind: 'onion',
+              hostname: {
+                value: 'proxy-ui-address.onion',
+                port: 80,
+                sslPort: 443,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv4',
+                value: '192.168.1.5',
+                port: null,
+                sslPort: 4567,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv6',
+                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                port: null,
+                sslPort: 4567,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'wlan0',
+              public: false,
+              hostname: {
+                kind: 'local',
+                value: 'adjective-noun.local',
+                port: null,
+                sslPort: 4567,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'wlan0',
+              public: false,
+              hostname: {
+                kind: 'ipv4',
+                value: '192.168.1.7',
+                port: null,
+                sslPort: 4567,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'wlan0',
+              public: false,
+              hostname: {
+                kind: 'ipv6',
+                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                port: null,
+                sslPort: 4567,
+              },
+            },
+          ],
         },
       },
-      'current-dependents': {},
-      'current-dependencies': {
-        bitcoind: {
-          'health-checks': [],
-        },
-      },
-      'dependency-info': {
-        bitcoind: {
-          title: Mock.MockManifestBitcoind.title,
-          icon: 'assets/img/service-icons/bitcoind.svg',
-        },
-      },
-      'marketplace-url': 'https://registry.start9.com/',
-      'developer-key': 'developer-key',
-      'has-config': true,
-      outboundProxy: null,
     },
-    actions: {},
+    'current-dependents': {
+      lnd: {
+        'health-checks': [],
+      },
+    },
+    'current-dependencies': {
+      bitcoind: {
+        'health-checks': [],
+      },
+    },
+    'dependency-info': {
+      bitcoind: {
+        title: Mock.MockManifestBitcoind.title,
+        icon: 'assets/img/service-icons/bitcoind.svg',
+      },
+    },
+    'marketplace-url': 'https://registry.start9.com/',
+    'developer-key': 'developer-key',
+    'has-config': true,
+    outboundProxy: null,
   }
 
-  export const lnd: PackageDataEntry = {
-    state: PackageState.Installed,
+  export const lnd: PackageDataEntry<InstalledState> = {
+    'state-info': {
+      state: PackageState.Installed,
+      manifest: MockManifestLnd,
+    },
     icon: '/assets/img/service-icons/lnd.png',
-    manifest: MockManifestLnd,
-    installed: {
-      'last-backup': null,
-      'installed-at': new Date().toISOString(),
-      status: {
-        configured: true,
-        main: {
-          status: PackageMainStatus.Stopped,
-        },
-        'dependency-config-errors': {
-          'btc-rpc-proxy': 'Username not found',
-        },
+    'last-backup': null,
+    status: {
+      configured: true,
+      main: {
+        status: PackageMainStatus.Stopped,
       },
-      interfaceInfo: {
-        ui: {
-          name: 'Web UI',
-          description: 'The browser web interface for LND',
-          addressInfo: {
-            ipInfo: {
-              eth0: {
-                wireless: false,
-                ipv4: '192.168.1.1:7171',
-                ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD:7171',
-              },
-            },
-            lanHostname: 'adjective-noun.local:7171',
-            torHostname: 'lnd-ui-address.onion',
-            domainInfo: null,
-          },
-          type: 'ui',
-        },
-        grpc: {
-          name: 'gRPC',
-          description: 'For connecting to LND gRPC interface',
-          addressInfo: {
-            ipInfo: {
-              eth0: {
-                wireless: false,
-                ipv4: '192.168.1.1:9191',
-                ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD:9191',
-              },
-            },
-            lanHostname: 'adjective-noun.local:9191',
-            torHostname: 'lnd-grpc-address.onion',
-            domainInfo: null,
-          },
-          type: 'p2p',
-        },
+      'dependency-config-errors': {
+        'btc-rpc-proxy': 'Username not found',
       },
-      'current-dependencies': {
-        bitcoind: {
-          'health-checks': [],
-        },
-        'btc-rpc-proxy': {
-          'health-checks': [],
-        },
-      },
-      'current-dependents': {},
-      'dependency-info': {
-        bitcoind: {
-          title: Mock.MockManifestBitcoind.title,
-          icon: 'assets/img/service-icons/bitcoind.svg',
-        },
-        'btc-rpc-proxy': {
-          title: Mock.MockManifestBitcoinProxy.title,
-          icon: 'assets/img/service-icons/btc-rpc-proxy.png',
-        },
-      },
-      'marketplace-url': 'https://registry.start9.com/',
-      'developer-key': 'developer-key',
-      'has-config': true,
-      outboundProxy: null,
     },
-    actions: {},
+    'service-interfaces': {
+      grpc: {
+        id: 'grpc',
+        hasPrimary: false,
+        disabled: false,
+        masked: false,
+        name: 'GRPC',
+        description:
+          'Used by dependent services and client wallets for connecting to your node',
+        type: 'api',
+        addressInfo: {
+          username: null,
+          hostId: 'qrstuv',
+          bindOptions: {
+            scheme: 'grpc',
+            preferredExternalPort: 10009,
+            addSsl: null,
+            secure: {
+              ssl: true,
+            },
+          },
+          suffix: '',
+        },
+        hostInfo: {
+          id: 'qrstuv',
+          kind: 'multi',
+          hostnames: [
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'local',
+                value: 'adjective-noun.local',
+                port: 5678,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'onion',
+              hostname: {
+                value: 'lnd-grpc-address.onion',
+                port: 10009,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv4',
+                value: '192.168.1.5',
+                port: 5678,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv6',
+                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                port: 5678,
+                sslPort: null,
+              },
+            },
+          ],
+        },
+      },
+      lndconnect: {
+        id: 'lndconnect',
+        hasPrimary: false,
+        disabled: false,
+        masked: true,
+        name: 'LND Connect',
+        description:
+          'Used by client wallets adhering to LND Connect protocol to connect to your node',
+        type: 'api',
+        addressInfo: {
+          username: null,
+          hostId: 'qrstuv',
+          bindOptions: {
+            scheme: 'lndconnect',
+            preferredExternalPort: 10009,
+            addSsl: null,
+            secure: {
+              ssl: true,
+            },
+          },
+          suffix: 'cert=askjdfbjadnaskjnd&macaroon=ksjbdfnhjasbndjksand',
+        },
+        hostInfo: {
+          id: 'qrstuv',
+          kind: 'multi',
+          hostnames: [
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'local',
+                value: 'adjective-noun.local',
+                port: 5678,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'onion',
+              hostname: {
+                value: 'lnd-grpc-address.onion',
+                port: 10009,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv4',
+                value: '192.168.1.5',
+                port: 5678,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv6',
+                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                port: 5678,
+                sslPort: null,
+              },
+            },
+          ],
+        },
+      },
+      p2p: {
+        id: 'p2p',
+        hasPrimary: true,
+        disabled: false,
+        masked: false,
+        name: 'P2P',
+        description:
+          'Used for connecting to other nodes on the Bitcoin network',
+        type: 'p2p',
+        addressInfo: {
+          username: null,
+          hostId: 'rstuvw',
+          bindOptions: {
+            scheme: null,
+            preferredExternalPort: 9735,
+            addSsl: null,
+            secure: {
+              ssl: true,
+            },
+          },
+          suffix: '',
+        },
+        hostInfo: {
+          id: 'rstuvw',
+          kind: 'multi',
+          hostnames: [
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'local',
+                value: 'adjective-noun.local',
+                port: 6789,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'onion',
+              hostname: {
+                value: 'lnd-p2p-address.onion',
+                port: 9735,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv4',
+                value: '192.168.1.5',
+                port: 6789,
+                sslPort: null,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'elan0',
+              public: false,
+              hostname: {
+                kind: 'ipv6',
+                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+                port: 6789,
+                sslPort: null,
+              },
+            },
+          ],
+        },
+      },
+    },
+    'current-dependents': {},
+    'current-dependencies': {
+      bitcoind: {
+        'health-checks': [],
+      },
+      'btc-rpc-proxy': {
+        'health-checks': [],
+      },
+    },
+    'dependency-info': {
+      bitcoind: {
+        title: Mock.MockManifestBitcoind.title,
+        icon: 'assets/img/service-icons/bitcoind.svg',
+      },
+      'btc-rpc-proxy': {
+        title: Mock.MockManifestBitcoinProxy.title,
+        icon: 'assets/img/service-icons/btc-rpc-proxy.png',
+      },
+    },
+    'marketplace-url': 'https://registry.start9.com/',
+    'developer-key': 'developer-key',
+    'has-config': true,
+    outboundProxy: null,
   }
 
-  export const LocalPkgs: { [key: string]: PackageDataEntry } = {
-    bitcoind,
-    'btc-rpc-proxy': bitcoinProxy,
-    lnd,
-  }
+  export const LocalPkgs: { [key: string]: PackageDataEntry<InstalledState> } =
+    {
+      bitcoind: bitcoind,
+      'btc-rpc-proxy': bitcoinProxy,
+      lnd: lnd,
+    }
 }

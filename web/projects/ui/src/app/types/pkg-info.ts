@@ -8,13 +8,11 @@ import {
   PrimaryStatus,
   StatusRendering,
 } from '../services/pkg-status-rendering.service'
-import { ProgressData } from './progress-data'
 
 export interface PkgInfo {
   entry: PackageDataEntry
   primaryRendering: StatusRendering
   primaryStatus: PrimaryStatus | PackageState | PackageMainStatus
-  installProgress: ProgressData | null
   error: boolean
   warning: boolean
   transitioning: boolean

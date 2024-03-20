@@ -1,23 +1,24 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use clap::ArgMatches;
+use clap::Parser;
 use color_eyre::eyre::{eyre, Result};
 use emver::Version;
 use helpers::{Rsync, RsyncOptions};
 use lazy_static::lazy_static;
 use reqwest::Url;
 use rpc_toolkit::command;
+use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio_stream::StreamExt;
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::db::model::UpdateProgress;
+use crate::db::model::public::UpdateProgress;
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::MountGuard;
-use crate::notifications::NotificationLevel;
+use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
 use crate::registry::marketplace::with_query_params;
 use crate::sound::{
@@ -33,17 +34,19 @@ lazy_static! {
     static ref UPDATED: AtomicBool = AtomicBool::new(false);
 }
 
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct UpdateSystemParams {
+    marketplace_url: Url,
+}
+
 /// An user/ daemon would call this to update the system to the latest version and do the updates available,
 /// and this will return something if there is an update, and in that case there will need to be a restart.
-#[command(
-    rename = "update",
-    display(display_update_result),
-    metadata(sync_db = true)
-)]
 #[instrument(skip_all)]
 pub async fn update_system(
-    #[context] ctx: RpcContext,
-    #[arg(rename = "marketplace-url")] marketplace_url: Url,
+    ctx: RpcContext,
+    UpdateSystemParams { marketplace_url }: UpdateSystemParams,
 ) -> Result<UpdateResult, Error> {
     if UPDATED.load(Ordering::SeqCst) {
         return Ok(UpdateResult::NoUpdates);
@@ -63,7 +66,7 @@ pub enum UpdateResult {
     Updating,
 }
 
-fn display_update_result(status: UpdateResult, _: &ArgMatches) {
+pub fn display_update_result(_: UpdateSystemParams, status: UpdateResult) {
     match status {
         UpdateResult::Updating => {
             println!("Updating...");
@@ -90,7 +93,7 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
         .await
         .with_kind(ErrorKind::Network)?
         .version;
-    let current_version = peeked.as_server_info().as_version().de()?;
+    let current_version = peeked.as_public().as_server_info().as_version().de()?;
     if latest_version < *current_version {
         return Ok(None);
     }
@@ -102,7 +105,7 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
     let status = ctx
         .db
         .mutate(|db| {
-            let mut status = peeked.as_server_info().as_status_info().de()?;
+            let mut status = peeked.as_public().as_server_info().as_status_info().de()?;
             if status.update_progress.is_some() {
                 return Err(Error::new(
                     eyre!("Server is already updating!"),
@@ -114,7 +117,10 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
                 size: None,
                 downloaded: 0,
             });
-            db.as_server_info_mut().as_status_info_mut().ser(&status)?;
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_status_info_mut()
+                .ser(&status)?;
             Ok(status)
         })
         .await?;
@@ -125,22 +131,14 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
 
     tokio::spawn(async move {
         let res = do_update(ctx.clone(), eos_url).await;
-        ctx.db
-            .mutate(|db| {
-                db.as_server_info_mut()
-                    .as_status_info_mut()
-                    .as_update_progress_mut()
-                    .ser(&None)
-            })
-            .await?;
         match res {
             Ok(()) => {
                 ctx.db
                     .mutate(|db| {
-                        db.as_server_info_mut()
-                            .as_status_info_mut()
-                            .as_updated_mut()
-                            .ser(&true)
+                        let status_info =
+                            db.as_public_mut().as_server_info_mut().as_status_info_mut();
+                        status_info.as_update_progress_mut().ser(&None)?;
+                        status_info.as_updated_mut().ser(&true)
                     })
                     .await?;
                 CIRCLE_OF_5THS_SHORT
@@ -149,18 +147,25 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
                     .expect("could not play sound");
             }
             Err(e) => {
-                ctx.notification_manager
-                    .notify(
-                        ctx.db.clone(),
-                        None,
-                        NotificationLevel::Error,
-                        "StartOS Update Failed".to_owned(),
-                        format!("Update was not successful because of {}", e),
-                        (),
-                        None,
-                    )
+                let err_string = format!("Update was not successful because of {}", e);
+                ctx.db
+                    .mutate(|db| {
+                        db.as_public_mut()
+                            .as_server_info_mut()
+                            .as_status_info_mut()
+                            .as_update_progress_mut()
+                            .ser(&None)?;
+                        notify(
+                            db,
+                            None,
+                            NotificationLevel::Error,
+                            "StartOS Update Failed".to_owned(),
+                            err_string,
+                            (),
+                        )
+                    })
                     .await
-                    .expect("");
+                    .unwrap();
                 // TODO: refactor sound lib to make compound tempos easier to deal with
                 UPDATE_FAILED_1
                     .play()
@@ -196,7 +201,8 @@ async fn do_update(ctx: RpcContext, eos_url: EosUrl) -> Result<(), Error> {
     while let Some(progress) = rsync.progress.next().await {
         ctx.db
             .mutate(|db| {
-                db.as_server_info_mut()
+                db.as_public_mut()
+                    .as_server_info_mut()
                     .as_status_info_mut()
                     .as_update_progress_mut()
                     .ser(&Some(UpdateProgress {

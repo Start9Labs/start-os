@@ -1,9 +1,8 @@
 use std::ops::Deref;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use josekit::jwk::Jwk;
-use patch_db::json_ptr::JsonPointer;
 use patch_db::PatchDb;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::Context;
@@ -14,13 +13,11 @@ use tokio::sync::broadcast::Sender;
 use tokio::sync::RwLock;
 use tracing::instrument;
 
-use crate::account::AccountInfo;
-use crate::db::model::Database;
+use crate::context::config::ServerConfig;
 use crate::disk::OsPartitionInfo;
 use crate::init::init_postgres;
+use crate::prelude::*;
 use crate::setup::SetupStatus;
-use crate::util::config::load_config_from_paths;
-use crate::{Error, ResultExt};
 
 lazy_static::lazy_static! {
     pub static ref CURRENT_SECRET: Jwk = Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).unwrap_or_else(|e| {
@@ -38,45 +35,9 @@ pub struct SetupResult {
     pub root_ca: String,
 }
 
-#[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct SetupContextConfig {
-    pub os_partitions: OsPartitionInfo,
-    pub migration_batch_rows: Option<usize>,
-    pub migration_prefetch_rows: Option<usize>,
-    pub datadir: Option<PathBuf>,
-    #[serde(default)]
-    pub disable_encryption: bool,
-}
-impl SetupContextConfig {
-    #[instrument(skip_all)]
-    pub async fn load<P: AsRef<Path> + Send + 'static>(path: Option<P>) -> Result<Self, Error> {
-        tokio::task::spawn_blocking(move || {
-            load_config_from_paths(
-                path.as_ref()
-                    .into_iter()
-                    .map(|p| p.as_ref())
-                    .chain(std::iter::once(Path::new(
-                        crate::util::config::DEVICE_CONFIG_PATH,
-                    )))
-                    .chain(std::iter::once(Path::new(crate::util::config::CONFIG_PATH))),
-            )
-        })
-        .await
-        .unwrap()
-    }
-    pub fn datadir(&self) -> &Path {
-        self.datadir
-            .as_deref()
-            .unwrap_or_else(|| Path::new("/embassy-data"))
-    }
-}
-
 pub struct SetupContextSeed {
+    pub config: ServerConfig,
     pub os_partitions: OsPartitionInfo,
-    pub config_path: Option<PathBuf>,
-    pub migration_batch_rows: usize,
-    pub migration_prefetch_rows: usize,
     pub disable_encryption: bool,
     pub shutdown: Sender<()>,
     pub datadir: PathBuf,
@@ -96,16 +57,18 @@ impl AsRef<Jwk> for SetupContextSeed {
 pub struct SetupContext(Arc<SetupContextSeed>);
 impl SetupContext {
     #[instrument(skip_all)]
-    pub async fn init<P: AsRef<Path> + Send + 'static>(path: Option<P>) -> Result<Self, Error> {
-        let cfg = SetupContextConfig::load(path.as_ref().map(|p| p.as_ref().to_owned())).await?;
+    pub fn init(config: &ServerConfig) -> Result<Self, Error> {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
-        let datadir = cfg.datadir().to_owned();
+        let datadir = config.datadir().to_owned();
         Ok(Self(Arc::new(SetupContextSeed {
-            os_partitions: cfg.os_partitions,
-            config_path: path.as_ref().map(|p| p.as_ref().to_owned()),
-            migration_batch_rows: cfg.migration_batch_rows.unwrap_or(25000),
-            migration_prefetch_rows: cfg.migration_prefetch_rows.unwrap_or(100_000),
-            disable_encryption: cfg.disable_encryption,
+            config: config.clone(),
+            os_partitions: config.os_partitions.clone().ok_or_else(|| {
+                Error::new(
+                    eyre!("missing required configuration: `os-partitions`"),
+                    ErrorKind::NotFound,
+                )
+            })?,
+            disable_encryption: config.disable_encryption.unwrap_or(false),
             shutdown,
             datadir,
             selected_v2_drive: RwLock::new(None),
@@ -115,15 +78,11 @@ impl SetupContext {
         })))
     }
     #[instrument(skip_all)]
-    pub async fn db(&self, account: &AccountInfo) -> Result<PatchDb, Error> {
+    pub async fn db(&self) -> Result<PatchDb, Error> {
         let db_path = self.datadir.join("main").join("embassy.db");
         let db = PatchDb::open(&db_path)
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
-        if !db.exists(&<JsonPointer>::default()).await {
-            db.put(&<JsonPointer>::default(), &Database::init(account))
-                .await?;
-        }
         Ok(db)
     }
     #[instrument(skip_all)]

@@ -212,10 +212,6 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'net.tor.reset', params })
   }
 
-  async toggleZram(params: RR.ToggleZramReq): Promise<RR.ToggleZramRes> {
-    return this.rpcRequest({ method: 'server.experimental.zram', params })
-  }
-
   async setOsOutboundProxy(
     params: RR.SetOsOutboundProxyReq,
   ): Promise<RR.SetOsOutboundProxyRes> {

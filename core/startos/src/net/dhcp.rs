@@ -1,15 +1,16 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::IpAddr;
 
+use clap::Parser;
 use futures::TryStreamExt;
-use rpc_toolkit::command;
+use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
-use crate::context::RpcContext;
-use crate::db::model::IpInfo;
+use crate::context::{CliContext, RpcContext};
+use crate::db::model::public::IpInfo;
 use crate::net::utils::{iface_is_physical, list_interfaces};
 use crate::prelude::*;
-use crate::util::display_none;
 use crate::Error;
 
 lazy_static::lazy_static! {
@@ -50,18 +51,32 @@ pub async fn init_ips() -> Result<BTreeMap<String, IpInfo>, Error> {
     Ok(res)
 }
 
-#[command(subcommands(update))]
-pub async fn dhcp() -> Result<(), Error> {
-    Ok(())
+// #[command(subcommands(update))]
+pub fn dhcp() -> ParentHandler {
+    ParentHandler::new().subcommand(
+        "update",
+        from_fn_async::<_, _, (), Error, (RpcContext, UpdateParams)>(update)
+            .no_display()
+            .with_remote_cli::<CliContext>(),
+    )
+}
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct UpdateParams {
+    interface: String,
 }
 
-#[command(display(display_none))]
-pub async fn update(#[context] ctx: RpcContext, #[arg] interface: String) -> Result<(), Error> {
+pub async fn update(
+    ctx: RpcContext,
+    UpdateParams { interface }: UpdateParams,
+) -> Result<(), Error> {
     if iface_is_physical(&interface).await {
         let ip_info = IpInfo::for_interface(&interface).await?;
         ctx.db
             .mutate(|db| {
-                db.as_server_info_mut()
+                db.as_public_mut()
+                    .as_server_info_mut()
                     .as_ip_info_mut()
                     .insert(&interface, &ip_info)
             })

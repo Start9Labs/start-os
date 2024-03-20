@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
+use imbl::OrdMap;
 use models::PackageId;
 use serde::{Deserialize, Serialize};
 
@@ -26,6 +27,12 @@ pub struct DependencyConfigErrors(pub BTreeMap<PackageId, String>);
 impl Map for DependencyConfigErrors {
     type Key = PackageId;
     type Value = String;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Ok(key)
+    }
+    fn key_string(key: &Self::Key) -> Result<imbl_value::InternedString, Error> {
+        Ok(key.clone().into())
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -34,15 +41,17 @@ impl Map for DependencyConfigErrors {
 pub enum MainStatus {
     Stopped,
     Restarting,
-    Stopping,
+    Stopping {
+        timeout: crate::util::serde::Duration,
+    },
     Starting,
     Running {
         started: DateTime<Utc>,
-        health: BTreeMap<HealthCheckId, HealthCheckResult>,
+        health: OrdMap<HealthCheckId, HealthCheckResult>,
     },
     BackingUp {
         started: Option<DateTime<Utc>>,
-        health: BTreeMap<HealthCheckId, HealthCheckResult>,
+        health: OrdMap<HealthCheckId, HealthCheckResult>,
     },
 }
 impl MainStatus {
@@ -54,29 +63,29 @@ impl MainStatus {
                 started: Some(_), ..
             } => true,
             MainStatus::Stopped
-            | MainStatus::Stopping
+            | MainStatus::Stopping { .. }
             | MainStatus::Restarting
             | MainStatus::BackingUp { started: None, .. } => false,
         }
     }
-    pub fn stop(&mut self) {
-        match self {
-            MainStatus::Starting { .. } | MainStatus::Running { .. } => {
-                *self = MainStatus::Stopping;
-            }
-            MainStatus::BackingUp { started, .. } => {
-                *started = None;
-            }
-            MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => (),
-        }
-    }
+    // pub fn stop(&mut self) {
+    //     match self {
+    //         MainStatus::Starting { .. } | MainStatus::Running { .. } => {
+    //             *self = MainStatus::Stopping;
+    //         }
+    //         MainStatus::BackingUp { started, .. } => {
+    //             *started = None;
+    //         }
+    //         MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => (),
+    //     }
+    // }
     pub fn started(&self) -> Option<DateTime<Utc>> {
         match self {
             MainStatus::Running { started, .. } => Some(*started),
             MainStatus::BackingUp { started, .. } => *started,
             MainStatus::Stopped => None,
             MainStatus::Restarting => None,
-            MainStatus::Stopping => None,
+            MainStatus::Stopping { .. } => None,
             MainStatus::Starting { .. } => None,
         }
     }
@@ -84,7 +93,7 @@ impl MainStatus {
         let (started, health) = match self {
             MainStatus::Starting { .. } => (Some(Utc::now()), Default::default()),
             MainStatus::Running { started, health } => (Some(started.clone()), health.clone()),
-            MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
+            MainStatus::Stopped | MainStatus::Stopping { .. } | MainStatus::Restarting => {
                 (None, Default::default())
             }
             MainStatus::BackingUp { .. } => return self.clone(),

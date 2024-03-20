@@ -103,8 +103,6 @@ export abstract class ApiService {
 
   abstract resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes>
 
-  abstract toggleZram(params: RR.ToggleZramReq): Promise<RR.ToggleZramRes>
-
   abstract setOsOutboundProxy(
     params: RR.SetOsOutboundProxyReq,
   ): Promise<RR.SetOsOutboundProxyRes>

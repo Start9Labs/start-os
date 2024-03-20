@@ -38,20 +38,20 @@ pub mod error;
 pub mod firmware;
 pub mod hostname;
 pub mod init;
-pub mod inspect;
+pub mod progress;
+// pub mod inspect;
 pub mod install;
 pub mod logs;
-pub mod manager;
+pub mod lxc;
 pub mod middleware;
-pub mod migration;
 pub mod net;
 pub mod notifications;
 pub mod os_install;
 pub mod prelude;
-pub mod procedure;
 pub mod properties;
 pub mod registry;
 pub mod s9pk;
+pub mod service;
 pub mod setup;
 pub mod shutdown;
 pub mod sound;
@@ -59,100 +59,217 @@ pub mod ssh;
 pub mod status;
 pub mod system;
 pub mod update;
+pub mod upload;
 pub mod util;
 pub mod version;
 pub mod volume;
 
 use std::time::SystemTime;
 
+use clap::Parser;
 pub use config::Config;
 pub use error::{Error, ErrorKind, ResultExt};
-use rpc_toolkit::command;
+use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{
+    command, from_fn, from_fn_async, from_fn_blocking, AnyContext, HandlerExt, ParentHandler,
+};
+use serde::{Deserialize, Serialize};
 
-#[command(metadata(authenticated = false))]
-pub fn echo(#[arg] message: String) -> Result<String, RpcError> {
+use crate::context::CliContext;
+use crate::util::serde::HandlerExtSerde;
+
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct EchoParams {
+    message: String,
+}
+
+pub fn echo(_: AnyContext, EchoParams { message }: EchoParams) -> Result<String, RpcError> {
     Ok(message)
 }
 
-#[command(subcommands(
-    version::git_info,
-    echo,
-    inspect::inspect,
-    server,
-    package,
-    net::net,
-    auth::auth,
-    db::db,
-    ssh::ssh,
-    net::wifi::wifi,
-    disk::disk,
-    notifications::notification,
-    backup::backup,
-    registry::marketplace::marketplace,
-))]
-pub fn main_api() -> Result<(), RpcError> {
-    Ok(())
+pub fn main_api() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand("git-info", from_fn(version::git_info))
+        .subcommand(
+            "echo",
+            from_fn(echo)
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand("init", from_fn_blocking(developer::init).no_display())
+        .subcommand("server", server())
+        .subcommand("package", package())
+        .subcommand("net", net::net())
+        .subcommand("auth", auth::auth())
+        .subcommand("db", db::db())
+        .subcommand("ssh", ssh::ssh())
+        .subcommand("wifi", net::wifi::wifi())
+        .subcommand("disk", disk::disk())
+        .subcommand("notification", notifications::notification())
+        .subcommand("backup", backup::backup())
+        .subcommand("marketplace", registry::marketplace::marketplace())
+        .subcommand("lxc", lxc::lxc())
+        .subcommand("s9pk", s9pk::rpc::s9pk())
 }
 
-#[command(subcommands(
-    system::time,
-    system::experimental,
-    system::logs,
-    system::kernel_logs,
-    system::metrics,
-    shutdown::shutdown,
-    shutdown::restart,
-    shutdown::rebuild,
-    update::update_system,
-    firmware::update_firmware,
-))]
-pub fn server() -> Result<(), RpcError> {
-    Ok(())
+pub fn server() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "time",
+            from_fn_async(system::time)
+                .with_display_serializable()
+                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                    Ok(system::display_time(handle.params, result))
+                })
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand("experimental", system::experimental())
+        .subcommand("logs", system::logs())
+        .subcommand("kernel-logs", system::kernel_logs())
+        .subcommand(
+            "metrics",
+            from_fn_async(system::metrics)
+                .with_display_serializable()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "shutdown",
+            from_fn_async(shutdown::shutdown)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "restart",
+            from_fn_async(shutdown::restart)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "rebuild",
+            from_fn_async(shutdown::rebuild)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "update",
+            from_fn_async(update::update_system)
+                .with_metadata("sync_db", Value::Bool(true))
+                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                    Ok(update::display_update_result(handle.params, result))
+                })
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "update-firmware",
+            from_fn_async(firmware::update_firmware)
+                .with_custom_display_fn::<AnyContext, _>(|_handle, result| {
+                    Ok(firmware::display_firmware_update_result(result))
+                })
+                .with_remote_cli::<CliContext>(),
+        )
 }
 
-#[command(subcommands(
-    action::action,
-    install::install,
-    install::sideload,
-    install::uninstall,
-    install::list,
-    config::config,
-    control::start,
-    control::stop,
-    control::restart,
-    logs::logs,
-    properties::properties,
-    dependencies::dependency,
-    backup::package_backup,
-))]
-pub fn package() -> Result<(), RpcError> {
-    Ok(())
+pub fn package() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "action",
+            from_fn_async(action::action)
+                .with_display_serializable()
+                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                    Ok(action::display_action_result(handle.params, result))
+                })
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "install",
+            from_fn_async(install::install)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_cli(),
+        )
+        .subcommand("sideload", from_fn_async(install::sideload).no_cli())
+        .subcommand("install", from_fn_async(install::cli_install).no_display())
+        .subcommand(
+            "uninstall",
+            from_fn_async(install::uninstall)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "list",
+            from_fn_async(install::list)
+                .with_display_serializable()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand("config", config::config())
+        .subcommand(
+            "start",
+            from_fn_async(control::start)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "stop",
+            from_fn_async(control::stop)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "restart",
+            from_fn_async(control::restart)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand("logs", logs::logs())
+        .subcommand(
+            "properties",
+            from_fn_async(properties::properties)
+                .with_custom_display_fn::<AnyContext, _>(|_handle, result| {
+                    Ok(properties::display_properties(result))
+                })
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand("dependency", dependencies::dependency())
+        .subcommand("package-backup", backup::backup())
+        .subcommand("connect", from_fn_async(service::connect_rpc).no_cli())
+        .subcommand(
+            "connect",
+            from_fn_async(service::connect_rpc_cli).no_display(),
+        )
 }
 
-#[command(subcommands(
-    version::git_info,
-    s9pk::pack,
-    developer::verify,
-    developer::init,
-    inspect::inspect,
-    registry::admin::publish,
-))]
-pub fn portable_api() -> Result<(), RpcError> {
-    Ok(())
+pub fn diagnostic_api() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "git-info",
+            from_fn(version::git_info).with_metadata("authenticated", Value::Bool(false)),
+        )
+        .subcommand("echo", from_fn(echo).with_remote_cli::<CliContext>())
+        .subcommand("diagnostic", diagnostic::diagnostic())
 }
 
-#[command(subcommands(version::git_info, echo, diagnostic::diagnostic))]
-pub fn diagnostic_api() -> Result<(), RpcError> {
-    Ok(())
+pub fn setup_api() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "git-info",
+            from_fn(version::git_info).with_metadata("authenticated", Value::Bool(false)),
+        )
+        .subcommand("echo", from_fn(echo).with_remote_cli::<CliContext>())
+        .subcommand("setup", setup::setup())
 }
 
-#[command(subcommands(version::git_info, echo, setup::setup))]
-pub fn setup_api() -> Result<(), RpcError> {
-    Ok(())
-}
-
-#[command(subcommands(version::git_info, echo, os_install::install))]
-pub fn install_api() -> Result<(), RpcError> {
-    Ok(())
+pub fn install_api() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "git-info",
+            from_fn(version::git_info).with_metadata("authenticated", Value::Bool(false)),
+        )
+        .subcommand("echo", from_fn(echo).with_remote_cli::<CliContext>())
+        .subcommand("install", os_install::install())
 }

@@ -5,10 +5,10 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use josekit::jwk::Jwk;
 use openssl::x509::X509;
-use rpc_toolkit::command;
+use patch_db::json_ptr::ROOT;
 use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
-use sqlx::Connection;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tokio::try_join;
@@ -18,36 +18,56 @@ use tracing::instrument;
 use crate::account::AccountInfo;
 use crate::backup::restore::recover_full_embassy;
 use crate::backup::target::BackupTargetFS;
-use crate::context::rpc::RpcContextConfig;
 use crate::context::setup::SetupResult;
 use crate::context::SetupContext;
+use crate::db::model::Database;
 use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::filesystem::ReadWrite;
-use crate::disk::mount::guard::TmpMountGuard;
+use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::disk::util::{pvscan, recovery_info, DiskInfo, EmbassyOsRecoveryInfo};
 use crate::disk::REPAIR_DISK_PATH;
 use crate::hostname::Hostname;
 use crate::init::{init, InitResult};
-use crate::middleware::encrypt::EncryptedWire;
 use crate::net::ssl::root_ca_start_time;
 use crate::prelude::*;
+use crate::util::crypto::EncryptedWire;
 use crate::util::io::{dir_copy, dir_size, Counter};
 use crate::{Error, ErrorKind, ResultExt};
 
-#[command(subcommands(status, disk, attach, execute, cifs, complete, get_pubkey, exit))]
-pub fn setup() -> Result<(), Error> {
-    Ok(())
+pub fn setup() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "status",
+            from_fn_async(status)
+                .with_metadata("authenticated", Value::Bool(false))
+                .no_cli(),
+        )
+        .subcommand("disk", disk())
+        .subcommand("attach", from_fn_async(attach).no_cli())
+        .subcommand("execute", from_fn_async(execute).no_cli())
+        .subcommand("cifs", cifs())
+        .subcommand("complete", from_fn_async(complete).no_cli())
+        .subcommand(
+            "get-pubkey",
+            from_fn_async(get_pubkey)
+                .with_metadata("authenticated", Value::Bool(false))
+                .no_cli(),
+        )
+        .subcommand("exit", from_fn_async(exit).no_cli())
 }
 
-#[command(subcommands(list_disks))]
-pub fn disk() -> Result<(), Error> {
-    Ok(())
+pub fn disk() -> ParentHandler {
+    ParentHandler::new().subcommand(
+        "list",
+        from_fn_async(list_disks)
+            .with_metadata("authenticated", Value::Bool(false))
+            .no_cli(),
+    )
 }
 
-#[command(rename = "list", rpc_only, metadata(authenticated = false))]
-pub async fn list_disks(#[context] ctx: SetupContext) -> Result<Vec<DiskInfo>, Error> {
+pub async fn list_disks(ctx: SetupContext) -> Result<Vec<DiskInfo>, Error> {
     crate::disk::util::list(&ctx.os_partitions).await
 }
 
@@ -55,38 +75,41 @@ async fn setup_init(
     ctx: &SetupContext,
     password: Option<String>,
 ) -> Result<(Hostname, OnionAddressV3, X509), Error> {
-    let InitResult { secret_store, db } =
-        init(&RpcContextConfig::load(ctx.config_path.clone()).await?).await?;
-    let mut secrets_handle = secret_store.acquire().await?;
-    let mut secrets_tx = secrets_handle.begin().await?;
+    let InitResult { db } = init(&ctx.config).await?;
 
-    let mut account = AccountInfo::load(secrets_tx.as_mut()).await?;
-
-    if let Some(password) = password {
-        account.set_password(&password)?;
-        account.save(secrets_tx.as_mut()).await?;
-        db.mutate(|m| {
-            m.as_server_info_mut()
+    let account = db
+        .mutate(|m| {
+            let mut account = AccountInfo::load(m)?;
+            if let Some(password) = password {
+                account.set_password(&password)?;
+            }
+            account.save(m)?;
+            m.as_public_mut()
+                .as_server_info_mut()
                 .as_password_hash_mut()
-                .ser(&account.password)
+                .ser(&account.password)?;
+            Ok(account)
         })
         .await?;
-    }
-
-    secrets_tx.commit().await?;
 
     Ok((
         account.hostname,
-        account.key.tor_address(),
+        account.tor_key.public().get_onion_address(),
         account.root_ca_cert,
     ))
 }
 
-#[command(rpc_only)]
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct AttachParams {
+    #[serde(rename = "embassy-password")]
+    password: Option<EncryptedWire>,
+    guid: Arc<String>,
+}
+
 pub async fn attach(
-    #[context] ctx: SetupContext,
-    #[arg] guid: Arc<String>,
-    #[arg(rename = "embassy-password")] password: Option<EncryptedWire>,
+    ctx: SetupContext,
+    AttachParams { password, guid }: AttachParams,
 ) -> Result<(), Error> {
     let mut status = ctx.setup_status.write().await;
     if status.is_some() {
@@ -169,8 +192,7 @@ pub struct SetupStatus {
     pub complete: bool,
 }
 
-#[command(rpc_only, metadata(authenticated = false))]
-pub async fn status(#[context] ctx: SetupContext) -> Result<Option<SetupStatus>, RpcError> {
+pub async fn status(ctx: SetupContext) -> Result<Option<SetupStatus>, RpcError> {
     ctx.setup_status.read().await.clone().transpose()
 }
 
@@ -178,25 +200,34 @@ pub async fn status(#[context] ctx: SetupContext) -> Result<Option<SetupStatus>,
 /// This way the frontend can send a secret, like the password for the setup/ recovory
 /// without knowing the password over clearnet. We use the public key shared across the network
 /// since it is fine to share the public, and encrypt against the public.
-#[command(rename = "get-pubkey", rpc_only, metadata(authenticated = false))]
-pub async fn get_pubkey(#[context] ctx: SetupContext) -> Result<Jwk, RpcError> {
+pub async fn get_pubkey(ctx: SetupContext) -> Result<Jwk, RpcError> {
     let secret = ctx.as_ref().clone();
     let pub_key = secret.to_public_key()?;
     Ok(pub_key)
 }
 
-#[command(subcommands(verify_cifs))]
-pub fn cifs() -> Result<(), Error> {
-    Ok(())
+pub fn cifs() -> ParentHandler {
+    ParentHandler::new().subcommand("verify", from_fn_async(verify_cifs).no_cli())
 }
 
-#[command(rename = "verify", rpc_only)]
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct VerifyCifsParams {
+    hostname: String,
+    path: PathBuf,
+    username: String,
+    password: Option<EncryptedWire>,
+}
+
+// #[command(rename = "verify", rpc_only)]
 pub async fn verify_cifs(
-    #[context] ctx: SetupContext,
-    #[arg] hostname: String,
-    #[arg] path: PathBuf,
-    #[arg] username: String,
-    #[arg] password: Option<EncryptedWire>,
+    ctx: SetupContext,
+    VerifyCifsParams {
+        hostname,
+        path,
+        username,
+        password,
+    }: VerifyCifsParams,
 ) -> Result<EmbassyOsRecoveryInfo, Error> {
     let password: Option<String> = password.map(|x| x.decrypt(&*ctx)).flatten();
     let guard = TmpMountGuard::mount(
@@ -209,12 +240,12 @@ pub async fn verify_cifs(
         ReadWrite,
     )
     .await?;
-    let embassy_os = recovery_info(&guard).await?;
+    let embassy_os = recovery_info(guard.path()).await?;
     guard.unmount().await?;
     embassy_os.ok_or_else(|| Error::new(eyre!("No Backup Found"), crate::ErrorKind::NotFound))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
 #[serde(rename_all = "kebab-case")]
 pub enum RecoverySource {
@@ -222,13 +253,24 @@ pub enum RecoverySource {
     Backup { target: BackupTargetFS },
 }
 
-#[command(rpc_only)]
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct ExecuteParams {
+    embassy_logicalname: PathBuf,
+    embassy_password: EncryptedWire,
+    recovery_source: Option<RecoverySource>,
+    recovery_password: Option<EncryptedWire>,
+}
+
+// #[command(rpc_only)]
 pub async fn execute(
-    #[context] ctx: SetupContext,
-    #[arg(rename = "embassy-logicalname")] embassy_logicalname: PathBuf,
-    #[arg(rename = "embassy-password")] embassy_password: EncryptedWire,
-    #[arg(rename = "recovery-source")] recovery_source: Option<RecoverySource>,
-    #[arg(rename = "recovery-password")] recovery_password: Option<EncryptedWire>,
+    ctx: SetupContext,
+    ExecuteParams {
+        embassy_logicalname,
+        embassy_password,
+        recovery_source,
+        recovery_password,
+    }: ExecuteParams,
 ) -> Result<(), Error> {
     let embassy_password = match embassy_password.decrypt(&*ctx) {
         Some(a) => a,
@@ -267,11 +309,6 @@ pub async fn execute(
     tokio::task::spawn({
         async move {
             let ctx = ctx.clone();
-            let recovery_source = recovery_source;
-
-            let embassy_password = embassy_password;
-            let recovery_source = recovery_source;
-            let recovery_password = recovery_password;
             match execute_inner(
                 ctx.clone(),
                 embassy_logicalname,
@@ -312,8 +349,8 @@ pub async fn execute(
 }
 
 #[instrument(skip_all)]
-#[command(rpc_only)]
-pub async fn complete(#[context] ctx: SetupContext) -> Result<SetupResult, Error> {
+// #[command(rpc_only)]
+pub async fn complete(ctx: SetupContext) -> Result<SetupResult, Error> {
     let (guid, setup_result) = if let Some((guid, setup_result)) = &*ctx.setup_result.read().await {
         (guid.clone(), setup_result.clone())
     } else {
@@ -329,8 +366,8 @@ pub async fn complete(#[context] ctx: SetupContext) -> Result<SetupResult, Error
 }
 
 #[instrument(skip_all)]
-#[command(rpc_only)]
-pub async fn exit(#[context] ctx: SetupContext) -> Result<(), Error> {
+// #[command(rpc_only)]
+pub async fn exit(ctx: SetupContext) -> Result<(), Error> {
     ctx.shutdown.send(()).expect("failed to shutdown");
     Ok(())
 }
@@ -380,16 +417,14 @@ async fn fresh_setup(
     embassy_password: &str,
 ) -> Result<(Hostname, OnionAddressV3, X509), Error> {
     let account = AccountInfo::new(embassy_password, root_ca_start_time().await?)?;
-    let sqlite_pool = ctx.secret_store().await?;
-    account.save(&sqlite_pool).await?;
-    sqlite_pool.close().await;
-    let InitResult { secret_store, .. } =
-        init(&RpcContextConfig::load(ctx.config_path.clone()).await?).await?;
-    secret_store.close().await;
+    let db = ctx.db().await?;
+    db.put(&ROOT, &Database::init(&account)?).await?;
+    drop(db);
+    init(&ctx.config).await?;
     Ok((
-        account.hostname.clone(),
-        account.key.tor_address(),
-        account.root_ca_cert.clone(),
+        account.hostname,
+        account.tor_key.public().get_onion_address(),
+        account.root_ca_cert,
     ))
 }
 

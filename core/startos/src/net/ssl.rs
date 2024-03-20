@@ -5,6 +5,7 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use futures::FutureExt;
+use imbl_value::InternedString;
 use libc::time_t;
 use openssl::asn1::{Asn1Integer, Asn1Time};
 use openssl::bn::{BigNum, MsbOption};
@@ -14,17 +15,137 @@ use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::{X509Builder, X509Extension, X509NameBuilder, X509};
 use openssl::*;
-use rpc_toolkit::command;
-use tokio::sync::{Mutex, RwLock};
+use patch_db::HasModel;
+use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 use tracing::instrument;
 
 use crate::account::AccountInfo;
-use crate::context::RpcContext;
 use crate::hostname::Hostname;
 use crate::init::check_time_is_synchronized;
-use crate::net::dhcp::ips;
-use crate::net::keys::{Key, KeyInfo};
-use crate::{Error, ErrorKind, ResultExt, SOURCE_DATE};
+use crate::prelude::*;
+use crate::util::serde::Pem;
+use crate::SOURCE_DATE;
+
+#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[model = "Model<Self>"]
+#[serde(rename_all = "kebab-case")]
+pub struct CertStore {
+    pub root_key: Pem<PKey<Private>>,
+    pub root_cert: Pem<X509>,
+    pub int_key: Pem<PKey<Private>>,
+    pub int_cert: Pem<X509>,
+    pub leaves: BTreeMap<JsonKey<BTreeSet<InternedString>>, CertData>,
+}
+impl CertStore {
+    pub fn new(account: &AccountInfo) -> Result<Self, Error> {
+        let int_key = generate_key()?;
+        let int_cert = make_int_cert((&account.root_ca_key, &account.root_ca_cert), &int_key)?;
+        Ok(Self {
+            root_key: Pem::new(account.root_ca_key.clone()),
+            root_cert: Pem::new(account.root_ca_cert.clone()),
+            int_key: Pem::new(int_key),
+            int_cert: Pem::new(int_cert),
+            leaves: BTreeMap::new(),
+        })
+    }
+}
+impl Model<CertStore> {
+    /// This function will grant any cert for any domain. It is up to the *caller* to enusure that the calling service has permission to sign a cert for the requested domain
+    pub fn cert_for(
+        &mut self,
+        hostnames: &BTreeSet<InternedString>,
+    ) -> Result<FullchainCertData, Error> {
+        let keys = if let Some(cert_data) = self
+            .as_leaves()
+            .as_idx(JsonKey::new_ref(hostnames))
+            .map(|m| m.de())
+            .transpose()?
+        {
+            if cert_data
+                .certs
+                .ed25519
+                .not_before()
+                .compare(Asn1Time::days_from_now(0)?.as_ref())?
+                == Ordering::Less
+                && cert_data
+                    .certs
+                    .ed25519
+                    .not_after()
+                    .compare(Asn1Time::days_from_now(30)?.as_ref())?
+                    == Ordering::Greater
+                && cert_data
+                    .certs
+                    .nistp256
+                    .not_before()
+                    .compare(Asn1Time::days_from_now(0)?.as_ref())?
+                    == Ordering::Less
+                && cert_data
+                    .certs
+                    .nistp256
+                    .not_after()
+                    .compare(Asn1Time::days_from_now(30)?.as_ref())?
+                    == Ordering::Greater
+            {
+                return Ok(FullchainCertData {
+                    root: self.as_root_cert().de()?.0,
+                    int: self.as_int_cert().de()?.0,
+                    leaf: cert_data,
+                });
+            }
+            cert_data.keys
+        } else {
+            PKeyPair {
+                ed25519: PKey::generate_ed25519()?,
+                nistp256: PKey::from_ec_key(EcKey::generate(&*EcGroup::from_curve_name(
+                    Nid::X9_62_PRIME256V1,
+                )?)?)?,
+            }
+        };
+        let int_key = self.as_int_key().de()?.0;
+        let int_cert = self.as_int_cert().de()?.0;
+        let cert_data = CertData {
+            certs: CertPair {
+                ed25519: make_leaf_cert(
+                    (&int_key, &int_cert),
+                    (&keys.ed25519, &SANInfo::new(hostnames)),
+                )?,
+                nistp256: make_leaf_cert(
+                    (&int_key, &int_cert),
+                    (&keys.nistp256, &SANInfo::new(hostnames)),
+                )?,
+            },
+            keys,
+        };
+        self.as_leaves_mut()
+            .insert(JsonKey::new_ref(hostnames), &cert_data)?;
+        Ok(FullchainCertData {
+            root: self.as_root_cert().de()?.0,
+            int: self.as_int_cert().de()?.0,
+            leaf: cert_data,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CertData {
+    pub keys: PKeyPair,
+    pub certs: CertPair,
+}
+
+pub struct FullchainCertData {
+    pub root: X509,
+    pub int: X509,
+    pub leaf: CertData,
+}
+impl FullchainCertData {
+    pub fn fullchain_ed25519(&self) -> Vec<&X509> {
+        vec![&self.leaf.certs.ed25519, &self.int, &self.root]
+    }
+    pub fn fullchain_nistp256(&self) -> Vec<&X509> {
+        vec![&self.leaf.certs.nistp256, &self.int, &self.root]
+    }
+}
 
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
 
@@ -35,62 +156,20 @@ fn unix_time(time: SystemTime) -> time_t {
         .unwrap_or_default()
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct CertPair {
-    pub ed25519: X509,
-    pub nistp256: X509,
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PKeyPair {
+    #[serde(with = "crate::util::serde::pem")]
+    pub ed25519: PKey<Private>,
+    #[serde(with = "crate::util::serde::pem")]
+    pub nistp256: PKey<Private>,
 }
-impl CertPair {
-    fn updated(
-        pair: Option<&Self>,
-        hostname: &Hostname,
-        signer: (&PKey<Private>, &X509),
-        applicant: &Key,
-        ip: BTreeSet<IpAddr>,
-    ) -> Result<(Self, bool), Error> {
-        let mut updated = false;
-        let mut updated_cert = |cert: Option<&X509>, osk: PKey<Private>| -> Result<X509, Error> {
-            let mut ips = BTreeSet::new();
-            if let Some(cert) = cert {
-                ips.extend(
-                    cert.subject_alt_names()
-                        .iter()
-                        .flatten()
-                        .filter_map(|a| a.ipaddress())
-                        .filter_map(|a| match a.len() {
-                            4 => Some::<IpAddr>(<[u8; 4]>::try_from(a).unwrap().into()),
-                            16 => Some::<IpAddr>(<[u8; 16]>::try_from(a).unwrap().into()),
-                            _ => None,
-                        }),
-                );
-                if cert
-                    .not_before()
-                    .compare(Asn1Time::days_from_now(0)?.as_ref())?
-                    == Ordering::Less
-                    && cert
-                        .not_after()
-                        .compare(Asn1Time::days_from_now(30)?.as_ref())?
-                        == Ordering::Greater
-                    && ips.is_superset(&ip)
-                {
-                    return Ok(cert.clone());
-                }
-            }
-            ips.extend(ip.iter().copied());
-            updated = true;
-            make_leaf_cert(signer, (&osk, &SANInfo::new(&applicant, hostname, ips)))
-        };
-        Ok((
-            Self {
-                ed25519: updated_cert(pair.map(|c| &c.ed25519), applicant.openssl_key_ed25519())?,
-                nistp256: updated_cert(
-                    pair.map(|c| &c.nistp256),
-                    applicant.openssl_key_nistp256(),
-                )?,
-            },
-            updated,
-        ))
-    }
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
+pub struct CertPair {
+    #[serde(with = "crate::util::serde::pem")]
+    pub ed25519: X509,
+    #[serde(with = "crate::util::serde::pem")]
+    pub nistp256: X509,
 }
 
 pub async fn root_ca_start_time() -> Result<SystemTime, Error> {
@@ -99,51 +178,6 @@ pub async fn root_ca_start_time() -> Result<SystemTime, Error> {
     } else {
         *SOURCE_DATE
     })
-}
-
-#[derive(Debug)]
-pub struct SslManager {
-    hostname: Hostname,
-    root_cert: X509,
-    int_key: PKey<Private>,
-    int_cert: X509,
-    cert_cache: RwLock<BTreeMap<Key, CertPair>>,
-}
-impl SslManager {
-    pub fn new(account: &AccountInfo, start_time: SystemTime) -> Result<Self, Error> {
-        let int_key = generate_key()?;
-        let int_cert = make_int_cert(
-            (&account.root_ca_key, &account.root_ca_cert),
-            &int_key,
-            start_time,
-        )?;
-        Ok(Self {
-            hostname: account.hostname.clone(),
-            root_cert: account.root_ca_cert.clone(),
-            int_key,
-            int_cert,
-            cert_cache: RwLock::new(BTreeMap::new()),
-        })
-    }
-    pub async fn with_certs(&self, key: Key, ip: IpAddr) -> Result<KeyInfo, Error> {
-        let mut ips = ips().await?;
-        ips.insert(ip);
-        let (pair, updated) = CertPair::updated(
-            self.cert_cache.read().await.get(&key),
-            &self.hostname,
-            (&self.int_key, &self.int_cert),
-            &key,
-            ips,
-        )?;
-        if updated {
-            self.cert_cache
-                .write()
-                .await
-                .insert(key.clone(), pair.clone());
-        }
-
-        Ok(key.with_certs(pair, self.int_cert.clone(), self.root_cert.clone()))
-    }
 }
 
 const EC_CURVE_NAME: nid::Nid = nid::Nid::X9_62_PRIME256V1;
@@ -245,18 +279,13 @@ pub fn make_root_cert(
 pub fn make_int_cert(
     signer: (&PKey<Private>, &X509),
     applicant: &PKey<Private>,
-    start_time: SystemTime,
 ) -> Result<X509, Error> {
     let mut builder = X509Builder::new()?;
     builder.set_version(CERTIFICATE_VERSION)?;
 
-    let unix_start_time = unix_time(start_time);
+    builder.set_not_before(signer.1.not_before())?;
 
-    let embargo = Asn1Time::from_unix(unix_start_time - 86400)?;
-    builder.set_not_before(&embargo)?;
-
-    let expiration = Asn1Time::from_unix(unix_start_time + (10 * 364 * 86400))?;
-    builder.set_not_after(&expiration)?;
+    builder.set_not_after(signer.1.not_after())?;
 
     builder.set_serial_number(&*rand_serial()?)?;
 
@@ -309,13 +338,13 @@ pub fn make_int_cert(
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MaybeWildcard {
     WithWildcard(String),
-    WithoutWildcard(String),
+    WithoutWildcard(InternedString),
 }
 impl MaybeWildcard {
     pub fn as_str(&self) -> &str {
         match self {
             MaybeWildcard::WithWildcard(s) => s.as_str(),
-            MaybeWildcard::WithoutWildcard(s) => s.as_str(),
+            MaybeWildcard::WithoutWildcard(s) => &**s,
         }
     }
 }
@@ -334,18 +363,16 @@ pub struct SANInfo {
     pub ips: BTreeSet<IpAddr>,
 }
 impl SANInfo {
-    pub fn new(key: &Key, hostname: &Hostname, ips: BTreeSet<IpAddr>) -> Self {
+    pub fn new(hostnames: &BTreeSet<InternedString>) -> Self {
         let mut dns = BTreeSet::new();
-        if let Some((id, _)) = key.interface() {
-            dns.insert(MaybeWildcard::WithWildcard(format!("{id}.embassy")));
-            dns.insert(MaybeWildcard::WithWildcard(key.local_address().to_string()));
-        } else {
-            dns.insert(MaybeWildcard::WithoutWildcard("embassy".to_owned()));
-            dns.insert(MaybeWildcard::WithWildcard(hostname.local_domain_name()));
-            dns.insert(MaybeWildcard::WithoutWildcard(hostname.no_dot_host_name()));
-            dns.insert(MaybeWildcard::WithoutWildcard("localhost".to_owned()));
+        let mut ips = BTreeSet::new();
+        for hostname in hostnames {
+            if let Ok(ip) = hostname.parse::<IpAddr>() {
+                ips.insert(ip);
+            } else {
+                dns.insert(MaybeWildcard::WithoutWildcard(hostname.clone())); // TODO: wildcards?
+            }
         }
-        dns.insert(MaybeWildcard::WithWildcard(key.tor_address().to_string()));
         Self { dns, ips }
     }
 }
@@ -442,17 +469,4 @@ pub fn make_leaf_cert(
 
     let cert = builder.build();
     Ok(cert)
-}
-
-#[command(subcommands(size))]
-pub async fn ssl() -> Result<(), Error> {
-    Ok(())
-}
-
-#[command]
-pub async fn size(#[context] ctx: RpcContext) -> Result<String, Error> {
-    Ok(format!(
-        "Cert Catch size: {}",
-        ctx.net_controller.ssl.cert_cache.read().await.len()
-    ))
 }

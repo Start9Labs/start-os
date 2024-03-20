@@ -1,20 +1,39 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use clap::Parser;
 use color_eyre::eyre::eyre;
-use futures::TryStreamExt;
-use rpc_toolkit::command;
+use imbl_value::InternedString;
+use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
-use sqlx::{Executor, Postgres};
 
 use super::{BackupTarget, BackupTargetId};
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
+use crate::db::model::DatabaseModel;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::filesystem::ReadOnly;
-use crate::disk::mount::guard::TmpMountGuard;
+use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::disk::util::{recovery_info, EmbassyOsRecoveryInfo};
 use crate::prelude::*;
-use crate::util::display_none;
 use crate::util::serde::KeyVal;
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct CifsTargets(pub BTreeMap<u32, Cifs>);
+impl CifsTargets {
+    pub fn new() -> Self {
+        Self(BTreeMap::new())
+    }
+}
+impl Map for CifsTargets {
+    type Key = u32;
+    type Value = Cifs;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Self::key_string(key)
+    }
+    fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
+        Ok(InternedString::from_display(key))
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -26,38 +45,70 @@ pub struct CifsBackupTarget {
     embassy_os: Option<EmbassyOsRecoveryInfo>,
 }
 
-#[command(subcommands(add, update, remove))]
-pub fn cifs() -> Result<(), Error> {
-    Ok(())
+pub fn cifs() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "add",
+            from_fn_async(add)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "update",
+            from_fn_async(update)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand(
+            "remove",
+            from_fn_async(remove)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
 }
 
-#[command(display(display_none))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct AddParams {
+    pub hostname: String,
+    pub path: PathBuf,
+    pub username: String,
+    pub password: Option<String>,
+}
+
 pub async fn add(
-    #[context] ctx: RpcContext,
-    #[arg] hostname: String,
-    #[arg] path: PathBuf,
-    #[arg] username: String,
-    #[arg] password: Option<String>,
-) -> Result<KeyVal<BackupTargetId, BackupTarget>, Error> {
-    let cifs = Cifs {
+    ctx: RpcContext,
+    AddParams {
         hostname,
         path,
         username,
         password,
+    }: AddParams,
+) -> Result<KeyVal<BackupTargetId, BackupTarget>, Error> {
+    let cifs = Cifs {
+        hostname,
+        path: Path::new("/").join(path),
+        username,
+        password,
     };
     let guard = TmpMountGuard::mount(&cifs, ReadOnly).await?;
-    let embassy_os = recovery_info(&guard).await?;
+    let embassy_os = recovery_info(guard.path()).await?;
     guard.unmount().await?;
-    let path_string = Path::new("/").join(&cifs.path).display().to_string();
-    let id: i32 = sqlx::query!(
-        "INSERT INTO cifs_shares (hostname, path, username, password) VALUES ($1, $2, $3, $4) RETURNING id",
-        cifs.hostname,
-        path_string,
-        cifs.username,
-        cifs.password,
-    )
-    .fetch_one(&ctx.secret_store)
-    .await?.id;
+    let id = ctx
+        .db
+        .mutate(|db| {
+            let id = db
+                .as_private()
+                .as_cifs()
+                .keys()?
+                .into_iter()
+                .max()
+                .map_or(0, |a| a + 1);
+            db.as_private_mut().as_cifs_mut().insert(&id, &cifs)?;
+            Ok(id)
+        })
+        .await?;
     Ok(KeyVal {
         key: BackupTargetId::Cifs { id },
         value: BackupTarget::Cifs(CifsBackupTarget {
@@ -70,14 +121,26 @@ pub async fn add(
     })
 }
 
-#[command(display(display_none))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct UpdateParams {
+    pub id: BackupTargetId,
+    pub hostname: String,
+    pub path: PathBuf,
+    pub username: String,
+    pub password: Option<String>,
+}
+
 pub async fn update(
-    #[context] ctx: RpcContext,
-    #[arg] id: BackupTargetId,
-    #[arg] hostname: String,
-    #[arg] path: PathBuf,
-    #[arg] username: String,
-    #[arg] password: Option<String>,
+    ctx: RpcContext,
+    UpdateParams {
+        id,
+        hostname,
+        path,
+        username,
+        password,
+    }: UpdateParams,
 ) -> Result<KeyVal<BackupTargetId, BackupTarget>, Error> {
     let id = if let BackupTargetId::Cifs { id } = id {
         id
@@ -89,32 +152,27 @@ pub async fn update(
     };
     let cifs = Cifs {
         hostname,
-        path,
+        path: Path::new("/").join(path),
         username,
         password,
     };
     let guard = TmpMountGuard::mount(&cifs, ReadOnly).await?;
-    let embassy_os = recovery_info(&guard).await?;
+    let embassy_os = recovery_info(guard.path()).await?;
     guard.unmount().await?;
-    let path_string = Path::new("/").join(&cifs.path).display().to_string();
-    if sqlx::query!(
-        "UPDATE cifs_shares SET hostname = $1, path = $2, username = $3, password = $4 WHERE id = $5",
-        cifs.hostname,
-        path_string,
-        cifs.username,
-        cifs.password,
-        id,
-    )
-    .execute(&ctx.secret_store)
-    .await?
-    .rows_affected()
-        == 0
-    {
-        return Err(Error::new(
-            eyre!("Backup Target ID {} Not Found", BackupTargetId::Cifs { id }),
-            ErrorKind::NotFound,
-        ));
-    };
+    ctx.db
+        .mutate(|db| {
+            db.as_private_mut()
+                .as_cifs_mut()
+                .as_idx_mut(&id)
+                .ok_or_else(|| {
+                    Error::new(
+                        eyre!("Backup Target ID {} Not Found", BackupTargetId::Cifs { id }),
+                        ErrorKind::NotFound,
+                    )
+                })?
+                .ser(&cifs)
+        })
+        .await?;
     Ok(KeyVal {
         key: BackupTargetId::Cifs { id },
         value: BackupTarget::Cifs(CifsBackupTarget {
@@ -127,8 +185,14 @@ pub async fn update(
     })
 }
 
-#[command(display(display_none))]
-pub async fn remove(#[context] ctx: RpcContext, #[arg] id: BackupTargetId) -> Result<(), Error> {
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "kebab-case")]
+#[command(rename_all = "kebab-case")]
+pub struct RemoveParams {
+    pub id: BackupTargetId,
+}
+
+pub async fn remove(ctx: RpcContext, RemoveParams { id }: RemoveParams) -> Result<(), Error> {
     let id = if let BackupTargetId::Cifs { id } = id {
         id
     } else {
@@ -137,74 +201,46 @@ pub async fn remove(#[context] ctx: RpcContext, #[arg] id: BackupTargetId) -> Re
             ErrorKind::NotFound,
         ));
     };
-    if sqlx::query!("DELETE FROM cifs_shares WHERE id = $1", id)
-        .execute(&ctx.secret_store)
-        .await?
-        .rows_affected()
-        == 0
-    {
-        return Err(Error::new(
-            eyre!("Backup Target ID {} Not Found", BackupTargetId::Cifs { id }),
-            ErrorKind::NotFound,
-        ));
-    };
+    ctx.db
+        .mutate(|db| db.as_private_mut().as_cifs_mut().remove(&id))
+        .await?;
     Ok(())
 }
 
-pub async fn load<Ex>(secrets: &mut Ex, id: i32) -> Result<Cifs, Error>
-where
-    for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
-{
-    let record = sqlx::query!(
-        "SELECT hostname, path, username, password FROM cifs_shares WHERE id = $1",
-        id
-    )
-    .fetch_one(secrets)
-    .await?;
-
-    Ok(Cifs {
-        hostname: record.hostname,
-        path: PathBuf::from(record.path),
-        username: record.username,
-        password: record.password,
-    })
+pub fn load(db: &DatabaseModel, id: u32) -> Result<Cifs, Error> {
+    db.as_private()
+        .as_cifs()
+        .as_idx(&id)
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("Backup Target ID {} Not Found", id),
+                ErrorKind::NotFound,
+            )
+        })?
+        .de()
 }
 
-pub async fn list<Ex>(secrets: &mut Ex) -> Result<Vec<(i32, CifsBackupTarget)>, Error>
-where
-    for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
-{
-    let mut records =
-        sqlx::query!("SELECT id, hostname, path, username, password FROM cifs_shares")
-            .fetch_many(secrets);
-
+pub async fn list(db: &DatabaseModel) -> Result<Vec<(u32, CifsBackupTarget)>, Error> {
     let mut cifs = Vec::new();
-    while let Some(query_result) = records.try_next().await? {
-        if let Some(record) = query_result.right() {
-            let mount_info = Cifs {
-                hostname: record.hostname,
-                path: PathBuf::from(record.path),
-                username: record.username,
-                password: record.password,
-            };
-            let embassy_os = async {
-                let guard = TmpMountGuard::mount(&mount_info, ReadOnly).await?;
-                let embassy_os = recovery_info(&guard).await?;
-                guard.unmount().await?;
-                Ok::<_, Error>(embassy_os)
-            }
-            .await;
-            cifs.push((
-                record.id,
-                CifsBackupTarget {
-                    hostname: mount_info.hostname,
-                    path: mount_info.path,
-                    username: mount_info.username,
-                    mountable: embassy_os.is_ok(),
-                    embassy_os: embassy_os.ok().and_then(|a| a),
-                },
-            ));
+    for (id, model) in db.as_private().as_cifs().as_entries()? {
+        let mount_info = model.de()?;
+        let embassy_os = async {
+            let guard = TmpMountGuard::mount(&mount_info, ReadOnly).await?;
+            let embassy_os = recovery_info(guard.path()).await?;
+            guard.unmount().await?;
+            Ok::<_, Error>(embassy_os)
         }
+        .await;
+        cifs.push((
+            id,
+            CifsBackupTarget {
+                hostname: mount_info.hostname,
+                path: mount_info.path,
+                username: mount_info.username,
+                mountable: embassy_os.is_ok(),
+                embassy_os: embassy_os.ok().and_then(|a| a),
+            },
+        ));
     }
 
     Ok(cifs)

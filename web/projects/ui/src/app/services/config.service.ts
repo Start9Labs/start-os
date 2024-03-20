@@ -1,7 +1,15 @@
 import { DOCUMENT } from '@angular/common'
 import { Inject, Injectable } from '@angular/core'
 import { WorkspaceConfig } from '@start9labs/shared'
-import { InterfaceInfo } from 'src/app/services/patch-db/data-model'
+import { types } from '@start9labs/start-sdk'
+import {
+  PackageDataEntry,
+  PackageMainStatus,
+  PackageState,
+} from 'src/app/services/patch-db/data-model'
+
+type HostnameInfoIp = types.HostnameInfoIp
+type HostnameInfoOnion = types.HostnameInfoOnion
 
 const {
   gitHash,
@@ -72,16 +80,60 @@ export class ConfigService {
     return window.isSecureContext || this.isTor()
   }
 
-  launchableAddress({ addressInfo }: InterfaceInfo): string {
-    return this.isTor()
-      ? addressInfo.torHostname
-      : this.isLocalhost()
-        ? `https://${addressInfo.lanHostname}`
-        : this.isLocal() || this.isIpv4() || this.isIpv6()
-          ? `https://${this.hostname}`
-          : addressInfo.domainInfo?.subdomain
-            ? `https://${addressInfo.domainInfo.subdomain}${addressInfo.domainInfo.domain}`
-            : `https://${addressInfo.domainInfo?.domain}`
+  isLaunchable(state: PackageState, status: PackageMainStatus): boolean {
+    return (
+      state === PackageState.Installed && status === PackageMainStatus.Running
+    )
+  }
+
+  /** ${scheme}://${username}@${host}:${externalPort}${suffix} */
+  launchableAddress(
+    interfaces: PackageDataEntry['service-interfaces'],
+  ): string {
+    const ui = Object.values(interfaces).find(i => i.type === 'ui')
+
+    if (!ui) return ''
+
+    const host = ui.hostInfo
+    const addressInfo = ui.addressInfo
+    const scheme = this.isHttps() ? 'https' : 'http'
+    const username = addressInfo.username ? addressInfo.username + '@' : ''
+    const suffix = addressInfo.suffix || ''
+    const url = new URL(`${scheme}://${username}placeholder${suffix}`)
+
+    if (host.kind === 'multi') {
+      const onionHostname = host.hostnames.find(
+        (h: any) => h.kind === 'onion',
+      ) as HostnameInfoOnion
+
+      if (this.isTor() && onionHostname) {
+        url.hostname = onionHostname.hostname.value
+      } else {
+        const ipHostname = host.hostnames.find(
+          (h: any) => h.kind === 'ip',
+        ) as HostnameInfoIp
+
+        if (!ipHostname) return ''
+
+        url.hostname = this.hostname
+        url.port = String(
+          ipHostname.hostname.sslPort || ipHostname.hostname.port,
+        )
+      }
+    } else {
+      const hostname = host.hostname
+
+      if (!hostname) return ''
+
+      if (this.isTor() && hostname.kind === 'onion') {
+        url.hostname = hostname.hostname.value
+      } else {
+        url.hostname = this.hostname
+        url.port = String(hostname.hostname.sslPort || hostname.hostname.port)
+      }
+    }
+
+    return url.href
   }
 
   getHost(): string {
@@ -113,4 +165,10 @@ export function removeProtocol(str: string): string {
 
 export function removePort(str: string): string {
   return str.split(':')[0]
+}
+
+export function hasUi(
+  interfaces: PackageDataEntry['service-interfaces'],
+): boolean {
+  return Object.values(interfaces).some(iface => iface.type === 'ui')
 }
