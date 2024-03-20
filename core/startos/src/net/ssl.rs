@@ -140,10 +140,10 @@ pub struct FullchainCertData {
 }
 impl FullchainCertData {
     pub fn fullchain_ed25519(&self) -> Vec<&X509> {
-        vec![&self.root, &self.int, &self.leaf.certs.ed25519]
+        vec![&self.leaf.certs.ed25519, &self.int, &self.root]
     }
     pub fn fullchain_nistp256(&self) -> Vec<&X509> {
-        vec![&self.root, &self.int, &self.leaf.certs.nistp256]
+        vec![&self.leaf.certs.nistp256, &self.int, &self.root]
     }
 }
 
