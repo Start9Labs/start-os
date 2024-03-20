@@ -1,4 +1,4 @@
-import { types as T, util, EmVer } from "@start9labs/start-sdk"
+import { types as T, utils, EmVer } from "@start9labs/start-sdk"
 import * as fs from "fs/promises"
 
 import { PolyfillEffects } from "./polyfillEffects"
@@ -1048,7 +1048,7 @@ async function updateConfig(
     if (matchPointerPackage.test(specValue)) {
       if (specValue.target === "tor-key")
         throw new Error("This service uses an unsupported target TorKey")
-      const filled = await util
+      const filled = await utils
         .getServiceInterface(effects, {
           packageId: specValue["package-id"],
           id: specValue.interface,
