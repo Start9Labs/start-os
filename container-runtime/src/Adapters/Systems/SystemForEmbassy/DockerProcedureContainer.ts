@@ -28,9 +28,15 @@ export class DockerProcedureContainer {
         await fs.mkdir(path, { recursive: true })
         const volumeMount = volumes[mount]
         if (volumeMount.type === "data") {
-          await overlay.mount({ type: "volume", id: mount }, mounts[mount])
+          await overlay.mount(
+            { type: "volume", id: mount, subpath: null, readonly: false },
+            mounts[mount],
+          )
         } else if (volumeMount.type === "assets") {
-          await overlay.mount({ type: "assets", id: mount }, mounts[mount])
+          await overlay.mount(
+            { type: "assets", id: mount, subpath: null },
+            mounts[mount],
+          )
         } else if (volumeMount.type === "certificate") {
           volumeMount
           const certChain = await effects.getSslCertificate({
@@ -56,7 +62,7 @@ export class DockerProcedureContainer {
             location: path,
             target: {
               packageId: volumeMount["package-id"],
-              path: volumeMount.path,
+              subpath: volumeMount.path,
               readonly: volumeMount.readonly,
               volumeId: volumeMount["volume-id"],
             },

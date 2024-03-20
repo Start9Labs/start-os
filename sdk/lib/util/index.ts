@@ -9,6 +9,8 @@ import "./Overlay"
 import "./once"
 import { SDKManifest } from "../manifest/ManifestTypes"
 
+export { GetServiceInterface, getServiceInterface } from "./getServiceInterface"
+export { getServiceInterfaces } from "./getServiceInterfaces"
 // prettier-ignore
 export type FlattenIntersection<T> = 
 T extends ArrayLike<any> ? T :

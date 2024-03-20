@@ -1,4 +1,4 @@
-import { types as T, util, EmVer, Utils } from "@start9labs/start-sdk"
+import { types as T, util, EmVer } from "@start9labs/start-sdk"
 import * as fs from "fs/promises"
 
 import { PolyfillEffects } from "./polyfillEffects"
@@ -22,6 +22,9 @@ import {
   any,
   tuple,
   number,
+  anyOf,
+  deferred,
+  Parser,
 } from "ts-matches"
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { JsonPath, unNestPath } from "../../../Models/JsonPath"
@@ -37,58 +40,94 @@ const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
 const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
 const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig"
 
-const matchPackagePropertyObject = object({
-  value: any,
-  type: literal("object"),
-  description: string,
-})
-
-const matchPackagePropertyString = object(
-  {
-    type: literal("string"),
+export type PackagePropertiesV2 = {
+  [name: string]: PackagePropertyObject | PackagePropertyString
+}
+export type PackagePropertyString = {
+  type: "string"
+  description?: string
+  value: string
+  /** Let's the ui make this copyable button */
+  copyable?: boolean
+  /** Let the ui create a qr for this field */
+  qr?: boolean
+  /** Hiding the value unless toggled off for field */
+  masked?: boolean
+}
+export type PackagePropertyObject = {
+  value: PackagePropertiesV2
+  type: "object"
+  description: string
+}
+const [matchPackageProperties, setMatchPackageProperties] =
+  deferred<PackagePropertiesV2>()
+const matchPackagePropertyObject: Parser<unknown, PackagePropertyObject> =
+  object({
+    value: matchPackageProperties,
+    type: literal("object"),
     description: string,
-    value: string,
-    copyable: boolean,
-    qr: boolean,
-    masked: boolean,
-  },
-  ["copyable", "description", "qr", "masked"],
+  })
+
+const matchPackagePropertyString: Parser<unknown, PackagePropertyString> =
+  object(
+    {
+      type: literal("string"),
+      description: string,
+      value: string,
+      copyable: boolean,
+      qr: boolean,
+      masked: boolean,
+    },
+    ["copyable", "description", "qr", "masked"],
+  )
+setMatchPackageProperties(
+  dictionary([
+    string,
+    anyOf(matchPackagePropertyObject, matchPackagePropertyString),
+  ]),
 )
 
 const matchProperties = object({
   version: literal(2),
-  data: any,
+  data: matchPackageProperties,
 })
 
 type ExportUi = {
-  value: string
-  title: string
-  description?: string | undefined
-  masked?: boolean | undefined
-  copyable?: boolean | undefined
-  qr?: boolean | undefined
+  values: { [key: string]: any }
+  expose: { [key: string]: T.ExposeUiPathsAll }
 }
 
-function propertiesToExportUi(properties: unknown): ExportUi[] {
-  if (!object.test(properties)) return []
-  const paths: ExportUi[] = []
-  for (const key in properties) {
-    const value: unknown = (properties as any)[key]
-    if (matchPackagePropertyObject.test(value)) {
-      paths.push(...propertiesToExportUi(value))
+function propertiesToExportUi(
+  properties: PackagePropertiesV2,
+  previousPath = "",
+): ExportUi {
+  const exportUi: ExportUi = {
+    values: {},
+    expose: {},
+  }
+  for (const [key, value] of Object.entries(properties)) {
+    const path = `${previousPath}/${key}`
+    if (value.type === "object") {
+      const { values, expose } = propertiesToExportUi(value.value, path)
+      exportUi.values[key] = values
+      exportUi.expose[key] = {
+        type: "object",
+        value: expose,
+        description: value.description,
+      }
       continue
     }
-    if (!matchPackagePropertyString.test(value)) continue
-    paths.push({
-      value: value.value,
-      title: key,
-      description: value.description,
-      masked: value.masked,
-      copyable: value.copyable,
-      qr: value.qr,
-    })
+    exportUi.values[key] = value.value
+    exportUi.expose[key] = {
+      type: "string",
+      path,
+      description: value.description ?? null,
+      masked: value.masked ?? false,
+      copyable: value.copyable ?? null,
+      qr: value.qr ?? null,
+    }
   }
-  return paths
+  return exportUi
 }
 
 export class SystemForEmbassy implements System {
@@ -455,14 +494,9 @@ export class SystemForEmbassy implements System {
       const exposeUis = propertiesToExportUi(properties.data)
       await effects.store.set<any, any>({
         path: "/properties",
-        value: exposeUis.map((x) => x.value),
+        value: exposeUis.values,
       })
-      await effects.exposeUi({
-        paths: exposeUis.map((x, i) => ({
-          ...x,
-          path: `/properties/${i}`,
-        })) as any[],
-      })
+      await effects.exposeUi(exposeUis.expose)
     } else if (setConfigValue.type === "script") {
       const moduleCode = this.moduleCode
       const method = moduleCode.properties
@@ -479,14 +513,9 @@ export class SystemForEmbassy implements System {
       const exposeUis = propertiesToExportUi(properties.data)
       await effects.store.set<any, any>({
         path: "/properties",
-        value: exposeUis.map((x) => x.value),
+        value: exposeUis.values,
       })
-      await effects.exposeUi({
-        paths: exposeUis.map((x, i) => ({
-          ...x,
-          path: `/properties/${i}`,
-        })) as any[],
-      })
+      await effects.exposeUi(exposeUis.expose)
     }
   }
   private async health(
@@ -991,7 +1020,6 @@ async function updateConfig(
 ) {
   if (!dictionary([string, unknown]).test(spec)) return
   if (!dictionary([string, unknown]).test(mutConfigValue)) return
-  const utils = util.createUtils(effects)
   for (const key in spec) {
     const specValue = spec[key]
 
@@ -1020,8 +1048,8 @@ async function updateConfig(
     if (matchPointerPackage.test(specValue)) {
       if (specValue.target === "tor-key")
         throw new Error("This service uses an unsupported target TorKey")
-      const filled = await utils.serviceInterface
-        .get({
+      const filled = await util
+        .getServiceInterface(effects, {
           packageId: specValue["package-id"],
           id: specValue.interface,
         })

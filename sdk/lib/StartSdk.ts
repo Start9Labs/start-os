@@ -205,16 +205,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           mounts?: { path: string; options: MountOptions }[]
         },
       ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> => {
-        const commands = splitCommand(command)
-        const overlay = await Overlay.of(effects, imageId)
-        try {
-          for (let mount of options.mounts || []) {
-            await overlay.mount(mount.options, mount.path)
-          }
-          return await overlay.exec(commands)
-        } finally {
-          await overlay.destroy()
-        }
+        return runCommand<Manifest>(effects, imageId, command, options)
       },
 
       createDynamicAction: <
@@ -652,5 +643,25 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         ) => Variants.of<VariantValues, Store>(a),
       },
     }
+  }
+}
+
+export async function runCommand<Manifest extends SDKManifest>(
+  effects: Effects,
+  imageId: Manifest["images"][number],
+  command: string | [string, ...string[]],
+  options: CommandOptions & {
+    mounts?: { path: string; options: MountOptions }[]
+  },
+): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
+  const commands = splitCommand(command)
+  const overlay = await Overlay.of(effects, imageId)
+  try {
+    for (let mount of options.mounts || []) {
+      await overlay.mount(mount.options, mount.path)
+    }
+    return await overlay.exec(commands)
+  } finally {
+    await overlay.destroy()
   }
 }

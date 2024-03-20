@@ -2,8 +2,7 @@ import { PolyfillEffects } from "./polyfillEffects"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import { SystemForEmbassy } from "."
 import { HostSystemStartOs } from "../../HostSystemStartOs"
-import { util, Daemons, types as T } from "@start9labs/start-sdk"
-import { exec } from "child_process"
+import { Daemons, T, daemons } from "@start9labs/start-sdk"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
 const EMBASSY_PROPERTIES_LOOP = 30 * 1000
@@ -39,7 +38,6 @@ export class MainLoop {
 
   private async constructMainEvent() {
     const { system, effects } = this
-    const utils = util.createUtils(effects)
     const currentCommand: [string, ...string[]] = [
       system.manifest.main.entrypoint,
       ...system.manifest.main.args,
@@ -67,7 +65,8 @@ export class MainLoop {
       //   }),
       // }
     }
-    const daemon = await utils.runDaemon(
+    const daemon = await daemons.runDaemon()(
+      this.effects,
       this.system.manifest.main.image,
       currentCommand,
       {

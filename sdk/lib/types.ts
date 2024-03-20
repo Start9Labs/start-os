@@ -7,6 +7,8 @@ import { BindOptions, Scheme } from "./interfaces/Host"
 import { Daemons } from "./mainFn/Daemons"
 import { UrlString } from "./util/getServiceInterface"
 
+export { SDKManifest } from "./manifest/ManifestTypes"
+
 export type ExportedAction = (options: {
   effects: Effects
   input?: Record<string, unknown>

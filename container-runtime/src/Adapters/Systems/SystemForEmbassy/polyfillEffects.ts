@@ -3,23 +3,18 @@ import * as oet from "./oldEmbassyTypes"
 import { Volume } from "../../../Models/Volume"
 import * as child_process from "child_process"
 import { promisify } from "util"
-import { util, Utils } from "@start9labs/start-sdk"
-import { Manifest } from "./matchManifest"
+import { Daemons, startSdk, T } from "@start9labs/start-sdk"
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import "isomorphic-fetch"
-
-const { createUtils } = util
+import { Manifest } from "./matchManifest"
 
 const execFile = promisify(child_process.execFile)
 
 export class PolyfillEffects implements oet.Effects {
-  private utils: Utils<any, any>
   constructor(
     readonly effects: HostSystemStartOs,
     private manifest: Manifest,
-  ) {
-    this.utils = createUtils(effects as any)
-  }
+  ) {}
   async writeFile(input: {
     path: string
     volumeId: string
@@ -99,9 +94,14 @@ export class PolyfillEffects implements oet.Effects {
     args?: string[] | undefined
     timeoutMillis?: number | undefined
   }): Promise<oet.ResultType<string>> {
-    return this.utils
-      .runCommand(this.manifest.main.image, [command, ...(args || [])], {})
-      .then((x) => ({
+    return startSdk
+      .runCommand(
+        this.effects,
+        this.manifest.main.image,
+        [command, ...(args || [])],
+        {},
+      )
+      .then((x: any) => ({
         stderr: x.stderr.toString(),
         stdout: x.stdout.toString(),
       }))
