@@ -1,10 +1,10 @@
 use std::collections::BTreeSet;
 use std::ffi::OsString;
+use std::net::Ipv4Addr;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
-use std::net::Ipv4Addr;
 
 use clap::builder::ValueParserFactory;
 use clap::Parser;
@@ -765,8 +765,8 @@ async fn get_configured(context: EffectContext, _: Empty) -> Result<Value, Error
     let package = peeked
         .as_public()
         .as_package_data()
-        .as_idx(&package_id)
-        .or_not_found(&package_id)?
+        .as_idx(package_id)
+        .or_not_found(package_id)?
         .as_status()
         .as_configured()
         .de()?;
@@ -1070,28 +1070,39 @@ enum DependencyKind {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", tag = "kind")]
 #[ts(export)]
-struct DependencyRequirement {
-    #[ts(type = "string")]
-    id: PackageId,
-    kind: DependencyKind,
-    #[serde(default)]
-    #[ts(type = "string[]")]
-    health_checks: BTreeSet<HealthCheckId>,
+enum DependencyRequirement {
+    Running {
+        #[ts(type = "string")]
+        id: PackageId,
+        #[ts(type = "string[]")]
+        #[serde(rename = "healthChecks")]
+        health_checks: BTreeSet<HealthCheckId>,
+        #[serde(rename = "versionSpec")]
+        version_spec: String,
+        url: String,
+    },
+    Exists {
+        #[ts(type = "string")]
+        id: PackageId,
+        #[serde(rename = "versionSpec")]
+        version_spec: String,
+        url: String,
+    },
 }
 // filebrowser:exists,bitcoind:running:foo+bar+baz
 impl FromStr for DependencyRequirement {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.split_once(':') {
-            Some((id, "e")) | Some((id, "exists")) => Ok(Self {
+            Some((id, "e")) | Some((id, "exists")) => Ok(Self::Exists {
                 id: id.parse()?,
-                kind: DependencyKind::Exists,
-                health_checks: BTreeSet::new(),
+                url: "".to_string(),
+                version_spec: "*".to_string(),
             }),
             Some((id, rest)) => {
-                let health_checks = match rest.split_once(":") {
+                let health_checks = match rest.split_once(':') {
                     Some(("r", rest)) | Some(("running", rest)) => rest
                         .split('+')
                         .map(|id| id.parse().map_err(Error::from))
@@ -1108,16 +1119,18 @@ impl FromStr for DependencyRequirement {
                         )),
                     },
                 }?;
-                Ok(Self {
+                Ok(Self::Running {
                     id: id.parse()?,
-                    kind: DependencyKind::Running,
                     health_checks,
+                    url: "".to_string(),
+                    version_spec: "*".to_string(),
                 })
             }
-            None => Ok(Self {
+            None => Ok(Self::Running {
                 id: s.parse()?,
-                kind: DependencyKind::Running,
                 health_checks: BTreeSet::new(),
+                url: "".to_string(),
+                version_spec: "*".to_string(),
             }),
         }
     }
@@ -1149,23 +1162,19 @@ async fn set_dependencies(
             let dependencies = CurrentDependencies(
                 dependencies
                     .into_iter()
-                    .map(
-                        |DependencyRequirement {
-                             id,
-                             kind,
-                             health_checks,
-                         }| {
-                            (
-                                id,
-                                match kind {
-                                    DependencyKind::Exists => CurrentDependencyInfo::Exists,
-                                    DependencyKind::Running => {
-                                        CurrentDependencyInfo::Running { health_checks }
-                                    }
-                                },
-                            )
-                        },
-                    )
+                    .map(|dependency| match dependency {
+                        DependencyRequirement::Exists {
+                            id,
+                            url,
+                            version_spec,
+                        } => (id, CurrentDependencyInfo::Exists),
+                        DependencyRequirement::Running {
+                            id,
+                            health_checks,
+                            url,
+                            version_spec,
+                        } => (id, CurrentDependencyInfo::Running { health_checks }),
+                    })
                     .collect(),
             );
             for (dep, entry) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {

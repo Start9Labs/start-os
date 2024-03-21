@@ -75,31 +75,13 @@ export type SDKManifest = {
 }
 
 export interface ManifestDependency {
-  /** The range of versions that would satisfy the dependency
-   *
-   * ie: >=3.4.5 <4.0.0
-   */
-  version: string
   /**
    * A human readable explanation on what the dependency is used for
    */
   description: string | null
-  requirement:
-    | {
-        type: "opt-in"
-        /**
-         * The human readable explanation on how to opt-in to the dependency
-         */
-        how: string
-      }
-    | {
-        type: "opt-out"
-        /**
-         * The human readable explanation on how to opt-out to the dependency
-         */
-        how: string
-      }
-    | {
-        type: "required"
-      }
+  /**
+   * Determines if the dependency is optional or not. Times that optional that are good include such situations
+   * such as being able to toggle other services or to use a different service for the same purpose.
+   */
+  optional: boolean
 }

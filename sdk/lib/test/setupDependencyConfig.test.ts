@@ -16,8 +16,8 @@ describe("setupDependencyConfig", () => {
       }),
     })
     const remoteTest = sdk.DependencyConfig.of({
-      localConfig: testConfig,
-      remoteConfig: testConfig2,
+      localConfigSpec: testConfig,
+      remoteConfigSpec: testConfig2,
       dependencyConfig: async ({}) => {},
     })
     sdk.setupDependencyConfig(testConfig, {

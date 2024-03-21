@@ -600,7 +600,8 @@ export type KnownError =
 
 export type Dependency = {
   id: PackageId
-  kind: DependencyKind
+  versionSpec: string
+  url: string
 } & ({ kind: "exists" } | { kind: "running"; healthChecks: string[] })
 export type Dependencies = Array<Dependency>
 

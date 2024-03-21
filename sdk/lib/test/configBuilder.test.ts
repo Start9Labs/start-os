@@ -414,8 +414,7 @@ describe("values", () => {
             dependencies: {
               remoteTest: {
                 description: "",
-                requirement: { how: "", type: "opt-in" },
-                version: "1.0",
+                optional: true,
               },
             },
           }),

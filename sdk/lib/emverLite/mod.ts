@@ -163,7 +163,7 @@ export class EmVer {
   }
 
   toString() {
-    return `${this.values.join(".")}${this.extra ? `-${this.extra}` : ""}`
+    return `${this.values.join(".")}${this.extra ? `-${this.extra}` : ""}` as ValidEmVer
   }
 }
 
@@ -179,6 +179,7 @@ export class Checker {
    * @returns
    */
   static parse(range: string | Checker): Checker {
+    console.log(`Parser (${range})`)
     if (range instanceof Checker) {
       return range
     }
@@ -193,10 +194,12 @@ export class Checker {
       return new Checker((version) => {
         EmVer.from(version)
         return true
-      })
+      }, range)
     }
+    if (range.startsWith("!!")) return Checker.parse(range.substring(2))
     if (range.startsWith("!")) {
-      return Checker.parse(range.substring(1)).not()
+      const tempValue = Checker.parse(range.substring(1))
+      return new Checker((x) => !tempValue.check(x), range)
     }
     const starSubMatches = starSub.exec(range)
     if (starSubMatches != null) {
@@ -210,7 +213,7 @@ export class Checker {
           !v.greaterThan(emVarUpper) &&
           !v.equals(emVarUpper)
         )
-      })
+      }, range)
     }
 
     switch (range.substring(0, 2)) {
@@ -219,14 +222,14 @@ export class Checker {
         return new Checker((version) => {
           const v = EmVer.from(version)
           return v.greaterThanOrEqual(emVar)
-        })
+        }, range)
       }
       case "<=": {
         const emVar = EmVer.parse(range.substring(2))
         return new Checker((version) => {
           const v = EmVer.from(version)
           return v.lessThanOrEqual(emVar)
-        })
+        }, range)
       }
     }
 
@@ -236,21 +239,21 @@ export class Checker {
         return new Checker((version) => {
           const v = EmVer.from(version)
           return v.greaterThan(emVar)
-        })
+        }, range)
       }
       case "<": {
         const emVar = EmVer.parse(range.substring(1))
         return new Checker((version) => {
           const v = EmVer.from(version)
           return v.lessThan(emVar)
-        })
+        }, range)
       }
       case "=": {
         const emVar = EmVer.parse(range.substring(1))
         return new Checker((version) => {
           const v = EmVer.from(version)
           return v.equals(emVar)
-        })
+        }, `=${emVar.toString()}`)
       }
     }
     throw new Error("Couldn't parse range: " + range)
@@ -261,40 +264,53 @@ export class Checker {
      * a pattern
      */
     public readonly check: (value: ValidEmVer | EmVer) => boolean,
+    private readonly _range: string,
   ) {}
+
+  get range() {
+    return this._range as ValidEmVerRange
+  }
 
   /**
    * Used when we want the `and` condition with another checker
    */
   public and(...others: (Checker | string)[]): Checker {
-    return new Checker((value) => {
-      if (!this.check(value)) {
-        return false
-      }
-      for (const other of others) {
-        if (!Checker.parse(other).check(value)) {
+    const othersCheck = others.map(Checker.parse)
+    return new Checker(
+      (value) => {
+        if (!this.check(value)) {
           return false
         }
-      }
-      return true
-    })
+        for (const other of othersCheck) {
+          if (!other.check(value)) {
+            return false
+          }
+        }
+        return true
+      },
+      othersCheck.map((x) => x._range).join(" && "),
+    )
   }
 
   /**
    * Used when we want the `or` condition with another checker
    */
   public or(...others: (Checker | string)[]): Checker {
-    return new Checker((value) => {
-      if (this.check(value)) {
-        return true
-      }
-      for (const other of others) {
-        if (Checker.parse(other).check(value)) {
+    const othersCheck = others.map(Checker.parse)
+    return new Checker(
+      (value) => {
+        if (this.check(value)) {
           return true
         }
-      }
-      return false
-    })
+        for (const other of othersCheck) {
+          if (other.check(value)) {
+            return true
+          }
+        }
+        return false
+      },
+      othersCheck.map((x) => x._range).join(" || "),
+    )
   }
 
   /**
@@ -302,6 +318,7 @@ export class Checker {
    * @returns
    */
   public not(): Checker {
-    return new Checker((value) => !this.check(value))
+    let newRange = `!${this._range}`
+    return Checker.parse(newRange)
   }
 }

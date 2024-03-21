@@ -35,8 +35,7 @@ export const sdk = StartSdk.of()
       dependencies: {
         remoteTest: {
           description: "",
-          requirement: { how: "", type: "opt-in" },
-          version: "1.0",
+          optional: false,
         },
       },
     }),

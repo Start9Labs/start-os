@@ -412,7 +412,7 @@ pub struct StaticDependencyInfo {
     pub icon: DataUrl<'static>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "kind")]
 pub enum CurrentDependencyInfo {

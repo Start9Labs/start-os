@@ -1,6 +1,12 @@
+import { DependenciesReceipt } from "../config/setupConfig"
 import { SetInterfaces } from "../interfaces/setupInterfaces"
 import { SDKManifest } from "../manifest/ManifestTypes"
-import { ExpectedExports, ExposeUiPaths, ExposeUiPathsAll } from "../types"
+import {
+  Effects,
+  ExpectedExports,
+  ExposeUiPaths,
+  ExposeUiPathsAll,
+} from "../types"
 import { Migrations } from "./migrations/setupMigrations"
 import { SetupExports } from "./setupExports"
 import { Install } from "./setupInstall"
@@ -12,6 +18,10 @@ export function setupInit<Manifest extends SDKManifest, Store>(
   uninstall: Uninstall<Manifest, Store>,
   setInterfaces: SetInterfaces<Manifest, Store, any, any>,
   setupExports: SetupExports<Store>,
+  setDependencies: (options: {
+    effects: Effects
+    input: any
+  }) => Promise<DependenciesReceipt>,
 ): {
   init: ExpectedExports.init
   uninit: ExpectedExports.uninit
@@ -27,6 +37,7 @@ export function setupInit<Manifest extends SDKManifest, Store>(
       const { services, ui } = await setupExports(opts)
       await opts.effects.exposeForDependents({ paths: services })
       await opts.effects.exposeUi(forExpose(ui))
+      await setDependencies({ effects: opts.effects, input: null })
     },
     uninit: async (opts) => {
       await migrations.uninit(opts)
