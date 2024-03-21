@@ -75,14 +75,14 @@ import { MimeTypePipeModule } from '../../../pipes/mime-type.pipe'
           position: absolute;
           top: -2.25rem;
           left: 1.75rem;
-          z-index: 10;
+          z-index: 1;
         }
 
         .inner-container-title {
           margin: 1rem 0;
           color: rgb(250 250 250);
           mix-blend-mode: plus-lighter;
-          z-index: 50;
+          z-index: 1;
 
           h2 {
             font-size: 1.5rem;

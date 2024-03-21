@@ -12,6 +12,7 @@ header {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  z-index: 10;
 
   @media screen and (min-width: 640px) {
     width: 15rem;
