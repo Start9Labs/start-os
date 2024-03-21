@@ -444,7 +444,7 @@ export type Effects = {
    *
    * @param options
    */
-  exportAction(options: ActionMetadata): Promise<void>
+  exportAction(options: { id: string; metadata: ActionMetadata }): Promise<void>
   /**
    * Remove an action that was exported. Used problably during main or during setConfig.
    */

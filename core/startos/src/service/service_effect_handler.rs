@@ -260,16 +260,24 @@ enum AllowedStatuses {
     OnlyRunning,
     OnlyStopped,
     Any,
-    Disabled,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 struct ExportActionParams {
+    #[ts(type = "string")]
+    id: ActionId,
+    metadata: ActionMetadata
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct ActionMetadata {
     name: String,
     description: String,
-    id: String,
+    warning: Option<String>,
+    disabled: bool,
     #[ts(type = "{[key: string]: any}")]
     input: Value,
     allowed_statuses: AllowedStatuses,
