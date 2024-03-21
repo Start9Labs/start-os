@@ -1,5 +1,3 @@
-use std::any::Any;
-use std::borrow::Borrow;
 use std::collections::BTreeSet;
 use std::ffi::OsString;
 use std::net::Ipv4Addr;
@@ -25,8 +23,7 @@ use crate::db::model::package::{
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
-use crate::net::net;
-use crate::{net, prelude::*};
+use crate::prelude::*;
 use crate::s9pk::rpc::SKIP_ENV;
 use crate::service::cli::ContainerCliContext;
 use crate::service::ServiceActorSeed;
