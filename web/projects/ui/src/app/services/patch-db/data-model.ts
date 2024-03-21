@@ -1,8 +1,9 @@
-import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { Url } from '@start9labs/shared'
-import { MarketplaceManifest } from '@start9labs/marketplace'
+import { Manifest } from '@start9labs/marketplace'
 import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-info'
 import { types } from '@start9labs/start-sdk'
+import { InputSpec } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
+import { ActionMetadata } from '@start9labs/start-sdk/cjs/sdk/lib/types'
 type ServiceInterfaceWithHostInfo = types.ServiceInterfaceWithHostInfo
 
 export interface DataModel {
@@ -111,8 +112,8 @@ export type PackageDataEntry<T extends StateInfo = StateInfo> = {
   'state-info': T
   icon: Url
   status: Status
+  actions: Record<string, ActionMetadata>
   'last-backup': string | null
-  'current-dependents': { [id: string]: CurrentDependencyInfo }
   'current-dependencies': { [id: string]: CurrentDependencyInfo }
   'dependency-info': {
     [id: string]: {
@@ -152,123 +153,8 @@ export enum PackageState {
 }
 
 export interface CurrentDependencyInfo {
-  pointers: any[]
+  versionRange: string
   'health-checks': string[] // array of health check IDs
-}
-
-export interface Manifest extends MarketplaceManifest<DependencyConfig | null> {
-  assets: {
-    license: string // filename
-    instructions: string // filename
-    icon: string // filename
-    docker_images: string // filename
-    assets: string // path to assets folder
-    scripts: string // path to scripts folder
-  }
-  'health-checks': Record<
-    string,
-    ActionImpl & { name: string; 'success-message': string | null }
-  >
-  config: ConfigActions | null
-  volumes: Record<string, Volume>
-  'min-os-version': string
-  backup: BackupActions
-  migrations: Migrations | null
-  actions: Record<string, Action>
-}
-
-export interface DependencyConfig {
-  check: ActionImpl
-  'auto-configure': ActionImpl
-}
-
-export interface ActionImpl {
-  type: 'docker'
-  image: string
-  system: boolean
-  entrypoint: string
-  args: string[]
-  mounts: { [id: string]: string }
-  'io-format': DockerIoFormat | null
-  inject: boolean
-  'shm-size': string
-  'sigterm-timeout': string | null
-}
-
-export enum DockerIoFormat {
-  Json = 'json',
-  Yaml = 'yaml',
-  Cbor = 'cbor',
-  Toml = 'toml',
-}
-
-export interface ConfigActions {
-  get: ActionImpl | null
-  set: ActionImpl | null
-}
-
-export type Volume = VolumeData
-
-export interface VolumeData {
-  type: VolumeType.Data
-  readonly: boolean
-}
-
-export interface VolumeAssets {
-  type: VolumeType.Assets
-}
-
-export interface VolumePointer {
-  type: VolumeType.Pointer
-  'package-id': string
-  'volume-id': string
-  path: string
-  readonly: boolean
-}
-
-export interface VolumeCertificate {
-  type: VolumeType.Certificate
-  'interface-id': string
-}
-
-export interface VolumeBackup {
-  type: VolumeType.Backup
-  readonly: boolean
-}
-
-export enum VolumeType {
-  Data = 'data',
-  Assets = 'assets',
-  Pointer = 'pointer',
-  Certificate = 'certificate',
-  Backup = 'backup',
-}
-
-export interface TorConfig {
-  'port-mapping': { [port: number]: number }
-}
-
-export type LanConfig = {
-  [port: number]: { ssl: boolean; mapping: number }
-}
-
-export interface BackupActions {
-  create: ActionImpl
-  restore: ActionImpl
-}
-
-export interface Migrations {
-  from: { [versionRange: string]: ActionImpl }
-  to: { [versionRange: string]: ActionImpl }
-}
-
-export interface Action {
-  name: string
-  description: string
-  warning: string | null
-  implementation: ActionImpl
-  'allowed-statuses': (PackageMainStatus.Stopped | PackageMainStatus.Running)[]
-  'input-spec': ConfigSpec | null
 }
 
 export interface Status {
@@ -302,7 +188,7 @@ export interface MainStatusStarting {
 export interface MainStatusRunning {
   status: PackageMainStatus.Running
   started: string // UTC date string
-  health: { [id: string]: HealthCheckResult }
+  health: Record<string, HealthCheckResult>
 }
 
 export interface MainStatusBackingUp {
@@ -323,12 +209,13 @@ export enum PackageMainStatus {
   Restarting = 'restarting',
 }
 
-export type HealthCheckResult =
+export type HealthCheckResult = { name: string } & (
   | HealthCheckResultStarting
   | HealthCheckResultLoading
   | HealthCheckResultDisabled
   | HealthCheckResultSuccess
   | HealthCheckResultFailure
+)
 
 export enum HealthResult {
   Starting = 'starting',
@@ -348,6 +235,7 @@ export interface HealthCheckResultDisabled {
 
 export interface HealthCheckResultSuccess {
   result: HealthResult.Success
+  message: string
 }
 
 export interface HealthCheckResultLoading {
@@ -357,7 +245,7 @@ export interface HealthCheckResultLoading {
 
 export interface HealthCheckResultFailure {
   result: HealthResult.Failure
-  error: string
+  message: string
 }
 
 export type InstallingInfo = {

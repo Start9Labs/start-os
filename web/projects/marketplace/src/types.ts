@@ -19,11 +19,13 @@ export interface StoreInfo {
   categories: string[]
 }
 
+export type StoreIdentityWithData = StoreData & StoreIdentity
+
 export interface MarketplacePkg {
   icon: Url
   license: Url
   instructions: Url
-  manifest: MarketplaceManifest
+  manifest: Manifest
   categories: string[]
   versions: string[]
   'dependency-metadata': {
@@ -35,10 +37,11 @@ export interface MarketplacePkg {
 export interface DependencyMetadata {
   title: string
   icon: Url
+  optional: boolean
   hidden: boolean
 }
 
-export interface MarketplaceManifest<T = unknown> {
+export interface Manifest {
   id: string
   title: string
   version: string
@@ -47,12 +50,9 @@ export interface MarketplaceManifest<T = unknown> {
     short: string
     long: string
   }
-  assets: {
-    icon: string // ie. icon.png
-  }
   replaces?: string[]
   'release-notes': string
-  license: string // type of license
+  license: string // name of license
   'wrapper-repo': Url
   'upstream-repo': Url
   'support-site': Url
@@ -65,23 +65,12 @@ export interface MarketplaceManifest<T = unknown> {
     start: string | null
     stop: string | null
   }
-  dependencies: Record<string, Dependency<T>>
+  dependencies: Record<string, Dependency>
+  'os-version': string
+  'has-config': boolean
 }
 
-export interface Dependency<T> {
-  version: string
-  requirement:
-    | {
-        type: 'opt-in'
-        how: string
-      }
-    | {
-        type: 'opt-out'
-        how: string
-      }
-    | {
-        type: 'required'
-      }
+export interface Dependency {
   description: string | null
-  config: T
+  optional: boolean
 }

@@ -78,7 +78,7 @@ export class AppConfigPage {
 
       this.pkg = pkg
 
-      if (!this.pkg['state-info'].manifest.config) return
+      if (!this.pkg['state-info'].manifest['has-config']) return
 
       let newConfig: object | undefined
       let patch: Operation[] | undefined
@@ -152,7 +152,7 @@ export class AppConfigPage {
 
     this.saving = true
 
-    if (hasCurrentDeps(this.pkg)) {
+    if (hasCurrentDeps(this.pkgId, await getAllPackages(this.patch))) {
       this.dryConfigure()
     } else {
       this.configure()

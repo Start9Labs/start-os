@@ -163,9 +163,10 @@ export type DaemonReturned = {
 export type ActionMetadata = {
   name: string
   description: string
-  id: string
+  warning: string | null
   input: InputSpec
-  allowedStatuses: "only-running" | "only-stopped" | "any" | "disabled"
+  disabled: boolean
+  allowedStatuses: "only-running" | "only-stopped" | "any"
   /**
    * So the ordering of the actions is by alphabetical order of the group, then followed by the alphabetical of the actions
    */

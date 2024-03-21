@@ -1,11 +1,10 @@
 import { Dump, Revision } from 'patch-db-client'
-import { MarketplacePkg, StoreInfo } from '@start9labs/marketplace'
+import { Manifest, MarketplacePkg, StoreInfo } from '@start9labs/marketplace'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import {
   DataModel,
   HealthCheckResult,
-  Manifest,
 } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 

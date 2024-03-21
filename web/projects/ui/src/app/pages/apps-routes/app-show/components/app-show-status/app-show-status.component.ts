@@ -6,10 +6,9 @@ import {
   PrimaryStatus,
 } from 'src/app/services/pkg-status-rendering.service'
 import {
-  Manifest,
+  DataModel,
   PackageDataEntry,
   PackageMainStatus,
-  PackageState,
   Status,
 } from 'src/app/services/patch-db/data-model'
 import { ErrorToastService } from '@start9labs/shared'
@@ -18,7 +17,13 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ModalService } from 'src/app/services/modal.service'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { isInstalled, getManifest } from 'src/app/util/get-package-data'
+import {
+  isInstalled,
+  getManifest,
+  getAllPackages,
+} from 'src/app/util/get-package-data'
+import { Manifest } from '@start9labs/marketplace'
+import { PatchDB } from 'patch-db-client'
 
 @Component({
   selector: 'app-show-status',
@@ -47,6 +52,7 @@ export class AppShowStatusComponent {
     private readonly launcherService: UiLauncherService,
     private readonly modalService: ModalService,
     private readonly connectionService: ConnectionService,
+    private readonly patch: PatchDB<DataModel>,
   ) {}
 
   get interfaces(): PackageDataEntry['service-interfaces'] {
@@ -116,7 +122,7 @@ export class AppShowStatusComponent {
     const { title, alerts } = this.manifest
 
     let message = alerts.stop || ''
-    if (hasCurrentDeps(this.pkg)) {
+    if (hasCurrentDeps(this.manifest.id, await getAllPackages(this.patch))) {
       const depMessage = `Services that depend on ${title} will no longer work properly and may crash`
       message = message ? `${message}.\n\n${depMessage}` : depMessage
     }
@@ -148,7 +154,7 @@ export class AppShowStatusComponent {
   }
 
   async tryRestart(): Promise<void> {
-    if (hasCurrentDeps(this.pkg)) {
+    if (hasCurrentDeps(this.manifest.id, await getAllPackages(this.patch))) {
       const alert = await this.alertCtrl.create({
         header: 'Warning',
         message: `Services that depend on ${this.manifest.title} may temporarily experiences issues`,

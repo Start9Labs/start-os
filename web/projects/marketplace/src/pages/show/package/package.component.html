@@ -1,5 +1,5 @@
 <div class="header montserrat">
-  <img class="logo" alt="" [src]="pkg | mimeType | trustUrl" />
+  <img class="logo" alt="" [src]="pkg.icon | trustUrl" />
   <div class="text">
     <h1 ticker class="title">{{ pkg.manifest.title }}</h1>
     <p class="version">{{ pkg.manifest.version | displayEmver }}</p>

@@ -5,14 +5,13 @@ import { MarkdownComponent } from '@start9labs/shared'
 import {
   DataModel,
   InstalledState,
-  Manifest,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import { ModalService } from 'src/app/services/modal.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { from, map, Observable } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
-import { getManifest } from 'src/app/util/get-package-data'
+import { Manifest } from '@start9labs/marketplace'
 
 export interface Button {
   title: string

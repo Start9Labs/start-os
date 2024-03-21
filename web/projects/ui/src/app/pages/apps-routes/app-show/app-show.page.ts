@@ -4,7 +4,6 @@ import { PatchDB } from 'patch-db-client'
 import {
   DataModel,
   InstallingState,
-  Manifest,
   PackageDataEntry,
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
@@ -27,6 +26,7 @@ import {
   isRestoring,
   isUpdating,
 } from 'src/app/util/get-package-data'
+import { Manifest } from '@start9labs/marketplace'
 
 export interface DependencyInfo {
   id: string
@@ -97,6 +97,7 @@ export class AppShowPage {
     depErrors: PkgDependencyErrors,
   ): DependencyInfo {
     const { errorText, fixText, fixAction } = this.getDepErrors(
+      pkg,
       manifest,
       depId,
       depErrors,
@@ -106,7 +107,7 @@ export class AppShowPage {
 
     return {
       id: depId,
-      version: manifest.dependencies[depId].version, // do we want this version range?
+      version: pkg['current-dependencies'][depId].versionRange, // @TODO do we want this version range?
       title: depInfo?.title || depId,
       icon: depInfo?.icon || '',
       errorText: errorText
@@ -119,6 +120,7 @@ export class AppShowPage {
   }
 
   private getDepErrors(
+    pkg: PackageDataEntry,
     manifest: Manifest,
     depId: string,
     depErrors: PkgDependencyErrors,
@@ -133,15 +135,15 @@ export class AppShowPage {
       if (depError.type === DependencyErrorType.NotInstalled) {
         errorText = 'Not installed'
         fixText = 'Install'
-        fixAction = () => this.fixDep(manifest, 'install', depId)
+        fixAction = () => this.fixDep(pkg, manifest, 'install', depId)
       } else if (depError.type === DependencyErrorType.IncorrectVersion) {
         errorText = 'Incorrect version'
         fixText = 'Update'
-        fixAction = () => this.fixDep(manifest, 'update', depId)
+        fixAction = () => this.fixDep(pkg, manifest, 'update', depId)
       } else if (depError.type === DependencyErrorType.ConfigUnsatisfied) {
         errorText = 'Config not satisfied'
         fixText = 'Auto config'
-        fixAction = () => this.fixDep(manifest, 'configure', depId)
+        fixAction = () => this.fixDep(pkg, manifest, 'configure', depId)
       } else if (depError.type === DependencyErrorType.NotRunning) {
         errorText = 'Not running'
         fixText = 'Start'
@@ -160,6 +162,7 @@ export class AppShowPage {
   }
 
   private async fixDep(
+    pkg: PackageDataEntry,
     pkgManifest: Manifest,
     action: 'install' | 'update' | 'configure',
     id: string,
@@ -167,22 +170,21 @@ export class AppShowPage {
     switch (action) {
       case 'install':
       case 'update':
-        return this.installDep(pkgManifest, id)
+        return this.installDep(pkg, pkgManifest, id)
       case 'configure':
         return this.configureDep(pkgManifest, id)
     }
   }
 
   private async installDep(
+    pkg: PackageDataEntry,
     pkgManifest: Manifest,
     depId: string,
   ): Promise<void> {
-    const version = pkgManifest.dependencies[depId].version
-
     const dependentInfo: DependentInfo = {
       id: pkgManifest.id,
       title: pkgManifest.title,
-      version,
+      version: pkg['current-dependencies'][depId].versionRange,
     }
     const navigationExtras: NavigationExtras = {
       state: { dependentInfo },

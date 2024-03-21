@@ -7,6 +7,7 @@ import {
 import { AlertController, LoadingController } from '@ionic/angular'
 import {
   AbstractMarketplaceService,
+  Manifest,
   MarketplacePkg,
 } from '@start9labs/marketplace'
 import {
@@ -18,7 +19,6 @@ import {
 import {
   DataModel,
   PackageDataEntry,
-  PackageState,
 } from 'src/app/services/patch-db/data-model'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
@@ -57,10 +57,6 @@ export class MarketplaceShowControlsComponent {
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
-  get localVersion(): string {
-    return this.localPkg ? getManifest(this.localPkg).version : ''
-  }
-
   async tryInstall() {
     const currentMarketplace = await firstValueFrom(
       this.marketplaceService.getSelectedHost$(),
@@ -80,10 +76,12 @@ export class MarketplaceShowControlsComponent {
         if (!proceed) return
       }
 
+      const localManifest = getManifest(this.localPkg)
+
       if (
-        this.emver.compare(this.localVersion, this.pkg.manifest.version) !==
+        this.emver.compare(localManifest.version, this.pkg.manifest.version) !==
           0 &&
-        hasCurrentDeps(this.localPkg)
+        hasCurrentDeps(localManifest.id, await getAllPackages(this.patch))
       ) {
         this.dryInstall(url)
       } else {

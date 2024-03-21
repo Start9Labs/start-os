@@ -1,6 +1,11 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { HealthResult, Manifest } from 'src/app/services/patch-db/data-model'
+import {
+  HealthCheckResult,
+  HealthResult,
+  MainStatus,
+} from 'src/app/services/patch-db/data-model'
+import { Manifest } from '@start9labs/marketplace'
 
 @Component({
   selector: 'app-show-health-checks',
@@ -10,9 +15,7 @@ import { HealthResult, Manifest } from 'src/app/services/patch-db/data-model'
 })
 export class AppShowHealthChecksComponent {
   @Input()
-  manifest!: Manifest
-
-  HealthResult = HealthResult
+  healthChecks!: Record<string, HealthCheckResult>
 
   readonly connected$ = this.connectionService.connected$
 

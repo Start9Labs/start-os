@@ -1,7 +1,8 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { Manifest, PackageDataEntry } from '../../services/patch-db/data-model'
+import { PackageDataEntry } from '../../services/patch-db/data-model'
 import { hasUi } from '../../services/config.service'
 import { getManifest } from 'src/app/util/get-package-data'
+import { Manifest } from '@start9labs/marketplace'
 
 @Pipe({
   name: 'hasUi',

@@ -3,7 +3,7 @@ import { ModalController, ToastController } from '@ionic/angular'
 import { copyToClipboard, MarkdownComponent } from '@start9labs/shared'
 import { from } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { Manifest } from 'src/app/services/patch-db/data-model'
+import { Manifest } from '@start9labs/marketplace'
 
 @Component({
   selector: 'app-show-additional',

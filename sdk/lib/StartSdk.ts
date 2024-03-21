@@ -23,7 +23,6 @@ import {
   PackageId,
   EnsureStorePath,
   ExtractStore,
-  DaemonReturned,
   ValidIfNoStupidEscape,
 } from "./types"
 import * as patterns from "./util/patterns"
@@ -205,7 +204,8 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           | Config<any, never>,
         Type extends Record<string, any> = ExtractConfigType<ConfigType>,
       >(
-        metaData: Omit<ActionMetadata, "input"> & {
+        id: string,
+        metadata: Omit<ActionMetadata, "input"> & {
           input: Config<Type, Store> | Config<Type, never>
         },
         fn: (options: {
@@ -213,8 +213,13 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           input: Type
         }) => Promise<ActionResult>,
       ) => {
-        const { input, ...rest } = metaData
-        return createAction<Manifest, Store, ConfigType, Type>(rest, fn, input)
+        const { input, ...rest } = metadata
+        return createAction<Manifest, Store, ConfigType, Type>(
+          id,
+          rest,
+          fn,
+          input,
+        )
       },
       getSystemSmtp: <E extends Effects>(effects: E) =>
         removeConstType<E>()(new GetSystemSmtp(effects)),
@@ -236,7 +241,8 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           | Config<any, never>,
         Type extends Record<string, any> = ExtractConfigType<ConfigType>,
       >(
-        metaData: (options: {
+        id: string,
+        metadata: (options: {
           effects: Effects
         }) => MaybePromise<Omit<ActionMetadata, "input">>,
         fn: (options: {
@@ -246,7 +252,8 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         input: Config<Type, Store> | Config<Type, never>,
       ) => {
         return createAction<Manifest, Store, ConfigType, Type>(
-          metaData,
+          id,
+          metadata,
           fn,
           input,
         )
