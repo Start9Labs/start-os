@@ -10,7 +10,7 @@
         class="detail-container-item item-padding item-copy"
         (click)="copyService.copy(gitHash)"
       >
-        <label tuiLabel="Git Hash">{{ gitHash }}</label>
+        <label class="git-hash-label" tuiLabel="Git Hash">{{ gitHash }}</label>
         <tui-svg src="tuiIconCopyLarge"></tui-svg>
       </div>
       <ng-template #noHash>
