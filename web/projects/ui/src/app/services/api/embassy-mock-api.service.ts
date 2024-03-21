@@ -104,7 +104,8 @@ export class MockApiService extends ApiService {
 
   async getStatic(url: string): Promise<string> {
     await pauseFor(2000)
-    return '' // markdown
+    return `* Test markdown instructions
+* Test markdown instructions with [link](https://start9.com)`
   }
 
   async uploadPackage(guid: string, body: Blob): Promise<void> {
@@ -458,6 +459,7 @@ export class MockApiService extends ApiService {
           'messaging',
           'social',
           'alt coin',
+          'ai',
         ],
       }
       return info
@@ -466,7 +468,8 @@ export class MockApiService extends ApiService {
     } else if (path.startsWith('/package/v0/release-notes')) {
       return Mock.ReleaseNotes
     } else if (path.includes('instructions') || path.includes('license')) {
-      return '' // markdown
+      return `* Test markdown instructions
+* Test markdown instructions with [link](https://start9.com)`
     }
   }
 

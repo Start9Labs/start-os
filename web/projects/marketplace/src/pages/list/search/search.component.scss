@@ -1,0 +1,32 @@
+.search-box {
+  color: rgb(244 244 245);
+  background-color: rgb(113 113 122);
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  border-radius: 9999px;
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  input {
+    margin-top: 0.25rem;
+    background-color: transparent;
+    padding: 0.5rem 0.75rem;
+    &::placeholder {
+      color: rgb(212 212 216);
+    }
+    &:focus {
+      outline: 2px solid transparent;
+      outline-offset: 2px;
+    }
+  }
+
+  *,
+  ::before,
+  ::after {
+    box-sizing: border-box;
+    border-width: 0;
+    border-style: solid;
+    border-color: rgb(var(--tw-color-gray-200) / 1);
+  }
+}

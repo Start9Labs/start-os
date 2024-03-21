@@ -102,7 +102,7 @@ export module Mock {
       icon: 'icon.png',
     },
     'release-notes':
-      'Dual funded channels! And lots more amazing new features. Also includes several bugfixes and performance enhancements.',
+      '* Dual funded channels! And lots more amazing new features. Also includes several bugfixes and performance enhancements.',
     license: 'MIT',
     'wrapper-repo': 'https://github.com/start9labs/lnd-wrapper',
     'upstream-repo': 'https://github.com/lightningnetwork/lnd',

@@ -31,7 +31,6 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { getAllPackages } from 'src/app/util/get-package-data'
 import { dryUpdate } from 'src/app/util/dry-update'
-import { SidebarService } from 'src/app/services/sidebar.service'
 import { MarketplaceAlertsService } from '../services/alerts.service'
 
 @Component({

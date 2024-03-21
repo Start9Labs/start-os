@@ -7,35 +7,28 @@ import { MimeTypePipeModule } from '../../../pipes/mime-type.pipe'
 @Component({
   selector: 'marketplace-package-hero',
   template: `
-    <div class="flex justify-center mt-10 md:mt-0 z-0">
-      <div
-        class="flex flex-col w-full h-[32vh] xs:h-[26vh] md:min-h-[14rem] relative rounded-3xl pt-16 px-8 shadow-lg"
-      >
+    <div class="outer-container">
+      <div class="inner-container box-shadow-lg">
         <!-- icon -->
         <img
           [src]="pkg | mimeType | trustUrl"
-          class="w-24 h-24 pointer-events-none rounded-full object-cover shadow-lg absolute -top-9 left-7 z-10"
+          class="box-shadow-lg"
           alt="{{ pkg.manifest.title }} Icon"
         />
         <!-- color background -->
-        <div
-          class="overflow-hidden absolute w-full h-full top-0 left-0 rounded-3xl bg-zinc-800"
-        >
+        <div class="color-background">
           <img
             [src]="pkg | mimeType | trustUrl"
-            class="absolute object-cover pointer-events-none w-[200%] h-[200%] max-w-[200%] blur-[100px] saturate-150 rounded-full"
             alt="{{ pkg.manifest.title }} background image"
           />
         </div>
         <!-- background darkening overlay -->
-        <div
-          class="overflow-hidden absolute w-full h-full top-0 left-0 rounded-3xl bg-zinc-700 opacity-70"
-        ></div>
-        <div class="my-4 text-zinc-50 mix-blend-plus-lighter">
-          <h2 class="text-2xl font-medium line-clamp-1 mb-1">
+        <div class="dark-overlay"></div>
+        <div class="inner-container-title">
+          <h2>
             {{ pkg.manifest.title }}
           </h2>
-          <p class="block text-base line-clamp-2">
+          <p>
             {{ pkg.manifest.description.short }}
           </p>
         </div>
@@ -44,7 +37,111 @@ import { MimeTypePipeModule } from '../../../pipes/mime-type.pipe'
       </div>
     </div>
   `,
-  styles: [],
+  styles: [
+    `
+      .outer-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 2.5rem;
+        z-index: 0;
+
+        @media (min-width: 768px) {
+          margin-top: 0px;
+        }
+      }
+
+      .inner-container {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 32vh;
+        position: relative;
+        border-radius: 1.5rem;
+        padding: 4rem 2rem 0 2rem;
+
+        @media (min-width: 376px) {
+          height: 26vh;
+        }
+        @media (min-width: 768px) {
+          min-height: 14rem;
+        }
+
+        img {
+          width: 6rem;
+          height: 6rem;
+          pointer-events: none;
+          border-radius: 9999px;
+          object-fit: cover;
+          position: absolute;
+          top: -2.25rem;
+          left: 1.75rem;
+          z-index: 1;
+        }
+
+        .inner-container-title {
+          margin: 1rem 0;
+          color: rgb(250 250 250);
+          mix-blend-mode: plus-lighter;
+          z-index: 1;
+
+          h2 {
+            font-size: 1.5rem;
+            line-height: 2rem;
+            font-weight: 500;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 1;
+            margin-bottom: 0.25rem;
+          }
+
+          p {
+            display: block;
+            font-size: 1rem;
+            line-height: 1.5rem;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+          }
+        }
+
+        .color-background {
+          overflow: hidden;
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          top: 0px;
+          left: 0px;
+          z-index: -50;
+          border-radius: 1.5rem;
+          background-color: rgb(39 39 42);
+
+          img {
+            position: absolute;
+            object-fit: cover;
+            pointer-events: none;
+            width: 200%;
+            height: 200%;
+            max-width: 200%;
+            filter: blur(100px) saturate(1.5);
+          }
+        }
+
+        .dark-overlay {
+          overflow: hidden;
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          top: 0px;
+          left: 0px;
+          border-radius: 1.5rem;
+          background-color: rgb(63 63 70);
+          opacity: 0.7;
+        }
+      }
+    `,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [CommonModule, SharedPipesModule, MimeTypePipeModule],

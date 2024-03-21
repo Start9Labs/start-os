@@ -78,7 +78,6 @@
     "pbkdf2": "^3.1.2",
     "rxjs": "^7.5.6",
     "swiper": "^8.2.4",
-    "tailwindcss": "^3.3.3",
     "ts-matches": "^5.2.1",
     "tslib": "^2.3.0",
     "uuid": "^8.3.2",

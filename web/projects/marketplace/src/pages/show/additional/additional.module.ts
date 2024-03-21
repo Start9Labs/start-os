@@ -6,7 +6,7 @@ import {
   TuiStringifyContentPipeModule,
 } from '@taiga-ui/kit'
 import { FormsModule } from '@angular/forms'
-import { TuiButtonModule, TuiLabelModule } from '@taiga-ui/core'
+import { TuiButtonModule, TuiLabelModule, TuiSvgModule } from '@taiga-ui/core'
 import { AdditionalLinkModule } from './additional-link/additional-link.component.module'
 
 @NgModule({
@@ -18,6 +18,7 @@ import { AdditionalLinkModule } from './additional-link/additional-link.componen
     TuiButtonModule,
     TuiLabelModule,
     AdditionalLinkModule,
+    TuiSvgModule,
   ],
   declarations: [AdditionalComponent],
   exports: [AdditionalComponent],

@@ -9,6 +9,7 @@ import { TuiSidebarModule } from '@taiga-ui/addon-mobile'
 import { SearchModule } from '../../pages/list/search/search.module'
 import { CategoriesModule } from '../../pages/list/categories/categories.module'
 import { StoreIconComponentModule } from '../store-icon/store-icon.component.module'
+import { TuiAppearanceModule, TuiIconModule } from '@taiga-ui/experimental'
 
 @NgModule({
   imports: [
@@ -23,6 +24,8 @@ import { StoreIconComponentModule } from '../store-icon/store-icon.component.mod
     CategoriesModule,
     StoreIconComponentModule,
     TuiLetModule,
+    TuiAppearanceModule,
+    TuiIconModule,
   ],
   declarations: [MenuComponent],
   exports: [MenuComponent],

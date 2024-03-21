@@ -10,3 +10,48 @@
     opacity: 90;
   }
 }
+
+button {
+  display: flex;
+  position: relative;
+  gap: 0.5rem;
+  border-top-left-radius: 0.5rem;
+  border-bottom-left-radius: 0.5rem;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-delay: 75ms;
+  transition-duration: 300ms;
+  margin-bottom: 1.25rem;
+  z-index: 50;
+
+  &:hover {
+    text-decoration-line: none;
+    cursor: pointer;
+  }
+
+  @media (min-width: 640px) {
+    width: 120%;
+    padding: 0.5rem;
+    margin-bottom: 0.75rem;
+
+    &:hover {
+      background-color: rgb(34 36 40);
+      opacity: 0.9;
+    }
+  }
+}
+
+.category {
+  &-wrapper {
+    position: relative;
+    display: flex;
+  }
+
+  &-title {
+    font-size: 1rem;
+    line-height: 1.5rem;
+    color: rgb(250 250 250);
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+}

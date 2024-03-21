@@ -30,7 +30,7 @@ import { MarketplaceSidebarService } from '../services/sidebar.service'
           direction: 'right';
           autoWidth: true
         "
-        class="overflow-y-auto max-w-full md:max-w-[30rem]"
+        class="preview-wrapper"
         [pkg]="pkg"
         (tuiActiveZoneChange)="toggle($event)"
       >
@@ -38,7 +38,7 @@ import { MarketplaceSidebarService } from '../services/sidebar.service'
           tuiAutoFocus
           slot="close"
           size="xs"
-          class="place-self-end"
+          class="close-button"
           tuiIconButton
           type="button"
           appearance="icon"
@@ -47,7 +47,7 @@ import { MarketplaceSidebarService } from '../services/sidebar.service'
         ></button>
         <marketplace-controls
           slot="controls"
-          class="flex justify-start gap-2"
+          class="controls-wrapper"
           [pkg]="pkg"
           [localPkg]="pkg.manifest.id | toLocal | async"
         />
@@ -69,6 +69,25 @@ import { MarketplaceSidebarService } from '../services/sidebar.service'
         to {
           opacity: 1;
         }
+      }
+
+      .preview-wrapper {
+        overflow-y: auto;
+        max-width: 100%;
+
+        @media (min-width: 768px) {
+          max-width: 30rem;
+        }
+      }
+
+      .close-button {
+        place-self: end;
+      }
+
+      .controls-wrapper {
+        display: flex;
+        justify-content: flex-start;
+        gap: 0.5rem;
       }
     `,
   ],

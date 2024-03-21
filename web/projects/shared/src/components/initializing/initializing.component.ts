@@ -41,7 +41,7 @@ import { SetupService } from '../../services/setup.service'
       padding: 1rem;
       margin: 1.5rem;
       text-align: center;
-      // TODO: Theme
+      /* TODO: Theme */
       background: #e0e0e0;
       color: #333;
       --tui-clear-inverse: rgba(0, 0, 0, 0.1);
@@ -56,7 +56,7 @@ import { SetupService } from '../../services/setup.service'
       text-align: left;
       overflow: hidden;
       border-radius: 2rem;
-      // TODO: Theme
+      /* TODO: Theme */
       background: #181818;
     }
   `,

@@ -7,7 +7,11 @@ import { ConfigService } from 'src/app/services/config.service'
   standalone: true,
   selector: 'marketplace-notification',
   template: `
-    <tui-notification [status]="status || 'warning'" icon="" class="m-4">
+    <tui-notification
+      [status]="status || 'warning'"
+      icon=""
+      class="notification-wrapper"
+    >
       @switch (status) {
         @case ('success') {
           Services from this registry are packaged and maintained by the Start9
@@ -48,6 +52,13 @@ import { ConfigService } from 'src/app/services/config.service'
       }
     </tui-notification>
   `,
+  styles: [
+    `
+      .notification-wrapper {
+        margin: 1rem;
+      }
+    `,
+  ],
   imports: [TuiNotificationModule],
 })
 export class MarketplaceNotificationComponent {
