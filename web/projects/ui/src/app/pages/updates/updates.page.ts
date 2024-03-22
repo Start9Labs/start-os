@@ -42,7 +42,7 @@ export class UpdatesPage {
   readonly data$: Observable<UpdatesData> = combineLatest({
     hosts: this.marketplaceService.getKnownHosts$(true),
     marketplace: this.marketplaceService.getMarketplace$(),
-    localPkgs: this.patch.watch$('package-data').pipe(
+    localPkgs: this.patch.watch$('packageData').pipe(
       map(pkgs =>
         Object.values(pkgs).reduce((acc, curr) => {
           if (isInstalled(curr) || isUpdating(curr)) return { ...acc, curr }
@@ -171,7 +171,7 @@ export class FilterUpdatesPipe implements PipeTransform {
         localPkg &&
         this.emver.compare(
           manifest.version,
-          localPkg['state-info'].manifest.version,
+          localPkg.stateInfo.manifest.version,
         ) === 1
       )
     })

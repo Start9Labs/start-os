@@ -66,7 +66,7 @@ export class MarketplaceShowControlsComponent {
     if (!this.localPkg) {
       this.alertInstall(url)
     } else {
-      const originalUrl = this.localPkg['marketplace-url']
+      const originalUrl = this.localPkg.marketplaceUrl
 
       if (!sameUrl(url, originalUrl)) {
         const proceed = await this.presentAlertDifferentMarketplace(
@@ -98,12 +98,11 @@ export class MarketplaceShowControlsComponent {
       this.patch.watch$('ui', 'marketplace'),
     )
 
-    const name: string = marketplaces['known-hosts'][url]?.name || url
+    const name: string = marketplaces.knownHosts[url]?.name || url
 
     let originalName: string | undefined
     if (originalUrl) {
-      originalName =
-        marketplaces['known-hosts'][originalUrl]?.name || originalUrl
+      originalName = marketplaces.knownHosts[originalUrl]?.name || originalUrl
     }
 
     return new Promise(async resolve => {

@@ -32,7 +32,7 @@ export class AppListPkgComponent {
       : null
   }
 
-  launchUi(e: Event, interfaces: PackageDataEntry['service-interfaces']): void {
+  launchUi(e: Event, interfaces: PackageDataEntry['serviceInterfaces']): void {
     e.stopPropagation()
     e.preventDefault()
     this.launcherService.launch(interfaces)

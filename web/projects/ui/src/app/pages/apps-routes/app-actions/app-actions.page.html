@@ -9,7 +9,7 @@
 
 <ion-content class="ion-padding-top with-widgets">
   <ng-container *ngIf="pkg$ | async as pkg">
-    <ion-item-group *ngIf="pkg['state-info'].state === 'installed'">
+    <ion-item-group *ngIf="pkg.stateInfo.state === 'installed'">
       <!-- ** standard actions ** -->
       <ion-item-divider>Standard Actions</ion-item-divider>
       <app-actions-item
@@ -23,7 +23,7 @@
 
       <!-- ** specific actions ** -->
       <ion-item-divider *ngIf="!(pkg.actions | empty)">
-        Actions for {{ pkg['state-info'].manifest.title }}
+        Actions for {{ pkg.stateInfo.manifest.title }}
       </ion-item-divider>
       <app-actions-item
         *ngFor="let action of pkg.actions | keyvalue: asIsOrder"

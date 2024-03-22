@@ -47,7 +47,7 @@ export class AppShowPage {
   private readonly pkgId = getPkgId(this.route)
 
   readonly pkgPlus$ = combineLatest([
-    this.patch.watch$('package-data', this.pkgId),
+    this.patch.watch$('packageData', this.pkgId),
     this.depErrorService.getPkgDepErrors$(this.pkgId),
   ]).pipe(
     tap(([pkg, _]) => {
@@ -85,7 +85,7 @@ export class AppShowPage {
   ): DependencyInfo[] {
     const manifest = getManifest(pkg)
 
-    return Object.keys(pkg['current-dependencies'])
+    return Object.keys(pkg.currentDependencies)
       .filter(id => !!manifest.dependencies[id])
       .map(id => this.getDepValues(pkg, manifest, id, depErrors))
   }
@@ -103,11 +103,11 @@ export class AppShowPage {
       depErrors,
     )
 
-    const depInfo = pkg['dependency-info'][depId]
+    const depInfo = pkg.dependencyInfo[depId]
 
     return {
       id: depId,
-      version: pkg['current-dependencies'][depId].versionRange, // @TODO do we want this version range?
+      version: pkg.currentDependencies[depId].versionRange, // @TODO do we want this version range?
       title: depInfo?.title || depId,
       icon: depInfo?.icon || '',
       errorText: errorText
@@ -184,7 +184,7 @@ export class AppShowPage {
     const dependentInfo: DependentInfo = {
       id: pkgManifest.id,
       title: pkgManifest.title,
-      version: pkg['current-dependencies'][depId].versionRange,
+      version: pkg.currentDependencies[depId].versionRange,
     }
     const navigationExtras: NavigationExtras = {
       state: { dependentInfo },

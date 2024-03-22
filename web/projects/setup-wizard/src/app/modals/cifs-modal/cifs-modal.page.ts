@@ -61,7 +61,7 @@ export class CifsModal {
     const target: CifsBackupTarget = {
       ...this.cifs,
       mountable: true,
-      'embassy-os': diskInfo,
+      startOs: diskInfo,
     }
 
     const modal = await this.modalController.create({

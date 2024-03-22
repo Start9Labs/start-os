@@ -10,7 +10,7 @@ import { BUILT_IN_WIDGETS } from '../../pages/widgets/built-in/widgets'
 export const mockPatchData: DataModel = {
   ui: {
     name: `Matt's Server`,
-    'ack-welcome': '1.0.0',
+    ackWelcome: '1.0.0',
     theme: 'Dark',
     widgets: BUILT_IN_WIDGETS.filter(
       ({ id }) =>
@@ -20,8 +20,8 @@ export const mockPatchData: DataModel = {
         id === 'metrics',
     ),
     marketplace: {
-      'selected-url': 'https://registry.start9.com/',
-      'known-hosts': {
+      selectedUrl: 'https://registry.start9.com/',
+      knownHosts: {
         'https://registry.start9.com/': {
           name: 'Start9 Registry',
         },
@@ -31,21 +31,20 @@ export const mockPatchData: DataModel = {
         },
       },
     },
-    dev: {},
     gaming: {
       snake: {
-        'high-score': 0,
+        highScore: 0,
       },
     },
-    'ack-instructions': {},
+    ackInstructions: {},
   },
-  'server-info': {
+  serverInfo: {
     id: 'abcdefgh',
     version: '0.3.5.1',
-    'last-backup': new Date(new Date().valueOf() - 604800001).toISOString(),
-    'lan-address': 'https://adjective-noun.local',
-    'tor-address': 'https://myveryownspecialtoraddress.onion',
-    'ip-info': {
+    lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
+    lanAddress: 'https://adjective-noun.local',
+    torAddress: 'https://myveryownspecialtoraddress.onion',
+    ipInfo: {
       eth0: {
         ipv4: '10.0.0.1',
         ipv6: null,
@@ -55,28 +54,28 @@ export const mockPatchData: DataModel = {
         ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD',
       },
     },
-    'last-wifi-region': null,
-    'unread-notification-count': 4,
+    lastWifiRegion: null,
+    unreadNotificationCount: 4,
     // password is asdfasdf
-    'password-hash':
+    passwordHash:
       '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-    'eos-version-compat': '>=0.3.0 <=0.3.0.1',
-    'status-info': {
-      'backup-progress': null,
+    eosVersionCompat: '>=0.3.0 <=0.3.0.1',
+    statusInfo: {
+      backupProgress: null,
       updated: false,
-      'update-progress': null,
+      updateProgress: null,
       restarting: false,
-      'shutting-down': false,
+      shuttingDown: false,
     },
     hostname: 'random-words',
     pubkey: 'npub1sg6plzptd64u62a878hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m',
-    'ca-fingerprint': 'SHA-256: 63 2B 11 99 44 40 17 DF 37 FC C3 DF 0F 3D 15',
-    'ntp-synced': false,
+    caFingerprint: 'SHA-256: 63 2B 11 99 44 40 17 DF 37 FC C3 DF 0F 3D 15',
+    ntpSynced: false,
     platform: 'x86_64-nonfree',
   },
-  'package-data': {
+  packageData: {
     bitcoind: {
-      'state-info': {
+      stateInfo: {
         state: PackageState.Installed,
         manifest: {
           ...Mock.MockManifestBitcoind,
@@ -84,7 +83,7 @@ export const mockPatchData: DataModel = {
         },
       },
       icon: '/assets/img/service-icons/bitcoind.svg',
-      'last-backup': null,
+      lastBackup: null,
       status: {
         configured: true,
         main: {
@@ -116,10 +115,10 @@ export const mockPatchData: DataModel = {
             },
           },
         },
-        'dependency-config-errors': {},
+        dependencyConfigErrors: {},
       },
       actions: {}, // @TODO
-      'service-interfaces': {
+      serviceInterfaces: {
         ui: {
           id: 'ui',
           hasPrimary: false,
@@ -335,13 +334,13 @@ export const mockPatchData: DataModel = {
           },
         },
       },
-      'current-dependencies': {},
-      'dependency-info': {},
-      'marketplace-url': 'https://registry.start9.com/',
-      'developer-key': 'developer-key',
+      currentDependencies: {},
+      dependencyInfo: {},
+      marketplaceUrl: 'https://registry.start9.com/',
+      developerKey: 'developer-key',
     },
     lnd: {
-      'state-info': {
+      stateInfo: {
         state: PackageState.Installed,
         manifest: {
           ...Mock.MockManifestLnd,
@@ -349,18 +348,18 @@ export const mockPatchData: DataModel = {
         },
       },
       icon: '/assets/img/service-icons/lnd.png',
-      'last-backup': null,
+      lastBackup: null,
       status: {
         configured: true,
         main: {
           status: PackageMainStatus.Stopped,
         },
-        'dependency-config-errors': {
+        dependencyConfigErrors: {
           'btc-rpc-proxy': 'This is a config unsatisfied error',
         },
       },
       actions: {},
-      'service-interfaces': {
+      serviceInterfaces: {
         grpc: {
           id: 'grpc',
           hasPrimary: false,
@@ -570,17 +569,17 @@ export const mockPatchData: DataModel = {
           },
         },
       },
-      'current-dependencies': {
+      currentDependencies: {
         bitcoind: {
           versionRange: '>=26.0.0',
-          'health-checks': [],
+          healthChecks: [],
         },
         'btc-rpc-proxy': {
           versionRange: '>2.0.0',
-          'health-checks': [],
+          healthChecks: [],
         },
       },
-      'dependency-info': {
+      dependencyInfo: {
         bitcoind: {
           title: 'Bitcoin Core',
           icon: 'assets/img/service-icons/bitcoind.svg',
@@ -590,8 +589,8 @@ export const mockPatchData: DataModel = {
           icon: 'assets/img/service-icons/btc-rpc-proxy.png',
         },
       },
-      'marketplace-url': 'https://registry.start9.com/',
-      'developer-key': 'developer-key',
+      marketplaceUrl: 'https://registry.start9.com/',
+      developerKey: 'developer-key',
     },
   },
 }

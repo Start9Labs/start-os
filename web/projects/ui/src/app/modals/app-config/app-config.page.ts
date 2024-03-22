@@ -59,8 +59,6 @@ export class AppConfigPage {
   saving = false
   loadingError: string | IonicSafeString = ''
 
-  hasOptions = false
-
   constructor(
     private readonly embassyApi: ApiService,
     private readonly errToast: ErrorToastService,
@@ -71,6 +69,10 @@ export class AppConfigPage {
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
+  get hasConfig() {
+    return this.pkg.stateInfo.manifest.hasConfig
+  }
+
   async ngOnInit() {
     try {
       const pkg = await getPackage(this.patch, this.pkgId)
@@ -78,7 +80,7 @@ export class AppConfigPage {
 
       this.pkg = pkg
 
-      if (!this.pkg['state-info'].manifest['has-config']) return
+      if (!this.hasConfig) return
 
       let newConfig: object | undefined
       let patch: Operation[] | undefined
@@ -86,12 +88,12 @@ export class AppConfigPage {
       if (this.dependentInfo) {
         this.loadingText = `Setting properties to accommodate ${this.dependentInfo.title}`
         const {
-          'old-config': oc,
-          'new-config': nc,
+          oldConfig: oc,
+          newConfig: nc,
           spec: s,
         } = await this.embassyApi.dryConfigureDependency({
-          'dependency-id': this.pkgId,
-          'dependent-id': this.dependentInfo.id,
+          dependencyId: this.pkgId,
+          dependentId: this.dependentInfo.id,
         })
         this.original = oc
         newConfig = nc
@@ -109,10 +111,6 @@ export class AppConfigPage {
       this.configForm = this.formService.createForm(
         this.configSpec,
         newConfig || this.original,
-      )
-
-      this.hasOptions = !!Object.values(this.configSpec).find(
-        valSpec => valSpec.type !== 'pointer',
       )
 
       if (patch) {

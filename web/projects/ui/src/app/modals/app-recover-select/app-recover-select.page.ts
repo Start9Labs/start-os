@@ -23,7 +23,7 @@ export class AppRecoverSelectPage {
   @Input() password!: string
   @Input() oldPassword?: string
 
-  readonly packageData$ = this.patch.watch$('package-data').pipe(take(1))
+  readonly packageData$ = this.patch.watch$('packageData').pipe(take(1))
 
   hasSelection = false
   error: string | IonicSafeString = ''
@@ -53,8 +53,8 @@ export class AppRecoverSelectPage {
     try {
       await this.embassyApi.restorePackages({
         ids,
-        'target-id': this.id,
-        'old-password': this.oldPassword || null,
+        targetId: this.id,
+        oldPassword: this.oldPassword || null,
         password: this.password,
       })
       this.modalCtrl.dismiss(undefined, 'success')

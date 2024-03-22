@@ -11,7 +11,7 @@ import { getManifest } from 'src/app/util/get-package-data'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppListPage {
-  readonly pkgs$ = this.patch.watch$('package-data').pipe(
+  readonly pkgs$ = this.patch.watch$('packageData').pipe(
     map(pkgs => Object.values(pkgs)),
     startWith([]),
     pairwise(),

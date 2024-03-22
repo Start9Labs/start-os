@@ -14,49 +14,47 @@ export async function getPackage(
   patch: PatchDB<DataModel>,
   id: string,
 ): Promise<PackageDataEntry | undefined> {
-  return firstValueFrom(patch.watch$('package-data', id))
+  return firstValueFrom(patch.watch$('packageData', id))
 }
 
 export async function getAllPackages(
   patch: PatchDB<DataModel>,
-): Promise<DataModel['package-data']> {
-  return firstValueFrom(patch.watch$('package-data'))
+): Promise<DataModel['packageData']> {
+  return firstValueFrom(patch.watch$('packageData'))
 }
 
 export function getManifest(pkg: PackageDataEntry): Manifest {
-  if (isInstalled(pkg) || isRemoving(pkg)) return pkg['state-info'].manifest
+  if (isInstalled(pkg) || isRemoving(pkg)) return pkg.stateInfo.manifest
 
-  return (pkg['state-info'] as InstallingState)['installing-info'][
-    'new-manifest'
-  ]
+  return (pkg.stateInfo as InstallingState).installingInfo.newManifest
 }
 
 export function isInstalled(
   pkg: PackageDataEntry,
 ): pkg is PackageDataEntry<InstalledState> {
-  return pkg['state-info'].state === PackageState.Installed
+  return pkg.stateInfo.state === PackageState.Installed
 }
 
 export function isRemoving(
   pkg: PackageDataEntry,
 ): pkg is PackageDataEntry<InstalledState> {
-  return pkg['state-info'].state === PackageState.Removing
+  return pkg.stateInfo.state === PackageState.Removing
 }
 
 export function isInstalling(
   pkg: PackageDataEntry,
 ): pkg is PackageDataEntry<InstallingState> {
-  return pkg['state-info'].state === PackageState.Installing
+  return pkg.stateInfo.state === PackageState.Installing
 }
 
 export function isRestoring(
   pkg: PackageDataEntry,
 ): pkg is PackageDataEntry<InstallingState> {
-  return pkg['state-info'].state === PackageState.Restoring
+  return pkg.stateInfo.state === PackageState.Restoring
 }
 
 export function isUpdating(
   pkg: PackageDataEntry,
 ): pkg is PackageDataEntry<UpdatingState> {
-  return pkg['state-info'].state === PackageState.Updating
+  return pkg.stateInfo.state === PackageState.Updating
 }

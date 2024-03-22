@@ -29,7 +29,7 @@ export class AppInterfacesPage {
   readonly pkgId = getPkgId(this.route)
 
   readonly serviceInterfaces$ = this.patch
-    .watch$('package-data', this.pkgId, 'service-interfaces')
+    .watch$('packageData', this.pkgId, 'serviceInterfaces')
     .pipe(
       map(interfaces => {
         const sorted = Object.values(interfaces)

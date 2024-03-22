@@ -38,10 +38,7 @@ export class LoadingPage {
 
       if (!progress) return
 
-      const {
-        'total-bytes': totalBytes,
-        'bytes-transferred': bytesTransferred,
-      } = progress
+      const { totalBytes, bytesTransferred } = progress
 
       this.progress$.next({
         totalBytes,

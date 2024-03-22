@@ -30,8 +30,8 @@ export module RR {
   export type LogoutRes = null
 
   export type ResetPasswordReq = {
-    'old-password': string
-    'new-password': string
+    oldPassword: string
+    newPassword: string
   } // auth.reset-password
   export type ResetPasswordRes = null
 
@@ -51,14 +51,14 @@ export module RR {
 
   export type FollowServerLogsReq = { limit?: number } // server.logs.follow & server.kernel-logs.follow
   export type FollowServerLogsRes = {
-    'start-cursor': string
+    startCursor: string
     guid: string
   }
 
   export type GetServerMetricsReq = {} // server.metrics
   export type GetServerMetricsRes = Metrics
 
-  export type UpdateServerReq = { 'marketplace-url': string } // server.update
+  export type UpdateServerReq = { marketplaceUrl: string } // server.update
   export type UpdateServerRes = 'updating' | 'no-updates'
 
   export type RestartServerReq = {} // server.restart
@@ -71,7 +71,7 @@ export module RR {
   export type SystemRebuildRes = null
 
   export type ResetTorReq = {
-    'wipe-state': boolean
+    wipeState: boolean
     reason: string
   } // net.tor.reset
   export type ResetTorRes = null
@@ -114,7 +114,7 @@ export module RR {
     connected: string | null
     country: string | null
     ethernet: boolean
-    'available-wifi': AvailableWifi[]
+    availableWifi: AvailableWifi[]
   }
 
   export type AddWifiReq = {
@@ -163,14 +163,14 @@ export module RR {
   export type RemoveBackupTargetReq = { id: string } // backup.target.cifs.remove
   export type RemoveBackupTargetRes = null
 
-  export type GetBackupInfoReq = { 'target-id': string; password: string } // backup.target.info
+  export type GetBackupInfoReq = { targetId: string; password: string } // backup.target.info
   export type GetBackupInfoRes = BackupInfo
 
   export type CreateBackupReq = {
     // backup.create
-    'target-id': string
-    'package-ids': string[]
-    'old-password': string | null
+    targetId: string
+    packageIds: string[]
+    oldPassword: string | null
     password: string
   }
   export type CreateBackupRes = null
@@ -192,9 +192,9 @@ export module RR {
 
   export type InstallPackageReq = {
     id: string
-    'version-spec'?: string
-    'version-priority'?: 'min' | 'max'
-    'marketplace-url': string
+    versionSpec?: string
+    versionPriority?: 'min' | 'max'
+    marketplaceUrl: string
   } // package.install
   export type InstallPackageRes = null
 
@@ -210,15 +210,15 @@ export module RR {
   export type RestorePackagesReq = {
     // package.backup.restore
     ids: string[]
-    'target-id': string
-    'old-password': string | null
+    targetId: string
+    oldPassword: string | null
     password: string
   }
   export type RestorePackagesRes = null
 
   export type ExecutePackageActionReq = {
     id: string
-    'action-id': string
+    actionId: string
     input?: object
   } // package.action
   export type ExecutePackageActionRes = ActionResponse
@@ -236,12 +236,12 @@ export module RR {
   export type UninstallPackageRes = null
 
   export type DryConfigureDependencyReq = {
-    'dependency-id': string
-    'dependent-id': string
+    dependencyId: string
+    dependentId: string
   } // package.dependency.configure.dry
   export type DryConfigureDependencyRes = {
-    'old-config': object
-    'new-config': object
+    oldConfig: object
+    newConfig: object
     spec: ConfigSpec
   }
 
@@ -253,10 +253,10 @@ export module RR {
 
   // marketplace
 
-  export type GetMarketplaceInfoReq = { 'server-id': string }
+  export type GetMarketplaceInfoReq = { serverId: string }
   export type GetMarketplaceInfoRes = StoreInfo
 
-  export type GetMarketplaceEosReq = { 'server-id': string }
+  export type GetMarketplaceEosReq = { serverId: string }
   export type GetMarketplaceEosRes = MarketplaceEOS
 
   export type GetMarketplacePackagesReq = {
@@ -265,7 +265,7 @@ export module RR {
     category?: string
     query?: string
     page?: number
-    'per-page'?: number
+    perPage?: number
   }
   export type GetMarketplacePackagesRes = MarketplacePkg[]
 
@@ -276,7 +276,7 @@ export module RR {
 export interface MarketplaceEOS {
   version: string
   headline: string
-  'release-notes': { [version: string]: string }
+  releaseNotes: { [version: string]: string }
 }
 
 export interface Breakages {
@@ -306,23 +306,23 @@ export interface Metrics {
   }
   memory: {
     total: MetricData
-    'percentage-used': MetricData
+    percentageUsed: MetricData
     used: MetricData
     available: MetricData
-    'zram-total': MetricData
-    'zram-used': MetricData
-    'zram-available': MetricData
+    zramTotal: MetricData
+    zramUsed: MetricData
+    zramAvailable: MetricData
   }
   cpu: {
-    'percentage-used': MetricData
+    percentageUsed: MetricData
     idle: MetricData
-    'user-space': MetricData
-    'kernel-space': MetricData
+    userSpace: MetricData
+    kernelSpace: MetricData
     wait: MetricData
   }
   disk: {
     capacity: MetricData
-    'percentage-used': MetricData
+    percentageUsed: MetricData
     used: MetricData
     available: MetricData
   }
@@ -336,8 +336,8 @@ export interface Metric {
 }
 
 export interface Session {
-  'last-active': string
-  'user-agent': string
+  lastActive: string
+  userAgent: string
   metadata: SessionMetadata
 }
 
@@ -372,7 +372,7 @@ export interface DiskBackupTarget {
   label: string | null
   capacity: number
   used: number | null
-  'embassy-os': StartOSDiskInfo | null
+  startOs: StartOSDiskInfo | null
 }
 
 export interface CifsBackupTarget {
@@ -381,7 +381,7 @@ export interface CifsBackupTarget {
   path: string
   username: string
   mountable: boolean
-  'embassy-os': StartOSDiskInfo | null
+  startOs: StartOSDiskInfo | null
 }
 
 export type RecoverySource = DiskRecoverySource | CifsRecoverySource
@@ -402,7 +402,7 @@ export interface CifsRecoverySource {
 export interface BackupInfo {
   version: string
   timestamp: string
-  'package-backups': {
+  packageBackups: {
     [id: string]: PackageBackupInfo
   }
 }
@@ -410,7 +410,7 @@ export interface BackupInfo {
 export interface PackageBackupInfo {
   title: string
   version: string
-  'os-version': string
+  osVersion: string
   timestamp: string
 }
 
@@ -419,7 +419,7 @@ export interface ServerSpecs {
 }
 
 export interface SSHKey {
-  'created-at': string
+  createdAt: string
   alg: string
   hostname: string
   fingerprint: string
@@ -429,8 +429,8 @@ export type ServerNotifications = ServerNotification<any>[]
 
 export interface ServerNotification<T extends number> {
   id: number
-  'package-id': string | null
-  'created-at': string
+  packageId: string | null
+  createdAt: string
   code: T
   level: NotificationLevel
   title: string

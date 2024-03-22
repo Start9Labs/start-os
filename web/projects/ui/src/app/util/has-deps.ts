@@ -4,5 +4,5 @@ export function hasCurrentDeps(
   id: string,
   pkgs: Record<string, PackageDataEntry>,
 ): boolean {
-  return !!Object.values(pkgs).some(pkg => !!pkg['current-dependencies'][id])
+  return !!Object.values(pkgs).some(pkg => !!pkg.currentDependencies[id])
 }
