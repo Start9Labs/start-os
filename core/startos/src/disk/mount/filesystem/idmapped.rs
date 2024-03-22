@@ -14,7 +14,7 @@ use crate::prelude::*;
 use crate::util::Invoke;
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct IdMapped<Fs: FileSystem> {
     filesystem: Fs,
     from_id: u32,

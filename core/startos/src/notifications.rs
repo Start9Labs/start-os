@@ -49,7 +49,7 @@ pub fn notification() -> ParentHandler {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ListParams {
     before: Option<u32>,
@@ -111,7 +111,7 @@ pub async fn list(
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct DeleteParams {
     id: u32,
@@ -126,7 +126,7 @@ pub async fn delete(ctx: RpcContext, DeleteParams { id }: DeleteParams) -> Resul
         .await
 }
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct DeleteBeforeParams {
     before: u32,
@@ -149,7 +149,7 @@ pub async fn delete_before(
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CreateParams {
     package: Option<PackageId>,
@@ -173,7 +173,7 @@ pub async fn create(
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum NotificationLevel {
     Success,
     Info,
@@ -225,7 +225,7 @@ impl fmt::Display for InvalidNotificationLevel {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct Notifications(pub BTreeMap<u32, Notification>);
 impl Notifications {
     pub fn new() -> Self {
@@ -244,7 +244,7 @@ impl Map for Notifications {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct Notification {
     package_id: Option<PackageId>,
     created_at: DateTime<Utc>,
@@ -256,7 +256,7 @@ pub struct Notification {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct NotificationWithId {
     id: u32,
     #[serde(flatten)]

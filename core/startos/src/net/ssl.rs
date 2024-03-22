@@ -29,7 +29,7 @@ use crate::SOURCE_DATE;
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[model = "Model<Self>"]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct CertStore {
     pub root_key: Pem<PKey<Private>>,
     pub root_cert: Pem<X509>,

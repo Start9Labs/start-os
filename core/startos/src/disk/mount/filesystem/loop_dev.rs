@@ -12,7 +12,7 @@ use super::FileSystem;
 use crate::prelude::*;
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct LoopDev<LogicalName: AsRef<Path>> {
     logicalname: LogicalName,
     offset: u64,

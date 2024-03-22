@@ -111,25 +111,25 @@ pub fn cert_dir(pkg_id: &PackageId, host_id: &HostId) -> PathBuf {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum Volume {
-    #[serde(rename_all = "kebab-case")]
+    #[serde(rename_all = "camelCase")]
     Data {
         #[serde(skip)]
         readonly: bool,
     },
-    #[serde(rename_all = "kebab-case")]
+    #[serde(rename_all = "camelCase")]
     Assets {},
-    #[serde(rename_all = "kebab-case")]
+    #[serde(rename_all = "camelCase")]
     Pointer {
         package_id: PackageId,
         volume_id: VolumeId,
         path: PathBuf,
         readonly: bool,
     },
-    #[serde(rename_all = "kebab-case")]
+    #[serde(rename_all = "camelCase")]
     Certificate { interface_id: HostId },
-    #[serde(rename_all = "kebab-case")]
+    #[serde(rename_all = "camelCase")]
     Backup { readonly: bool },
 }
 impl Volume {

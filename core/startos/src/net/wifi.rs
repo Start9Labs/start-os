@@ -88,7 +88,7 @@ pub fn country() -> ParentHandler {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct AddParams {
     ssid: String,
@@ -139,7 +139,7 @@ pub async fn add(ctx: RpcContext, AddParams { ssid, password }: AddParams) -> Re
     Ok(())
 }
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct SsidParams {
     ssid: String,
@@ -217,7 +217,7 @@ pub async fn delete(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result<
     Ok(())
 }
 #[derive(serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct WiFiInfo {
     ssids: HashMap<Ssid, SignalStrength>,
     connected: Option<Ssid>,
@@ -226,13 +226,13 @@ pub struct WiFiInfo {
     available_wifi: Vec<WifiListOut>,
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct WifiListInfo {
     strength: SignalStrength,
     security: Vec<String>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct WifiListOut {
     ssid: Ssid,
     strength: SignalStrength,
@@ -403,7 +403,7 @@ pub async fn get_available(ctx: RpcContext, _: Empty) -> Result<Vec<WifiListOut>
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct SetCountryParams {
     #[arg(value_parser = CountryCodeParser)]

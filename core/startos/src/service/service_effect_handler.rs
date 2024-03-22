@@ -268,7 +268,7 @@ enum AllowedStatuses {
 struct ExportActionParams {
     #[ts(type = "string")]
     id: ActionId,
-    metadata: ActionMetadata
+    metadata: ActionMetadata,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
@@ -349,13 +349,11 @@ async fn get_container_ip(context: EffectContext, _: Empty) -> Result<Ipv4Addr, 
         Some(c) => {
             let net_service = c.persistent_container.net_service.lock().await;
             Ok(net_service.get_ip())
-        },
-        None => {
-            Err(Error::new(
-                eyre!("Upgrade on Weak<ServiceActorSeed> resulted in a None variant"),
-                crate::ErrorKind::NotFound
-            ))
         }
+        None => Err(Error::new(
+            eyre!("Upgrade on Weak<ServiceActorSeed> resulted in a None variant"),
+            crate::ErrorKind::NotFound,
+        )),
     }
 }
 async fn get_service_port_forward(

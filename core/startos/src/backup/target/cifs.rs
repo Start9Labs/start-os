@@ -36,7 +36,7 @@ impl Map for CifsTargets {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct CifsBackupTarget {
     hostname: String,
     path: PathBuf,
@@ -68,7 +68,7 @@ pub fn cifs() -> ParentHandler {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct AddParams {
     pub hostname: String,
@@ -122,7 +122,7 @@ pub async fn add(
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UpdateParams {
     pub id: BackupTargetId,
@@ -186,7 +186,7 @@ pub async fn update(
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct RemoveParams {
     pub id: BackupTargetId,

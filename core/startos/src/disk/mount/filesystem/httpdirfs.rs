@@ -22,7 +22,7 @@ pub async fn mount_httpdirfs(url: &Url, mountpoint: impl AsRef<Path>) -> Result<
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct HttpDirFS {
     url: Url,
 }

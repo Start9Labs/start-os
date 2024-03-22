@@ -105,7 +105,7 @@ pub fn tor() -> ParentHandler {
         )
 }
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ResetParams {
     #[arg(name = "wipe-state", short = 'w', long = "wipe-state")]
@@ -143,7 +143,7 @@ pub async fn list_services(ctx: RpcContext, _: Empty) -> Result<Vec<OnionAddress
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct LogsParams {
     #[arg(short = 'l', long = "limit")]

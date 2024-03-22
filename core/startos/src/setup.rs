@@ -100,7 +100,7 @@ async fn setup_init(
 }
 
 #[derive(Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct AttachParams {
     #[serde(rename = "embassy-password")]
     password: Option<EncryptedWire>,
@@ -185,7 +185,7 @@ pub async fn attach(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct SetupStatus {
     pub bytes_transferred: u64,
     pub total_bytes: Option<u64>,
@@ -211,7 +211,7 @@ pub fn cifs() -> ParentHandler {
 }
 
 #[derive(Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct VerifyCifsParams {
     hostname: String,
     path: PathBuf,
@@ -247,14 +247,14 @@ pub async fn verify_cifs(
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum RecoverySource {
     Migrate { guid: String },
     Backup { target: BackupTargetFS },
 }
 
 #[derive(Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct ExecuteParams {
     embassy_logicalname: PathBuf,
     embassy_password: EncryptedWire,

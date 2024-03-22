@@ -53,7 +53,7 @@ pub struct Manifest {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct HardwareRequirements {
     #[serde(default)]
     device: BTreeMap<String, Regex>,
@@ -85,7 +85,7 @@ impl Description {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct Alerts {
     pub install: Option<String>,
     pub uninstall: Option<String>,

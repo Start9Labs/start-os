@@ -24,7 +24,7 @@ use crate::version::{Current, VersionT};
 use crate::{ARCH, PLATFORM};
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 // #[macro_debug]
 pub struct Public {
@@ -102,7 +102,7 @@ fn get_platform() -> InternedString {
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct ServerInfo {
     #[serde(default = "get_arch")]
@@ -137,7 +137,7 @@ pub struct ServerInfo {
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct IpInfo {
     pub ipv4_range: Option<Ipv4Net>,
@@ -165,7 +165,7 @@ pub struct BackupProgress {
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct ServerStatus {
     pub backup_progress: Option<BTreeMap<PackageId, BackupProgress>>,
@@ -178,7 +178,7 @@ pub struct ServerStatus {
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct UpdateProgress {
     pub size: Option<u64>,
@@ -186,7 +186,7 @@ pub struct UpdateProgress {
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct WifiInfo {
     pub ssids: Vec<String>,
@@ -195,7 +195,7 @@ pub struct WifiInfo {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct ServerSpecs {
     pub cpu: String,
     pub disk: String,
@@ -203,7 +203,7 @@ pub struct ServerSpecs {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct ConnectionAddresses {
     pub tor: Vec<String>,
     pub clearnet: Vec<String>,

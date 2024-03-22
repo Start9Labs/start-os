@@ -18,7 +18,7 @@ fn current_version() -> Version {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct Manifest {
     #[serde(default = "current_version")]
@@ -53,7 +53,7 @@ pub struct Manifest {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct Assets {
     #[serde(default)]
     pub license: Option<PathBuf>,

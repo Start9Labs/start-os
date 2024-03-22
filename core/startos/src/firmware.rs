@@ -14,7 +14,7 @@ use crate::PLATFORM;
 
 /// Part of the Firmware, look there for more about
 #[derive(Clone, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct VersionMatcher {
     /// Strip this prefix on the version matcher
     semver_prefix: Option<String>,
@@ -28,7 +28,7 @@ pub struct VersionMatcher {
 /// wanted a structure that could help decide what to do
 /// for each of the firmware versions
 #[derive(Clone, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct Firmware {
     id: String,
     /// This is the platform(s) the firmware was built for

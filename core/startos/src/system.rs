@@ -74,7 +74,7 @@ pub async fn enable_zram() -> Result<(), Error> {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ZramParams {
     enable: bool,
@@ -136,7 +136,7 @@ fn display_governor_info(params: WithIoFormat<GovernorParams>, result: GovernorI
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct GovernorParams {
     set: Option<Governor>,
@@ -230,7 +230,7 @@ pub async fn time(ctx: RpcContext, _: Empty) -> Result<TimeInfo, Error> {
     })
 }
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct LogsParams {
     #[arg(short = 'l', long = "limit")]
@@ -314,7 +314,7 @@ pub async fn logs_follow(
     follow_logs(ctx, LogSource::System, limit).await
 }
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct KernelLogsParams {
     #[arg(short = 'l', long = "limit")]
@@ -509,12 +509,12 @@ impl<'de> Deserialize<'de> for GigaBytes {
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct MetricsGeneral {
     pub temperature: Option<Celsius>,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct MetricsMemory {
     pub percentage_used: Percentage,
     pub total: MebiBytes,
@@ -525,7 +525,7 @@ pub struct MetricsMemory {
     pub zram_used: MebiBytes,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct MetricsCpu {
     percentage_used: Percentage,
     idle: Percentage,
@@ -534,7 +534,7 @@ pub struct MetricsCpu {
     wait: Percentage,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct MetricsDisk {
     percentage_used: Percentage,
     used: GigaBytes,
@@ -542,7 +542,7 @@ pub struct MetricsDisk {
     capacity: GigaBytes,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct Metrics {
     general: MetricsGeneral,
     memory: MetricsMemory,

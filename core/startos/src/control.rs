@@ -10,7 +10,7 @@ use crate::prelude::*;
 use crate::Error;
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ControlParams {
     pub id: PackageId,
