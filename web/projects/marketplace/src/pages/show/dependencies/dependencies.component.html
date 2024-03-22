@@ -1,22 +1,19 @@
 <div class="outer-container">
   <div class="inner-container">
-    <tui-avatar class="dep-img" [src]="getImage(dep.key)"></tui-avatar>
+    <tui-avatar class="dep-img" [src]="pkg['dependency-metadata'][dep.key].icon"></tui-avatar>
     <div class="wrapper-margin">
       <div class="inner-container-title">
         <span>
-          {{ getTitle(dep.key) }}
+          {{ pkg['dependency-metadata'][dep.key].title || dep.key }}
         </span>
         <p>
-          <ng-container [ngSwitch]="dep.value.requirement.type">
-            <span *ngSwitchCase="'required'">(required)</span>
-            <span *ngSwitchCase="'opt-out'">(required by default)</span>
-            <span *ngSwitchCase="'opt-in'">(optional)</span>
-          </ng-container>
+          @if (dep.value.optional) {
+            <span>(optional)</span>
+          } @else {
+            <span>(required)</span>
+          }
         </p>
       </div>
-      <span class="inner-container-version">
-        {{ dep.value.version | displayEmver }}
-      </span>
       <span class="inner-container-description">
         {{ dep.value.description }}
       </span>

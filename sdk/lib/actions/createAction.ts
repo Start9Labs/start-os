@@ -15,7 +15,8 @@ export class CreatedAction<
   Type extends Record<string, any> = ExtractConfigType<ConfigType>,
 > {
   private constructor(
-    public readonly myMetaData: MaybeFn<
+    public readonly id: string,
+    public readonly myMetadata: MaybeFn<
       Manifest,
       Store,
       Omit<ActionMetadata, "input">
@@ -37,12 +38,14 @@ export class CreatedAction<
       | Config<any, never>,
     Type extends Record<string, any> = ExtractConfigType<ConfigType>,
   >(
-    metaData: MaybeFn<Manifest, Store, Omit<ActionMetadata, "input">>,
+    id: string,
+    metadata: MaybeFn<Manifest, Store, Omit<ActionMetadata, "input">>,
     fn: (options: { effects: Effects; input: Type }) => Promise<ActionResult>,
     inputConfig: Config<Type, Store> | Config<Type, never>,
   ) {
     return new CreatedAction<Manifest, Store, ConfigType, Type>(
-      metaData,
+      id,
+      metadata,
       fn,
       inputConfig as Config<Type, Store>,
     )
@@ -62,15 +65,15 @@ export class CreatedAction<
     })
   }
 
-  async metaData(options: { effects: Effects }) {
-    if (this.myMetaData instanceof Function)
-      return await this.myMetaData(options)
-    return this.myMetaData
+  async metadata(options: { effects: Effects }) {
+    if (this.myMetadata instanceof Function)
+      return await this.myMetadata(options)
+    return this.myMetadata
   }
 
   async ActionMetadata(options: { effects: Effects }): Promise<ActionMetadata> {
     return {
-      ...(await this.metaData(options)),
+      ...(await this.metadata(options)),
       input: await this.input.build(options),
     }
   }

@@ -866,7 +866,7 @@ export class MockApiService extends ApiService {
     setTimeout(async () => {
       for (let i = 0; i < ids.length; i++) {
         const id = ids[i]
-        const appPath = `/package-data/${id}/installed/status/main/status`
+        const appPath = `/package-data/${id}/status/main/status`
         const appPatch = [
           {
             op: PatchOp.REPLACE,
@@ -1032,7 +1032,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: `/package-data/${params.id}/installed/status/configured`,
+        path: `/package-data/${params.id}/status/configured`,
         value: true,
       },
     ]
@@ -1079,7 +1079,7 @@ export class MockApiService extends ApiService {
   }
 
   async startPackage(params: RR.StartPackageReq): Promise<RR.StartPackageRes> {
-    const path = `/package-data/${params.id}/installed/status/main`
+    const path = `/package-data/${params.id}/status/main`
 
     await pauseFor(2000)
 
@@ -1128,7 +1128,7 @@ export class MockApiService extends ApiService {
   ): Promise<RR.RestartPackageRes> {
     // first enact stop
     await pauseFor(2000)
-    const path = `/package-data/${params.id}/installed/status/main`
+    const path = `/package-data/${params.id}/status/main`
 
     setTimeout(async () => {
       const patch2: Operation<any>[] = [

@@ -43,7 +43,7 @@ type Daemon<
 
 type ErrorDuplicateId<Id extends string> = `The id '${Id}' is already used`
 
-const runDaemon =
+export const runDaemon =
   <Manifest extends SDKManifest>() =>
   async <A extends string>(
     effects: Effects,

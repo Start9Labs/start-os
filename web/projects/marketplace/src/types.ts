@@ -38,6 +38,7 @@ export interface MarketplacePkg {
 export interface DependencyMetadata {
   title: string
   icon: Url
+  optional: boolean
   hidden: boolean
 }
 
@@ -49,9 +50,6 @@ export interface Manifest {
   description: {
     short: string
     long: string
-  }
-  assets: {
-    icon: Url // filename
   }
   replaces?: string[]
   'release-notes': string
@@ -70,21 +68,10 @@ export interface Manifest {
   }
   dependencies: Record<string, Dependency>
   'os-version': string
+  'has-config': boolean
 }
 
 export interface Dependency {
-  version: string
-  requirement:
-    | {
-        type: 'opt-in'
-        how: string
-      }
-    | {
-        type: 'opt-out'
-        how: string
-      }
-    | {
-        type: 'required'
-      }
   description: string | null
+  optional: boolean
 }

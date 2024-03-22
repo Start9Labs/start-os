@@ -1,6 +1,5 @@
 import { SDKManifest } from "../manifest/ManifestTypes"
 import { Effects, ExpectedExports } from "../types"
-import { once } from "../util/once"
 import { CreatedAction } from "./createAction"
 
 export function setupActions<Manifest extends SDKManifest, Store>(
@@ -9,8 +8,7 @@ export function setupActions<Manifest extends SDKManifest, Store>(
   const myActions = async (options: { effects: Effects }) => {
     const actions: Record<string, CreatedAction<Manifest, Store, any>> = {}
     for (const action of createdActions) {
-      const actionMetadata = await action.metaData(options)
-      actions[actionMetadata.id] = action
+      actions[action.id] = action
     }
     return actions
   }

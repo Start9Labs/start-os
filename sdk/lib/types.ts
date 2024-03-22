@@ -7,6 +7,8 @@ import { BindOptions, Scheme } from "./interfaces/Host"
 import { Daemons } from "./mainFn/Daemons"
 import { UrlString } from "./util/getServiceInterface"
 
+export { SDKManifest } from "./manifest/ManifestTypes"
+
 export type ExportedAction = (options: {
   effects: Effects
   input?: Record<string, unknown>
@@ -90,7 +92,7 @@ export namespace ExpectedExports {
   /** Auto configure is used to make sure that other dependencies have the values t
    * that this service could use.
    */
-  export type dependencyConfig = Record<PackageId, DependencyConfig>
+  export type dependencyConfig = Record<PackageId, DependencyConfig | null>
 }
 export type TimeMs = number
 export type VersionString = string
@@ -161,9 +163,10 @@ export type DaemonReturned = {
 export type ActionMetadata = {
   name: string
   description: string
-  id: string
+  warning: string | null
   input: InputSpec
-  allowedStatuses: "only-running" | "only-stopped" | "any" | "disabled"
+  disabled: boolean
+  allowedStatuses: "only-running" | "only-stopped" | "any"
   /**
    * So the ordering of the actions is by alphabetical order of the group, then followed by the alphabetical of the actions
    */
@@ -441,7 +444,7 @@ export type Effects = {
    *
    * @param options
    */
-  exportAction(options: ActionMetadata): Promise<void>
+  exportAction(options: { id: string; metadata: ActionMetadata }): Promise<void>
   /**
    * Remove an action that was exported. Used problably during main or during setConfig.
    */
@@ -598,7 +601,8 @@ export type KnownError =
 
 export type Dependency = {
   id: PackageId
-  kind: DependencyKind
+  versionSpec: string
+  url: string
 } & ({ kind: "exists" } | { kind: "running"; healthChecks: string[] })
 export type Dependencies = Array<Dependency>
 

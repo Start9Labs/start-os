@@ -18,12 +18,12 @@ import {
   MarketplacePkg,
 } from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
-import { unionSelectKey } from '@start9labs/start-sdk/lib/config/configTypes'
-import { List } from '@start9labs/start-sdk/lib/config/builder/list'
-import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
-import { Variants } from '@start9labs/start-sdk/lib/config/builder/variants'
-import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
+import { Config } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/config'
+import { Value } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/value'
+import { Variants } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/variants'
+import { List } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/list'
+import { unionSelectKey } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
 
 export module Mock {
   export const ServerUpdated: ServerStatusInfo = {
@@ -67,9 +67,6 @@ export module Mock {
       short: 'A Bitcoin full node by Bitcoin Core.',
       long: 'Bitcoin is a decentralized consensus protocol and settlement network.',
     },
-    assets: {
-      icon: 'icon.png',
-    },
     replaces: ['banks', 'governments'],
     'release-notes': 'Taproot, Schnorr, and more.',
     license: 'MIT',
@@ -86,8 +83,9 @@ export module Mock {
       start: 'Starting Bitcoin is good for your health.',
       stop: null,
     },
+    'os-version': '0.2.12',
     dependencies: {},
-    'os-version': '0.4.0',
+    'has-config': true,
   }
 
   export const MockManifestLnd: Manifest = {
@@ -98,11 +96,7 @@ export module Mock {
       short: 'A bolt spec compliant client.',
       long: 'More info about LND. More info about LND. More info about LND.',
     },
-    assets: {
-      icon: 'icon.png',
-    },
-    'release-notes':
-      '* Dual funded channels! And lots more amazing new features. Also includes several bugfixes and performance enhancements.',
+    'release-notes': 'Dual funded channels!',
     license: 'MIT',
     'wrapper-repo': 'https://github.com/start9labs/lnd-wrapper',
     'upstream-repo': 'https://github.com/lightningnetwork/lnd',
@@ -117,26 +111,19 @@ export module Mock {
       start: 'Starting LND is good for your health.',
       stop: null,
     },
+    'os-version': '0.2.12',
     dependencies: {
       bitcoind: {
-        version: '=0.21.0',
         description: 'LND needs bitcoin to live.',
-        requirement: {
-          type: 'opt-out',
-          how: 'You can use an external node from your server if you prefer.',
-        },
+        optional: true,
       },
       'btc-rpc-proxy': {
-        version: '>=0.2.2',
         description:
           'As long as Bitcoin is pruned, LND needs Bitcoin Proxy to fetch block over the P2P network.',
-        requirement: {
-          type: 'opt-in',
-          how: `To use Proxy's user management system, go to LND config and select Bitcoin Proxy under Bitcoin config.`,
-        },
+        optional: true,
       },
     },
-    'os-version': '0.4.0',
+    'has-config': true,
   }
 
   export const MockManifestBitcoinProxy: Manifest = {
@@ -147,9 +134,6 @@ export module Mock {
     description: {
       short: 'A super charger for your Bitcoin node.',
       long: 'More info about Bitcoin Proxy. More info about Bitcoin Proxy. More info about Bitcoin Proxy.',
-    },
-    assets: {
-      icon: 'icon.png',
     },
     'release-notes': 'Even better support for Bitcoin and wallets!',
     license: 'MIT',
@@ -165,27 +149,27 @@ export module Mock {
       start: null,
       stop: null,
     },
+    'os-version': '0.2.12',
     dependencies: {
       bitcoind: {
-        version: '>=0.20.0',
         description: 'Bitcoin Proxy requires a Bitcoin node.',
-        requirement: {
-          type: 'required',
-        },
+        optional: false,
       },
     },
-    'os-version': '0.4.0',
+    'has-config': false,
   }
 
   export const BitcoinDep: DependencyMetadata = {
     title: 'Bitcoin Core',
     icon: BTC_ICON,
+    optional: false,
     hidden: true,
   }
 
   export const ProxyDep: DependencyMetadata = {
     title: 'Bitcoin Proxy',
     icon: PROXY_ICON,
+    optional: true,
     hidden: false,
   }
 
@@ -1292,6 +1276,7 @@ export module Mock {
       },
       'dependency-config-errors': {},
     },
+    actions: {}, // @TODO need mocks
     'service-interfaces': {
       ui: {
         id: 'ui',
@@ -1508,11 +1493,6 @@ export module Mock {
         },
       },
     },
-    'current-dependents': {
-      lnd: {
-        'health-checks': [],
-      },
-    },
     'current-dependencies': {},
     'dependency-info': {},
     'marketplace-url': 'https://registry.start9.com/',
@@ -1535,6 +1515,7 @@ export module Mock {
       },
       'dependency-config-errors': {},
     },
+    actions: {},
     'service-interfaces': {
       ui: {
         id: 'ui',
@@ -1643,13 +1624,9 @@ export module Mock {
         },
       },
     },
-    'current-dependents': {
-      lnd: {
-        'health-checks': [],
-      },
-    },
     'current-dependencies': {
       bitcoind: {
+        versionRange: '>=26.0.0',
         'health-checks': [],
       },
     },
@@ -1681,6 +1658,7 @@ export module Mock {
         'btc-rpc-proxy': 'Username not found',
       },
     },
+    actions: {},
     'service-interfaces': {
       grpc: {
         id: 'grpc',
@@ -1893,12 +1871,13 @@ export module Mock {
         },
       },
     },
-    'current-dependents': {},
     'current-dependencies': {
       bitcoind: {
+        versionRange: '>=26.0.0',
         'health-checks': [],
       },
       'btc-rpc-proxy': {
+        versionRange: '>2.0.0', // @TODO
         'health-checks': [],
       },
     },

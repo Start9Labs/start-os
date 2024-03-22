@@ -1,9 +1,13 @@
-import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
+import { BackupJob, ServerNotifications } from '../api/api.types'
 import { Url } from '@start9labs/shared'
 import { Manifest } from '@start9labs/marketplace'
-import { BackupJob, ServerNotifications } from '../api/api.types'
-import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
 import { types } from '@start9labs/start-sdk'
+import { InputSpec } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
+import {
+  ActionMetadata,
+  HostnameInfo,
+} from '@start9labs/start-sdk/cjs/sdk/lib/types'
+import { customSmtp } from '@start9labs/start-sdk/cjs/sdk/lib/config/configConstants'
 type ServiceInterfaceWithHostInfo = types.ServiceInterfaceWithHostInfo
 
 export interface DataModel {
@@ -174,8 +178,8 @@ export type PackageDataEntry<T extends StateInfo = StateInfo> = {
   'state-info': T
   icon: Url
   status: Status
+  actions: Record<string, ActionMetadata>
   'last-backup': string | null
-  'current-dependents': { [id: string]: CurrentDependencyInfo }
   'current-dependencies': { [id: string]: CurrentDependencyInfo }
   'dependency-info': {
     [id: string]: {
@@ -217,16 +221,8 @@ export enum PackageState {
 }
 
 export interface CurrentDependencyInfo {
+  versionRange: string
   'health-checks': string[] // array of health check IDs
-}
-
-export interface Action {
-  name: string
-  description: string
-  warning: string | null
-  disabled: string | null
-  'input-spec': InputSpec | null
-  group: string | null
 }
 
 export interface Status {
@@ -260,7 +256,7 @@ export interface MainStatusStarting {
 export interface MainStatusRunning {
   status: PackageMainStatus.Running
   started: string // UTC date string
-  health: { [id: string]: HealthCheckResult }
+  health: Record<string, HealthCheckResult>
 }
 
 export interface MainStatusBackingUp {
@@ -307,7 +303,6 @@ export interface HealthCheckResultStarting {
 
 export interface HealthCheckResultDisabled {
   result: HealthResult.Disabled
-  reason: string
 }
 
 export interface HealthCheckResultSuccess {
@@ -322,7 +317,7 @@ export interface HealthCheckResultLoading {
 
 export interface HealthCheckResultFailure {
   result: HealthResult.Failure
-  error: string
+  message: string
 }
 
 export type InstallingInfo = {

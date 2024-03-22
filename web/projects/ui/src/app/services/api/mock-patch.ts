@@ -1,4 +1,9 @@
-import { DataModel } from 'src/app/services/patch-db/data-model'
+import {
+  DataModel,
+  HealthResult,
+  PackageMainStatus,
+  PackageState,
+} from 'src/app/services/patch-db/data-model'
 import { Mock } from './api.fixures'
 
 export const mockPatchData: DataModel = {
@@ -31,18 +36,49 @@ export const mockPatchData: DataModel = {
     id: 'abcdefgh',
     version: '0.3.5.1',
     country: 'us',
-    ui: {
-      lanHostname: 'adjective-noun.local',
-      torHostname: 'myveryownspecialtoraddress.onion',
-      ipInfo: {
-        eth0: {
-          wireless: false,
-          ipv4: '10.0.0.1',
-          ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD',
+    ui: [
+      {
+        kind: 'ip',
+        networkInterfaceId: 'elan0',
+        public: false,
+        hostname: {
+          kind: 'local',
+          value: 'adjective-noun.local',
+          port: null,
+          sslPort: 1111,
         },
       },
-      domainInfo: null,
-    },
+      {
+        kind: 'onion',
+        hostname: {
+          value: 'myveryownspecialtoraddress.onion',
+          port: 80,
+          sslPort: 443,
+        },
+      },
+      {
+        kind: 'ip',
+        networkInterfaceId: 'elan0',
+        public: false,
+        hostname: {
+          kind: 'ipv4',
+          value: '192.168.1.5',
+          port: null,
+          sslPort: 1111,
+        },
+      },
+      {
+        kind: 'ip',
+        networkInterfaceId: 'elan0',
+        public: false,
+        hostname: {
+          kind: 'ipv6',
+          value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
+          port: null,
+          sslPort: 1111,
+        },
+      },
+    ],
     network: {
       domains: [],
       start9ToSubdomain: null,
@@ -109,11 +145,49 @@ export const mockPatchData: DataModel = {
   },
   'package-data': {
     bitcoind: {
-      ...Mock.bitcoind,
-      manifest: {
-        ...Mock.bitcoind.manifest,
-        version: '0.19.0',
+      'state-info': {
+        state: PackageState.Installed,
+        manifest: {
+          ...Mock.MockManifestBitcoind,
+          version: '0.20.0',
+        },
       },
+      icon: '/assets/img/service-icons/bitcoind.svg',
+      'last-backup': null,
+      status: {
+        configured: true,
+        main: {
+          status: PackageMainStatus.Running,
+          started: '2021-06-14T20:49:17.774Z',
+          health: {
+            'ephemeral-health-check': {
+              name: 'Ephemeral Health Check',
+              result: HealthResult.Starting,
+            },
+            'chain-state': {
+              name: 'Chain State',
+              result: HealthResult.Loading,
+              message: 'Bitcoin is syncing from genesis',
+            },
+            'p2p-interface': {
+              name: 'P2P',
+              result: HealthResult.Success,
+              message: 'Health check successful',
+            },
+            'rpc-interface': {
+              name: 'RPC',
+              result: HealthResult.Failure,
+              message: 'RPC interface unreachable.',
+            },
+            'unnecessary-health-check': {
+              name: 'Unnecessary Health Check',
+              result: HealthResult.Disabled,
+            },
+          },
+        },
+        'dependency-config-errors': {},
+      },
+      actions: {}, // @TODO
       'service-interfaces': {
         ui: {
           id: 'ui',
@@ -330,22 +404,20 @@ export const mockPatchData: DataModel = {
           },
         },
       },
-      'current-dependents': {
-        lnd: {
-          pointers: [],
-          'health-checks': [],
-        },
-      },
       'current-dependencies': {},
       'dependency-info': {},
       'marketplace-url': 'https://registry.start9.com/',
       'developer-key': 'developer-key',
+      'has-config': true,
+      outboundProxy: null,
     },
     lnd: {
-      ...Mock.lnd,
-      manifest: {
-        ...Mock.lnd.manifest,
-        version: '0.11.0',
+      'state-info': {
+        state: PackageState.Installed,
+        manifest: {
+          ...Mock.MockManifestLnd,
+          version: '0.11.0',
+        },
       },
       icon: '/assets/img/service-icons/lnd.png',
       'last-backup': null,
@@ -358,6 +430,7 @@ export const mockPatchData: DataModel = {
           'btc-rpc-proxy': 'This is a config unsatisfied error',
         },
       },
+      actions: {},
       'service-interfaces': {
         grpc: {
           id: 'grpc',
@@ -568,12 +641,13 @@ export const mockPatchData: DataModel = {
           },
         },
       },
-      'current-dependents': {},
       'current-dependencies': {
         bitcoind: {
+          versionRange: '>=26.0.0',
           'health-checks': [],
         },
         'btc-rpc-proxy': {
+          versionRange: '>2.0.0',
           'health-checks': [],
         },
       },
@@ -589,6 +663,8 @@ export const mockPatchData: DataModel = {
       },
       'marketplace-url': 'https://registry.start9.com/',
       'developer-key': 'developer-key',
+      'has-config': true,
+      outboundProxy: null,
     },
   },
 }

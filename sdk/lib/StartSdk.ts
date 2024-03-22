@@ -23,7 +23,6 @@ import {
   PackageId,
   EnsureStorePath,
   ExtractStore,
-  DaemonReturned,
   ValidIfNoStupidEscape,
 } from "./types"
 import * as patterns from "./util/patterns"
@@ -50,7 +49,11 @@ import { Uninstall, UninstallFn, setupUninstall } from "./inits/setupUninstall"
 import { setupMain } from "./mainFn"
 import { defaultTrigger } from "./trigger/defaultTrigger"
 import { changeOnFirstSuccess, cooldownTrigger } from "./trigger"
-import setupConfig, { Read, Save } from "./config/setupConfig"
+import setupConfig, {
+  DependenciesReceipt,
+  Read,
+  Save,
+} from "./config/setupConfig"
 import {
   InterfacesReceipt,
   SetInterfaces,
@@ -72,6 +75,9 @@ import { getStore } from "./store/getStore"
 import { CommandOptions, MountOptions, Overlay } from "./util/Overlay"
 import { splitCommand } from "./util/splitCommand"
 import { Mounts } from "./mainFn/Mounts"
+import { Dependency } from "./Dependency"
+import * as T from "./types"
+import { Checker, EmVer } from "./emverLite/mod"
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
@@ -104,6 +110,20 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
   }
 
   build(isReady: AnyNeverCond<[Manifest, Store], "Build not ready", true>) {
+    type DependencyType = {
+      [K in keyof {
+        [K in keyof Manifest["dependencies"]]: Manifest["dependencies"][K]["optional"] extends false
+          ? K
+          : never
+      }]: Dependency
+    } & {
+      [K in keyof {
+        [K in keyof Manifest["dependencies"]]: Manifest["dependencies"][K]["optional"] extends true
+          ? K
+          : never
+      }]?: Dependency
+    }
+
     return {
       serviceInterface: {
         getOwn: <E extends Effects>(effects: E, id: ServiceInterfaceId) =>
@@ -184,7 +204,8 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           | Config<any, never>,
         Type extends Record<string, any> = ExtractConfigType<ConfigType>,
       >(
-        metaData: Omit<ActionMetadata, "input"> & {
+        id: string,
+        metadata: Omit<ActionMetadata, "input"> & {
           input: Config<Type, Store> | Config<Type, never>
         },
         fn: (options: {
@@ -192,8 +213,13 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           input: Type
         }) => Promise<ActionResult>,
       ) => {
-        const { input, ...rest } = metaData
-        return createAction<Manifest, Store, ConfigType, Type>(rest, fn, input)
+        const { input, ...rest } = metadata
+        return createAction<Manifest, Store, ConfigType, Type>(
+          id,
+          rest,
+          fn,
+          input,
+        )
       },
       getSystemSmtp: <E extends Effects>(effects: E) =>
         removeConstType<E>()(new GetSystemSmtp(effects)),
@@ -205,16 +231,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           mounts?: { path: string; options: MountOptions }[]
         },
       ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> => {
-        const commands = splitCommand(command)
-        const overlay = await Overlay.of(effects, imageId)
-        try {
-          for (let mount of options.mounts || []) {
-            await overlay.mount(mount.options, mount.path)
-          }
-          return await overlay.exec(commands)
-        } finally {
-          await overlay.destroy()
-        }
+        return runCommand<Manifest>(effects, imageId, command, options)
       },
 
       createDynamicAction: <
@@ -224,7 +241,8 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           | Config<any, never>,
         Type extends Record<string, any> = ExtractConfigType<ConfigType>,
       >(
-        metaData: (options: {
+        id: string,
+        metadata: (options: {
           effects: Effects
         }) => MaybePromise<Omit<ActionMetadata, "input">>,
         fn: (options: {
@@ -234,13 +252,19 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         input: Config<Type, Store> | Config<Type, never>,
       ) => {
         return createAction<Manifest, Store, ConfigType, Type>(
-          metaData,
+          id,
+          metadata,
           fn,
           input,
         )
       },
       HealthCheck: {
         of: healthCheck,
+      },
+      Dependency: {
+        of(data: Dependency["data"]) {
+          return new Dependency({ ...data })
+        },
       },
       healthCheck: {
         checkPortListening,
@@ -284,15 +308,51 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
             Store,
             Input,
             any
-          >
+          > | null
         },
       ) => setupDependencyConfig<Store, Input, Manifest>(config, autoConfigs),
+      setupDependencies: <Input extends Record<string, any>>(
+        fn: (options: {
+          effects: Effects
+          input: Input | null
+        }) => Promise<DependencyType>,
+      ) => {
+        return async (options: { effects: Effects; input: Input }) => {
+          const dependencyType = await fn(options)
+          return await options.effects.setDependencies({
+            dependencies: Object.entries(dependencyType).map(
+              ([
+                id,
+                {
+                  data: { versionSpec, ...x },
+                },
+              ]) => ({
+                id,
+                ...x,
+                ...(x.type === "running"
+                  ? {
+                      kind: "running",
+                      healthChecks: x.healthChecks,
+                    }
+                  : {
+                      kind: "exists",
+                    }),
+                versionSpec: versionSpec.range,
+              }),
+            ),
+          })
+        }
+      },
       setupExports: (fn: SetupExports<Store>) => fn,
       setupInit: (
         migrations: Migrations<Manifest, Store>,
         install: Install<Manifest, Store>,
         uninstall: Uninstall<Manifest, Store>,
         setInterfaces: SetInterfaces<Manifest, Store, any, any>,
+        setDependencies: (options: {
+          effects: Effects
+          input: any
+        }) => Promise<DependenciesReceipt>,
         setupExports: SetupExports<Store>,
       ) =>
         setupInit<Manifest, Store>(
@@ -301,6 +361,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           uninstall,
           setInterfaces,
           setupExports,
+          setDependencies,
         ),
       setupInstall: (fn: InstallFn<Manifest, Store>) => Install.of(fn),
       setupInterfaces: <
@@ -355,6 +416,9 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           spec: Spec,
         ) => Config.of<Spec, Store>(spec),
       },
+      Checker: {
+        parse: Checker.parse,
+      },
       Daemons: {
         of(config: {
           effects: Effects
@@ -369,13 +433,17 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           LocalConfig extends Record<string, any>,
           RemoteConfig extends Record<string, any>,
         >({
-          localConfig,
-          remoteConfig,
+          localConfigSpec,
+          remoteConfigSpec,
           dependencyConfig,
           update,
         }: {
-          localConfig: Config<LocalConfig, Store> | Config<LocalConfig, never>
-          remoteConfig: Config<RemoteConfig, any> | Config<RemoteConfig, never>
+          localConfigSpec:
+            | Config<LocalConfig, Store>
+            | Config<LocalConfig, never>
+          remoteConfigSpec:
+            | Config<RemoteConfig, any>
+            | Config<RemoteConfig, never>
           dependencyConfig: (options: {
             effects: Effects
             localConfig: LocalConfig
@@ -389,6 +457,10 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
             RemoteConfig
           >(dependencyConfig, update)
         },
+      },
+      EmVer: {
+        from: EmVer.from,
+        parse: EmVer.parse,
       },
       List: {
         text: List.text,
@@ -652,5 +724,25 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         ) => Variants.of<VariantValues, Store>(a),
       },
     }
+  }
+}
+
+export async function runCommand<Manifest extends SDKManifest>(
+  effects: Effects,
+  imageId: Manifest["images"][number],
+  command: string | [string, ...string[]],
+  options: CommandOptions & {
+    mounts?: { path: string; options: MountOptions }[]
+  },
+): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
+  const commands = splitCommand(command)
+  const overlay = await Overlay.of(effects, imageId)
+  try {
+    for (let mount of options.mounts || []) {
+      await overlay.mount(mount.options, mount.path)
+    }
+    return await overlay.exec(commands)
+  } finally {
+    await overlay.destroy()
   }
 }

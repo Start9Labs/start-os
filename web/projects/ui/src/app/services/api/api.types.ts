@@ -1,6 +1,5 @@
 import { Dump, Revision } from 'patch-db-client'
 import { MarketplacePkg, StoreInfo, Manifest } from '@start9labs/marketplace'
-import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import {
   DataModel,
   DomainInfo,
@@ -16,7 +15,8 @@ import {
   FollowLogsRes,
   FollowLogsReq,
 } from '@start9labs/shared'
-import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
+import { customSmtp } from '@start9labs/start-sdk/cjs/sdk/lib/config/configConstants'
+import { InputSpec } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
 
 export module RR {
   // DB
@@ -596,8 +596,8 @@ export enum NotificationLevel {
 export type NotificationData<T> = T extends 0
   ? null
   : T extends 1
-  ? BackupReport
-  : any
+    ? BackupReport
+    : any
 
 export interface BackupReport {
   server: {

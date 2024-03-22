@@ -30,7 +30,7 @@ export class ServiceInterfaceRoute {
   readonly interfaceInfo$ = inject(PatchDB<DataModel>).watch$(
     'package-data',
     this.context.packageId,
-    'installed',
+    'state-info',
     'interfaceInfo',
     this.context.interfaceId,
   )

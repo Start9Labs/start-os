@@ -2,7 +2,7 @@
   <!-- color background -->
   <div class="background">
     <img
-      [src]="pkg | mimeType | trustUrl"
+      [src]="pkg.icon| trustUrl"
       alt="{{ pkg.manifest.title }} Icon"
     />
   </div>
@@ -10,7 +10,7 @@
   <div class="overlay"></div>
   <!-- icon -->
   <img
-    [src]="pkg | mimeType | trustUrl"
+    [src]="pkg.icon | trustUrl"
     class="icon box-shadow-lg"
     alt="{{ pkg.manifest.title }} Icon"
   />

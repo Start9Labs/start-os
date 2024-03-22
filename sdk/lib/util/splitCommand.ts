@@ -1,8 +1,7 @@
 import { arrayOf, string } from "ts-matches"
-import { ValidIfNoStupidEscape } from "../types"
 
-export const splitCommand = <A>(
-  command: ValidIfNoStupidEscape<A> | [string, ...string[]],
+export const splitCommand = (
+  command: string | [string, ...string[]],
 ): string[] => {
   if (arrayOf(string).test(command)) return command
   return String(command)

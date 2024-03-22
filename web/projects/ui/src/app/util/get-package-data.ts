@@ -3,12 +3,12 @@ import {
   DataModel,
   InstalledState,
   InstallingState,
-  Manifest,
   PackageDataEntry,
   PackageState,
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
 import { firstValueFrom } from 'rxjs'
+import { Manifest } from '@start9labs/marketplace'
 
 export async function getPackage(
   patch: PatchDB<DataModel>,
