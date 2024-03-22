@@ -40,8 +40,8 @@ export module RR {
   export type LogoutRes = null
 
   export type ResetPasswordReq = {
-    'old-password': string
-    'new-password': string
+    oldPassword: string
+    newPassword: string
   } // auth.reset-password
   export type ResetPasswordRes = null
 
@@ -68,7 +68,7 @@ export module RR {
     metrics: Metrics
   }
 
-  export type UpdateServerReq = { 'marketplace-url': string } // server.update
+  export type UpdateServerReq = { marketplaceUrl: string } // server.update
   export type UpdateServerRes = 'updating' | 'no-updates'
 
   export type SetServerClearnetAddressReq = { domainInfo: DomainInfo | null } // server.set-clearnet
@@ -84,7 +84,7 @@ export module RR {
   export type SystemRebuildRes = null
 
   export type ResetTorReq = {
-    'wipe-state': boolean
+    wipeState: boolean
     reason: string
   } // net.tor.reset
   export type ResetTorRes = null
@@ -186,7 +186,7 @@ export module RR {
     connected: string | null
     country: string | null
     ethernet: boolean
-    'available-wifi': AvailableWifi[]
+    availableWifi: AvailableWifi[]
   }
 
   export type AddWifiReq = {
@@ -230,7 +230,7 @@ export module RR {
 
   export type GetBackupTargetsReq = {} // backup.target.list
   export type GetBackupTargetsRes = {
-    'unknown-disks': UnknownDisk[]
+    unknownDisks: UnknownDisk[]
     saved: BackupTarget[]
   }
 
@@ -276,9 +276,9 @@ export module RR {
 
   export type CreateBackupJobReq = {
     name: string
-    'target-id': string
+    targetId: string
     cron: string
-    'package-ids': string[]
+    packageIds: string[]
     now: boolean
   } // backup.job.create
   export type CreateBackupJobRes = BackupJob
@@ -297,10 +297,10 @@ export module RR {
   export type DeleteBackupRunsReq = { ids: string[] } // backup.runs.delete
   export type DeleteBackupRunsRes = null
 
-  export type GetBackupInfoReq = { 'target-id': string; password: string } // backup.target.info
+  export type GetBackupInfoReq = { targetId: string; password: string } // backup.target.info
   export type GetBackupInfoRes = BackupInfo
 
-  export type CreateBackupReq = { 'target-id': string; 'package-ids': string[] } // backup.create
+  export type CreateBackupReq = { targetId: string; packageIds: string[] } // backup.create
   export type CreateBackupRes = null
 
   // package
@@ -316,9 +316,9 @@ export module RR {
 
   export type InstallPackageReq = {
     id: string
-    'version-spec'?: string
-    'version-priority'?: 'min' | 'max'
-    'marketplace-url': string
+    versionSpec?: string
+    versionPriority?: 'min' | 'max'
+    marketplaceUrl: string
   } // package.install
   export type InstallPackageRes = null
 
@@ -334,14 +334,15 @@ export module RR {
   export type RestorePackagesReq = {
     // package.backup.restore
     ids: string[]
-    'target-id': string
+    targetId: string
+    oldPassword: string | null
     password: string
   }
   export type RestorePackagesRes = null
 
   export type ExecutePackageActionReq = {
     id: string
-    'action-id': string
+    actionId: string
     input?: object
   } // package.action
   export type ExecutePackageActionRes = ActionResponse
@@ -359,12 +360,12 @@ export module RR {
   export type UninstallPackageRes = null
 
   export type DryConfigureDependencyReq = {
-    'dependency-id': string
-    'dependent-id': string
+    dependencyId: string
+    dependentId: string
   } // package.dependency.configure.dry
   export type DryConfigureDependencyRes = {
-    'old-config': object
-    'new-config': object
+    oldConfig: object
+    newConfig: object
     spec: InputSpec
   }
 
@@ -389,10 +390,10 @@ export module RR {
 
   // marketplace
 
-  export type GetMarketplaceInfoReq = { 'server-id': string }
+  export type GetMarketplaceInfoReq = { serverId: string }
   export type GetMarketplaceInfoRes = StoreInfo
 
-  export type GetMarketplaceEosReq = { 'server-id': string }
+  export type GetMarketplaceEosReq = { serverId: string }
   export type GetMarketplaceEosRes = MarketplaceEOS
 
   export type GetMarketplacePackagesReq = {
@@ -401,7 +402,7 @@ export module RR {
     category?: string
     query?: string
     page?: number
-    'per-page'?: number
+    perPage?: number
   }
   export type GetMarketplacePackagesRes = MarketplacePkg[]
 
@@ -412,7 +413,7 @@ export module RR {
 export interface MarketplaceEOS {
   version: string
   headline: string
-  'release-notes': { [version: string]: string }
+  releaseNotes: { [version: string]: string }
 }
 
 export interface Breakages {
@@ -442,31 +443,31 @@ export interface Metrics {
   }
   memory: {
     total: MetricData
-    'percentage-used': MetricData
+    percentageUsed: MetricData
     used: MetricData
     available: MetricData
-    'zram-total': MetricData
-    'zram-used': MetricData
-    'zram-available': MetricData
+    zramTotal: MetricData
+    zramUsed: MetricData
+    zramAvailable: MetricData
   }
   cpu: {
-    'percentage-used': MetricData
+    percentageUsed: MetricData
     idle: MetricData
-    'user-space': MetricData
-    'kernel-space': MetricData
+    userSpace: MetricData
+    kernelSpace: MetricData
     wait: MetricData
   }
   disk: {
     capacity: MetricData
-    'percentage-used': MetricData
+    percentageUsed: MetricData
     used: MetricData
     available: MetricData
   }
 }
 
 export interface Session {
-  'last-active': string
-  'user-agent': string
+  lastActive: string
+  userAgent: string
   metadata: SessionMetadata
 }
 
@@ -503,6 +504,7 @@ export interface UnknownDisk {
   label: string | null
   capacity: number
   used: number | null
+  startOs: StartOSDiskInfo | null
 }
 
 export interface BaseBackupTarget {
@@ -511,7 +513,7 @@ export interface BaseBackupTarget {
   name: string
   mountable: boolean
   path: string
-  'embassy-os': StartOSDiskInfo | null
+  startOs: StartOSDiskInfo | null
 }
 
 export interface DiskBackupTarget extends UnknownDisk, BaseBackupTarget {
@@ -543,13 +545,13 @@ export interface BackupJob {
   name: string
   target: BackupTarget
   cron: string // '* * * * * *' https://cloud.google.com/scheduler/docs/configuring/cron-job-schedules
-  'package-ids': string[]
+  packageIds: string[]
 }
 
 export interface BackupInfo {
   version: string
   timestamp: string
-  'package-backups': {
+  packageBackups: {
     [id: string]: PackageBackupInfo
   }
 }
@@ -557,7 +559,7 @@ export interface BackupInfo {
 export interface PackageBackupInfo {
   title: string
   version: string
-  'os-version': string
+  osVersion: string
   timestamp: string
 }
 
@@ -566,7 +568,7 @@ export interface ServerSpecs {
 }
 
 export interface SSHKey {
-  'created-at': string
+  createdAt: string
   alg: string
   hostname: string
   fingerprint: string
@@ -576,8 +578,8 @@ export type ServerNotifications = ServerNotification<number>[]
 
 export interface ServerNotification<T extends number> {
   id: number
-  'package-id': string | null
-  'created-at': string
+  packageId: string | null
+  createdAt: string
   code: T
   level: NotificationLevel
   title: string
@@ -596,8 +598,8 @@ export enum NotificationLevel {
 export type NotificationData<T> = T extends 0
   ? null
   : T extends 1
-    ? BackupReport
-    : any
+  ? BackupReport
+  : any
 
 export interface BackupReport {
   server: {

@@ -71,8 +71,7 @@ export class FilterPackagesPipe implements PipeTransform {
       .filter(p => category === 'all' || p.categories.includes(category!))
       .sort((a, b) => {
         return (
-          new Date(b['published-at']).valueOf() -
-          new Date(a['published-at']).valueOf()
+          new Date(b.publishedAt).valueOf() - new Date(a.publishedAt).valueOf()
         )
       })
       .map(a => ({ ...a }))

@@ -22,7 +22,7 @@ export type PkgDependencyErrors = Record<string, DependencyError | null>
 })
 export class DepErrorService {
   readonly depErrors$: Observable<AllDependencyErrors> = this.patch
-    .watch$('package-data')
+    .watch$('packageData')
     .pipe(
       map(pkgs =>
         Object.keys(pkgs)
@@ -56,7 +56,7 @@ export class DepErrorService {
   }
 
   private getDepErrors(
-    pkgs: DataModel['package-data'],
+    pkgs: DataModel['packageData'],
     pkgId: string,
     outerErrors: AllDependencyErrors,
   ): PkgDependencyErrors {
@@ -74,7 +74,7 @@ export class DepErrorService {
   }
 
   private getDepError(
-    pkgs: DataModel['package-data'],
+    pkgs: DataModel['packageData'],
     pkg: PackageDataEntry<InstalledState>,
     depId: string,
     outerErrors: AllDependencyErrors,
@@ -82,14 +82,14 @@ export class DepErrorService {
     const dep = pkgs[depId]
 
     // not installed
-    if (!dep || dep['state-info'].state !== PackageState.Installed) {
+    if (!dep || dep.stateInfo.state !== PackageState.Installed) {
       return {
         type: DependencyErrorType.NotInstalled,
       }
     }
 
-    const versionRange = pkg['current-dependencies'][depId].versionRange
-    const depManifest = dep['state-info'].manifest
+    const versionRange = pkg.currentDependencies[depId].versionRange
+    const depManifest = dep.stateInfo.manifest
 
     // incorrect version
     if (!this.emver.satisfies(depManifest.version, versionRange)) {
@@ -101,9 +101,7 @@ export class DepErrorService {
     }
 
     // invalid config
-    if (
-      Object.values(pkg.status['dependency-config-errors']).some(err => !!err)
-    ) {
+    if (Object.values(pkg.status.dependencyConfigErrors).some(err => !!err)) {
       return {
         type: DependencyErrorType.ConfigUnsatisfied,
       }
@@ -123,7 +121,7 @@ export class DepErrorService {
 
     // health check failure
     if (depStatus === PackageMainStatus.Running) {
-      for (let id of pkg['current-dependencies'][depId]['health-checks']) {
+      for (let id of pkg.currentDependencies[depId].healthChecks) {
         if (dep.status.main.health[id]?.result !== HealthResult.Success) {
           return {
             type: DependencyErrorType.HealthChecksFailed,
@@ -147,14 +145,14 @@ export class DepErrorService {
   }
 }
 
-function currentDeps(pkgs: DataModel['package-data'], id: string): string[] {
-  return Object.keys(pkgs[id]?.['current-dependencies'] || {}).filter(
+function currentDeps(pkgs: DataModel['packageData'], id: string): string[] {
+  return Object.keys(pkgs[id]?.currentDependencies || {}).filter(
     depId => depId !== id,
   )
 }
 
 function dependencyDepth(
-  pkgs: DataModel['package-data'],
+  pkgs: DataModel['packageData'],
   id: string,
   depth = 0,
 ): number {

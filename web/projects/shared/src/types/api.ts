@@ -1,6 +1,6 @@
 export type FollowLogsReq = {}
 export type FollowLogsRes = {
-  'start-cursor': string
+  startCursor: string
   guid: string
 }
 
@@ -12,8 +12,8 @@ export type FetchLogsReq = {
 
 export type FetchLogsRes = {
   entries: Log[]
-  'start-cursor'?: string
-  'end-cursor'?: string
+  startCursor?: string
+  endCursor?: string
 }
 
 export interface Log {
@@ -37,19 +37,19 @@ export interface PartitionInfo {
   label: string | null
   capacity: number
   used: number | null
-  'embassy-os': StartOSDiskInfo | null
+  startOs: StartOSDiskInfo | null
   guid: string | null
 }
 
 export type StartOSDiskInfo = {
   version: string
   full: boolean
-  'password-hash': string | null
-  'wrapped-key': string | null
+  passwordHash: string | null
+  wrappedKey: string | null
 }
 
 export interface SetupStatus {
-  'bytes-transferred': number
-  'total-bytes': number | null
+  bytesTransferred: number
+  totalBytes: number | null
   complete: boolean
 }

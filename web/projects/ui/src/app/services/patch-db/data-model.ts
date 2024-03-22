@@ -2,30 +2,30 @@ import { BackupJob, ServerNotifications } from '../api/api.types'
 import { Url } from '@start9labs/shared'
 import { Manifest } from '@start9labs/marketplace'
 import { types } from '@start9labs/start-sdk'
-import { InputSpec } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
 import {
   ActionMetadata,
   HostnameInfo,
 } from '@start9labs/start-sdk/cjs/sdk/lib/types'
 import { customSmtp } from '@start9labs/start-sdk/cjs/sdk/lib/config/configConstants'
+
 type ServiceInterfaceWithHostInfo = types.ServiceInterfaceWithHostInfo
 
 export interface DataModel {
-  'server-info': ServerInfo
-  'package-data': { [id: string]: PackageDataEntry }
+  serverInfo: ServerInfo
+  packageData: { [id: string]: PackageDataEntry }
   ui: UIData
 }
 
 export interface UIData {
   name: string | null
-  'ack-welcome': string // emver
+  ackWelcome: string // emver
   marketplace: UIMarketplaceData
   gaming: {
     snake: {
-      'high-score': number
+      highScore: number
     }
   }
-  'ack-instructions': Record<string, boolean>
+  ackInstructions: Record<string, boolean>
   theme: string
   widgets: readonly Widget[]
   desktop: readonly string[]
@@ -45,8 +45,8 @@ export interface Widget {
 }
 
 export interface UIMarketplaceData {
-  'selected-url': string
-  'known-hosts': {
+  selectedUrl: string
+  knownHosts: {
     'https://registry.start9.com/': UIStore
     'https://community-registry.start9.com/': UIStore
     [url: string]: UIStore
@@ -63,18 +63,18 @@ export interface ServerInfo {
   country: string
   ui: HostnameInfo[]
   network: NetworkInfo
-  'last-backup': string | null
+  lastBackup: string | null
   unreadNotifications: {
     count: number
     recent: ServerNotifications
   }
-  'status-info': ServerStatusInfo
-  'eos-version-compat': string
+  statusInfo: ServerStatusInfo
+  eosVersionCompat: string
   pubkey: string
-  'ca-fingerprint': string
-  'ntp-synced': boolean
+  caFingerprint: string
+  ntpSynced: boolean
   smtp: typeof customSmtp.validator._TYPE
-  'password-hash': string
+  passwordHash: string
   platform: string
 }
 
@@ -154,18 +154,14 @@ export interface IpInfo {
 }
 
 export interface ServerStatusInfo {
-  'current-backup': null | {
+  currentBackup: null | {
     job: BackupJob
-    'backup-progress': {
-      [packageId: string]: {
-        complete: boolean
-      }
-    }
+    backupProgress: Record<string, boolean>
   }
   updated: boolean
-  'update-progress': { size: number | null; downloaded: number } | null
+  updateProgress: { size: number | null; downloaded: number } | null
   restarting: boolean
-  'shutting-down': boolean
+  shuttingDown: boolean
 }
 
 export enum ServerStatus {
@@ -175,22 +171,21 @@ export enum ServerStatus {
 }
 
 export type PackageDataEntry<T extends StateInfo = StateInfo> = {
-  'state-info': T
+  stateInfo: T
   icon: Url
   status: Status
   actions: Record<string, ActionMetadata>
-  'last-backup': string | null
-  'current-dependencies': { [id: string]: CurrentDependencyInfo }
-  'dependency-info': {
+  lastBackup: string | null
+  currentDependencies: { [id: string]: CurrentDependencyInfo }
+  dependencyInfo: {
     [id: string]: {
       title: string
       icon: Url
     }
   }
-  'service-interfaces': Record<string, ServiceInterfaceWithHostInfo>
-  'marketplace-url': string | null
-  'developer-key': string
-  'has-config': boolean
+  serviceInterfaces: Record<string, ServiceInterfaceWithHostInfo>
+  marketplaceUrl: string | null
+  developerKey: string
   outboundProxy: ServiceOutboundProxy
 }
 
@@ -203,12 +198,12 @@ export type InstalledState = {
 
 export type InstallingState = {
   state: PackageState.Installing | PackageState.Restoring
-  'installing-info': InstallingInfo
+  installingInfo: InstallingInfo
 }
 
 export type UpdatingState = {
   state: PackageState.Updating
-  'installing-info': InstallingInfo
+  installingInfo: InstallingInfo
   manifest: Manifest
 }
 
@@ -222,13 +217,13 @@ export enum PackageState {
 
 export interface CurrentDependencyInfo {
   versionRange: string
-  'health-checks': string[] // array of health check IDs
+  healthChecks: string[] // array of health check IDs
 }
 
 export interface Status {
   configured: boolean
   main: MainStatus
-  'dependency-config-errors': { [id: string]: string | null }
+  dependencyConfigErrors: { [id: string]: string | null }
 }
 
 export type MainStatus =
@@ -322,7 +317,7 @@ export interface HealthCheckResultFailure {
 
 export type InstallingInfo = {
   progress: FullProgress
-  'new-manifest': Manifest
+  newManifest: Manifest
 }
 
 export type FullProgress = {

@@ -232,8 +232,8 @@ export class MockApiService extends ApiService {
 
     return {
       entries,
-      'start-cursor': 'startCursor',
-      'end-cursor': 'endCursor',
+      startCursor: 'start-cursor',
+      endCursor: 'end-cursor',
     }
   }
 
@@ -245,8 +245,8 @@ export class MockApiService extends ApiService {
 
     return {
       entries,
-      'start-cursor': 'startCursor',
-      'end-cursor': 'endCursor',
+      startCursor: 'start-cursor',
+      endCursor: 'end-cursor',
     }
   }
 
@@ -256,8 +256,8 @@ export class MockApiService extends ApiService {
 
     return {
       entries,
-      'start-cursor': 'startCursor',
-      'end-cursor': 'endCursor',
+      startCursor: 'startCursor',
+      endCursor: 'end-cursor',
     }
   }
 
@@ -266,7 +266,7 @@ export class MockApiService extends ApiService {
   ): Promise<RR.FollowServerLogsRes> {
     await pauseFor(2000)
     return {
-      'start-cursor': 'start-cursor',
+      startCursor: 'start-cursor',
       guid: '7251d5be-645f-4362-a51b-3a85be92b31e',
     }
   }
@@ -276,7 +276,7 @@ export class MockApiService extends ApiService {
   ): Promise<RR.FollowServerLogsRes> {
     await pauseFor(2000)
     return {
-      'start-cursor': 'start-cursor',
+      startCursor: 'start-cursor',
       guid: '7251d5be-645f-4362-a51b-3a85be92b31e',
     }
   }
@@ -286,7 +286,7 @@ export class MockApiService extends ApiService {
   ): Promise<RR.FollowServerLogsRes> {
     await pauseFor(2000)
     return {
-      'start-cursor': 'start-cursor',
+      startCursor: 'start-cursor',
       guid: '7251d5be-645f-4362-a51b-3a85be92b31e',
     }
   }
@@ -324,7 +324,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/status-info/update-progress',
+        path: '/serverInfo/statusInfo/updateProgress',
         value: initialProgress,
       },
     ]
@@ -358,7 +358,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/status-info/restarting',
+        path: '/serverInfo/statusInfo/restarting',
         value: true,
       },
     ]
@@ -368,7 +368,7 @@ export class MockApiService extends ApiService {
       const patch2 = [
         {
           op: PatchOp.REPLACE,
-          path: '/server-info/status-info/restarting',
+          path: '/serverInfo/statusInfo/restarting',
           value: false,
         },
       ]
@@ -386,7 +386,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/status-info/shutting-down',
+        path: '/serverInfo/statusInfo/shuttingDown',
         value: true,
       },
     ]
@@ -396,7 +396,7 @@ export class MockApiService extends ApiService {
       const patch2 = [
         {
           op: PatchOp.REPLACE,
-          path: '/server-info/status-info/shutting-down',
+          path: '/serverInfo/statusInfo/shuttingDown',
           value: false,
         },
       ]
@@ -781,7 +781,7 @@ export class MockApiService extends ApiService {
       path: path.replace(/\\/g, '/'),
       username: 'mockusername',
       mountable: true,
-      'embassy-os': null,
+      startOs: null,
     }
   }
 
@@ -816,7 +816,7 @@ export class MockApiService extends ApiService {
       name: params.name,
       target: Mock.BackupTargets.saved[0],
       cron: params.cron,
-      'package-ids': params['package-ids'],
+      packageIds: params.packageIds,
     }
   }
 
@@ -860,13 +860,13 @@ export class MockApiService extends ApiService {
 
   async createBackup(params: RR.CreateBackupReq): Promise<RR.CreateBackupRes> {
     await pauseFor(2000)
-    const path = '/server-info/status-info/backup-progress'
-    const ids = params['package-ids']
+    const path = '/serverInfo/statusInfo/backupProgress'
+    const ids = params.packageIds
 
     setTimeout(async () => {
       for (let i = 0; i < ids.length; i++) {
         const id = ids[i]
-        const appPath = `/package-data/${id}/status/main/status`
+        const appPath = `/packageData/${id}/status/main/status`
         const appPatch = [
           {
             op: PatchOp.REPLACE,
@@ -952,8 +952,8 @@ export class MockApiService extends ApiService {
     }
     return {
       entries,
-      'start-cursor': 'startCursor',
-      'end-cursor': 'endCursor',
+      startCursor: 'startCursor',
+      endCursor: 'end-cursor',
     }
   }
 
@@ -962,7 +962,7 @@ export class MockApiService extends ApiService {
   ): Promise<RR.FollowPackageLogsRes> {
     await pauseFor(2000)
     return {
-      'start-cursor': 'start-cursor',
+      startCursor: 'start-cursor',
       guid: '7251d5be-645f-4362-a51b-3a85be92b31e',
     }
   }
@@ -976,17 +976,17 @@ export class MockApiService extends ApiService {
       this.updateProgress(params.id)
     }, 1000)
 
-    const manifest = Mock.LocalPkgs[params.id]['state-info'].manifest
+    const manifest = Mock.LocalPkgs[params.id].stateInfo.manifest
 
     const patch: Operation<
       PackageDataEntry<InstallingState | UpdatingState>
     >[] = [
       {
         op: PatchOp.ADD,
-        path: `/package-data/${params.id}`,
+        path: `/packageData/${params.id}`,
         value: {
           ...Mock.LocalPkgs[params.id],
-          'state-info': {
+          stateInfo: {
             // if installing
             state: PackageState.Installing,
 
@@ -995,8 +995,8 @@ export class MockApiService extends ApiService {
             // manifest,
 
             // both
-            'installing-info': {
-              'new-manifest': manifest,
+            installingInfo: {
+              newManifest: manifest,
               progress: PROGRESS,
             },
           },
@@ -1032,7 +1032,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: `/package-data/${params.id}/status/configured`,
+        path: `/packageData/${params.id}/status/configured`,
         value: true,
       },
     ]
@@ -1052,13 +1052,13 @@ export class MockApiService extends ApiService {
 
       return {
         op: PatchOp.ADD,
-        path: `/package-data/${id}`,
+        path: `/packageData/${id}`,
         value: {
           ...Mock.LocalPkgs[id],
-          'state-info': {
+          stateInfo: {
             state: PackageState.Restoring,
-            'installing-info': {
-              'new-manifest': Mock.LocalPkgs[id]['state-info'].manifest!,
+            installingInfo: {
+              newManifest: Mock.LocalPkgs[id].stateInfo.manifest!,
               progress: PROGRESS,
             },
           },
@@ -1079,7 +1079,7 @@ export class MockApiService extends ApiService {
   }
 
   async startPackage(params: RR.StartPackageReq): Promise<RR.StartPackageRes> {
-    const path = `/package-data/${params.id}/status/main`
+    const path = `/packageData/${params.id}/status/main`
 
     await pauseFor(2000)
 
@@ -1128,7 +1128,7 @@ export class MockApiService extends ApiService {
   ): Promise<RR.RestartPackageRes> {
     // first enact stop
     await pauseFor(2000)
-    const path = `/package-data/${params.id}/status/main`
+    const path = `/packageData/${params.id}/status/main`
 
     setTimeout(async () => {
       const patch2: Operation<any>[] = [
@@ -1204,7 +1204,7 @@ export class MockApiService extends ApiService {
 
   async stopPackage(params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
     await pauseFor(2000)
-    const path = `/package-data/${params.id}/status/main`
+    const path = `/packageData/${params.id}/status/main`
 
     setTimeout(() => {
       const patch2 = [
@@ -1244,7 +1244,7 @@ export class MockApiService extends ApiService {
       const patch2: RemoveOperation[] = [
         {
           op: PatchOp.REMOVE,
-          path: `/package-data/${params.id}`,
+          path: `/packageData/${params.id}`,
         },
       ]
       this.mockRevision(patch2)
@@ -1253,7 +1253,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: `/package-data/${params.id}/state-info/state`,
+        path: `/packageData/${params.id}/stateInfo/state`,
         value: PackageState.Removing,
       },
     ]
@@ -1268,8 +1268,8 @@ export class MockApiService extends ApiService {
   ): Promise<RR.DryConfigureDependencyRes> {
     await pauseFor(2000)
     return {
-      'old-config': Mock.MockConfig,
-      'new-config': Mock.MockDependencyConfig,
+      oldConfig: Mock.MockConfig,
+      newConfig: Mock.MockDependencyConfig,
       spec: await Mock.getInputSpec(),
     }
   }
@@ -1327,7 +1327,7 @@ export class MockApiService extends ApiService {
         const patches: Operation<any>[] = [
           {
             op: PatchOp.REPLACE,
-            path: `/package-data/${id}/state-info/installing-info/progress/phases/${i}/progress`,
+            path: `/packageData/${id}/stateInfo/installingInfo/progress/phases/${i}/progress`,
             value: true,
           },
         ]
@@ -1340,7 +1340,7 @@ export class MockApiService extends ApiService {
 
           patches.push({
             op: PatchOp.REPLACE,
-            path: `/package-data/${id}/state-info/installing-info/progress/overall/done`,
+            path: `/packageData/${id}/stateInfo/installingInfo/progress/overall/done`,
             value: progress.overall.done,
           })
         }
@@ -1357,7 +1357,7 @@ export class MockApiService extends ApiService {
           const patches: Operation<any>[] = [
             {
               op: PatchOp.REPLACE,
-              path: `/package-data/${id}/state-info/installing-info/progress/phases/${i}/progress/done`,
+              path: `/packageData/${id}/stateInfo/installingInfo/progress/phases/${i}/progress/done`,
               value: phase.progress.done,
             },
           ]
@@ -1370,7 +1370,7 @@ export class MockApiService extends ApiService {
 
             patches.push({
               op: PatchOp.REPLACE,
-              path: `/package-data/${id}/state-info/installing-info/progress/overall/done`,
+              path: `/packageData/${id}/stateInfo/installingInfo/progress/overall/done`,
               value: progress.overall.done,
             })
           }
@@ -1382,7 +1382,7 @@ export class MockApiService extends ApiService {
             this.mockRevision([
               {
                 op: PatchOp.REPLACE,
-                path: `/package-data/${id}/state-info/installing-info/progress/phases/${i}/progress`,
+                path: `/packageData/${id}/stateInfo/installingInfo/progress/phases/${i}/progress`,
                 value: true,
               },
             ])
@@ -1395,7 +1395,7 @@ export class MockApiService extends ApiService {
     this.mockRevision([
       {
         op: PatchOp.REPLACE,
-        path: `/package-data/${id}/state-info/installing-info/progress/overall`,
+        path: `/packageData/${id}/stateInfo/installingInfo/progress/overall`,
         value: true,
       },
     ])
@@ -1404,10 +1404,10 @@ export class MockApiService extends ApiService {
     const patch2: Operation<StateInfo>[] = [
       {
         op: PatchOp.REPLACE,
-        path: `/package-data/${id}/state-info`,
+        path: `/packageData/${id}/stateInfo`,
         value: {
           state: PackageState.Installed,
-          manifest: Mock.LocalPkgs[id]['state-info'].manifest,
+          manifest: Mock.LocalPkgs[id].stateInfo.manifest,
         },
       },
     ]
@@ -1421,7 +1421,7 @@ export class MockApiService extends ApiService {
     const patch0 = [
       {
         op: PatchOp.REPLACE,
-        path: `/server-info/status-info/update-progress/size`,
+        path: `/serverInfo/statusInfo/updateProgress/size`,
         value: size,
       },
     ]
@@ -1433,7 +1433,7 @@ export class MockApiService extends ApiService {
       const patch = [
         {
           op: PatchOp.REPLACE,
-          path: `/server-info/status-info/update-progress/downloaded`,
+          path: `/serverInfo/statusInfo/updateProgress/downloaded`,
           value: downloaded,
         },
       ]
@@ -1443,7 +1443,7 @@ export class MockApiService extends ApiService {
     const patch2 = [
       {
         op: PatchOp.REPLACE,
-        path: `/server-info/status-info/update-progress/downloaded`,
+        path: `/serverInfo/statusInfo/updateProgress/downloaded`,
         value: size,
       },
     ]
@@ -1453,12 +1453,12 @@ export class MockApiService extends ApiService {
       const patch3: Operation<boolean>[] = [
         {
           op: PatchOp.REPLACE,
-          path: '/server-info/status-info/updated',
+          path: '/serverInfo/statusInfo/updated',
           value: true,
         },
         {
           op: PatchOp.REMOVE,
-          path: '/server-info/status-info/update-progress',
+          path: '/serverInfo/statusInfo/updateProgress',
         },
       ]
       this.mockRevision(patch3)
@@ -1467,7 +1467,7 @@ export class MockApiService extends ApiService {
       const patch6 = [
         {
           op: PatchOp.REPLACE,
-          path: '/server-info/status-info',
+          path: '/serverInfo/statusInfo',
           value: Mock.ServerUpdated,
         },
       ]

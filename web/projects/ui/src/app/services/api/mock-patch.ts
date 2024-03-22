@@ -9,13 +9,13 @@ import { Mock } from './api.fixures'
 export const mockPatchData: DataModel = {
   ui: {
     name: `Matt's Server`,
-    'ack-welcome': '1.0.0',
+    ackWelcome: '1.0.0',
     theme: 'Dark',
     desktop: ['lnd'],
     widgets: [],
     marketplace: {
-      'selected-url': 'https://registry.start9.com/',
-      'known-hosts': {
+      selectedUrl: 'https://registry.start9.com/',
+      knownHosts: {
         'https://registry.start9.com/': {
           name: 'Start9 Registry',
         },
@@ -27,12 +27,12 @@ export const mockPatchData: DataModel = {
     },
     gaming: {
       snake: {
-        'high-score': 0,
+        highScore: 0,
       },
     },
-    'ack-instructions': {},
+    ackInstructions: {},
   },
-  'server-info': {
+  serverInfo: {
     id: 'abcdefgh',
     version: '0.3.5.1',
     country: 'us',
@@ -116,22 +116,22 @@ export const mockPatchData: DataModel = {
       },
       outboundProxy: null,
     },
-    'last-backup': new Date(new Date().valueOf() - 604800001).toISOString(),
+    lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
     unreadNotifications: {
       count: 4,
       recent: Mock.Notifications,
     },
-    'eos-version-compat': '>=0.3.0 <=0.3.0.1',
-    'status-info': {
-      'current-backup': null,
+    eosVersionCompat: '>=0.3.0 <=0.3.0.1',
+    statusInfo: {
+      currentBackup: null,
       updated: false,
-      'update-progress': null,
+      updateProgress: null,
       restarting: false,
-      'shutting-down': false,
+      shuttingDown: false,
     },
     pubkey: 'npub1sg6plzptd64u62a878hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m',
-    'ca-fingerprint': 'SHA-256: 63 2B 11 99 44 40 17 DF 37 FC C3 DF 0F 3D 15',
-    'ntp-synced': false,
+    caFingerprint: 'SHA-256: 63 2B 11 99 44 40 17 DF 37 FC C3 DF 0F 3D 15',
+    ntpSynced: false,
     smtp: {
       server: '',
       port: 587,
@@ -139,13 +139,13 @@ export const mockPatchData: DataModel = {
       login: '',
       password: '',
     },
-    'password-hash':
+    passwordHash:
       '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
     platform: 'x86_64-nonfree',
   },
-  'package-data': {
+  packageData: {
     bitcoind: {
-      'state-info': {
+      stateInfo: {
         state: PackageState.Installed,
         manifest: {
           ...Mock.MockManifestBitcoind,
@@ -153,7 +153,7 @@ export const mockPatchData: DataModel = {
         },
       },
       icon: '/assets/img/service-icons/bitcoind.svg',
-      'last-backup': null,
+      lastBackup: null,
       status: {
         configured: true,
         main: {
@@ -185,10 +185,10 @@ export const mockPatchData: DataModel = {
             },
           },
         },
-        'dependency-config-errors': {},
+        dependencyConfigErrors: {},
       },
       actions: {}, // @TODO
-      'service-interfaces': {
+      serviceInterfaces: {
         ui: {
           id: 'ui',
           hasPrimary: false,
@@ -404,15 +404,14 @@ export const mockPatchData: DataModel = {
           },
         },
       },
-      'current-dependencies': {},
-      'dependency-info': {},
-      'marketplace-url': 'https://registry.start9.com/',
-      'developer-key': 'developer-key',
-      'has-config': true,
+      currentDependencies: {},
+      dependencyInfo: {},
+      marketplaceUrl: 'https://registry.start9.com/',
+      developerKey: 'developer-key',
       outboundProxy: null,
     },
     lnd: {
-      'state-info': {
+      stateInfo: {
         state: PackageState.Installed,
         manifest: {
           ...Mock.MockManifestLnd,
@@ -420,18 +419,18 @@ export const mockPatchData: DataModel = {
         },
       },
       icon: '/assets/img/service-icons/lnd.png',
-      'last-backup': null,
+      lastBackup: null,
       status: {
         configured: true,
         main: {
           status: PackageMainStatus.Stopped,
         },
-        'dependency-config-errors': {
+        dependencyConfigErrors: {
           'btc-rpc-proxy': 'This is a config unsatisfied error',
         },
       },
       actions: {},
-      'service-interfaces': {
+      serviceInterfaces: {
         grpc: {
           id: 'grpc',
           hasPrimary: false,
@@ -641,17 +640,17 @@ export const mockPatchData: DataModel = {
           },
         },
       },
-      'current-dependencies': {
+      currentDependencies: {
         bitcoind: {
           versionRange: '>=26.0.0',
-          'health-checks': [],
+          healthChecks: [],
         },
         'btc-rpc-proxy': {
           versionRange: '>2.0.0',
-          'health-checks': [],
+          healthChecks: [],
         },
       },
-      'dependency-info': {
+      dependencyInfo: {
         bitcoind: {
           title: 'Bitcoin Core',
           icon: 'assets/img/service-icons/bitcoind.svg',
@@ -661,9 +660,8 @@ export const mockPatchData: DataModel = {
           icon: 'assets/img/service-icons/btc-rpc-proxy.png',
         },
       },
-      'marketplace-url': 'https://registry.start9.com/',
-      'developer-key': 'developer-key',
-      'has-config': true,
+      marketplaceUrl: 'https://registry.start9.com/',
+      developerKey: 'developer-key',
       outboundProxy: null,
     },
   },

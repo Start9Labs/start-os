@@ -25,7 +25,7 @@ export class PatchDataService extends Observable<DataModel> {
       // check for updates to eOS and services
       this.checkForUpdates()
       // show eos welcome message
-      this.showEosWelcome(ui['ack-welcome'])
+      this.showEosWelcome(ui.ackWelcome)
     }),
     share(),
   )
@@ -60,7 +60,7 @@ export class PatchDataService extends Observable<DataModel> {
       .subscribe({
         complete: () => {
           this.embassyApi
-            .setDbValue<string>(['ack-welcome'], this.config.version)
+            .setDbValue<string>(['ackWelcome'], this.config.version)
             .catch()
         },
       })

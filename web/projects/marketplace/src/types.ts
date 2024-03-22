@@ -29,10 +29,10 @@ export interface MarketplacePkg {
   manifest: Manifest
   categories: string[]
   versions: string[]
-  'dependency-metadata': {
+  dependencyMetadata: {
     [id: string]: DependencyMetadata
   }
-  'published-at': string
+  publishedAt: string
 }
 
 export interface DependencyMetadata {
@@ -46,19 +46,19 @@ export interface Manifest {
   id: string
   title: string
   version: string
-  'git-hash'?: string
+  gitHash?: string
   description: {
     short: string
     long: string
   }
   replaces?: string[]
-  'release-notes': string
+  releaseNotes: string
   license: string // name of license
-  'wrapper-repo': Url
-  'upstream-repo': Url
-  'support-site': Url
-  'marketing-site': Url
-  'donation-url': Url | null
+  wrapperRepo: Url
+  upstreamRepo: Url
+  supportSite: Url
+  marketingSite: Url
+  donationUrl: Url | null
   alerts: {
     install: string | null
     uninstall: string | null
@@ -67,8 +67,8 @@ export interface Manifest {
     stop: string | null
   }
   dependencies: Record<string, Dependency>
-  'os-version': string
-  'has-config': boolean
+  osVersion: string
+  hasConfig: boolean
 }
 
 export interface Dependency {

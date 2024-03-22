@@ -76,11 +76,10 @@ export class LiveApiService extends ApiService {
   }
 
   async execute(setupInfo: ExecuteReq) {
-    if (setupInfo['recovery-source']?.type === 'backup') {
-      if (isCifsSource(setupInfo['recovery-source'].target)) {
-        setupInfo['recovery-source'].target.path = setupInfo[
-          'recovery-source'
-        ].target.path.replace('/\\/g', '/')
+    if (setupInfo.recoverySource?.type === 'backup') {
+      if (isCifsSource(setupInfo.recoverySource.target)) {
+        setupInfo.recoverySource.target.path =
+          setupInfo.recoverySource.target.path.replace('/\\/g', '/')
       }
     }
 
@@ -106,7 +105,7 @@ export class LiveApiService extends ApiService {
 
     return {
       ...res,
-      'root-ca': encodeBase64(res['root-ca']),
+      rootCa: encodeBase64(res.rootCa),
     }
   }
 

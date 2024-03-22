@@ -4,7 +4,7 @@
     <div class="detail-container">
       <!-- git hash -->
       <div
-        *ngIf="pkg.manifest['git-hash'] as gitHash; else noHash"
+        *ngIf="pkg.manifest.gitHash as gitHash; else noHash"
         button
         detail="false"
         class="detail-container-item item-padding item-copy"
@@ -66,26 +66,26 @@
       </ng-template>
       <!-- links -->
       <marketplace-additional-link
-        [url]="pkg.manifest['marketing-site']"
-        *ngIf="pkg.manifest['marketing-site']"
+        *ngIf="pkg.manifest.marketingSite"
+        [url]="pkg.manifest.marketingSite"
         label="Marketing Site"
         class="item-padding item-pointer"
       ></marketplace-additional-link>
       <marketplace-additional-link
-        [url]="pkg.manifest['upstream-repo']"
-        *ngIf="pkg.manifest['upstream-repo']"
+        *ngIf="pkg.manifest.upstreamRepo"
+        [url]="pkg.manifest.upstreamRepo"
         label="Source Repository"
         class="item-padding item-pointer"
       ></marketplace-additional-link>
       <marketplace-additional-link
-        [url]="pkg.manifest['wrapper-repo']"
-        *ngIf="pkg.manifest['wrapper-repo']"
+        *ngIf="pkg.manifest.wrapperRepo"
+        [url]="pkg.manifest.wrapperRepo"
         label="Wrapper Repository"
         class="item-padding item-pointer"
       ></marketplace-additional-link>
       <marketplace-additional-link
-        [url]="pkg.manifest['support-site']"
-        *ngIf="pkg.manifest['support-site']"
+        *ngIf="pkg.manifest.supportSite"
+        [url]="pkg.manifest.supportSite"
         label="Support Site"
         class="item-padding item-pointer"
       ></marketplace-additional-link>

@@ -1,10 +1,10 @@
 <div class="outer-container">
   <div class="inner-container">
-    <tui-avatar class="dep-img" [src]="pkg['dependency-metadata'][dep.key].icon"></tui-avatar>
+    <tui-avatar class="dep-img" [src]="pkg.dependencyMetadata[dep.key].icon"></tui-avatar>
     <div class="wrapper-margin">
       <div class="inner-container-title">
         <span>
-          {{ pkg['dependency-metadata'][dep.key].title || dep.key }}
+          {{ pkg.dependencyMetadata[dep.key].title || dep.key }}
         </span>
         <p>
           @if (dep.value.optional) {

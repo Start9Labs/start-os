@@ -14,7 +14,7 @@ export class StateService {
   async importDrive(guid: string, password: string): Promise<void> {
     await this.api.attach({
       guid,
-      'embassy-password': await this.api.encrypt(password),
+      startOsPassword: await this.api.encrypt(password),
     })
   }
 
@@ -23,10 +23,10 @@ export class StateService {
     password: string,
   ): Promise<void> {
     await this.api.execute({
-      'embassy-logicalname': storageLogicalname,
-      'embassy-password': await this.api.encrypt(password),
-      'recovery-source': this.recoverySource || null,
-      'recovery-password': this.recoveryPassword
+      startOsLogicalname: storageLogicalname,
+      startOsPassword: await this.api.encrypt(password),
+      recoverySource: this.recoverySource || null,
+      recoveryPassword: this.recoveryPassword
         ? await this.api.encrypt(this.recoveryPassword)
         : null,
     })

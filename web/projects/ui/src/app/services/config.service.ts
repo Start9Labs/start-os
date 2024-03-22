@@ -87,9 +87,7 @@ export class ConfigService {
   }
 
   /** ${scheme}://${username}@${host}:${externalPort}${suffix} */
-  launchableAddress(
-    interfaces: PackageDataEntry['service-interfaces'],
-  ): string {
+  launchableAddress(interfaces: PackageDataEntry['serviceInterfaces']): string {
     const ui = Object.values(interfaces).find(i => i.type === 'ui')
 
     if (!ui) return ''
@@ -168,7 +166,7 @@ export function removePort(str: string): string {
 }
 
 export function hasUi(
-  interfaces: PackageDataEntry['service-interfaces'],
+  interfaces: PackageDataEntry['serviceInterfaces'],
 ): boolean {
   return Object.values(interfaces).some(iface => iface.type === 'ui')
 }

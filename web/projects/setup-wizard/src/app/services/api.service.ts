@@ -43,20 +43,20 @@ type Encrypted = {
 
 export type AttachReq = {
   guid: string
-  'embassy-password': Encrypted
+  startOsPassword: Encrypted
 }
 
 export type ExecuteReq = {
-  'embassy-logicalname': string
-  'embassy-password': Encrypted
-  'recovery-source': RecoverySource | null
-  'recovery-password': Encrypted | null
+  startOsLogicalname: string
+  startOsPassword: Encrypted
+  recoverySource: RecoverySource | null
+  recoveryPassword: Encrypted | null
 }
 
 export type CompleteRes = {
-  'tor-address': string
-  'lan-address': string
-  'root-ca': string
+  torAddress: string
+  lanAddress: string
+  rootCa: string
 }
 
 export type DiskBackupTarget = {
@@ -66,7 +66,7 @@ export type DiskBackupTarget = {
   label: string | null
   capacity: number
   used: number | null
-  'embassy-os': StartOSDiskInfo | null
+  startOs: StartOSDiskInfo | null
 }
 
 export type CifsBackupTarget = {
@@ -74,7 +74,7 @@ export type CifsBackupTarget = {
   path: string
   username: string
   mountable: boolean
-  'embassy-os': StartOSDiskInfo | null
+  startOs: StartOSDiskInfo | null
 }
 
 export type DiskRecoverySource = {
