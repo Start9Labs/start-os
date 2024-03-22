@@ -28,7 +28,7 @@
   >
     <ion-text
       *ngIf="
-        localPkg['state-info']['installing-info']!.progress.overall
+        localPkg.stateInfo.installingInfo.progress.overall
           | installingProgressString as progress
       "
       color="primary"

@@ -10,7 +10,7 @@
   <ng-container *ngIf="localPkg; else install">
     <ng-container
       *ngIf="
-        localPkg['state-info'].state === 'installed' &&
+        localPkg.stateInfo.state === 'installed' &&
         (localPkg | toManifest) as manifest
       "
     >

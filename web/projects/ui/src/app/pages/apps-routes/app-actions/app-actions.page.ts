@@ -29,7 +29,7 @@ import { ActionMetadata } from '@start9labs/start-sdk/cjs/sdk/lib/types'
 })
 export class AppActionsPage {
   readonly pkgId = getPkgId(this.route)
-  readonly pkg$ = this.patch.watch$('package-data', this.pkgId)
+  readonly pkg$ = this.patch.watch$('packageData', this.pkgId)
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -184,7 +184,7 @@ export class AppActionsPage {
     try {
       const res = await this.embassyApi.executePackageAction({
         id: this.pkgId,
-        'action-id': actionId,
+        actionId,
         input,
       })
 

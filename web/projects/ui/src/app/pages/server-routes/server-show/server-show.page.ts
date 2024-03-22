@@ -37,7 +37,7 @@ export class ServerShowPage {
   manageClicks = 0
   powerClicks = 0
 
-  readonly server$ = this.patch.watch$('server-info')
+  readonly server$ = this.patch.watch$('serverInfo')
   readonly showUpdate$ = this.eosService.showUpdate$
   readonly showDiskRepair$ = this.ClientStorageService.showDiskRepair$
 
@@ -141,7 +141,7 @@ export class ServerShowPage {
     }
 
     // confirm current password is correct
-    const { 'password-hash': passwordHash } = await getServerInfo(this.patch)
+    const { passwordHash } = await getServerInfo(this.patch)
     try {
       argon2.verify(passwordHash, value.currPass)
     } catch (e) {
@@ -160,8 +160,8 @@ export class ServerShowPage {
 
     try {
       await this.embassyApi.resetPassword({
-        'old-password': value.currPass,
-        'new-password': value.newPass,
+        oldPassword: value.currPass,
+        newPassword: value.newPass,
       })
       const toast = await this.toastCtrl.create({
         header: 'Password changed!',
@@ -221,7 +221,7 @@ export class ServerShowPage {
 
     try {
       await this.embassyApi.resetTor({
-        'wipe-state': wipeState,
+        wipeState: wipeState,
         reason: 'User triggered',
       })
       const toast = await this.toastCtrl.create({

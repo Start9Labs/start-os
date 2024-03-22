@@ -8,7 +8,7 @@ import { Manifest } from '@start9labs/marketplace'
   name: 'hasUi',
 })
 export class UiPipe implements PipeTransform {
-  transform(interfaces: PackageDataEntry['service-interfaces']): boolean {
+  transform(interfaces: PackageDataEntry['serviceInterfaces']): boolean {
     return interfaces ? hasUi(interfaces) : false
   }
 }
