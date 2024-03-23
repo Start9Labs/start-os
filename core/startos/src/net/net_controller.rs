@@ -385,6 +385,10 @@ impl NetService {
             ))
         }
     }
+
+    pub fn get_ip(&self) -> Ipv4Addr {
+        self.ip.to_owned()
+    }
 }
 
 impl Drop for NetService {

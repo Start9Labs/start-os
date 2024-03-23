@@ -1,6 +1,5 @@
 import {
   DataModel,
-  DockerIoFormat,
   HealthResult,
   PackageMainStatus,
   PackageState,
@@ -93,26 +92,33 @@ export const mockPatchData: DataModel = {
           started: '2021-06-14T20:49:17.774Z',
           health: {
             'ephemeral-health-check': {
+              name: 'Ephemeral Health Check',
               result: HealthResult.Starting,
             },
             'chain-state': {
+              name: 'Chain State',
               result: HealthResult.Loading,
               message: 'Bitcoin is syncing from genesis',
             },
             'p2p-interface': {
+              name: 'P2P',
               result: HealthResult.Success,
+              message: 'Health check successful',
             },
             'rpc-interface': {
+              name: 'RPC',
               result: HealthResult.Failure,
-              error: 'RPC interface unreachable.',
+              message: 'RPC interface unreachable.',
             },
             'unnecessary-health-check': {
+              name: 'Unnecessary Health Check',
               result: HealthResult.Disabled,
             },
           },
         },
         'dependency-config-errors': {},
       },
+      actions: {}, // @TODO
       'service-interfaces': {
         ui: {
           id: 'ui',
@@ -329,12 +335,6 @@ export const mockPatchData: DataModel = {
           },
         },
       },
-      'current-dependents': {
-        lnd: {
-          pointers: [],
-          'health-checks': [],
-        },
-      },
       'current-dependencies': {},
       'dependency-info': {},
       'marketplace-url': 'https://registry.start9.com/',
@@ -359,6 +359,7 @@ export const mockPatchData: DataModel = {
           'btc-rpc-proxy': 'This is a config unsatisfied error',
         },
       },
+      actions: {},
       'service-interfaces': {
         grpc: {
           id: 'grpc',
@@ -569,14 +570,13 @@ export const mockPatchData: DataModel = {
           },
         },
       },
-      'current-dependents': {},
       'current-dependencies': {
         bitcoind: {
-          pointers: [],
+          versionRange: '>=26.0.0',
           'health-checks': [],
         },
         'btc-rpc-proxy': {
-          pointers: [],
+          versionRange: '>2.0.0',
           'health-checks': [],
         },
       },

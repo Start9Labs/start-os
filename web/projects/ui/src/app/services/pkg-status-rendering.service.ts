@@ -25,10 +25,7 @@ export function renderPkgStatus(
   if (pkg['state-info'].state === PackageState.Installed) {
     primary = getPrimaryStatus(pkg.status)
     dependency = getDependencyStatus(depErrors)
-    health = getHealthStatus(
-      pkg.status,
-      !isEmptyObject(pkg['state-info'].manifest['health-checks']),
-    )
+    health = getHealthStatus(pkg.status)
   } else {
     primary = pkg['state-info'].state as string as PrimaryStatus
   }
@@ -52,29 +49,26 @@ function getDependencyStatus(depErrors: PkgDependencyErrors): DependencyStatus {
     : DependencyStatus.Satisfied
 }
 
-function getHealthStatus(
-  status: Status,
-  hasHealthChecks: boolean,
-): HealthStatus | null {
+function getHealthStatus(status: Status): HealthStatus | null {
   if (status.main.status !== PackageMainStatus.Running || !status.main.health) {
     return null
   }
 
   const values = Object.values(status.main.health)
 
-  if (values.some(h => h.result === 'failure')) {
-    return HealthStatus.Failure
+  if (values.some(h => !h.result)) {
+    return HealthStatus.Waiting
   }
 
-  if (!values.length && hasHealthChecks) {
-    return HealthStatus.Waiting
+  if (values.some(h => h.result === 'failure')) {
+    return HealthStatus.Failure
   }
 
   if (values.some(h => h.result === 'loading')) {
     return HealthStatus.Loading
   }
 
-  if (values.some(h => !h.result || h.result === 'starting')) {
+  if (values.some(h => h.result === 'starting')) {
     return HealthStatus.Starting
   }
 

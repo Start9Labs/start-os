@@ -260,16 +260,24 @@ enum AllowedStatuses {
     OnlyRunning, // onlyRunning
     OnlyStopped,
     Any,
-    Disabled,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 struct ExportActionParams {
+    #[ts(type = "string")]
+    id: ActionId,
+    metadata: ActionMetadata
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+struct ActionMetadata {
     name: String,
     description: String,
-    id: String,
+    warning: Option<String>,
+    disabled: bool,
     #[ts(type = "{[key: string]: any}")]
     input: Value,
     allowed_statuses: AllowedStatuses,
@@ -337,7 +345,18 @@ async fn get_system_smtp(
     todo!()
 }
 async fn get_container_ip(context: EffectContext, _: Empty) -> Result<Ipv4Addr, Error> {
-    todo!()
+    match context.0.upgrade() {
+        Some(c) => {
+            let net_service = c.persistent_container.net_service.lock().await;
+            Ok(net_service.get_ip())
+        },
+        None => {
+            Err(Error::new(
+                eyre!("Upgrade on Weak<ServiceActorSeed> resulted in a None variant"),
+                crate::ErrorKind::NotFound
+            ))
+        }
+    }
 }
 async fn get_service_port_forward(
     context: EffectContext,

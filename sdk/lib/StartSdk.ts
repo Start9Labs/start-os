@@ -200,6 +200,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           | Config<any, never>,
         Type extends Record<string, any> = ExtractConfigType<ConfigType>,
       >(
+        id: string,
         metaData: Omit<ActionMetadata, "input"> & {
           input: Config<Type, Store> | Config<Type, never>
         },
@@ -209,7 +210,12 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         }) => Promise<ActionResult>,
       ) => {
         const { input, ...rest } = metaData
-        return createAction<Manifest, Store, ConfigType, Type>(rest, fn, input)
+        return createAction<Manifest, Store, ConfigType, Type>(
+          id,
+          rest,
+          fn,
+          input,
+        )
       },
       configConstants: { smtpConfig },
       createInterface: (
@@ -238,6 +244,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           | Config<any, never>,
         Type extends Record<string, any> = ExtractConfigType<ConfigType>,
       >(
+        id: string,
         metaData: (options: {
           effects: Effects
         }) => MaybePromise<Omit<ActionMetadata, "input">>,
@@ -248,6 +255,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         input: Config<Type, Store> | Config<Type, never>,
       ) => {
         return createAction<Manifest, Store, ConfigType, Type>(
+          id,
           metaData,
           fn,
           input,

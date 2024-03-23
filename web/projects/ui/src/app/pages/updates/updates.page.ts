@@ -10,7 +10,7 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   AbstractMarketplaceService,
   Marketplace,
-  MarketplaceManifest,
+  Manifest,
   MarketplacePkg,
   StoreIdentity,
 } from '@start9labs/marketplace'
@@ -70,12 +70,7 @@ export class UpdatesPage {
     })
   }
 
-  async tryUpdate(
-    manifest: MarketplaceManifest,
-    url: string,
-    local: PackageDataEntry,
-    e: Event,
-  ): Promise<void> {
+  async tryUpdate(manifest: Manifest, url: string, e: Event): Promise<void> {
     e.stopPropagation()
 
     const { id, version } = manifest
@@ -83,14 +78,15 @@ export class UpdatesPage {
     delete this.marketplaceService.updateErrors[id]
     this.marketplaceService.updateQueue[id] = true
 
-    if (hasCurrentDeps(local)) {
+    // manifest.id OK because same as local id for update
+    if (hasCurrentDeps(manifest.id, await getAllPackages(this.patch))) {
       this.dryInstall(manifest, url)
     } else {
       this.install(id, version, url)
     }
   }
 
-  private async dryInstall(manifest: MarketplaceManifest, url: string) {
+  private async dryInstall(manifest: Manifest, url: string) {
     const { id, version, title } = manifest
 
     const breakages = dryUpdate(
