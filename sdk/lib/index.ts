@@ -1,9 +1,12 @@
+import matches from "ts-matches"
+
 export { Daemons } from "./mainFn/Daemons"
 export { EmVer } from "./emverLite/mod"
 export { Overlay } from "./util/Overlay"
 export { StartSdk } from "./StartSdk"
 export { setupManifest } from "./manifest/setupManifest"
 export { FileHelper } from "./util/fileHelper"
+export { setupExposeStore } from "./store/setupExposeStore"
 export * as actions from "./actions"
 export * as backup from "./backup"
 export * as config from "./config"

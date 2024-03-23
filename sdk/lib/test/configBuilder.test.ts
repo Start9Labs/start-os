@@ -425,7 +425,9 @@ describe("values", () => {
       const value = Value.dynamicDatetime<{ test: "a" }>(
         async ({ effects }) => {
           ;async () => {
-            ;(await sdk.store.getOwn(effects, "/test").once()) satisfies "a"
+            ;(await sdk.store
+              .getOwn(effects, sdk.StorePath.test)
+              .once()) satisfies "a"
           }
 
           return {

@@ -5,6 +5,8 @@ import { InputSpec } from "./config/configTypes"
 import { DependenciesReceipt } from "./config/setupConfig"
 import { BindOptions, Scheme } from "./interfaces/Host"
 import { Daemons } from "./mainFn/Daemons"
+import { PathBuilder, StorePath } from "./store/PathBuilder"
+import { ExposedStorePaths } from "./store/setupExposeStore"
 import { UrlString } from "./util/getServiceInterface"
 
 export { SDKManifest } from "./manifest/ManifestTypes"
@@ -93,6 +95,10 @@ export namespace ExpectedExports {
    * that this service could use.
    */
   export type dependencyConfig = Record<PackageId, DependencyConfig | null>
+
+  export type Properties = (options: {
+    effects: Effects
+  }) => Promise<PropertiesReturn>
 }
 export type TimeMs = number
 export type VersionString = string
@@ -248,31 +254,21 @@ export type ServiceInterfaceWithHostInfo = ServiceInterface & {
   hostInfo: HostInfo
 }
 
-// prettier-ignore
-export type ExposeAllServicePaths<Store, PreviousPath extends string = ""> = 
-  Store extends never ? string :
-  Store extends Record<string, unknown> ? {[K in keyof Store & string]: ExposeAllServicePaths<Store[K], `${PreviousPath}/${K & string}`>}[keyof Store & string] :
-  PreviousPath
-// prettier-ignore
-export type ExposeAllUiPaths<Store, PreviousPath extends string = ""> = 
-  Store extends Record<string, unknown> ? {[K in keyof Store & string]: ExposeAllUiPaths<Store[K], `${PreviousPath}/${K & string}`>}[keyof Store & string] :
-  Store extends string ? PreviousPath : 
-  never
 export type ExposeServicePaths<Store = never> = {
   /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
-  paths: Store extends never ? string[] : ExposeAllServicePaths<Store>[]
+  paths: ExposedStorePaths
 }
 
-export type ExposeUiPaths<Store> =
+export type SdkPropertiesValue =
   | {
       type: "object"
-      value: { [k: string]: ExposeUiPaths<Store> }
+      value: { [k: string]: SdkPropertiesValue }
       description?: string
     }
   | {
       type: "string"
-      /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
-      path: ExposeAllUiPaths<Store>
+      /** Value  */
+      value: string
       /** A human readable description or explanation of the value */
       description?: string
       /** (string/number only) Whether or not to mask the value, for example, when displaying a password */
@@ -282,16 +278,21 @@ export type ExposeUiPaths<Store> =
       /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
       qr?: boolean
     }
-export type ExposeUiPathsAll =
+
+export type SdkPropertiesReturn = {
+  [key: string]: SdkPropertiesValue
+}
+
+export type PropertiesValue =
   | {
       type: "object"
-      value: { [k: string]: ExposeUiPathsAll }
+      value: { [k: string]: PropertiesValue }
       description: string | null
     }
   | {
       type: "string"
-      /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
-      path: string
+      /** Value  */
+      value: string
       /** A human readable description or explanation of the value */
       description: string | null
       /** (string/number only) Whether or not to mask the value, for example, when displaying a password */
@@ -301,6 +302,10 @@ export type ExposeUiPathsAll =
       /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
       qr: boolean | null
     }
+
+export type PropertiesReturn = {
+  [key: string]: PropertiesValue
+}
 
 /** Used to reach out from the pure js runtime */
 export type Effects = {
@@ -361,18 +366,18 @@ export type Effects = {
 
   store: {
     /** Get a value in a json like data, can be observed and subscribed */
-    get<Store = never, Path extends string = never>(options: {
+    get<Store = never, ExtractStore = unknown>(options: {
       /** If there is no packageId it is assumed the current package */
       packageId?: string
       /** The path defaults to root level, using the [JsonPath](https://jsonpath.com/) */
-      path: Path & EnsureStorePath<Store, Path>
+      path: StorePath
       callback: (config: unknown, previousConfig: unknown) => void
-    }): Promise<ExtractStore<Store, Path>>
+    }): Promise<ExtractStore>
     /** Used to store values that can be accessed and subscribed to */
-    set<Store = never, Path extends string = never>(options: {
+    set<Store = never, ExtractStore = unknown>(options: {
       /** Sets the value for the wrapper at the path, it will override, using the [JsonPath](https://jsonpath.com/)  */
-      path: Path & EnsureStorePath<Store, Path>
-      value: ExtractStore<Store, Path>
+      path: StorePath
+      value: ExtractStore
     }): Promise<void>
   }
 
@@ -399,7 +404,6 @@ export type Effects = {
 
   exposeForDependents(options: { paths: string[] }): Promise<void>
 
-  exposeUi(options: { [key: string]: ExposeUiPathsAll }): Promise<void>
   /**
    * There are times that we want to see the addresses that where exported
    * @param options.addressId If we want to filter the address id
@@ -523,22 +527,6 @@ export type Effects = {
 
   stopped(options: { packageId: string | null }): Promise<boolean>
 }
-
-// prettier-ignore
-export type ExtractStore<Store, Path extends string> = 
-  Path extends `/${infer A }/${infer Rest }` ? (A extends keyof Store ? ExtractStore<Store[A], `/${Rest}`> : never) :
-  Path extends `/${infer A }` ? (A extends keyof Store ? Store[A] : never) :
-  Path extends '' ? Store :
-  never
-
-// prettier-ignore
-type _EnsureStorePath<Store, Path extends string, Origin extends string> = 
-  Path extends`/${infer A }/${infer Rest}` ? (Store extends {[K in A & string]: infer NextStore} ? _EnsureStorePath<NextStore, `/${Rest}`, Origin> : never) :
-  Path extends `/${infer A }`  ? (Store extends {[K in A]: infer B} ? Origin : never) :
-  Path extends '' ? Origin :
-  never
-// prettier-ignore
-export type EnsureStorePath<Store, Path extends string> = _EnsureStorePath<Store, Path, Path>
 
 /** rsync options: https://linux.die.net/man/1/rsync
  */

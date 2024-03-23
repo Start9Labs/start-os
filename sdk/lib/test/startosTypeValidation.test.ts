@@ -49,7 +49,6 @@ describe("startosTypeValidation ", () => {
       setConfigured: {} as SetConfigured,
       setHealth: {} as SetHealth,
       exposeForDependents: {} as ExposeForDependentsParams,
-      exposeUi: {} as { [key: string]: ExposedUI },
       getSslCertificate: {} as GetSslCertificateParams,
       getSslKey: {} as GetSslKeyParams,
       getServiceInterface: {} as GetServiceInterfaceParams,
