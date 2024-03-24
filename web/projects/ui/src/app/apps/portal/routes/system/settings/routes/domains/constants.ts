@@ -1,6 +1,6 @@
-import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
-import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
-import { Variants } from '@start9labs/start-sdk/lib/config/builder/variants'
+import { Config } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/config'
+import { Value } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/value'
+import { Variants } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/variants'
 import { Proxy } from 'src/app/services/patch-db/data-model'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 
@@ -59,38 +59,18 @@ function getStrategyUnion(proxies: Proxy[]) {
       proxy: {
         name: 'Proxy',
         spec: Config.of({
-          proxyStrategy: Value.union(
-            {
-              name: 'Proxy Strategy',
-              required: { default: 'primary' },
-              description: `<h5>Primary</h5>Use the <i>Primary Inbound</i> proxy from your proxy settings. If you do not have any inbound proxies, no proxy will be used
-<h5>Other</h5>Use a specific proxy from your proxy settings
-`,
-            },
-            Variants.of({
-              primary: {
-                name: 'Primary',
-                spec: Config.of({}),
-              },
-              other: {
-                name: 'Specific',
-                spec: Config.of({
-                  proxyId: Value.select({
-                    name: 'Select Proxy',
-                    required: { default: null },
-                    values: inboundProxies,
-                  }),
-                }),
-              },
-            }),
-          ),
+          proxyId: Value.select({
+            name: 'Select Proxy',
+            required: { default: null },
+            values: inboundProxies,
+          }),
         }),
       },
     }),
   )
 }
 
-export async function getStart9ToSpec(proxies: Proxy[]) {
+export function getStart9ToSpec(proxies: Proxy[]) {
   return configBuilderToSpec(
     Config.of({
       strategy: getStrategyUnion(proxies),
@@ -98,7 +78,7 @@ export async function getStart9ToSpec(proxies: Proxy[]) {
   )
 }
 
-export async function getCustomSpec(proxies: Proxy[]) {
+export function getCustomSpec(proxies: Proxy[]) {
   return configBuilderToSpec(
     Config.of({
       hostname: Value.text({

@@ -1,8 +1,8 @@
-import { CommonModule } from '@angular/common'
+import { NgForOf, NgIf } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { TuiButtonModule } from '@taiga-ui/experimental'
-import { InterfacesComponent } from './interfaces.component'
 import { InterfaceComponent } from './interface.component'
+import { InterfaceAddressComponent } from './interface-addresses.component'
 
 @Component({
   standalone: true,
@@ -19,41 +19,44 @@ import { InterfaceComponent } from './interface.component'
         <strong>View instructions</strong>
       </a>
     </em>
-    <a
-      *ngIf="!interfaces.packageContext"
-      tuiButton
-      iconLeft="tuiIconDownload"
-      href="/public/eos/local.crt"
-      [download]="interfaces.addressInfo.lanHostname + '.crt'"
-      [style.align-self]="'flex-start'"
-    >
-      Download Root CA
-    </a>
-    <app-interface
-      label="Local"
-      [hostname]="interfaces.addressInfo.lanHostname"
-      [isUi]="interfaces.isUi"
-    ></app-interface>
+
     <ng-container
-      *ngFor="let iface of interfaces.addressInfo.ipInfo | keyvalue"
+      *ngIf="
+        interface.serviceInterface.addresses.local as addresses;
+        else empty
+      "
     >
-      <app-interface
-        *ngIf="iface.value.ipv4 as ipv4"
-        [label]="iface.key + ' (IPv4)'"
-        [hostname]="ipv4"
-        [isUi]="interfaces.isUi"
-      ></app-interface>
-      <app-interface
-        *ngIf="iface.value.ipv6 as ipv6"
-        [label]="iface.key + ' (IPv6)'"
-        [hostname]="ipv6"
-        [isUi]="interfaces.isUi"
-      ></app-interface>
+      <app-interface-address
+        *ngFor="let address of addresses"
+        [label]="address.label"
+        [address]="address.url"
+        [isMasked]="interface.serviceInterface.masked"
+        [isUi]="interface.serviceInterface.type === 'ui'"
+      />
+      <div [style.display]="'flex'" [style.gap.rem]="1">
+        <button tuiButton size="s" appearance="danger-solid" (click)="remove()">
+          Remove
+        </button>
+      </div>
     </ng-container>
+    <ng-template #empty>
+      <button
+        tuiButton
+        iconLeft="tuiIconPlus"
+        [style.align-self]="'flex-start'"
+        (click)="add()"
+      >
+        Add Address
+      </button>
+    </ng-template>
   `,
-  imports: [InterfaceComponent, CommonModule, TuiButtonModule],
+  imports: [NgForOf, NgIf, InterfaceAddressComponent, TuiButtonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InterfaceLocalComponent {
-  readonly interfaces = inject(InterfacesComponent)
+  readonly interface = inject(InterfaceComponent)
+
+  async add() {}
+
+  async remove() {}
 }

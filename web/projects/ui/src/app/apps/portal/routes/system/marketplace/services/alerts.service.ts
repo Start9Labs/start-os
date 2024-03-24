@@ -18,8 +18,8 @@ export class MarketplaceAlertsService {
 
   async alertMarketplace(url: string, originalUrl: string): Promise<boolean> {
     const marketplaces = await firstValueFrom(this.marketplace$)
-    const name = marketplaces['known-hosts'][url]?.name || url
-    const source = marketplaces['known-hosts'][originalUrl]?.name || originalUrl
+    const name = marketplaces.knownHosts[url]?.name || url
+    const source = marketplaces.knownHosts[originalUrl]?.name || originalUrl
     const message = source ? `installed from ${source}` : 'side loaded'
 
     return new Promise(async resolve => {

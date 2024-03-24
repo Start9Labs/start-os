@@ -26,7 +26,6 @@ export function getPackageInfo(
     warning: statuses.primary === PrimaryStatus.NeedsConfig,
     transitioning:
       primaryRendering.showDots ||
-      statuses.health === HealthStatus.Waiting ||
       statuses.health === HealthStatus.Loading ||
       statuses.health === HealthStatus.Starting,
   }

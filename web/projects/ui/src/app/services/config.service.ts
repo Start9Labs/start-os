@@ -1,15 +1,12 @@
 import { DOCUMENT } from '@angular/common'
 import { Inject, Injectable } from '@angular/core'
 import { WorkspaceConfig } from '@start9labs/shared'
-import { types } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-sdk'
 import {
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
-
-type HostnameInfoIp = types.HostnameInfoIp
-type HostnameInfoOnion = types.HostnameInfoOnion
 
 const {
   gitHash,
@@ -87,10 +84,8 @@ export class ConfigService {
   }
 
   /** ${scheme}://${username}@${host}:${externalPort}${suffix} */
-  launchableAddress(interfaces: PackageDataEntry['serviceInterfaces']): string {
-    const ui = Object.values(interfaces).find(i => i.type === 'ui')
-
-    if (!ui) return ''
+  launchableAddress(ui: T.ServiceInterfaceWithHostInfo): string {
+    if (ui.type !== 'ui') return ''
 
     const host = ui.hostInfo
     const addressInfo = ui.addressInfo
@@ -102,14 +97,14 @@ export class ConfigService {
     if (host.kind === 'multi') {
       const onionHostname = host.hostnames.find(
         (h: any) => h.kind === 'onion',
-      ) as HostnameInfoOnion
+      ) as T.HostnameInfoOnion
 
       if (this.isTor() && onionHostname) {
         url.hostname = onionHostname.hostname.value
       } else {
         const ipHostname = host.hostnames.find(
           (h: any) => h.kind === 'ip',
-        ) as HostnameInfoIp
+        ) as T.HostnameInfoIp
 
         if (!ipHostname) return ''
 

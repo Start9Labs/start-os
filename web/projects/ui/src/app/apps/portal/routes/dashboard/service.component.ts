@@ -11,29 +11,26 @@ import { ControlsComponent } from 'src/app/apps/portal/routes/dashboard/controls
 import { StatusComponent } from 'src/app/apps/portal/routes/dashboard/status.component'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { PkgDependencyErrors } from 'src/app/services/dep-error.service'
-import {
-  PackageDataEntry,
-  PackageState,
-} from 'src/app/services/patch-db/data-model'
-import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { getManifest } from 'src/app/util/get-package-data'
 
 @Component({
   standalone: true,
   selector: 'tr[appService]',
   template: `
-    <td><img alt="logo" [src]="appService.icon" /></td>
+    <td><img alt="logo" [src]="pkg.icon" /></td>
     <td>
-      <a [routerLink]="routerLink">{{ appService.manifest.title }}</a>
+      <a [routerLink]="routerLink">{{ manifest.title }}</a>
     </td>
-    <td>{{ appService.manifest.version }}</td>
-    <td
-      [appStatus]="appService"
-      [appStatusError]="hasError(appServiceError)"
-    ></td>
+    <td>{{ manifest.version }}</td>
+    <td appStatus [pkg]="pkg" [hasDepErrors]="hasError(depErrors)"></td>
     <td [style.text-align]="'center'">
       <fieldset
-        [disabled]="!installed || !(connected$ | async)"
-        [appControls]="appService"
+        appControls
+        [disabled]="
+          this.pkg.stateInfo.state !== 'installed' || !(connected$ | async)
+        "
+        [pkg]="pkg"
       ></fieldset>
     </td>
   `,
@@ -57,19 +54,19 @@ import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 })
 export class ServiceComponent {
   @Input()
-  appService!: PackageDataEntry
+  pkg!: PackageDataEntry
 
   @Input()
-  appServiceError?: PkgDependencyErrors
+  depErrors?: PkgDependencyErrors
 
   readonly connected$ = inject(ConnectionService).connected$
 
-  get routerLink() {
-    return `/portal/service/${this.appService.manifest.id}`
+  get manifest() {
+    return getManifest(this.pkg)
   }
 
-  get installed(): boolean {
-    return this.appService.state === PackageState.Installed
+  get routerLink() {
+    return `/portal/service/${this.manifest.id}`
   }
 
   @tuiPure

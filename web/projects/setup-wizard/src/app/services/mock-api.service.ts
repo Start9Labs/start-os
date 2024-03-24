@@ -139,7 +139,7 @@ export class MockApiService extends ApiService {
   async followServerLogs(params: FollowLogsReq): Promise<FollowLogsRes> {
     await pauseFor(1000)
     return {
-      'start-cursor': 'fakestartcursor',
+      startCursor: 'fakestartcursor',
       guid: 'fake-guid',
     }
   }

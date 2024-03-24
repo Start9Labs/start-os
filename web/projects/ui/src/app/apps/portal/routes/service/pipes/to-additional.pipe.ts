@@ -6,6 +6,7 @@ import { CopyService, MarkdownComponent } from '@start9labs/shared'
 import { from } from 'rxjs'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { getManifest } from 'src/app/util/get-package-data'
 
 export const FALLBACK_URL = 'Not provided'
 
@@ -25,21 +26,22 @@ export class ToAdditionalPipe implements PipeTransform {
   private readonly copyService = inject(CopyService)
   private readonly dialogs = inject(TuiDialogService)
 
-  transform({ manifest, installed }: PackageDataEntry): AdditionalItem[] {
+  transform(pkg: PackageDataEntry): AdditionalItem[] {
+    const manifest = getManifest(pkg)
     return [
       {
         name: 'Installed',
         description: new Intl.DateTimeFormat('en-US', {
           dateStyle: 'medium',
           timeStyle: 'medium',
-        }).format(new Date(installed?.['installed-at'] || 0)),
+        }).format(new Date(pkg.installedAt || 0)),
       },
       {
         name: 'Git Hash',
-        description: manifest['git-hash'] || 'Unknown',
-        icon: manifest['git-hash'] ? 'tuiIconCopyLarge' : '',
+        description: manifest.gitHash || 'Unknown',
+        icon: manifest.gitHash ? 'tuiIconCopyLarge' : '',
         action: () =>
-          manifest['git-hash'] && this.copyService.copy(manifest['git-hash']),
+          manifest.gitHash && this.copyService.copy(manifest.gitHash),
       },
       {
         name: 'License',
@@ -49,19 +51,19 @@ export class ToAdditionalPipe implements PipeTransform {
       },
       {
         name: 'Website',
-        description: manifest['marketing-site'] || FALLBACK_URL,
+        description: manifest.marketingSite || FALLBACK_URL,
       },
       {
         name: 'Source Repository',
-        description: manifest['upstream-repo'],
+        description: manifest.upstreamRepo,
       },
       {
         name: 'Support Site',
-        description: manifest['support-site'] || FALLBACK_URL,
+        description: manifest.supportSite || FALLBACK_URL,
       },
       {
         name: 'Donation Link',
-        description: manifest['donation-url'] || FALLBACK_URL,
+        description: manifest.donationUrl || FALLBACK_URL,
       },
     ]
   }

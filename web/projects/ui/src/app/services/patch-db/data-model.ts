@@ -1,14 +1,12 @@
 import { BackupJob, ServerNotifications } from '../api/api.types'
 import { Url } from '@start9labs/shared'
 import { Manifest } from '@start9labs/marketplace'
-import { types } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-sdk'
 import {
   ActionMetadata,
   HostnameInfo,
 } from '@start9labs/start-sdk/cjs/sdk/lib/types'
 import { customSmtp } from '@start9labs/start-sdk/cjs/sdk/lib/config/configConstants'
-
-type ServiceInterfaceWithHostInfo = types.ServiceInterfaceWithHostInfo
 
 export interface DataModel {
   serverInfo: ServerInfo
@@ -87,21 +85,13 @@ export type NetworkInfo = {
     forwards: PortForward[]
   }
   proxies: Proxy[]
-  outboundProxy: OsOutboundProxy
-  primaryProxies: {
-    inbound: string | null
-    outbound: string | null
-  }
+  outboundProxy: string | null
 }
 
 export type DomainInfo = {
   domain: string
   subdomain: string | null
 }
-
-export type InboundProxy = { proxyId: string } | 'primary' | null
-export type OsOutboundProxy = InboundProxy
-export type ServiceOutboundProxy = OsOutboundProxy | 'mirror'
 
 export type PortForward = {
   assigned: number
@@ -127,7 +117,7 @@ export type Domain = {
 }
 
 export type NetworkStrategy =
-  | { proxyId: string | null } // null means system primary
+  | { proxy: string }
   | { ipStrategy: 'ipv4' | 'ipv6' | 'dualstack' }
 
 export type Proxy = {
@@ -141,8 +131,6 @@ export type Proxy = {
     services: { id: string | null; title: string }[] // implies outbound - null means startos
     domains: string[] // implies inbound
   }
-  primaryInbound: boolean
-  primaryOutbound: boolean
 }
 
 export interface IpInfo {
@@ -164,12 +152,6 @@ export interface ServerStatusInfo {
   shuttingDown: boolean
 }
 
-export enum ServerStatus {
-  Running = 'running',
-  Updated = 'updated',
-  BackingUp = 'backing-up',
-}
-
 export type PackageDataEntry<T extends StateInfo = StateInfo> = {
   stateInfo: T
   icon: Url
@@ -183,10 +165,11 @@ export type PackageDataEntry<T extends StateInfo = StateInfo> = {
       icon: Url
     }
   }
-  serviceInterfaces: Record<string, ServiceInterfaceWithHostInfo>
+  serviceInterfaces: Record<string, T.ServiceInterfaceWithHostInfo>
   marketplaceUrl: string | null
   developerKey: string
-  outboundProxy: ServiceOutboundProxy
+  installedAt: string
+  outboundProxy: string | null
 }
 
 export type StateInfo = InstalledState | InstallingState | UpdatingState
@@ -194,11 +177,13 @@ export type StateInfo = InstalledState | InstallingState | UpdatingState
 export type InstalledState = {
   state: PackageState.Installed | PackageState.Removing
   manifest: Manifest
+  installingInfo?: undefined
 }
 
 export type InstallingState = {
   state: PackageState.Installing | PackageState.Restoring
   installingInfo: InstallingInfo
+  manifest?: undefined
 }
 
 export type UpdatingState = {

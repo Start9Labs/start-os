@@ -14,12 +14,12 @@ import { SettingsUpdateComponent } from './update.component'
   selector: 'settings-menu',
   template: `
     <ng-container *ngIf="server$ | async as server; else loading">
-      <settings-sync *ngIf="!server['ntp-synced']" />
+      <settings-sync *ngIf="!server.ntpSynced" />
       <section *ngFor="let cat of service.settings | keyvalue: asIsOrder">
         <h3 class="g-title" (click)="addClick(cat.key)">{{ cat.key }}</h3>
         <settings-update
           *ngIf="cat.key === 'General'"
-          [updated]="server['status-info'].updated"
+          [updated]="server.statusInfo.updated"
         />
         <ng-container *ngFor="let btn of cat.value">
           <settings-button [button]="btn">
@@ -32,13 +32,7 @@ import { SettingsUpdateComponent } from './update.component'
                   : 'var(--tui-success-fill)'
               "
             >
-              {{
-                !server.network.outboundProxy
-                  ? 'None'
-                  : server.network.outboundProxy === 'primary'
-                    ? 'System Primary'
-                    : server.network.outboundProxy.proxyId
-              }}
+              {{ server.network.outboundProxy || 'None' }}
             </div>
           </settings-button>
         </ng-container>
@@ -76,7 +70,7 @@ export class SettingsMenuComponent {
   private readonly clientStorageService = inject(ClientStorageService)
   private readonly alerts = inject(TuiAlertService)
 
-  readonly server$ = inject(PatchDB<DataModel>).watch$('server-info')
+  readonly server$ = inject(PatchDB<DataModel>).watch$('serverInfo')
   readonly service = inject(SettingsService)
 
   manageClicks = 0

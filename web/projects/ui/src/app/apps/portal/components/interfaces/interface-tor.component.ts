@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { InterfaceAddressComponent } from './interface-addresses.component'
 import { InterfaceComponent } from './interface.component'
-import { InterfacesComponent } from './interfaces.component'
+import { NgForOf, NgIf } from '@angular/common'
 
 @Component({
   standalone: true,
@@ -17,15 +18,49 @@ import { InterfacesComponent } from './interfaces.component'
         <strong>View instructions</strong>
       </a>
     </em>
-    <app-interface
-      label="Tor"
-      [hostname]="interfaces.addressInfo.torHostname"
-      [isUi]="interfaces.isUi"
-    ></app-interface>
+
+    <ng-container
+      *ngIf="interface.serviceInterface.addresses.tor as addresses; else empty"
+    >
+      <app-interface-address
+        *ngFor="let address of addresses"
+        [label]="address.label"
+        [address]="address.url"
+        [isMasked]="interface.serviceInterface.masked"
+        [isUi]="interface.serviceInterface.type === 'ui'"
+      />
+      <div [style.display]="'flex'" [style.gap.rem]="1">
+        <button tuiButton size="s" appearance="danger-solid" (click)="remove()">
+          Remove
+        </button>
+      </div>
+    </ng-container>
+    <ng-template #empty>
+      <button
+        tuiButton
+        iconLeft="tuiIconPlus"
+        [style.align-self]="'flex-start'"
+        (click)="add()"
+      >
+        Add Address
+      </button>
+    </ng-template>
+
+    <app-interface-address
+      *ngFor="let address of interface.serviceInterface.addresses.tor"
+      [label]="address.label"
+      [address]="address.url"
+      [isMasked]="interface.serviceInterface.masked"
+      [isUi]="interface.serviceInterface.type === 'ui'"
+    />
   `,
-  imports: [InterfaceComponent],
+  imports: [NgForOf, NgIf, InterfaceAddressComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InterfaceTorComponent {
-  readonly interfaces = inject(InterfacesComponent)
+  readonly interface = inject(InterfaceComponent)
+
+  async add() {}
+
+  async remove() {}
 }

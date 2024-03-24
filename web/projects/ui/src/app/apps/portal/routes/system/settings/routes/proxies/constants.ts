@@ -1,5 +1,5 @@
-import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
-import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
+import { Config } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/config'
+import { Value } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/value'
 import { TuiDialogOptions } from '@taiga-ui/core'
 import { TuiPromptData } from '@taiga-ui/kit'
 
@@ -27,8 +27,6 @@ export const wireguardSpec = Config.of({
 })
 
 export type WireguardSpec = typeof wireguardSpec.validator._TYPE
-export type ProxyUpdate = Partial<{
+export type ProxyUpdate = {
   name: string
-  primaryInbound: true
-  primaryOutbound: true
-}>
+}

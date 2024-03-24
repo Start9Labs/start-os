@@ -21,7 +21,7 @@ import { toRouterLink } from '../../../utils/to-router-link'
   selector: '[notificationItem]',
   template: `
     <td><ng-content /></td>
-    <td>{{ notificationItem['created-at'] | date : 'MMM d, y, h:mm a' }}</td>
+    <td>{{ notificationItem.createdAt | date: 'MMM d, y, h:mm a' }}</td>
     <td [style.color]="color">
       <tui-svg [style.color]="color" [src]="icon"></tui-svg>
       {{ notificationItem.title }}
@@ -70,8 +70,9 @@ export class NotificationItemComponent {
   get manifest$(): Observable<Manifest> {
     return this.patch
       .watch$(
-        'package-data',
-        this.notificationItem['package-id'] || '',
+        'packageData',
+        this.notificationItem.packageId || '',
+        'stateInfo',
         'manifest',
       )
       .pipe(first())

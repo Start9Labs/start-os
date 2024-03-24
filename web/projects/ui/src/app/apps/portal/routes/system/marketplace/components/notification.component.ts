@@ -1,5 +1,4 @@
 import { Component, inject, Input } from '@angular/core'
-import { NgIf } from '@angular/common'
 import { TuiNotificationModule } from '@taiga-ui/core'
 import { ConfigService } from 'src/app/services/config.service'
 

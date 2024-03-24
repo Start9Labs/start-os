@@ -25,7 +25,7 @@ export class LogsFetchDirective {
         }),
       ),
     ),
-    tap(res => this.component.setCursor(res['start-cursor'])),
+    tap(res => this.component.setCursor(res.startCursor)),
     map(({ entries }) => convertAnsi(entries)),
     catchError(e => {
       this.errors.handleError(e)

@@ -30,7 +30,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
             Running
           </span>
           <ng-template #notRunning>
-            {{ job.next | date : 'MMM d, y, h:mm a' }}
+            {{ job.next | date: 'MMM d, y, h:mm a' }}
           </ng-template>
         </td>
         <td>{{ job.name }}</td>
@@ -38,7 +38,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
           <tui-svg [src]="job.target.type | getBackupIcon"></tui-svg>
           {{ job.target.name }}
         </td>
-        <td>Packages: {{ job['package-ids'].length }}</td>
+        <td>Packages: {{ job.packageIds.length }}</td>
       </tr>
       <ng-template #blank>
         <tr><td colspan="5">You have no active or upcoming backup jobs</td></tr>
@@ -56,7 +56,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
 })
 export class BackupsUpcomingComponent {
   readonly current$ = inject(PatchDB<DataModel>)
-    .watch$('server-info', 'status-info', 'current-backup', 'job')
+    .watch$('serverInfo', 'statusInfo', 'currentBackup', 'job')
     .pipe(map(job => job || {}))
 
   readonly upcoming$ = from(inject(ApiService).getBackupJobs({})).pipe(

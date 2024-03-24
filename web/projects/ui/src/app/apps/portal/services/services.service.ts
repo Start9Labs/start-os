@@ -1,21 +1,23 @@
 import { inject, Injectable } from '@angular/core'
 import { PatchDB } from 'patch-db-client'
-import { filter, map, Observable, pairwise, shareReplay, startWith } from 'rxjs'
+import { map, Observable, shareReplay } from 'rxjs'
 import {
   DataModel,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
+import { getManifest } from 'src/app/util/get-package-data'
 
 @Injectable({
   providedIn: 'root',
 })
 export class ServicesService extends Observable<readonly PackageDataEntry[]> {
   private readonly services$ = inject(PatchDB<DataModel>)
-    .watch$('package-data')
+    .watch$('packageData')
     .pipe(
       map(pkgs =>
         Object.values(pkgs).sort((a, b) =>
-          b.manifest.title.toLowerCase() > a.manifest.title.toLowerCase()
+          getManifest(b).title.toLowerCase() >
+          getManifest(a).title.toLowerCase()
             ? -1
             : 1,
         ),

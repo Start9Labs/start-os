@@ -6,7 +6,6 @@ import {
   Input,
 } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
 import { TuiButtonModule } from '@taiga-ui/experimental'
 import {
   TuiDataListModule,
@@ -25,6 +24,7 @@ import { Proxy } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DELETE_OPTIONS, ProxyUpdate } from './constants'
+import { Value } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/value'
 
 @Component({
   selector: 'proxies-menu',
@@ -45,23 +45,6 @@ import { DELETE_OPTIONS, ProxyUpdate } from './constants'
     </tui-hosted-dropdown>
     <ng-template #dropdown>
       <tui-data-list>
-        <button
-          *ngIf="!proxy.primaryInbound && proxy.type === 'inbound-outbound'"
-          tuiOption
-          (click)="update({ primaryInbound: true })"
-        >
-          Make Primary Inbound
-        </button>
-        <button
-          *ngIf="
-            !proxy.primaryOutbound &&
-            (proxy.type === 'inbound-outbound' || proxy.type === 'outbound')
-          "
-          tuiOption
-          (click)="update({ primaryOutbound: true })"
-        >
-          Make Primary Outbound
-        </button>
         <button tuiOption (click)="rename()">Rename</button>
         <tui-opt-group>
           <button tuiOption (click)="delete()">Delete</button>
@@ -105,20 +88,6 @@ export class ProxiesMenuComponent {
       })
   }
 
-  async update(value: ProxyUpdate): Promise<boolean> {
-    const loader = this.loader.open('Saving...').subscribe()
-
-    try {
-      await this.api.updateProxy(value)
-      return true
-    } catch (e: any) {
-      this.errorService.handleError(e)
-      return false
-    } finally {
-      loader.unsubscribe()
-    }
-  }
-
   async rename() {
     const spec = { name: 'Name', required: { default: this.proxy.name } }
     const name = await Value.text(spec).build({} as any)
@@ -136,5 +105,19 @@ export class ProxiesMenuComponent {
     }
 
     this.formDialog.open(FormComponent, options)
+  }
+
+  private async update(value: ProxyUpdate): Promise<boolean> {
+    const loader = this.loader.open('Saving...').subscribe()
+
+    try {
+      await this.api.updateProxy(value)
+      return true
+    } catch (e: any) {
+      this.errorService.handleError(e)
+      return false
+    } finally {
+      loader.unsubscribe()
+    }
   }
 }

@@ -21,7 +21,7 @@ export class NotificationService {
   private readonly localUnreadCount$ = new Subject<number>()
 
   readonly unreadCount$ = merge(
-    this.patch.watch$('server-info', 'unreadNotifications', 'count'),
+    this.patch.watch$('serverInfo', 'unreadNotifications', 'count'),
     this.localUnreadCount$,
   ).pipe(shareReplay(1))
 
@@ -102,7 +102,7 @@ export class NotificationService {
         label: 'Backup Report',
         data: {
           report: notification.data,
-          timestamp: notification['created-at'],
+          timestamp: notification.createdAt,
         },
       })
       .subscribe()

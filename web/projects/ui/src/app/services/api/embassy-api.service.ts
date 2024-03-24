@@ -256,9 +256,9 @@ export abstract class ApiService {
 
   // package
 
-  abstract getPackageCredentials(
-    params: RR.GetPackageCredentialsReq,
-  ): Promise<RR.GetPackageCredentialsRes>
+  abstract getPackageProperties(
+    params: RR.GetPackagePropertiesReq,
+  ): Promise<RR.GetPackagePropertiesRes>
 
   abstract getPackageLogs(
     params: RR.GetPackageLogsReq,

@@ -55,7 +55,7 @@ export class RefreshAlertComponent {
   readonly show$ = merge(
     this.dismiss$,
     inject(PatchDB<DataModel>)
-      .watch$('server-info', 'version')
+      .watch$('serverInfo', 'version')
       .pipe(
         map(version => !!this.emver.compare(this.config.version, version)),
         endWith(false),

@@ -5,22 +5,27 @@ import {
   HostBinding,
   Input,
 } from '@angular/core'
-import { InstallProgress } from 'src/app/services/patch-db/data-model'
 import { StatusRendering } from 'src/app/services/pkg-status-rendering.service'
-import { InstallProgressPipe } from '../pipes/install-progress.pipe'
+import { InstallingProgressDisplayPipe } from '../pipes/install-progress.pipe'
+import { InstallingInfo } from 'src/app/services/patch-db/data-model'
+import { UnitConversionPipesModule } from '@start9labs/shared'
 
 @Component({
   selector: 'service-status',
   template: `
-    @if (installProgress) {
+    @if (installingInfo) {
       <strong>
         Installing
         <span class="loading-dots"></span>
-        {{ installProgress | installProgress }}
+        {{ installingInfo.progress.overall | installingProgressString }}
       </strong>
     } @else {
       {{ connected ? rendering.display : 'Unknown' }}
-      <!-- @TODO should show 'this may take a while' if sigtermTimeout is > 30s -->
+
+      <span *ngIf="sigtermTimeout && (sigtermTimeout | durationToSeconds) > 30">
+        . This may take a while
+      </span>
+
       <span *ngIf="rendering.showDots" class="loading-dots"></span>
     }
   `,
@@ -35,17 +40,23 @@ import { InstallProgressPipe } from '../pipes/install-progress.pipe'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, InstallProgressPipe],
+  imports: [
+    CommonModule,
+    InstallingProgressDisplayPipe,
+    UnitConversionPipesModule,
+  ],
 })
 export class ServiceStatusComponent {
   @Input({ required: true })
   rendering!: StatusRendering
 
   @Input()
-  installProgress?: InstallProgress
+  installingInfo?: InstallingInfo
 
   @Input()
   connected = false
+
+  @Input() sigtermTimeout?: string | null = null
 
   @HostBinding('style.color')
   get color(): string {

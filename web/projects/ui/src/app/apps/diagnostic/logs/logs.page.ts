@@ -67,7 +67,7 @@ export class LogsPage implements OnInit {
 
       if (!response.entries.length) return
 
-      this.startCursor = response['start-cursor']
+      this.startCursor = response.startCursor
       this.logs = [convertAnsi(response.entries), ...this.logs]
       this.scrollTop = this.scrollbar?.nativeElement.scrollTop || 0
     } catch (e: any) {

@@ -1,4 +1,4 @@
-import { NgIf } from '@angular/common'
+import { NgForOf, NgIf } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -20,10 +20,9 @@ import {
 } from 'src/app/apps/portal/components/interfaces/interface.utils'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { DomainInfo, NetworkInfo } from 'src/app/services/patch-db/data-model'
-import { getClearnetAddress } from 'src/app/util/clearnetAddress'
+import { NetworkInfo } from 'src/app/services/patch-db/data-model'
+import { InterfaceAddressComponent } from './interface-addresses.component'
 import { InterfaceComponent } from './interface.component'
-import { InterfacesComponent } from './interfaces.component'
 
 type ClearnetForm = {
   domain: string
@@ -45,32 +44,36 @@ type ClearnetForm = {
       </a>
     </em>
     <ng-container
-      *ngIf="interfaces.addressInfo.domainInfo as domainInfo; else noClearnet"
+      *ngIf="
+        interface.serviceInterface.addresses.clearnet as addresses;
+        else empty
+      "
     >
-      <app-interface
-        label="Clearnet"
-        [hostname]="getClearnet(domainInfo)"
-        [isUi]="interfaces.isUi"
+      <app-interface-address
+        *ngFor="let address of addresses"
+        [label]="address.label"
+        [address]="address.url"
+        [isMasked]="interface.serviceInterface.masked"
+        [isUi]="interface.serviceInterface.type === 'ui'"
       />
       <div [style.display]="'flex'" [style.gap.rem]="1">
-        <button tuiButton size="s" (click)="add()">Update</button>
         <button tuiButton size="s" appearance="danger-solid" (click)="remove()">
           Remove
         </button>
       </div>
     </ng-container>
-    <ng-template #noClearnet>
+    <ng-template #empty>
       <button
         tuiButton
         iconLeft="tuiIconPlus"
         [style.align-self]="'flex-start'"
         (click)="add()"
       >
-        Add Clearnet
+        Add Address
       </button>
     </ng-template>
   `,
-  imports: [InterfaceComponent, NgIf, TuiButtonModule],
+  imports: [NgForOf, InterfaceAddressComponent, NgIf, TuiButtonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InterfaceClearnetComponent {
@@ -79,21 +82,14 @@ export class InterfaceClearnetComponent {
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
   private readonly dialogs = inject(TuiDialogService)
-  readonly interfaces = inject(InterfacesComponent)
+  readonly interface = inject(InterfaceComponent)
 
   @Input({ required: true }) network!: NetworkInfo
 
-  getClearnet(clearnet: DomainInfo): string {
-    return getClearnetAddress('https', clearnet)
-  }
-
   async add() {
-    const { domainInfo } = this.interfaces.addressInfo
-    const { domain = '', subdomain = '' } = domainInfo || {}
     const options: Partial<TuiDialogOptions<FormContext<ClearnetForm>>> = {
       label: 'Select Domain/Subdomain',
       data: {
-        value: { domain, subdomain },
         spec: await getClearnetSpec(this.network),
         buttons: [
           {
@@ -118,9 +114,9 @@ export class InterfaceClearnetComponent {
         const loader = this.loader.open('Removing...').subscribe()
 
         try {
-          if (this.interfaces.packageContext) {
+          if (this.interface.packageContext) {
             await this.api.setInterfaceClearnetAddress({
-              ...this.interfaces.packageContext,
+              ...this.interface.packageContext,
               domainInfo: null,
             })
           } else {
@@ -138,9 +134,9 @@ export class InterfaceClearnetComponent {
     const loader = this.loader.open('Saving...').subscribe()
 
     try {
-      if (this.interfaces.packageContext) {
+      if (this.interface.packageContext) {
         await this.api.setInterfaceClearnetAddress({
-          ...this.interfaces.packageContext,
+          ...this.interface.packageContext,
           domainInfo,
         })
       } else {

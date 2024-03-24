@@ -1,4 +1,4 @@
-import { ValueSpecObject } from '@start9labs/start-sdk/lib/config/configTypes'
+import { ValueSpecObject } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
 import { AvailableWifi } from 'src/app/services/api/api.types'
 import { RR } from 'src/app/services/api/api.types'
 
@@ -18,7 +18,7 @@ export interface WifiData {
 
 export function parseWifi(res: RR.GetWifiRes): WifiData {
   return {
-    available: res['available-wifi'],
+    available: res.availableWifi,
     known: Object.entries(res.ssids).map(([ssid, strength]) => ({
       ssid,
       strength,

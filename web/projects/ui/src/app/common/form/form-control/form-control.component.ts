@@ -13,7 +13,7 @@ import {
   TuiNotification,
 } from '@taiga-ui/core'
 import { filter, takeUntil } from 'rxjs'
-import { ValueSpec } from '@start9labs/start-sdk/lib/config/configTypes'
+import { ValueSpec } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
 import { ERRORS } from '../form-group/form-group.component'
 import { FORM_CONTROL_PROVIDERS } from './form-control.providers'
 

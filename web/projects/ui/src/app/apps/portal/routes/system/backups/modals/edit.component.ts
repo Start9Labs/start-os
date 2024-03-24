@@ -53,10 +53,8 @@ import { ToHumanCronPipe } from '../pipes/to-human-cron.pipe'
         (click)="selectPackages()"
       >
         Packages
-        <tui-badge
-          [appearance]="job['package-ids'].length ? 'success' : 'warning'"
-        >
-          {{ job['package-ids'].length + ' selected' }}
+        <tui-badge [appearance]="job.packageIds.length ? 'success' : 'warning'">
+          {{ job.packageIds.length + ' selected' }}
         </tui-badge>
       </button>
       <tui-input name="cron" [(ngModel)]="job.cron">
@@ -145,7 +143,7 @@ export class BackupsEditModal {
 
   selectPackages() {
     this.dialogs.open<string[]>(BACKUP, BACKUP_OPTIONS).subscribe(id => {
-      this.job['package-ids'] = id
+      this.job.packageIds = id
     })
   }
 }

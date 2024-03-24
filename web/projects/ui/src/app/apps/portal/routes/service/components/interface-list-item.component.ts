@@ -11,7 +11,7 @@ import { ConfigService } from 'src/app/services/config.service'
 import { ExtendedInterfaceInfo } from '../pipes/interface-info.pipe'
 
 @Component({
-  selector: 'a[serviceInterface]',
+  selector: 'a[serviceInterfaceListItem]',
   template: `
     <tui-svg [src]="info.icon" [style.color]="info.color"></tui-svg>
     <div [style.flex]="1">
@@ -35,10 +35,10 @@ import { ExtendedInterfaceInfo } from '../pipes/interface-info.pipe'
   standalone: true,
   imports: [TuiButtonModule, CommonModule, TuiSvgModule],
 })
-export class ServiceInterfaceComponent {
+export class ServiceInterfaceListItemComponent {
   private readonly config = inject(ConfigService)
 
-  @Input({ required: true, alias: 'serviceInterface' })
+  @Input({ required: true, alias: 'serviceInterfaceListItem' })
   info!: ExtendedInterfaceInfo
 
   @Input()

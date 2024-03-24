@@ -98,7 +98,7 @@ export default class RecoverPage {
   }
 
   empty(drive: DiskBackupTarget) {
-    return !drive['embassy-os']?.full
+    return !drive.startOs?.full
   }
 
   async getDrives() {

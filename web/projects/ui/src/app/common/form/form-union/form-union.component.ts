@@ -8,10 +8,10 @@ import {
 import { ControlContainer, FormGroupName } from '@angular/forms'
 import {
   unionSelectKey,
+  unionValueKey,
   ValueSpecSelect,
   ValueSpecUnion,
-  unionValueKey,
-} from '@start9labs/start-sdk/lib/config/configTypes'
+} from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
 import { FormService } from 'src/app/services/form.service'
 import { tuiPure } from '@taiga-ui/cdk'
 

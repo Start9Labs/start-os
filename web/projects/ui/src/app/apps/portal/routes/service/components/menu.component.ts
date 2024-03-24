@@ -8,7 +8,7 @@ import { RouterLink } from '@angular/router'
   selector: 'service-menu',
   template: `
     <h3 class="g-title">Menu</h3>
-    @for (menu of service | toMenu; track $index) {
+    @for (menu of pkg | toMenu; track $index) {
       @if (menu.routerLink) {
         <a
           class="g-action"
@@ -23,7 +23,7 @@ import { RouterLink } from '@angular/router'
           (click)="menu.action?.()"
         >
           @if (menu.name === 'Outbound Proxy') {
-            <div [style.color]="color">{{ proxy }}</div>
+            <div [style.color]="color">{{ pkg.outboundProxy || 'None' }}</div>
           }
         </button>
       }
@@ -35,22 +35,11 @@ import { RouterLink } from '@angular/router'
 })
 export class ServiceMenuComponent {
   @Input({ required: true })
-  service!: PackageDataEntry
+  pkg!: PackageDataEntry
 
   get color(): string {
-    return this.service.installed?.outboundProxy
+    return this.pkg.outboundProxy
       ? 'var(--tui-success-fill)'
       : 'var(--tui-warning-fill)'
-  }
-
-  get proxy(): string {
-    switch (this.service.installed?.outboundProxy) {
-      case 'primary':
-        return 'System Primary'
-      case 'mirror':
-        return 'Mirror P2P'
-      default:
-        return this.service.installed?.outboundProxy?.proxyId || 'None'
-    }
   }
 }

@@ -17,6 +17,7 @@ import {
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom, map } from 'rxjs'
 import { DataModel, PackageState } from 'src/app/services/patch-db/data-model'
+import { getManifest } from 'src/app/util/get-package-data'
 
 interface Package {
   id: string
@@ -90,16 +91,19 @@ export class BackupsBackupModal {
 
   async ngOnInit() {
     this.pkgs = await firstValueFrom(
-      this.patch.watch$('package-data').pipe(
+      this.patch.watch$('packageData').pipe(
         map(pkgs =>
           Object.values(pkgs)
-            .map(({ manifest: { id, title }, icon, state }) => ({
-              id,
-              title,
-              icon,
-              disabled: state !== PackageState.Installed,
-              checked: false,
-            }))
+            .map(pkg => {
+              const { id, title } = getManifest(pkg)
+              return {
+                id,
+                title,
+                icon: pkg.icon,
+                disabled: pkg.stateInfo.state !== PackageState.Installed,
+                checked: false,
+              }
+            })
             .sort((a, b) =>
               b.title.toLowerCase() > a.title.toLowerCase() ? -1 : 1,
             ),

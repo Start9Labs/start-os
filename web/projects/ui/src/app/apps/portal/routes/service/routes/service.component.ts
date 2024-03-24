@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ActivatedRoute, NavigationExtras, Router } from '@angular/router'
 import { Manifest } from '@start9labs/marketplace'
-import { getPkgId, isEmptyObject } from '@start9labs/shared'
+import { isEmptyObject } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map, switchMap } from 'rxjs'
 import { ConnectionService } from 'src/app/services/connection.service'
@@ -15,15 +15,12 @@ import { FormDialogService } from 'src/app/services/form-dialog.service'
 import {
   DataModel,
   HealthCheckResult,
-  InstalledPackageInfo,
   MainStatus,
   PackageDataEntry,
-  PackageState,
 } from 'src/app/services/patch-db/data-model'
 import {
   PackageStatus,
   PrimaryRendering,
-  PrimaryStatus,
   renderPkgStatus,
   StatusRendering,
 } from 'src/app/services/pkg-status-rendering.service'
@@ -32,7 +29,7 @@ import { ServiceActionsComponent } from '../components/actions.component'
 import { ServiceAdditionalComponent } from '../components/additional.component'
 import { ServiceDependenciesComponent } from '../components/dependencies.component'
 import { ServiceHealthChecksComponent } from '../components/health-checks.component'
-import { ServiceInterfacesComponent } from '../components/interfaces.component'
+import { ServiceInterfaceListComponent } from '../components/interface-list.component'
 import { ServiceMenuComponent } from '../components/menu.component'
 import { ServiceProgressComponent } from '../components/progress.component'
 import { ServiceStatusComponent } from '../components/status.component'
@@ -40,43 +37,60 @@ import {
   PackageConfigData,
   ServiceConfigModal,
 } from 'src/app/apps/portal/modals/config.component'
-import { ProgressDataPipe } from '../pipes/progress-data.pipe'
 import { DependencyInfo } from '../types/dependency-info'
-
-const STATES = [
-  PackageState.Installing,
-  PackageState.Updating,
-  PackageState.Restoring,
-]
+import { getManifest } from 'src/app/util/get-package-data'
+import { InstallingProgressPipe } from 'src/app/apps/portal/routes/service/pipes/install-progress.pipe'
 
 @Component({
   template: `
     @if (service$ | async; as service) {
-      @if (showProgress(service.pkg)) {
-        @if (service.pkg | progressData; as progress) {
-          <p [progress]="progress.downloadProgress">Downloading</p>
-          <p [progress]="progress.validateProgress">Validating</p>
-          <p [progress]="progress.unpackProgress">Unpacking</p>
-        }
+      <h3 class="g-title">Status</h3>
+      <service-status
+        [connected]="!!(connected$ | async)"
+        [installingInfo]="service.pkg.stateInfo.installingInfo"
+        [rendering]="getRendering(service.status)"
+        [sigtermTimeout]="
+          service.pkg.status.main.status === 'stopping'
+            ? service.pkg.status.main.timeout
+            : null
+        "
+      />
+
+      @if (
+        service.pkg.stateInfo.state === 'installing' ||
+        service.pkg.stateInfo.state === 'updating' ||
+        service.pkg.stateInfo.state === 'restoring'
+      ) {
+        <p
+          *ngFor="
+            let phase of service.pkg.stateInfo.installingInfo.progress.phases
+          "
+          [progress]="phase.progress"
+        >
+          {{ phase.name }}
+        </p>
       } @else {
-        <h3 class="g-title">Status</h3>
-        <service-status
-          [connected]="!!(connected$ | async)"
-          [installProgress]="service.pkg['install-progress']"
-          [rendering]="$any(getRendering(service.status))"
-        />
+        @if (
+          service.pkg.stateInfo.state === 'installed' &&
+          service.status.primary !== 'backing-up'
+        ) {
+          @if (connected$ | async) {
+            <service-actions
+              [pkg]="service.pkg"
+              [dependencies]="service.dependencies"
+            />
+          }
 
-        @if (isInstalled(service.pkg) && (connected$ | async)) {
-          <service-actions
-            [service]="service.pkg"
-            [dependencies]="service.dependencies"
+          <service-interface-list
+            [pkg]="service.pkg"
+            [status]="service.status"
+            ]
           />
-        }
 
-        @if (isInstalled(service.pkg) && !isBackingUp(service.status)) {
-          <service-interfaces [service]="service" />
-
-          @if (isRunning(service.status) && (health$ | async); as checks) {
+          @if (
+            service.status.primary === 'running' && (health$ | async);
+            as checks
+          ) {
             <service-health-checks [checks]="checks" />
           }
 
@@ -84,8 +98,8 @@ const STATES = [
             <service-dependencies [dependencies]="service.dependencies" />
           }
 
-          <service-menu [service]="service.pkg" />
-          <service-additional [service]="service.pkg" />
+          <service-menu [pkg]="service.pkg" />
+          <service-additional [pkg]="service.pkg" />
         }
       }
     }
@@ -94,17 +108,15 @@ const STATES = [
   standalone: true,
   imports: [
     CommonModule,
-
     ServiceProgressComponent,
     ServiceStatusComponent,
     ServiceActionsComponent,
-    ServiceInterfacesComponent,
+    ServiceInterfaceListComponent,
     ServiceHealthChecksComponent,
     ServiceDependenciesComponent,
     ServiceMenuComponent,
     ServiceAdditionalComponent,
-
-    ProgressDataPipe,
+    InstallingProgressPipe,
   ],
 })
 export class ServiceRoute {
@@ -115,12 +127,12 @@ export class ServiceRoute {
   private readonly depErrorService = inject(DepErrorService)
   private readonly router = inject(Router)
   private readonly formDialog = inject(FormDialogService)
-
   readonly connected$ = inject(ConnectionService).connected$
+
   readonly service$ = this.pkgId$.pipe(
     switchMap(pkgId =>
       combineLatest([
-        this.patch.watch$('package-data', pkgId),
+        this.patch.watch$('packageData', pkgId),
         this.depErrorService.getPkgDepErrors$(pkgId),
       ]),
     ),
@@ -132,9 +144,10 @@ export class ServiceRoute {
       }
     }),
   )
+
   readonly health$ = this.pkgId$.pipe(
     switchMap(pkgId =>
-      this.patch.watch$('package-data', pkgId, 'installed', 'status', 'main'),
+      this.patch.watch$('packageData', pkgId, 'status', 'main'),
     ),
     map(toHealthCheck),
   )
@@ -143,53 +156,35 @@ export class ServiceRoute {
     return PrimaryRendering[primary]
   }
 
-  isInstalled({ state }: PackageDataEntry): boolean {
-    return state === PackageState.Installed
-  }
-
-  isRunning({ primary }: PackageStatus): boolean {
-    return primary === PrimaryStatus.Running
-  }
-
-  isBackingUp({ primary }: PackageStatus): boolean {
-    return primary === PrimaryStatus.BackingUp
-  }
-
-  showProgress({ state }: PackageDataEntry): boolean {
-    return STATES.includes(state)
-  }
-
   private getDepInfo(
-    { installed, manifest }: PackageDataEntry,
+    pkg: PackageDataEntry,
     depErrors: PkgDependencyErrors,
   ): DependencyInfo[] {
-    return installed
-      ? Object.keys(installed['current-dependencies'])
-          .filter(depId => !!manifest.dependencies[depId])
-          .map(depId =>
-            this.getDepValues(installed, manifest, depId, depErrors),
-          )
-      : []
+    const manifest = getManifest(pkg)
+
+    return Object.keys(pkg.currentDependencies)
+      .filter(id => !!manifest.dependencies[id])
+      .map(id => this.getDepValues(pkg, manifest, id, depErrors))
   }
 
   private getDepValues(
-    pkgInstalled: InstalledPackageInfo,
+    pkg: PackageDataEntry,
     pkgManifest: Manifest,
     depId: string,
     depErrors: PkgDependencyErrors,
   ): DependencyInfo {
     const { errorText, fixText, fixAction } = this.getDepErrors(
-      pkgInstalled,
+      pkg,
       pkgManifest,
       depId,
       depErrors,
     )
 
-    const depInfo = pkgInstalled['dependency-info'][depId]
+    const depInfo = pkg.dependencyInfo[depId]
 
     return {
       id: depId,
-      version: pkgManifest.dependencies[depId].version, // do we want this version range?
+      version: pkg.currentDependencies[depId].versionRange,
       title: depInfo?.title || depId,
       icon: depInfo?.icon || '',
       errorText: errorText
@@ -205,12 +200,12 @@ export class ServiceRoute {
   }
 
   private getDepErrors(
-    pkgInstalled: InstalledPackageInfo,
+    pkg: PackageDataEntry,
     pkgManifest: Manifest,
     depId: string,
     depErrors: PkgDependencyErrors,
   ) {
-    const depError = (depErrors[pkgManifest.id] as any)?.[depId] // @TODO fix
+    const depError = depErrors[pkgManifest.id]
 
     let errorText: string | null = null
     let fixText: string | null = null
@@ -220,18 +215,15 @@ export class ServiceRoute {
       if (depError.type === DependencyErrorType.NotInstalled) {
         errorText = 'Not installed'
         fixText = 'Install'
-        fixAction = () =>
-          this.fixDep(pkgInstalled, pkgManifest, 'install', depId)
+        fixAction = () => this.fixDep(pkg, pkgManifest, 'install', depId)
       } else if (depError.type === DependencyErrorType.IncorrectVersion) {
         errorText = 'Incorrect version'
         fixText = 'Update'
-        fixAction = () =>
-          this.fixDep(pkgInstalled, pkgManifest, 'update', depId)
+        fixAction = () => this.fixDep(pkg, pkgManifest, 'update', depId)
       } else if (depError.type === DependencyErrorType.ConfigUnsatisfied) {
         errorText = 'Config not satisfied'
         fixText = 'Auto config'
-        fixAction = () =>
-          this.fixDep(pkgInstalled, pkgManifest, 'configure', depId)
+        fixAction = () => this.fixDep(pkg, pkgManifest, 'configure', depId)
       } else if (depError.type === DependencyErrorType.NotRunning) {
         errorText = 'Not running'
         fixText = 'Start'
@@ -250,7 +242,7 @@ export class ServiceRoute {
   }
 
   async fixDep(
-    pkgInstalled: InstalledPackageInfo,
+    pkg: PackageDataEntry,
     pkgManifest: Manifest,
     action: 'install' | 'update' | 'configure',
     depId: string,
@@ -258,10 +250,10 @@ export class ServiceRoute {
     switch (action) {
       case 'install':
       case 'update':
-        return this.installDep(pkgManifest, depId)
+        return this.installDep(pkg, pkgManifest, depId)
       case 'configure':
         return this.formDialog.open<PackageConfigData>(ServiceConfigModal, {
-          label: `${pkgInstalled!['dependency-info'][depId].title} config`,
+          label: `${pkg.dependencyInfo[depId].title} config`,
           data: {
             pkgId: depId,
             dependentInfo: pkgManifest,
@@ -270,13 +262,15 @@ export class ServiceRoute {
     }
   }
 
-  private async installDep(manifest: Manifest, depId: string): Promise<void> {
-    const version = manifest.dependencies[depId].version
-
+  private async installDep(
+    pkg: PackageDataEntry,
+    manifest: Manifest,
+    depId: string,
+  ): Promise<void> {
     const dependentInfo: DependentInfo = {
       id: manifest.id,
       title: manifest.title,
-      version,
+      version: pkg.currentDependencies[depId].versionRange,
     }
     const navigationExtras: NavigationExtras = {
       state: { dependentInfo },

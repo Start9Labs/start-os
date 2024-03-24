@@ -9,8 +9,6 @@ import { TuiDialogService } from '@taiga-ui/core'
 import { TuiButtonModule } from '@taiga-ui/experimental'
 import { TuiInputModule } from '@taiga-ui/kit'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
-import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
 import { PatchDB } from 'patch-db-client'
 import { switchMap } from 'rxjs'
 import { FormModule } from 'src/app/common/form/form.module'
@@ -19,6 +17,8 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormService } from 'src/app/services/form.service'
 import { EmailInfoComponent } from './info.component'
+import { InputSpec } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
+import { customSmtp } from '@start9labs/start-sdk/cjs/sdk/lib/config/configConstants'
 
 @Component({
   template: `
@@ -84,7 +84,7 @@ export class SettingsEmailComponent {
   testAddress = ''
   readonly spec: Promise<InputSpec> = configBuilderToSpec(customSmtp)
   readonly form$ = this.patch
-    .watch$('server-info', 'smtp')
+    .watch$('serverInfo', 'smtp')
     .pipe(
       switchMap(async value =>
         this.formService.createForm(await this.spec, value),

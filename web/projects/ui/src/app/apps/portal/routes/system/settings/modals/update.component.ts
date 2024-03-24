@@ -48,7 +48,7 @@ import { EOSService } from 'src/app/services/eos.service'
   ],
 })
 export class SettingsUpdateModal {
-  readonly versions = Object.entries(this.eosService.eos?.['release-notes']!)
+  readonly versions = Object.entries(this.eosService.eos?.releaseNotes!)
     .sort(([a], [b]) => a.localeCompare(b))
     .reverse()
     .map(([version, notes]) => ({

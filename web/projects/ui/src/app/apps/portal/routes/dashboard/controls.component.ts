@@ -10,24 +10,23 @@ import {
   TuiButtonModule,
   tuiButtonOptionsProvider,
 } from '@taiga-ui/experimental'
-import { map, of } from 'rxjs'
-import { UIComponent } from 'src/app/apps/portal/routes/dashboard/ui.component'
+import { map, Observable } from 'rxjs'
+import { UILaunchComponent } from 'src/app/apps/portal/routes/dashboard/ui.component'
 import { ActionsService } from 'src/app/apps/portal/services/actions.service'
 import { DepErrorService } from 'src/app/services/dep-error.service'
-import {
-  PackageDataEntry,
-  PackageMainStatus,
-} from 'src/app/services/patch-db/data-model'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { getManifest } from 'src/app/util/get-package-data'
+import { Manifest } from '@start9labs/marketplace'
 
 @Component({
   standalone: true,
   selector: 'fieldset[appControls]',
   template: `
-    @if (isRunning) {
+    @if (pkg.status.main.status === 'running') {
       <button
         tuiIconButton
         iconLeft="tuiIconSquare"
-        (click)="actions.stop(appControls)"
+        (click)="actions.stop(manifest)"
       >
         Stop
       </button>
@@ -35,17 +34,17 @@ import {
       <button
         tuiIconButton
         iconLeft="tuiIconRotateCw"
-        (click)="actions.restart(appControls)"
+        (click)="actions.restart(manifest)"
       >
         Restart
       </button>
     } @else {
       <button
-        *tuiLet="hasUnmet(appControls) | async as hasUnmet"
+        *tuiLet="hasUnmet(pkg) | async as hasUnmet"
         tuiIconButton
         iconLeft="tuiIconPlay"
-        [disabled]="!isConfigured"
-        (click)="actions.start(appControls, !!hasUnmet)"
+        [disabled]="!this.pkg.status.configured"
+        (click)="actions.start(manifest, !!hasUnmet)"
       >
         Start
       </button>
@@ -53,48 +52,39 @@ import {
       <button
         tuiIconButton
         iconLeft="tuiIconTool"
-        (click)="actions.configure(appControls)"
+        (click)="actions.configure(manifest)"
       >
         Configure
       </button>
     }
 
-    <app-ui [pkg]="appControls" />
+    <app-ui-launch [pkg]="pkg" />
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButtonModule, UIComponent, TuiLetModule, AsyncPipe],
+  imports: [TuiButtonModule, UILaunchComponent, TuiLetModule, AsyncPipe],
   providers: [tuiButtonOptionsProvider({ size: 's', appearance: 'none' })],
 })
 export class ControlsComponent {
   private readonly errors = inject(DepErrorService)
 
   @Input()
-  appControls!: PackageDataEntry
+  pkg!: PackageDataEntry
+
+  get manifest(): Manifest {
+    return getManifest(this.pkg)
+  }
 
   readonly actions = inject(ActionsService)
 
-  get isRunning(): boolean {
-    return (
-      this.appControls.installed?.status.main.status ===
-      PackageMainStatus.Running
-    )
-  }
-
-  get isConfigured(): boolean {
-    return !!this.appControls.installed?.status.configured
-  }
-
   @tuiPure
-  hasUnmet({ installed, manifest }: PackageDataEntry) {
-    return installed
-      ? this.errors.getPkgDepErrors$(manifest.id).pipe(
-          map(errors =>
-            Object.keys(installed['current-dependencies'])
-              .filter(id => !!manifest.dependencies[id])
-              .map(id => !!(errors[manifest.id] as any)?.[id]) // @TODO fix
-              .some(Boolean),
-          ),
-        )
-      : of(false)
+  hasUnmet(pkg: PackageDataEntry): Observable<boolean> {
+    const id = getManifest(pkg).id
+    return this.errors.getPkgDepErrors$(id).pipe(
+      map(errors =>
+        Object.keys(pkg.currentDependencies)
+          .map(id => !!(errors[id] as any)?.[id]) // @TODO fix
+          .some(Boolean),
+      ),
+    )
   }
 }

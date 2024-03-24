@@ -10,7 +10,7 @@ import { TuiLabelModule } from '@taiga-ui/core'
 import { TuiButtonModule } from '@taiga-ui/experimental'
 
 @Component({
-  selector: 'service-credential',
+  selector: 'service-property',
   template: `
     <label [style.flex]="1" [tuiLabel]="label">
       {{ masked ? mask : value }}
@@ -48,7 +48,7 @@ import { TuiButtonModule } from '@taiga-ui/experimental'
   standalone: true,
   imports: [TuiButtonModule, TuiLabelModule],
 })
-export class ServiceCredentialComponent {
+export class ServicePropertyComponent {
   @Input()
   label = ''
 

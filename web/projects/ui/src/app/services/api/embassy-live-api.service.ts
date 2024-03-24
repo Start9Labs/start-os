@@ -450,10 +450,10 @@ export class LiveApiService extends ApiService {
 
   // package
 
-  async getPackageCredentials(
-    params: RR.GetPackageCredentialsReq,
-  ): Promise<RR.GetPackageCredentialsRes> {
-    return this.rpcRequest({ method: 'package.credentials', params })
+  async getPackageProperties(
+    params: RR.GetPackagePropertiesReq,
+  ): Promise<RR.GetPackagePropertiesRes> {
+    return this.rpcRequest({ method: 'package.properties', params })
   }
 
   async getPackageLogs(

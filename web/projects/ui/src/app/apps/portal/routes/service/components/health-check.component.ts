@@ -91,23 +91,16 @@ export class ServiceHealthCheckComponent {
       return 'Awaiting result...'
     }
 
-    const prefix =
-      this.check.result !== HealthResult.Failure &&
-      this.check.result !== HealthResult.Loading
-        ? this.check.result
-        : ''
-
     switch (this.check.result) {
-      case HealthResult.Failure:
-        return prefix + this.check.error
       case HealthResult.Starting:
-        return `${prefix}...`
+        return 'Starting...'
       case HealthResult.Success:
-        return `${prefix}: ${this.check.message}`
+        return `Success: ${this.check.message}`
       case HealthResult.Loading:
-        return prefix + this.check.message
+      case HealthResult.Failure:
+        return this.check.message
       default:
-        return prefix
+        return this.check.result
     }
   }
 }

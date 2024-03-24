@@ -538,11 +538,6 @@ export class MockApiService extends ApiService {
               domains: [],
               services: [],
             },
-            primaryInbound: type === 'inbound-outbound' ? true : false,
-            primaryOutbound:
-              type === 'inbound-outbound' || type === 'outbound' ? true : false,
-            // primaryInbound: false,
-            // primaryOutbound: false,
           },
         ],
       },
@@ -555,13 +550,11 @@ export class MockApiService extends ApiService {
   async updateProxy(params: RR.UpdateProxyReq): Promise<RR.UpdateProxyRes> {
     await pauseFor(2000)
 
-    const value = params.name || params.primaryInbound || params.primaryOutbound
-
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: `/server-info/network/proxies/0/${Object.keys(params)[0]}`,
-        value,
+        path: `/server-info/network/proxies/0/name`,
+        value: params.name,
       },
     ]
     this.mockRevision(patch)
@@ -926,9 +919,9 @@ export class MockApiService extends ApiService {
 
   // package
 
-  async getPackageCredentials(
-    params: RR.GetPackageCredentialsReq,
-  ): Promise<RR.GetPackageCredentialsRes> {
+  async getPackageProperties(
+    params: RR.GetPackagePropertiesReq,
+  ): Promise<RR.GetPackagePropertiesRes> {
     await pauseFor(2000)
     return {
       password: 'specialPassword$',

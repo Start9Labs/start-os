@@ -35,7 +35,7 @@ import { TuiForModule } from '@taiga-ui/cdk'
     <tbody>
       <tr *ngFor="let key of keys; else: loading">
         <td>{{ key.hostname }}</td>
-        <td>{{ key['created-at'] | date: 'medium' }}</td>
+        <td>{{ key.createdAt | date: 'medium' }}</td>
         <td>{{ key.alg }}</td>
         <td>{{ key.fingerprint }}</td>
         <td>

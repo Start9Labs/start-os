@@ -35,7 +35,7 @@ export class BackupsCreateService {
     const loader = this.loader.open('Beginning backup...').subscribe()
 
     await this.api
-      .createBackup({ 'target-id': targetId, 'package-ids': pkgIds })
+      .createBackup({ targetId, packageIds: pkgIds })
       .finally(() => loader.unsubscribe())
   }
 }

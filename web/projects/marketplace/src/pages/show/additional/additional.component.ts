@@ -16,7 +16,6 @@ import {
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import {
   CopyService,
-  copyToClipboard,
   displayEmver,
   Emver,
   MarkdownComponent,

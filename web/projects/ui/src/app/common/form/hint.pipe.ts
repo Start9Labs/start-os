@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { ValueSpec } from '@start9labs/start-sdk/lib/config/configTypes'
+import { ValueSpec } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
 
 @Pipe({
   name: 'hint',

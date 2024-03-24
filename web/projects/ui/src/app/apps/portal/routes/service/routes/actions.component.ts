@@ -16,7 +16,6 @@ import { filter, switchMap, timer } from 'rxjs'
 import { FormComponent } from 'src/app/apps/portal/components/form.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
-  Action,
   DataModel,
   PackageDataEntry,
   PackageState,
@@ -26,10 +25,13 @@ import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { ServiceActionComponent } from '../components/action.component'
 import { ServiceActionSuccessComponent } from '../components/action-success.component'
 import { GroupActionsPipe } from '../pipes/group-actions.pipe'
+import { ToManifestPipe } from 'src/app/apps/portal/pipes/to-manifest'
+import { ActionMetadata } from '@start9labs/start-sdk/cjs/sdk/lib/types'
+import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
 
 @Component({
   template: `
-    <ng-container *ngIf="pkg$ | async as pkg">
+    @if (pkg$ | async; as pkg) {
       <section>
         <h3 class="g-title">Standard Actions</h3>
         <button
@@ -40,7 +42,7 @@ import { GroupActionsPipe } from '../pipes/group-actions.pipe'
       </section>
       <ng-container *ngIf="pkg.actions | groupActions as actionGroups">
         <h3 *ngIf="actionGroups.length" class="g-title">
-          Actions for {{ pkg.manifest.title }}
+          Actions for {{ (pkg | toManifest).title }}
         </h3>
         <div *ngFor="let group of actionGroups">
           <button
@@ -55,18 +57,18 @@ import { GroupActionsPipe } from '../pipes/group-actions.pipe'
           ></button>
         </div>
       </ng-container>
-    </ng-container>
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, ServiceActionComponent, GroupActionsPipe],
+  imports: [CommonModule, ServiceActionComponent, GroupActionsPipe, ToManifestPipe],
 })
 export class ServiceActionsRoute {
   private readonly id = getPkgId(inject(ActivatedRoute))
 
   readonly pkg$ = this.patch
-    .watch$('package-data', this.id)
-    .pipe(filter(pkg => pkg.state === PackageState.Installed))
+    .watch$('packageData', this.id)
+    .pipe(filter(pkg => pkg.stateInfo.state === PackageState.Installed))
 
   readonly action = {
     icon: 'tuiIconTrash2Large',
@@ -85,7 +87,7 @@ export class ServiceActionsRoute {
     private readonly formDialog: FormDialogService,
   ) {}
 
-  async handleAction(action: WithId<Action>) {
+  async handleAction(action: WithId<ActionMetadata>) {
     if (action.disabled) {
       this.dialogs
         .open(action.disabled, {
@@ -94,11 +96,11 @@ export class ServiceActionsRoute {
         })
         .subscribe()
     } else {
-      if (action['input-spec'] && !isEmptyObject(action['input-spec'])) {
+      if (action.input && !isEmptyObject(action.input)) {
         this.formDialog.open(FormComponent, {
           label: action.name,
           data: {
-            spec: action['input-spec'],
+            spec: action.input,
             buttons: [
               {
                 text: 'Execute',
@@ -128,13 +130,13 @@ export class ServiceActionsRoute {
   }
 
   async tryUninstall(pkg: PackageDataEntry): Promise<void> {
-    const { title, alerts } = pkg.manifest
+    const { title, alerts, id } = getManifest(pkg)
 
     let content =
       alerts.uninstall ||
       `Uninstalling ${title} will permanently delete its data`
 
-    if (hasCurrentDeps(pkg)) {
+    if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
       content = `${content}. Services that depend on ${title} will no longer work properly and may crash`
     }
 
@@ -177,7 +179,7 @@ export class ServiceActionsRoute {
     try {
       const data = await this.embassyApi.executePackageAction({
         id: this.id,
-        'action-id': actionId,
+        actionId,
         input,
       })
 

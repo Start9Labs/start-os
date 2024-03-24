@@ -1,10 +1,8 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import {
-  InterfaceInfo,
-  PackageDataEntry,
-} from 'src/app/services/patch-db/data-model'
+import { ServiceInterfaceWithHostInfo } from '@start9labs/start-sdk/cjs/sdk/lib/types'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 
-export interface ExtendedInterfaceInfo extends InterfaceInfo {
+export interface ExtendedInterfaceInfo extends ServiceInterfaceWithHostInfo {
   id: string
   icon: string
   color: string
@@ -17,8 +15,8 @@ export interface ExtendedInterfaceInfo extends InterfaceInfo {
   standalone: true,
 })
 export class InterfaceInfoPipe implements PipeTransform {
-  transform({ installed }: PackageDataEntry): ExtendedInterfaceInfo[] {
-    return Object.entries(installed!.interfaceInfo).map(([id, val]) => {
+  transform(pkg: PackageDataEntry): ExtendedInterfaceInfo[] {
+    return Object.entries(pkg.serviceInterfaces).map(([id, val]) => {
       let color: string
       let icon: string
       let typeDetail: string
@@ -38,11 +36,6 @@ export class InterfaceInfoPipe implements PipeTransform {
           color = 'var(--tui-support-09)'
           icon = 'tuiIconTerminalLarge'
           typeDetail = 'Application Program Interface (API)'
-          break
-        case 'other':
-          color = 'var(--tui-text-02)'
-          icon = 'tuiIconBoxLarge'
-          typeDetail = 'Unknown Interface Type'
           break
       }
 

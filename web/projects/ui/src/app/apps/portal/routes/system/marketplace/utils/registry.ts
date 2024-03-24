@@ -1,4 +1,4 @@
-import { ValueSpecObject } from '@start9labs/start-sdk/lib/config/configTypes'
+import { ValueSpecObject } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
 import { TuiDialogOptions } from '@taiga-ui/core'
 import { TuiPromptData } from '@taiga-ui/kit'
 
