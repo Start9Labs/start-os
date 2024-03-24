@@ -20,7 +20,7 @@ pub mod private;
 pub mod public;
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct Database {
     pub public: Public,

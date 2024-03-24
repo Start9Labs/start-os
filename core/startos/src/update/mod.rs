@@ -35,7 +35,7 @@ lazy_static! {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UpdateSystemParams {
     marketplace_url: Url,
@@ -60,7 +60,7 @@ pub async fn update_system(
 
 /// What is the status of the updates?
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum UpdateResult {
     NoUpdates,
     Updating,

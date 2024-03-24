@@ -23,6 +23,8 @@ export const isKnownError = (e: unknown): e is T.KnownError =>
 
 declare const affine: unique symbol
 
+export type Affine<A> = { [affine]: A }
+
 type NeverPossible = { [affine]: string }
 export type NoAny<A> = NeverPossible extends A
   ? keyof NeverPossible extends keyof A

@@ -9,14 +9,14 @@ use crate::prelude::*;
 use crate::status::health_check::HealthCheckId;
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct ConfigRes {
     pub config: Option<Config>,
     pub spec: ConfigSpec,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct SetResult {
     pub depends_on: BTreeMap<PackageId, BTreeSet<HealthCheckId>>,
 }

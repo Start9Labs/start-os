@@ -1,9 +1,10 @@
-import { Effects, EnsureStorePath } from "../types"
+import { Effects } from "../types"
+import { PathBuilder, extractJsonPath } from "./PathBuilder"
 
-export class GetStore<Store, Path extends string> {
+export class GetStore<Store, StoreValue> {
   constructor(
     readonly effects: Effects,
-    readonly path: Path & EnsureStorePath<Store, Path>,
+    readonly path: PathBuilder<Store, StoreValue>,
     readonly options: {
       /** Defaults to what ever the package currently in */
       packageId?: string | undefined
@@ -14,9 +15,9 @@ export class GetStore<Store, Path extends string> {
    * Returns the value of Store at the provided path. Restart the service if the value changes
    */
   const() {
-    return this.effects.store.get<Store, Path>({
+    return this.effects.store.get<Store, StoreValue>({
       ...this.options,
-      path: this.path as any,
+      path: extractJsonPath(this.path),
       callback: this.effects.restart,
     })
   }
@@ -24,9 +25,9 @@ export class GetStore<Store, Path extends string> {
    * Returns the value of Store at the provided path. Does nothing if the value changes
    */
   once() {
-    return this.effects.store.get<Store, Path>({
+    return this.effects.store.get<Store, StoreValue>({
       ...this.options,
-      path: this.path as any,
+      path: extractJsonPath(this.path),
       callback: () => {},
     })
   }
@@ -40,22 +41,22 @@ export class GetStore<Store, Path extends string> {
       const waitForNext = new Promise<void>((resolve) => {
         callback = resolve
       })
-      yield await this.effects.store.get<Store, Path>({
+      yield await this.effects.store.get<Store, StoreValue>({
         ...this.options,
-        path: this.path as any,
+        path: extractJsonPath(this.path),
         callback: () => callback(),
       })
       await waitForNext
     }
   }
 }
-export function getStore<Store, Path extends string>(
+export function getStore<Store, StoreValue>(
   effects: Effects,
-  path: Path & EnsureStorePath<Store, Path>,
+  path: PathBuilder<Store, StoreValue>,
   options: {
     /** Defaults to what ever the package currently in */
     packageId?: string | undefined
   } = {},
 ) {
-  return new GetStore<Store, Path>(effects, path as any, options)
+  return new GetStore<Store, StoreValue>(effects, path, options)
 }

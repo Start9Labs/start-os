@@ -257,7 +257,7 @@ struct RemoveAddressParams {
 #[ts(export)]
 #[serde(rename_all = "kebab-case")]
 enum AllowedStatuses {
-    OnlyRunning,
+    OnlyRunning, // onlyRunning
     OnlyStopped,
     Any,
 }
@@ -1090,20 +1090,19 @@ enum DependencyKind {
 #[serde(rename_all = "camelCase", tag = "kind")]
 #[ts(export)]
 enum DependencyRequirement {
+    #[serde(rename_all = "camelCase")]
     Running {
         #[ts(type = "string")]
         id: PackageId,
         #[ts(type = "string[]")]
-        #[serde(rename = "healthChecks")]
         health_checks: BTreeSet<HealthCheckId>,
-        #[serde(rename = "versionSpec")]
         version_spec: String,
         url: String,
     },
+    #[serde(rename_all = "camelCase")]
     Exists {
         #[ts(type = "string")]
         id: PackageId,
-        #[serde(rename = "versionSpec")]
         version_spec: String,
         url: String,
     },

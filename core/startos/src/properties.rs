@@ -6,10 +6,10 @@ use models::PackageId;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 
-use crate::db::model::package::ExposedUI;
+use crate::context::RpcContext;
+use crate::db::model::package::{ExposedUI, StoreExposedUI};
 use crate::prelude::*;
 use crate::Error;
-use crate::{context::RpcContext, db::model::package::StoreExposedUI};
 
 pub fn display_properties(response: Value) {
     println!("{}", response);
@@ -58,7 +58,7 @@ impl IntoProperties for StoreExposedUI {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct PropertiesParam {
     id: PackageId,

@@ -24,7 +24,7 @@ mod gpt;
 mod mbr;
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct PostInstallConfig {
     os_partitions: OsPartitionInfo,
     ethernet_interface: String,
@@ -120,7 +120,7 @@ async fn partition(disk: &mut DiskInfo, overwrite: bool) -> Result<OsPartitionIn
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ExecuteParams {
     logicalname: PathBuf,

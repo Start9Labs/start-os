@@ -36,7 +36,7 @@ impl Map for Dependencies {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[serde(tag = "type")]
 pub enum DependencyRequirement {
     OptIn { how: String },
@@ -50,7 +50,7 @@ impl DependencyRequirement {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct DepInfo {
     pub version: VersionRange,
@@ -61,12 +61,10 @@ pub struct DepInfo {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ConfigureParams {
-    #[arg(name = "dependent-id")]
     dependent_id: PackageId,
-    #[arg(name = "dependency-id")]
     dependency_id: PackageId,
 }
 pub fn configure() -> ParentHandler<ConfigureParams> {
@@ -111,7 +109,7 @@ pub async fn configure_impl(
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct ConfigDryRes {
     pub old_config: Config,
     pub new_config: Config,

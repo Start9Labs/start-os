@@ -3,7 +3,6 @@ import { SDKManifest } from "../manifest/ManifestTypes"
 import * as D from "./configDependencies"
 import { Config, ExtractConfigType } from "./builder/config"
 import nullIfEmpty from "../util/nullIfEmpty"
-import { InterfaceReceipt } from "../interfaces/interfaceReceipt"
 import { InterfacesReceipt as InterfacesReceipt } from "../interfaces/setupInterfaces"
 
 declare const dependencyProof: unique symbol

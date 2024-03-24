@@ -1,4 +1,5 @@
 import { MainEffects, StartSdk } from "../StartSdk"
+import { extractJsonPath } from "../store/PathBuilder"
 import { Effects } from "../types"
 
 type Store = {
@@ -17,19 +18,21 @@ const sdk = StartSdk.of()
   .withStore<Store>()
   .build(true)
 
+const storePath = sdk.StorePath
+
 describe("Store", () => {
   test("types", async () => {
     ;async () => {
-      sdk.store.setOwn(todo<Effects>(), "/config", {
+      sdk.store.setOwn(todo<Effects>(), storePath.config, {
         someValue: "a",
       })
-      sdk.store.setOwn(todo<Effects>(), "/config/someValue", "b")
-      sdk.store.setOwn(todo<Effects>(), "", {
+      sdk.store.setOwn(todo<Effects>(), storePath.config.someValue, "b")
+      sdk.store.setOwn(todo<Effects>(), storePath, {
         config: { someValue: "b" },
       })
       sdk.store.setOwn(
         todo<Effects>(),
-        "/config/someValue",
+        storePath.config.someValue,
 
         // @ts-expect-error Type is wrong for the setting value
         5,
@@ -41,48 +44,42 @@ describe("Store", () => {
         "someValue",
       )
 
-      todo<Effects>().store.set<Store, "/config/someValue">({
-        path: "/config/someValue",
+      todo<Effects>().store.set<Store>({
+        path: extractJsonPath(storePath.config.someValue),
         value: "b",
       })
       todo<Effects>().store.set<Store, "/config/some2Value">({
-        //@ts-expect-error Path is wrong
-        path: "/config/someValue",
+        path: extractJsonPath(storePath.config.someValue),
         //@ts-expect-error Path is wrong
         value: "someValueIn",
       })
-      todo<Effects>().store.set<Store, "/config/someValue">({
-        //@ts-expect-error Path is wrong
-        path: "/config/some2Value",
-        value: "a",
-      })
       ;(await sdk.store
-        .getOwn(todo<MainEffects>(), "/config/someValue")
+        .getOwn(todo<MainEffects>(), storePath.config.someValue)
         .const()) satisfies string
       ;(await sdk.store
-        .getOwn(todo<MainEffects>(), "/config")
+        .getOwn(todo<MainEffects>(), storePath.config)
         .const()) satisfies Store["config"]
       await sdk.store // @ts-expect-error Path is wrong
         .getOwn(todo<MainEffects>(), "/config/somdsfeValue")
         .const()
       ///  ----------------- ERRORS -----------------
 
-      sdk.store.setOwn(todo<MainEffects>(), "", {
+      sdk.store.setOwn(todo<MainEffects>(), storePath, {
         // @ts-expect-error Type is wrong for the setting value
         config: { someValue: "notInAOrB" },
       })
       sdk.store.setOwn(
         todo<MainEffects>(),
-        "/config/someValue",
+        sdk.StorePath.config.someValue,
         // @ts-expect-error Type is wrong for the setting value
         "notInAOrB",
       )
       ;(await sdk.store
-        .getOwn(todo<Effects>(), "/config/someValue")
+        .getOwn(todo<Effects>(), storePath.config.someValue)
         // @ts-expect-error Const should normally not be callable
         .const()) satisfies string
       ;(await sdk.store
-        .getOwn(todo<Effects>(), "/config")
+        .getOwn(todo<Effects>(), storePath.config)
         // @ts-expect-error Const should normally not be callable
         .const()) satisfies Store["config"]
       await sdk.store // @ts-expect-error Path is wrong
@@ -92,14 +89,14 @@ describe("Store", () => {
 
       ///
       ;(await sdk.store
-        .getOwn(todo<MainEffects>(), "/config/someValue")
+        .getOwn(todo<MainEffects>(), storePath.config.someValue)
         // @ts-expect-error satisfies type is wrong
         .const()) satisfies number
-      ;(await sdk.store // @ts-expect-error Path is wrong
-        .getOwn(todo<MainEffects>(), "/config/")
-        .const()) satisfies Store["config"]
-      ;(await todo<Effects>().store.get<Store, "/config/someValue">({
-        path: "/config/someValue",
+      await sdk.store // @ts-expect-error Path is wrong
+        .getOwn(todo<MainEffects>(), extractJsonPath(storePath.config))
+        .const()
+      ;(await todo<Effects>().store.get({
+        path: extractJsonPath(storePath.config.someValue),
         callback: noop,
       })) satisfies string
       await todo<Effects>().store.get<Store, "/config/someValue">({

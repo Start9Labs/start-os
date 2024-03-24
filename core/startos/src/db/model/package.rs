@@ -35,7 +35,7 @@ pub enum ManifestPreference {
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[serde(tag = "state")]
 #[model = "Model<Self>"]
 pub enum PackageState {
@@ -257,14 +257,14 @@ impl Model<PackageState> {
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct InstallingState {
     pub installing_info: InstallingInfo,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct UpdatingState {
     pub manifest: Manifest,
@@ -272,14 +272,14 @@ pub struct UpdatingState {
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct InstalledState {
     pub manifest: Manifest,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct InstallingInfo {
     pub new_manifest: Manifest,
@@ -287,7 +287,7 @@ pub struct InstallingInfo {
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct PackageDataEntry {
     pub state_info: PackageState,
@@ -405,7 +405,7 @@ impl Map for CurrentDependencies {
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct StaticDependencyInfo {
     pub title: String,
@@ -413,11 +413,11 @@ pub struct StaticDependencyInfo {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[serde(tag = "kind")]
 pub enum CurrentDependencyInfo {
     Exists,
-    #[serde(rename_all = "kebab-case")]
+    #[serde(rename_all = "camelCase")]
     Running {
         #[serde(default)]
         health_checks: BTreeSet<HealthCheckId>,
@@ -438,7 +438,7 @@ impl Map for InterfaceAddressMap {
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct InterfaceAddresses {
     pub tor_address: Option<String>,

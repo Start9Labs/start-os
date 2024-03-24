@@ -21,8 +21,6 @@ import {
   MaybePromise,
   ServiceInterfaceId,
   PackageId,
-  EnsureStorePath,
-  ExtractStore,
   ValidIfNoStupidEscape,
 } from "./types"
 import * as patterns from "./util/patterns"
@@ -60,7 +58,6 @@ import {
   setupInterfaces,
 } from "./interfaces/setupInterfaces"
 import { successFailure } from "./trigger/successFailure"
-import { SetupExports } from "./inits/setupExports"
 import { HealthReceipt } from "./health/HealthReceipt"
 import { MultiHost, Scheme, SingleHost, StaticHost } from "./interfaces/Host"
 import { ServiceInterfaceBuilder } from "./interfaces/ServiceInterfaceBuilder"
@@ -78,6 +75,8 @@ import { Mounts } from "./mainFn/Mounts"
 import { Dependency } from "./Dependency"
 import * as T from "./types"
 import { Checker, EmVer } from "./emverLite/mod"
+import { ExposedStorePaths } from "./store/setupExposeStore"
+import { PathBuilder, extractJsonPath, pathBuilder } from "./store/PathBuilder"
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
@@ -150,25 +149,29 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
       },
 
       store: {
-        get: <E extends Effects, Path extends string = never>(
+        get: <E extends Effects, StoreValue = unknown>(
           effects: E,
           packageId: string,
-          path: EnsureStorePath<Store, Path>,
+          path: PathBuilder<Store, StoreValue>,
         ) =>
           removeConstType<E>()(
-            getStore<Store, Path>(effects, path as any, {
+            getStore<Store, StoreValue>(effects, path, {
               packageId,
             }),
           ),
-        getOwn: <E extends Effects, Path extends string>(
+        getOwn: <E extends Effects, StoreValue = unknown>(
           effects: E,
-          path: EnsureStorePath<Store, Path>,
-        ) => removeConstType<E>()(getStore<Store, Path>(effects, path as any)),
-        setOwn: <E extends Effects, Path extends string | never>(
+          path: PathBuilder<Store, StoreValue>,
+        ) => removeConstType<E>()(getStore<Store, StoreValue>(effects, path)),
+        setOwn: <E extends Effects, Path extends PathBuilder<Store, unknown>>(
           effects: E,
-          path: EnsureStorePath<Store, Path>,
-          value: ExtractStore<Store, Path>,
-        ) => effects.store.set<Store, Path>({ value, path: path as any }),
+          path: Path,
+          value: Path extends PathBuilder<Store, infer Value> ? Value : never,
+        ) =>
+          effects.store.set<Store>({
+            value,
+            path: extractJsonPath(path),
+          }),
       },
 
       host: {
@@ -179,7 +182,41 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         multi: (effects: Effects, id: string) => new MultiHost({ id, effects }),
       },
       nullIfEmpty,
+      runCommand: async <A extends string>(
+        effects: Effects,
+        imageId: Manifest["images"][number],
+        command: ValidIfNoStupidEscape<A> | [string, ...string[]],
+        options: CommandOptions & {
+          mounts?: { path: string; options: MountOptions }[]
+        },
+      ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> => {
+        return runCommand<Manifest>(effects, imageId, command, options)
+      },
 
+      createAction: <
+        ConfigType extends
+          | Record<string, any>
+          | Config<any, any>
+          | Config<any, never>,
+        Type extends Record<string, any> = ExtractConfigType<ConfigType>,
+      >(
+        id: string,
+        metaData: Omit<ActionMetadata, "input"> & {
+          input: Config<Type, Store> | Config<Type, never>
+        },
+        fn: (options: {
+          effects: Effects
+          input: Type
+        }) => Promise<ActionResult>,
+      ) => {
+        const { input, ...rest } = metaData
+        return createAction<Manifest, Store, ConfigType, Type>(
+          id,
+          rest,
+          fn,
+          input,
+        )
+      },
       configConstants: { smtpConfig },
       createInterface: (
         effects: Effects,
@@ -197,42 +234,8 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           masked: boolean
         },
       ) => new ServiceInterfaceBuilder({ ...options, effects }),
-      createAction: <
-        ConfigType extends
-          | Record<string, any>
-          | Config<any, any>
-          | Config<any, never>,
-        Type extends Record<string, any> = ExtractConfigType<ConfigType>,
-      >(
-        id: string,
-        metadata: Omit<ActionMetadata, "input"> & {
-          input: Config<Type, Store> | Config<Type, never>
-        },
-        fn: (options: {
-          effects: Effects
-          input: Type
-        }) => Promise<ActionResult>,
-      ) => {
-        const { input, ...rest } = metadata
-        return createAction<Manifest, Store, ConfigType, Type>(
-          id,
-          rest,
-          fn,
-          input,
-        )
-      },
       getSystemSmtp: <E extends Effects>(effects: E) =>
         removeConstType<E>()(new GetSystemSmtp(effects)),
-      runCommand: async <A extends string>(
-        effects: Effects,
-        imageId: Manifest["images"][number],
-        command: ValidIfNoStupidEscape<A> | [string, ...string[]],
-        options: CommandOptions & {
-          mounts?: { path: string; options: MountOptions }[]
-        },
-      ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> => {
-        return runCommand<Manifest>(effects, imageId, command, options)
-      },
 
       createDynamicAction: <
         ConfigType extends
@@ -242,7 +245,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         Type extends Record<string, any> = ExtractConfigType<ConfigType>,
       >(
         id: string,
-        metadata: (options: {
+        metaData: (options: {
           effects: Effects
         }) => MaybePromise<Omit<ActionMetadata, "input">>,
         fn: (options: {
@@ -253,7 +256,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
       ) => {
         return createAction<Manifest, Store, ConfigType, Type>(
           id,
-          metadata,
+          metaData,
           fn,
           input,
         )
@@ -343,7 +346,6 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           })
         }
       },
-      setupExports: (fn: SetupExports<Store>) => fn,
       setupInit: (
         migrations: Migrations<Manifest, Store>,
         install: Install<Manifest, Store>,
@@ -353,15 +355,15 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           effects: Effects
           input: any
         }) => Promise<DependenciesReceipt>,
-        setupExports: SetupExports<Store>,
+        exposedStore: ExposedStorePaths,
       ) =>
         setupInit<Manifest, Store>(
           migrations,
           install,
           uninstall,
           setInterfaces,
-          setupExports,
           setDependencies,
+          exposedStore,
         ),
       setupInstall: (fn: InstallFn<Manifest, Store>) => Install.of(fn),
       setupInterfaces: <
@@ -386,6 +388,12 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           this.manifest,
           ...migrations,
         ),
+      setupProperties:
+        (
+          fn: (options: { effects: Effects }) => Promise<T.SdkPropertiesReturn>,
+        ): T.ExpectedExports.Properties =>
+        (options) =>
+          fn(options).then(nullifyProperties),
       setupUninstall: (fn: UninstallFn<Manifest, Store>) =>
         setupUninstall<Manifest, Store>(fn),
       trigger: {
@@ -538,6 +546,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           down: (opts: { effects: Effects }) => Promise<void>
         }) => Migration.of<Manifest, Store, Version>(options),
       },
+      StorePath: pathBuilder<Store>(),
       Value: {
         toggle: Value.toggle,
         text: Value.text,
@@ -744,5 +753,22 @@ export async function runCommand<Manifest extends SDKManifest>(
     return await overlay.exec(commands)
   } finally {
     await overlay.destroy()
+  }
+}
+function nullifyProperties(value: T.SdkPropertiesReturn): T.PropertiesReturn {
+  return Object.fromEntries(
+    Object.entries(value).map(([k, v]) => [k, nullifyProperties_(v)]),
+  )
+}
+function nullifyProperties_(value: T.SdkPropertiesValue): T.PropertiesValue {
+  if (value.type === "string") {
+    return { description: null, copyable: null, qr: null, ...value }
+  }
+  return {
+    description: null,
+    ...value,
+    value: Object.fromEntries(
+      Object.entries(value.value).map(([k, v]) => [k, nullifyProperties_(v)]),
+    ),
   }
 }

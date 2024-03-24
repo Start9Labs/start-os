@@ -183,7 +183,7 @@ pub enum RevisionsRes {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CliDumpParams {
     #[arg(long = "include-private", short = 'p')]
@@ -216,7 +216,7 @@ async fn cli_dump(
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct DumpParams {
     #[arg(long = "include-private", short = 'p')]
@@ -272,7 +272,7 @@ async fn cli_apply(
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ApplyParams {
     expr: String,
@@ -310,7 +310,7 @@ pub fn put() -> ParentHandler {
     )
 }
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UiParams {
     pointer: JsonPointer,

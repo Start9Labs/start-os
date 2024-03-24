@@ -26,7 +26,7 @@ use crate::prelude::*;
 pub const LOCAL_AUTH_COOKIE_PATH: &str = "/run/embassy/rpc.authcookie";
 
 #[derive(Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct LoginRes {
     pub session: InternedString,
 }
@@ -245,7 +245,7 @@ impl Borrow<str> for HashSessionToken {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct Metadata {
     #[serde(default = "const_true")]
     authenticated: bool,

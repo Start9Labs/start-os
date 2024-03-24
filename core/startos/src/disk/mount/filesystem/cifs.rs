@@ -63,7 +63,7 @@ pub async fn mount_cifs(
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct Cifs {
     pub hostname: String,
     pub path: PathBuf,

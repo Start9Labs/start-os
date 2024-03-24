@@ -34,9 +34,9 @@ pub mod cifs;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum BackupTarget {
-    #[serde(rename_all = "kebab-case")]
+    #[serde(rename_all = "camelCase")]
     Disk {
         vendor: Option<String>,
         model: Option<String>,
@@ -109,7 +109,7 @@ impl Serialize for BackupTargetId {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum BackupTargetFS {
     Disk(BlockDev<PathBuf>),
     Cifs(Cifs),
@@ -190,7 +190,7 @@ pub async fn list(ctx: RpcContext) -> Result<BTreeMap<BackupTargetId, BackupTarg
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct BackupInfo {
     pub version: Version,
     pub timestamp: Option<DateTime<Utc>>,
@@ -198,7 +198,7 @@ pub struct BackupInfo {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct PackageBackupInfo {
     pub title: String,
     pub version: Version,
@@ -243,7 +243,7 @@ fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct InfoParams {
     target_id: BackupTargetId,
@@ -277,7 +277,7 @@ lazy_static::lazy_static! {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct MountParams {
     target_id: BackupTargetId,
@@ -312,7 +312,7 @@ pub async fn mount(
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UmountParams {
     target_id: Option<BackupTargetId>,

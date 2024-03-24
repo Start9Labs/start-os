@@ -126,7 +126,7 @@ pub enum MatchError {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ConfigParams {
     pub id: PackageId,
@@ -157,7 +157,7 @@ pub async fn get(ctx: RpcContext, _: Empty, id: PackageId) -> Result<ConfigRes, 
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct SetParams {
     #[arg(long = "timeout")]
     pub timeout: Option<crate::util::serde::Duration>,
