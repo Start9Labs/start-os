@@ -6,12 +6,18 @@ import {
 } from '@start9labs/marketplace'
 import { TuiAvatarModule, TuiCellModule } from '@taiga-ui/experimental'
 import { PatchDB } from 'patch-db-client'
-import { combineLatest } from 'rxjs'
+import { combineLatest, map } from 'rxjs'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { DataModel } from 'src/app/services/patch-db/data-model'
+import {
+  DataModel,
+  InstalledState,
+  PackageDataEntry,
+  UpdatingState,
+} from 'src/app/services/patch-db/data-model'
 import { ConfigService } from 'src/app/services/config.service'
 import { FilterUpdatesPipe } from './pipes/filter-updates.pipe'
 import { UpdatesItemComponent } from './components/item.component'
+import { isInstalled, isUpdating } from 'src/app/util/get-package-data'
 
 @Component({
   template: `
@@ -69,7 +75,22 @@ export default class UpdatesComponent {
   readonly data$ = combineLatest({
     hosts: this.service.getKnownHosts$(true),
     mp: this.service.getMarketplace$(),
-    local: inject(PatchDB<DataModel>).watch$('package-data'),
+    local: inject(PatchDB<DataModel>)
+      .watch$('packageData')
+      .pipe(
+        map(pkgs =>
+          Object.values(pkgs).reduce(
+            (acc, curr) => {
+              if (isInstalled(curr) || isUpdating(curr)) return { ...acc, curr }
+              return acc
+            },
+            {} as Record<
+              string,
+              PackageDataEntry<InstalledState | UpdatingState>
+            >,
+          ),
+        ),
+      ),
     errors: this.service.getRequestErrors$(),
   })
 }

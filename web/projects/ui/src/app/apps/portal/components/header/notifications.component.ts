@@ -46,7 +46,7 @@ import { NotificationService } from '../../services/notification.service'
           tuiCell
           [notification]="not"
         >
-          <ng-container *ngIf="not['package-id'] as pkgId">
+          <ng-container *ngIf="not.packageId as pkgId">
             {{ $any(packageData[pkgId])?.manifest.title || pkgId }}
           </ng-container>
           <button
@@ -57,11 +57,11 @@ import { NotificationService } from '../../services/notification.service'
             (click)="markSeen(notifications, not)"
           ></button>
           <a
-            *ngIf="not['package-id'] && packageData[not['package-id']]"
+            *ngIf="not.packageId && packageData[not.packageId]"
             tuiButton
             size="xs"
             appearance="secondary"
-            [routerLink]="getLink(not['package-id'] || '')"
+            [routerLink]="getLink(not.packageId || '')"
           >
             View Service
           </a>
@@ -104,7 +104,7 @@ export class HeaderNotificationsComponent {
   private readonly patch = inject(PatchDB<DataModel>)
   private readonly service = inject(NotificationService)
 
-  readonly packageData$ = this.patch.watch$('package-data').pipe(first())
+  readonly packageData$ = this.patch.watch$('packageData').pipe(first())
 
   readonly notifications$ = new Subject<ServerNotifications>()
 
@@ -112,7 +112,7 @@ export class HeaderNotificationsComponent {
 
   ngAfterViewInit() {
     this.patch
-      .watch$('server-info', 'unreadNotifications', 'recent')
+      .watch$('serverInfo', 'unreadNotifications', 'recent')
       .pipe(
         tap(recent => this.notifications$.next(recent)),
         first(),

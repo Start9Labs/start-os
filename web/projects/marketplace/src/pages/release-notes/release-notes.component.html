@@ -2,7 +2,7 @@
   <div class="box-container">
     <div class="box-container-title">
       <h3 class="small-caps">What's new</h3>
-      <p *ngIf="pkg['published-at'] as published">
+      <p *ngIf="pkg.publishedAt as published">
         <span class="small-caps">Latest Release</span>
         &nbsp;-&nbsp;
         <span class="box-container-title-date">
@@ -16,7 +16,7 @@
         <p
           safeLinks
           class="box-container-details-notes"
-          [innerHTML]="pkg.manifest['release-notes'] | markdown | dompurify"
+          [innerHTML]="pkg.manifest.releaseNotes | markdown | dompurify"
         ></p>
       </div>
       <button

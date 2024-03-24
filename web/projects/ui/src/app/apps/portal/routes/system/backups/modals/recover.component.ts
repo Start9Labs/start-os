@@ -21,19 +21,19 @@ import { TuiMapperPipeModule } from '@taiga-ui/cdk'
 
 @Component({
   template: `
-    <ng-container *ngIf="packageData$ | toOptions : backups | async as options">
+    <ng-container *ngIf="packageData$ | toOptions: backups | async as options">
       <div tuiGroup orientation="vertical" [style.width.%]="100">
         <tui-checkbox-block
           *ngFor="let option of options"
-          [disabled]="option.installed || option['newer-eos']"
+          [disabled]="option.installed || option.newerStartOs"
           [(ngModel)]="option.checked"
         >
           <div [style.margin]="'0.75rem 0'">
             <strong>{{ option.title }}</strong>
             <div>Version {{ option.version }}</div>
-            <div>Backup made: {{ option.timestamp | date : 'medium' }}</div>
+            <div>Backup made: {{ option.timestamp | date: 'medium' }}</div>
             <div
-              *ngIf="option | tuiMapper : toMessage as message"
+              *ngIf="option | tuiMapper: toMessage as message"
               [style.color]="message.color"
             >
               {{ message.text }}
@@ -73,11 +73,11 @@ export class BackupsRecoverModal {
     inject<TuiDialogContext<void, RecoverData>>(POLYMORPHEUS_CONTEXT)
 
   readonly packageData$ = inject(PatchDB<DataModel>)
-    .watch$('package-data')
+    .watch$('packageData')
     .pipe(take(1))
 
   readonly toMessage = (option: RecoverOption) => {
-    if (option['newer-eos']) {
+    if (option.newerStartOs) {
       return {
         text: `Unavailable. Backup was made on a newer version of StartOS.`,
         color: 'var(--tui-error-fill)',
@@ -98,7 +98,7 @@ export class BackupsRecoverModal {
   }
 
   get backups(): Record<string, PackageBackupInfo> {
-    return this.context.data.backupInfo['package-backups']
+    return this.context.data.backupInfo.packageBackups
   }
 
   isDisabled(options: RecoverOption[]): boolean {
@@ -109,11 +109,13 @@ export class BackupsRecoverModal {
     const ids = options.filter(({ checked }) => !!checked).map(({ id }) => id)
     const loader = this.loader.open('Initializing...').subscribe()
 
+    const { targetId, password } = this.context.data
+
     try {
       await this.api.restorePackages({
         ids,
-        'target-id': this.context.data.targetId,
-        password: this.context.data.password,
+        targetId,
+        password,
       })
 
       this.context.$implicit.complete()

@@ -1,4 +1,4 @@
-import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
+import { Config } from "@start9labs/start-sdk/cjs/sdk/lib/config/builder/config";
 
 export async function configBuilderToSpec(
   builder:

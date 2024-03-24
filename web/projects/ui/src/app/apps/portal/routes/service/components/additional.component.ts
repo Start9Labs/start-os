@@ -8,7 +8,7 @@ import { ServiceAdditionalItemComponent } from './additional-item.component'
   selector: 'service-additional',
   template: `
     <h3 class="g-title">Additional Info</h3>
-    <ng-container *ngFor="let additional of service | toAdditional">
+    <ng-container *ngFor="let additional of pkg | toAdditional">
       <a
         *ngIf="additional.description.startsWith('http'); else button"
         class="g-action"
@@ -30,5 +30,5 @@ import { ServiceAdditionalItemComponent } from './additional-item.component'
 })
 export class ServiceAdditionalComponent {
   @Input({ required: true })
-  service!: PackageDataEntry
+  pkg!: PackageDataEntry
 }

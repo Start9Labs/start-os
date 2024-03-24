@@ -4,7 +4,7 @@ import * as argon2 from '@start9labs/argon2'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { TUI_PROMPT } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
-import { filter, from, take } from 'rxjs'
+import { filter, firstValueFrom, from, take } from 'rxjs'
 import { switchMap } from 'rxjs/operators'
 import { FormComponent } from 'src/app/apps/portal/components/form.component'
 import { PROMPT } from 'src/app/apps/portal/modals/prompt.component'
@@ -16,6 +16,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 import { passwordSpec, PasswordSpec, SettingBtn } from './settings.types'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
@@ -27,6 +28,7 @@ export class SettingsService {
   private readonly formDialog = inject(FormDialogService)
   private readonly patch = inject(PatchDB<DataModel>)
   private readonly api = inject(ApiService)
+  private readonly isTor = inject(ConfigService).isTor()
 
   readonly settings: Record<string, readonly SettingBtn[]> = {
     General: [
@@ -75,8 +77,14 @@ export class SettingsService {
         icon: 'tuiIconWifi',
         routerLink: 'wifi',
       },
+      {
+        title: 'Reset Tor',
+        description: `May help resolve Tor connectivity issues`,
+        icon: 'tuiIconRefreshCw',
+        action: () => this.promptResetTor(),
+      },
     ],
-    'User Interface': [
+    'StartOS UI': [
       {
         title: 'Browser Tab Title',
         description: `Customize the display name of your browser tab`,
@@ -87,7 +95,7 @@ export class SettingsService {
         title: 'Web Addresses',
         description: 'View and manage web addresses for accessing this UI',
         icon: 'tuiIconMonitor',
-        routerLink: 'interfaces',
+        routerLink: 'ui',
       },
     ],
     'Privacy and Security': [
@@ -95,7 +103,7 @@ export class SettingsService {
         title: 'Outbound Proxy',
         description: 'Proxy outbound traffic from the StartOS main process',
         icon: 'tuiIconShield',
-        action: () => this.proxyService.presentModalSetOutboundProxy(),
+        action: () => this.setOutboundProxy(),
       },
       {
         title: 'SSH',
@@ -111,6 +119,44 @@ export class SettingsService {
         routerLink: 'sessions',
       },
     ],
+  }
+
+  private async setOutboundProxy(): Promise<void> {
+    const proxy = await firstValueFrom(
+      this.patch.watch$('serverInfo', 'network', 'outboundProxy'),
+    )
+    await this.proxyService.presentModalSetOutboundProxy(proxy)
+  }
+
+  // @TODO previous this was done in experimental settings using a template ref.
+  private promptResetTor() {
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: this.isTor ? 'Warning' : 'Confirm',
+        data: {
+          content: '',
+          yes: 'Reset',
+          no: 'Cancel',
+        },
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.resetTor(true))
+  }
+
+  private async resetTor(wipeState: boolean) {
+    const loader = this.loader.open('Resetting Tor...').subscribe()
+
+    try {
+      await this.api.resetTor({
+        wipeState: wipeState,
+        reason: 'User triggered',
+      })
+      this.alerts.open('Tor reset in progress').subscribe()
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
   }
 
   private async setBrowserTab(): Promise<void> {
@@ -187,7 +233,7 @@ export class SettingsService {
     }
 
     // confirm current password is correct
-    const { 'password-hash': passwordHash } = await getServerInfo(this.patch)
+    const { passwordHash } = await getServerInfo(this.patch)
     try {
       argon2.verify(passwordHash, value.currentPassword)
     } catch (e) {
@@ -203,8 +249,8 @@ export class SettingsService {
 
     try {
       await this.api.resetPassword({
-        'old-password': value.currentPassword,
-        'new-password': value.newPassword1,
+        oldPassword: value.currentPassword,
+        newPassword: value.newPassword1,
       })
 
       this.alerts.open('Password changed!').subscribe()

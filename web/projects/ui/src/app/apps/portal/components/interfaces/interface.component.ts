@@ -1,79 +1,61 @@
-import { NgIf } from '@angular/common'
+import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
   inject,
   Input,
 } from '@angular/core'
-import { WINDOW } from '@ng-web-apis/common'
-import { CopyService } from '@start9labs/shared'
-import { TuiDialogService } from '@taiga-ui/core'
-import {
-  TuiButtonModule,
-  TuiCellModule,
-  TuiTitleModule,
-} from '@taiga-ui/experimental'
-import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
-import { QRComponent } from 'src/app/common/qr.component'
+import { T } from '@start9labs/start-sdk'
+import { TuiCardModule, TuiSurfaceModule } from '@taiga-ui/experimental'
+import { PatchDB } from 'patch-db-client'
+import { InterfaceClearnetComponent } from 'src/app/apps/portal/components/interfaces/interface-clearnet.component'
+import { InterfaceLocalComponent } from 'src/app/apps/portal/components/interfaces/interface-local.component'
+import { InterfaceTorComponent } from 'src/app/apps/portal/components/interfaces/interface-tor.component'
+import { DataModel } from 'src/app/services/patch-db/data-model'
+import { AddressDetails } from './interface.utils'
 
 @Component({
   standalone: true,
   selector: 'app-interface',
   template: `
-    <div tuiCell>
-      <h3 tuiTitle>
-        {{ label }}
-        <span tuiSubtitle>{{ hostname }}</span>
-      </h3>
-      <button
-        *ngIf="isUi"
-        tuiIconButton
-        iconLeft="tuiIconExternalLink"
-        appearance="icon"
-        (click)="launch(hostname)"
-      >
-        Launch
-      </button>
-      <button
-        tuiIconButton
-        iconLeft="tuiIconGrid"
-        appearance="icon"
-        (click)="showQR(hostname)"
-      >
-        Show QR code
-      </button>
-      <button
-        tuiIconButton
-        iconLeft="tuiIconCopy"
-        appearance="icon"
-        (click)="copyService.copy(hostname)"
-      >
-        Copy QR code
-      </button>
-    </div>
+    <h3 class="g-title">Clearnet</h3>
+    <app-interface-clearnet
+      *ngIf="network$ | async as network"
+      tuiCardLarge="compact"
+      tuiSurface="elevated"
+      [network]="network"
+    />
+
+    <h3 class="g-title">Tor</h3>
+    <app-interface-tor tuiCardLarge="compact" tuiSurface="elevated" />
+
+    <h3 class="g-title">Local</h3>
+    <app-interface-local tuiCardLarge="compact" tuiSurface="elevated" />
   `,
-  imports: [NgIf, TuiCellModule, TuiTitleModule, TuiButtonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    CommonModule,
+    InterfaceTorComponent,
+    InterfaceLocalComponent,
+    InterfaceClearnetComponent,
+    TuiCardModule,
+    TuiSurfaceModule,
+  ],
 })
 export class InterfaceComponent {
-  private readonly window = inject(WINDOW)
-  private readonly dialogs = inject(TuiDialogService)
-  readonly copyService = inject(CopyService)
+  readonly network$ = inject(PatchDB<DataModel>).watch$('serverInfo', 'network')
 
-  @Input({ required: true }) label = ''
-  @Input({ required: true }) hostname = ''
-  @Input({ required: true }) isUi = false
-
-  launch(url: string): void {
-    this.window.open(url, '_blank', 'noreferrer')
+  @Input() packageContext?: {
+    packageId: string
+    interfaceId: string
   }
+  @Input({ required: true }) serviceInterface!: ServiceInterfaceWithAddresses
+}
 
-  showQR(data: string) {
-    this.dialogs
-      .open(new PolymorpheusComponent(QRComponent), {
-        size: 'auto',
-        data,
-      })
-      .subscribe()
+export type ServiceInterfaceWithAddresses = T.ServiceInterface & {
+  addresses: {
+    clearnet: AddressDetails[]
+    local: AddressDetails[]
+    tor: AddressDetails[]
   }
 }

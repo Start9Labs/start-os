@@ -44,7 +44,7 @@ export class BackupsRestoreService {
               this.getRecoverData(
                 target.id,
                 password,
-                target['embassy-os']?.['password-hash'] || '',
+                target.startOs?.passwordHash || '',
               ),
             ),
             take(1),
@@ -73,7 +73,7 @@ export class BackupsRestoreService {
         const loader = this.loader.open('Decrypting drive...').subscribe()
 
         return this.api
-          .getBackupInfo({ 'target-id': targetId, password })
+          .getBackupInfo({ targetId, password })
           .finally(() => loader.unsubscribe())
       }),
       catchError(e => {

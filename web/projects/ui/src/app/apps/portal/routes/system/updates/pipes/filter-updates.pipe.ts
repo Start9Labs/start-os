@@ -1,7 +1,12 @@
 import { inject, Pipe, PipeTransform } from '@angular/core'
 import { Emver } from '@start9labs/shared'
 import { MarketplacePkg } from '@start9labs/marketplace'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import {
+  InstalledState,
+  PackageDataEntry,
+  UpdatingState,
+} from 'src/app/services/patch-db/data-model'
+import { hasCurrentDeps } from 'src/app/util/has-deps'
 
 @Pipe({
   name: 'filterUpdates',
@@ -12,14 +17,14 @@ export class FilterUpdatesPipe implements PipeTransform {
 
   transform(
     pkgs?: MarketplacePkg[],
-    local?: Record<string, PackageDataEntry | undefined>,
+    local?: Record<string, PackageDataEntry<InstalledState | UpdatingState>>,
   ): MarketplacePkg[] | null {
     return (
       pkgs?.filter(
         ({ manifest }) =>
           this.emver.compare(
             manifest.version,
-            local?.[manifest.id]?.manifest.version, // @TODO this won't work, need old version
+            local?.[manifest.id]?.stateInfo.manifest.version,
           ) === 1,
       ) || null
     )

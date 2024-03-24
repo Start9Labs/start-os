@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ServiceComponent } from 'src/app/apps/portal/routes/dashboard/service.component'
 import { ServicesService } from 'src/app/apps/portal/services/services.service'
 import { DepErrorService } from 'src/app/services/dep-error.service'
+import { ToManifestPipe } from '../../pipes/to-manifest'
 
 @Component({
   standalone: true,
@@ -21,10 +22,11 @@ import { DepErrorService } from 'src/app/services/dep-error.service'
       </thead>
       <tbody>
         @if (errors$ | async; as errors) {
-          @for (service of services$ | async; track $index) {
+          @for (pkg of services$ | async; track $index) {
             <tr
-              [appService]="service"
-              [appServiceError]="errors[service.manifest.id]"
+              appService
+              [pkg]="pkg"
+              [depErrors]="errors[(pkg | toManifest).id]"
             ></tr>
           } @empty {
             <tr>
@@ -78,7 +80,7 @@ import { DepErrorService } from 'src/app/services/dep-error.service'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ServiceComponent, AsyncPipe],
+  imports: [ServiceComponent, AsyncPipe, ToManifestPipe],
 })
 export class ServicesComponent {
   readonly services$ = inject(ServicesService)

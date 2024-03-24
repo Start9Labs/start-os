@@ -69,7 +69,7 @@ export class SettingsDomainsComponent {
   private readonly api = inject(ApiService)
   private readonly dialogs = inject(TuiDialogService)
 
-  readonly domains$ = this.patch.watch$('server-info', 'network').pipe(
+  readonly domains$ = this.patch.watch$('serverInfo', 'network').pipe(
     map(network => {
       const start9ToSubdomain = network.start9ToSubdomain
       const start9To = !start9ToSubdomain
@@ -103,7 +103,7 @@ export class SettingsDomainsComponent {
 
   async add() {
     const proxies = await firstValueFrom(
-      this.patch.watch$('server-info', 'network', 'proxies'),
+      this.patch.watch$('serverInfo', 'network', 'proxies'),
     )
 
     const options: Partial<TuiDialogOptions<FormContext<any>>> = {
@@ -128,7 +128,7 @@ export class SettingsDomainsComponent {
 
   async claim() {
     const proxies = await firstValueFrom(
-      this.patch.watch$('server-info', 'network', 'proxies'),
+      this.patch.watch$('serverInfo', 'network', 'proxies'),
     )
 
     const options: Partial<TuiDialogOptions<FormContext<any>>> = {
@@ -150,13 +150,11 @@ export class SettingsDomainsComponent {
 
     this.formDialog.open(FormComponent, options)
   }
-
+  // @TODO figure out how to get types here
   private getNetworkStrategy(strategy: any) {
-    const { ipStrategy, proxyStrategy = {} } = strategy.unionValueKey
-    const { unionSelectKey, unionValueKey = {} } = proxyStrategy
-    const proxyId = unionSelectKey === 'primary' ? null : unionValueKey.proxyId
-
-    return strategy.unionSelectKey === 'local' ? { ipStrategy } : { proxyId }
+    return strategy.unionSelectKey === 'local'
+      ? { ipStrategy: strategy.unionValueKey.ipStrategy }
+      : { proxy: strategy.unionValueKey.proxyId }
   }
 
   private async deleteDomain(hostname?: string) {
@@ -174,7 +172,7 @@ export class SettingsDomainsComponent {
       loader.unsubscribe()
     }
   }
-
+  // @TODO figure out how to get types here
   private async claimDomain({ strategy }: any): Promise<boolean> {
     const loader = this.loader.open('Saving...').subscribe()
     const networkStrategy = this.getNetworkStrategy(strategy)
@@ -189,7 +187,7 @@ export class SettingsDomainsComponent {
       loader.unsubscribe()
     }
   }
-
+  // @TODO figure out how to get types here
   private async save({ provider, strategy, hostname }: any): Promise<boolean> {
     const loader = this.loader.open('Saving...').subscribe()
     const name = provider.unionSelectKey

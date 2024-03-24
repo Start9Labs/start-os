@@ -93,37 +93,6 @@ export class SettingsExperimentalComponent {
       .subscribe(() => this.resetTor(this.wipe))
   }
 
-  zram(enabled: boolean) {
-    this.dialogs
-      .open(TUI_PROMPT, {
-        label: 'Confirm',
-        data: {
-          content: enabled
-            ? 'Are you sure you want to disable zram? It provides significant performance benefits on low RAM devices.'
-            : 'Enable zram? It will only make a difference on lower RAM devices.',
-          yes: enabled ? 'Disable' : 'Enable',
-          no: 'Cancel',
-        },
-      })
-      .pipe(filter(Boolean))
-      .subscribe(() => this.toggleZram(enabled))
-  }
-
-  private async toggleZram(enabled: boolean) {
-    const loader = this.loader
-      .open(enabled ? 'Disabling zram...' : 'Enabling zram...')
-      .subscribe()
-
-    try {
-      await this.api.toggleZram({ enable: !enabled })
-      this.alerts.open(`Zram ${enabled ? 'disabled' : 'enabled'}`).subscribe()
-    } catch (e: any) {
-      this.errorService.handleError(e)
-    } finally {
-      loader.unsubscribe()
-    }
-  }
-
   private async resetTor(wipeState: boolean) {
     const loader = this.loader.open('Resetting Tor...').subscribe()
 

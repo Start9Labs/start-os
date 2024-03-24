@@ -4,7 +4,7 @@ export class BackupJobBuilder {
   name: string
   target: BackupTarget
   cron: string
-  'package-ids': string[]
+  packageIds: string[]
   now = false
 
   constructor(readonly job: Partial<BackupJob>) {
@@ -12,7 +12,7 @@ export class BackupJobBuilder {
     this.name = name || ''
     this.target = target || ({} as BackupTarget)
     this.cron = cron || '0 2 * * *'
-    this['package-ids'] = job['package-ids'] || []
+    this.packageIds = job.packageIds || []
   }
 
   buildCreate(): RR.CreateBackupJobReq {
@@ -20,9 +20,9 @@ export class BackupJobBuilder {
 
     return {
       name,
-      'target-id': target.id,
+      targetId: target.id,
       cron,
-      'package-ids': this['package-ids'],
+      packageIds: this.packageIds,
       now,
     }
   }
@@ -33,9 +33,9 @@ export class BackupJobBuilder {
     return {
       id,
       name,
-      'target-id': target.id,
+      targetId: target.id,
       cron,
-      'package-ids': this['package-ids'],
+      packageIds: this.packageIds,
     }
   }
 }

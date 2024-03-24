@@ -62,10 +62,8 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
             [style.background]="selected[index] ? 'var(--tui-clear)' : ''"
           >
             <td><tui-checkbox [(ngModel)]="selected[index]"></tui-checkbox></td>
-            <td>{{ run['started-at'] | date : 'medium' }}</td>
-            <td>
-              {{ run['started-at'] | duration : run['completed-at'] }} Minutes
-            </td>
+            <td>{{ run.startedAt | date: 'medium' }}</td>
+            <td>{{ run.startedAt | duration: run.completedAt }} Minutes</td>
             <td>
               <tui-svg
                 *ngIf="run.report | hasError; else noError"
@@ -178,7 +176,7 @@ export class BackupsHistoryModal {
         label: 'Backup Report',
         data: {
           report: run.report,
-          timestamp: run['completed-at'],
+          timestamp: run.completedAt,
         },
       })
       .subscribe()

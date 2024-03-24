@@ -43,7 +43,7 @@ export class LogsPipe implements PipeTransform {
         map(() => getMessage(true)),
       ),
       defer(() => followLogs(this.options)).pipe(
-        tap(r => this.logs.setCursor(r['start-cursor'])),
+        tap(r => this.logs.setCursor(r.startCursor)),
         switchMap(r => this.api.openLogsWebsocket$(this.toConfig(r.guid))),
         bufferTime(1000),
         filter(logs => !!logs.length),

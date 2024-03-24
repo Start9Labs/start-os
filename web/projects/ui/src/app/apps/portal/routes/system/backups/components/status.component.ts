@@ -62,8 +62,8 @@ export class BackupsStatusComponent {
 
   private get hasBackup(): boolean {
     return (
-      !!this.target['embassy-os'] &&
-      this.emver.compare(this.target['embassy-os'].version, '0.3.0') !== -1
+      !!this.target.startOs &&
+      this.emver.compare(this.target.startOs.version, '0.3.0') !== -1
     )
   }
 }

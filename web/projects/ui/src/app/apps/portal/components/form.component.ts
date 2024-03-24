@@ -8,7 +8,7 @@ import {
 } from '@angular/core'
 import { FormGroup, ReactiveFormsModule } from '@angular/forms'
 import { RouterModule } from '@angular/router'
-import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
+import { InputSpec } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
 import {
   tuiMarkControlAsTouchedAndValidate,
   TuiValueChangesModule,

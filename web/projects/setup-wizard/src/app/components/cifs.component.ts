@@ -164,7 +164,7 @@ export class CifsComponent {
     const target: CifsBackupTarget = {
       ...this.form.getRawValue(),
       mountable: true,
-      'embassy-os': diskInfo,
+      startOs: diskInfo,
     }
 
     this.dialogs

@@ -6,17 +6,17 @@ import { TuiButtonModule } from '@taiga-ui/experimental'
 import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
 import { BehaviorSubject } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ServiceCredentialComponent } from '../components/credential.component'
+import { ServicePropertyComponent } from '../components/property.component'
 
 @Component({
   template: `
     @if (loading$ | async) {
       <tui-loader />
     } @else {
-      @for (cred of credentials | keyvalue: asIsOrder; track cred) {
-        <service-credential [label]="cred.key" [value]="cred.value" />
+      @for (prop of properties | keyvalue: asIsOrder; track prop) {
+        <service-property [label]="prop.key" [value]="prop.value" />
       } @empty {
-        No credentials
+        No properties
       }
     }
     <button tuiButton iconLeft="tuiIconRefreshCwLarge" (click)="refresh()">
@@ -36,32 +36,32 @@ import { ServiceCredentialComponent } from '../components/credential.component'
   imports: [
     CommonModule,
     TuiButtonModule,
-    ServiceCredentialComponent,
+    ServicePropertyComponent,
     TuiLoaderModule,
   ],
 })
-export class ServiceCredentialsModal {
+export class ServicePropertiesModal {
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
 
   readonly id = inject<{ data: string }>(POLYMORPHEUS_CONTEXT).data
   readonly loading$ = new BehaviorSubject(true)
 
-  credentials: Record<string, string> = {}
+  properties: Record<string, string> = {}
 
   async ngOnInit() {
-    await this.getCredentials()
+    await this.getProperties()
   }
 
   async refresh() {
-    await this.getCredentials()
+    await this.getProperties()
   }
 
-  private async getCredentials(): Promise<void> {
+  private async getProperties(): Promise<void> {
     this.loading$.next(true)
 
     try {
-      this.credentials = await this.api.getPackageCredentials({ id: this.id })
+      this.properties = await this.api.getPackageProperties({ id: this.id })
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

@@ -13,13 +13,6 @@ export default [
           ),
       },
       {
-        path: 'experimental',
-        loadComponent: () =>
-          import('./routes/experimental/experimental.component').then(
-            m => m.SettingsExperimentalComponent,
-          ),
-      },
-      {
         path: 'domains',
         loadComponent: () =>
           import('./routes/domains/domains.component').then(
@@ -48,10 +41,10 @@ export default [
           ),
       },
       {
-        path: 'interfaces',
+        path: 'ui',
         loadComponent: () =>
-          import('./routes/interfaces/interfaces.component').then(
-            m => m.SettingsInterfacesComponent,
+          import('./routes/interfaces/ui.component').then(
+            m => m.StartOsUiComponent,
           ),
       },
       {

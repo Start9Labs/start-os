@@ -5,7 +5,6 @@ import {
   inject,
   NgZone,
 } from '@angular/core'
-import { DOCUMENT } from '@angular/common'
 import { ANIMATION_FRAME } from '@ng-web-apis/common'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { tuiZonefree } from '@taiga-ui/cdk'

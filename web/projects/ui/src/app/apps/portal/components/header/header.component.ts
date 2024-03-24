@@ -169,7 +169,7 @@ export class HeaderComponent {
     'ui',
     'gaming',
     'snake',
-    'high-score',
+    'highScore',
   )
 }
 

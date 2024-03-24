@@ -9,8 +9,11 @@ import {
 } from 'src/app/apps/portal/modals/config.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
+import { Manifest } from '@start9labs/marketplace'
+import { getAllPackages } from 'src/app/util/get-package-data'
+import { PatchDB } from 'patch-db-client'
 
 @Injectable({
   providedIn: 'root',
@@ -21,15 +24,16 @@ export class ActionsService {
   private readonly loader = inject(LoadingService)
   private readonly api = inject(ApiService)
   private readonly formDialog = inject(FormDialogService)
+  private readonly patch = inject(PatchDB<DataModel>)
 
-  configure({ manifest }: PackageDataEntry): void {
+  configure(manifest: Manifest): void {
     this.formDialog.open<PackageConfigData>(ServiceConfigModal, {
       label: `${manifest.title} configuration`,
       data: { pkgId: manifest.id },
     })
   }
 
-  async start({ manifest }: PackageDataEntry, unmet: boolean): Promise<void> {
+  async start(manifest: Manifest, unmet: boolean): Promise<void> {
     const deps = `${manifest.title} has unmet dependencies. It will not work as expected.`
 
     if (
@@ -40,12 +44,10 @@ export class ActionsService {
     }
   }
 
-  stop(pkg: PackageDataEntry): void {
-    const { title, alerts } = pkg.manifest
-
+  async stop({ id, title, alerts }: Manifest): Promise<void> {
     let content = alerts.stop || ''
 
-    if (hasCurrentDeps(pkg)) {
+    if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
       const depMessage = `Services that depend on ${title} will no longer work properly and may crash`
       content = content ? `${content}.\n\n${depMessage}` : depMessage
     }
@@ -54,26 +56,26 @@ export class ActionsService {
       this.dialogs
         .open(TUI_PROMPT, getOptions(content, 'Stop'))
         .pipe(filter(Boolean))
-        .subscribe(() => this.doStop(pkg.manifest.id))
+        .subscribe(() => this.doStop(id))
     } else {
-      this.doStop(pkg.manifest.id)
+      this.doStop(id)
     }
   }
 
-  restart(pkg: PackageDataEntry): void {
-    if (hasCurrentDeps(pkg)) {
+  async restart({ id, title }: Manifest): Promise<void> {
+    if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
       this.dialogs
         .open(
           TUI_PROMPT,
           getOptions(
-            `Services that depend on ${pkg.manifest} may temporarily experiences issues`,
+            `Services that depend on ${title} may temporarily experiences issues`,
             'Restart',
           ),
         )
         .pipe(filter(Boolean))
-        .subscribe(() => this.doRestart(pkg.manifest.id))
+        .subscribe(() => this.doRestart(id))
     } else {
-      this.doRestart(pkg.manifest.id)
+      this.doRestart(id)
     }
   }
 

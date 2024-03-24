@@ -1,6 +1,7 @@
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { SYSTEM_UTILITIES } from '../constants/system-utilities'
 import { toRouterLink } from './to-router-link'
+import { getManifest } from 'src/app/util/get-package-data'
 
 export interface NavigationItem {
   readonly routerLink: string
@@ -25,7 +26,7 @@ export function toNavigationItem(
 
   return {
     icon: packages[id]?.icon,
-    title: packages[id]?.manifest.title,
+    title: getManifest(packages[id]).title,
     routerLink,
   }
 }

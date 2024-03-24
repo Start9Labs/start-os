@@ -12,6 +12,6 @@ export class ToLocalPipe implements PipeTransform {
   private readonly patch = inject(PatchDB<DataModel>)
 
   transform(id: string): Observable<PackageDataEntry> {
-    return this.patch.watch$('package-data', id).pipe(filter(Boolean))
+    return this.patch.watch$('packageData', id).pipe(filter(Boolean))
   }
 }

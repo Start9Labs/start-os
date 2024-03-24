@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
+import { TuiDialogOptions } from '@taiga-ui/core'
 import { TuiButtonModule } from '@taiga-ui/experimental'
 import { PatchDB } from 'patch-db-client'
 import {
@@ -42,7 +42,7 @@ export class SettingsProxiesComponent {
   private readonly formDialog = inject(FormDialogService)
 
   readonly proxies$ = inject(PatchDB<DataModel>).watch$(
-    'server-info',
+    'serverInfo',
     'network',
     'proxies',
   )

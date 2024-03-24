@@ -4,8 +4,6 @@ import {
   DataModel,
   DomainInfo,
   NetworkStrategy,
-  OsOutboundProxy,
-  ServiceOutboundProxy,
   HealthCheckResult,
 } from 'src/app/services/patch-db/data-model'
 import {
@@ -90,7 +88,7 @@ export module RR {
   export type ResetTorRes = null
 
   export type SetOsOutboundProxyReq = {
-    proxy: OsOutboundProxy
+    proxy: string | null
   } // server.proxy.set-outbound
   export type SetOsOutboundProxyRes = null
 
@@ -140,9 +138,7 @@ export module RR {
   export type AddProxyRes = null
 
   export type UpdateProxyReq = {
-    name?: string
-    primaryInbound?: true
-    primaryOutbound?: true
+    name: string
   } // net.proxy.update
   export type UpdateProxyRes = null
 
@@ -305,8 +301,8 @@ export module RR {
 
   // package
 
-  export type GetPackageCredentialsReq = { id: string } // package.credentials
-  export type GetPackageCredentialsRes = Record<string, string>
+  export type GetPackagePropertiesReq = { id: string } // package.properties
+  export type GetPackagePropertiesRes = Record<string, string>
 
   export type GetPackageLogsReq = FetchLogsReq & { id: string } // package.logs
   export type GetPackageLogsRes = FetchLogsRes
@@ -335,7 +331,6 @@ export module RR {
     // package.backup.restore
     ids: string[]
     targetId: string
-    oldPassword: string | null
     password: string
   }
   export type RestorePackagesRes = null
@@ -384,7 +379,7 @@ export module RR {
 
   export type SetServiceOutboundProxyReq = {
     packageId: string
-    proxy: ServiceOutboundProxy
+    proxy: string | null
   } // package.proxy.set-outbound
   export type SetServiceOutboundProxyRes = null
 
@@ -533,9 +528,9 @@ export interface CloudBackupTarget extends BaseBackupTarget {
 
 export interface BackupRun {
   id: string
-  'started-at': string
-  'completed-at': string
-  'package-ids': string[]
+  startedAt: string
+  completedAt: string
+  packageIds: string[]
   job: BackupJob
   report: BackupReport
 }
@@ -598,8 +593,8 @@ export enum NotificationLevel {
 export type NotificationData<T> = T extends 0
   ? null
   : T extends 1
-  ? BackupReport
-  : any
+    ? BackupReport
+    : any
 
 export interface BackupReport {
   server: {

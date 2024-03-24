@@ -6,7 +6,7 @@ import {
   isEmptyObject,
   LoadingService,
 } from '@start9labs/shared'
-import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
+import { InputSpec } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
 import { TuiButtonModule } from '@taiga-ui/experimental'
 import {
   TuiDialogContext,
@@ -27,7 +27,11 @@ import {
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
-import { getAllPackages, getPackage } from 'src/app/util/get-package-data'
+import {
+  getAllPackages,
+  getManifest,
+  getPackage,
+} from 'src/app/util/get-package-data'
 import { Breakages } from 'src/app/services/api/api.types'
 import { InvalidService } from 'src/app/common/form/invalid.service'
 import {
@@ -35,6 +39,7 @@ import {
   FormComponent,
 } from 'src/app/apps/portal/components/form.component'
 import { DependentInfo } from 'src/app/types/dependent-info'
+import { ToManifestPipe } from '../pipes/to-manifest'
 
 export interface PackageConfigData {
   readonly pkgId: string
@@ -52,23 +57,26 @@ export interface PackageConfigData {
       <div [innerHTML]="loadingError"></div>
     </tui-notification>
 
-    <ng-container *ngIf="!loadingText && !loadingError && pkg">
+    <ng-container
+      *ngIf="
+        !loadingText && !loadingError && pkg && (pkg | toManifest) as manifest
+      "
+    >
       <tui-notification *ngIf="success" status="success">
-        {{ pkg.manifest.title }} has been automatically configured with
-        recommended defaults. Make whatever changes you want, then click "Save".
+        {{ manifest.title }} has been automatically configured with recommended
+        defaults. Make whatever changes you want, then click "Save".
       </tui-notification>
 
       <config-dep
         *ngIf="dependentInfo && value && original"
-        [package]="pkg.manifest.title"
+        [package]="manifest.title"
         [dep]="dependentInfo.title"
         [original]="original"
         [value]="value"
       />
 
-      <tui-notification *ngIf="!pkg.installed?.['has-config']" status="warning">
-        No config options for {{ pkg.manifest.title }}
-        {{ pkg.manifest.version }}.
+      <tui-notification *ngIf="!manifest.hasConfig" status="warning">
+        No config options for {{ manifest.title }} {{ manifest.version }}.
       </tui-notification>
 
       <app-form
@@ -106,6 +114,7 @@ export interface PackageConfigData {
     TuiButtonModule,
     TuiModeModule,
     ConfigDepComponent,
+    ToManifestPipe,
   ],
   providers: [InvalidService],
 })
@@ -149,7 +158,7 @@ export class ServiceConfigModal {
       !!this.form &&
       !this.form.form.dirty &&
       !this.original &&
-      !this.pkg?.installed?.status?.configured
+      !this.pkg?.status?.configured
     )
   }
 
@@ -165,12 +174,12 @@ export class ServiceConfigModal {
 
       if (this.dependentInfo) {
         const depConfig = await this.embassyApi.dryConfigureDependency({
-          'dependency-id': this.pkgId,
-          'dependent-id': this.dependentInfo.id,
+          dependencyId: this.pkgId,
+          dependentId: this.dependentInfo.id,
         })
 
-        this.original = depConfig['old-config']
-        this.value = depConfig['new-config'] || this.original
+        this.original = depConfig.oldConfig
+        this.value = depConfig.newConfig || this.original
         this.spec = depConfig.spec
         this.patch = compare(this.original, this.value)
       } else {
@@ -195,7 +204,7 @@ export class ServiceConfigModal {
     try {
       await this.uploadFiles(config, loader)
 
-      if (hasCurrentDeps(this.pkg!)) {
+      if (hasCurrentDeps(this.pkgId, await getAllPackages(this.patchDb))) {
         await this.configureDeps(config, loader)
       } else {
         await this.configure(config, loader)
@@ -260,7 +269,7 @@ export class ServiceConfigModal {
     const message =
       'As a result of this change, the following services will no longer work properly and may crash:<ul>'
     const content = `${message}${Object.keys(breakages).map(
-      id => `<li><b>${packages[id].manifest.title}</b></li>`,
+      id => `<li><b>${getManifest(packages[id]).title}</b></li>`,
     )}</ul>`
     const data: TuiPromptData = { content, yes: 'Continue', no: 'Cancel' }
 

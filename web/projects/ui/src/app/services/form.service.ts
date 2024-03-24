@@ -30,7 +30,7 @@ import {
   unionSelectKey,
   unionValueKey,
   isValueSpecListOf,
-} from '@start9labs/start-sdk/lib/config/configTypes'
+} from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
 const Mustache = require('mustache')
 
 @Injectable({

@@ -644,23 +644,23 @@ export module Mock {
       name: 'My Backup Job',
       target: BackupTargets.saved[0],
       cron: '0 3 * * *',
-      'package-ids': ['bitcoind', 'lnd'],
+      packageIds: ['bitcoind', 'lnd'],
     },
     {
       id: 'hahahahaha-mwmwmwmwmwmw',
       name: 'Another Backup Job',
       target: BackupTargets.saved[1],
       cron: '0 * * * *',
-      'package-ids': ['lnd'],
+      packageIds: ['lnd'],
     },
   ]
 
   export const BackupRuns: RR.GetBackupRunsRes = [
     {
       id: 'kladhbfweubdsk',
-      'started-at': new Date().toISOString(),
-      'completed-at': new Date(new Date().valueOf() + 10000).toISOString(),
-      'package-ids': ['bitcoind', 'lnd'],
+      startedAt: new Date().toISOString(),
+      completedAt: new Date(new Date().valueOf() + 10000).toISOString(),
+      packageIds: ['bitcoind', 'lnd'],
       job: BackupJobs[0],
       report: {
         server: {
@@ -675,9 +675,9 @@ export module Mock {
     },
     {
       id: 'kladhbfwhrfeubdsk',
-      'started-at': new Date().toISOString(),
-      'completed-at': new Date(new Date().valueOf() + 10000).toISOString(),
-      'package-ids': ['bitcoind', 'lnd'],
+      startedAt: new Date().toISOString(),
+      completedAt: new Date(new Date().valueOf() + 10000).toISOString(),
+      packageIds: ['bitcoind', 'lnd'],
       job: BackupJobs[0],
       report: {
         server: {
@@ -1267,6 +1267,7 @@ export module Mock {
       manifest: MockManifestBitcoind,
     },
     icon: '/assets/img/service-icons/bitcoind.svg',
+    installedAt: new Date().toISOString(),
     lastBackup: null,
     status: {
       configured: true,
@@ -1507,6 +1508,7 @@ export module Mock {
       manifest: MockManifestBitcoinProxy,
     },
     icon: '/assets/img/service-icons/btc-rpc-proxy.png',
+    installedAt: new Date().toISOString(),
     lastBackup: null,
     status: {
       configured: false,
@@ -1647,6 +1649,7 @@ export module Mock {
       manifest: MockManifestLnd,
     },
     icon: '/assets/img/service-icons/lnd.png',
+    installedAt: new Date().toISOString(),
     lastBackup: null,
     status: {
       configured: true,

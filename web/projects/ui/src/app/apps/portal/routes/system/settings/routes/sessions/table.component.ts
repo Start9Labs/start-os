@@ -49,13 +49,13 @@ import { FormsModule } from '@angular/forms'
             [ngModel]="selected$.value.includes(session)"
             (ngModelChange)="onToggle(session)"
           />
-          {{ session['user-agent'] }}
+          {{ session.userAgent }}
         </td>
         <td *ngIf="session.metadata.platforms | platformInfo as info">
           <tui-icon [icon]="info.icon"></tui-icon>
           {{ info.name }}
         </td>
-        <td>{{ session['last-active'] }}</td>
+        <td>{{ session.lastActive }}</td>
       </tr>
       <ng-template #loading>
         <tr *ngFor="let _ of single ? [''] : ['', '']">

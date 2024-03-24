@@ -1,14 +1,16 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { IpInfo } from 'src/app/services/patch-db/data-model'
+import { HostnameInfo } from '@start9labs/start-sdk/cjs/sdk/lib/types'
 
 @Pipe({
   standalone: true,
   name: 'primaryIp',
 })
 export class PrimaryIpPipe implements PipeTransform {
-  transform(ipInfo: IpInfo): string {
-    return Object.values(ipInfo)
-      .filter(iface => iface.ipv4)
-      .sort((a, b) => (a.wireless ? -1 : 1))[0].ipv4!
+  transform(hostnames: HostnameInfo[]): string {
+    return (
+      hostnames.map(
+        h => h.kind === 'ip' && h.hostname.kind === 'ipv4' && h.hostname.value,
+      )[0] || ''
+    )
   }
 }

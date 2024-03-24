@@ -43,8 +43,8 @@ export class SetupService extends Observable<number> {
         return 1
       }
 
-      return progress['total-bytes']
-        ? progress['bytes-transferred'] / progress['total-bytes']
+      return progress.totalBytes
+        ? progress.bytesTransferred / progress.totalBytes
         : 0
     }),
     takeWhile(value => value !== 1, true),

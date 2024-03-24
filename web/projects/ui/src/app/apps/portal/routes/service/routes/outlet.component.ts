@@ -24,7 +24,7 @@ export class ServiceOutletComponent {
     map(() => this.route.firstChild?.snapshot.paramMap?.get('pkgId')),
     filter(Boolean),
     distinctUntilChanged(),
-    switchMap(id => this.patch.watch$('package-data', id)),
+    switchMap(id => this.patch.watch$('packageData', id)),
     tap(pkg => {
       // if package disappears, navigate to list page
       if (!pkg) {

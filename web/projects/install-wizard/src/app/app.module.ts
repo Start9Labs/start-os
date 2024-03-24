@@ -5,7 +5,6 @@ import {
   DriveComponent,
   LoadingModule,
   RELATIVE_URL,
-  UnitConversionPipesModule,
   WorkspaceConfig,
 } from '@start9labs/shared'
 import { TuiDialogModule, TuiRootModule } from '@taiga-ui/core'
@@ -42,7 +41,6 @@ const {
     TuiIconModule,
     TuiSurfaceModule,
     TuiTitleModule,
-    UnitConversionPipesModule,
   ],
   providers: [
     {

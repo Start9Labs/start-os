@@ -2,16 +2,13 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { tuiPure } from '@taiga-ui/cdk'
 import { TuiLoaderModule } from '@taiga-ui/core'
 import { TuiIconModule } from '@taiga-ui/experimental'
-import {
-  PackageDataEntry,
-  PackageState,
-} from 'src/app/services/patch-db/data-model'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import {
   HealthStatus,
   PrimaryStatus,
   renderPkgStatus,
 } from 'src/app/services/pkg-status-rendering.service'
-import { packageLoadingProgress } from 'src/app/util/package-loading-progress'
+import { InstallingProgressDisplayPipe } from '../service/pipes/install-progress.pipe'
 
 @Component({
   standalone: true,
@@ -41,27 +38,23 @@ import { packageLoadingProgress } from 'src/app/util/package-loading-progress'
 })
 export class StatusComponent {
   @Input()
-  appStatus!: PackageDataEntry
+  pkg!: PackageDataEntry
 
   @Input()
-  appStatusError = false
+  hasDepErrors = false
 
   get healthy(): boolean {
-    const status = this.getStatus(this.appStatus)
+    const status = this.getStatus(this.pkg)
 
     return (
-      !this.appStatusError && // no deps error
-      !!this.appStatus.installed?.status.configured && // no config needed
-      status.primary !== PackageState.NeedsUpdate && // no update needed
+      !this.hasDepErrors && // no deps error
+      !!this.pkg.status.configured && // no config needed
       status.health !== HealthStatus.Failure // no health issues
     )
   }
 
   get loading(): boolean {
-    return (
-      !!this.appStatus['install-progress'] ||
-      this.color === 'var(--tui-info-fill)'
-    )
+    return !!this.pkg.stateInfo || this.color === 'var(--tui-info-fill)'
   }
 
   @tuiPure
@@ -70,17 +63,15 @@ export class StatusComponent {
   }
 
   get status(): string {
-    if (this.appStatus['install-progress']) {
-      return `Installing... ${packageLoadingProgress(this.appStatus['install-progress'])?.totalProgress || 0}%`
+    if (this.pkg.stateInfo.installingInfo) {
+      return `Installing...${new InstallingProgressDisplayPipe().transform(this.pkg.stateInfo.installingInfo.progress.overall)}`
     }
 
-    switch (this.getStatus(this.appStatus).primary) {
+    switch (this.getStatus(this.pkg).primary) {
       case PrimaryStatus.Running:
         return 'Running'
       case PrimaryStatus.Stopped:
         return 'Stopped'
-      case PackageState.NeedsUpdate:
-        return 'Needs Update'
       case PrimaryStatus.NeedsConfig:
         return 'Needs Config'
       case PrimaryStatus.Updating:
@@ -103,14 +94,13 @@ export class StatusComponent {
   }
 
   get color(): string {
-    if (this.appStatus['install-progress']) {
+    if (this.pkg.stateInfo.installingInfo) {
       return 'var(--tui-info-fill)'
     }
 
-    switch (this.getStatus(this.appStatus).primary) {
+    switch (this.getStatus(this.pkg).primary) {
       case PrimaryStatus.Running:
         return 'var(--tui-success-fill)'
-      case PackageState.NeedsUpdate:
       case PrimaryStatus.NeedsConfig:
         return 'var(--tui-warning-fill)'
       case PrimaryStatus.Updating:

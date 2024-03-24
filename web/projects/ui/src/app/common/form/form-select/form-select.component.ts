@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { ValueSpecSelect } from '@start9labs/start-sdk/lib/config/configTypes'
+import { ValueSpecSelect } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
 import { invert } from '@start9labs/shared'
 import { Control } from '../control'
 

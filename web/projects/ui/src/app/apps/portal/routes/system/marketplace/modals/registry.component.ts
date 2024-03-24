@@ -92,7 +92,7 @@ export class MarketplaceRegistryModal {
   private readonly hosts$ = inject(PatchDB<DataModel>).watch$(
     'ui',
     'marketplace',
-    'known-hosts',
+    'knownHosts',
   )
 
   readonly stores$ = combineLatest([

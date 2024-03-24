@@ -58,8 +58,8 @@ export class SettingsSessionsComponent {
           }))
           .sort(
             (a, b) =>
-              new Date(b['last-active']).valueOf() -
-              new Date(a['last-active']).valueOf(),
+              new Date(b.lastActive).valueOf() -
+              new Date(a.lastActive).valueOf(),
           ),
       ),
     ),

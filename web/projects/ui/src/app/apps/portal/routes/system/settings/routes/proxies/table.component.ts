@@ -20,7 +20,6 @@ import { ProxiesMenuComponent } from './menu.component'
         <th>Name</th>
         <th>Created</th>
         <th>Type</th>
-        <th>Primary</th>
         <th>Used By</th>
         <th></th>
       </tr>
@@ -28,21 +27,8 @@ import { ProxiesMenuComponent } from './menu.component'
     <tbody>
       <tr *ngFor="let proxy of proxies">
         <td>{{ proxy.name }}</td>
-        <td>{{ proxy.createdAt | date : 'short' }}</td>
+        <td>{{ proxy.createdAt | date: 'short' }}</td>
         <td>{{ proxy.type }}</td>
-        <td>
-          <tui-badge
-            *ngIf="proxy.primaryInbound"
-            appearance="success"
-            size="m"
-            [style.margin-right.rem]="0.25"
-          >
-            Inbound
-          </tui-badge>
-          <tui-badge *ngIf="proxy.primaryOutbound" appearance="info" size="m">
-            Outbound
-          </tui-badge>
-        </td>
         <td>
           <button
             *ngIf="getLength(proxy); else unused"

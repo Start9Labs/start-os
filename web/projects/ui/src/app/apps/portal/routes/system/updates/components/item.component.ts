@@ -4,7 +4,6 @@ import { RouterLink } from '@angular/router'
 import {
   AbstractMarketplaceService,
   MarketplacePkg,
-  MimeTypePipeModule,
 } from '@start9labs/marketplace'
 import {
   EmverPipesModule,
@@ -28,22 +27,28 @@ import {
   TuiProgressModule,
 } from '@taiga-ui/kit'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import {
+  DataModel,
+  InstalledState,
+  PackageDataEntry,
+  UpdatingState,
+} from 'src/app/services/patch-db/data-model'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
-import { InstallProgressPipe } from '../pipes/install-progress.pipe'
+import { InstallingProgressPipe } from '../../../service/pipes/install-progress.pipe'
+import { PatchDB } from 'patch-db-client'
+import { getAllPackages } from 'src/app/util/get-package-data'
 
 @Component({
   selector: 'updates-item',
   template: `
     <tui-accordion-item borders="top-bottom">
       <div class="g-action">
-        <tui-avatar size="s" [src]="marketplacePkg | mimeType" />
+        <tui-avatar size="s" [src]="marketplacePkg" />
         <div [style.flex]="1" [style.overflow]="'hidden'">
           <strong>{{ marketplacePkg.manifest.title }}</strong>
           <div>
-            <!-- @TODO left side should be local['old-manifest'] (or whatever), not manifest. -->
-            {{ localPkg.manifest.version || '' | displayEmver }}
+            {{ localPkg.stateInfo.manifest.version | displayEmver }}
             <tui-icon icon="tuiIconArrowRight" [style.font-size.rem]="1" />
             <span [style.color]="'var(--tui-positive)'">
               {{ marketplacePkg.manifest.version | displayEmver }}
@@ -52,10 +57,13 @@ import { InstallProgressPipe } from '../pipes/install-progress.pipe'
           <div [style.color]="'var(--tui-negative)'">{{ errors }}</div>
         </div>
         <tui-progress-circle
-          *ngIf="localPkg.state === 'updating'; else button"
+          *ngIf="localPkg.stateInfo.state === 'updating'; else button"
           style="color: var(--tui-positive)"
           [max]="100"
-          [value]="localPkg['install-progress'] | installProgress"
+          [value]="
+            (localPkg.stateInfo.installingInfo.progress.overall
+              | installingProgress) || 0
+          "
         />
         <ng-template #button>
           <button
@@ -77,7 +85,7 @@ import { InstallProgressPipe } from '../pipes/install-progress.pipe'
         <p
           safeLinks
           [innerHTML]="
-            marketplacePkg.manifest['release-notes'] | markdown | dompurify
+            marketplacePkg.manifest.releaseNotes | markdown | dompurify
           "
         ></p>
         <a
@@ -110,7 +118,6 @@ import { InstallProgressPipe } from '../pipes/install-progress.pipe'
     RouterLink,
     EmverPipesModule,
     MarkdownPipeModule,
-    MimeTypePipeModule,
     NgDompurifyModule,
     SafeLinksDirective,
     SharedPipesModule,
@@ -121,11 +128,12 @@ import { InstallProgressPipe } from '../pipes/install-progress.pipe'
     TuiButtonModule,
     TuiLinkModule,
     TuiLoaderModule,
-    InstallProgressPipe,
+    InstallingProgressPipe,
   ],
 })
 export class UpdatesItemComponent {
   private readonly dialogs = inject(TuiDialogService)
+  private readonly patch = inject(PatchDB<DataModel>)
   private readonly marketplace = inject(
     AbstractMarketplaceService,
   ) as MarketplaceService
@@ -134,17 +142,21 @@ export class UpdatesItemComponent {
   marketplacePkg!: MarketplacePkg
 
   @Input({ required: true })
-  localPkg!: PackageDataEntry
+  localPkg!: PackageDataEntry<InstalledState | UpdatingState>
 
   @Input({ required: true })
-  url = ''
+  url!: string
+
+  get pkgId(): string {
+    return this.marketplacePkg.manifest.id
+  }
 
   get errors(): string {
-    return this.marketplace.updateErrors[this.marketplacePkg.manifest.id]
+    return this.marketplace.updateErrors[this.pkgId]
   }
 
   get ready(): boolean {
-    return !this.marketplace.updateQueue[this.marketplacePkg.manifest.id]
+    return !this.marketplace.updateQueue[this.pkgId]
   }
 
   async onClick() {
@@ -153,7 +165,7 @@ export class UpdatesItemComponent {
     delete this.marketplace.updateErrors[id]
     this.marketplace.updateQueue[id] = true
 
-    if (hasCurrentDeps(this.localPkg)) {
+    if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
       const proceed = await this.alert()
 
       if (proceed) {
@@ -185,7 +197,7 @@ export class UpdatesItemComponent {
           label: 'Warning',
           size: 's',
           data: {
-            content: `Services that depend on ${this.localPkg.manifest.title} will no longer work properly and may crash`,
+            content: `Services that depend on ${this.localPkg.stateInfo.manifest.title} will no longer work properly and may crash`,
             yes: 'Continue',
             no: 'Cancel',
           },

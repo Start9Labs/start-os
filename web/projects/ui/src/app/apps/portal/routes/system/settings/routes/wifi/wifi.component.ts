@@ -102,7 +102,7 @@ export class SettingsWifiComponent {
 
   readonly wifi$ = merge(this.getWifi$(), this.update$)
   readonly enabled$ = inject(PatchDB<DataModel>).watch$(
-    'server-info',
+    'serverInfo',
     'network',
     'wifi',
     'enabled',

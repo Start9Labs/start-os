@@ -1,8 +1,5 @@
 import { Injectable } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
-import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
-import { Variants } from '@start9labs/start-sdk/lib/config/builder/variants'
 import { TuiDialogOptions } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
@@ -13,11 +10,9 @@ import {
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { ApiService } from './api/embassy-api.service'
-import {
-  DataModel,
-  OsOutboundProxy,
-  ServiceOutboundProxy,
-} from './patch-db/data-model'
+import { DataModel } from './patch-db/data-model'
+import { Config } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/config'
+import { Value } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/value'
 
 @Injectable({
   providedIn: 'root',
@@ -31,84 +26,25 @@ export class ProxyService {
     private readonly errorService: ErrorService,
   ) {}
 
-  async presentModalSetOutboundProxy(serviceContext?: {
-    packageId: string
-    outboundProxy: ServiceOutboundProxy
-    hasP2P: boolean
-  }) {
+  async presentModalSetOutboundProxy(current: string | null, pkgId?: string) {
     const network = await firstValueFrom(
-      this.patch.watch$('server-info', 'network'),
+      this.patch.watch$('serverInfo', 'network'),
     )
-
-    const outboundProxy = serviceContext?.outboundProxy
-
-    const defaultValue = !outboundProxy
-      ? 'none'
-      : outboundProxy === 'primary'
-        ? 'primary'
-        : outboundProxy === 'mirror'
-          ? 'mirror'
-          : 'other'
-
-    let variants: Record<string, { name: string; spec: Config<any> }> = {}
-
-    if (serviceContext) {
-      variants['mirror'] = {
-        name: 'Mirror P2P Interface',
-        spec: Config.of({}),
-      }
-    }
-
-    variants = {
-      ...variants,
-      primary: {
-        name: 'Use System Primary',
-        spec: Config.of({}),
-      },
-      other: {
-        name: 'Other',
-        spec: Config.of({
-          proxyId: Value.select({
-            name: 'Select Specific Proxy',
-            required: {
-              default:
-                outboundProxy && typeof outboundProxy !== 'string'
-                  ? outboundProxy.proxyId
-                  : null,
-            },
-            values: network.proxies
-              .filter(
-                p => p.type === 'outbound' || p.type === 'inbound-outbound',
-              )
-              .reduce((prev, curr) => {
-                return {
-                  [curr.id]: curr.name,
-                  ...prev,
-                }
-              }, {}),
-          }),
-        }),
-      },
-      none: {
-        name: 'None',
-        spec: Config.of({}),
-      },
-    }
-
     const config = Config.of({
-      proxy: Value.union(
-        {
-          name: 'Select Proxy',
-          required: { default: defaultValue },
-          description: `
-  <h5>Use System Primary</h5>The primary <i>inbound</i> proxy will be used. If you do not have a primary inbound proxy, no proxy will be used
-  <h5>Mirror Primary Interface</h5>If you have an inbound proxy enabled for the primary interface, outbound traffic will flow through the same proxy
-  <h5>Other</h5>The specific proxy you select will be used, overriding the default
-  `,
-          disabled: serviceContext?.hasP2P ? [] : ['mirror'],
-        },
-        Variants.of(variants),
-      ),
+      proxyId: Value.select({
+        name: 'Select Proxy',
+        required: { default: current },
+        values: network.proxies
+          .filter(
+            p => p.type === 'outbound' || p.type === 'inbound-outbound',
+          )
+          .reduce((prev, curr) => {
+            return {
+              [curr.id]: curr.name,
+              ...prev,
+            }
+          }, {}),
+      }),
     })
 
     const options: Partial<
@@ -125,15 +61,7 @@ export class ProxyService {
           {
             text: 'Save',
             handler: async value => {
-              const proxy =
-                value.proxy.unionSelectKey === 'none'
-                  ? null
-                  : value.proxy.unionSelectKey === 'primary'
-                    ? 'primary'
-                    : value.proxy.unionSelectKey === 'mirror'
-                      ? 'mirror'
-                      : { proxyId: value.proxy.unionValueKey.proxyId }
-              await this.saveOutboundProxy(proxy, serviceContext?.packageId)
+              await this.saveOutboundProxy(value.proxyId, pkgId)
               return true
             },
           },
@@ -144,7 +72,7 @@ export class ProxyService {
   }
 
   private async saveOutboundProxy(
-    proxy: OsOutboundProxy | ServiceOutboundProxy,
+    proxy: string | null,
     packageId?: string,
   ) {
     const loader = this.loader.open(`Saving`).subscribe()
@@ -153,7 +81,7 @@ export class ProxyService {
       if (packageId) {
         await this.api.setServiceOutboundProxy({ packageId, proxy })
       } else {
-        await this.api.setOsOutboundProxy({ proxy: proxy as OsOutboundProxy })
+        await this.api.setOsOutboundProxy({ proxy })
       }
     } catch (e: any) {
       this.errorService.handleError(e)

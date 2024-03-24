@@ -4,7 +4,7 @@ import { ErrorService, LoadingService } from '@start9labs/shared'
 import {
   unionSelectKey,
   unionValueKey,
-} from '@start9labs/start-sdk/lib/config/configTypes'
+} from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
 import { TuiNotificationModule } from '@taiga-ui/core'
 import { TuiButtonModule, TuiFadeModule } from '@taiga-ui/experimental'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
@@ -55,7 +55,7 @@ import { BackupsTargetsComponent } from '../components/targets.component'
     <div class="g-hidden-scrollbar" tuiFade>
       <table
         class="g-table"
-        [backupsPhysical]="targets?.['unknown-disks'] || null"
+        [backupsPhysical]="targets?.unknownDisks || null"
         (add)="addPhysical($event)"
       ></table>
     </div>
@@ -106,7 +106,7 @@ export class BackupsTargetsModal implements OnInit {
       this.targets = await this.api.getBackupTargets({})
     } catch (e: any) {
       this.errorService.handleError(e)
-      this.targets = { 'unknown-disks': [], saved: [] }
+      this.targets = { unknownDisks: [], saved: [] }
     } finally {
       this.loading$.next(false)
     }
@@ -162,7 +162,7 @@ export class BackupsTargetsModal implements OnInit {
               }).then(response => {
                 this.setTargets(
                   this.targets?.saved.concat(response),
-                  this.targets?.['unknown-disks'].filter(a => a !== disk),
+                  this.targets?.unknownDisks.filter(a => a !== disk),
                 )
                 return true
               }),
@@ -225,9 +225,9 @@ export class BackupsTargetsModal implements OnInit {
 
   private setTargets(
     saved: BackupTarget[] = this.targets?.saved || [],
-    unknown: UnknownDisk[] = this.targets?.['unknown-disks'] || [],
+    unknownDisks: UnknownDisk[] = this.targets?.unknownDisks || [],
   ) {
-    this.targets = { ['unknown-disks']: unknown, saved }
+    this.targets = { unknownDisks, saved }
   }
 
   private async getSpec(target: BackupTarget) {

@@ -55,7 +55,7 @@ export class UpdateToastComponent {
   readonly visible$: Observable<boolean> = merge(
     this.dismiss$,
     inject(PatchDB<DataModel>)
-      .watch$('server-info', 'status-info', 'updated')
+      .watch$('serverInfo', 'statusInfo', 'updated')
       .pipe(distinctUntilChanged(), filter(Boolean), endWith(false)),
   )
 

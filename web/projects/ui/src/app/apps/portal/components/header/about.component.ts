@@ -37,13 +37,13 @@ import { ConfigService } from 'src/app/services/config.service'
       <div tuiCell>
         <div tuiTitle>
           <strong>CA fingerprint</strong>
-          <div tuiSubtitle>{{ server['ca-fingerprint'] }}</div>
+          <div tuiSubtitle>{{ server.caFingerprint }}</div>
         </div>
         <button
           tuiIconButton
           appearance="icon"
           iconLeft="tuiIconCopy"
-          (click)="copyService.copy(server['ca-fingerprint'])"
+          (click)="copyService.copy(server.caFingerprint)"
         >
           Copy
         </button>
@@ -62,7 +62,7 @@ import { ConfigService } from 'src/app/services/config.service'
   ],
 })
 export class AboutComponent {
-  readonly server$ = inject(PatchDB<DataModel>).watch$('server-info')
+  readonly server$ = inject(PatchDB<DataModel>).watch$('serverInfo')
   readonly copyService = inject(CopyService)
   readonly gitHash = inject(ConfigService).gitHash
 }

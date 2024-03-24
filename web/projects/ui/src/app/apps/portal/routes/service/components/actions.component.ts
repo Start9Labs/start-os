@@ -8,20 +8,19 @@ import { tuiPure } from '@taiga-ui/cdk'
 import { TuiButtonModule } from '@taiga-ui/experimental'
 import { DependencyInfo } from 'src/app/apps/portal/routes/service/types/dependency-info'
 import { ActionsService } from 'src/app/apps/portal/services/actions.service'
-import {
-  PackageDataEntry,
-  PackageMainStatus,
-} from 'src/app/services/patch-db/data-model'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { Manifest } from '@start9labs/marketplace'
+import { getManifest } from 'src/app/util/get-package-data'
 
 @Component({
   selector: 'service-actions',
   template: `
-    @if (isRunning) {
+    @if (pkg.status.main.status === 'running') {
       <button
         tuiButton
         appearance="secondary-destructive"
         iconLeft="tuiIconSquare"
-        (click)="actions.stop(service)"
+        (click)="actions.stop(manifest)"
       >
         Stop
       </button>
@@ -30,17 +29,17 @@ import {
         tuiButton
         appearance="secondary"
         iconLeft="tuiIconRotateCw"
-        (click)="actions.restart(service)"
+        (click)="actions.restart(manifest)"
       >
         Restart
       </button>
     }
 
-    @if (isStopped && isConfigured) {
+    @if (pkg.status.main.status === 'stopped' && isConfigured) {
       <button
         tuiButton
         iconLeft="tuiIconPlay"
-        (click)="actions.start(service, hasUnmet(dependencies))"
+        (click)="actions.start(manifest, hasUnmet(dependencies))"
       >
         Start
       </button>
@@ -51,7 +50,7 @@ import {
         tuiButton
         appearance="secondary-warning"
         iconLeft="tuiIconTool"
-        (click)="actions.configure(service)"
+        (click)="actions.configure(manifest)"
       >
         Configure
       </button>
@@ -64,7 +63,7 @@ import {
 })
 export class ServiceActionsComponent {
   @Input({ required: true })
-  service!: PackageDataEntry
+  pkg!: PackageDataEntry
 
   @Input({ required: true })
   dependencies: readonly DependencyInfo[] = []
@@ -72,19 +71,11 @@ export class ServiceActionsComponent {
   readonly actions = inject(ActionsService)
 
   get isConfigured(): boolean {
-    return this.service.installed!.status.configured
+    return this.pkg.status.configured
   }
 
-  get isRunning(): boolean {
-    return (
-      this.service.installed?.status.main.status === PackageMainStatus.Running
-    )
-  }
-
-  get isStopped(): boolean {
-    return (
-      this.service.installed?.status.main.status === PackageMainStatus.Stopped
-    )
+  get manifest(): Manifest {
+    return getManifest(this.pkg)
   }
 
   @tuiPure

@@ -5,7 +5,6 @@ import {
   inject,
   Input,
   OnChanges,
-  SimpleChanges,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { CopyService, ErrorService, LoadingService } from '@start9labs/shared'

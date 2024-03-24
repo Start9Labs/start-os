@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core'
-import { RouterLink } from '@angular/router'
+import { RouterModule } from '@angular/router'
 import {
   TuiCellModule,
   TuiIconModule,
@@ -37,7 +37,7 @@ import {
       </span>
     </a>
   `,
-  imports: [RouterLink, TuiIconModule, TuiCellModule, TuiTitleModule],
+  imports: [RouterModule, TuiIconModule, TuiCellModule, TuiTitleModule],
 })
 export class RecoverComponent {
   @Input() disabled = false

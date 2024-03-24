@@ -39,8 +39,8 @@ export async function parseS9pk(file: File): Promise<MarketplacePkg> {
     instructions: '',
     categories: [],
     versions: [],
-    'dependency-metadata': {},
-    'published-at': '',
+    dependencyMetadata: {},
+    publishedAt: '',
   }
 }
 
@@ -152,7 +152,7 @@ async function getIcon(
   file: Blob,
   manifest: Manifest,
 ): Promise<string> {
-  const contentType = `image/${manifest.assets.icon.split('.').pop()}`
+  const contentType = '' // @TODO
   const data = file.slice(
     Number(positions['icon'][0]),
     Number(positions['icon'][0]) + Number(positions['icon'][1]),

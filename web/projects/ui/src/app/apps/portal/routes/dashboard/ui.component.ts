@@ -4,20 +4,19 @@ import {
   inject,
   Input,
 } from '@angular/core'
+import { T } from '@start9labs/start-sdk'
 import { tuiPure } from '@taiga-ui/cdk'
 import { TuiDataListModule, TuiHostedDropdownModule } from '@taiga-ui/core'
 import { TuiButtonModule } from '@taiga-ui/experimental'
 import { ConfigService } from 'src/app/services/config.service'
 import {
-  InstalledPackageInfo,
-  InterfaceInfo,
   PackageDataEntry,
   PackageMainStatus,
 } from 'src/app/services/patch-db/data-model'
 
 @Component({
   standalone: true,
-  selector: 'app-ui',
+  selector: 'app-ui-launch',
   template: `
     @if (interfaces.length > 1) {
       <tui-hosted-dropdown [content]="content">
@@ -26,7 +25,7 @@ import {
           iconLeft="tuiIconExternalLink"
           [disabled]="!isRunning"
         >
-          Interfaces
+          Launch UI
         </button>
         <ng-template #content>
           <tui-data-list>
@@ -44,42 +43,44 @@ import {
         </ng-template>
       </tui-hosted-dropdown>
     } @else {
-      <a
-        tuiIconButton
-        iconLeft="tuiIconExternalLink"
-        target="_blank"
-        rel="noreferrer"
-        [attr.href]="getHref(interfaces[0])"
-      >
-        {{ interfaces[0]?.name }}
-      </a>
+      @if (interfaces[0]; as info) {
+        <a
+          tuiIconButton
+          iconLeft="tuiIconExternalLink"
+          target="_blank"
+          rel="noreferrer"
+          [attr.href]="getHref(info)"
+        >
+          {{ info.name }}
+        </a>
+      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButtonModule, TuiHostedDropdownModule, TuiDataListModule],
 })
-export class UIComponent {
+export class UILaunchComponent {
   private readonly config = inject(ConfigService)
 
   @Input()
   pkg!: PackageDataEntry
 
-  get interfaces(): readonly InterfaceInfo[] {
-    return this.getInterfaces(this.pkg.installed)
+  get interfaces(): readonly T.ServiceInterfaceWithHostInfo[] {
+    return this.getInterfaces(this.pkg)
   }
 
   get isRunning(): boolean {
-    return this.pkg.installed?.status.main.status === PackageMainStatus.Running
+    return this.pkg.status.main.status === PackageMainStatus.Running
   }
 
   @tuiPure
-  getInterfaces(info?: InstalledPackageInfo): InterfaceInfo[] {
-    return info
-      ? Object.values(info.interfaceInfo).filter(({ type }) => type === 'ui')
+  getInterfaces(pkg?: PackageDataEntry): T.ServiceInterfaceWithHostInfo[] {
+    return pkg
+      ? Object.values(pkg.serviceInterfaces).filter(({ type }) => type === 'ui')
       : []
   }
 
-  getHref(info?: InterfaceInfo): string | null {
+  getHref(info?: T.ServiceInterfaceWithHostInfo): string | null {
     return info && this.isRunning ? this.config.launchableAddress(info) : null
   }
 }

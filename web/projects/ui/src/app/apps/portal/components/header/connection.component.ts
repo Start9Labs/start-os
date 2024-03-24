@@ -50,8 +50,8 @@ export class HeaderConnectionComponent {
     inject(ConnectionService).networkConnected$,
     inject(ConnectionService).websocketConnected$.pipe(startWith(false)),
     inject(PatchDB<DataModel>)
-      .watch$('server-info', 'status-info')
-      .pipe(startWith({ restarting: false, 'shutting-down': false })),
+      .watch$('serverInfo', 'statusInfo')
+      .pipe(startWith({ restarting: false, shuttingDown: false })),
   ]).pipe(
     map(([network, websocket, status]) => {
       if (!network)
@@ -68,7 +68,7 @@ export class HeaderConnectionComponent {
           icon: 'tuiIconCloudOff',
           status: 'warning',
         }
-      if (status['shutting-down'])
+      if (status.shuttingDown)
         return {
           message: 'Shutting Down',
           color: 'var(--tui-neutral-fill)',

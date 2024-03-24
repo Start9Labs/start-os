@@ -11,12 +11,10 @@ import {
 } from 'src/app/apps/portal/modals/config.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
-import {
-  InstalledPackageInfo,
-  PackageDataEntry,
-} from 'src/app/services/patch-db/data-model'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { ProxyService } from 'src/app/services/proxy.service'
-import { ServiceCredentialsModal } from '../modals/credentials.component'
+import { ServicePropertiesModal } from '../modals/properties.component'
+import { getManifest } from 'src/app/util/get-package-data'
 
 export interface ServiceMenu {
   icon: string
@@ -37,8 +35,8 @@ export class ToMenuPipe implements PipeTransform {
   private readonly formDialog = inject(FormDialogService)
   private readonly proxyService = inject(ProxyService)
 
-  transform({ manifest, installed }: PackageDataEntry): ServiceMenu[] {
-    const url = installed?.['marketplace-url']
+  transform(pkg: PackageDataEntry): ServiceMenu[] {
+    const manifest = getManifest(pkg)
 
     return [
       {
@@ -55,11 +53,11 @@ export class ToMenuPipe implements PipeTransform {
       },
       {
         icon: 'tuiIconKeyLarge',
-        name: 'Credentials',
-        description: `Password, keys, or other credentials of interest`,
+        name: 'Properties',
+        description: `Runtime information, credentials, and other values of interest`,
         action: () =>
           this.dialogs
-            .open(new PolymorpheusComponent(ServiceCredentialsModal), {
+            .open(new PolymorpheusComponent(ServicePropertiesModal), {
               label: `${manifest.title} credentials`,
               data: manifest.id,
             })
@@ -75,7 +73,11 @@ export class ToMenuPipe implements PipeTransform {
         icon: 'tuiIconShieldLarge',
         name: 'Outbound Proxy',
         description: `Proxy all outbound traffic from ${manifest.title}`,
-        action: () => this.setProxy(manifest, installed!),
+        action: () =>
+          this.proxyService.presentModalSetOutboundProxy(
+            pkg.outboundProxy,
+            manifest.id,
+          ),
       },
       {
         icon: 'tuiIconFileTextLarge',
@@ -83,13 +85,13 @@ export class ToMenuPipe implements PipeTransform {
         description: `Raw, unfiltered logs`,
         routerLink: 'logs',
       },
-      url
+      pkg.marketplaceUrl
         ? {
             icon: 'tuiIconShoppingBagLarge',
             name: 'Marketplace Listing',
             description: `View ${manifest.title} on the Marketplace`,
             routerLink: `/portal/system/marketplace`,
-            params: { url, id: manifest.id },
+            params: { url: pkg.marketplaceUrl, id: manifest.id },
           }
         : {
             icon: 'tuiIconShoppingBagLarge',
@@ -123,17 +125,6 @@ export class ToMenuPipe implements PipeTransform {
     this.formDialog.open<PackageConfigData>(ServiceConfigModal, {
       label: `${title} configuration`,
       data: { pkgId: id },
-    })
-  }
-
-  private setProxy(
-    { id }: Manifest,
-    { outboundProxy, interfaceInfo }: InstalledPackageInfo,
-  ) {
-    this.proxyService.presentModalSetOutboundProxy({
-      outboundProxy,
-      packageId: id,
-      hasP2P: Object.values(interfaceInfo).some(i => i.type === 'p2p'),
     })
   }
 }

@@ -29,9 +29,10 @@ import {
 import { ClientStorageService } from 'src/app/services/client-storage.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
-import { getAllPackages } from 'src/app/util/get-package-data'
+import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
 import { dryUpdate } from 'src/app/util/dry-update'
 import { MarketplaceAlertsService } from '../services/alerts.service'
+import { ToManifestPipe } from 'src/app/apps/portal/pipes/to-manifest'
 
 @Component({
   selector: 'marketplace-controls',
@@ -45,8 +46,11 @@ import { MarketplaceAlertsService } from '../services/alerts.service'
       >
         View Installed
       </button>
-      @if (installed) {
-        @switch (localVersion | compareEmver: pkg.manifest.version) {
+      @if (
+        localPkg.stateInfo.state === 'installed' && (localPkg | toManifest);
+        as localManifest
+      ) {
+        @switch (localManifest.version | compareEmver: pkg.manifest.version) {
           @case (1) {
             <button
               tuiButton
@@ -94,7 +98,7 @@ import { MarketplaceAlertsService } from '../services/alerts.service'
   `,
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, EmverPipesModule, TuiButtonModule],
+  imports: [CommonModule, EmverPipesModule, TuiButtonModule, ToManifestPipe],
 })
 export class MarketplaceControlsComponent {
   private readonly alerts = inject(MarketplaceAlertsService)
@@ -118,18 +122,10 @@ export class MarketplaceControlsComponent {
 
   readonly showDevTools$ = inject(ClientStorageService).showDevTools$
 
-  get installed(): boolean {
-    return this.localPkg?.state === PackageState.Installed
-  }
-
-  get localVersion(): string {
-    return this.localPkg?.manifest.version || ''
-  }
-
   async tryInstall() {
     const current = await firstValueFrom(this.marketplace.getSelectedHost$())
     const url = this.url || current.url
-    const originalUrl = this.localPkg?.installed?.['marketplace-url'] || ''
+    const originalUrl = this.localPkg?.marketplaceUrl || ''
 
     if (!this.localPkg) {
       if (await this.alerts.alertInstall(this.pkg)) this.install(url)
@@ -144,9 +140,11 @@ export class MarketplaceControlsComponent {
       return
     }
 
+    const localManifest = getManifest(this.localPkg)
+
     if (
-      hasCurrentDeps(this.localPkg) &&
-      this.emver.compare(this.localVersion, this.pkg.manifest.version) !== 0
+      hasCurrentDeps(localManifest.id, await getAllPackages(this.patch)) &&
+      this.emver.compare(localManifest.version, this.pkg.manifest.version) !== 0
     ) {
       this.dryInstall(url)
     } else {

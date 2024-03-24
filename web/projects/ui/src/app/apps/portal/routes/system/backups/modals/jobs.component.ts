@@ -22,9 +22,9 @@ import { EDIT } from './edit.component'
 @Component({
   template: `
     <tui-notification>
-      Scheduling automatic backups is an excellent way to ensure your Embassy
-      data is safely backed up. Your Embassy will issue a notification whenever
-      one of your scheduled backups succeeds or fails.
+      Scheduling automatic backups is an excellent way to ensure your StartOS
+      data is safely backed up. StartOS will issue a notification whenever one
+      of your scheduled backups succeeds or fails.
       <a
         href="https://docs.start9.com/latest/user-manual/backups/backup-jobs"
         target="_blank"
@@ -57,7 +57,7 @@ import { EDIT } from './edit.component'
               <tui-svg [src]="job.target.type | getBackupIcon"></tui-svg>
               {{ job.target.name }}
             </td>
-            <td>Packages: {{ job['package-ids'].length }}</td>
+            <td>Packages: {{ job.packageIds.length }}</td>
             <td>{{ (job.cron | toHumanCron).message }}</td>
             <td>
               <button
@@ -143,7 +143,7 @@ export class BackupsJobsModal implements OnInit {
         data.name = job.name
         data.target = job.target
         data.cron = job.cron
-        data['package-ids'] = job['package-ids']
+        data.packageIds = job.packageIds
       })
   }
 

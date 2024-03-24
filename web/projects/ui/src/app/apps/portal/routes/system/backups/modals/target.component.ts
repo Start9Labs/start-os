@@ -102,7 +102,7 @@ export class BackupsTargetModal {
   isDisabled(target: BackupTarget): boolean {
     return (
       !target.mountable ||
-      (this.context.data.type === 'restore' && !target['embassy-os'])
+      (this.context.data.type === 'restore' && !target.startOs)
     )
   }
 

@@ -4,5 +4,5 @@ export interface RecoverOption extends PackageBackupInfo {
   id: string
   checked: boolean
   installed: boolean
-  'newer-eos': boolean
+  newerStartOs: boolean
 }

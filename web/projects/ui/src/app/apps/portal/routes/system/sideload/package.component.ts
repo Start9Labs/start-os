@@ -22,6 +22,7 @@ import { combineLatest, map } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
+import { getManifest } from 'src/app/util/get-package-data'
 
 @Component({
   selector: 'sideload-package',
@@ -87,12 +88,12 @@ export class SideloadPackageComponent {
   readonly button$ = combineLatest([
     inject(ClientStorageService).showDevTools$,
     inject(PatchDB<DataModel>)
-      .watch$('package-data')
+      .watch$('packageData')
       .pipe(
         map(local =>
           local[this.package.manifest.id]
             ? this.emver.compare(
-                local[this.package.manifest.id].manifest.version,
+                getManifest(local[this.package.manifest.id]).version,
                 this.package.manifest.version,
               )
             : null,

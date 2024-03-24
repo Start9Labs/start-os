@@ -1,5 +1,5 @@
-import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
-import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
+import { Config } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/config'
+import { Value } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/value'
 
 export interface SettingBtn {
   title: string

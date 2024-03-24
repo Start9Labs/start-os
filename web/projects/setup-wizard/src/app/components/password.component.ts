@@ -111,7 +111,7 @@ export class PasswordComponent {
     }
 
     try {
-      const passwordHash = this.target!['embassy-os']?.['password-hash'] || ''
+      const passwordHash = this.target!.startOs?.passwordHash || ''
 
       argon2.verify(passwordHash, this.password.value)
       this.context.completeWith(this.password.value)

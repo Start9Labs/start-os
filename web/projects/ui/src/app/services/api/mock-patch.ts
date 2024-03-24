@@ -110,10 +110,6 @@ export const mockPatchData: DataModel = {
         ],
       },
       proxies: [],
-      primaryProxies: {
-        inbound: null,
-        outbound: null,
-      },
       outboundProxy: null,
     },
     lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
@@ -153,6 +149,7 @@ export const mockPatchData: DataModel = {
         },
       },
       icon: '/assets/img/service-icons/bitcoind.svg',
+      installedAt: new Date().toISOString(),
       lastBackup: null,
       status: {
         configured: true,
@@ -419,6 +416,7 @@ export const mockPatchData: DataModel = {
         },
       },
       icon: '/assets/img/service-icons/lnd.png',
+      installedAt: new Date().toISOString(),
       lastBackup: null,
       status: {
         configured: true,

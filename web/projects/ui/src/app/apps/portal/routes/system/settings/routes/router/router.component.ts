@@ -12,7 +12,7 @@ import { RouterPortComponent } from './table.component'
     <ng-container *ngIf="server$ | async as server">
       <router-info [enabled]="!server.network.wanConfig.upnp" />
       <table
-        *ngIf="server.ui.ipInfo | primaryIp as ip"
+        *ngIf="server.ui | primaryIp as ip"
         tuiTextfieldAppearance="unstyled"
         tuiTextfieldSize="m"
         [tuiTextfieldLabelOutside]="true"
@@ -65,5 +65,5 @@ import { RouterPortComponent } from './table.component'
   ],
 })
 export class SettingsRouterComponent {
-  readonly server$ = inject(PatchDB<DataModel>).watch$('server-info')
+  readonly server$ = inject(PatchDB<DataModel>).watch$('serverInfo')
 }

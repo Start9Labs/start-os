@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { SharedPipesModule } from '@start9labs/shared'
 import { MarketplacePkg } from '../../../types'
-import { MimeTypePipeModule } from '../../../pipes/mime-type.pipe'
 
 @Component({
   selector: 'marketplace-package-hero',
@@ -11,14 +10,14 @@ import { MimeTypePipeModule } from '../../../pipes/mime-type.pipe'
       <div class="inner-container box-shadow-lg">
         <!-- icon -->
         <img
-          [src]="pkg | mimeType | trustUrl"
+          [src]="pkg.icon | trustUrl"
           class="box-shadow-lg"
           alt="{{ pkg.manifest.title }} Icon"
         />
         <!-- color background -->
         <div class="color-background">
           <img
-            [src]="pkg | mimeType | trustUrl"
+            [src]="pkg.icon | trustUrl"
             alt="{{ pkg.manifest.title }} background image"
           />
         </div>
@@ -144,7 +143,7 @@ import { MimeTypePipeModule } from '../../../pipes/mime-type.pipe'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, SharedPipesModule, MimeTypePipeModule],
+  imports: [CommonModule, SharedPipesModule],
 })
 export class MarketplacePackageHeroComponent {
   @Input({ required: true })

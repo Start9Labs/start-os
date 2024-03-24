@@ -7,7 +7,7 @@ import {
 } from 'src/app/services/patch-db/data-model'
 import { SYSTEM_UTILITIES } from '../constants/system-utilities'
 import { toRouterLink } from '../utils/to-router-link'
-import { getAllPackages } from '../../../util/get-package-data'
+import { getAllPackages, getManifest } from '../../../util/get-package-data'
 
 export interface Breadcrumb {
   title: string
@@ -67,12 +67,12 @@ function toBreadcrumbs(
   }
 
   const [service, ...path] = id.split('/')
-  const { icon, manifest } = packages[service]
+  const { title, version } = getManifest(packages[service])
   const breadcrumbs: Breadcrumb[] = [
     {
-      icon,
-      title: manifest.title,
-      subtitle: manifest.version,
+      icon: packages[service].icon,
+      title,
+      subtitle: version,
       routerLink: toRouterLink(service),
     },
   ]

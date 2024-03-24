@@ -52,10 +52,6 @@ function getHealthStatus(status: Status): HealthStatus | null {
 
   const values = Object.values(status.main.health)
 
-  if (values.some(h => !h.result)) {
-    return HealthStatus.Waiting
-  }
-
   if (values.some(h => h.result === 'failure')) {
     return HealthStatus.Failure
   }
@@ -101,7 +97,6 @@ export enum DependencyStatus {
 
 export enum HealthStatus {
   Failure = 'failure',
-  Waiting = 'waiting',
   Starting = 'starting',
   Loading = 'loading',
   Healthy = 'healthy',
