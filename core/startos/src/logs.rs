@@ -102,14 +102,14 @@ async fn ws_handler(
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct LogResponse {
     entries: Reversible<LogEntry>,
     start_cursor: Option<String>,
     end_cursor: Option<String>,
 }
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct LogFollowResponse {
     start_cursor: Option<String>,
     guid: RequestGuid,
@@ -211,7 +211,7 @@ pub enum LogSource {
 pub const SYSTEM_UNIT: &str = "startd";
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct LogsParam {
     id: PackageId,

@@ -30,7 +30,7 @@ use crate::util::serde::IoFormat;
 use crate::version::VersionT;
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct BackupParams {
     target_id: BackupTargetId,

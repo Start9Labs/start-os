@@ -48,7 +48,7 @@ impl ValueParserFactory for SshPubKey {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct SshKeyResponse {
     pub alg: String,
     pub fingerprint: InternedString,
@@ -103,7 +103,7 @@ pub fn ssh() -> ParentHandler {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct AddParams {
     key: SshPubKey,
@@ -136,7 +136,7 @@ pub async fn add(ctx: RpcContext, AddParams { key }: AddParams) -> Result<SshKey
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct DeleteParams {
     fingerprint: InternedString,

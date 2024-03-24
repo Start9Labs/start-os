@@ -16,16 +16,16 @@ import { Log } from '@start9labs/shared'
 
 export module Mock {
   export const ServerUpdated: ServerStatusInfo = {
-    'backup-progress': null,
-    'update-progress': null,
+    backupProgress: null,
+    updateProgress: null,
     updated: true,
     restarting: false,
-    'shutting-down': false,
+    shuttingDown: false,
   }
   export const MarketplaceEos: RR.GetMarketplaceEosRes = {
     version: '0.3.5.1',
     headline: 'Our biggest release ever.',
-    'release-notes': {
+    releaseNotes: {
       '0.3.5.1': 'Some **Markdown** release _notes_ for 0.3.5.1',
       '0.3.4.4': 'Some **Markdown** release _notes_ for 0.3.4.4',
       '0.3.4.3': 'Some **Markdown** release _notes_ for 0.3.4.3',
@@ -51,19 +51,19 @@ export module Mock {
     id: 'bitcoind',
     title: 'Bitcoin Core',
     version: '0.21.0',
-    'git-hash': 'abcdefgh',
+    gitHash: 'abcdefgh',
     description: {
       short: 'A Bitcoin full node by Bitcoin Core.',
       long: 'Bitcoin is a decentralized consensus protocol and settlement network.',
     },
     replaces: ['banks', 'governments'],
-    'release-notes': 'Taproot, Schnorr, and more.',
+    releaseNotes: 'Taproot, Schnorr, and more.',
     license: 'MIT',
-    'wrapper-repo': 'https://github.com/start9labs/bitcoind-wrapper',
-    'upstream-repo': 'https://github.com/bitcoin/bitcoin',
-    'support-site': 'https://bitcoin.org',
-    'marketing-site': 'https://bitcoin.org',
-    'donation-url': 'https://start9.com',
+    wrapperRepo: 'https://github.com/start9labs/bitcoind-wrapper',
+    upstreamRepo: 'https://github.com/bitcoin/bitcoin',
+    supportSite: 'https://bitcoin.org',
+    marketingSite: 'https://bitcoin.org',
+    donationUrl: 'https://start9.com',
     alerts: {
       install: 'Bitcoin can take over a week to sync.',
       uninstall:
@@ -72,9 +72,9 @@ export module Mock {
       start: 'Starting Bitcoin is good for your health.',
       stop: null,
     },
-    'os-version': '0.2.12',
+    osVersion: '0.2.12',
     dependencies: {},
-    'has-config': true,
+    hasConfig: true,
   }
 
   export const MockManifestLnd: Manifest = {
@@ -85,13 +85,13 @@ export module Mock {
       short: 'A bolt spec compliant client.',
       long: 'More info about LND. More info about LND. More info about LND.',
     },
-    'release-notes': 'Dual funded channels!',
+    releaseNotes: 'Dual funded channels!',
     license: 'MIT',
-    'wrapper-repo': 'https://github.com/start9labs/lnd-wrapper',
-    'upstream-repo': 'https://github.com/lightningnetwork/lnd',
-    'support-site': 'https://lightning.engineering/',
-    'marketing-site': 'https://lightning.engineering/',
-    'donation-url': null,
+    wrapperRepo: 'https://github.com/start9labs/lnd-wrapper',
+    upstreamRepo: 'https://github.com/lightningnetwork/lnd',
+    supportSite: 'https://lightning.engineering/',
+    marketingSite: 'https://lightning.engineering/',
+    donationUrl: null,
     alerts: {
       install: null,
       uninstall: null,
@@ -100,7 +100,7 @@ export module Mock {
       start: 'Starting LND is good for your health.',
       stop: null,
     },
-    'os-version': '0.2.12',
+    osVersion: '0.2.12',
     dependencies: {
       bitcoind: {
         description: 'LND needs bitcoin to live.',
@@ -112,25 +112,25 @@ export module Mock {
         optional: true,
       },
     },
-    'has-config': true,
+    hasConfig: true,
   }
 
   export const MockManifestBitcoinProxy: Manifest = {
     id: 'btc-rpc-proxy',
     title: 'Bitcoin Proxy',
     version: '0.2.2',
-    'git-hash': 'lmnopqrx',
+    gitHash: 'lmnopqrx',
     description: {
       short: 'A super charger for your Bitcoin node.',
       long: 'More info about Bitcoin Proxy. More info about Bitcoin Proxy. More info about Bitcoin Proxy.',
     },
-    'release-notes': 'Even better support for Bitcoin and wallets!',
+    releaseNotes: 'Even better support for Bitcoin and wallets!',
     license: 'MIT',
-    'wrapper-repo': 'https://github.com/start9labs/btc-rpc-proxy-wrapper',
-    'upstream-repo': 'https://github.com/Kixunil/btc-rpc-proxy',
-    'support-site': '',
-    'marketing-site': '',
-    'donation-url': 'https://start9.com',
+    wrapperRepo: 'https://github.com/start9labs/btc-rpc-proxy-wrapper',
+    upstreamRepo: 'https://github.com/Kixunil/btc-rpc-proxy',
+    supportSite: '',
+    marketingSite: '',
+    donationUrl: 'https://start9.com',
     alerts: {
       install: 'Testing install alert',
       uninstall: null,
@@ -138,14 +138,14 @@ export module Mock {
       start: null,
       stop: null,
     },
-    'os-version': '0.2.12',
+    osVersion: '0.2.12',
     dependencies: {
       bitcoind: {
         description: 'Bitcoin Proxy requires a Bitcoin node.',
         optional: false,
       },
     },
-    'has-config': false,
+    hasConfig: false,
   }
 
   export const BitcoinDep: DependencyMetadata = {
@@ -178,8 +178,8 @@ export module Mock {
         },
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
-        'dependency-metadata': {},
-        'published-at': new Date().toISOString(),
+        dependencyMetadata: {},
+        publishedAt: new Date().toISOString(),
       },
       '0.20.0': {
         icon: BTC_ICON,
@@ -191,8 +191,8 @@ export module Mock {
         },
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
-        'dependency-metadata': {},
-        'published-at': new Date().toISOString(),
+        dependencyMetadata: {},
+        publishedAt: new Date().toISOString(),
       },
       '0.21.0': {
         icon: BTC_ICON,
@@ -201,13 +201,13 @@ export module Mock {
         manifest: {
           ...Mock.MockManifestBitcoind,
           version: '0.21.0',
-          'release-notes':
+          releaseNotes:
             'For a complete list of changes, please visit <a href="https://bitcoincore.org/en/releases/0.21.0/">https://bitcoincore.org/en/releases/0.21.0/</a><br /><ul><li>Taproot!</li><li>New RPCs</li><li>Experimental Descriptor Wallets</li></ul>',
         },
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
-        'dependency-metadata': {},
-        'published-at': new Date().toISOString(),
+        dependencyMetadata: {},
+        publishedAt: new Date().toISOString(),
       },
       latest: {
         icon: BTC_ICON,
@@ -215,13 +215,13 @@ export module Mock {
         instructions: 'instructionsUrl',
         manifest: {
           ...Mock.MockManifestBitcoind,
-          'release-notes':
+          releaseNotes:
             'For a complete list of changes, please visit <a href="https://bitcoincore.org/en/releases/0.21.0/" target="_blank">https://bitcoincore.org/en/releases/0.21.0/</a><br />Or in [markdown](https://bitcoincore.org/en/releases/0.21.0/)<ul><li>Taproot!</li><li>New RPCs</li><li>Experimental Descriptor Wallets</li></ul>',
         },
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
-        'dependency-metadata': {},
-        'published-at': new Date().toISOString(),
+        dependencyMetadata: {},
+        publishedAt: new Date().toISOString(),
       },
     },
     lnd: {
@@ -232,15 +232,15 @@ export module Mock {
         manifest: {
           ...Mock.MockManifestLnd,
           version: '0.11.0',
-          'release-notes': 'release notes for LND 0.11.0',
+          releaseNotes: 'release notes for LND 0.11.0',
         },
         categories: ['bitcoin', 'lightning', 'cryptocurrency'],
         versions: ['0.11.0', '0.11.1'],
-        'dependency-metadata': {
+        dependencyMetadata: {
           bitcoind: BitcoinDep,
           'btc-rpc-proxy': ProxyDep,
         },
-        'published-at': new Date().toISOString(),
+        publishedAt: new Date().toISOString(),
       },
       '0.11.1': {
         icon: LND_ICON,
@@ -249,15 +249,15 @@ export module Mock {
         manifest: {
           ...Mock.MockManifestLnd,
           version: '0.11.1',
-          'release-notes': 'release notes for LND 0.11.1',
+          releaseNotes: 'release notes for LND 0.11.1',
         },
         categories: ['bitcoin', 'lightning', 'cryptocurrency'],
         versions: ['0.11.0', '0.11.1'],
-        'dependency-metadata': {
+        dependencyMetadata: {
           bitcoind: BitcoinDep,
           'btc-rpc-proxy': ProxyDep,
         },
-        'published-at': new Date().toISOString(),
+        publishedAt: new Date().toISOString(),
       },
       latest: {
         icon: LND_ICON,
@@ -266,11 +266,11 @@ export module Mock {
         manifest: Mock.MockManifestLnd,
         categories: ['bitcoin', 'lightning', 'cryptocurrency'],
         versions: ['0.11.0', '0.11.1'],
-        'dependency-metadata': {
+        dependencyMetadata: {
           bitcoind: BitcoinDep,
           'btc-rpc-proxy': ProxyDep,
         },
-        'published-at': new Date(new Date().valueOf() + 10).toISOString(),
+        publishedAt: new Date(new Date().valueOf() + 10).toISOString(),
       },
     },
     'btc-rpc-proxy': {
@@ -281,10 +281,10 @@ export module Mock {
         manifest: Mock.MockManifestBitcoinProxy,
         categories: ['bitcoin'],
         versions: ['0.2.2'],
-        'dependency-metadata': {
+        dependencyMetadata: {
           bitcoind: BitcoinDep,
         },
-        'published-at': new Date().toISOString(),
+        publishedAt: new Date().toISOString(),
       },
     },
   }
@@ -295,8 +295,8 @@ export module Mock {
   export const Notifications: ServerNotifications = [
     {
       id: 1,
-      'package-id': null,
-      'created-at': '2019-12-26T14:20:30.872Z',
+      packageId: null,
+      createdAt: '2019-12-26T14:20:30.872Z',
       code: 1,
       level: NotificationLevel.Success,
       title: 'Backup Complete',
@@ -315,8 +315,8 @@ export module Mock {
     },
     {
       id: 2,
-      'package-id': null,
-      'created-at': '2019-12-26T14:20:30.872Z',
+      packageId: null,
+      createdAt: '2019-12-26T14:20:30.872Z',
       code: 2,
       level: NotificationLevel.Warning,
       title: 'SSH Key Added',
@@ -325,8 +325,8 @@ export module Mock {
     },
     {
       id: 3,
-      'package-id': null,
-      'created-at': '2019-12-26T14:20:30.872Z',
+      packageId: null,
+      createdAt: '2019-12-26T14:20:30.872Z',
       code: 3,
       level: NotificationLevel.Info,
       title: 'SSH Key Removed',
@@ -335,8 +335,8 @@ export module Mock {
     },
     {
       id: 4,
-      'package-id': 'bitcoind',
-      'created-at': '2019-12-26T14:20:30.872Z',
+      packageId: 'bitcoind',
+      createdAt: '2019-12-26T14:20:30.872Z',
       code: 4,
       level: NotificationLevel.Error,
       title: 'Service Crashed',
@@ -361,7 +361,7 @@ export module Mock {
         },
       },
       memory: {
-        'percentage-used': {
+        percentageUsed: {
           value: '30.7',
           unit: '%',
         },
@@ -377,29 +377,29 @@ export module Mock {
           value: '8784.97',
           unit: 'MiB',
         },
-        'zram-total': {
+        zramTotal: {
           value: '7992.00',
           unit: 'MiB',
         },
-        'zram-available': {
+        zramAvailable: {
           value: '7882.50',
           unit: 'MiB',
         },
-        'zram-used': {
+        zramUsed: {
           value: '109.50',
           unit: 'MiB',
         },
       },
       cpu: {
-        'percentage-used': {
+        percentageUsed: {
           value: '8.4',
           unit: '%',
         },
-        'user-space': {
+        userSpace: {
           value: '7.0',
           unit: '%',
         },
-        'kernel-space': {
+        kernelSpace: {
           value: '1.4',
           unit: '%',
         },
@@ -425,7 +425,7 @@ export module Mock {
           value: '992.59',
           unit: 'GB',
         },
-        'percentage-used': {
+        percentageUsed: {
           value: '46.4',
           unit: '%',
         },
@@ -487,15 +487,15 @@ export module Mock {
     current: 'b7b1a9cef4284f00af9e9dda6e676177',
     sessions: {
       '9513226517c54ddd8107d6d7b9d8aed7': {
-        'last-active': '2021-07-14T20:49:17.774Z',
-        'user-agent': 'AppleWebKit/{WebKit Rev} (KHTML, like Gecko)',
+        lastActive: '2021-07-14T20:49:17.774Z',
+        userAgent: 'AppleWebKit/{WebKit Rev} (KHTML, like Gecko)',
         metadata: {
           platforms: ['iphone', 'mobileweb', 'mobile', 'ios'],
         },
       },
       b7b1a9cef4284f00af9e9dda6e676177: {
-        'last-active': '2021-06-14T20:49:17.774Z',
-        'user-agent':
+        lastActive: '2021-06-14T20:49:17.774Z',
+        userAgent:
           'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0',
         metadata: {
           platforms: ['desktop'],
@@ -514,13 +514,13 @@ export module Mock {
 
   export const SshKeys: RR.GetSSHKeysRes = [
     {
-      'created-at': new Date().toISOString(),
+      createdAt: new Date().toISOString(),
       alg: 'ed25519',
       hostname: 'Matt Key',
       fingerprint: '28:d2:7e:78:61:b4:bf:g2:de:24:15:96:4e:d4:15:53',
     },
     {
-      'created-at': new Date().toISOString(),
+      createdAt: new Date().toISOString(),
       alg: 'ed25519',
       hostname: 'Aiden Key',
       fingerprint: '12:f8:7e:78:61:b4:bf:e2:de:24:15:96:4e:d4:72:53',
@@ -528,7 +528,7 @@ export module Mock {
   ]
 
   export const SshKey: RR.AddSSHKeyRes = {
-    'created-at': new Date().toISOString(),
+    createdAt: new Date().toISOString(),
     alg: 'ed25519',
     hostname: 'Lucy Key',
     fingerprint: '44:44:7e:78:61:b4:bf:g2:de:24:15:96:4e:d4:15:53',
@@ -542,7 +542,7 @@ export module Mock {
     },
     connected: 'Goosers',
     country: 'US',
-    'available-wifi': [
+    availableWifi: [
       {
         ssid: 'Goosers a billion',
         strength: 40,
@@ -568,13 +568,13 @@ export module Mock {
       path: '/Desktop/startos-backups',
       username: 'TestUser',
       mountable: false,
-      'embassy-os': {
+      startOs: {
         version: '0.3.0',
         full: true,
-        'password-hash':
+        passwordHash:
           // password is asdfasdf
           '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-        'wrapped-key': '',
+        wrappedKey: '',
       },
     },
     // 'ftcvewdnkemfksdm': {
@@ -585,7 +585,7 @@ export module Mock {
     //   used: 0,
     //   model: 'Evo SATA 2.5',
     //   vendor: 'Samsung',
-    //   'embassy-os': null,
+    //   startOs: null,
     // },
     csgashbdjkasnd: {
       type: 'cifs',
@@ -593,7 +593,7 @@ export module Mock {
       path: '/Desktop/startos-backups-2',
       username: 'TestUser',
       mountable: true,
-      'embassy-os': null,
+      startOs: null,
     },
     powjefhjbnwhdva: {
       type: 'disk',
@@ -603,13 +603,13 @@ export module Mock {
       used: 100000000000,
       model: null,
       vendor: 'SSK',
-      'embassy-os': {
+      startOs: {
         version: '0.3.0',
         full: true,
         // password is asdfasdf
-        'password-hash':
+        passwordHash:
           '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-        'wrapped-key': '',
+        wrappedKey: '',
       },
     },
   }
@@ -617,17 +617,17 @@ export module Mock {
   export const BackupInfo: RR.GetBackupInfoRes = {
     version: '0.3.0',
     timestamp: new Date().toISOString(),
-    'package-backups': {
+    packageBackups: {
       bitcoind: {
         title: 'Bitcoin Core',
         version: '0.21.0',
-        'os-version': '0.3.0',
+        osVersion: '0.3.0',
         timestamp: new Date().toISOString(),
       },
       'btc-rpc-proxy': {
         title: 'Bitcoin Proxy',
         version: '0.2.2',
-        'os-version': '0.3.0',
+        osVersion: '0.3.0',
         timestamp: new Date().toISOString(),
       },
     },
@@ -1062,17 +1062,7 @@ export module Mock {
         warning: 'Careful changing this',
       },
       variants: {
-        internal: {
-          'lan-address': {
-            name: 'LAN Address',
-            type: 'pointer',
-            subtype: 'package',
-            target: 'lan-address',
-            'package-id': 'bitcoind',
-            description: 'the lan address',
-            interface: 'asdf',
-          },
-        },
+        internal: {},
         external: {
           'emergency-contact': {
             name: 'Emergency Contact',
@@ -1385,12 +1375,12 @@ export module Mock {
   export const MockDependencyConfig = MockConfig
 
   export const bitcoind: PackageDataEntry<InstalledState> = {
-    'state-info': {
+    stateInfo: {
       state: PackageState.Installed,
       manifest: MockManifestBitcoind,
     },
     icon: '/assets/img/service-icons/bitcoind.svg',
-    'last-backup': null,
+    lastBackup: null,
     status: {
       configured: true,
       main: {
@@ -1398,10 +1388,10 @@ export module Mock {
         started: new Date().toISOString(),
         health: {},
       },
-      'dependency-config-errors': {},
+      dependencyConfigErrors: {},
     },
     actions: {}, // @TODO need mocks
-    'service-interfaces': {
+    serviceInterfaces: {
       ui: {
         id: 'ui',
         hasPrimary: false,
@@ -1617,28 +1607,28 @@ export module Mock {
         },
       },
     },
-    'current-dependencies': {},
-    'dependency-info': {},
-    'marketplace-url': 'https://registry.start9.com/',
-    'developer-key': 'developer-key',
+    currentDependencies: {},
+    dependencyInfo: {},
+    marketplaceUrl: 'https://registry.start9.com/',
+    developerKey: 'developer-key',
   }
 
   export const bitcoinProxy: PackageDataEntry<InstalledState> = {
-    'state-info': {
+    stateInfo: {
       state: PackageState.Installed,
       manifest: MockManifestBitcoinProxy,
     },
     icon: '/assets/img/service-icons/btc-rpc-proxy.png',
-    'last-backup': null,
+    lastBackup: null,
     status: {
       configured: false,
       main: {
         status: PackageMainStatus.Stopped,
       },
-      'dependency-config-errors': {},
+      dependencyConfigErrors: {},
     },
     actions: {},
-    'service-interfaces': {
+    serviceInterfaces: {
       ui: {
         id: 'ui',
         hasPrimary: false,
@@ -1746,40 +1736,40 @@ export module Mock {
         },
       },
     },
-    'current-dependencies': {
+    currentDependencies: {
       bitcoind: {
         versionRange: '>=26.0.0',
-        'health-checks': [],
+        healthChecks: [],
       },
     },
-    'dependency-info': {
+    dependencyInfo: {
       bitcoind: {
         title: Mock.MockManifestBitcoind.title,
         icon: 'assets/img/service-icons/bitcoind.svg',
       },
     },
-    'marketplace-url': 'https://registry.start9.com/',
-    'developer-key': 'developer-key',
+    marketplaceUrl: 'https://registry.start9.com/',
+    developerKey: 'developer-key',
   }
 
   export const lnd: PackageDataEntry<InstalledState> = {
-    'state-info': {
+    stateInfo: {
       state: PackageState.Installed,
       manifest: MockManifestLnd,
     },
     icon: '/assets/img/service-icons/lnd.png',
-    'last-backup': null,
+    lastBackup: null,
     status: {
       configured: true,
       main: {
         status: PackageMainStatus.Stopped,
       },
-      'dependency-config-errors': {
+      dependencyConfigErrors: {
         'btc-rpc-proxy': 'Username not found',
       },
     },
     actions: {},
-    'service-interfaces': {
+    serviceInterfaces: {
       grpc: {
         id: 'grpc',
         hasPrimary: false,
@@ -1991,17 +1981,17 @@ export module Mock {
         },
       },
     },
-    'current-dependencies': {
+    currentDependencies: {
       bitcoind: {
         versionRange: '>=26.0.0',
-        'health-checks': [],
+        healthChecks: [],
       },
       'btc-rpc-proxy': {
         versionRange: '>2.0.0', // @TODO
-        'health-checks': [],
+        healthChecks: [],
       },
     },
-    'dependency-info': {
+    dependencyInfo: {
       bitcoind: {
         title: Mock.MockManifestBitcoind.title,
         icon: 'assets/img/service-icons/bitcoind.svg',
@@ -2011,8 +2001,8 @@ export module Mock {
         icon: 'assets/img/service-icons/btc-rpc-proxy.png',
       },
     },
-    'marketplace-url': 'https://registry.start9.com/',
-    'developer-key': 'developer-key',
+    marketplaceUrl: 'https://registry.start9.com/',
+    developerKey: 'developer-key',
   }
 
   export const LocalPkgs: { [key: string]: PackageDataEntry<InstalledState> } =

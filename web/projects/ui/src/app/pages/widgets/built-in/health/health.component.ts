@@ -27,7 +27,7 @@ export class HealthComponent {
   ] as const
 
   readonly data$ = combineLatest([
-    inject(PatchDB<DataModel>).watch$('package-data'),
+    inject(PatchDB<DataModel>).watch$('packageData'),
     inject(DepErrorService).depErrors$,
   ]).pipe(
     map(([data, depErrors]) => {

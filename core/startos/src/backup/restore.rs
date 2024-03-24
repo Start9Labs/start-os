@@ -25,7 +25,7 @@ use crate::service::service_map::DownloadInstallFuture;
 use crate::util::serde::IoFormat;
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct RestorePackageParams {
     pub ids: Vec<PackageId>,

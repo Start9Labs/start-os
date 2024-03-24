@@ -24,14 +24,14 @@ use crate::util::{Invoke, Version};
 use crate::{Error, ResultExt as _};
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum PartitionTable {
     Mbr,
     Gpt,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct DiskInfo {
     pub logicalname: PathBuf,
     pub partition_table: Option<PartitionTable>,
@@ -43,7 +43,7 @@ pub struct DiskInfo {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct PartitionInfo {
     pub logicalname: PathBuf,
     pub label: Option<String>,
@@ -54,7 +54,7 @@ pub struct PartitionInfo {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct EmbassyOsRecoveryInfo {
     pub version: Version,
     pub full: bool,

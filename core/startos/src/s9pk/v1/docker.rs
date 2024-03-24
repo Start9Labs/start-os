@@ -13,7 +13,7 @@ use crate::util::io::from_cbor_async_reader;
 use crate::{Error, ErrorKind, ARCH};
 
 #[derive(Default, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct DockerMultiArch {
     pub default: String,
     pub available: BTreeSet<String>,

@@ -18,11 +18,11 @@ import { Observable } from 'rxjs'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BackingUpComponent {
-  readonly pkgs$ = this.patch.watch$('package-data').pipe(take(1))
+  readonly pkgs$ = this.patch.watch$('packageData').pipe(take(1))
   readonly backupProgress$ = this.patch.watch$(
-    'server-info',
-    'status-info',
-    'backup-progress',
+    'serverInfo',
+    'statusInfo',
+    'backupProgress',
   )
 
   constructor(private readonly patch: PatchDB<DataModel>) {}
@@ -33,7 +33,7 @@ export class BackingUpComponent {
 })
 export class PkgMainStatusPipe implements PipeTransform {
   transform(pkgId: string): Observable<PackageMainStatus> {
-    return this.patch.watch$('package-data', pkgId, 'status', 'main', 'status')
+    return this.patch.watch$('packageData', pkgId, 'status', 'main', 'status')
   }
 
   constructor(private readonly patch: PatchDB<DataModel>) {}

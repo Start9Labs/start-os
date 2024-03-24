@@ -55,8 +55,8 @@ export class AppShowStatusComponent {
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
-  get interfaces(): PackageDataEntry['service-interfaces'] {
-    return this.pkg['service-interfaces']
+  get interfaces(): PackageDataEntry['serviceInterfaces'] {
+    return this.pkg.serviceInterfaces
   }
 
   get pkgStatus(): Status {
@@ -89,7 +89,7 @@ export class AppShowStatusComponent {
       : null
   }
 
-  launchUi(interfaces: PackageDataEntry['service-interfaces']): void {
+  launchUi(interfaces: PackageDataEntry['serviceInterfaces']): void {
     this.launcherService.launch(interfaces)
   }
 

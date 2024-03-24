@@ -28,7 +28,7 @@ lazy_static::lazy_static! {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct SetupResult {
     pub tor_address: String,
     pub lan_address: String,

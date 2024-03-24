@@ -13,7 +13,7 @@ pub mod reader;
 pub const SIG_CONTEXT: &[u8] = b"s9pk";
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct VerifyParams {
     pub path: PathBuf,

@@ -11,7 +11,7 @@ use crate::status::health_check::HealthCheckResult;
 
 pub mod health_check;
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct Status {
     pub configured: bool,
@@ -21,7 +21,7 @@ pub struct Status {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel, Default)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct DependencyConfigErrors(pub BTreeMap<PackageId, String>);
 impl Map for DependencyConfigErrors {
@@ -37,7 +37,7 @@ impl Map for DependencyConfigErrors {
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(tag = "status")]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum MainStatus {
     Stopped,
     Restarting,

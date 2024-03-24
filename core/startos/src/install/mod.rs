@@ -64,7 +64,7 @@ pub async fn list(ctx: RpcContext) -> Result<Value, Error> {
 }
 
 #[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum MinMax {
     Min,
     Max,
@@ -103,7 +103,7 @@ impl std::fmt::Display for MinMax {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct InstallParams {
     id: PackageId,
@@ -165,7 +165,7 @@ pub async fn install(
 }
 
 #[derive(Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct SideloadResponse {
     pub upload: RequestGuid,
     pub progress: RequestGuid,
@@ -275,7 +275,7 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
 }
 
 #[derive(Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum CliInstallParams {
     Marketplace(InstallParams),
     Sideload(PathBuf),
@@ -392,7 +392,7 @@ pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<()
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UninstallParams {
     id: PackageId,

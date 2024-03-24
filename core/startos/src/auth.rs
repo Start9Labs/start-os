@@ -127,7 +127,7 @@ fn gen_pwd() {
     )
 }
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CliLoginParams {
     password: Option<PasswordType>,
@@ -179,7 +179,7 @@ pub fn check_password_against_db(db: &DatabaseModel, password: &str) -> Result<(
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct LoginParams {
     password: Option<PasswordType>,
@@ -220,7 +220,7 @@ pub async fn login_impl(
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct LogoutParams {
     session: InternedString,
@@ -236,7 +236,7 @@ pub async fn logout(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct Session {
     pub logged_in: DateTime<Utc>,
     pub last_active: DateTime<Utc>,
@@ -245,7 +245,7 @@ pub struct Session {
 }
 
 #[derive(Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct SessionList {
     current: InternedString,
     sessions: Sessions,
@@ -305,7 +305,7 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ListParams {
     #[arg(skip)]
@@ -340,7 +340,7 @@ impl AsLogoutSessionId for KillSessionId {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct KillParams {
     ids: Vec<String>,
@@ -353,12 +353,10 @@ pub async fn kill(ctx: RpcContext, KillParams { ids }: KillParams) -> Result<(),
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ResetPasswordParams {
-    #[arg(name = "old-password")]
     old_password: Option<PasswordType>,
-    #[arg(name = "new-password")]
     new_password: Option<PasswordType>,
 }
 

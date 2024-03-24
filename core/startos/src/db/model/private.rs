@@ -14,7 +14,7 @@ use crate::ssh::SshKeys;
 use crate::util::serde::Pem;
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct Private {
     pub key_store: KeyStore,

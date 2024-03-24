@@ -36,7 +36,7 @@ export class ToButtonsPipe implements PipeTransform {
   ) {}
 
   transform(pkg: PackageDataEntry<InstalledState>): Button[] {
-    const manifest = pkg['state-info'].manifest
+    const manifest = pkg.stateInfo.manifest
 
     return [
       // instructions
@@ -46,7 +46,7 @@ export class ToButtonsPipe implements PipeTransform {
         description: `Understand how to use ${manifest.title}`,
         icon: 'list-outline',
         highlighted$: this.patch
-          .watch$('ui', 'ack-instructions', manifest.id)
+          .watch$('ui', 'ackInstructions', manifest.id)
           .pipe(map(seen => !seen)),
       },
       // config
@@ -122,7 +122,7 @@ export class ToButtonsPipe implements PipeTransform {
   private viewInMarketplaceButton(
     pkg: PackageDataEntry<InstalledState>,
   ): Button {
-    const url = pkg['marketplace-url']
+    const url = pkg.marketplaceUrl
     const queryParams = url ? { url } : {}
 
     let button: Button = {
@@ -130,7 +130,7 @@ export class ToButtonsPipe implements PipeTransform {
       icon: 'storefront-outline',
       action: () =>
         this.navCtrl.navigateForward(
-          [`marketplace/${pkg['state-info'].manifest.id}`],
+          [`marketplace/${pkg.stateInfo.manifest.id}`],
           {
             queryParams,
           },

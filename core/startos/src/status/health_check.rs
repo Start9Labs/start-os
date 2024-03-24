@@ -2,7 +2,7 @@ pub use models::HealthCheckId;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[serde(tag = "result")]
 pub enum HealthCheckResult {
     Success,

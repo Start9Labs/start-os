@@ -45,8 +45,8 @@ export class MockApiService implements ApiService {
     }
     return {
       entries,
-      'start-cursor': 'startCursor',
-      'end-cursor': 'endCursor',
+      startCursor: 'start-cursor',
+      endCursor: 'end-cursor',
     }
   }
 }

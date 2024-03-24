@@ -22,8 +22,8 @@ export class ConnectionBarComponent {
     this.connectionService.networkConnected$,
     this.websocket$.pipe(startWith(false)),
     this.patch
-      .watch$('server-info', 'status-info')
-      .pipe(startWith({ restarting: false, 'shutting-down': false })),
+      .watch$('serverInfo', 'statusInfo')
+      .pipe(startWith({ restarting: false, shuttingDown: false })),
   ]).pipe(
     map(([network, websocket, status]) => {
       if (!network)
@@ -40,7 +40,7 @@ export class ConnectionBarComponent {
           icon: 'cloud-offline-outline',
           dots: true,
         }
-      if (status['shutting-down'])
+      if (status.shuttingDown)
         return {
           message: 'Shutting Down',
           color: 'dark',

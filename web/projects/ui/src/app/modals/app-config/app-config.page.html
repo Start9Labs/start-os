@@ -9,7 +9,7 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding" *ngIf="pkg['state-info'].manifest as manifest">
+<ion-content class="ion-padding" *ngIf="pkg.stateInfo.manifest as manifest">
   <!-- loading -->
   <text-spinner
     *ngIf="loading; else notLoading"
@@ -82,7 +82,7 @@
       </ion-item>
 
       <!-- no options -->
-      <ion-item *ngIf="!hasOptions">
+      <ion-item *ngIf="!hasConfig">
         <ion-label>
           <p>
             No config options for {{ manifest.title }} {{ manifest.version }}.
@@ -111,11 +111,7 @@
 <ion-footer>
   <ion-toolbar>
     <ng-container *ngIf="!loading && !loadingError">
-      <ion-buttons
-        *ngIf="configForm && hasOptions"
-        slot="start"
-        class="ion-padding-start"
-      >
+      <ion-buttons *ngIf="hasConfig" slot="start" class="ion-padding-start">
         <ion-button fill="clear" (click)="resetDefaults()">
           <ion-icon slot="start" name="refresh"></ion-icon>
           Reset Defaults
@@ -123,7 +119,7 @@
       </ion-buttons>
       <ion-buttons slot="end" class="ion-padding-end">
         <ion-button
-          *ngIf="configForm"
+          *ngIf="hasConfig"
           fill="solid"
           color="primary"
           [disabled]="saving"
@@ -134,7 +130,7 @@
           Save
         </ion-button>
         <ion-button
-          *ngIf="!configForm"
+          *ngIf="!hasConfig"
           fill="solid"
           color="dark"
           (click)="dismiss()"

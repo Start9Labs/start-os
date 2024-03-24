@@ -24,7 +24,7 @@ pub fn inspect() -> ParentHandler {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct HashParams {
     path: PathBuf,
@@ -39,11 +39,11 @@ pub async fn hash(_: CliContext, HashParams { path }: HashParams) -> Result<Stri
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ManifestParams {
     path: PathBuf,
-    #[arg(name = "no-verify", long = "no-verify")]
+    #[arg(long = "no-verify")]
     no_verify: bool,
 }
 
@@ -57,11 +57,11 @@ pub async fn manifest(
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct InspectParams {
     path: PathBuf,
-    #[arg(name = "no-verify", long = "no-verify")]
+    #[arg(long = "no-verify")]
     no_verify: bool,
 }
 
@@ -89,11 +89,11 @@ pub async fn icon(
     Ok(())
 }
 #[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct InstructionParams {
     path: PathBuf,
-    #[arg(name = "no-verify", long = "no-verify")]
+    #[arg(long = "no-verify")]
     no_verify: bool,
 }
 

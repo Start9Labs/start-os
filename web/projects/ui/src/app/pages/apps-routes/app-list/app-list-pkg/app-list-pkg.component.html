@@ -14,20 +14,20 @@
     <p>{{ manifest.version | displayEmver }}</p>
     <status
       [rendering]="pkg.primaryRendering"
-      [installingInfo]="$any(pkg.entry['state-info'])['installing-info']"
+      [installingInfo]="$any(pkg.entry.stateInfo).installingInfo"
       weight="bold"
       size="small"
       [sigtermTimeout]="sigtermTimeout"
     ></status>
   </ion-label>
   <ion-button
-    *ngIf="pkg.entry['service-interfaces'] | hasUi"
+    *ngIf="pkg.entry.serviceInterfaces | hasUi"
     slot="end"
     fill="clear"
     color="primary"
-    (click)="launchUi($event, pkg.entry['service-interfaces'])"
+    (click)="launchUi($event, pkg.entry.serviceInterfaces)"
     [disabled]="
-      !(pkg.entry['state-info'].state | isLaunchable: pkgMainStatus.status)
+      !(pkg.entry.stateInfo.state | isLaunchable: pkgMainStatus.status)
     "
   >
     <ion-icon slot="icon-only" name="open-outline"></ion-icon>

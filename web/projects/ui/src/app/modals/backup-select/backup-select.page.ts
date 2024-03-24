@@ -29,7 +29,7 @@ export class BackupSelectPage {
 
   async ngOnInit() {
     this.pkgs = await firstValueFrom(
-      this.patch.watch$('package-data').pipe(
+      this.patch.watch$('packageData').pipe(
         map(pkgs => {
           return Object.values(pkgs)
             .map(pkg => {
@@ -38,7 +38,7 @@ export class BackupSelectPage {
                 id,
                 title,
                 icon: pkg.icon,
-                disabled: pkg['state-info'].state !== PackageState.Installed,
+                disabled: pkg.stateInfo.state !== PackageState.Installed,
                 checked: false,
               }
             })

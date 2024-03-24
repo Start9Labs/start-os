@@ -17,7 +17,7 @@ pub const BOOT_RW_PATH: &str = "/media/boot-rw";
 pub const REPAIR_DISK_PATH: &str = "/media/embassy/config/repair-disk";
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct OsPartitionInfo {
     pub efi: Option<PathBuf>,
     pub bios: Option<PathBuf>,
