@@ -6,7 +6,6 @@ import {
   UniqueBy,
   ValueSpecList,
   ValueSpecListOf,
-  ValueSpecText,
 } from "../configTypes"
 import { Parser, arrayOf, number, string } from "ts-matches"
 /**
