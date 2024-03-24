@@ -1,9 +1,9 @@
-import { Config } from "@start9labs/start-sdk/cjs/sdk/lib/config/builder/config";
+import { CB } from '@start9labs/start-sdk'
 
 export async function configBuilderToSpec(
   builder:
-    | Config<Record<string, unknown>, unknown>
-    | Config<Record<string, unknown>, never>,
+    | CB.Config<Record<string, unknown>, unknown>
+    | CB.Config<Record<string, unknown>, never>,
 ) {
   return builder.build({} as any)
 }

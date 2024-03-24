@@ -2,11 +2,7 @@ import { BackupJob, ServerNotifications } from '../api/api.types'
 import { Url } from '@start9labs/shared'
 import { Manifest } from '@start9labs/marketplace'
 import { T } from '@start9labs/start-sdk'
-import {
-  ActionMetadata,
-  HostnameInfo,
-} from '@start9labs/start-sdk/cjs/sdk/lib/types'
-import { customSmtp } from '@start9labs/start-sdk/cjs/sdk/lib/config/configConstants'
+import { config } from '@start9labs/start-sdk'
 
 export interface DataModel {
   serverInfo: ServerInfo
@@ -59,7 +55,7 @@ export interface ServerInfo {
   id: string
   version: string
   country: string
-  ui: HostnameInfo[]
+  ui: T.HostnameInfo[]
   network: NetworkInfo
   lastBackup: string | null
   unreadNotifications: {
@@ -71,7 +67,7 @@ export interface ServerInfo {
   pubkey: string
   caFingerprint: string
   ntpSynced: boolean
-  smtp: typeof customSmtp.validator._TYPE
+  smtp: typeof config.constants.customSmtp.validator._TYPE
   passwordHash: string
   platform: string
 }
@@ -156,7 +152,7 @@ export type PackageDataEntry<T extends StateInfo = StateInfo> = {
   stateInfo: T
   icon: Url
   status: Status
-  actions: Record<string, ActionMetadata>
+  actions: Record<string, T.ActionMetadata>
   lastBackup: string | null
   currentDependencies: { [id: string]: CurrentDependencyInfo }
   dependencyInfo: {

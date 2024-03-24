@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { ValueSpecText } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
+import { CT } from '@start9labs/start-sdk'
 import { Control } from '../control'
 import { getDefaultString } from 'src/app/util/config-utilities'
 
@@ -8,7 +8,7 @@ import { getDefaultString } from 'src/app/util/config-utilities'
   templateUrl: './form-text.component.html',
   styleUrls: ['./form-text.component.scss'],
 })
-export class FormTextComponent extends Control<ValueSpecText, string> {
+export class FormTextComponent extends Control<CT.ValueSpecText, string> {
   masked = true
 
   generate() {

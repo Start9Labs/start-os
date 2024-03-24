@@ -1,6 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core'
 import { WithId } from '@start9labs/shared'
-import { ActionMetadata } from '@start9labs/start-sdk/cjs/sdk/lib/types'
+import { T } from '@start9labs/start-sdk'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 
 @Pipe({
@@ -10,12 +10,12 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 export class GroupActionsPipe implements PipeTransform {
   transform(
     actions: PackageDataEntry['actions'],
-  ): Array<Array<WithId<ActionMetadata>>> | null {
+  ): Array<Array<WithId<T.ActionMetadata>>> | null {
     if (!actions) return null
 
     const noGroup = 'noGroup'
     const grouped = Object.entries(actions).reduce<
-      Record<string, WithId<ActionMetadata>[]>
+      Record<string, WithId<T.ActionMetadata>[]>
     >((groups, [id, action]) => {
       const actionWithId = { id, ...action }
       const groupKey = action.group || noGroup

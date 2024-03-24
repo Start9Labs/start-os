@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { ValueSpecColor } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
+import { CT } from '@start9labs/start-sdk'
 import { Control } from '../control'
 import { MaskitoOptions } from '@maskito/core'
 
@@ -8,7 +8,7 @@ import { MaskitoOptions } from '@maskito/core'
   templateUrl: './form-color.component.html',
   styleUrls: ['./form-color.component.scss'],
 })
-export class FormColorComponent extends Control<ValueSpecColor, string> {
+export class FormColorComponent extends Control<CT.ValueSpecColor, string> {
   readonly mask: MaskitoOptions = {
     mask: ['#', ...Array(6).fill(/[0-9a-f]/i)],
   }

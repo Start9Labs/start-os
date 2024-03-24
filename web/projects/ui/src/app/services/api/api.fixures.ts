@@ -19,11 +19,8 @@ import {
 } from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
-import { Config } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/config'
-import { Value } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/value'
-import { Variants } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/variants'
-import { List } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/list'
-import { unionSelectKey } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
+import { CT } from '@start9labs/start-sdk'
+import { CB } from '@start9labs/start-sdk'
 
 export module Mock {
   export const ServerUpdated: ServerStatusInfo = {
@@ -715,27 +712,27 @@ export module Mock {
     RR.GetPackageConfigRes['spec']
   > =>
     configBuilderToSpec(
-      Config.of({
-        bitcoin: Value.object(
+      CB.Config.of({
+        bitcoin: CB.Value.object(
           {
             name: 'Bitcoin Settings',
             description:
               'RPC and P2P interface configuration options for Bitcoin Core',
           },
-          Config.of({
-            'bitcoind-p2p': Value.union(
+          CB.Config.of({
+            'bitcoind-p2p': CB.Value.union(
               {
                 name: 'P2P Settings',
                 description:
                   '<p>The Bitcoin Core node to connect to over the peer-to-peer (P2P) interface:</p><ul><li><strong>Bitcoin Core</strong>: The Bitcoin Core service installed on this device</li><li><strong>External Node</strong>: A Bitcoin node running on a different device</li></ul>',
                 required: { default: 'internal' },
               },
-              Variants.of({
-                internal: { name: 'Bitcoin Core', spec: Config.of({}) },
+              CB.Variants.of({
+                internal: { name: 'Bitcoin Core', spec: CB.Config.of({}) },
                 external: {
                   name: 'External Node',
-                  spec: Config.of({
-                    'p2p-host': Value.text({
+                  spec: CB.Config.of({
+                    'p2p-host': CB.Value.text({
                       name: 'Public Address',
                       required: {
                         default: null,
@@ -743,7 +740,7 @@ export module Mock {
                       description:
                         'The public address of your Bitcoin Core server',
                     }),
-                    'p2p-port': Value.number({
+                    'p2p-port': CB.Value.number({
                       name: 'P2P Port',
                       description:
                         'The port that your Bitcoin Core P2P server is bound to',
@@ -760,7 +757,7 @@ export module Mock {
             ),
           }),
         ),
-        users: Value.multiselect({
+        users: CB.Value.multiselect({
           name: 'Users',
           default: [],
           maxLength: 2,
@@ -772,21 +769,21 @@ export module Mock {
             lucy: 'Lucy',
           },
         }),
-        advanced: Value.object(
+        advanced: CB.Value.object(
           {
             name: 'Advanced',
             description: 'Advanced settings',
           },
-          Config.of({
-            rpcsettings: Value.object(
+          CB.Config.of({
+            rpcsettings: CB.Value.object(
               {
                 name: 'RPC Settings',
                 description: 'rpc username and password',
                 warning:
                   'Adding RPC users gives them special permissions on your node.',
               },
-              Config.of({
-                rpcuser2: Value.text({
+              CB.Config.of({
+                rpcuser2: CB.Value.text({
                   name: 'RPC Username',
                   required: {
                     default: 'defaultrpcusername',
@@ -799,7 +796,7 @@ export module Mock {
                     },
                   ],
                 }),
-                rpcuser: Value.text({
+                rpcuser: CB.Value.text({
                   name: 'RPC Username',
                   required: {
                     default: 'defaultrpcusername',
@@ -812,7 +809,7 @@ export module Mock {
                     },
                   ],
                 }),
-                rpcpass: Value.text({
+                rpcpass: CB.Value.text({
                   name: 'RPC User Password',
                   required: {
                     default: {
@@ -822,7 +819,7 @@ export module Mock {
                   },
                   description: 'rpc password',
                 }),
-                rpcpass2: Value.text({
+                rpcpass2: CB.Value.text({
                   name: 'RPC User Password',
                   required: {
                     default: {
@@ -836,15 +833,15 @@ export module Mock {
             ),
           }),
         ),
-        testnet: Value.toggle({
+        testnet: CB.Value.toggle({
           name: 'Testnet',
           default: true,
           description:
             '<ul><li>determines whether your node is running on testnet or mainnet</li></ul><script src="fake"></script>',
           warning: 'Chain will have to resync!',
         }),
-        'object-list': Value.list(
-          List.obj(
+        'object-list': CB.Value.list(
+          CB.List.obj(
             {
               name: 'Object List',
               minLength: 0,
@@ -856,13 +853,13 @@ export module Mock {
               description: 'This is a list of objects, like users or something',
             },
             {
-              spec: Config.of({
-                'first-name': Value.text({
+              spec: CB.Config.of({
+                'first-name': CB.Value.text({
                   name: 'First Name',
                   required: false,
                   description: 'User first name',
                 }),
-                'last-name': Value.text({
+                'last-name': CB.Value.text({
                   name: 'Last Name',
                   required: {
                     default: {
@@ -878,7 +875,7 @@ export module Mock {
                     },
                   ],
                 }),
-                age: Value.number({
+                age: CB.Value.number({
                   name: 'Age',
                   description: 'The age of the user',
                   warning: 'User must be at least 18.',
@@ -887,13 +884,13 @@ export module Mock {
                   integer: false,
                 }),
               }),
-              displayAs: "I'm {{last-name}}, {{first-name}} {{last-name}}",
+              displayAs: 'I\'m {{last-name}}, {{first-name}} {{last-name}}',
               uniqueBy: 'last-name',
             },
           ),
         ),
-        'union-list': Value.list(
-          List.obj(
+        'union-list': CB.Value.list(
+          CB.List.obj(
             {
               name: 'Union List',
               minLength: 0,
@@ -903,27 +900,27 @@ export module Mock {
               warning: 'If you change this, things may work.',
             },
             {
-              spec: Config.of({
+              spec: CB.Config.of({
                 /* TODO: Convert range for this value ([0, 2])*/
-                union: Value.union(
+                union: CB.Value.union(
                   {
                     name: 'Preference',
                     description: null,
                     warning: null,
                     required: { default: 'summer' },
                   },
-                  Variants.of({
+                  CB.Variants.of({
                     summer: {
                       name: 'summer',
-                      spec: Config.of({
-                        'favorite-tree': Value.text({
+                      spec: CB.Config.of({
+                        'favorite-tree': CB.Value.text({
                           name: 'Favorite Tree',
                           required: {
                             default: 'Maple',
                           },
                           description: 'What is your favorite tree?',
                         }),
-                        'favorite-flower': Value.select({
+                        'favorite-flower': CB.Value.select({
                           name: 'Favorite Flower',
                           description: 'Select your favorite flower',
                           required: {
@@ -940,8 +937,8 @@ export module Mock {
                     },
                     winter: {
                       name: 'winter',
-                      spec: Config.of({
-                        'like-snow': Value.toggle({
+                      spec: CB.Config.of({
+                        'like-snow': CB.Value.toggle({
                           name: 'Like Snow?',
                           default: true,
                           description: 'Do you like snow or not?',
@@ -955,7 +952,7 @@ export module Mock {
             },
           ),
         ),
-        'random-select': Value.select({
+        'random-select': CB.Value.select({
           name: 'Random select',
           description: 'This is not even real.',
           warning: 'Be careful changing this!',
@@ -970,7 +967,7 @@ export module Mock {
           disabled: ['option2'],
         }),
         'favorite-number':
-          /* TODO: Convert range for this value ((-100,100])*/ Value.number({
+          /* TODO: Convert range for this value ((-100,100])*/ CB.Value.number({
             name: 'Favorite Number',
             description: 'Your favorite number of all time',
             warning:
@@ -981,8 +978,8 @@ export module Mock {
             integer: false,
             units: 'BTC',
           }),
-        'unlucky-numbers': Value.list(
-          List.number(
+        'unlucky-numbers': CB.Value.list(
+          CB.List.number(
             {
               name: 'Unlucky Numbers',
               minLength: 0,
@@ -996,34 +993,34 @@ export module Mock {
             },
           ),
         ),
-        rpcsettings: Value.object(
+        rpcsettings: CB.Value.object(
           {
             name: 'RPC Settings',
             description: 'rpc username and password',
             warning:
               'Adding RPC users gives them special permissions on your node.',
           },
-          Config.of({
-            laws: Value.object(
+          CB.Config.of({
+            laws: CB.Value.object(
               {
                 name: 'Laws',
                 description: 'the law of the realm',
               },
-              Config.of({
-                law1: Value.text({
+              CB.Config.of({
+                law1: CB.Value.text({
                   name: 'First Law',
                   required: false,
                   description: 'the first law',
                 }),
-                law2: Value.text({
+                law2: CB.Value.text({
                   name: 'Second Law',
                   required: false,
                   description: 'the second law',
                 }),
               }),
             ),
-            rulemakers: Value.list(
-              List.obj(
+            rulemakers: CB.Value.list(
+              CB.List.obj(
                 {
                   name: 'Rule Makers',
                   minLength: 0,
@@ -1031,8 +1028,8 @@ export module Mock {
                   description: 'the people who make the rules',
                 },
                 {
-                  spec: Config.of({
-                    rulemakername: Value.text({
+                  spec: CB.Config.of({
+                    rulemakername: CB.Value.text({
                       name: 'Rulemaker Name',
                       required: {
                         default: {
@@ -1042,7 +1039,7 @@ export module Mock {
                       },
                       description: 'the name of the rule maker',
                     }),
-                    rulemakerip: Value.text({
+                    rulemakerip: CB.Value.text({
                       name: 'Rulemaker IP',
                       required: {
                         default: '192.168.1.0',
@@ -1060,7 +1057,7 @@ export module Mock {
                 },
               ),
             ),
-            rpcuser: Value.text({
+            rpcuser: CB.Value.text({
               name: 'RPC Username',
               required: {
                 default: 'defaultrpcusername',
@@ -1073,7 +1070,7 @@ export module Mock {
                 },
               ],
             }),
-            rpcpass: Value.text({
+            rpcpass: CB.Value.text({
               name: 'RPC User Password',
               required: {
                 default: {
@@ -1086,7 +1083,7 @@ export module Mock {
             }),
           }),
         ),
-        'bitcoin-node': Value.union(
+        'bitcoin-node': CB.Value.union(
           {
             name: 'Bitcoin Node',
             description: 'Options<ul><li>Item 1</li><li>Item 2</li></ul>',
@@ -1094,25 +1091,25 @@ export module Mock {
             required: { default: 'internal' },
             disabled: ['fake'],
           },
-          Variants.of({
+          CB.Variants.of({
             fake: {
               name: 'Fake',
-              spec: Config.of({}),
+              spec: CB.Config.of({}),
             },
             internal: {
               name: 'Internal',
-              spec: Config.of({}),
+              spec: CB.Config.of({}),
             },
             external: {
               name: 'External',
-              spec: Config.of({
-                'emergency-contact': Value.object(
+              spec: CB.Config.of({
+                'emergency-contact': CB.Value.object(
                   {
                     name: 'Emergency Contact',
                     description: 'The person to contact in case of emergency.',
                   },
-                  Config.of({
-                    name: Value.text({
+                  CB.Config.of({
+                    name: CB.Value.text({
                       name: 'Name',
                       required: {
                         default: null,
@@ -1124,7 +1121,7 @@ export module Mock {
                         },
                       ],
                     }),
-                    email: Value.text({
+                    email: CB.Value.text({
                       name: 'Email',
                       inputmode: 'email',
                       required: {
@@ -1133,7 +1130,7 @@ export module Mock {
                     }),
                   }),
                 ),
-                'public-domain': Value.text({
+                'public-domain': CB.Value.text({
                   name: 'Public Domain',
                   required: {
                     default: 'bitcoinnode.com',
@@ -1146,7 +1143,7 @@ export module Mock {
                     },
                   ],
                 }),
-                'private-domain': Value.text({
+                'private-domain': CB.Value.text({
                   name: 'Private Domain',
                   required: {
                     default: null,
@@ -1159,7 +1156,7 @@ export module Mock {
             },
           }),
         ),
-        port: Value.number({
+        port: CB.Value.number({
           name: 'Port',
           description:
             'the default port for your Bitcoin node. default: 8333, testnet: 18333, regtest: 18444',
@@ -1171,7 +1168,7 @@ export module Mock {
           step: 1,
           integer: true,
         }),
-        'favorite-slogan': Value.text({
+        'favorite-slogan': CB.Value.text({
           name: 'Favorite Slogan',
           generate: {
             charset: 'a-z,A-Z,2-9',
@@ -1182,8 +1179,8 @@ export module Mock {
             'You most favorite slogan in the whole world, used for paying you.',
           masked: true,
         }),
-        rpcallowip: Value.list(
-          List.text(
+        rpcallowip: CB.Value.list(
+          CB.List.text(
             {
               name: 'RPC Allowed IPs',
               minLength: 1,
@@ -1205,8 +1202,8 @@ export module Mock {
             },
           ),
         ),
-        rpcauth: Value.list(
-          List.text(
+        rpcauth: CB.Value.list(
+          CB.List.text(
             {
               name: 'RPC Auth',
               description:
@@ -1251,7 +1248,7 @@ export module Mock {
       rulemakers: [],
     },
     'bitcoin-node': {
-      [unionSelectKey]: 'internal',
+      [CT.unionSelectKey]: 'internal',
     },
     port: 20,
     rpcallowip: undefined,

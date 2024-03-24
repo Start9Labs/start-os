@@ -1,15 +1,13 @@
-import { Config } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/config'
-import { Value } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/value'
-import { Variants } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/variants'
+import { CB } from '@start9labs/start-sdk'
 import { Proxy } from 'src/app/services/patch-db/data-model'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 
-const auth = Config.of({
-  username: Value.text({
+const auth = CB.Config.of({
+  username: CB.Value.text({
     name: 'Username',
     required: { default: null },
   }),
-  password: Value.text({
+  password: CB.Value.text({
     name: 'Password',
     required: { default: null },
     masked: true,
@@ -26,7 +24,7 @@ function getStrategyUnion(proxies: Proxy[]) {
       }
     }, {})
 
-  return Value.union(
+  return CB.Value.union(
     {
       name: 'Networking Strategy',
       required: { default: null },
@@ -34,11 +32,11 @@ function getStrategyUnion(proxies: Proxy[]) {
 <h5>Proxy</h5>Select this option is you prefer to hide your home/business IP address from the Internet. This option requires running your own Virtual Private Server (VPS) <i>or</i> paying service provider such as Static Wire
 `,
     },
-    Variants.of({
+    CB.Variants.of({
       local: {
         name: 'Local',
-        spec: Config.of({
-          ipStrategy: Value.select({
+        spec: CB.Config.of({
+          ipStrategy: CB.Value.select({
             name: 'IP Strategy',
             description: `<h5>IPv6 Only (recommended)</h5><b>Requirements</b>:<ol><li>ISP IPv6 support</li><li>OpenWRT (recommended) or Linksys router</li></ol><b>Pros</b>: Ready for IPv6 Internet. Enhanced privacy. Run multiple clearnet servers from the same network
 <b>Cons</b>: Interfaces using this domain will only be accessible to people whose ISP supports IPv6
@@ -58,8 +56,8 @@ function getStrategyUnion(proxies: Proxy[]) {
       },
       proxy: {
         name: 'Proxy',
-        spec: Config.of({
-          proxyId: Value.select({
+        spec: CB.Config.of({
+          proxyId: CB.Value.select({
             name: 'Select Proxy',
             required: { default: null },
             values: inboundProxies,
@@ -72,7 +70,7 @@ function getStrategyUnion(proxies: Proxy[]) {
 
 export function getStart9ToSpec(proxies: Proxy[]) {
   return configBuilderToSpec(
-    Config.of({
+    CB.Config.of({
       strategy: getStrategyUnion(proxies),
     }),
   )
@@ -80,21 +78,21 @@ export function getStart9ToSpec(proxies: Proxy[]) {
 
 export function getCustomSpec(proxies: Proxy[]) {
   return configBuilderToSpec(
-    Config.of({
-      hostname: Value.text({
+    CB.Config.of({
+      hostname: CB.Value.text({
         name: 'Hostname',
         required: { default: null },
         placeholder: 'yourdomain.com',
       }),
-      provider: Value.union(
+      provider: CB.Value.union(
         {
           name: 'Dynamic DNS Provider',
           required: { default: 'start9' },
         },
-        Variants.of({
+        CB.Variants.of({
           start9: {
             name: 'Start9',
-            spec: Config.of({}),
+            spec: CB.Config.of({}),
           },
           njalla: {
             name: 'Njalla',

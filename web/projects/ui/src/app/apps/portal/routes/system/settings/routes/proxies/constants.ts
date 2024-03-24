@@ -1,5 +1,4 @@
-import { Config } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/config'
-import { Value } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/value'
+import { CB } from '@start9labs/start-sdk'
 import { TuiDialogOptions } from '@taiga-ui/core'
 import { TuiPromptData } from '@taiga-ui/kit'
 
@@ -13,13 +12,13 @@ export const DELETE_OPTIONS: Partial<TuiDialogOptions<TuiPromptData>> = {
   },
 }
 
-export const wireguardSpec = Config.of({
-  name: Value.text({
+export const wireguardSpec = CB.Config.of({
+  name: CB.Value.text({
     name: 'Name',
     description: 'A friendly name to help you remember and identify this proxy',
     required: { default: null },
   }),
-  config: Value.file({
+  config: CB.Value.file({
     name: 'Wiregaurd Config',
     required: { default: null },
     extensions: ['.conf'],

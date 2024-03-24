@@ -1,5 +1,4 @@
-import { Config } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/config'
-import { Value } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/value'
+import { CB } from '@start9labs/start-sdk'
 
 export interface SettingBtn {
   title: string
@@ -9,22 +8,22 @@ export interface SettingBtn {
   routerLink?: string
 }
 
-export const passwordSpec = Config.of({
-  currentPassword: Value.text({
+export const passwordSpec = CB.Config.of({
+  currentPassword: CB.Value.text({
     name: 'Current Password',
     required: {
       default: null,
     },
     masked: true,
   }),
-  newPassword1: Value.text({
+  newPassword1: CB.Value.text({
     name: 'New Password',
     required: {
       default: null,
     },
     masked: true,
   }),
-  newPassword2: Value.text({
+  newPassword2: CB.Value.text({
     name: 'Retype New Password',
     required: {
       default: null,

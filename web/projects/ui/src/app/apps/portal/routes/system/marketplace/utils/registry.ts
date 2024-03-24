@@ -1,8 +1,8 @@
-import { ValueSpecObject } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
+import { CT } from '@start9labs/start-sdk'
 import { TuiDialogOptions } from '@taiga-ui/core'
 import { TuiPromptData } from '@taiga-ui/kit'
 
-export function getMarketplaceValueSpec(): ValueSpecObject {
+export function getMarketplaceValueSpec(): CT.ValueSpecObject {
   return {
     type: 'object',
     name: 'Add Custom Registry',

@@ -1,9 +1,9 @@
 {
   "name": null,
-  "ack-welcome": "0.3.4.4",
+  "ackWelcome": "0.3.4.4",
   "marketplace": {
-    "selected-url": "https://registry.start9.com/",
-    "known-hosts": {
+    "selectedUrl": "https://registry.start9.com/",
+    "knownHosts": {
       "https://registry.start9.com/": {},
       "https://community-registry.start9.com/": {}
     }
@@ -11,10 +11,10 @@
   "dev": {},
   "gaming": {
     "snake": {
-      "high-score": 0
+      "highScore": 0
     }
   },
-  "ack-instructions": {},
+  "ackInstructions": {},
   "theme": "Dark",
   "widgets": []
 }

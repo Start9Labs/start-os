@@ -26,7 +26,7 @@ import { ServiceActionComponent } from '../components/action.component'
 import { ServiceActionSuccessComponent } from '../components/action-success.component'
 import { GroupActionsPipe } from '../pipes/group-actions.pipe'
 import { ToManifestPipe } from 'src/app/apps/portal/pipes/to-manifest'
-import { ActionMetadata } from '@start9labs/start-sdk/cjs/sdk/lib/types'
+import { T } from '@start9labs/start-sdk'
 import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
 
 @Component({
@@ -61,7 +61,12 @@ import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, ServiceActionComponent, GroupActionsPipe, ToManifestPipe],
+  imports: [
+    CommonModule,
+    ServiceActionComponent,
+    GroupActionsPipe,
+    ToManifestPipe,
+  ],
 })
 export class ServiceActionsRoute {
   private readonly id = getPkgId(inject(ActivatedRoute))
@@ -87,7 +92,7 @@ export class ServiceActionsRoute {
     private readonly formDialog: FormDialogService,
   ) {}
 
-  async handleAction(action: WithId<ActionMetadata>) {
+  async handleAction(action: WithId<T.ActionMetadata>) {
     if (action.disabled) {
       this.dialogs
         .open(action.disabled, {

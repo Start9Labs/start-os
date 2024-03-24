@@ -13,8 +13,8 @@ import {
   FollowLogsRes,
   FollowLogsReq,
 } from '@start9labs/shared'
-import { customSmtp } from '@start9labs/start-sdk/cjs/sdk/lib/config/configConstants'
-import { InputSpec } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
+import { CT } from '@start9labs/start-sdk'
+import { config } from '@start9labs/start-sdk'
 
 export module RR {
   // DB
@@ -205,7 +205,8 @@ export module RR {
 
   // email
 
-  export type ConfigureEmailReq = typeof customSmtp.validator._TYPE // email.configure
+  export type ConfigureEmailReq =
+    typeof config.constants.customSmtp.validator._TYPE // email.configure
   export type ConfigureEmailRes = null
 
   export type TestEmailReq = ConfigureEmailReq & { to: string } // email.test
@@ -319,7 +320,7 @@ export module RR {
   export type InstallPackageRes = null
 
   export type GetPackageConfigReq = { id: string } // package.config.get
-  export type GetPackageConfigRes = { spec: InputSpec; config: object }
+  export type GetPackageConfigRes = { spec: CT.InputSpec; config: object }
 
   export type DrySetPackageConfigReq = { id: string; config: object } // package.config.set.dry
   export type DrySetPackageConfigRes = Breakages
@@ -361,7 +362,7 @@ export module RR {
   export type DryConfigureDependencyRes = {
     oldConfig: object
     newConfig: object
-    spec: InputSpec
+    spec: CT.InputSpec
   }
 
   export type SideloadPackageReq = {

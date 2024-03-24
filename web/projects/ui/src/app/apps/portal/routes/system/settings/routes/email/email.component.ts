@@ -17,8 +17,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormService } from 'src/app/services/form.service'
 import { EmailInfoComponent } from './info.component'
-import { InputSpec } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
-import { customSmtp } from '@start9labs/start-sdk/cjs/sdk/lib/config/configConstants'
+import { CT, config } from '@start9labs/start-sdk'
 
 @Component({
   template: `
@@ -82,7 +81,9 @@ export class SettingsEmailComponent {
   private readonly api = inject(ApiService)
 
   testAddress = ''
-  readonly spec: Promise<InputSpec> = configBuilderToSpec(customSmtp)
+  readonly spec: Promise<CT.InputSpec> = configBuilderToSpec(
+    config.constants.customSmtp,
+  )
   readonly form$ = this.patch
     .watch$('serverInfo', 'smtp')
     .pipe(
@@ -95,7 +96,9 @@ export class SettingsEmailComponent {
     const loader = this.loader.open('Saving...').subscribe()
 
     try {
-      await this.api.configureEmail(customSmtp.validator.unsafeCast(value))
+      await this.api.configureEmail(
+        config.constants.customSmtp.validator.unsafeCast(value),
+      )
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

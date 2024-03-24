@@ -1,19 +1,16 @@
-import {
-  unionSelectKey,
-  unionValueKey,
-} from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
+import { CT } from '@start9labs/start-sdk'
 import { RR } from 'src/app/services/api/api.types'
 
 export type BackupConfig =
   | {
       type: {
-        [unionSelectKey]: 'dropbox' | 'google-drive'
-        [unionValueKey]: RR.AddCloudBackupTargetReq
+        [CT.unionSelectKey]: 'dropbox' | 'google-drive'
+        [CT.unionValueKey]: RR.AddCloudBackupTargetReq
       }
     }
   | {
       type: {
-        [unionSelectKey]: 'cifs'
-        [unionValueKey]: RR.AddCifsBackupTargetReq
+        [CT.unionSelectKey]: 'cifs'
+        [CT.unionValueKey]: RR.AddCifsBackupTargetReq
       }
     }

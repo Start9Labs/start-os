@@ -1,6 +1,6 @@
-import { ValueSpecObject } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
+import { CT } from '@start9labs/start-sdk'
 
-export const wifiSpec: ValueSpecObject = {
+export const wifiSpec: CT.ValueSpecObject = {
   type: 'object',
   name: 'WiFi Credentials',
   description:

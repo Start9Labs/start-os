@@ -8,7 +8,8 @@ import {
 } from '@angular/core'
 import { FormGroup, ReactiveFormsModule } from '@angular/forms'
 import { RouterModule } from '@angular/router'
-import { InputSpec } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
+import { CT } from '@start9labs/start-sdk'
+
 import {
   tuiMarkControlAsTouchedAndValidate,
   TuiValueChangesModule,
@@ -29,7 +30,7 @@ export interface ActionButton<T> {
 }
 
 export interface FormContext<T> {
-  spec: InputSpec
+  spec: CT.InputSpec
   buttons: ActionButton<T>[]
   value?: T
   patch?: Operation[]

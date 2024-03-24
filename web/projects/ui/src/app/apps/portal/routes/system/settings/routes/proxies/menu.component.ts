@@ -24,7 +24,7 @@ import { Proxy } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DELETE_OPTIONS, ProxyUpdate } from './constants'
-import { Value } from '@start9labs/start-sdk/cjs/sdk/lib/config/builder/value'
+import { CB } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'proxies-menu',
@@ -90,7 +90,7 @@ export class ProxiesMenuComponent {
 
   async rename() {
     const spec = { name: 'Name', required: { default: this.proxy.name } }
-    const name = await Value.text(spec).build({} as any)
+    const name = await CB.Value.text(spec).build({} as any)
     const options: Partial<TuiDialogOptions<FormContext<{ name: string }>>> = {
       label: `Rename ${this.proxy.name}`,
       data: {

@@ -7,7 +7,7 @@ import {
   Output,
 } from '@angular/core'
 import { ControlContainer } from '@angular/forms'
-import { ValueSpecObject } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
+import { CT } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'form-object',
@@ -17,7 +17,7 @@ import { ValueSpecObject } from '@start9labs/start-sdk/cjs/sdk/lib/config/config
 })
 export class FormObjectComponent {
   @Input({ required: true })
-  spec!: ValueSpecObject
+  spec!: CT.ValueSpecObject
 
   @Input()
   open = false

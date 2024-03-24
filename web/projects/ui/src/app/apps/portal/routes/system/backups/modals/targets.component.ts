@@ -1,10 +1,7 @@
 import { CommonModule } from '@angular/common'
 import { Component, inject, OnInit } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import {
-  unionSelectKey,
-  unionValueKey,
-} from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
+import { CT } from '@start9labs/start-sdk'
 import { TuiNotificationModule } from '@taiga-ui/core'
 import { TuiButtonModule, TuiFadeModule } from '@taiga-ui/experimental'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
@@ -182,8 +179,8 @@ export class BackupsTargetsModal implements OnInit {
             text: 'Save',
             handler: ({ type }: BackupConfig) =>
               this.add(
-                type[unionSelectKey] === 'cifs' ? 'cifs' : 'cloud',
-                type[unionValueKey],
+                type[CT.unionSelectKey] === 'cifs' ? 'cifs' : 'cloud',
+                type[CT.unionValueKey],
               ),
           },
         ],

@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { ValueSpecSelect } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
+import { CT } from '@start9labs/start-sdk'
 import { invert } from '@start9labs/shared'
 import { Control } from '../control'
 
@@ -7,7 +7,7 @@ import { Control } from '../control'
   selector: 'form-select',
   templateUrl: './form-select.component.html',
 })
-export class FormSelectComponent extends Control<ValueSpecSelect, string> {
+export class FormSelectComponent extends Control<CT.ValueSpecSelect, string> {
   private readonly inverted = invert(this.spec.values)
 
   readonly items = Object.values(this.spec.values)

@@ -6,7 +6,7 @@ import {
   isEmptyObject,
   LoadingService,
 } from '@start9labs/shared'
-import { InputSpec } from '@start9labs/start-sdk/cjs/sdk/lib/config/configTypes'
+import { CT } from '@start9labs/start-sdk'
 import { TuiButtonModule } from '@taiga-ui/experimental'
 import {
   TuiDialogContext,
@@ -131,7 +131,7 @@ export class ServiceConfigModal {
     : 'Loading Config'
 
   pkg?: PackageDataEntry
-  spec: InputSpec = {}
+  spec: CT.InputSpec = {}
   patch: Operation[] = []
   buttons: ActionButton<any>[] = [
     {
