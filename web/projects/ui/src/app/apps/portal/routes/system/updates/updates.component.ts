@@ -6,7 +6,7 @@ import {
 } from '@start9labs/marketplace'
 import { TuiAvatarModule, TuiCellModule } from '@taiga-ui/experimental'
 import { PatchDB } from 'patch-db-client'
-import { combineLatest, map } from 'rxjs'
+import { combineLatest, map, scan } from 'rxjs'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   DataModel,
@@ -79,9 +79,10 @@ export default class UpdatesComponent {
       .watch$('packageData')
       .pipe(
         map(pkgs =>
-          Object.values(pkgs).reduce(
-            (acc, curr) => {
-              if (isInstalled(curr) || isUpdating(curr)) return { ...acc, curr }
+          Object.entries(pkgs).reduce(
+            (acc, [id, val]) => {
+              if (isInstalled(val) || isUpdating(val))
+                return { ...acc, [id]: val }
               return acc
             },
             {} as Record<

@@ -45,12 +45,6 @@ export class SettingsService {
         icon: 'tuiIconKey',
         action: () => this.promptNewPassword(),
       },
-      {
-        title: 'Experimental Features',
-        description: 'Try out new and potentially unstable new features',
-        icon: 'tuiIconThermometer',
-        routerLink: 'experimental',
-      },
     ],
     Network: [
       {
@@ -134,7 +128,7 @@ export class SettingsService {
       .open(TUI_PROMPT, {
         label: this.isTor ? 'Warning' : 'Confirm',
         data: {
-          content: '',
+          content: '@TODO how to display a checkbox in here?',
           yes: 'Reset',
           no: 'Cancel',
         },

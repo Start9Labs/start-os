@@ -28,7 +28,7 @@ import { getManifest } from 'src/app/util/get-package-data'
       <fieldset
         appControls
         [disabled]="
-          this.pkg.stateInfo.state !== 'installed' || !(connected$ | async)
+          pkg.stateInfo.state !== 'installed' || !(connected$ | async)
         "
         [pkg]="pkg"
       ></fieldset>

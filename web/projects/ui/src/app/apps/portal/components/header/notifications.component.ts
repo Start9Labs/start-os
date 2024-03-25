@@ -25,6 +25,7 @@ import {
   ServerNotifications,
 } from 'src/app/services/api/api.types'
 import { NotificationService } from '../../services/notification.service'
+import { ToManifestPipe } from '../../pipes/to-manifest'
 
 @Component({
   selector: 'header-notifications',
@@ -47,7 +48,11 @@ import { NotificationService } from '../../services/notification.service'
           [notification]="not"
         >
           <ng-container *ngIf="not.packageId as pkgId">
-            {{ $any(packageData[pkgId])?.manifest.title || pkgId }}
+            {{
+              packageData[pkgId]
+                ? (packageData[pkgId] | toManifest).title
+                : pkgId
+            }}
           </ng-container>
           <button
             style="align-self: flex-start; flex-shrink: 0;"
@@ -98,6 +103,7 @@ import { NotificationService } from '../../services/notification.service'
     TuiCellModule,
     TuiAvatarStackModule,
     TuiTitleModule,
+    ToManifestPipe,
   ],
 })
 export class HeaderNotificationsComponent {

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { InterfaceAddressComponent } from './interface-addresses.component'
 import { InterfaceComponent } from './interface.component'
 import { NgForOf, NgIf } from '@angular/common'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 
 @Component({
   standalone: true,
@@ -19,23 +20,14 @@ import { NgForOf, NgIf } from '@angular/common'
       </a>
     </em>
 
-    <ng-container
-      *ngIf="interface.serviceInterface.addresses.tor as addresses; else empty"
-    >
+    @for (address of interface.serviceInterface.addresses.tor; track $index) {
       <app-interface-address
-        *ngFor="let address of addresses"
         [label]="address.label"
         [address]="address.url"
         [isMasked]="interface.serviceInterface.masked"
         [isUi]="interface.serviceInterface.type === 'ui'"
       />
-      <div [style.display]="'flex'" [style.gap.rem]="1">
-        <button tuiButton size="s" appearance="danger-solid" (click)="remove()">
-          Remove
-        </button>
-      </div>
-    </ng-container>
-    <ng-template #empty>
+    } @empty {
       <button
         tuiButton
         iconLeft="tuiIconPlus"
@@ -44,17 +36,9 @@ import { NgForOf, NgIf } from '@angular/common'
       >
         Add Address
       </button>
-    </ng-template>
-
-    <app-interface-address
-      *ngFor="let address of interface.serviceInterface.addresses.tor"
-      [label]="address.label"
-      [address]="address.url"
-      [isMasked]="interface.serviceInterface.masked"
-      [isUi]="interface.serviceInterface.type === 'ui'"
-    />
+    }
   `,
-  imports: [NgForOf, NgIf, InterfaceAddressComponent],
+  imports: [NgForOf, NgIf, InterfaceAddressComponent, TuiButtonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InterfaceTorComponent {

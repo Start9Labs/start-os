@@ -54,7 +54,7 @@ export class StatusComponent {
   }
 
   get loading(): boolean {
-    return !!this.pkg.stateInfo || this.color === 'var(--tui-info-fill)'
+    return this.color === 'var(--tui-info-fill)'
   }
 
   @tuiPure
@@ -94,10 +94,6 @@ export class StatusComponent {
   }
 
   get color(): string {
-    if (this.pkg.stateInfo.installingInfo) {
-      return 'var(--tui-info-fill)'
-    }
-
     switch (this.getStatus(this.pkg).primary) {
       case PrimaryStatus.Running:
         return 'var(--tui-success-fill)'

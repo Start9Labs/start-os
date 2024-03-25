@@ -27,7 +27,7 @@ import { Domain } from 'src/app/services/patch-db/data-model'
     <tbody>
       <tr *ngFor="let domain of domains">
         <td>{{ domain.value }}</td>
-        <td>{{ domain.createdAt | date : 'short' }}</td>
+        <td>{{ domain.createdAt | date: 'short' }}</td>
         <td>{{ domain.provider }}</td>
         <td>{{ getStrategy(domain) }}</td>
         <td>
@@ -69,11 +69,7 @@ export class DomainsTableComponent {
   readonly delete = new EventEmitter<Domain>()
 
   getStrategy(domain: any) {
-    return (
-      domain.networkStrategy.ipStrategy ||
-      domain.networkStrategy.proxyId ||
-      'Primary Proxy'
-    )
+    return domain.networkStrategy.ipStrategy || domain.networkStrategy.proxy
   }
 
   onUsedBy({ value, usedBy }: Domain) {

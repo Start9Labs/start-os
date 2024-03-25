@@ -6,7 +6,6 @@ import {
   PackageDataEntry,
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
-import { hasCurrentDeps } from 'src/app/util/has-deps'
 
 @Pipe({
   name: 'filterUpdates',

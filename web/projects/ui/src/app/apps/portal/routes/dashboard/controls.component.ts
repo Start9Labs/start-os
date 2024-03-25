@@ -40,10 +40,10 @@ import { Manifest } from '@start9labs/marketplace'
       </button>
     } @else {
       <button
-        *tuiLet="hasUnmet(pkg) | async as hasUnmet"
+        *tuiLet="hasUnmet() | async as hasUnmet"
         tuiIconButton
         iconLeft="tuiIconPlay"
-        [disabled]="!this.pkg.status.configured"
+        [disabled]="!pkg.status.configured"
         (click)="actions.start(manifest, !!hasUnmet)"
       >
         Start
@@ -77,11 +77,11 @@ export class ControlsComponent {
   readonly actions = inject(ActionsService)
 
   @tuiPure
-  hasUnmet(pkg: PackageDataEntry): Observable<boolean> {
-    const id = getManifest(pkg).id
+  hasUnmet(): Observable<boolean> {
+    const id = this.manifest.id
     return this.errors.getPkgDepErrors$(id).pipe(
       map(errors =>
-        Object.keys(pkg.currentDependencies)
+        Object.keys(this.pkg.currentDependencies)
           .map(id => !!(errors[id] as any)?.[id]) // @TODO fix
           .some(Boolean),
       ),

@@ -20,26 +20,14 @@ import { InterfaceAddressComponent } from './interface-addresses.component'
       </a>
     </em>
 
-    <ng-container
-      *ngIf="
-        interface.serviceInterface.addresses.local as addresses;
-        else empty
-      "
-    >
+    @for (address of interface.serviceInterface.addresses.local; track $index) {
       <app-interface-address
-        *ngFor="let address of addresses"
         [label]="address.label"
         [address]="address.url"
         [isMasked]="interface.serviceInterface.masked"
         [isUi]="interface.serviceInterface.type === 'ui'"
       />
-      <div [style.display]="'flex'" [style.gap.rem]="1">
-        <button tuiButton size="s" appearance="danger-solid" (click)="remove()">
-          Remove
-        </button>
-      </div>
-    </ng-container>
-    <ng-template #empty>
+    } @empty {
       <button
         tuiButton
         iconLeft="tuiIconPlus"
@@ -48,7 +36,7 @@ import { InterfaceAddressComponent } from './interface-addresses.component'
       >
         Add Address
       </button>
-    </ng-template>
+    }
   `,
   imports: [NgForOf, NgIf, InterfaceAddressComponent, TuiButtonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,

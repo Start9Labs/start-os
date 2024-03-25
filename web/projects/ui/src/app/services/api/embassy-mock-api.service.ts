@@ -340,7 +340,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/ui/domainInfo',
+        path: '/serverInfo/ui/domainInfo',
         value: params.domainInfo,
       },
     ]
@@ -430,7 +430,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/network/outboundProxy',
+        path: '/serverInfo/network/outboundProxy',
         value: params.proxy,
       },
     ]
@@ -526,7 +526,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/network/proxies',
+        path: '/serverInfo/network/proxies',
         value: [
           {
             id: 'abcd-efgh-ijkl-mnop',
@@ -553,7 +553,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: `/server-info/network/proxies/0/name`,
+        path: `/serverInfo/network/proxies/0/name`,
         value: params.name,
       },
     ]
@@ -567,7 +567,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/network/proxies',
+        path: '/serverInfo/network/proxies',
         value: [],
       },
     ]
@@ -586,7 +586,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/network/start9ToSubdomain',
+        path: '/serverInfo/network/start9ToSubdomain',
         value: {
           value: 'xyz',
           createdAt: new Date(),
@@ -607,7 +607,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/network/start9ToSubdomain',
+        path: '/serverInfo/network/start9ToSubdomain',
         value: null,
       },
     ]
@@ -622,7 +622,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/network/domains',
+        path: '/serverInfo/network/domains',
         value: [
           {
             value: params.hostname,
@@ -644,7 +644,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/network/domains',
+        path: '/serverInfo/network/domains',
         value: [],
       },
     ]
@@ -663,7 +663,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/network/wanConfig/forwards/0/override',
+        path: '/serverInfo/network/wanConfig/forwards/0/override',
         value: params.port,
       },
     ]
@@ -679,7 +679,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/network/wifi/enabled',
+        path: '/serverInfo/network/wifi/enabled',
         value: params.enable,
       },
     ]
@@ -722,7 +722,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/smtp',
+        path: '/serverInfo/smtp',
         value: params,
       },
     ]
@@ -969,8 +969,6 @@ export class MockApiService extends ApiService {
       this.updateProgress(params.id)
     }, 1000)
 
-    const manifest = Mock.LocalPkgs[params.id].stateInfo.manifest
-
     const patch: Operation<
       PackageDataEntry<InstallingState | UpdatingState>
     >[] = [
@@ -981,15 +979,15 @@ export class MockApiService extends ApiService {
           ...Mock.LocalPkgs[params.id],
           stateInfo: {
             // if installing
-            state: PackageState.Installing,
+            // state: PackageState.Installing,
 
             // if updating
-            // state: PackageState.Updating,
-            // manifest,
+            state: PackageState.Updating,
+            manifest: mockPatchData.packageData[params.id].stateInfo.manifest!,
 
             // both
             installingInfo: {
-              newManifest: manifest,
+              newManifest: Mock.LocalPkgs[params.id].stateInfo.manifest,
               progress: PROGRESS,
             },
           },
@@ -1285,7 +1283,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: `/package-data/${params.packageId}/installed/interfaceInfo/${params.interfaceId}/addressInfo/domainInfo`,
+        path: `/packageData/${params.packageId}/installed/interfaceInfo/${params.interfaceId}/addressInfo/domainInfo`,
         value: params.domainInfo,
       },
     ]
@@ -1301,7 +1299,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: `/package-data/${params.packageId}/installed/outboundProxy`,
+        path: `/packageData/${params.packageId}/installed/outboundProxy`,
         value: params.proxy,
       },
     ]

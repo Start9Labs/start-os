@@ -9,6 +9,7 @@ import { WINDOW } from '@ng-web-apis/common'
 import { CopyService } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
 import {
+  TuiBadgeModule,
   TuiButtonModule,
   TuiCellModule,
   TuiTitleModule,
@@ -22,12 +23,12 @@ import { mask } from 'src/app/util/mask'
   selector: 'app-interface-address',
   template: `
     <div tuiCell>
-      <h3 tuiTitle>
-        <span tuiSubtitle>{{ isMasked ? mask : address }}</span>
-      </h3>
       <tui-badge appearance="success">
         {{ label }}
       </tui-badge>
+      <h3 tuiTitle>
+        <span tuiSubtitle>{{ isMasked ? mask : address }}</span>
+      </h3>
       <button
         *ngIf="isUi"
         tuiIconButton
@@ -51,11 +52,25 @@ import { mask } from 'src/app/util/mask'
         appearance="icon"
         (click)="copyService.copy(address)"
       >
-        Copy QR code
+        Copy URL
+      </button>
+      <button
+        tuiIconButton
+        iconLeft="tuiIconTrash"
+        appearance="icon"
+        (click)="destroy()"
+      >
+        Destroy
       </button>
     </div>
   `,
-  imports: [NgIf, TuiCellModule, TuiTitleModule, TuiButtonModule],
+  imports: [
+    NgIf,
+    TuiCellModule,
+    TuiTitleModule,
+    TuiButtonModule,
+    TuiBadgeModule,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InterfaceAddressComponent {
@@ -84,4 +99,6 @@ export class InterfaceAddressComponent {
       })
       .subscribe()
   }
+
+  destroy() {}
 }

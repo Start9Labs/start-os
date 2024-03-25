@@ -84,7 +84,6 @@ import { InstallingProgressPipe } from 'src/app/apps/portal/routes/service/pipes
           <service-interface-list
             [pkg]="service.pkg"
             [status]="service.status"
-            ]
           />
 
           @if (

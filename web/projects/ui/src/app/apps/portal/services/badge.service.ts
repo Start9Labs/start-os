@@ -63,8 +63,9 @@ export class BadgeService {
           (list, [_, store]) =>
             store?.packages.reduce(
               (result, { manifest: { id, version } }) =>
-                this.emver.compare(version, getManifest(local[id])?.version) ===
-                1
+                local[id] &&
+                this.emver.compare(version, getManifest(local[id]).version) ===
+                  1
                   ? result.add(id)
                   : result,
               list,
@@ -72,6 +73,7 @@ export class BadgeService {
           new Set<string>(),
         ).size,
     ),
+    // @TODO shareReplay is preventing the badge from decrementing
     shareReplay(1),
   )
 
