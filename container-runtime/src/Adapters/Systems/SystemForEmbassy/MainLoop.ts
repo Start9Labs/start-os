@@ -25,15 +25,12 @@ export class MainLoop {
         wait: Promise<unknown>
       }>
     | undefined
-  private propertiesEvent: NodeJS.Timeout | undefined
   constructor(
     readonly system: SystemForEmbassy,
     readonly effects: HostSystemStartOs,
-    readonly runProperties: () => Promise<void>,
   ) {
     this.healthLoops = this.constructHealthLoops()
     this.mainEvent = this.constructMainEvent()
-    this.propertiesEvent = this.constructPropertiesEvent()
   }
 
   private async constructMainEvent() {
@@ -85,21 +82,12 @@ export class MainLoop {
   }
 
   public async clean(options?: { timeout?: number }) {
-    const { mainEvent, healthLoops, propertiesEvent } = this
+    const { mainEvent, healthLoops } = this
     const main = await mainEvent
     delete this.mainEvent
     delete this.healthLoops
-    delete this.propertiesEvent
     if (mainEvent) await main?.daemon.term()
-    clearInterval(propertiesEvent)
     if (healthLoops) healthLoops.forEach((x) => clearInterval(x.interval))
-  }
-
-  private constructPropertiesEvent() {
-    const { runProperties } = this
-    return setInterval(() => {
-      runProperties()
-    }, EMBASSY_PROPERTIES_LOOP)
   }
 
   private constructHealthLoops() {
