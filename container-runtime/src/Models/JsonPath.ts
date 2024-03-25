@@ -35,6 +35,7 @@ export const jsonPath = some(
     "/backup/create",
     "/backup/restore",
     "/actions/metadata",
+    "/properties",
   ),
   string.refine(isNestedPath, "isNestedPath"),
 )

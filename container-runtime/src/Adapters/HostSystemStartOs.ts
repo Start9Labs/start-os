@@ -147,11 +147,6 @@ export class HostSystemStartOs implements Effects {
       T.Effects["exposeForDependents"]
     >
   }
-  exposeUi(...[options]: Parameters<T.Effects["exposeUi"]>) {
-    return this.rpcRound("exposeUi", options) as ReturnType<
-      T.Effects["exposeUi"]
-    >
-  }
   getConfigured(...[]: Parameters<T.Effects["getConfigured"]>) {
     return this.rpcRound("getConfigured", null) as ReturnType<
       T.Effects["getConfigured"]

@@ -325,6 +325,17 @@ impl Service {
             .await
             .with_kind(ErrorKind::Action)
     }
+    pub async fn properties(&self) -> Result<Value, Error> {
+        let container = &self.seed.persistent_container;
+        container
+            .execute::<Value>(
+                ProcedureName::Properties,
+                Value::Null,
+                Some(Duration::from_secs(30)),
+            )
+            .await
+            .with_kind(ErrorKind::Unknown)
+    }
 
     pub async fn shutdown(self) -> Result<(), Error> {
         self.actor
