@@ -293,7 +293,7 @@ pub async fn execute(
         .invoke(crate::ErrorKind::OpenSsh)
         .await?;
 
-    let embassy_fs = MountGuard::mount(
+    let start_os_fs = MountGuard::mount(
         &Bind::new(rootfs.path()),
         current.join("media/embassy/embassyfs"),
         MountType::ReadOnly,
@@ -342,7 +342,7 @@ pub async fn execute(
     }
     sys.unmount(false).await?;
     proc.unmount(false).await?;
-    embassy_fs.unmount(false).await?;
+    start_os_fs.unmount(false).await?;
     if let Some(efi) = efi {
         efi.unmount(false).await?;
     }

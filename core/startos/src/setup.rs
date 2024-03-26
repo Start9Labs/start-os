@@ -240,9 +240,9 @@ pub async fn verify_cifs(
         ReadWrite,
     )
     .await?;
-    let embassy_os = recovery_info(guard.path()).await?;
+    let start_os = recovery_info(guard.path()).await?;
     guard.unmount().await?;
-    embassy_os.ok_or_else(|| Error::new(eyre!("No Backup Found"), crate::ErrorKind::NotFound))
+    start_os.ok_or_else(|| Error::new(eyre!("No Backup Found"), crate::ErrorKind::NotFound))
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -256,8 +256,8 @@ pub enum RecoverySource {
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExecuteParams {
-    embassy_logicalname: PathBuf,
-    embassy_password: EncryptedWire,
+    start_os_logicalname: PathBuf,
+    start_os_password: EncryptedWire,
     recovery_source: Option<RecoverySource>,
     recovery_password: Option<EncryptedWire>,
 }
@@ -266,13 +266,13 @@ pub struct ExecuteParams {
 pub async fn execute(
     ctx: SetupContext,
     ExecuteParams {
-        embassy_logicalname,
-        embassy_password,
+        start_os_logicalname,
+        start_os_password,
         recovery_source,
         recovery_password,
     }: ExecuteParams,
 ) -> Result<(), Error> {
-    let embassy_password = match embassy_password.decrypt(&*ctx) {
+    let start_os_password = match start_os_password.decrypt(&*ctx) {
         Some(a) => a,
         None => {
             return Err(Error::new(
@@ -311,8 +311,8 @@ pub async fn execute(
             let ctx = ctx.clone();
             match execute_inner(
                 ctx.clone(),
-                embassy_logicalname,
-                embassy_password,
+                start_os_logicalname,
+                start_os_password,
                 recovery_source,
                 recovery_password,
             )
@@ -375,8 +375,8 @@ pub async fn exit(ctx: SetupContext) -> Result<(), Error> {
 #[instrument(skip_all)]
 pub async fn execute_inner(
     ctx: SetupContext,
-    embassy_logicalname: PathBuf,
-    embassy_password: String,
+    start_os_logicalname: PathBuf,
+    start_os_password: String,
     recovery_source: Option<RecoverySource>,
     recovery_password: Option<String>,
 ) -> Result<(Arc<String>, Hostname, OnionAddressV3, X509), Error> {
@@ -387,7 +387,7 @@ pub async fn execute_inner(
     };
     let guid = Arc::new(
         crate::disk::main::create(
-            &[embassy_logicalname],
+            &[start_os_logicalname],
             &pvscan().await?,
             &ctx.datadir,
             encryption_password,
@@ -403,20 +403,20 @@ pub async fn execute_inner(
     .await?;
 
     if let Some(RecoverySource::Backup { target }) = recovery_source {
-        recover(ctx, guid, embassy_password, target, recovery_password).await
+        recover(ctx, guid, start_os_password, target, recovery_password).await
     } else if let Some(RecoverySource::Migrate { guid: old_guid }) = recovery_source {
-        migrate(ctx, guid, &old_guid, embassy_password).await
+        migrate(ctx, guid, &old_guid, start_os_password).await
     } else {
-        let (hostname, tor_addr, root_ca) = fresh_setup(&ctx, &embassy_password).await?;
+        let (hostname, tor_addr, root_ca) = fresh_setup(&ctx, &start_os_password).await?;
         Ok((guid, hostname, tor_addr, root_ca))
     }
 }
 
 async fn fresh_setup(
     ctx: &SetupContext,
-    embassy_password: &str,
+    start_os_password: &str,
 ) -> Result<(Hostname, OnionAddressV3, X509), Error> {
-    let account = AccountInfo::new(embassy_password, root_ca_start_time().await?)?;
+    let account = AccountInfo::new(start_os_password, root_ca_start_time().await?)?;
     let db = ctx.db().await?;
     db.put(&ROOT, &Database::init(&account)?).await?;
     drop(db);
@@ -432,7 +432,7 @@ async fn fresh_setup(
 async fn recover(
     ctx: SetupContext,
     guid: Arc<String>,
-    embassy_password: String,
+    start_os_password: String,
     recovery_source: BackupTargetFS,
     recovery_password: Option<String>,
 ) -> Result<(Arc<String>, Hostname, OnionAddressV3, X509), Error> {
@@ -440,7 +440,7 @@ async fn recover(
     recover_full_embassy(
         ctx,
         guid.clone(),
-        embassy_password,
+        start_os_password,
         recovery_source,
         recovery_password,
     )
@@ -452,7 +452,7 @@ async fn migrate(
     ctx: SetupContext,
     guid: Arc<String>,
     old_guid: &str,
-    embassy_password: String,
+    start_os_password: String,
 ) -> Result<(Arc<String>, Hostname, OnionAddressV3, X509), Error> {
     *ctx.setup_status.write().await = Some(Ok(SetupStatus {
         bytes_transferred: 0,
@@ -537,7 +537,7 @@ async fn migrate(
         } => res,
     }
 
-    let (hostname, tor_addr, root_ca) = setup_init(&ctx, Some(embassy_password)).await?;
+    let (hostname, tor_addr, root_ca) = setup_init(&ctx, Some(start_os_password)).await?;
 
     crate::disk::main::export(&old_guid, "/media/embassy/migrate").await?;
 
