@@ -56,8 +56,6 @@ pub struct DepInfo {
     pub version: VersionRange,
     pub requirement: DependencyRequirement,
     pub description: Option<String>,
-    #[serde(default)]
-    pub config: Option<Value>, // TODO: remove
 }
 
 #[derive(Deserialize, Serialize, Parser)]

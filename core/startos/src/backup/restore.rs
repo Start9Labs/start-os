@@ -33,7 +33,6 @@ pub struct RestorePackageParams {
     pub password: String,
 }
 
-// TODO dr Why doesn't anything use this
 // #[command(rename = "restore", display(display_none))]
 #[instrument(skip(ctx, password))]
 pub async fn restore_packages_rpc(

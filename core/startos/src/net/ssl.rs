@@ -183,7 +183,6 @@ pub async fn root_ca_start_time() -> Result<SystemTime, Error> {
 const EC_CURVE_NAME: nid::Nid = nid::Nid::X9_62_PRIME256V1;
 lazy_static::lazy_static! {
     static ref EC_GROUP: EcGroup = EcGroup::from_curve_name(EC_CURVE_NAME).unwrap();
-    static ref SSL_MUTEX: Mutex<()> = Mutex::new(()); // TODO: make thread safe
 }
 
 pub async fn export_key(key: &PKey<Private>, target: &Path) -> Result<(), Error> {

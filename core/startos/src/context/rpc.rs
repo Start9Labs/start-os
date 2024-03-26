@@ -19,7 +19,6 @@ use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
 use crate::context::config::ServerConfig;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation, WebSocketHandler};
-use crate::db::model::package::CurrentDependents;
 use crate::db::prelude::PatchDbExt;
 use crate::dependencies::compute_dependency_config_errs;
 use crate::disk::OsPartitionInfo;
@@ -207,39 +206,6 @@ impl RpcContext {
 
     #[instrument(skip(self))]
     pub async fn cleanup_and_initialize(&self) -> Result<(), Error> {
-        self.db
-            .mutate(|f| {
-                let mut current_dependents = f
-                    .as_public_mut()
-                    .as_package_data()
-                    .keys()?
-                    .into_iter()
-                    .map(|k| (k.clone(), BTreeMap::new()))
-                    .collect::<BTreeMap<_, _>>();
-                for (package_id, package) in
-                    f.as_public_mut().as_package_data_mut().as_entries_mut()?
-                {
-                    for (k, v) in package.clone().into_current_dependencies().into_entries()? {
-                        let mut entry: BTreeMap<_, _> =
-                            current_dependents.remove(&k).unwrap_or_default();
-                        entry.insert(package_id.clone(), v.de()?);
-                        current_dependents.insert(k, entry);
-                    }
-                }
-                for (package_id, current_dependents) in current_dependents {
-                    if let Some(deps) = f
-                        .as_public_mut()
-                        .as_package_data_mut()
-                        .as_idx_mut(&package_id)
-                        .map(|i| i.as_current_dependents_mut())
-                    {
-                        deps.ser(&CurrentDependents(current_dependents))?;
-                    }
-                }
-                Ok(())
-            })
-            .await?;
-
         self.services.init(&self).await?;
         tracing::info!("Initialized Package Managers");
 

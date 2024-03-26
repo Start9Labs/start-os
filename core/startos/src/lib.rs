@@ -236,7 +236,7 @@ pub fn package() -> ParentHandler {
                 .with_remote_cli::<CliContext>(),
         )
         .subcommand("dependency", dependencies::dependency())
-        .subcommand("package-backup", backup::backup())
+        .subcommand("backup", backup::package_backup())
         .subcommand("connect", from_fn_async(service::connect_rpc).no_cli())
         .subcommand(
             "connect",

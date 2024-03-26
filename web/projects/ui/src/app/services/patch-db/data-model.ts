@@ -139,7 +139,9 @@ export enum PackageState {
 }
 
 export interface CurrentDependencyInfo {
-  versionRange: string
+  kind: 'exists' | 'running'
+  url: string
+  versionSpec: string
   healthChecks: string[] // array of health check IDs
 }
 

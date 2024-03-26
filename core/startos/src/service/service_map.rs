@@ -171,7 +171,6 @@ impl ServiceMap {
                                 icon,
                                 last_backup: None,
                                 dependency_info: Default::default(),
-                                current_dependents: Default::default(), // TODO: initialize
                                 current_dependencies: Default::default(),
                                 interface_addresses: Default::default(),
                                 hosts: Default::default(),

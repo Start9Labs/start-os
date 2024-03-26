@@ -768,7 +768,7 @@ async fn test() {
     let mut conn = torut::control::UnauthenticatedConn::new(
         TcpStream::connect(SocketAddr::from(([127, 0, 0, 1], 9051)))
             .await
-            .unwrap(), // TODO
+            .unwrap(),
     );
     let auth = conn
         .load_protocol_info()

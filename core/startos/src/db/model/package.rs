@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::{DateTime, Utc};
+use emver::VersionRange;
 use imbl_value::InternedString;
 use models::{DataUrl, HealthCheckId, HostId, PackageId};
 use patch_db::json_ptr::JsonPointer;
@@ -299,7 +300,6 @@ pub struct PackageDataEntry {
     pub icon: DataUrl<'static>,
     pub last_backup: Option<DateTime<Utc>>,
     pub dependency_info: BTreeMap<PackageId, StaticDependencyInfo>,
-    pub current_dependents: CurrentDependents,
     pub current_dependencies: CurrentDependencies,
     pub interface_addresses: InterfaceAddressMap,
     pub hosts: HostInfo,
@@ -358,29 +358,6 @@ impl Default for ExposedUI {
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct CurrentDependents(pub BTreeMap<PackageId, CurrentDependencyInfo>);
-impl CurrentDependents {
-    pub fn map(
-        mut self,
-        transform: impl Fn(
-            BTreeMap<PackageId, CurrentDependencyInfo>,
-        ) -> BTreeMap<PackageId, CurrentDependencyInfo>,
-    ) -> Self {
-        self.0 = transform(self.0);
-        self
-    }
-}
-impl Map for CurrentDependents {
-    type Key = PackageId;
-    type Value = CurrentDependencyInfo;
-    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
-        Ok(key)
-    }
-    fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
-        Ok(key.clone().into())
-    }
-}
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct CurrentDependencies(pub BTreeMap<PackageId, CurrentDependencyInfo>);
 impl CurrentDependencies {
     pub fn map(
@@ -416,9 +393,19 @@ pub struct StaticDependencyInfo {
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "kind")]
 pub enum CurrentDependencyInfo {
-    Exists,
+    #[serde(rename_all = "camelCase")]
+    Exists {
+        #[ts(type = "string")]
+        url: Url,
+        #[ts(type = "string")]
+        version_spec: VersionRange,
+    },
     #[serde(rename_all = "camelCase")]
     Running {
+        #[ts(type = "string")]
+        url: Url,
+        #[ts(type = "string")]
+        version_spec: VersionRange,
         #[serde(default)]
         #[ts(type = "string[]")]
         health_checks: BTreeSet<HealthCheckId>,

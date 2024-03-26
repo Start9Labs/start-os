@@ -45,6 +45,15 @@ pub fn backup() -> ParentHandler {
         .subcommand("target", target::target())
 }
 
+pub fn package_backup() -> ParentHandler {
+    ParentHandler::new().subcommand(
+        "restore",
+        from_fn_async(restore::restore_packages_rpc)
+            .no_display()
+            .with_remote_cli::<CliContext>(),
+    )
+}
+
 #[derive(Deserialize, Serialize)]
 struct BackupMetadata {
     pub timestamp: DateTime<Utc>,
