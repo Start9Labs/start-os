@@ -27,7 +27,7 @@ export async function parseS9pk(file: File): Promise<MarketplacePkg> {
 
   const manifest = await getAsset(positions, file, 'manifest')
   const [icon] = await Promise.all([
-    await getIcon(positions, file, manifest),
+    await getIcon(positions, file),
     // getAsset(positions, file, 'license'),
     // getAsset(positions, file, 'instructions'),
   ])
@@ -147,11 +147,7 @@ async function getAsset(
   return cbor.decode(data, true)
 }
 
-async function getIcon(
-  positions: Positions,
-  file: Blob,
-  manifest: Manifest,
-): Promise<string> {
+async function getIcon(positions: Positions, file: Blob): Promise<string> {
   const contentType = '' // @TODO
   const data = file.slice(
     Number(positions['icon'][0]),

@@ -73,7 +73,7 @@ export class BadgeService {
           new Set<string>(),
         ).size,
     ),
-    // @TODO shareReplay is preventing the badge from decrementing
+    // @TODO-Alex shareReplay is preventing the badge from decrementing
     shareReplay(1),
   )
 

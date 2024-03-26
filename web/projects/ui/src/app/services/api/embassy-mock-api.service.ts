@@ -1283,7 +1283,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: `/packageData/${params.packageId}/installed/interfaceInfo/${params.interfaceId}/addressInfo/domainInfo`,
+        path: `/packageData/${params.packageId}/serviceInterfaces/${params.interfaceId}/addressInfo/domainInfo`,
         value: params.domainInfo,
       },
     ]
@@ -1299,7 +1299,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: `/packageData/${params.packageId}/installed/outboundProxy`,
+        path: `/packageData/${params.packageId}/outboundProxy`,
         value: params.proxy,
       },
     ]

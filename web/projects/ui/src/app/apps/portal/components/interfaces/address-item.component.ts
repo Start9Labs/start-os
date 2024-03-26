@@ -17,20 +17,24 @@ import {
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { QRComponent } from 'src/app/common/qr.component'
 import { mask } from 'src/app/util/mask'
+import { InterfaceComponent } from './interface.component'
+import { AddressesService } from './interface.utils'
 
 @Component({
   standalone: true,
-  selector: 'app-interface-address',
+  selector: 'app-address-item',
   template: `
     <div tuiCell>
       <tui-badge appearance="success">
         {{ label }}
       </tui-badge>
       <h3 tuiTitle>
-        <span tuiSubtitle>{{ isMasked ? mask : address }}</span>
+        <span tuiSubtitle>
+          {{ interface.serviceInterface.masked ? mask : address }}
+        </span>
       </h3>
       <button
-        *ngIf="isUi"
+        *ngIf="interface.serviceInterface.type === 'ui'"
         tuiIconButton
         iconLeft="tuiIconExternalLink"
         appearance="icon"
@@ -58,7 +62,7 @@ import { mask } from 'src/app/util/mask'
         tuiIconButton
         iconLeft="tuiIconTrash"
         appearance="icon"
-        (click)="destroy()"
+        (click)="service.remove()"
       >
         Destroy
       </button>
@@ -73,15 +77,16 @@ import { mask } from 'src/app/util/mask'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class InterfaceAddressComponent {
+export class AddressItemComponent {
   private readonly window = inject(WINDOW)
   private readonly dialogs = inject(TuiDialogService)
+
+  readonly service = inject(AddressesService)
   readonly copyService = inject(CopyService)
+  readonly interface = inject(InterfaceComponent)
 
   @Input() label?: string
   @Input({ required: true }) address!: string
-  @Input({ required: true }) isMasked!: boolean
-  @Input({ required: true }) isUi!: boolean
 
   get mask(): string {
     return mask(this.address, 64)
@@ -99,6 +104,4 @@ export class InterfaceAddressComponent {
       })
       .subscribe()
   }
-
-  destroy() {}
 }

@@ -122,7 +122,7 @@ export class SettingsService {
     await this.proxyService.presentModalSetOutboundProxy(proxy)
   }
 
-  // @TODO previous this was done in experimental settings using a template ref.
+  // @TODO-Alex previous this was done in experimental settings using a template ref.
   private promptResetTor() {
     this.dialogs
       .open(TUI_PROMPT, {

@@ -4,6 +4,11 @@ import { TuiPromptData } from '@taiga-ui/kit'
 import { NetworkInfo } from 'src/app/services/patch-db/data-model'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 
+export abstract class AddressesService {
+  abstract add(): Promise<void>
+  abstract remove(): Promise<void>
+}
+
 export const REMOVE: Partial<TuiDialogOptions<TuiPromptData>> = {
   label: 'Confirm',
   size: 's',

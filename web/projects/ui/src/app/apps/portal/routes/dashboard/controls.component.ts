@@ -82,7 +82,7 @@ export class ControlsComponent {
     return this.errors.getPkgDepErrors$(id).pipe(
       map(errors =>
         Object.keys(this.pkg.currentDependencies)
-          .map(id => !!(errors[id] as any)?.[id]) // @TODO fix
+          .map(id => !!(errors[id] as any)?.[id]) // @TODO-Alex fix
           .some(Boolean),
       ),
     )

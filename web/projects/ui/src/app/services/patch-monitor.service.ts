@@ -10,7 +10,7 @@ import { LocalStorageBootstrap } from './patch-db/local-storage-bootstrap'
   providedIn: 'root',
 })
 export class PatchMonitorService extends Observable<any> {
-  // @TODO not happy with Observable<void>
+  // @TODO-Alex not happy with Observable<void>
   private readonly stream$ = this.authService.isVerified$.pipe(
     tap(verified =>
       verified ? this.patch.start(this.bootstrapper) : this.patch.stop(),
