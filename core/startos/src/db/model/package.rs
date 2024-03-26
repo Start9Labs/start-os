@@ -420,6 +420,7 @@ pub enum CurrentDependencyInfo {
     #[serde(rename_all = "camelCase")]
     Running {
         #[serde(default)]
+        #[ts(type = "string[]")]
         health_checks: BTreeSet<HealthCheckId>,
     },
 }

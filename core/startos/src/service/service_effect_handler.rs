@@ -255,7 +255,7 @@ struct RemoveAddressParams {
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 enum AllowedStatuses {
     OnlyRunning, // onlyRunning
     OnlyStopped,
