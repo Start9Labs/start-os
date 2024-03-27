@@ -12,7 +12,6 @@ use serde::{Deserialize, Serialize};
 use start_stop::StartStop;
 use tokio::sync::Notify;
 
-use crate::action::ActionResult;
 use crate::config::action::ConfigRes;
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::RequestGuid;
@@ -30,6 +29,7 @@ use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::actor::{Actor, BackgroundJobs, SimpleActor};
 use crate::volume::data_dir;
+use crate::{action::ActionResult, util::serde::Pem};
 
 pub mod cli;
 mod config;
@@ -280,7 +280,7 @@ impl Service {
                 entry
                     .as_state_info_mut()
                     .ser(&PackageState::Installed(InstalledState { manifest }))?;
-                entry.as_developer_key_mut().ser(&developer_key)?;
+                entry.as_developer_key_mut().ser(&Pem::new(developer_key))?;
                 entry.as_icon_mut().ser(&icon)?;
                 // TODO: marketplace url
                 // TODO: dependency info

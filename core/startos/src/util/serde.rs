@@ -1128,6 +1128,18 @@ impl PemEncoding for ssh_key::PrivateKey {
     }
 }
 
+impl PemEncoding for ed25519_dalek::VerifyingKey {
+    fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
+        use ed25519_dalek::pkcs8::DecodePublicKey;
+        ed25519_dalek::VerifyingKey::from_public_key_pem(pem).map_err(E::custom)
+    }
+    fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
+        use ed25519_dalek::pkcs8::EncodePublicKey;
+        self.to_public_key_pem(pkcs8::LineEnding::LF)
+            .map_err(E::custom)
+    }
+}
+
 pub mod pem {
     use serde::{Deserialize, Deserializer, Serializer};
 

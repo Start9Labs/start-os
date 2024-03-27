@@ -70,11 +70,12 @@ current_platform = "0.2.0"
 digest = "0.10.7"
 divrem = "1.0.0"
 ed25519 = { version = "2.2.3", features = ["pkcs8", "pem", "alloc"] }
-ed25519-dalek = { version = "2.0.0", features = [
+ed25519-dalek = { version = "2.1.1", features = [
   "serde",
   "zeroize",
   "rand_core",
   "digest",
+  "pkcs8"
 ] }
 ed25519-dalek-v1 = { package = "ed25519-dalek", version = "1" }
 emver = { version = "0.1.7", git = "https://github.com/Start9Labs/emver-rs.git", features = [

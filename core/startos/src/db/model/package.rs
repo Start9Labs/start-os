@@ -10,11 +10,11 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::net::host::HostInfo;
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::s9pk::manifest::Manifest;
 use crate::status::Status;
+use crate::{net::host::HostInfo, util::serde::Pem};
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct AllPackageData(pub BTreeMap<PackageId, PackageDataEntry>);
@@ -294,9 +294,7 @@ pub struct PackageDataEntry {
     pub state_info: PackageState,
     pub status: Status,
     pub marketplace_url: Option<Url>,
-    #[serde(default)]
-    #[serde(with = "crate::util::serde::ed25519_pubkey")]
-    pub developer_key: ed25519_dalek::VerifyingKey,
+    pub developer_key: Pem<ed25519_dalek::VerifyingKey>,
     pub icon: DataUrl<'static>,
     pub last_backup: Option<DateTime<Utc>>,
     pub dependency_info: BTreeMap<PackageId, StaticDependencyInfo>,
