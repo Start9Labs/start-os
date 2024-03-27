@@ -679,8 +679,6 @@ export class MockApiService extends ApiService {
       this.updateProgress(params.id)
     }, 1000)
 
-    const manifest = Mock.LocalPkgs[params.id].stateInfo.manifest
-
     const patch: Operation<
       PackageDataEntry<InstallingState | UpdatingState>
     >[] = [
@@ -691,15 +689,15 @@ export class MockApiService extends ApiService {
           ...Mock.LocalPkgs[params.id],
           stateInfo: {
             // if installing
-            state: PackageState.Installing,
+            // state: PackageState.Installing,
 
             // if updating
-            // state: PackageState.Updating,
-            // manifest,
+            state: PackageState.Updating,
+            manifest: mockPatchData.packageData[params.id].stateInfo.manifest!,
 
             // both
             installingInfo: {
-              newManifest: manifest,
+              newManifest: Mock.LocalPkgs[params.id].stateInfo.manifest,
               progress: PROGRESS,
             },
           },

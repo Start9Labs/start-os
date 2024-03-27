@@ -44,8 +44,8 @@ export class UpdatesPage {
     marketplace: this.marketplaceService.getMarketplace$(),
     localPkgs: this.patch.watch$('packageData').pipe(
       map(pkgs =>
-        Object.values(pkgs).reduce((acc, curr) => {
-          if (isInstalled(curr) || isUpdating(curr)) return { ...acc, curr }
+        Object.entries(pkgs).reduce((acc, [id, val]) => {
+          if (isInstalled(val) || isUpdating(val)) return { ...acc, [id]: val }
           return acc
         }, {} as Record<string, PackageDataEntry<InstalledState | UpdatingState>>),
       ),

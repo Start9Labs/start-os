@@ -103,13 +103,13 @@ export class AppShowPage {
       depErrors,
     )
 
-    const depInfo = pkg.dependencyInfo[depId]
+    const { title, icon, versionSpec } = pkg.currentDependencies[depId]
 
     return {
       id: depId,
-      version: pkg.currentDependencies[depId].versionRange, // @TODO do we want this version range?
-      title: depInfo?.title || depId,
-      icon: depInfo?.icon || '',
+      version: versionSpec,
+      title,
+      icon,
       errorText: errorText
         ? `${errorText}. ${manifest.title} will not work as expected.`
         : '',
@@ -184,7 +184,7 @@ export class AppShowPage {
     const dependentInfo: DependentInfo = {
       id: pkgManifest.id,
       title: pkgManifest.title,
-      version: pkg.currentDependencies[depId].versionRange,
+      version: pkg.currentDependencies[depId].versionSpec,
     }
     const navigationExtras: NavigationExtras = {
       state: { dependentInfo },

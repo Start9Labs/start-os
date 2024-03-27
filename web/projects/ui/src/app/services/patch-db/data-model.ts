@@ -100,13 +100,7 @@ export type PackageDataEntry<T extends StateInfo = StateInfo> = {
   status: Status
   actions: Record<string, ActionMetadata>
   lastBackup: string | null
-  currentDependencies: { [id: string]: CurrentDependencyInfo }
-  dependencyInfo: {
-    [id: string]: {
-      title: string
-      icon: Url
-    }
-  }
+  currentDependencies: Record<string, CurrentDependencyInfo>
   serviceInterfaces: Record<string, ServiceInterfaceWithHostInfo>
   marketplaceUrl: string | null
   developerKey: string
@@ -117,11 +111,13 @@ export type StateInfo = InstalledState | InstallingState | UpdatingState
 export type InstalledState = {
   state: PackageState.Installed | PackageState.Removing
   manifest: Manifest
+  installingInfo?: undefined
 }
 
 export type InstallingState = {
   state: PackageState.Installing | PackageState.Restoring
   installingInfo: InstallingInfo
+  manifest?: undefined
 }
 
 export type UpdatingState = {
@@ -139,8 +135,10 @@ export enum PackageState {
 }
 
 export interface CurrentDependencyInfo {
+  title: string
+  icon: string
   kind: 'exists' | 'running'
-  url: string
+  registryUrl: string
   versionSpec: string
   healthChecks: string[] // array of health check IDs
 }

@@ -85,14 +85,14 @@ export class DepErrorService {
       }
     }
 
-    const versionRange = pkg.currentDependencies[depId].versionRange
+    const versionSpec = pkg.currentDependencies[depId].versionSpec
     const depManifest = dep.stateInfo.manifest
 
     // incorrect version
-    if (!this.emver.satisfies(depManifest.version, versionRange)) {
+    if (!this.emver.satisfies(depManifest.version, versionSpec)) {
       return {
         type: DependencyErrorType.IncorrectVersion,
-        expected: versionRange,
+        expected: versionSpec,
         received: depManifest.version,
       }
     }

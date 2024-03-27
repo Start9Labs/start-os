@@ -24,9 +24,3 @@ export class InstallingProgressPipe implements PipeTransform {
     return Number((progress.done / progress.total).toFixed(2))
   }
 }
-
-function getProgress(progress: Progress): number | null {
-  if (progress === true) return 1
-  if (progress === false || !progress.total) return null
-  return Number((progress.done / progress.total).toFixed(2))
-}

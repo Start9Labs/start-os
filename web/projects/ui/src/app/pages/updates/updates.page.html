@@ -55,15 +55,18 @@
                     </p>
                   </ion-label>
                   <div slot="end" style="margin-left: 4px">
-                    <round-progress
+                    <ng-container
                       *ngIf="local.stateInfo.state === 'updating' else notUpdating"
-                      [current]="(local.stateInfo.installingInfo.progress.overall | installingProgress) || 0"
-                      [max]="100"
-                      [radius]="13"
-                      [stroke]="3"
-                      [rounded]="true"
-                      color="var(--ion-color-primary)"
-                    ></round-progress>
+                    >
+                      <round-progress
+                        [current]="(local.stateInfo.installingInfo.progress.overall | installingProgress) || 0"
+                        [max]="100"
+                        [radius]="13"
+                        [stroke]="3"
+                        [rounded]="true"
+                        color="var(--ion-color-primary)"
+                      ></round-progress>
+                    </ng-container>
                     <ng-template #notUpdating>
                       <ion-spinner
                         *ngIf="marketplaceService.updateQueue[pkg.manifest.id] else updateBtn"
