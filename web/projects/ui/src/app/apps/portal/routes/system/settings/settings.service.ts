@@ -1,8 +1,15 @@
-import { inject, Injectable } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  Injectable,
+} from '@angular/core'
+import { FormsModule } from '@angular/forms'
 import { TuiAlertService, TuiDialogService } from '@taiga-ui/core'
 import * as argon2 from '@start9labs/argon2'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TUI_PROMPT } from '@taiga-ui/kit'
+import { TUI_PROMPT, TuiCheckboxLabeledModule } from '@taiga-ui/kit'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { filter, firstValueFrom, from, take } from 'rxjs'
 import { switchMap } from 'rxjs/operators'
@@ -29,6 +36,8 @@ export class SettingsService {
   private readonly patch = inject(PatchDB<DataModel>)
   private readonly api = inject(ApiService)
   private readonly isTor = inject(ConfigService).isTor()
+
+  wipe = false
 
   readonly settings: Record<string, readonly SettingBtn[]> = {
     General: [
@@ -122,19 +131,19 @@ export class SettingsService {
     await this.proxyService.presentModalSetOutboundProxy(proxy)
   }
 
-  // @TODO-Alex previous this was done in experimental settings using a template ref.
   private promptResetTor() {
+    this.wipe = false
     this.dialogs
       .open(TUI_PROMPT, {
         label: this.isTor ? 'Warning' : 'Confirm',
         data: {
-          content: '@TODO how to display a checkbox in here?',
+          content: new PolymorpheusComponent(WipeComponent),
           yes: 'Reset',
           no: 'Cancel',
         },
       })
       .pipe(filter(Boolean))
-      .subscribe(() => this.resetTor(true))
+      .subscribe(() => this.resetTor(this.wipe))
   }
 
   private async resetTor(wipeState: boolean) {
@@ -257,4 +266,31 @@ export class SettingsService {
       loader.unsubscribe()
     }
   }
+}
+
+@Component({
+  standalone: true,
+  template: `
+    <p>
+      @if (isTor) {
+        You are currently connected over Tor. If you reset the Tor daemon, you
+        will lose connectivity until it comes back online.
+      } @else {
+        Reset Tor?
+      }
+    </p>
+    <p>
+      Optionally wipe state to forcibly acquire new guard nodes. It is
+      recommended to try without wiping state first.
+    </p>
+    <tui-checkbox-labeled size="l" [(ngModel)]="service.wipe">
+      Wipe state
+    </tui-checkbox-labeled>
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [TuiCheckboxLabeledModule, FormsModule],
+})
+class WipeComponent {
+  readonly isTor = inject(ConfigService).isTor()
+  readonly service = inject(SettingsService)
 }

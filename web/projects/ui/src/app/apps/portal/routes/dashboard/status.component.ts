@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  Input,
+} from '@angular/core'
 import { tuiPure } from '@taiga-ui/cdk'
 import { TuiLoaderModule } from '@taiga-ui/core'
 import { TuiIconModule } from '@taiga-ui/experimental'
@@ -35,8 +40,11 @@ import { InstallingProgressDisplayPipe } from '../service/pipes/install-progress
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiIconModule, TuiLoaderModule],
+  providers: [InstallingProgressDisplayPipe],
 })
 export class StatusComponent {
+  private readonly pipe = inject(InstallingProgressDisplayPipe)
+
   @Input()
   pkg!: PackageDataEntry
 
@@ -64,7 +72,7 @@ export class StatusComponent {
 
   get status(): string {
     if (this.pkg.stateInfo.installingInfo) {
-      return `Installing...${new InstallingProgressDisplayPipe().transform(this.pkg.stateInfo.installingInfo.progress.overall)}`
+      return `Installing... ${this.pipe.transform(this.pkg.stateInfo.installingInfo.progress.overall)}`
     }
 
     switch (this.getStatus(this.pkg).primary) {

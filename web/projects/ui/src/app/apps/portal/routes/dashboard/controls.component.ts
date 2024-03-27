@@ -2,7 +2,9 @@ import { AsyncPipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
+  input,
   Input,
 } from '@angular/core'
 import { TuiLetModule, tuiPure } from '@taiga-ui/cdk'
@@ -22,11 +24,11 @@ import { Manifest } from '@start9labs/marketplace'
   standalone: true,
   selector: 'fieldset[appControls]',
   template: `
-    @if (pkg.status.main.status === 'running') {
+    @if (pkg().status.main.status === 'running') {
       <button
         tuiIconButton
         iconLeft="tuiIconSquare"
-        (click)="actions.stop(manifest)"
+        (click)="actions.stop(manifest())"
       >
         Stop
       </button>
@@ -34,7 +36,7 @@ import { Manifest } from '@start9labs/marketplace'
       <button
         tuiIconButton
         iconLeft="tuiIconRotateCw"
-        (click)="actions.restart(manifest)"
+        (click)="actions.restart(manifest())"
       >
         Restart
       </button>
@@ -43,8 +45,8 @@ import { Manifest } from '@start9labs/marketplace'
         *tuiLet="hasUnmet() | async as hasUnmet"
         tuiIconButton
         iconLeft="tuiIconPlay"
-        [disabled]="!pkg.status.configured"
-        (click)="actions.start(manifest, !!hasUnmet)"
+        [disabled]="!pkg().status.configured"
+        (click)="actions.start(manifest(), !!hasUnmet)"
       >
         Start
       </button>
@@ -52,39 +54,33 @@ import { Manifest } from '@start9labs/marketplace'
       <button
         tuiIconButton
         iconLeft="tuiIconTool"
-        (click)="actions.configure(manifest)"
+        (click)="actions.configure(manifest())"
       >
         Configure
       </button>
     }
 
-    <app-ui-launch [pkg]="pkg" />
+    <app-ui-launch [pkg]="pkg()" />
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButtonModule, UILaunchComponent, TuiLetModule, AsyncPipe],
   providers: [tuiButtonOptionsProvider({ size: 's', appearance: 'none' })],
+  styles: ':host { padding: 0; border: none }',
 })
 export class ControlsComponent {
   private readonly errors = inject(DepErrorService)
-
-  @Input()
-  pkg!: PackageDataEntry
-
-  get manifest(): Manifest {
-    return getManifest(this.pkg)
-  }
-
   readonly actions = inject(ActionsService)
 
-  @tuiPure
-  hasUnmet(): Observable<boolean> {
-    const id = this.manifest.id
-    return this.errors.getPkgDepErrors$(id).pipe(
+  pkg = input.required<PackageDataEntry>()
+
+  readonly manifest = computed(() => getManifest(this.pkg()))
+  readonly hasUnmet = computed(() =>
+    this.errors.getPkgDepErrors$(this.manifest().id).pipe(
       map(errors =>
-        Object.keys(this.pkg.currentDependencies)
-          .map(id => !!(errors[id] as any)?.[id]) // @TODO-Alex fix
+        Object.keys(this.pkg().currentDependencies)
+          .map(id => !!(errors[id] as any)?.[id]) // @TODO fix type
           .some(Boolean),
       ),
-    )
-  }
+    ),
+  )
 }

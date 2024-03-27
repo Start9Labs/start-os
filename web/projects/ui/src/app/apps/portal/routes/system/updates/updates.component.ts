@@ -15,8 +15,8 @@ import {
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
 import { ConfigService } from 'src/app/services/config.service'
-import { FilterUpdatesPipe } from './pipes/filter-updates.pipe'
-import { UpdatesItemComponent } from './components/item.component'
+import { FilterUpdatesPipe } from 'src/app/apps/portal/routes/system/updates/filter-updates.pipe'
+import { UpdatesItemComponent } from 'src/app/apps/portal/routes/system/updates/item.component'
 import { isInstalled, isUpdating } from 'src/app/util/get-package-data'
 
 @Component({

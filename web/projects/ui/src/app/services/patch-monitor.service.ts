@@ -9,8 +9,7 @@ import { LocalStorageBootstrap } from './patch-db/local-storage-bootstrap'
 @Injectable({
   providedIn: 'root',
 })
-export class PatchMonitorService extends Observable<any> {
-  // @TODO-Alex not happy with Observable<void>
+export class PatchMonitorService extends Observable<unknown> {
   private readonly stream$ = this.authService.isVerified$.pipe(
     tap(verified =>
       verified ? this.patch.start(this.bootstrapper) : this.patch.stop(),

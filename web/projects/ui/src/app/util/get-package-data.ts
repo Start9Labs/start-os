@@ -24,9 +24,9 @@ export async function getAllPackages(
 }
 
 export function getManifest(pkg: PackageDataEntry): Manifest {
-  if (isInstalled(pkg) || isRemoving(pkg)) return pkg.stateInfo.manifest
-
-  return (pkg.stateInfo as InstallingState).installingInfo.newManifest
+  return isInstalling(pkg)
+    ? pkg.stateInfo.installingInfo.newManifest
+    : pkg.stateInfo.manifest!
 }
 
 export function isInstalled(
