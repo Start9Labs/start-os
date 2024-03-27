@@ -6,12 +6,7 @@ import {
   OnChanges,
 } from '@angular/core'
 import { ControlContainer, FormGroupName } from '@angular/forms'
-import {
-  unionSelectKey,
-  ValueSpecSelect,
-  ValueSpecUnion,
-  unionValueKey,
-} from '@start9labs/start-sdk/lib/config/configTypes'
+import { CT } from '@start9labs/start-sdk'
 import { FormService } from 'src/app/services/form.service'
 import { tuiPure } from '@taiga-ui/cdk'
 
@@ -28,25 +23,25 @@ import { tuiPure } from '@taiga-ui/cdk'
   ],
 })
 export class FormUnionComponent implements OnChanges {
-  @Input()
-  spec!: ValueSpecUnion
+  @Input({ required: true })
+  spec!: CT.ValueSpecUnion
 
-  selectSpec!: ValueSpecSelect
+  selectSpec!: CT.ValueSpecSelect
 
-  readonly select = unionSelectKey
-  readonly value = unionValueKey
+  readonly select = CT.unionSelectKey
+  readonly value = CT.unionValueKey
 
   private readonly form = inject(FormGroupName)
   private readonly formService = inject(FormService)
 
   get union(): string {
-    return this.form.value[unionSelectKey]
+    return this.form.value[CT.unionSelectKey]
   }
 
   @tuiPure
   onUnion(union: string) {
     this.form.control.setControl(
-      unionValueKey,
+      CT.unionValueKey,
       this.formService.getFormGroup(
         union ? this.spec.variants[union].spec : {},
       ),

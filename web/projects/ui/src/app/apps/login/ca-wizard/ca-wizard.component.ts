@@ -1,25 +1,37 @@
-import { Component, Inject } from '@angular/core'
+import { CommonModule, DOCUMENT } from '@angular/common'
+import { Component, inject } from '@angular/core'
+import { RELATIVE_URL } from '@start9labs/shared'
+import {
+  TuiAppearanceModule,
+  TuiButtonModule,
+  TuiCardModule,
+  TuiIconModule,
+  TuiSurfaceModule,
+} from '@taiga-ui/experimental'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
-import { RELATIVE_URL } from '@start9labs/shared'
-import { DOCUMENT } from '@angular/common'
-import { WINDOW } from '@ng-web-apis/common'
 
 @Component({
+  standalone: true,
   selector: 'ca-wizard',
   templateUrl: './ca-wizard.component.html',
   styleUrls: ['./ca-wizard.component.scss'],
+  imports: [
+    CommonModule,
+    TuiIconModule,
+    TuiButtonModule,
+    TuiAppearanceModule,
+    TuiCardModule,
+    TuiSurfaceModule,
+  ],
 })
 export class CAWizardComponent {
-  caTrusted = false
+  private readonly api = inject(ApiService)
+  private readonly relativeUrl = inject(RELATIVE_URL)
+  private readonly document = inject(DOCUMENT)
 
-  constructor(
-    private readonly api: ApiService,
-    public readonly config: ConfigService,
-    @Inject(RELATIVE_URL) private readonly relativeUrl: string,
-    @Inject(DOCUMENT) public readonly document: Document,
-    @Inject(WINDOW) private readonly windowRef: Window,
-  ) {}
+  readonly config = inject(ConfigService)
+  caTrusted = false
 
   async ngOnInit() {
     await this.testHttps().catch(e =>
@@ -27,17 +39,12 @@ export class CAWizardComponent {
     )
   }
 
-  download() {
-    this.document.getElementById('install-cert')?.click()
-  }
-
   refresh() {
     this.document.location.reload()
   }
 
   launchHttps() {
-    const host = this.config.getHost()
-    this.windowRef.open(`https://${host}`, '_self')
+    this.document.defaultView?.open(`https://${this.config.getHost()}`, '_self')
   }
 
   private async testHttps() {

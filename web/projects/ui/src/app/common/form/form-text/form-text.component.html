@@ -1,5 +1,5 @@
 <tui-input
-  [tuiTextfieldCustomContent]="spec.masked ? toggle : ''"
+  [tuiTextfieldCustomContent]="spec.masked || spec.generate ? toggle : ''"
   [tuiHintContent]="spec | hint"
   [disabled]="!!spec.disabled"
   [readOnly]="readOnly"
@@ -27,17 +27,18 @@
     title="Generate"
     size="xs"
     class="button"
-    icon="tuiIconRefreshCcw"
+    iconLeft="tuiIconRefreshCcw"
     (click)="generate()"
   ></button>
   <button
+    *ngIf="spec.masked"
     tuiIconButton
     type="button"
     appearance="icon"
     title="Toggle masking"
     size="xs"
     class="button"
-    [icon]="masked ? 'tuiIconEye' : 'tuiIconEyeOff'"
+    [iconLeft]="masked ? 'tuiIconEye' : 'tuiIconEyeOff'"
     (click)="masked = !masked"
   ></button>
 </ng-template>

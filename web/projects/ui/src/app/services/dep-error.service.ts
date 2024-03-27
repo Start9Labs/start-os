@@ -5,11 +5,14 @@ import { PatchDB } from 'patch-db-client'
 import {
   DataModel,
   HealthResult,
-  InstalledPackageInfo,
+  InstalledState,
+  PackageDataEntry,
   PackageMainStatus,
+  PackageState,
 } from './patch-db/data-model'
 import * as deepEqual from 'fast-deep-equal'
-import { Manifest } from '@start9labs/marketplace'
+import { Observable } from 'rxjs'
+import { isInstalled } from '../util/get-package-data'
 
 export type AllDependencyErrors = Record<string, PkgDependencyErrors>
 export type PkgDependencyErrors = Record<string, DependencyError | null>
@@ -18,32 +21,34 @@ export type PkgDependencyErrors = Record<string, DependencyError | null>
   providedIn: 'root',
 })
 export class DepErrorService {
-  readonly depErrors$ = this.patch.watch$('package-data').pipe(
-    map(pkgs =>
-      Object.keys(pkgs)
-        .map(id => ({
-          id,
-          depth: dependencyDepth(pkgs, id),
-        }))
-        .sort((a, b) => (b.depth > a.depth ? -1 : 1))
-        .reduce(
-          (errors, { id }): AllDependencyErrors => ({
-            ...errors,
-            [id]: this.getDepErrors(pkgs, id, errors),
-          }),
-          {} as AllDependencyErrors,
-        ),
-    ),
-    distinctUntilChanged(deepEqual),
-    shareReplay({ bufferSize: 1, refCount: true }),
-  )
+  readonly depErrors$: Observable<AllDependencyErrors> = this.patch
+    .watch$('packageData')
+    .pipe(
+      map(pkgs =>
+        Object.keys(pkgs)
+          .map(id => ({
+            id,
+            depth: dependencyDepth(pkgs, id),
+          }))
+          .sort((a, b) => (b.depth > a.depth ? -1 : 1))
+          .reduce(
+            (errors, { id }): AllDependencyErrors => ({
+              ...errors,
+              [id]: this.getDepErrors(pkgs, id, errors),
+            }),
+            {} as AllDependencyErrors,
+          ),
+      ),
+      distinctUntilChanged(deepEqual),
+      shareReplay({ bufferSize: 1, refCount: true }),
+    )
 
   constructor(
     private readonly emver: Emver,
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
-  getPkgDepErrors$(pkgId: string) {
+  getPkgDepErrors$(pkgId: string): Observable<PkgDependencyErrors> {
     return this.depErrors$.pipe(
       map(depErrors => depErrors[pkgId]),
       distinctUntilChanged(deepEqual),
@@ -51,72 +56,58 @@ export class DepErrorService {
   }
 
   private getDepErrors(
-    pkgs: DataModel['package-data'],
+    pkgs: DataModel['packageData'],
     pkgId: string,
     outerErrors: AllDependencyErrors,
   ): PkgDependencyErrors {
-    const pkgInstalled = pkgs[pkgId].installed
+    const pkg = pkgs[pkgId]
 
-    if (!pkgInstalled) return {}
+    if (!isInstalled(pkg)) return {}
 
     return currentDeps(pkgs, pkgId).reduce(
       (innerErrors, depId): PkgDependencyErrors => ({
         ...innerErrors,
-        [depId]: this.getDepError(
-          pkgs,
-          pkgInstalled,
-          pkgs[pkgId].manifest,
-          depId,
-          outerErrors,
-        ),
+        [depId]: this.getDepError(pkgs, pkg, depId, outerErrors),
       }),
       {} as PkgDependencyErrors,
     )
   }
 
   private getDepError(
-    pkgs: DataModel['package-data'],
-    pkgInstalled: InstalledPackageInfo,
-    pkgManifest: Manifest,
+    pkgs: DataModel['packageData'],
+    pkg: PackageDataEntry<InstalledState>,
     depId: string,
     outerErrors: AllDependencyErrors,
   ): DependencyError | null {
-    const depInstalled = pkgs[depId]?.installed
-    const depManifest = pkgs[depId]?.manifest
+    const dep = pkgs[depId]
 
     // not installed
-    if (!depInstalled) {
+    if (!dep || dep.stateInfo.state !== PackageState.Installed) {
       return {
         type: DependencyErrorType.NotInstalled,
       }
     }
 
+    const versionSpec = pkg.currentDependencies[depId].versionSpec
+    const depManifest = dep.stateInfo.manifest
+
     // incorrect version
-    if (
-      !this.emver.satisfies(
-        depManifest.version,
-        pkgManifest.dependencies[depId].version,
-      )
-    ) {
+    if (!this.emver.satisfies(depManifest.version, versionSpec)) {
       return {
         type: DependencyErrorType.IncorrectVersion,
-        expected: pkgManifest.dependencies[depId].version,
+        expected: versionSpec,
         received: depManifest.version,
       }
     }
 
     // invalid config
-    if (
-      Object.values(pkgInstalled.status['dependency-config-errors']).some(
-        err => !!err,
-      )
-    ) {
+    if (Object.values(pkg.status.dependencyConfigErrors).some(err => !!err)) {
       return {
         type: DependencyErrorType.ConfigUnsatisfied,
       }
     }
 
-    const depStatus = depInstalled.status.main.status
+    const depStatus = dep.status.main.status
 
     // not running
     if (
@@ -130,12 +121,8 @@ export class DepErrorService {
 
     // health check failure
     if (depStatus === PackageMainStatus.Running) {
-      for (let id of pkgInstalled['current-dependencies'][depId][
-        'health-checks'
-      ]) {
-        if (
-          depInstalled.status.main.health[id]?.result !== HealthResult.Success
-        ) {
+      for (let id of pkg.currentDependencies[depId].healthChecks) {
+        if (dep.status.main.health[id]?.result !== HealthResult.Success) {
           return {
             type: DependencyErrorType.HealthChecksFailed,
           }
@@ -158,14 +145,14 @@ export class DepErrorService {
   }
 }
 
-function currentDeps(pkgs: DataModel['package-data'], id: string): string[] {
-  return Object.keys(
-    pkgs[id]?.installed?.['current-dependencies'] || {},
-  ).filter(depId => depId !== id)
+function currentDeps(pkgs: DataModel['packageData'], id: string): string[] {
+  return Object.keys(pkgs[id]?.currentDependencies || {}).filter(
+    depId => depId !== id,
+  )
 }
 
 function dependencyDepth(
-  pkgs: DataModel['package-data'],
+  pkgs: DataModel['packageData'],
   id: string,
   depth = 0,
 ): number {

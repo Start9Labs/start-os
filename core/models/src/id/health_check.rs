@@ -1,14 +1,21 @@
 use std::path::Path;
+use std::str::FromStr;
 
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::Id;
+use crate::{Id, InvalidId};
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, ts_rs::TS)]
 pub struct HealthCheckId(Id);
 impl std::fmt::Display for HealthCheckId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", &self.0)
+    }
+}
+impl FromStr for HealthCheckId {
+    type Err = InvalidId;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Id::from_str(s).map(HealthCheckId)
     }
 }
 impl AsRef<str> for HealthCheckId {

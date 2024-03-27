@@ -1,9 +1,25 @@
-<ion-button
-  *ngFor="let cat of categories"
-  fill="clear"
-  class="category"
-  [class.category_selected]="cat === category"
+<button
+  *ngFor="let cat of categories || ['', '', '', '', '', '']"
+  routerLink="../"
   (click)="switchCategory(cat)"
+  [class.category_selected]="cat === category"
 >
-  {{ cat }}
-</ion-button>
+  <div
+    class="category-wrapper"
+    [class.tui-skeleton]="!categories"
+    [class.tui-skeleton_rounded]="!categories"
+  >
+    <tui-icon tuiAppearance="icon" icon="{{ determineIcon(cat) }}"></tui-icon>
+  </div>
+  <span
+    class="category-title"
+    [class.tui-skeleton]="!categories"
+    [class.tui-skeleton_rounded]="!categories"
+  >
+    {{
+      cat === 'ai'
+        ? (cat | uppercase)
+        : (cat | titlecase) || 'loading category...'
+    }}
+  </span>
+</button>

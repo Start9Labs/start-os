@@ -1,14 +1,11 @@
-<ion-grid>
-  <ion-row>
-    <ion-col responsiveCol class="column" sizeSm="8" sizeLg="6">
-      <ion-toolbar color="transparent" class="ion-text-left">
-        <ion-searchbar
-          [color]="(theme$ | async) === 'Light' ? 'light' : 'dark'"
-          debounce="250"
-          [ngModel]="query"
-          (ngModelChange)="onModelChange($event)"
-        ></ion-searchbar>
-      </ion-toolbar>
-    </ion-col>
-  </ion-row>
-</ion-grid>
+<div class="search-box">
+  <tui-svg src="tuiIconSearchLarge"></tui-svg>
+  <input
+    type="text"
+    name="search"
+    placeholder="Search..."
+    autocomplete="off"
+    [ngModel]="query"
+    (ngModelChange)="onModelChange($event)"
+  />
+</div>

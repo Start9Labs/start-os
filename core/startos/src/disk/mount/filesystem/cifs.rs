@@ -2,7 +2,6 @@ use std::net::IpAddr;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 
-use async_trait::async_trait;
 use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
 use serde::{Deserialize, Serialize};
@@ -11,7 +10,7 @@ use tokio::process::Command;
 use tracing::instrument;
 
 use super::{FileSystem, MountType, ReadOnly};
-use crate::disk::mount::guard::TmpMountGuard;
+use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::util::Invoke;
 use crate::Error;
 
@@ -64,7 +63,7 @@ pub async fn mount_cifs(
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct Cifs {
     pub hostname: String,
     pub path: PathBuf,
@@ -78,9 +77,8 @@ impl Cifs {
         Ok(())
     }
 }
-#[async_trait]
 impl FileSystem for Cifs {
-    async fn mount<P: AsRef<std::path::Path> + Send + Sync>(
+    async fn mount<P: AsRef<std::path::Path> + Send>(
         &self,
         mountpoint: P,
         mount_type: MountType,

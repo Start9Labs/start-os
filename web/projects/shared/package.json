@@ -1,15 +1,17 @@
 {
   "name": "@start9labs/shared",
-  "version": "0.3.2",
+  "version": "0.3.9",
   "peerDependencies": {
-    "@angular/common": ">=13.2.0",
-    "@angular/core": ">=13.2.0",
-    "@angular/router": ">=13.2.0",
-    "@ionic/angular": ">=6.0.0",
+    "@angular/common": "^17.0.6",
+    "@angular/core": "^17.0.6",
+    "@angular/router": "^17.0.6",
     "@ng-web-apis/mutation-observer": ">=2.0.0",
     "@ng-web-apis/resize-observer": ">=2.0.0",
     "@start9labs/emver": "^0.1.5",
     "@taiga-ui/cdk": ">=3.0.0",
+    "@taiga-ui/core": ">=3.0.0",
+    "@taiga-ui/experimental": ">=3.0.0",
+    "@tinkoff/ng-dompurify": ">=4.0.0",
     "ansi-to-html": "^0.7.2"
   },
   "exports": {

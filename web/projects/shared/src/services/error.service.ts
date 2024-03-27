@@ -22,7 +22,7 @@ export class ErrorService extends ErrorHandler {
   }
 }
 
-function getErrorMessage(e: HttpError | string, link?: string): string {
+export function getErrorMessage(e: HttpError | string, link?: string): string {
   let message = ''
 
   if (typeof e === 'string') {

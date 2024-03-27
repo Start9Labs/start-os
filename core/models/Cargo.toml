@@ -15,6 +15,7 @@ emver = { version = "0.1", git = "https://github.com/Start9Labs/emver-rs.git", f
   "serde",
 ] }
 ipnet = "2.8.0"
+num_enum = "0.7.1"
 openssl = { version = "0.10.57", features = ["vendored"] }
 patch-db = { version = "*", path = "../../patch-db/patch-db", features = [
   "trace",
@@ -31,8 +32,9 @@ sqlx = { version = "0.7.2", features = [
   "postgres",
 ] }
 ssh-key = "0.6.2"
+ts-rs = "7"
 thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
-torut = "0.2.1"
+torut = { git = "https://github.com/Start9Labs/torut.git", branch = "update/dependencies" }
 tracing = "0.1.39"
 yasi = "0.1.5"

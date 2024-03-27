@@ -13,7 +13,7 @@ import {
   TuiNotification,
 } from '@taiga-ui/core'
 import { filter, takeUntil } from 'rxjs'
-import { ValueSpec } from '@start9labs/start-sdk/lib/config/configTypes'
+import { CT } from '@start9labs/start-sdk'
 import { ERRORS } from '../form-group/form-group.component'
 import { FORM_CONTROL_PROVIDERS } from './form-control.providers'
 
@@ -25,10 +25,10 @@ import { FORM_CONTROL_PROVIDERS } from './form-control.providers'
   providers: FORM_CONTROL_PROVIDERS,
 })
 export class FormControlComponent<
-  T extends ValueSpec,
+  T extends CT.ValueSpec,
   V,
 > extends AbstractTuiNullableControl<V> {
-  @Input()
+  @Input({ required: true })
   spec!: T
 
   @ViewChild('warning')

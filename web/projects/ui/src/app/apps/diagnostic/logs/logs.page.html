@@ -1,0 +1,23 @@
+<a
+  routerLink="../"
+  tuiButton
+  iconLeft="tuiIconChevronLeft"
+  appearance="icon"
+  [style.align-self]="'flex-start'"
+>
+  Back
+</a>
+<tui-scrollbar childList subtree (waMutationObserver)="restoreScroll()">
+  <section
+    class="top"
+    waIntersectionObserver
+    (waIntersectionObservee)="onTop($event[0].isIntersecting)"
+  >
+    @if (loading) {
+    <tui-loader textContent="Loading logs" />
+    }
+  </section>
+  @for (log of logs; track log) {
+  <pre [innerHTML]="log | dompurify"></pre>
+  }
+</tui-scrollbar>

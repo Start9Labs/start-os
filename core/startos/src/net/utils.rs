@@ -1,4 +1,3 @@
-use std::convert::Infallible;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::Path;
 
@@ -120,16 +119,16 @@ impl<T> SingleAccept<T> {
         Self(Some(conn))
     }
 }
-impl<T> hyper::server::accept::Accept for SingleAccept<T> {
-    type Conn = T;
-    type Error = Infallible;
-    fn poll_accept(
-        self: std::pin::Pin<&mut Self>,
-        _cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Result<Self::Conn, Self::Error>>> {
-        std::task::Poll::Ready(self.project().0.take().map(Ok))
-    }
-}
+// impl<T> axum_server::accept::Accept for SingleAccept<T> {
+//     type Conn = T;
+//     type Error = Infallible;
+//     fn poll_accept(
+//         self: std::pin::Pin<&mut Self>,
+//         _cx: &mut std::task::Context<'_>,
+//     ) -> std::task::Poll<Option<Result<Self::Conn, Self::Error>>> {
+//         std::task::Poll::Ready(self.project().0.take().map(Ok))
+//     }
+// }
 
 pub struct TcpListeners {
     listeners: Vec<TcpListener>,
@@ -147,20 +146,21 @@ impl TcpListeners {
             .0
     }
 }
-impl hyper::server::accept::Accept for TcpListeners {
-    type Conn = TcpStream;
-    type Error = std::io::Error;
+// impl hyper::server::accept::Accept for TcpListeners {
+//     type Conn = TcpStream;
+//     type Error = std::io::Error;
 
-    fn poll_accept(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Result<Self::Conn, Self::Error>>> {
-        for listener in self.listeners.iter() {
-            let poll = listener.poll_accept(cx);
-            if poll.is_ready() {
-                return poll.map(|a| a.map(|a| a.0)).map(Some);
-            }
-        }
-        std::task::Poll::Pending
-    }
-}
+//     fn poll_accept(
+//         self: std::pin::Pin<&mut Self>,
+//         cx: &mut std::task::Context<'_>,
+//     ) -> std::task::Poll<Option<Result<Self::Conn, Self::Error>>> {
+//         for listener in self.listeners.iter() {
+//             let poll = listener.poll_accept(cx);
+//             if poll.is_ready() {
+//                 return poll.map(|a| a.map(|a| a.0)).map(Some);
+//             }
+//         }
+//         std::task::Poll::Pending
+//     }
+// }
+// TODO

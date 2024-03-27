@@ -1,3 +1,9 @@
+import { HttpClientModule } from '@angular/common/http'
+import { NgModule } from '@angular/core'
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
+import { ServiceWorkerModule } from '@angular/service-worker'
+import { IonicModule } from '@ionic/angular'
+import { LoadingModule } from '@start9labs/shared'
 import {
   TuiAlertModule,
   TuiDialogModule,
@@ -5,34 +11,13 @@ import {
   TuiRootModule,
   TuiThemeNightModule,
 } from '@taiga-ui/core'
-import { HttpClientModule } from '@angular/common/http'
-import { NgModule } from '@angular/core'
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
-import { IonicModule } from '@ionic/angular'
-import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
-import {
-  DarkThemeModule,
-  EnterModule,
-  LightThemeModule,
-  MarkdownModule,
-  ResponsiveColModule,
-  SharedPipesModule,
-} from '@start9labs/shared'
-
-import { AppComponent } from './app.component'
-import { RoutingModule } from './routing.module'
-import { OSWelcomePageModule } from './common/os-welcome/os-welcome.module'
-import { PreloaderModule } from './app/preloader/preloader.module'
-import { FooterModule } from './app/footer/footer.module'
-import { MenuModule } from './app/menu/menu.module'
-import { APP_PROVIDERS } from './app.providers'
-import { PatchDbModule } from './services/patch-db/patch-db.module'
-import { ToastContainerModule } from './common/toast-container/toast-container.module'
-import { ConnectionBarComponentModule } from './app/connection-bar/connection-bar.component.module'
-import { WidgetsPageModule } from 'src/app/apps/ui/pages/widgets/widgets.module'
-import { ServiceWorkerModule } from '@angular/service-worker'
+import { SidebarHostComponent } from 'src/app/common/sidebar-host.component'
+import { SvgDefinitionsComponent } from 'src/app/common/svg-definitions.component'
+import { ToastContainerComponent } from 'src/app/common/toast-container/toast-container.component'
 import { environment } from '../environments/environment'
-import { LoadingModule } from './common/loading/loading.module'
+import { AppComponent } from './app.component'
+import { APP_PROVIDERS } from './app.providers'
+import { RoutingModule } from './routing.module'
 
 @NgModule({
   declarations: [AppComponent],
@@ -43,26 +28,12 @@ import { LoadingModule } from './common/loading/loading.module'
       mode: 'md',
     }),
     RoutingModule,
-    MenuModule,
-    PreloaderModule,
-    FooterModule,
-    EnterModule,
-    OSWelcomePageModule,
-    MarkdownModule,
-    MonacoEditorModule,
-    SharedPipesModule,
-    PatchDbModule,
-    ToastContainerModule,
-    ConnectionBarComponentModule,
+    ToastContainerComponent,
     TuiRootModule,
     TuiDialogModule,
     TuiAlertModule,
     TuiModeModule,
     TuiThemeNightModule,
-    WidgetsPageModule,
-    ResponsiveColModule,
-    DarkThemeModule,
-    LightThemeModule,
     ServiceWorkerModule.register('ngsw-worker.js', {
       enabled: environment.useServiceWorker,
       // Register the ServiceWorker as soon as the application is stable
@@ -70,6 +41,8 @@ import { LoadingModule } from './common/loading/loading.module'
       registrationStrategy: 'registerWhenStable:30000',
     }),
     LoadingModule,
+    SidebarHostComponent,
+    SvgDefinitionsComponent,
   ],
   providers: APP_PROVIDERS,
   bootstrap: [AppComponent],

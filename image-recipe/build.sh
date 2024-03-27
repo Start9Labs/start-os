@@ -18,10 +18,6 @@ echo "Saving results in: $RESULTS_DIR"
 
 IMAGE_BASENAME=startos-${VERSION_FULL}_${IB_TARGET_PLATFORM}
 
-mkdir -p $prep_results_dir
-
-cd $prep_results_dir
-
 QEMU_ARCH=${IB_TARGET_ARCH}
 BOOTLOADERS=grub-efi,syslinux
 if [ "$QEMU_ARCH" = 'amd64' ]; then
@@ -30,6 +26,19 @@ elif [ "$QEMU_ARCH" = 'arm64' ]; then
 	QEMU_ARCH=aarch64
 	BOOTLOADERS=grub-efi
 fi
+
+# TODO: remove when util-linux is released at v2.39
+cd $base_dir
+git clone --depth=1 --branch=v2.39.3 https://github.com/util-linux/util-linux.git
+cd util-linux
+./autogen.sh
+CC=$QEMU_ARCH-linux-gnu-gcc ./configure --host=$QEMU_ARCH-linux-gnu --disable-all-programs --enable-mount --enable-libmount --enable-libblkid --enable-libuuid --enable-static-programs
+CC=$QEMU_ARCH-linux-gnu-gcc make -j mount.static
+
+mkdir -p $prep_results_dir
+
+cd $prep_results_dir
+
 NON_FREE=
 if [[ "${IB_TARGET_PLATFORM}" =~ -nonfree$ ]] || [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	NON_FREE=1
@@ -64,6 +73,7 @@ elif [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours rockchip64"
 fi
 
+
 cat > /etc/wgetrc << EOF
 retry_connrefused = on
 tries = 100
@@ -90,6 +100,9 @@ lb config \
 
 mkdir -p config/includes.chroot/deb
 cp $base_dir/deb/${IMAGE_BASENAME}.deb config/includes.chroot/deb/
+
+mkdir -p config/includes.chroot/usr/local/bin
+cp $base_dir/util-linux/mount.static config/includes.chroot/usr/local/bin/mount.next
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	cp -r $base_dir/raspberrypi/squashfs/* config/includes.chroot/
@@ -139,13 +152,11 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	echo "deb https://archive.raspberrypi.org/debian/ bullseye main" > config/archives/raspi.list
 fi
 
-if [ "${IB_SUITE}" = "bullseye" ]; then
-	cat > config/archives/backports.pref <<- EOF
-	Package: *
-	Pin: release a=bullseye-backports
-	Pin-Priority: 500
-	EOF
-fi
+cat > config/archives/backports.pref <<- EOF
+Package: *
+Pin: release a=stable-backports
+Pin-Priority: 500
+EOF
 
 if [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	curl -fsSL https://apt.armbian.com/armbian.key | gpg --dearmor -o config/archives/armbian.key
@@ -204,6 +215,10 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 		update-initramfs -c -k \$v
 	done
 	ln -sf /usr/bin/pi-beep /usr/local/bin/beep
+	wget https://archive.raspberrypi.org/debian/pool/main/w/wireless-regdb/wireless-regdb_2018.05.09-0~rpt1_all.deb
+	echo 1b7b1076257726609535b71d146a5721622d19a0843061ee7568188e836dd10f wireless-regdb_2018.05.09-0~rpt1_all.deb | sha256sum -c
+	apt-get install ./wireless-regdb_2018.05.09-0~rpt1_all.deb
+	rm wireless-regdb_2018.05.09-0~rpt1_all.deb
 fi
 
 useradd --shell /bin/bash -G embassy -m start9

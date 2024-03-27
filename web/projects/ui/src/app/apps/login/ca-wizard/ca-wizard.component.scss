@@ -1,12 +1,4 @@
-#trusted {
-  max-width: 40%;
-}
-
-#untrusted {
-  max-width: 50%;
-}
-
-.center-container {
+:host {
   padding: 1rem;
   display: flex;
   flex-direction: column;
@@ -15,69 +7,38 @@
   min-height: 100vh;
 }
 
-ion-card {
-  color: var(--ion-color-dark);
-  background: #414141;
-  box-shadow: 0 4px 4px rgba(17, 17, 17, 0.144);
-  border-radius: 35px;
-  padding: 1.5rem;
-  width: 100%;
-
-  h1 {
-    font-weight: bold;
-    font-size: 1.5rem;
-    padding-bottom: 1.5rem;
-  }
-
-  p {
-    font-size: 21px;
-    line-height: 25px;
-    margin-bottom: 30px;
-    margin-top: 0;
-  }
+[tuiButton] {
+  text-transform: uppercase;
+  font-weight: bold;
+  border-radius: 10rem;
+  margin-top: 1rem;
 }
 
-.text-center {
+.card {
+  max-width: max(70%, 40rem);
   text-align: center;
+  align-items: center !important;
+  gap: 0 !important;
+}
+
+h1 {
+  margin: 1rem;
+  font-weight: bold;
+  font-size: 1.5rem;
+}
+
+p {
+  font-size: 1.3rem;
+  line-height: 1.5rem;
+  margin: 0 0 2rem;
 }
 
 ol {
-  font-size: 17px;
-  line-height: 25px;
+  font-size: 1rem;
+  line-height: 1.5rem;
   text-align: left;
-
-  li {
-    padding-bottom: 24px;
-  }
-
-  ion-button {
-    margin-top: 10px;
-  }
 }
 
-.refresh {
-  --background: var(--ion-color-success-shade);
-}
-
-.wiz-icon {
-  font-size: 64px;
-}
-
-.skip_detail {
-  display: block;
-  font-size: 0.8rem;
-  margin-top: -13px;
-  padding-bottom: 0.5rem;
-}
-
-@media (max-width: 700px) {
-  #trusted, #untrusted {
-    max-width: 100%;
-  }
-}
-
-@media (min-width: 701px) and (max-width: 1200px) {
-  #trusted, #untrusted {
-    max-width: 75%;
-  }
+li {
+  padding-bottom: 1.5rem;
 }

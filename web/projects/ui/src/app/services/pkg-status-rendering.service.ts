@@ -20,12 +20,12 @@ export function renderPkgStatus(
   let dependency: DependencyStatus | null = null
   let health: HealthStatus | null = null
 
-  if (pkg.state === PackageState.Installed && pkg.installed) {
-    primary = getPrimaryStatus(pkg.installed.status)
+  if (pkg.stateInfo.state === PackageState.Installed) {
+    primary = getPrimaryStatus(pkg.status)
     dependency = getDependencyStatus(depErrors)
-    health = getHealthStatus(pkg.installed.status)
+    health = getHealthStatus(pkg.status)
   } else {
-    primary = pkg.state
+    primary = pkg.stateInfo.state as string as PrimaryStatus
   }
 
   return { primary, dependency, health }
@@ -46,7 +46,7 @@ function getDependencyStatus(depErrors: PkgDependencyErrors): DependencyStatus {
 }
 
 function getHealthStatus(status: Status): HealthStatus | null {
-  if (status.main.status !== PackageMainStatus.Running) {
+  if (status.main.status !== PackageMainStatus.Running || !status.main.health) {
     return null
   }
 
@@ -60,7 +60,7 @@ function getHealthStatus(status: Status): HealthStatus | null {
     return HealthStatus.Loading
   }
 
-  if (values.some(h => !h.result || h.result === 'starting')) {
+  if (values.some(h => h.result === 'starting')) {
     return HealthStatus.Starting
   }
 
@@ -97,7 +97,6 @@ export enum DependencyStatus {
 
 export enum HealthStatus {
   Failure = 'failure',
-  Waiting = 'waiting',
   Starting = 'starting',
   Loading = 'loading',
   Healthy = 'healthy',

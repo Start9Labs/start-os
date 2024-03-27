@@ -5,3 +5,14 @@
 :host ::ng-deep img {
   border-radius: 0 !important;
 }
+
+:host ::ng-deep h1,
+:host ::ng-deep h2,
+:host ::ng-deep h3,
+:host ::ng-deep h4,
+:host ::ng-deep h5,
+:host ::ng-deep h6,
+:host ::ng-deep hr,
+:host ::ng-deep p {
+  margin: revert;
+}

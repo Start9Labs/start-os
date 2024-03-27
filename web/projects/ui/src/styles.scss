@@ -1,3 +1,5 @@
+@import '@taiga-ui/core/styles/taiga-ui-local';
+
 @font-face {
   font-family: 'text-security-disc';
   src: url('/assets/fonts/text-security-disc.woff2') format('woff2');
@@ -53,13 +55,6 @@
 }
 
 @font-face {
-  font-family: 'Redacted';
-  font-style: normal;
-  font-weight: normal;
-  src: url('/assets/fonts/Redacted/redacted.regular.ttf');
-}
-
-@font-face {
   font-family: 'Courier New';
   font-style: normal;
   font-weight: normal;
@@ -80,6 +75,8 @@
   --ion-background-color-rgb: var(--ion-color-medium-rgb);
   --ion-text-color: var(--ion-color-dark);
   --ion-text-color-rgb: var(--ion-color-dark-rgb);
+
+  --tui-skeleton-radius: 1rem;
 }
 
 $subheader-height: 48px;
@@ -157,10 +154,6 @@ ion-toast {
     display: inline-block;
     vertical-align: middle;
   }
-}
-
-img {
-  border-radius: 100%;
 }
 
 ion-back-button {
@@ -278,7 +271,6 @@ ion-loading {
 
 .rec-item {
   margin: 20px;
-  border-style: solid;
   border-width: 1px;
   border-style: groove;
   border-color: dimgrey;
@@ -338,7 +330,7 @@ h2 {
   scrollbar-width: none;
 
   ion-grid {
-    min-width: 840px;
+    min-width: 900px;
   }
 }
 
@@ -368,38 +360,201 @@ ul {
   list-style-type: disc;
 }
 
-// Taiga UI overrides
-
-tui-dialog {
-  transform: translate3d(0, 0, 0);
-}
-
-tui-opt-group[data-label^='⚠️']:before {
-  color: var(--tui-warning-fill);
-}
-
-tui-hint[data-appearance='onDark'] {
-  background: white !important;
-  color: #222 !important;
-}
-
-[tuiLink] {
-  color: var(--tui-link) !important;
-
-  &:hover {
-    color: var(--tui-link-hover) !important;
-  }
-}
-
 .checkbox {
   cursor: pointer;
   margin: 0 12px 6px 0;
 }
 
-p {
+.g-page {
+  @include customize-scroll();
+
+  display: block;
+  height: calc(100% - 0.375rem);
+  padding: 1px 2rem 3rem;
+  box-sizing: border-box;
+  overflow: auto;
+  isolation: isolate;
+  backdrop-filter: blur(2rem);
+  margin: 0 0.375rem;
+  border-radius: 0.375rem;
+
+  // TODO: Theme
+  background: rgb(55 58 63 / 90%);
+  box-shadow: inset 0 1px rgb(255 255 255 / 10%);
+}
+
+.g-edged {
+  position: relative;
+  display: block;
+  height: calc(100% - 1rem);
+  box-sizing: border-box;
+  overflow: auto;
+  isolation: isolate;
+  padding: 2rem 3rem;
+  margin: 0 2.75rem 1rem;
+  backdrop-filter: blur(2rem) brightness(0.75) saturate(0.75);
+  clip-path: var(--clip-path);
+
+  --clip-path: polygon(
+    1.75rem 0%,
+    calc(100% - 3.35rem) 0%,
+    100% 5rem,
+    100% calc(100% - 4rem),
+    calc(100% - 3rem) 100%,
+    3rem 100%,
+    0% calc(100% - 2rem),
+    0% 3rem
+  );
+}
+
+.g-plaque {
+  @include transition(opacity);
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  filter: url(#round-corners) url(#bevel-light) url(#bevel-dark);
+  font-size: 0;
+  opacity: 0.75;
+
+  &::before {
+    @include transition(clip-path);
+    content: '';
+    position: absolute;
+    inset: 0;
+    clip-path: var(--clip-path);
+    // TODO: Theme
+    background: #333;
+  }
+}
+
+.g-table {
+  width: 100%;
+  min-width: 40rem;
+
+  td,
+  th {
+    position: relative;
+    font: var(--tui-font-text-s);
+    text-align: left;
+    height: 2rem;
+    padding: 0 0.25rem;
+    box-shadow: inset 0 -1px var(--tui-clear);
+  }
+
+  th {
+    background: var(--tui-clear);
+    font-weight: bold;
+  }
+
+  .tui-skeleton {
+    max-height: 0.5rem;
+  }
+}
+
+.g-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  text-transform: uppercase;
+  font-weight: bold;
   font-size: 1rem;
+  line-height: 1.5rem;
+  margin: 2rem 0 1rem;
+  color: var(--tui-text-02);
+}
+
+.g-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.g-action {
+  @include transition(background);
+  @include clearbtn();
+
+  display: flex;
+  align-items: center;
+  width: stretch;
+  gap: 1rem;
+  text-align: left;
+  font-size: 0.85rem;
+  padding: 0.5rem 1rem;
+  margin: 0 -1rem;
+  line-height: 1.25rem;
+  border-radius: 0.5rem;
+  color: var(--tui-text-01);
+}
+
+a.g-action,
+button.g-action {
+  &:disabled {
+    pointer-events: none;
+    opacity: var(--tui-disabled-opacity);
+  }
+
+  &:hover {
+    background: var(--tui-clear);
+  }
+
+  &:not(:last-child) {
+    box-shadow: 0 0.51rem 0 -0.5rem;
+  }
+}
+
+.g-toggle {
+  height: var(--tui-height-l);
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  box-shadow: inset 0 0 0 1px var(--tui-base-03);
+  font: var(--tui-font-text-l);
+  font-weight: bold;
+  border-radius: var(--tui-radius-m);
+
+  tui-toggle {
+    margin-left: auto;
+  }
+}
+
+.g-hidden-scrollbar {
+  @include scrollbar-hidden;
+  overflow: auto !important;
+}
+
+.g-success.g-success {
+  color: var(--tui-success-fill);
+}
+
+.g-warning.g-warning {
+  color: var(--tui-warning-fill);
+}
+
+.g-error.g-error {
+  color: var(--tui-error-fill);
+}
+
+.g-info.g-info {
+  color: var(--tui-info-fill);
+}
+
+ng-component {
+  display: block;
 }
 
 svg:not(:root) {
   overflow: auto;
+}
+
+.small-caps {
+  font-variant: all-small-caps;
+}
+
+.externalLink {
+  color: var(--ion-color-secondary);
+}
+
+.ion-page {
+  overflow: clip;
 }

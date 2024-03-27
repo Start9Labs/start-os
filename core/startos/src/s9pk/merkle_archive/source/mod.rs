@@ -12,15 +12,15 @@ pub mod http;
 pub mod multi_cursor_file;
 
 #[async_trait::async_trait]
-pub trait FileSource: Send + Sync + Sized + 'static {
+pub trait FileSource: Clone + Send + Sync + Sized + 'static {
     type Reader: AsyncRead + Unpin + Send;
     async fn size(&self) -> Result<u64, Error>;
     async fn reader(&self) -> Result<Self::Reader, Error>;
-    async fn copy<W: AsyncWrite + Unpin + Send>(&self, w: &mut W) -> Result<(), Error> {
+    async fn copy<W: AsyncWrite + Unpin + Send + ?Sized>(&self, w: &mut W) -> Result<(), Error> {
         tokio::io::copy(&mut self.reader().await?, w).await?;
         Ok(())
     }
-    async fn copy_verify<W: AsyncWrite + Unpin + Send>(
+    async fn copy_verify<W: AsyncWrite + Unpin + Send + ?Sized>(
         &self,
         w: &mut W,
         verify: Option<Hash>,
@@ -34,6 +34,75 @@ pub trait FileSource: Send + Sync + Sized + 'static {
         let mut vec = Vec::with_capacity(self.size().await? as usize);
         self.copy_verify(&mut vec, verify).await?;
         Ok(vec)
+    }
+}
+
+#[derive(Clone)]
+pub struct DynFileSource(Arc<dyn DynableFileSource>);
+impl DynFileSource {
+    pub fn new<T: FileSource>(source: T) -> Self {
+        Self(Arc::new(source))
+    }
+}
+#[async_trait::async_trait]
+impl FileSource for DynFileSource {
+    type Reader = Box<dyn AsyncRead + Unpin + Send>;
+    async fn size(&self) -> Result<u64, Error> {
+        self.0.size().await
+    }
+    async fn reader(&self) -> Result<Self::Reader, Error> {
+        self.0.reader().await
+    }
+    async fn copy<W: AsyncWrite + Unpin + Send + ?Sized>(
+        &self,
+        mut w: &mut W,
+    ) -> Result<(), Error> {
+        self.0.copy(&mut w).await
+    }
+    async fn copy_verify<W: AsyncWrite + Unpin + Send + ?Sized>(
+        &self,
+        mut w: &mut W,
+        verify: Option<Hash>,
+    ) -> Result<(), Error> {
+        self.0.copy_verify(&mut w, verify).await
+    }
+    async fn to_vec(&self, verify: Option<Hash>) -> Result<Vec<u8>, Error> {
+        self.0.to_vec(verify).await
+    }
+}
+
+#[async_trait::async_trait]
+trait DynableFileSource: Send + Sync + 'static {
+    async fn size(&self) -> Result<u64, Error>;
+    async fn reader(&self) -> Result<Box<dyn AsyncRead + Unpin + Send>, Error>;
+    async fn copy(&self, w: &mut (dyn AsyncWrite + Unpin + Send)) -> Result<(), Error>;
+    async fn copy_verify(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send),
+        verify: Option<Hash>,
+    ) -> Result<(), Error>;
+    async fn to_vec(&self, verify: Option<Hash>) -> Result<Vec<u8>, Error>;
+}
+#[async_trait::async_trait]
+impl<T: FileSource> DynableFileSource for T {
+    async fn size(&self) -> Result<u64, Error> {
+        FileSource::size(self).await
+    }
+    async fn reader(&self) -> Result<Box<dyn AsyncRead + Unpin + Send>, Error> {
+        Ok(Box::new(FileSource::reader(self).await?))
+    }
+    async fn copy(&self, w: &mut (dyn AsyncWrite + Unpin + Send)) -> Result<(), Error> {
+        FileSource::copy(self, w).await
+    }
+    async fn copy_verify(
+        &self,
+        w: &mut (dyn AsyncWrite + Unpin + Send),
+        verify: Option<Hash>,
+    ) -> Result<(), Error> {
+        FileSource::copy_verify(self, w, verify).await
+    }
+    async fn to_vec(&self, verify: Option<Hash>) -> Result<Vec<u8>, Error> {
+        FileSource::to_vec(self, verify).await
     }
 }
 
@@ -57,7 +126,7 @@ impl FileSource for Arc<[u8]> {
     async fn reader(&self) -> Result<Self::Reader, Error> {
         Ok(std::io::Cursor::new(self.clone()))
     }
-    async fn copy<W: AsyncWrite + Unpin + Send>(&self, w: &mut W) -> Result<(), Error> {
+    async fn copy<W: AsyncWrite + Unpin + Send + ?Sized>(&self, w: &mut W) -> Result<(), Error> {
         use tokio::io::AsyncWriteExt;
 
         w.write_all(&*self).await?;
@@ -68,8 +137,11 @@ impl FileSource for Arc<[u8]> {
 #[async_trait::async_trait]
 pub trait ArchiveSource: Clone + Send + Sync + Sized + 'static {
     type Reader: AsyncRead + Unpin + Send;
+    async fn size(&self) -> Option<u64> {
+        None
+    }
     async fn fetch(&self, position: u64, size: u64) -> Result<Self::Reader, Error>;
-    async fn copy_to<W: AsyncWrite + Unpin + Send>(
+    async fn copy_to<W: AsyncWrite + Unpin + Send + ?Sized>(
         &self,
         position: u64,
         size: u64,
@@ -99,7 +171,7 @@ impl ArchiveSource for Arc<[u8]> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Section<S> {
     source: S,
     position: u64,
@@ -114,7 +186,7 @@ impl<S: ArchiveSource> FileSource for Section<S> {
     async fn reader(&self) -> Result<Self::Reader, Error> {
         self.source.fetch(self.position, self.size).await
     }
-    async fn copy<W: AsyncWrite + Unpin + Send>(&self, w: &mut W) -> Result<(), Error> {
+    async fn copy<W: AsyncWrite + Unpin + Send + ?Sized>(&self, w: &mut W) -> Result<(), Error> {
         self.source.copy_to(self.position, self.size, w).await
     }
 }

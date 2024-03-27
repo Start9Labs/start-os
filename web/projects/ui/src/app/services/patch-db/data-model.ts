@@ -1,27 +1,28 @@
-import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
+import { BackupJob, ServerNotifications } from '../api/api.types'
 import { Url } from '@start9labs/shared'
 import { Manifest } from '@start9labs/marketplace'
-import { BackupJob } from '../api/api.types'
-import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
+import { T } from '@start9labs/start-sdk'
+import { config } from '@start9labs/start-sdk'
 
 export interface DataModel {
-  'server-info': ServerInfo
-  'package-data': { [id: string]: PackageDataEntry }
+  serverInfo: ServerInfo
+  packageData: { [id: string]: PackageDataEntry }
   ui: UIData
 }
 
 export interface UIData {
   name: string | null
-  'ack-welcome': string // emver
+  ackWelcome: string // emver
   marketplace: UIMarketplaceData
   gaming: {
     snake: {
-      'high-score': number
+      highScore: number
     }
   }
-  'ack-instructions': Record<string, boolean>
+  ackInstructions: Record<string, boolean>
   theme: string
   widgets: readonly Widget[]
+  desktop: readonly string[]
 }
 
 export interface Widget {
@@ -38,8 +39,8 @@ export interface Widget {
 }
 
 export interface UIMarketplaceData {
-  'selected-url': string
-  'known-hosts': {
+  selectedUrl: string
+  knownHosts: {
     'https://registry.start9.com/': UIStore
     'https://community-registry.start9.com/': UIStore
     [url: string]: UIStore
@@ -54,103 +55,132 @@ export interface ServerInfo {
   id: string
   version: string
   country: string
-  'last-backup': string | null
-  'lan-address': Url
-  'tor-address': Url
-  'ip-info': IpInfo
-  'last-wifi-region': string | null
-  'wifi-enabled': boolean
-  'unread-notification-count': number
-  'status-info': ServerStatusInfo
-  'eos-version-compat': string
-  hostname: string
+  ui: T.HostnameInfo[]
+  network: NetworkInfo
+  lastBackup: string | null
+  unreadNotifications: {
+    count: number
+    recent: ServerNotifications
+  }
+  statusInfo: ServerStatusInfo
+  eosVersionCompat: string
   pubkey: string
-  'ca-fingerprint': string
-  'ntp-synced': boolean
-  zram: boolean
-  smtp: typeof customSmtp.validator._TYPE
-  'password-hash': string
+  caFingerprint: string
+  ntpSynced: boolean
+  smtp: typeof config.constants.customSmtp.validator._TYPE
+  passwordHash: string
   platform: string
+}
+
+export type NetworkInfo = {
+  wifi: WiFiInfo
+  start9ToSubdomain: Omit<Domain, 'provider'> | null
+  domains: Domain[]
+  wanConfig: {
+    upnp: boolean
+    forwards: PortForward[]
+  }
+  proxies: Proxy[]
+  outboundProxy: string | null
+}
+
+export type DomainInfo = {
+  domain: string
+  subdomain: string | null
+}
+
+export type PortForward = {
+  assigned: number
+  override: number | null
+  target: number
+  error: string | null
+}
+
+export type WiFiInfo = {
+  enabled: boolean
+  lastRegion: string | null
+}
+
+export type Domain = {
+  value: string
+  createdAt: string
+  provider: string
+  networkStrategy: NetworkStrategy
+  usedBy: {
+    service: { id: string | null; title: string } // null means startos
+    interfaces: { id: string | null; title: string }[] // null means startos
+  }[]
+}
+
+export type NetworkStrategy =
+  | { proxy: string }
+  | { ipStrategy: 'ipv4' | 'ipv6' | 'dualstack' }
+
+export type Proxy = {
+  id: string
+  name: string
+  createdAt: string
+  type: 'outbound' | 'inbound-outbound' | 'vlan' | { error: string }
+  endpoint: string
+  // below is overlay only
+  usedBy: {
+    services: { id: string | null; title: string }[] // implies outbound - null means startos
+    domains: string[] // implies inbound
+  }
 }
 
 export interface IpInfo {
   [iface: string]: {
+    wireless: boolean
     ipv4: string | null
     ipv6: string | null
   }
 }
 
 export interface ServerStatusInfo {
-  'current-backup': null | {
+  currentBackup: null | {
     job: BackupJob
-    'backup-progress': {
-      [packageId: string]: {
-        complete: boolean
-      }
-    }
+    backupProgress: Record<string, boolean>
   }
   updated: boolean
-  'update-progress': { size: number | null; downloaded: number } | null
+  updateProgress: { size: number | null; downloaded: number } | null
   restarting: boolean
-  'shutting-down': boolean
+  shuttingDown: boolean
 }
 
-export enum ServerStatus {
-  Running = 'running',
-  Updated = 'updated',
-  BackingUp = 'backing-up',
+export type PackageDataEntry<T extends StateInfo = StateInfo> = {
+  stateInfo: T
+  icon: Url
+  status: Status
+  actions: Record<string, T.ActionMetadata>
+  lastBackup: string | null
+  currentDependencies: Record<string, CurrentDependencyInfo>
+  serviceInterfaces: Record<string, T.ServiceInterfaceWithHostInfo>
+  marketplaceUrl: string | null
+  developerKey: string
+  installedAt: string
+  outboundProxy: string | null
 }
 
-export interface PackageDataEntry {
-  state: PackageState
+export type StateInfo = InstalledState | InstallingState | UpdatingState
+
+export type InstalledState = {
+  state: PackageState.Installed | PackageState.Removing
   manifest: Manifest
-  icon: string
-  installed?: InstalledPackageInfo // when: installed
-  actions?: Record<string, Action> // when: installed
-  'install-progress'?: InstallProgress // when: installing, updating, restoring
+  installingInfo?: undefined
 }
 
-// export type PackageDataEntry =
-//   | PackageDataEntryInstalled
-//   | PackageDataEntryNeedsUpdate
-//   | PackageDataEntryRemoving
-//   | PackageDataEntryRestoring
-//   | PackageDataEntryUpdating
-//   | PackageDataEntryInstalling
+export type InstallingState = {
+  state: PackageState.Installing | PackageState.Restoring
+  installingInfo: InstallingInfo
+  manifest?: undefined
+}
 
-// export type PackageDataEntryBase = {
-//   manifest: Manifest
-//   icon: Url
-// }
-
-// export interface PackageDataEntryInstalled extends PackageDataEntryBase {
-//   state: PackageState.Installed
-//   installed: InstalledPackageInfo
-//   actions: Record<string, Action>
-// }
-
-// export interface PackageDataEntryNeedsUpdate extends PackageDataEntryBase {
-//   state: PackageState.NeedsUpdate
-// }
-
-// export interface PackageDataEntryRemoving extends PackageDataEntryBase {
-//   state: PackageState.Removing
-// }
-
-// export interface PackageDataEntryRestoring extends PackageDataEntryBase {
-//   state: PackageState.Restoring
-//   'install-progress': InstallProgress
-// }
-
-// export interface PackageDataEntryUpdating extends PackageDataEntryBase {
-//   state: PackageState.Updating
-//   'install-progress': InstallProgress
-// }
-
-// export interface PackageDataEntryInstalling extends PackageDataEntryBase {
-//   state: PackageState.Installing
-//   'install-progress': InstallProgress
-// }
+export type UpdatingState = {
+  state: PackageState.Updating
+  installingInfo: InstallingInfo
+  manifest: Manifest
+}
 
 export enum PackageState {
   Installing = 'installing',
@@ -158,46 +188,21 @@ export enum PackageState {
   Updating = 'updating',
   Removing = 'removing',
   Restoring = 'restoring',
-  NeedsUpdate = 'needs-update',
-}
-
-export interface InstalledPackageInfo {
-  status: Status
-  'last-backup': string | null
-  'installed-at': string
-  'current-dependencies': Record<string, CurrentDependencyInfo>
-  'current-dependents': Record<string, CurrentDependencyInfo>
-  'dependency-info': Record<string, { title: string; icon: Url }>
-  'address-info': Record<string, AddressInfo>
-  'marketplace-url': string | null
-  'developer-key': string
-  'has-config': boolean
 }
 
 export interface CurrentDependencyInfo {
-  'health-checks': string[] // array of health check IDs
-}
-
-export interface AddressInfo {
-  name: string
-  description: string
-  addresses: Url[]
-  ui: boolean
-}
-
-export interface Action {
-  name: string
-  description: string
-  warning: string | null
-  disabled: string | null
-  'input-spec': InputSpec | null
-  group: string | null
+  title: string
+  icon: string
+  kind: 'exists' | 'running'
+  registryUrl: string
+  versionSpec: string
+  healthChecks: string[] // array of health check IDs
 }
 
 export interface Status {
   configured: boolean
   main: MainStatus
-  'dependency-config-errors': { [id: string]: string | null }
+  dependencyConfigErrors: { [id: string]: string | null }
 }
 
 export type MainStatus =
@@ -215,6 +220,7 @@ export interface MainStatusStopped {
 
 export interface MainStatusStopping {
   status: PackageMainStatus.Stopping
+  timeout: string
 }
 
 export interface MainStatusStarting {
@@ -224,7 +230,7 @@ export interface MainStatusStarting {
 export interface MainStatusRunning {
   status: PackageMainStatus.Running
   started: string // UTC date string
-  health: { [id: string]: HealthCheckResult }
+  health: Record<string, HealthCheckResult>
 }
 
 export interface MainStatusBackingUp {
@@ -271,7 +277,6 @@ export interface HealthCheckResultStarting {
 
 export interface HealthCheckResultDisabled {
   result: HealthResult.Disabled
-  reason: string
 }
 
 export interface HealthCheckResultSuccess {
@@ -286,15 +291,16 @@ export interface HealthCheckResultLoading {
 
 export interface HealthCheckResultFailure {
   result: HealthResult.Failure
-  error: string
+  message: string
 }
 
-export interface InstallProgress {
-  readonly size: number | null
-  readonly downloaded: number
-  readonly 'download-complete': boolean
-  readonly validated: number
-  readonly 'validation-complete': boolean
-  readonly unpacked: number
-  readonly 'unpack-complete': boolean
+export type InstallingInfo = {
+  progress: FullProgress
+  newManifest: Manifest
 }
+
+export type FullProgress = {
+  overall: Progress
+  phases: { name: string; progress: Progress }[]
+}
+export type Progress = boolean | { done: number; total: number | null } // false means indeterminate. true means complete

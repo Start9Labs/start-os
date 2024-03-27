@@ -1,10 +1,10 @@
 import { Component } from '@angular/core'
-import { ValueSpecToggle } from '@start9labs/start-sdk/lib/config/configTypes'
+import { CT } from '@start9labs/start-sdk'
 import { Control } from '../control'
 
 @Component({
   selector: 'form-toggle',
   templateUrl: './form-toggle.component.html',
-  styleUrls: ['./form-toggle.component.scss'],
+  host: { class: 'g-toggle' },
 })
-export class FormToggleComponent extends Control<ValueSpecToggle, boolean> {}
+export class FormToggleComponent extends Control<CT.ValueSpecToggle, boolean> {}

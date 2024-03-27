@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core'
-import { NavController } from '@ionic/angular'
+import { Router } from '@angular/router'
 import {
+  InitializingComponent,
   provideSetupLogsService,
   provideSetupService,
 } from '@start9labs/shared'
@@ -8,12 +9,19 @@ import {
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
-  templateUrl: 'loading.page.html',
+  standalone: true,
+  template: `
+    <app-initializing
+      class="ion-page"
+      (finished)="router.navigate(['login'])"
+    />
+  `,
   providers: [
     provideSetupService(ApiService),
     provideSetupLogsService(ApiService),
   ],
+  imports: [InitializingComponent],
 })
 export class LoadingPage {
-  readonly navCtrl = inject(NavController)
+  readonly router = inject(Router)
 }

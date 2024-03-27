@@ -19,22 +19,26 @@ export interface StoreInfo {
   categories: string[]
 }
 
+export type StoreIdentityWithData = StoreData & StoreIdentity
+
 export interface MarketplacePkg {
   icon: Url
   license: Url
+  screenshots?: string[]
   instructions: Url
   manifest: Manifest
   categories: string[]
   versions: string[]
-  'dependency-metadata': {
+  dependencyMetadata: {
     [id: string]: DependencyMetadata
   }
-  'published-at': string
+  publishedAt: string
 }
 
 export interface DependencyMetadata {
   title: string
   icon: Url
+  optional: boolean
   hidden: boolean
 }
 
@@ -42,22 +46,19 @@ export interface Manifest {
   id: string
   title: string
   version: string
-  'git-hash'?: string
+  gitHash?: string
   description: {
     short: string
     long: string
   }
-  assets: {
-    icon: string // ie. icon.png
-  }
   replaces?: string[]
-  'release-notes': string
+  releaseNotes: string
   license: string // name of license
-  'wrapper-repo': Url
-  'upstream-repo': Url
-  'support-site': Url
-  'marketing-site': Url
-  'donation-url': Url | null
+  wrapperRepo: Url
+  upstreamRepo: Url
+  supportSite: Url
+  marketingSite: Url
+  donationUrl: Url | null
   alerts: {
     install: string | null
     uninstall: string | null
@@ -66,22 +67,11 @@ export interface Manifest {
     stop: string | null
   }
   dependencies: Record<string, Dependency>
-  'os-version': string
+  osVersion: string
+  hasConfig: boolean
 }
 
 export interface Dependency {
-  version: string
-  requirement:
-    | {
-        type: 'opt-in'
-        how: string
-      }
-    | {
-        type: 'opt-out'
-        how: string
-      }
-    | {
-        type: 'required'
-      }
   description: string | null
+  optional: boolean
 }

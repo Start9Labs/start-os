@@ -3,10 +3,11 @@
 .template {
   @include transition(opacity);
 
+  width: 100%;
   display: flex;
   align-items: center;
   padding: 0 0.5rem;
-  font: var(--tui-font-text-l);
+  font: var(--tui-font-text-m);
   font-weight: bold;
 
   &_hidden {
@@ -41,5 +42,5 @@ small {
 
 tui-tag {
   z-index: 1;
-  margin: 0 -0.25rem 0 auto;
+  margin: -0.25rem -0.25rem -0.25rem auto;
 }

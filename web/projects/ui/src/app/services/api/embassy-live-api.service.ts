@@ -117,10 +117,6 @@ export class LiveApiService extends ApiService {
     return this.openWebsocket(config)
   }
 
-  async followLogs(): Promise<string> {
-    return this.rpcRequest({ method: 'setup.logs.follow', params: {} })
-  }
-
   openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
     return this.openWebsocket(config)
   }
@@ -179,9 +175,15 @@ export class LiveApiService extends ApiService {
 
   async updateServer(url?: string): Promise<RR.UpdateServerRes> {
     const params = {
-      'marketplace-url': url || this.config.marketplace.start9,
+      marketplaceUrl: url || this.config.marketplace.start9,
     }
     return this.rpcRequest({ method: 'server.update', params })
+  }
+
+  async setServerClearnetAddress(
+    params: RR.SetServerClearnetAddressReq,
+  ): Promise<RR.SetServerClearnetAddressRes> {
+    return this.rpcRequest({ method: 'server.set-clearnet', params })
   }
 
   async restartServer(
@@ -210,8 +212,10 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'net.tor.reset', params })
   }
 
-  async toggleZram(params: RR.ToggleZramReq): Promise<RR.ToggleZramRes> {
-    return this.rpcRequest({ method: 'server.experimental.zram', params })
+  async setOsOutboundProxy(
+    params: RR.SetOsOutboundProxyReq,
+  ): Promise<RR.SetOsOutboundProxyRes> {
+    return this.rpcRequest({ method: 'server.proxy.set-outbound', params })
   }
 
   // marketplace URLs
@@ -230,7 +234,7 @@ export class LiveApiService extends ApiService {
 
   async getEos(): Promise<RR.GetMarketplaceEosRes> {
     const { id } = await getServerInfo(this.patch)
-    const qp: RR.GetMarketplaceEosReq = { 'server-id': id }
+    const qp: RR.GetMarketplaceEosReq = { serverId: id }
 
     return this.marketplaceProxy(
       '/eos/v0/latest',
@@ -247,19 +251,75 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'notification.list', params })
   }
 
-  async deleteNotification(
+  async deleteNotifications(
     params: RR.DeleteNotificationReq,
   ): Promise<RR.DeleteNotificationRes> {
     return this.rpcRequest({ method: 'notification.delete', params })
   }
 
-  async deleteAllNotifications(
-    params: RR.DeleteAllNotificationsReq,
-  ): Promise<RR.DeleteAllNotificationsRes> {
+  async markSeenNotifications(
+    params: RR.MarkSeenNotificationReq,
+  ): Promise<RR.MarkSeenNotificationRes> {
+    return this.rpcRequest({ method: 'notification.mark-seen', params })
+  }
+
+  async markSeenAllNotifications(
+    params: RR.MarkSeenAllNotificationsReq,
+  ): Promise<RR.MarkSeenAllNotificationsRes> {
     return this.rpcRequest({
-      method: 'notification.delete-before',
+      method: 'notification.mark-seen-before',
       params,
     })
+  }
+
+  async markUnseenNotifications(
+    params: RR.MarkUnseenNotificationReq,
+  ): Promise<RR.MarkUnseenNotificationRes> {
+    return this.rpcRequest({ method: 'notification.mark-unseen', params })
+  }
+
+  // network
+
+  async addProxy(params: RR.AddProxyReq): Promise<RR.AddProxyRes> {
+    return this.rpcRequest({ method: 'net.proxy.add', params })
+  }
+
+  async updateProxy(params: RR.UpdateProxyReq): Promise<RR.UpdateProxyRes> {
+    return this.rpcRequest({ method: 'net.proxy.update', params })
+  }
+
+  async deleteProxy(params: RR.DeleteProxyReq): Promise<RR.DeleteProxyRes> {
+    return this.rpcRequest({ method: 'net.proxy.delete', params })
+  }
+
+  // domains
+
+  async claimStart9ToDomain(
+    params: RR.ClaimStart9ToReq,
+  ): Promise<RR.ClaimStart9ToRes> {
+    return this.rpcRequest({ method: 'net.domain.me.claim', params })
+  }
+
+  async deleteStart9ToDomain(
+    params: RR.DeleteStart9ToReq,
+  ): Promise<RR.DeleteStart9ToRes> {
+    return this.rpcRequest({ method: 'net.domain.me.delete', params })
+  }
+
+  async addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes> {
+    return this.rpcRequest({ method: 'net.domain.add', params })
+  }
+
+  async deleteDomain(params: RR.DeleteDomainReq): Promise<RR.DeleteDomainRes> {
+    return this.rpcRequest({ method: 'net.domain.delete', params })
+  }
+
+  // port forwards
+
+  async overridePortForward(
+    params: RR.OverridePortReq,
+  ): Promise<RR.OverridePortRes> {
+    return this.rpcRequest({ method: 'net.port-forwards.override', params })
   }
 
   // wifi
@@ -390,10 +450,10 @@ export class LiveApiService extends ApiService {
 
   // package
 
-  async getPackageCredentials(
-    params: RR.GetPackageCredentialsReq,
-  ): Promise<RR.GetPackageCredentialsRes> {
-    return this.rpcRequest({ method: 'package.credentials', params })
+  async getPackageProperties(
+    params: RR.GetPackagePropertiesReq,
+  ): Promise<RR.GetPackagePropertiesRes> {
+    return this.rpcRequest({ method: 'package.properties', params })
   }
 
   async getPackageLogs(
@@ -480,6 +540,18 @@ export class LiveApiService extends ApiService {
       method: 'package.sideload',
       params,
     })
+  }
+
+  async setInterfaceClearnetAddress(
+    params: RR.SetInterfaceClearnetAddressReq,
+  ): Promise<RR.SetInterfaceClearnetAddressRes> {
+    return this.rpcRequest({ method: 'package.interface.set-clearnet', params })
+  }
+
+  async setServiceOutboundProxy(
+    params: RR.SetServiceOutboundProxyReq,
+  ): Promise<RR.SetServiceOutboundProxyRes> {
+    return this.rpcRequest({ method: 'package.proxy.set-outbound', params })
   }
 
   async getSetupStatus() {

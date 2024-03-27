@@ -8,6 +8,6 @@ import { MarketplacePkg } from '../../../types'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AboutComponent {
-  @Input()
+  @Input({ required: true })
   pkg!: MarketplacePkg
 }

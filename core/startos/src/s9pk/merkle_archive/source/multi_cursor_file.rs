@@ -4,12 +4,16 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use tokio::fs::File;
-use tokio::io::AsyncRead;
+use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::sync::{Mutex, OwnedMutexGuard};
 
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, Section};
+
+fn path_from_fd(fd: RawFd) -> PathBuf {
+    Path::new("/proc/self/fd").join(fd.to_string())
+}
 
 #[derive(Clone)]
 pub struct MultiCursorFile {
@@ -18,7 +22,14 @@ pub struct MultiCursorFile {
 }
 impl MultiCursorFile {
     fn path(&self) -> PathBuf {
-        Path::new("/proc/self/fd").join(self.fd.to_string())
+        path_from_fd(self.fd)
+    }
+    pub async fn open(fd: &impl AsRawFd) -> Result<Self, Error> {
+        let fd = fd.as_raw_fd();
+        Ok(Self {
+            fd,
+            file: Arc::new(Mutex::new(File::open(path_from_fd(fd)).await?)),
+        })
     }
 }
 impl From<File> for MultiCursorFile {
@@ -47,8 +58,8 @@ impl AsyncRead for FileSectionReader {
             return std::task::Poll::Ready(Ok(()));
         }
         let before = buf.filled().len() as u64;
-        let res = std::pin::Pin::new(&mut **this.file.get_mut())
-            .poll_read(cx, &mut buf.take(*this.remaining as usize));
+        let res = std::pin::Pin::new(&mut (&mut **this.file.get_mut()).take(*this.remaining))
+            .poll_read(cx, buf);
         *this.remaining = this
             .remaining
             .saturating_sub(buf.filled().len() as u64 - before);
@@ -59,13 +70,36 @@ impl AsyncRead for FileSectionReader {
 #[async_trait::async_trait]
 impl ArchiveSource for MultiCursorFile {
     type Reader = FileSectionReader;
+    async fn size(&self) -> Option<u64> {
+        tokio::fs::metadata(self.path()).await.ok().map(|m| m.len())
+    }
     async fn fetch(&self, position: u64, size: u64) -> Result<Self::Reader, Error> {
         use tokio::io::AsyncSeekExt;
 
         let mut file = if let Ok(file) = self.file.clone().try_lock_owned() {
             file
         } else {
-            Arc::new(Mutex::new(File::open(self.path()).await?))
+            #[cfg(target_os = "linux")]
+            let file = File::open(self.path()).await?;
+            #[cfg(target_os = "macos")] // here be dragons
+            let file = unsafe {
+                let mut buf = [0u8; libc::PATH_MAX as usize];
+                if libc::fcntl(
+                    self.fd,
+                    libc::F_GETPATH,
+                    buf.as_mut_ptr().cast::<libc::c_char>(),
+                ) == -1
+                {
+                    return Err(std::io::Error::last_os_error().into());
+                }
+                File::open(
+                    &*std::ffi::CStr::from_bytes_until_nul(&buf)
+                        .with_kind(ErrorKind::Utf8)?
+                        .to_string_lossy(),
+                )
+                .await?
+            };
+            Arc::new(Mutex::new(file))
                 .try_lock_owned()
                 .expect("freshly created")
         };
@@ -77,8 +111,8 @@ impl ArchiveSource for MultiCursorFile {
     }
 }
 
-impl From<Section<MultiCursorFile>> for LoopDev<PathBuf> {
-    fn from(value: Section<MultiCursorFile>) -> Self {
+impl From<&Section<MultiCursorFile>> for LoopDev<PathBuf> {
+    fn from(value: &Section<MultiCursorFile>) -> Self {
         LoopDev::new(value.source.path(), value.position, value.size)
     }
 }

@@ -1,0 +1,43 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.scrollbar {
+  flex: 1;
+}
+
+.loading-dots {
+  text-align: center;
+}
+
+.top {
+  height: 10rem;
+  margin-bottom: -5rem;
+}
+
+.bottom {
+  height: 3rem;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 1rem;
+  border-top: 1px solid var(--tui-clear);
+}
+
+[data-status='reconnecting'] {
+  color: var(--tui-success-fill);
+}
+
+[data-status='disconnected'] {
+  color: var(--tui-warning-fill);
+}
+
+pre {
+  overflow: visible;
+}
