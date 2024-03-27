@@ -206,7 +206,7 @@ async fn cli_dump(
         from_value::<Dump>(
             ctx.call_remote(
                 "db.dump",
-                imbl_value::json!({ "include-private":include_private }),
+                imbl_value::json!({ "includePrivate":include_private }),
             )
             .await?,
         )?
