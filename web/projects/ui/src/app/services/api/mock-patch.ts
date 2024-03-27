@@ -1,9 +1,4 @@
-import {
-  DataModel,
-  HealthResult,
-  PackageMainStatus,
-  PackageState,
-} from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Mock } from './api.fixures'
 import { BUILT_IN_WIDGETS } from '../../pages/widgets/built-in/widgets'
 
@@ -39,6 +34,8 @@ export const mockPatchData: DataModel = {
     ackInstructions: {},
   },
   serverInfo: {
+    arch: 'x86_64',
+    onionAddress: 'myveryownspecialtoraddress',
     id: 'abcdefgh',
     version: '0.3.5.1',
     lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
@@ -47,11 +44,15 @@ export const mockPatchData: DataModel = {
     ipInfo: {
       eth0: {
         ipv4: '10.0.0.1',
+        ipv4Range: '10.0.0.1/24',
         ipv6: null,
+        ipv6Range: null,
       },
       wlan0: {
         ipv4: '10.0.90.12',
+        ipv4Range: '10.0.90.12/24',
         ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD',
+        ipv6Range: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD/64',
       },
     },
     lastWifiRegion: null,
@@ -72,11 +73,18 @@ export const mockPatchData: DataModel = {
     caFingerprint: 'SHA-256: 63 2B 11 99 44 40 17 DF 37 FC C3 DF 0F 3D 15',
     ntpSynced: false,
     platform: 'x86_64-nonfree',
+    zram: true,
+    governor: 'performance',
+    wifi: {
+      ssids: [],
+      selected: null,
+      connected: null,
+    },
   },
   packageData: {
     bitcoind: {
       stateInfo: {
-        state: PackageState.Installed,
+        state: 'installed',
         manifest: {
           ...Mock.MockManifestBitcoind,
           version: '0.20.0',
@@ -87,31 +95,31 @@ export const mockPatchData: DataModel = {
       status: {
         configured: true,
         main: {
-          status: PackageMainStatus.Running,
+          status: 'running',
           started: '2021-06-14T20:49:17.774Z',
           health: {
             'ephemeral-health-check': {
               name: 'Ephemeral Health Check',
-              result: HealthResult.Starting,
+              result: 'starting',
             },
             'chain-state': {
               name: 'Chain State',
-              result: HealthResult.Loading,
+              result: 'loading',
               message: 'Bitcoin is syncing from genesis',
             },
             'p2p-interface': {
               name: 'P2P',
-              result: HealthResult.Success,
+              result: 'success',
               message: 'Health check successful',
             },
             'rpc-interface': {
               name: 'RPC',
-              result: HealthResult.Failure,
+              result: 'failure',
               message: 'RPC interface unreachable.',
             },
             'unnecessary-health-check': {
               name: 'Unnecessary Health Check',
-              result: HealthResult.Disabled,
+              result: 'disabled',
             },
           },
         },
@@ -135,9 +143,10 @@ export const mockPatchData: DataModel = {
               scheme: 'http',
               preferredExternalPort: 80,
               addSsl: {
-                addXForwardedHeaders: false,
+                // addXForwardedHeaders: false,
                 preferredExternalPort: 443,
                 scheme: 'https',
+                alpn: { specified: ['http/1.1', 'h2'] },
               },
               secure: null,
             },
@@ -207,9 +216,10 @@ export const mockPatchData: DataModel = {
               scheme: 'http',
               preferredExternalPort: 80,
               addSsl: {
-                addXForwardedHeaders: false,
+                // addXForwardedHeaders: false,
                 preferredExternalPort: 443,
                 scheme: 'https',
+                alpn: { specified: ['http/1.1'] },
               },
               secure: null,
             },
@@ -335,12 +345,14 @@ export const mockPatchData: DataModel = {
         },
       },
       currentDependencies: {},
+      hosts: {},
+      storeExposedDependents: [],
       marketplaceUrl: 'https://registry.start9.com/',
       developerKey: 'developer-key',
     },
     lnd: {
       stateInfo: {
-        state: PackageState.Installed,
+        state: 'installed',
         manifest: {
           ...Mock.MockManifestLnd,
           version: '0.11.0',
@@ -351,7 +363,7 @@ export const mockPatchData: DataModel = {
       status: {
         configured: true,
         main: {
-          status: PackageMainStatus.Stopped,
+          status: 'stopped',
         },
         dependencyConfigErrors: {
           'btc-rpc-proxy': 'This is a config unsatisfied error',
@@ -586,6 +598,8 @@ export const mockPatchData: DataModel = {
           healthChecks: [],
         },
       },
+      hosts: {},
+      storeExposedDependents: [],
       marketplaceUrl: 'https://registry.start9.com/',
       developerKey: 'developer-key',
     },

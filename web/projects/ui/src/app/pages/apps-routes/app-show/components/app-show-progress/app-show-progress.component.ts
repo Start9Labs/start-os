@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { FullProgress } from 'src/app/services/patch-db/data-model'
+import { FullProgress } from '../../../../../../../../../../core/startos/bindings/FullProgress'
 
 @Component({
   selector: 'app-show-progress',

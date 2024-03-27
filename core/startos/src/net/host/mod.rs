@@ -39,7 +39,7 @@ impl Host {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub enum HostKind {

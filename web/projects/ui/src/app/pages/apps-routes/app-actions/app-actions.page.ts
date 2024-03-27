@@ -11,8 +11,6 @@ import { PatchDB } from 'patch-db-client'
 import {
   DataModel,
   PackageDataEntry,
-  PackageMainStatus,
-  Status,
 } from 'src/app/services/patch-db/data-model'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { isEmptyObject, ErrorToastService, getPkgId } from '@start9labs/shared'
@@ -20,6 +18,7 @@ import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
 import { ActionMetadata } from '@start9labs/start-sdk/cjs/sdk/lib/types'
+import { Status } from '../../../../../../../../core/startos/bindings/Status'
 
 @Component({
   selector: 'app-actions',

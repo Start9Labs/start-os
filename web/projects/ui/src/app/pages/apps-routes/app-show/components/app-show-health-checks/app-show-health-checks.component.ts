@@ -1,11 +1,6 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { ConnectionService } from 'src/app/services/connection.service'
-import {
-  HealthCheckResult,
-  HealthResult,
-  MainStatus,
-} from 'src/app/services/patch-db/data-model'
-import { Manifest } from '@start9labs/marketplace'
+import { HealthCheckResult } from '../../../../../../../../../../core/startos/bindings/HealthCheckResult'
 
 @Component({
   selector: 'app-show-health-checks',
@@ -21,12 +16,12 @@ export class AppShowHealthChecksComponent {
 
   constructor(private readonly connectionService: ConnectionService) {}
 
-  isLoading(result: HealthResult): boolean {
-    return result === HealthResult.Starting || result === HealthResult.Loading
+  isLoading(result: HealthCheckResult['result']): boolean {
+    return result === 'starting' || result === 'loading'
   }
 
-  isReady(result: HealthResult): boolean {
-    return result !== HealthResult.Failure && result !== HealthResult.Loading
+  isReady(result: HealthCheckResult['result']): boolean {
+    return result !== 'failure' && result !== 'loading'
   }
 
   asIsOrder() {

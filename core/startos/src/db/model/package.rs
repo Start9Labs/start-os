@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use chrono::{DateTime, Utc};
 use emver::VersionRange;
 use imbl_value::InternedString;
-use models::{ActionId, DataUrl, HealthCheckId, HostId, PackageId};
+use models::{ActionId, DataUrl, HealthCheckId, HostId, PackageId, ServiceInterfaceId};
 use patch_db::json_ptr::JsonPointer;
 use patch_db::HasModel;
 use reqwest::Url;
@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::net::host::HostInfo;
+use crate::net::service_interface::ServiceInterfaceWithHostInfo;
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::s9pk::manifest::Manifest;
@@ -306,14 +307,14 @@ pub enum AllowedStatuses {
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct ActionMetadata {
-    name: String,
-    description: String,
-    warning: Option<String>,
+    pub name: String,
+    pub description: String,
+    pub warning: Option<String>,
     #[ts(type = "any")]
-    input: Value,
-    disabled: bool,
-    allowedStatuses: AllowedStatuses,
-    group: Option<String>,
+    pub input: Value,
+    pub disabled: bool,
+    pub allowed_statuses: AllowedStatuses,
+    pub group: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
@@ -331,10 +332,11 @@ pub struct PackageDataEntry {
     #[ts(type = "string | null")]
     pub last_backup: Option<DateTime<Utc>>,
     pub current_dependencies: CurrentDependencies,
+    pub actions: BTreeMap<ActionId, ActionMetadata>,
+    pub service_interfaces: BTreeMap<ServiceInterfaceId, ServiceInterfaceWithHostInfo>,
     pub hosts: HostInfo,
     #[ts(type = "string[]")]
     pub store_exposed_dependents: Vec<JsonPointer>,
-    pub exposed_actions: BTreeMap<ActionId, ActionMetadata>,
 }
 impl AsRef<PackageDataEntry> for PackageDataEntry {
     fn as_ref(&self) -> &PackageDataEntry {
@@ -375,7 +377,7 @@ pub struct CurrentDependencyInfo {
     pub title: String,
     pub icon: DataUrl<'static>,
     #[ts(type = "string")]
-    pub registry: Url,
+    pub registry_url: Url,
     #[ts(type = "string")]
     pub version_spec: VersionRange,
 }

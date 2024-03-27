@@ -1,4 +1,5 @@
 import { Url } from '@start9labs/shared'
+import { Manifest } from '../../../../core/startos/bindings/Manifest'
 
 export type StoreURL = string
 export type StoreName = string
@@ -39,35 +40,6 @@ export interface DependencyMetadata {
   icon: Url
   optional: boolean
   hidden: boolean
-}
-
-export interface Manifest {
-  id: string
-  title: string
-  version: string
-  gitHash?: string
-  description: {
-    short: string
-    long: string
-  }
-  replaces?: string[]
-  releaseNotes: string
-  license: string // name of license
-  wrapperRepo: Url
-  upstreamRepo: Url
-  supportSite: Url
-  marketingSite: Url
-  donationUrl: Url | null
-  alerts: {
-    install: string | null
-    uninstall: string | null
-    restore: string | null
-    start: string | null
-    stop: string | null
-  }
-  dependencies: Record<string, Dependency>
-  osVersion: string
-  hasConfig: boolean
 }
 
 export interface Dependency {

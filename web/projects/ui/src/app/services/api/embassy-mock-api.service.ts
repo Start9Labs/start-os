@@ -10,12 +10,8 @@ import {
 } from 'patch-db-client'
 import {
   DataModel,
-  FullProgress,
   InstallingState,
   PackageDataEntry,
-  PackageMainStatus,
-  PackageState,
-  ServerStatus,
   StateInfo,
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
@@ -41,6 +37,8 @@ import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import { AuthService } from '../auth.service'
 import { ConnectionService } from '../connection.service'
 import { StoreInfo } from '@start9labs/marketplace'
+import { FullProgress } from '../../../../../../../core/startos/bindings/FullProgress'
+import { ServerStatus } from '../../../../../../../core/startos/bindings/ServerStatus'
 
 const PROGRESS: FullProgress = {
   overall: {
@@ -576,7 +574,7 @@ export class MockApiService extends ApiService {
           {
             op: PatchOp.REPLACE,
             path: appPath,
-            value: PackageMainStatus.BackingUp,
+            value: 'backingUp',
           },
         ]
         this.mockRevision(appPatch)
@@ -586,7 +584,7 @@ export class MockApiService extends ApiService {
         this.mockRevision([
           {
             ...appPatch[0],
-            value: PackageMainStatus.Stopped,
+            value: 'stopped',
           },
         ])
         this.mockRevision([
@@ -692,7 +690,7 @@ export class MockApiService extends ApiService {
             // state: PackageState.Installing,
 
             // if updating
-            state: PackageState.Updating,
+            state: 'updating',
             manifest: mockPatchData.packageData[params.id].stateInfo.manifest!,
 
             // both
@@ -757,7 +755,7 @@ export class MockApiService extends ApiService {
         value: {
           ...Mock.LocalPkgs[id],
           stateInfo: {
-            state: PackageState.Restoring,
+            state: 'restoring',
             installingInfo: {
               newManifest: Mock.LocalPkgs[id].stateInfo.manifest!,
               progress: PROGRESS,
@@ -789,7 +787,7 @@ export class MockApiService extends ApiService {
         {
           op: PatchOp.REPLACE,
           path: path + '/status',
-          value: PackageMainStatus.Running,
+          value: 'running',
         },
         {
           op: PatchOp.REPLACE,
@@ -849,7 +847,7 @@ export class MockApiService extends ApiService {
       {
         op: PatchOp.REPLACE,
         path: path + '/status',
-        value: PackageMainStatus.Starting,
+        value: 'starting',
       },
     ]
 
@@ -870,7 +868,7 @@ export class MockApiService extends ApiService {
         {
           op: PatchOp.REPLACE,
           path: path + '/status',
-          value: PackageMainStatus.Starting,
+          value: 'starting',
         },
         {
           op: PatchOp.ADD,
@@ -886,7 +884,7 @@ export class MockApiService extends ApiService {
         {
           op: PatchOp.REPLACE,
           path: path + '/status',
-          value: PackageMainStatus.Running,
+          value: 'running',
         },
         {
           op: PatchOp.REMOVE,
@@ -923,7 +921,7 @@ export class MockApiService extends ApiService {
       {
         op: PatchOp.REPLACE,
         path: path + '/status',
-        value: PackageMainStatus.Restarting,
+        value: 'restarting',
       },
       {
         op: PatchOp.REPLACE,
@@ -947,7 +945,7 @@ export class MockApiService extends ApiService {
           op: PatchOp.REPLACE,
           path: path,
           value: {
-            status: PackageMainStatus.Stopped,
+            status: 'stopped',
           },
         },
       ]
@@ -959,7 +957,7 @@ export class MockApiService extends ApiService {
         op: PatchOp.REPLACE,
         path: path,
         value: {
-          status: PackageMainStatus.Stopping,
+          status: 'stopping',
           timeout: '35s',
         },
       },
@@ -989,7 +987,7 @@ export class MockApiService extends ApiService {
       {
         op: PatchOp.REPLACE,
         path: `/packageData/${params.id}/stateInfo/state`,
-        value: PackageState.Removing,
+        value: 'removing',
       },
     ]
 
@@ -1105,7 +1103,7 @@ export class MockApiService extends ApiService {
         op: PatchOp.REPLACE,
         path: `/packageData/${id}/stateInfo`,
         value: {
-          state: PackageState.Installed,
+          state: 'installed',
           manifest: Mock.LocalPkgs[id].stateInfo.manifest,
         },
       },
@@ -1149,11 +1147,11 @@ export class MockApiService extends ApiService {
     this.mockRevision(patch2)
 
     setTimeout(async () => {
-      const patch3: Operation<ServerStatus>[] = [
+      const patch3: Operation<boolean>[] = [
         {
           op: PatchOp.REPLACE,
-          path: '/serverInfo/status',
-          value: ServerStatus.Updated,
+          path: '/serverInfo/statusInfo/updated',
+          value: true,
         },
         {
           op: PatchOp.REMOVE,
@@ -1167,7 +1165,7 @@ export class MockApiService extends ApiService {
         {
           op: PatchOp.REPLACE,
           path: '/serverInfo/status',
-          value: ServerStatus.Running,
+          value: 'running',
         },
       ]
       this.mockRevision(patch4)

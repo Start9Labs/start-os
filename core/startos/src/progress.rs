@@ -24,7 +24,12 @@ lazy_static::lazy_static! {
 #[serde(untagged)]
 pub enum Progress {
     Complete(bool),
-    Progress { done: u64, total: Option<u64> },
+    Progress {
+        #[ts(type = "number")]
+        done: u64,
+        #[ts(type = "number | null")]
+        total: Option<u64>,
+    },
 }
 impl Progress {
     pub fn new() -> Self {

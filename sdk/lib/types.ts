@@ -1,5 +1,6 @@
 export * as configTypes from "./config/configTypes"
-import { AddSslOptions } from "../../core/startos/bindings/AddSslOptions"
+import { HealthCheckId } from "../../core/startos/bindings/HealthCheckId"
+import { HealthCheckResult } from "../../core/startos/bindings/HealthCheckResult"
 import { MainEffects, ServiceInterfaceType, Signals } from "./StartSdk"
 import { InputSpec } from "./config/configTypes"
 import { DependenciesReceipt } from "./config/setupConfig"
@@ -324,16 +325,13 @@ export type Effects = {
   /** Removes all network bindings */
   clearBindings(): Promise<void>
   /** Creates a host connected to the specified port with the provided options */
-  bind(options: {
-    kind: "static" | "single" | "multi"
-    id: string
-    internalPort: number
-
-    scheme: Scheme
-    preferredExternalPort: number
-    addSsl: AddSslOptions | null
-    secure: { ssl: boolean } | null
-  }): Promise<void>
+  bind(
+    options: {
+      kind: "static" | "single" | "multi"
+      id: string
+      internalPort: number
+    } & BindOptions,
+  ): Promise<void>
   /** Retrieves the current hostname(s) associated with a host id */
   // getHostInfo(options: {
   //   kind: "static" | "single"
@@ -479,11 +477,11 @@ export type Effects = {
     algorithm: "ecdsa" | "ed25519" | null
   }) => Promise<string>
 
-  setHealth(o: {
-    name: string
-    status: HealthStatus
-    message: string | null
-  }): Promise<void>
+  setHealth(
+    o: HealthCheckResult & {
+      id: HealthCheckId
+    },
+  ): Promise<void>
 
   /** Set the dependencies of what the service needs, usually ran during the set config as a best practice */
   setDependencies(options: {
@@ -590,7 +588,7 @@ export type KnownError =
 export type Dependency = {
   id: PackageId
   versionSpec: string
-  url: string
+  registryUrl: string
 } & ({ kind: "exists" } | { kind: "running"; healthChecks: string[] })
 export type Dependencies = Array<Dependency>
 

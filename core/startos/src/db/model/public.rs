@@ -66,10 +66,6 @@ impl Public {
                     selected: None,
                 },
                 unread_notification_count: 0,
-                connection_addresses: ConnectionAddresses {
-                    tor: Vec::new(),
-                    clearnet: Vec::new(),
-                },
                 password_hash: account.password.clone(),
                 pubkey: ssh_key::PublicKey::from(&account.ssh_key)
                     .to_openssh()
@@ -136,8 +132,8 @@ pub struct ServerInfo {
     #[serde(default)]
     pub status_info: ServerStatus,
     pub wifi: WifiInfo,
+    #[ts(type = "number")]
     pub unread_notification_count: u64,
-    pub connection_addresses: ConnectionAddresses,
     pub password_hash: String,
     pub pubkey: String,
     pub ca_fingerprint: String,
@@ -199,7 +195,9 @@ pub struct ServerStatus {
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct UpdateProgress {
+    #[ts(type = "number | null")]
     pub size: Option<u64>,
+    #[ts(type = "number")]
     pub downloaded: u64,
 }
 
@@ -220,12 +218,4 @@ pub struct ServerSpecs {
     pub cpu: String,
     pub disk: String,
     pub memory: String,
-}
-
-#[derive(Debug, Deserialize, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct ConnectionAddresses {
-    pub tor: Vec<String>,
-    pub clearnet: Vec<String>,
 }

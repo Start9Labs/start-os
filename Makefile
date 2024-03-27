@@ -174,8 +174,8 @@ container-runtime/node_modules: container-runtime/package.json container-runtime
 	touch container-runtime/node_modules
 
 core/startos/bindings: $(shell git ls-files core) $(ENVIRONMENT_FILE) $(PLATFORM_FILE)
+	rm -rf core/startos/bindings
 	(cd core/ && cargo test)
-	touch core/startos/bindings
 
 sdk/lib/test: $(shell git ls-files sdk) core/startos/bindings
 	(cd sdk && make test)

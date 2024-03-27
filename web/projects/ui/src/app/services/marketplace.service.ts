@@ -19,7 +19,11 @@ import {
 } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
+import {
+  DataModel,
+  UIMarketplaceData,
+  UIStore,
+} from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import {
   catchError,
@@ -41,7 +45,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
   private readonly knownHosts$: Observable<StoreIdentity[]> = this.patch
     .watch$('ui', 'marketplace', 'knownHosts')
     .pipe(
-      map(hosts => {
+      map((hosts: UIMarketplaceData['knownHosts']) => {
         const { start9, community } = this.config.marketplace
         let arr = [
           toStoreIdentity(start9, hosts[start9]),

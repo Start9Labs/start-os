@@ -18,7 +18,7 @@ import {
 } from 'rxjs'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { DataModel, PackageState } from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { SplitPaneTracker } from 'src/app/services/split-pane.service'
 import { Emver, THEME } from '@start9labs/shared'
 import { ConnectionService } from 'src/app/services/connection.service'
@@ -77,12 +77,10 @@ export class MenuComponent {
         filter(([prev, curr]) =>
           Object.values(prev).some(
             p =>
-              [
-                PackageState.Installing,
-                PackageState.Updating,
-                PackageState.Restoring,
-              ].includes(p.stateInfo.state) &&
-              [PackageState.Installed, PackageState.Removing].includes(
+              ['installing', 'updating', 'restoring'].includes(
+                p.stateInfo.state,
+              ) &&
+              ['installed', 'removing'].includes(
                 curr[getManifest(p).id].stateInfo.state,
               ),
           ),

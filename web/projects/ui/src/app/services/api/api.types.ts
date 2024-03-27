@@ -1,12 +1,11 @@
 import { Dump, Revision } from 'patch-db-client'
-import { Manifest, MarketplacePkg, StoreInfo } from '@start9labs/marketplace'
+import { MarketplacePkg, StoreInfo } from '@start9labs/marketplace'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
-import {
-  DataModel,
-  HealthCheckResult,
-} from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
+import { HealthCheckResult } from '../../../../../../../core/startos/bindings/HealthCheckResult'
+import { Manifest } from '../../../../../../../core/startos/bindings/Manifest'
 
 export module RR {
   // DB

@@ -8,9 +8,8 @@ import { PatchDB } from 'patch-db-client'
 import { QRComponent } from 'src/app/components/qr/qr.component'
 import { map } from 'rxjs'
 import { types as T } from '@start9labs/start-sdk'
-
-type ServiceInterface = T.ServiceInterface
-type ServiceInterfaceWithHostInfo = T.ServiceInterfaceWithHostInfo
+import { ServiceInterface } from '../../../../../../../../core/startos/bindings/ServiceInterface'
+import { ServiceInterfaceWithHostInfo } from '../../../../../../../../core/startos/bindings/ServiceInterfaceWithHostInfo'
 
 type MappedInterface = ServiceInterface & {
   addresses: MappedAddress[]
@@ -109,12 +108,10 @@ function getAddresses(
   const username = addressInfo.username ? addressInfo.username + '@' : ''
   const suffix = addressInfo.suffix || ''
 
-  const hostnames =
-    host.kind === 'multi'
-      ? host.hostnames
-      : host.hostname
+  const hostnames = host.kind === 'multi' ? host.hostnames : [] // TODO: non-multi
+  /* host.hostname
       ? [host.hostname]
-      : []
+      : [] */
 
   const addresses: MappedAddress[] = []
 

@@ -6,11 +6,9 @@ import {
 } from '@angular/core'
 import { PatchDB } from 'patch-db-client'
 import { take } from 'rxjs/operators'
-import {
-  DataModel,
-  PackageMainStatus,
-} from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Observable } from 'rxjs'
+import { MainStatus } from '../../../../../../../../../core/startos/bindings/MainStatus'
 
 @Component({
   selector: 'backing-up',
@@ -32,7 +30,7 @@ export class BackingUpComponent {
   name: 'pkgMainStatus',
 })
 export class PkgMainStatusPipe implements PipeTransform {
-  transform(pkgId: string): Observable<PackageMainStatus> {
+  transform(pkgId: string): Observable<MainStatus['status']> {
     return this.patch.watch$('packageData', pkgId, 'status', 'main', 'status')
   }
 

@@ -7,7 +7,6 @@ import {
 import { AlertController, LoadingController } from '@ionic/angular'
 import {
   AbstractMarketplaceService,
-  Manifest,
   MarketplacePkg,
 } from '@start9labs/marketplace'
 import {

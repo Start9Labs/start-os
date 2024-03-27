@@ -8,8 +8,6 @@ import {
 import {
   DataModel,
   PackageDataEntry,
-  PackageMainStatus,
-  Status,
 } from 'src/app/services/patch-db/data-model'
 import { ErrorToastService } from '@start9labs/shared'
 import { AlertController, LoadingController } from '@ionic/angular'
@@ -22,8 +20,9 @@ import {
   getManifest,
   getAllPackages,
 } from 'src/app/util/get-package-data'
-import { Manifest } from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'
+import { Status } from '../../../../../../../../../../core/startos/bindings/Status'
+import { Manifest } from '../../../../../../../../../../core/startos/bindings/Manifest'
 
 @Component({
   selector: 'app-show-status',
@@ -84,7 +83,7 @@ export class AppShowStatusComponent {
   }
 
   get sigtermTimeout(): string | null {
-    return this.pkgStatus?.main.status === PackageMainStatus.Stopping
+    return this.pkgStatus?.main.status === 'stopping'
       ? this.pkgStatus.main.timeout
       : null
   }

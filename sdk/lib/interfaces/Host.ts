@@ -1,71 +1,58 @@
 import { object, string } from "ts-matches"
 import { Effects } from "../types"
 import { Origin } from "./Origin"
+import { AddSslOptions } from "../../../core/startos/bindings/AddSslOptions"
+import { Security } from "../../../core/startos/bindings/Security"
+import { BindOptions } from "../../../core/startos/bindings/BindOptions"
+import { AlpnInfo } from "../../../core/startos/bindings/AlpnInfo"
+
+export { AddSslOptions, Security, BindOptions }
 
 const knownProtocols = {
   http: {
-    secure: false,
-    ssl: false,
+    secure: null,
     defaultPort: 80,
     withSsl: "https",
+    alpn: { specified: ["http/1.1"] } as AlpnInfo,
   },
   https: {
-    secure: true,
-    ssl: true,
+    secure: { ssl: true },
     defaultPort: 443,
   },
   ws: {
-    secure: false,
-    ssl: false,
+    secure: null,
     defaultPort: 80,
     withSsl: "wss",
+    alpn: { specified: ["http/1.1"] } as AlpnInfo,
   },
   wss: {
-    secure: true,
-    ssl: true,
+    secure: { ssl: true },
     defaultPort: 443,
   },
   ssh: {
-    secure: true,
-    ssl: false,
+    secure: { ssl: false },
     defaultPort: 22,
   },
   bitcoin: {
-    secure: true,
-    ssl: false,
+    secure: { ssl: false },
     defaultPort: 8333,
   },
   lightning: {
-    secure: true,
-    ssl: true,
+    secure: { ssl: true },
     defaultPort: 9735,
   },
   grpc: {
-    secure: true,
-    ssl: true,
+    secure: { ssl: true },
     defaultPort: 50051,
   },
   dns: {
-    secure: true,
-    ssl: false,
+    secure: { ssl: false },
     defaultPort: 53,
   },
 } as const
 
 export type Scheme = string | null
 
-type AddSslOptions = {
-  scheme: Scheme
-  preferredExternalPort: number
-  addXForwardedHeaders: boolean | null /** default: false */
-}
-type Security = { ssl: boolean }
-export type BindOptions = {
-  scheme: Scheme
-  preferredExternalPort: number
-  addSsl: AddSslOptions | null
-  secure: Security | null
-}
 type KnownProtocols = typeof knownProtocols
 type ProtocolsWithSslVariants = {
   [K in keyof KnownProtocols]: KnownProtocols[K] extends {
@@ -177,9 +164,10 @@ export class Host {
     if ("noAddSsl" in options && options.noAddSsl) return null
     if ("withSsl" in protoInfo && protoInfo.withSsl)
       return {
-        addXForwardedHeaders: null,
+        // addXForwardedHeaders: null,
         preferredExternalPort: knownProtocols[protoInfo.withSsl].defaultPort,
         scheme: protoInfo.withSsl,
+        alpn: protoInfo.alpn,
         ...("addSsl" in options ? options.addSsl : null),
       }
     return null

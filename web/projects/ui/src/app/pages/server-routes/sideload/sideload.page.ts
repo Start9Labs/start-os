@@ -4,7 +4,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 import cbor from 'cbor'
 import { ErrorToastService } from '@start9labs/shared'
-import { Manifest } from '@start9labs/marketplace'
+import { Manifest } from '../../../../../../../../core/startos/bindings/Manifest'
 
 interface Positions {
   [key: string]: [bigint, bigint] // [position, length]

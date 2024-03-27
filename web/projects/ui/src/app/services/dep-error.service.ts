@@ -4,11 +4,8 @@ import { distinctUntilChanged, map, shareReplay } from 'rxjs/operators'
 import { PatchDB } from 'patch-db-client'
 import {
   DataModel,
-  HealthResult,
   InstalledState,
   PackageDataEntry,
-  PackageMainStatus,
-  PackageState,
 } from './patch-db/data-model'
 import * as deepEqual from 'fast-deep-equal'
 import { isInstalled } from '../util/get-package-data'
@@ -79,7 +76,7 @@ export class DepErrorService {
     const dep = pkgs[depId]
 
     // not installed
-    if (!dep || dep.stateInfo.state !== PackageState.Installed) {
+    if (!dep || dep.stateInfo.state !== 'installed') {
       return {
         type: DependencyErrorType.NotInstalled,
       }
@@ -107,19 +104,18 @@ export class DepErrorService {
     const depStatus = dep.status.main.status
 
     // not running
-    if (
-      depStatus !== PackageMainStatus.Running &&
-      depStatus !== PackageMainStatus.Starting
-    ) {
+    if (depStatus !== 'running' && depStatus !== 'starting') {
       return {
         type: DependencyErrorType.NotRunning,
       }
     }
 
+    const currentDep = pkg.currentDependencies[depId]
+
     // health check failure
-    if (depStatus === PackageMainStatus.Running) {
-      for (let id of pkg.currentDependencies[depId].healthChecks) {
-        if (dep.status.main.health[id]?.result !== HealthResult.Success) {
+    if (depStatus === 'running' && currentDep.kind === 'running') {
+      for (let id of currentDep.healthChecks) {
+        if (dep.status.main.health[id]?.result !== 'success') {
           return {
             type: DependencyErrorType.HealthChecksFailed,
           }

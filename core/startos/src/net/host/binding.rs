@@ -16,7 +16,7 @@ pub struct BindInfo {
 impl BindInfo {
     pub fn new(available_ports: &mut AvailablePorts, options: BindOptions) -> Result<Self, Error> {
         let mut assigned_lan_port = None;
-        if options.add_ssl.is_some() || options.secure {
+        if options.add_ssl.is_some() || options.secure.is_some() {
             assigned_lan_port = Some(available_ports.alloc()?);
         }
         Ok(Self {
@@ -33,7 +33,7 @@ impl BindInfo {
             mut assigned_lan_port,
             ..
         } = self;
-        if options.add_ssl.is_some() || options.secure {
+        if options.add_ssl.is_some() || options.secure.is_some() {
             assigned_lan_port = if let Some(port) = assigned_lan_port.take() {
                 Some(port)
             } else {
@@ -51,24 +51,30 @@ impl BindInfo {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, TS)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct Security {
+    pub ssl: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct BindOptions {
-    #[ts(type = "string")]
-    pub scheme: InternedString,
+    #[ts(type = "string | null")]
+    pub scheme: Option<InternedString>,
     pub preferred_external_port: u16,
     pub add_ssl: Option<AddSslOptions>,
-    pub secure: bool,
-    pub ssl: bool,
+    pub secure: Option<Security>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct AddSslOptions {
-    #[ts(type = "string")]
-    pub scheme: InternedString,
+    #[ts(type = "string | null")]
+    pub scheme: Option<InternedString>,
     pub preferred_external_port: u16,
     // #[serde(default)]
     // pub add_x_forwarded_headers: bool, // TODO

@@ -11,10 +11,7 @@ import {
 import { PackageProperties } from 'src/app/util/properties.util'
 import { QRComponent } from 'src/app/components/qr/qr.component'
 import { PatchDB } from 'patch-db-client'
-import {
-  DataModel,
-  PackageMainStatus,
-} from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import {
   ErrorToastService,
   getPkgId,
@@ -42,7 +39,7 @@ export class AppPropertiesPage {
 
   stopped$ = this.patch
     .watch$('packageData', this.pkgId, 'status', 'main', 'status')
-    .pipe(map(status => status === PackageMainStatus.Stopped))
+    .pipe(map(status => status === 'stopped'))
 
   @ViewChild(IonBackButtonDelegate, { static: false })
   backButton?: IonBackButtonDelegate

@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { Progress } from 'src/app/services/patch-db/data-model'
+import { Progress } from '../../../../../../../core/startos/bindings/Progress'
 
 @Pipe({
   name: 'installingProgressString',

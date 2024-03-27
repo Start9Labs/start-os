@@ -10,7 +10,6 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   AbstractMarketplaceService,
   Marketplace,
-  Manifest,
   MarketplacePkg,
   StoreIdentity,
 } from '@start9labs/marketplace'
@@ -25,6 +24,7 @@ import {
   isUpdating,
 } from 'src/app/util/get-package-data'
 import { dryUpdate } from 'src/app/util/dry-update'
+import { Manifest } from '../../../../../../../core/startos/bindings/Manifest'
 
 interface UpdatesData {
   hosts: StoreIdentity[]

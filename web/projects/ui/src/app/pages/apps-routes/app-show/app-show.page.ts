@@ -26,7 +26,7 @@ import {
   isRestoring,
   isUpdating,
 } from 'src/app/util/get-package-data'
-import { Manifest } from '@start9labs/marketplace'
+import { Manifest } from '../../../../../../../../core/startos/bindings/Manifest'
 
 export interface DependencyInfo {
   id: string

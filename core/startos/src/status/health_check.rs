@@ -4,33 +4,33 @@ use ts_rs::TS;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
+pub struct HealthCheckResult {
+    pub name: String,
+    #[serde(flatten)]
+    pub kind: HealthCheckResultKind,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "camelCase")]
 #[serde(tag = "result")]
-pub enum HealthCheckResult {
-    Success,
+pub enum HealthCheckResultKind {
+    Success { message: String },
     Disabled,
     Starting,
     Loading { message: String },
-    Failure { error: String },
+    Failure { message: String },
 }
 impl std::fmt::Display for HealthCheckResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            HealthCheckResult::Success => write!(f, "Succeeded"),
-            HealthCheckResult::Disabled => write!(f, "Disabled"),
-            HealthCheckResult::Starting => write!(f, "Starting"),
-            HealthCheckResult::Loading { message } => write!(f, "Loading ({})", message),
-            HealthCheckResult::Failure { error } => write!(f, "Failed ({})", error),
+        let name = &self.name;
+        match &self.kind {
+            HealthCheckResultKind::Success { message } => {
+                write!(f, "{name}: Succeeded ({message})")
+            }
+            HealthCheckResultKind::Disabled => write!(f, "{name}: Disabled"),
+            HealthCheckResultKind::Starting => write!(f, "{name}: Starting"),
+            HealthCheckResultKind::Loading { message } => write!(f, "{name}: Loading ({message})"),
+            HealthCheckResultKind::Failure { message } => write!(f, "{name}: Failed ({message})"),
         }
     }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, ts_rs::TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub enum HealthCheckString {
-    Passing,
-    Disabled,
-    Starting,
-    Warning,
-    Failure,
 }

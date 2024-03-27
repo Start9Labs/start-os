@@ -4,11 +4,10 @@ import {
   InstalledState,
   InstallingState,
   PackageDataEntry,
-  PackageState,
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
 import { firstValueFrom } from 'rxjs'
-import { Manifest } from '@start9labs/marketplace'
+import { Manifest } from '../../../../../../core/startos/bindings/Manifest'
 
 export async function getPackage(
   patch: PatchDB<DataModel>,
@@ -32,29 +31,29 @@ export function getManifest(pkg: PackageDataEntry): Manifest {
 export function isInstalled(
   pkg: PackageDataEntry,
 ): pkg is PackageDataEntry<InstalledState> {
-  return pkg.stateInfo.state === PackageState.Installed
+  return pkg.stateInfo.state === 'installed'
 }
 
 export function isRemoving(
   pkg: PackageDataEntry,
 ): pkg is PackageDataEntry<InstalledState> {
-  return pkg.stateInfo.state === PackageState.Removing
+  return pkg.stateInfo.state === 'removing'
 }
 
 export function isInstalling(
   pkg: PackageDataEntry,
 ): pkg is PackageDataEntry<InstallingState> {
-  return pkg.stateInfo.state === PackageState.Installing
+  return pkg.stateInfo.state === 'installing'
 }
 
 export function isRestoring(
   pkg: PackageDataEntry,
 ): pkg is PackageDataEntry<InstallingState> {
-  return pkg.stateInfo.state === PackageState.Restoring
+  return pkg.stateInfo.state === 'restoring'
 }
 
 export function isUpdating(
   pkg: PackageDataEntry,
 ): pkg is PackageDataEntry<UpdatingState> {
-  return pkg.stateInfo.state === PackageState.Updating
+  return pkg.stateInfo.state === 'updating'
 }

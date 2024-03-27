@@ -1,11 +1,8 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import {
-  MainStatus,
-  PackageDataEntry,
-  PackageMainStatus,
-} from 'src/app/services/patch-db/data-model'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PkgInfo } from 'src/app/util/get-package-info'
 import { UiLauncherService } from 'src/app/services/ui-launcher.service'
+import { MainStatus } from '../../../../../../../../../core/startos/bindings/MainStatus'
 
 @Component({
   selector: 'app-list-pkg',
@@ -21,13 +18,13 @@ export class AppListPkgComponent {
   get pkgMainStatus(): MainStatus {
     return (
       this.pkg.entry.status.main || {
-        status: PackageMainStatus.Stopped,
+        status: 'stopped',
       }
     )
   }
 
   get sigtermTimeout(): string | null {
-    return this.pkgMainStatus.status === PackageMainStatus.Stopping
+    return this.pkgMainStatus.status === 'stopping'
       ? this.pkgMainStatus.timeout
       : null
   }
