@@ -1,4 +1,3 @@
-import { NgIf } from '@angular/common'
 import { Component, inject, Input } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import {
@@ -27,17 +26,17 @@ import {
   TuiProgressModule,
 } from '@taiga-ui/kit'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
+import { PatchDB } from 'patch-db-client'
+import { InstallingProgressPipe } from 'src/app/apps/portal/routes/service/pipes/install-progress.pipe'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   DataModel,
   InstalledState,
   PackageDataEntry,
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
-import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { hasCurrentDeps } from 'src/app/util/has-deps'
-import { InstallingProgressPipe } from '../../../service/pipes/install-progress.pipe'
-import { PatchDB } from 'patch-db-client'
 import { getAllPackages } from 'src/app/util/get-package-data'
+import { hasCurrentDeps } from 'src/app/util/has-deps'
 
 @Component({
   selector: 'updates-item',
@@ -56,29 +55,30 @@ import { getAllPackages } from 'src/app/util/get-package-data'
           </div>
           <div [style.color]="'var(--tui-negative)'">{{ errors }}</div>
         </div>
-        <tui-progress-circle
-          *ngIf="localPkg.stateInfo.state === 'updating'; else button"
-          style="color: var(--tui-positive)"
-          [max]="100"
-          [value]="
-            (localPkg.stateInfo.installingInfo.progress.overall
-              | installingProgress) || 0
-          "
-        />
-        <ng-template #button>
-          <button
-            *ngIf="ready; else queued"
-            tuiButton
+        @if (localPkg.stateInfo.state === 'updating') {
+          <tui-progress-circle
+            class="g-success"
             size="s"
-            [appearance]="errors ? 'secondary-destructive' : 'primary'"
-            (click.stop)="onClick()"
-          >
-            {{ errors ? 'Retry' : 'Update' }}
-          </button>
-        </ng-template>
-        <ng-template #queued>
-          <tui-loader [style.width.rem]="2" [inheritColor]="true" />
-        </ng-template>
+            [max]="1"
+            [value]="
+              (localPkg.stateInfo.installingInfo.progress.overall
+                | installingProgress) || 0
+            "
+          />
+        } @else {
+          @if (ready) {
+            <button
+              tuiButton
+              size="s"
+              [appearance]="errors ? 'destructive' : 'primary'"
+              (click.stop)="onClick()"
+            >
+              {{ errors ? 'Retry' : 'Update' }}
+            </button>
+          } @else {
+            <tui-loader [style.width.rem]="2" [inheritColor]="true" />
+          }
+        }
       </div>
       <ng-template tuiAccordionItemContent>
         <strong>What's new</strong>
@@ -114,7 +114,6 @@ import { getAllPackages } from 'src/app/util/get-package-data'
   ],
   standalone: true,
   imports: [
-    NgIf,
     RouterLink,
     EmverPipesModule,
     MarkdownPipeModule,

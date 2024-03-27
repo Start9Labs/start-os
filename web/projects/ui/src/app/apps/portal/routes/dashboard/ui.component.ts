@@ -43,17 +43,15 @@ import {
         </ng-template>
       </tui-hosted-dropdown>
     } @else {
-      @if (interfaces[0]; as info) {
-        <a
-          tuiIconButton
-          iconLeft="tuiIconExternalLink"
-          target="_blank"
-          rel="noreferrer"
-          [attr.href]="getHref(info)"
-        >
-          {{ info.name }}
-        </a>
-      }
+      <a
+        tuiIconButton
+        iconLeft="tuiIconExternalLink"
+        target="_blank"
+        rel="noreferrer"
+        [attr.href]="getHref(interfaces[0])"
+      >
+        {{ interfaces[0]?.name }}
+      </a>
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

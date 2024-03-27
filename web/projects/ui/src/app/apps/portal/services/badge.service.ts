@@ -42,9 +42,12 @@ export class BadgeService {
         pairwise(),
         filter(([prev, curr]) =>
           Object.values(prev).some(p => {
-            const id = getManifest(p).id
-            !curr[id] ||
+            const { id } = getManifest(p)
+
+            return (
+              !curr[id] ||
               (p.stateInfo.installingInfo && !curr[id].stateInfo.installingInfo)
+            )
           }),
         ),
         map(([_, curr]) => curr),
@@ -73,7 +76,6 @@ export class BadgeService {
           new Set<string>(),
         ).size,
     ),
-    // @TODO-Alex shareReplay is preventing the badge from decrementing
     shareReplay(1),
   )
 

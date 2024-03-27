@@ -16,7 +16,7 @@ import { ToManifestPipe } from '../../pipes/to-manifest'
           <th [style.width.rem]="3"></th>
           <th>Name</th>
           <th>Version</th>
-          <th [style.width.rem]="12">Status</th>
+          <th [style.width.rem]="13">Status</th>
           <th [style.width.rem]="8" [style.text-align]="'center'">Controls</th>
         </tr>
       </thead>

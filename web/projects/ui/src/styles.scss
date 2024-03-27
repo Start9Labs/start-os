@@ -523,19 +523,19 @@ button.g-action {
   overflow: auto !important;
 }
 
-.g-success {
+.g-success.g-success {
   color: var(--tui-success-fill);
 }
 
-.g-warning {
+.g-warning.g-warning {
   color: var(--tui-warning-fill);
 }
 
-.g-error {
+.g-error.g-error {
   color: var(--tui-error-fill);
 }
 
-.g-info {
+.g-info.g-info {
   color: var(--tui-info-fill);
 }
 
