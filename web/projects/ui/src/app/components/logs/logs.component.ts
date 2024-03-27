@@ -78,7 +78,7 @@ export class LogsComponent {
   async ngOnInit() {
     from(this.followLogs({ limit: this.limit }))
       .pipe(
-        switchMap(({ 'start-cursor': startCursor, guid }) => {
+        switchMap(({ startCursor, guid }) => {
           this.startCursor = startCursor
           return this.connect$(guid)
         }),
@@ -206,7 +206,7 @@ export class LogsComponent {
   }
 
   private processRes(res: LogsRes) {
-    const { entries, 'start-cursor': startCursor } = res
+    const { entries, startCursor } = res
 
     if (!entries.length) return
 

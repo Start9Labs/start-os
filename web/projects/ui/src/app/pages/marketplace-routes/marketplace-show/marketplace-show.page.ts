@@ -20,7 +20,7 @@ export class MarketplaceShowPage {
   readonly loadVersion$ = new BehaviorSubject<string>('*')
 
   readonly localPkg$ = this.patch
-    .watch$('package-data', this.pkgId)
+    .watch$('packageData', this.pkgId)
     .pipe(filter(Boolean), shareReplay({ bufferSize: 1, refCount: true }))
 
   readonly pkg$ = this.loadVersion$.pipe(

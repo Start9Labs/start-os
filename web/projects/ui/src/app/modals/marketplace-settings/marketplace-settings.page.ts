@@ -200,7 +200,7 @@ export class MarketplaceSettingsPage {
   ): Promise<void> {
     // Error on duplicates
     const hosts = await firstValueFrom(
-      this.patch.watch$('ui', 'marketplace', 'known-hosts'),
+      this.patch.watch$('ui', 'marketplace', 'knownHosts'),
     )
     const currentUrls = Object.keys(hosts).map(toUrl)
     if (currentUrls.includes(url)) throw new Error('marketplace already added')
@@ -217,7 +217,7 @@ export class MarketplaceSettingsPage {
     loader.message = 'Saving...'
 
     await this.api.setDbValue<{ name: string }>(
-      ['marketplace', 'known-hosts', url],
+      ['marketplace', 'knownHosts', url],
       { name },
     )
   }
@@ -229,7 +229,7 @@ export class MarketplaceSettingsPage {
     await loader.present()
 
     const hosts = await firstValueFrom(
-      this.patch.watch$('ui', 'marketplace', 'known-hosts'),
+      this.patch.watch$('ui', 'marketplace', 'knownHosts'),
     )
 
     const filtered: { [url: string]: UIStore } = Object.keys(hosts)
@@ -244,7 +244,7 @@ export class MarketplaceSettingsPage {
 
     try {
       await this.api.setDbValue<{ [url: string]: UIStore }>(
-        ['marketplace', 'known-hosts'],
+        ['marketplace', 'knownHosts'],
         filtered,
       )
     } catch (e: any) {

@@ -49,7 +49,7 @@ export class LogsPage {
 
   private async getLogs() {
     try {
-      const { 'start-cursor': startCursor, entries } = await this.api.getLogs({
+      const { startCursor, entries } = await this.api.getLogs({
         cursor: this.startCursor,
         before: !!this.startCursor,
         limit: this.limit,

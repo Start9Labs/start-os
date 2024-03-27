@@ -8,21 +8,13 @@
 >
   {{ (connected$ | async) ? rendering.display : 'Unknown' }}
 
-  <span
-    *ngIf="
-      rendering.display === PR[PS.Stopping].display &&
-      (sigtermTimeout | durationToSeconds) > 30
-    "
-  >
-    this may take a while
+  <span *ngIf="sigtermTimeout && (sigtermTimeout | durationToSeconds) > 30">
+    . This may take a while
   </span>
 
-  <span *ngIf="installProgress">
-    <ion-text
-      *ngIf="installProgress | installProgressDisplay as progress"
-      color="primary"
-    >
-      {{ progress }}
+  <span *ngIf="installingInfo">
+    <ion-text color="primary">
+      {{ installingInfo.progress.overall | installingProgressString }}
     </ion-text>
   </span>
 

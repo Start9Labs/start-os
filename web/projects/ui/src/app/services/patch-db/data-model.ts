@@ -1,25 +1,25 @@
-import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { Url } from '@start9labs/shared'
-import { MarketplaceManifest } from '@start9labs/marketplace'
-import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-info'
+import { Manifest } from '@start9labs/marketplace'
+import { types } from '@start9labs/start-sdk'
+import { ActionMetadata } from '@start9labs/start-sdk/cjs/sdk/lib/types'
+type ServiceInterfaceWithHostInfo = types.ServiceInterfaceWithHostInfo
 
 export interface DataModel {
-  'server-info': ServerInfo
-  'package-data': { [id: string]: PackageDataEntry }
+  serverInfo: ServerInfo
+  packageData: { [id: string]: PackageDataEntry }
   ui: UIData
 }
 
 export interface UIData {
   name: string | null
-  'ack-welcome': string // eOS emver
+  ackWelcome: string // eOS emver
   marketplace: UIMarketplaceData
-  dev: DevData
   gaming: {
     snake: {
-      'high-score': number
+      highScore: number
     }
   }
-  'ack-instructions': Record<string, boolean>
+  ackInstructions: Record<string, boolean>
   theme: string
   widgets: readonly Widget[]
 }
@@ -38,8 +38,8 @@ export interface Widget {
 }
 
 export interface UIMarketplaceData {
-  'selected-url': string
-  'known-hosts': {
+  selectedUrl: string
+  knownHosts: {
     'https://registry.start9.com/': UIStore
     'https://community-registry.start9.com/': UIStore
     [url: string]: UIStore
@@ -50,34 +50,22 @@ export interface UIStore {
   name?: string
 }
 
-export interface DevData {
-  [id: string]: DevProjectData
-}
-
-export interface DevProjectData {
-  name: string
-  instructions: string
-  config: string
-  'basic-info'?: BasicInfo
-}
-
 export interface ServerInfo {
   id: string
   version: string
-  'last-backup': string | null
-  'lan-address': Url
-  'tor-address': Url
-  'ip-info': IpInfo
-  'last-wifi-region': string | null
-  'unread-notification-count': number
-  'status-info': ServerStatusInfo
-  'eos-version-compat': string
-  'password-hash': string
+  lastBackup: string | null
+  lanAddress: Url
+  torAddress: Url
+  ipInfo: IpInfo
+  lastWifiRegion: string | null
+  unreadNotificationCount: number
+  statusInfo: ServerStatusInfo
+  eosVersionCompat: string
+  passwordHash: string
   hostname: string
   pubkey: string
-  'ca-fingerprint': string
-  'ntp-synced': boolean
-  zram: boolean
+  caFingerprint: string
+  ntpSynced: boolean
   platform: string
 }
 
@@ -89,15 +77,15 @@ export interface IpInfo {
 }
 
 export interface ServerStatusInfo {
-  'backup-progress': null | {
+  backupProgress: null | {
     [packageId: string]: {
       complete: boolean
     }
   }
   updated: boolean
-  'update-progress': { size: number | null; downloaded: number } | null
+  updateProgress: { size: number | null; downloaded: number } | null
   restarting: boolean
-  'shutting-down': boolean
+  shuttingDown: boolean
 }
 
 export enum ServerStatus {
@@ -106,16 +94,36 @@ export enum ServerStatus {
   BackingUp = 'backing-up',
 }
 
-export interface PackageDataEntry {
-  state: PackageState
-  'static-files': {
-    license: Url
-    instructions: Url
-    icon: Url
-  }
+export type PackageDataEntry<T extends StateInfo = StateInfo> = {
+  stateInfo: T
+  icon: Url
+  status: Status
+  actions: Record<string, ActionMetadata>
+  lastBackup: string | null
+  currentDependencies: Record<string, CurrentDependencyInfo>
+  serviceInterfaces: Record<string, ServiceInterfaceWithHostInfo>
+  marketplaceUrl: string | null
+  developerKey: string
+}
+
+export type StateInfo = InstalledState | InstallingState | UpdatingState
+
+export type InstalledState = {
+  state: PackageState.Installed | PackageState.Removing
   manifest: Manifest
-  installed?: InstalledPackageDataEntry // exists when: installed, updating
-  'install-progress'?: InstallProgress // exists when: installing, updating
+  installingInfo?: undefined
+}
+
+export type InstallingState = {
+  state: PackageState.Installing | PackageState.Restoring
+  installingInfo: InstallingInfo
+  manifest?: undefined
+}
+
+export type UpdatingState = {
+  state: PackageState.Updating
+  installingInfo: InstallingInfo
+  manifest: Manifest
 }
 
 export enum PackageState {
@@ -126,161 +134,19 @@ export enum PackageState {
   Restoring = 'restoring',
 }
 
-export interface InstalledPackageDataEntry {
-  status: Status
-  manifest: Manifest
-  'last-backup': string | null
-  'system-pointers': any[]
-  'current-dependents': { [id: string]: CurrentDependencyInfo }
-  'current-dependencies': { [id: string]: CurrentDependencyInfo }
-  'dependency-info': {
-    [id: string]: {
-      title: string
-      icon: Url
-    }
-  }
-  'interface-addresses': {
-    [id: string]: { 'tor-address': string; 'lan-address': string }
-  }
-  'marketplace-url': string | null
-  'developer-key': string
-}
-
 export interface CurrentDependencyInfo {
-  pointers: any[]
-  'health-checks': string[] // array of health check IDs
-}
-
-export interface Manifest extends MarketplaceManifest<DependencyConfig | null> {
-  assets: {
-    license: string // filename
-    instructions: string // filename
-    icon: string // filename
-    docker_images: string // filename
-    assets: string // path to assets folder
-    scripts: string // path to scripts folder
-  }
-  main: ActionImpl
-  'health-checks': Record<
-    string,
-    ActionImpl & { name: string; 'success-message': string | null }
-  >
-  config: ConfigActions | null
-  volumes: Record<string, Volume>
-  'min-os-version': string
-  interfaces: Record<string, InterfaceDef>
-  backup: BackupActions
-  migrations: Migrations | null
-  actions: Record<string, Action>
-}
-
-export interface DependencyConfig {
-  check: ActionImpl
-  'auto-configure': ActionImpl
-}
-
-export interface ActionImpl {
-  type: 'docker'
-  image: string
-  system: boolean
-  entrypoint: string
-  args: string[]
-  mounts: { [id: string]: string }
-  'io-format': DockerIoFormat | null
-  inject: boolean
-  'shm-size': string
-  'sigterm-timeout': string | null
-}
-
-export enum DockerIoFormat {
-  Json = 'json',
-  Yaml = 'yaml',
-  Cbor = 'cbor',
-  Toml = 'toml',
-}
-
-export interface ConfigActions {
-  get: ActionImpl | null
-  set: ActionImpl | null
-}
-
-export type Volume = VolumeData
-
-export interface VolumeData {
-  type: VolumeType.Data
-  readonly: boolean
-}
-
-export interface VolumeAssets {
-  type: VolumeType.Assets
-}
-
-export interface VolumePointer {
-  type: VolumeType.Pointer
-  'package-id': string
-  'volume-id': string
-  path: string
-  readonly: boolean
-}
-
-export interface VolumeCertificate {
-  type: VolumeType.Certificate
-  'interface-id': string
-}
-
-export interface VolumeBackup {
-  type: VolumeType.Backup
-  readonly: boolean
-}
-
-export enum VolumeType {
-  Data = 'data',
-  Assets = 'assets',
-  Pointer = 'pointer',
-  Certificate = 'certificate',
-  Backup = 'backup',
-}
-
-export interface InterfaceDef {
-  name: string
-  description: string
-  'tor-config': TorConfig | null
-  'lan-config': LanConfig | null
-  ui: boolean
-  protocols: string[]
-}
-
-export interface TorConfig {
-  'port-mapping': { [port: number]: number }
-}
-
-export type LanConfig = {
-  [port: number]: { ssl: boolean; mapping: number }
-}
-
-export interface BackupActions {
-  create: ActionImpl
-  restore: ActionImpl
-}
-
-export interface Migrations {
-  from: { [versionRange: string]: ActionImpl }
-  to: { [versionRange: string]: ActionImpl }
-}
-
-export interface Action {
-  name: string
-  description: string
-  warning: string | null
-  implementation: ActionImpl
-  'allowed-statuses': (PackageMainStatus.Stopped | PackageMainStatus.Running)[]
-  'input-spec': ConfigSpec | null
+  title: string
+  icon: string
+  kind: 'exists' | 'running'
+  registryUrl: string
+  versionSpec: string
+  healthChecks: string[] // array of health check IDs
 }
 
 export interface Status {
   configured: boolean
   main: MainStatus
-  'dependency-config-errors': { [id: string]: string | null }
+  dependencyConfigErrors: { [id: string]: string | null }
 }
 
 export type MainStatus =
@@ -297,6 +163,7 @@ export interface MainStatusStopped {
 
 export interface MainStatusStopping {
   status: PackageMainStatus.Stopping
+  timeout: string
 }
 
 export interface MainStatusStarting {
@@ -307,7 +174,7 @@ export interface MainStatusStarting {
 export interface MainStatusRunning {
   status: PackageMainStatus.Running
   started: string // UTC date string
-  health: { [id: string]: HealthCheckResult }
+  health: Record<string, HealthCheckResult>
 }
 
 export interface MainStatusBackingUp {
@@ -328,12 +195,13 @@ export enum PackageMainStatus {
   Restarting = 'restarting',
 }
 
-export type HealthCheckResult =
+export type HealthCheckResult = { name: string } & (
   | HealthCheckResultStarting
   | HealthCheckResultLoading
   | HealthCheckResultDisabled
   | HealthCheckResultSuccess
   | HealthCheckResultFailure
+)
 
 export enum HealthResult {
   Starting = 'starting',
@@ -353,6 +221,7 @@ export interface HealthCheckResultDisabled {
 
 export interface HealthCheckResultSuccess {
   result: HealthResult.Success
+  message: string
 }
 
 export interface HealthCheckResultLoading {
@@ -362,15 +231,16 @@ export interface HealthCheckResultLoading {
 
 export interface HealthCheckResultFailure {
   result: HealthResult.Failure
-  error: string
+  message: string
 }
 
-export interface InstallProgress {
-  readonly size: number | null
-  readonly downloaded: number
-  readonly 'download-complete': boolean
-  readonly validated: number
-  readonly 'validation-complete': boolean
-  readonly unpacked: number
-  readonly 'unpack-complete': boolean
+export type InstallingInfo = {
+  progress: FullProgress
+  newManifest: Manifest
 }
+
+export type FullProgress = {
+  overall: Progress
+  phases: { name: string; progress: Progress }[]
+}
+export type Progress = boolean | { done: number; total: number | null } // false means indeterminate. true means complete

@@ -1,12 +1,15 @@
 import { DOCUMENT } from '@angular/common'
 import { Inject, Injectable } from '@angular/core'
 import { WorkspaceConfig } from '@start9labs/shared'
+import { types } from '@start9labs/start-sdk'
 import {
-  InterfaceDef,
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
+
+type HostnameInfoIp = types.HostnameInfoIp
+type HostnameInfoOnion = types.HostnameInfoOnion
 
 const {
   gitHash,
@@ -45,10 +48,6 @@ export class ConfigService {
       : this.hostname.endsWith('.local')
   }
 
-  isTorHttp(): boolean {
-    return this.isTor() && !this.isHttps()
-  }
-
   isLanHttp(): boolean {
     return !this.isTor() && !this.isLocalhost() && !this.isHttps()
   }
@@ -57,24 +56,58 @@ export class ConfigService {
     return window.isSecureContext || this.isTor()
   }
 
-  isLaunchable(
-    state: PackageState,
-    status: PackageMainStatus,
-    interfaces: Record<string, InterfaceDef>,
-  ): boolean {
+  isLaunchable(state: PackageState, status: PackageMainStatus): boolean {
     return (
-      state === PackageState.Installed &&
-      status === PackageMainStatus.Running &&
-      hasUi(interfaces)
+      state === PackageState.Installed && status === PackageMainStatus.Running
     )
   }
 
-  launchableURL(pkg: PackageDataEntry): string {
-    if (!this.isTor() && hasLocalUi(pkg.manifest.interfaces)) {
-      return `https://${lanUiAddress(pkg)}`
+  /** ${scheme}://${username}@${host}:${externalPort}${suffix} */
+  launchableAddress(interfaces: PackageDataEntry['serviceInterfaces']): string {
+    const ui = Object.values(interfaces).find(i => i.type === 'ui')
+
+    if (!ui) return ''
+
+    const host = ui.hostInfo
+    const addressInfo = ui.addressInfo
+    const scheme = this.isHttps() ? 'https' : 'http'
+    const username = addressInfo.username ? addressInfo.username + '@' : ''
+    const suffix = addressInfo.suffix || ''
+    const url = new URL(`${scheme}://${username}placeholder${suffix}`)
+
+    if (host.kind === 'multi') {
+      const onionHostname = host.hostnames.find(
+        (h: any) => h.kind === 'onion',
+      ) as HostnameInfoOnion
+
+      if (this.isTor() && onionHostname) {
+        url.hostname = onionHostname.hostname.value
+      } else {
+        const ipHostname = host.hostnames.find(
+          (h: any) => h.kind === 'ip',
+        ) as HostnameInfoIp
+
+        if (!ipHostname) return ''
+
+        url.hostname = this.hostname
+        url.port = String(
+          ipHostname.hostname.sslPort || ipHostname.hostname.port,
+        )
+      }
     } else {
-      return `http://${torUiAddress(pkg)}`
+      const hostname = host.hostname
+
+      if (!hostname) return ''
+
+      if (this.isTor() && hostname.kind === 'onion') {
+        url.hostname = hostname.hostname.value
+      } else {
+        url.hostname = this.hostname
+        url.port = String(hostname.hostname.sslPort || hostname.hostname.port)
+      }
     }
+
+    return url.href
   }
 
   getHost(): string {
@@ -92,54 +125,8 @@ export class ConfigService {
   }
 }
 
-export function hasTorUi(interfaces: Record<string, InterfaceDef>): boolean {
-  const int = getUiInterfaceValue(interfaces)
-  return !!int?.['tor-config']
-}
-
-export function hasLocalUi(interfaces: Record<string, InterfaceDef>): boolean {
-  const int = getUiInterfaceValue(interfaces)
-  return !!int?.['lan-config']
-}
-
-export function torUiAddress({
-  manifest,
-  installed,
-}: PackageDataEntry): string {
-  const key = getUiInterfaceKey(manifest.interfaces)
-  return installed ? installed['interface-addresses'][key]['tor-address'] : ''
-}
-
-export function lanUiAddress({
-  manifest,
-  installed,
-}: PackageDataEntry): string {
-  const key = getUiInterfaceKey(manifest.interfaces)
-  return installed ? installed['interface-addresses'][key]['lan-address'] : ''
-}
-
-export function hasUi(interfaces: Record<string, InterfaceDef>): boolean {
-  return hasTorUi(interfaces) || hasLocalUi(interfaces)
-}
-
-export function removeProtocol(str: string): string {
-  if (str.startsWith('http://')) return str.slice(7)
-  if (str.startsWith('https://')) return str.slice(8)
-  return str
-}
-
-export function removePort(str: string): string {
-  return str.split(':')[0]
-}
-
-export function getUiInterfaceKey(
-  interfaces: Record<string, InterfaceDef>,
-): string {
-  return Object.keys(interfaces).find(key => interfaces[key].ui) || ''
-}
-
-export function getUiInterfaceValue(
-  interfaces: Record<string, InterfaceDef>,
-): InterfaceDef | null {
-  return Object.values(interfaces).find(i => i.ui) || null
+export function hasUi(
+  interfaces: PackageDataEntry['serviceInterfaces'],
+): boolean {
+  return Object.values(interfaces).some(iface => iface.type === 'ui')
 }

@@ -84,9 +84,7 @@ export class ServerBackupPage {
       buttonText: 'Create Backup',
       submitFn: async (password: string) => {
         // confirm password matches current master password
-        const { 'password-hash': passwordHash } = await getServerInfo(
-          this.patch,
-        )
+        const { passwordHash } = await getServerInfo(this.patch)
         argon2.verify(passwordHash, password)
 
         // first time backup
@@ -95,8 +93,7 @@ export class ServerBackupPage {
           // existing backup
         } else {
           try {
-            const passwordHash =
-              target.entry['embassy-os']?.['password-hash'] || ''
+            const passwordHash = target.entry.startOs?.passwordHash || ''
 
             argon2.verify(passwordHash, password)
           } catch {
@@ -133,7 +130,7 @@ export class ServerBackupPage {
       useMask: true,
       buttonText: 'Create Backup',
       submitFn: async (oldPassword: string) => {
-        const passwordHash = target.entry['embassy-os']?.['password-hash'] || ''
+        const passwordHash = target.entry.startOs?.passwordHash || ''
 
         argon2.verify(passwordHash, oldPassword)
         await this.createBackup(target, password, oldPassword)
@@ -161,9 +158,9 @@ export class ServerBackupPage {
 
     try {
       await this.embassyApi.createBackup({
-        'target-id': target.id,
-        'package-ids': this.serviceIds,
-        'old-password': oldPassword || null,
+        targetId: target.id,
+        packageIds: this.serviceIds,
+        oldPassword: oldPassword || null,
         password,
       })
     } finally {

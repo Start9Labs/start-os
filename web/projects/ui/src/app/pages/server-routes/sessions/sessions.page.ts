@@ -35,8 +35,7 @@ export class SessionsPage {
         })
         .sort((a, b) => {
           return (
-            new Date(b['last-active']).valueOf() -
-            new Date(a['last-active']).valueOf()
+            new Date(b.lastActive).valueOf() - new Date(a.lastActive).valueOf()
           )
         })
     } catch (e: any) {

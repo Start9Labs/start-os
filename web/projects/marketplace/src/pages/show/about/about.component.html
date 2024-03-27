@@ -4,7 +4,7 @@
 </ion-item-divider>
 <ion-item lines="none" color="transparent">
   <ion-label>
-    <div [innerHTML]="pkg.manifest['release-notes'] | markdown"></div>
+    <div [innerHTML]="pkg.manifest.releaseNotes | markdown"></div>
   </ion-label>
 </ion-item>
 <ion-button routerLink="notes" fill="clear" strong>
@@ -18,10 +18,7 @@
     <h2>{{ pkg.manifest.description.long }}</h2>
   </ion-label>
 </ion-item>
-<div
-  *ngIf="pkg.manifest['marketing-site'] as url"
-  style="padding: 4px 0 10px 14px"
->
+<div *ngIf="pkg.manifest.marketingSite as url" style="padding: 4px 0 10px 14px">
   <ion-button [href]="url" target="_blank" rel="noreferrer" color="tertiary">
     View website
     <ion-icon slot="end" name="open-outline"></ion-icon>

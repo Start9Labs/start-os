@@ -16,7 +16,7 @@
   <!-- loaded -->
   <ion-item-group *ngIf="server$ | async as server; else loading">
     <ion-item
-      *ngIf="!server['ntp-synced']"
+      *ngIf="!server.ntpSynced"
       color="warning"
       class="ion-margin-bottom"
     >
@@ -36,27 +36,6 @@
         rel="noreferrer"
       >
         Open Docs
-        <ion-icon slot="end" name="open-outline"></ion-icon>
-      </ion-button>
-    </ion-item>
-
-    <ion-item *ngIf="isTorHttp" color="warning" class="ion-margin-bottom">
-      <ion-icon slot="start" name="warning-outline"></ion-icon>
-      <ion-label>
-        <h2 style="font-weight: bold">Http detected</h2>
-        <p style="font-weight: 600">
-          Tor is faster over https.
-          <a
-            [routerLink]="['/system', 'root-ca']"
-            style="color: var(--ion-color-light)"
-          >
-            Download and trust your server's Root CA
-          </a>
-          , then switch to https.
-        </p>
-      </ion-label>
-      <ion-button slot="end" color="light" (click)="launchHttps()">
-        Open Https
         <ion-icon slot="end" name="open-outline"></ion-icon>
       </ion-button>
     </ion-item>
@@ -83,15 +62,15 @@
 
           <!-- "Create Backup" button only -->
           <p *ngIf="button.title === 'Create Backup'">
-            <ng-container *ngIf="server['status-info'] as statusInfo">
+            <ng-container *ngIf="server.statusInfo as statusInfo">
               <ion-text
-                [color]="server['last-backup'] | backupColor"
-                *ngIf="!statusInfo['backup-progress'] && !statusInfo['update-progress']"
+                [color]="server.lastBackup | backupColor"
+                *ngIf="!statusInfo.backupProgress && !statusInfo.updateProgress"
               >
-                Last Backup: {{ server['last-backup'] ? (server['last-backup'] |
-                date: 'medium') : 'never' }}
+                Last Backup: {{ server.lastBackup ? (server.lastBackup | date:
+                'medium') : 'never' }}
               </ion-text>
-              <span *ngIf="!!statusInfo['backup-progress']" class="inline">
+              <span *ngIf="!!statusInfo.backupProgress" class="inline">
                 <ion-spinner
                   color="success"
                   style="height: 12px; width: 12px; margin-right: 6px"
@@ -103,7 +82,7 @@
           <!-- "Software Update" button only -->
           <p *ngIf="button.title === 'Software Update'">
             <ion-text
-              *ngIf="server['status-info'].updated; else notUpdated"
+              *ngIf="server.statusInfo.updated; else notUpdated"
               class="inline"
               color="warning"
             >

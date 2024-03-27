@@ -52,10 +52,8 @@
         ></ion-icon>
         <ion-label>
           <h1>{{ getPlatformName(currentSession.metadata.platforms) }}</h1>
-          <h2>
-            Last Active: {{ currentSession['last-active'] | date : 'medium' }}
-          </h2>
-          <p>{{ currentSession['user-agent'] }}</p>
+          <h2>Last Active: {{ currentSession.lastActive| date : 'medium' }}</h2>
+          <p>{{ currentSession.userAgent }}</p>
         </ion-label>
       </ion-item>
 
@@ -80,8 +78,8 @@
           ></ion-icon>
           <ion-label>
             <h1>{{ getPlatformName(session.metadata.platforms) }}</h1>
-            <h2>Last Active: {{ session['last-active'] | date : 'medium' }}</h2>
-            <p>{{ session['user-agent'] }}</p>
+            <h2>Last Active: {{ session.lastActive | date : 'medium' }}</h2>
+            <p>{{ session.userAgent }}</p>
           </ion-label>
           <ion-button
             slot="end"

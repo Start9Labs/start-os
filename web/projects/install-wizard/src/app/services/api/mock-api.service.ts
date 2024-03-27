@@ -17,12 +17,12 @@ export class MockApiService implements ApiService {
             label: null,
             capacity: 73264762332,
             used: null,
-            'embassy-os': {
+            startOs: {
               version: '0.2.17',
               full: true,
-              'password-hash':
+              passwordHash:
                 '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-              'wrapped-key': null,
+              wrappedKey: null,
             },
             guid: null,
           },
@@ -40,12 +40,12 @@ export class MockApiService implements ApiService {
             label: null,
             capacity: 73264762332,
             used: null,
-            'embassy-os': {
+            startOs: {
               version: '0.3.3',
               full: true,
-              'password-hash':
+              passwordHash:
                 '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-              'wrapped-key': null,
+              wrappedKey: null,
             },
             guid: null,
           },
@@ -63,12 +63,12 @@ export class MockApiService implements ApiService {
             label: null,
             capacity: 73264762332,
             used: null,
-            'embassy-os': {
+            startOs: {
               version: '0.3.2',
               full: true,
-              'password-hash':
+              passwordHash:
                 '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-              'wrapped-key': null,
+              wrappedKey: null,
             },
             guid: 'guid-guid-guid-guid',
           },

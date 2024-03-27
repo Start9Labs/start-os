@@ -4,7 +4,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use clap::ArgMatches;
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::{FutureExt, TryStreamExt};
@@ -12,8 +12,9 @@ use helpers::NonDetachingJoinHandle;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
-use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{command, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
 use tokio::net::TcpStream;
 use tokio::process::Command;
 use tokio::sync::{mpsc, oneshot};
@@ -27,12 +28,43 @@ use crate::logs::{
     cli_logs_generic_follow, cli_logs_generic_nofollow, fetch_logs, follow_logs, journalctl,
     LogFollowResponse, LogResponse, LogSource,
 };
-use crate::util::serde::{display_serializable, IoFormat};
-use crate::util::{display_none, Invoke};
-use crate::{Error, ErrorKind, ResultExt as _};
+use crate::prelude::*;
+use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
+use crate::util::Invoke;
 
 pub const SYSTEMD_UNIT: &str = "tor@default";
 const STARTING_HEALTH_TIMEOUT: u64 = 120; // 2min
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct OnionStore(BTreeMap<OnionAddressV3, TorSecretKeyV3>);
+impl Map for OnionStore {
+    type Key = OnionAddressV3;
+    type Value = TorSecretKeyV3;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Ok(key.get_address_without_dot_onion())
+    }
+}
+impl OnionStore {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn insert(&mut self, key: TorSecretKeyV3) {
+        self.0.insert(key.public().get_onion_address(), key);
+    }
+}
+impl Model<OnionStore> {
+    pub fn new_key(&mut self) -> Result<TorSecretKeyV3, Error> {
+        let key = TorSecretKeyV3::generate();
+        self.insert(&key.public().get_onion_address(), &key)?;
+        Ok(key)
+    }
+    pub fn insert_key(&mut self, key: &TorSecretKeyV3) -> Result<(), Error> {
+        self.insert(&key.public().get_onion_address(), &key)
+    }
+    pub fn get_key(&self, address: &OnionAddressV3) -> Result<TorSecretKeyV3, Error> {
+        self.as_idx(address).or_not_found(address)?.de()
+    }
+}
 
 enum ErrorLogSeverity {
     Fatal { wipe_state: bool },
@@ -53,16 +85,37 @@ lazy_static! {
     static ref PROGRESS_REGEX: Regex = Regex::new("PROGRESS=([0-9]+)").unwrap();
 }
 
-#[command(subcommands(list_services, logs, reset))]
-pub fn tor() -> Result<(), Error> {
-    Ok(())
+pub fn tor() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "list-services",
+            from_fn_async(list_services)
+                .with_display_serializable()
+                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                    Ok(display_services(handle.params, result))
+                })
+                .with_remote_cli::<CliContext>(),
+        )
+        .subcommand("logs", logs())
+        .subcommand(
+            "reset",
+            from_fn_async(reset)
+                .no_display()
+                .with_remote_cli::<CliContext>(),
+        )
+}
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct ResetParams {
+    #[arg(name = "wipe-state", short = 'w', long = "wipe-state")]
+    wipe_state: bool,
+    reason: String,
 }
 
-#[command(display(display_none))]
 pub async fn reset(
-    #[context] ctx: RpcContext,
-    #[arg(rename = "wipe-state", short = 'w', long = "wipe-state")] wipe_state: bool,
-    #[arg] reason: String,
+    ctx: RpcContext,
+    ResetParams { reason, wipe_state }: ResetParams,
 ) -> Result<(), Error> {
     ctx.net_controller
         .tor
@@ -70,11 +123,11 @@ pub async fn reset(
         .await
 }
 
-fn display_services(services: Vec<OnionAddressV3>, matches: &ArgMatches) {
+pub fn display_services(params: WithIoFormat<Empty>, services: Vec<OnionAddressV3>) {
     use prettytable::*;
 
-    if matches.is_present("format") {
-        return display_serializable(services, matches);
+    if let Some(format) = params.format {
+        return display_serializable(format, services);
     }
 
     let mut table = Table::new();
@@ -85,32 +138,54 @@ fn display_services(services: Vec<OnionAddressV3>, matches: &ArgMatches) {
     table.print_tty(false).unwrap();
 }
 
-#[command(rename = "list-services", display(display_services))]
-pub async fn list_services(
-    #[context] ctx: RpcContext,
-    #[allow(unused_variables)]
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
-) -> Result<Vec<OnionAddressV3>, Error> {
+pub async fn list_services(ctx: RpcContext, _: Empty) -> Result<Vec<OnionAddressV3>, Error> {
     ctx.net_controller.tor.list_services().await
 }
 
-#[command(
-    custom_cli(cli_logs(async, context(CliContext))),
-    subcommands(self(logs_nofollow(async)), logs_follow),
-    display(display_none)
-)]
-pub async fn logs(
-    #[arg(short = 'l', long = "limit")] limit: Option<usize>,
-    #[arg(short = 'c', long = "cursor")] cursor: Option<String>,
-    #[arg(short = 'B', long = "before", default)] before: bool,
-    #[arg(short = 'f', long = "follow", default)] follow: bool,
-) -> Result<(Option<usize>, Option<String>, bool, bool), Error> {
-    Ok((limit, cursor, before, follow))
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct LogsParams {
+    #[arg(short = 'l', long = "limit")]
+    limit: Option<usize>,
+    #[arg(short = 'c', long = "cursor")]
+    cursor: Option<String>,
+    #[arg(short = 'B', long = "before")]
+    #[serde(default)]
+    before: bool,
+    #[arg(short = 'f', long = "follow")]
+    #[serde(default)]
+    follow: bool,
+}
+
+pub fn logs() -> ParentHandler<LogsParams> {
+    ParentHandler::new()
+        .root_handler(
+            from_fn_async(cli_logs)
+                .no_display()
+                .with_inherited(|params, _| params),
+        )
+        .root_handler(
+            from_fn_async(logs_nofollow)
+                .with_inherited(|params, _| params)
+                .no_cli(),
+        )
+        .subcommand(
+            "follow",
+            from_fn_async(logs_follow)
+                .with_inherited(|params, _| params)
+                .no_cli(),
+        )
 }
 pub async fn cli_logs(
     ctx: CliContext,
-    (limit, cursor, before, follow): (Option<usize>, Option<String>, bool, bool),
+    _: Empty,
+    LogsParams {
+        limit,
+        cursor,
+        before,
+        follow,
+    }: LogsParams,
 ) -> Result<(), RpcError> {
     if follow {
         if cursor.is_some() {
@@ -131,16 +206,22 @@ pub async fn cli_logs(
     }
 }
 pub async fn logs_nofollow(
-    _ctx: (),
-    (limit, cursor, before, _): (Option<usize>, Option<String>, bool, bool),
+    _: AnyContext,
+    _: Empty,
+    LogsParams {
+        limit,
+        cursor,
+        before,
+        ..
+    }: LogsParams,
 ) -> Result<LogResponse, Error> {
     fetch_logs(LogSource::Unit(SYSTEMD_UNIT), limit, cursor, before).await
 }
 
-#[command(rpc_only, rename = "follow", display(display_none))]
 pub async fn logs_follow(
-    #[context] ctx: RpcContext,
-    #[parent_data] (limit, _, _, _): (Option<usize>, Option<String>, bool, bool),
+    ctx: RpcContext,
+    _: Empty,
+    LogsParams { limit, .. }: LogsParams,
 ) -> Result<LogFollowResponse, Error> {
     follow_logs(ctx, LogSource::Unit(SYSTEMD_UNIT), limit).await
 }
@@ -158,33 +239,29 @@ impl TorController {
     pub async fn add(
         &self,
         key: TorSecretKeyV3,
-        external: u16,
-        target: SocketAddr,
-    ) -> Result<Arc<()>, Error> {
+        bindings: Vec<(u16, SocketAddr)>,
+    ) -> Result<Vec<Arc<()>>, Error> {
         let (reply, res) = oneshot::channel();
         self.0
             .send
             .send(TorCommand::AddOnion {
                 key,
-                external,
-                target,
+                bindings,
                 reply,
             })
-            .ok()
-            .ok_or_else(|| Error::new(eyre!("TorControl died"), ErrorKind::Tor))?;
+            .map_err(|_| Error::new(eyre!("TorControl died"), ErrorKind::Tor))?;
         res.await
-            .ok()
-            .ok_or_else(|| Error::new(eyre!("TorControl died"), ErrorKind::Tor))
+            .map_err(|_| Error::new(eyre!("TorControl died"), ErrorKind::Tor))
     }
 
     pub async fn gc(
         &self,
-        key: Option<TorSecretKeyV3>,
+        addr: Option<OnionAddressV3>,
         external: Option<u16>,
     ) -> Result<(), Error> {
         self.0
             .send
-            .send(TorCommand::GC { key, external })
+            .send(TorCommand::GC { addr, external })
             .ok()
             .ok_or_else(|| Error::new(eyre!("TorControl died"), ErrorKind::Tor))
     }
@@ -216,7 +293,7 @@ impl TorController {
             .lines()
             .map(|l| l.trim())
             .filter(|l| !l.is_empty())
-            .map(|l| l.parse().with_kind(ErrorKind::Tor))
+            .map(|l| l.parse::<OnionAddressV3>().with_kind(ErrorKind::Tor))
             .collect()
     }
 }
@@ -229,12 +306,11 @@ type AuthenticatedConnection = AuthenticatedConn<
 enum TorCommand {
     AddOnion {
         key: TorSecretKeyV3,
-        external: u16,
-        target: SocketAddr,
-        reply: oneshot::Sender<Arc<()>>,
+        bindings: Vec<(u16, SocketAddr)>,
+        reply: oneshot::Sender<Vec<Arc<()>>>,
     },
     GC {
-        key: Option<TorSecretKeyV3>,
+        addr: Option<OnionAddressV3>,
         external: Option<u16>,
     },
     GetInfo {
@@ -252,7 +328,13 @@ async fn torctl(
     tor_control: SocketAddr,
     tor_socks: SocketAddr,
     recv: &mut mpsc::UnboundedReceiver<TorCommand>,
-    services: &mut BTreeMap<[u8; 64], BTreeMap<u16, BTreeMap<SocketAddr, Weak<()>>>>,
+    services: &mut BTreeMap<
+        OnionAddressV3,
+        (
+            TorSecretKeyV3,
+            BTreeMap<u16, BTreeMap<SocketAddr, Weak<()>>>,
+        ),
+    >,
     wipe_state: &AtomicBool,
     health_timeout: &mut Duration,
 ) -> Result<(), Error> {
@@ -370,27 +452,32 @@ async fn torctl(
             match command {
                 TorCommand::AddOnion {
                     key,
-                    external,
-                    target,
+                    bindings,
                     reply,
                 } => {
-                    let mut service = if let Some(service) = services.remove(&key.as_bytes()) {
+                    let addr = key.public().get_onion_address();
+                    let mut service = if let Some((_key, service)) = services.remove(&addr) {
+                        debug_assert_eq!(key, _key);
                         service
                     } else {
                         BTreeMap::new()
                     };
-                    let mut binding = service.remove(&external).unwrap_or_default();
-                    let rc = if let Some(rc) =
-                        Weak::upgrade(&binding.remove(&target).unwrap_or_default())
-                    {
-                        rc
-                    } else {
-                        Arc::new(())
-                    };
-                    binding.insert(target, Arc::downgrade(&rc));
-                    service.insert(external, binding);
-                    services.insert(key.as_bytes(), service);
-                    reply.send(rc).unwrap_or_default();
+                    let mut rcs = Vec::with_capacity(bindings.len());
+                    for (external, target) in bindings {
+                        let mut binding = service.remove(&external).unwrap_or_default();
+                        let rc = if let Some(rc) =
+                            Weak::upgrade(&binding.remove(&target).unwrap_or_default())
+                        {
+                            rc
+                        } else {
+                            Arc::new(())
+                        };
+                        binding.insert(target, Arc::downgrade(&rc));
+                        service.insert(external, binding);
+                        rcs.push(rc);
+                    }
+                    services.insert(addr, (key, service));
+                    reply.send(rcs).unwrap_or_default();
                 }
                 TorCommand::GetInfo { reply, .. } => {
                     reply
@@ -430,8 +517,7 @@ async fn torctl(
         )
         .await?;
 
-    for (key, service) in std::mem::take(services) {
-        let key = TorSecretKeyV3::from(key);
+    for (addr, (key, service)) in std::mem::take(services) {
         let bindings = service
             .iter()
             .flat_map(|(ext, int)| {
@@ -441,7 +527,7 @@ async fn torctl(
             })
             .collect::<Vec<_>>();
         if !bindings.is_empty() {
-            services.insert(key.as_bytes(), service);
+            services.insert(addr, (key.clone(), service));
             connection
                 .add_onion_v3(&key, false, false, false, None, &mut bindings.iter())
                 .await?;
@@ -453,31 +539,33 @@ async fn torctl(
             match command {
                 TorCommand::AddOnion {
                     key,
-                    external,
-                    target,
+                    bindings,
                     reply,
                 } => {
                     let mut rm_res = Ok(());
-                    let onion_base = key
-                        .public()
-                        .get_onion_address()
-                        .get_address_without_dot_onion();
-                    let mut service = if let Some(service) = services.remove(&key.as_bytes()) {
+                    let addr = key.public().get_onion_address();
+                    let onion_base = addr.get_address_without_dot_onion();
+                    let mut service = if let Some((_key, service)) = services.remove(&addr) {
+                        debug_assert_eq!(_key, key);
                         rm_res = connection.del_onion(&onion_base).await;
                         service
                     } else {
                         BTreeMap::new()
                     };
-                    let mut binding = service.remove(&external).unwrap_or_default();
-                    let rc = if let Some(rc) =
-                        Weak::upgrade(&binding.remove(&target).unwrap_or_default())
-                    {
-                        rc
-                    } else {
-                        Arc::new(())
-                    };
-                    binding.insert(target, Arc::downgrade(&rc));
-                    service.insert(external, binding);
+                    let mut rcs = Vec::with_capacity(bindings.len());
+                    for (external, target) in bindings {
+                        let mut binding = service.remove(&external).unwrap_or_default();
+                        let rc = if let Some(rc) =
+                            Weak::upgrade(&binding.remove(&target).unwrap_or_default())
+                        {
+                            rc
+                        } else {
+                            Arc::new(())
+                        };
+                        binding.insert(target, Arc::downgrade(&rc));
+                        service.insert(external, binding);
+                        rcs.push(rc);
+                    }
                     let bindings = service
                         .iter()
                         .flat_map(|(ext, int)| {
@@ -486,25 +574,21 @@ async fn torctl(
                                 .map(|(addr, _)| (*ext, SocketAddr::from(*addr)))
                         })
                         .collect::<Vec<_>>();
-                    services.insert(key.as_bytes(), service);
-                    reply.send(rc).unwrap_or_default();
+                    services.insert(addr, (key.clone(), service));
+                    reply.send(rcs).unwrap_or_default();
                     rm_res?;
                     connection
                         .add_onion_v3(&key, false, false, false, None, &mut bindings.iter())
                         .await?;
                 }
-                TorCommand::GC { key, external } => {
-                    for key in if key.is_some() {
-                        itertools::Either::Left(key.into_iter().map(|k| k.as_bytes()))
+                TorCommand::GC { addr, external } => {
+                    for addr in if addr.is_some() {
+                        itertools::Either::Left(addr.into_iter())
                     } else {
                         itertools::Either::Right(services.keys().cloned().collect_vec().into_iter())
                     } {
-                        let key = TorSecretKeyV3::from(key);
-                        let onion_base = key
-                            .public()
-                            .get_onion_address()
-                            .get_address_without_dot_onion();
-                        if let Some(mut service) = services.remove(&key.as_bytes()) {
+                        if let Some((key, mut service)) = services.remove(&addr) {
+                            let onion_base: String = addr.get_address_without_dot_onion();
                             for external in if external.is_some() {
                                 itertools::Either::Left(external.into_iter())
                             } else {
@@ -533,7 +617,7 @@ async fn torctl(
                                     })
                                     .collect::<Vec<_>>();
                                 if !bindings.is_empty() {
-                                    services.insert(key.as_bytes(), service);
+                                    services.insert(addr, (key.clone(), service));
                                 }
                                 rm_res?;
                                 if !bindings.is_empty() {
@@ -684,7 +768,7 @@ async fn test() {
     let mut conn = torut::control::UnauthenticatedConn::new(
         TcpStream::connect(SocketAddr::from(([127, 0, 0, 1], 9051)))
             .await
-            .unwrap(), // TODO
+            .unwrap(),
     );
     let auth = conn
         .load_protocol_info()

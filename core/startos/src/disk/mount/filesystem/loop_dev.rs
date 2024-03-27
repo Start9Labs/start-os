@@ -1,41 +1,18 @@
+use std::fmt::Display;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
-use async_trait::async_trait;
 use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
+use lazy_format::lazy_format;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 
-use super::{FileSystem, MountType, ReadOnly};
-use crate::util::Invoke;
-use crate::{Error, ResultExt};
-
-pub async fn mount(
-    logicalname: impl AsRef<Path>,
-    offset: u64,
-    size: u64,
-    mountpoint: impl AsRef<Path>,
-    mount_type: MountType,
-) -> Result<(), Error> {
-    tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
-    let mut opts = format!("loop,offset={offset},sizelimit={size}");
-    if mount_type == ReadOnly {
-        opts += ",ro";
-    }
-
-    tokio::process::Command::new("mount")
-        .arg(logicalname.as_ref())
-        .arg(mountpoint.as_ref())
-        .arg("-o")
-        .arg(opts)
-        .invoke(crate::ErrorKind::Filesystem)
-        .await?;
-    Ok(())
-}
+use super::FileSystem;
+use crate::prelude::*;
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct LoopDev<LogicalName: AsRef<Path>> {
     logicalname: LogicalName,
     offset: u64,
@@ -50,21 +27,18 @@ impl<LogicalName: AsRef<Path>> LoopDev<LogicalName> {
         }
     }
 }
-#[async_trait]
 impl<LogicalName: AsRef<Path> + Send + Sync> FileSystem for LoopDev<LogicalName> {
-    async fn mount<P: AsRef<Path> + Send + Sync>(
-        &self,
-        mountpoint: P,
-        mount_type: MountType,
-    ) -> Result<(), Error> {
-        mount(
-            self.logicalname.as_ref(),
-            self.offset,
-            self.size,
-            mountpoint,
-            mount_type,
-        )
-        .await
+    async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
+        Ok(Some(
+            tokio::fs::canonicalize(self.logicalname.as_ref()).await?,
+        ))
+    }
+    fn mount_options(&self) -> impl IntoIterator<Item = impl Display> {
+        [
+            Box::new("loop") as Box<dyn Display>,
+            Box::new(lazy_format!("offset={}", self.offset)),
+            Box::new(lazy_format!("sizelimit={}", self.size)),
+        ]
     }
     async fn source_hash(
         &self,

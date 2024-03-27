@@ -35,7 +35,7 @@ export class RecoverPage {
   }
 
   driveClickable(mapped: MappedDisk) {
-    return mapped.drive['embassy-os']?.full
+    return mapped.drive.startOs?.full
   }
 
   async getDrives() {
@@ -53,10 +53,10 @@ export class RecoverPage {
               label: p.label,
               capacity: p.capacity,
               used: p.used,
-              'embassy-os': p['embassy-os'],
+              startOs: p.startOs,
             }
             this.mappedDrives.push({
-              hasValidBackup: !!p['embassy-os']?.full,
+              hasValidBackup: !!p.startOs?.full,
               drive,
             })
           })

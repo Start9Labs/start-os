@@ -7,8 +7,8 @@ use tracing::instrument;
 
 use super::fsck::{RepairStrategy, RequiresReboot};
 use super::util::pvscan;
-use crate::disk::mount::filesystem::block_dev::mount;
-use crate::disk::mount::filesystem::ReadWrite;
+use crate::disk::mount::filesystem::block_dev::BlockDev;
+use crate::disk::mount::filesystem::{FileSystem, ReadWrite};
 use crate::disk::mount::util::unmount;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
@@ -142,7 +142,9 @@ pub async fn create_fs<P: AsRef<Path>>(
         .arg(&blockdev_path)
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
-    mount(&blockdev_path, datadir.as_ref().join(name), ReadWrite).await?;
+    BlockDev::new(&blockdev_path)
+        .mount(datadir.as_ref().join(name), ReadWrite)
+        .await?;
     Ok(())
 }
 
@@ -318,7 +320,9 @@ pub async fn mount_fs<P: AsRef<Path>>(
         tokio::fs::rename(&tmp_luks_bak, &luks_bak).await?;
     }
 
-    mount(&blockdev_path, datadir.as_ref().join(name), ReadWrite).await?;
+    BlockDev::new(&blockdev_path)
+        .mount(datadir.as_ref().join(name), ReadWrite)
+        .await?;
 
     Ok(reboot)
 }

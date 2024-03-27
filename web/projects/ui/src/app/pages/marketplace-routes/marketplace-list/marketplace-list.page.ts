@@ -29,7 +29,7 @@ export class MarketplaceListPage {
     }),
   )
 
-  readonly localPkgs$ = this.patch.watch$('package-data')
+  readonly localPkgs$ = this.patch.watch$('packageData')
 
   readonly details$ = this.marketplaceService.getSelectedHost$().pipe(
     map(({ url, name }) => {

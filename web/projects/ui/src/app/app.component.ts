@@ -29,13 +29,12 @@ export class AppComponent implements OnDestroy {
     this.authService.isVerified$,
     this.connection.connected$,
     this.patch
-      .watch$('server-info', 'status-info')
-      .pipe(startWith({ restarting: false, 'shutting-down': false })),
+      .watch$('serverInfo', 'statusInfo')
+      .pipe(startWith({ restarting: false, shuttingDown: false })),
   ]).pipe(
     map(
       ([verified, connected, status]) =>
-        verified &&
-        (!connected || status.restarting || status['shutting-down']),
+        verified && (!connected || status.restarting || status.shuttingDown),
     ),
   )
 

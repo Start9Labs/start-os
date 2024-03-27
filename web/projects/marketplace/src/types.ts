@@ -19,45 +19,45 @@ export interface StoreInfo {
   categories: string[]
 }
 
+export type StoreIdentityWithData = StoreData & StoreIdentity
+
 export interface MarketplacePkg {
   icon: Url
   license: Url
   instructions: Url
-  manifest: MarketplaceManifest
+  manifest: Manifest
   categories: string[]
   versions: string[]
-  'dependency-metadata': {
+  dependencyMetadata: {
     [id: string]: DependencyMetadata
   }
-  'published-at': string
+  publishedAt: string
 }
 
 export interface DependencyMetadata {
   title: string
   icon: Url
+  optional: boolean
   hidden: boolean
 }
 
-export interface MarketplaceManifest<T = unknown> {
+export interface Manifest {
   id: string
   title: string
   version: string
-  'git-hash'?: string
+  gitHash?: string
   description: {
     short: string
     long: string
   }
-  assets: {
-    icon: string // ie. icon.png
-  }
   replaces?: string[]
-  'release-notes': string
-  license: string // type of license
-  'wrapper-repo': Url
-  'upstream-repo': Url
-  'support-site': Url
-  'marketing-site': Url
-  'donation-url': Url | null
+  releaseNotes: string
+  license: string // name of license
+  wrapperRepo: Url
+  upstreamRepo: Url
+  supportSite: Url
+  marketingSite: Url
+  donationUrl: Url | null
   alerts: {
     install: string | null
     uninstall: string | null
@@ -65,23 +65,12 @@ export interface MarketplaceManifest<T = unknown> {
     start: string | null
     stop: string | null
   }
-  dependencies: Record<string, Dependency<T>>
+  dependencies: Record<string, Dependency>
+  osVersion: string
+  hasConfig: boolean
 }
 
-export interface Dependency<T> {
-  version: string
-  requirement:
-    | {
-        type: 'opt-in'
-        how: string
-      }
-    | {
-        type: 'opt-out'
-        how: string
-      }
-    | {
-        type: 'required'
-      }
+export interface Dependency {
   description: string | null
-  config: T
+  optional: boolean
 }

@@ -1,26 +1,14 @@
-use std::collections::{BTreeMap, BTreeSet};
-
-use clap::ArgMatches;
-use color_eyre::eyre::eyre;
-use indexmap::IndexSet;
+use clap::Parser;
 pub use models::ActionId;
-use models::ImageId;
+use models::PackageId;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::config::{Config, ConfigSpec};
+use crate::config::Config;
 use crate::context::RpcContext;
 use crate::prelude::*;
-use crate::procedure::docker::DockerContainers;
-use crate::procedure::{PackageProcedure, ProcedureName};
-use crate::s9pk::manifest::PackageId;
-use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
-use crate::util::Version;
-use crate::volume::Volumes;
-use crate::{Error, ResultExt};
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct Actions(pub BTreeMap<ActionId, Action>);
+use crate::util::serde::{display_serializable, StdinDeserializable, WithIoFormat};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "version")]
@@ -38,78 +26,17 @@ pub struct ActionResultV0 {
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum DockerStatus {
     Running,
     Stopped,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct Action {
-    pub name: String,
-    pub description: String,
-    #[serde(default)]
-    pub warning: Option<String>,
-    pub implementation: PackageProcedure,
-    pub allowed_statuses: IndexSet<DockerStatus>,
-    #[serde(default)]
-    pub input_spec: ConfigSpec,
-}
-impl Action {
-    #[instrument(skip_all)]
-    pub fn validate(
-        &self,
-        _container: &Option<DockerContainers>,
-        eos_version: &Version,
-        volumes: &Volumes,
-        image_ids: &BTreeSet<ImageId>,
-    ) -> Result<(), Error> {
-        self.implementation
-            .validate(eos_version, volumes, image_ids, true)
-            .with_ctx(|_| {
-                (
-                    crate::ErrorKind::ValidateS9pk,
-                    format!("Action {}", self.name),
-                )
-            })
+pub fn display_action_result(params: WithIoFormat<ActionParams>, result: ActionResult) {
+    if let Some(format) = params.format {
+        return display_serializable(format, result);
     }
-
-    #[instrument(skip_all)]
-    pub async fn execute(
-        &self,
-        ctx: &RpcContext,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
-        action_id: &ActionId,
-        volumes: &Volumes,
-        input: Option<Config>,
-    ) -> Result<ActionResult, Error> {
-        if let Some(ref input) = input {
-            self.input_spec
-                .matches(&input)
-                .with_kind(crate::ErrorKind::ConfigSpecViolation)?;
-        }
-        self.implementation
-            .execute(
-                ctx,
-                pkg_id,
-                pkg_version,
-                ProcedureName::Action(action_id.clone()),
-                volumes,
-                input,
-                None,
-            )
-            .await?
-            .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::Action))
-    }
-}
-
-fn display_action_result(action_result: ActionResult, matches: &ArgMatches) {
-    if matches.is_present("format") {
-        return display_serializable(action_result, matches);
-    }
-    match action_result {
+    match result {
         ActionResult::V0(ar) => {
             println!(
                 "{}: {}",
@@ -120,44 +47,39 @@ fn display_action_result(action_result: ActionResult, matches: &ArgMatches) {
     }
 }
 
-#[command(about = "Executes an action", display(display_action_result))]
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct ActionParams {
+    #[arg(id = "id")]
+    #[serde(rename = "id")]
+    pub package_id: PackageId,
+    #[arg(id = "action-id")]
+    #[serde(rename = "action-id")]
+    pub action_id: ActionId,
+    #[command(flatten)]
+    pub input: StdinDeserializable<Option<Config>>,
+}
+// impl C
+
+// #[command(about = "Executes an action", display(display_action_result))]
 #[instrument(skip_all)]
 pub async fn action(
-    #[context] ctx: RpcContext,
-    #[arg(rename = "id")] pkg_id: PackageId,
-    #[arg(rename = "action-id")] action_id: ActionId,
-    #[arg(stdin, parse(parse_stdin_deserializable))] input: Option<Config>,
-    #[allow(unused_variables)]
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
+    ctx: RpcContext,
+    ActionParams {
+        package_id,
+        action_id,
+        input: StdinDeserializable(input),
+    }: ActionParams,
 ) -> Result<ActionResult, Error> {
-    let manifest = ctx
-        .db
-        .peek()
+    ctx.services
+        .get(&package_id)
         .await
-        .as_package_data()
-        .as_idx(&pkg_id)
-        .or_not_found(&pkg_id)?
-        .as_installed()
-        .or_not_found(&pkg_id)?
-        .as_manifest()
-        .de()?;
-
-    if let Some(action) = manifest.actions.0.get(&action_id) {
-        action
-            .execute(
-                &ctx,
-                &manifest.id,
-                &manifest.version,
-                &action_id,
-                &manifest.volumes,
-                input,
-            )
-            .await
-    } else {
-        Err(Error::new(
-            eyre!("Action not found in manifest"),
-            crate::ErrorKind::NotFound,
-        ))
-    }
+        .as_ref()
+        .or_not_found(lazy_format!("Manager for {}", package_id))?
+        .action(
+            action_id,
+            input.map(|c| to_value(&c)).transpose()?.unwrap_or_default(),
+        )
+        .await
 }

@@ -6,9 +6,9 @@ import {
   PrimaryStatus,
 } from 'src/app/services/pkg-status-rendering.service'
 import {
-  InterfaceDef,
+  DataModel,
   PackageDataEntry,
-  PackageState,
+  PackageMainStatus,
   Status,
 } from 'src/app/services/patch-db/data-model'
 import { ErrorToastService } from '@start9labs/shared'
@@ -17,6 +17,13 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ModalService } from 'src/app/services/modal.service'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { ConnectionService } from 'src/app/services/connection.service'
+import {
+  isInstalled,
+  getManifest,
+  getAllPackages,
+} from 'src/app/util/get-package-data'
+import { Manifest } from '@start9labs/marketplace'
+import { PatchDB } from 'patch-db-client'
 
 @Component({
   selector: 'app-show-status',
@@ -33,6 +40,8 @@ export class AppShowStatusComponent {
 
   PR = PrimaryRendering
 
+  isInstalled = isInstalled
+
   readonly connected$ = this.connectionService.connected$
 
   constructor(
@@ -43,18 +52,19 @@ export class AppShowStatusComponent {
     private readonly launcherService: UiLauncherService,
     private readonly modalService: ModalService,
     private readonly connectionService: ConnectionService,
+    private readonly patch: PatchDB<DataModel>,
   ) {}
 
-  get interfaces(): Record<string, InterfaceDef> {
-    return this.pkg.manifest.interfaces || {}
+  get interfaces(): PackageDataEntry['serviceInterfaces'] {
+    return this.pkg.serviceInterfaces
   }
 
-  get pkgStatus(): Status | null {
-    return this.pkg.installed?.status || null
+  get pkgStatus(): Status {
+    return this.pkg.status
   }
 
-  get isInstalled(): boolean {
-    return this.pkg.state === PackageState.Installed
+  get manifest(): Manifest {
+    return getManifest(this.pkg)
   }
 
   get isRunning(): boolean {
@@ -73,25 +83,31 @@ export class AppShowStatusComponent {
     return this.status.primary === PrimaryStatus.Stopped
   }
 
-  launchUi(): void {
-    this.launcherService.launch(this.pkg)
+  get sigtermTimeout(): string | null {
+    return this.pkgStatus?.main.status === PackageMainStatus.Stopping
+      ? this.pkgStatus.main.timeout
+      : null
+  }
+
+  launchUi(interfaces: PackageDataEntry['serviceInterfaces']): void {
+    this.launcherService.launch(interfaces)
   }
 
   async presentModalConfig(): Promise<void> {
     return this.modalService.presentModalConfig({
-      pkgId: this.id,
+      pkgId: this.manifest.id,
     })
   }
 
   async tryStart(): Promise<void> {
     if (this.status.dependency === 'warning') {
-      const depErrMsg = `${this.pkg.manifest.title} has unmet dependencies. It will not work as expected.`
+      const depErrMsg = `${this.manifest.title} has unmet dependencies. It will not work as expected.`
       const proceed = await this.presentAlertStart(depErrMsg)
 
       if (!proceed) return
     }
 
-    const alertMsg = this.pkg.manifest.alerts.start
+    const alertMsg = this.manifest.alerts.start
 
     if (alertMsg) {
       const proceed = await this.presentAlertStart(alertMsg)
@@ -103,10 +119,10 @@ export class AppShowStatusComponent {
   }
 
   async tryStop(): Promise<void> {
-    const { title, alerts } = this.pkg.manifest
+    const { title, alerts } = this.manifest
 
     let message = alerts.stop || ''
-    if (hasCurrentDeps(this.pkg)) {
+    if (hasCurrentDeps(this.manifest.id, await getAllPackages(this.patch))) {
       const depMessage = `Services that depend on ${title} will no longer work properly and may crash`
       message = message ? `${message}.\n\n${depMessage}` : depMessage
     }
@@ -138,10 +154,10 @@ export class AppShowStatusComponent {
   }
 
   async tryRestart(): Promise<void> {
-    if (hasCurrentDeps(this.pkg)) {
+    if (hasCurrentDeps(this.manifest.id, await getAllPackages(this.patch))) {
       const alert = await this.alertCtrl.create({
         header: 'Warning',
-        message: `Services that depend on ${this.pkg.manifest.title} may temporarily experiences issues`,
+        message: `Services that depend on ${this.manifest.title} may temporarily experiences issues`,
         buttons: [
           {
             text: 'Cancel',
@@ -164,10 +180,6 @@ export class AppShowStatusComponent {
     }
   }
 
-  private get id(): string {
-    return this.pkg.manifest.id
-  }
-
   private async start(): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: `Starting...`,
@@ -175,7 +187,7 @@ export class AppShowStatusComponent {
     await loader.present()
 
     try {
-      await this.embassyApi.startPackage({ id: this.id })
+      await this.embassyApi.startPackage({ id: this.manifest.id })
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
@@ -190,7 +202,7 @@ export class AppShowStatusComponent {
     await loader.present()
 
     try {
-      await this.embassyApi.stopPackage({ id: this.id })
+      await this.embassyApi.stopPackage({ id: this.manifest.id })
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
@@ -205,7 +217,7 @@ export class AppShowStatusComponent {
     await loader.present()
 
     try {
-      await this.embassyApi.restartPackage({ id: this.id })
+      await this.embassyApi.restartPackage({ id: this.manifest.id })
     } catch (e: any) {
       this.errToast.present(e)
     } finally {

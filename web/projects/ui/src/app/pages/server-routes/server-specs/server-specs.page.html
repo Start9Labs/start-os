@@ -30,17 +30,17 @@
     <ion-item>
       <ion-label class="break-all">
         <h2>Tor</h2>
-        <p>{{ server['tor-address'] }}</p>
+        <p>{{ server.torAddress }}</p>
       </ion-label>
       <div slot="end">
-        <ion-button fill="clear" (click)="showQR(server['tor-address'])">
+        <ion-button fill="clear" (click)="showQR(server.torAddress)">
           <ion-icon
             slot="icon-only"
             name="qr-code-outline"
             size="small"
           ></ion-icon>
         </ion-button>
-        <ion-button fill="clear" (click)="copy(server['tor-address'])">
+        <ion-button fill="clear" (click)="copy(server.torAddress)">
           <ion-icon
             slot="icon-only"
             name="copy-outline"
@@ -52,13 +52,13 @@
     <ion-item>
       <ion-label class="break-all">
         <h2>LAN</h2>
-        <p>{{ server['lan-address'] }}</p>
+        <p>{{ server.lanAddress }}</p>
       </ion-label>
-      <ion-button slot="end" fill="clear" (click)="copy(server['lan-address'])">
+      <ion-button slot="end" fill="clear" (click)="copy(server.lanAddress)">
         <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
       </ion-button>
     </ion-item>
-    <ng-container *ngFor="let iface of server['ip-info'] | keyvalue">
+    <ng-container *ngFor="let iface of server.ipInfo| keyvalue">
       <ion-item *tuiLet="iface.value.ipv4 as ipv4">
         <ion-label>
           <h2>{{ iface.key }} (IPv4)</h2>
@@ -92,13 +92,9 @@
     <ion-item>
       <ion-label>
         <h2>CA fingerprint</h2>
-        <p>{{ server['ca-fingerprint'] }}</p>
+        <p>{{ server.caFingerprint }}</p>
       </ion-label>
-      <ion-button
-        slot="end"
-        fill="clear"
-        (click)="copy(server['ca-fingerprint'])"
-      >
+      <ion-button slot="end" fill="clear" (click)="copy(server.caFingerprint)">
         <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
       </ion-button>
     </ion-item>

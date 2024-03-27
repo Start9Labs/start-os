@@ -1,5 +1,9 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { PackageMainStatus } from 'src/app/services/patch-db/data-model'
+import {
+  MainStatus,
+  PackageDataEntry,
+  PackageMainStatus,
+} from 'src/app/services/patch-db/data-model'
 import { PkgInfo } from 'src/app/util/get-package-info'
 import { UiLauncherService } from 'src/app/services/ui-launcher.service'
 
@@ -14,15 +18,23 @@ export class AppListPkgComponent {
 
   constructor(private readonly launcherService: UiLauncherService) {}
 
-  get status(): PackageMainStatus {
+  get pkgMainStatus(): MainStatus {
     return (
-      this.pkg.entry.installed?.status.main.status || PackageMainStatus.Stopped
+      this.pkg.entry.status.main || {
+        status: PackageMainStatus.Stopped,
+      }
     )
   }
 
-  launchUi(e: Event): void {
+  get sigtermTimeout(): string | null {
+    return this.pkgMainStatus.status === PackageMainStatus.Stopping
+      ? this.pkgMainStatus.timeout
+      : null
+  }
+
+  launchUi(e: Event, interfaces: PackageDataEntry['serviceInterfaces']): void {
     e.stopPropagation()
     e.preventDefault()
-    this.launcherService.launch(this.pkg.entry)
+    this.launcherService.launch(interfaces)
   }
 }

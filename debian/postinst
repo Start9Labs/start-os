@@ -121,3 +121,9 @@ rm -f /etc/motd
 ln -sf /usr/lib/startos/motd /etc/update-motd.d/00-embassy
 chmod -x /etc/update-motd.d/*
 chmod +x /etc/update-motd.d/00-embassy
+
+# LXC
+echo "root:100000:65536" >>/etc/subuid
+echo "root:100000:65536" >>/etc/subgid
+echo "lxc.idmap = u 0 100000 65536" >>/etc/lxc/default.conf
+echo "lxc.idmap = g 0 100000 65536" >>/etc/lxc/default.conf

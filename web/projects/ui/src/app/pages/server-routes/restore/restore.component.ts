@@ -43,7 +43,7 @@ export class RestorePage {
       useMask: true,
       buttonText: 'Next',
       submitFn: async (password: string) => {
-        const passwordHash = target.entry['embassy-os']?.['password-hash'] || ''
+        const passwordHash = target.entry.startOs?.passwordHash || ''
         argon2.verify(passwordHash, password)
         await this.restoreFromBackup(target, password)
       },
@@ -71,7 +71,7 @@ export class RestorePage {
 
     try {
       const backupInfo = await this.embassyApi.getBackupInfo({
-        'target-id': target.id,
+        targetId: target.id,
         password,
       })
       this.presentModalSelect(target.id, backupInfo, password, oldPassword)

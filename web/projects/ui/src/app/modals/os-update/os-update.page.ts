@@ -22,7 +22,7 @@ export class OSUpdatePage {
   ) {}
 
   ngOnInit() {
-    const releaseNotes = this.eosService.eos?.['release-notes']!
+    const releaseNotes = this.eosService.eos?.releaseNotes!
 
     this.versions = Object.keys(releaseNotes)
       .sort()

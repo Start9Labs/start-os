@@ -12,8 +12,6 @@ import matches, {
   arrayOf,
 } from 'ts-matches'
 
-type ValidVersion = 1 | 2
-
 type PropertiesV1 = typeof matchPropertiesV1._TYPE
 type PackagePropertiesV1 = PropertiesV1[]
 type PackagePropertiesV2 = {

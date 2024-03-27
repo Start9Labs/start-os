@@ -63,15 +63,6 @@ const routes: Routes = [
         m => m.AppsRoutingModule,
       ),
   },
-  {
-    path: 'developer',
-    canActivate: [AuthGuard],
-    canActivateChild: [AuthGuard],
-    loadChildren: () =>
-      import('./pages/developer-routes/developer-routing.module').then(
-        m => m.DeveloperRoutingModule,
-      ),
-  },
 ]
 
 @NgModule({

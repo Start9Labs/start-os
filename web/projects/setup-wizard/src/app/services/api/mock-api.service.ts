@@ -30,8 +30,8 @@ export class MockApiService extends ApiService {
     const progress = tries > 4 ? (tries - 4) * 268435456 : 0
 
     return {
-      'bytes-transferred': restoreOrMigrate ? progress : 0,
-      'total-bytes': restoreOrMigrate ? total : null,
+      bytesTransferred: restoreOrMigrate ? progress : 0,
+      totalBytes: restoreOrMigrate ? total : null,
       complete: progress === total,
     }
   }
@@ -65,12 +65,12 @@ export class MockApiService extends ApiService {
             label: null,
             capacity: 1979120929996,
             used: null,
-            'embassy-os': {
+            startOs: {
               version: '0.2.17',
               full: true,
-              'password-hash':
+              passwordHash:
                 '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-              'wrapped-key': null,
+              wrappedKey: null,
             },
             guid: null,
           },
@@ -88,12 +88,12 @@ export class MockApiService extends ApiService {
             label: null,
             capacity: 73264762332,
             used: null,
-            'embassy-os': {
+            startOs: {
               version: '0.3.3',
               full: true,
-              'password-hash':
+              passwordHash:
                 '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-              'wrapped-key': null,
+              wrappedKey: null,
             },
             guid: null,
           },
@@ -111,12 +111,12 @@ export class MockApiService extends ApiService {
             label: null,
             capacity: 73264762332,
             used: null,
-            'embassy-os': {
+            startOs: {
               version: '0.3.2',
               full: true,
-              'password-hash':
+              passwordHash:
                 '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-              'wrapped-key': null,
+              wrappedKey: null,
             },
             guid: 'guid-guid-guid-guid',
           },
@@ -132,9 +132,9 @@ export class MockApiService extends ApiService {
     return {
       version: '0.3.0',
       full: true,
-      'password-hash':
+      passwordHash:
         '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-      'wrapped-key': '',
+      wrappedKey: '',
     }
   }
 
@@ -149,9 +149,9 @@ export class MockApiService extends ApiService {
   async complete(): Promise<CompleteRes> {
     await pauseFor(1000)
     return {
-      'tor-address': 'https://asdafsadasdasasdasdfasdfasdf.onion',
-      'lan-address': 'https://adjective-noun.local',
-      'root-ca': encodeBase64(rootCA),
+      torAddress: 'https://asdafsadasdasasdasdfasdfasdf.onion',
+      lanAddress: 'https://adjective-noun.local',
+      rootCa: encodeBase64(rootCA),
     }
   }
 

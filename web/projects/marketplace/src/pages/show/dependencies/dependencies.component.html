@@ -17,16 +17,12 @@
         </ion-thumbnail>
         <ion-label>
           <h2>
-            {{ pkg['dependency-metadata'][dep.key].title }}
-            <ng-container [ngSwitch]="dep.value.requirement.type">
-              <span *ngSwitchCase="'required'">(required)</span>
-              <span *ngSwitchCase="'opt-out'">(required by default)</span>
-              <span *ngSwitchCase="'opt-in'">(optional)</span>
-            </ng-container>
+            {{ pkg.dependencyMetadata[dep.key].title }}
+            <span *ngIf="dep.value.optional; else required">(optional)</span>
+            <ng-template #required>
+              <span>(Required)</span>
+            </ng-template>
           </h2>
-          <p>
-            <small>{{ dep.value.version | displayEmver }}</small>
-          </p>
           <p>{{ dep.value.description }}</p>
         </ion-label>
       </ion-item>

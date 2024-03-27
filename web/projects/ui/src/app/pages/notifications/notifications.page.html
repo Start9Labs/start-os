@@ -86,9 +86,9 @@
           <ion-label>
             <h2>
               <b>
-                <span *ngIf="not['package-id'] as pkgId">
-                  <!-- @TODO remove $any when Angular gets smart enough -->
-                  {{ $any(packageData[pkgId])?.manifest.title || pkgId }} -
+                <span *ngIf="not.packageId as pkgId">
+                  {{ packageData[pkgId] ? (packageData[pkgId] |
+                  toManifest).title : pkgId }} -
                 </span>
                 <ion-text [color]="getColor(not)">{{ not.title }}</ion-text>
               </b>
@@ -104,7 +104,7 @@
                 View Full Message
               </a>
             </p>
-            <p>{{ not['created-at'] | date: 'medium' }}</p>
+            <p>{{ not.createdAt | date: 'medium' }}</p>
           </ion-label>
           <ion-button
             *ngIf="not.code === 1"
@@ -116,11 +116,11 @@
             View Report
           </ion-button>
           <ion-button
-            *ngIf="not['package-id'] && packageData[not['package-id']]"
+            *ngIf="not.packageId && packageData[not.packageId]"
             slot="end"
             fill="clear"
             color="dark"
-            [routerLink]="['/services', not['package-id']]"
+            [routerLink]="['/services', not.packageId]"
           >
             View Service
           </ion-button>
