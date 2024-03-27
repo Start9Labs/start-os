@@ -1493,7 +1493,6 @@ export module Mock {
       },
     },
     currentDependencies: {},
-    dependencyInfo: {},
     marketplaceUrl: 'https://registry.start9.com/',
     developerKey: 'developer-key',
     outboundProxy: null,
@@ -1625,14 +1624,12 @@ export module Mock {
     },
     currentDependencies: {
       bitcoind: {
-        versionRange: '>=26.0.0',
-        healthChecks: [],
-      },
-    },
-    dependencyInfo: {
-      bitcoind: {
         title: Mock.MockManifestBitcoind.title,
         icon: 'assets/img/service-icons/bitcoind.svg',
+        kind: 'running',
+        registryUrl: '',
+        versionSpec: '>=26.0.0',
+        healthChecks: [],
       },
     },
     marketplaceUrl: 'https://registry.start9.com/',
@@ -1872,22 +1869,20 @@ export module Mock {
     },
     currentDependencies: {
       bitcoind: {
-        versionRange: '>=26.0.0',
-        healthChecks: [],
-      },
-      'btc-rpc-proxy': {
-        versionRange: '>2.0.0', // @TODO
-        healthChecks: [],
-      },
-    },
-    dependencyInfo: {
-      bitcoind: {
         title: Mock.MockManifestBitcoind.title,
         icon: 'assets/img/service-icons/bitcoind.svg',
+        kind: 'running',
+        registryUrl: 'https://registry.start9.com',
+        versionSpec: '>=26.0.0',
+        healthChecks: [],
       },
       'btc-rpc-proxy': {
         title: Mock.MockManifestBitcoinProxy.title,
         icon: 'assets/img/service-icons/btc-rpc-proxy.png',
+        kind: 'exists',
+        registryUrl: 'https://community-registry.start9.com',
+        versionSpec: '>2.0.0', // @TODO
+        healthChecks: [],
       },
     },
     marketplaceUrl: 'https://registry.start9.com/',

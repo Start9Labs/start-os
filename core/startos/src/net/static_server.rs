@@ -168,7 +168,7 @@ pub fn main_ui_server_router(ctx: RpcContext) -> Router {
             }),
         )
         .fallback(any(move |request: Request| async move {
-            main_embassy_ui(request, ctx)
+            main_start_os_ui(request, ctx)
                 .await
                 .unwrap_or_else(server_error)
         }))
@@ -218,7 +218,7 @@ async fn if_authorized<
     }
 }
 
-async fn main_embassy_ui(req: Request, ctx: RpcContext) -> Result<Response, Error> {
+async fn main_start_os_ui(req: Request, ctx: RpcContext) -> Result<Response, Error> {
     let (request_parts, _body) = req.into_parts();
     match (
         &request_parts.method,

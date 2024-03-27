@@ -49,7 +49,7 @@ pub struct PartitionInfo {
     pub label: Option<String>,
     pub capacity: u64,
     pub used: Option<u64>,
-    pub embassy_os: Option<EmbassyOsRecoveryInfo>,
+    pub start_os: Option<EmbassyOsRecoveryInfo>,
     pub guid: Option<String>,
 }
 
@@ -390,7 +390,7 @@ async fn disk_info(disk: PathBuf) -> DiskInfo {
 }
 
 async fn part_info(part: PathBuf) -> PartitionInfo {
-    let mut embassy_os = None;
+    let mut start_os = None;
     let label = get_label(&part)
         .await
         .map_err(|e| tracing::warn!("Could not get label of {}: {}", part.display(), e.source))
@@ -417,7 +417,7 @@ async fn part_info(part: PathBuf) -> PartitionInfo {
                     None
                 }
             } {
-                embassy_os = Some(recovery_info)
+                start_os = Some(recovery_info)
             }
             if let Err(e) = mount_guard.unmount().await {
                 tracing::error!("Error unmounting partition {}: {}", part.display(), e);
@@ -430,7 +430,7 @@ async fn part_info(part: PathBuf) -> PartitionInfo {
         label,
         capacity,
         used,
-        embassy_os,
+        start_os,
         guid: None,
     }
 }

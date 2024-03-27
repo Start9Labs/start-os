@@ -93,7 +93,6 @@ pub fn auth() -> ParentHandler {
             from_fn_async(logout)
                 .with_metadata("get-session", Value::Bool(true))
                 .with_remote_cli::<CliContext>()
-                // TODO @dr-bonez
                 .no_display(),
         )
         .subcommand("session", session())

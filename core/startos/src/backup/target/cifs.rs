@@ -42,7 +42,7 @@ pub struct CifsBackupTarget {
     path: PathBuf,
     username: String,
     mountable: bool,
-    embassy_os: Option<EmbassyOsRecoveryInfo>,
+    start_os: Option<EmbassyOsRecoveryInfo>,
 }
 
 pub fn cifs() -> ParentHandler {
@@ -93,7 +93,7 @@ pub async fn add(
         password,
     };
     let guard = TmpMountGuard::mount(&cifs, ReadOnly).await?;
-    let embassy_os = recovery_info(guard.path()).await?;
+    let start_os = recovery_info(guard.path()).await?;
     guard.unmount().await?;
     let id = ctx
         .db
@@ -116,7 +116,7 @@ pub async fn add(
             path: cifs.path,
             username: cifs.username,
             mountable: true,
-            embassy_os,
+            start_os,
         }),
     })
 }
@@ -157,7 +157,7 @@ pub async fn update(
         password,
     };
     let guard = TmpMountGuard::mount(&cifs, ReadOnly).await?;
-    let embassy_os = recovery_info(guard.path()).await?;
+    let start_os = recovery_info(guard.path()).await?;
     guard.unmount().await?;
     ctx.db
         .mutate(|db| {
@@ -180,7 +180,7 @@ pub async fn update(
             path: cifs.path,
             username: cifs.username,
             mountable: true,
-            embassy_os,
+            start_os,
         }),
     })
 }
@@ -224,11 +224,11 @@ pub async fn list(db: &DatabaseModel) -> Result<Vec<(u32, CifsBackupTarget)>, Er
     let mut cifs = Vec::new();
     for (id, model) in db.as_private().as_cifs().as_entries()? {
         let mount_info = model.de()?;
-        let embassy_os = async {
+        let start_os = async {
             let guard = TmpMountGuard::mount(&mount_info, ReadOnly).await?;
-            let embassy_os = recovery_info(guard.path()).await?;
+            let start_os = recovery_info(guard.path()).await?;
             guard.unmount().await?;
-            Ok::<_, Error>(embassy_os)
+            Ok::<_, Error>(start_os)
         }
         .await;
         cifs.push((
@@ -237,8 +237,8 @@ pub async fn list(db: &DatabaseModel) -> Result<Vec<(u32, CifsBackupTarget)>, Er
                 hostname: mount_info.hostname,
                 path: mount_info.path,
                 username: mount_info.username,
-                mountable: embassy_os.is_ok(),
-                embassy_os: embassy_os.ok().and_then(|a| a),
+                mountable: start_os.is_ok(),
+                start_os: start_os.ok().and_then(|a| a),
             },
         ));
     }

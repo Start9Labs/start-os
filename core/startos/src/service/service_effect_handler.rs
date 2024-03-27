@@ -8,6 +8,7 @@ use std::sync::{Arc, Weak};
 
 use clap::builder::ValueParserFactory;
 use clap::Parser;
+use emver::VersionRange;
 use imbl::OrdMap;
 use imbl_value::{json, InternedString};
 use models::{ActionId, HealthCheckId, ImageId, PackageId, VolumeId};
@@ -16,6 +17,7 @@ use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
+use url::Url;
 
 use crate::db::model::package::{
     CurrentDependencies, CurrentDependencyInfo, ExposedUI, StoreExposedUI,
@@ -255,7 +257,7 @@ struct RemoveAddressParams {
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 enum AllowedStatuses {
     OnlyRunning, // onlyRunning
     OnlyStopped,
@@ -1096,15 +1098,19 @@ enum DependencyRequirement {
         id: PackageId,
         #[ts(type = "string[]")]
         health_checks: BTreeSet<HealthCheckId>,
-        version_spec: String,
-        url: String,
+        #[ts(type = "string")]
+        version_spec: VersionRange,
+        #[ts(type = "string")]
+        url: Url,
     },
     #[serde(rename_all = "camelCase")]
     Exists {
         #[ts(type = "string")]
         id: PackageId,
-        version_spec: String,
-        url: String,
+        #[ts(type = "string")]
+        version_spec: VersionRange,
+        #[ts(type = "string")]
+        url: Url,
     },
 }
 // filebrowser:exists,bitcoind:running:foo+bar+baz
@@ -1114,8 +1120,8 @@ impl FromStr for DependencyRequirement {
         match s.split_once(':') {
             Some((id, "e")) | Some((id, "exists")) => Ok(Self::Exists {
                 id: id.parse()?,
-                url: "".to_string(),
-                version_spec: "*".to_string(),
+                url: "".parse()?,           // TODO
+                version_spec: "*".parse()?, // TODO
             }),
             Some((id, rest)) => {
                 let health_checks = match rest.split_once(':') {
@@ -1138,15 +1144,15 @@ impl FromStr for DependencyRequirement {
                 Ok(Self::Running {
                     id: id.parse()?,
                     health_checks,
-                    url: "".to_string(),
-                    version_spec: "*".to_string(),
+                    url: "".parse()?,           // TODO
+                    version_spec: "*".parse()?, // TODO
                 })
             }
             None => Ok(Self::Running {
                 id: s.parse()?,
                 health_checks: BTreeSet::new(),
-                url: "".to_string(),
-                version_spec: "*".to_string(),
+                url: "".parse()?,           // TODO
+                version_spec: "*".parse()?, // TODO
             }),
         }
     }
@@ -1183,23 +1189,23 @@ async fn set_dependencies(
                             id,
                             url,
                             version_spec,
-                        } => (id, CurrentDependencyInfo::Exists),
+                        } => (id, CurrentDependencyInfo::Exists { url, version_spec }),
                         DependencyRequirement::Running {
                             id,
                             health_checks,
                             url,
                             version_spec,
-                        } => (id, CurrentDependencyInfo::Running { health_checks }),
+                        } => (
+                            id,
+                            CurrentDependencyInfo::Running {
+                                url,
+                                version_spec,
+                                health_checks,
+                            },
+                        ),
                     })
                     .collect(),
             );
-            for (dep, entry) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
-                if let Some(info) = dependencies.0.get(&dep) {
-                    entry.as_current_dependents_mut().insert(id, info)?;
-                } else {
-                    entry.as_current_dependents_mut().remove(id)?;
-                }
-            }
             db.as_public_mut()
                 .as_package_data_mut()
                 .as_idx_mut(id)

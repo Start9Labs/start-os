@@ -154,13 +154,7 @@ export type PackageDataEntry<T extends StateInfo = StateInfo> = {
   status: Status
   actions: Record<string, T.ActionMetadata>
   lastBackup: string | null
-  currentDependencies: { [id: string]: CurrentDependencyInfo }
-  dependencyInfo: {
-    [id: string]: {
-      title: string
-      icon: Url
-    }
-  }
+  currentDependencies: Record<string, CurrentDependencyInfo>
   serviceInterfaces: Record<string, T.ServiceInterfaceWithHostInfo>
   marketplaceUrl: string | null
   developerKey: string
@@ -197,7 +191,11 @@ export enum PackageState {
 }
 
 export interface CurrentDependencyInfo {
-  versionRange: string
+  title: string
+  icon: string
+  kind: 'exists' | 'running'
+  registryUrl: string
+  versionSpec: string
   healthChecks: string[] // array of health check IDs
 }
 

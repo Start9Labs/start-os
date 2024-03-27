@@ -12,8 +12,7 @@ export function dryUpdate(
       pkg =>
         Object.keys(pkg.currentDependencies || {}).some(
           pkgId => pkgId === id,
-        ) &&
-        !emver.satisfies(version, pkg.currentDependencies[id].versionRange),
+        ) && !emver.satisfies(version, pkg.currentDependencies[id].versionSpec),
     )
     .map(pkg => getManifest(pkg).title)
 }

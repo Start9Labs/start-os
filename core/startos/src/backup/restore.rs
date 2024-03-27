@@ -33,7 +33,6 @@ pub struct RestorePackageParams {
     pub password: String,
 }
 
-// TODO dr Why doesn't anything use this
 // #[command(rename = "restore", display(display_none))]
 #[instrument(skip(ctx, password))]
 pub async fn restore_packages_rpc(
@@ -71,7 +70,7 @@ pub async fn restore_packages_rpc(
 pub async fn recover_full_embassy(
     ctx: SetupContext,
     disk_guid: Arc<String>,
-    embassy_password: String,
+    start_os_password: String,
     recovery_source: TmpMountGuard,
     recovery_password: Option<String>,
 ) -> Result<(Arc<String>, Hostname, OnionAddressV3, X509), Error> {
@@ -89,7 +88,7 @@ pub async fn recover_full_embassy(
     )?;
 
     os_backup.account.password = argon2::hash_encoded(
-        embassy_password.as_bytes(),
+        start_os_password.as_bytes(),
         &rand::random::<[u8; 16]>()[..],
         &argon2::Config::rfc9106_low_mem(),
     )

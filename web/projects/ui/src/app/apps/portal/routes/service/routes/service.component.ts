@@ -179,13 +179,13 @@ export class ServiceRoute {
       depErrors,
     )
 
-    const depInfo = pkg.dependencyInfo[depId]
+    const { title, icon, versionSpec } = pkg.currentDependencies[depId]
 
     return {
       id: depId,
-      version: pkg.currentDependencies[depId].versionRange,
-      title: depInfo?.title || depId,
-      icon: depInfo?.icon || '',
+      version: versionSpec,
+      title,
+      icon,
       errorText: errorText
         ? `${errorText}. ${pkgManifest.title} will not work as expected.`
         : '',
@@ -252,7 +252,7 @@ export class ServiceRoute {
         return this.installDep(pkg, pkgManifest, depId)
       case 'configure':
         return this.formDialog.open<PackageConfigData>(ServiceConfigModal, {
-          label: `${pkg.dependencyInfo[depId].title} config`,
+          label: `${pkg.currentDependencies[depId].title} config`,
           data: {
             pkgId: depId,
             dependentInfo: pkgManifest,
@@ -269,7 +269,7 @@ export class ServiceRoute {
     const dependentInfo: DependentInfo = {
       id: manifest.id,
       title: manifest.title,
-      version: pkg.currentDependencies[depId].versionRange,
+      version: pkg.currentDependencies[depId].versionSpec,
     }
     const navigationExtras: NavigationExtras = {
       state: { dependentInfo },

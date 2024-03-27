@@ -165,7 +165,6 @@ pub struct SetParams {
     pub config: StdinDeserializable<Option<Config>>,
 }
 
-// TODO Dr Why isn't this used?
 // #[command(
 //     subcommands(self(set_impl(async, context(RpcContext))), set_dry),
 //     display(display_none),

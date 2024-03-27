@@ -19,7 +19,6 @@ use crate::s9pk::v1::reader::S9pkReader;
 use crate::s9pk::v2::S9pk;
 use crate::util::io::TmpDir;
 use crate::util::Invoke;
-use crate::volume::Volume;
 use crate::ARCH;
 
 pub const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x01];
@@ -254,7 +253,7 @@ impl S9pk<Section<MultiCursorFile>> {
         for (asset_id, _) in manifest
             .volumes
             .iter()
-            .filter(|(_, v)| matches!(v, Volume::Assets { .. }))
+            .filter(|(_, v)| v.get("type").and_then(|v| v.as_str()) == Some("assets"))
         {
             let assets_path = asset_dir.join(&asset_id);
             let sqfs_path = assets_path.with_extension("squashfs");
@@ -338,13 +337,13 @@ impl From<ManifestV1> for Manifest {
             assets: value
                 .volumes
                 .iter()
-                .filter(|(_, v)| matches!(v, &&Volume::Assets { .. }))
+                .filter(|(_, v)| v.get("type").and_then(|v| v.as_str()) == Some("assets"))
                 .map(|(id, _)| id.clone())
                 .collect(),
             volumes: value
                 .volumes
                 .iter()
-                .filter(|(_, v)| matches!(v, &&Volume::Data { .. }))
+                .filter(|(_, v)| v.get("type").and_then(|v| v.as_str()) == Some("data"))
                 .map(|(id, _)| id.clone())
                 .collect(),
             alerts: value.alerts,

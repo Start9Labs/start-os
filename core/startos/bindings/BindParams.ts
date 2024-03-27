@@ -3,4 +3,4 @@ import type { AddSslOptions } from "./AddSslOptions";
 import type { BindKind } from "./BindKind";
 import type { BindOptionsSecure } from "./BindOptionsSecure";
 
-export interface BindParams { kind: BindKind, id: string, internalPort: number, scheme: string, preferredExternalPort: number, addSsl: AddSslOptions | null, secure: BindOptionsSecure | null, }
+export type BindParams = { kind: BindKind, id: string, internalPort: number, scheme: string, preferredExternalPort: number, addSsl: AddSslOptions | null, secure: BindOptionsSecure | null, };

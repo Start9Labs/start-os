@@ -1,7 +1,9 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use imbl_value::InOMap;
 pub use models::PackageId;
+use models::VolumeId;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -11,7 +13,6 @@ use crate::prelude::*;
 use crate::s9pk::manifest::{Alerts, Description, HardwareRequirements};
 use crate::util::Version;
 use crate::version::{Current, VersionT};
-use crate::volume::Volumes;
 
 fn current_version() -> Version {
     Current::new().semver().into()
@@ -40,7 +41,7 @@ pub struct Manifest {
     pub donation_url: Option<Url>,
     #[serde(default)]
     pub alerts: Alerts,
-    pub volumes: Volumes,
+    pub volumes: BTreeMap<VolumeId, Value>,
     #[serde(default)]
     pub dependencies: Dependencies,
     pub config: Option<InOMap<String, Value>>,

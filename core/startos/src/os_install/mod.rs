@@ -7,6 +7,7 @@ use rpc_toolkit::{command, from_fn_async, AnyContext, HandlerExt, ParentHandler}
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 
+use crate::context::config::ServerConfig;
 use crate::context::{CliContext, InstallContext};
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
@@ -22,14 +23,6 @@ use crate::ARCH;
 
 mod gpt;
 mod mbr;
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PostInstallConfig {
-    os_partitions: OsPartitionInfo,
-    ethernet_interface: String,
-    wifi_interface: Option<String>,
-}
 
 pub fn install() -> ParentHandler {
     ParentHandler::new()
@@ -263,10 +256,11 @@ pub async fn execute(
 
     tokio::fs::write(
         rootfs.path().join("config/config.yaml"),
-        IoFormat::Yaml.to_vec(&PostInstallConfig {
-            os_partitions: part_info.clone(),
-            ethernet_interface: eth_iface,
+        IoFormat::Yaml.to_vec(&ServerConfig {
+            os_partitions: Some(part_info.clone()),
+            ethernet_interface: Some(eth_iface),
             wifi_interface: wifi_iface,
+            ..Default::default()
         })?,
     )
     .await?;
@@ -299,7 +293,7 @@ pub async fn execute(
         .invoke(crate::ErrorKind::OpenSsh)
         .await?;
 
-    let embassy_fs = MountGuard::mount(
+    let start_os_fs = MountGuard::mount(
         &Bind::new(rootfs.path()),
         current.join("media/embassy/embassyfs"),
         MountType::ReadOnly,
@@ -348,7 +342,7 @@ pub async fn execute(
     }
     sys.unmount(false).await?;
     proc.unmount(false).await?;
-    embassy_fs.unmount(false).await?;
+    start_os_fs.unmount(false).await?;
     if let Some(efi) = efi {
         efi.unmount(false).await?;
     }
