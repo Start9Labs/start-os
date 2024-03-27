@@ -20,7 +20,7 @@ use ts_rs::TS;
 use url::Url;
 
 use crate::db::model::package::{
-    CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind,
+    ActionMetadata, CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind,
 };
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
@@ -254,14 +254,6 @@ struct ListServiceInterfacesParams {
 struct RemoveAddressParams {
     id: String,
 }
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-enum AllowedStatuses {
-    OnlyRunning, // onlyRunning
-    OnlyStopped,
-    Any,
-}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
@@ -274,21 +266,9 @@ struct ExportActionParams {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
-struct ActionMetadata {
-    name: String,
-    description: String,
-    warning: Option<String>,
-    disabled: bool,
-    #[ts(type = "{[key: string]: any}")]
-    input: Value,
-    allowed_statuses: AllowedStatuses,
-    group: Option<String>,
-}
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
 struct RemoveActionParams {
-    id: String,
+    #[ts(type = "string")]
+    id: ActionId,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
@@ -387,11 +367,48 @@ async fn list_service_interfaces(
 async fn remove_address(context: EffectContext, data: RemoveAddressParams) -> Result<Value, Error> {
     todo!()
 }
-async fn export_action(context: EffectContext, data: ExportActionParams) -> Result<Value, Error> {
-    todo!()
+async fn export_action(context: EffectContext, data: ExportActionParams) -> Result<(), Error> {
+    let context = context.deref()?;
+    let package_id = context.id.clone();
+    context
+        .ctx
+        .db
+        .mutate(|db| {
+            let model = db
+                .as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&package_id)
+                .or_not_found(&package_id)?
+                .as_exposed_actions_mut();
+            let mut value = model.de()?;
+            value
+                .insert(data.id, data.metadata)
+                .map(|_| ())
+                .unwrap_or_default();
+            model.ser(&value)
+        })
+        .await?;
+    Ok(())
 }
-async fn remove_action(context: EffectContext, data: RemoveActionParams) -> Result<Value, Error> {
-    todo!()
+async fn remove_action(context: EffectContext, data: RemoveActionParams) -> Result<(), Error> {
+    let context = context.deref()?;
+    let package_id = context.id.clone();
+    context
+        .ctx
+        .db
+        .mutate(|db| {
+            let model = db
+                .as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&package_id)
+                .or_not_found(&package_id)?
+                .as_exposed_actions_mut();
+            let mut value = model.de()?;
+            value.remove(&data.id).map(|_| ()).unwrap_or_default();
+            model.ser(&value)
+        })
+        .await?;
+    Ok(())
 }
 async fn reverse_proxy(context: EffectContext, data: ReverseProxyParams) -> Result<Value, Error> {
     todo!()

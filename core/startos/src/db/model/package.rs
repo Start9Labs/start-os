@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use chrono::{DateTime, Utc};
 use emver::VersionRange;
 use imbl_value::InternedString;
-use models::{DataUrl, HealthCheckId, HostId, PackageId};
+use models::{ActionId, DataUrl, HealthCheckId, HostId, PackageId};
 use patch_db::json_ptr::JsonPointer;
 use patch_db::HasModel;
 use reqwest::Url;
@@ -293,6 +293,28 @@ pub struct InstallingInfo {
     pub new_manifest: Manifest,
     pub progress: FullProgress,
 }
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub enum AllowedStatuses {
+    OnlyRunning, // onlyRunning
+    OnlyStopped,
+    Any,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
+#[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
+pub struct ActionMetadata {
+    name: String,
+    description: String,
+    warning: Option<String>,
+    #[ts(type = "any")]
+    input: Value,
+    disabled: bool,
+    allowedStatuses: AllowedStatuses,
+    group: Option<String>,
+}
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
@@ -312,6 +334,7 @@ pub struct PackageDataEntry {
     pub hosts: HostInfo,
     #[ts(type = "string[]")]
     pub store_exposed_dependents: Vec<JsonPointer>,
+    pub exposed_actions: BTreeMap<ActionId, ActionMetadata>,
 }
 impl AsRef<PackageDataEntry> for PackageDataEntry {
     fn as_ref(&self) -> &PackageDataEntry {

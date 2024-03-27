@@ -29,6 +29,7 @@ import {
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { JsonPath, unNestPath } from "../../../Models/JsonPath"
 import { RpcResult, matchRpcResult } from "../../RpcListener"
+import { InputSpec } from "@start9labs/start-sdk/cjs/sdk/lib/config/configTypes"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
@@ -259,6 +260,35 @@ export class SystemForEmbassy implements System {
   ): Promise<void> {
     if (previousVersion) await this.migration(effects, previousVersion)
     await effects.setMainStatus({ status: "stopped" })
+    await this.exportActions(effects)
+  }
+  async exportActions(effects: HostSystemStartOs) {
+    const manifest = this.manifest
+    if (!manifest.actions) return
+    for (const [actionId, action] of Object.entries(manifest.actions)) {
+      const hasRunning = !!action["allowed-statuses"].find(
+        (x) => x === "running",
+      )
+      const hasStopped = !!action["allowed-statuses"].find(
+        (x) => x === "stopped",
+      )
+      // prettier-ignore
+      const allowedStatuses = hasRunning && hasStopped ? "any":
+        hasRunning ? "onlyRunning" :
+         "onlyStopped"
+      await effects.exportAction({
+        id: actionId,
+        metadata: {
+          name: action.name,
+          description: action.description,
+          warning: action.warning || null,
+          input: action["input-spec"] as InputSpec,
+          disabled: false,
+          allowedStatuses,
+          group: null,
+        },
+      })
+    }
   }
   private async uninit(
     effects: HostSystemStartOs,
