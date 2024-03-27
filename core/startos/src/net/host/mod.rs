@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use imbl_value::InternedString;
 use models::HostId;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::net::forward::AvailablePorts;
 use crate::net::host::address::HostAddress;
@@ -12,9 +13,10 @@ use crate::prelude::*;
 pub mod address;
 pub mod binding;
 
-#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
+#[ts(export)]
 pub struct Host {
     pub kind: HostKind,
     pub bindings: BTreeMap<u16, BindInfo>,
@@ -37,16 +39,18 @@ impl Host {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub enum HostKind {
     Multi,
     // Single,
     // Static,
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[model = "Model<Self>"]
+#[ts(export)]
 pub struct HostInfo(BTreeMap<HostId, Host>);
 
 impl Map for HostInfo {

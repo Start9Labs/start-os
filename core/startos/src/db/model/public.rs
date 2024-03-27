@@ -13,6 +13,7 @@ use patch_db::{HasModel, Value};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use torut::onion::OnionAddressV3;
+use ts_rs::TS;
 
 use crate::account::AccountInfo;
 use crate::db::model::package::AllPackageData;
@@ -23,13 +24,14 @@ use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::{ARCH, PLATFORM};
 
-#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-// #[macro_debug]
+#[ts(export)]
 pub struct Public {
     pub server_info: ServerInfo,
     pub package_data: AllPackageData,
+    #[ts(type = "any")]
     pub ui: Value,
 }
 impl Public {
@@ -101,24 +103,34 @@ fn get_platform() -> InternedString {
     (&*PLATFORM).into()
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
+#[ts(export)]
 pub struct ServerInfo {
     #[serde(default = "get_arch")]
+    #[ts(type = "string")]
     pub arch: InternedString,
     #[serde(default = "get_platform")]
+    #[ts(type = "string")]
     pub platform: InternedString,
     pub id: String,
     pub hostname: String,
+    #[ts(type = "string")]
     pub version: Version,
+    #[ts(type = "string | null")]
     pub last_backup: Option<DateTime<Utc>>,
     /// Used in the wifi to determine the region to set the system to
+    #[ts(type = "string | null")]
     pub last_wifi_region: Option<CountryCode>,
+    #[ts(type = "string")]
     pub eos_version_compat: VersionRange,
+    #[ts(type = "string")]
     pub lan_address: Url,
+    #[ts(type = "string")]
     pub onion_address: OnionAddressV3,
     /// for backwards compatibility
+    #[ts(type = "string")]
     pub tor_address: Url,
     pub ip_info: BTreeMap<String, IpInfo>,
     #[serde(default)]
@@ -136,12 +148,15 @@ pub struct ServerInfo {
     pub governor: Option<Governor>,
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
+#[ts(export)]
 pub struct IpInfo {
+    #[ts(type = "string | null")]
     pub ipv4_range: Option<Ipv4Net>,
     pub ipv4: Option<Ipv4Addr>,
+    #[ts(type = "string | null")]
     pub ipv6_range: Option<Ipv6Net>,
     pub ipv6: Option<Ipv6Addr>,
 }
@@ -158,15 +173,17 @@ impl IpInfo {
     }
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[model = "Model<Self>"]
+#[ts(export)]
 pub struct BackupProgress {
     pub complete: bool,
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
+#[ts(export)]
 pub struct ServerStatus {
     pub backup_progress: Option<BTreeMap<PackageId, BackupProgress>>,
     pub updated: bool,
@@ -177,33 +194,37 @@ pub struct ServerStatus {
     pub restarting: bool,
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
+#[ts(export)]
 pub struct UpdateProgress {
     pub size: Option<u64>,
     pub downloaded: u64,
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
+#[ts(export)]
 pub struct WifiInfo {
     pub ssids: Vec<String>,
     pub selected: Option<String>,
     pub connected: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct ServerSpecs {
     pub cpu: String,
     pub disk: String,
     pub memory: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct ConnectionAddresses {
     pub tor: Vec<String>,
     pub clearnet: Vec<String>,

@@ -32,7 +32,7 @@ sqlx = { version = "0.7.2", features = [
   "postgres",
 ] }
 ssh-key = "0.6.2"
-ts-rs = "7"
+ts-rs = { git = "https://github.com/dr-bonez/ts-rs.git", branch = "feature/top-level-type-override" } # "8"
 thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
 torut = { git = "https://github.com/Start9Labs/torut.git", branch = "update/dependencies" }

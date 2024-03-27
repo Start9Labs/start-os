@@ -7,6 +7,7 @@ use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWriteExt};
 use tokio::process::Command;
 
+use crate::dependencies::{DepInfo, Dependencies};
 use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
@@ -347,7 +348,21 @@ impl From<ManifestV1> for Manifest {
                 .map(|(id, _)| id.clone())
                 .collect(),
             alerts: value.alerts,
-            dependencies: value.dependencies,
+            dependencies: Dependencies(
+                value
+                    .dependencies
+                    .into_iter()
+                    .map(|(id, value)| {
+                        (
+                            id,
+                            DepInfo {
+                                description: value.description,
+                                optional: !value.requirement.required(),
+                            },
+                        )
+                    })
+                    .collect(),
+            ),
             hardware_requirements: value.hardware_requirements,
             git_hash: value.git_hash,
             os_version: value.eos_version,

@@ -10,6 +10,7 @@ use imbl_value::InternedString;
 use tokio::sync::{Mutex, OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tracing::instrument;
 
+use crate::context::RpcContext;
 use crate::db::model::package::{
     InstallingInfo, InstallingState, PackageDataEntry, PackageState, UpdatingState,
 };
@@ -26,7 +27,7 @@ use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
 use crate::service::{LoadDisposition, Service};
 use crate::status::{MainStatus, Status};
-use crate::{context::RpcContext, util::serde::Pem};
+use crate::util::serde::Pem;
 
 pub type DownloadInstallFuture = BoxFuture<'static, Result<InstallFuture, Error>>;
 pub type InstallFuture = BoxFuture<'static, Result<(), Error>>;
@@ -170,11 +171,8 @@ impl ServiceMap {
                                 developer_key: Pem::new(developer_key),
                                 icon,
                                 last_backup: None,
-                                dependency_info: Default::default(),
                                 current_dependencies: Default::default(),
-                                interface_addresses: Default::default(),
                                 hosts: Default::default(),
-                                store_exposed_ui: Default::default(),
                                 store_exposed_dependents: Default::default(),
                             },
                         )?;

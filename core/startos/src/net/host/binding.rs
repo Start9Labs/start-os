@@ -1,12 +1,14 @@
 use imbl_value::InternedString;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::net::forward::AvailablePorts;
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct BindInfo {
     pub options: BindOptions,
     pub assigned_lan_port: Option<u16>,
@@ -49,9 +51,11 @@ impl BindInfo {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct BindOptions {
+    #[ts(type = "string")]
     pub scheme: InternedString,
     pub preferred_external_port: u16,
     pub add_ssl: Option<AddSslOptions>,
@@ -59,9 +63,11 @@ pub struct BindOptions {
     pub ssl: bool,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct AddSslOptions {
+    #[ts(type = "string")]
     pub scheme: InternedString,
     pub preferred_external_port: u16,
     // #[serde(default)]

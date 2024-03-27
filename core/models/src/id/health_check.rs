@@ -2,10 +2,12 @@ use std::path::Path;
 use std::str::FromStr;
 
 use serde::{Deserialize, Deserializer, Serialize};
+use ts_rs::TS;
 
 use crate::{Id, InvalidId};
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, ts_rs::TS)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TS)]
+#[ts(type = "string")]
 pub struct HealthCheckId(Id);
 impl std::fmt::Display for HealthCheckId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -15,6 +15,7 @@ use serde::de::DeserializeOwned;
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
+use ts_rs::TS;
 
 use super::IntoDoubleEndedIterator;
 use crate::util::clap::FromStrParser;
@@ -633,7 +634,8 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, TS)]
+#[ts(export, type = "string")]
 pub struct Duration(std::time::Duration);
 impl Deref for Duration {
     type Target = std::time::Duration;
@@ -1175,7 +1177,8 @@ impl<T: PemEncoding> Pem<T> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, TS)]
+#[ts(export, type = "string | number[]")]
 pub struct MaybeUtf8String(pub Vec<u8>);
 impl std::fmt::Debug for MaybeUtf8String {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -4,15 +4,17 @@ use chrono::{DateTime, Utc};
 use imbl::OrdMap;
 use models::PackageId;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use self::health_check::HealthCheckId;
 use crate::prelude::*;
 use crate::status::health_check::HealthCheckResult;
 
 pub mod health_check;
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
+#[ts(export)]
 pub struct Status {
     pub configured: bool,
     pub main: MainStatus,
@@ -20,9 +22,9 @@ pub struct Status {
     pub dependency_config_errors: DependencyConfigErrors,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel, Default, TS)]
 #[model = "Model<Self>"]
+#[ts(export)]
 pub struct DependencyConfigErrors(pub BTreeMap<PackageId, String>);
 impl Map for DependencyConfigErrors {
     type Key = PackageId;
@@ -35,22 +37,29 @@ impl Map for DependencyConfigErrors {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TS)]
 #[serde(tag = "status")]
 #[serde(rename_all = "camelCase")]
 pub enum MainStatus {
     Stopped,
     Restarting,
+    #[serde(rename_all = "camelCase")]
     Stopping {
         timeout: crate::util::serde::Duration,
     },
     Starting,
+    #[serde(rename_all = "camelCase")]
     Running {
+        #[ts(type = "string")]
         started: DateTime<Utc>,
+        #[ts(as = "BTreeMap<HealthCheckId, HealthCheckResult>")]
         health: OrdMap<HealthCheckId, HealthCheckResult>,
     },
+    #[serde(rename_all = "camelCase")]
     BackingUp {
+        #[ts(type = "string | null")]
         started: Option<DateTime<Utc>>,
+        #[ts(as = "BTreeMap<HealthCheckId, HealthCheckResult>")]
         health: OrdMap<HealthCheckId, HealthCheckResult>,
     },
 }

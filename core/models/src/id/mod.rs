@@ -28,8 +28,8 @@ lazy_static::lazy_static! {
     pub static ref SYSTEM_ID: Id = Id(InternedString::intern("x_system"));
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default, ts_rs::TS)]
-pub struct Id(#[ts(type = "string")] InternedString);
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct Id(InternedString);
 impl TryFrom<InternedString> for Id {
     type Error = InvalidId;
     fn try_from(value: InternedString) -> Result<Self, Self::Error> {

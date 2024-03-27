@@ -1,7 +1,8 @@
 pub use models::HealthCheckId;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "result")]
 pub enum HealthCheckResult {

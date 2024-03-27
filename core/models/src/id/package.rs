@@ -12,6 +12,7 @@ lazy_static::lazy_static! {
     pub static ref SYSTEM_PACKAGE_ID: PackageId = PackageId(SYSTEM_ID.clone());
 }
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, TS)]
+#[ts(type = "string")]
 pub struct PackageId(Id);
 impl FromStr for PackageId {
     type Err = InvalidId;

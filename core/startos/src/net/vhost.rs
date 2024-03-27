@@ -17,6 +17,7 @@ use tokio_rustls::rustls::server::Acceptor;
 use tokio_rustls::rustls::{RootCertStore, ServerConfig};
 use tokio_rustls::{LazyConfigAcceptor, TlsConnector};
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::prelude::*;
 use crate::util::io::{BackTrackingReader, TimeoutStream};
@@ -80,8 +81,9 @@ struct TargetInfo {
     connect_ssl: Result<(), AlpnInfo>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub enum AlpnInfo {
     Reflect,
     Specified(Vec<MaybeUtf8String>),

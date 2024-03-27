@@ -20,7 +20,7 @@ use ts_rs::TS;
 use url::Url;
 
 use crate::db::model::package::{
-    CurrentDependencies, CurrentDependencyInfo, ExposedUI, StoreExposedUI,
+    CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind,
 };
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
@@ -114,7 +114,6 @@ pub fn service_effect_handler() -> ParentHandler {
             "exposeForDependents",
             from_fn_async(expose_for_dependents).no_cli(),
         )
-        .subcommand("exposeUi", from_fn_async(expose_ui).no_cli())
         .subcommand(
             "createOverlayedImage",
             from_fn_async(create_overlayed_image)
@@ -699,23 +698,6 @@ async fn expose_for_dependents(
     Ok(())
 }
 
-async fn expose_ui(context: EffectContext, params: StoreExposedUI) -> Result<(), Error> {
-    let context = context.deref()?;
-    let package_id = context.id.clone();
-    context
-        .ctx
-        .db
-        .mutate(|db| {
-            db.as_public_mut()
-                .as_package_data_mut()
-                .as_idx_mut(&package_id)
-                .or_not_found(&package_id)?
-                .as_store_exposed_ui_mut()
-                .ser(&params)
-        })
-        .await?;
-    Ok(())
-}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
@@ -1101,7 +1083,7 @@ enum DependencyRequirement {
         #[ts(type = "string")]
         version_spec: VersionRange,
         #[ts(type = "string")]
-        url: Url,
+        registry: Url,
     },
     #[serde(rename_all = "camelCase")]
     Exists {
@@ -1110,7 +1092,7 @@ enum DependencyRequirement {
         #[ts(type = "string")]
         version_spec: VersionRange,
         #[ts(type = "string")]
-        url: Url,
+        registry: Url,
     },
 }
 // filebrowser:exists,bitcoind:running:foo+bar+baz
@@ -1120,7 +1102,7 @@ impl FromStr for DependencyRequirement {
         match s.split_once(':') {
             Some((id, "e")) | Some((id, "exists")) => Ok(Self::Exists {
                 id: id.parse()?,
-                url: "".parse()?,           // TODO
+                registry: "".parse()?,      // TODO
                 version_spec: "*".parse()?, // TODO
             }),
             Some((id, rest)) => {
@@ -1144,14 +1126,14 @@ impl FromStr for DependencyRequirement {
                 Ok(Self::Running {
                     id: id.parse()?,
                     health_checks,
-                    url: "".parse()?,           // TODO
+                    registry: "".parse()?,      // TODO
                     version_spec: "*".parse()?, // TODO
                 })
             }
             None => Ok(Self::Running {
                 id: s.parse()?,
                 health_checks: BTreeSet::new(),
-                url: "".parse()?,           // TODO
+                registry: "".parse()?,      // TODO
                 version_spec: "*".parse()?, // TODO
             }),
         }
@@ -1187,20 +1169,31 @@ async fn set_dependencies(
                     .map(|dependency| match dependency {
                         DependencyRequirement::Exists {
                             id,
-                            url,
-                            version_spec,
-                        } => (id, CurrentDependencyInfo::Exists { url, version_spec }),
-                        DependencyRequirement::Running {
-                            id,
-                            health_checks,
-                            url,
+                            registry,
                             version_spec,
                         } => (
                             id,
-                            CurrentDependencyInfo::Running {
-                                url,
+                            CurrentDependencyInfo {
+                                kind: CurrentDependencyKind::Exists,
+                                registry,
                                 version_spec,
-                                health_checks,
+                                icon: todo!(),
+                                title: todo!(),
+                            },
+                        ),
+                        DependencyRequirement::Running {
+                            id,
+                            health_checks,
+                            registry,
+                            version_spec,
+                        } => (
+                            id,
+                            CurrentDependencyInfo {
+                                kind: CurrentDependencyKind::Running { health_checks },
+                                registry,
+                                version_spec,
+                                icon: todo!(),
+                                title: todo!(),
                             },
                         ),
                     })
