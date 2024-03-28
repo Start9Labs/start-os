@@ -169,6 +169,7 @@ jobs:
       - name: Prevent rebuild of compiled artifacts
         run: |
           mkdir -p web/dist/raw
+          touch core/startos/bindings
           PLATFORM=${{ matrix.platform }} make -t compiled-${{ env.ARCH }}.tar
 
       - name: Run iso build
