@@ -86,6 +86,9 @@ impl LanPortForwardController {
 
         update_forward(external, prev, next).await
     }
+    pub fn get_forwards(&self) -> Mutex<BTreeMap<u16, BTreeMap<SocketAddr, Weak<()>>>> {
+        self.forwards
+    }
 }
 
 async fn update_forward(

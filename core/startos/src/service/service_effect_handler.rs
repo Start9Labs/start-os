@@ -328,8 +328,35 @@ async fn get_container_ip(context: EffectContext, _: Empty) -> Result<Ipv4Addr, 
 async fn get_service_port_forward(
     context: EffectContext,
     data: GetServicePortForwardParams,
-) -> Result<Value, Error> {
-    todo!()
+) -> Result<u16, Error> {
+    let svc_ip_query = get_container_ip(context.clone(), Empty {}).await;
+    
+    match svc_ip_query {
+        Ok(svc_ip_addr) => {
+            match context.0.upgrade() {
+                Some(c) => {
+                    let net_service = c.persistent_container.net_service.lock().await;
+                    match net_service.get_controller_forwards() {
+                        Ok(forwards) => {
+                            for (port, socket_addr_map) in forwards.lock().await.iter() {
+                                for (socket_addr, _) in socket_addr_map {
+                                    if socket_addr.ip() == svc_ip_addr { return Ok(*port) }
+                                }
+                            }
+                            Err(Error::new(
+                                eyre!("{:?} IP not found in LanPortForwardController", svc_ip_addr), crate::ErrorKind::NotFound))
+                        },
+                        Err(e) => Err(e)
+                    }
+                },
+                None => Err(Error::new(
+                    eyre!("Upgrade on Weak<ServiceActorSeed> resulted in a None variant"),
+                    crate::ErrorKind::NotFound,
+                )),
+            }
+        },
+        Err(e) => Err(e)
+    }
 }
 async fn clear_network_interfaces(context: EffectContext, _: Empty) -> Result<Value, Error> {
     todo!()

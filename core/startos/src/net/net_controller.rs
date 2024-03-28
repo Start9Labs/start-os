@@ -7,6 +7,7 @@ use imbl::OrdMap;
 use lazy_format::lazy_format;
 use models::{HostId, OptionExt, PackageId};
 use patch_db::PatchDb;
+use tokio::sync::Mutex;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 
@@ -388,6 +389,16 @@ impl NetService {
 
     pub fn get_ip(&self) -> Ipv4Addr {
         self.ip.to_owned()
+    }
+
+    pub fn get_controller_forwards(&self) -> Result<Mutex<BTreeMap<u16, BTreeMap<SocketAddr, Weak<()>>>>, Error> {
+        match self.controller.upgrade() {
+            Some(c) => Ok(c.forward.get_forwards()),
+            None => Err(Error::new(
+                eyre!("Upgrade on Weak<NetController> resulted in a None variant"),
+                crate::ErrorKind::NotFound,
+            )),
+        }
     }
 }
 
