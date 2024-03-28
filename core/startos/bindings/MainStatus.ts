@@ -3,4 +3,18 @@ import type { Duration } from "./Duration";
 import type { HealthCheckId } from "./HealthCheckId";
 import type { HealthCheckResult } from "./HealthCheckResult";
 
-export type MainStatus = { "status": "stopped" } | { "status": "restarting" } | { "status": "stopping", timeout: Duration, } | { "status": "starting" } | { "status": "running", started: string, health: { [key: HealthCheckId]: HealthCheckResult }, } | { "status": "backingUp", started: string | null, health: { [key: HealthCheckId]: HealthCheckResult }, };
+export type MainStatus =
+  | { status: "stopped" }
+  | { status: "restarting" }
+  | { status: "stopping"; timeout: Duration }
+  | { status: "starting" }
+  | {
+      status: "running";
+      started: string;
+      health: { [key: HealthCheckId]: HealthCheckResult };
+    }
+  | {
+      status: "backingUp";
+      started: string | null;
+      health: { [key: HealthCheckId]: HealthCheckResult };
+    };

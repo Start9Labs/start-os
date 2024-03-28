@@ -7,4 +7,26 @@ import type { ImageId } from "./ImageId";
 import type { PackageId } from "./PackageId";
 import type { VolumeId } from "./VolumeId";
 
-export type Manifest = { id: PackageId, title: string, version: string, releaseNotes: string, license: string, replaces: Array<string>, wrapperRepo: string, upstreamRepo: string, supportSite: string, marketingSite: string, donationUrl: string | null, description: Description, images: Array<ImageId>, assets: Array<VolumeId>, volumes: Array<VolumeId>, alerts: Alerts, dependencies: Dependencies, hardwareRequirements: HardwareRequirements, gitHash: string | null, osVersion: string, hasConfig: boolean, };
+export type Manifest = {
+  id: PackageId;
+  title: string;
+  version: string;
+  releaseNotes: string;
+  license: string;
+  replaces: Array<string>;
+  wrapperRepo: string;
+  upstreamRepo: string;
+  supportSite: string;
+  marketingSite: string;
+  donationUrl: string | null;
+  description: Description;
+  images: Array<ImageId>;
+  assets: Array<VolumeId>;
+  volumes: Array<VolumeId>;
+  alerts: Alerts;
+  dependencies: Dependencies;
+  hardwareRequirements: HardwareRequirements;
+  gitHash: string | null;
+  osVersion: string;
+  hasConfig: boolean;
+};

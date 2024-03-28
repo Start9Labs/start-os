@@ -2,4 +2,4 @@
 import type { NamedProgress } from "./NamedProgress";
 import type { Progress } from "./Progress";
 
-export type FullProgress = { overall: Progress, phases: Array<NamedProgress>, };
+export type FullProgress = { overall: Progress; phases: Array<NamedProgress> };

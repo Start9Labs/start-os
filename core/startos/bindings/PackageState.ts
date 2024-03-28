@@ -3,4 +3,9 @@ import type { InstalledState } from "./InstalledState";
 import type { InstallingState } from "./InstallingState";
 import type { UpdatingState } from "./UpdatingState";
 
-export type PackageState = { "state": "installing" } & InstallingState | { "state": "restoring" } & InstallingState | { "state": "updating" } & UpdatingState | { "state": "installed" } & InstalledState | { "state": "removing" } & InstalledState;
+export type PackageState =
+  | ({ state: "installing" } & InstallingState)
+  | ({ state: "restoring" } & InstallingState)
+  | ({ state: "updating" } & UpdatingState)
+  | ({ state: "installed" } & InstalledState)
+  | ({ state: "removing" } & InstalledState);

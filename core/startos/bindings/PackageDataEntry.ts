@@ -9,4 +9,18 @@ import type { ServiceInterfaceId } from "./ServiceInterfaceId";
 import type { ServiceInterfaceWithHostInfo } from "./ServiceInterfaceWithHostInfo";
 import type { Status } from "./Status";
 
-export type PackageDataEntry = { stateInfo: PackageState, status: Status, marketplaceUrl: string | null, developerKey: string, icon: DataUrl, lastBackup: string | null, currentDependencies: CurrentDependencies, actions: { [key: ActionId]: ActionMetadata }, serviceInterfaces: { [key: ServiceInterfaceId]: ServiceInterfaceWithHostInfo }, hosts: HostInfo, storeExposedDependents: string[], };
+export type PackageDataEntry = {
+  stateInfo: PackageState;
+  status: Status;
+  marketplaceUrl: string | null;
+  developerKey: string;
+  icon: DataUrl;
+  lastBackup: string | null;
+  currentDependencies: CurrentDependencies;
+  actions: { [key: ActionId]: ActionMetadata };
+  serviceInterfaces: {
+    [key: ServiceInterfaceId]: ServiceInterfaceWithHostInfo;
+  };
+  hosts: HostInfo;
+  storeExposedDependents: string[];
+};
