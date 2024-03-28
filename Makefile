@@ -176,11 +176,12 @@ container-runtime/node_modules: container-runtime/package.json container-runtime
 core/startos/bindings: $(shell git ls-files core) $(ENVIRONMENT_FILE) $(PLATFORM_FILE)
 	rm -rf core/startos/bindings
 	(cd core/ && cargo test)
+	npm --prefix sdk exec -- prettier -w ./core/startos/bindings/*.ts
 
 sdk/lib/test: $(shell git ls-files sdk) core/startos/bindings
 	(cd sdk && make test)
 
-sdk/dist: $(shell git ls-files sdk)
+sdk/dist: $(shell git ls-files sdk) core/startos/bindings
 	(cd sdk && make bundle)
 
 container-runtime/dist: container-runtime/node_modules $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 

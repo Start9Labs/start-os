@@ -4,12 +4,32 @@ import type { IpInfo } from "./IpInfo";
 import type { ServerStatus } from "./ServerStatus";
 import type { WifiInfo } from "./WifiInfo";
 
-export type ServerInfo = { arch: string, platform: string, id: string, hostname: string, version: string, lastBackup: string | null, 
-/**
- * Used in the wifi to determine the region to set the system to
- */
-lastWifiRegion: string | null, eosVersionCompat: string, lanAddress: string, onionAddress: string, 
-/**
- * for backwards compatibility
- */
-torAddress: string, ipInfo: { [key: string]: IpInfo }, statusInfo: ServerStatus, wifi: WifiInfo, unreadNotificationCount: number, passwordHash: string, pubkey: string, caFingerprint: string, ntpSynced: boolean, zram: boolean, governor: Governor | null, };
+export type ServerInfo = {
+  arch: string;
+  platform: string;
+  id: string;
+  hostname: string;
+  version: string;
+  lastBackup: string | null;
+  /**
+   * Used in the wifi to determine the region to set the system to
+   */
+  lastWifiRegion: string | null;
+  eosVersionCompat: string;
+  lanAddress: string;
+  onionAddress: string;
+  /**
+   * for backwards compatibility
+   */
+  torAddress: string;
+  ipInfo: { [key: string]: IpInfo };
+  statusInfo: ServerStatus;
+  wifi: WifiInfo;
+  unreadNotificationCount: number;
+  passwordHash: string;
+  pubkey: string;
+  caFingerprint: string;
+  ntpSynced: boolean;
+  zram: boolean;
+  governor: Governor | null;
+};

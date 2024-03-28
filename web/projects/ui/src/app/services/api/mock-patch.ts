@@ -101,6 +101,7 @@ export const mockPatchData: DataModel = {
             'ephemeral-health-check': {
               name: 'Ephemeral Health Check',
               result: 'starting',
+              message: null,
             },
             'chain-state': {
               name: 'Chain State',
@@ -120,6 +121,7 @@ export const mockPatchData: DataModel = {
             'unnecessary-health-check': {
               name: 'Unnecessary Health Check',
               result: 'disabled',
+              message: null,
             },
           },
         },

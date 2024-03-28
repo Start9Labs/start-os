@@ -4,4 +4,14 @@ import type { ExportedHostInfo } from "./ExportedHostInfo";
 import type { ServiceInterfaceId } from "./ServiceInterfaceId";
 import type { ServiceInterfaceType } from "./ServiceInterfaceType";
 
-export type ServiceInterfaceWithHostInfo = { hostInfo: ExportedHostInfo, id: ServiceInterfaceId, name: string, description: string, hasPrimary: boolean, disabled: boolean, masked: boolean, addressInfo: AddressInfo, type: ServiceInterfaceType, };
+export type ServiceInterfaceWithHostInfo = {
+  hostInfo: ExportedHostInfo;
+  id: ServiceInterfaceId;
+  name: string;
+  description: string;
+  hasPrimary: boolean;
+  disabled: boolean;
+  masked: boolean;
+  addressInfo: AddressInfo;
+  type: ServiceInterfaceType;
+};

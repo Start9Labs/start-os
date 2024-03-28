@@ -2,4 +2,7 @@
 import type { InstallingInfo } from "./InstallingInfo";
 import type { Manifest } from "./Manifest";
 
-export type UpdatingState = { manifest: Manifest, installingInfo: InstallingInfo, };
+export type UpdatingState = {
+  manifest: Manifest;
+  installingInfo: InstallingInfo;
+};

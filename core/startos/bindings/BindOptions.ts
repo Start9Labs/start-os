@@ -2,4 +2,9 @@
 import type { AddSslOptions } from "./AddSslOptions";
 import type { Security } from "./Security";
 
-export type BindOptions = { scheme: string | null, preferredExternalPort: number, addSsl: AddSslOptions | null, secure: Security | null, };
+export type BindOptions = {
+  scheme: string | null;
+  preferredExternalPort: number;
+  addSsl: AddSslOptions | null;
+  secure: Security | null;
+};

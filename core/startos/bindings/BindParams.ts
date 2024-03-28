@@ -4,4 +4,12 @@ import type { HostId } from "./HostId";
 import type { HostKind } from "./HostKind";
 import type { Security } from "./Security";
 
-export type BindParams = { kind: HostKind, id: HostId, internalPort: number, scheme: string | null, preferredExternalPort: number, addSsl: AddSslOptions | null, secure: Security | null, };
+export type BindParams = {
+  kind: HostKind;
+  id: HostId;
+  internalPort: number;
+  scheme: string | null;
+  preferredExternalPort: number;
+  addSsl: AddSslOptions | null;
+  secure: Security | null;
+};

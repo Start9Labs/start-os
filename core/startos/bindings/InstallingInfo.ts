@@ -2,4 +2,4 @@
 import type { FullProgress } from "./FullProgress";
 import type { Manifest } from "./Manifest";
 
-export type InstallingInfo = { newManifest: Manifest, progress: FullProgress, };
+export type InstallingInfo = { newManifest: Manifest; progress: FullProgress };

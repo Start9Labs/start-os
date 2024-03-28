@@ -14,9 +14,9 @@ pub struct HealthCheckResult {
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "result")]
 pub enum HealthCheckResultKind {
-    Success { message: String },
-    Disabled,
-    Starting,
+    Success { message: Option<String> },
+    Disabled { message: Option<String> },
+    Starting { message: Option<String> },
     Loading { message: String },
     Failure { message: String },
 }
@@ -25,10 +25,26 @@ impl std::fmt::Display for HealthCheckResult {
         let name = &self.name;
         match &self.kind {
             HealthCheckResultKind::Success { message } => {
-                write!(f, "{name}: Succeeded ({message})")
+                if let Some(message) = message {
+                    write!(f, "{name}: Succeeded ({message})")
+                } else {
+                    write!(f, "{name}: Succeeded")
+                }
             }
-            HealthCheckResultKind::Disabled => write!(f, "{name}: Disabled"),
-            HealthCheckResultKind::Starting => write!(f, "{name}: Starting"),
+            HealthCheckResultKind::Disabled { message } => {
+                if let Some(message) = message {
+                    write!(f, "{name}: Disabled ({message})")
+                } else {
+                    write!(f, "{name}: Disabled")
+                }
+            }
+            HealthCheckResultKind::Starting { message } => {
+                if let Some(message) = message {
+                    write!(f, "{name}: Starting ({message})")
+                } else {
+                    write!(f, "{name}: Starting")
+                }
+            }
             HealthCheckResultKind::Loading { message } => write!(f, "{name}: Loading ({message})"),
             HealthCheckResultKind::Failure { message } => write!(f, "{name}: Failed ({message})"),
         }

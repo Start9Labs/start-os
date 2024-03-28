@@ -2,4 +2,8 @@
 import type { AllPackageData } from "./AllPackageData";
 import type { ServerInfo } from "./ServerInfo";
 
-export type Public = { serverInfo: ServerInfo, packageData: AllPackageData, ui: any, };
+export type Public = {
+  serverInfo: ServerInfo;
+  packageData: AllPackageData;
+  ui: any;
+};

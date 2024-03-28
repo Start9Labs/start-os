@@ -2,4 +2,9 @@
 import type { BindOptions } from "./BindOptions";
 import type { HostId } from "./HostId";
 
-export type AddressInfo = { username: string | null, hostId: HostId, bindOptions: BindOptions, suffix: string, };
+export type AddressInfo = {
+  username: string | null;
+  hostId: HostId;
+  bindOptions: BindOptions;
+  suffix: string;
+};

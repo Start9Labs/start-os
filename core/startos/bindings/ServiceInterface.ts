@@ -3,4 +3,13 @@ import type { AddressInfo } from "./AddressInfo";
 import type { ServiceInterfaceId } from "./ServiceInterfaceId";
 import type { ServiceInterfaceType } from "./ServiceInterfaceType";
 
-export type ServiceInterface = { id: ServiceInterfaceId, name: string, description: string, hasPrimary: boolean, disabled: boolean, masked: boolean, addressInfo: AddressInfo, type: ServiceInterfaceType, };
+export type ServiceInterface = {
+  id: ServiceInterfaceId;
+  name: string;
+  description: string;
+  hasPrimary: boolean;
+  disabled: boolean;
+  masked: boolean;
+  addressInfo: AddressInfo;
+  type: ServiceInterfaceType;
+};

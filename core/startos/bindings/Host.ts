@@ -3,4 +3,9 @@ import type { BindInfo } from "./BindInfo";
 import type { HostAddress } from "./HostAddress";
 import type { HostKind } from "./HostKind";
 
-export type Host = { kind: HostKind, bindings: { [key: number]: BindInfo }, addresses: Array<HostAddress>, primary: HostAddress | null, };
+export type Host = {
+  kind: HostKind;
+  bindings: { [key: number]: BindInfo };
+  addresses: Array<HostAddress>;
+  primary: HostAddress | null;
+};
