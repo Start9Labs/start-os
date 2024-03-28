@@ -22,7 +22,7 @@ export const checkWebUrl = async (
     .then(
       (x) =>
         ({
-          status: "passing",
+          status: "success",
           message: successMessage,
         }) as const,
     )

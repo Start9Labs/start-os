@@ -40,19 +40,21 @@ export function healthCheck(o: {
           const { status, message } = await o.fn(overlay)
           await o.effects.setHealth({
             name: o.name,
-            status,
-            message,
+            id: o.name,
+            result: status,
+            message: message || "",
           })
           currentValue.hadSuccess = true
-          currentValue.lastResult = "passing"
+          currentValue.lastResult = "success"
           await triggerFirstSuccess().catch((err) => {
             console.error(err)
           })
         } catch (e) {
           await o.effects.setHealth({
             name: o.name,
-            status: "failure",
-            message: asMessage(e),
+            id: o.name,
+            result: "failure",
+            message: asMessage(e) || "",
           })
           currentValue.lastResult = "failure"
         }
