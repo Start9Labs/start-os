@@ -15,10 +15,10 @@ export function unNestPath<A extends string>(a: A): UnNestPaths<A> {
 function isNestedPath(path: string): path is NestedPaths {
   const paths = path.split("/")
   if (paths.length !== 4) return false
-  if (paths[1] === "action" && (paths[3] === "run" || paths[3] === "get"))
+  if (paths[1] === "actions" && (paths[3] === "run" || paths[3] === "get"))
     return true
   if (
-    paths[1] === "dependencyConfig" &&
+    paths[1] === "dependencies" &&
     (paths[3] === "query" || paths[3] === "update")
   )
     return true
