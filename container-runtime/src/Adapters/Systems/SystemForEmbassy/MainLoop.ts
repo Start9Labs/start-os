@@ -113,25 +113,24 @@ export class MainLoop {
             if (executed.exitCode === 59) {
               await effects.setHealth({
                 name: healthId,
-                status: "disabled",
-                message:
-                  executed.stderr.toString() || executed.stdout.toString(),
+                id: healthId,
+                result: "disabled",
               })
               return
             }
             if (executed.exitCode === 60) {
               await effects.setHealth({
                 name: healthId,
-                status: "starting",
-                message:
-                  executed.stderr.toString() || executed.stdout.toString(),
+                id: healthId,
+                result: "starting",
               })
               return
             }
             if (executed.exitCode === 61) {
               await effects.setHealth({
                 name: healthId,
-                status: "warning",
+                id: healthId,
+                result: "failure",
                 message:
                   executed.stderr.toString() || executed.stdout.toString(),
               })
@@ -142,14 +141,16 @@ export class MainLoop {
             if (!!errorMessage) {
               await effects.setHealth({
                 name: healthId,
-                status: "failure",
-                message: errorMessage,
+                id: healthId,
+                result: "failure",
+                message: errorMessage || "",
               })
               return
             }
             await effects.setHealth({
               name: healthId,
-              status: "passing",
+              id: healthId,
+              result: "success",
               message,
             })
             return
@@ -160,7 +161,8 @@ export class MainLoop {
             if (!method) {
               await effects.setHealth({
                 name: healthId,
-                status: "failure",
+                id: healthId,
+                result: "failure",
                 message: `Expecting that thejs health check ${healthId} exists`,
               })
               return
@@ -173,16 +175,18 @@ export class MainLoop {
 
             if ("result" in result) {
               await effects.setHealth({
-                message: null,
+                message: "",
                 name: healthId,
-                status: "passing",
+                id: healthId,
+                result: "success",
               })
               return
             }
             if ("error" in result) {
               await effects.setHealth({
                 name: healthId,
-                status: "failure",
+                id: healthId,
+                result: "failure",
                 message: result.error,
               })
               return
@@ -190,7 +194,8 @@ export class MainLoop {
             if (!("error-code" in result)) {
               await effects.setHealth({
                 name: healthId,
-                status: "failure",
+                id: healthId,
+                result: "failure",
                 message: `Unknown error type ${JSON.stringify(result)}`,
               })
               return
@@ -199,23 +204,24 @@ export class MainLoop {
             if (code === 59) {
               await effects.setHealth({
                 name: healthId,
-                status: "disabled",
-                message,
+                id: healthId,
+                result: "disabled",
               })
               return
             }
             if (code === 60) {
               await effects.setHealth({
                 name: healthId,
-                status: "starting",
-                message,
+                id: healthId,
+                result: "starting",
               })
               return
             }
             if (code === 61) {
               await effects.setHealth({
                 name: healthId,
-                status: "warning",
+                id: healthId,
+                result: "failure",
                 message,
               })
               return
@@ -223,7 +229,8 @@ export class MainLoop {
 
             await effects.setHealth({
               name: healthId,
-              status: "failure",
+              id: healthId,
+              result: "failure",
               message: `${result["error-code"][0]}: ${result["error-code"][1]}`,
             })
             return
