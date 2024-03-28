@@ -89,6 +89,8 @@ format:
 
 test: $(CORE_SRC) $(ENVIRONMENT_FILE) 
 	cd core && cargo build && cargo test
+	npm --prefix sdk exec -- prettier -w ./core/startos/bindings/*.ts
+	(cd sdk && make test)
 
 cli:
 	cd core && ./install-cli.sh
@@ -173,7 +175,7 @@ container-runtime/node_modules: container-runtime/package.json container-runtime
 	npm --prefix container-runtime ci
 	touch container-runtime/node_modules
 
-core/startos/bindings: $(shell git ls-files core) $(ENVIRONMENT_FILE) $(PLATFORM_FILE)
+core/startos/bindings: $(shell git ls-files -- core ':!:core/startos/bindings/*') $(ENVIRONMENT_FILE)
 	rm -rf core/startos/bindings
 	(cd core/ && cargo test)
 	npm --prefix sdk exec -- prettier -w ./core/startos/bindings/*.ts
