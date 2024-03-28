@@ -16,7 +16,7 @@ STARTD_SRC := core/startos/startd.service $(BUILD_SRC)
 COMPAT_SRC := $(shell git ls-files system-images/compat/)
 UTILS_SRC := $(shell git ls-files system-images/utils/)
 BINFMT_SRC := $(shell git ls-files system-images/binfmt/)
-CORE_SRC := $(shell git ls-files core) $(shell git ls-files --recurse-submodules patch-db) web/dist/static web/patchdb-ui-seed.json $(GIT_HASH_FILE)
+CORE_SRC := $(shell git ls-files -- core ':!:core/startos/bindings/*) $(shell git ls-files --recurse-submodules patch-db) web/dist/static web/patchdb-ui-seed.json $(GIT_HASH_FILE)
 WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules web/config.json patch-db/client/dist web/patchdb-ui-seed.json
 WEB_UI_SRC := $(shell git ls-files web/projects/ui)
 WEB_SETUP_WIZARD_SRC := $(shell git ls-files web/projects/setup-wizard)
@@ -88,7 +88,7 @@ format:
 	cd core && cargo +nightly fmt
 
 test: $(CORE_SRC) $(ENVIRONMENT_FILE) 
-	cd core && cargo build && cargo test
+	(cd core && cargo build && cargo test)
 	npm --prefix sdk exec -- prettier -w ./core/startos/bindings/*.ts
 	(cd sdk && make test)
 
@@ -177,7 +177,7 @@ container-runtime/node_modules: container-runtime/package.json container-runtime
 
 core/startos/bindings: $(shell git ls-files -- core ':!:core/startos/bindings/*') $(ENVIRONMENT_FILE)
 	rm -rf core/startos/bindings
-	(cd core/ && cargo test)
+	(cd core/ && cargo test --features=test)
 	npm --prefix sdk exec -- prettier -w ./core/startos/bindings/*.ts
 
 sdk/lib/test: $(shell git ls-files sdk) core/startos/bindings

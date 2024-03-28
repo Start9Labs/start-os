@@ -14,7 +14,7 @@ use futures::future::ready;
 use http::header::ACCEPT_ENCODING;
 use http::request::Parts as RequestParts;
 use http::{HeaderMap, Method, StatusCode};
-use include_dir::{include_dir, Dir};
+use include_dir::Dir;
 use new_mime_guess::MimeGuess;
 use openssl::hash::MessageDigest;
 use openssl::x509::X509;
@@ -37,10 +37,10 @@ const NOT_FOUND: &[u8] = b"Not Found";
 const METHOD_NOT_ALLOWED: &[u8] = b"Method Not Allowed";
 const NOT_AUTHORIZED: &[u8] = b"Not Authorized";
 
-#[cfg(all(feature = "daemon", not(test)))]
+#[cfg(all(feature = "daemon", not(feature = "test")))]
 const EMBEDDED_UIS: Dir<'_> =
     include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static");
-#[cfg(not(all(feature = "daemon", not(test))))]
+#[cfg(not(all(feature = "daemon", not(feature = "test"))))]
 const EMBEDDED_UIS: Dir<'_> = Dir::new("", &[]);
 
 const PROXY_STRIP_HEADERS: &[&str] = &["cookie", "host", "origin", "referer", "user-agent"];
