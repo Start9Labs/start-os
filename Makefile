@@ -53,6 +53,9 @@ endif
 
 all: $(ALL_TARGETS)
 
+touch:
+	touch $(ALL_TARGETS)
+
 metadata: $(VERSION_FILE) $(PLATFORM_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
 
 sudo:
@@ -188,14 +191,15 @@ sdk/lib/test: $(shell git ls-files sdk) core/startos/bindings
 sdk/dist: $(shell git ls-files sdk) core/startos/bindings
 	(cd sdk && make bundle)
 
-container-runtime/dist: container-runtime/node_modules $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
+# TODO: make container-runtime its own makefile?
+container-runtime/dist/index.js: container-runtime/node_modules $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
 	npm --prefix container-runtime run build
 
 container-runtime/dist/node_modules container-runtime/dist/package.json container-runtime/dist/package-lock.json: container-runtime/package.json container-runtime/package-lock.json sdk/dist container-runtime/install-dist-deps.sh
 	./container-runtime/install-dist-deps.sh
 	touch container-runtime/dist/node_modules
 
-container-runtime/rootfs.$(ARCH).squashfs: container-runtime/alpine.$(ARCH).squashfs container-runtime/containerRuntime.rc container-runtime/update-image.sh container-runtime/dist container-runtime/dist/node_modules core/target/$(ARCH)-unknown-linux-musl/release/containerbox | sudo
+container-runtime/rootfs.$(ARCH).squashfs: container-runtime/alpine.$(ARCH).squashfs container-runtime/containerRuntime.rc container-runtime/update-image.sh container-runtime/dist/index.js container-runtime/dist/node_modules core/target/$(ARCH)-unknown-linux-musl/release/containerbox | sudo
 	ARCH=$(ARCH) ./container-runtime/update-image.sh
 
 build/lib/depends build/lib/conflicts: build/dpkg-deps/*
