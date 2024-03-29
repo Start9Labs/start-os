@@ -9,7 +9,7 @@ set -e
 if mountpoint tmp/combined; then sudo umount tmp/combined; fi
 if mountpoint tmp/lower; then sudo umount tmp/lower; fi
 mkdir -p tmp/lower tmp/upper tmp/work tmp/combined
-sudo mount alpine.squashfs tmp/lower
+sudo mount alpine.${ARCH}.squashfs tmp/lower
 sudo mount -t overlay -olowerdir=tmp/lower,upperdir=tmp/upper,workdir=tmp/work overlay tmp/combined
 
 QEMU=
@@ -33,9 +33,9 @@ fi
 
 sudo truncate -s 0 tmp/combined/etc/resolv.conf
 sudo chown -R 0:0 tmp/combined
-rm -f ../build/lib/container-runtime/rootfs.squashfs
+rm -f rootfs.${ARCH}.squashfs
 mkdir -p ../build/lib/container-runtime
-sudo mksquashfs tmp/combined ../build/lib/container-runtime/rootfs.squashfs
+sudo mksquashfs tmp/combined rootfs.${ARCH}.squashfs
 sudo umount tmp/combined
 sudo umount tmp/lower
 sudo rm -rf tmp
