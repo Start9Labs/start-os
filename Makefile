@@ -185,9 +185,6 @@ core/startos/bindings: $(shell git ls-files -- core ':!:core/startos/bindings/*'
 	(cd core/ && cargo test --features=test)
 	npm --prefix sdk exec -- prettier -w ./core/startos/bindings/*.ts
 
-sdk/lib/test: $(shell git ls-files sdk) core/startos/bindings
-	(cd sdk && make test)
-
 sdk/dist: $(shell git ls-files sdk) core/startos/bindings
 	(cd sdk && make bundle)
 
