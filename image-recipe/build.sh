@@ -217,7 +217,7 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	ln -sf /usr/bin/pi-beep /usr/local/bin/beep
 	wget https://archive.raspberrypi.org/debian/pool/main/w/wireless-regdb/wireless-regdb_2018.05.09-0~rpt1_all.deb
 	echo 1b7b1076257726609535b71d146a5721622d19a0843061ee7568188e836dd10f wireless-regdb_2018.05.09-0~rpt1_all.deb | sha256sum -c
-	apt-get install -y ./wireless-regdb_2018.05.09-0~rpt1_all.deb
+	apt-get install -y --allow-downgrades ./wireless-regdb_2018.05.09-0~rpt1_all.deb
 	rm wireless-regdb_2018.05.09-0~rpt1_all.deb
 fi
 
