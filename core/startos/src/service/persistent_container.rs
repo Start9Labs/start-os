@@ -116,6 +116,16 @@ impl PersistentContainer {
         .await?;
         let mut volumes = BTreeMap::new();
         for volume in &s9pk.as_manifest().volumes {
+            let mountpoint = lxc_container
+                .rootfs_dir()
+                .join("media/startos/volumes")
+                .join(volume);
+            tokio::fs::create_dir_all(&mountpoint).await?;
+            Command::new("chown")
+                .arg("100000:100000")
+                .arg(&mountpoint)
+                .invoke(crate::ErrorKind::Filesystem)
+                .await?;
             let mount = MountGuard::mount(
                 &IdMapped::new(
                     Bind::new(data_dir(&ctx.datadir, &s9pk.as_manifest().id, volume)),
@@ -123,10 +133,7 @@ impl PersistentContainer {
                     100000,
                     65536,
                 ),
-                lxc_container
-                    .rootfs_dir()
-                    .join("media/startos/volumes")
-                    .join(volume),
+                mountpoint,
                 MountType::ReadWrite,
             )
             .await?;
@@ -134,6 +141,16 @@ impl PersistentContainer {
         }
         let mut assets = BTreeMap::new();
         for asset in &s9pk.as_manifest().assets {
+            let mountpoint = lxc_container
+                .rootfs_dir()
+                .join("media/startos/assets")
+                .join(asset);
+            tokio::fs::create_dir_all(&mountpoint).await?;
+            Command::new("chown")
+                .arg("100000:100000")
+                .arg(&mountpoint)
+                .invoke(crate::ErrorKind::Filesystem)
+                .await?;
             assets.insert(
                 asset.clone(),
                 MountGuard::mount(
@@ -145,10 +162,7 @@ impl PersistentContainer {
                         )
                         .join(asset),
                     ),
-                    lxc_container
-                        .rootfs_dir()
-                        .join("media/startos/assets")
-                        .join(asset),
+                    mountpoint,
                     MountType::ReadWrite,
                 )
                 .await?,
