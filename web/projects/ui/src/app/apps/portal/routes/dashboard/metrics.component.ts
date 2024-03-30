@@ -36,6 +36,11 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
         justify-content: center;
       }
     }
+
+    :host-context(tui-root._mobile) {
+      --clip-path: none !important;
+      height: 100%;
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

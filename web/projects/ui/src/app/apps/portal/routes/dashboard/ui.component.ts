@@ -54,6 +54,11 @@ import {
       </a>
     }
   `,
+  styles: `
+    :host-context(tui-root._mobile) *:before {
+      font-size: 1.5rem !important;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButtonModule, TuiHostedDropdownModule, TuiDataListModule],
 })

@@ -59,6 +59,10 @@ import { NotificationService } from '../../services/notification.service'
         padding: 0 0.5rem 0 1.75rem;
         --clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 1.75rem 100%);
       }
+
+      :host-context(tui-root._mobile) tui-badged-content {
+        display: none;
+      }
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,

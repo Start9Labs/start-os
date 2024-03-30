@@ -37,6 +37,17 @@ import { InstallingProgressDisplayPipe } from '../service/pipes/install-progress
       gap: 0.5rem;
       height: 3rem;
     }
+
+    :host-context(tui-root._mobile) {
+      height: auto;
+
+      tui-loader,
+      tui-icon {
+        position: absolute;
+        top: 1rem;
+        left: 1rem;
+      }
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiIconModule, TuiLoaderModule],

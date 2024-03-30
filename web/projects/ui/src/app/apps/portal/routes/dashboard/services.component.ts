@@ -78,6 +78,20 @@ import { ToManifestPipe } from '../../pipes/to-manifest'
       text-align: center;
       padding: 1rem;
     }
+
+    :host-context(tui-root._mobile) {
+      --clip-path: none !important;
+      height: 100%;
+
+      table {
+        width: 100%;
+        margin: 0;
+      }
+
+      thead {
+        display: none;
+      }
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ServiceComponent, AsyncPipe, ToManifestPipe],

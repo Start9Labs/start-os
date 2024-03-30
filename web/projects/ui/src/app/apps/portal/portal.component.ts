@@ -1,10 +1,16 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
-import { NavigationEnd, Router, RouterOutlet } from '@angular/router'
+import {
+  ActivatedRoute,
+  NavigationEnd,
+  Router,
+  RouterOutlet,
+} from '@angular/router'
 import { tuiDropdownOptionsProvider } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
-import { filter } from 'rxjs'
+import { filter, map } from 'rxjs'
+import { TabsComponent } from 'src/app/apps/portal/components/tabs.component'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { HeaderComponent } from './components/header/header.component'
 import { BreadcrumbsService } from './services/breadcrumbs.service'
@@ -13,7 +19,8 @@ import { BreadcrumbsService } from './services/breadcrumbs.service'
   standalone: true,
   template: `
     <header appHeader>{{ name$ | async }}</header>
-    <main><router-outlet /></main>
+    <main [attr.data-dashboard]="tab$ | async"><router-outlet /></main>
+    <app-tabs />
   `,
   styles: [
     `
@@ -30,7 +37,7 @@ import { BreadcrumbsService } from './services/breadcrumbs.service'
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, RouterOutlet, HeaderComponent],
+  imports: [CommonModule, RouterOutlet, HeaderComponent, TabsComponent],
   providers: [
     // TODO: Move to global
     tuiDropdownOptionsProvider({
@@ -51,4 +58,7 @@ export class PortalComponent {
     })
 
   readonly name$ = inject(PatchDB<DataModel>).watch$('ui', 'name')
+  readonly tab$ = inject(ActivatedRoute).queryParams.pipe(
+    map(params => params['tab']),
+  )
 }
