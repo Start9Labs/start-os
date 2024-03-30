@@ -495,40 +495,29 @@ export type DependencyError =
   | DependencyErrorHealthChecksFailed
   | DependencyErrorTransitive
 
-export enum DependencyErrorType {
-  NotInstalled = 'not-installed',
-  NotRunning = 'not-running',
-  IncorrectVersion = 'incorrect-version',
-  ConfigUnsatisfied = 'config-unsatisfied',
-  HealthChecksFailed = 'health-checks-failed',
-  InterfaceHealthChecksFailed = 'interface-health-checks-failed',
-  Transitive = 'transitive',
-}
-
 export interface DependencyErrorNotInstalled {
-  type: DependencyErrorType.NotInstalled
+  type: 'notInstalled'
 }
 
 export interface DependencyErrorNotRunning {
-  type: DependencyErrorType.NotRunning
+  type: 'notRunning'
 }
 
 export interface DependencyErrorIncorrectVersion {
-  type: DependencyErrorType.IncorrectVersion
+  type: 'incorrectVersion'
   expected: string // version range
   received: string // version
 }
 
 export interface DependencyErrorConfigUnsatisfied {
-  type: DependencyErrorType.ConfigUnsatisfied
-  error: string
+  type: 'configUnsatisfied'
 }
 
 export interface DependencyErrorHealthChecksFailed {
-  type: DependencyErrorType.HealthChecksFailed
+  type: 'healthChecksFailed'
   check: HealthCheckResult
 }
 
 export interface DependencyErrorTransitive {
-  type: DependencyErrorType.Transitive
+  type: 'transitive'
 }

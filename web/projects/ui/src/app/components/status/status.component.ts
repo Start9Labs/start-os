@@ -3,7 +3,6 @@ import { ConnectionService } from 'src/app/services/connection.service'
 import { InstallingInfo } from 'src/app/services/patch-db/data-model'
 import {
   PrimaryRendering,
-  PrimaryStatus,
   StatusRendering,
 } from 'src/app/services/pkg-status-rendering.service'
 
@@ -13,7 +12,6 @@ import {
   styleUrls: ['./status.component.scss'],
 })
 export class StatusComponent {
-  PS = PrimaryStatus
   PR = PrimaryRendering
 
   @Input() rendering!: StatusRendering

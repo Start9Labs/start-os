@@ -15,7 +15,6 @@ import { ModalService } from 'src/app/services/modal.service'
 import { DependentInfo } from 'src/app/types/dependent-info'
 import {
   DepErrorService,
-  DependencyErrorType,
   PkgDependencyErrors,
 } from 'src/app/services/dep-error.service'
 import { combineLatest } from 'rxjs'
@@ -132,24 +131,24 @@ export class AppShowPage {
     let fixAction: (() => any) | null = null
 
     if (depError) {
-      if (depError.type === DependencyErrorType.NotInstalled) {
+      if (depError.type === 'notInstalled') {
         errorText = 'Not installed'
         fixText = 'Install'
         fixAction = () => this.fixDep(pkg, manifest, 'install', depId)
-      } else if (depError.type === DependencyErrorType.IncorrectVersion) {
+      } else if (depError.type === 'incorrectVersion') {
         errorText = 'Incorrect version'
         fixText = 'Update'
         fixAction = () => this.fixDep(pkg, manifest, 'update', depId)
-      } else if (depError.type === DependencyErrorType.ConfigUnsatisfied) {
+      } else if (depError.type === 'configUnsatisfied') {
         errorText = 'Config not satisfied'
         fixText = 'Auto config'
         fixAction = () => this.fixDep(pkg, manifest, 'configure', depId)
-      } else if (depError.type === DependencyErrorType.NotRunning) {
+      } else if (depError.type === 'notRunning') {
         errorText = 'Not running'
         fixText = 'Start'
-      } else if (depError.type === DependencyErrorType.HealthChecksFailed) {
+      } else if (depError.type === 'healthChecksFailed') {
         errorText = 'Required health check not passing'
-      } else if (depError.type === DependencyErrorType.Transitive) {
+      } else if (depError.type === 'transitive') {
         errorText = 'Dependency has a dependency issue'
       }
     }

@@ -3,7 +3,6 @@ import { UiLauncherService } from 'src/app/services/ui-launcher.service'
 import {
   PackageStatus,
   PrimaryRendering,
-  PrimaryStatus,
 } from 'src/app/services/pkg-status-rendering.service'
 import {
   DataModel,
@@ -67,19 +66,15 @@ export class AppShowStatusComponent {
   }
 
   get isRunning(): boolean {
-    return this.status.primary === PrimaryStatus.Running
+    return this.status.primary === 'running'
   }
 
   get canStop(): boolean {
-    return [
-      PrimaryStatus.Running,
-      PrimaryStatus.Starting,
-      PrimaryStatus.Restarting,
-    ].includes(this.status.primary)
+    return ['running', 'starting', 'restarting'].includes(this.status.primary)
   }
 
   get isStopped(): boolean {
-    return this.status.primary === PrimaryStatus.Stopped
+    return this.status.primary === 'stopped'
   }
 
   get sigtermTimeout(): string | null {

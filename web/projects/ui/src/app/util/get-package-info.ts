@@ -1,7 +1,5 @@
 import { PackageDataEntry } from '../services/patch-db/data-model'
 import {
-  DependencyStatus,
-  HealthStatus,
   PrimaryRendering,
   PrimaryStatus,
   renderPkgStatus,
@@ -21,15 +19,12 @@ export function getPackageInfo(
     entry,
     primaryRendering,
     primaryStatus: statuses.primary,
-    error:
-      statuses.health === HealthStatus.Failure ||
-      statuses.dependency === DependencyStatus.Warning,
-    warning: statuses.primary === PrimaryStatus.NeedsConfig,
+    error: statuses.health === 'failure' || statuses.dependency === 'warning',
+    warning: statuses.primary === 'needsConfig',
     transitioning:
       primaryRendering.showDots ||
-      statuses.health === HealthStatus.Waiting ||
-      statuses.health === HealthStatus.Loading ||
-      statuses.health === HealthStatus.Starting,
+      statuses.health === 'loading' ||
+      statuses.health === 'starting',
   }
 }
 

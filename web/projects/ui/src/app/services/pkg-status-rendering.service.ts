@@ -1,12 +1,12 @@
-import { isEmptyObject } from '@start9labs/shared'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PkgDependencyErrors } from './dep-error.service'
 import { Status } from '../../../../../../core/startos/bindings/Status'
+import { T } from '@start9labs/start-sdk'
 
 export interface PackageStatus {
   primary: PrimaryStatus
   dependency: DependencyStatus | null
-  health: HealthStatus | null
+  health: T.HealthStatus | null
 }
 
 export function renderPkgStatus(
@@ -15,59 +15,51 @@ export function renderPkgStatus(
 ): PackageStatus {
   let primary: PrimaryStatus
   let dependency: DependencyStatus | null = null
-  let health: HealthStatus | null = null
+  let health: T.HealthStatus | null = null
 
   if (pkg.stateInfo.state === 'installed') {
-    primary = getPrimaryStatus(pkg.status)
+    primary = getInstalledPrimaryStatus(pkg.status)
     dependency = getDependencyStatus(depErrors)
     health = getHealthStatus(pkg.status)
   } else {
-    primary = pkg.stateInfo.state as string as PrimaryStatus
+    primary = pkg.stateInfo.state
   }
 
   return { primary, dependency, health }
 }
 
-function getPrimaryStatus(status: Status): PrimaryStatus {
+function getInstalledPrimaryStatus(status: Status): PrimaryStatus {
   if (!status.configured) {
-    return PrimaryStatus.NeedsConfig
-  } else if (status.main.status === 'restarting') {
-    return PrimaryStatus.Restarting
+    return 'needsConfig'
   } else {
     return status.main.status as any as PrimaryStatus
   }
 }
 
 function getDependencyStatus(depErrors: PkgDependencyErrors): DependencyStatus {
-  return Object.values(depErrors).some(err => !!err)
-    ? DependencyStatus.Warning
-    : DependencyStatus.Satisfied
+  return Object.values(depErrors).some(err => !!err) ? 'warning' : 'satisfied'
 }
 
-function getHealthStatus(status: Status): HealthStatus | null {
+function getHealthStatus(status: Status): T.HealthStatus | null {
   if (status.main.status !== 'running' || !status.main.health) {
     return null
   }
 
   const values = Object.values(status.main.health)
 
-  if (values.some(h => !h.result)) {
-    return HealthStatus.Waiting
-  }
-
   if (values.some(h => h.result === 'failure')) {
-    return HealthStatus.Failure
+    return 'failure'
   }
 
   if (values.some(h => h.result === 'loading')) {
-    return HealthStatus.Loading
+    return 'loading'
   }
 
   if (values.some(h => h.result === 'starting')) {
-    return HealthStatus.Starting
+    return 'starting'
   }
 
-  return HealthStatus.Healthy
+  return 'success'
 }
 
 export interface StatusRendering {
@@ -76,102 +68,88 @@ export interface StatusRendering {
   showDots?: boolean
 }
 
-export enum PrimaryStatus {
-  // state
-  Installing = 'installing',
-  Updating = 'updating',
-  Removing = 'removing',
-  Restoring = 'restoring',
-  // status
-  Starting = 'starting',
-  Running = 'running',
-  Stopping = 'stopping',
-  Restarting = 'restarting',
-  Stopped = 'stopped',
-  BackingUp = 'backing-up',
-  // config
-  NeedsConfig = 'needs-config',
-}
+export type PrimaryStatus =
+  | 'installing'
+  | 'updating'
+  | 'removing'
+  | 'restoring'
+  | 'starting'
+  | 'running'
+  | 'stopping'
+  | 'restarting'
+  | 'stopped'
+  | 'backingUp'
+  | 'needsConfig'
 
-export enum DependencyStatus {
-  Warning = 'warning',
-  Satisfied = 'satisfied',
-}
+export type DependencyStatus = 'warning' | 'satisfied'
 
-export enum HealthStatus {
-  Failure = 'failure',
-  Waiting = 'waiting',
-  Starting = 'starting',
-  Loading = 'loading',
-  Healthy = 'healthy',
-}
-
-export const PrimaryRendering: Record<string, StatusRendering> = {
-  [PrimaryStatus.Installing]: {
+export const PrimaryRendering: Record<PrimaryStatus, StatusRendering> = {
+  installing: {
     display: 'Installing',
     color: 'primary',
     showDots: true,
   },
-  [PrimaryStatus.Updating]: {
+  updating: {
     display: 'Updating',
     color: 'primary',
     showDots: true,
   },
-  [PrimaryStatus.Removing]: {
+  removing: {
     display: 'Removing',
     color: 'danger',
     showDots: true,
   },
-  [PrimaryStatus.Restoring]: {
+  restoring: {
     display: 'Restoring',
     color: 'primary',
     showDots: true,
   },
-  [PrimaryStatus.Stopping]: {
+  stopping: {
     display: 'Stopping',
     color: 'dark-shade',
     showDots: true,
   },
-  [PrimaryStatus.Restarting]: {
+  restarting: {
     display: 'Restarting',
     color: 'tertiary',
     showDots: true,
   },
-  [PrimaryStatus.Stopped]: {
+  stopped: {
     display: 'Stopped',
     color: 'dark-shade',
     showDots: false,
   },
-  [PrimaryStatus.BackingUp]: {
+  backingUp: {
     display: 'Backing Up',
     color: 'primary',
     showDots: true,
   },
-  [PrimaryStatus.Starting]: {
+  starting: {
     display: 'Starting',
     color: 'primary',
     showDots: true,
   },
-  [PrimaryStatus.Running]: {
+  running: {
     display: 'Running',
     color: 'success',
     showDots: false,
   },
-  [PrimaryStatus.NeedsConfig]: {
+  needsConfig: {
     display: 'Needs Config',
     color: 'warning',
     showDots: false,
   },
 }
 
-export const DependencyRendering: Record<string, StatusRendering> = {
-  [DependencyStatus.Warning]: { display: 'Issue', color: 'warning' },
-  [DependencyStatus.Satisfied]: { display: 'Satisfied', color: 'success' },
+export const DependencyRendering: Record<DependencyStatus, StatusRendering> = {
+  warning: { display: 'Issue', color: 'warning' },
+  satisfied: { display: 'Satisfied', color: 'success' },
 }
 
-export const HealthRendering: Record<string, StatusRendering> = {
-  [HealthStatus.Failure]: { display: 'Failure', color: 'danger' },
-  [HealthStatus.Starting]: { display: 'Starting', color: 'primary' },
-  [HealthStatus.Loading]: { display: 'Loading', color: 'primary' },
-  [HealthStatus.Healthy]: { display: 'Healthy', color: 'success' },
+export const HealthRendering: Record<T.HealthStatus, StatusRendering> = {
+  failure: { display: 'Failure', color: 'danger' },
+  starting: { display: 'Starting', color: 'primary' },
+  loading: { display: 'Loading', color: 'primary' },
+  success: { display: 'Healthy', color: 'success' },
+  disabled: { display: 'Disabled', color: 'dark' },
 }

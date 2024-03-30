@@ -5,7 +5,6 @@ import {
   DataModel,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { PrimaryStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getPackageInfo, PkgInfo } from '../../../../util/get-package-info'
 import { combineLatest } from 'rxjs'
 import { DepErrorService } from 'src/app/services/dep-error.service'
@@ -56,14 +55,11 @@ export class HealthComponent {
   private getCount(label: string, pkgs: PkgInfo[]): number {
     switch (label) {
       case 'Error':
-        return pkgs.filter(
-          a => a.primaryStatus !== PrimaryStatus.Stopped && a.error,
-        ).length
+        return pkgs.filter(a => a.primaryStatus !== 'stopped' && a.error).length
       case 'Needs Attention':
         return pkgs.filter(a => a.warning).length
       case 'Stopped':
-        return pkgs.filter(a => a.primaryStatus === PrimaryStatus.Stopped)
-          .length
+        return pkgs.filter(a => a.primaryStatus === 'stopped').length
       case 'Transitioning':
         return pkgs.filter(a => a.transitioning).length
       default:

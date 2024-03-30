@@ -17,9 +17,9 @@
       <ion-item-group *ngIf="pkgPlus.status as status">
         <!-- ** status ** -->
         <app-show-status [pkg]="pkg" [status]="status"></app-show-status>
-        <!-- ** installed && !backing-up ** -->
+        <!-- ** installed && !backingUp ** -->
         <ng-container
-          *ngIf="isInstalled(pkg) && status.primary !== 'backing-up'"
+          *ngIf="isInstalled(pkg) && status.primary !== 'backingUp'"
         >
           <!-- ** health checks ** -->
           <app-show-health-checks
