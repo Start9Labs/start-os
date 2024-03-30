@@ -1,12 +1,7 @@
 import { isEmptyObject } from '@start9labs/shared'
-import {
-  MainStatusStarting,
-  PackageDataEntry,
-  PackageMainStatus,
-  PackageState,
-  Status,
-} from 'src/app/services/patch-db/data-model'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PkgDependencyErrors } from './dep-error.service'
+import { Status } from '../../../../../../core/startos/bindings/Status'
 
 export interface PackageStatus {
   primary: PrimaryStatus
@@ -22,15 +17,12 @@ export function renderPkgStatus(
   let dependency: DependencyStatus | null = null
   let health: HealthStatus | null = null
 
-  if (pkg.state === PackageState.Installed && pkg.installed) {
-    primary = getPrimaryStatus(pkg.installed.status)
+  if (pkg.stateInfo.state === 'installed') {
+    primary = getPrimaryStatus(pkg.status)
     dependency = getDependencyStatus(depErrors)
-    health = getHealthStatus(
-      pkg.installed.status,
-      !isEmptyObject(pkg.manifest['health-checks']),
-    )
+    health = getHealthStatus(pkg.status)
   } else {
-    primary = pkg.state as string as PrimaryStatus
+    primary = pkg.stateInfo.state as string as PrimaryStatus
   }
 
   return { primary, dependency, health }
@@ -39,7 +31,7 @@ export function renderPkgStatus(
 function getPrimaryStatus(status: Status): PrimaryStatus {
   if (!status.configured) {
     return PrimaryStatus.NeedsConfig
-  } else if ((status.main as MainStatusStarting).restarting) {
+  } else if (status.main.status === 'restarting') {
     return PrimaryStatus.Restarting
   } else {
     return status.main.status as any as PrimaryStatus
@@ -52,29 +44,26 @@ function getDependencyStatus(depErrors: PkgDependencyErrors): DependencyStatus {
     : DependencyStatus.Satisfied
 }
 
-function getHealthStatus(
-  status: Status,
-  hasHealthChecks: boolean,
-): HealthStatus | null {
-  if (status.main.status !== PackageMainStatus.Running || !status.main.health) {
+function getHealthStatus(status: Status): HealthStatus | null {
+  if (status.main.status !== 'running' || !status.main.health) {
     return null
   }
 
   const values = Object.values(status.main.health)
 
-  if (values.some(h => h.result === 'failure')) {
-    return HealthStatus.Failure
+  if (values.some(h => !h.result)) {
+    return HealthStatus.Waiting
   }
 
-  if (!values.length && hasHealthChecks) {
-    return HealthStatus.Waiting
+  if (values.some(h => h.result === 'failure')) {
+    return HealthStatus.Failure
   }
 
   if (values.some(h => h.result === 'loading')) {
     return HealthStatus.Loading
   }
 
-  if (values.some(h => !h.result || h.result === 'starting')) {
+  if (values.some(h => h.result === 'starting')) {
     return HealthStatus.Starting
   }
 

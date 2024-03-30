@@ -2,10 +2,12 @@ use std::path::Path;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::{Id, InvalidId};
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TS)]
+#[ts(type = "string")]
 pub struct ActionId(Id);
 impl FromStr for ActionId {
     type Err = InvalidId;

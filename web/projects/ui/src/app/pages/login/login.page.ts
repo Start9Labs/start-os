@@ -5,7 +5,6 @@ import { AuthService } from 'src/app/services/auth.service'
 import { Router } from '@angular/router'
 import { ConfigService } from 'src/app/services/config.service'
 import { DOCUMENT } from '@angular/common'
-import { WINDOW } from '@ng-web-apis/common'
 
 @Component({
   selector: 'login',
@@ -24,13 +23,7 @@ export class LoginPage {
     private readonly api: ApiService,
     public readonly config: ConfigService,
     @Inject(DOCUMENT) public readonly document: Document,
-    @Inject(WINDOW) private readonly windowRef: Window,
   ) {}
-
-  launchHttps() {
-    const host = this.config.getHost()
-    this.windowRef.open(`https://${host}`, '_self')
-  }
 
   async submit() {
     this.error = ''

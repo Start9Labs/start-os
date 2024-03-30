@@ -12,7 +12,11 @@ export class UiLauncherService {
     private readonly config: ConfigService,
   ) {}
 
-  launch(pkg: PackageDataEntry): void {
-    this.windowRef.open(this.config.launchableURL(pkg), '_blank', 'noreferrer')
+  launch(interfaces: PackageDataEntry['serviceInterfaces']): void {
+    this.windowRef.open(
+      this.config.launchableAddress(interfaces),
+      '_blank',
+      'noreferrer',
+    )
   }
 }

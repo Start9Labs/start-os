@@ -9,15 +9,16 @@ import {
 } from '@ionic/angular'
 import { PatchDB } from 'patch-db-client'
 import {
-  Action,
   DataModel,
   PackageDataEntry,
-  PackageMainStatus,
 } from 'src/app/services/patch-db/data-model'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { isEmptyObject, ErrorToastService, getPkgId } from '@start9labs/shared'
 import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
+import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
+import { ActionMetadata } from '@start9labs/start-sdk/cjs/sdk/lib/types'
+import { Status } from '../../../../../../../../core/startos/bindings/Status'
 
 @Component({
   selector: 'app-actions',
@@ -27,7 +28,7 @@ import { hasCurrentDeps } from 'src/app/util/has-deps'
 })
 export class AppActionsPage {
   readonly pkgId = getPkgId(this.route)
-  readonly pkg$ = this.patch.watch$('package-data', this.pkgId)
+  readonly pkg$ = this.patch.watch$('packageData', this.pkgId)
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -41,22 +42,21 @@ export class AppActionsPage {
   ) {}
 
   async handleAction(
-    pkg: PackageDataEntry,
-    action: { key: string; value: Action },
+    status: Status,
+    action: { key: string; value: ActionMetadata },
   ) {
-    const status = pkg.installed?.status
     if (
       status &&
-      (action.value['allowed-statuses'] as PackageMainStatus[]).includes(
-        status.main.status,
+      action.value.allowedStatuses.includes(
+        status.main.status, // @TODO
       )
     ) {
-      if (!isEmptyObject(action.value['input-spec'] || {})) {
+      if (!isEmptyObject(action.value.input || {})) {
         const modal = await this.modalCtrl.create({
           component: GenericFormPage,
           componentProps: {
             title: action.value.name,
-            spec: action.value['input-spec'],
+            spec: action.value.input,
             buttons: [
               {
                 text: 'Execute',
@@ -92,7 +92,7 @@ export class AppActionsPage {
         await alert.present()
       }
     } else {
-      const statuses = [...action.value['allowed-statuses']]
+      const statuses = [...action.value.allowedStatuses] // @TODO
       const last = statuses.pop()
       let statusesStr = statuses.join(', ')
       let error = ''
@@ -120,13 +120,13 @@ export class AppActionsPage {
   }
 
   async tryUninstall(pkg: PackageDataEntry): Promise<void> {
-    const { title, alerts } = pkg.manifest
+    const { title, alerts } = getManifest(pkg)
 
     let message =
       alerts.uninstall ||
       `Uninstalling ${title} will permanently delete its data`
 
-    if (hasCurrentDeps(pkg)) {
+    if (hasCurrentDeps(this.pkgId, await getAllPackages(this.patch))) {
       message = `${message}. Services that depend on ${title} will no longer work properly and may crash`
     }
 
@@ -183,7 +183,7 @@ export class AppActionsPage {
     try {
       const res = await this.embassyApi.executePackageAction({
         id: this.pkgId,
-        'action-id': actionId,
+        actionId,
         input,
       })
 

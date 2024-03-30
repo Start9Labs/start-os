@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { InstallProgress } from 'src/app/services/patch-db/data-model'
+import { InstallingInfo } from 'src/app/services/patch-db/data-model'
 import {
   PrimaryRendering,
   PrimaryStatus,
@@ -20,7 +20,7 @@ export class StatusComponent {
   @Input() size?: string
   @Input() style?: string = 'regular'
   @Input() weight?: string = 'normal'
-  @Input() installProgress?: InstallProgress
+  @Input() installingInfo?: InstallingInfo
   @Input() sigtermTimeout?: string | null = null
 
   readonly connected$ = this.connectionService.connected$

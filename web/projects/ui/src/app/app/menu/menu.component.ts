@@ -11,9 +11,7 @@ import {
   filter,
   first,
   map,
-  merge,
   Observable,
-  of,
   pairwise,
   startWith,
   switchMap,
@@ -24,7 +22,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { SplitPaneTracker } from 'src/app/services/split-pane.service'
 import { Emver, THEME } from '@start9labs/shared'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { ConfigService } from 'src/app/services/config.service'
+import { getManifest } from 'src/app/util/get-package-data'
 
 @Component({
   selector: 'app-menu',
@@ -62,25 +60,29 @@ export class MenuComponent {
   ]
 
   readonly notificationCount$ = this.patch.watch$(
-    'server-info',
-    'unread-notification-count',
+    'serverInfo',
+    'unreadNotificationCount',
   )
 
-  readonly snekScore$ = this.patch.watch$('ui', 'gaming', 'snake', 'high-score')
+  readonly snekScore$ = this.patch.watch$('ui', 'gaming', 'snake', 'highScore')
 
   readonly showEOSUpdate$ = this.eosService.showUpdate$
 
   private readonly local$ = this.connectionService.connected$.pipe(
     filter(Boolean),
-    switchMap(() => this.patch.watch$('package-data').pipe(first())),
+    switchMap(() => this.patch.watch$('packageData').pipe(first())),
     switchMap(outer =>
-      this.patch.watch$('package-data').pipe(
+      this.patch.watch$('packageData').pipe(
         pairwise(),
         filter(([prev, curr]) =>
           Object.values(prev).some(
             p =>
-              p['install-progress'] &&
-              !curr[p.manifest.id]?.['install-progress'],
+              ['installing', 'updating', 'restoring'].includes(
+                p.stateInfo.state,
+              ) &&
+              ['installed', 'removing'].includes(
+                curr[getManifest(p).id].stateInfo.state,
+              ),
           ),
         ),
         map(([_, curr]) => curr),
@@ -97,9 +99,10 @@ export class MenuComponent {
       Object.entries(marketplace).reduce((list, [_, store]) => {
         store?.packages.forEach(({ manifest: { id, version } }) => {
           if (
+            local[id] &&
             this.emver.compare(
               version,
-              local[id]?.installed?.manifest.version || '',
+              getManifest(local[id]).version || '',
             ) === 1
           )
             list.add(id)
@@ -114,11 +117,6 @@ export class MenuComponent {
 
   readonly theme$ = inject(THEME)
 
-  readonly warning$ = merge(
-    of(this.config.isTorHttp()),
-    this.patch.watch$('server-info', 'ntp-synced').pipe(map(synced => !synced)),
-  )
-
   constructor(
     private readonly patch: PatchDB<DataModel>,
     private readonly eosService: EOSService,
@@ -127,6 +125,5 @@ export class MenuComponent {
     private readonly splitPane: SplitPaneTracker,
     private readonly emver: Emver,
     private readonly connectionService: ConnectionService,
-    private readonly config: ConfigService,
   ) {}
 }

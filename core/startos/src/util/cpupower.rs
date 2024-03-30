@@ -3,6 +3,7 @@ use std::collections::BTreeSet;
 
 use imbl::OrdMap;
 use tokio::process::Command;
+use ts_rs::TS;
 
 use crate::prelude::*;
 use crate::util::Invoke;
@@ -13,7 +14,10 @@ pub const GOVERNOR_HEIRARCHY: &[Governor] = &[
     Governor(Cow::Borrowed("conservative")),
 ];
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize, TS,
+)]
+#[ts(export, type = "string")]
 pub struct Governor(Cow<'static, str>);
 impl std::str::FromStr for Governor {
     type Err = std::convert::Infallible;

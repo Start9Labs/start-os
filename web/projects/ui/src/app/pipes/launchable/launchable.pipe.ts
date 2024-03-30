@@ -1,10 +1,7 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import {
-  InterfaceDef,
-  PackageMainStatus,
-  PackageState,
-} from 'src/app/services/patch-db/data-model'
 import { ConfigService } from '../../services/config.service'
+import { PackageState } from '../../../../../../../core/startos/bindings/PackageState'
+import { MainStatus } from '../../../../../../../core/startos/bindings/MainStatus'
 
 @Pipe({
   name: 'isLaunchable',
@@ -13,10 +10,9 @@ export class LaunchablePipe implements PipeTransform {
   constructor(private configService: ConfigService) {}
 
   transform(
-    state: PackageState,
-    status: PackageMainStatus,
-    interfaces: Record<string, InterfaceDef>,
+    state: PackageState['state'],
+    status: MainStatus['status'],
   ): boolean {
-    return this.configService.isLaunchable(state, status, interfaces)
+    return this.configService.isLaunchable(state, status)
   }
 }

@@ -4,25 +4,19 @@ use std::path::Path;
 use std::time::{Duration, SystemTime};
 
 use color_eyre::eyre::eyre;
-
 use models::ResultExt;
 use rand::random;
-use sqlx::{Pool, Postgres};
 use tokio::process::Command;
 use tracing::instrument;
 
 use crate::account::AccountInfo;
-use crate::context::rpc::RpcContextConfig;
-use crate::db::model::ServerStatus;
+use crate::context::config::ServerConfig;
+use crate::db::model::public::ServerStatus;
 use crate::disk::mount::util::unmount;
-use crate::install::PKG_ARCHIVE_DIR;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
-
-use crate::util::cpupower::{
-    get_available_governors, get_preferred_governor, set_governor,
-};
-use crate::util::docker::{create_bridge_network, CONTAINER_DATADIR, CONTAINER_TOOL};
+use crate::ssh::SSH_AUTHORIZED_KEYS_FILE;
+use crate::util::cpupower::{get_available_governors, get_preferred_governor, set_governor};
 use crate::util::Invoke;
 use crate::{Error, ARCH};
 
@@ -185,12 +179,11 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
 }
 
 pub struct InitResult {
-    pub secret_store: Pool<Postgres>,
     pub db: patch_db::PatchDb,
 }
 
 #[instrument(skip_all)]
-pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
+pub async fn init(cfg: &ServerConfig) -> Result<InitResult, Error> {
     tokio::fs::create_dir_all("/run/embassy")
         .await
         .with_ctx(|_| (crate::ErrorKind::Filesystem, "mkdir -p /run/embassy"))?;
@@ -214,17 +207,20 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             .await?;
     }
 
-    let secret_store = cfg.secret_store().await?;
-    tracing::info!("Opened Postgres");
+    let db = cfg.db().await?;
+    let peek = db.peek().await;
+    tracing::info!("Opened PatchDB");
 
-    crate::ssh::sync_keys_from_db(&secret_store, "/home/start9/.ssh/authorized_keys").await?;
+    crate::ssh::sync_keys(
+        &peek.as_private().as_ssh_pubkeys().de()?,
+        SSH_AUTHORIZED_KEYS_FILE,
+    )
+    .await?;
     tracing::info!("Synced SSH Keys");
 
-    let account = AccountInfo::load(&secret_store).await?;
-    let db = cfg.db(&account).await?;
-    tracing::info!("Opened PatchDB");
-    let peek = db.peek().await;
-    let mut server_info = peek.as_server_info().de()?;
+    let account = AccountInfo::load(&peek)?;
+
+    let mut server_info = peek.as_public().as_server_info().de()?;
 
     // write to ca cert store
     tokio::fs::write(
@@ -292,77 +288,6 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         tokio::fs::remove_dir_all(&tmp_var).await?;
     }
     crate::disk::mount::util::bind(&tmp_var, "/var/tmp", false).await?;
-    let tmp_docker = cfg
-        .datadir()
-        .join(format!("package-data/tmp/{CONTAINER_TOOL}"));
-    let tmp_docker_exists = tokio::fs::metadata(&tmp_docker).await.is_ok();
-    if CONTAINER_TOOL == "docker" {
-        Command::new("systemctl")
-            .arg("stop")
-            .arg("docker")
-            .invoke(crate::ErrorKind::Docker)
-            .await?;
-    }
-    crate::disk::mount::util::bind(&tmp_docker, CONTAINER_DATADIR, false).await?;
-
-    if CONTAINER_TOOL == "docker" {
-        Command::new("systemctl")
-            .arg("reset-failed")
-            .arg("docker")
-            .invoke(crate::ErrorKind::Docker)
-            .await?;
-        Command::new("systemctl")
-            .arg("start")
-            .arg("docker")
-            .invoke(crate::ErrorKind::Docker)
-            .await?;
-    }
-    tracing::info!("Mounted Docker Data");
-
-    if should_rebuild || !tmp_docker_exists {
-        if CONTAINER_TOOL == "docker" {
-            tracing::info!("Creating Docker Network");
-            create_bridge_network("start9", "172.18.0.1/24", "br-start9").await?;
-            tracing::info!("Created Docker Network");
-        }
-
-        let datadir = cfg.datadir();
-        tracing::info!("Loading System Docker Images");
-        crate::install::rebuild_from("/usr/lib/startos/system-images", &datadir).await?;
-        tracing::info!("Loaded System Docker Images");
-
-        tracing::info!("Loading Package Docker Images");
-        crate::install::rebuild_from(datadir.join(PKG_ARCHIVE_DIR), &datadir).await?;
-        tracing::info!("Loaded Package Docker Images");
-    }
-
-    if CONTAINER_TOOL == "podman" {
-        crate::util::docker::remove_container("netdummy", true).await?;
-        Command::new("podman")
-            .arg("run")
-            .arg("-d")
-            .arg("--rm")
-            .arg("--init")
-            .arg("--network=start9")
-            .arg("--name=netdummy")
-            .arg("start9/x_system/utils:latest")
-            .arg("sleep")
-            .arg("infinity")
-            .invoke(crate::ErrorKind::Docker)
-            .await?;
-    }
-
-    tracing::info!("Enabling Docker QEMU Emulation");
-    Command::new(CONTAINER_TOOL)
-        .arg("run")
-        .arg("--privileged")
-        .arg("--rm")
-        .arg("start9/x_system/binfmt")
-        .arg("--install")
-        .arg("all")
-        .invoke(crate::ErrorKind::Docker)
-        .await?;
-    tracing::info!("Enabled Docker QEMU Emulation");
 
     let governor = if let Some(governor) = &server_info.governor {
         if get_available_governors().await?.contains(governor) {
@@ -420,12 +345,12 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     };
 
     db.mutate(|v| {
-        v.as_server_info_mut().ser(&server_info)?;
+        v.as_public_mut().as_server_info_mut().ser(&server_info)?;
         Ok(())
     })
     .await?;
 
-    crate::version::init(&db, &secret_store).await?;
+    crate::version::init(&db).await?;
 
     db.mutate(|d| {
         let model = d.de()?;
@@ -443,5 +368,5 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
 
     tracing::info!("System initialized.");
 
-    Ok(InitResult { secret_store, db })
+    Ok(InitResult { db })
 }

@@ -1,36 +1,28 @@
-use std::future::Future;
-use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::process::Stdio;
 use std::time::{Duration, UNIX_EPOCH};
 
+use axum::extract::ws::{self, WebSocket};
 use chrono::{DateTime, Utc};
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::stream::BoxStream;
-use futures::{FutureExt, SinkExt, Stream, StreamExt, TryStreamExt};
-use hyper::upgrade::Upgraded;
-use hyper::Error as HyperError;
-use rpc_toolkit::command;
+use futures::{FutureExt, Stream, StreamExt, TryStreamExt};
+use models::PackageId;
 use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{command, from_fn_async, CallRemote, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
-use tokio::task::JoinError;
 use tokio_stream::wrappers::LinesStream;
-use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
-use tokio_tungstenite::tungstenite::protocol::CloseFrame;
 use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::WebSocketStream;
 use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::error::ResultExt;
-use crate::procedure::docker::DockerProcedure;
-use crate::s9pk::manifest::PackageId;
-use crate::util::display_none;
+use crate::prelude::*;
 use crate::util::serde::Reversible;
-use crate::{Error, ErrorKind};
 
 #[pin_project::pin_project]
 pub struct LogStream {
@@ -65,21 +57,14 @@ impl Stream for LogStream {
 }
 
 #[instrument(skip_all)]
-async fn ws_handler<
-    WSFut: Future<Output = Result<Result<WebSocketStream<Upgraded>, HyperError>, JoinError>>,
->(
+async fn ws_handler(
     first_entry: Option<LogEntry>,
     mut logs: LogStream,
-    ws_fut: WSFut,
+    mut stream: WebSocket,
 ) -> Result<(), Error> {
-    let mut stream = ws_fut
-        .await
-        .with_kind(crate::ErrorKind::Network)?
-        .with_kind(crate::ErrorKind::Unknown)?;
-
     if let Some(first_entry) = first_entry {
         stream
-            .send(Message::Text(
+            .send(ws::Message::Text(
                 serde_json::to_string(&first_entry).with_kind(ErrorKind::Serialization)?,
             ))
             .await
@@ -94,7 +79,7 @@ async fn ws_handler<
         if let Some(entry) = entry {
             let (_, log_entry) = entry.log_entry()?;
             stream
-                .send(Message::Text(
+                .send(ws::Message::Text(
                     serde_json::to_string(&log_entry).with_kind(ErrorKind::Serialization)?,
                 ))
                 .await
@@ -104,26 +89,27 @@ async fn ws_handler<
 
     if !ws_closed {
         stream
-            .close(Some(CloseFrame {
-                code: CloseCode::Normal,
+            .send(ws::Message::Close(Some(ws::CloseFrame {
+                code: ws::close_code::NORMAL,
                 reason: "Log Stream Finished".into(),
-            }))
+            })))
             .await
             .with_kind(ErrorKind::Network)?;
+        drop(stream);
     }
 
     Ok(())
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct LogResponse {
     entries: Reversible<LogEntry>,
     start_cursor: Option<String>,
     end_cursor: Option<String>,
 }
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct LogFollowResponse {
     start_cursor: Option<String>,
     guid: RequestGuid,
@@ -224,23 +210,52 @@ pub enum LogSource {
 
 pub const SYSTEM_UNIT: &str = "startd";
 
-#[command(
-    custom_cli(cli_logs(async, context(CliContext))),
-    subcommands(self(logs_nofollow(async)), logs_follow),
-    display(display_none)
-)]
-pub async fn logs(
-    #[arg] id: PackageId,
-    #[arg(short = 'l', long = "limit")] limit: Option<usize>,
-    #[arg(short = 'c', long = "cursor")] cursor: Option<String>,
-    #[arg(short = 'B', long = "before", default)] before: bool,
-    #[arg(short = 'f', long = "follow", default)] follow: bool,
-) -> Result<(PackageId, Option<usize>, Option<String>, bool, bool), Error> {
-    Ok((id, limit, cursor, before, follow))
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct LogsParam {
+    id: PackageId,
+    #[arg(short = 'l', long = "limit")]
+    limit: Option<usize>,
+    #[arg(short = 'c', long = "cursor")]
+    cursor: Option<String>,
+    #[arg(short = 'B', long = "before")]
+    #[serde(default)]
+    before: bool,
+    #[arg(short = 'f', long = "follow")]
+    #[serde(default)]
+    follow: bool,
+}
+
+pub fn logs() -> ParentHandler<LogsParam> {
+    ParentHandler::<LogsParam>::new()
+        .root_handler(
+            from_fn_async(cli_logs)
+                .no_display()
+                .with_inherited(|params, _| params),
+        )
+        .root_handler(
+            from_fn_async(logs_follow)
+                .with_inherited(|params, _| params)
+                .no_cli(),
+        )
+        .subcommand(
+            "follow",
+            from_fn_async(logs_follow)
+                .with_inherited(|params, _| params)
+                .no_cli(),
+        )
 }
 pub async fn cli_logs(
     ctx: CliContext,
-    (id, limit, cursor, before, follow): (PackageId, Option<usize>, Option<String>, bool, bool),
+    _: Empty,
+    LogsParam {
+        id,
+        limit,
+        cursor,
+        before,
+        follow,
+    }: LogsParam,
 ) -> Result<(), RpcError> {
     if follow {
         if cursor.is_some() {
@@ -262,14 +277,21 @@ pub async fn cli_logs(
 }
 pub async fn logs_nofollow(
     _ctx: (),
-    (id, limit, cursor, before, _): (PackageId, Option<usize>, Option<String>, bool, bool),
+    _: Empty,
+    LogsParam {
+        id,
+        limit,
+        cursor,
+        before,
+        ..
+    }: LogsParam,
 ) -> Result<LogResponse, Error> {
     fetch_logs(LogSource::Container(id), limit, cursor, before).await
 }
-#[command(rpc_only, rename = "follow", display(display_none))]
 pub async fn logs_follow(
-    #[context] ctx: RpcContext,
-    #[parent_data] (id, limit, _, _, _): (PackageId, Option<usize>, Option<String>, bool, bool),
+    ctx: RpcContext,
+    _: Empty,
+    LogsParam { id, limit, .. }: LogsParam,
 ) -> Result<LogFollowResponse, Error> {
     follow_logs(ctx, LogSource::Container(id), limit).await
 }
@@ -282,19 +304,18 @@ pub async fn cli_logs_generic_nofollow(
     cursor: Option<String>,
     before: bool,
 ) -> Result<(), RpcError> {
-    let res = rpc_toolkit::command_helpers::call_remote(
-        ctx.clone(),
-        method,
-        serde_json::json!({
-            "id": id,
-            "limit": limit,
-            "cursor": cursor,
-            "before": before,
-        }),
-        PhantomData::<LogResponse>,
-    )
-    .await?
-    .result?;
+    let res = from_value::<LogResponse>(
+        ctx.call_remote(
+            method,
+            imbl_value::json!({
+                "id": id,
+                "limit": limit,
+                "cursor": cursor,
+                "before": before,
+            }),
+        )
+        .await?,
+    )?;
 
     for entry in res.entries.iter() {
         println!("{}", entry);
@@ -309,36 +330,18 @@ pub async fn cli_logs_generic_follow(
     id: Option<PackageId>,
     limit: Option<usize>,
 ) -> Result<(), RpcError> {
-    let res = rpc_toolkit::command_helpers::call_remote(
-        ctx.clone(),
-        method,
-        serde_json::json!({
-            "id": id,
-            "limit": limit,
-        }),
-        PhantomData::<LogFollowResponse>,
-    )
-    .await?
-    .result?;
+    let res = from_value::<LogFollowResponse>(
+        ctx.call_remote(
+            method,
+            imbl_value::json!({
+                "id": id,
+                "limit": limit,
+            }),
+        )
+        .await?,
+    )?;
 
-    let mut base_url = ctx.base_url.clone();
-    let ws_scheme = match base_url.scheme() {
-        "https" => "wss",
-        "http" => "ws",
-        _ => {
-            return Err(Error::new(
-                eyre!("Cannot parse scheme from base URL"),
-                crate::ErrorKind::ParseUrl,
-            )
-            .into())
-        }
-    };
-    base_url
-        .set_scheme(ws_scheme)
-        .map_err(|_| Error::new(eyre!("Cannot set URL scheme"), crate::ErrorKind::ParseUrl))?;
-    let (mut stream, _) =
-                // base_url is "http://127.0.0.1/", with a trailing slash, so we don't put a leading slash in this path:
-                tokio_tungstenite::connect_async(format!("{}ws/rpc/{}", base_url, res.guid)).await?;
+    let mut stream = ctx.ws_continuation(res.guid).await?;
     while let Some(log) = stream.try_next().await? {
         if let Message::Text(log) = log {
             println!("{}", serde_json::from_str::<LogEntry>(&log)?);
@@ -376,15 +379,9 @@ pub async fn journalctl(
         }
         LogSource::Container(id) => {
             #[cfg(not(feature = "docker"))]
-            cmd.arg(format!(
-                "SYSLOG_IDENTIFIER={}",
-                DockerProcedure::container_name(&id, None)
-            ));
+            cmd.arg(format!("SYSLOG_IDENTIFIER={}.embassy", id));
             #[cfg(feature = "docker")]
-            cmd.arg(format!(
-                "CONTAINER_NAME={}",
-                DockerProcedure::container_name(&id, None)
-            ));
+            cmd.arg(format!("CONTAINER_NAME={}.embassy", id));
         }
     };
 
@@ -498,7 +495,16 @@ pub async fn follow_logs(
     ctx.add_continuation(
         guid.clone(),
         RpcContinuation::ws(
-            Box::new(move |ws_fut| ws_handler(first_entry, stream, ws_fut).boxed()),
+            Box::new(move |socket| {
+                ws_handler(first_entry, stream, socket)
+                    .map(|x| match x {
+                        Ok(_) => (),
+                        Err(e) => {
+                            tracing::error!("Error in log stream: {}", e);
+                        }
+                    })
+                    .boxed()
+            }),
             Duration::from_secs(30),
         ),
     )

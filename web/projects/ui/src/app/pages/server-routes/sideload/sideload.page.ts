@@ -1,10 +1,10 @@
 import { Component } from '@angular/core'
 import { isPlatform, LoadingController, NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { Manifest } from 'src/app/services/patch-db/data-model'
 import { ConfigService } from 'src/app/services/config.service'
 import cbor from 'cbor'
 import { ErrorToastService } from '@start9labs/shared'
+import { Manifest } from '../../../../../../../../core/startos/bindings/Manifest'
 
 interface Positions {
   [key: string]: [bigint, bigint] // [position, length]
@@ -133,9 +133,7 @@ export class SideloadPage {
   }
 
   async getIcon(positions: Positions, file: Blob) {
-    const contentType = `image/${this.toUpload.manifest?.assets.icon
-      .split('.')
-      .pop()}`
+    const contentType = '' // @TODO
     const data = file.slice(
       Number(positions['icon'][0]),
       Number(positions['icon'][0]) + Number(positions['icon'][1]),

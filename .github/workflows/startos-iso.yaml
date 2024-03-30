@@ -12,9 +12,6 @@ on:
           - dev
           - unstable
           - dev-unstable
-          - docker
-          - dev-docker
-          - dev-unstable-docker
       runner:
         type: choice
         description: Runner
@@ -82,8 +79,11 @@ jobs:
         with:
           node-version: ${{ env.NODEJS_VERSION }}
 
-      - name: Set up QEMU
+      - name: Set up docker QEMU
         uses: docker/setup-qemu-action@v2
+
+      - name: Set up system QEMU
+        run: sudo apt-get update && sudo apt-get install -y qemu-user-static
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -172,6 +172,8 @@ jobs:
       - name: Prevent rebuild of compiled artifacts
         run: |
           mkdir -p web/dist/raw
+          touch core/startos/bindings
+          mkdir -p container-runtime/dist
           PLATFORM=${{ matrix.platform }} make -t compiled-${{ env.ARCH }}.tar
 
       - name: Run iso build

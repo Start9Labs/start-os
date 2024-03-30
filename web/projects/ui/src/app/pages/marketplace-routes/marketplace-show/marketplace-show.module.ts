@@ -19,6 +19,7 @@ import { MarketplaceShowPage } from './marketplace-show.page'
 import { MarketplaceShowHeaderComponent } from './marketplace-show-header/marketplace-show-header.component'
 import { MarketplaceShowDependentComponent } from './marketplace-show-dependent/marketplace-show-dependent.component'
 import { MarketplaceShowControlsComponent } from './marketplace-show-controls/marketplace-show-controls.component'
+import { UiPipeModule } from 'src/app/pipes/ui/ui.module'
 
 const routes: Routes = [
   {
@@ -41,6 +42,7 @@ const routes: Routes = [
     AboutModule,
     DependenciesModule,
     AdditionalModule,
+    UiPipeModule,
   ],
   declarations: [
     MarketplaceShowPage,
