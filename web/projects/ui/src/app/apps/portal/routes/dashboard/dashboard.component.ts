@@ -74,6 +74,44 @@ import { UtilitiesComponent } from './utilities.component'
         font-size: 1rem;
       }
     }
+
+    :host-context(tui-root._mobile) {
+      height: 100%;
+      display: block;
+      margin: 0;
+      border-top: 0;
+
+      app-metrics,
+      app-utilities,
+      app-services {
+        display: none;
+      }
+
+      time,
+      h2 {
+        display: none;
+      }
+    }
+
+    :host-context(tui-root._mobile [data-dashboard='metrics']) {
+      app-metrics {
+        display: block;
+      }
+    }
+
+    :host-context(tui-root._mobile [data-dashboard='utilities']) {
+      app-utilities {
+        display: flex;
+        align-items: center;
+      }
+    }
+
+    :host-context(tui-root._mobile main:not([data-dashboard])) {
+      app-services {
+        display: block;
+        margin: 0;
+      }
+    }
   `,
   imports: [
     ServicesComponent,

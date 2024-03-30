@@ -44,6 +44,7 @@ import { BadgeService } from 'src/app/apps/portal/services/badge.service'
     }
 
     .links {
+      width: 100%;
       display: grid;
       grid-template: 1fr 1fr / 1fr 1fr 1fr;
       gap: 0.75rem;
@@ -75,6 +76,20 @@ import { BadgeService } from 'src/app/apps/portal/services/badge.service'
 
       &:hover {
         background: var(--tui-clear);
+      }
+    }
+
+    :host-context(tui-root._mobile) {
+      --clip-path: none !important;
+      height: 100%;
+
+      .links {
+        grid-template: 1fr 1fr/1fr 1fr;
+      }
+
+      .link {
+        font-size: 1rem;
+        gap: 0.75rem;
       }
     }
   `,

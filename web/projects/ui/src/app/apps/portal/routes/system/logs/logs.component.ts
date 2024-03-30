@@ -53,6 +53,15 @@ import { LogsComponent } from '../../../components/logs/logs.component'
       logs {
         height: calc(100% - 4rem);
       }
+
+      :host-context(tui-root._mobile) {
+        --clip-path: none;
+        height: 100%;
+        margin: 0;
+        padding: 1rem 1rem 0;
+        border: 0.375rem solid transparent;
+        border-top: 0;
+      }
     `,
   ],
   imports: [

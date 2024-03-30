@@ -18,18 +18,23 @@ import { getManifest } from 'src/app/util/get-package-data'
   standalone: true,
   selector: 'tr[appService]',
   template: `
-    <td><img alt="logo" [src]="pkg.icon" /></td>
-    <td>
+    <td [style.grid-area]="'1 / 1 / 4'">
+      <a [routerLink]="routerLink"><img alt="logo" [src]="pkg.icon" /></a>
+    </td>
+    <td [style.grid-area]="'1 / 2'">
       <a [routerLink]="routerLink">{{ manifest.title }}</a>
     </td>
-    <td>{{ manifest.version }}</td>
-    <td appStatus [pkg]="pkg" [hasDepErrors]="hasError(depErrors)"></td>
-    <td [style.text-align]="'center'">
+    <td [style.grid-area]="'2 / 2'">{{ manifest.version }}</td>
+    <td
+      [style.grid-area]="'3 / 2'"
+      appStatus
+      [pkg]="pkg"
+      [hasDepErrors]="hasError(depErrors)"
+    ></td>
+    <td [style.grid-area]="'2 / 3'" [style.text-align]="'center'">
       <fieldset
         appControls
-        [disabled]="
-          pkg.stateInfo.state !== 'installed' || !(connected$ | async)
-        "
+        [disabled]="!installed || !(connected$ | async)"
         [pkg]="pkg"
       ></fieldset>
     </td>
@@ -47,6 +52,32 @@ import { getManifest } from 'src/app/util/get-package-data'
 
     a {
       color: var(--tui-text-01);
+      font-weight: bold;
+    }
+
+    .text {
+      display: contents;
+    }
+
+    :host-context(tui-root._mobile) {
+      position: relative;
+      display: grid;
+      grid-template: 2rem 2rem 2rem/6rem 1fr 2rem;
+      align-items: center;
+      padding: 1rem;
+
+      img {
+        height: 4rem;
+        width: 4rem;
+        margin: 1rem;
+      }
+
+      td {
+        padding: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -60,6 +91,10 @@ export class ServiceComponent {
   depErrors?: PkgDependencyErrors
 
   readonly connected$ = inject(ConnectionService).connected$
+
+  get installed(): boolean {
+    return this.pkg.stateInfo.state !== 'installed'
+  }
 
   get manifest() {
     return getManifest(this.pkg)

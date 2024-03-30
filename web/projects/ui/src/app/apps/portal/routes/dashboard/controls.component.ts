@@ -65,7 +65,18 @@ import { Manifest } from '@start9labs/marketplace'
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButtonModule, UILaunchComponent, TuiLetModule, AsyncPipe],
   providers: [tuiButtonOptionsProvider({ size: 's', appearance: 'none' })],
-  styles: ':host { padding: 0; border: none }',
+  styles: `
+    :host {
+      padding: 0;
+      border: none;
+    }
+
+    :host-context(tui-root._mobile) {
+      button {
+        display: none;
+      }
+    }
+  `,
 })
 export class ControlsComponent {
   private readonly errors = inject(DepErrorService)
