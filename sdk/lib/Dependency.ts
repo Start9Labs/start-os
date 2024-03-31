@@ -6,13 +6,13 @@ export class Dependency {
       | {
           type: "running"
           versionSpec: Checker
-          url: string
+          registryUrl: string
           healthChecks: string[]
         }
       | {
           type: "exists"
           versionSpec: Checker
-          url: string
+          registryUrl: string
         },
   ) {}
 }

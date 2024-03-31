@@ -11,7 +11,7 @@ use clap::Parser;
 use emver::VersionRange;
 use imbl::OrdMap;
 use imbl_value::{json, InternedString};
-use models::{ActionId, HealthCheckId, ImageId, PackageId, VolumeId};
+use models::{ActionId, HealthCheckId, HostId, ImageId, PackageId, VolumeId};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
@@ -20,16 +20,18 @@ use ts_rs::TS;
 use url::Url;
 
 use crate::db::model::package::{
-    CurrentDependencies, CurrentDependencyInfo, ExposedUI, StoreExposedUI,
+    ActionMetadata, CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind,
 };
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
+use crate::net::host::binding::BindOptions;
+use crate::net::host::HostKind;
 use crate::prelude::*;
 use crate::s9pk::rpc::SKIP_ENV;
 use crate::service::cli::ContainerCliContext;
 use crate::service::ServiceActorSeed;
-use crate::status::health_check::{HealthCheckResult, HealthCheckString};
+use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::clap::FromStrParser;
 use crate::util::{new_guid, Invoke};
@@ -114,7 +116,6 @@ pub fn service_effect_handler() -> ParentHandler {
             "exposeForDependents",
             from_fn_async(expose_for_dependents).no_cli(),
         )
-        .subcommand("exposeUi", from_fn_async(expose_ui).no_cli())
         .subcommand(
             "createOverlayedImage",
             from_fn_async(create_overlayed_image)
@@ -186,21 +187,7 @@ struct GetServicePortForwardParams {
     package_id: Option<PackageId>,
     internal_port: u32,
 }
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-struct BindOptionsSecure {
-    ssl: bool,
-}
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-struct BindOptions {
-    scheme: Option<String>,
-    preferred_external_port: u32,
-    add_ssl: Option<AddSslOptions>,
-    secure: Option<BindOptionsSecure>,
-}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
@@ -255,14 +242,6 @@ struct ListServiceInterfacesParams {
 struct RemoveAddressParams {
     id: String,
 }
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-enum AllowedStatuses {
-    OnlyRunning, // onlyRunning
-    OnlyStopped,
-    Any,
-}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
@@ -275,21 +254,9 @@ struct ExportActionParams {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
-struct ActionMetadata {
-    name: String,
-    description: String,
-    warning: Option<String>,
-    disabled: bool,
-    #[ts(type = "{[key: string]: any}")]
-    input: Value,
-    allowed_statuses: AllowedStatuses,
-    group: Option<String>,
-}
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
 struct RemoveActionParams {
-    id: String,
+    #[ts(type = "string")]
+    id: ActionId,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
@@ -388,11 +355,48 @@ async fn list_service_interfaces(
 async fn remove_address(context: EffectContext, data: RemoveAddressParams) -> Result<Value, Error> {
     todo!()
 }
-async fn export_action(context: EffectContext, data: ExportActionParams) -> Result<Value, Error> {
-    todo!()
+async fn export_action(context: EffectContext, data: ExportActionParams) -> Result<(), Error> {
+    let context = context.deref()?;
+    let package_id = context.id.clone();
+    context
+        .ctx
+        .db
+        .mutate(|db| {
+            let model = db
+                .as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&package_id)
+                .or_not_found(&package_id)?
+                .as_actions_mut();
+            let mut value = model.de()?;
+            value
+                .insert(data.id, data.metadata)
+                .map(|_| ())
+                .unwrap_or_default();
+            model.ser(&value)
+        })
+        .await?;
+    Ok(())
 }
-async fn remove_action(context: EffectContext, data: RemoveActionParams) -> Result<Value, Error> {
-    todo!()
+async fn remove_action(context: EffectContext, data: RemoveActionParams) -> Result<(), Error> {
+    let context = context.deref()?;
+    let package_id = context.id.clone();
+    context
+        .ctx
+        .db
+        .mutate(|db| {
+            let model = db
+                .as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&package_id)
+                .or_not_found(&package_id)?
+                .as_actions_mut();
+            let mut value = model.de()?;
+            value.remove(&data.id).map(|_| ()).unwrap_or_default();
+            model.ser(&value)
+        })
+        .await?;
+    Ok(())
 }
 async fn reverse_proxy(context: EffectContext, data: ReverseProxyParams) -> Result<Value, Error> {
     todo!()
@@ -431,35 +435,16 @@ async fn get_host_info(
 async fn clear_bindings(context: EffectContext, _: Empty) -> Result<Value, Error> {
     todo!()
 }
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
 
-enum BindKind {
-    Static,
-    Single,
-    Multi,
-}
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-
-struct AddSslOptions {
-    scheme: Option<String>,
-    preferred_external_port: u32,
-    add_x_forwarded_headers: Option<bool>,
-}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 struct BindParams {
-    kind: BindKind,
-    id: String,
-    internal_port: u32,
-    scheme: String,
-    preferred_external_port: u32,
-    add_ssl: Option<AddSslOptions>,
-    secure: Option<BindOptionsSecure>,
+    kind: HostKind,
+    id: HostId,
+    internal_port: u16,
+    #[serde(flatten)]
+    options: BindOptions,
 }
 async fn bind(_: AnyContext, BindParams { .. }: BindParams) -> Result<Value, Error> {
     todo!()
@@ -699,23 +684,6 @@ async fn expose_for_dependents(
     Ok(())
 }
 
-async fn expose_ui(context: EffectContext, params: StoreExposedUI) -> Result<(), Error> {
-    let context = context.deref()?;
-    let package_id = context.id.clone();
-    context
-        .ctx
-        .db
-        .mutate(|db| {
-            db.as_public_mut()
-                .as_package_data_mut()
-                .as_idx_mut(&package_id)
-                .or_not_found(&package_id)?
-                .as_store_exposed_ui_mut()
-                .ser(&params)
-        })
-        .await?;
-    Ok(())
-}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
@@ -919,19 +887,14 @@ async fn set_main_status(context: EffectContext, params: SetMainStatus) -> Resul
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 struct SetHealth {
-    #[ts(type = "string")]
-    name: HealthCheckId,
-    status: HealthCheckString,
-    message: Option<String>,
+    id: HealthCheckId,
+    #[serde(flatten)]
+    result: HealthCheckResult,
 }
 
 async fn set_health(
     context: EffectContext,
-    SetHealth {
-        name,
-        status,
-        message,
-    }: SetHealth,
+    SetHealth { id, result }: SetHealth,
 ) -> Result<Value, Error> {
     let context = context.deref()?;
 
@@ -940,43 +903,22 @@ async fn set_health(
         .ctx
         .db
         .mutate(move |db| {
-            let mut main = db
-                .as_public()
-                .as_package_data()
-                .as_idx(package_id)
-                .or_not_found(package_id)?
-                .as_status()
-                .as_main()
-                .de()?;
-            match &mut main {
-                &mut MainStatus::Running { ref mut health, .. }
-                | &mut MainStatus::BackingUp { ref mut health, .. } => {
-                    health.remove(&name);
-
-                    health.insert(
-                        name,
-                        match status {
-                            HealthCheckString::Disabled => HealthCheckResult::Disabled,
-                            HealthCheckString::Passing => HealthCheckResult::Success,
-                            HealthCheckString::Starting => HealthCheckResult::Starting,
-                            HealthCheckString::Warning => HealthCheckResult::Loading {
-                                message: message.unwrap_or_default(),
-                            },
-                            HealthCheckString::Failure => HealthCheckResult::Failure {
-                                error: message.unwrap_or_default(),
-                            },
-                        },
-                    );
-                }
-                _ => return Ok(()),
-            };
             db.as_public_mut()
                 .as_package_data_mut()
                 .as_idx_mut(package_id)
                 .or_not_found(package_id)?
                 .as_status_mut()
                 .as_main_mut()
-                .ser(&main)
+                .mutate(|main| {
+                    match main {
+                        &mut MainStatus::Running { ref mut health, .. }
+                        | &mut MainStatus::BackingUp { ref mut health, .. } => {
+                            health.insert(id, result);
+                        }
+                        _ => (),
+                    }
+                    Ok(())
+                })
         })
         .await?;
     Ok(json!(()))
@@ -1101,7 +1043,7 @@ enum DependencyRequirement {
         #[ts(type = "string")]
         version_spec: VersionRange,
         #[ts(type = "string")]
-        url: Url,
+        registry_url: Url,
     },
     #[serde(rename_all = "camelCase")]
     Exists {
@@ -1110,7 +1052,7 @@ enum DependencyRequirement {
         #[ts(type = "string")]
         version_spec: VersionRange,
         #[ts(type = "string")]
-        url: Url,
+        registry_url: Url,
     },
 }
 // filebrowser:exists,bitcoind:running:foo+bar+baz
@@ -1120,7 +1062,7 @@ impl FromStr for DependencyRequirement {
         match s.split_once(':') {
             Some((id, "e")) | Some((id, "exists")) => Ok(Self::Exists {
                 id: id.parse()?,
-                url: "".parse()?,           // TODO
+                registry_url: "".parse()?,  // TODO
                 version_spec: "*".parse()?, // TODO
             }),
             Some((id, rest)) => {
@@ -1144,14 +1086,14 @@ impl FromStr for DependencyRequirement {
                 Ok(Self::Running {
                     id: id.parse()?,
                     health_checks,
-                    url: "".parse()?,           // TODO
+                    registry_url: "".parse()?,  // TODO
                     version_spec: "*".parse()?, // TODO
                 })
             }
             None => Ok(Self::Running {
                 id: s.parse()?,
                 health_checks: BTreeSet::new(),
-                url: "".parse()?,           // TODO
+                registry_url: "".parse()?,  // TODO
                 version_spec: "*".parse()?, // TODO
             }),
         }
@@ -1187,20 +1129,31 @@ async fn set_dependencies(
                     .map(|dependency| match dependency {
                         DependencyRequirement::Exists {
                             id,
-                            url,
-                            version_spec,
-                        } => (id, CurrentDependencyInfo::Exists { url, version_spec }),
-                        DependencyRequirement::Running {
-                            id,
-                            health_checks,
-                            url,
+                            registry_url,
                             version_spec,
                         } => (
                             id,
-                            CurrentDependencyInfo::Running {
-                                url,
+                            CurrentDependencyInfo {
+                                kind: CurrentDependencyKind::Exists,
+                                registry_url,
                                 version_spec,
-                                health_checks,
+                                icon: todo!(),
+                                title: todo!(),
+                            },
+                        ),
+                        DependencyRequirement::Running {
+                            id,
+                            health_checks,
+                            registry_url,
+                            version_spec,
+                        } => (
+                            id,
+                            CurrentDependencyInfo {
+                                kind: CurrentDependencyKind::Running { health_checks },
+                                registry_url,
+                                version_spec,
+                                icon: todo!(),
+                                title: todo!(),
                             },
                         ),
                     })

@@ -45,7 +45,7 @@ export async function checkPortListening(
           port,
         )
       if (hasAddress) {
-        return { status: "passing", message: options.successMessage }
+        return { status: "success", message: options.successMessage }
       }
       return {
         status: "failure",

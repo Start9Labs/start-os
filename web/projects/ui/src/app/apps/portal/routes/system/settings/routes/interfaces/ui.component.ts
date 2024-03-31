@@ -47,7 +47,8 @@ export class StartOsUiComponent {
               addSsl: {
                 scheme: 'https',
                 preferredExternalPort: 443,
-                addXForwardedHeaders: null,
+                // @TODO is this alpn correct?
+                alpn: { specified: ['http/1.1', 'h2'] },
               },
               secure: {
                 ssl: false,

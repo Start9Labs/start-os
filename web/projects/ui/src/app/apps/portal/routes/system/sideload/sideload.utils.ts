@@ -1,4 +1,4 @@
-import { Manifest, MarketplacePkg } from '@start9labs/marketplace'
+import { MarketplacePkg } from '@start9labs/marketplace'
 import cbor from 'cbor'
 
 interface Positions {

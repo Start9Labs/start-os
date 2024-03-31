@@ -18,7 +18,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   DataModel,
   PackageDataEntry,
-  PackageState,
 } from 'src/app/services/patch-db/data-model'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
@@ -73,7 +72,7 @@ export class ServiceActionsRoute {
 
   readonly pkg$ = this.patch
     .watch$('packageData', this.id)
-    .pipe(filter(pkg => pkg.stateInfo.state === PackageState.Installed))
+    .pipe(filter(pkg => pkg.stateInfo.state === 'installed'))
 
   readonly action = {
     icon: 'tuiIconTrash2Large',

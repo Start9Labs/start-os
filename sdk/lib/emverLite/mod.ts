@@ -179,7 +179,6 @@ export class Checker {
    * @returns
    */
   static parse(range: string | Checker): Checker {
-    console.log(`Parser (${range})`)
     if (range instanceof Checker) {
       return range
     }

@@ -5,20 +5,18 @@ import {
   computed,
   inject,
   input,
-  Input,
 } from '@angular/core'
-import { TuiLetModule, tuiPure } from '@taiga-ui/cdk'
+import { TuiLetModule } from '@taiga-ui/cdk'
 import {
   TuiButtonModule,
   tuiButtonOptionsProvider,
 } from '@taiga-ui/experimental'
-import { map, Observable } from 'rxjs'
+import { map } from 'rxjs'
 import { UILaunchComponent } from 'src/app/apps/portal/routes/dashboard/ui.component'
 import { ActionsService } from 'src/app/apps/portal/services/actions.service'
 import { DepErrorService } from 'src/app/services/dep-error.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/util/get-package-data'
-import { Manifest } from '@start9labs/marketplace'
 
 @Component({
   standalone: true,

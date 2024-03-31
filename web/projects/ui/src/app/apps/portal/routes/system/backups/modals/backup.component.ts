@@ -16,7 +16,7 @@ import {
 } from '@tinkoff/ng-polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom, map } from 'rxjs'
-import { DataModel, PackageState } from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/util/get-package-data'
 
 interface Package {
@@ -100,7 +100,7 @@ export class BackupsBackupModal {
                 id,
                 title,
                 icon: pkg.icon,
-                disabled: pkg.stateInfo.state !== PackageState.Installed,
+                disabled: pkg.stateInfo.state !== 'installed',
                 checked: false,
               }
             })

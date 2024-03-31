@@ -1,9 +1,4 @@
-import {
-  DataModel,
-  HealthResult,
-  PackageMainStatus,
-  PackageState,
-} from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Mock } from './api.fixures'
 
 export const mockPatchData: DataModel = {
@@ -12,7 +7,6 @@ export const mockPatchData: DataModel = {
     ackWelcome: '1.0.0',
     theme: 'Dark',
     desktop: ['lnd'],
-    widgets: [],
     marketplace: {
       selectedUrl: 'https://registry.start9.com/',
       knownHosts: {
@@ -138,11 +132,13 @@ export const mockPatchData: DataModel = {
     passwordHash:
       '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
     platform: 'x86_64-nonfree',
+    arch: 'x86_64',
+    governor: 'performance',
   },
   packageData: {
     bitcoind: {
       stateInfo: {
-        state: PackageState.Installed,
+        state: 'installed',
         manifest: {
           ...Mock.MockManifestBitcoind,
           version: '0.20.0',
@@ -154,31 +150,33 @@ export const mockPatchData: DataModel = {
       status: {
         configured: true,
         main: {
-          status: PackageMainStatus.Running,
+          status: 'running',
           started: '2021-06-14T20:49:17.774Z',
           health: {
             'ephemeral-health-check': {
               name: 'Ephemeral Health Check',
-              result: HealthResult.Starting,
+              result: 'starting',
+              message: null,
             },
             'chain-state': {
               name: 'Chain State',
-              result: HealthResult.Loading,
+              result: 'loading',
               message: 'Bitcoin is syncing from genesis',
             },
             'p2p-interface': {
               name: 'P2P',
-              result: HealthResult.Success,
+              result: 'success',
               message: 'Health check successful',
             },
             'rpc-interface': {
               name: 'RPC',
-              result: HealthResult.Failure,
+              result: 'failure',
               message: 'RPC interface unreachable.',
             },
             'unnecessary-health-check': {
               name: 'Unnecessary Health Check',
-              result: HealthResult.Disabled,
+              result: 'disabled',
+              message: null,
             },
           },
         },
@@ -202,9 +200,10 @@ export const mockPatchData: DataModel = {
               scheme: 'http',
               preferredExternalPort: 80,
               addSsl: {
-                addXForwardedHeaders: false,
+                // addXForwardedHeaders: false,
                 preferredExternalPort: 443,
                 scheme: 'https',
+                alpn: { specified: ['http/1.1', 'h2'] },
               },
               secure: null,
             },
@@ -274,9 +273,10 @@ export const mockPatchData: DataModel = {
               scheme: 'http',
               preferredExternalPort: 80,
               addSsl: {
-                addXForwardedHeaders: false,
+                // addXForwardedHeaders: false,
                 preferredExternalPort: 443,
                 scheme: 'https',
+                alpn: { specified: ['http/1.1'] },
               },
               secure: null,
             },
@@ -402,13 +402,15 @@ export const mockPatchData: DataModel = {
         },
       },
       currentDependencies: {},
+      hosts: {},
+      storeExposedDependents: [],
       marketplaceUrl: 'https://registry.start9.com/',
       developerKey: 'developer-key',
       outboundProxy: null,
     },
     lnd: {
       stateInfo: {
-        state: PackageState.Installed,
+        state: 'installed',
         manifest: {
           ...Mock.MockManifestLnd,
           version: '0.11.0',
@@ -420,7 +422,7 @@ export const mockPatchData: DataModel = {
       status: {
         configured: true,
         main: {
-          status: PackageMainStatus.Stopped,
+          status: 'stopped',
         },
         dependencyConfigErrors: {
           'btc-rpc-proxy': 'This is a config unsatisfied error',
@@ -655,6 +657,8 @@ export const mockPatchData: DataModel = {
           healthChecks: [],
         },
       },
+      hosts: {},
+      storeExposedDependents: [],
       marketplaceUrl: 'https://registry.start9.com/',
       developerKey: 'developer-key',
       outboundProxy: null,

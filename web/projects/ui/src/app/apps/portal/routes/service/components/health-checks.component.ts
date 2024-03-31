@@ -5,9 +5,9 @@ import {
   inject,
   Input,
 } from '@angular/core'
-import { HealthCheckResult } from 'src/app/services/patch-db/data-model'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { ServiceHealthCheckComponent } from './health-check.component'
+import { HealthCheckResult } from '../../../../../../../../../../core/startos/bindings/HealthCheckResult'
 
 @Component({
   selector: 'service-health-checks',

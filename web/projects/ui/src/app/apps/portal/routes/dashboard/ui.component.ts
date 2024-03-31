@@ -9,10 +9,7 @@ import { tuiPure } from '@taiga-ui/cdk'
 import { TuiDataListModule, TuiHostedDropdownModule } from '@taiga-ui/core'
 import { TuiButtonModule } from '@taiga-ui/experimental'
 import { ConfigService } from 'src/app/services/config.service'
-import {
-  PackageDataEntry,
-  PackageMainStatus,
-} from 'src/app/services/patch-db/data-model'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 
 @Component({
   standalone: true,
@@ -73,7 +70,7 @@ export class UILaunchComponent {
   }
 
   get isRunning(): boolean {
-    return this.pkg.status.main.status === PackageMainStatus.Running
+    return this.pkg.status.main.status === 'running'
   }
 
   @tuiPure

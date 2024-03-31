@@ -9,6 +9,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncSeek, AsyncWrite};
 use tokio::sync::{mpsc, watch};
+use ts_rs::TS;
 
 use crate::db::model::DatabaseModel;
 use crate::prelude::*;
@@ -19,11 +20,16 @@ lazy_static::lazy_static! {
     static ref BYTES: ProgressStyle = ProgressStyle::with_template("{spinner} {wide_msg} [{bytes}/?] [{binary_bytes_per_sec} {elapsed}]").unwrap();
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, TS)]
 #[serde(untagged)]
 pub enum Progress {
     Complete(bool),
-    Progress { done: u64, total: Option<u64> },
+    Progress {
+        #[ts(type = "number")]
+        done: u64,
+        #[ts(type = "number | null")]
+        total: Option<u64>,
+    },
 }
 impl Progress {
     pub fn new() -> Self {
@@ -126,13 +132,16 @@ impl std::ops::AddAssign<u64> for Progress {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[ts(export)]
 pub struct NamedProgress {
+    #[ts(type = "string")]
     pub name: InternedString,
     pub progress: Progress,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[ts(export)]
 pub struct FullProgress {
     pub overall: Progress,
     pub phases: Vec<NamedProgress>,

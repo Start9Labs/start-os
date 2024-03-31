@@ -15,6 +15,7 @@ use serde::de::DeserializeOwned;
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
+use ts_rs::TS;
 
 use super::IntoDoubleEndedIterator;
 use crate::util::clap::FromStrParser;
@@ -633,7 +634,8 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, TS)]
+#[ts(export, type = "string")]
 pub struct Duration(std::time::Duration);
 impl Deref for Duration {
     type Target = std::time::Duration;
@@ -1128,6 +1130,18 @@ impl PemEncoding for ssh_key::PrivateKey {
     }
 }
 
+impl PemEncoding for ed25519_dalek::VerifyingKey {
+    fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
+        use ed25519_dalek::pkcs8::DecodePublicKey;
+        ed25519_dalek::VerifyingKey::from_public_key_pem(pem).map_err(E::custom)
+    }
+    fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
+        use ed25519_dalek::pkcs8::EncodePublicKey;
+        self.to_public_key_pem(pkcs8::LineEnding::LF)
+            .map_err(E::custom)
+    }
+}
+
 pub mod pem {
     use serde::{Deserialize, Deserializer, Serializer};
 
@@ -1163,7 +1177,8 @@ impl<T: PemEncoding> Pem<T> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, TS)]
+#[ts(export, type = "string | number[]")]
 pub struct MaybeUtf8String(pub Vec<u8>);
 impl std::fmt::Debug for MaybeUtf8String {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

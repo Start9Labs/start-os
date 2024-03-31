@@ -1,9 +1,5 @@
 import { Subscription } from 'rxjs'
-import {
-  PackageDataEntry,
-  PackageMainStatus,
-  PackageState,
-} from '../services/patch-db/data-model'
+import { PackageDataEntry } from '../services/patch-db/data-model'
 import {
   PrimaryStatus,
   StatusRendering,
@@ -12,7 +8,7 @@ import {
 export interface PkgInfo {
   entry: PackageDataEntry
   primaryRendering: StatusRendering
-  primaryStatus: PrimaryStatus | PackageState | PackageMainStatus
+  primaryStatus: PrimaryStatus
   error: boolean
   warning: boolean
   transitioning: boolean

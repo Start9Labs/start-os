@@ -6,7 +6,6 @@ import {
   inject,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
-import { Manifest } from '@start9labs/marketplace'
 import { tuiPure } from '@taiga-ui/cdk'
 import { TuiSvgModule } from '@taiga-ui/core'
 import { TuiLineClampModule } from '@taiga-ui/kit'
@@ -16,6 +15,7 @@ import { ServerNotification } from 'src/app/services/api/api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { NotificationService } from '../../../services/notification.service'
 import { toRouterLink } from '../../../utils/to-router-link'
+import { Manifest } from '../../../../../../../../../../core/startos/bindings/Manifest'
 
 @Component({
   selector: '[notificationItem]',

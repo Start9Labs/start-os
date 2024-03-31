@@ -1,12 +1,12 @@
 import { inject, Pipe, PipeTransform } from '@angular/core'
 import { TuiDialogService } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
-import { Manifest } from '@start9labs/marketplace'
 import { CopyService, MarkdownComponent } from '@start9labs/shared'
 import { from } from 'rxjs'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { getManifest } from 'src/app/util/get-package-data'
+import { Manifest } from '../../../../../../../../../../core/startos/bindings/Manifest'
 
 export const FALLBACK_URL = 'Not provided'
 

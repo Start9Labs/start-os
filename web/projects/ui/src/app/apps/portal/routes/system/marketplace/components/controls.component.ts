@@ -24,7 +24,6 @@ import { firstValueFrom } from 'rxjs'
 import {
   DataModel,
   PackageDataEntry,
-  PackageState,
 } from 'src/app/services/patch-db/data-model'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'

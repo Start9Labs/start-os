@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use chrono::{DateTime, Utc};
 use emver::VersionRange;
 use imbl_value::InternedString;
-use models::{DataUrl, HealthCheckId, HostId, PackageId};
+use models::{ActionId, DataUrl, HealthCheckId, HostId, PackageId, ServiceInterfaceId};
 use patch_db::json_ptr::JsonPointer;
 use patch_db::HasModel;
 use reqwest::Url;
@@ -11,12 +11,15 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::net::host::HostInfo;
+use crate::net::service_interface::ServiceInterfaceWithHostInfo;
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::s9pk::manifest::Manifest;
 use crate::status::Status;
+use crate::util::serde::Pem;
 
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize, TS)]
+#[ts(export)]
 pub struct AllPackageData(pub BTreeMap<PackageId, PackageDataEntry>);
 impl Map for AllPackageData {
     type Key = PackageId;
@@ -35,10 +38,11 @@ pub enum ManifestPreference {
     New,
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "state")]
 #[model = "Model<Self>"]
+#[ts(export)]
 pub enum PackageState {
     Installing(InstallingState),
     Restoring(InstallingState),
@@ -257,53 +261,81 @@ impl Model<PackageState> {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
+#[ts(export)]
 pub struct InstallingState {
     pub installing_info: InstallingInfo,
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
+#[ts(export)]
 pub struct UpdatingState {
     pub manifest: Manifest,
     pub installing_info: InstallingInfo,
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
+#[ts(export)]
 pub struct InstalledState {
     pub manifest: Manifest,
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
+#[ts(export)]
 pub struct InstallingInfo {
     pub new_manifest: Manifest,
     pub progress: FullProgress,
 }
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub enum AllowedStatuses {
+    OnlyRunning, // onlyRunning
+    OnlyStopped,
+    Any,
+}
 
-#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
+pub struct ActionMetadata {
+    pub name: String,
+    pub description: String,
+    pub warning: Option<String>,
+    #[ts(type = "any")]
+    pub input: Value,
+    pub disabled: bool,
+    pub allowed_statuses: AllowedStatuses,
+    pub group: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
+#[ts(export)]
 pub struct PackageDataEntry {
     pub state_info: PackageState,
     pub status: Status,
+    #[ts(type = "string | null")]
     pub marketplace_url: Option<Url>,
-    #[serde(default)]
-    #[serde(with = "crate::util::serde::ed25519_pubkey")]
-    pub developer_key: ed25519_dalek::VerifyingKey,
+    #[ts(type = "string")]
+    pub developer_key: Pem<ed25519_dalek::VerifyingKey>,
     pub icon: DataUrl<'static>,
+    #[ts(type = "string | null")]
     pub last_backup: Option<DateTime<Utc>>,
-    pub dependency_info: BTreeMap<PackageId, StaticDependencyInfo>,
     pub current_dependencies: CurrentDependencies,
-    pub interface_addresses: InterfaceAddressMap,
+    pub actions: BTreeMap<ActionId, ActionMetadata>,
+    pub service_interfaces: BTreeMap<ServiceInterfaceId, ServiceInterfaceWithHostInfo>,
     pub hosts: HostInfo,
-    pub store_exposed_ui: StoreExposedUI,
+    #[ts(type = "string[]")]
     pub store_exposed_dependents: Vec<JsonPointer>,
 }
 impl AsRef<PackageDataEntry> for PackageDataEntry {
@@ -312,52 +344,8 @@ impl AsRef<PackageDataEntry> for PackageDataEntry {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel)]
-#[model = "Model<Self>"]
-pub struct ExposedDependent {
-    path: String,
-    title: String,
-    description: Option<String>,
-    masked: Option<bool>,
-    copyable: Option<bool>,
-    qr: Option<bool>,
-}
-#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct StoreExposedUI(pub BTreeMap<InternedString, ExposedUI>);
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[serde(tag = "type")]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, TS)]
 #[ts(export)]
-pub enum ExposedUI {
-    Object {
-        #[ts(type = "{[key: string]: ExposedUI}")]
-        value: BTreeMap<String, ExposedUI>,
-        #[serde(default)]
-        #[ts(type = "string | null")]
-        description: String,
-    },
-    String {
-        #[ts(type = "string")]
-        path: JsonPointer,
-        description: Option<String>,
-        masked: bool,
-        copyable: Option<bool>,
-        qr: Option<bool>,
-    },
-}
-
-impl Default for ExposedUI {
-    fn default() -> Self {
-        ExposedUI::Object {
-            value: BTreeMap::new(),
-            description: "".to_string(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct CurrentDependencies(pub BTreeMap<PackageId, CurrentDependencyInfo>);
 impl CurrentDependencies {
     pub fn map(
@@ -381,31 +369,26 @@ impl Map for CurrentDependencies {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[model = "Model<Self>"]
-pub struct StaticDependencyInfo {
+pub struct CurrentDependencyInfo {
+    #[serde(flatten)]
+    pub kind: CurrentDependencyKind,
     pub title: String,
     pub icon: DataUrl<'static>,
+    #[ts(type = "string")]
+    pub registry_url: Url,
+    #[ts(type = "string")]
+    pub version_spec: VersionRange,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "kind")]
-pub enum CurrentDependencyInfo {
-    #[serde(rename_all = "camelCase")]
-    Exists {
-        #[ts(type = "string")]
-        url: Url,
-        #[ts(type = "string")]
-        version_spec: VersionRange,
-    },
+pub enum CurrentDependencyKind {
+    Exists,
     #[serde(rename_all = "camelCase")]
     Running {
-        #[ts(type = "string")]
-        url: Url,
-        #[ts(type = "string")]
-        version_spec: VersionRange,
         #[serde(default)]
         #[ts(type = "string[]")]
         health_checks: BTreeSet<HealthCheckId>,

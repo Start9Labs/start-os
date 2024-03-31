@@ -1,7 +1,7 @@
 import { Pipe, PipeTransform } from '@angular/core'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { Manifest } from '@start9labs/marketplace'
 import { getManifest } from 'src/app/util/get-package-data'
+import { Manifest } from '../../../../../../../../core/startos/bindings/Manifest'
 
 @Pipe({
   name: 'toManifest',

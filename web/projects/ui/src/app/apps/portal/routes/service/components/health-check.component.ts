@@ -1,10 +1,7 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { TuiLoaderModule, TuiSvgModule } from '@taiga-ui/core'
-import {
-  HealthCheckResult,
-  HealthResult,
-} from 'src/app/services/patch-db/data-model'
+import { HealthCheckResult } from '../../../../../../../../../../core/startos/bindings/HealthCheckResult'
 
 @Component({
   selector: 'service-health-check',
@@ -54,18 +51,14 @@ export class ServiceHealthCheckComponent {
   get loading(): boolean {
     const { result } = this.check
 
-    return (
-      !result ||
-      result === HealthResult.Starting ||
-      result === HealthResult.Loading
-    )
+    return !result || result === 'starting' || result === 'loading'
   }
 
   get icon(): string {
     switch (this.check.result) {
-      case HealthResult.Success:
+      case 'success':
         return 'tuiIconCheckLarge'
-      case HealthResult.Failure:
+      case 'failure':
         return 'tuiIconAlertTriangleLarge'
       default:
         return 'tuiIconMinusLarge'
@@ -74,13 +67,14 @@ export class ServiceHealthCheckComponent {
 
   get color(): string {
     switch (this.check.result) {
-      case HealthResult.Success:
+      case 'success':
         return 'var(--tui-success-fill)'
-      case HealthResult.Failure:
+      case 'failure':
         return 'var(--tui-warning-fill)'
-      case HealthResult.Starting:
-      case HealthResult.Loading:
+      case 'starting':
+      case 'loading':
         return 'var(--tui-primary)'
+      // disabled
       default:
         return 'var(--tui-text-02)'
     }
@@ -92,13 +86,14 @@ export class ServiceHealthCheckComponent {
     }
 
     switch (this.check.result) {
-      case HealthResult.Starting:
+      case 'starting':
         return 'Starting...'
-      case HealthResult.Success:
+      case 'success':
         return `Success: ${this.check.message}`
-      case HealthResult.Loading:
-      case HealthResult.Failure:
+      case 'loading':
+      case 'failure':
         return this.check.message
+      // disabled
       default:
         return this.check.result
     }

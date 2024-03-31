@@ -9,8 +9,8 @@ import { TuiButtonModule } from '@taiga-ui/experimental'
 import { DependencyInfo } from 'src/app/apps/portal/routes/service/types/dependency-info'
 import { ActionsService } from 'src/app/apps/portal/services/actions.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { Manifest } from '@start9labs/marketplace'
 import { getManifest } from 'src/app/util/get-package-data'
+import { Manifest } from '../../../../../../../../../../core/startos/bindings/Manifest'
 
 @Component({
   selector: 'service-actions',

@@ -1,8 +1,6 @@
 import {
   InstalledState,
   PackageDataEntry,
-  PackageMainStatus,
-  PackageState,
   ServerStatusInfo,
 } from 'src/app/services/patch-db/data-model'
 import {
@@ -12,15 +10,12 @@ import {
   ServerNotifications,
 } from './api.types'
 import { BTC_ICON, LND_ICON, PROXY_ICON } from './api-icons'
-import {
-  DependencyMetadata,
-  Manifest,
-  MarketplacePkg,
-} from '@start9labs/marketplace'
+import { DependencyMetadata, MarketplacePkg } from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { CT } from '@start9labs/start-sdk'
 import { CB } from '@start9labs/start-sdk'
+import { Manifest } from '../../../../../../../core/startos/bindings/Manifest'
 
 export module Mock {
   export const ServerUpdated: ServerStatusInfo = {
@@ -83,16 +78,26 @@ export module Mock {
     osVersion: '0.2.12',
     dependencies: {},
     hasConfig: true,
+    images: ['main'],
+    assets: [],
+    volumes: ['main'],
+    hardwareRequirements: {
+      device: {},
+      arch: null,
+      ram: null,
+    },
   }
 
   export const MockManifestLnd: Manifest = {
     id: 'lnd',
     title: 'Lightning Network Daemon',
     version: '0.11.1',
+    gitHash: 'abcdefgh',
     description: {
       short: 'A bolt spec compliant client.',
       long: 'More info about LND. More info about LND. More info about LND.',
     },
+    replaces: ['banks', 'governments'],
     releaseNotes: 'Dual funded channels!',
     license: 'MIT',
     wrapperRepo: 'https://github.com/start9labs/lnd-wrapper',
@@ -121,6 +126,14 @@ export module Mock {
       },
     },
     hasConfig: true,
+    images: ['main'],
+    assets: [],
+    volumes: ['main'],
+    hardwareRequirements: {
+      device: {},
+      arch: null,
+      ram: null,
+    },
   }
 
   export const MockManifestBitcoinProxy: Manifest = {
@@ -153,7 +166,16 @@ export module Mock {
         optional: false,
       },
     },
+    replaces: [],
     hasConfig: false,
+    images: ['main'],
+    assets: [],
+    volumes: ['main'],
+    hardwareRequirements: {
+      device: {},
+      arch: null,
+      ram: null,
+    },
   }
 
   export const BitcoinDep: DependencyMetadata = {
@@ -1260,7 +1282,7 @@ export module Mock {
 
   export const bitcoind: PackageDataEntry<InstalledState> = {
     stateInfo: {
-      state: PackageState.Installed,
+      state: 'installed',
       manifest: MockManifestBitcoind,
     },
     icon: '/assets/img/service-icons/bitcoind.svg',
@@ -1269,7 +1291,7 @@ export module Mock {
     status: {
       configured: true,
       main: {
-        status: PackageMainStatus.Running,
+        status: 'running',
         started: new Date().toISOString(),
         health: {},
       },
@@ -1293,9 +1315,10 @@ export module Mock {
             scheme: 'http',
             preferredExternalPort: 80,
             addSsl: {
-              addXForwardedHeaders: false,
+              // addXForwardedHeaders: false,
               preferredExternalPort: 443,
               scheme: 'https',
+              alpn: { specified: ['http/1.1', 'h2'] },
             },
             secure: null,
           },
@@ -1365,9 +1388,10 @@ export module Mock {
             scheme: 'http',
             preferredExternalPort: 80,
             addSsl: {
-              addXForwardedHeaders: false,
+              // addXForwardedHeaders: false,
               preferredExternalPort: 443,
               scheme: 'https',
+              alpn: { specified: ['http/1.1'] },
             },
             secure: null,
           },
@@ -1493,6 +1517,8 @@ export module Mock {
       },
     },
     currentDependencies: {},
+    hosts: {},
+    storeExposedDependents: [],
     marketplaceUrl: 'https://registry.start9.com/',
     developerKey: 'developer-key',
     outboundProxy: null,
@@ -1500,7 +1526,7 @@ export module Mock {
 
   export const bitcoinProxy: PackageDataEntry<InstalledState> = {
     stateInfo: {
-      state: PackageState.Installed,
+      state: 'installed',
       manifest: MockManifestBitcoinProxy,
     },
     icon: '/assets/img/service-icons/btc-rpc-proxy.png',
@@ -1509,7 +1535,7 @@ export module Mock {
     status: {
       configured: false,
       main: {
-        status: PackageMainStatus.Stopped,
+        status: 'stopped',
       },
       dependencyConfigErrors: {},
     },
@@ -1530,9 +1556,10 @@ export module Mock {
             scheme: 'http',
             preferredExternalPort: 80,
             addSsl: {
-              addXForwardedHeaders: false,
+              // addXForwardedHeaders: false,
               preferredExternalPort: 443,
               scheme: 'https',
+              alpn: { specified: ['http/1.1', 'h2'] },
             },
             secure: {
               ssl: true,
@@ -1632,6 +1659,8 @@ export module Mock {
         healthChecks: [],
       },
     },
+    hosts: {},
+    storeExposedDependents: [],
     marketplaceUrl: 'https://registry.start9.com/',
     developerKey: 'developer-key',
     outboundProxy: null,
@@ -1639,7 +1668,7 @@ export module Mock {
 
   export const lnd: PackageDataEntry<InstalledState> = {
     stateInfo: {
-      state: PackageState.Installed,
+      state: 'installed',
       manifest: MockManifestLnd,
     },
     icon: '/assets/img/service-icons/lnd.png',
@@ -1648,7 +1677,7 @@ export module Mock {
     status: {
       configured: true,
       main: {
-        status: PackageMainStatus.Stopped,
+        status: 'stopped',
       },
       dependencyConfigErrors: {
         'btc-rpc-proxy': 'Username not found',
@@ -1882,9 +1911,10 @@ export module Mock {
         kind: 'exists',
         registryUrl: 'https://community-registry.start9.com',
         versionSpec: '>2.0.0', // @TODO
-        healthChecks: [],
       },
     },
+    hosts: {},
+    storeExposedDependents: [],
     marketplaceUrl: 'https://registry.start9.com/',
     developerKey: 'developer-key',
     outboundProxy: null,

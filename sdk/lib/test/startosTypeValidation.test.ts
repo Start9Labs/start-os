@@ -9,7 +9,6 @@ import { ParamsMaybePackageId } from "../../../core/startos/bindings/ParamsMaybe
 import { SetConfigured } from "../../../core/startos/bindings/SetConfigured"
 import { SetHealth } from "../../../core/startos/bindings/SetHealth"
 import { ExposeForDependentsParams } from "../../../core/startos/bindings/ExposeForDependentsParams"
-import { ExposeUiParams } from "../../../core/startos/bindings/ExposeUiParams"
 import { GetSslCertificateParams } from "../../../core/startos/bindings/GetSslCertificateParams"
 import { GetSslKeyParams } from "../../../core/startos/bindings/GetSslKeyParams"
 import { GetServiceInterfaceParams } from "../../../core/startos/bindings/GetServiceInterfaceParams"
@@ -24,7 +23,6 @@ import { ExportActionParams } from "../../../core/startos/bindings/ExportActionP
 import { RemoveActionParams } from "../../../core/startos/bindings/RemoveActionParams"
 import { ReverseProxyParams } from "../../../core/startos/bindings/ReverseProxyParams"
 import { MountParams } from "../../../core/startos/bindings/MountParams"
-import { ExposedUI } from "../../../core/startos/bindings/ExposedUI"
 function typeEquality<ExpectedType>(_a: ExpectedType) {}
 describe("startosTypeValidation ", () => {
   test(`checking the params match`, () => {

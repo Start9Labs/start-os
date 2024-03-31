@@ -1,16 +1,17 @@
 import { BackupJob, ServerNotifications } from '../api/api.types'
-import { Url } from '@start9labs/shared'
-import { Manifest } from '@start9labs/marketplace'
 import { T } from '@start9labs/start-sdk'
 import { config } from '@start9labs/start-sdk'
+import { PackageDataEntry as PDE } from '../../../../../../../core/startos/bindings/PackageDataEntry'
+import { FullProgress } from '../../../../../../../core/startos/bindings/FullProgress'
+import { Manifest } from '../../../../../../../core/startos/bindings/Manifest'
 
-export interface DataModel {
-  serverInfo: ServerInfo
-  packageData: { [id: string]: PackageDataEntry }
+export type DataModel = {
   ui: UIData
+  serverInfo: ServerInfo
+  packageData: Record<string, PackageDataEntry>
 }
 
-export interface UIData {
+export type UIData = {
   name: string | null
   ackWelcome: string // emver
   marketplace: UIMarketplaceData
@@ -21,24 +22,10 @@ export interface UIData {
   }
   ackInstructions: Record<string, boolean>
   theme: string
-  widgets: readonly Widget[]
   desktop: readonly string[]
 }
 
-export interface Widget {
-  id: string
-  meta: {
-    name: string
-    width: number
-    height: number
-    mobileWidth: number
-    mobileHeight: number
-  }
-  url?: string
-  settings?: string
-}
-
-export interface UIMarketplaceData {
+export type UIMarketplaceData = {
   selectedUrl: string
   knownHosts: {
     'https://registry.start9.com/': UIStore
@@ -47,11 +34,11 @@ export interface UIMarketplaceData {
   }
 }
 
-export interface UIStore {
+export type UIStore = {
   name?: string
 }
 
-export interface ServerInfo {
+export type ServerInfo = {
   id: string
   version: string
   country: string
@@ -70,6 +57,8 @@ export interface ServerInfo {
   smtp: typeof config.constants.customSmtp.validator._TYPE
   passwordHash: string
   platform: string
+  arch: string
+  governor: string | null
 }
 
 export type NetworkInfo = {
@@ -129,14 +118,6 @@ export type Proxy = {
   }
 }
 
-export interface IpInfo {
-  [iface: string]: {
-    wireless: boolean
-    ipv4: string | null
-    ipv6: string | null
-  }
-}
-
 export interface ServerStatusInfo {
   currentBackup: null | {
     job: BackupJob
@@ -148,16 +129,8 @@ export interface ServerStatusInfo {
   shuttingDown: boolean
 }
 
-export type PackageDataEntry<T extends StateInfo = StateInfo> = {
+export type PackageDataEntry<T extends StateInfo = StateInfo> = PDE & {
   stateInfo: T
-  icon: Url
-  status: Status
-  actions: Record<string, T.ActionMetadata>
-  lastBackup: string | null
-  currentDependencies: Record<string, CurrentDependencyInfo>
-  serviceInterfaces: Record<string, T.ServiceInterfaceWithHostInfo>
-  marketplaceUrl: string | null
-  developerKey: string
   installedAt: string
   outboundProxy: string | null
 }
@@ -165,142 +138,24 @@ export type PackageDataEntry<T extends StateInfo = StateInfo> = {
 export type StateInfo = InstalledState | InstallingState | UpdatingState
 
 export type InstalledState = {
-  state: PackageState.Installed | PackageState.Removing
+  state: 'installed' | 'removing'
   manifest: Manifest
   installingInfo?: undefined
 }
 
 export type InstallingState = {
-  state: PackageState.Installing | PackageState.Restoring
+  state: 'installing' | 'restoring'
   installingInfo: InstallingInfo
   manifest?: undefined
 }
 
 export type UpdatingState = {
-  state: PackageState.Updating
+  state: 'updating'
   installingInfo: InstallingInfo
   manifest: Manifest
-}
-
-export enum PackageState {
-  Installing = 'installing',
-  Installed = 'installed',
-  Updating = 'updating',
-  Removing = 'removing',
-  Restoring = 'restoring',
-}
-
-export interface CurrentDependencyInfo {
-  title: string
-  icon: string
-  kind: 'exists' | 'running'
-  registryUrl: string
-  versionSpec: string
-  healthChecks: string[] // array of health check IDs
-}
-
-export interface Status {
-  configured: boolean
-  main: MainStatus
-  dependencyConfigErrors: { [id: string]: string | null }
-}
-
-export type MainStatus =
-  | MainStatusStopped
-  | MainStatusStopping
-  | MainStatusStarting
-  | MainStatusRunning
-  | MainStatusBackingUp
-  | MainStatusRestarting
-  | MainStatusConfiguring
-
-export interface MainStatusStopped {
-  status: PackageMainStatus.Stopped
-}
-
-export interface MainStatusStopping {
-  status: PackageMainStatus.Stopping
-  timeout: string
-}
-
-export interface MainStatusStarting {
-  status: PackageMainStatus.Starting
-}
-
-export interface MainStatusRunning {
-  status: PackageMainStatus.Running
-  started: string // UTC date string
-  health: Record<string, HealthCheckResult>
-}
-
-export interface MainStatusBackingUp {
-  status: PackageMainStatus.BackingUp
-}
-
-export interface MainStatusRestarting {
-  status: PackageMainStatus.Restarting
-}
-
-export interface MainStatusConfiguring {
-  status: PackageMainStatus.Configuring
-}
-
-export enum PackageMainStatus {
-  Starting = 'starting',
-  Running = 'running',
-  Stopping = 'stopping',
-  Stopped = 'stopped',
-  BackingUp = 'backing-up',
-  Restarting = 'restarting',
-  Configuring = 'configuring',
-}
-
-export type HealthCheckResult = { name: string } & (
-  | HealthCheckResultStarting
-  | HealthCheckResultLoading
-  | HealthCheckResultDisabled
-  | HealthCheckResultSuccess
-  | HealthCheckResultFailure
-)
-
-export enum HealthResult {
-  Starting = 'starting',
-  Loading = 'loading',
-  Disabled = 'disabled',
-  Success = 'success',
-  Failure = 'failure',
-}
-
-export interface HealthCheckResultStarting {
-  result: HealthResult.Starting
-}
-
-export interface HealthCheckResultDisabled {
-  result: HealthResult.Disabled
-}
-
-export interface HealthCheckResultSuccess {
-  result: HealthResult.Success
-  message: string
-}
-
-export interface HealthCheckResultLoading {
-  result: HealthResult.Loading
-  message: string
-}
-
-export interface HealthCheckResultFailure {
-  result: HealthResult.Failure
-  message: string
 }
 
 export type InstallingInfo = {
   progress: FullProgress
   newManifest: Manifest
 }
-
-export type FullProgress = {
-  overall: Progress
-  phases: { name: string; progress: Progress }[]
-}
-export type Progress = boolean | { done: number; total: number | null } // false means indeterminate. true means complete

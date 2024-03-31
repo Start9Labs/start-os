@@ -1,6 +1,5 @@
 import { inject, Pipe, PipeTransform } from '@angular/core'
 import { Params } from '@angular/router'
-import { Manifest } from '@start9labs/marketplace'
 import { MarkdownComponent } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
@@ -15,6 +14,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { ProxyService } from 'src/app/services/proxy.service'
 import { ServicePropertiesModal } from '../modals/properties.component'
 import { getManifest } from 'src/app/util/get-package-data'
+import { Manifest } from '../../../../../../../../../../core/startos/bindings/Manifest'
 
 export interface ServiceMenu {
   icon: string

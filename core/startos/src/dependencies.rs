@@ -2,18 +2,16 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use clap::Parser;
-use emver::VersionRange;
-use models::{OptionExt, PackageId};
+use models::PackageId;
 use rpc_toolkit::{command, from_fn_async, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::config::{Config, ConfigSpec, ConfigureContext};
 use crate::context::RpcContext;
 use crate::db::model::package::CurrentDependencies;
-use crate::db::model::Database;
 use crate::prelude::*;
-use crate::s9pk::manifest::Manifest;
 use crate::status::DependencyConfigErrors;
 use crate::Error;
 
@@ -21,8 +19,9 @@ pub fn dependency() -> ParentHandler {
     ParentHandler::new().subcommand("configure", configure())
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[model = "Model<Self>"]
+#[ts(export)]
 pub struct Dependencies(pub BTreeMap<PackageId, DepInfo>);
 impl Map for Dependencies {
     type Key = PackageId;
@@ -35,27 +34,13 @@ impl Map for Dependencies {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-#[serde(tag = "type")]
-pub enum DependencyRequirement {
-    OptIn { how: String },
-    OptOut { how: String },
-    Required,
-}
-impl DependencyRequirement {
-    pub fn required(&self) -> bool {
-        matches!(self, &DependencyRequirement::Required)
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
+#[ts(export)]
 pub struct DepInfo {
-    pub version: VersionRange,
-    pub requirement: DependencyRequirement,
     pub description: Option<String>,
+    pub optional: bool,
 }
 
 #[derive(Deserialize, Serialize, Parser)]

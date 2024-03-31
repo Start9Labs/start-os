@@ -112,8 +112,9 @@ export class MainLoop {
             ])
             if (executed.exitCode === 59) {
               await effects.setHealth({
-                name: healthId,
-                status: "disabled",
+                id: healthId,
+                name: value.name,
+                result: "disabled",
                 message:
                   executed.stderr.toString() || executed.stdout.toString(),
               })
@@ -121,8 +122,9 @@ export class MainLoop {
             }
             if (executed.exitCode === 60) {
               await effects.setHealth({
-                name: healthId,
-                status: "starting",
+                id: healthId,
+                name: value.name,
+                result: "starting",
                 message:
                   executed.stderr.toString() || executed.stdout.toString(),
               })
@@ -130,8 +132,9 @@ export class MainLoop {
             }
             if (executed.exitCode === 61) {
               await effects.setHealth({
-                name: healthId,
-                status: "warning",
+                id: healthId,
+                name: value.name,
+                result: "loading",
                 message:
                   executed.stderr.toString() || executed.stdout.toString(),
               })
@@ -141,15 +144,17 @@ export class MainLoop {
             const message = executed.stdout.toString()
             if (!!errorMessage) {
               await effects.setHealth({
-                name: healthId,
-                status: "failure",
+                id: healthId,
+                name: value.name,
+                result: "failure",
                 message: errorMessage,
               })
               return
             }
             await effects.setHealth({
-              name: healthId,
-              status: "passing",
+              id: healthId,
+              name: value.name,
+              result: "success",
               message,
             })
             return
@@ -159,9 +164,10 @@ export class MainLoop {
             const method = moduleCode.health?.[healthId]
             if (!method) {
               await effects.setHealth({
-                name: healthId,
-                status: "failure",
-                message: `Expecting that thejs health check ${healthId} exists`,
+                id: healthId,
+                name: value.name,
+                result: "failure",
+                message: `Expecting that the js health check ${healthId} exists`,
               })
               return
             }
@@ -173,24 +179,27 @@ export class MainLoop {
 
             if ("result" in result) {
               await effects.setHealth({
+                id: healthId,
+                name: value.name,
+                result: "success",
                 message: null,
-                name: healthId,
-                status: "passing",
               })
               return
             }
             if ("error" in result) {
               await effects.setHealth({
-                name: healthId,
-                status: "failure",
+                id: healthId,
+                name: value.name,
+                result: "failure",
                 message: result.error,
               })
               return
             }
             if (!("error-code" in result)) {
               await effects.setHealth({
-                name: healthId,
-                status: "failure",
+                id: healthId,
+                name: value.name,
+                result: "failure",
                 message: `Unknown error type ${JSON.stringify(result)}`,
               })
               return
@@ -198,32 +207,36 @@ export class MainLoop {
             const [code, message] = result["error-code"]
             if (code === 59) {
               await effects.setHealth({
-                name: healthId,
-                status: "disabled",
+                id: healthId,
+                name: value.name,
+                result: "disabled",
                 message,
               })
               return
             }
             if (code === 60) {
               await effects.setHealth({
-                name: healthId,
-                status: "starting",
+                id: healthId,
+                name: value.name,
+                result: "starting",
                 message,
               })
               return
             }
             if (code === 61) {
               await effects.setHealth({
-                name: healthId,
-                status: "warning",
+                id: healthId,
+                name: value.name,
+                result: "loading",
                 message,
               })
               return
             }
 
             await effects.setHealth({
-              name: healthId,
-              status: "failure",
+              id: healthId,
+              name: value.name,
+              result: "failure",
               message: `${result["error-code"][0]}: ${result["error-code"][1]}`,
             })
             return

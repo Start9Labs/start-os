@@ -6,7 +6,6 @@ import {
   MarketplacePkg,
   StoreData,
   StoreIdentity,
-  StoreIdentityWithData,
   StoreInfo,
 } from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'

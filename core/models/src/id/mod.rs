@@ -6,21 +6,21 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use yasi::InternedString;
 
 mod action;
-mod address;
 mod health_check;
 mod host;
 mod image;
 mod invalid_id;
 mod package;
+mod service_interface;
 mod volume;
 
 pub use action::ActionId;
-pub use address::AddressId;
 pub use health_check::HealthCheckId;
 pub use host::HostId;
 pub use image::ImageId;
 pub use invalid_id::InvalidId;
 pub use package::{PackageId, SYSTEM_PACKAGE_ID};
+pub use service_interface::ServiceInterfaceId;
 pub use volume::VolumeId;
 
 lazy_static::lazy_static! {
@@ -28,8 +28,8 @@ lazy_static::lazy_static! {
     pub static ref SYSTEM_ID: Id = Id(InternedString::intern("x_system"));
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default, ts_rs::TS)]
-pub struct Id(#[ts(type = "string")] InternedString);
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct Id(InternedString);
 impl TryFrom<InternedString> for Id {
     type Error = InvalidId;
     fn try_from(value: InternedString) -> Result<Self, Self::Error> {

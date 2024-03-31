@@ -2,11 +2,12 @@ import { DOCUMENT } from '@angular/common'
 import { Inject, Injectable } from '@angular/core'
 import { WorkspaceConfig } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import {
-  PackageDataEntry,
-  PackageMainStatus,
-  PackageState,
-} from 'src/app/services/patch-db/data-model'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { PackageState } from '../../../../../../core/startos/bindings/PackageState'
+import { MainStatus } from '../../../../../../core/startos/bindings/MainStatus'
+import { ExportedOnionHostname } from '../../../../../../core/startos/bindings/ExportedOnionHostname'
+import { ExportedIpHostname } from '../../../../../../core/startos/bindings/ExportedIpHostname'
+import { ExportedHostnameInfo } from '../../../../../../core/startos/bindings/ExportedHostnameInfo'
 
 const {
   gitHash,
@@ -77,10 +78,11 @@ export class ConfigService {
     return window.isSecureContext || this.isTor()
   }
 
-  isLaunchable(state: PackageState, status: PackageMainStatus): boolean {
-    return (
-      state === PackageState.Installed && status === PackageMainStatus.Running
-    )
+  isLaunchable(
+    state: PackageState['state'],
+    status: MainStatus['status'],
+  ): boolean {
+    return state === 'installed' && status === 'running'
   }
 
   /** ${scheme}://${username}@${host}:${externalPort}${suffix} */
@@ -95,31 +97,28 @@ export class ConfigService {
     const url = new URL(`${scheme}://${username}placeholder${suffix}`)
 
     if (host.kind === 'multi') {
-      const onionHostname = host.hostnames.find(
-        (h: any) => h.kind === 'onion',
-      ) as T.HostnameInfoOnion
+      const onionHostname = host.hostnames.find(h => h.kind === 'onion')
+        ?.hostname as ExportedOnionHostname
 
       if (this.isTor() && onionHostname) {
-        url.hostname = onionHostname.hostname.value
+        url.hostname = onionHostname.value
       } else {
-        const ipHostname = host.hostnames.find(
-          (h: any) => h.kind === 'ip',
-        ) as T.HostnameInfoIp
+        const ipHostname = host.hostnames.find(h => h.kind === 'ip')
+          ?.hostname as ExportedIpHostname
 
         if (!ipHostname) return ''
 
         url.hostname = this.hostname
-        url.port = String(
-          ipHostname.hostname.sslPort || ipHostname.hostname.port,
-        )
+        url.port = String(ipHostname.sslPort || ipHostname.port)
       }
     } else {
-      const hostname = host.hostname
+      throw new Error('unimplemented')
+      const hostname = {} as ExportedHostnameInfo // host.hostname
 
       if (!hostname) return ''
 
       if (this.isTor() && hostname.kind === 'onion') {
-        url.hostname = hostname.hostname.value
+        url.hostname = (hostname.hostname as ExportedOnionHostname).value
       } else {
         url.hostname = this.hostname
         url.port = String(hostname.hostname.sslPort || hostname.hostname.port)

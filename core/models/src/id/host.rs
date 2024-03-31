@@ -2,11 +2,13 @@ use std::path::Path;
 use std::str::FromStr;
 
 use serde::{Deserialize, Deserializer, Serialize};
+use ts_rs::TS;
 use yasi::InternedString;
 
 use crate::{Id, InvalidId};
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TS)]
+#[ts(type = "string")]
 pub struct HostId(Id);
 impl FromStr for HostId {
     type Err = InvalidId;

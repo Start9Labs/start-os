@@ -8,11 +8,7 @@ import { tuiPure } from '@taiga-ui/cdk'
 import { TuiLoaderModule } from '@taiga-ui/core'
 import { TuiIconModule } from '@taiga-ui/experimental'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import {
-  HealthStatus,
-  PrimaryStatus,
-  renderPkgStatus,
-} from 'src/app/services/pkg-status-rendering.service'
+import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { InstallingProgressDisplayPipe } from '../service/pipes/install-progress.pipe'
 
 @Component({
@@ -68,7 +64,7 @@ export class StatusComponent {
     return (
       !this.hasDepErrors && // no deps error
       !!this.pkg.status.configured && // no config needed
-      status.health !== HealthStatus.Failure // no health issues
+      status.health !== 'failure' // no health issues
     )
   }
 
@@ -83,29 +79,29 @@ export class StatusComponent {
 
   get status(): string {
     if (this.pkg.stateInfo.installingInfo) {
-      return `Installing... ${this.pipe.transform(this.pkg.stateInfo.installingInfo.progress.overall)}`
+      return `Installing...${this.pipe.transform(this.pkg.stateInfo.installingInfo.progress.overall)}`
     }
 
     switch (this.getStatus(this.pkg).primary) {
-      case PrimaryStatus.Running:
+      case 'running':
         return 'Running'
-      case PrimaryStatus.Stopped:
+      case 'stopped':
         return 'Stopped'
-      case PrimaryStatus.NeedsConfig:
+      case 'needsConfig':
         return 'Needs Config'
-      case PrimaryStatus.Updating:
+      case 'updating':
         return 'Updating...'
-      case PrimaryStatus.Stopping:
+      case 'stopping':
         return 'Stopping...'
-      case PrimaryStatus.Starting:
+      case 'starting':
         return 'Starting...'
-      case PrimaryStatus.BackingUp:
+      case 'backingUp':
         return 'Backing Up...'
-      case PrimaryStatus.Restarting:
+      case 'restarting':
         return 'Restarting...'
-      case PrimaryStatus.Removing:
+      case 'removing':
         return 'Removing...'
-      case PrimaryStatus.Restoring:
+      case 'restoring':
         return 'Restoring...'
       default:
         return 'Unknown'
@@ -114,18 +110,20 @@ export class StatusComponent {
 
   get color(): string {
     switch (this.getStatus(this.pkg).primary) {
-      case PrimaryStatus.Running:
+      case 'running':
         return 'var(--tui-success-fill)'
-      case PrimaryStatus.NeedsConfig:
+      case 'needsConfig':
         return 'var(--tui-warning-fill)'
-      case PrimaryStatus.Updating:
-      case PrimaryStatus.Stopping:
-      case PrimaryStatus.Starting:
-      case PrimaryStatus.BackingUp:
-      case PrimaryStatus.Restarting:
-      case PrimaryStatus.Removing:
-      case PrimaryStatus.Restoring:
+      case 'installing':
+      case 'updating':
+      case 'stopping':
+      case 'starting':
+      case 'backingUp':
+      case 'restarting':
+      case 'removing':
+      case 'restoring':
         return 'var(--tui-info-fill)'
+      // stopped
       default:
         return 'var(--tui-text-02)'
     }

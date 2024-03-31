@@ -227,7 +227,7 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
                 }) as CheckResult,
             )
             currentInput.lastResult = response.status || null
-            if (!currentInput.hadSuccess && response.status === "passing") {
+            if (!currentInput.hadSuccess && response.status === "success") {
               currentInput.hadSuccess = true
               resolve(child)
             }

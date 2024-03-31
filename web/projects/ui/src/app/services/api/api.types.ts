@@ -1,10 +1,9 @@
 import { Dump, Revision } from 'patch-db-client'
-import { MarketplacePkg, StoreInfo, Manifest } from '@start9labs/marketplace'
+import { MarketplacePkg, StoreInfo } from '@start9labs/marketplace'
 import {
   DataModel,
   DomainInfo,
   NetworkStrategy,
-  HealthCheckResult,
 } from 'src/app/services/patch-db/data-model'
 import {
   StartOSDiskInfo,
@@ -15,6 +14,8 @@ import {
 } from '@start9labs/shared'
 import { CT } from '@start9labs/start-sdk'
 import { config } from '@start9labs/start-sdk'
+import { HealthCheckResult } from '../../../../../../../core/startos/bindings/HealthCheckResult'
+import { Manifest } from '../../../../../../../core/startos/bindings/Manifest'
 
 export module RR {
   // DB
@@ -644,40 +645,29 @@ export type DependencyError =
   | DependencyErrorHealthChecksFailed
   | DependencyErrorTransitive
 
-export enum DependencyErrorType {
-  NotInstalled = 'not-installed',
-  NotRunning = 'not-running',
-  IncorrectVersion = 'incorrect-version',
-  ConfigUnsatisfied = 'config-unsatisfied',
-  HealthChecksFailed = 'health-checks-failed',
-  InterfaceHealthChecksFailed = 'interface-health-checks-failed',
-  Transitive = 'transitive',
-}
-
 export interface DependencyErrorNotInstalled {
-  type: DependencyErrorType.NotInstalled
+  type: 'notInstalled'
 }
 
 export interface DependencyErrorNotRunning {
-  type: DependencyErrorType.NotRunning
+  type: 'notRunning'
 }
 
 export interface DependencyErrorIncorrectVersion {
-  type: DependencyErrorType.IncorrectVersion
+  type: 'incorrectVersion'
   expected: string // version range
   received: string // version
 }
 
 export interface DependencyErrorConfigUnsatisfied {
-  type: DependencyErrorType.ConfigUnsatisfied
-  error: string
+  type: 'configUnsatisfied'
 }
 
 export interface DependencyErrorHealthChecksFailed {
-  type: DependencyErrorType.HealthChecksFailed
+  type: 'healthChecksFailed'
   check: HealthCheckResult
 }
 
 export interface DependencyErrorTransitive {
-  type: DependencyErrorType.Transitive
+  type: 'transitive'
 }

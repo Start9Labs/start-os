@@ -1,21 +1,17 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ActivatedRoute, NavigationExtras, Router } from '@angular/router'
-import { Manifest } from '@start9labs/marketplace'
 import { isEmptyObject } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map, switchMap } from 'rxjs'
 import { ConnectionService } from 'src/app/services/connection.service'
 import {
-  DependencyErrorType,
   DepErrorService,
   PkgDependencyErrors,
 } from 'src/app/services/dep-error.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import {
   DataModel,
-  HealthCheckResult,
-  MainStatus,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import {
@@ -40,6 +36,9 @@ import {
 import { DependencyInfo } from '../types/dependency-info'
 import { getManifest } from 'src/app/util/get-package-data'
 import { InstallingProgressPipe } from 'src/app/apps/portal/routes/service/pipes/install-progress.pipe'
+import { Manifest } from '../../../../../../../../../../core/startos/bindings/Manifest'
+import { HealthCheckResult } from '../../../../../../../../../../core/startos/bindings/HealthCheckResult'
+import { MainStatus } from '../../../../../../../../../../core/startos/bindings/MainStatus'
 
 @Component({
   template: `
@@ -72,7 +71,7 @@ import { InstallingProgressPipe } from 'src/app/apps/portal/routes/service/pipes
       } @else {
         @if (
           service.pkg.stateInfo.state === 'installed' &&
-          service.status.primary !== 'backing-up'
+          service.status.primary !== 'backingUp'
         ) {
           @if (connected$ | async) {
             <service-actions
@@ -211,24 +210,24 @@ export class ServiceRoute {
     let fixAction: (() => any) | null = null
 
     if (depError) {
-      if (depError.type === DependencyErrorType.NotInstalled) {
+      if (depError.type === 'notInstalled') {
         errorText = 'Not installed'
         fixText = 'Install'
         fixAction = () => this.fixDep(pkg, pkgManifest, 'install', depId)
-      } else if (depError.type === DependencyErrorType.IncorrectVersion) {
+      } else if (depError.type === 'incorrectVersion') {
         errorText = 'Incorrect version'
         fixText = 'Update'
         fixAction = () => this.fixDep(pkg, pkgManifest, 'update', depId)
-      } else if (depError.type === DependencyErrorType.ConfigUnsatisfied) {
+      } else if (depError.type === 'configUnsatisfied') {
         errorText = 'Config not satisfied'
         fixText = 'Auto config'
         fixAction = () => this.fixDep(pkg, pkgManifest, 'configure', depId)
-      } else if (depError.type === DependencyErrorType.NotRunning) {
+      } else if (depError.type === 'notRunning') {
         errorText = 'Not running'
         fixText = 'Start'
-      } else if (depError.type === DependencyErrorType.HealthChecksFailed) {
+      } else if (depError.type === 'healthChecksFailed') {
         errorText = 'Required health check not passing'
-      } else if (depError.type === DependencyErrorType.Transitive) {
+      } else if (depError.type === 'transitive') {
         errorText = 'Dependency has a dependency issue'
       }
     }

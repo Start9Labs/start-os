@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use emver::VersionRange;
 use imbl_value::InOMap;
 pub use models::PackageId;
 use models::VolumeId;
@@ -8,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use super::git_hash::GitHash;
-use crate::dependencies::Dependencies;
 use crate::prelude::*;
 use crate::s9pk::manifest::{Alerts, Description, HardwareRequirements};
 use crate::util::Version;
@@ -43,7 +43,7 @@ pub struct Manifest {
     pub alerts: Alerts,
     pub volumes: BTreeMap<VolumeId, Value>,
     #[serde(default)]
-    pub dependencies: Dependencies,
+    pub dependencies: BTreeMap<PackageId, DepInfo>,
     pub config: Option<InOMap<String, Value>>,
 
     #[serde(default)]
@@ -51,6 +51,29 @@ pub struct Manifest {
 
     #[serde(default)]
     pub hardware_requirements: HardwareRequirements,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "type")]
+pub enum DependencyRequirement {
+    OptIn { how: String },
+    OptOut { how: String },
+    Required,
+}
+impl DependencyRequirement {
+    pub fn required(&self) -> bool {
+        matches!(self, &DependencyRequirement::Required)
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
+pub struct DepInfo {
+    pub version: VersionRange,
+    pub requirement: DependencyRequirement,
+    pub description: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]

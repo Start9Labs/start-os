@@ -247,7 +247,7 @@ impl NetService {
                                     None,
                                     external,
                                     (self.ip, *port).into(),
-                                    if bind.options.ssl {
+                                    if bind.options.secure.as_ref().map_or(false, |s| s.ssl) {
                                         Ok(())
                                     } else {
                                         Err(ssl.alpn.clone())

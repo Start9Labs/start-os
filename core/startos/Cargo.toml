@@ -41,6 +41,7 @@ default = ["cli", "daemon"]
 dev = []
 unstable = ["console-subscriber", "tokio/tracing"]
 docker = []
+test = []
 
 [dependencies]
 aes = { version = "0.7.5", features = ["ctr"] }
@@ -70,11 +71,12 @@ current_platform = "0.2.0"
 digest = "0.10.7"
 divrem = "1.0.0"
 ed25519 = { version = "2.2.3", features = ["pkcs8", "pem", "alloc"] }
-ed25519-dalek = { version = "2.0.0", features = [
+ed25519-dalek = { version = "2.1.1", features = [
   "serde",
   "zeroize",
   "rand_core",
   "digest",
+  "pkcs8",
 ] }
 ed25519-dalek-v1 = { package = "ed25519-dalek", version = "1" }
 emver = { version = "0.1.7", git = "https://github.com/Start9Labs/emver-rs.git", features = [
@@ -174,7 +176,7 @@ tracing-futures = "0.2.5"
 tracing-journald = "0.3.0"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 trust-dns-server = "0.23.1"
-ts-rs = "8.1.0"
+ts-rs = { git = "https://github.com/dr-bonez/ts-rs.git", branch = "feature/top-level-type-override" } # "8.1.0"
 typed-builder = "0.18.0"
 url = { version = "2.4.1", features = ["serde"] }
 urlencoding = "2.1.3"
