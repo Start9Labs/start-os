@@ -23,9 +23,6 @@ import { TuiAvatarModule } from '@taiga-ui/experimental'
               </ng-container>
             </p>
           </div>
-          <span class="inner-container-version">
-            <!-- {{ dep.value.version | displayEmver }} -->
-          </span>
           <span class="inner-container-description">
             {{ dep.value.description }}
           </span>
@@ -73,16 +70,6 @@ import { TuiAvatarModule } from '@taiga-ui/experimental'
           -webkit-box-orient: vertical;
           -webkit-line-clamp: 1;
         }
-      }
-
-      .inner-container-version {
-        font-size: 0.875rem;
-        line-height: 1.25rem;
-        color: rgb(250 250 250 / 0.7);
-        overflow: hidden;
-        display: -webkit-box;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 1;
       }
 
       .inner-container-description {
