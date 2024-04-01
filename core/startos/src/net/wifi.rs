@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::RwLock;
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
@@ -87,7 +88,7 @@ pub fn country() -> ParentHandler {
     )
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct AddParams {
@@ -138,7 +139,7 @@ pub async fn add(ctx: RpcContext, AddParams { ssid, password }: AddParams) -> Re
     }
     Ok(())
 }
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct SsidParams {
@@ -402,11 +403,12 @@ pub async fn get_available(ctx: RpcContext, _: Empty) -> Result<Vec<WifiListOut>
     Ok(wifi_list)
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct SetCountryParams {
     #[arg(value_parser = CountryCodeParser)]
+    #[ts(type = "string")]
     country: CountryCode,
 }
 pub async fn set_country(

@@ -4,6 +4,7 @@ use imbl_value::Value;
 use models::ProcedureName;
 use rpc_toolkit::yajrc::RpcMethod;
 use rpc_toolkit::Empty;
+use ts_rs::TS;
 
 use crate::prelude::*;
 
@@ -43,9 +44,10 @@ impl serde::Serialize for Exit {
     }
 }
 
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, serde::Deserialize, serde::Serialize, TS)]
 pub struct ExecuteParams {
     procedure: String,
+    #[ts(type = "any")]
     input: Value,
     timeout: Option<u128>,
 }

@@ -12,10 +12,8 @@ import {
   FollowLogsRes,
   FollowLogsReq,
 } from '@start9labs/shared'
-import { CT } from '@start9labs/start-sdk'
+import { CT, T } from '@start9labs/start-sdk'
 import { config } from '@start9labs/start-sdk'
-import { HealthCheckResult } from '../../../../../../../core/startos/bindings/HealthCheckResult'
-import { Manifest } from '../../../../../../../core/startos/bindings/Manifest'
 
 export module RR {
   // DB
@@ -367,7 +365,7 @@ export module RR {
   }
 
   export type SideloadPackageReq = {
-    manifest: Manifest
+    manifest: T.Manifest
     icon: string // base64
     size: number // bytes
   }
@@ -665,7 +663,7 @@ export interface DependencyErrorConfigUnsatisfied {
 
 export interface DependencyErrorHealthChecksFailed {
   type: 'healthChecksFailed'
-  check: HealthCheckResult
+  check: T.HealthCheckResult
 }
 
 export interface DependencyErrorTransitive {

@@ -3,11 +3,6 @@ import { Inject, Injectable } from '@angular/core'
 import { WorkspaceConfig } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { PackageState } from '../../../../../../core/startos/bindings/PackageState'
-import { MainStatus } from '../../../../../../core/startos/bindings/MainStatus'
-import { ExportedOnionHostname } from '../../../../../../core/startos/bindings/ExportedOnionHostname'
-import { ExportedIpHostname } from '../../../../../../core/startos/bindings/ExportedIpHostname'
-import { ExportedHostnameInfo } from '../../../../../../core/startos/bindings/ExportedHostnameInfo'
 
 const {
   gitHash,
@@ -79,8 +74,8 @@ export class ConfigService {
   }
 
   isLaunchable(
-    state: PackageState['state'],
-    status: MainStatus['status'],
+    state: T.PackageState['state'],
+    status: T.MainStatus['status'],
   ): boolean {
     return state === 'installed' && status === 'running'
   }
@@ -98,13 +93,13 @@ export class ConfigService {
 
     if (host.kind === 'multi') {
       const onionHostname = host.hostnames.find(h => h.kind === 'onion')
-        ?.hostname as ExportedOnionHostname
+        ?.hostname as T.ExportedOnionHostname
 
       if (this.isTor() && onionHostname) {
         url.hostname = onionHostname.value
       } else {
         const ipHostname = host.hostnames.find(h => h.kind === 'ip')
-          ?.hostname as ExportedIpHostname
+          ?.hostname as T.ExportedIpHostname
 
         if (!ipHostname) return ''
 
@@ -112,13 +107,12 @@ export class ConfigService {
         url.port = String(ipHostname.sslPort || ipHostname.port)
       }
     } else {
-      throw new Error('unimplemented')
-      const hostname = {} as ExportedHostnameInfo // host.hostname
+      const hostname = {} as T.ExportedHostnameInfo // host.hostname
 
       if (!hostname) return ''
 
       if (this.isTor() && hostname.kind === 'onion') {
-        url.hostname = (hostname.hostname as ExportedOnionHostname).value
+        url.hostname = (hostname.hostname as T.ExportedOnionHostname).value
       } else {
         url.hostname = this.hostname
         url.port = String(hostname.hostname.sslPort || hostname.hostname.port)

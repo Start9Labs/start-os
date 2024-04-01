@@ -1,6 +1,5 @@
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PkgDependencyErrors } from './dep-error.service'
-import { Status } from '../../../../../../core/startos/bindings/Status'
 import { T } from '@start9labs/start-sdk'
 
 export interface PackageStatus {
@@ -28,7 +27,7 @@ export function renderPkgStatus(
   return { primary, dependency, health }
 }
 
-function getInstalledPrimaryStatus(status: Status): PrimaryStatus {
+function getInstalledPrimaryStatus(status: T.Status): PrimaryStatus {
   if (!status.configured) {
     return 'needsConfig'
   } else {
@@ -40,7 +39,7 @@ function getDependencyStatus(depErrors: PkgDependencyErrors): DependencyStatus {
   return Object.values(depErrors).some(err => !!err) ? 'warning' : 'satisfied'
 }
 
-function getHealthStatus(status: Status): T.HealthStatus | null {
+function getHealthStatus(status: T.Status): T.HealthStatus | null {
   if (status.main.status !== 'running' || !status.main.health) {
     return null
   }

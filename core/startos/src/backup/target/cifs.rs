@@ -6,6 +6,7 @@ use color_eyre::eyre::eyre;
 use imbl_value::InternedString;
 use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use super::{BackupTarget, BackupTargetId};
 use crate::context::{CliContext, RpcContext};
@@ -67,7 +68,7 @@ pub fn cifs() -> ParentHandler {
         )
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct AddParams {
@@ -121,7 +122,7 @@ pub async fn add(
     })
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UpdateParams {
@@ -185,7 +186,7 @@ pub async fn update(
     })
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct RemoveParams {

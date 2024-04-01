@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::oneshot;
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::middleware::auth::{HasValidSession, HashSessionToken};
@@ -215,12 +216,13 @@ async fn cli_dump(
     Ok(dump)
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct DumpParams {
     #[arg(long = "include-private", short = 'p')]
     #[serde(default)]
+    #[ts(skip)]
     include_private: bool,
 }
 
@@ -271,7 +273,7 @@ async fn cli_apply(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ApplyParams {
@@ -309,11 +311,13 @@ pub fn put() -> ParentHandler {
             .with_remote_cli::<CliContext>(),
     )
 }
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UiParams {
+    #[ts(type = "string")]
     pointer: JsonPointer,
+    #[ts(type = "any")]
     value: Value,
 }
 

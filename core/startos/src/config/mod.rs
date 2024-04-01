@@ -12,6 +12,7 @@ use regex::Regex;
 use rpc_toolkit::{from_fn_async, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
@@ -125,7 +126,7 @@ pub enum MatchError {
     ListUniquenessViolation,
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ConfigParams {
@@ -156,12 +157,13 @@ pub async fn get(ctx: RpcContext, _: Empty, id: PackageId) -> Result<ConfigRes, 
         .await
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SetParams {
     #[arg(long = "timeout")]
     pub timeout: Option<crate::util::serde::Duration>,
     #[command(flatten)]
+    #[ts(type = "{ [key: string]: any } | null")]
     pub config: StdinDeserializable<Option<Config>>,
 }
 

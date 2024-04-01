@@ -1,9 +1,6 @@
 import { BackupJob, ServerNotifications } from '../api/api.types'
 import { T } from '@start9labs/start-sdk'
 import { config } from '@start9labs/start-sdk'
-import { PackageDataEntry as PDE } from '../../../../../../../core/startos/bindings/PackageDataEntry'
-import { FullProgress } from '../../../../../../../core/startos/bindings/FullProgress'
-import { Manifest } from '../../../../../../../core/startos/bindings/Manifest'
 
 export type DataModel = {
   ui: UIData
@@ -129,17 +126,18 @@ export interface ServerStatusInfo {
   shuttingDown: boolean
 }
 
-export type PackageDataEntry<T extends StateInfo = StateInfo> = PDE & {
-  stateInfo: T
-  installedAt: string
-  outboundProxy: string | null
-}
+export type PackageDataEntry<T extends StateInfo = StateInfo> =
+  T.PackageDataEntry & {
+    stateInfo: T
+    installedAt: string
+    outboundProxy: string | null
+  }
 
 export type StateInfo = InstalledState | InstallingState | UpdatingState
 
 export type InstalledState = {
   state: 'installed' | 'removing'
-  manifest: Manifest
+  manifest: T.Manifest
   installingInfo?: undefined
 }
 
@@ -152,10 +150,10 @@ export type InstallingState = {
 export type UpdatingState = {
   state: 'updating'
   installingInfo: InstallingInfo
-  manifest: Manifest
+  manifest: T.Manifest
 }
 
 export type InstallingInfo = {
-  progress: FullProgress
-  newManifest: Manifest
+  progress: T.FullProgress
+  newManifest: T.Manifest
 }

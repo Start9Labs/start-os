@@ -9,6 +9,7 @@ use patch_db::json_ptr::ROOT;
 use serde::{Deserialize, Serialize};
 use torut::onion::OnionAddressV3;
 use tracing::instrument;
+use ts_rs::TS;
 
 use super::target::BackupTargetId;
 use crate::backup::os::OsBackup;
@@ -24,7 +25,7 @@ use crate::s9pk::S9pk;
 use crate::service::service_map::DownloadInstallFuture;
 use crate::util::serde::IoFormat;
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct RestorePackageParams {

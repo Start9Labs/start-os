@@ -5,6 +5,7 @@ use reqwest::{StatusCode, Url};
 use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::version::VersionT;
@@ -36,10 +37,11 @@ pub fn with_query_params(ctx: RpcContext, mut url: Url) -> Url {
     url
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct GetParams {
+    #[ts(type = "string")]
     url: Url,
 }
 

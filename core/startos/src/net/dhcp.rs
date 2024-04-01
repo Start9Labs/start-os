@@ -6,6 +6,7 @@ use futures::TryStreamExt;
 use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
+use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::IpInfo;
@@ -60,7 +61,7 @@ pub fn dhcp() -> ParentHandler {
             .with_remote_cli::<CliContext>(),
     )
 }
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UpdateParams {

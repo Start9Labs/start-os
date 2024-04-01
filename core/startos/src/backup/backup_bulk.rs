@@ -11,6 +11,7 @@ use models::PackageId;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tracing::instrument;
+use ts_rs::TS;
 
 use super::target::BackupTargetId;
 use super::PackageBackupReport;
@@ -29,7 +30,7 @@ use crate::util::io::dir_copy;
 use crate::util::serde::IoFormat;
 use crate::version::VersionT;
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct BackupParams {

@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::oneshot;
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
@@ -63,7 +64,7 @@ pub async fn list(ctx: RpcContext) -> Result<Value, Error> {
         .collect())
 }
 
-#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum MinMax {
     Min,
@@ -102,12 +103,13 @@ impl std::fmt::Display for MinMax {
     }
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct InstallParams {
     id: PackageId,
     #[arg(short = 'm', long = "marketplace-url")]
+    #[ts(type = "string | null")]
     marketplace_url: Option<Url>,
     #[arg(short = 'v', long = "version-spec")]
     version_spec: Option<String>,
@@ -391,7 +393,7 @@ pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<()
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UninstallParams {

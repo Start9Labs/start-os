@@ -11,7 +11,9 @@ use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, Handler, HandlerArgs}
 use serde::{Deserialize, Serialize};
 use start_stop::StartStop;
 use tokio::sync::Notify;
+use ts_rs::TS;
 
+use crate::action::ActionResult;
 use crate::config::action::ConfigRes;
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::RequestGuid;
@@ -28,8 +30,8 @@ use crate::service::transition::TransitionKind;
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::actor::{Actor, BackgroundJobs, SimpleActor};
+use crate::util::serde::Pem;
 use crate::volume::data_dir;
-use crate::{action::ActionResult, util::serde::Pem};
 
 pub mod cli;
 mod config;
@@ -498,7 +500,7 @@ impl Actor for ServiceActor {
     }
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 pub struct ConnectParams {
     pub id: PackageId,
 }

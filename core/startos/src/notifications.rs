@@ -11,6 +11,7 @@ use models::PackageId;
 use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::backup::BackupReport;
 use crate::context::{CliContext, RpcContext};
@@ -48,11 +49,13 @@ pub fn notification() -> ParentHandler {
         )
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ListParams {
+    #[ts(type = "number | null")]
     before: Option<u32>,
+    #[ts(type = "number | null")]
     limit: Option<usize>,
 }
 // #[command(display(display_serializable))]
@@ -110,10 +113,11 @@ pub async fn list(
         .await
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct DeleteParams {
+    #[ts(type = "number")]
     id: u32,
 }
 
@@ -125,10 +129,11 @@ pub async fn delete(ctx: RpcContext, DeleteParams { id }: DeleteParams) -> Resul
         })
         .await
 }
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct DeleteBeforeParams {
+    #[ts(type = "number")]
     before: u32,
 }
 
@@ -148,7 +153,7 @@ pub async fn delete_before(
         .await
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CreateParams {
@@ -172,7 +177,7 @@ pub async fn create(
         .await
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum NotificationLevel {
     Success,

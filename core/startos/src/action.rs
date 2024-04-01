@@ -4,6 +4,7 @@ use models::PackageId;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::config::Config;
 use crate::context::RpcContext;
@@ -47,17 +48,16 @@ pub fn display_action_result(params: WithIoFormat<ActionParams>, result: ActionR
     }
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ActionParams {
     #[arg(id = "id")]
     #[serde(rename = "id")]
     pub package_id: PackageId,
-    #[arg(id = "action-id")]
-    #[serde(rename = "action-id")]
     pub action_id: ActionId,
     #[command(flatten)]
+    #[ts(type = "{ [key: string]: any } | null")]
     pub input: StdinDeserializable<Option<Config>>,
 }
 // impl C

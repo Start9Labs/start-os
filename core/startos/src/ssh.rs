@@ -8,6 +8,7 @@ use imbl_value::InternedString;
 use rpc_toolkit::{command, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
@@ -34,7 +35,8 @@ impl Map for SshKeys {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[ts(type = "string")]
 pub struct SshPubKey(
     #[serde(serialize_with = "crate::util::serde::serialize_display")]
     #[serde(deserialize_with = "crate::util::serde::deserialize_from_str")]
@@ -102,7 +104,7 @@ pub fn ssh() -> ParentHandler {
         )
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct AddParams {
@@ -135,10 +137,11 @@ pub async fn add(ctx: RpcContext, AddParams { key }: AddParams) -> Result<SshKey
     Ok(res)
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct DeleteParams {
+    #[ts(type = "string")]
     fingerprint: InternedString,
 }
 

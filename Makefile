@@ -182,6 +182,7 @@ container-runtime/node_modules: container-runtime/package.json container-runtime
 core/startos/bindings: $(shell git ls-files -- core ':!:core/startos/bindings/*') $(ENVIRONMENT_FILE)
 	rm -rf core/startos/bindings
 	(cd core/ && cargo test --features=test)
+	ls core/startos/bindings/*.ts | sed 's/core\/startos\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' > core/startos/bindings/index.ts
 	npm --prefix sdk exec -- prettier -w ./core/startos/bindings/*.ts
 
 sdk/dist: $(shell git ls-files sdk) core/startos/bindings

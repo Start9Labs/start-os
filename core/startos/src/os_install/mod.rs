@@ -6,6 +6,7 @@ use models::Error;
 use rpc_toolkit::{command, from_fn_async, AnyContext, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
+use ts_rs::TS;
 
 use crate::context::config::ServerConfig;
 use crate::context::{CliContext, InstallContext};
@@ -112,7 +113,7 @@ async fn partition(disk: &mut DiskInfo, overwrite: bool) -> Result<OsPartitionIn
     }
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ExecuteParams {

@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use tokio::sync::Mutex;
 use tracing::instrument;
+use ts_rs::TS;
 
 use self::cifs::CifsBackupTarget;
 use crate::context::{CliContext, RpcContext};
@@ -46,7 +47,8 @@ pub enum BackupTarget {
     Cifs(CifsBackupTarget),
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, TS)]
+#[ts(type = "string")]
 pub enum BackupTargetId {
     Disk { logicalname: PathBuf },
     Cifs { id: u32 },
@@ -107,7 +109,7 @@ impl Serialize for BackupTargetId {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(tag = "type")]
 #[serde(rename_all = "camelCase")]
 pub enum BackupTargetFS {
@@ -242,7 +244,7 @@ fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) {
     table.print_tty(false).unwrap();
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct InfoParams {
@@ -276,7 +278,7 @@ lazy_static::lazy_static! {
         Mutex::new(BTreeMap::new());
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct MountParams {
@@ -311,7 +313,7 @@ pub async fn mount(
     Ok(res)
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UmountParams {
