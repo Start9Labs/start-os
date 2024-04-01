@@ -171,20 +171,6 @@ export class PolyfillEffects implements oet.Effects {
       .then(() => true)
       .catch(() => false)
   }
-  bindLocal(options: {
-    internalPort: number
-    name: string
-    externalPort: number
-  }): Promise<string> {
-    throw new Error("Method will not implemented.")
-  }
-  bindTor(options: {
-    internalPort: number
-    name: string
-    externalPort: number
-  }): Promise<string> {
-    throw new Error("Method will not implemented.")
-  }
   async fetch(
     url: string,
     options?:

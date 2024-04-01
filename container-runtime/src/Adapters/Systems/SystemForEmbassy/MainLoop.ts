@@ -40,6 +40,7 @@ export class MainLoop {
       ...system.manifest.main.args,
     ]
 
+    console.error("BLUJ Should be running")
     await effects.setMainStatus({ status: "running" })
     const jsMain = (this.system.moduleCode as any)?.jsMain
     const dockerProcedureContainer = await DockerProcedureContainer.of(
@@ -48,19 +49,7 @@ export class MainLoop {
       this.system.manifest.volumes,
     )
     if (jsMain) {
-      const daemons = Daemons.of({
-        effects,
-        started: async (_) => {},
-        healthReceipts: [],
-      })
-      throw new Error("todo")
-      // return {
-      //   daemon,
-      //   wait: daemon.wait().finally(() => {
-      //     this.clean()
-      //     effects.setMainStatus({ status: "stopped" })
-      //   }),
-      // }
+      throw new Error("Unreachable")
     }
     const daemon = await daemons.runDaemon()(
       this.effects,
@@ -74,6 +63,7 @@ export class MainLoop {
       daemon,
       wait: daemon.wait().finally(() => {
         this.clean()
+        console.error("BLUJ It ways it is done?")
         effects
           .setMainStatus({ status: "stopped" })
           .catch((e) => console.error("Could not set the status to stopped"))

@@ -25,6 +25,7 @@ import {
   anyOf,
   deferred,
   Parser,
+  array,
 } from "ts-matches"
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { JsonPath, unNestPath } from "../../../Models/JsonPath"
@@ -40,6 +41,48 @@ const execFile = promisify(childProcess.execFile)
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
 const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
 const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig"
+
+const matchSetResult = object(
+  {
+    "depends-on": dictionary([string, array(string)]),
+    dependsOn: dictionary([string, array(string)]),
+    signal: literals(
+      "SIGTERM",
+      "SIGHUP",
+      "SIGINT",
+      "SIGQUIT",
+      "SIGILL",
+      "SIGTRAP",
+      "SIGABRT",
+      "SIGBUS",
+      "SIGFPE",
+      "SIGKILL",
+      "SIGUSR1",
+      "SIGSEGV",
+      "SIGUSR2",
+      "SIGPIPE",
+      "SIGALRM",
+      "SIGSTKFLT",
+      "SIGCHLD",
+      "SIGCONT",
+      "SIGSTOP",
+      "SIGTSTP",
+      "SIGTTIN",
+      "SIGTTOU",
+      "SIGURG",
+      "SIGXCPU",
+      "SIGXFSZ",
+      "SIGVTALRM",
+      "SIGPROF",
+      "SIGWINCH",
+      "SIGIO",
+      "SIGPWR",
+      "SIGSYS",
+      "SIGINFO",
+    ),
+  },
+  ["depends-on", "dependsOn"],
+)
 
 export type PackagePropertiesV2 = {
   [name: string]: PackagePropertyObject | PackagePropertyString
@@ -391,41 +434,56 @@ export class SystemForEmbassy implements System {
       newConfig,
     )
     const setConfigValue = this.manifest.config?.set
-    if (!setConfigValue) return { signal: "SIGTERM", "depends-on": {} }
+    if (!setConfigValue) return { signal: "SIGTERM", dependsOn: {} }
     if (setConfigValue.type === "docker") {
       const container = await DockerProcedureContainer.of(
         effects,
         setConfigValue,
         this.manifest.volumes,
       )
-      return JSON.parse(
-        (
-          await container.exec([
-            setConfigValue.entrypoint,
-            ...setConfigValue.args,
-            JSON.stringify(newConfig),
-          ])
-        ).stdout.toString(),
+      const answer = matchSetResult.unsafeCast(
+        JSON.parse(
+          (
+            await container.exec([
+              setConfigValue.entrypoint,
+              ...setConfigValue.args,
+              JSON.stringify(newConfig),
+            ])
+          ).stdout.toString(),
+        ),
       )
+      return {
+        dependsOn: answer["depends-on"] ?? answer.dependsOn ?? {},
+        signal: answer.signal,
+      }
     } else if (setConfigValue.type === "script") {
       const moduleCode = await this.moduleCode
       const method = moduleCode.setConfig
       if (!method) throw new Error("Expecting that the method setConfig exists")
-      return await method(
-        new PolyfillEffects(effects, this.manifest),
-        newConfig as U.Config,
-      ).then((x): T.SetResult => {
-        if ("result" in x)
-          return {
-            "depends-on": x.result["depends-on"],
-            signal: x.result.signal === "SIGEMT" ? "SIGTERM" : x.result.signal,
-          }
-        if ("error" in x) throw new Error("Error getting config: " + x.error)
-        throw new Error("Error getting config: " + x["error-code"][1])
-      })
+
+      const answer = matchSetResult.unsafeCast(
+        await method(
+          new PolyfillEffects(effects, this.manifest),
+          newConfig as U.Config,
+        ).then((x): T.SetResult => {
+          if ("result" in x)
+            return {
+              dependsOn: x.result["depends-on"],
+              signal:
+                x.result.signal === "SIGEMT" ? "SIGTERM" : x.result.signal,
+            }
+          if ("error" in x) throw new Error("Error getting config: " + x.error)
+          throw new Error("Error getting config: " + x["error-code"][1])
+        }),
+      )
+
+      return {
+        dependsOn: answer["depends-on"] ?? answer.dependsOn ?? {},
+        signal: answer.signal,
+      }
     } else {
       return {
-        "depends-on": {},
+        dependsOn: {},
         signal: "SIGTERM",
       }
     }
