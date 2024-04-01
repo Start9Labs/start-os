@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio_stream::StreamExt;
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::context::RpcContext;
 use crate::db::model::public::UpdateProgress;
@@ -34,10 +35,12 @@ lazy_static! {
     static ref UPDATED: AtomicBool = AtomicBool::new(false);
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct UpdateSystemParams {
+    #[ts(type = "string")]
     marketplace_url: Url,
 }
 

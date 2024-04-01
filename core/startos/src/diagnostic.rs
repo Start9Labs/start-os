@@ -5,6 +5,7 @@ use clap::Parser;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{command, from_fn, from_fn_async, AnyContext, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::context::{CliContext, DiagnosticContext};
 use crate::init::SYSTEM_REBUILD_PATH;
@@ -40,10 +41,12 @@ pub fn error(ctx: DiagnosticContext) -> Result<Arc<RpcError>, Error> {
     Ok(ctx.error.clone())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct LogsParams {
+    #[ts(type = "number | null")]
     limit: Option<usize>,
     cursor: Option<String>,
     before: bool,

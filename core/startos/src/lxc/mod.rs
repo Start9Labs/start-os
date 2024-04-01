@@ -20,6 +20,7 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::Mutex;
 use tokio::time::Instant;
+use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
@@ -351,8 +352,10 @@ pub async fn list(ctx: RpcContext) -> Result<Vec<InternedString>, Error> {
     Ok(ctx.dev.lxc.lock().await.keys().cloned().collect())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 pub struct RemoveParams {
+    #[ts(type = "string")]
     pub guid: InternedString,
 }
 
@@ -363,8 +366,10 @@ pub async fn remove(ctx: RpcContext, RemoveParams { guid }: RemoveParams) -> Res
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 pub struct ConnectParams {
+    #[ts(type = "string")]
     pub guid: InternedString,
 }
 

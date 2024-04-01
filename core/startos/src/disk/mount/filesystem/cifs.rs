@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use tokio::process::Command;
 use tracing::instrument;
+use ts_rs::TS;
 
 use super::{FileSystem, MountType, ReadOnly};
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
@@ -62,7 +63,7 @@ pub async fn mount_cifs(
     Ok(())
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Cifs {
     pub hostname: String,

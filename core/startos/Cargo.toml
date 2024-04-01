@@ -176,7 +176,7 @@ tracing-futures = "0.2.5"
 tracing-journald = "0.3.0"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 trust-dns-server = "0.23.1"
-ts-rs = { git = "https://github.com/dr-bonez/ts-rs.git", branch = "feature/top-level-type-override" } # "8.1.0"
+ts-rs = { git = "https://github.com/dr-bonez/ts-rs.git", branch = "feature/top-level-as" } # "8.1.0"
 typed-builder = "0.18.0"
 url = { version = "2.4.1", features = ["serde"] }
 urlencoding = "2.1.3"

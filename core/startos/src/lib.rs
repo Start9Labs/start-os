@@ -75,13 +75,15 @@ use rpc_toolkit::{
     command, from_fn, from_fn_async, from_fn_blocking, AnyContext, HandlerExt, ParentHandler,
 };
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::util::serde::HandlerExtSerde;
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct EchoParams {
     message: String,
 }

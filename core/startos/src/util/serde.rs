@@ -580,7 +580,7 @@ where
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, TS)]
 pub struct StdinDeserializable<T>(pub T);
 impl<T> FromArgMatches for StdinDeserializable<T>
 where
