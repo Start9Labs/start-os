@@ -1,12 +1,12 @@
 <div class="background-border box-shadow-lg shadow-color-light">
   <div class="box-container">
-    <h2 class="additional-detail-title">Description</h2>
+    <h2 class="additional-detail-title">About</h2>
     <p>
       {{ pkg.manifest.description.long }}
     </p>
     <ng-container *ngIf="pkg.manifest.replaces as replaces">
       <div *ngIf="replaces.length">
-        <h2 class="replaces">Intended to replace</h2>
+        <h2 class="replaces">Intended to replace:</h2>
         <tui-tag
           *ngFor="let app; index as i; of: replaces"
           size="l"

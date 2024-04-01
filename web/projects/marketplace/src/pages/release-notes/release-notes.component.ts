@@ -3,13 +3,16 @@ import {
   Component,
   Inject,
   Input,
+  Pipe,
+  PipeTransform,
 } from '@angular/core'
-import { ActivatedRoute } from '@angular/router'
 import { AbstractMarketplaceService } from '../../services/marketplace.service'
 import { PolymorpheusContent } from '@tinkoff/ng-polymorpheus'
 import { TuiDialogContext, TuiDialogService } from '@taiga-ui/core'
 import { MarketplacePkg } from '../../types'
 import { Observable } from 'rxjs'
+import { Emver } from '@start9labs/shared'
+import { KeyValue } from '@angular/common'
 
 @Component({
   selector: 'release-notes',
@@ -19,7 +22,7 @@ import { Observable } from 'rxjs'
 })
 export class ReleaseNotesComponent {
   constructor(
-    private readonly route: ActivatedRoute,
+    private readonly emver: Emver,
     private readonly marketplaceService: AbstractMarketplaceService,
     @Inject(TuiDialogService) private readonly dialogs: TuiDialogService,
   ) {}
@@ -35,8 +38,8 @@ export class ReleaseNotesComponent {
     )
   }
 
-  asIsOrder(a: any, b: any) {
-    return 0
+  asIsOrder(a: KeyValue<string, string>, b: KeyValue<string, string>) {
+    return a.key > b.key ? -1 : b.key > a.key ? 1 : 0
   }
 
   async showReleaseNotes(content: PolymorpheusContent<TuiDialogContext>) {
@@ -45,5 +48,19 @@ export class ReleaseNotesComponent {
         label: 'Previous Release Notes',
       })
       .subscribe()
+  }
+}
+
+@Pipe({
+  name: 'filterVersions',
+  standalone: true,
+})
+export class FilterVersionsPipe implements PipeTransform {
+  transform(
+    notes: Record<string, string>,
+    pkgVersion: string,
+  ): Record<string, string> {
+    delete notes[pkgVersion]
+    return notes
   }
 }

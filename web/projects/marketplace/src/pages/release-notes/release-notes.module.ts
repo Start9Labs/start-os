@@ -8,7 +8,10 @@ import {
 import { TuiAccordionModule } from '@taiga-ui/kit'
 import { TuiButtonModule, TuiLoaderModule } from '@taiga-ui/core'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
-import { ReleaseNotesComponent } from './release-notes.component'
+import {
+  FilterVersionsPipe,
+  ReleaseNotesComponent,
+} from './release-notes.component'
 
 @NgModule({
   imports: [
@@ -20,6 +23,7 @@ import { ReleaseNotesComponent } from './release-notes.component'
     TuiButtonModule,
     TuiAccordionModule,
     TuiLoaderModule,
+    FilterVersionsPipe,
   ],
   declarations: [ReleaseNotesComponent],
   exports: [ReleaseNotesComponent],

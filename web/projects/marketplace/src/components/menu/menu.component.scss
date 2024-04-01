@@ -14,12 +14,12 @@ header {
   flex-direction: column;
   z-index: 10;
 
-  @media screen and (min-width: 640px) {
-    width: 15rem;
+  @media screen and (min-width: 768px) {
+    width: 17rem;
     background-color: rgb(var(--tw-color-zinc-700) / 0.9);
     backdrop-filter: blur(40px);
     min-height: calc(100vh - var(--portal-header-height));
-    padding: 1.5rem 0;
+    padding: 2rem 0 1.5rem 0;
 
     &::after {
       display: block;
@@ -36,12 +36,16 @@ header {
       );
     }
   }
+
+  @media screen and (min-width: 1536px) {
+    width: 18rem;
+  }
 }
 
 .title {
   display: none;
 
-  @media (min-width: 640px) {
+  @media (min-width: 768px) {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -74,9 +78,10 @@ header {
     marketplace-search {
       place-self: center;
       padding-bottom: 2rem;
+      width: 100%;
     }
 
-    @media (min-width: 640px) {
+    @media (min-width: 768px) {
       display: flex;
       flex-grow: 1;
       flex-direction: column;
@@ -88,25 +93,15 @@ header {
       flex-direction: column;
       justify-content: space-between;
 
-      a {
+      ::ng-deep a {
         display: flex;
+        justify-content: center;
         gap: 0.5rem;
         padding: 0.5rem;
-        z-index: 50;
-        border-top-left-radius: 0.5rem;
-        border-bottom-left-radius: 0.5rem;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        transition-delay: 75ms;
-        transition-duration: 300ms;
 
         &:hover {
           text-decoration-line: none;
           cursor: pointer;
-        }
-
-        img {
-          opacity: 0.7;
-          filter: invert(100%);
         }
 
         span {
@@ -117,31 +112,23 @@ header {
           overflow: hidden;
           white-space: nowrap;
         }
-        @media (min-width: 640px) {
-          width: 120%;
-
-          &:hover {
-            background-color: rgb(34 36 40);
-          }
-        }
       }
     }
   }
 
   &-mobile {
-    @media (min-width: 640px) {
+    @media (min-width: 768px) {
       display: none;
     }
 
     &-bar {
       display: flex;
-      justify-content: space-between;
       align-items: center;
       padding: 1rem;
       width: 100vw;
 
       marketplace-search {
-        max-width: fit-content;
+        flex-grow: 1;
       }
     }
 
@@ -184,19 +171,13 @@ header {
           padding: 1.25rem 1.25rem 0px 1.25rem;
         }
 
-        a {
+        ::ng-deep a {
           display: flex;
-          position: relative;
           gap: 0.5rem;
           padding: 1.25rem;
 
           &:hover {
             text-decoration-line: none;
-          }
-
-          img {
-            opacity: 0.7;
-            filter: invert(100%);
           }
 
           span {

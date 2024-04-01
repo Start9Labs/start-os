@@ -9,10 +9,14 @@ import { MarketplaceConfig, sameUrl } from '@start9labs/shared'
       [style.border-radius.%]="100"
       [style.max-width]="size || '100%'"
       [src]="icon"
-      alt="Service Icon"
+      alt="Marketplace Icon"
     />
     <ng-template #noIcon>
-      <tui-icon icon="tuiIconShoppingCart" [style.font-size]="size" />
+      <img
+        [style.max-width]="size || '100%'"
+        src="assets/img/storefront-outline.png"
+        alt="Marketplace Icon"
+      />
     </ng-template>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

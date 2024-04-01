@@ -51,8 +51,8 @@ import { MarketplaceSidebarsComponent } from './components/sidebars.component'
         max-height: 100%;
         overflow: auto;
         // TODO: Theme
-        background: #18181b url('/assets/img/background.png') no-repeat top
-          right;
+        background: #18181b url('/assets/img/background_marketplace.png')
+          no-repeat top right;
       }
 
       ::ng-deep menu {

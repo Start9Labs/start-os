@@ -5,30 +5,6 @@
   display: grid;
   grid-auto-flow: row;
   align-items: center;
-  gap: 1.5rem;
-
-  &-title {
-    display: block;
-
-    h3 {
-      font-size: 1.125rem;
-      line-height: 1.75rem;
-      font-weight: 700;
-    }
-
-    p {
-      font-size: 1rem;
-      line-height: 1.5rem;
-      font-weight: 300;
-      margin-bottom: 0.25rem;
-      color: rgb(212 212 216);
-    }
-
-    &-date {
-      font-size: 0.875rem;
-      line-height: 1.25rem;
-    }
-  }
 
   &-details {
     display: flex;
@@ -37,8 +13,13 @@
     gap: 1.5rem;
 
     &-version {
-      font-size: 1rem;
       line-height: 1.5rem;
+      font-size: 1rem;
+
+      h3 {
+        font-size: 1.2rem;
+        margin-bottom: 1.25rem;
+      }
     }
 
     &-notes {
@@ -49,10 +30,6 @@
     button {
       margin-top: 0.75rem;
       place-self: end;
-
-      // @media (min-width: 640px) {
-      //   place-self: start;
-      // }
 
       @media (min-width: 768px) {
         place-self: start;

@@ -2,21 +2,31 @@ import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
+  EventEmitter,
   inject,
   Input,
+  Output,
+  TemplateRef,
 } from '@angular/core'
 import {
   AboutModule,
   AbstractMarketplaceService,
   AdditionalModule,
-  DependenciesModule,
+  MarketplaceAdditionalItemComponent,
+  MarketplaceDependenciesComponent,
   MarketplacePackageHeroComponent,
   MarketplacePkg,
   ReleaseNotesModule,
 } from '@start9labs/marketplace'
-import { SharedPipesModule } from '@start9labs/shared'
+import { displayEmver, Emver, SharedPipesModule } from '@start9labs/shared'
 import { TuiButtonModule } from '@taiga-ui/experimental'
-import { map } from 'rxjs'
+import { filter, map } from 'rxjs'
+import { TuiDialogContext, TuiDialogService } from '@taiga-ui/core'
+import {
+  TuiRadioListModule,
+  TuiStringifyContentPipeModule,
+} from '@taiga-ui/kit'
+import { FormsModule } from '@angular/forms'
 import { Router } from '@angular/router'
 
 @Component({
@@ -41,26 +51,45 @@ import { Router } from '@angular/router'
       <div class="inner-container">
         <marketplace-about [pkg]="pkg" />
         @if (!(pkg.manifest.dependencies | empty)) {
-          <div class="background-border shadow-color-light box-shadow-lg">
-            <div class="dependencies-container">
-              <h2>Dependencies</h2>
-              <div class="dependencies-list">
-                @for (
-                  dep of pkg.manifest.dependencies | keyvalue;
-                  track $index
-                ) {
-                  <marketplace-dependencies
-                    [dep]="dep"
-                    [pkg]="pkg"
-                    (click)="open(dep.key)"
-                  />
-                }
-              </div>
-            </div>
-          </div>
+          <marketplace-dependencies
+            [pkg]="pkg"
+            (open)="open($event)"
+          ></marketplace-dependencies>
         }
         <release-notes [pkg]="pkg" />
-        <marketplace-additional class="additional-wrapper" [pkg]="pkg" />
+        <marketplace-additional class="additional-wrapper" [pkg]="pkg">
+          <marketplace-additional-item
+            (click)="presentAlertVersions(version)"
+            data="Click to view all versions"
+            label="All versions"
+            icon="tuiIconChevronRightLarge"
+            class="item-pointer"
+          ></marketplace-additional-item>
+          <ng-template #version let-data="data" let-completeWith="completeWith">
+            <tui-radio-list
+              size="l"
+              [items]="data.items"
+              [itemContent]="displayEmver | tuiStringifyContent"
+              [(ngModel)]="data.value"
+            ></tui-radio-list>
+            <footer class="buttons">
+              <button
+                tuiButton
+                appearance="secondary"
+                (click)="completeWith(null)"
+              >
+                Cancel
+              </button>
+              <button
+                tuiButton
+                appearance="secondary"
+                (click)="completeWith(data.value)"
+              >
+                Ok
+              </button>
+            </footer>
+          </ng-template>
+        </marketplace-additional>
       </div>
     </div>
   `,
@@ -83,36 +112,6 @@ import { Router } from '@angular/router'
         column-gap: 2rem;
       }
 
-      .dependencies {
-        &-container {
-          background-color: rgb(39 39 42);
-          border-radius: 0.75rem;
-          padding: 1.75rem;
-
-          @media (min-width: 1024px) {
-            grid-column: span 5 / span 5;
-          }
-          @media (min-width: 1280px) {
-            grid-column: span 4 / span 4;
-          }
-
-          h2 {
-            font-size: 1.125rem;
-            line-height: 1.75rem;
-            font-weight: 700;
-            margin: 0.5rem 0;
-            padding-bottom: 0.75rem;
-            font-variant: all-small-caps;
-          }
-        }
-
-        &-list {
-          display: grid;
-          grid-auto-rows: auto;
-          gap: 0.75rem;
-        }
-      }
-
       .additional-wrapper {
         margin-top: 1.5rem;
       }
@@ -124,24 +123,52 @@ import { Router } from '@angular/router'
     CommonModule,
     MarketplacePackageHeroComponent,
     TuiButtonModule,
-    DependenciesModule,
+    MarketplaceDependenciesComponent,
     ReleaseNotesModule,
     AdditionalModule,
     AboutModule,
     SharedPipesModule,
+    FormsModule,
+    TuiStringifyContentPipeModule,
+    MarketplaceAdditionalItemComponent,
+    TuiRadioListModule,
   ],
 })
 export class MarketplacePreviewComponent {
-  private readonly router = inject(Router)
-
   @Input({ required: true })
   pkg!: MarketplacePkg
 
+  @Output()
+  version = new EventEmitter<string>()
+
+  readonly displayEmver = displayEmver
+  private readonly router = inject(Router)
   readonly url$ = inject(AbstractMarketplaceService)
     .getSelectedHost$()
     .pipe(map(({ url }) => url))
 
+  constructor(
+    private readonly dialogs: TuiDialogService,
+    private readonly emver: Emver,
+  ) {}
+
   open(id: string) {
     this.router.navigate([], { queryParams: { id } })
+  }
+
+  presentAlertVersions(version: TemplateRef<TuiDialogContext>) {
+    this.dialogs
+      .open<string>(version, {
+        label: 'Versions',
+        size: 's',
+        data: {
+          value: this.pkg.manifest.version,
+          items: [...new Set(this.pkg.versions)].sort(
+            (a, b) => -1 * (this.emver.compare(a, b) || 0),
+          ),
+        },
+      })
+      .pipe(filter(Boolean))
+      .subscribe(version => this.version.emit(version))
   }
 }
