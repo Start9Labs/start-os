@@ -4,8 +4,7 @@ import { isEmptyObject } from '@start9labs/shared'
 import { map, startWith } from 'rxjs/operators'
 import { PatchDB } from 'patch-db-client'
 import { Observable } from 'rxjs'
-import { HealthCheckResult } from '../../../../../../../../../core/startos/bindings/HealthCheckResult'
-import { Manifest } from '../../../../../../../../../core/startos/bindings/Manifest'
+import { T } from '@start9labs/start-sdk'
 
 @Pipe({
   name: 'toHealthChecks',
@@ -14,8 +13,8 @@ export class ToHealthChecksPipe implements PipeTransform {
   constructor(private readonly patch: PatchDB<DataModel>) {}
 
   transform(
-    manifest: Manifest,
-  ): Observable<Record<string, HealthCheckResult | null> | null> {
+    manifest: T.Manifest,
+  ): Observable<Record<string, T.HealthCheckResult | null> | null> {
     return this.patch.watch$('packageData', manifest.id, 'status', 'main').pipe(
       map(main => {
         return main.status === 'running' && !isEmptyObject(main.health)

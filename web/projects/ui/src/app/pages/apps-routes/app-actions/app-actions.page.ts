@@ -18,7 +18,7 @@ import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
 import { ActionMetadata } from '@start9labs/start-sdk/cjs/sdk/lib/types'
-import { Status } from '../../../../../../../../core/startos/bindings/Status'
+import { T } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'app-actions',
@@ -42,7 +42,7 @@ export class AppActionsPage {
   ) {}
 
   async handleAction(
-    status: Status,
+    status: T.Status,
     action: { key: string; value: ActionMetadata },
   ) {
     if (

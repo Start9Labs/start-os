@@ -4,8 +4,7 @@ import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
-import { HealthCheckResult } from '../../../../../../../core/startos/bindings/HealthCheckResult'
-import { Manifest } from '../../../../../../../core/startos/bindings/Manifest'
+import { T } from '@start9labs/start-sdk'
 
 export module RR {
   // DB
@@ -245,7 +244,7 @@ export module RR {
   }
 
   export type SideloadPackageReq = {
-    manifest: Manifest
+    manifest: T.Manifest
     icon: string // base64
   }
   export type SideloadPacakgeRes = string //guid
@@ -515,7 +514,7 @@ export interface DependencyErrorConfigUnsatisfied {
 
 export interface DependencyErrorHealthChecksFailed {
   type: 'healthChecksFailed'
-  check: HealthCheckResult
+  check: T.HealthCheckResult
 }
 
 export interface DependencyErrorTransitive {

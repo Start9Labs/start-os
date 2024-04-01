@@ -51,7 +51,6 @@ pub fn display_action_result(params: WithIoFormat<ActionParams>, result: ActionR
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct ActionParams {
     #[arg(id = "id")]
     #[serde(rename = "id")]

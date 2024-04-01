@@ -26,7 +26,6 @@ pub fn inspect() -> ParentHandler {
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct HashParams {
     path: PathBuf,
 }
@@ -42,7 +41,6 @@ pub async fn hash(_: CliContext, HashParams { path }: HashParams) -> Result<Stri
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct ManifestParams {
     path: PathBuf,
     #[arg(long = "no-verify")]
@@ -61,7 +59,6 @@ pub async fn manifest(
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct InspectParams {
     path: PathBuf,
     #[arg(long = "no-verify")]
@@ -94,7 +91,6 @@ pub async fn icon(
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct InstructionParams {
     path: PathBuf,
     #[arg(long = "no-verify")]

@@ -44,7 +44,6 @@ pub fn error(ctx: DiagnosticContext) -> Result<Arc<RpcError>, Error> {
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct LogsParams {
     #[ts(type = "number | null")]
     limit: Option<usize>,

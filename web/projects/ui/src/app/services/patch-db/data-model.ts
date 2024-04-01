@@ -1,13 +1,6 @@
-import { Url } from '@start9labs/shared'
-import { types } from '@start9labs/start-sdk'
-import { ActionMetadata } from '@start9labs/start-sdk/cjs/sdk/lib/types'
-import { Public } from '../../../../../../../core/startos/bindings/Public'
-import { PackageDataEntry as PDE } from '../../../../../../../core/startos/bindings/PackageDataEntry'
-import { FullProgress } from '../../../../../../../core/startos/bindings/FullProgress'
-import { Manifest } from '../../../../../../../core/startos/bindings/Manifest'
-type ServiceInterfaceWithHostInfo = types.ServiceInterfaceWithHostInfo
+import { T } from '@start9labs/start-sdk'
 
-export type DataModel = Public & {
+export type DataModel = T.Public & {
   ui: UIData
   packageData: Record<string, PackageDataEntry>
 }
@@ -52,15 +45,16 @@ export interface UIStore {
   name?: string
 }
 
-export type PackageDataEntry<T extends StateInfo = StateInfo> = PDE & {
-  stateInfo: T
-}
+export type PackageDataEntry<T extends StateInfo = StateInfo> =
+  T.PackageDataEntry & {
+    stateInfo: T
+  }
 
 export type StateInfo = InstalledState | InstallingState | UpdatingState
 
 export type InstalledState = {
   state: 'installed' | 'removing'
-  manifest: Manifest
+  manifest: T.Manifest
   installingInfo?: undefined
 }
 
@@ -73,10 +67,10 @@ export type InstallingState = {
 export type UpdatingState = {
   state: 'updating'
   installingInfo: InstallingInfo
-  manifest: Manifest
+  manifest: T.Manifest
 }
 
 export type InstallingInfo = {
-  progress: FullProgress
-  newManifest: Manifest
+  progress: T.FullProgress
+  newManifest: T.Manifest
 }

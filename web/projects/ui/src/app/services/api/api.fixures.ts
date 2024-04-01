@@ -6,11 +6,10 @@ import { Metric, NotificationLevel, RR, ServerNotifications } from './api.types'
 import { BTC_ICON, LND_ICON, PROXY_ICON } from './api-icons'
 import { DependencyMetadata, MarketplacePkg } from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
-import { ServerStatus } from '../../../../../../../core/startos/bindings/ServerStatus'
-import { Manifest } from '../../../../../../../core/startos/bindings/Manifest'
+import { T } from '@start9labs/start-sdk'
 
 export module Mock {
-  export const ServerUpdated: ServerStatus = {
+  export const ServerUpdated: T.ServerStatus = {
     backupProgress: null,
     updateProgress: null,
     updated: true,
@@ -43,7 +42,7 @@ export module Mock {
     '0.19.0': 'release notes for Bitcoin 0.19.0',
   }
 
-  export const MockManifestBitcoind: Manifest = {
+  export const MockManifestBitcoind: T.Manifest = {
     id: 'bitcoind',
     title: 'Bitcoin Core',
     version: '0.21.0',
@@ -81,7 +80,7 @@ export module Mock {
     },
   }
 
-  export const MockManifestLnd: Manifest = {
+  export const MockManifestLnd: T.Manifest = {
     id: 'lnd',
     title: 'Lightning Network Daemon',
     version: '0.11.1',
@@ -129,7 +128,7 @@ export module Mock {
     },
   }
 
-  export const MockManifestBitcoinProxy: Manifest = {
+  export const MockManifestBitcoinProxy: T.Manifest = {
     id: 'btc-rpc-proxy',
     title: 'Bitcoin Proxy',
     version: '0.2.2',

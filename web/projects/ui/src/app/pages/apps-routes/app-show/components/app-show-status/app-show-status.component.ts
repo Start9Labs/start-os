@@ -20,8 +20,7 @@ import {
   getAllPackages,
 } from 'src/app/util/get-package-data'
 import { PatchDB } from 'patch-db-client'
-import { Status } from '../../../../../../../../../../core/startos/bindings/Status'
-import { Manifest } from '../../../../../../../../../../core/startos/bindings/Manifest'
+import { T } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'app-show-status',
@@ -57,11 +56,11 @@ export class AppShowStatusComponent {
     return this.pkg.serviceInterfaces
   }
 
-  get pkgStatus(): Status {
+  get pkgStatus(): T.Status {
     return this.pkg.status
   }
 
-  get manifest(): Manifest {
+  get manifest(): T.Manifest {
     return getManifest(this.pkg)
   }
 

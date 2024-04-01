@@ -25,7 +25,7 @@ import {
   isRestoring,
   isUpdating,
 } from 'src/app/util/get-package-data'
-import { Manifest } from '../../../../../../../../core/startos/bindings/Manifest'
+import { T } from '@start9labs/start-sdk'
 
 export interface DependencyInfo {
   id: string
@@ -91,7 +91,7 @@ export class AppShowPage {
 
   private getDepValues(
     pkg: PackageDataEntry,
-    manifest: Manifest,
+    manifest: T.Manifest,
     depId: string,
     depErrors: PkgDependencyErrors,
   ): DependencyInfo {
@@ -120,7 +120,7 @@ export class AppShowPage {
 
   private getDepErrors(
     pkg: PackageDataEntry,
-    manifest: Manifest,
+    manifest: T.Manifest,
     depId: string,
     depErrors: PkgDependencyErrors,
   ) {
@@ -162,7 +162,7 @@ export class AppShowPage {
 
   private async fixDep(
     pkg: PackageDataEntry,
-    pkgManifest: Manifest,
+    pkgManifest: T.Manifest,
     action: 'install' | 'update' | 'configure',
     id: string,
   ): Promise<void> {
@@ -177,7 +177,7 @@ export class AppShowPage {
 
   private async installDep(
     pkg: PackageDataEntry,
-    pkgManifest: Manifest,
+    pkgManifest: T.Manifest,
     depId: string,
   ): Promise<void> {
     const dependentInfo: DependentInfo = {
@@ -196,7 +196,7 @@ export class AppShowPage {
   }
 
   private async configureDep(
-    pkgManifest: Manifest,
+    pkgManifest: T.Manifest,
     dependencyId: string,
   ): Promise<void> {
     const dependentInfo: DependentInfo = {
