@@ -11,7 +11,7 @@ import { ModalService } from 'src/app/services/modal.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { from, map, Observable } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
-import { Manifest } from '../../../../../../../../../core/startos/bindings/Manifest'
+import { T } from '@start9labs/start-sdk'
 
 export interface Button {
   title: string
@@ -99,7 +99,7 @@ export class ToButtonsPipe implements PipeTransform {
     ]
   }
 
-  private async presentModalInstructions(manifest: Manifest) {
+  private async presentModalInstructions(manifest: T.Manifest) {
     this.apiService
       .setDbValue<boolean>(['ack-instructions', manifest.id], true)
       .catch(e => console.error('Failed to mark instructions as seen', e))

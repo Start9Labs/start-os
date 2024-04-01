@@ -7,7 +7,7 @@ import {
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
 import { firstValueFrom } from 'rxjs'
-import { Manifest } from '../../../../../../core/startos/bindings/Manifest'
+import { T } from '@start9labs/start-sdk'
 
 export async function getPackage(
   patch: PatchDB<DataModel>,
@@ -22,7 +22,7 @@ export async function getAllPackages(
   return firstValueFrom(patch.watch$('packageData'))
 }
 
-export function getManifest(pkg: PackageDataEntry): Manifest {
+export function getManifest(pkg: PackageDataEntry): T.Manifest {
   if (isInstalled(pkg) || isRemoving(pkg)) return pkg.stateInfo.manifest
 
   return (pkg.stateInfo as InstallingState).installingInfo.newManifest

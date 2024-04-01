@@ -7,11 +7,9 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import { QRComponent } from 'src/app/components/qr/qr.component'
 import { map } from 'rxjs'
-import { types as T } from '@start9labs/start-sdk'
-import { ServiceInterface } from '../../../../../../../../core/startos/bindings/ServiceInterface'
-import { ServiceInterfaceWithHostInfo } from '../../../../../../../../core/startos/bindings/ServiceInterfaceWithHostInfo'
+import { T } from '@start9labs/start-sdk'
 
-type MappedInterface = ServiceInterface & {
+type MappedInterface = T.ServiceInterface & {
   addresses: MappedAddress[]
 }
 type MappedAddress = {
@@ -101,7 +99,7 @@ export class AppInterfacesItemComponent {
 }
 
 function getAddresses(
-  serviceInterface: ServiceInterfaceWithHostInfo,
+  serviceInterface: T.ServiceInterfaceWithHostInfo,
 ): MappedAddress[] {
   const host = serviceInterface.hostInfo
   const addressInfo = serviceInterface.addressInfo

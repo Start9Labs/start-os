@@ -24,7 +24,7 @@ import {
   isUpdating,
 } from 'src/app/util/get-package-data'
 import { dryUpdate } from 'src/app/util/dry-update'
-import { Manifest } from '../../../../../../../core/startos/bindings/Manifest'
+import { T } from '@start9labs/start-sdk'
 
 interface UpdatesData {
   hosts: StoreIdentity[]
@@ -70,7 +70,7 @@ export class UpdatesPage {
     })
   }
 
-  async tryUpdate(manifest: Manifest, url: string, e: Event): Promise<void> {
+  async tryUpdate(manifest: T.Manifest, url: string, e: Event): Promise<void> {
     e.stopPropagation()
 
     const { id, version } = manifest
@@ -86,7 +86,7 @@ export class UpdatesPage {
     }
   }
 
-  private async dryInstall(manifest: Manifest, url: string) {
+  private async dryInstall(manifest: T.Manifest, url: string) {
     const { id, version, title } = manifest
 
     const breakages = dryUpdate(
