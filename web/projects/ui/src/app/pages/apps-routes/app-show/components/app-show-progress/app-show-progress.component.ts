@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { FullProgress } from '../../../../../../../../../../core/startos/bindings/FullProgress'
+import { T } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'app-show-progress',
@@ -9,5 +9,5 @@ import { FullProgress } from '../../../../../../../../../../core/startos/binding
 })
 export class AppShowProgressComponent {
   @Input()
-  phases!: FullProgress['phases']
+  phases!: T.FullProgress['phases']
 }

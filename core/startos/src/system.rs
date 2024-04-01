@@ -77,7 +77,6 @@ pub async fn enable_zram() -> Result<(), Error> {
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct ZramParams {
     enable: bool,
 }
@@ -140,7 +139,6 @@ fn display_governor_info(params: WithIoFormat<GovernorParams>, result: GovernorI
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct GovernorParams {
     set: Option<Governor>,
 }
@@ -235,7 +233,6 @@ pub async fn time(ctx: RpcContext, _: Empty) -> Result<TimeInfo, Error> {
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct LogsParams {
     #[arg(short = 'l', long = "limit")]
     #[ts(type = "number | null")]
@@ -321,7 +318,6 @@ pub async fn logs_follow(
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct KernelLogsParams {
     #[arg(short = 'l', long = "limit")]
     #[ts(type = "number | null")]

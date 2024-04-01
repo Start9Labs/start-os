@@ -91,7 +91,6 @@ pub fn country() -> ParentHandler {
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct AddParams {
     ssid: String,
     password: String,
@@ -143,7 +142,6 @@ pub async fn add(ctx: RpcContext, AddParams { ssid, password }: AddParams) -> Re
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct SsidParams {
     ssid: String,
 }
@@ -408,7 +406,6 @@ pub async fn get_available(ctx: RpcContext, _: Empty) -> Result<Vec<WifiListOut>
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct SetCountryParams {
     #[arg(value_parser = CountryCodeParser)]
     #[ts(type = "string")]

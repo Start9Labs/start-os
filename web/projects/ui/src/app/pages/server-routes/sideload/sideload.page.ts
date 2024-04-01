@@ -4,7 +4,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 import cbor from 'cbor'
 import { ErrorToastService } from '@start9labs/shared'
-import { Manifest } from '../../../../../../../../core/startos/bindings/Manifest'
+import { T } from '@start9labs/start-sdk'
 
 interface Positions {
   [key: string]: [bigint, bigint] // [position, length]
@@ -21,7 +21,7 @@ const VERSION = new Uint8Array([1])
 export class SideloadPage {
   isMobile = isPlatform(window, 'ios') || isPlatform(window, 'android')
   toUpload: {
-    manifest: Manifest | null
+    manifest: T.Manifest | null
     icon: string | null
     file: File | null
   } = {

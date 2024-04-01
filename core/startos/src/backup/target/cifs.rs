@@ -71,7 +71,6 @@ pub fn cifs() -> ParentHandler {
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct AddParams {
     pub hostname: String,
     pub path: PathBuf,
@@ -126,7 +125,6 @@ pub async fn add(
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct UpdateParams {
     pub id: BackupTargetId,
     pub hostname: String,
@@ -191,7 +189,6 @@ pub async fn update(
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct RemoveParams {
     pub id: BackupTargetId,
 }

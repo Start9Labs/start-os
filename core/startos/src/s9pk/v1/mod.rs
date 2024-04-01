@@ -16,7 +16,6 @@ pub const SIG_CONTEXT: &[u8] = b"s9pk";
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct VerifyParams {
     pub path: PathBuf,
 }

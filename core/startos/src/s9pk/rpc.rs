@@ -69,7 +69,6 @@ fn inspect() -> ParentHandler<S9pkPath> {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
-#[ts(export)]
 struct AddImageParams {
     id: ImageId,
     image: String,
@@ -186,7 +185,6 @@ async fn add_image(
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
-#[ts(export)]
 struct EditManifestParams {
     expression: String,
 }

@@ -52,7 +52,6 @@ pub fn notification() -> ParentHandler {
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct ListParams {
     #[ts(type = "number | null")]
     before: Option<u32>,
@@ -117,7 +116,6 @@ pub async fn list(
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct DeleteParams {
     #[ts(type = "number")]
     id: u32,
@@ -134,7 +132,6 @@ pub async fn delete(ctx: RpcContext, DeleteParams { id }: DeleteParams) -> Resul
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct DeleteBeforeParams {
     #[ts(type = "number")]
     before: u32,
@@ -159,7 +156,6 @@ pub async fn delete_before(
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct CreateParams {
     package: Option<PackageId>,
     level: NotificationLevel,

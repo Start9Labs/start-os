@@ -219,7 +219,6 @@ async fn cli_dump(
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct DumpParams {
     #[arg(long = "include-private", short = 'p')]
     #[serde(default)]
@@ -277,7 +276,6 @@ async fn cli_apply(
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct ApplyParams {
     expr: String,
     path: Option<PathBuf>,
@@ -316,7 +314,6 @@ pub fn put() -> ParentHandler {
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct UiParams {
     #[ts(type = "string")]
     pointer: JsonPointer,

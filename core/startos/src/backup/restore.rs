@@ -28,7 +28,6 @@ use crate::util::serde::IoFormat;
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct RestorePackageParams {
     pub ids: Vec<PackageId>,
     pub target_id: BackupTargetId,

@@ -1,5 +1,5 @@
 import { Url } from '@start9labs/shared'
-import { Manifest } from '../../../../core/startos/bindings/Manifest'
+import { T } from '@start9labs/start-sdk'
 
 export type StoreURL = string
 export type StoreName = string
@@ -26,7 +26,7 @@ export interface MarketplacePkg {
   icon: Url
   license: Url
   instructions: Url
-  manifest: Manifest
+  manifest: T.Manifest
   categories: string[]
   versions: string[]
   dependencyMetadata: {

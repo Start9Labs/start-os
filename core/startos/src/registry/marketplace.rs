@@ -40,7 +40,6 @@ pub fn with_query_params(ctx: RpcContext, mut url: Url) -> Url {
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct GetParams {
     #[ts(type = "string")]
     url: Url,

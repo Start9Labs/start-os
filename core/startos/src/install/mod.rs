@@ -106,7 +106,6 @@ impl std::fmt::Display for MinMax {
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct InstallParams {
     id: PackageId,
     #[arg(short = 'm', long = "marketplace-url")]
@@ -397,7 +396,6 @@ pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<()
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct UninstallParams {
     id: PackageId,
 }

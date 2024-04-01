@@ -247,7 +247,6 @@ fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) {
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct InfoParams {
     target_id: BackupTargetId,
     password: String,
@@ -282,7 +281,6 @@ lazy_static::lazy_static! {
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct MountParams {
     target_id: BackupTargetId,
     password: String,
@@ -318,7 +316,6 @@ pub async fn mount(
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct UmountParams {
     target_id: Option<BackupTargetId>,
 }

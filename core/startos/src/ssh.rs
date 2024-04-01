@@ -107,7 +107,6 @@ pub fn ssh() -> ParentHandler {
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct AddParams {
     key: SshPubKey,
 }
@@ -141,7 +140,6 @@ pub async fn add(ctx: RpcContext, AddParams { key }: AddParams) -> Result<SshKey
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct DeleteParams {
     #[ts(type = "string")]
     fingerprint: InternedString,

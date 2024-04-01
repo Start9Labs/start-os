@@ -501,7 +501,6 @@ impl Actor for ServiceActor {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
-#[ts(export)]
 pub struct ConnectParams {
     pub id: PackageId,
 }

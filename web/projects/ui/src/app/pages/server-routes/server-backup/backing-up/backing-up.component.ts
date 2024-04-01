@@ -8,7 +8,7 @@ import { PatchDB } from 'patch-db-client'
 import { take } from 'rxjs/operators'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Observable } from 'rxjs'
-import { MainStatus } from '../../../../../../../../../core/startos/bindings/MainStatus'
+import { T } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'backing-up',
@@ -30,7 +30,7 @@ export class BackingUpComponent {
   name: 'pkgMainStatus',
 })
 export class PkgMainStatusPipe implements PipeTransform {
-  transform(pkgId: string): Observable<MainStatus['status']> {
+  transform(pkgId: string): Observable<T.MainStatus['status']> {
     return this.patch.watch$('packageData', pkgId, 'status', 'main', 'status')
   }
 

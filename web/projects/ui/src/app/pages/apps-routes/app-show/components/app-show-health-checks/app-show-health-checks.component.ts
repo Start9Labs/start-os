@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { T } from '@start9labs/start-sdk'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { HealthCheckResult } from '../../../../../../../../../../core/startos/bindings/HealthCheckResult'
 
 @Component({
   selector: 'app-show-health-checks',
@@ -10,17 +10,17 @@ import { HealthCheckResult } from '../../../../../../../../../../core/startos/bi
 })
 export class AppShowHealthChecksComponent {
   @Input()
-  healthChecks!: Record<string, HealthCheckResult>
+  healthChecks!: Record<string, T.HealthCheckResult>
 
   readonly connected$ = this.connectionService.connected$
 
   constructor(private readonly connectionService: ConnectionService) {}
 
-  isLoading(result: HealthCheckResult['result']): boolean {
+  isLoading(result: T.HealthCheckResult['result']): boolean {
     return result === 'starting' || result === 'loading'
   }
 
-  isReady(result: HealthCheckResult['result']): boolean {
+  isReady(result: T.HealthCheckResult['result']): boolean {
     return result !== 'failure' && result !== 'loading'
   }
 
