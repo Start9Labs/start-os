@@ -279,6 +279,9 @@ impl Service {
                     .as_package_data_mut()
                     .as_idx_mut(&manifest.id)
                     .or_not_found(&manifest.id)?;
+                if !manifest.has_config {
+                    entry.as_status_mut().as_configured_mut().ser(&true)?;
+                }
                 entry
                     .as_state_info_mut()
                     .ser(&PackageState::Installed(InstalledState { manifest }))?;
