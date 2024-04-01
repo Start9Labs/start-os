@@ -3,7 +3,7 @@ import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
 import { TuiDialogFormService, TuiPromptData } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 
-export const PROMPT: Partial<TuiDialogOptions<TuiPromptData>> = {
+const PROMPT: Partial<TuiDialogOptions<TuiPromptData>> = {
   label: 'Unsaved Changes',
   data: {
     content: 'You have unsaved changes. Are you sure you want to leave?',

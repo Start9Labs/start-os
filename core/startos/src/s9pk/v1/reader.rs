@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::io::SeekFrom;
 use std::ops::Range;
 use std::path::Path;
@@ -10,22 +9,17 @@ use color_eyre::eyre::eyre;
 use digest::Output;
 use ed25519_dalek::VerifyingKey;
 use futures::TryStreamExt;
-use models::ImageId;
+use models::{ImageId, PackageId};
 use sha2::{Digest, Sha512};
 use tokio::fs::File;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, ReadBuf};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, BufReader, ReadBuf};
 use tracing::instrument;
 
 use super::header::{FileSection, Header, TableOfContents};
-use super::manifest::{Manifest, PackageId};
 use super::SIG_CONTEXT;
-use crate::install::progress::InstallProgressTracker;
-use crate::s9pk::docker::DockerReader;
+use crate::prelude::*;
+use crate::s9pk::v1::docker::DockerReader;
 use crate::util::Version;
-use crate::{Error, ResultExt};
-
-const MAX_REPLACES: usize = 10;
-const MAX_TITLE_LEN: usize = 30;
 
 #[pin_project::pin_project]
 #[derive(Debug)]
@@ -144,7 +138,7 @@ impl FromStr for ImageTag {
     }
 }
 
-pub struct S9pkReader<R: AsyncRead + AsyncSeek + Unpin + Send + Sync = File> {
+pub struct S9pkReader<R: AsyncRead + AsyncSeek + Unpin + Send + Sync = BufReader<File>> {
     hash: Option<Output<Sha512>>,
     hash_string: Option<String>,
     developer_key: VerifyingKey,
@@ -159,113 +153,10 @@ impl S9pkReader {
             .await
             .with_ctx(|_| (crate::error::ErrorKind::Filesystem, p.display().to_string()))?;
 
-        Self::from_reader(rdr, check_sig).await
-    }
-}
-impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<InstallProgressTracker<R>> {
-    pub fn validated(&mut self) {
-        self.rdr.validated()
+        Self::from_reader(BufReader::new(rdr), check_sig).await
     }
 }
 impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
-    #[instrument(skip_all)]
-    pub async fn validate(&mut self) -> Result<(), Error> {
-        if self.toc.icon.length > 102_400 {
-            // 100 KiB
-            return Err(Error::new(
-                eyre!("icon must be less than 100KiB"),
-                crate::ErrorKind::ValidateS9pk,
-            ));
-        }
-        let image_tags = self.image_tags().await?;
-        let man = self.manifest().await?;
-        let containers = &man.containers;
-        let validated_image_ids = image_tags
-            .into_iter()
-            .map(|i| i.validate(&man.id, &man.version).map(|_| i.image_id))
-            .collect::<Result<BTreeSet<ImageId>, _>>()?;
-        man.description.validate()?;
-        man.actions.0.iter().try_for_each(|(_, action)| {
-            action.validate(
-                containers,
-                &man.eos_version,
-                &man.volumes,
-                &validated_image_ids,
-            )
-        })?;
-        man.backup.validate(
-            containers,
-            &man.eos_version,
-            &man.volumes,
-            &validated_image_ids,
-        )?;
-        if let Some(cfg) = &man.config {
-            cfg.validate(
-                containers,
-                &man.eos_version,
-                &man.volumes,
-                &validated_image_ids,
-            )?;
-        }
-        man.health_checks
-            .validate(&man.eos_version, &man.volumes, &validated_image_ids)?;
-        man.interfaces.validate()?;
-        man.main
-            .validate(&man.eos_version, &man.volumes, &validated_image_ids, false)
-            .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Main"))?;
-        man.migrations.validate(
-            containers,
-            &man.eos_version,
-            &man.volumes,
-            &validated_image_ids,
-        )?;
-
-        #[cfg(feature = "js-engine")]
-        if man.containers.is_some()
-            || matches!(man.main, crate::procedure::PackageProcedure::Script(_))
-        {
-            return Err(Error::new(
-                eyre!("Right now we don't support the containers and the long running main"),
-                crate::ErrorKind::ValidateS9pk,
-            ));
-        }
-
-        if man.replaces.len() >= MAX_REPLACES {
-            return Err(Error::new(
-                eyre!("Cannot have more than {MAX_REPLACES} replaces"),
-                crate::ErrorKind::ValidateS9pk,
-            ));
-        }
-        if let Some(too_big) = man.replaces.iter().find(|x| x.len() >= MAX_REPLACES) {
-            return Err(Error::new(
-                eyre!("We have found a replaces of ({too_big}) that exceeds the max length of {MAX_TITLE_LEN} "),
-                crate::ErrorKind::ValidateS9pk,
-            ));
-        }
-        if man.title.len() >= MAX_TITLE_LEN {
-            return Err(Error::new(
-                eyre!("Cannot have more than a length of {MAX_TITLE_LEN} for title"),
-                crate::ErrorKind::ValidateS9pk,
-            ));
-        }
-
-        if man.containers.is_some()
-            && matches!(man.main, crate::procedure::PackageProcedure::Docker(_))
-        {
-            return Err(Error::new(
-                eyre!("Cannot have a main docker and a main in containers"),
-                crate::ErrorKind::ValidateS9pk,
-            ));
-        }
-        if let Some(props) = &man.properties {
-            props
-                .validate(&man.eos_version, &man.volumes, &validated_image_ids, true)
-                .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Properties"))?;
-        }
-        man.volumes.validate(&man.interfaces)?;
-
-        Ok(())
-    }
     #[instrument(skip_all)]
     pub async fn image_tags(&mut self) -> Result<Vec<ImageTag>, Error> {
         let mut tar = tokio_tar::Archive::new(self.docker_images().await?);
@@ -371,7 +262,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
         self.read_handle(self.toc.manifest).await
     }
 
-    pub async fn manifest(&mut self) -> Result<Manifest, Error> {
+    pub async fn manifest(&mut self) -> Result<Value, Error> {
         let slice = self.manifest_raw().await?.to_vec().await?;
         serde_cbor::de::from_reader(slice.as_slice())
             .with_ctx(|_| (crate::ErrorKind::ParseS9pk, "Deserializing Manifest (CBOR)"))

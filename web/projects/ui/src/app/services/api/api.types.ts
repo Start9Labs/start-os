@@ -1,12 +1,21 @@
 import { Dump, Revision } from 'patch-db-client'
-import { MarketplacePkg, StoreInfo, Manifest } from '@start9labs/marketplace'
-import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
+import { MarketplacePkg, StoreInfo } from '@start9labs/marketplace'
 import {
   DataModel,
-  HealthCheckResult,
+  DomainInfo,
+  NetworkStrategy,
 } from 'src/app/services/patch-db/data-model'
-import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
-import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
+import {
+  StartOSDiskInfo,
+  FetchLogsReq,
+  FetchLogsRes,
+  FollowLogsRes,
+  FollowLogsReq,
+} from '@start9labs/shared'
+import { CT } from '@start9labs/start-sdk'
+import { config } from '@start9labs/start-sdk'
+import { HealthCheckResult } from '../../../../../../../core/startos/bindings/HealthCheckResult'
+import { Manifest } from '../../../../../../../core/startos/bindings/Manifest'
 
 export module RR {
   // DB
@@ -30,8 +39,8 @@ export module RR {
   export type LogoutRes = null
 
   export type ResetPasswordReq = {
-    'old-password': string
-    'new-password': string
+    oldPassword: string
+    newPassword: string
   } // auth.reset-password
   export type ResetPasswordRes = null
 
@@ -46,14 +55,11 @@ export module RR {
     uptime: number // seconds
   }
 
-  export type GetServerLogsReq = ServerLogsReq // server.logs & server.kernel-logs
-  export type GetServerLogsRes = LogsRes
+  export type GetServerLogsReq = FetchLogsReq // server.logs & server.kernel-logs & server.tor-logs
+  export type GetServerLogsRes = FetchLogsRes
 
-  export type FollowServerLogsReq = { limit?: number } // server.logs.follow & server.kernel-logs.follow
-  export type FollowServerLogsRes = {
-    'start-cursor': string
-    guid: string
-  }
+  export type FollowServerLogsReq = FollowLogsReq & { limit?: number } // server.logs.follow & server.kernel-logs.follow & server.tor-logs.follow
+  export type FollowServerLogsRes = FollowLogsRes
 
   export type GetServerMetricsReq = {} // server.metrics
   export type GetServerMetricsRes = {
@@ -61,8 +67,11 @@ export module RR {
     metrics: Metrics
   }
 
-  export type UpdateServerReq = { 'marketplace-url': string } // server.update
+  export type UpdateServerReq = { marketplaceUrl: string } // server.update
   export type UpdateServerRes = 'updating' | 'no-updates'
+
+  export type SetServerClearnetAddressReq = { domainInfo: DomainInfo | null } // server.set-clearnet
+  export type SetServerClearnetAddressRes = null
 
   export type RestartServerReq = {} // server.restart
   export type RestartServerRes = null
@@ -74,15 +83,15 @@ export module RR {
   export type SystemRebuildRes = null
 
   export type ResetTorReq = {
-    'wipe-state': boolean
+    wipeState: boolean
     reason: string
   } // net.tor.reset
   export type ResetTorRes = null
 
-  export type ToggleZramReq = {
-    enable: boolean
-  } // server.experimental.zram
-  export type ToggleZramRes = null
+  export type SetOsOutboundProxyReq = {
+    proxy: string | null
+  } // server.proxy.set-outbound
+  export type SetOsOutboundProxyRes = null
 
   // sessions
 
@@ -97,17 +106,72 @@ export module RR {
 
   // notification
 
+  export type FollowNotificationsReq = {}
+  export type FollowNotificationsRes = {
+    notifications: ServerNotifications
+    guid: string
+  }
+
   export type GetNotificationsReq = {
     before?: number
     limit?: number
   } // notification.list
   export type GetNotificationsRes = ServerNotification<number>[]
 
-  export type DeleteNotificationReq = { id: number } // notification.delete
+  export type DeleteNotificationReq = { ids: number[] } // notification.delete
   export type DeleteNotificationRes = null
 
-  export type DeleteAllNotificationsReq = { before: number } // notification.delete-before
-  export type DeleteAllNotificationsRes = null
+  export type MarkSeenNotificationReq = DeleteNotificationReq // notification.mark-seen
+  export type MarkSeenNotificationRes = null
+
+  export type MarkSeenAllNotificationsReq = { before: number } // notification.mark-seen-before
+  export type MarkSeenAllNotificationsRes = null
+
+  export type MarkUnseenNotificationReq = DeleteNotificationReq // notification.mark-unseen
+  export type MarkUnseenNotificationRes = null
+
+  // network
+
+  export type AddProxyReq = {
+    name: string
+    config: string
+  } // net.proxy.add
+  export type AddProxyRes = null
+
+  export type UpdateProxyReq = {
+    name: string
+  } // net.proxy.update
+  export type UpdateProxyRes = null
+
+  export type DeleteProxyReq = { id: string } // net.proxy.delete
+  export type DeleteProxyRes = null
+
+  // domains
+
+  export type ClaimStart9ToReq = { networkStrategy: NetworkStrategy } // net.domain.me.claim
+  export type ClaimStart9ToRes = null
+
+  export type DeleteStart9ToReq = {} // net.domain.me.delete
+  export type DeleteStart9ToRes = null
+
+  export type AddDomainReq = {
+    hostname: string
+    provider: {
+      name: string
+      username: string | null
+      password: string | null
+    }
+    networkStrategy: NetworkStrategy
+  } // net.domain.add
+  export type AddDomainRes = null
+
+  export type DeleteDomainReq = { hostname: string } // net.domain.delete
+  export type DeleteDomainRes = null
+
+  // port forwards
+
+  export type OverridePortReq = { target: number; port: number } // net.port-forwards.override
+  export type OverridePortRes = null
 
   // wifi
 
@@ -119,7 +183,7 @@ export module RR {
     connected: string | null
     country: string | null
     ethernet: boolean
-    'available-wifi': AvailableWifi[]
+    availableWifi: AvailableWifi[]
   }
 
   export type AddWifiReq = {
@@ -142,7 +206,8 @@ export module RR {
 
   // email
 
-  export type ConfigureEmailReq = typeof customSmtp.validator._TYPE // email.configure
+  export type ConfigureEmailReq =
+    typeof config.constants.customSmtp.validator._TYPE // email.configure
   export type ConfigureEmailRes = null
 
   export type TestEmailReq = ConfigureEmailReq & { to: string } // email.test
@@ -163,7 +228,7 @@ export module RR {
 
   export type GetBackupTargetsReq = {} // backup.target.list
   export type GetBackupTargetsRes = {
-    'unknown-disks': UnknownDisk[]
+    unknownDisks: UnknownDisk[]
     saved: BackupTarget[]
   }
 
@@ -209,9 +274,9 @@ export module RR {
 
   export type CreateBackupJobReq = {
     name: string
-    'target-id': string
+    targetId: string
     cron: string
-    'package-ids': string[]
+    packageIds: string[]
     now: boolean
   } // backup.job.create
   export type CreateBackupJobRes = BackupJob
@@ -230,33 +295,33 @@ export module RR {
   export type DeleteBackupRunsReq = { ids: string[] } // backup.runs.delete
   export type DeleteBackupRunsRes = null
 
-  export type GetBackupInfoReq = { 'target-id': string; password: string } // backup.target.info
+  export type GetBackupInfoReq = { targetId: string; password: string } // backup.target.info
   export type GetBackupInfoRes = BackupInfo
 
-  export type CreateBackupReq = { 'target-id': string; 'package-ids': string[] } // backup.create
+  export type CreateBackupReq = { targetId: string; packageIds: string[] } // backup.create
   export type CreateBackupRes = null
 
   // package
 
-  export type GetPackageCredentialsReq = { id: string } // package.credentials
-  export type GetPackageCredentialsRes = Record<string, string>
+  export type GetPackagePropertiesReq = { id: string } // package.properties
+  export type GetPackagePropertiesRes = Record<string, string>
 
-  export type GetPackageLogsReq = ServerLogsReq & { id: string } // package.logs
-  export type GetPackageLogsRes = LogsRes
+  export type GetPackageLogsReq = FetchLogsReq & { id: string } // package.logs
+  export type GetPackageLogsRes = FetchLogsRes
 
   export type FollowPackageLogsReq = FollowServerLogsReq & { id: string } // package.logs.follow
   export type FollowPackageLogsRes = FollowServerLogsRes
 
   export type InstallPackageReq = {
     id: string
-    'version-spec'?: string
-    'version-priority'?: 'min' | 'max'
-    'marketplace-url': string
+    versionSpec?: string
+    versionPriority?: 'min' | 'max'
+    marketplaceUrl: string
   } // package.install
   export type InstallPackageRes = null
 
   export type GetPackageConfigReq = { id: string } // package.config.get
-  export type GetPackageConfigRes = { spec: InputSpec; config: object }
+  export type GetPackageConfigRes = { spec: CT.InputSpec; config: object }
 
   export type DrySetPackageConfigReq = { id: string; config: object } // package.config.set.dry
   export type DrySetPackageConfigRes = Breakages
@@ -267,14 +332,14 @@ export module RR {
   export type RestorePackagesReq = {
     // package.backup.restore
     ids: string[]
-    'target-id': string
+    targetId: string
     password: string
   }
   export type RestorePackagesRes = null
 
   export type ExecutePackageActionReq = {
     id: string
-    'action-id': string
+    actionId: string
     input?: object
   } // package.action
   export type ExecutePackageActionRes = ActionResponse
@@ -292,13 +357,13 @@ export module RR {
   export type UninstallPackageRes = null
 
   export type DryConfigureDependencyReq = {
-    'dependency-id': string
-    'dependent-id': string
+    dependencyId: string
+    dependentId: string
   } // package.dependency.configure.dry
   export type DryConfigureDependencyRes = {
-    'old-config': object
-    'new-config': object
-    spec: InputSpec
+    oldConfig: object
+    newConfig: object
+    spec: CT.InputSpec
   }
 
   export type SideloadPackageReq = {
@@ -308,12 +373,24 @@ export module RR {
   }
   export type SideloadPacakgeRes = string //guid
 
+  export type SetInterfaceClearnetAddressReq = SetServerClearnetAddressReq & {
+    packageId: string
+    interfaceId: string
+  } // package.interface.set-clearnet
+  export type SetInterfaceClearnetAddressRes = null
+
+  export type SetServiceOutboundProxyReq = {
+    packageId: string
+    proxy: string | null
+  } // package.proxy.set-outbound
+  export type SetServiceOutboundProxyRes = null
+
   // marketplace
 
-  export type GetMarketplaceInfoReq = { 'server-id': string }
+  export type GetMarketplaceInfoReq = { serverId: string }
   export type GetMarketplaceInfoRes = StoreInfo
 
-  export type GetMarketplaceEosReq = { 'server-id': string }
+  export type GetMarketplaceEosReq = { serverId: string }
   export type GetMarketplaceEosRes = MarketplaceEOS
 
   export type GetMarketplacePackagesReq = {
@@ -322,7 +399,7 @@ export module RR {
     category?: string
     query?: string
     page?: number
-    'per-page'?: number
+    perPage?: number
   }
   export type GetMarketplacePackagesRes = MarketplacePkg[]
 
@@ -333,7 +410,7 @@ export module RR {
 export interface MarketplaceEOS {
   version: string
   headline: string
-  'release-notes': { [version: string]: string }
+  releaseNotes: { [version: string]: string }
 }
 
 export interface Breakages {
@@ -363,31 +440,31 @@ export interface Metrics {
   }
   memory: {
     total: MetricData
-    'percentage-used': MetricData
+    percentageUsed: MetricData
     used: MetricData
     available: MetricData
-    'zram-total': MetricData
-    'zram-used': MetricData
-    'zram-available': MetricData
+    zramTotal: MetricData
+    zramUsed: MetricData
+    zramAvailable: MetricData
   }
   cpu: {
-    'percentage-used': MetricData
+    percentageUsed: MetricData
     idle: MetricData
-    'user-space': MetricData
-    'kernel-space': MetricData
+    userSpace: MetricData
+    kernelSpace: MetricData
     wait: MetricData
   }
   disk: {
     capacity: MetricData
-    'percentage-used': MetricData
+    percentageUsed: MetricData
     used: MetricData
     available: MetricData
   }
 }
 
 export interface Session {
-  'last-active': string
-  'user-agent': string
+  lastActive: string
+  userAgent: string
   metadata: SessionMetadata
 }
 
@@ -424,6 +501,7 @@ export interface UnknownDisk {
   label: string | null
   capacity: number
   used: number | null
+  startOs: StartOSDiskInfo | null
 }
 
 export interface BaseBackupTarget {
@@ -432,7 +510,7 @@ export interface BaseBackupTarget {
   name: string
   mountable: boolean
   path: string
-  'embassy-os': StartOSDiskInfo | null
+  startOs: StartOSDiskInfo | null
 }
 
 export interface DiskBackupTarget extends UnknownDisk, BaseBackupTarget {
@@ -452,9 +530,9 @@ export interface CloudBackupTarget extends BaseBackupTarget {
 
 export interface BackupRun {
   id: string
-  'started-at': string
-  'completed-at': string
-  'package-ids': string[]
+  startedAt: string
+  completedAt: string
+  packageIds: string[]
   job: BackupJob
   report: BackupReport
 }
@@ -464,13 +542,13 @@ export interface BackupJob {
   name: string
   target: BackupTarget
   cron: string // '* * * * * *' https://cloud.google.com/scheduler/docs/configuring/cron-job-schedules
-  'package-ids': string[]
+  packageIds: string[]
 }
 
 export interface BackupInfo {
   version: string
   timestamp: string
-  'package-backups': {
+  packageBackups: {
     [id: string]: PackageBackupInfo
   }
 }
@@ -478,7 +556,7 @@ export interface BackupInfo {
 export interface PackageBackupInfo {
   title: string
   version: string
-  'os-version': string
+  osVersion: string
   timestamp: string
 }
 
@@ -487,23 +565,24 @@ export interface ServerSpecs {
 }
 
 export interface SSHKey {
-  'created-at': string
+  createdAt: string
   alg: string
   hostname: string
   fingerprint: string
 }
 
-export type ServerNotifications = ServerNotification<any>[]
+export type ServerNotifications = ServerNotification<number>[]
 
 export interface ServerNotification<T extends number> {
   id: number
-  'package-id': string | null
-  'created-at': string
+  packageId: string | null
+  createdAt: string
   code: T
   level: NotificationLevel
   title: string
   message: string
   data: NotificationData<T>
+  read: boolean
 }
 
 export enum NotificationLevel {
@@ -516,8 +595,8 @@ export enum NotificationLevel {
 export type NotificationData<T> = T extends 0
   ? null
   : T extends 1
-  ? BackupReport
-  : any
+    ? BackupReport
+    : any
 
 export interface BackupReport {
   server: {
@@ -566,40 +645,29 @@ export type DependencyError =
   | DependencyErrorHealthChecksFailed
   | DependencyErrorTransitive
 
-export enum DependencyErrorType {
-  NotInstalled = 'not-installed',
-  NotRunning = 'not-running',
-  IncorrectVersion = 'incorrect-version',
-  ConfigUnsatisfied = 'config-unsatisfied',
-  HealthChecksFailed = 'health-checks-failed',
-  InterfaceHealthChecksFailed = 'interface-health-checks-failed',
-  Transitive = 'transitive',
-}
-
 export interface DependencyErrorNotInstalled {
-  type: DependencyErrorType.NotInstalled
+  type: 'notInstalled'
 }
 
 export interface DependencyErrorNotRunning {
-  type: DependencyErrorType.NotRunning
+  type: 'notRunning'
 }
 
 export interface DependencyErrorIncorrectVersion {
-  type: DependencyErrorType.IncorrectVersion
+  type: 'incorrectVersion'
   expected: string // version range
   received: string // version
 }
 
 export interface DependencyErrorConfigUnsatisfied {
-  type: DependencyErrorType.ConfigUnsatisfied
-  error: string
+  type: 'configUnsatisfied'
 }
 
 export interface DependencyErrorHealthChecksFailed {
-  type: DependencyErrorType.HealthChecksFailed
+  type: 'healthChecksFailed'
   check: HealthCheckResult
 }
 
 export interface DependencyErrorTransitive {
-  type: DependencyErrorType.Transitive
+  type: 'transitive'
 }

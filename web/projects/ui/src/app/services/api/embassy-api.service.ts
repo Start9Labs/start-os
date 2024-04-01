@@ -83,6 +83,10 @@ export abstract class ApiService {
 
   abstract updateServer(url?: string): Promise<RR.UpdateServerRes>
 
+  abstract setServerClearnetAddress(
+    params: RR.SetServerClearnetAddressReq,
+  ): Promise<RR.SetServerClearnetAddressRes>
+
   abstract restartServer(
     params: RR.RestartServerReq,
   ): Promise<RR.RestartServerRes>
@@ -99,7 +103,9 @@ export abstract class ApiService {
 
   abstract resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes>
 
-  abstract toggleZram(params: RR.ToggleZramReq): Promise<RR.ToggleZramRes>
+  abstract setOsOutboundProxy(
+    params: RR.SetOsOutboundProxyReq,
+  ): Promise<RR.SetOsOutboundProxyRes>
 
   // marketplace URLs
 
@@ -117,13 +123,49 @@ export abstract class ApiService {
     params: RR.GetNotificationsReq,
   ): Promise<RR.GetNotificationsRes>
 
-  abstract deleteNotification(
+  abstract markSeenNotifications(
+    params: RR.MarkSeenNotificationReq,
+  ): Promise<RR.MarkSeenNotificationRes>
+
+  abstract markSeenAllNotifications(
+    params: RR.MarkSeenAllNotificationsReq,
+  ): Promise<RR.MarkSeenAllNotificationsRes>
+
+  abstract markUnseenNotifications(
     params: RR.DeleteNotificationReq,
   ): Promise<RR.DeleteNotificationRes>
 
-  abstract deleteAllNotifications(
-    params: RR.DeleteAllNotificationsReq,
-  ): Promise<RR.DeleteAllNotificationsRes>
+  abstract deleteNotifications(
+    params: RR.DeleteNotificationReq,
+  ): Promise<RR.DeleteNotificationRes>
+
+  // network
+
+  abstract addProxy(params: RR.AddProxyReq): Promise<RR.AddProxyRes>
+
+  abstract updateProxy(params: RR.UpdateProxyReq): Promise<RR.UpdateProxyRes>
+
+  abstract deleteProxy(params: RR.DeleteProxyReq): Promise<RR.DeleteProxyRes>
+
+  // domains
+
+  abstract claimStart9ToDomain(
+    params: RR.ClaimStart9ToReq,
+  ): Promise<RR.ClaimStart9ToRes>
+
+  abstract deleteStart9ToDomain(
+    params: RR.DeleteStart9ToReq,
+  ): Promise<RR.DeleteStart9ToRes>
+
+  abstract addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes>
+
+  abstract deleteDomain(params: RR.DeleteDomainReq): Promise<RR.DeleteDomainRes>
+
+  // port forwards
+
+  abstract overridePortForward(
+    params: RR.OverridePortReq,
+  ): Promise<RR.OverridePortRes>
 
   // wifi
 
@@ -138,7 +180,7 @@ export abstract class ApiService {
 
   abstract connectWifi(params: RR.ConnectWifiReq): Promise<RR.ConnectWifiRes>
 
-  abstract deleteWifi(params: RR.DeleteWifiReq): Promise<RR.ConnectWifiRes>
+  abstract deleteWifi(params: RR.DeleteWifiReq): Promise<RR.DeleteWifiRes>
 
   // email
 
@@ -214,9 +256,9 @@ export abstract class ApiService {
 
   // package
 
-  abstract getPackageCredentials(
-    params: RR.GetPackageCredentialsReq,
-  ): Promise<RR.GetPackageCredentialsRes>
+  abstract getPackageProperties(
+    params: RR.GetPackagePropertiesReq,
+  ): Promise<RR.GetPackagePropertiesRes>
 
   abstract getPackageLogs(
     params: RR.GetPackageLogsReq,
@@ -272,5 +314,11 @@ export abstract class ApiService {
 
   abstract getSetupStatus(): Promise<SetupStatus | null>
 
-  abstract followLogs(): Promise<string>
+  abstract setInterfaceClearnetAddress(
+    params: RR.SetInterfaceClearnetAddressReq,
+  ): Promise<RR.SetInterfaceClearnetAddressRes>
+
+  abstract setServiceOutboundProxy(
+    params: RR.SetServiceOutboundProxyReq,
+  ): Promise<RR.SetServiceOutboundProxyRes>
 }

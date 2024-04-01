@@ -1,23 +1,25 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import { IonicModule } from '@ionic/angular'
 import {
   EmverPipesModule,
   MarkdownPipeModule,
-  TextSpinnerComponentModule,
+  SafeLinksDirective,
 } from '@start9labs/shared'
-import { TuiElementModule } from '@taiga-ui/cdk'
-
+import { TuiAccordionModule } from '@taiga-ui/kit'
+import { TuiButtonModule, TuiLoaderModule } from '@taiga-ui/core'
+import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 import { ReleaseNotesComponent } from './release-notes.component'
 
 @NgModule({
   imports: [
     CommonModule,
-    IonicModule,
-    TextSpinnerComponentModule,
     EmverPipesModule,
     MarkdownPipeModule,
-    TuiElementModule,
+    NgDompurifyModule,
+    SafeLinksDirective,
+    TuiButtonModule,
+    TuiAccordionModule,
+    TuiLoaderModule,
   ],
   declarations: [ReleaseNotesComponent],
   exports: [ReleaseNotesComponent],

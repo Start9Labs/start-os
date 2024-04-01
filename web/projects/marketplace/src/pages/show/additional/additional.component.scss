@@ -1,0 +1,56 @@
+.box-container {
+  background-color: rgb(39 39 42);
+  border-radius: 0.75rem;
+  padding: 1.75rem;
+}
+
+.detail-container {
+  display: grid;
+  grid-auto-flow: row;
+
+  & > * + * {
+    border-top-width: 1px;
+    border-bottom-width: 0px;
+    border-color: rgb(113 113 122);
+  }
+
+  &-item {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.item {
+  &-padding {
+    padding: 0.75rem 0.25rem;
+  }
+
+  &-pointer:hover {
+    cursor: pointer;
+    background-color: rgb(113 113 122 / 0.1);
+  }
+
+  &-copy:hover {
+    cursor: copy;
+    background-color: rgb(113 113 122 / 0.1);
+  }
+}
+
+::ng-deep .t-text {
+  font-weight: 600;
+}
+
+*,
+::before,
+::after {
+  box-sizing: border-box;
+  border-width: 0;
+  border-style: solid;
+  border-color: rgb(var(--tw-color-gray-200) / 1);
+}
+
+.git-hash-label {
+  font-size: 0.73rem;
+}

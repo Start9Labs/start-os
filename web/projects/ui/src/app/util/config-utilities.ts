@@ -1,4 +1,4 @@
-import { DefaultString } from '@start9labs/start-sdk/lib/config/configTypes'
+import { CT } from '@start9labs/start-sdk'
 
 export class Range {
   min?: number
@@ -48,7 +48,7 @@ export class Range {
   }
 }
 
-export function getDefaultString(defaultSpec: DefaultString): string {
+export function getDefaultString(defaultSpec: CT.DefaultString): string {
   if (typeof defaultSpec === 'string') {
     return defaultSpec
   } else {

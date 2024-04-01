@@ -1,0 +1,32 @@
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { SYSTEM_UTILITIES } from '../constants/system-utilities'
+import { toRouterLink } from './to-router-link'
+import { getManifest } from 'src/app/util/get-package-data'
+
+export interface NavigationItem {
+  readonly routerLink: string
+  readonly icon: string
+  readonly title: string
+}
+
+export function toNavigationItem(
+  id: string,
+  packages: Record<string, PackageDataEntry> = {},
+): NavigationItem {
+  const item = SYSTEM_UTILITIES[id]
+  const routerLink = toRouterLink(id)
+
+  if (SYSTEM_UTILITIES[id]) {
+    return {
+      icon: item.icon,
+      title: item.title,
+      routerLink,
+    }
+  }
+
+  return {
+    icon: packages[id]?.icon,
+    title: getManifest(packages[id]).title,
+    routerLink,
+  }
+}

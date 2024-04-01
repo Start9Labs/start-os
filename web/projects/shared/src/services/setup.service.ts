@@ -1,4 +1,4 @@
-import { inject, StaticClassProvider, Type } from '@angular/core'
+import { inject, StaticClassProvider } from '@angular/core'
 import {
   catchError,
   EMPTY,
@@ -12,8 +12,8 @@ import {
   takeWhile,
 } from 'rxjs'
 import { SetupStatus } from '../types/api'
-import { ErrorToastService } from './error-toast.service'
 import { Constructor } from '../types/constructor'
+import { ErrorService } from './error.service'
 
 export function provideSetupService(
   api: Constructor<ConstructorParameters<typeof SetupService>[0]>,
@@ -26,12 +26,12 @@ export function provideSetupService(
 }
 
 export class SetupService extends Observable<number> {
-  private readonly errorToastService = inject(ErrorToastService)
+  private readonly errorService = inject(ErrorService)
   private readonly progress$ = interval(500).pipe(
     exhaustMap(() =>
       from(this.api.getSetupStatus()).pipe(
         catchError(e => {
-          this.errorToastService.present(e)
+          this.errorService.handleError(e)
 
           return EMPTY
         }),
@@ -43,8 +43,8 @@ export class SetupService extends Observable<number> {
         return 1
       }
 
-      return progress['total-bytes']
-        ? progress['bytes-transferred'] / progress['total-bytes']
+      return progress.totalBytes
+        ? progress.bytesTransferred / progress.totalBytes
         : 0
     }),
     takeWhile(value => value !== 1, true),

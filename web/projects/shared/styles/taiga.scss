@@ -1,0 +1,203 @@
+@import '@taiga-ui/core/styles/taiga-ui-local';
+
+:root {
+  --tui-primary: #3880ff;
+  --tui-primary-hover: #4c8dff;
+  --tui-primary-active: #3171e0;
+}
+
+/* stylelint-disable order/order */
+[tuiAppearance][data-appearance='secondary-warning'] {
+  background: var(--tui-warning-bg);
+  color: var(--tui-warning-fill);
+
+  @include appearance-hover {
+    background: var(--tui-warning-bg-hover);
+  }
+
+  @include appearance-active {
+    background: var(--tui-warning-bg-hover);
+  }
+}
+
+[tuiAppearance][data-appearance='icon-success'] {
+  color: var(--tui-success-fill);
+}
+
+[tuiAppearance][data-appearance='icon-warning'] {
+  color: var(--tui-warning-fill);
+}
+
+[tuiAppearance][data-appearance='icon-error'] {
+  color: var(--tui-error-fill);
+}
+
+[tuiAppearance][data-appearance='flat'],
+[tuiAppearance][data-appearance='outline'] {
+  color: var(--tui-text-01);
+}
+
+[tuiAppearance][data-appearance='primary'] {
+  @include appearance-disabled {
+    background: #eaecee;
+    color: #333;
+  }
+}
+
+[tuiAppearance][data-appearance='secondary-solid'] {
+  background: #3dc2ff;
+  color: #fff;
+
+  @include appearance-hover {
+    background: #50c8ff;
+  }
+
+  @include appearance-active {
+    background: #36abe0;
+  }
+
+  @include appearance-disabled {
+    background: #eaecee;
+  }
+}
+
+[tuiAppearance][data-appearance='tertiary-solid'] {
+  background: #5260ff;
+  color: #fff;
+
+  @include appearance-hover {
+    background: #6370ff;
+  }
+
+  @include appearance-active {
+    background: #4854e0;
+  }
+
+  @include appearance-disabled {
+    background: #eaecee;
+  }
+}
+
+[tuiAppearance][data-appearance='success-solid'] {
+  background: #2dd36f;
+  color: #fff;
+
+  @include appearance-hover {
+    background: #42d77d;
+  }
+
+  @include appearance-active {
+    background: #28ba62;
+  }
+
+  @include appearance-disabled {
+    background: #eaecee;
+  }
+}
+
+[tuiAppearance][data-appearance='warning-solid'] {
+  background: #ffc409;
+  color: #fff;
+
+  @include appearance-hover {
+    background: #ffca22;
+  }
+
+  @include appearance-active {
+    background: #e0ac08;
+  }
+
+  @include appearance-disabled {
+    background: #eaecee;
+  }
+}
+
+[tuiAppearance][data-appearance='danger-solid'] {
+  background: #eb445a;
+  color: #fff;
+
+  @include appearance-hover {
+    background: #ed576b;
+  }
+
+  @include appearance-active {
+    background: #cf3c4f;
+  }
+
+  @include appearance-disabled {
+    background: #eaecee;
+  }
+}
+
+[tuiWrapper][data-appearance='input-file'] {
+  &:hover,
+  &:active {
+    background: transparent !important;
+  }
+}
+
+tui-dialog {
+  transform: translate3d(0, 0, 0);
+}
+
+tui-opt-group[data-label^='⚠️']:before {
+  color: var(--tui-warning-fill);
+}
+
+tui-hint[data-appearance='onDark'] {
+  background: white !important;
+  color: #222 !important;
+}
+
+[tuiLink] {
+  color: var(--tui-link) !important;
+
+  &:hover {
+    color: var(--tui-link-hover) !important;
+  }
+}
+
+[tuiAppearance][data-appearance='drawer'] {
+  // TODO: Theme
+  background: rgb(81 80 83 / 86%);
+  border-radius: 10rem;
+
+  &._focused::after {
+    color: var(--tui-primary);
+  }
+}
+
+tui-dropdown[data-appearance='start-os'][data-appearance='start-os'] {
+  border: 0;
+  backdrop-filter: blur(0.25rem);
+  box-shadow: 0 0.25rem 0.25rem rgb(0 0 0 / 25%);
+  // TODO: Replace --tui-elevation-02 when Taiga UI is updated
+  background: rgb(63 63 63 / 95%);
+
+  tui-opt-group {
+    &::before {
+      background: var(--tui-clear);
+      box-shadow:
+        1rem 0 var(--tui-clear),
+        -1rem 0 var(--tui-clear);
+      padding-top: 0.25rem !important;
+      padding-bottom: 0 !important;
+      margin: 0.25rem;
+    }
+
+    &::after {
+      display: none;
+    }
+  }
+}
+
+[tuiSidebar] > div.t-wrapper {
+  backdrop-filter: blur(1rem);
+  background: rgb(34 34 34 / 80%);
+}
+
+// TODO: Move to Taiga UI
+a[tuiIconButton]:not([href]) {
+  pointer-events: none;
+  opacity: var(--tui-disabled-opacity);
+}

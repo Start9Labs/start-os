@@ -1,24 +1,26 @@
 use std::cmp::Ordering;
 
-use async_trait::async_trait;
 use color_eyre::eyre::eyre;
-use rpc_toolkit::command;
-use sqlx::PgPool;
+use futures::future::BoxFuture;
+use futures::{Future, FutureExt};
+use imbl_value::InternedString;
 
 use crate::prelude::*;
 use crate::Error;
 
+mod v0_3_5;
 mod v0_3_5_1;
-mod v0_4_0;
+mod v0_3_6;
 
-pub type Current = v0_4_0::Version;
+pub type Current = v0_3_6::Version;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(untagged)]
 enum Version {
-    LT0_3_5_1(LTWrapper<v0_3_5_1::Version>),
+    LT0_3_5(LTWrapper<v0_3_5::Version>),
+    V0_3_5(Wrapper<v0_3_5::Version>),
     V0_3_5_1(Wrapper<v0_3_5_1::Version>),
-    V0_4_0(Wrapper<v0_4_0::Version>),
+    V0_3_6(Wrapper<v0_3_6::Version>),
     Other(emver::Version),
 }
 
@@ -34,15 +36,15 @@ impl Version {
     #[cfg(test)]
     fn as_sem_ver(&self) -> emver::Version {
         match self {
-            Version::LT0_3_5_1(LTWrapper(_, x)) => x.clone(),
+            Version::LT0_3_5(LTWrapper(_, x)) => x.clone(),
+            Version::V0_3_5(Wrapper(x)) => x.semver(),
             Version::V0_3_5_1(Wrapper(x)) => x.semver(),
-            Version::V0_4_0(Wrapper(x)) => x.semver(),
+            Version::V0_3_6(Wrapper(x)) => x.semver(),
             Version::Other(x) => x.clone(),
         }
     }
 }
 
-#[async_trait]
 pub trait VersionT
 where
     Self: Sized + Send + Sync,
@@ -51,80 +53,89 @@ where
     fn new() -> Self;
     fn semver(&self) -> emver::Version;
     fn compat(&self) -> &'static emver::VersionRange;
-    async fn up(&self, db: &PatchDb, secrets: &PgPool) -> Result<(), Error>;
-    async fn down(&self, db: &PatchDb, secrets: &PgPool) -> Result<(), Error>;
-    async fn commit(&self, db: &PatchDb) -> Result<(), Error> {
-        let semver = self.semver().into();
-        let compat = self.compat().clone();
-        db.mutate(|d| {
-            d.as_server_info_mut().as_version_mut().ser(&semver)?;
-            d.as_server_info_mut()
-                .as_eos_version_compat_mut()
-                .ser(&compat)?;
+    fn up(&self, db: &PatchDb) -> impl Future<Output = Result<(), Error>> + Send;
+    fn down(&self, db: &PatchDb) -> impl Future<Output = Result<(), Error>> + Send;
+    fn commit(&self, db: &PatchDb) -> impl Future<Output = Result<(), Error>> + Send {
+        async {
+            let semver = self.semver().into();
+            let compat = self.compat().clone();
+            db.mutate(|d| {
+                d.as_public_mut()
+                    .as_server_info_mut()
+                    .as_version_mut()
+                    .ser(&semver)?;
+                d.as_public_mut()
+                    .as_server_info_mut()
+                    .as_eos_version_compat_mut()
+                    .ser(&compat)?;
+                Ok(())
+            })
+            .await?;
             Ok(())
-        })
-        .await?;
-        Ok(())
+        }
     }
-    async fn migrate_to<V: VersionT>(
+    fn migrate_to<V: VersionT>(
         &self,
         version: &V,
         db: &PatchDb,
-        secrets: &PgPool,
-    ) -> Result<(), Error> {
-        match self.semver().cmp(&version.semver()) {
-            Ordering::Greater => self.rollback_to_unchecked(version, db, secrets).await,
-            Ordering::Less => version.migrate_from_unchecked(self, db, secrets).await,
-            Ordering::Equal => Ok(()),
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        async {
+            match self.semver().cmp(&version.semver()) {
+                Ordering::Greater => self.rollback_to_unchecked(version, db).await,
+                Ordering::Less => version.migrate_from_unchecked(self, db).await,
+                Ordering::Equal => Ok(()),
+            }
         }
     }
-    async fn migrate_from_unchecked<V: VersionT>(
-        &self,
-        version: &V,
-        db: &PatchDb,
-        secrets: &PgPool,
-    ) -> Result<(), Error> {
-        let previous = Self::Previous::new();
-        if version.semver() < previous.semver() {
-            previous
-                .migrate_from_unchecked(version, db, secrets)
-                .await?;
-        } else if version.semver() > previous.semver() {
-            return Err(Error::new(
-                eyre!(
-                    "NO PATH FROM {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
-                    version.semver()
-                ),
-                crate::ErrorKind::MigrationFailed,
-            ));
+    fn migrate_from_unchecked<'a, V: VersionT>(
+        &'a self,
+        version: &'a V,
+        db: &'a PatchDb,
+    ) -> BoxFuture<'a, Result<(), Error>> {
+        async {
+            let previous = Self::Previous::new();
+            if version.semver() < previous.semver() {
+                previous.migrate_from_unchecked(version, db).await?;
+            } else if version.semver() > previous.semver() {
+                return Err(Error::new(
+                    eyre!(
+                        "NO PATH FROM {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
+                        version.semver()
+                    ),
+                    crate::ErrorKind::MigrationFailed,
+                ));
+            }
+            tracing::info!("{} -> {}", previous.semver(), self.semver(),);
+            self.up(db).await?;
+            self.commit(db).await?;
+            Ok(())
         }
-        tracing::info!("{} -> {}", previous.semver(), self.semver(),);
-        self.up(db, secrets).await?;
-        self.commit(db).await?;
-        Ok(())
+        .boxed()
     }
-    async fn rollback_to_unchecked<V: VersionT>(
-        &self,
-        version: &V,
-        db: &PatchDb,
-        secrets: &PgPool,
-    ) -> Result<(), Error> {
-        let previous = Self::Previous::new();
-        tracing::info!("{} -> {}", self.semver(), previous.semver(),);
-        self.down(db, secrets).await?;
-        previous.commit(db).await?;
-        if version.semver() < previous.semver() {
-            previous.rollback_to_unchecked(version, db, secrets).await?;
-        } else if version.semver() > previous.semver() {
-            return Err(Error::new(
-                eyre!(
-                    "NO PATH TO {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
-                    version.semver()
-                ),
-                crate::ErrorKind::MigrationFailed,
-            ));
+    fn rollback_to_unchecked<'a, V: VersionT>(
+        &'a self,
+        version: &'a V,
+        db: &'a PatchDb,
+    ) -> BoxFuture<'a, Result<(), Error>> {
+        async {
+            let previous = Self::Previous::new();
+            tracing::info!("{} -> {}", self.semver(), previous.semver(),);
+            self.down(db).await?;
+            previous.commit(db).await?;
+            if version.semver() < previous.semver() {
+                previous.rollback_to_unchecked(version, db).await?;
+            } else if version.semver() > previous.semver() {
+                return Err(Error::new(
+                    eyre!(
+                        "NO PATH TO {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
+                        version.semver()
+                    ),
+                    crate::ErrorKind::MigrationFailed,
+                ));
+            }
+            Ok(())
         }
-        Ok(())
+        .boxed()
     }
 }
 
@@ -171,25 +182,33 @@ where
         let v = crate::util::Version::deserialize(deserializer)?;
         let version = T::new();
         if *v == version.semver() {
-            Ok(Self(version))
+            Ok(Wrapper(version))
         } else {
             Err(serde::de::Error::custom("Mismatched Version"))
         }
     }
 }
 
-pub async fn init(db: &PatchDb, secrets: &PgPool) -> Result<(), Error> {
-    let version = Version::from_util_version(db.peek().await.as_server_info().as_version().de()?);
+pub async fn init(db: &PatchDb) -> Result<(), Error> {
+    let version = Version::from_util_version(
+        db.peek()
+            .await
+            .as_public()
+            .as_server_info()
+            .as_version()
+            .de()?,
+    );
 
     match version {
-        Version::LT0_3_5_1(_) => {
+        Version::LT0_3_5(_) => {
             return Err(Error::new(
-                eyre!("Cannot migrate from pre-0.3.5.1. Please update to v0.3.5.1 first."),
-                crate::ErrorKind::MigrationFailed,
+                eyre!("Cannot migrate from pre-0.3.5. Please update to v0.3.5 first."),
+                ErrorKind::MigrationFailed,
             ));
         }
-        Version::V0_3_5_1(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
-        Version::V0_4_0(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
+        Version::V0_3_5(v) => v.0.migrate_to(&Current::new(), &db).await?,
+        Version::V0_3_5_1(v) => v.0.migrate_to(&Current::new(), &db).await?,
+        Version::V0_3_6(v) => v.0.migrate_to(&Current::new(), &db).await?,
         Version::Other(_) => {
             return Err(Error::new(
                 eyre!("Cannot downgrade"),
@@ -203,9 +222,8 @@ pub async fn init(db: &PatchDb, secrets: &PgPool) -> Result<(), Error> {
 pub const COMMIT_HASH: &str =
     include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../GIT_HASH.txt"));
 
-#[command(rename = "git-info", local, metadata(authenticated = false))]
-pub fn git_info() -> Result<&'static str, Error> {
-    Ok(COMMIT_HASH)
+pub fn git_info() -> Result<InternedString, Error> {
+    Ok(InternedString::intern(COMMIT_HASH))
 }
 
 #[cfg(test)]
@@ -222,16 +240,8 @@ mod tests {
 
     fn versions() -> impl Strategy<Value = Version> {
         prop_oneof![
-            em_version().prop_map(|v| if v < v0_3_5_1::Version::new().semver() {
-                Version::LT0_3_5_1(LTWrapper(v0_3_5_1::Version::new(), v))
-            } else {
-                Version::LT0_3_5_1(LTWrapper(
-                    v0_3_5_1::Version::new(),
-                    emver::Version::new(0, 3, 0, 0),
-                ))
-            }),
+            Just(Version::V0_3_5(Wrapper(v0_3_5::Version::new()))),
             Just(Version::V0_3_5_1(Wrapper(v0_3_5_1::Version::new()))),
-            Just(Version::V0_4_0(Wrapper(v0_4_0::Version::new()))),
             em_version().prop_map(Version::Other),
         ]
     }

@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
-import { IonicModule } from '@ionic/angular'
 
 import { CategoriesComponent } from './categories.component'
+import { TuiAppearanceModule, TuiIconModule } from '@taiga-ui/experimental'
+import { RouterModule } from '@angular/router'
 
 @NgModule({
-  imports: [CommonModule, IonicModule],
+  imports: [RouterModule, CommonModule, TuiAppearanceModule, TuiIconModule],
   declarations: [CategoriesComponent],
   exports: [CategoriesComponent],
 })

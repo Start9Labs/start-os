@@ -1,53 +1,34 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-title>Release Notes</ion-title>
-    <ion-buttons slot="end">
-      <ion-button (click)="dismiss()">
-        <ion-icon slot="icon-only" name="close"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
+<h2>This Release</h2>
+<h4>0.3.5</h4>
+<p class="note-padding">
+  View the complete
+  <a
+    href="https://github.com/Start9Labs/start-os/releases/tag/v0.3.5"
+    target="_blank"
+    noreferrer
+  >
+    release notes
+  </a>
+  for more details.
+</p>
+<h6>Highlights</h6>
+<ul class="spaced-list">
+  <li>
+    This release contains significant under-the-hood improvements to performance
+    and reliability
+  </li>
+  <li>Ditch Docker, replace with Podman</li>
+  <li>Remove locking behavior from PatchDB and optimize</li>
+  <li>Boost efficiency of service manager</li>
+  <li>Require HTTPS on LAN, and improve setup flow for trusting Root CA</li>
+  <li>Better default privacy settings for Firefox kiosk mode</li>
+  <li>Eliminate memory leak from Javascript runtime</li>
+  <li>Other small bug fixes</li>
+  <li>Update license to MIT</li>
+</ul>
 
-<ion-content class="ion-padding">
-  <h2>This Release</h2>
-
-  <h4>0.3.5</h4>
-  <p class="note-padding">
-    View the complete
-    <a
-      href="https://github.com/Start9Labs/start-os/releases/tag/v0.3.5"
-      target="_blank"
-      noreferrer
-    >
-      release notes
-    </a>
-    for more details.
-  </p>
-  <h6>Highlights</h6>
-  <ul class="spaced-list">
-    <li>
-      This release contains significant under-the-hood improvements to
-      performance and reliability
-    </li>
-    <li>Ditch Docker, replace with Podman</li>
-    <li>Remove locking behavior from PatchDB and optimize</li>
-    <li>Boost efficiency of service manager</li>
-    <li>Require HTTPS on LAN, and improve setup flow for trusting Root CA</li>
-    <li>Better default privacy settings for Firefox kiosk mode</li>
-    <li>Eliminate memory leak from Javascript runtime</li>
-    <li>Other small bug fixes</li>
-    <li>Update license to MIT</li>
-  </ul>
-
-  <div class="ion-text-center ion-padding">
-    <ion-button
-      fill="solid"
-      color="primary"
-      (click)="dismiss()"
-      class="enter-click btn-128"
-    >
-      Begin
-    </ion-button>
-  </div>
-</ion-content>
+<div class="ion-text-center ion-padding">
+  <button tuiButton class="begin" (click)="context.$implicit.complete()">
+    Begin
+  </button>
+</div>

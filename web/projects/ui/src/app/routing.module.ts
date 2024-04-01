@@ -5,6 +5,13 @@ import { UnauthGuard } from './guards/unauth.guard'
 
 const routes: Routes = [
   {
+    path: 'diagnostic',
+    loadChildren: () =>
+      import('./apps/diagnostic/diagnostic.module').then(
+        m => m.DiagnosticModule,
+      ),
+  },
+  {
     path: 'loading',
     loadChildren: () =>
       import('./apps/loading/loading.module').then(m => m.LoadingPageModule),
@@ -16,10 +23,15 @@ const routes: Routes = [
       import('./apps/login/login.module').then(m => m.LoginPageModule),
   },
   {
-    path: '',
+    path: 'portal',
     canActivate: [AuthGuard],
     canActivateChild: [AuthGuard],
-    loadChildren: () => import('./apps/ui/ui.module').then(m => m.UiModule),
+    loadChildren: () => import('./apps/portal/portal.routes').then(m => m),
+  },
+  {
+    path: '',
+    redirectTo: 'portal',
+    pathMatch: 'full',
   },
 ]
 

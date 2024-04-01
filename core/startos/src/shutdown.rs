@@ -1,15 +1,12 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use rpc_toolkit::command;
-
 use crate::context::RpcContext;
 use crate::disk::main::export;
 use crate::init::{STANDBY_MODE_PATH, SYSTEM_REBUILD_PATH};
 use crate::prelude::*;
 use crate::sound::SHUTDOWN;
-use crate::util::docker::CONTAINER_TOOL;
-use crate::util::{display_none, Invoke};
+use crate::util::Invoke;
 use crate::PLATFORM;
 
 #[derive(Debug, Clone)]
@@ -43,28 +40,6 @@ impl Shutdown {
             {
                 tracing::error!("Error Stopping Journald: {}", e);
                 tracing::debug!("{:?}", e);
-            }
-            if CONTAINER_TOOL == "docker" {
-                if let Err(e) = Command::new("systemctl")
-                    .arg("stop")
-                    .arg("docker")
-                    .invoke(crate::ErrorKind::Docker)
-                    .await
-                {
-                    tracing::error!("Error Stopping Docker: {}", e);
-                    tracing::debug!("{:?}", e);
-                }
-            } else if CONTAINER_TOOL == "podman" {
-                if let Err(e) = Command::new("podman")
-                    .arg("rm")
-                    .arg("-f")
-                    .arg("netdummy")
-                    .invoke(crate::ErrorKind::Docker)
-                    .await
-                {
-                    tracing::error!("Error Stopping Podman: {}", e);
-                    tracing::debug!("{:?}", e);
-                }
             }
             if let Some((guid, datadir)) = &self.export_args {
                 if let Err(e) = export(guid, datadir).await {
@@ -100,11 +75,11 @@ impl Shutdown {
     }
 }
 
-#[command(display(display_none))]
-pub async fn shutdown(#[context] ctx: RpcContext) -> Result<(), Error> {
+pub async fn shutdown(ctx: RpcContext) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
-            db.as_server_info_mut()
+            db.as_public_mut()
+                .as_server_info_mut()
                 .as_status_info_mut()
                 .as_shutting_down_mut()
                 .ser(&true)
@@ -120,11 +95,11 @@ pub async fn shutdown(#[context] ctx: RpcContext) -> Result<(), Error> {
     Ok(())
 }
 
-#[command(display(display_none))]
-pub async fn restart(#[context] ctx: RpcContext) -> Result<(), Error> {
+pub async fn restart(ctx: RpcContext) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
-            db.as_server_info_mut()
+            db.as_public_mut()
+                .as_server_info_mut()
                 .as_status_info_mut()
                 .as_restarting_mut()
                 .ser(&true)
@@ -140,8 +115,7 @@ pub async fn restart(#[context] ctx: RpcContext) -> Result<(), Error> {
     Ok(())
 }
 
-#[command(display(display_none))]
-pub async fn rebuild(#[context] ctx: RpcContext) -> Result<(), Error> {
+pub async fn rebuild(ctx: RpcContext) -> Result<(), Error> {
     tokio::fs::write(SYSTEM_REBUILD_PATH, b"").await?;
     restart(ctx).await
 }

@@ -3,56 +3,41 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Weak};
 
 use id_pool::IdPool;
-use models::PackageId;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::Mutex;
 
+use crate::prelude::*;
 use crate::util::Invoke;
-use crate::Error;
 
-pub const START9_BRIDGE_IFACE: &str = "br-start9";
+pub const START9_BRIDGE_IFACE: &str = "lxcbr0";
+pub const FIRST_DYNAMIC_PRIVATE_PORT: u16 = 49152;
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct LanPortForwards {
-    pool: IdPool,
-    allocated: BTreeMap<PackageId, BTreeMap<u16, u16>>,
-}
-impl LanPortForwards {
+pub struct AvailablePorts(IdPool);
+impl AvailablePorts {
     pub fn new() -> Self {
-        Self {
-            pool: IdPool::new_ranged(32768..u16::MAX),
-            allocated: BTreeMap::new(),
-        }
+        Self(IdPool::new_ranged(FIRST_DYNAMIC_PRIVATE_PORT..u16::MAX))
     }
-    pub fn alloc(&mut self, package: PackageId, port: u16) -> Option<u16> {
-        if let Some(res) = self.allocated.get(&package).and_then(|a| a.get(&port)) {
-            Some(*res)
-        } else if let Some(res) = self.pool.request_id() {
-            let mut ports = self.allocated.remove(&package).unwrap_or_default();
-            ports.insert(port, res);
-            self.allocated.insert(package, ports);
-            Some(res)
-        } else {
-            None
-        }
+    pub fn alloc(&mut self) -> Result<u16, Error> {
+        self.0.request_id().ok_or_else(|| {
+            Error::new(
+                eyre!("No more dynamic ports available!"),
+                ErrorKind::Network,
+            )
+        })
     }
-    pub fn dealloc(&mut self, package: &PackageId) {
-        for port in self
-            .allocated
-            .remove(package)
-            .into_iter()
-            .flat_map(|p| p.into_values())
-        {
-            self.pool.return_id(port).unwrap_or_default();
+    pub fn free(&mut self, ports: impl IntoIterator<Item = u16>) {
+        for port in ports {
+            self.0.return_id(port).unwrap_or_default();
         }
     }
 }
 
-pub struct LpfController {
+pub struct LanPortForwardController {
     forwards: Mutex<BTreeMap<u16, BTreeMap<SocketAddr, Weak<()>>>>,
 }
-impl LpfController {
+impl LanPortForwardController {
     pub fn new() -> Self {
         Self {
             forwards: Mutex::new(BTreeMap::new()),
@@ -81,9 +66,9 @@ impl LpfController {
         update_forward(port, prev, next).await?;
         Ok(rc)
     }
-    pub async fn gc(&self, port: u16) -> Result<(), Error> {
+    pub async fn gc(&self, external: u16) -> Result<(), Error> {
         let mut writable = self.forwards.lock().await;
-        let (prev, forward) = if let Some(forward) = writable.remove(&port) {
+        let (prev, forward) = if let Some(forward) = writable.remove(&external) {
             (
                 forward.keys().next().cloned(),
                 forward
@@ -96,24 +81,24 @@ impl LpfController {
         };
         let next = forward.keys().next().cloned();
         if !forward.is_empty() {
-            writable.insert(port, forward);
+            writable.insert(external, forward);
         }
 
-        update_forward(port, prev, next).await
+        update_forward(external, prev, next).await
     }
 }
 
 async fn update_forward(
-    port: u16,
+    external: u16,
     prev: Option<SocketAddr>,
     next: Option<SocketAddr>,
 ) -> Result<(), Error> {
     if prev != next {
         if let Some(prev) = prev {
-            unforward(START9_BRIDGE_IFACE, port, prev).await?;
+            unforward(START9_BRIDGE_IFACE, external, prev).await?;
         }
         if let Some(next) = next {
-            forward(START9_BRIDGE_IFACE, port, next).await?;
+            forward(START9_BRIDGE_IFACE, external, next).await?;
         }
     }
     Ok(())
@@ -121,7 +106,7 @@ async fn update_forward(
 
 // iptables -I FORWARD -o br-start9 -p tcp -d 172.18.0.2 --dport 8333 -j ACCEPT
 // iptables -t nat -I PREROUTING -p tcp --dport 32768 -j DNAT --to 172.18.0.2:8333
-async fn forward(iface: &str, port: u16, addr: SocketAddr) -> Result<(), Error> {
+async fn forward(iface: &str, external: u16, addr: SocketAddr) -> Result<(), Error> {
     Command::new("iptables")
         .arg("-I")
         .arg("FORWARD")
@@ -145,7 +130,7 @@ async fn forward(iface: &str, port: u16, addr: SocketAddr) -> Result<(), Error> 
         .arg("-p")
         .arg("tcp")
         .arg("--dport")
-        .arg(port.to_string())
+        .arg(external.to_string())
         .arg("-j")
         .arg("DNAT")
         .arg("--to")
@@ -157,7 +142,7 @@ async fn forward(iface: &str, port: u16, addr: SocketAddr) -> Result<(), Error> 
 
 // iptables -D FORWARD -o br-start9 -p tcp -d 172.18.0.2 --dport 8333 -j ACCEPT
 // iptables -t nat -D PREROUTING -p tcp --dport 32768 -j DNAT --to 172.18.0.2:8333
-async fn unforward(iface: &str, port: u16, addr: SocketAddr) -> Result<(), Error> {
+async fn unforward(iface: &str, external: u16, addr: SocketAddr) -> Result<(), Error> {
     Command::new("iptables")
         .arg("-D")
         .arg("FORWARD")
@@ -181,7 +166,7 @@ async fn unforward(iface: &str, port: u16, addr: SocketAddr) -> Result<(), Error
         .arg("-p")
         .arg("tcp")
         .arg("--dport")
-        .arg(port.to_string())
+        .arg(external.to_string())
         .arg("-j")
         .arg("DNAT")
         .arg("--to")

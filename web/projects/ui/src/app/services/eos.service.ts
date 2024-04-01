@@ -14,13 +14,13 @@ export class EOSService {
   eos?: MarketplaceEOS
   updateAvailable$ = new BehaviorSubject<boolean>(false)
 
-  readonly updating$ = this.patch.watch$('server-info', 'status-info').pipe(
-    map(status => !!status['update-progress'] || status.updated),
+  readonly updating$ = this.patch.watch$('serverInfo', 'statusInfo').pipe(
+    map(status => !!status.updateProgress || status.updated),
     distinctUntilChanged(),
   )
 
   readonly backingUp$ = this.patch
-    .watch$('server-info', 'status-info', 'current-backup')
+    .watch$('serverInfo', 'statusInfo', 'currentBackup')
     .pipe(
       map(obj => !!obj),
       distinctUntilChanged(),

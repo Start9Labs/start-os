@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { TuiFileLike } from '@taiga-ui/kit'
-import { ValueSpecFile } from '@start9labs/start-sdk/lib/config/configTypes'
+import { CT } from '@start9labs/start-sdk'
 import { Control } from '../control'
 
 @Component({
@@ -8,4 +8,4 @@ import { Control } from '../control'
   templateUrl: './form-file.component.html',
   styleUrls: ['./form-file.component.scss'],
 })
-export class FormFileComponent extends Control<ValueSpecFile, TuiFileLike> {}
+export class FormFileComponent extends Control<CT.ValueSpecFile, TuiFileLike> {}

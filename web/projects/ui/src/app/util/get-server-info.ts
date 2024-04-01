@@ -5,5 +5,5 @@ import { firstValueFrom } from 'rxjs'
 export async function getServerInfo(
   patch: PatchDB<DataModel>,
 ): Promise<ServerInfo> {
-  return firstValueFrom(patch.watch$('server-info'))
+  return firstValueFrom(patch.watch$('serverInfo'))
 }

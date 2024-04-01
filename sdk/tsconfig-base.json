@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "module": "esnext",
+    "strict": true,
+    "outDir": "dist",
+    "preserveConstEnums": true,
+    "sourceMap": true,
+    "target": "es2017",
+    "pretty": true,
+    "declaration": true,
+    "noImplicitAny": true,
+    "esModuleInterop": true,
+    "types": ["node", "jest"],
+    "moduleResolution": "node",
+    "skipLibCheck": true
+  },
+  "include": ["lib/**/*"],
+  "exclude": ["lib/**/*.spec.ts", "lib/**/*.gen.ts", "list", "node_modules"]
+}

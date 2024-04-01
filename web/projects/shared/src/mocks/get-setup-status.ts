@@ -18,8 +18,8 @@ export async function getSetupStatusMock(): Promise<SetupStatus | null> {
   const progress = tries - 1
 
   return {
-    'bytes-transferred': restoreOrMigrate ? progress : 0,
-    'total-bytes': restoreOrMigrate ? total : null,
+    bytesTransferred: restoreOrMigrate ? progress : 0,
+    totalBytes: restoreOrMigrate ? total : null,
     complete: progress === total,
   }
 }

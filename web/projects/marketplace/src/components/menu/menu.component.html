@@ -1,0 +1,112 @@
+<header>
+  <ng-container *tuiLet="store$ | async as store">
+    <div class="title">
+      <store-icon
+        [class.tui-skeleton]="!store"
+        [class.tui-skeleton_rounded]="!store"
+        size="64px"
+        [url]="store?.url || ''"
+        [marketplace]="iconConfig"
+      ></store-icon>
+      <h1 [class.tui-skeleton]="!store">
+        {{ store?.info?.name || 'Loading store' }}
+      </h1>
+      <!-- change registry modal -->
+      <ng-content select="[slot=desktop]"></ng-content>
+    </div>
+    <!-- mobile nav -->
+    <div class="nav-mobile">
+      <div class="nav-mobile-bar">
+        <!-- mobile search -->
+        <marketplace-search
+          [(query)]="query"
+          (queryChange)="onQueryChange($event)"
+        ></marketplace-search>
+        <button
+          tuiButton
+          type="button"
+          appearance="flat"
+          [pseudoActive]="false"
+          (click)="toggleMenu(true)"
+          (tuiActiveZoneChange)="toggleMenu($event)"
+          [style.--tui-padding]="'1rem'"
+        >
+          <store-icon
+            size="48px"
+            [style.height]="'48px'"
+            [style.border-radius]="'100%'"
+            [url]="store?.url || ''"
+            [marketplace]="iconConfig"
+            [class.tui-skeleton]="!store"
+            [class.tui-skeleton_rounded]="!store"
+          ></store-icon>
+          <nav
+            *tuiSidebar="open; direction: 'right'; autoWidth: true"
+            class="nav-mobile-sidebar divide-bar"
+          >
+            <div class="nav-mobile-sidebar-top">
+              <h1 [class.tui-skeleton]="!store">
+                {{ store?.info?.name }}
+              </h1>
+              <button
+                [style.--tui-padding]="0"
+                tuiButton
+                type="button"
+                appearance="icon"
+                icon="tuiIconClose"
+                (tuiActiveZoneChange)="toggleMenu($event)"
+                (click)="toggleMenu(false)"
+              ></button>
+            </div>
+            <!-- change registry modal -->
+            <ng-content select="[slot=mobile]"></ng-content>
+            <div class="nav-mobile-sidebar-bottom divide-bar">
+              <marketplace-categories
+                [categories]="store?.info?.categories"
+                [category]="query ? '' : category"
+                (categoryChange)="onCategoryChange($event); toggleMenu(false)"
+              ></marketplace-categories>
+              <a
+                target="_blank"
+                href="https://github.com/Start9Labs/service-pipeline#readme"
+              >
+                <!-- @TODO need rocket icon -->
+                <tui-icon
+                  tuiAppearance="icon"
+                  icon="tuiIconExternalLinkLarge"
+                ></tui-icon>
+                <span>Launch your project</span>
+              </a>
+            </div>
+          </nav>
+        </button>
+      </div>
+    </div>
+    <!-- desktop nav -->
+    <nav class="nav-desktop">
+      <!-- desktop search -->
+      <marketplace-search
+        [query]="query"
+        (queryChange)="onQueryChange($event)"
+      ></marketplace-search>
+      <div class="nav-desktop-container">
+        <marketplace-categories
+          [categories]="store?.info?.categories"
+          [category]="query ? '' : category"
+          (categoryChange)="onCategoryChange($event)"
+        ></marketplace-categories>
+        <a
+          target="_blank"
+          href="https://github.com/Start9Labs/service-pipeline#readme"
+        >
+          <!-- @TODO need rocket icon -->
+          <tui-icon
+            tuiAppearance="icon"
+            icon="tuiIconExternalLinkLarge"
+          ></tui-icon>
+          <span>Launch your project</span>
+        </a>
+      </div>
+    </nav>
+  </ng-container>
+</header>

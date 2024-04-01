@@ -22,19 +22,26 @@ name = "startos"
 path = "src/lib.rs"
 
 [[bin]]
+name = "containerbox"
+path = "src/main.rs"
+
+[[bin]]
+name = "start-cli"
+path = "src/main.rs"
+
+[[bin]]
 name = "startbox"
 path = "src/main.rs"
 
 [features]
-avahi = ["avahi-sys"]
-avahi-alias = ["avahi"]
 cli = []
+container-runtime = []
 daemon = []
-default = ["cli", "sdk", "daemon", "js-engine"]
+default = ["cli", "daemon"]
 dev = []
-docker = []
-sdk = []
 unstable = ["console-subscriber", "tokio/tracing"]
+docker = []
+test = []
 
 [dependencies]
 aes = { version = "0.7.5", features = ["ctr"] }
@@ -45,18 +52,16 @@ async-compression = { version = "0.4.4", features = [
 ] }
 async-stream = "0.3.5"
 async-trait = "0.1.74"
-avahi-sys = { git = "https://github.com/Start9Labs/avahi-sys", version = "0.10.0", branch = "feature/dynamic-linking", features = [
-  "dynamic",
-], optional = true }
+axum = { version = "0.7.3", features = ["ws"] }
+axum-server = "0.6.0"
 base32 = "0.4.0"
 base64 = "0.21.4"
 base64ct = "1.6.0"
 basic-cookies = "0.1.4"
-bimap = { version = "0.6.2", features = ["serde"] }
 blake3 = "1.5.0"
 bytes = "1"
 chrono = { version = "0.4.31", features = ["serde"] }
-clap = "3.2.25"
+clap = "4.4.12"
 color-eyre = "0.6.2"
 console = "0.15.7"
 console-subscriber = { version = "0.2", optional = true }
@@ -66,14 +71,14 @@ current_platform = "0.2.0"
 digest = "0.10.7"
 divrem = "1.0.0"
 ed25519 = { version = "2.2.3", features = ["pkcs8", "pem", "alloc"] }
-ed25519-dalek = { version = "2.0.0", features = [
+ed25519-dalek = { version = "2.1.1", features = [
   "serde",
   "zeroize",
   "rand_core",
   "digest",
+  "pkcs8",
 ] }
 ed25519-dalek-v1 = { package = "ed25519-dalek", version = "1" }
-container-init = { path = "../container-init" }
 emver = { version = "0.1.7", git = "https://github.com/Start9Labs/emver-rs.git", features = [
   "serde",
 ] }
@@ -83,13 +88,11 @@ gpt = "3.1.0"
 helpers = { path = "../helpers" }
 hex = "0.4.3"
 hmac = "0.12.1"
-http = "0.2.9"
-hyper = { version = "0.14.27", features = ["full"] }
-hyper-ws-listener = "0.3.0"
-id-pool = { version = "0.2.2", features = [
-  "u16",
+http = "1.0.0"
+id-pool = { version = "0.2.2", default-features = false, features = [
   "serde",
-], default-features = false }
+  "u16",
+] }
 imbl = "2.0.2"
 imbl-value = { git = "https://github.com/Start9Labs/imbl-value.git" }
 include_dir = "0.7.3"
@@ -99,12 +102,13 @@ integer-encoding = { version = "4.0.0", features = ["tokio_async"] }
 ipnet = { version = "2.8.0", features = ["serde"] }
 iprange = { version = "0.6.7", features = ["serde"] }
 isocountry = "0.3.2"
-itertools = "0.11.0"
+itertools = "0.12.0"
 jaq-core = "0.10.1"
 jaq-std = "0.10.0"
 josekit = "0.8.4"
-js-engine = { path = '../js-engine', optional = true }
 jsonpath_lib = { git = "https://github.com/Start9Labs/jsonpath.git" }
+lazy_async_pool = "0.3.3"
+lazy_format = "2.0"
 lazy_static = "1.4.0"
 libc = "0.2.149"
 log = "0.4.20"
@@ -115,6 +119,7 @@ nix = { version = "0.27.1", features = ["user", "process", "signal", "fs"] }
 nom = "7.1.3"
 num = "0.4.1"
 num_enum = "0.7.0"
+once_cell = "1.19.0"
 openssh-keys = "0.6.2"
 openssl = { version = "0.10.57", features = ["vendored"] }
 p256 = { version = "0.13.2", features = ["pem"] }
@@ -129,12 +134,12 @@ proptest = "1.3.1"
 proptest-derive = "0.4.0"
 rand = { version = "0.8.5", features = ["std"] }
 regex = "1.10.2"
-reqwest = { version = "0.11.22", features = ["stream", "json", "socks"] }
+reqwest = { version = "0.11.23", features = ["stream", "json", "socks"] }
 reqwest_cookie_store = "0.6.0"
 rpassword = "7.2.0"
-rpc-toolkit = "0.2.2"
+rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", branch = "refactor/traits" }
 rust-argon2 = "2.0.0"
-scopeguard = "1.1" # because avahi-sys fucks your shit up
+rustyline-async = "0.4.1"
 semver = { version = "1.0.20", features = ["serde"] }
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_cbor = { package = "ciborium", version = "0.2.1" }
@@ -143,6 +148,7 @@ serde_toml = { package = "toml", version = "0.8.2" }
 serde_with = { version = "3.4.0", features = ["macros", "json"] }
 serde_yaml = "0.9.25"
 sha2 = "0.10.2"
+shell-words = "1"
 simple-logging = "2.0.2"
 sqlx = { version = "0.7.2", features = [
   "chrono",
@@ -155,20 +161,23 @@ stderrlog = "0.5.4"
 tar = "0.4.40"
 thiserror = "1.0.49"
 tokio = { version = "1", features = ["full"] }
-tokio-rustls = "0.24.1"
+tokio-rustls = "0.25.0"
 tokio-socks = "0.5.1"
 tokio-stream = { version = "0.1.14", features = ["io-util", "sync", "net"] }
 tokio-tar = { git = "https://github.com/dr-bonez/tokio-tar.git" }
-tokio-tungstenite = { version = "0.20.1", features = ["native-tls"] }
+tokio-tungstenite = { version = "0.21.0", features = ["native-tls"] }
 tokio-util = { version = "0.7.9", features = ["io"] }
-torut = "0.2.1"
+torut = { git = "https://github.com/Start9Labs/torut.git", branch = "update/dependencies", features = [
+  "serialize",
+] }
 tracing = "0.1.39"
 tracing-error = "0.2.0"
 tracing-futures = "0.2.5"
 tracing-journald = "0.3.0"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 trust-dns-server = "0.23.1"
-typed-builder = "0.17.0"
+ts-rs = { git = "https://github.com/dr-bonez/ts-rs.git", branch = "feature/top-level-type-override" } # "8.1.0"
+typed-builder = "0.18.0"
 url = { version = "2.4.1", features = ["serde"] }
 urlencoding = "2.1.3"
 uuid = { version = "1.4.1", features = ["v4"] }
