@@ -41,6 +41,7 @@ qemu-guest-agent
 rsync
 samba-common-bin
 smartmontools
+socat
 sqlite3
 squashfs-tools
 sudo
