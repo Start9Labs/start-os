@@ -43,9 +43,10 @@ pub struct DepInfo {
     pub optional: bool,
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct ConfigureParams {
     dependent_id: PackageId,
     dependency_id: PackageId,

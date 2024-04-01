@@ -22,6 +22,7 @@ use tokio::time::Instant;
 use torut::control::{AsyncEvent, AuthenticatedConn, ConnError};
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::logs::{
@@ -104,9 +105,10 @@ pub fn tor() -> ParentHandler {
                 .with_remote_cli::<CliContext>(),
         )
 }
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct ResetParams {
     #[arg(name = "wipe-state", short = 'w', long = "wipe-state")]
     wipe_state: bool,
@@ -142,11 +144,13 @@ pub async fn list_services(ctx: RpcContext, _: Empty) -> Result<Vec<OnionAddress
     ctx.net_controller.tor.list_services().await
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct LogsParams {
     #[arg(short = 'l', long = "limit")]
+    #[ts(type = "number | null")]
     limit: Option<usize>,
     #[arg(short = 'c', long = "cursor")]
     cursor: Option<String>,

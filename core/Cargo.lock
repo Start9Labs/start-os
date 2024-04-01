@@ -5400,7 +5400,7 @@ checksum = "3528ecfd12c466c6f163363caf2d02a71161dd5e1cc6ae7b34207ea2d42d81ed"
 [[package]]
 name = "ts-rs"
 version = "8.1.0"
-source = "git+https://github.com/dr-bonez/ts-rs.git?branch=feature/top-level-type-override#3f7ff0f0f418c7fa1f1cf6b48697ca9e74f68201"
+source = "git+https://github.com/dr-bonez/ts-rs.git?branch=feature/top-level-as#d5f359d803158e06f47977a6f785878a82221d4f"
 dependencies = [
  "thiserror",
  "ts-rs-macros",
@@ -5409,7 +5409,7 @@ dependencies = [
 [[package]]
 name = "ts-rs-macros"
 version = "8.1.0"
-source = "git+https://github.com/dr-bonez/ts-rs.git?branch=feature/top-level-type-override#3f7ff0f0f418c7fa1f1cf6b48697ca9e74f68201"
+source = "git+https://github.com/dr-bonez/ts-rs.git?branch=feature/top-level-as#d5f359d803158e06f47977a6f785878a82221d4f"
 dependencies = [
  "Inflector",
  "proc-macro2",

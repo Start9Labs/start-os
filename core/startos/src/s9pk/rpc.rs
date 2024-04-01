@@ -8,6 +8,7 @@ use rpc_toolkit::{from_fn_async, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::process::Command;
+use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::prelude::*;
@@ -67,7 +68,8 @@ fn inspect() -> ParentHandler<S9pkPath> {
         )
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 struct AddImageParams {
     id: ImageId,
     image: String,
@@ -183,7 +185,8 @@ async fn add_image(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
 struct EditManifestParams {
     expression: String,
 }

@@ -4,14 +4,16 @@ use models::PackageId;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::Error;
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct ControlParams {
     pub id: PackageId,
 }

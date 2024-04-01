@@ -9,6 +9,7 @@ use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{command, from_fn_async, AnyContext, CallRemote, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::DatabaseModel;
@@ -20,7 +21,8 @@ use crate::util::crypto::EncryptedWire;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::{ensure_code, Error, ResultExt};
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, TS)]
+#[ts(as = "BTreeMap::<String, Session>")]
 pub struct Sessions(pub BTreeMap<InternedString, Session>);
 impl Sessions {
     pub fn new() -> Self {
@@ -38,8 +40,9 @@ impl Map for Sessions {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, TS)]
 #[serde(untagged)]
+#[ts(export)]
 pub enum PasswordType {
     EncryptedWire(EncryptedWire),
     String(String),
@@ -177,14 +180,16 @@ pub fn check_password_against_db(db: &DatabaseModel, password: &str) -> Result<(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct LoginParams {
     password: Option<PasswordType>,
     #[serde(default)]
     user_agent: Option<String>,
     #[serde(default)]
+    #[ts(type = "any")]
     metadata: Value,
 }
 
@@ -218,10 +223,12 @@ pub async fn login_impl(
         .await
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct LogoutParams {
+    #[ts(type = "string")]
     session: InternedString,
 }
 
@@ -234,18 +241,25 @@ pub async fn logout(
     ))
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct Session {
+    #[ts(type = "string")]
     pub logged_in: DateTime<Utc>,
+    #[ts(type = "string")]
     pub last_active: DateTime<Utc>,
+    #[ts(skip)]
     pub user_agent: Option<String>,
+    #[ts(type = "any")]
     pub metadata: Value,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct SessionList {
+    #[ts(type = "string")]
     current: InternedString,
     sessions: Sessions,
 }
@@ -303,11 +317,13 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) {
     table.print_tty(false).unwrap();
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct ListParams {
     #[arg(skip)]
+    #[ts(skip)]
     session: InternedString,
 }
 
@@ -338,9 +354,10 @@ impl AsLogoutSessionId for KillSessionId {
     }
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct KillParams {
     ids: Vec<String>,
 }
@@ -351,9 +368,10 @@ pub async fn kill(ctx: RpcContext, KillParams { ids }: KillParams) -> Result<(),
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct ResetPasswordParams {
     old_password: Option<PasswordType>,
     new_password: Option<PasswordType>,

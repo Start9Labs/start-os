@@ -5,12 +5,14 @@ use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
+use ts_rs::TS;
 
 use super::FileSystem;
 use crate::prelude::*;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(concrete(LogicalName = std::path::PathBuf))]
 pub struct BlockDev<LogicalName: AsRef<Path>> {
     logicalname: LogicalName,
 }

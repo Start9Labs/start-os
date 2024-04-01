@@ -15,6 +15,9 @@ use josekit::jwk::Jwk;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use tracing::instrument;
+use ts_rs::TS;
+
+use crate::prelude::*;
 
 pub fn pbkdf2(password: impl AsRef<[u8]>, salt: impl AsRef<[u8]>) -> CipherKey<Aes256Ctr> {
     let mut aeskey = CipherKey::<Aes256Ctr>::default();
@@ -53,9 +56,11 @@ pub fn decrypt_slice(input: impl AsRef<[u8]>, password: impl AsRef<[u8]>) -> Vec
     res
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[ts(export)]
 pub struct EncryptedWire {
-    encrypted: serde_json::Value,
+    #[ts(type = "any")]
+    encrypted: Value,
 }
 impl EncryptedWire {
     #[instrument(skip_all)]

@@ -14,6 +14,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::try_join;
 use torut::onion::OnionAddressV3;
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::account::AccountInfo;
 use crate::backup::restore::recover_full_embassy;
@@ -99,10 +100,11 @@ async fn setup_init(
     ))
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct AttachParams {
-    #[serde(rename = "embassy-password")]
+    #[serde(rename = "startOsPassword")]
     password: Option<EncryptedWire>,
     guid: Arc<String>,
 }
@@ -210,8 +212,9 @@ pub fn cifs() -> ParentHandler {
     ParentHandler::new().subcommand("verify", from_fn_async(verify_cifs).no_cli())
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct VerifyCifsParams {
     hostname: String,
     path: PathBuf,
@@ -245,7 +248,7 @@ pub async fn verify_cifs(
     start_os.ok_or_else(|| Error::new(eyre!("No Backup Found"), crate::ErrorKind::NotFound))
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(tag = "type")]
 #[serde(rename_all = "camelCase")]
 pub enum RecoverySource {
@@ -253,8 +256,9 @@ pub enum RecoverySource {
     Backup { target: BackupTargetFS },
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct ExecuteParams {
     start_os_logicalname: PathBuf,
     start_os_password: EncryptedWire,

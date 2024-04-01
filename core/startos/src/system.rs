@@ -12,6 +12,7 @@ use tokio::process::Command;
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::disk::util::{get_available, get_used};
@@ -73,9 +74,10 @@ pub async fn enable_zram() -> Result<(), Error> {
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct ZramParams {
     enable: bool,
 }
@@ -135,9 +137,10 @@ fn display_governor_info(params: WithIoFormat<GovernorParams>, result: GovernorI
     table.print_tty(false).unwrap();
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct GovernorParams {
     set: Option<Governor>,
 }
@@ -229,11 +232,13 @@ pub async fn time(ctx: RpcContext, _: Empty) -> Result<TimeInfo, Error> {
         uptime: ctx.start_time.elapsed().as_secs(),
     })
 }
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct LogsParams {
     #[arg(short = 'l', long = "limit")]
+    #[ts(type = "number | null")]
     limit: Option<usize>,
     #[arg(short = 'c', long = "cursor")]
     cursor: Option<String>,
@@ -313,11 +318,13 @@ pub async fn logs_follow(
 ) -> Result<LogFollowResponse, Error> {
     follow_logs(ctx, LogSource::System, limit).await
 }
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct KernelLogsParams {
     #[arg(short = 'l', long = "limit")]
+    #[ts(type = "number | null")]
     limit: Option<usize>,
     #[arg(short = 'c', long = "cursor")]
     cursor: Option<String>,

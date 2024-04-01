@@ -23,9 +23,10 @@ pub fn inspect() -> ParentHandler {
         .subcommand("docker-images", from_fn_async(docker_images).no_display())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct HashParams {
     path: PathBuf,
 }
@@ -38,9 +39,10 @@ pub async fn hash(_: CliContext, HashParams { path }: HashParams) -> Result<Stri
         .to_owned())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct ManifestParams {
     path: PathBuf,
     #[arg(long = "no-verify")]
@@ -56,9 +58,10 @@ pub async fn manifest(
     todo!()
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct InspectParams {
     path: PathBuf,
     #[arg(long = "no-verify")]
@@ -88,9 +91,10 @@ pub async fn icon(
     .await?;
     Ok(())
 }
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct InstructionParams {
     path: PathBuf,
     #[arg(long = "no-verify")]
