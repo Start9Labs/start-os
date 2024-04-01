@@ -9,7 +9,7 @@ import { Daemons } from "./mainFn/Daemons"
 import { PathBuilder, StorePath } from "./store/PathBuilder"
 import { ExposedStorePaths } from "./store/setupExposeStore"
 import { UrlString } from "./util/getServiceInterface"
-
+export * from "../../core/startos/bindings"
 export { SDKManifest } from "./manifest/ManifestTypes"
 
 export type ExportedAction = (options: {
