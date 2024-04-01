@@ -1,3 +1,4 @@
+use std::io::Cursor;
 use std::path::Path;
 
 use tokio::process::Command;
@@ -23,8 +24,8 @@ pub async fn btrfs_check_repair(logicalname: impl AsRef<Path>) -> Result<Require
     Command::new("btrfs")
         .arg("check")
         .arg("--repair")
-        .arg("--force")
         .arg(logicalname.as_ref())
+        .input(Some(&mut Cursor::new(b"y\n")))
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
 
