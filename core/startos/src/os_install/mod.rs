@@ -116,7 +116,6 @@ async fn partition(disk: &mut DiskInfo, overwrite: bool) -> Result<OsPartitionIn
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct ExecuteParams {
     logicalname: PathBuf,
     #[arg(short = 'o')]

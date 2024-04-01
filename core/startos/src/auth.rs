@@ -183,7 +183,6 @@ pub fn check_password_against_db(db: &DatabaseModel, password: &str) -> Result<(
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct LoginParams {
     password: Option<PasswordType>,
     #[serde(default)]
@@ -226,7 +225,6 @@ pub async fn login_impl(
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct LogoutParams {
     #[ts(type = "string")]
     session: InternedString,
@@ -320,7 +318,6 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) {
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct ListParams {
     #[arg(skip)]
     #[ts(skip)]
@@ -357,7 +354,6 @@ impl AsLogoutSessionId for KillSessionId {
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct KillParams {
     ids: Vec<String>,
 }
@@ -371,7 +367,6 @@ pub async fn kill(ctx: RpcContext, KillParams { ids }: KillParams) -> Result<(),
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct ResetPasswordParams {
     old_password: Option<PasswordType>,
     new_password: Option<PasswordType>,
