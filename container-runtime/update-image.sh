@@ -19,7 +19,7 @@ if [ "$ARCH" != "$(uname -m)" ]; then
 fi
 
 echo "nameserver 8.8.8.8" | sudo tee tmp/combined/etc/resolv.conf # TODO - delegate to host resolver?
-sudo chroot tmp/combined $QEMU /sbin/apk add nodejs
+sudo chroot tmp/combined $QEMU /sbin/apk add nodejs rsync
 sudo mkdir -p tmp/combined/usr/lib/startos/
 sudo rsync -a --copy-unsafe-links dist/ tmp/combined/usr/lib/startos/init/
 sudo cp containerRuntime.rc tmp/combined/etc/init.d/containerRuntime
