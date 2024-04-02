@@ -2,4 +2,11 @@
 import type { ExportedIpHostname } from "./ExportedIpHostname";
 import type { ExportedOnionHostname } from "./ExportedOnionHostname";
 
-export type ExportedHostnameInfo = { "kind": "ip", networkInterfaceId: string, public: boolean, hostname: ExportedIpHostname, } | { "kind": "onion", hostname: ExportedOnionHostname, };
+export type ExportedHostnameInfo =
+  | {
+      kind: "ip";
+      networkInterfaceId: string;
+      public: boolean;
+      hostname: ExportedIpHostname;
+    }
+  | { kind: "onion"; hostname: ExportedOnionHostname };

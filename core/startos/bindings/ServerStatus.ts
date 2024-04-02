@@ -3,4 +3,10 @@ import type { BackupProgress } from "./BackupProgress";
 import type { PackageId } from "./PackageId";
 import type { UpdateProgress } from "./UpdateProgress";
 
-export type ServerStatus = { backupProgress: { [key: PackageId]: BackupProgress } | null, updated: boolean, updateProgress: UpdateProgress | null, shuttingDown: boolean, restarting: boolean, };
+export type ServerStatus = {
+  backupProgress: { [key: PackageId]: BackupProgress } | null;
+  updated: boolean;
+  updateProgress: UpdateProgress | null;
+  shuttingDown: boolean;
+  restarting: boolean;
+};

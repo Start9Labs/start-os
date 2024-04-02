@@ -9,14 +9,14 @@ IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo 
 BINS := core/target/$(ARCH)-unknown-linux-musl/release/startbox core/target/$(ARCH)-unknown-linux-musl/release/containerbox
 WEB_UIS := web/dist/raw/ui web/dist/raw/setup-wizard web/dist/raw/diagnostic-ui web/dist/raw/install-wizard
 FIRMWARE_ROMS := ./firmware/$(PLATFORM) $(shell jq --raw-output '.[] | select(.platform[] | contains("$(PLATFORM)")) | "./firmware/$(PLATFORM)/" + .id + ".rom.gz"' build/lib/firmware.json)
-BUILD_SRC := $(shell git ls-files build) build/lib/depends build/lib/conflicts build/lib/container-runtime/rootfs.squashfs $(FIRMWARE_ROMS)
+BUILD_SRC := $(shell git ls-files build) build/lib/depends build/lib/conflicts container-runtime/rootfs.$(ARCH).squashfs $(FIRMWARE_ROMS)
 DEBIAN_SRC := $(shell git ls-files debian/)
 IMAGE_RECIPE_SRC := $(shell git ls-files image-recipe/)
 STARTD_SRC := core/startos/startd.service $(BUILD_SRC)
 COMPAT_SRC := $(shell git ls-files system-images/compat/)
 UTILS_SRC := $(shell git ls-files system-images/utils/)
 BINFMT_SRC := $(shell git ls-files system-images/binfmt/)
-CORE_SRC := $(shell git ls-files core) $(shell git ls-files --recurse-submodules patch-db) web/dist/static web/patchdb-ui-seed.json $(GIT_HASH_FILE)
+CORE_SRC := $(shell git ls-files -- core ':!:core/startos/bindings/*') $(shell git ls-files --recurse-submodules patch-db) web/dist/static web/patchdb-ui-seed.json $(GIT_HASH_FILE)
 WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules web/config.json patch-db/client/dist web/patchdb-ui-seed.json
 WEB_UI_SRC := $(shell git ls-files web/projects/ui)
 WEB_SETUP_WIZARD_SRC := $(shell git ls-files web/projects/setup-wizard)
@@ -25,7 +25,7 @@ WEB_INSTALL_WIZARD_SRC := $(shell git ls-files web/projects/install-wizard)
 PATCH_DB_CLIENT_SRC := $(shell git ls-files --recurse-submodules patch-db/client)
 GZIP_BIN := $(shell which pigz || which gzip)
 TAR_BIN := $(shell which gtar || which tar)
-COMPILED_TARGETS := $(BINS) system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar
+COMPILED_TARGETS := $(BINS) system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar container-runtime/rootfs.$(ARCH).squashfs
 ALL_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE) $(COMPILED_TARGETS) $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-musl/release/pi-beep; fi)  $(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]; then echo cargo-deps/$(ARCH)-unknown-linux-musl/release/tokio-console; fi') $(PLATFORM_FILE) sdk/lib/test 
 
 ifeq ($(REMOTE),)
@@ -53,6 +53,9 @@ endif
 
 all: $(ALL_TARGETS)
 
+touch:
+	touch $(ALL_TARGETS)
+
 metadata: $(VERSION_FILE) $(PLATFORM_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
 
 sudo:
@@ -76,7 +79,7 @@ clean:
 	rm -rf build/lib/firmware
 	rm -rf container-runtime/dist
 	rm -rf container-runtime/node_modules
-	rm -f build/lib/container-runtime/rootfs.squashfs
+	rm -f container-runtime/*.squashfs
 	rm -rf sdk/dist
 	rm -rf sdk/node_modules
 	rm -f ENVIRONMENT.txt
@@ -88,7 +91,9 @@ format:
 	cd core && cargo +nightly fmt
 
 test: $(CORE_SRC) $(ENVIRONMENT_FILE) 
-	cd core && cargo build && cargo test
+	(cd core && cargo build && cargo test)
+	npm --prefix sdk exec -- prettier -w ./core/startos/bindings/*.ts
+	(cd sdk && make test)
 
 cli:
 	cd core && ./install-cli.sh
@@ -125,6 +130,8 @@ install: $(ALL_TARGETS)
 	$(call mkdir,$(DESTDIR)/usr/lib)
 	$(call rm,$(DESTDIR)/usr/lib/startos)
 	$(call cp,build/lib,$(DESTDIR)/usr/lib/startos)
+	$(call mkdir,$(DESTDIR)/usr/lib/startos/container-runtime)
+	$(call cp,container-runtime/rootfs.$(ARCH).squashfs,$(DESTDIR)/usr/lib/startos/container-runtime/rootfs.squashfs)
 
 	$(call cp,PLATFORM.txt,$(DESTDIR)/usr/lib/startos/PLATFORM.txt)
 	$(call cp,ENVIRONMENT.txt,$(DESTDIR)/usr/lib/startos/ENVIRONMENT.txt)
@@ -166,31 +173,30 @@ emulate-reflash: $(ALL_TARGETS)
 upload-ota: results/$(BASENAME).squashfs
 	TARGET=$(TARGET) KEY=$(KEY) ./upload-ota.sh
 
-container-runtime/alpine.squashfs: $(PLATFORM_FILE)
+container-runtime/alpine.$(ARCH).squashfs:
 	ARCH=$(ARCH) ./container-runtime/download-base-image.sh
 
 container-runtime/node_modules: container-runtime/package.json container-runtime/package-lock.json sdk/dist
 	npm --prefix container-runtime ci
 	touch container-runtime/node_modules
 
-core/startos/bindings: $(shell git ls-files core) $(ENVIRONMENT_FILE) $(PLATFORM_FILE)
+core/startos/bindings: $(shell git ls-files -- core ':!:core/startos/bindings/*') $(ENVIRONMENT_FILE)
 	rm -rf core/startos/bindings
-	(cd core/ && cargo test)
+	(cd core/ && cargo test --features=test)
+	npm --prefix sdk exec -- prettier -w ./core/startos/bindings/*.ts
 
-sdk/lib/test: $(shell git ls-files sdk) core/startos/bindings
-	(cd sdk && make test)
-
-sdk/dist: $(shell git ls-files sdk)
+sdk/dist: $(shell git ls-files sdk) core/startos/bindings
 	(cd sdk && make bundle)
 
-container-runtime/dist: container-runtime/node_modules $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
+# TODO: make container-runtime its own makefile?
+container-runtime/dist/index.js: container-runtime/node_modules $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
 	npm --prefix container-runtime run build
 
 container-runtime/dist/node_modules container-runtime/dist/package.json container-runtime/dist/package-lock.json: container-runtime/package.json container-runtime/package-lock.json sdk/dist container-runtime/install-dist-deps.sh
 	./container-runtime/install-dist-deps.sh
 	touch container-runtime/dist/node_modules
 
-build/lib/container-runtime/rootfs.squashfs: container-runtime/alpine.squashfs container-runtime/containerRuntime.rc container-runtime/update-image.sh container-runtime/dist container-runtime/dist/node_modules core/target/$(ARCH)-unknown-linux-musl/release/containerbox $(PLATFORM_FILE) | sudo
+container-runtime/rootfs.$(ARCH).squashfs: container-runtime/alpine.$(ARCH).squashfs container-runtime/containerRuntime.rc container-runtime/update-image.sh container-runtime/dist/index.js container-runtime/dist/node_modules core/target/$(ARCH)-unknown-linux-musl/release/containerbox | sudo
 	ARCH=$(ARCH) ./container-runtime/update-image.sh
 
 build/lib/depends build/lib/conflicts: build/dpkg-deps/*

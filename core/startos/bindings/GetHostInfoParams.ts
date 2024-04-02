@@ -2,4 +2,9 @@
 import type { Callback } from "./Callback";
 import type { GetHostInfoParamsKind } from "./GetHostInfoParamsKind";
 
-export type GetHostInfoParams = { kind: GetHostInfoParamsKind | null, serviceInterfaceId: string, packageId: string | null, callback: Callback, };
+export type GetHostInfoParams = {
+  kind: GetHostInfoParamsKind | null;
+  serviceInterfaceId: string;
+  packageId: string | null;
+  callback: Callback;
+};

@@ -143,13 +143,7 @@ export type Daemon = {
   [DaemonProof]: never
 }
 
-export type HealthStatus =
-  | `passing`
-  | `disabled`
-  | `starting`
-  | `warning`
-  | `failure`
-
+export type HealthStatus = HealthCheckResult["result"]
 export type SmtpValue = {
   server: string
   port: number

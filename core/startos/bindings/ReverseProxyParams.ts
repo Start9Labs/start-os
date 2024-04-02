@@ -3,4 +3,8 @@ import type { ReverseProxyBind } from "./ReverseProxyBind";
 import type { ReverseProxyDestination } from "./ReverseProxyDestination";
 import type { ReverseProxyHttp } from "./ReverseProxyHttp";
 
-export type ReverseProxyParams = { bind: ReverseProxyBind, dst: ReverseProxyDestination, http: ReverseProxyHttp, };
+export type ReverseProxyParams = {
+  bind: ReverseProxyBind;
+  dst: ReverseProxyDestination;
+  http: ReverseProxyHttp;
+};

@@ -41,6 +41,7 @@ default = ["cli", "daemon"]
 dev = []
 unstable = ["console-subscriber", "tokio/tracing"]
 docker = []
+test = []
 
 [dependencies]
 aes = { version = "0.7.5", features = ["ctr"] }
@@ -75,7 +76,7 @@ ed25519-dalek = { version = "2.1.1", features = [
   "zeroize",
   "rand_core",
   "digest",
-  "pkcs8"
+  "pkcs8",
 ] }
 ed25519-dalek-v1 = { package = "ed25519-dalek", version = "1" }
 emver = { version = "0.1.7", git = "https://github.com/Start9Labs/emver-rs.git", features = [

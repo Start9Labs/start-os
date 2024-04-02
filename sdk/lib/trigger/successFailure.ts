@@ -12,7 +12,7 @@ export function successFailure(o: {
       beforeSuccess.next()
       for (
         let res = await beforeSuccess.next();
-        currentValue?.lastResult !== "passing" && !res.done;
+        currentValue?.lastResult !== "success" && !res.done;
         res = await beforeSuccess.next()
       ) {
         yield
@@ -21,7 +21,7 @@ export function successFailure(o: {
       const duringError = o.duringError(getInput)
       for (
         let res = await duringError.next();
-        currentValue?.lastResult === "passing" && !res.done;
+        currentValue?.lastResult === "success" && !res.done;
         res = await duringError.next()
       ) {
         yield

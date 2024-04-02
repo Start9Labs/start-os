@@ -2,4 +2,8 @@
 import type { DependencyConfigErrors } from "./DependencyConfigErrors";
 import type { MainStatus } from "./MainStatus";
 
-export type Status = { configured: boolean, main: MainStatus, dependencyConfigErrors: DependencyConfigErrors, };
+export type Status = {
+  configured: boolean;
+  main: MainStatus;
+  dependencyConfigErrors: DependencyConfigErrors;
+};

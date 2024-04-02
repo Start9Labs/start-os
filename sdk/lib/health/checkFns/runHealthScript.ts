@@ -32,7 +32,7 @@ export const runHealthScript = async (
     throw { status: "failure", message: errorMessage } as CheckResult
   })
   return {
-    status: "passing",
+    status: "success",
     message: message(res.stdout.toString()),
   } as CheckResult
 }
