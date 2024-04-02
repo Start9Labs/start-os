@@ -135,15 +135,75 @@ export class PolyfillEffects implements oet.Effects {
       term: () => daemon.then((daemon) => daemon.term()),
     }
   }
-  chown(input: { volumeId: string; path: string; uid: string }): Promise<null> {
-    throw new Error("Method not implemented.")
+  async chown(input: {
+    volumeId: string
+    path: string
+    uid: string
+  }): Promise<null> {
+    await startSdk
+      .runCommand(
+        this.effects,
+        this.manifest.main.image,
+        ["chown", "--recursive", input.uid, `/drive/${input.path}`],
+        {
+          mounts: [
+            {
+              path: "/drive",
+              options: {
+                type: "volume",
+                id: input.volumeId,
+                subpath: null,
+                readonly: false,
+              },
+            },
+          ],
+        },
+      )
+      .then((x: any) => ({
+        stderr: x.stderr.toString(),
+        stdout: x.stdout.toString(),
+      }))
+      .then((x) => {
+        if (!!x.stderr) {
+          throw new Error(x.stderr)
+        }
+      })
+    return null
   }
-  chmod(input: {
+  async chmod(input: {
     volumeId: string
     path: string
     mode: string
   }): Promise<null> {
-    throw new Error("Method not implemented.")
+    await startSdk
+      .runCommand(
+        this.effects,
+        this.manifest.main.image,
+        ["chmod", "--recursive", input.mode, `/drive/${input.path}`],
+        {
+          mounts: [
+            {
+              path: "/drive",
+              options: {
+                type: "volume",
+                id: input.volumeId,
+                subpath: null,
+                readonly: false,
+              },
+            },
+          ],
+        },
+      )
+      .then((x: any) => ({
+        stderr: x.stderr.toString(),
+        stdout: x.stdout.toString(),
+      }))
+      .then((x) => {
+        if (!!x.stderr) {
+          throw new Error(x.stderr)
+        }
+      })
+    return null
   }
   sleep(timeMs: number): Promise<null> {
     return new Promise((resolve) => setTimeout(resolve, timeMs))
