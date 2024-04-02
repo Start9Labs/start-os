@@ -380,6 +380,7 @@ pub struct CurrentDependencyInfo {
     pub registry_url: Url,
     #[ts(type = "string")]
     pub version_spec: VersionRange,
+    pub config_satisfied: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]

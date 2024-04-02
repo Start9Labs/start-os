@@ -110,7 +110,7 @@ export type VersionString = string
  */
 export type DependencyConfig = {
   /** During autoconfigure, we have access to effects and local data. We are going to figure out all the data that we need and send it to update. For the sdk it is the desired delta */
-  query(options: { effects: Effects; localConfig: unknown }): Promise<unknown>
+  query(options: { effects: Effects }): Promise<unknown>
   /** This is the second part. Given the query results off the previous function, we will determine what to change the remote config to. In our sdk normall we are going to use the previous as a deep merge. */
   update(options: {
     queryResults: unknown

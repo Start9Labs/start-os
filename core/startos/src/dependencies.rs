@@ -12,7 +12,6 @@ use crate::config::{Config, ConfigSpec, ConfigureContext};
 use crate::context::RpcContext;
 use crate::db::model::package::CurrentDependencies;
 use crate::prelude::*;
-use crate::status::DependencyConfigErrors;
 use crate::Error;
 
 pub fn dependency() -> ParentHandler {
@@ -180,17 +179,23 @@ pub async fn configure_logic(
 #[instrument(skip_all)]
 pub async fn compute_dependency_config_errs(
     ctx: &RpcContext,
-    db: &Peeked,
     id: &PackageId,
-    current_dependencies: &CurrentDependencies,
-    dependency_config: &BTreeMap<PackageId, Config>,
-) -> Result<DependencyConfigErrors, Error> {
-    let mut dependency_config_errs = BTreeMap::new();
-    for (dependency, _dep_info) in current_dependencies.0.iter() {
+    current_dependencies: &mut CurrentDependencies,
+) -> Result<(), Error> {
+    let service_guard = ctx.services.get(id).await;
+    let service = service_guard.as_ref().or_not_found(id)?;
+    for (dep_id, dep_info) in current_dependencies.0.iter_mut() {
         // check if config passes dependency check
-        if let Some(error) = todo!() {
-            dependency_config_errs.insert(dependency.clone(), error);
-        }
+        let Some(dependency) = &*ctx.services.get(dep_id).await else {
+            continue;
+        };
+
+        let dep_config = dependency.get_config().await?.config;
+
+        dep_info.config_satisfied = service
+            .dependency_config(dep_id.clone(), dep_config)
+            .await?
+            .is_none();
     }
-    Ok(DependencyConfigErrors(dependency_config_errs))
+    Ok(())
 }
