@@ -1,6 +1,5 @@
 <button
   *ngFor="let cat of categories || ['', '', '', '', '', '']"
-  routerLink="../"
   (click)="switchCategory(cat)"
   [class.category_selected]="cat === category"
 >

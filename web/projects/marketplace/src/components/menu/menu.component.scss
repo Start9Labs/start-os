@@ -1,11 +1,15 @@
 @import '@taiga-ui/core/styles/taiga-ui-local';
 
+:host {
+  margin: 0;
+  padding: 0;
+}
+
 header {
   @include scrollbar-hidden();
 
-  max-height: 100%;
   // TODO: Theme
-  background: #373a3f;
+  background: #2B2B2F;
   overflow: hidden;
   width: 100%;
   position: fixed;
@@ -18,23 +22,17 @@ header {
     width: 17rem;
     background-color: rgb(var(--tw-color-zinc-700) / 0.9);
     backdrop-filter: blur(40px);
-    min-height: calc(100vh - var(--portal-header-height));
     padding: 2rem 0 1.5rem 0;
-
-    &::after {
-      display: block;
-      position: absolute;
-      top: 0px;
-      bottom: 0px;
-      right: 0px;
-      width: 0.125rem;
-      content: '';
-      background-image: linear-gradient(
+    height: 100%;
+    min-height: 100%;
+    border-image: linear-gradient(
         to bottom,
         rgb(var(--tw-color-zinc-700)),
         rgb(var(--tw-color-zinc-400))
-      );
-    }
+      )
+      1;
+    border-width: 0;
+    border-right: 0.125rem solid;
   }
 
   @media screen and (min-width: 1536px) {
@@ -95,7 +93,6 @@ header {
 
       ::ng-deep a {
         display: flex;
-        justify-content: center;
         gap: 0.5rem;
         padding: 0.5rem;
 

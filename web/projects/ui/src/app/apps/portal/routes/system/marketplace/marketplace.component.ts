@@ -12,87 +12,72 @@ import { MarketplaceTileComponent } from './components/tile.component'
 import { MarketplaceControlsComponent } from './components/controls.component'
 import { MarketplacePreviewComponent } from './modals/preview.component'
 import { MarketplaceSidebarsComponent } from './components/sidebars.component'
+import { TuiScrollbarModule } from '@taiga-ui/core'
 
 @Component({
   standalone: true,
   template: `
     <marketplace-menu />
-    <div class="marketplace-content-wrapper">
-      <div class="marketplace-content-inner">
-        <marketplace-notification [url]="(details$ | async)?.url || ''" />
-        <div class="title-wrapper">
-          <h1>
-            {{ category$ | async | titlecase }}
-          </h1>
+    <tui-scrollbar>
+      <div class="marketplace-content-wrapper">
+        <div class="marketplace-content-inner">
+          <marketplace-notification [url]="(details$ | async)?.url || ''" />
+          <div class="title-wrapper">
+            <h1>
+              {{ category$ | async | titlecase }}
+            </h1>
+          </div>
+          @if (filtered$ | async; as filtered) {
+            <section class="marketplace-content-list">
+              @for (pkg of filtered; track $index) {
+                <marketplace-tile
+                  [pkg]="pkg"
+                  [style.--animation-order]="$index"
+                  class="tile-wrapper"
+                />
+              }
+            </section>
+          } @else {
+            <h1 class="loading-text">
+              Loading
+              <span class="loading-dots"></span>
+            </h1>
+          }
         </div>
-        @if (filtered$ | async; as filtered) {
-          <section class="marketplace-content-list">
-            @for (pkg of filtered; track $index) {
-              <marketplace-tile
-                [pkg]="pkg"
-                [style.--animation-order]="$index"
-                class="tile-wrapper"
-              />
-            }
-          </section>
-        } @else {
-          <h1 class="loading-text">
-            Loading
-            <span class="loading-dots"></span>
-          </h1>
-        }
       </div>
-    </div>
+    </tui-scrollbar>
     <marketplace-sidebars />
   `,
+  host: { class: 'g-page' },
   styles: [
     `
       :host {
-        max-height: 100%;
-        overflow: auto;
-        // TODO: Theme
-        background: #18181b url('/assets/img/background_marketplace.png')
-          no-repeat top right;
-      }
-
-      ::ng-deep menu {
-        margin: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
         padding: 0;
-      }
-
-      ::ng-deep button {
-        background-color: transparent;
-        background-image: none;
+        background: rgb(55 58 63 / 90%)
+          url('/assets/img/background_marketplace.png') no-repeat top right;
       }
 
       .marketplace-content {
         &-wrapper {
-          display: flex;
-          justify-content: space-between;
-          overflow: auto;
-          scroll-behavior: smooth;
-          min-height: 100vh;
-
-          @media (min-width: 640px) {
-            padding-left: 34vw;
-          }
           @media (min-width: 768px) {
-            padding-left: 28vw;
+            padding-left: 17rem;
           }
-          @media (min-width: 1024px) {
-            padding-left: 22vw;
-          }
+
           @media (min-width: 1536px) {
-            padding-left: 280px;
+            padding-left: 18rem;
           }
         }
 
         &-inner {
           padding-top: 6rem;
 
-          @media (min-width: 640px) {
-            padding-top: 0.75rem;
-          }
+          // @media (min-width: 640px) {
+          //   padding-top: 0.75rem;
+          // }
+
           @media (min-width: 768px) {
             padding: 0 2rem 2.5rem 2rem;
           }
@@ -125,7 +110,7 @@ import { MarketplaceSidebarsComponent } from './components/sidebars.component'
           @media (min-width: 768px) {
             padding: 2rem;
           }
-          @media (min-width: 1280px) {
+          @media (min-width: 1024px) {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
           @media (min-width: 1536px) {
@@ -156,6 +141,7 @@ import { MarketplaceSidebarsComponent } from './components/sidebars.component'
     MarketplaceControlsComponent,
     MarketplacePreviewComponent,
     MarketplaceSidebarsComponent,
+    TuiScrollbarModule,
   ],
 })
 export class MarketplaceComponent {
