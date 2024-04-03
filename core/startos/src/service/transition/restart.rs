@@ -2,16 +2,14 @@ use std::sync::Arc;
 
 use futures::FutureExt;
 
+use super::TempDesiredState;
 use crate::prelude::*;
 use crate::service::transition::{TransitionKind, TransitionState};
 use crate::service::{Service, ServiceActor};
 use crate::util::actor::{BackgroundJobs, Handler};
 use crate::util::future::RemoteCancellable;
 
-use super::TempDesiredState;
-
 struct Restart;
-#[async_trait::async_trait]
 impl Handler<Restart> for ServiceActor {
     type Response = ();
     async fn handle(&mut self, _: Restart, jobs: &mut BackgroundJobs) -> Self::Response {

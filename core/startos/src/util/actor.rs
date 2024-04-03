@@ -16,10 +16,13 @@ pub trait Actor: Send + 'static {
     fn init(&mut self, jobs: &mut BackgroundJobs) {}
 }
 
-#[async_trait::async_trait]
 pub trait Handler<M>: Actor {
     type Response: Any + Send;
-    async fn handle(&mut self, msg: M, jobs: &mut BackgroundJobs) -> Self::Response;
+    fn handle(
+        &mut self,
+        msg: M,
+        jobs: &mut BackgroundJobs,
+    ) -> impl Future<Output = Self::Response> + Send;
 }
 
 #[async_trait::async_trait]

@@ -18,7 +18,6 @@ export { CurrentDependencies } from "./CurrentDependencies";
 export { CurrentDependencyInfo } from "./CurrentDependencyInfo";
 export { DataUrl } from "./DataUrl";
 export { Dependencies } from "./Dependencies";
-export { DependencyConfigErrors } from "./DependencyConfigErrors";
 export { DependencyKind } from "./DependencyKind";
 export { DependencyRequirement } from "./DependencyRequirement";
 export { DepInfo } from "./DepInfo";

@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsString;
 use std::net::Ipv4Addr;
 use std::os::unix::process::CommandExt;
@@ -1120,51 +1120,64 @@ async fn set_dependencies(
 ) -> Result<(), Error> {
     let ctx = ctx.deref()?;
     let id = &ctx.id;
+    let service_guard = ctx.ctx.services.get(id).await;
+    let service = service_guard.as_ref().or_not_found(id)?;
+    let mut deps = BTreeMap::new();
+    for dependency in dependencies {
+        let (dep_id, kind, registry_url, version_spec) = match dependency {
+            DependencyRequirement::Exists {
+                id,
+                registry_url,
+                version_spec,
+            } => (
+                id,
+                CurrentDependencyKind::Exists,
+                registry_url,
+                version_spec,
+            ),
+            DependencyRequirement::Running {
+                id,
+                health_checks,
+                registry_url,
+                version_spec,
+            } => (
+                id,
+                CurrentDependencyKind::Running { health_checks },
+                registry_url,
+                version_spec,
+            ),
+        };
+        let icon = todo!();
+        let title = todo!();
+        let config_satisfied = if let Some(dep_service) = &*ctx.ctx.services.get(&dep_id).await {
+            service
+                .dependency_config(dep_id, dep_service.get_config().await?.config)
+                .await?
+                .is_none()
+        } else {
+            true
+        };
+        deps.insert(
+            dep_id,
+            CurrentDependencyInfo {
+                kind: CurrentDependencyKind::Exists,
+                registry_url,
+                version_spec,
+                icon,
+                title,
+                config_satisfied,
+            },
+        );
+    }
     ctx.ctx
         .db
         .mutate(|db| {
-            let dependencies = CurrentDependencies(
-                dependencies
-                    .into_iter()
-                    .map(|dependency| match dependency {
-                        DependencyRequirement::Exists {
-                            id,
-                            registry_url,
-                            version_spec,
-                        } => (
-                            id,
-                            CurrentDependencyInfo {
-                                kind: CurrentDependencyKind::Exists,
-                                registry_url,
-                                version_spec,
-                                icon: todo!(),
-                                title: todo!(),
-                            },
-                        ),
-                        DependencyRequirement::Running {
-                            id,
-                            health_checks,
-                            registry_url,
-                            version_spec,
-                        } => (
-                            id,
-                            CurrentDependencyInfo {
-                                kind: CurrentDependencyKind::Running { health_checks },
-                                registry_url,
-                                version_spec,
-                                icon: todo!(),
-                                title: todo!(),
-                            },
-                        ),
-                    })
-                    .collect(),
-            );
             db.as_public_mut()
                 .as_package_data_mut()
                 .as_idx_mut(id)
                 .or_not_found(id)?
                 .as_current_dependencies_mut()
-                .ser(&dependencies)
+                .ser(&CurrentDependencies(deps))
         })
         .await
 }
