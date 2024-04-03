@@ -40,7 +40,6 @@ export class MainLoop {
       ...system.manifest.main.args,
     ]
 
-    console.error("BLUJ Should be running")
     await effects.setMainStatus({ status: "running" })
     const jsMain = (this.system.moduleCode as any)?.jsMain
     const dockerProcedureContainer = await DockerProcedureContainer.of(
@@ -63,7 +62,6 @@ export class MainLoop {
       daemon,
       wait: daemon.wait().finally(() => {
         this.clean()
-        console.error("BLUJ It ways it is done?")
         effects
           .setMainStatus({ status: "stopped" })
           .catch((e) => console.error("Could not set the status to stopped"))
