@@ -6,11 +6,10 @@ import { Metric, NotificationLevel, RR, ServerNotifications } from './api.types'
 import { BTC_ICON, LND_ICON, PROXY_ICON } from './api-icons'
 import { DependencyMetadata, MarketplacePkg } from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
-import { ServerStatus } from '../../../../../../../core/startos/bindings/ServerStatus'
-import { Manifest } from '../../../../../../../core/startos/bindings/Manifest'
+import { T } from '@start9labs/start-sdk'
 
 export module Mock {
-  export const ServerUpdated: ServerStatus = {
+  export const ServerUpdated: T.ServerStatus = {
     backupProgress: null,
     updateProgress: null,
     updated: true,
@@ -18,9 +17,10 @@ export module Mock {
     shuttingDown: false,
   }
   export const MarketplaceEos: RR.GetMarketplaceEosRes = {
-    version: '0.3.5.1',
+    version: '0.3.5.2',
     headline: 'Our biggest release ever.',
     releaseNotes: {
+      '0.3.5.2': 'Some **Markdown** release _notes_ for 0.3.5.2',
       '0.3.5.1': 'Some **Markdown** release _notes_ for 0.3.5.1',
       '0.3.4.4': 'Some **Markdown** release _notes_ for 0.3.4.4',
       '0.3.4.3': 'Some **Markdown** release _notes_ for 0.3.4.3',
@@ -42,7 +42,7 @@ export module Mock {
     '0.19.0': 'release notes for Bitcoin 0.19.0',
   }
 
-  export const MockManifestBitcoind: Manifest = {
+  export const MockManifestBitcoind: T.Manifest = {
     id: 'bitcoind',
     title: 'Bitcoin Core',
     version: '0.21.0',
@@ -80,7 +80,7 @@ export module Mock {
     },
   }
 
-  export const MockManifestLnd: Manifest = {
+  export const MockManifestLnd: T.Manifest = {
     id: 'lnd',
     title: 'Lightning Network Daemon',
     version: '0.11.1',
@@ -128,7 +128,7 @@ export module Mock {
     },
   }
 
-  export const MockManifestBitcoinProxy: Manifest = {
+  export const MockManifestBitcoinProxy: T.Manifest = {
     id: 'btc-rpc-proxy',
     title: 'Bitcoin Proxy',
     version: '0.2.2',
@@ -1410,7 +1410,6 @@ export module Mock {
         started: new Date().toISOString(),
         health: {},
       },
-      dependencyConfigErrors: {},
     },
     actions: {}, // @TODO need mocks
     serviceInterfaces: {
@@ -1650,7 +1649,6 @@ export module Mock {
       main: {
         status: 'stopped',
       },
-      dependencyConfigErrors: {},
     },
     actions: {},
     serviceInterfaces: {
@@ -1770,6 +1768,7 @@ export module Mock {
         registryUrl: '',
         versionSpec: '>=26.0.0',
         healthChecks: [],
+        configSatisfied: true,
       },
     },
     hosts: {},
@@ -1789,9 +1788,6 @@ export module Mock {
       configured: true,
       main: {
         status: 'stopped',
-      },
-      dependencyConfigErrors: {
-        'btc-rpc-proxy': 'Username not found',
       },
     },
     actions: {},
@@ -2015,6 +2011,7 @@ export module Mock {
         registryUrl: 'https://registry.start9.com',
         versionSpec: '>=26.0.0',
         healthChecks: [],
+        configSatisfied: true,
       },
       'btc-rpc-proxy': {
         title: Mock.MockManifestBitcoinProxy.title,
@@ -2022,6 +2019,7 @@ export module Mock {
         kind: 'exists',
         registryUrl: 'https://community-registry.start9.com',
         versionSpec: '>2.0.0', // @TODO
+        configSatisfied: false,
       },
     },
     hosts: {},

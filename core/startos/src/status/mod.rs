@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
 use imbl::OrdMap;
-use models::PackageId;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -18,23 +17,6 @@ pub mod health_check;
 pub struct Status {
     pub configured: bool,
     pub main: MainStatus,
-    #[serde(default)]
-    pub dependency_config_errors: DependencyConfigErrors,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel, Default, TS)]
-#[model = "Model<Self>"]
-#[ts(export)]
-pub struct DependencyConfigErrors(pub BTreeMap<PackageId, String>);
-impl Map for DependencyConfigErrors {
-    type Key = PackageId;
-    type Value = String;
-    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
-        Ok(key)
-    }
-    fn key_string(key: &Self::Key) -> Result<imbl_value::InternedString, Error> {
-        Ok(key.clone().into())
-    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TS)]

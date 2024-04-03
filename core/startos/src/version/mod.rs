@@ -10,6 +10,7 @@ use crate::Error;
 
 mod v0_3_5;
 mod v0_3_5_1;
+mod v0_3_5_2;
 mod v0_3_6;
 
 pub type Current = v0_3_6::Version;
@@ -20,6 +21,7 @@ enum Version {
     LT0_3_5(LTWrapper<v0_3_5::Version>),
     V0_3_5(Wrapper<v0_3_5::Version>),
     V0_3_5_1(Wrapper<v0_3_5_1::Version>),
+    V0_3_5_2(Wrapper<v0_3_5_2::Version>),
     V0_3_6(Wrapper<v0_3_6::Version>),
     Other(emver::Version),
 }
@@ -39,6 +41,7 @@ impl Version {
             Version::LT0_3_5(LTWrapper(_, x)) => x.clone(),
             Version::V0_3_5(Wrapper(x)) => x.semver(),
             Version::V0_3_5_1(Wrapper(x)) => x.semver(),
+            Version::V0_3_5_2(Wrapper(x)) => x.semver(),
             Version::V0_3_6(Wrapper(x)) => x.semver(),
             Version::Other(x) => x.clone(),
         }
@@ -208,6 +211,7 @@ pub async fn init(db: &PatchDb) -> Result<(), Error> {
         }
         Version::V0_3_5(v) => v.0.migrate_to(&Current::new(), &db).await?,
         Version::V0_3_5_1(v) => v.0.migrate_to(&Current::new(), &db).await?,
+        Version::V0_3_5_2(v) => v.0.migrate_to(&Current::new(), &db).await?,
         Version::V0_3_6(v) => v.0.migrate_to(&Current::new(), &db).await?,
         Version::Other(_) => {
             return Err(Error::new(
@@ -242,6 +246,7 @@ mod tests {
         prop_oneof![
             Just(Version::V0_3_5(Wrapper(v0_3_5::Version::new()))),
             Just(Version::V0_3_5_1(Wrapper(v0_3_5_1::Version::new()))),
+            Just(Version::V0_3_5_2(Wrapper(v0_3_5_2::Version::new()))),
             em_version().prop_map(Version::Other),
         ]
     }

@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use clap::Parser;
 use futures::future::BoxFuture;
 use imbl::OrdMap;
-use models::{ActionId, HealthCheckId, PackageId, ProcedureName};
+use models::{HealthCheckId, PackageId, ProcedureName};
 use persistent_container::PersistentContainer;
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, Handler, HandlerArgs};
 use serde::{Deserialize, Serialize};
@@ -13,7 +13,6 @@ use start_stop::StartStop;
 use tokio::sync::Notify;
 use ts_rs::TS;
 
-use crate::action::ActionResult;
 use crate::config::action::ConfigRes;
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::RequestGuid;
@@ -33,10 +32,13 @@ use crate::util::actor::{Actor, BackgroundJobs, SimpleActor};
 use crate::util::serde::Pem;
 use crate::volume::data_dir;
 
+mod action;
 pub mod cli;
 mod config;
 mod control;
+mod dependencies;
 pub mod persistent_container;
+mod properties;
 mod rpc;
 pub mod service_effect_handler;
 pub mod service_map;
@@ -305,43 +307,6 @@ impl Service {
         Err(Error::new(eyre!("not yet implemented"), ErrorKind::Unknown))
     }
 
-    pub async fn get_config(&self) -> Result<ConfigRes, Error> {
-        let container = &self.seed.persistent_container;
-        container
-            .execute::<ConfigRes>(
-                ProcedureName::GetConfig,
-                Value::Null,
-                Some(Duration::from_secs(30)), // TODO timeout
-            )
-            .await
-            .with_kind(ErrorKind::ConfigGen)
-    }
-
-    // TODO DO the Action Get
-
-    pub async fn action(&self, id: ActionId, input: Value) -> Result<ActionResult, Error> {
-        let container = &self.seed.persistent_container;
-        container
-            .execute::<ActionResult>(
-                ProcedureName::RunAction(id),
-                input,
-                Some(Duration::from_secs(30)),
-            )
-            .await
-            .with_kind(ErrorKind::Action)
-    }
-    pub async fn properties(&self) -> Result<Value, Error> {
-        let container = &self.seed.persistent_container;
-        container
-            .execute::<Value>(
-                ProcedureName::Properties,
-                Value::Null,
-                Some(Duration::from_secs(30)),
-            )
-            .await
-            .with_kind(ErrorKind::Unknown)
-    }
-
     pub async fn shutdown(self) -> Result<(), Error> {
         self.actor
             .shutdown(crate::util::actor::PendingMessageStrategy::FinishAll { timeout: None }) // TODO timeout
@@ -504,7 +469,6 @@ impl Actor for ServiceActor {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
-#[ts(export)]
 pub struct ConnectParams {
     pub id: PackageId,
 }

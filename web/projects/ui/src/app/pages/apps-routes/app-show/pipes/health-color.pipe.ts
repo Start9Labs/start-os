@@ -1,11 +1,11 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { HealthCheckResult } from '../../../../../../../../../core/startos/bindings/HealthCheckResult'
+import { T } from '@start9labs/start-sdk'
 
 @Pipe({
   name: 'healthColor',
 })
 export class HealthColorPipe implements PipeTransform {
-  transform(val: HealthCheckResult['result']): string {
+  transform(val: T.HealthCheckResult['result']): string {
     switch (val) {
       case 'success':
         return 'success'

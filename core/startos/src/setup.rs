@@ -102,7 +102,6 @@ async fn setup_init(
 
 #[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct AttachParams {
     #[serde(rename = "startOsPassword")]
     password: Option<EncryptedWire>,
@@ -214,7 +213,6 @@ pub fn cifs() -> ParentHandler {
 
 #[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct VerifyCifsParams {
     hostname: String,
     path: PathBuf,
@@ -258,7 +256,6 @@ pub enum RecoverySource {
 
 #[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct ExecuteParams {
     start_os_logicalname: PathBuf,
     start_os_password: EncryptedWire,

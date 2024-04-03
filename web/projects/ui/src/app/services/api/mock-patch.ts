@@ -37,7 +37,7 @@ export const mockPatchData: DataModel = {
     arch: 'x86_64',
     onionAddress: 'myveryownspecialtoraddress',
     id: 'abcdefgh',
-    version: '0.3.5.1',
+    version: '0.3.5.2',
     lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
     lanAddress: 'https://adjective-noun.local',
     torAddress: 'https://myveryownspecialtoraddress.onion',
@@ -125,7 +125,6 @@ export const mockPatchData: DataModel = {
             },
           },
         },
-        dependencyConfigErrors: {},
       },
       actions: {}, // @TODO
       serviceInterfaces: {
@@ -367,9 +366,6 @@ export const mockPatchData: DataModel = {
         main: {
           status: 'stopped',
         },
-        dependencyConfigErrors: {
-          'btc-rpc-proxy': 'This is a config unsatisfied error',
-        },
       },
       actions: {},
       serviceInterfaces: {
@@ -590,6 +586,7 @@ export const mockPatchData: DataModel = {
           registryUrl: 'https://registry.start9.com',
           versionSpec: '>=26.0.0',
           healthChecks: [],
+          configSatisfied: true,
         },
         'btc-rpc-proxy': {
           title: 'Bitcoin Proxy',
@@ -598,6 +595,7 @@ export const mockPatchData: DataModel = {
           registryUrl: 'https://community-registry.start9.com',
           versionSpec: '>2.0.0',
           healthChecks: [],
+          configSatisfied: false,
         },
       },
       hosts: {},

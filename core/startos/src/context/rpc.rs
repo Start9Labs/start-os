@@ -209,33 +209,24 @@ impl RpcContext {
         self.services.init(&self).await?;
         tracing::info!("Initialized Package Managers");
 
-        let mut all_dependency_config_errs = BTreeMap::new();
+        let mut updated_current_dependents = BTreeMap::new();
         let peek = self.db.peek().await;
         for (package_id, package) in peek.as_public().as_package_data().as_entries()?.into_iter() {
             let package = package.clone();
-            let current_dependencies = package.as_current_dependencies().de()?;
-            all_dependency_config_errs.insert(
-                package_id.clone(),
-                compute_dependency_config_errs(
-                    self,
-                    &peek,
-                    &package_id,
-                    &current_dependencies,
-                    &Default::default(),
-                )
-                .await?,
-            );
+            let mut current_dependencies = package.as_current_dependencies().de()?;
+            compute_dependency_config_errs(self, &package_id, &mut current_dependencies).await?;
+            updated_current_dependents.insert(package_id.clone(), current_dependencies);
         }
         self.db
             .mutate(|v| {
-                for (package_id, errs) in all_dependency_config_errs {
-                    if let Some(config_errors) = v
+                for (package_id, deps) in updated_current_dependents {
+                    if let Some(model) = v
                         .as_public_mut()
                         .as_package_data_mut()
                         .as_idx_mut(&package_id)
-                        .map(|i| i.as_status_mut().as_dependency_config_errors_mut())
+                        .map(|i| i.as_current_dependencies_mut())
                     {
-                        config_errors.ser(&errs)?;
+                        model.ser(&deps)?;
                     }
                 }
                 Ok(())

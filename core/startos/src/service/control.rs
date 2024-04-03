@@ -5,7 +5,6 @@ use crate::service::{Service, ServiceActor};
 use crate::util::actor::{BackgroundJobs, Handler};
 
 struct Start;
-#[async_trait::async_trait]
 impl Handler<Start> for ServiceActor {
     type Response = ();
     async fn handle(&mut self, _: Start, _: &mut BackgroundJobs) -> Self::Response {
@@ -22,7 +21,6 @@ impl Service {
 }
 
 struct Stop;
-#[async_trait::async_trait]
 impl Handler<Stop> for ServiceActor {
     type Response = ();
     async fn handle(&mut self, _: Stop, _: &mut BackgroundJobs) -> Self::Response {

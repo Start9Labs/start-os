@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::ActionId;
+use crate::{ActionId, PackageId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ProcedureName {
@@ -14,8 +14,8 @@ pub enum ProcedureName {
     ActionMetadata,
     RunAction(ActionId),
     GetAction(ActionId),
-    QueryDependency(ActionId),
-    UpdateDependency(ActionId),
+    QueryDependency(PackageId),
+    UpdateDependency(PackageId),
     Init,
     Uninit,
 }

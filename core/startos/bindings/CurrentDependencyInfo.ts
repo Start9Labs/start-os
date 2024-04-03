@@ -6,4 +6,5 @@ export type CurrentDependencyInfo = {
   icon: DataUrl;
   registryUrl: string;
   versionSpec: string;
+  configSatisfied: boolean;
 } & ({ kind: "exists" } | { kind: "running"; healthChecks: string[] });

@@ -353,7 +353,6 @@ pub async fn list(ctx: RpcContext) -> Result<Vec<InternedString>, Error> {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
-#[ts(export)]
 pub struct RemoveParams {
     #[ts(type = "string")]
     pub guid: InternedString,
@@ -367,7 +366,6 @@ pub async fn remove(ctx: RpcContext, RemoveParams { guid }: RemoveParams) -> Res
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
-#[ts(export)]
 pub struct ConnectParams {
     #[ts(type = "string")]
     pub guid: InternedString,

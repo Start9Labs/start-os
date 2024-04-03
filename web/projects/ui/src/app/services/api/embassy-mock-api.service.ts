@@ -37,10 +37,9 @@ import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import { AuthService } from '../auth.service'
 import { ConnectionService } from '../connection.service'
 import { StoreInfo } from '@start9labs/marketplace'
-import { FullProgress } from '../../../../../../../core/startos/bindings/FullProgress'
-import { ServerStatus } from '../../../../../../../core/startos/bindings/ServerStatus'
+import { T } from '@start9labs/start-sdk'
 
-const PROGRESS: FullProgress = {
+const PROGRESS: T.FullProgress = {
   overall: {
     done: 0,
     total: 120,

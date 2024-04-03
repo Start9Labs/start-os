@@ -165,7 +165,6 @@ impl ServiceMap {
                                 status: Status {
                                     configured: false,
                                     main: MainStatus::Stopped,
-                                    dependency_config_errors: Default::default(),
                                 },
                                 marketplace_url: None,
                                 developer_key: Pem::new(developer_key),

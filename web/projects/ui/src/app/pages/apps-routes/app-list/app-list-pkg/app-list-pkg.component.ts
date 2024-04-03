@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PkgInfo } from 'src/app/util/get-package-info'
 import { UiLauncherService } from 'src/app/services/ui-launcher.service'
-import { MainStatus } from '../../../../../../../../../core/startos/bindings/MainStatus'
+import { T } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'app-list-pkg',
@@ -15,7 +15,7 @@ export class AppListPkgComponent {
 
   constructor(private readonly launcherService: UiLauncherService) {}
 
-  get pkgMainStatus(): MainStatus {
+  get pkgMainStatus(): T.MainStatus {
     return (
       this.pkg.entry.status.main || {
         status: 'stopped',
