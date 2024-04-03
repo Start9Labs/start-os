@@ -163,6 +163,7 @@ const matchProperties = object({
   data: matchPackageProperties,
 })
 
+const DEFAULT_REGISTRY = "https://registry.start9.com"
 export class SystemForEmbassy implements System {
   currentRunning: MainLoop | undefined
   static async of(manifestLocation: string = MANIFEST_LOCATION) {
@@ -426,7 +427,7 @@ export class SystemForEmbassy implements System {
   private async setConfig(
     effects: HostSystemStartOs,
     newConfigWithoutPointers: unknown,
-  ): Promise<T.SetResult> {
+  ): Promise<void> {
     const newConfig = structuredClone(newConfigWithoutPointers)
     await updateConfig(
       effects,
@@ -434,7 +435,7 @@ export class SystemForEmbassy implements System {
       newConfig,
     )
     const setConfigValue = this.manifest.config?.set
-    if (!setConfigValue) return { signal: "SIGTERM", dependsOn: {} }
+    if (!setConfigValue) return
     if (setConfigValue.type === "docker") {
       const container = await DockerProcedureContainer.of(
         effects,
@@ -452,10 +453,9 @@ export class SystemForEmbassy implements System {
           ).stdout.toString(),
         ),
       )
-      return {
-        dependsOn: answer["depends-on"] ?? answer.dependsOn ?? {},
-        signal: answer.signal,
-      }
+      const dependsOn = answer["depends-on"] ?? answer.dependsOn ?? {}
+      await this.setConfigSetConfig(effects, dependsOn)
+      return
     } else if (setConfigValue.type === "script") {
       const moduleCode = await this.moduleCode
       const method = moduleCode.setConfig
@@ -476,18 +476,35 @@ export class SystemForEmbassy implements System {
           throw new Error("Error getting config: " + x["error-code"][1])
         }),
       )
-
-      return {
-        dependsOn: answer["depends-on"] ?? answer.dependsOn ?? {},
-        signal: answer.signal,
-      }
-    } else {
-      return {
-        dependsOn: {},
-        signal: "SIGTERM",
-      }
+      const dependsOn = answer["depends-on"] ?? answer.dependsOn ?? {}
+      await this.setConfigSetConfig(effects, dependsOn)
+      return
     }
   }
+  private async setConfigSetConfig(
+    effects: HostSystemStartOs,
+    dependsOn: { [x: string]: readonly string[] },
+  ) {
+    await effects.setDependencies({
+      dependencies: Object.entries(dependsOn).flatMap(([key, value]) => {
+        const dependency = this.manifest.dependencies?.[key]
+        if (!dependency) return []
+        const versionSpec = dependency.version
+        const registryUrl = DEFAULT_REGISTRY
+        const kind = "running"
+        return [
+          {
+            id: key,
+            versionSpec,
+            registryUrl,
+            kind,
+            healthChecks: [...value],
+          },
+        ]
+      }),
+    })
+  }
+
   private async migration(
     effects: HostSystemStartOs,
     fromVersion: string,

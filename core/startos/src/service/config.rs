@@ -13,7 +13,7 @@ impl Service {
         let package_id = &self.seed.id;
 
         container
-            .execute::<SetResult>(ProcedureName::SetConfig, to_value(&config)?, timeout)
+            .execute::<Value>(ProcedureName::SetConfig, to_value(&config)?, timeout)
             .await
             .with_kind(ErrorKind::Action)?;
 
