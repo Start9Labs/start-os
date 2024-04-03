@@ -83,20 +83,20 @@ export class DepErrorService {
       }
     }
 
-    const versionSpec = pkg.currentDependencies[depId].versionSpec
+    const currentDep = pkg.currentDependencies[depId]
     const depManifest = dep.stateInfo.manifest
 
     // incorrect version
-    if (!this.emver.satisfies(depManifest.version, versionSpec)) {
+    if (!this.emver.satisfies(depManifest.version, currentDep.versionSpec)) {
       return {
         type: 'incorrectVersion',
-        expected: versionSpec,
+        expected: currentDep.versionSpec,
         received: depManifest.version,
       }
     }
 
     // invalid config
-    if (Object.values(pkg.status.dependencyConfigErrors).some(err => !!err)) {
+    if (!currentDep.configSatisfied) {
       return {
         type: 'configUnsatisfied',
       }
@@ -110,8 +110,6 @@ export class DepErrorService {
         type: 'notRunning',
       }
     }
-
-    const currentDep = pkg.currentDependencies[depId]
 
     // health check failure
     if (depStatus === 'running' && currentDep.kind === 'running') {

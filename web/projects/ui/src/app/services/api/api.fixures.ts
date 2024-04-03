@@ -1410,7 +1410,6 @@ export module Mock {
         started: new Date().toISOString(),
         health: {},
       },
-      dependencyConfigErrors: {},
     },
     actions: {}, // @TODO need mocks
     serviceInterfaces: {
@@ -1650,7 +1649,6 @@ export module Mock {
       main: {
         status: 'stopped',
       },
-      dependencyConfigErrors: {},
     },
     actions: {},
     serviceInterfaces: {
@@ -1770,6 +1768,7 @@ export module Mock {
         registryUrl: '',
         versionSpec: '>=26.0.0',
         healthChecks: [],
+        configSatisfied: true,
       },
     },
     hosts: {},
@@ -1789,9 +1788,6 @@ export module Mock {
       configured: true,
       main: {
         status: 'stopped',
-      },
-      dependencyConfigErrors: {
-        'btc-rpc-proxy': 'Username not found',
       },
     },
     actions: {},
@@ -2015,6 +2011,7 @@ export module Mock {
         registryUrl: 'https://registry.start9.com',
         versionSpec: '>=26.0.0',
         healthChecks: [],
+        configSatisfied: true,
       },
       'btc-rpc-proxy': {
         title: Mock.MockManifestBitcoinProxy.title,
@@ -2022,6 +2019,7 @@ export module Mock {
         kind: 'exists',
         registryUrl: 'https://community-registry.start9.com',
         versionSpec: '>2.0.0', // @TODO
+        configSatisfied: false,
       },
     },
     hosts: {},
