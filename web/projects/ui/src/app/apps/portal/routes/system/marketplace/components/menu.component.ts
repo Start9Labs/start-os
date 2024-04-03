@@ -34,6 +34,8 @@ import { MARKETPLACE_REGISTRY } from '../modals/registry.component'
         padding: 1.25rem;
         font-size: 1rem;
         line-height: 1.5rem;
+        background-color: transparent;
+        background-image: none;
       }
     `,
   ],

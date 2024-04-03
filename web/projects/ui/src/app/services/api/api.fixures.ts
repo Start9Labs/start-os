@@ -9,11 +9,14 @@ import {
   RR,
   ServerNotifications,
 } from './api.types'
-import { BTC_ICON, LND_ICON, PROXY_ICON } from './api-icons'
 import { DependencyMetadata, MarketplacePkg } from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { CT, T, CB } from '@start9labs/start-sdk'
+
+const BTC_ICON = '/assets/img/service-icons/bitcoind.svg'
+const LND_ICON = '/assets/img/service-icons/lnd.png'
+const PROXY_ICON = '/assets/img/service-icons/btc-rpc-proxy.png'
 
 export module Mock {
   export const ServerUpdated: ServerStatusInfo = {
@@ -319,8 +322,13 @@ export module Mock {
     },
   }
 
-  export const MarketplacePkgsList: RR.GetMarketplacePackagesRes =
-    Object.values(Mock.MarketplacePkgs).map(service => service['latest'])
+  export const marketplacePkgsList = (
+    version?: string,
+  ): RR.GetMarketplacePackagesRes => {
+    return Object.values(Mock.MarketplacePkgs).map(service =>
+      version ? service[version] : service['latest'],
+    )
+  }
 
   export const Notifications: ServerNotifications = [
     {

@@ -15,7 +15,6 @@ import { MarketplaceSidebarService } from '../services/sidebar.service'
         position: fixed;
         inset: 3.5rem 0 0;
         pointer-events: none;
-        transform: translate3d(0, 0, 0);
       }
     `,
   ],
