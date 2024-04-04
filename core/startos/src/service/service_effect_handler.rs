@@ -186,6 +186,7 @@ struct GetServicePortForwardParams {
     #[ts(type = "string | null")]
     package_id: Option<PackageId>,
     internal_port: u32,
+    host_id: HostId,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
@@ -328,14 +329,13 @@ async fn get_container_ip(context: EffectContext, _: Empty) -> Result<Ipv4Addr, 
 async fn get_service_port_forward(
     context: EffectContext,
     data: GetServicePortForwardParams,
-    host_id: HostId,
 ) -> Result<u16, Error> {
     let internal_port = data.internal_port as u16;
     
     match context.0.upgrade() {
         Some(c) => {
             let net_service = c.persistent_container.net_service.lock().await;
-            match net_service.get_ext_port(host_id, internal_port) {
+            match net_service.get_ext_port(data.host_id, internal_port) {
                 Ok(ext_port) => Ok(ext_port),
                 Err(e) => Err(e)
             }
