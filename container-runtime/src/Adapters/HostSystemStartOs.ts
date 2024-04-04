@@ -250,9 +250,9 @@ export class HostSystemStartOs implements Effects {
     >
   }
   setDependencies(
-    ...[dependencies]: Parameters<T.Effects["setDependencies"]>
+    dependencies: Parameters<T.Effects["setDependencies"]>[0],
   ): ReturnType<T.Effects["setDependencies"]> {
-    return this.rpcRound("setDependencies", { dependencies }) as ReturnType<
+    return this.rpcRound("setDependencies", dependencies) as ReturnType<
       T.Effects["setDependencies"]
     >
   }
