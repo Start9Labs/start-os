@@ -100,16 +100,6 @@ export type Effects = {
   is_sandboxed(): boolean
 
   exists(input: { volumeId: string; path: string }): Promise<boolean>
-  bindLocal(options: {
-    internalPort: number
-    name: string
-    externalPort: number
-  }): Promise<string>
-  bindTor(options: {
-    internalPort: number
-    name: string
-    externalPort: number
-  }): Promise<string>
 
   fetch(
     url: string,

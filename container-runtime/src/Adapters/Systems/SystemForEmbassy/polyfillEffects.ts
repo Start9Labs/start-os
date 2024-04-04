@@ -3,12 +3,11 @@ import * as oet from "./oldEmbassyTypes"
 import { Volume } from "../../../Models/Volume"
 import * as child_process from "child_process"
 import { promisify } from "util"
-import { Daemons, startSdk, T } from "@start9labs/start-sdk"
+import { daemons, startSdk, T } from "@start9labs/start-sdk"
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import "isomorphic-fetch"
 import { Manifest } from "./matchManifest"
-
-const execFile = promisify(child_process.execFile)
+import { DockerProcedureContainer } from "./DockerProcedureContainer"
 
 export class PolyfillEffects implements oet.Effects {
   constructor(
@@ -111,17 +110,100 @@ export class PolyfillEffects implements oet.Effects {
     wait(): Promise<oet.ResultType<string>>
     term(): Promise<void>
   } {
-    throw new Error("Method not implemented.")
+    const dockerProcedureContainer = DockerProcedureContainer.of(
+      this.effects,
+      this.manifest.main,
+      this.manifest.volumes,
+    )
+    const daemon = dockerProcedureContainer.then((dockerProcedureContainer) =>
+      daemons.runDaemon()(
+        this.effects,
+        this.manifest.main.image,
+        [input.command, ...(input.args || [])],
+        {
+          overlay: dockerProcedureContainer.overlay,
+        },
+      ),
+    )
+    return {
+      wait: () =>
+        daemon.then((daemon) =>
+          daemon.wait().then(() => {
+            return { result: "" }
+          }),
+        ),
+      term: () => daemon.then((daemon) => daemon.term()),
+    }
   }
-  chown(input: { volumeId: string; path: string; uid: string }): Promise<null> {
-    throw new Error("Method not implemented.")
+  async chown(input: {
+    volumeId: string
+    path: string
+    uid: string
+  }): Promise<null> {
+    await startSdk
+      .runCommand(
+        this.effects,
+        this.manifest.main.image,
+        ["chown", "--recursive", input.uid, `/drive/${input.path}`],
+        {
+          mounts: [
+            {
+              path: "/drive",
+              options: {
+                type: "volume",
+                id: input.volumeId,
+                subpath: null,
+                readonly: false,
+              },
+            },
+          ],
+        },
+      )
+      .then((x: any) => ({
+        stderr: x.stderr.toString(),
+        stdout: x.stdout.toString(),
+      }))
+      .then((x) => {
+        if (!!x.stderr) {
+          throw new Error(x.stderr)
+        }
+      })
+    return null
   }
-  chmod(input: {
+  async chmod(input: {
     volumeId: string
     path: string
     mode: string
   }): Promise<null> {
-    throw new Error("Method not implemented.")
+    await startSdk
+      .runCommand(
+        this.effects,
+        this.manifest.main.image,
+        ["chmod", "--recursive", input.mode, `/drive/${input.path}`],
+        {
+          mounts: [
+            {
+              path: "/drive",
+              options: {
+                type: "volume",
+                id: input.volumeId,
+                subpath: null,
+                readonly: false,
+              },
+            },
+          ],
+        },
+      )
+      .then((x: any) => ({
+        stderr: x.stderr.toString(),
+        stdout: x.stdout.toString(),
+      }))
+      .then((x) => {
+        if (!!x.stderr) {
+          throw new Error(x.stderr)
+        }
+      })
+    return null
   }
   sleep(timeMs: number): Promise<null> {
     return new Promise((resolve) => setTimeout(resolve, timeMs))
@@ -148,20 +230,6 @@ export class PolyfillEffects implements oet.Effects {
     return this.metadata(input)
       .then(() => true)
       .catch(() => false)
-  }
-  bindLocal(options: {
-    internalPort: number
-    name: string
-    externalPort: number
-  }): Promise<string> {
-    throw new Error("Method not implemented.")
-  }
-  bindTor(options: {
-    internalPort: number
-    name: string
-    externalPort: number
-  }): Promise<string> {
-    throw new Error("Method not implemented.")
   }
   async fetch(
     url: string,
@@ -199,7 +267,7 @@ export class PolyfillEffects implements oet.Effects {
       json: () => fetched.json(),
     }
   }
-  runRsync(options: {
+  runRsync(rsyncOptions: {
     srcVolume: string
     dstVolume: string
     srcPath: string
@@ -210,6 +278,59 @@ export class PolyfillEffects implements oet.Effects {
     wait: () => Promise<null>
     progress: () => Promise<number>
   } {
-    throw new Error("Method not implemented.")
+    const { srcVolume, dstVolume, srcPath, dstPath, options } = rsyncOptions
+    const command = "rsync"
+    const args: string[] = []
+    if (options.delete) {
+      args.push("--delete")
+    }
+    if (options.force) {
+      args.push("--force")
+    }
+    if (options.ignoreExisting) {
+      args.push("--ignore-existing")
+    }
+    for (const exclude of options.exclude) {
+      args.push(`--exclude=${exclude}`)
+    }
+    args.push("-actAXH")
+    args.push("--info=progress2")
+    args.push("--no-inc-recursive")
+    args.push(new Volume(srcVolume, srcPath).path)
+    args.push(new Volume(dstVolume, dstPath).path)
+    const spawned = child_process.spawn(command, args, { detached: true })
+    let percentage = 0.0
+    spawned.stdout.on("data", (data: unknown) => {
+      const lines = String(data).replace("\r", "\n").split("\n")
+      for (const line of lines) {
+        const parsed = /$([0-9.]+)%/.exec(line)?.[1]
+        if (!parsed) continue
+        percentage = Number.parseFloat(parsed)
+      }
+    })
+
+    spawned.stderr.on("data", (data: unknown) => {
+      console.error(String(data))
+    })
+
+    const id = async () => {
+      const pid = spawned.pid
+      if (pid === undefined) {
+        throw new Error("rsync process has no pid")
+      }
+      return String(pid)
+    }
+    const waitPromise = new Promise<null>((resolve, reject) => {
+      spawned.on("exit", (code) => {
+        if (code === 0) {
+          resolve(null)
+        } else {
+          reject(new Error(`rsync exited with code ${code}`))
+        }
+      })
+    })
+    const wait = () => waitPromise
+    const progress = () => Promise.resolve(percentage)
+    return { id, wait, progress }
   }
 }

@@ -3,7 +3,7 @@ use std::time::Duration;
 use models::ProcedureName;
 
 use crate::config::action::ConfigRes;
-use crate::config::ConfigureContext;
+use crate::config::{action::SetResult, ConfigureContext};
 use crate::prelude::*;
 use crate::service::{Service, ServiceActor};
 use crate::util::actor::{BackgroundJobs, Handler};
@@ -18,10 +18,25 @@ impl Handler<Configure> for ServiceActor {
         _: &mut BackgroundJobs,
     ) -> Self::Response {
         let container = &self.0.persistent_container;
+        let package_id = &self.0.id;
+
         container
             .execute::<NoOutput>(ProcedureName::SetConfig, to_value(&config)?, timeout)
             .await
             .with_kind(ErrorKind::ConfigRulesViolation)?;
+        self.0
+            .ctx
+            .db
+            .mutate(move |db| {
+                db.as_public_mut()
+                    .as_package_data_mut()
+                    .as_idx_mut(package_id)
+                    .or_not_found(package_id)?
+                    .as_status_mut()
+                    .as_configured_mut()
+                    .ser(&true)
+            })
+            .await?;
         Ok(())
     }
 }
@@ -38,7 +53,7 @@ impl Handler<GetConfig> for ServiceActor {
                 Some(Duration::from_secs(30)), // TODO timeout
             )
             .await
-            .with_kind(ErrorKind::ConfigGen)
+            .with_kind(ErrorKind::ConfigRulesViolation)
     }
 }
 

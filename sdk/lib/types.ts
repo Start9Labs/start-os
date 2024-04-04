@@ -560,9 +560,8 @@ export type ActionResult = {
   }
 }
 export type SetResult = {
-  /** These are the unix process signals */
+  dependsOn: DependsOn
   signal: Signals
-  "depends-on": DependsOn
 }
 
 export type PackageId = string
@@ -570,13 +569,13 @@ export type Message = string
 export type DependencyKind = "running" | "exists"
 
 export type DependsOn = {
-  [packageId: string]: string[]
+  [packageId: string]: string[] | readonly string[]
 }
 
 export type KnownError =
   | { error: string }
   | {
-      "error-code": [number, string] | readonly [number, string]
+      errorCode: [number, string] | readonly [number, string]
     }
 
 export type Dependency = {

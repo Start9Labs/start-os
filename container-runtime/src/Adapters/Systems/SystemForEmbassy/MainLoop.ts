@@ -48,19 +48,7 @@ export class MainLoop {
       this.system.manifest.volumes,
     )
     if (jsMain) {
-      const daemons = Daemons.of({
-        effects,
-        started: async (_) => {},
-        healthReceipts: [],
-      })
-      throw new Error("todo")
-      // return {
-      //   daemon,
-      //   wait: daemon.wait().finally(() => {
-      //     this.clean()
-      //     effects.setMainStatus({ status: "stopped" })
-      //   }),
-      // }
+      throw new Error("Unreachable")
     }
     const daemon = await daemons.runDaemon()(
       this.effects,
