@@ -332,19 +332,9 @@ async fn get_service_port_forward(
 ) -> Result<u16, Error> {
     let internal_port = data.internal_port as u16;
     
-    match context.0.upgrade() {
-        Some(c) => {
-            let net_service = c.persistent_container.net_service.lock().await;
-            match net_service.get_ext_port(data.host_id, internal_port) {
-                Ok(ext_port) => Ok(ext_port),
-                Err(e) => Err(e)
-            }
-        }
-        None => Err(Error::new(
-            eyre!("Upgrade on Weak<ServiceActorSeed> resulted in a None variant"),
-            crate::ErrorKind::NotFound,
-        )),
-    }
+    let context = context.deref()?;
+    let net_service = context.persistent_container.net_service.lock().await;
+    net_service.get_ext_port(data.host_id, internal_port)
 }
 async fn clear_network_interfaces(context: EffectContext, _: Empty) -> Result<Value, Error> {
     todo!()
