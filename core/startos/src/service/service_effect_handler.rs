@@ -315,16 +315,9 @@ async fn get_system_smtp(
     todo!()
 }
 async fn get_container_ip(context: EffectContext, _: Empty) -> Result<Ipv4Addr, Error> {
-    match context.0.upgrade() {
-        Some(c) => {
-            let net_service = c.persistent_container.net_service.lock().await;
-            Ok(net_service.get_ip())
-        }
-        None => Err(Error::new(
-            eyre!("Upgrade on Weak<ServiceActorSeed> resulted in a None variant"),
-            crate::ErrorKind::NotFound,
-        )),
-    }
+    let context = context.deref()?;
+    let net_service = context.persistent_container.net_service.lock().await;
+    Ok(net_service.get_ip())
 }
 async fn get_service_port_forward(
     context: EffectContext,
