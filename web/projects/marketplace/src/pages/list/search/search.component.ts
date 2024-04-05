@@ -27,7 +27,5 @@ export class SearchComponent {
   onModelChange(query: string) {
     this.query = query
     this.queryChange.emit(query)
-    // @TODO fix in brochure
-    // this.router.navigate(['../'])
   }
 }

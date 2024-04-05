@@ -45,19 +45,7 @@ import { Router } from '@angular/router'
             <ng-content select="[slot=controls]" />
           </marketplace-package-hero>
           <div class="inner-container">
-            <marketplace-about [pkg]="pkg">
-              @if (hostInfo$ | async; as info) {
-                <a
-                  [href]="constructDetailLink(info, pkg.manifest.id)"
-                  rel="noreferrer"
-                  target="_blank"
-                  class="listing"
-                >
-                  View complete listing
-                  <tui-icon icon="tuiIconExternalLink" />
-                </a>
-              }
-            </marketplace-about>
+            <marketplace-about [pkg]="pkg" />
             @if (!(pkg.manifest.dependencies | empty)) {
               <marketplace-dependencies
                 [pkg]="pkg"
@@ -121,7 +109,6 @@ import { Router } from '@angular/router'
         margin-top: 5rem;
 
         @media (min-width: 768px) {
-          // min-width: 30rem;
           margin-top: 0;
         }
       }
@@ -192,7 +179,6 @@ export class MarketplacePreviewComponent {
     this.router.routerState.snapshot.root.queryParamMap.get('url') || undefined
 
   readonly loadVersion$ = new BehaviorSubject<string>('*')
-  readonly hostInfo$ = this.marketplaceService.getSelectedHost$()
   readonly pkg$ = this.loadVersion$.pipe(
     switchMap(version =>
       this.marketplaceService.getPackage$(this.pkgId, version, this.url),
@@ -210,11 +196,6 @@ export class MarketplacePreviewComponent {
 
   open(id: string) {
     this.router.navigate([], { queryParams: { id } })
-  }
-
-  constructDetailLink(info: StoreIdentity, id: string) {
-    const domain = new URL(info.url).hostname
-    return `https://marketplace.start9.com/${id}?api=${domain}&name=${info.name}`
   }
 
   presentAlertVersions(
