@@ -87,9 +87,10 @@ import { MarketplacePkg } from '../../../types'
           color: rgb(250 250 250);
           mix-blend-mode: plus-lighter;
           z-index: 1;
+          max-width: 17rem;
 
           @media (min-width: 768px) {
-            max-width: 22rem;
+            min-width: 100%;
           }
 
           h2 {
@@ -128,7 +129,6 @@ import { MarketplacePkg } from '../../../types'
           left: 0px;
           z-index: -50;
           border-radius: 1.5rem;
-          background-color: rgb(39 39 42);
 
           img {
             position: absolute;

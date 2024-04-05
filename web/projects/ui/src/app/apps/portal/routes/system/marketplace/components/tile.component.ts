@@ -32,6 +32,7 @@ import { MarketplaceSidebarService } from '../services/sidebar.service'
         "
         [pkgId]="pkg.manifest.id"
         class="preview-wrapper"
+        (tuiActiveZoneChange)="toggle($event)"
       >
         <button
           tuiAutoFocus

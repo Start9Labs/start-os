@@ -37,7 +37,7 @@ import { getManifest } from 'src/app/util/get-package-data'
           <a
             *ngIf="button !== null && button !== 'Install'"
             tuiButton
-            appearance="secondary"
+            appearance="tertiary-solid"
             [routerLink]="'/portal/service/' + package.manifest.id"
           >
             View installed
@@ -59,11 +59,11 @@ import { getManifest } from 'src/app/util/get-package-data'
       .outer-container {
         display: grid;
         justify-content: center;
-        gap: 2rem;
-        padding: 2.5rem 1rem 1rem 1rem;
-        margin-bottom: 4rem;
+        width: 100%;
 
         @media (min-width: 1024px) {
+          max-width: 80%;
+          margin: auto;
           padding: 2.5rem 4rem 2rem 4rem;
         }
       }
@@ -71,6 +71,7 @@ import { getManifest } from 'src/app/util/get-package-data'
       .inner-container {
         display: flex;
         justify-content: flex-start;
+        margin: -0.5rem 0 1.5rem -1px;
       }
     `,
   ],

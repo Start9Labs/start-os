@@ -64,7 +64,12 @@ import { TuiAvatarModule, TuiLineClampModule } from '@taiga-ui/kit'
 
       .title {
         display: flex;
-        gap: 0.25rem;
+        gap: 0;
+        flex-wrap: wrap;
+
+        @media (min-width: 640px) {
+          gap: 0.25rem;
+        }
 
         p {
           margin: 0;

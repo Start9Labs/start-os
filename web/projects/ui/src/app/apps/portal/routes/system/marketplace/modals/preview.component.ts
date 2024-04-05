@@ -114,13 +114,14 @@ import { Router } from '@angular/router'
       }
 
       .outer-container {
-        display: grid;
+        display: flex;
+        flex-direction: column;
         padding: 1.75rem;
         min-width: 100%;
         margin-top: 5rem;
 
         @media (min-width: 768px) {
-          min-width: 30rem;
+          // min-width: 30rem;
           margin-top: 0;
         }
       }

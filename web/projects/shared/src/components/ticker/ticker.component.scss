@@ -8,6 +8,6 @@
   &:hover {
     text-indent: var(--indent, 0);
     text-overflow: clip;
-    cursor: all-scroll;
+    cursor: default;
   }
 }
