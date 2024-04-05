@@ -19,12 +19,14 @@
       h3 {
         font-size: 1.2rem;
         margin-bottom: 1.25rem;
+        pointer-events: none;
       }
     }
-
+    
     &-notes {
       flex-wrap: wrap;
       margin-top: 0.25rem;
+      pointer-events: none;
     }
 
     button {

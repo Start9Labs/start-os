@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { SharedPipesModule } from '@start9labs/shared'
+import { SharedPipesModule, TickerModule } from '@start9labs/shared'
 import { MarketplacePkg } from '../../../types'
 
 @Component({
@@ -24,7 +24,7 @@ import { MarketplacePkg } from '../../../types'
         <!-- background darkening overlay -->
         <div class="dark-overlay"></div>
         <div class="inner-container-title">
-          <h2>
+          <h2 ticker>
             {{ pkg.manifest.title }}
           </h2>
           <h3>
@@ -63,6 +63,7 @@ import { MarketplacePkg } from '../../../types'
         @media (min-width: 376px) {
           min-height: 26vh;
         }
+
         @media (min-width: 768px) {
           min-height: 14rem;
         }
@@ -87,14 +88,15 @@ import { MarketplacePkg } from '../../../types'
           mix-blend-mode: plus-lighter;
           z-index: 1;
 
+          @media (min-width: 768px) {
+            max-width: 22rem;
+          }
+
           h2 {
             font-size: 2rem;
             line-height: 3rem;
             font-weight: 400;
-            overflow: hidden;
-            display: -webkit-box;
-            -webkit-box-orient: vertical;
-            -webkit-line-clamp: 1;
+            display: inline-block;
             margin-left: -1px;
           }
 
@@ -102,12 +104,14 @@ import { MarketplacePkg } from '../../../types'
             font-size: 1.1rem;
             font-weight: 400;
             margin-bottom: 1rem;
+            pointer-events: none;
           }
 
           p {
             font-size: 1rem;
             line-height: 1.5rem;
             font-weight: 300;
+            pointer-events: none;
             overflow: hidden;
             display: -webkit-box;
             -webkit-box-orient: vertical;
@@ -153,7 +157,7 @@ import { MarketplacePkg } from '../../../types'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, SharedPipesModule],
+  imports: [CommonModule, SharedPipesModule, TickerModule],
 })
 export class MarketplacePackageHeroComponent {
   @Input({ required: true })

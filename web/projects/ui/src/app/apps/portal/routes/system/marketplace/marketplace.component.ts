@@ -74,10 +74,6 @@ import { TuiScrollbarModule } from '@taiga-ui/core'
         &-inner {
           padding-top: 6rem;
 
-          // @media (min-width: 640px) {
-          //   padding-top: 0.75rem;
-          // }
-
           @media (min-width: 768px) {
             padding: 0 2rem 2.5rem 2rem;
           }
@@ -91,6 +87,7 @@ import { TuiScrollbarModule } from '@taiga-ui/core'
               line-height: 2.5rem;
               font-weight: 700;
               color: rgb(250 250 250 / 0.8);
+              pointer-events: none;
 
               @media (min-width: 640px) {
                 font-size: 3rem;

@@ -81,6 +81,11 @@ import { MarketplaceSidebarService } from '../services/sidebar.service'
 
       .close-button {
         place-self: end;
+        margin-bottom: 0;
+
+        @media (min-width: 768px) {
+          margin-bottom: 2rem;
+        }
       }
 
       .controls-wrapper {

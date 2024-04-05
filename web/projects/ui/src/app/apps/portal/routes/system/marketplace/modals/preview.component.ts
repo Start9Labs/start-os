@@ -18,7 +18,7 @@ import {
   StoreIdentity,
 } from '@start9labs/marketplace'
 import { displayEmver, Emver, SharedPipesModule } from '@start9labs/shared'
-import { TuiButtonModule } from '@taiga-ui/experimental'
+import { TuiButtonModule, TuiIconModule } from '@taiga-ui/experimental'
 import { BehaviorSubject, filter, switchMap, tap } from 'rxjs'
 import {
   TuiDialogContext,
@@ -44,19 +44,20 @@ import { Router } from '@angular/router'
           <marketplace-package-hero [pkg]="pkg">
             <ng-content select="[slot=controls]" />
           </marketplace-package-hero>
-          @if (hostInfo$ | async; as info) {
-            <a
-              [href]="constructDetailLink(info, pkg.manifest.id)"
-              tuiButton
-              appearance="tertiary-solid"
-              iconRight="tuiIconExternalLink"
-              target="_blank"
-            >
-              View more details
-            </a>
-          }
           <div class="inner-container">
-            <marketplace-about [pkg]="pkg" />
+            <marketplace-about [pkg]="pkg">
+              @if (hostInfo$ | async; as info) {
+                <a
+                  [href]="constructDetailLink(info, pkg.manifest.id)"
+                  rel="noreferrer"
+                  target="_blank"
+                  class="listing"
+                >
+                  View complete listing
+                  <tui-icon icon="tuiIconExternalLink" />
+                </a>
+              }
+            </marketplace-about>
             @if (!(pkg.manifest.dependencies | empty)) {
               <marketplace-dependencies
                 [pkg]="pkg"
@@ -64,7 +65,7 @@ import { Router } from '@angular/router'
               ></marketplace-dependencies>
             }
             <release-notes [pkg]="pkg" />
-            <marketplace-additional class="additional-wrapper" [pkg]="pkg">
+            <marketplace-additional [pkg]="pkg">
               <marketplace-additional-item
                 (click)="presentAlertVersions(pkg, version)"
                 data="Click to view all versions"
@@ -114,9 +115,14 @@ import { Router } from '@angular/router'
 
       .outer-container {
         display: grid;
-        gap: 2rem;
         padding: 1.75rem;
-        min-width: 30rem;
+        min-width: 100%;
+        margin-top: 5rem;
+
+        @media (min-width: 768px) {
+          min-width: 30rem;
+          margin-top: 0;
+        }
       }
 
       .inner-container {
@@ -125,8 +131,19 @@ import { Router } from '@angular/router'
         column-gap: 2rem;
       }
 
-      .additional-wrapper {
-        margin-top: 1.5rem;
+      .listing {
+        font-size: 0.9rem;
+        // @TODO theme
+        color: #8059e5;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+
+        tui-icon {
+          width: 0.8em;
+          height: 0.8em;
+        }
       }
 
       .versions {
@@ -158,6 +175,7 @@ import { Router } from '@angular/router'
     MarketplaceAdditionalItemComponent,
     TuiRadioListModule,
     TuiLoaderModule,
+    TuiIconModule,
   ],
 })
 export class MarketplacePreviewComponent {

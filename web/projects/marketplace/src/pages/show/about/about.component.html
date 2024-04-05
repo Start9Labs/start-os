@@ -4,16 +4,6 @@
     <p>
       {{ pkg.manifest.description.long }}
     </p>
-    <ng-container *ngIf="pkg.manifest.replaces as replaces">
-      <div *ngIf="replaces.length">
-        <h2 class="replaces">Intended to replace:</h2>
-        <tui-tag
-          *ngFor="let app; index as i; of: replaces"
-          size="l"
-          [class]="i > 0 ? 'tag-margin-full' : 'tag-margin-empty'"
-          [value]="app"
-        ></tui-tag>
-      </div>
-    </ng-container>
+    <ng-content></ng-content>
   </div>
 </div>

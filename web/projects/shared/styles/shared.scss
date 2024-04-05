@@ -319,7 +319,7 @@ ion-modal {
 
 a {
   cursor: pointer;
-  color: aqua;
+  color: inherit;
   text-decoration: none;
 }
 
@@ -334,7 +334,7 @@ a {
 .background-border {
   border-radius: 0.75rem;
   background-image: linear-gradient(
-    to bottom left,
+    to top left,
     rgb(161 161 170 / 0.75),
     #52525b
   );
@@ -366,6 +366,7 @@ a {
   text-transform: uppercase;
   letter-spacing: .06rem;
   margin-bottom: 1rem;
+  pointer-events: none;
 }
 
 .buttons {
@@ -374,11 +375,6 @@ a {
   :first-child {
     margin-right: 0.5rem;
   }
-}
-
-a {
-  color: inherit;
-  text-decoration: inherit;
 }
 
 h1,
