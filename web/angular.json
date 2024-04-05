@@ -47,8 +47,6 @@
               "node_modules/@taiga-ui/core/styles/taiga-ui-theme.less",
               "node_modules/@taiga-ui/styles/taiga-ui-global.less",
               "projects/shared/styles/taiga.scss",
-              "projects/shared/styles/variables.scss",
-              "projects/shared/styles/global.scss",
               "projects/shared/styles/shared.scss",
               "projects/ui/src/styles.scss"
             ],
@@ -97,7 +95,10 @@
               "buildTarget": "ui:build:development"
             }
           },
-          "defaultConfiguration": "development"
+          "defaultConfiguration": "development",
+          "options": {
+            "port": 8100
+          }
         },
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
@@ -112,30 +113,6 @@
               "projects/ui/src/**/*.ts",
               "projects/ui/src/**/*.html"
             ]
-          }
-        },
-        "ionic-cordova-build": {
-          "builder": "@ionic/angular-toolkit:cordova-build",
-          "options": {
-            "browserTarget": "ui:build"
-          },
-          "configurations": {
-            "production": {
-              "browserTarget": "ui:build:production"
-            }
-          }
-        },
-        "ionic-cordova-serve": {
-          "builder": "@ionic/angular-toolkit:cordova-serve",
-          "options": {
-            "cordovaBuildTarget": "ui:ionic-cordova-build",
-            "devServerTarget": "ui:serve"
-          },
-          "configurations": {
-            "production": {
-              "cordovaBuildTarget": "ui:ionic-cordova-build:production",
-              "devServerTarget": "ui:serve:production"
-            }
           }
         }
       }
@@ -219,7 +196,8 @@
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "options": {
-            "buildTarget": "install-wizard:build"
+            "buildTarget": "install-wizard:build",
+            "port": 8100
           },
           "configurations": {
             "production": {
@@ -244,30 +222,6 @@
               "projects/install-wizard/src/**/*.ts",
               "projects/install-wizard/src/**/*.html"
             ]
-          }
-        },
-        "ionic-cordova-build": {
-          "builder": "@ionic/angular-toolkit:cordova-build",
-          "options": {
-            "browserTarget": "install-wizard:build"
-          },
-          "configurations": {
-            "production": {
-              "browserTarget": "install-wizard:build:production"
-            }
-          }
-        },
-        "ionic-cordova-serve": {
-          "builder": "@ionic/angular-toolkit:cordova-serve",
-          "options": {
-            "cordovaBuildTarget": "install-wizard:ionic-cordova-build",
-            "devServerTarget": "install-wizard:serve"
-          },
-          "configurations": {
-            "production": {
-              "cordovaBuildTarget": "install-wizard:ionic-cordova-build:production",
-              "devServerTarget": "install-wizard:serve:production"
-            }
           }
         }
       }
@@ -352,7 +306,10 @@
               "buildTarget": "setup-wizard:build:development"
             }
           },
-          "defaultConfiguration": "development"
+          "defaultConfiguration": "development",
+          "options": {
+            "port": 8100
+          }
         },
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
@@ -367,30 +324,6 @@
               "projects/setup-wizard/src/**/*.ts",
               "projects/setup-wizard/src/**/*.html"
             ]
-          }
-        },
-        "ionic-cordova-build": {
-          "builder": "@ionic/angular-toolkit:cordova-build",
-          "options": {
-            "browserTarget": "setup-wizard:build"
-          },
-          "configurations": {
-            "production": {
-              "browserTarget": "setup-wizard:build:production"
-            }
-          }
-        },
-        "ionic-cordova-serve": {
-          "builder": "@ionic/angular-toolkit:cordova-serve",
-          "options": {
-            "cordovaBuildTarget": "setup-wizard:ionic-cordova-build",
-            "devServerTarget": "setup-wizard:serve"
-          },
-          "configurations": {
-            "production": {
-              "cordovaBuildTarget": "setup-wizard:ionic-cordova-build:production",
-              "devServerTarget": "setup-wizard:serve:production"
-            }
           }
         }
       }
@@ -437,15 +370,16 @@
     }
   },
   "cli": {
-    "schematicCollections": ["@ionic/angular-toolkit"],
+    "schematicCollections": [],
     "analytics": false
   },
   "schematics": {
-    "@ionic/angular-toolkit:component": {
-      "styleext": "scss"
-    },
-    "@ionic/angular-toolkit:page": {
-      "styleext": "scss"
+    "@schematics/angular:component": {
+      "displayBlock": true,
+      "changeDetection": "OnPush",
+      "style": "scss",
+      "skipTests": true,
+      "skipImport": true
     }
   }
 }

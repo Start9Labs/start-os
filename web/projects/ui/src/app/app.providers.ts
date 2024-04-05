@@ -1,7 +1,6 @@
 import { APP_INITIALIZER, Provider } from '@angular/core'
 import { UntypedFormBuilder } from '@angular/forms'
 import { Router } from '@angular/router'
-import { IonNav } from '@ionic/angular'
 import {
   AbstractCategoryService,
   AbstractMarketplaceService,
@@ -10,6 +9,7 @@ import {
 import { RELATIVE_URL, THEME, WorkspaceConfig } from '@start9labs/shared'
 import { TUI_DATE_FORMAT, TUI_DATE_SEPARATOR } from '@taiga-ui/cdk'
 import {
+  tuiDropdownOptionsProvider,
   tuiNumberFormatProvider,
   tuiTextfieldOptionsProvider,
 } from '@taiga-ui/core'
@@ -39,10 +39,10 @@ export const APP_PROVIDERS: Provider[] = [
   PATCH_DB_PROVIDERS,
   FilterPackagesPipe,
   UntypedFormBuilder,
-  IonNav,
   tuiNumberFormatProvider({ decimalSeparator: '.', thousandSeparator: '' }),
   tuiButtonOptionsProvider({ size: 'm' }),
   tuiTextfieldOptionsProvider({ hintOnDisabled: true }),
+  tuiDropdownOptionsProvider({ appearance: 'start-os' }),
   {
     provide: TUI_DATE_FORMAT,
     useValue: 'MDY',

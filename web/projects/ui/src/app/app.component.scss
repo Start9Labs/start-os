@@ -1,17 +1,17 @@
+@import '@taiga-ui/core/styles/taiga-ui-local';
+
 :host {
   display: block;
   height: 100%;
 }
 
 tui-root {
+  @include transition(filter);
   height: 100%;
-}
+  font-family: 'Open Sans', sans-serif;
+  --tui-skeleton-radius: 1rem;
 
-.container {
-  max-width: 100%;
-  transition: filter 0.3s;
-
-  &_offline {
+  &.offline {
     filter: saturate(0.75) contrast(0.85);
   }
 }

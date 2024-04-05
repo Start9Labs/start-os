@@ -4,7 +4,7 @@ import { PatchDB } from 'patch-db-client'
 import { BehaviorSubject, distinctUntilChanged, map, combineLatest } from 'rxjs'
 import { MarketplaceEOS } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { getServerInfo } from 'src/app/util/get-server-info'
+import { getServerInfo } from 'src/app/utils/get-server-info'
 import { DataModel } from './patch-db/data-model'
 
 @Injectable({

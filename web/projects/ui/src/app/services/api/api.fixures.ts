@@ -11,7 +11,7 @@ import {
 } from './api.types'
 import { DependencyMetadata, MarketplacePkg } from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
-import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
+import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { CT, T, CB } from '@start9labs/start-sdk'
 
 const BTC_ICON = '/assets/img/service-icons/bitcoind.svg'
