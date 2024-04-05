@@ -186,6 +186,7 @@ struct GetServicePortForwardParams {
     #[ts(type = "string | null")]
     package_id: Option<PackageId>,
     internal_port: u32,
+    host_id: HostId,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
@@ -314,22 +315,19 @@ async fn get_system_smtp(
     todo!()
 }
 async fn get_container_ip(context: EffectContext, _: Empty) -> Result<Ipv4Addr, Error> {
-    match context.0.upgrade() {
-        Some(c) => {
-            let net_service = c.persistent_container.net_service.lock().await;
-            Ok(net_service.get_ip())
-        }
-        None => Err(Error::new(
-            eyre!("Upgrade on Weak<ServiceActorSeed> resulted in a None variant"),
-            crate::ErrorKind::NotFound,
-        )),
-    }
+    let context = context.deref()?;
+    let net_service = context.persistent_container.net_service.lock().await;
+    Ok(net_service.get_ip())
 }
 async fn get_service_port_forward(
     context: EffectContext,
     data: GetServicePortForwardParams,
-) -> Result<Value, Error> {
-    todo!()
+) -> Result<u16, Error> {
+    let internal_port = data.internal_port as u16;
+    
+    let context = context.deref()?;
+    let net_service = context.persistent_container.net_service.lock().await;
+    net_service.get_ext_port(data.host_id, internal_port)
 }
 async fn clear_network_interfaces(context: EffectContext, _: Empty) -> Result<Value, Error> {
     todo!()

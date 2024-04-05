@@ -7,6 +7,7 @@ use imbl::OrdMap;
 use lazy_format::lazy_format;
 use models::{HostId, OptionExt, PackageId};
 use patch_db::PatchDb;
+use tokio::sync::Mutex;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 
@@ -387,7 +388,21 @@ impl NetService {
     }
 
     pub fn get_ip(&self) -> Ipv4Addr {
-        self.ip.to_owned()
+        self.ip
+    }
+
+    pub fn get_ext_port(&self, host_id: HostId, internal_port: u16) -> Result<u16, Error> {
+        let host_id_binds = self.binds.get_key_value(&host_id);
+        match host_id_binds {
+            Some((id, binds)) => {
+                if let Some(ext_port_info) = binds.lan.get(&internal_port) {
+                    Ok(ext_port_info.0)
+                } else {
+                    Err(Error::new(eyre!("Internal Port {} not found in NetService binds", internal_port), crate::ErrorKind::NotFound))
+                }
+            },
+            None => Err(Error::new(eyre!("HostID {} not found in NetService binds", host_id), crate::ErrorKind::NotFound))
+        }
     }
 }
 
