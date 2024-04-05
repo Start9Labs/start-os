@@ -1,13 +1,21 @@
 use crate::prelude::*;
+use crate::service::config::GetConfig;
+use crate::service::dependencies::DependencyConfig;
 use crate::service::start_stop::StartStop;
 use crate::service::transition::TransitionKind;
 use crate::service::{Service, ServiceActor};
-use crate::util::actor::{BackgroundJobs, Handler};
+use crate::util::actor::background::BackgroundJobQueue;
+use crate::util::actor::{ConflictBuilder, Handler};
 
-struct Start;
+pub(super) struct Start;
 impl Handler<Start> for ServiceActor {
     type Response = ();
-    async fn handle(&mut self, _: Start, _: &mut BackgroundJobs) -> Self::Response {
+    fn conflicts_with(_: &Start) -> ConflictBuilder<Self> {
+        ConflictBuilder::everything()
+            .except::<GetConfig>()
+            .except::<DependencyConfig>()
+    }
+    async fn handle(&mut self, _: Start, _: &BackgroundJobQueue) -> Self::Response {
         self.0.persistent_container.state.send_modify(|x| {
             x.desired_state = StartStop::Start;
         });
@@ -23,7 +31,12 @@ impl Service {
 struct Stop;
 impl Handler<Stop> for ServiceActor {
     type Response = ();
-    async fn handle(&mut self, _: Stop, _: &mut BackgroundJobs) -> Self::Response {
+    fn conflicts_with(_: &Stop) -> ConflictBuilder<Self> {
+        ConflictBuilder::everything()
+            .except::<GetConfig>()
+            .except::<DependencyConfig>()
+    }
+    async fn handle(&mut self, _: Stop, _: &BackgroundJobQueue) -> Self::Response {
         let mut transition_state = None;
         self.0.persistent_container.state.send_modify(|x| {
             x.desired_state = StartStop::Stop;
