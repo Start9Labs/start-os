@@ -5,7 +5,7 @@ use tokio::sync::watch;
 
 use super::persistent_container::ServiceState;
 use crate::service::start_stop::StartStop;
-use crate::util::actor::BackgroundJobs;
+use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::future::{CancellationHandle, RemoteCancellable};
 
 pub mod backup;
@@ -41,7 +41,7 @@ impl TransitionState {
     fn new(
         task: impl Future<Output = ()> + Send + 'static,
         kind: TransitionKind,
-        jobs: &mut BackgroundJobs,
+        jobs: &BackgroundJobQueue,
     ) -> Self {
         let task = RemoteCancellable::new(task);
         let cancel_handle = task.cancellation_handle();

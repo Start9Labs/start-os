@@ -13,7 +13,6 @@ use start_stop::StartStop;
 use tokio::sync::Notify;
 use ts_rs::TS;
 
-use crate::config::action::ConfigRes;
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::RequestGuid;
 use crate::db::model::package::{
@@ -28,7 +27,9 @@ use crate::service::service_map::InstallProgressHandles;
 use crate::service::transition::TransitionKind;
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
-use crate::util::actor::{Actor, BackgroundJobs, SimpleActor};
+use crate::util::actor::background::BackgroundJobQueue;
+use crate::util::actor::concurrent::ConcurrentActor;
+use crate::util::actor::Actor;
 use crate::util::serde::Pem;
 use crate::volume::data_dir;
 
@@ -66,7 +67,7 @@ pub enum LoadDisposition {
 }
 
 pub struct Service {
-    actor: SimpleActor<ServiceActor>,
+    actor: ConcurrentActor<ServiceActor>,
     seed: Arc<ServiceActorSeed>,
 }
 impl Service {
@@ -90,7 +91,7 @@ impl Service {
             .init(Arc::downgrade(&seed))
             .await?;
         Ok(Self {
-            actor: SimpleActor::new(ServiceActor(seed.clone())),
+            actor: ConcurrentActor::new(ServiceActor(seed.clone())),
             seed,
         })
     }
@@ -391,10 +392,11 @@ impl ServiceActorSeed {
         });
     }
 }
+#[derive(Clone)]
 struct ServiceActor(Arc<ServiceActorSeed>);
 
 impl Actor for ServiceActor {
-    fn init(&mut self, jobs: &mut BackgroundJobs) {
+    fn init(&mut self, jobs: &BackgroundJobQueue) {
         let seed = self.0.clone();
         jobs.add_job(async move {
             let id = seed.id.clone();

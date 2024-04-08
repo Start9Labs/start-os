@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use color_eyre::eyre::eyre;
 use helpers::const_true;
@@ -43,9 +43,9 @@ pub struct Manifest {
     #[ts(type = "string | null")]
     pub donation_url: Option<Url>,
     pub description: Description,
-    pub images: Vec<ImageId>,
-    pub assets: Vec<VolumeId>, // TODO: AssetsId
-    pub volumes: Vec<VolumeId>,
+    pub images: BTreeSet<ImageId>,
+    pub assets: BTreeSet<VolumeId>, // TODO: AssetsId
+    pub volumes: BTreeSet<VolumeId>,
     #[serde(default)]
     pub alerts: Alerts,
     #[serde(default)]

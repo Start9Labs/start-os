@@ -11,7 +11,7 @@ use clap::Parser;
 use emver::VersionRange;
 use imbl::OrdMap;
 use imbl_value::{json, InternedString};
-use models::{ActionId, HealthCheckId, HostId, ImageId, PackageId, VolumeId};
+use models::{ActionId, DataUrl, HealthCheckId, HostId, ImageId, PackageId, VolumeId};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
@@ -28,7 +28,9 @@ use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::net::host::binding::BindOptions;
 use crate::net::host::HostKind;
 use crate::prelude::*;
+use crate::s9pk::merkle_archive::source::http::{HttpReader, HttpSource};
 use crate::s9pk::rpc::SKIP_ENV;
+use crate::s9pk::S9pk;
 use crate::service::cli::ContainerCliContext;
 use crate::service::ServiceActorSeed;
 use crate::status::health_check::HealthCheckResult;
@@ -1145,11 +1147,36 @@ async fn set_dependencies(
                 version_spec,
             ),
         };
-        let icon = todo!();
-        let title = todo!();
+        let (icon, title) = match async {
+            let remote_s9pk = S9pk::deserialize(
+                &HttpSource::new(
+                    ctx.ctx.client.clone(),
+                    registry_url
+                        .join(&format!("package/v2/{}.s9pk?spec={}", dep_id, version_spec))?,
+                )
+                .await?,
+            )
+            .await?;
+
+            let icon = remote_s9pk.icon_data_url().await?;
+
+            Ok::<_, Error>((icon, remote_s9pk.as_manifest().title.clone()))
+        }
+        .await
+        {
+            Ok(a) => a,
+            Err(e) => {
+                tracing::error!("Error fetching remote s9pk: {e}");
+                tracing::debug!("{e:?}");
+                (
+                    DataUrl::from_slice("image/png", include_bytes!("../install/package-icon.png")),
+                    dep_id.to_string(),
+                )
+            }
+        };
         let config_satisfied = if let Some(dep_service) = &*ctx.ctx.services.get(&dep_id).await {
             service
-                .dependency_config(dep_id, dep_service.get_config().await?.config)
+                .dependency_config(dep_id.clone(), dep_service.get_config().await?.config)
                 .await?
                 .is_none()
         } else {
@@ -1158,7 +1185,7 @@ async fn set_dependencies(
         deps.insert(
             dep_id,
             CurrentDependencyInfo {
-                kind: CurrentDependencyKind::Exists,
+                kind,
                 registry_url,
                 version_spec,
                 icon,
