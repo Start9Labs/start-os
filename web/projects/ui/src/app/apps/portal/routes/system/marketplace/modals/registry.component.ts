@@ -155,7 +155,7 @@ export class MarketplaceRegistryModal {
           )
 
         try {
-          await this.api.setDbValue(['marketplace', 'known-hosts'], filtered)
+          await this.api.setDbValue(['marketplace', 'knownHosts'], filtered)
         } catch (e: any) {
           this.errorService.handleError(e)
         } finally {
@@ -173,7 +173,7 @@ export class MarketplaceRegistryModal {
     loader.add(this.loader.open('Changing Registry...').subscribe())
 
     try {
-      await this.api.setDbValue<string>(['marketplace', 'selected-url'], url)
+      await this.api.setDbValue<string>(['marketplace', 'selectedUrl'], url)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -218,7 +218,7 @@ export class MarketplaceRegistryModal {
     loader.closed = false
     loader.add(this.loader.open('Saving...').subscribe())
 
-    await this.api.setDbValue(['marketplace', 'known-hosts', url], { name })
+    await this.api.setDbValue(['marketplace', 'knownHosts', url], { name })
   }
 }
 
