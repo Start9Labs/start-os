@@ -1,3 +1,163 @@
+@font-face {
+  font-family: 'text-security-disc';
+  src: url('/assets/fonts/text-security-disc.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: normal;
+  src: url('/assets/fonts/Montserrat/Montserrat-Regular.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: bold;
+  src: url('/assets/fonts/Montserrat/Montserrat-Bold.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: thin;
+  src: url('/assets/fonts/Montserrat/Montserrat-Light.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 900;
+  src: url('/assets/fonts/Montserrat/Montserrat-Black.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 800;
+  src: url('/assets/fonts/Montserrat/Montserrat-ExtraBold.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 700;
+  src: url('/assets/fonts/Montserrat/Montserrat-Bold.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 600;
+  src: url('/assets/fonts/Montserrat/Montserrat-SemiBold.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 500;
+  src: url('/assets/fonts/Montserrat/Montserrat-Medium.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/assets/fonts/Montserrat/Montserrat-Regular.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 300;
+  src: url('/assets/fonts/Montserrat/Montserrat-Light.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 200;
+  src: url('/assets/fonts/Montserrat/Montserrat-ExtraLight.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 100;
+  src: url('/assets/fonts/Montserrat/Montserrat-Thin.ttf');
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: normal;
+  src: url('/assets/fonts/Open_Sans/OpenSans-Regular.ttf');
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: bold;
+  src: url('/assets/fonts/Open_Sans/OpenSans-Bold.ttf');
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: thin;
+  src: url('/assets/fonts/Open_Sans/OpenSans-Light.ttf');
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: 800;
+  src: url('/assets/fonts/Open_Sans/OpenSans-ExtraBold.ttf');
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: 700;
+  src: url('/assets/fonts/Open_Sans/OpenSans-Bold.ttf');
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: 600;
+  src: url('/assets/fonts/Open_Sans/OpenSans-SemiBold.ttf');
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/assets/fonts/Open_Sans/OpenSans-Regular.ttf');
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: 300;
+  src: url('/assets/fonts/Open_Sans/OpenSans-Light.ttf');
+}
+
+@font-face {
+  font-family: 'Courier New';
+  font-style: normal;
+  font-weight: normal;
+  src: url('/assets/fonts/Courier_New/CourierNew-Regular.ttf');
+}
+
+@font-face {
+  font-family: 'Courier New';
+  font-style: normal;
+  font-weight: bold;
+  src: url('/assets/fonts/Courier_New/CourierNew-Bold.ttf');
+}
+
+
 $wide-modal: 900px;
 
 body {
@@ -159,7 +319,7 @@ ion-modal {
 
 a {
   cursor: pointer;
-  color: aqua;
+  color: inherit;
   text-decoration: none;
 }
 
@@ -174,7 +334,7 @@ a {
 .background-border {
   border-radius: 0.75rem;
   background-image: linear-gradient(
-    to bottom left,
+    to top left,
     rgb(161 161 170 / 0.75),
     #52525b
   );
@@ -199,24 +359,22 @@ a {
 }
 
 .additional-detail-title {
-  font-size: 1.125rem;
+  font-family: 'Montserrat';
+  font-size: 0.85rem;
   line-height: 1.75rem;
-  font-weight: 700;
-  padding-bottom: 0.75rem;
-  font-variant: all-small-caps;
+  font-weight: 300;
+  text-transform: uppercase;
+  letter-spacing: .06rem;
+  margin-bottom: 1rem;
+  pointer-events: none;
 }
 
 .buttons {
-  margin-top: 0.5rem;
+  margin-top: 1rem;
 
   :first-child {
     margin-right: 0.5rem;
   }
-}
-
-a {
-  color: inherit;
-  text-decoration: inherit;
 }
 
 h1,

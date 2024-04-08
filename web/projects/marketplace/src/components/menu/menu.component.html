@@ -4,7 +4,7 @@
       <store-icon
         [class.tui-skeleton]="!store"
         [class.tui-skeleton_rounded]="!store"
-        size="64px"
+        size="60px"
         [url]="store?.url || ''"
         [marketplace]="iconConfig"
       ></store-icon>
@@ -27,13 +27,14 @@
           type="button"
           appearance="flat"
           [pseudoActive]="false"
+          [pseudoHover]="false"
           (click)="toggleMenu(true)"
           (tuiActiveZoneChange)="toggleMenu($event)"
-          [style.--tui-padding]="'1rem'"
+          [style.--tui-padding]="'1.2rem'"
         >
           <store-icon
-            size="48px"
-            [style.height]="'48px'"
+            size="42px"
+            [style.height]="'42px'"
             [style.border-radius]="'100%'"
             [url]="store?.url || ''"
             [marketplace]="iconConfig"
@@ -66,17 +67,21 @@
                 [category]="query ? '' : category"
                 (categoryChange)="onCategoryChange($event); toggleMenu(false)"
               ></marketplace-categories>
-              <a
-                target="_blank"
-                href="https://github.com/Start9Labs/service-pipeline#readme"
-              >
-                <!-- @TODO need rocket icon -->
-                <tui-icon
-                  tuiAppearance="icon"
-                  icon="tuiIconExternalLinkLarge"
-                ></tui-icon>
-                <span>Launch your project</span>
-              </a>
+              <div>
+                <!-- link to store for brochure -->
+                <ng-content select="[slot=store-mobile]"></ng-content>
+                <a
+                  target="_blank"
+                  rel="noreferrer"
+                  href="https://docs.start9.com/0.3.5.x/developer-docs/"
+                >
+                  <span>Package a service</span>
+                  <tui-icon
+                    tuiAppearance="icon"
+                    icon="tuiIconExternalLinkLarge"
+                  ></tui-icon>
+                </a>
+              </div>
             </div>
           </nav>
         </button>
@@ -95,17 +100,21 @@
           [category]="query ? '' : category"
           (categoryChange)="onCategoryChange($event)"
         ></marketplace-categories>
-        <a
-          target="_blank"
-          href="https://github.com/Start9Labs/service-pipeline#readme"
-        >
-          <!-- @TODO need rocket icon -->
-          <tui-icon
-            tuiAppearance="icon"
-            icon="tuiIconExternalLinkLarge"
-          ></tui-icon>
-          <span>Launch your project</span>
-        </a>
+        <div>
+          <!-- link to store for brochure -->
+          <ng-content select="[slot=store]"></ng-content>
+          <a
+            target="_blank"
+            rel="noreferrer"
+            href="https://docs.start9.com/0.3.5.x/developer-docs/"
+          >
+            <span>Package a service</span>
+            <tui-icon
+              tuiAppearance="icon"
+              icon="tuiIconExternalLinkLarge"
+            ></tui-icon>
+          </a>
+        </div>
       </div>
     </nav>
   </ng-container>

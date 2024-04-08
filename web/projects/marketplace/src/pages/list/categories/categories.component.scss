@@ -2,7 +2,7 @@
   font-weight: bold;
 }
 
-@media (min-width: 600px) {
+@media (min-width: 768px) {
   .category_selected {
     border-top-left-radius: 0.5rem;
     border-bottom-left-radius: 0.5rem;
@@ -20,8 +20,10 @@ button {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-delay: 75ms;
   transition-duration: 300ms;
-  margin-bottom: 1.25rem;
+  margin-bottom: 2rem;
   z-index: 50;
+  background-color: transparent;
+  background-image: none;
 
   &:hover {
     text-decoration-line: none;

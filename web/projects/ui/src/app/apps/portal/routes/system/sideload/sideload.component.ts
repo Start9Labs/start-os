@@ -77,6 +77,14 @@ import { SideloadPackageComponent } from './package.component'
         max-width: 40rem;
         margin: 0 auto;
       }
+
+      button {
+        margin-bottom: 2rem;
+
+        @media (min-width: 768px) {
+          margin-bottom: 4rem;
+        }
+      }
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,

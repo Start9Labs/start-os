@@ -21,7 +21,6 @@ export class TickerComponent {
   @HostListener('mouseenter')
   onMouseEnter() {
     const { scrollWidth, clientWidth } = this.elementRef.nativeElement
-
     this.indent = Math.ceil(clientWidth - scrollWidth)
   }
 }

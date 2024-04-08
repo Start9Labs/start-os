@@ -37,14 +37,6 @@ import { ToManifestPipe } from 'src/app/apps/portal/pipes/to-manifest'
   selector: 'marketplace-controls',
   template: `
     @if (localPkg) {
-      <button
-        tuiButton
-        type="button"
-        appearance="primary"
-        (click)="showService()"
-      >
-        View Installed
-      </button>
       @if (
         localPkg.stateInfo.state === 'installed' && (localPkg | toManifest);
         as localManifest
@@ -54,7 +46,7 @@ import { ToManifestPipe } from 'src/app/apps/portal/pipes/to-manifest'
             <button
               tuiButton
               type="button"
-              appearance="secondary-solid"
+              appearance="warning-solid"
               (click)="tryInstall()"
             >
               Downgrade
@@ -64,7 +56,7 @@ import { ToManifestPipe } from 'src/app/apps/portal/pipes/to-manifest'
             <button
               tuiButton
               type="button"
-              appearance="warning-solid"
+              appearance="primary"
               (click)="tryInstall()"
             >
               Update
@@ -84,6 +76,14 @@ import { ToManifestPipe } from 'src/app/apps/portal/pipes/to-manifest'
           }
         }
       }
+      <button
+        tuiButton
+        type="button"
+        appearance="outline"
+        (click)="showService()"
+      >
+        View Installed
+      </button>
     } @else {
       <button
         tuiButton

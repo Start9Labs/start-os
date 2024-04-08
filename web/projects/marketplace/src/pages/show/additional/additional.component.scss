@@ -13,33 +13,26 @@
     border-bottom-width: 0px;
     border-color: rgb(113 113 122);
   }
-
-  &-item {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
-  }
 }
 
-.item {
-  &-padding {
-    padding: 0.75rem 0.25rem;
-  }
+.item-pointer:hover {
+  cursor: pointer;
 
-  &-pointer:hover {
+  ::ng-deep label {
     cursor: pointer;
-    background-color: rgb(113 113 122 / 0.1);
-  }
-
-  &-copy:hover {
-    cursor: copy;
-    background-color: rgb(113 113 122 / 0.1);
   }
 }
 
-::ng-deep .t-text {
-  font-weight: 600;
+.item-copy:hover {
+  cursor: copy;
+
+  ::ng-deep label {
+    cursor: copy;
+  }
+}
+
+.item-padding {
+  padding: 0.75rem 0.25rem;
 }
 
 *,
@@ -49,8 +42,4 @@
   border-width: 0;
   border-style: solid;
   border-color: rgb(var(--tw-color-gray-200) / 1);
-}
-
-.git-hash-label {
-  font-size: 0.73rem;
 }

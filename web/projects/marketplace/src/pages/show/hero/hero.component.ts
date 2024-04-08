@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { SharedPipesModule } from '@start9labs/shared'
+import { SharedPipesModule, TickerModule } from '@start9labs/shared'
 import { MarketplacePkg } from '../../../types'
 
 @Component({
@@ -24,9 +24,12 @@ import { MarketplacePkg } from '../../../types'
         <!-- background darkening overlay -->
         <div class="dark-overlay"></div>
         <div class="inner-container-title">
-          <h2>
+          <h2 ticker>
             {{ pkg.manifest.title }}
           </h2>
+          <h3>
+            {{ pkg.manifest.version }}
+          </h3>
           <p>
             {{ pkg.manifest.description.short }}
           </p>
@@ -42,7 +45,6 @@ import { MarketplacePkg } from '../../../types'
         display: flex;
         justify-content: center;
         margin-top: 2.5rem;
-        z-index: 0;
 
         @media (min-width: 768px) {
           margin-top: 0px;
@@ -53,14 +55,15 @@ import { MarketplacePkg } from '../../../types'
         display: flex;
         flex-direction: column;
         width: 100%;
-        height: 32vh;
+        min-height: 32vh;
         position: relative;
         border-radius: 1.5rem;
         padding: 4rem 2rem 0 2rem;
 
         @media (min-width: 376px) {
-          height: 26vh;
+          min-height: 26vh;
         }
+
         @media (min-width: 768px) {
           min-height: 14rem;
         }
@@ -72,6 +75,8 @@ import { MarketplacePkg } from '../../../types'
           border-radius: 9999px;
           object-fit: cover;
           position: absolute;
+          backdrop-filter: blur(24px);
+          background-color: rgb(0 0 0 / 0.5);
           top: -2.25rem;
           left: 1.75rem;
           z-index: 1;
@@ -82,22 +87,32 @@ import { MarketplacePkg } from '../../../types'
           color: rgb(250 250 250);
           mix-blend-mode: plus-lighter;
           z-index: 1;
+          max-width: 17rem;
+
+          @media (min-width: 768px) {
+            min-width: 100%;
+          }
 
           h2 {
-            font-size: 1.5rem;
-            line-height: 2rem;
-            font-weight: 500;
-            overflow: hidden;
-            display: -webkit-box;
-            -webkit-box-orient: vertical;
-            -webkit-line-clamp: 1;
-            margin-bottom: 0.25rem;
+            font-size: 2rem;
+            line-height: 3rem;
+            font-weight: 400;
+            display: inline-block;
+            margin-left: -1px;
+          }
+
+          h3 {
+            font-size: 1.1rem;
+            font-weight: 400;
+            margin-bottom: 1rem;
+            pointer-events: none;
           }
 
           p {
-            display: block;
             font-size: 1rem;
             line-height: 1.5rem;
+            font-weight: 300;
+            pointer-events: none;
             overflow: hidden;
             display: -webkit-box;
             -webkit-box-orient: vertical;
@@ -114,7 +129,6 @@ import { MarketplacePkg } from '../../../types'
           left: 0px;
           z-index: -50;
           border-radius: 1.5rem;
-          background-color: rgb(39 39 42);
 
           img {
             position: absolute;
@@ -123,7 +137,7 @@ import { MarketplacePkg } from '../../../types'
             width: 200%;
             height: 200%;
             max-width: 200%;
-            filter: blur(100px) saturate(1.5);
+            filter: blur(100px);
           }
         }
 
@@ -143,7 +157,7 @@ import { MarketplacePkg } from '../../../types'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, SharedPipesModule],
+  imports: [CommonModule, SharedPipesModule, TickerModule],
 })
 export class MarketplacePackageHeroComponent {
   @Input({ required: true })

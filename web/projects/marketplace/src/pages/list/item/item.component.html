@@ -1,21 +1,18 @@
 <div class="item-container box-shadow-lg">
   <!-- color background -->
   <div class="background">
-    <img
-      [src]="pkg.icon| trustUrl"
-      alt="{{ pkg.manifest.title }} Icon"
-    />
+    <img [src]="pkg.icon" alt="{{ pkg.manifest.title }} Icon" />
   </div>
   <!-- darkening overlay -->
   <div class="overlay"></div>
   <!-- icon -->
   <img
-    [src]="pkg.icon | trustUrl"
+    [src]="pkg.icon"
     class="icon box-shadow-lg"
     alt="{{ pkg.manifest.title }} Icon"
   />
   <div class="detail">
-    <span class="detail-title">
+    <span class="detail-title" ticker>
       {{ pkg.manifest.title }}
     </span>
     <span class="detail-description">

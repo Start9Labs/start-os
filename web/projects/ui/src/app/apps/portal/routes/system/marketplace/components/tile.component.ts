@@ -2,8 +2,8 @@ import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
-  Input,
   inject,
+  Input,
 } from '@angular/core'
 import { ActivatedRoute, Router } from '@angular/router'
 import { ItemModule, MarketplacePkg } from '@start9labs/marketplace'
@@ -30,8 +30,8 @@ import { MarketplaceSidebarService } from '../services/sidebar.service'
           direction: 'right';
           autoWidth: true
         "
+        [pkgId]="pkg.manifest.id"
         class="preview-wrapper"
-        [pkg]="pkg"
         (tuiActiveZoneChange)="toggle($event)"
       >
         <button
@@ -82,12 +82,18 @@ import { MarketplaceSidebarService } from '../services/sidebar.service'
 
       .close-button {
         place-self: end;
+        margin-bottom: 0;
+
+        @media (min-width: 768px) {
+          margin-bottom: 2rem;
+        }
       }
 
       .controls-wrapper {
         display: flex;
         justify-content: flex-start;
         gap: 0.5rem;
+        height: 4.5rem;
       }
     `,
   ],
@@ -113,7 +119,6 @@ import { MarketplaceSidebarService } from '../services/sidebar.service'
 })
 export class MarketplaceTileComponent {
   private readonly router = inject(Router)
-
   readonly id$ = inject(ActivatedRoute).queryParamMap.pipe(
     map(map => map.get('id') || ''),
     debounceTime(100),

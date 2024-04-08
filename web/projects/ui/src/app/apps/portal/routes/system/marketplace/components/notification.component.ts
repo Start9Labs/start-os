@@ -55,6 +55,7 @@ import { ConfigService } from 'src/app/services/config.service'
     `
       .notification-wrapper {
         margin: 1rem;
+        pointer-events: none;
       }
     `,
   ],

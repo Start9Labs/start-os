@@ -1,18 +1,9 @@
 <div class="background-border box-shadow-lg shadow-color-light">
   <div class="box-container">
-    <div class="box-container-title">
-      <h3 class="small-caps">What's new</h3>
-      <p *ngIf="pkg.publishedAt as published">
-        <span class="small-caps">Latest Release</span>
-        &nbsp;-&nbsp;
-        <span class="box-container-title-date">
-          {{ published | date: 'medium' }}
-        </span>
-      </p>
-    </div>
+    <h2 class="additional-detail-title">What's new</h2>
     <div class="box-container-details">
       <div class="box-container-details-version">
-        <p>Version {{ pkg.manifest.version }}</p>
+        <h3>Version {{ pkg.manifest.version }}</h3>
         <p
           safeLinks
           class="box-container-details-notes"
@@ -20,6 +11,7 @@
         ></p>
       </div>
       <button
+        *ngIf="pkg.versions.length > 2"
         tuiButton
         type="button"
         appearance="secondary"
@@ -38,7 +30,11 @@
       class="max-width-lg"
       style="max-width: 32rem"
       [closeOthers]="false"
-      *ngFor="let note of notes | keyvalue: asIsOrder"
+      *ngFor="
+        let note of notes
+          | filterVersions: pkg.manifest.version
+          | keyvalue: asIsOrder
+      "
     >
       <tui-accordion-item style="margin: 0.25rem 0">
         {{ note.key | displayEmver }}

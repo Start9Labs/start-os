@@ -4,7 +4,7 @@ import { Router, RouterLink } from '@angular/router'
 import {
   AboutModule,
   AdditionalModule,
-  DependenciesModule,
+  MarketplaceDependenciesComponent,
   MarketplacePackageHeroComponent,
   MarketplacePkg,
 } from '@start9labs/marketplace'
@@ -27,17 +27,17 @@ import { getManifest } from 'src/app/util/get-package-data'
 @Component({
   selector: 'sideload-package',
   template: `
-    <div class="grid gap-8 mb-16 p-4 lg:px-16 lg:pb-8 pt-14 justify-center">
+    <div class="outer-container">
       <ng-content />
       <marketplace-package-hero
         *tuiLet="button$ | async as button"
         [pkg]="package"
       >
-        <div class="flex justify-start">
+        <div class="inner-container">
           <a
             *ngIf="button !== null && button !== 'Install'"
             tuiButton
-            appearance="secondary"
+            appearance="tertiary-solid"
             [routerLink]="'/portal/service/' + package.manifest.id"
           >
             View installed
@@ -48,22 +48,33 @@ import { getManifest } from 'src/app/util/get-package-data'
         </div>
       </marketplace-package-hero>
       <marketplace-about [pkg]="package" />
-      <div
-        *ngIf="!(package.manifest.dependencies | empty)"
-        class="rounded-xl bg-gradient-to-bl from-zinc-400/75 to-zinc-600 p-px shadow-lg shadow-zinc-400/10"
-      >
-        <div class="lg:col-span-5 xl:col-span-4 bg-zinc-800 rounded-xl p-7">
-          <h2 class="text-lg font-bold small-caps my-2 pb-3">Dependencies</h2>
-          <div class="grid grid-row-auto gap-3">
-            <div *ngFor="let dep of package.manifest.dependencies | keyvalue">
-              <marketplace-dependencies [dep]="dep" [pkg]="package" />
-            </div>
-          </div>
-        </div>
-      </div>
+      @if (!(package.manifest.dependencies | empty)) {
+        <marketplace-dependencies [pkg]="package" (open)="open($event)" />
+      }
       <marketplace-additional [pkg]="package" />
     </div>
   `,
+  styles: [
+    `
+      .outer-container {
+        display: grid;
+        justify-content: center;
+        width: 100%;
+
+        @media (min-width: 1024px) {
+          max-width: 80%;
+          margin: auto;
+          padding: 2.5rem 4rem 2rem 4rem;
+        }
+      }
+
+      .inner-container {
+        display: flex;
+        justify-content: flex-start;
+        margin: -0.5rem 0 1.5rem -1px;
+      }
+    `,
+  ],
   standalone: true,
   imports: [
     CommonModule,
@@ -74,7 +85,7 @@ import { getManifest } from 'src/app/util/get-package-data'
     TuiButtonModule,
     TuiLetModule,
     MarketplacePackageHeroComponent,
-    DependenciesModule,
+    MarketplaceDependenciesComponent,
   ],
 })
 export class SideloadPackageComponent {
@@ -139,5 +150,9 @@ export class SideloadPackageComponent {
     } finally {
       loader.unsubscribe()
     }
+  }
+
+  open(id: string) {
+    this.router.navigate(['/marketplace'], { queryParams: { id } })
   }
 }

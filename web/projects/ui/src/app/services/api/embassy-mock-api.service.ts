@@ -462,7 +462,11 @@ export class MockApiService extends ApiService {
       }
       return info
     } else if (path === '/package/v0/index') {
-      return Mock.MarketplacePkgsList
+      const version = params['ids']
+        ? (JSON.parse(params['ids']) as { version: string; id: string }[])[0]
+            .version
+        : undefined
+      return Mock.marketplacePkgsList(version)
     } else if (path.startsWith('/package/v0/release-notes')) {
       return Mock.ReleaseNotes
     } else if (path.includes('instructions') || path.includes('license')) {

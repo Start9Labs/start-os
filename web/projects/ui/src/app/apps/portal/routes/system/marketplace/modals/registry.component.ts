@@ -43,12 +43,17 @@ import { getMarketplaceValueSpec, getPromptOptions } from '../utils/registry'
         ></button>
       }
       <h3 class="g-title">Custom Registries</h3>
-      <button tuiCell (click)="add()">
-        <tui-icon icon="tuiIconPlus" [style.margin-inline.rem]="0.5" />
+      <button tuiCell (click)="add()" [style.width]="'-webkit-fill-available'">
+        <tui-icon icon="tuiIconPlus" [style.margin-inline.rem]="'0.5'" />
         <div tuiTitle>Add custom registry</div>
       </button>
       @for (registry of stores.alt; track $index) {
-        <div tuiCell [registry]="registry">
+        <div class="connect-container">
+          <button
+            tuiCell
+            [registry]="registry"
+            (click)="connect(registry.url)"
+          ></button>
           <button
             tuiIconButton
             appearance="icon"
@@ -57,18 +62,19 @@ import { getMarketplaceValueSpec, getPromptOptions } from '../utils/registry'
           >
             Delete
           </button>
-          <button
-            tuiIconButton
-            appearance="icon"
-            iconLeft="tuiIconLogIn"
-            (click)="connect(registry.url)"
-          >
-            Connect
-          </button>
         </div>
       }
     }
   `,
+  styles: [
+    `
+      .connect-container {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+      }
+    `,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
@@ -149,7 +155,7 @@ export class MarketplaceRegistryModal {
           )
 
         try {
-          await this.api.setDbValue(['marketplace', 'known-hosts'], filtered)
+          await this.api.setDbValue(['marketplace', 'knownHosts'], filtered)
         } catch (e: any) {
           this.errorService.handleError(e)
         } finally {
@@ -167,7 +173,7 @@ export class MarketplaceRegistryModal {
     loader.add(this.loader.open('Changing Registry...').subscribe())
 
     try {
-      await this.api.setDbValue<string>(['marketplace', 'selected-url'], url)
+      await this.api.setDbValue<string>(['marketplace', 'selectedUrl'], url)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -212,7 +218,7 @@ export class MarketplaceRegistryModal {
     loader.closed = false
     loader.add(this.loader.open('Saving...').subscribe())
 
-    await this.api.setDbValue(['marketplace', 'known-hosts', url], { name })
+    await this.api.setDbValue(['marketplace', 'knownHosts', url], { name })
   }
 }
 

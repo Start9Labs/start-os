@@ -38,7 +38,7 @@ import { PolymorpheusContent } from '@tinkoff/ng-polymorpheus'
             *tuiItem
             draggable="false"
             [class.item_active]="i === index + 1"
-            class="screenshot-item box-shadow-lg"
+            class="screenshot-item"
           >
             <img
               #template
@@ -93,9 +93,6 @@ import { PolymorpheusContent } from '@tinkoff/ng-polymorpheus'
       }
 
       .screenshot-item {
-        --tw-shadow-color: rgb(161 161 170 / 0.1);
-        --tw-shadow: var(--tw-shadow-colored);
-
         object-fit: cover;
         overflow: hidden;
         border-radius: 0.5rem;
