@@ -27,7 +27,7 @@ use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::net::host::binding::BindOptions;
 use crate::net::host::{self, HostKind};
-use crate::net::service_interface::{AddressInfo as ServiceInterfaceAddressInfo, ExportedHostInfo, ExportedHostnameInfo, ServiceInterface, ServiceInterfaceType, ServiceInterfaceWithHostInfo};
+use crate::net::service_interface::{AddressInfo, ExportedHostInfo, ExportedHostnameInfo, ServiceInterface, ServiceInterfaceType, ServiceInterfaceWithHostInfo};
 use crate::prelude::*;
 use crate::s9pk::rpc::SKIP_ENV;
 use crate::service::cli::ContainerCliContext;
@@ -193,16 +193,6 @@ struct GetServicePortForwardParams {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
-struct AddressInfo {
-    username: Option<String>,
-    host_id: String,
-    bind_options: BindOptions,
-    suffix: String,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
 struct ExportServiceInterfaceParams {
     id: String,
     name: String,
@@ -329,32 +319,27 @@ async fn clear_network_interfaces(context: EffectContext, _: Empty) -> Result<Va
 }
 async fn export_service_interface(
     context: EffectContext,
-    data: ExportServiceInterfaceParams,
+    ExportServiceInterfaceParams { id, name, description, has_primary, disabled, masked, address_info, r#type, host_kind, hostnames }: ExportServiceInterfaceParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
     let package_id = context.id.clone();
-    let svc_interface_id = ServiceInterfaceId::from(Id::try_from(data.id)?);
-    let host_id = HostId::from(Id::try_from(data.address_info.host_id)?);
+    let svc_interface_id = ServiceInterfaceId::from(Id::try_from(id)?);
+    let host_id = HostId::from(Id::try_from(address_info.host_id.clone())?);
     
     let service_interface = ServiceInterface{
         id: svc_interface_id.clone(),
-        name: data.name,
-        description: data.description,
-        has_primary: data.has_primary,
-        disabled: data.disabled,
-        masked: data.masked,
-        address_info: ServiceInterfaceAddressInfo {
-            username: data.address_info.username,
-            host_id: host_id.clone(),
-            bind_options: data.address_info.bind_options,
-            suffix: data.address_info.suffix,
-        },
-        interface_type: data.r#type
+        name,
+        description,
+        has_primary,
+        disabled,
+        masked,
+        address_info,
+        interface_type: r#type,
     };
     let host_info = ExportedHostInfo {
         id: host_id,
-        kind: data.host_kind,
-        hostnames: data.hostnames,
+        kind: host_kind,
+        hostnames,
     };
     let svc_interface_with_host_info = ServiceInterfaceWithHostInfo {
         service_interface,
