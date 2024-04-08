@@ -11,7 +11,7 @@ use clap::Parser;
 use emver::VersionRange;
 use imbl::OrdMap;
 use imbl_value::{json, InternedString};
-use models::{ActionId, HealthCheckId, HostId, ImageId, PackageId, VolumeId};
+use models::{ActionId, HealthCheckId, HostId, Id, ImageId, PackageId, ServiceInterfaceId, VolumeId};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
@@ -26,7 +26,8 @@ use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::net::host::binding::BindOptions;
-use crate::net::host::HostKind;
+use crate::net::host::{self, HostKind};
+use crate::net::service_interface::{AddressInfo as ServiceInterfaceAddressInfo, ExportedHostInfo, ExportedHostnameInfo, ServiceInterface, ServiceInterfaceType, ServiceInterfaceWithHostInfo};
 use crate::prelude::*;
 use crate::s9pk::rpc::SKIP_ENV;
 use crate::service::cli::ContainerCliContext;
@@ -202,14 +203,6 @@ struct AddressInfo {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
-enum ServiceInterfaceType {
-    Ui,
-    P2p,
-    Api,
-}
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
 struct ExportServiceInterfaceParams {
     id: String,
     name: String,
@@ -219,6 +212,8 @@ struct ExportServiceInterfaceParams {
     masked: bool,
     address_info: AddressInfo,
     r#type: ServiceInterfaceType,
+    host_kind: HostKind,
+    hostnames: Vec<ExportedHostnameInfo>
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
@@ -335,8 +330,56 @@ async fn clear_network_interfaces(context: EffectContext, _: Empty) -> Result<Va
 async fn export_service_interface(
     context: EffectContext,
     data: ExportServiceInterfaceParams,
-) -> Result<Value, Error> {
-    todo!()
+) -> Result<(), Error> {
+    let context = context.deref()?;
+    let package_id = context.id.clone();
+    let svc_interface_id = ServiceInterfaceId::from(Id::try_from(data.id)?);
+    let host_id = HostId::from(Id::try_from(data.address_info.host_id)?);
+    
+    let service_interface = ServiceInterface{
+        id: svc_interface_id.clone(),
+        name: data.name,
+        description: data.description,
+        has_primary: data.has_primary,
+        disabled: data.disabled,
+        masked: data.masked,
+        address_info: ServiceInterfaceAddressInfo {
+            username: data.address_info.username,
+            host_id: host_id.clone(),
+            bind_options: data.address_info.bind_options,
+            suffix: data.address_info.suffix,
+        },
+        interface_type: data.r#type
+    };
+    let host_info = ExportedHostInfo {
+        id: host_id,
+        kind: data.host_kind,
+        hostnames: data.hostnames,
+    };
+    let svc_interface_with_host_info = ServiceInterfaceWithHostInfo {
+        service_interface,
+        host_info,
+    };
+    
+    context
+        .ctx
+        .db
+        .mutate(|db| {
+            let model = db
+                .as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&package_id)
+                .or_not_found(&package_id)?
+                .as_service_interfaces_mut();
+            let mut value = model.de()?;
+            value
+                .insert(ServiceInterfaceId::from(svc_interface_id), svc_interface_with_host_info)
+                .map(|_| ())
+                .unwrap_or_default();
+            model.ser(&value)
+        })
+        .await?;
+    Ok(())
 }
 async fn get_primary_url(
     context: EffectContext,
