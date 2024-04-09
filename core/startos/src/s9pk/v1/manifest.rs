@@ -19,7 +19,7 @@ fn current_version() -> Version {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct Manifest {
     #[serde(default = "current_version")]
@@ -54,7 +54,7 @@ pub struct Manifest {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 #[serde(tag = "type")]
 pub enum DependencyRequirement {
     OptIn { how: String },
@@ -68,7 +68,7 @@ impl DependencyRequirement {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct DepInfo {
     pub version: VersionRange,
@@ -77,7 +77,7 @@ pub struct DepInfo {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 pub struct Assets {
     #[serde(default)]
     pub license: Option<PathBuf>,

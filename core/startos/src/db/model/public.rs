@@ -35,7 +35,7 @@ pub struct Public {
     pub ui: Value,
 }
 impl Public {
-    pub fn init(account: &AccountInfo) -> Result<Self, Error> {
+    pub fn init(account: &AccountInfo, wifi_interface: Option<String>) -> Result<Self, Error> {
         let lan_address = account.hostname.lan_address().parse().unwrap();
         Ok(Self {
             server_info: ServerInfo {
@@ -60,11 +60,12 @@ impl Public {
                     shutting_down: false,
                     restarting: false,
                 },
-                wifi: WifiInfo {
+                wifi: wifi_interface.map(|interface| WifiInfo {
+                    interface,
                     ssids: Vec::new(),
                     connected: None,
                     selected: None,
-                },
+                }),
                 unread_notification_count: 0,
                 password_hash: account.password.clone(),
                 pubkey: ssh_key::PublicKey::from(&account.ssh_key)
@@ -131,7 +132,7 @@ pub struct ServerInfo {
     pub ip_info: BTreeMap<String, IpInfo>,
     #[serde(default)]
     pub status_info: ServerStatus,
-    pub wifi: WifiInfo,
+    pub wifi: Option<WifiInfo>,
     #[ts(type = "number")]
     pub unread_notification_count: u64,
     pub password_hash: String,
@@ -206,6 +207,7 @@ pub struct UpdateProgress {
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct WifiInfo {
+    pub interface: String,
     pub ssids: Vec<String>,
     pub selected: Option<String>,
     pub connected: Option<String>,
