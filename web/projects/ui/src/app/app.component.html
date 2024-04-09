@@ -1,20 +1,7 @@
 <svg-definitions />
 <!--TODO: Theme-->
-<tui-root tuiTheme="night" tuiMode="onDark">
-  <ion-app>
-    <ion-content>
-      <ion-router-outlet
-        id="main-content"
-        class="container"
-        [class.container_offline]="offline$ | async"
-      >
-        <ion-content
-          class="ion-padding with-widgets"
-          style="pointer-events: none; opacity: 0"
-        ></ion-content>
-      </ion-router-outlet>
-    </ion-content>
-  </ion-app>
+<tui-root tuiTheme="night" tuiMode="onDark" [class.offline]="offline$ | async">
+  <router-outlet />
   <toast-container />
   <sidebar-host ngProjectAs="tuiOverContent" />
 </tui-root>

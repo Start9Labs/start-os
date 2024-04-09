@@ -18,7 +18,7 @@ import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
 import { PatchDB, pathFromArray, Update } from 'patch-db-client'
-import { getServerInfo } from 'src/app/util/get-server-info'
+import { getServerInfo } from 'src/app/utils/get-server-info'
 
 @Injectable()
 export class LiveApiService extends ApiService {

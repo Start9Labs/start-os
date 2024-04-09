@@ -1,0 +1,107 @@
+import { NgIf } from '@angular/common'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  Input,
+} from '@angular/core'
+import { WINDOW } from '@ng-web-apis/common'
+import { CopyService } from '@start9labs/shared'
+import { TuiDialogService } from '@taiga-ui/core'
+import {
+  TuiBadgeModule,
+  TuiButtonModule,
+  TuiCellModule,
+  TuiTitleModule,
+} from '@taiga-ui/experimental'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { QRModal } from 'src/app/routes/portal/modals/qr.component'
+import { mask } from 'src/app/utils/mask'
+import { InterfaceComponent } from './interface.component'
+import { AddressesService } from './interface.utils'
+
+@Component({
+  standalone: true,
+  selector: 'app-address-item',
+  template: `
+    <div tuiCell>
+      <tui-badge appearance="success">
+        {{ label }}
+      </tui-badge>
+      <h3 tuiTitle>
+        <span tuiSubtitle>
+          {{ interface.serviceInterface.masked ? mask : address }}
+        </span>
+      </h3>
+      <button
+        *ngIf="interface.serviceInterface.type === 'ui'"
+        tuiIconButton
+        iconLeft="tuiIconExternalLink"
+        appearance="icon"
+        (click)="launch(address)"
+      >
+        Launch
+      </button>
+      <button
+        tuiIconButton
+        iconLeft="tuiIconGrid"
+        appearance="icon"
+        (click)="showQR(address)"
+      >
+        Show QR code
+      </button>
+      <button
+        tuiIconButton
+        iconLeft="tuiIconCopy"
+        appearance="icon"
+        (click)="copyService.copy(address)"
+      >
+        Copy URL
+      </button>
+      <button
+        tuiIconButton
+        iconLeft="tuiIconTrash"
+        appearance="icon"
+        (click)="service.remove()"
+      >
+        Destroy
+      </button>
+    </div>
+  `,
+  imports: [
+    NgIf,
+    TuiCellModule,
+    TuiTitleModule,
+    TuiButtonModule,
+    TuiBadgeModule,
+  ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class AddressItemComponent {
+  private readonly window = inject(WINDOW)
+  private readonly dialogs = inject(TuiDialogService)
+
+  readonly service = inject(AddressesService)
+  readonly copyService = inject(CopyService)
+  readonly interface = inject(InterfaceComponent)
+
+  @Input() label?: string
+  @Input({ required: true }) address!: string
+
+  get mask(): string {
+    return mask(this.address, 64)
+  }
+
+  launch(url: string): void {
+    this.window.open(url, '_blank', 'noreferrer')
+  }
+
+  showQR(data: string) {
+    this.dialogs
+      .open(new PolymorpheusComponent(QRModal), {
+        size: 'auto',
+        data,
+      })
+      .subscribe()
+  }
+}

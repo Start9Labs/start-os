@@ -44,7 +44,7 @@ git submodule update --init --recursive
 
 ```sh
 cd web
-npm i
+npm ci
 npm run build:deps
 ```
 

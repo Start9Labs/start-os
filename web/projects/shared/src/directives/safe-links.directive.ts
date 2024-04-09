@@ -22,7 +22,7 @@ export class SafeLinksDirective implements AfterViewInit {
       .forEach(link => {
         link.target = '_blank'
         link.setAttribute('rel', 'noreferrer')
-        link.classList.add('externalLink')
+        link.classList.add('g-external-link')
       })
   }
 }

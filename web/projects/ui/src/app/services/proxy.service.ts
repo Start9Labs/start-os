@@ -6,9 +6,9 @@ import { firstValueFrom } from 'rxjs'
 import {
   FormComponent,
   FormContext,
-} from 'src/app/apps/portal/components/form.component'
+} from 'src/app/routes/portal/components/form.component'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
+import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { ApiService } from './api/embassy-api.service'
 import { DataModel } from './patch-db/data-model'
 import { CB } from '@start9labs/start-sdk'

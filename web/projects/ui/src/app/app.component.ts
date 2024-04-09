@@ -36,9 +36,10 @@ export class AppComponent implements OnInit {
       .pipe(startWith({ restarting: false, shuttingDown: false })),
   ]).pipe(
     map(
-      ([verified, connected, status]) =>
-        verified && (!connected || status.restarting || status.shuttingDown),
+      ([connected, verified, status]) =>
+        connected && (!verified || status.restarting || status.shuttingDown),
     ),
+    startWith(true),
   )
 
   async ngOnInit() {

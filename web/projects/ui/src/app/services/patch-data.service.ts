@@ -5,7 +5,7 @@ import { filter, share, switchMap, take, tap, Observable } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { EOSService } from 'src/app/services/eos.service'
-import { OSWelcomePage } from '../common/os-welcome/os-welcome.page'
+import { WelcomeComponent } from 'src/app/components/welcome.component'
 import { ConfigService } from 'src/app/services/config.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
@@ -54,7 +54,7 @@ export class PatchDataService extends Observable<DataModel> {
     }
 
     this.dialogs
-      .open(new PolymorpheusComponent(OSWelcomePage), {
+      .open(new PolymorpheusComponent(WelcomeComponent), {
         label: 'Release Notes',
       })
       .subscribe({

@@ -32,8 +32,7 @@ export class CategoriesComponent {
       case 'all':
         return 'tuiIconGridLarge'
       case 'bitcoin':
-        // @TODO need bitcoin icon
-        return 'tuiIconBoldLarge'
+        return 'tuiIconBitcoin'
       case 'messaging':
       case 'communications':
         return 'tuiIconMessageCircleLarge'

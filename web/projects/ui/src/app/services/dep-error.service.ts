@@ -9,7 +9,7 @@ import {
 } from './patch-db/data-model'
 import * as deepEqual from 'fast-deep-equal'
 import { Observable } from 'rxjs'
-import { isInstalled } from '../util/get-package-data'
+import { isInstalled } from 'src/app/utils/get-package-data'
 import { DependencyError } from './api/api.types'
 
 export type AllDependencyErrors = Record<string, PkgDependencyErrors>
