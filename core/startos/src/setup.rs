@@ -419,11 +419,7 @@ async fn fresh_setup(
 ) -> Result<(Hostname, OnionAddressV3, X509), Error> {
     let account = AccountInfo::new(start_os_password, root_ca_start_time().await?)?;
     let db = ctx.db().await?;
-    db.put(
-        &ROOT,
-        &Database::init(&account, ctx.config.wifi_interface.clone())?,
-    )
-    .await?;
+    db.put(&ROOT, &Database::init(&account)?).await?;
     drop(db);
     init(&ctx.config).await?;
     Ok((

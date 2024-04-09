@@ -91,8 +91,6 @@ impl ClientConfig {
 pub struct ServerConfig {
     #[arg(short = 'c', long = "config")]
     pub config: Option<PathBuf>,
-    #[arg(long = "wifi-interface")]
-    pub wifi_interface: Option<String>,
     #[arg(long = "ethernet-interface")]
     pub ethernet_interface: Option<String>,
     #[arg(skip)]
@@ -117,7 +115,6 @@ impl ContextConfig for ServerConfig {
         self.config.take()
     }
     fn merge_with(&mut self, other: Self) {
-        self.wifi_interface = self.wifi_interface.take().or(other.wifi_interface);
         self.ethernet_interface = self.ethernet_interface.take().or(other.ethernet_interface);
         self.os_partitions = self.os_partitions.take().or(other.os_partitions);
         self.bind_rpc = self.bind_rpc.take().or(other.bind_rpc);
