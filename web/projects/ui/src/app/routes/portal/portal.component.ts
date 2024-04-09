@@ -39,7 +39,7 @@ import { HeaderComponent } from './components/header/header.component'
       main {
         flex: 1;
         overflow: hidden;
-        margin-bottom: 0.375rem;
+        margin-bottom: var(--bumper);
       }
     `,
   ],

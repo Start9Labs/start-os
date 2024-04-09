@@ -13,6 +13,10 @@ ul {
   list-style-type: disc;
 }
 
+:root {
+  --bumper: 0.375rem;
+}
+
 .g-page {
   @include scrollbar-hidden();
 
@@ -23,7 +27,7 @@ ul {
   overflow: auto;
   isolation: isolate;
   backdrop-filter: blur(2rem);
-  margin: 0 0.375rem;
+  margin: 0 var(--bumper);
   border-radius: 0.375rem;
 
   // TODO: Theme

@@ -38,8 +38,8 @@ import { Router } from '@angular/router'
     <div class="outer-container">
       <ng-content select="[slot=close]" />
       @if (pkg$ | async; as pkg) {
-        @if (loading) {
-          <tui-loader class="loading-dots" textContent="Loading" />
+        @if (loading$ | async) {
+          <tui-loader class="loading" textContent="Loading" />
         } @else {
           <marketplace-package-hero [pkg]="pkg">
             <ng-content select="[slot=controls]" />
@@ -83,7 +83,7 @@ import { Router } from '@angular/router'
                   <button
                     tuiButton
                     appearance="secondary"
-                    (click)="loading = true; completeWith(data.value)"
+                    (click)="loading$.next(true); completeWith(data.value)"
                   >
                     Ok
                   </button>
@@ -106,6 +106,7 @@ import { Router } from '@angular/router'
         flex-direction: column;
         padding: 1.75rem;
         min-width: 100%;
+        height: calc(100vh - var(--portal-header-height) - var(--bumper));
         margin-top: 5rem;
 
         @media (min-width: 768px) {
@@ -145,6 +146,12 @@ import { Router } from '@angular/router'
           cursor: pointer;
         }
       }
+
+      .loading {
+        min-width: 30rem;
+        height: 100%;
+        place-self: center;
+      }
     `,
   ],
   standalone: true,
@@ -170,7 +177,7 @@ export class MarketplacePreviewComponent {
   @Input({ required: true })
   pkgId!: string
 
-  loading = true
+  readonly loading$ = new BehaviorSubject(true)
 
   readonly displayEmver = displayEmver
   private readonly router = inject(Router)
@@ -184,7 +191,7 @@ export class MarketplacePreviewComponent {
       this.marketplaceService.getPackage$(this.pkgId, version, this.url),
     ),
     tap(data => {
-      this.loading = false
+      this.loading$.next(false)
       return data
     }),
   )
