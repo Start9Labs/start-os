@@ -111,7 +111,7 @@ impl VHostServer {
             _thread: tokio::spawn(async move {
                 loop {
                     match listener.accept().await {
-                        Ok((stream, sock_addr)) => {
+                        Ok((stream, _)) => {
                             let stream =
                                 Box::pin(TimeoutStream::new(stream, Duration::from_secs(300)));
                             let mut stream = BackTrackingReader::new(stream);
@@ -195,9 +195,22 @@ impl VHostServer {
                                             .as_ref()
                                             .into_iter()
                                             .map(InternedString::intern)
-                                            .chain(std::iter::once(InternedString::from_display(
-                                                &sock_addr.ip(),
-                                            )))
+                                            .chain(
+                                                db.peek()
+                                                    .await
+                                                    .into_public()
+                                                    .into_server_info()
+                                                    .into_ip_info()
+                                                    .into_entries()?
+                                                    .into_iter()
+                                                    .flat_map(|(_, ips)| [
+                                                        ips.as_ipv4().de().map(|ip| ip.map(IpAddr::V4)), 
+                                                        ips.as_ipv6().de().map(|ip| ip.map(IpAddr::V6))
+                                                    ])
+                                                    .filter_map(|a| a.transpose())
+                                                    .map(|a| a.map(|ip| InternedString::from_display(&ip)))
+                                                    .collect::<Result<Vec<_>, _>>()?,
+                                            )
                                             .collect();
                                         let key = db
                                             .mutate(|v| {

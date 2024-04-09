@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use crate::account::AccountInfo;
 use crate::auth::Sessions;
@@ -28,9 +27,9 @@ pub struct Database {
     pub private: Private,
 }
 impl Database {
-    pub fn init(account: &AccountInfo) -> Result<Self, Error> {
+    pub fn init(account: &AccountInfo, wifi_interface: Option<String>) -> Result<Self, Error> {
         Ok(Self {
-            public: Public::init(account)?,
+            public: Public::init(account, wifi_interface)?,
             private: Private {
                 key_store: KeyStore::new(account)?,
                 password: account.password.clone(),

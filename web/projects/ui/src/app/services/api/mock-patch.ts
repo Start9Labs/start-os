@@ -76,6 +76,7 @@ export const mockPatchData: DataModel = {
     zram: true,
     governor: 'performance',
     wifi: {
+      interface: 'wlan0',
       ssids: [],
       selected: null,
       connected: null,

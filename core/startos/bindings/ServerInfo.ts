@@ -24,7 +24,7 @@ export type ServerInfo = {
   torAddress: string;
   ipInfo: { [key: string]: IpInfo };
   statusInfo: ServerStatus;
-  wifi: WifiInfo;
+  wifi: WifiInfo | null;
   unreadNotificationCount: number;
   passwordHash: string;
   pubkey: string;
