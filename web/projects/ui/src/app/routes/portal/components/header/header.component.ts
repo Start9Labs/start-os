@@ -50,7 +50,7 @@ import { BreadcrumbsService } from 'src/app/services/breadcrumbs.service'
       :host {
         display: flex;
         height: 3.5rem;
-        padding: 0.375rem;
+        padding: var(--bumper);
         --clip-path: polygon(
           0% 0%,
           calc(100% - 1.75rem) 0%,
