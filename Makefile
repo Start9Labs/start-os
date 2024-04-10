@@ -173,7 +173,7 @@ emulate-reflash: $(ALL_TARGETS)
 upload-ota: results/$(BASENAME).squashfs
 	TARGET=$(TARGET) KEY=$(KEY) ./upload-ota.sh
 
-container-runtime/alpine.$(ARCH).squashfs:
+container-runtime/debian.$(ARCH).squashfs:
 	ARCH=$(ARCH) ./container-runtime/download-base-image.sh
 
 container-runtime/node_modules: container-runtime/package.json container-runtime/package-lock.json sdk/dist
@@ -197,7 +197,7 @@ container-runtime/dist/node_modules container-runtime/dist/package.json containe
 	./container-runtime/install-dist-deps.sh
 	touch container-runtime/dist/node_modules
 
-container-runtime/rootfs.$(ARCH).squashfs: container-runtime/alpine.$(ARCH).squashfs container-runtime/containerRuntime.rc container-runtime/update-image.sh container-runtime/dist/index.js container-runtime/dist/node_modules core/target/$(ARCH)-unknown-linux-musl/release/containerbox | sudo
+container-runtime/rootfs.$(ARCH).squashfs: container-runtime/debian.$(ARCH).squashfs container-runtime/container-runtime.service container-runtime/update-image.sh container-runtime/dist/index.js container-runtime/dist/node_modules core/target/$(ARCH)-unknown-linux-musl/release/containerbox | sudo
 	ARCH=$(ARCH) ./container-runtime/update-image.sh
 
 build/lib/depends build/lib/conflicts: build/dpkg-deps/*
