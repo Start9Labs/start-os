@@ -11,10 +11,6 @@ export type ServerInfo = {
   hostname: string;
   version: string;
   lastBackup: string | null;
-  /**
-   * Used in the wifi to determine the region to set the system to
-   */
-  lastWifiRegion: string | null;
   eosVersionCompat: string;
   lanAddress: string;
   onionAddress: string;
@@ -24,7 +20,7 @@ export type ServerInfo = {
   torAddress: string;
   ipInfo: { [key: string]: IpInfo };
   statusInfo: ServerStatus;
-  wifi: WifiInfo | null;
+  wifi: WifiInfo;
   unreadNotificationCount: number;
   passwordHash: string;
   pubkey: string;

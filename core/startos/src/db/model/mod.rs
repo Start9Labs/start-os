@@ -27,9 +27,9 @@ pub struct Database {
     pub private: Private,
 }
 impl Database {
-    pub fn init(account: &AccountInfo, wifi_interface: Option<String>) -> Result<Self, Error> {
+    pub fn init(account: &AccountInfo) -> Result<Self, Error> {
         Ok(Self {
-            public: Public::init(account, wifi_interface)?,
+            public: Public::init(account)?,
             private: Private {
                 key_store: KeyStore::new(account)?,
                 password: account.password.clone(),

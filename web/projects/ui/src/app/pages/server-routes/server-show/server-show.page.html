@@ -50,7 +50,8 @@
       <ion-item
         *ngFor="let button of cat.value"
         button
-        [style.display]="(button.title === 'Repair Disk' && !(showDiskRepair$ | async)) ? 'none' : 'block'"
+        [style.display]="((button.title === 'Repair Disk' && !(showDiskRepair$ | async))) || (button.title === 'WiFi' && !(wifiConnected$ | async)) ? 'none' : 'block'"
+        [color]="button.title === 'WiFi' ? 'warning' : ''"
         [detail]="button.detail"
         [disabled]="button.disabled$ | async"
         (click)="button.action()"
@@ -59,7 +60,6 @@
         <ion-label>
           <h2>{{ button.title }}</h2>
           <p *ngIf="button.description">{{ button.description }}</p>
-
           <!-- "Create Backup" button only -->
           <p *ngIf="button.title === 'Create Backup'">
             <ng-container *ngIf="server.statusInfo as statusInfo">

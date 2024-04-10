@@ -16,6 +16,8 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
+use crate::db::model::public::WifiInfo;
+use crate::net::utils::find_wifi_iface;
 use crate::prelude::*;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;
@@ -137,6 +139,18 @@ pub async fn add(ctx: RpcContext, AddParams { ssid, password }: AddParams) -> Re
             ErrorKind::Wifi,
         ));
     }
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_wifi_mut()
+                .as_ssids_mut()
+                .mutate(|s| {
+                    s.insert(ssid);
+                    Ok(())
+                })
+        })
+        .await?;
     Ok(())
 }
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -190,6 +204,17 @@ pub async fn connect(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result
             ErrorKind::Wifi,
         ));
     }
+
+    ctx.db
+        .mutate(|db| {
+            let wifi = db.as_public_mut().as_server_info_mut().as_wifi_mut();
+            wifi.as_ssids_mut().mutate(|s| {
+                s.insert(ssid.clone());
+                Ok(())
+            })?;
+            wifi.as_selected_mut().ser(&Some(ssid))
+        })
+        .await?;
     Ok(())
 }
 
@@ -215,11 +240,23 @@ pub async fn delete(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result<
     }
 
     wpa_supplicant.remove_network(ctx.db.clone(), &ssid).await?;
+
+    ctx.db
+        .mutate(|db| {
+            let wifi = db.as_public_mut().as_server_info_mut().as_wifi_mut();
+            wifi.as_ssids_mut().mutate(|s| {
+                s.remove(&ssid.0);
+                Ok(())
+            })?;
+            wifi.as_selected_mut()
+                .map_mutate(|s| Ok(s.filter(|s| s == &ssid.0)))
+        })
+        .await?;
     Ok(())
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WiFiInfo {
+pub struct WifiListInfo {
     ssids: HashMap<Ssid, SignalStrength>,
     connected: Option<Ssid>,
     country: Option<CountryCode>,
@@ -228,7 +265,7 @@ pub struct WiFiInfo {
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct WifiListInfo {
+pub struct WifiListInfoLow {
     strength: SignalStrength,
     security: Vec<String>,
 }
@@ -239,8 +276,8 @@ pub struct WifiListOut {
     strength: SignalStrength,
     security: Vec<String>,
 }
-pub type WifiList = HashMap<Ssid, WifiListInfo>;
-fn display_wifi_info(params: WithIoFormat<Empty>, info: WiFiInfo) {
+pub type WifiList = HashMap<Ssid, WifiListInfoLow>;
+fn display_wifi_info(params: WithIoFormat<Empty>, info: WifiListInfo) {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -330,7 +367,7 @@ fn display_wifi_list(params: WithIoFormat<Empty>, info: Vec<WifiListOut>) {
 
 // #[command(display(display_wifi_info))]
 #[instrument(skip_all)]
-pub async fn get(ctx: RpcContext, _: Empty) -> Result<WiFiInfo, Error> {
+pub async fn get(ctx: RpcContext, _: Empty) -> Result<WifiListInfo, Error> {
     let wifi_manager = wifi_manager(&ctx)?;
     let wpa_supplicant = wifi_manager.read().await;
     let (list_networks, current_res, country_res, ethernet_res, signal_strengths) = tokio::join!(
@@ -368,7 +405,7 @@ pub async fn get(ctx: RpcContext, _: Empty) -> Result<WiFiInfo, Error> {
         })
         .collect();
     let current = current_res?;
-    Ok(WiFiInfo {
+    Ok(WifiListInfo {
         ssids,
         connected: current,
         country: country_res?,
@@ -477,7 +514,7 @@ impl SignalStrength {
 }
 
 #[derive(Debug, Clone)]
-pub struct WifiInfo {
+pub struct WifiInfoLow {
     ssid: Ssid,
     device: Option<String>,
 }
@@ -604,7 +641,7 @@ impl WpaCli {
         Ok(())
     }
     #[instrument(skip_all)]
-    pub async fn list_networks_low(&self) -> Result<BTreeMap<NetworkId, WifiInfo>, Error> {
+    pub async fn list_networks_low(&self) -> Result<BTreeMap<NetworkId, WifiInfoLow>, Error> {
         let r = Command::new("nmcli")
             .arg("-t")
             .arg("c")
@@ -623,13 +660,13 @@ impl WpaCli {
                 if !connection_type.contains("wireless") {
                     return None;
                 }
-                let info = WifiInfo {
+                let info = WifiInfoLow {
                     ssid: name,
                     device: device.map(|x| x.to_owned()),
                 };
                 Some((uuid, info))
             })
-            .collect::<BTreeMap<NetworkId, WifiInfo>>())
+            .collect::<BTreeMap<NetworkId, WifiInfoLow>>())
     }
 
     #[instrument(skip_all)]
@@ -652,7 +689,7 @@ impl WpaCli {
                     values.next()?.split(' ').map(|x| x.to_owned()).collect();
                 Some((
                     ssid,
-                    WifiListInfo {
+                    WifiListInfoLow {
                         strength: signal,
                         security,
                     },
@@ -686,7 +723,8 @@ impl WpaCli {
         db.mutate(|d| {
             d.as_public_mut()
                 .as_server_info_mut()
-                .as_last_wifi_region_mut()
+                .as_wifi_mut()
+                .as_last_region_mut()
                 .ser(&new_country)
         })
         .await
@@ -837,9 +875,12 @@ impl TypedValueParser for CountryCodeParser {
 #[instrument(skip_all)]
 pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(
     main_datadir: P,
-    wifi_iface: &str,
-    last_country_code: &Option<CountryCode>,
+    wifi: &mut WifiInfo,
 ) -> Result<(), Error> {
+    wifi.interface = find_wifi_iface().await?;
+    let Some(wifi_iface) = &wifi.interface else {
+        return Ok(());
+    };
     let persistent = main_datadir.as_ref().join("system-connections");
     tracing::debug!("persistent: {:?}", persistent);
     // let supplicant = Path::new("/etc/wpa_supplicant.conf");
@@ -863,7 +904,7 @@ pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(
         .arg("up")
         .invoke(ErrorKind::Wifi)
         .await?;
-    if let Some(last_country_code) = last_country_code {
+    if let Some(last_country_code) = wifi.last_region {
         tracing::info!("Setting the region");
         let _ = Command::new("iw")
             .arg("reg")

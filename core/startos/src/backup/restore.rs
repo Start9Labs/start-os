@@ -96,11 +96,7 @@ pub async fn recover_full_embassy(
     .with_kind(ErrorKind::PasswordHashGeneration)?;
 
     let db = ctx.db().await?;
-    db.put(
-        &ROOT,
-        &Database::init(&os_backup.account, ctx.config.wifi_interface.clone())?,
-    )
-    .await?;
+    db.put(&ROOT, &Database::init(&os_backup.account)?).await?;
     drop(db);
 
     init(&ctx.config).await?;

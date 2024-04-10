@@ -55,7 +55,6 @@ export const mockPatchData: DataModel = {
         ipv6Range: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD/64',
       },
     },
-    lastWifiRegion: null,
     unreadNotificationCount: 4,
     // password is asdfasdf
     passwordHash:
@@ -79,7 +78,7 @@ export const mockPatchData: DataModel = {
       interface: 'wlan0',
       ssids: [],
       selected: null,
-      connected: null,
+      lastRegion: null,
     },
   },
   packageData: {
