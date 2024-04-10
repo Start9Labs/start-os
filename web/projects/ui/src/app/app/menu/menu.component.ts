@@ -64,6 +64,8 @@ export class MenuComponent {
     'unreadNotificationCount',
   )
 
+  readonly wifiConnected$ = this.patch.watch$('serverInfo', 'wifi', 'selected')
+
   readonly snekScore$ = this.patch.watch$('ui', 'gaming', 'snake', 'highScore')
 
   readonly showEOSUpdate$ = this.eosService.showUpdate$
