@@ -140,6 +140,10 @@ jobs:
           }')[matrix.platform]
         }}
     steps:
+      - name: Free space
+        run: rm -rf /opt/hostedtoolcache*
+        if: ${{ github.event.inputs.runner != 'fast' }}
+
       - uses: actions/checkout@v3
         with:
           submodules: recursive
