@@ -326,7 +326,7 @@ async fn get_service_port_forward(
     data: GetServicePortForwardParams,
 ) -> Result<u16, Error> {
     let internal_port = data.internal_port as u16;
-    
+
     let context = context.deref()?;
     let net_service = context.persistent_container.net_service.lock().await;
     net_service.get_ext_port(data.host_id, internal_port)
@@ -446,8 +446,18 @@ struct BindParams {
     #[serde(flatten)]
     options: BindOptions,
 }
-async fn bind(_: AnyContext, BindParams { .. }: BindParams) -> Result<Value, Error> {
-    todo!()
+async fn bind(
+    context: EffectContext,
+    BindParams {
+        kind,
+        id,
+        internal_port,
+        options,
+    }: BindParams,
+) -> Result<(), Error> {
+    let ctx = context.deref()?;
+    let mut svc = ctx.persistent_container.net_service.lock().await;
+    svc.bind(kind, id, internal_port, options).await
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
