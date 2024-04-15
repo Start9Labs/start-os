@@ -5,7 +5,7 @@ use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use clap::Parser;
+use clap::{builder::ValueParserFactory, Parser};
 use futures::{AsyncWriteExt, FutureExt, StreamExt};
 use imbl_value::{InOMap, InternedString};
 use models::{Id, InvalidId};
@@ -23,7 +23,6 @@ use tokio::sync::Mutex;
 use tokio::time::Instant;
 use ts_rs::TS;
 
-use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
@@ -35,6 +34,10 @@ use crate::disk::mount::util::unmount;
 use crate::prelude::*;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::{new_guid, Invoke};
+use crate::{
+    context::{CliContext, RpcContext},
+    util::clap::FromStrParser,
+};
 
 const LXC_CONTAINER_DIR: &str = "/var/lib/lxc";
 const RPC_DIR: &str = "media/startos/rpc"; // must not be absolute path
@@ -53,20 +56,38 @@ impl std::ops::Deref for ContainerId {
         &self.0
     }
 }
+impl std::fmt::Display for ContainerId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", &*self.0)
+    }
+}
 impl TryFrom<&str> for ContainerId {
     type Error = InvalidId;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         Ok(ContainerId(Id::try_from(value)?))
     }
 }
+impl std::str::FromStr for ContainerId {
+    type Err = InvalidId;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s)
+    }
+}
+impl ValueParserFactory for ContainerId {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
+    }
+}
+
+#[derive(Default)]
 pub struct LxcManager {
     containers: Mutex<Vec<Weak<ContainerId>>>,
 }
+
 impl LxcManager {
     pub fn new() -> Self {
-        Self {
-            containers: Default::default(),
-        }
+        Self::default()
     }
 
     pub async fn create(self: &Arc<Self>, config: LxcConfig) -> Result<LxcContainer, Error> {
@@ -87,7 +108,7 @@ impl LxcManager {
                 .await
                 .iter()
                 .filter_map(|g| g.upgrade())
-                .map(|g| (&*g).clone()),
+                .map(|g| (*g).clone()),
         );
         for container in String::from_utf8(
             Command::new("lxc-ls")
@@ -132,7 +153,7 @@ pub struct LxcContainer {
     rootfs: OverlayGuard,
     pub guid: Arc<ContainerId>,
     rpc_bind: TmpMountGuard,
-    config: LxcConfig,
+    pub config: LxcConfig,
     exited: bool,
 }
 impl LxcContainer {
@@ -520,7 +541,7 @@ pub async fn connect_cli(ctx: &CliContext, guid: RequestGuid) -> Result<(), Erro
                                 if let Some((method, rest)) = command.split_first() {
                                     let mut params = InOMap::new();
                                     for arg in rest {
-                                        if let Some((name, value)) = arg.split_once("=") {
+                                        if let Some((name, value)) = arg.split_once('=') {
                                             params.insert(InternedString::intern(name), if value.is_empty() {
                                                 Value::Null
                                             } else if let Ok(v) = serde_json::from_str(value) {

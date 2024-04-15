@@ -18,11 +18,14 @@ use tokio_stream::wrappers::LinesStream;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::instrument;
 
-use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::error::ResultExt;
 use crate::prelude::*;
 use crate::util::serde::Reversible;
+use crate::{
+    context::{CliContext, RpcContext},
+    lxc::ContainerId,
+};
 
 #[pin_project::pin_project]
 pub struct LogStream {
@@ -286,21 +289,44 @@ pub async fn logs_nofollow(
         ..
     }: LogsParam,
 ) -> Result<LogResponse, Error> {
-    let service = ctx.services.get(&id).await.ok_or_else(|| {
-        Error::new(
-            eyre!("No service found with id: {}", id),
-        ErrorKind::NotFound,
-        )
-    })?;
-    let container_id = 
-    fetch_logs(LogSource::Container(id), limit, cursor, before).await
+    let container_id = ctx
+        .services
+        .get(&id)
+        .await
+        .as_ref()
+        .map(|x| x.container_id())
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("No service found with id: {}", id),
+                ErrorKind::NotFound,
+            )
+        })??;
+    fetch_logs(
+        LogSource::Container(id, container_id),
+        limit,
+        cursor,
+        before,
+    )
+    .await
 }
 pub async fn logs_follow(
     ctx: RpcContext,
     _: Empty,
     LogsParam { id, limit, .. }: LogsParam,
 ) -> Result<LogFollowResponse, Error> {
-    follow_logs(ctx, LogSource::Container(id), limit).await
+    let container_id = ctx
+        .services
+        .get(&id)
+        .await
+        .as_ref()
+        .map(|x| x.container_id())
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("No service found with id: {}", id),
+                ErrorKind::NotFound,
+            )
+        })??;
+    follow_logs(ctx, LogSource::Container(id, container_id), limit).await
 }
 
 pub async fn cli_logs_generic_nofollow(
@@ -365,8 +391,14 @@ pub async fn journalctl(
     before: bool,
     follow: bool,
 ) -> Result<LogStream, Error> {
-    todo!("Mount the var log")
-    let mut cmd = Command::new("journalctl");
+    let mut cmd = match &id {
+        LogSource::Container(_id, container_id) => {
+            let mut cmd = Command::new("lxc-attach");
+            cmd.arg(format!("{}", container_id)).arg("journalctl");
+            cmd
+        }
+        _ => Command::new("journalctl"),
+    };
     cmd.kill_on_drop(true);
 
     cmd.arg("--output=json");
@@ -385,11 +417,8 @@ pub async fn journalctl(
             cmd.arg(SYSTEM_UNIT);
             cmd.arg(format!("_COMM={}", SYSTEM_UNIT));
         }
-        LogSource::Container(id) => {
-            #[cfg(not(feature = "docker"))]
-            cmd.arg(format!("SYSLOG_IDENTIFIER={}.embassy", id));
-            #[cfg(feature = "docker")]
-            cmd.arg(format!("CONTAINER_NAME={}.embassy", id));
+        LogSource::Container(_id, _container_id) => {
+            cmd.arg("-u").arg("container-runtime.service");
         }
     };
 

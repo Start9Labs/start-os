@@ -32,9 +32,9 @@ use crate::util::serde::Pem;
 pub type DownloadInstallFuture = BoxFuture<'static, Result<InstallFuture, Error>>;
 pub type InstallFuture = BoxFuture<'static, Result<(), Error>>;
 
-pub(super) struct InstallProgressHandles {
-    pub(super) finalization_progress: PhaseProgressTrackerHandle,
-    pub(super) progress_handle: FullProgressTrackerHandle,
+pub struct InstallProgressHandles {
+    pub finalization_progress: PhaseProgressTrackerHandle,
+    pub progress_handle: FullProgressTrackerHandle,
 }
 
 /// This is the structure to contain all the services

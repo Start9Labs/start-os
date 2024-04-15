@@ -39,8 +39,6 @@ use crate::ARCH;
 
 const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
-struct ProcedureId(u64);
-
 #[derive(Debug)]
 pub struct ServiceState {
     // This contains the start time and health check information for when the service is running. Note: Will be overwritting to the db,
@@ -91,6 +89,7 @@ pub struct PersistentContainer {
     js_mount: MountGuard,
     volumes: BTreeMap<VolumeId, MountGuard>,
     assets: BTreeMap<VolumeId, MountGuard>,
+    log_mount: MountGuard,
     pub(super) overlays: Arc<Mutex<BTreeMap<InternedString, OverlayGuard>>>,
     pub(super) state: Arc<watch::Sender<ServiceState>>,
     pub(super) net_service: Mutex<NetService>,
@@ -112,6 +111,17 @@ impl PersistentContainer {
             ),
             lxc_container.rootfs_dir().join("usr/lib/startos/package"),
             ReadOnly,
+        )
+        .await?;
+        let log_mount = MountGuard::mount(
+            &Bind::new(
+                ctx.datadir
+                    .join("package-data")
+                    .join("logs")
+                    .join(&s9pk.as_manifest().id),
+            ),
+            lxc_container.rootfs_dir().join("var/log/journal"),
+            MountType::ReadWrite,
         )
         .await?;
         let mut volumes = BTreeMap::new();
@@ -175,7 +185,7 @@ impl PersistentContainer {
             if let Some(env) = s9pk
                 .as_archive()
                 .contents()
-                .get_path(Path::new("images").join(&*ARCH).join(&env_filename))
+                .get_path(Path::new("images").join(*ARCH).join(&env_filename))
                 .and_then(|e| e.as_file())
             {
                 env.copy(&mut File::create(image_path.join(&env_filename)).await?)
@@ -185,7 +195,7 @@ impl PersistentContainer {
             if let Some(json) = s9pk
                 .as_archive()
                 .contents()
-                .get_path(Path::new("images").join(&*ARCH).join(&json_filename))
+                .get_path(Path::new("images").join(*ARCH).join(&json_filename))
                 .and_then(|e| e.as_file())
             {
                 json.copy(&mut File::create(image_path.join(&json_filename)).await?)
@@ -208,6 +218,7 @@ impl PersistentContainer {
             overlays: Arc::new(Mutex::new(BTreeMap::new())),
             state: Arc::new(watch::channel(ServiceState::new(start)).0),
             net_service: Mutex::new(net_service),
+            log_mount,
         })
     }
 
@@ -231,7 +242,7 @@ impl PersistentContainer {
             .join(HOST_RPC_SERVER_SOCKET);
         let (send, recv) = oneshot::channel();
         let handle = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            let (shutdown, fut) = match async {
+            let chown_status = async {
                 let res = server.run_unix(&path, |err| {
                     tracing::error!("error on unix socket {}: {err}", path.display())
                 })?;
@@ -241,9 +252,8 @@ impl PersistentContainer {
                     .invoke(ErrorKind::Filesystem)
                     .await?;
                 Ok::<_, Error>(res)
-            }
-            .await
-            {
+            };
+            let (shutdown, fut) = match chown_status.await {
                 Ok((shutdown, fut)) => (Ok(shutdown), Some(fut)),
                 Err(e) => (Err(e), None),
             };
@@ -285,6 +295,7 @@ impl PersistentContainer {
         let assets = std::mem::take(&mut self.assets);
         let overlays = self.overlays.clone();
         let lxc_container = self.lxc_container.take();
+        let log_mount = self.log_mount.take();
         async move {
             let mut errs = ErrorCollection::new();
             if let Some((hdl, shutdown)) = rpc_server {
@@ -302,6 +313,7 @@ impl PersistentContainer {
                 errs.handle(overlay.unmount(true).await);
             }
             errs.handle(js_mount.unmount(true).await);
+            errs.handle(log_mount.unmount(true).await);
             if let Some(lxc_container) = lxc_container {
                 errs.handle(lxc_container.exit().await);
             }
