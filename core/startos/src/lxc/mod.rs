@@ -8,7 +8,7 @@ use std::time::Duration;
 use clap::{builder::ValueParserFactory, Parser};
 use futures::{AsyncWriteExt, FutureExt, StreamExt};
 use imbl_value::{InOMap, InternedString};
-use models::{Id, InvalidId};
+use models::InvalidId;
 use rpc_toolkit::yajrc::{RpcError, RpcResponse};
 use rpc_toolkit::{
     from_fn_async, AnyContext, CallRemoteHandler, GenericRpcMethod, Handler, HandlerArgs,
@@ -49,7 +49,7 @@ const CONTAINER_DHCP_TIMEOUT: Duration = Duration::from_secs(30);
     Clone, Debug, Serialize, Deserialize, Default, PartialEq, Eq, PartialOrd, Ord, Hash, TS,
 )]
 #[ts(type = "string")]
-pub struct ContainerId(Id);
+pub struct ContainerId(InternedString);
 impl std::ops::Deref for ContainerId {
     type Target = str;
     fn deref(&self) -> &Self::Target {
@@ -64,7 +64,7 @@ impl std::fmt::Display for ContainerId {
 impl TryFrom<&str> for ContainerId {
     type Error = InvalidId;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Ok(ContainerId(Id::try_from(value)?))
+        Ok(ContainerId(InternedString::intern(value)))
     }
 }
 impl std::str::FromStr for ContainerId {
