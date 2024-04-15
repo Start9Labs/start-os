@@ -238,14 +238,13 @@ impl S9pk<Section<MultiCursorFile>> {
                         .into(),
                     )),
                 )?;
+                Command::new(CONTAINER_TOOL)
+                    .arg("rmi")
+                    .arg(&image_name)
+                    .invoke(ErrorKind::Docker)
+                    .await?;
             }
         }
-        Command::new(CONTAINER_TOOL)
-            .arg("image")
-            .arg("prune")
-            .arg("-af")
-            .invoke(ErrorKind::Docker)
-            .await?;
 
         // assets
         let asset_dir = scratch_dir.join("assets");
