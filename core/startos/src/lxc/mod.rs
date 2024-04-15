@@ -8,6 +8,7 @@ use std::time::Duration;
 use clap::Parser;
 use futures::{AsyncWriteExt, FutureExt, StreamExt};
 use imbl_value::{InOMap, InternedString};
+use models::{Id, InvalidId};
 use rpc_toolkit::yajrc::{RpcError, RpcResponse};
 use rpc_toolkit::{
     from_fn_async, AnyContext, CallRemoteHandler, GenericRpcMethod, Handler, HandlerArgs,
@@ -41,8 +42,25 @@ pub const CONTAINER_RPC_SERVER_SOCKET: &str = "service.sock"; // must not be abs
 pub const HOST_RPC_SERVER_SOCKET: &str = "host.sock"; // must not be absolute path
 const CONTAINER_DHCP_TIMEOUT: Duration = Duration::from_secs(30);
 
+#[derive(
+    Clone, Debug, Serialize, Deserialize, Default, PartialEq, Eq, PartialOrd, Ord, Hash, TS,
+)]
+#[ts(type = "string")]
+pub struct ContainerId(Id);
+impl std::ops::Deref for ContainerId {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl TryFrom<&str> for ContainerId {
+    type Error = InvalidId;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Ok(ContainerId(Id::try_from(value)?))
+    }
+}
 pub struct LxcManager {
-    containers: Mutex<Vec<Weak<InternedString>>>,
+    containers: Mutex<Vec<Weak<ContainerId>>>,
 }
 impl LxcManager {
     pub fn new() -> Self {
@@ -80,7 +98,7 @@ impl LxcManager {
         .lines()
         .map(|s| s.trim())
         {
-            if !expected.contains(container) {
+            if !expected.contains(&ContainerId::try_from(container)?) {
                 let rootfs_path = Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs");
                 if tokio::fs::metadata(&rootfs_path).await.is_ok() {
                     unmount(Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs")).await?;
@@ -112,7 +130,7 @@ impl LxcManager {
 pub struct LxcContainer {
     manager: Weak<LxcManager>,
     rootfs: OverlayGuard,
-    guid: Arc<InternedString>,
+    pub guid: Arc<ContainerId>,
     rpc_bind: TmpMountGuard,
     config: LxcConfig,
     exited: bool,
@@ -175,7 +193,7 @@ impl LxcContainer {
         Ok(Self {
             manager: Arc::downgrade(manager),
             rootfs,
-            guid: Arc::new(guid),
+            guid: Arc::new(ContainerId::try_from(&*guid)?),
             rpc_bind,
             config,
             exited: false,
@@ -188,11 +206,12 @@ impl LxcContainer {
 
     pub async fn ip(&self) -> Result<Ipv4Addr, Error> {
         let start = Instant::now();
+        let guid: &str = &self.guid;
         loop {
             let output = String::from_utf8(
                 Command::new("lxc-info")
                     .arg("--name")
-                    .arg(&*self.guid)
+                    .arg(guid)
                     .arg("-iH")
                     .invoke(ErrorKind::Docker)
                     .await?,
@@ -228,17 +247,16 @@ impl LxcContainer {
                 tracing::error!(container, "{}", line);
             }
         }
-        if tokio::fs::metadata(&rootfs_path).await.is_ok() {
-            if tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(&rootfs_path).await?)
+        if tokio::fs::metadata(&rootfs_path).await.is_ok()
+            && tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(&rootfs_path).await?)
                 .count()
                 .await
                 > 0
-            {
-                return Err(Error::new(
-                    eyre!("rootfs is not empty, refusing to delete"),
-                    ErrorKind::InvalidRequest,
-                ));
-            }
+        {
+            return Err(Error::new(
+                eyre!("rootfs is not empty, refusing to delete"),
+                ErrorKind::InvalidRequest,
+            ));
         }
         Command::new("lxc-destroy")
             .arg("--force")
@@ -341,21 +359,21 @@ pub fn lxc() -> ParentHandler {
         .subcommand("connect", from_fn_async(connect_rpc_cli).no_display())
 }
 
-pub async fn create(ctx: RpcContext) -> Result<InternedString, Error> {
+pub async fn create(ctx: RpcContext) -> Result<ContainerId, Error> {
     let container = ctx.lxc_manager.create(LxcConfig::default()).await?;
     let guid = container.guid.deref().clone();
     ctx.dev.lxc.lock().await.insert(guid.clone(), container);
     Ok(guid)
 }
 
-pub async fn list(ctx: RpcContext) -> Result<Vec<InternedString>, Error> {
+pub async fn list(ctx: RpcContext) -> Result<Vec<ContainerId>, Error> {
     Ok(ctx.dev.lxc.lock().await.keys().cloned().collect())
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 pub struct RemoveParams {
     #[ts(type = "string")]
-    pub guid: InternedString,
+    pub guid: ContainerId,
 }
 
 pub async fn remove(ctx: RpcContext, RemoveParams { guid }: RemoveParams) -> Result<(), Error> {
@@ -368,7 +386,7 @@ pub async fn remove(ctx: RpcContext, RemoveParams { guid }: RemoveParams) -> Res
 #[derive(Deserialize, Serialize, Parser, TS)]
 pub struct ConnectParams {
     #[ts(type = "string")]
-    pub guid: InternedString,
+    pub guid: ContainerId,
 }
 
 pub async fn connect_rpc(

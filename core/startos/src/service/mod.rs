@@ -5,6 +5,7 @@ use chrono::{DateTime, Utc};
 use clap::Parser;
 use futures::future::BoxFuture;
 use imbl::OrdMap;
+use imbl_value::InternedString;
 use models::{HealthCheckId, PackageId, ProcedureName};
 use persistent_container::PersistentContainer;
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, Handler, HandlerArgs};
@@ -351,6 +352,18 @@ impl Service {
     pub async fn backup(&self, _guard: impl GenericMountGuard) -> Result<BackupReturn, Error> {
         // TODO
         Err(Error::new(eyre!("not yet implemented"), ErrorKind::Unknown))
+    }
+
+    pub fn container_id(&self) -> Result<InternedString, Error> {
+        let id = &self.seed.id;
+        Ok(*self
+            .seed
+            .persistent_container
+            .lxc_container
+            .get()
+            .or_not_found(format!("container for {id}"))?
+            .guid
+            .clone())
     }
 }
 

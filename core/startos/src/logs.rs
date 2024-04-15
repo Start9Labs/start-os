@@ -205,7 +205,7 @@ pub enum LogSource {
     Kernel,
     Unit(&'static str),
     System,
-    Container(PackageId),
+    Container(PackageId, ContainerId),
 }
 
 pub const SYSTEM_UNIT: &str = "startd";
@@ -276,7 +276,7 @@ pub async fn cli_logs(
     }
 }
 pub async fn logs_nofollow(
-    _ctx: (),
+    ctx: RpcContext,
     _: Empty,
     LogsParam {
         id,
@@ -286,6 +286,13 @@ pub async fn logs_nofollow(
         ..
     }: LogsParam,
 ) -> Result<LogResponse, Error> {
+    let service = ctx.services.get(&id).await.ok_or_else(|| {
+        Error::new(
+            eyre!("No service found with id: {}", id),
+        ErrorKind::NotFound,
+        )
+    })?;
+    let container_id = 
     fetch_logs(LogSource::Container(id), limit, cursor, before).await
 }
 pub async fn logs_follow(
@@ -358,6 +365,7 @@ pub async fn journalctl(
     before: bool,
     follow: bool,
 ) -> Result<LogStream, Error> {
+    todo!("Mount the var log")
     let mut cmd = Command::new("journalctl");
     cmd.kill_on_drop(true);
 
