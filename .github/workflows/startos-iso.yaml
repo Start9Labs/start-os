@@ -82,8 +82,8 @@ jobs:
       - name: Set up docker QEMU
         uses: docker/setup-qemu-action@v2
 
-      - name: Set up system QEMU
-        run: sudo apt-get update && sudo apt-get install -y qemu-user-static
+      - name: Set up system dependencies
+        run: sudo apt-get update && sudo apt-get install -y qemu-user-static systemd-container
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -140,6 +140,10 @@ jobs:
           }')[matrix.platform]
         }}
     steps:
+      - name: Free space
+        run: rm -rf /opt/hostedtoolcache*
+        if: ${{ github.event.inputs.runner != 'fast' }}
+
       - uses: actions/checkout@v3
         with:
           submodules: recursive

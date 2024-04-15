@@ -40,6 +40,7 @@ export class MainLoop {
       ...system.manifest.main.args,
     ]
 
+    await this.setupInterfaces(effects)
     await effects.setMainStatus({ status: "running" })
     const jsMain = (this.system.moduleCode as any)?.jsMain
     const dockerProcedureContainer = await DockerProcedureContainer.of(
@@ -66,6 +67,52 @@ export class MainLoop {
           .setMainStatus({ status: "stopped" })
           .catch((e) => console.error("Could not set the status to stopped"))
       }),
+    }
+  }
+
+  private async setupInterfaces(effects: HostSystemStartOs) {
+    for (const interfaceId in this.system.manifest.interfaces) {
+      const iface = this.system.manifest.interfaces[interfaceId]
+      const internalPorts = new Set<number>()
+      for (const port of Object.values(
+        iface["tor-config"]?.["port-mapping"] || {},
+      )) {
+        internalPorts.add(parseInt(port))
+      }
+      for (const port of Object.values(iface["lan-config"] || {})) {
+        internalPorts.add(port.internal)
+      }
+      for (const internalPort of internalPorts) {
+        const torConf = Object.entries(
+          iface["tor-config"]?.["port-mapping"] || {},
+        )
+          .map(([external, internal]) => ({
+            internal: parseInt(internal),
+            external: parseInt(external),
+          }))
+          .find((conf) => conf.internal == internalPort)
+        const lanConf = Object.entries(iface["lan-config"] || {})
+          .map(([external, conf]) => ({
+            external: parseInt(external),
+            ...conf,
+          }))
+          .find((conf) => conf.internal == internalPort)
+        await effects.bind({
+          kind: "multi",
+          id: interfaceId,
+          internalPort,
+          preferredExternalPort: torConf?.external || internalPort,
+          scheme: "http",
+          secure: null,
+          addSsl: lanConf?.ssl
+            ? {
+                scheme: "https",
+                preferredExternalPort: lanConf.external,
+                alpn: { specified: ["http/1.1"] },
+              }
+            : null,
+        })
+      }
     }
   }
 

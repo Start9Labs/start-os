@@ -1,0 +1,9 @@
+[Unit]
+Description=StartOS Container Runtime
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/node --experimental-detect-module --unhandled-rejections=warn /usr/lib/startos/init/index.js
+
+[Install]
+WantedBy=multi-user.target
