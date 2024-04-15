@@ -230,7 +230,7 @@ impl ServiceMap {
                 .await?;
             Ok(reload_guard
                 .handle_last(async move {
-                    let s9pk = S9pk::open(&installed_path, Some(&id)).await?;
+                    let s9pk = S9pk::open(&installed_path, Some(&id), true).await?;
                     let prev = if let Some(service) = service.take() {
                         ensure_code!(
                             recovery_source.is_none(),

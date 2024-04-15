@@ -148,6 +148,7 @@ pub async fn install(
             .parse()?,
         )
         .await?,
+        true,
     )
     .await?;
 
@@ -257,7 +258,7 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
     .await;
     tokio::spawn(async move {
         if let Err(e) = async {
-            let s9pk = S9pk::deserialize(&file).await?;
+            let s9pk = S9pk::deserialize(&file, true).await?;
             let _ = id_send.send(s9pk.as_manifest().id.clone());
             ctx.services
                 .install(ctx.clone(), s9pk, None::<Never>)

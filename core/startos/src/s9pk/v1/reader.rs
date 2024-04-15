@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::io::SeekFrom;
 use std::ops::Range;
 use std::path::Path;
@@ -158,8 +159,8 @@ impl S9pkReader {
 }
 impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
     #[instrument(skip_all)]
-    pub async fn image_tags(&mut self) -> Result<Vec<ImageTag>, Error> {
-        let mut tar = tokio_tar::Archive::new(self.docker_images().await?);
+    pub async fn image_tags(&mut self, arch: &str) -> Result<Vec<ImageTag>, Error> {
+        let mut tar = tokio_tar::Archive::new(self.docker_images(arch).await?);
         let mut entries = tar.entries()?;
         while let Some(mut entry) = entries.try_next().await? {
             if &*entry.path()? != Path::new("manifest.json") {
@@ -280,8 +281,15 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
         self.read_handle(self.toc.icon).await
     }
 
-    pub async fn docker_images(&mut self) -> Result<DockerReader<ReadHandle<'_, R>>, Error> {
-        DockerReader::new(self.read_handle(self.toc.docker_images).await?).await
+    pub async fn docker_arches(&mut self) -> Result<BTreeSet<String>, Error> {
+        DockerReader::list_arches(&mut self.read_handle(self.toc.docker_images).await?).await
+    }
+
+    pub async fn docker_images(
+        &mut self,
+        arch: &str,
+    ) -> Result<DockerReader<ReadHandle<'_, R>>, Error> {
+        DockerReader::new(self.read_handle(self.toc.docker_images).await?, arch).await
     }
 
     pub async fn assets(&mut self) -> Result<ReadHandle<'_, R>, Error> {
