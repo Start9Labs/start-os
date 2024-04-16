@@ -394,7 +394,9 @@ pub async fn journalctl(
     let mut cmd = match &id {
         LogSource::Container(_id, container_id) => {
             let mut cmd = Command::new("lxc-attach");
-            cmd.arg(format!("{}", container_id)).arg("journalctl");
+            cmd.arg(format!("{}", container_id))
+                .arg("--")
+                .arg("journalctl");
             cmd
         }
         _ => Command::new("journalctl"),

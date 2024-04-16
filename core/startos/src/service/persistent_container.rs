@@ -10,7 +10,7 @@ use imbl_value::InternedString;
 use models::{ProcedureName, VolumeId};
 use rpc_toolkit::{Empty, Server, ShutdownHandle};
 use serde::de::DeserializeOwned;
-use tokio::fs::File;
+use tokio::fs::{create_dir_all, File};
 use tokio::process::Command;
 use tokio::sync::{oneshot, watch, Mutex, OnceCell};
 use tracing::instrument;
@@ -113,6 +113,7 @@ impl PersistentContainer {
             ReadOnly,
         )
         .await?;
+        let log_mount_point = lxc_container.rootfs_dir().join("var/log/journal");
         let log_mount = MountGuard::mount(
             &Bind::new(
                 ctx.datadir
@@ -120,10 +121,15 @@ impl PersistentContainer {
                     .join("logs")
                     .join(&s9pk.as_manifest().id),
             ),
-            lxc_container.rootfs_dir().join("var/log/journal"),
+            &log_mount_point,
             MountType::ReadWrite,
         )
         .await?;
+        Command::new("chown")
+            .arg("100999:100000")
+            .arg(&log_mount_point)
+            .invoke(crate::ErrorKind::Filesystem)
+            .await?;
         let mut volumes = BTreeMap::new();
         for volume in &s9pk.as_manifest().volumes {
             let mountpoint = lxc_container
