@@ -16,7 +16,6 @@ use tokio::time::Instant;
 use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
-use crate::account::AccountInfo;
 use crate::context::config::ServerConfig;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation, WebSocketHandler};
 use crate::db::prelude::PatchDbExt;
@@ -33,6 +32,7 @@ use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
 use crate::system::get_mem_info;
 use crate::util::lshw::{lshw, LshwDevice};
+use crate::{account::AccountInfo, lxc::ContainerId};
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
@@ -60,7 +60,7 @@ pub struct RpcContextSeed {
 }
 
 pub struct Dev {
-    pub lxc: Mutex<BTreeMap<InternedString, LxcContainer>>,
+    pub lxc: Mutex<BTreeMap<ContainerId, LxcContainer>>,
 }
 
 pub struct Hardware {

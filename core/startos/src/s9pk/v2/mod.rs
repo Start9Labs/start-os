@@ -70,7 +70,7 @@ fn filter(p: &Path) -> bool {
 
 #[derive(Clone)]
 pub struct S9pk<S = Section<MultiCursorFile>> {
-    manifest: Manifest,
+    pub manifest: Manifest,
     manifest_dirty: bool,
     archive: MerkleArchive<S>,
     size: Option<u64>,
