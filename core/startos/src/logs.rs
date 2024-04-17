@@ -122,9 +122,11 @@ pub struct LogFollowResponse {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct LogEntry {
     timestamp: DateTime<Utc>,
     message: String,
+    boot_id: String,
 }
 impl std::fmt::Display for LogEntry {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -147,6 +149,8 @@ pub struct JournalctlEntry {
     pub message: String,
     #[serde(rename = "__CURSOR")]
     pub cursor: String,
+    #[serde(rename = "_BOOT_ID")]
+    pub boot_id: String,
 }
 impl JournalctlEntry {
     fn log_entry(self) -> Result<(String, LogEntry), Error> {
@@ -157,6 +161,7 @@ impl JournalctlEntry {
                     UNIX_EPOCH + Duration::from_micros(self.timestamp.parse::<u64>()?),
                 ),
                 message: self.message,
+                boot_id: self.boot_id,
             },
         ))
     }
