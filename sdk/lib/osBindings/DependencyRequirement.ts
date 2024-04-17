@@ -2,10 +2,10 @@
 
 export type DependencyRequirement =
   | {
-      kind: "running";
-      id: string;
-      healthChecks: string[];
-      versionSpec: string;
-      registryUrl: string;
+      kind: "running"
+      id: string
+      healthChecks: string[]
+      versionSpec: string
+      registryUrl: string
     }
-  | { kind: "exists"; id: string; versionSpec: string; registryUrl: string };
+  | { kind: "exists"; id: string; versionSpec: string; registryUrl: string }

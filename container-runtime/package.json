@@ -1,5 +1,5 @@
 {
-  "name": "start-init",
+  "name": "container-runtime",
   "version": "0.0.0",
   "description": "We want to be the sdk intermitent for the system",
   "module": "./index.js",

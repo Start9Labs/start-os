@@ -1,11 +1,5 @@
 {
-  "include": [
-    "./**/*.mjs",
-    "./**/*.js",
-    "src/Adapters/RpcListener.ts",
-    "src/index.ts",
-    "effects.ts"
-  ],
+  "include": ["./**/*.ts"],
   "exclude": ["dist"],
   "inputs": ["./src/index.ts"],
   "compilerOptions": {

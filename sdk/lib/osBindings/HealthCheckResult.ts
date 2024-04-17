@@ -6,4 +6,4 @@ export type HealthCheckResult = { name: string } & (
   | { result: "starting"; message: string | null }
   | { result: "loading"; message: string }
   | { result: "failure"; message: string }
-);
+)

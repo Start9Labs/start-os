@@ -4,15 +4,15 @@ export type ExportedIpHostname =
   | { kind: "ipv4"; value: string; port: number | null; sslPort: number | null }
   | { kind: "ipv6"; value: string; port: number | null; sslPort: number | null }
   | {
-      kind: "local";
-      value: string;
-      port: number | null;
-      sslPort: number | null;
+      kind: "local"
+      value: string
+      port: number | null
+      sslPort: number | null
     }
   | {
-      kind: "domain";
-      domain: string;
-      subdomain: string | null;
-      port: number | null;
-      sslPort: number | null;
-    };
+      kind: "domain"
+      domain: string
+      subdomain: string | null
+      port: number | null
+      sslPort: number | null
+    }

@@ -17,7 +17,6 @@ import { isEmptyObject, ErrorToastService, getPkgId } from '@start9labs/shared'
 import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
-import { ActionMetadata } from '@start9labs/start-sdk/cjs/sdk/lib/types'
 import { T } from '@start9labs/start-sdk'
 
 @Component({
@@ -43,7 +42,7 @@ export class AppActionsPage {
 
   async handleAction(
     status: T.Status,
-    action: { key: string; value: ActionMetadata },
+    action: { key: string; value: T.ActionMetadata },
   ) {
     if (
       status &&
