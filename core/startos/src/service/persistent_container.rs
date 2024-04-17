@@ -100,9 +100,12 @@ impl PersistentContainer {
         let lxc_container = ctx
             .lxc_manager
             .create(
+                Some(
+                    &ctx.datadir
+                        .join("package-data/logs")
+                        .join(&s9pk.as_manifest().id),
+                ),
                 LxcConfig::default(),
-                ctx.datadir.clone(),
-                &s9pk.as_manifest().id,
             )
             .await?;
         let rpc_client = lxc_container.connect_rpc(Some(RPC_CONNECT_TIMEOUT)).await?;
