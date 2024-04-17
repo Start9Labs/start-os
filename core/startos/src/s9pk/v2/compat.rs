@@ -97,6 +97,13 @@ impl S9pk<Section<MultiCursorFile>> {
         // images
         for arch in reader.docker_arches().await? {
             let images_dir = scratch_dir.join("images").join(&arch);
+            let docker_platform = if arch == "x86_64" {
+                "--platform=linux/amd64".to_owned()
+            } else if arch == "aarch64" {
+                "--platform=linux/arm64".to_owned()
+            } else {
+                format!("--platform=linux/{arch}")
+            };
             tokio::fs::create_dir_all(&images_dir).await?;
             Command::new(CONTAINER_TOOL)
                 .arg("load")
@@ -161,6 +168,7 @@ impl S9pk<Section<MultiCursorFile>> {
                 let id = String::from_utf8(
                     Command::new(CONTAINER_TOOL)
                         .arg("create")
+                        .arg(&docker_platform)
                         .arg(&image_name)
                         .invoke(ErrorKind::Docker)
                         .await?,
@@ -169,6 +177,7 @@ impl S9pk<Section<MultiCursorFile>> {
                     Command::new(CONTAINER_TOOL)
                         .arg("run")
                         .arg("--rm")
+                        .arg(&docker_platform)
                         .arg("--entrypoint")
                         .arg("env")
                         .arg(&image_name)
@@ -188,6 +197,7 @@ impl S9pk<Section<MultiCursorFile>> {
                         Command::new(CONTAINER_TOOL)
                             .arg("run")
                             .arg("--rm")
+                            .arg(&docker_platform)
                             .arg("--entrypoint")
                             .arg("pwd")
                             .arg(&image_name)

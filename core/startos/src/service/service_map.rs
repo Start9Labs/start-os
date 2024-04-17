@@ -42,10 +42,9 @@ pub(super) struct InstallProgressHandles {
 pub struct ServiceMap(Mutex<OrdMap<PackageId, Arc<RwLock<Option<Service>>>>>);
 impl ServiceMap {
     async fn entry(&self, id: &PackageId) -> Arc<RwLock<Option<Service>>> {
-        self.0
-            .lock()
-            .await
-            .entry(id.clone())
+        let mut lock = self.0.lock().await;
+        dbg!(lock.keys().collect::<Vec<_>>());
+        lock.entry(id.clone())
             .or_insert_with(|| Arc::new(RwLock::new(None)))
             .clone()
     }
@@ -294,6 +293,7 @@ impl ServiceMap {
     #[instrument(skip_all)]
     pub async fn uninstall(&self, ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
         if let Some(service) = self.get_mut(id).await.take() {
+            dbg!("uninstalling");
             ServiceReloadGuard::new(ctx.clone(), id.clone(), "Uninstall")
                 .handle_last(service.uninstall(None))
                 .await?;

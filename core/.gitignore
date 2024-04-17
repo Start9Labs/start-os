@@ -8,3 +8,4 @@ secrets.db
 .env
 .editorconfig
 proptest-regressions/**/*
+/startos/bindings/*

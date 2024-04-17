@@ -16,7 +16,7 @@ STARTD_SRC := core/startos/startd.service $(BUILD_SRC)
 COMPAT_SRC := $(shell git ls-files system-images/compat/)
 UTILS_SRC := $(shell git ls-files system-images/utils/)
 BINFMT_SRC := $(shell git ls-files system-images/binfmt/)
-CORE_SRC := $(shell git ls-files -- core ':!:core/startos/bindings/*') $(shell git ls-files --recurse-submodules patch-db) web/dist/static web/patchdb-ui-seed.json $(GIT_HASH_FILE)
+CORE_SRC := $(shell git ls-files core) $(shell git ls-files --recurse-submodules patch-db) web/dist/static web/patchdb-ui-seed.json $(GIT_HASH_FILE)
 WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules web/config.json patch-db/client/dist web/patchdb-ui-seed.json
 WEB_UI_SRC := $(shell git ls-files web/projects/ui)
 WEB_SETUP_WIZARD_SRC := $(shell git ls-files web/projects/setup-wizard)
@@ -180,13 +180,19 @@ container-runtime/node_modules: container-runtime/package.json container-runtime
 	npm --prefix container-runtime ci
 	touch container-runtime/node_modules
 
-core/startos/bindings: $(shell git ls-files -- core ':!:core/startos/bindings/*') $(ENVIRONMENT_FILE)
+sdk/lib/osBindings: core/startos/bindings
+	mkdir -p sdk/lib/osBindings
+	rsync -ac --delete core/startos/bindings/ sdk/lib/osBindings/
+	touch sdk/lib/osBindings
+
+core/startos/bindings: $(shell git ls-files core) $(ENVIRONMENT_FILE)
 	rm -rf core/startos/bindings
 	(cd core/ && cargo test --features=test)
 	ls core/startos/bindings/*.ts | sed 's/core\/startos\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' > core/startos/bindings/index.ts
 	npm --prefix sdk exec -- prettier -w ./core/startos/bindings/*.ts
+	touch core/startos/bindings
 
-sdk/dist: $(shell git ls-files sdk) core/startos/bindings
+sdk/dist: $(shell git ls-files sdk)
 	(cd sdk && make bundle)
 
 # TODO: make container-runtime its own makefile?

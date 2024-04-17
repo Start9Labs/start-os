@@ -62,6 +62,10 @@ fn inspect() -> ParentHandler<S9pkPath> {
                 .with_display_serializable(),
         )
         .subcommand(
+            "cat",
+            from_fn_async(cat).with_inherited(only_parent).no_display(),
+        )
+        .subcommand(
             "manifest",
             from_fn_async(inspect_manifest)
                 .with_inherited(only_parent)
@@ -224,6 +228,36 @@ async fn file_tree(
 ) -> Result<Vec<PathBuf>, Error> {
     let s9pk = S9pk::from_file(super::load(&ctx, &s9pk).await?, false).await?;
     Ok(s9pk.as_archive().contents().file_paths(""))
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+struct CatParams {
+    file_path: PathBuf,
+}
+async fn cat(
+    ctx: CliContext,
+    CatParams { file_path }: CatParams,
+    S9pkPath { s9pk }: S9pkPath,
+) -> Result<(), Error> {
+    use crate::s9pk::merkle_archive::source::FileSource;
+
+    let s9pk = S9pk::from_file(super::load(&ctx, &s9pk).await?, false).await?;
+    tokio::io::copy(
+        &mut s9pk
+            .as_archive()
+            .contents()
+            .get_path(&file_path)
+            .or_not_found(&file_path.display())?
+            .as_file()
+            .or_not_found(&file_path.display())?
+            .reader()
+            .await?,
+        &mut tokio::io::stdout(),
+    )
+    .await?;
+    Ok(())
 }
 
 async fn inspect_manifest(

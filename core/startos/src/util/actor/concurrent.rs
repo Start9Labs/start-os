@@ -96,7 +96,7 @@ impl<A: Actor + Clone> Future for ConcurrentRunner<A> {
             cont
         } {}
         let _ = this.bg_runner.as_mut().poll(cx);
-        if this.waiting.is_empty() && this.handlers.is_empty() && this.bg_runner.is_empty() {
+        if this.waiting.is_empty() && this.handlers.is_empty() && this.recv.is_closed() {
             std::task::Poll::Ready(())
         } else {
             std::task::Poll::Pending

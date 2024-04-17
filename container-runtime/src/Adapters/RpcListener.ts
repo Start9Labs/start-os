@@ -160,7 +160,7 @@ export class RpcListener {
             details: error?.message ?? String(error),
             debug: error?.stack,
           },
-          code: 0,
+          code: 1,
         },
       })
       const writeDataToSocket = (x: SocketResponse) =>
@@ -244,7 +244,7 @@ export class RpcListener {
           })),
       )
       .when(exitType, async ({ id }) => {
-        if (this._system) this._system.exit(this.effects)
+        if (this._system) await this._system.exit(this.effects)
         delete this._system
         delete this._effects
 
