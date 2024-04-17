@@ -5,9 +5,11 @@ use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
+use clap::builder::ValueParserFactory;
 use clap::Parser;
 use futures::{AsyncWriteExt, FutureExt, StreamExt};
 use imbl_value::{InOMap, InternedString};
+use models::InvalidId;
 use rpc_toolkit::yajrc::{RpcError, RpcResponse};
 use rpc_toolkit::{
     from_fn_async, AnyContext, CallRemoteHandler, GenericRpcMethod, Handler, HandlerArgs,
@@ -28,10 +30,11 @@ use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
-use crate::disk::mount::filesystem::ReadWrite;
-use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
+use crate::disk::mount::filesystem::{MountType, ReadWrite};
+use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::disk::mount::util::unmount;
 use crate::prelude::*;
+use crate::util::clap::FromStrParser;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::{new_guid, Invoke};
 
@@ -41,18 +44,57 @@ pub const CONTAINER_RPC_SERVER_SOCKET: &str = "service.sock"; // must not be abs
 pub const HOST_RPC_SERVER_SOCKET: &str = "host.sock"; // must not be absolute path
 const CONTAINER_DHCP_TIMEOUT: Duration = Duration::from_secs(30);
 
-pub struct LxcManager {
-    containers: Mutex<Vec<Weak<InternedString>>>,
+#[derive(
+    Clone, Debug, Serialize, Deserialize, Default, PartialEq, Eq, PartialOrd, Ord, Hash, TS,
+)]
+#[ts(type = "string")]
+pub struct ContainerId(InternedString);
+impl std::ops::Deref for ContainerId {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
+impl std::fmt::Display for ContainerId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", &*self.0)
+    }
+}
+impl TryFrom<&str> for ContainerId {
+    type Error = InvalidId;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Ok(ContainerId(InternedString::intern(value)))
+    }
+}
+impl std::str::FromStr for ContainerId {
+    type Err = InvalidId;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s)
+    }
+}
+impl ValueParserFactory for ContainerId {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
+    }
+}
+
+#[derive(Default)]
+pub struct LxcManager {
+    containers: Mutex<Vec<Weak<ContainerId>>>,
+}
+
 impl LxcManager {
     pub fn new() -> Self {
-        Self {
-            containers: Default::default(),
-        }
+        Self::default()
     }
 
-    pub async fn create(self: &Arc<Self>, config: LxcConfig) -> Result<LxcContainer, Error> {
-        let container = LxcContainer::new(self, config).await?;
+    pub async fn create(
+        self: &Arc<Self>,
+        log_mount: Option<&Path>,
+        config: LxcConfig,
+    ) -> Result<LxcContainer, Error> {
+        let container = LxcContainer::new(self, log_mount, config).await?;
         let mut guard = self.containers.lock().await;
         *guard = std::mem::take(&mut *guard)
             .into_iter()
@@ -69,7 +111,7 @@ impl LxcManager {
                 .await
                 .iter()
                 .filter_map(|g| g.upgrade())
-                .map(|g| (&*g).clone()),
+                .map(|g| (*g).clone()),
         );
         for container in String::from_utf8(
             Command::new("lxc-ls")
@@ -80,7 +122,7 @@ impl LxcManager {
         .lines()
         .map(|s| s.trim())
         {
-            if !expected.contains(container) {
+            if !expected.contains(&ContainerId::try_from(container)?) {
                 let rootfs_path = Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs");
                 if tokio::fs::metadata(&rootfs_path).await.is_ok() {
                     unmount(Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs")).await?;
@@ -112,14 +154,20 @@ impl LxcManager {
 pub struct LxcContainer {
     manager: Weak<LxcManager>,
     rootfs: OverlayGuard,
-    guid: Arc<InternedString>,
+    pub guid: Arc<ContainerId>,
     rpc_bind: TmpMountGuard,
+    log_mount: Option<MountGuard>,
     config: LxcConfig,
     exited: bool,
 }
 impl LxcContainer {
-    async fn new(manager: &Arc<LxcManager>, config: LxcConfig) -> Result<Self, Error> {
+    async fn new(
+        manager: &Arc<LxcManager>,
+        log_mount: Option<&Path>,
+        config: LxcConfig,
+    ) -> Result<Self, Error> {
         let guid = new_guid();
+        let machine_id = hex::encode(rand::random::<[u8; 16]>());
         let container_dir = Path::new(LXC_CONTAINER_DIR).join(&*guid);
         tokio::fs::create_dir_all(&container_dir).await?;
         tokio::fs::write(
@@ -145,6 +193,7 @@ impl LxcContainer {
             &rootfs_dir,
         )
         .await?;
+        tokio::fs::write(rootfs_dir.join("etc/machine-id"), format!("{machine_id}\n")).await?;
         tokio::fs::write(rootfs_dir.join("etc/hostname"), format!("{guid}\n")).await?;
         Command::new("sed")
             .arg("-i")
@@ -166,6 +215,20 @@ impl LxcContainer {
             .arg(rpc_bind.path())
             .invoke(ErrorKind::Filesystem)
             .await?;
+        let log_mount = if let Some(path) = log_mount {
+            let log_mount_point = rootfs_dir.join("var/log/journal").join(machine_id);
+            let log_mount =
+                MountGuard::mount(&Bind::new(path), &log_mount_point, MountType::ReadWrite).await?;
+            Command::new("chown")
+                // This was needed as 100999 because the group id of journald
+                .arg("100000:100999")
+                .arg(&log_mount_point)
+                .invoke(crate::ErrorKind::Filesystem)
+                .await?;
+            Some(log_mount)
+        } else {
+            None
+        };
         Command::new("lxc-start")
             .arg("-d")
             .arg("--name")
@@ -175,10 +238,11 @@ impl LxcContainer {
         Ok(Self {
             manager: Arc::downgrade(manager),
             rootfs,
-            guid: Arc::new(guid),
+            guid: Arc::new(ContainerId::try_from(&*guid)?),
             rpc_bind,
             config,
             exited: false,
+            log_mount,
         })
     }
 
@@ -188,11 +252,12 @@ impl LxcContainer {
 
     pub async fn ip(&self) -> Result<Ipv4Addr, Error> {
         let start = Instant::now();
+        let guid: &str = &self.guid;
         loop {
             let output = String::from_utf8(
                 Command::new("lxc-info")
                     .arg("--name")
-                    .arg(&*self.guid)
+                    .arg(guid)
                     .arg("-iH")
                     .invoke(ErrorKind::Docker)
                     .await?,
@@ -218,6 +283,9 @@ impl LxcContainer {
     #[instrument(skip_all)]
     pub async fn exit(mut self) -> Result<(), Error> {
         self.rpc_bind.take().unmount().await?;
+        if let Some(log_mount) = self.log_mount.take() {
+            log_mount.unmount(true).await?;
+        }
         self.rootfs.take().unmount(true).await?;
         let rootfs_path = self.rootfs_dir();
         let err_path = rootfs_path.join("var/log/containerRuntime.err");
@@ -228,17 +296,16 @@ impl LxcContainer {
                 tracing::error!(container, "{}", line);
             }
         }
-        if tokio::fs::metadata(&rootfs_path).await.is_ok() {
-            if tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(&rootfs_path).await?)
+        if tokio::fs::metadata(&rootfs_path).await.is_ok()
+            && tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(&rootfs_path).await?)
                 .count()
                 .await
                 > 0
-            {
-                return Err(Error::new(
-                    eyre!("rootfs is not empty, refusing to delete"),
-                    ErrorKind::InvalidRequest,
-                ));
-            }
+        {
+            return Err(Error::new(
+                eyre!("rootfs is not empty, refusing to delete"),
+                ErrorKind::InvalidRequest,
+            ));
         }
         Command::new("lxc-destroy")
             .arg("--force")
@@ -341,21 +408,21 @@ pub fn lxc() -> ParentHandler {
         .subcommand("connect", from_fn_async(connect_rpc_cli).no_display())
 }
 
-pub async fn create(ctx: RpcContext) -> Result<InternedString, Error> {
-    let container = ctx.lxc_manager.create(LxcConfig::default()).await?;
+pub async fn create(ctx: RpcContext) -> Result<ContainerId, Error> {
+    let container = ctx.lxc_manager.create(None, LxcConfig::default()).await?;
     let guid = container.guid.deref().clone();
     ctx.dev.lxc.lock().await.insert(guid.clone(), container);
     Ok(guid)
 }
 
-pub async fn list(ctx: RpcContext) -> Result<Vec<InternedString>, Error> {
+pub async fn list(ctx: RpcContext) -> Result<Vec<ContainerId>, Error> {
     Ok(ctx.dev.lxc.lock().await.keys().cloned().collect())
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 pub struct RemoveParams {
     #[ts(type = "string")]
-    pub guid: InternedString,
+    pub guid: ContainerId,
 }
 
 pub async fn remove(ctx: RpcContext, RemoveParams { guid }: RemoveParams) -> Result<(), Error> {
@@ -368,7 +435,7 @@ pub async fn remove(ctx: RpcContext, RemoveParams { guid }: RemoveParams) -> Res
 #[derive(Deserialize, Serialize, Parser, TS)]
 pub struct ConnectParams {
     #[ts(type = "string")]
-    pub guid: InternedString,
+    pub guid: ContainerId,
 }
 
 pub async fn connect_rpc(
@@ -502,7 +569,7 @@ pub async fn connect_cli(ctx: &CliContext, guid: RequestGuid) -> Result<(), Erro
                                 if let Some((method, rest)) = command.split_first() {
                                     let mut params = InOMap::new();
                                     for arg in rest {
-                                        if let Some((name, value)) = arg.split_once("=") {
+                                        if let Some((name, value)) = arg.split_once('=') {
                                             params.insert(InternedString::intern(name), if value.is_empty() {
                                                 Value::Null
                                             } else if let Ok(v) = serde_json::from_str(value) {

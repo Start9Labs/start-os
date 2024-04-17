@@ -5,7 +5,7 @@
   "module": "./index.js",
   "scripts": {
     "check": "tsc --noEmit",
-    "build": "prettier --write '**/*.ts' && rm -rf dist && tsc",
+    "build": "prettier . '!tmp/**' --write && rm -rf dist && tsc",
     "tsc": "rm -rf dist; tsc"
   },
   "author": "",
