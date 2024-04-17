@@ -216,7 +216,7 @@ impl LxcContainer {
             .invoke(ErrorKind::Filesystem)
             .await?;
         let log_mount = if let Some(path) = log_mount {
-            let log_mount_point = container_dir.join("var/log/journal").join(machine_id);
+            let log_mount_point = rootfs_dir.join("var/log/journal").join(machine_id);
             let log_mount =
                 MountGuard::mount(&Bind::new(path), &log_mount_point, MountType::ReadWrite).await?;
             Command::new("chown")
