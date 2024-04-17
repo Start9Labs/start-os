@@ -89,7 +89,6 @@ pub struct PersistentContainer {
     js_mount: MountGuard,
     volumes: BTreeMap<VolumeId, MountGuard>,
     assets: BTreeMap<VolumeId, MountGuard>,
-    log_mount: MountGuard,
     pub(super) overlays: Arc<Mutex<BTreeMap<InternedString, OverlayGuard>>>,
     pub(super) state: Arc<watch::Sender<ServiceState>>,
     pub(super) net_service: Mutex<NetService>,
@@ -98,7 +97,14 @@ pub struct PersistentContainer {
 impl PersistentContainer {
     #[instrument(skip_all)]
     pub async fn new(ctx: &RpcContext, s9pk: S9pk, start: StartStop) -> Result<Self, Error> {
-        let lxc_container = ctx.lxc_manager.create(LxcConfig::default()).await?;
+        let lxc_container = ctx
+            .lxc_manager
+            .create(
+                LxcConfig::default(),
+                ctx.datadir.clone(),
+                &s9pk.as_manifest().id,
+            )
+            .await?;
         let rpc_client = lxc_container.connect_rpc(Some(RPC_CONNECT_TIMEOUT)).await?;
         let js_mount = MountGuard::mount(
             &LoopDev::from(
@@ -113,23 +119,7 @@ impl PersistentContainer {
             ReadOnly,
         )
         .await?;
-        let log_mount_point = lxc_container.rootfs_dir().join("var/log/journal");
-        let log_mount = MountGuard::mount(
-            &Bind::new(
-                ctx.datadir
-                    .join("package-data")
-                    .join("logs")
-                    .join(&s9pk.as_manifest().id),
-            ),
-            &log_mount_point,
-            MountType::ReadWrite,
-        )
-        .await?;
-        Command::new("chown")
-            .arg("100000:100999")
-            .arg(&log_mount_point)
-            .invoke(crate::ErrorKind::Filesystem)
-            .await?;
+
         let mut volumes = BTreeMap::new();
         for volume in &s9pk.as_manifest().volumes {
             let mountpoint = lxc_container
@@ -224,7 +214,6 @@ impl PersistentContainer {
             overlays: Arc::new(Mutex::new(BTreeMap::new())),
             state: Arc::new(watch::channel(ServiceState::new(start)).0),
             net_service: Mutex::new(net_service),
-            log_mount,
         })
     }
 
@@ -301,7 +290,6 @@ impl PersistentContainer {
         let assets = std::mem::take(&mut self.assets);
         let overlays = self.overlays.clone();
         let lxc_container = self.lxc_container.take();
-        let log_mount = self.log_mount.take();
         async move {
             let mut errs = ErrorCollection::new();
             if let Some((hdl, shutdown)) = rpc_server {
@@ -319,7 +307,6 @@ impl PersistentContainer {
                 errs.handle(overlay.unmount(true).await);
             }
             errs.handle(js_mount.unmount(true).await);
-            errs.handle(log_mount.unmount(true).await);
             if let Some(lxc_container) = lxc_container {
                 errs.handle(lxc_container.exit().await);
             }
