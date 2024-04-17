@@ -126,7 +126,7 @@ impl PersistentContainer {
         )
         .await?;
         Command::new("chown")
-            .arg("100999:100000")
+            .arg("100000:100999")
             .arg(&log_mount_point)
             .invoke(crate::ErrorKind::Filesystem)
             .await?;
