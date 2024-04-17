@@ -206,6 +206,7 @@ impl LxcContainer {
         )
         .await?;
         Command::new("chown")
+            // This was needed as 100999 because the group id of journald
             .arg("100000:100999")
             .arg(&log_mount_point)
             .invoke(crate::ErrorKind::Filesystem)
