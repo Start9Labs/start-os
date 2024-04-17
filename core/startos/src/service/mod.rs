@@ -340,12 +340,14 @@ impl Service {
             .execute(ProcedureName::Uninit, to_value(&target_version)?, None) // TODO timeout
             .await?;
         let id = self.seed.persistent_container.s9pk.as_manifest().id.clone();
-        self.seed
-            .ctx
-            .db
-            .mutate(|d| d.as_public_mut().as_package_data_mut().remove(&id))
-            .await?;
-        self.shutdown().await
+        let ctx = self.seed.ctx.clone();
+        self.shutdown().await?;
+        if target_version.is_none() {
+            ctx.db
+                .mutate(|d| d.as_public_mut().as_package_data_mut().remove(&id))
+                .await?;
+        }
+        Ok(())
     }
     pub async fn backup(&self, _guard: impl GenericMountGuard) -> Result<BackupReturn, Error> {
         // TODO

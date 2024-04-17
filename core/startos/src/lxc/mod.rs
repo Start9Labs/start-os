@@ -1,14 +1,15 @@
+use std::collections::BTreeSet;
 use std::net::Ipv4Addr;
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
-use std::{collections::BTreeSet, path::PathBuf};
 
-use clap::{builder::ValueParserFactory, Parser};
+use clap::builder::ValueParserFactory;
+use clap::Parser;
 use futures::{AsyncWriteExt, FutureExt, StreamExt};
 use imbl_value::{InOMap, InternedString};
-use models::{InvalidId, PackageId};
+use models::InvalidId;
 use rpc_toolkit::yajrc::{RpcError, RpcResponse};
 use rpc_toolkit::{
     from_fn_async, AnyContext, CallRemoteHandler, GenericRpcMethod, Handler, HandlerArgs,
@@ -23,24 +24,19 @@ use tokio::sync::Mutex;
 use tokio::time::Instant;
 use ts_rs::TS;
 
+use crate::context::{CliContext, RpcContext};
+use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
+use crate::disk::mount::filesystem::bind::Bind;
+use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
-use crate::disk::mount::filesystem::ReadWrite;
-use crate::disk::mount::filesystem::{bind::Bind, MountType};
-use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
+use crate::disk::mount::filesystem::{MountType, ReadWrite};
+use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::disk::mount::util::unmount;
 use crate::prelude::*;
+use crate::util::clap::FromStrParser;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::{new_guid, Invoke};
-use crate::{
-    context::{CliContext, RpcContext},
-    util::clap::FromStrParser,
-};
-use crate::{
-    core::rpc_continuations::{RequestGuid, RpcContinuation},
-    disk::mount::guard::MountGuard,
-};
-use crate::{disk::mount::filesystem::block_dev::BlockDev, s9pk::manifest::Manifest};
 
 const LXC_CONTAINER_DIR: &str = "/var/lib/lxc";
 const RPC_DIR: &str = "media/startos/rpc"; // must not be absolute path
@@ -95,11 +91,10 @@ impl LxcManager {
 
     pub async fn create(
         self: &Arc<Self>,
+        log_mount: Option<&Path>,
         config: LxcConfig,
-        data_dir: PathBuf,
-        package_id: &PackageId,
     ) -> Result<LxcContainer, Error> {
-        let container = LxcContainer::new(self, config, data_dir, package_id).await?;
+        let container = LxcContainer::new(self, log_mount, config).await?;
         let mut guard = self.containers.lock().await;
         *guard = std::mem::take(&mut *guard)
             .into_iter()
@@ -161,18 +156,18 @@ pub struct LxcContainer {
     rootfs: OverlayGuard,
     pub guid: Arc<ContainerId>,
     rpc_bind: TmpMountGuard,
-    pub config: LxcConfig,
+    log_mount: Option<MountGuard>,
+    config: LxcConfig,
     exited: bool,
-    log_mount: MountGuard,
 }
 impl LxcContainer {
     async fn new(
         manager: &Arc<LxcManager>,
+        log_mount: Option<&Path>,
         config: LxcConfig,
-        data_dir: PathBuf,
-        package_id: &PackageId,
     ) -> Result<Self, Error> {
         let guid = new_guid();
+        let machine_id = hex::encode(rand::random::<[u8; 16]>());
         let container_dir = Path::new(LXC_CONTAINER_DIR).join(&*guid);
         tokio::fs::create_dir_all(&container_dir).await?;
         tokio::fs::write(
@@ -198,19 +193,7 @@ impl LxcContainer {
             &rootfs_dir,
         )
         .await?;
-        let log_mount_point = container_dir.join("var/log/journal");
-        let log_mount = MountGuard::mount(
-            &Bind::new(data_dir.join("package-data").join("logs").join(package_id)),
-            &log_mount_point,
-            MountType::ReadWrite,
-        )
-        .await?;
-        Command::new("chown")
-            // This was needed as 100999 because the group id of journald
-            .arg("100000:100999")
-            .arg(&log_mount_point)
-            .invoke(crate::ErrorKind::Filesystem)
-            .await?;
+        tokio::fs::write(rootfs_dir.join("etc/machine-id"), format!("{machine_id}\n")).await?;
         tokio::fs::write(rootfs_dir.join("etc/hostname"), format!("{guid}\n")).await?;
         Command::new("sed")
             .arg("-i")
@@ -232,6 +215,20 @@ impl LxcContainer {
             .arg(rpc_bind.path())
             .invoke(ErrorKind::Filesystem)
             .await?;
+        let log_mount = if let Some(path) = log_mount {
+            let log_mount_point = container_dir.join("var/log/journal").join(machine_id);
+            let log_mount =
+                MountGuard::mount(&Bind::new(path), &log_mount_point, MountType::ReadWrite).await?;
+            Command::new("chown")
+                // This was needed as 100999 because the group id of journald
+                .arg("100000:100999")
+                .arg(&log_mount_point)
+                .invoke(crate::ErrorKind::Filesystem)
+                .await?;
+            Some(log_mount)
+        } else {
+            None
+        };
         Command::new("lxc-start")
             .arg("-d")
             .arg("--name")
@@ -286,8 +283,10 @@ impl LxcContainer {
     #[instrument(skip_all)]
     pub async fn exit(mut self) -> Result<(), Error> {
         self.rpc_bind.take().unmount().await?;
+        if let Some(log_mount) = self.log_mount.take() {
+            log_mount.unmount(true).await?;
+        }
         self.rootfs.take().unmount(true).await?;
-        self.log_mount.take().unmount(true).await?;
         let rootfs_path = self.rootfs_dir();
         let err_path = rootfs_path.join("var/log/containerRuntime.err");
         if tokio::fs::metadata(&err_path).await.is_ok() {
@@ -409,19 +408,8 @@ pub fn lxc() -> ParentHandler {
         .subcommand("connect", from_fn_async(connect_rpc_cli).no_display())
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
-pub struct CreateParams {
-    #[ts(type = "string")]
-    pub package_id: PackageId,
-}
-pub async fn create(
-    ctx: RpcContext,
-    CreateParams { package_id }: CreateParams,
-) -> Result<ContainerId, Error> {
-    let container = ctx
-        .lxc_manager
-        .create(LxcConfig::default(), ctx.datadir.clone(), &package_id)
-        .await?;
+pub async fn create(ctx: RpcContext) -> Result<ContainerId, Error> {
+    let container = ctx.lxc_manager.create(None, LxcConfig::default()).await?;
     let guid = container.guid.deref().clone();
     ctx.dev.lxc.lock().await.insert(guid.clone(), container);
     Ok(guid)
