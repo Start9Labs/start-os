@@ -18,7 +18,6 @@ use tokio_stream::wrappers::LinesStream;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::instrument;
 
-use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::error::ResultExt;
 use crate::prelude::*;
 use crate::util::serde::Reversible;
@@ -26,10 +25,14 @@ use crate::{
     context::{CliContext, RpcContext},
     lxc::ContainerId,
 };
+use crate::{
+    core::rpc_continuations::{RequestGuid, RpcContinuation},
+    util::Invoke,
+};
 
 #[pin_project::pin_project]
 pub struct LogStream {
-    _child: Child,
+    _child: Option<Child>,
     #[pin]
     entries: BoxStream<'static, Result<JournalctlEntry, Error>>,
 }
@@ -203,12 +206,12 @@ fn deserialize_log_message<'de, D: serde::de::Deserializer<'de>>(
 ///     --user-unit=UNIT        Show logs from the specified user unit))
 /// System: Unit is startd, but we also filter on the comm
 /// Container: Filtering containers, like podman/docker is done by filtering on the CONTAINER_NAME
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum LogSource {
     Kernel,
     Unit(&'static str),
     System,
-    Container(PackageId, ContainerId),
+    Container(ContainerId),
 }
 
 pub const SYSTEM_UNIT: &str = "startd";
@@ -301,13 +304,7 @@ pub async fn logs_nofollow(
                 ErrorKind::NotFound,
             )
         })??;
-    fetch_logs(
-        LogSource::Container(id, container_id),
-        limit,
-        cursor,
-        before,
-    )
-    .await
+    fetch_logs(LogSource::Container(container_id), limit, cursor, before).await
 }
 pub async fn logs_follow(
     ctx: RpcContext,
@@ -326,7 +323,7 @@ pub async fn logs_follow(
                 ErrorKind::NotFound,
             )
         })??;
-    follow_logs(ctx, LogSource::Container(id, container_id), limit).await
+    follow_logs(ctx, LogSource::Container(container_id), limit).await
 }
 
 pub async fn cli_logs_generic_nofollow(
@@ -391,8 +388,66 @@ pub async fn journalctl(
     before: bool,
     follow: bool,
 ) -> Result<LogStream, Error> {
-    let mut cmd = match &id {
-        LogSource::Container(_id, container_id) => {
+    let mut cmd = gen_journalctl_command(&id, limit);
+
+    let cursor_formatted = format!("--after-cursor={}", cursor.unwrap_or(""));
+    if cursor.is_some() {
+        cmd.arg(&cursor_formatted);
+        if before {
+            cmd.arg("--reverse");
+        }
+    }
+
+    let deserialized_entries = String::from_utf8(cmd.invoke(ErrorKind::Journald).await?)?
+        .lines()
+        .map(serde_json::from_str::<JournalctlEntry>)
+        .collect::<Result<Vec<_>, _>>()
+        .with_kind(ErrorKind::Deserialization)?;
+
+    if follow {
+        let mut follow_cmd = gen_journalctl_command(&id, limit);
+        follow_cmd.arg("-f");
+        if let Some(last) = deserialized_entries.last() {
+            cmd.arg(format!("--after-cursor={}", last.cursor));
+        }
+        let mut child = cmd.stdout(Stdio::piped()).spawn()?;
+        let out =
+            BufReader::new(child.stdout.take().ok_or_else(|| {
+                Error::new(eyre!("No stdout available"), crate::ErrorKind::Journald)
+            })?);
+
+        let journalctl_entries = LinesStream::new(out.lines());
+
+        let follow_deserialized_entries = journalctl_entries
+            .map_err(|e| Error::new(e, crate::ErrorKind::Journald))
+            .and_then(|s| {
+                futures::future::ready(
+                    serde_json::from_str::<JournalctlEntry>(&s)
+                        .with_kind(crate::ErrorKind::Deserialization),
+                )
+            });
+
+        let entries = futures::stream::iter(deserialized_entries)
+            .map(Ok)
+            .chain(follow_deserialized_entries)
+            .boxed();
+        Ok(LogStream {
+            _child: Some(child),
+            entries,
+        })
+    } else {
+        let entries = futures::stream::iter(deserialized_entries).map(Ok).boxed();
+
+        Ok(LogStream {
+            _child: None,
+            entries,
+        })
+    }
+}
+
+fn gen_journalctl_command(id: &LogSource, limit: usize) -> Command {
+    let mut cmd = match id {
+        LogSource::Container(container_id) => {
             let mut cmd = Command::new("lxc-attach");
             cmd.arg(format!("{}", container_id))
                 .arg("--")
@@ -419,45 +474,11 @@ pub async fn journalctl(
             cmd.arg(SYSTEM_UNIT);
             cmd.arg(format!("_COMM={}", SYSTEM_UNIT));
         }
-        LogSource::Container(_id, _container_id) => {
+        LogSource::Container(_container_id) => {
             cmd.arg("-u").arg("container-runtime.service");
         }
     };
-
-    let cursor_formatted = format!("--after-cursor={}", cursor.unwrap_or(""));
-    if cursor.is_some() {
-        cmd.arg(&cursor_formatted);
-        if before {
-            cmd.arg("--reverse");
-        }
-    }
-    if follow {
-        cmd.arg("--follow");
-    }
-
-    let mut child = cmd.stdout(Stdio::piped()).spawn()?;
-    let out = BufReader::new(
-        child
-            .stdout
-            .take()
-            .ok_or_else(|| Error::new(eyre!("No stdout available"), crate::ErrorKind::Journald))?,
-    );
-
-    let journalctl_entries = LinesStream::new(out.lines());
-
-    let deserialized_entries = journalctl_entries
-        .map_err(|e| Error::new(e, crate::ErrorKind::Journald))
-        .and_then(|s| {
-            futures::future::ready(
-                serde_json::from_str::<JournalctlEntry>(&s)
-                    .with_kind(crate::ErrorKind::Deserialization),
-            )
-        });
-
-    Ok(LogStream {
-        _child: child,
-        entries: deserialized_entries.boxed(),
-    })
+    cmd
 }
 
 #[instrument(skip_all)]
