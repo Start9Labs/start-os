@@ -71,12 +71,14 @@ async fn do_upload(
     mut url: Url,
     user: &str,
     pass: &str,
+    pkg_id: &str,
     body: Body,
 ) -> Result<(), Error> {
     url.set_path("/admin/v0/upload");
     let req = httpc
         .post(url)
         .header(header::ACCEPT, "text/plain")
+        .query(&["id", pkg_id])
         .basic_auth(user, Some(pass))
         .body(body)
         .build()?;
@@ -178,6 +180,7 @@ pub async fn publish(
             registry.clone(),
             &user,
             &pass,
+            &pkg.id,
             Body::wrap_stream(file_stream),
         )
         .await?;
