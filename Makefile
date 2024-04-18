@@ -82,8 +82,7 @@ clean:
 	rm -rf container-runtime/node_modules
 	rm -f container-runtime/*.squashfs
 	rm -rf container-runtime/tmp
-	rm -rf sdk/dist
-	rm -rf sdk/node_modules
+	(cd sdk && make clean)
 	rm -f ENVIRONMENT.txt
 	rm -f PLATFORM.txt
 	rm -f GIT_HASH.txt

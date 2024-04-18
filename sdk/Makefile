@@ -1,4 +1,4 @@
-TS_FILES := $(shell find ./**/*.ts )
+TS_FILES := $(shell git ls-files lib) lib/test/output.ts
 version = $(shell git tag --sort=committerdate | tail -1)
 
 .PHONY: test clean bundle fmt buildOutput check
@@ -8,8 +8,10 @@ test: $(TS_FILES) lib/test/output.ts
 
 clean:
 	rm -rf dist
+	rm -f lib/test/output.ts
+	rm -rf node_modules
 	
-lib/test/output.ts: lib/test/makeOutput.ts scripts/oldSpecToBuilder.ts
+lib/test/output.ts: node_modules lib/test/makeOutput.ts scripts/oldSpecToBuilder.ts
 	npm run buildOutput
 
 bundle: dist | test fmt
@@ -32,7 +34,7 @@ fmt: node_modules
 	npx prettier --write "**/*.ts"
 
 node_modules: package.json
-	npm install
+	npm ci
 
 publish: clean bundle package.json README.md LICENSE
 	cd dist && npm publish --access=public
