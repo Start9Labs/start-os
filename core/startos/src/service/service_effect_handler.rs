@@ -375,9 +375,29 @@ async fn get_primary_url(
 async fn list_service_interfaces(
     context: EffectContext,
     data: ListServiceInterfacesParams,
-) -> Result<Value, Error> {
-    todo!()
+) -> Result<BTreeMap<ServiceInterfaceId, ServiceInterfaceWithHostInfo>, Error> {
+    let context = context.deref()?;
+    let package_id = context.id.clone();
+
+    let db_model = context
+        .ctx
+        .db
+        .peek()
+        .await;
+
+    let svc_interfaces_model = db_model
+        .as_public()
+        .as_package_data()
+        .as_idx(&package_id)
+        .or_not_found(&package_id)?
+        .as_service_interfaces();
+
+    match svc_interfaces_model.de() {
+        Ok(svc_interfaces) => Ok(svc_interfaces),
+        Err(e) => Err(e),
+    }
 }
+
 async fn remove_address(context: EffectContext, data: RemoveAddressParams) -> Result<Value, Error> {
     todo!()
 }
