@@ -13,8 +13,6 @@ use start_stop::StartStop;
 use tokio::sync::Notify;
 use ts_rs::TS;
 
-use crate::config::action::ConfigRes;
-use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::RequestGuid;
 use crate::db::model::package::{
     InstalledState, PackageDataEntry, PackageState, PackageStateMatchModelRef, UpdatingState,
@@ -28,9 +26,15 @@ use crate::service::service_map::InstallProgressHandles;
 use crate::service::transition::TransitionKind;
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
-use crate::util::actor::{Actor, BackgroundJobs, SimpleActor};
+use crate::util::actor::background::BackgroundJobQueue;
+use crate::util::actor::concurrent::ConcurrentActor;
+use crate::util::actor::Actor;
 use crate::util::serde::Pem;
 use crate::volume::data_dir;
+use crate::{
+    context::{CliContext, RpcContext},
+    lxc::ContainerId,
+};
 
 mod action;
 pub mod cli;
@@ -66,7 +70,7 @@ pub enum LoadDisposition {
 }
 
 pub struct Service {
-    actor: SimpleActor<ServiceActor>,
+    actor: ConcurrentActor<ServiceActor>,
     seed: Arc<ServiceActorSeed>,
 }
 impl Service {
@@ -90,7 +94,7 @@ impl Service {
             .init(Arc::downgrade(&seed))
             .await?;
         Ok(Self {
-            actor: SimpleActor::new(ServiceActor(seed.clone())),
+            actor: ConcurrentActor::new(ServiceActor(seed.clone())),
             seed,
         })
     }
@@ -192,8 +196,8 @@ impl Service {
                         |db| {
                             db.as_public_mut()
                                 .as_package_data_mut()
-                                .as_idx_mut(&id)
-                                .or_not_found(&id)?
+                                .as_idx_mut(id)
+                                .or_not_found(id)?
                                 .as_state_info_mut()
                                 .map_mutate(|s| {
                                     if let PackageState::Updating(UpdatingState {
@@ -222,16 +226,12 @@ impl Service {
                             tracing::debug!("{e:?}")
                         })
                     {
-                        if service
-                            .uninstall(None)
-                            .await
-                            .map_err(|e| {
+                        match service.uninstall(None).await {
+                            Err(e) => {
                                 tracing::error!("Error uninstalling service: {e}");
                                 tracing::debug!("{e:?}")
-                            })
-                            .is_ok()
-                        {
-                            return Ok(None);
+                            }
+                            Ok(()) => return Ok(None),
                         }
                     }
                 }
@@ -298,10 +298,10 @@ impl Service {
     }
 
     pub async fn restore(
-        ctx: RpcContext,
-        s9pk: S9pk,
-        guard: impl GenericMountGuard,
-        progress: Option<InstallProgressHandles>,
+        _ctx: RpcContext,
+        _s9pk: S9pk,
+        _guard: impl GenericMountGuard,
+        _progress: Option<InstallProgressHandles>,
     ) -> Result<Self, Error> {
         // TODO
         Err(Error::new(eyre!("not yet implemented"), ErrorKind::Unknown))
@@ -340,21 +340,36 @@ impl Service {
             .execute(ProcedureName::Uninit, to_value(&target_version)?, None) // TODO timeout
             .await?;
         let id = self.seed.persistent_container.s9pk.as_manifest().id.clone();
-        self.seed
-            .ctx
-            .db
-            .mutate(|d| d.as_public_mut().as_package_data_mut().remove(&id))
-            .await?;
-        self.shutdown().await
+        let ctx = self.seed.ctx.clone();
+        self.shutdown().await?;
+        if target_version.is_none() {
+            ctx.db
+                .mutate(|d| d.as_public_mut().as_package_data_mut().remove(&id))
+                .await?;
+        }
+        Ok(())
     }
     pub async fn backup(&self, _guard: impl GenericMountGuard) -> Result<BackupReturn, Error> {
         // TODO
         Err(Error::new(eyre!("not yet implemented"), ErrorKind::Unknown))
     }
+
+    pub fn container_id(&self) -> Result<ContainerId, Error> {
+        let id = &self.seed.id;
+        let container_id = (*self
+            .seed
+            .persistent_container
+            .lxc_container
+            .get()
+            .or_not_found(format!("container for {id}"))?
+            .guid)
+            .clone();
+        Ok(container_id)
+    }
 }
 
 #[derive(Debug, Clone)]
-struct RunningStatus {
+pub struct RunningStatus {
     health: OrdMap<HealthCheckId, HealthCheckResult>,
     started: DateTime<Utc>,
 }
@@ -391,10 +406,11 @@ impl ServiceActorSeed {
         });
     }
 }
+#[derive(Clone)]
 struct ServiceActor(Arc<ServiceActorSeed>);
 
 impl Actor for ServiceActor {
-    fn init(&mut self, jobs: &mut BackgroundJobs) {
+    fn init(&mut self, jobs: &BackgroundJobQueue) {
         let seed = self.0.clone();
         jobs.add_job(async move {
             let id = seed.id.clone();

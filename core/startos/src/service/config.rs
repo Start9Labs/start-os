@@ -3,19 +3,24 @@ use std::time::Duration;
 use models::ProcedureName;
 
 use crate::config::action::ConfigRes;
-use crate::config::{action::SetResult, ConfigureContext};
+use crate::config::ConfigureContext;
 use crate::prelude::*;
+use crate::service::dependencies::DependencyConfig;
 use crate::service::{Service, ServiceActor};
-use crate::util::actor::{BackgroundJobs, Handler};
+use crate::util::actor::background::BackgroundJobQueue;
+use crate::util::actor::{ConflictBuilder, Handler};
 use crate::util::serde::NoOutput;
 
-struct Configure(ConfigureContext);
+pub(super) struct Configure(ConfigureContext);
 impl Handler<Configure> for ServiceActor {
     type Response = Result<(), Error>;
+    fn conflicts_with(_: &Configure) -> ConflictBuilder<Self> {
+        ConflictBuilder::everything().except::<DependencyConfig>()
+    }
     async fn handle(
         &mut self,
         Configure(ConfigureContext { timeout, config }): Configure,
-        _: &mut BackgroundJobs,
+        _: &BackgroundJobQueue,
     ) -> Self::Response {
         let container = &self.0.persistent_container;
         let package_id = &self.0.id;
@@ -41,10 +46,13 @@ impl Handler<Configure> for ServiceActor {
     }
 }
 
-struct GetConfig;
+pub(super) struct GetConfig;
 impl Handler<GetConfig> for ServiceActor {
     type Response = Result<ConfigRes, Error>;
-    async fn handle(&mut self, _: GetConfig, _: &mut BackgroundJobs) -> Self::Response {
+    fn conflicts_with(_: &GetConfig) -> ConflictBuilder<Self> {
+        ConflictBuilder::nothing().except::<Configure>()
+    }
+    async fn handle(&mut self, _: GetConfig, _: &BackgroundJobQueue) -> Self::Response {
         let container = &self.0.persistent_container;
         container
             .execute::<ConfigRes>(

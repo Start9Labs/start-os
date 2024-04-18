@@ -5,22 +5,26 @@ use models::{PackageId, ProcedureName};
 
 use crate::prelude::*;
 use crate::service::{Service, ServiceActor};
-use crate::util::actor::{BackgroundJobs, Handler};
+use crate::util::actor::background::BackgroundJobQueue;
+use crate::util::actor::{ConflictBuilder, Handler};
 use crate::Config;
 
-struct DependencyConfig {
+pub(super) struct DependencyConfig {
     dependency_id: PackageId,
     remote_config: Option<Config>,
 }
 impl Handler<DependencyConfig> for ServiceActor {
     type Response = Result<Option<Config>, Error>;
+    fn conflicts_with(_: &DependencyConfig) -> ConflictBuilder<Self> {
+        ConflictBuilder::nothing()
+    }
     async fn handle(
         &mut self,
         DependencyConfig {
             dependency_id,
             remote_config,
         }: DependencyConfig,
-        _: &mut BackgroundJobs,
+        _: &BackgroundJobQueue,
     ) -> Self::Response {
         let container = &self.0.persistent_container;
         container

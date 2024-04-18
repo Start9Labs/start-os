@@ -17,7 +17,7 @@ use crate::disk::mount::filesystem::{MountType, ReadWrite};
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::disk::util::{DiskInfo, PartitionTable};
 use crate::disk::OsPartitionInfo;
-use crate::net::utils::{find_eth_iface, find_wifi_iface};
+use crate::net::utils::find_eth_iface;
 use crate::util::serde::IoFormat;
 use crate::util::Invoke;
 use crate::ARCH;
@@ -140,7 +140,6 @@ pub async fn execute(
             )
         })?;
     let eth_iface = find_eth_iface().await?;
-    let wifi_iface = find_wifi_iface().await?;
 
     overwrite |= disk.guid.is_none() && disk.partitions.iter().all(|p| p.guid.is_none());
 
@@ -260,7 +259,6 @@ pub async fn execute(
         IoFormat::Yaml.to_vec(&ServerConfig {
             os_partitions: Some(part_info.clone()),
             ethernet_interface: Some(eth_iface),
-            wifi_interface: wifi_iface,
             ..Default::default()
         })?,
     )

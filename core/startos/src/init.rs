@@ -232,15 +232,12 @@ pub async fn init(cfg: &ServerConfig) -> Result<InitResult, Error> {
         .invoke(crate::ErrorKind::OpenSsl)
         .await?;
 
-    if let Some(wifi_interface) = &cfg.wifi_interface {
-        crate::net::wifi::synchronize_wpa_supplicant_conf(
-            &cfg.datadir().join("main"),
-            wifi_interface,
-            &server_info.last_wifi_region,
-        )
-        .await?;
-        tracing::info!("Synchronized WiFi");
-    }
+    crate::net::wifi::synchronize_wpa_supplicant_conf(
+        &cfg.datadir().join("main"),
+        &mut server_info.wifi,
+    )
+    .await?;
+    tracing::info!("Synchronized WiFi");
 
     let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok()
         || &*server_info.version < &emver::Version::new(0, 3, 2, 0)

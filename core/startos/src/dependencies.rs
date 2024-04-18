@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use clap::Parser;
 use models::PackageId;
+use patch_db::json_patch::merge;
 use rpc_toolkit::{command, from_fn_async, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -102,78 +103,24 @@ pub async fn configure_logic(
     ctx: RpcContext,
     (dependent_id, dependency_id): (PackageId, PackageId),
 ) -> Result<ConfigDryRes, Error> {
-    // let db = ctx.db.peek().await;
-    // let pkg = db
-    //     .as_package_data()
-    //     .as_idx(&pkg_id)
-    //     .or_not_found(&pkg_id)?
-    //     .as_installed()
-    //     .or_not_found(&pkg_id)?;
-    // let pkg_version = pkg.as_manifest().as_version().de()?;
-    // let pkg_volumes = pkg.as_manifest().as_volumes().de()?;
-    // let dependency = db
-    //     .as_package_data()
-    //     .as_idx(&dependency_id)
-    //     .or_not_found(&dependency_id)?
-    //     .as_installed()
-    //     .or_not_found(&dependency_id)?;
-    // let dependency_config_action = dependency
-    //     .as_manifest()
-    //     .as_config()
-    //     .de()?
-    //     .ok_or_else(|| not_found!("Manifest Config"))?;
-    // let dependency_version = dependency.as_manifest().as_version().de()?;
-    // let dependency_volumes = dependency.as_manifest().as_volumes().de()?;
-    // let dependency = pkg
-    //     .as_manifest()
-    //     .as_dependencies()
-    //     .as_idx(&dependency_id)
-    //     .or_not_found(&dependency_id)?;
-
-    // let ConfigRes {
-    //     config: maybe_config,
-    //     spec,
-    // } = dependency_config_action
-    //     .get(
-    //         &ctx,
-    //         &dependency_id,
-    //         &dependency_version,
-    //         &dependency_volumes,
-    //     )
-    //     .await?;
-
-    // let old_config = if let Some(config) = maybe_config {
-    //     config
-    // } else {
-    //     spec.gen(
-    //         &mut rand::rngs::StdRng::from_entropy(),
-    //         &Some(Duration::new(10, 0)),
-    //     )?
-    // };
-
-    // let new_config = dependency
-    //     .as_config()
-    //     .de()?
-    //     .ok_or_else(|| not_found!("Config"))?
-    //     .auto_configure
-    //     .sandboxed(
-    //         &ctx,
-    //         &pkg_id,
-    //         &pkg_version,
-    //         &pkg_volumes,
-    //         Some(&old_config),
-    //         None,
-    //         ProcedureName::AutoConfig(dependency_id.clone()),
-    //     )
-    //     .await?
-    //     .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))?;
-
-    // Ok(ConfigDryRes {
-    //     old_config,
-    //     new_config,
-    //     spec,
-    // })
-    todo!()
+    let dependency_guard = ctx.services.get(&dependency_id).await;
+    let dependency = dependency_guard.as_ref().or_not_found(&dependency_id)?;
+    let dependent_guard = ctx.services.get(&dependent_id).await;
+    let dependent = dependent_guard.as_ref().or_not_found(&dependent_id)?;
+    let config_res = dependency.get_config().await?;
+    let diff = Value::Object(
+        dependent
+            .dependency_config(dependency_id, config_res.config.clone())
+            .await?
+            .unwrap_or_default(),
+    );
+    let mut new_config = Value::Object(config_res.config.clone().unwrap_or_default());
+    merge(&mut new_config, &diff);
+    Ok(ConfigDryRes {
+        old_config: config_res.config.unwrap_or_default(),
+        new_config: new_config.as_object().cloned().unwrap_or_default(),
+        spec: config_res.spec,
+    })
 }
 
 #[instrument(skip_all)]

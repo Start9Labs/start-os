@@ -26,7 +26,7 @@ PATCH_DB_CLIENT_SRC := $(shell git ls-files --recurse-submodules patch-db/client
 GZIP_BIN := $(shell which pigz || which gzip)
 TAR_BIN := $(shell which gtar || which tar)
 COMPILED_TARGETS := $(BINS) system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar container-runtime/rootfs.$(ARCH).squashfs
-ALL_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE) $(COMPILED_TARGETS) $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-musl/release/pi-beep; fi)  $(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]; then echo cargo-deps/$(ARCH)-unknown-linux-musl/release/tokio-console; fi') $(PLATFORM_FILE) sdk/lib/test 
+ALL_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE) $(COMPILED_TARGETS) $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-musl/release/pi-beep; fi)  $(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]; then echo cargo-deps/$(ARCH)-unknown-linux-musl/release/tokio-console; fi') $(PLATFORM_FILE) 
 
 ifeq ($(REMOTE),)
 	mkdir = mkdir -p $1
@@ -103,7 +103,7 @@ deb: results/$(BASENAME).deb
 debian/control: build/lib/depends build/lib/conflicts
 	./debuild/control.sh
 
-results/$(BASENAME).deb: dpkg-build.sh $(DEBIAN_SRC) $(VERSION_FILE) $(PLATFORM_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
+results/$(BASENAME).deb: dpkg-build.sh $(DEBIAN_SRC) $(ALL_TARGETS)
 	PLATFORM=$(PLATFORM) ./dpkg-build.sh
 
 $(IMAGE_TYPE): results/$(BASENAME).$(IMAGE_TYPE)
@@ -173,7 +173,7 @@ emulate-reflash: $(ALL_TARGETS)
 upload-ota: results/$(BASENAME).squashfs
 	TARGET=$(TARGET) KEY=$(KEY) ./upload-ota.sh
 
-container-runtime/alpine.$(ARCH).squashfs:
+container-runtime/debian.$(ARCH).squashfs:
 	ARCH=$(ARCH) ./container-runtime/download-base-image.sh
 
 container-runtime/node_modules: container-runtime/package.json container-runtime/package-lock.json sdk/dist
@@ -197,7 +197,7 @@ container-runtime/dist/node_modules container-runtime/dist/package.json containe
 	./container-runtime/install-dist-deps.sh
 	touch container-runtime/dist/node_modules
 
-container-runtime/rootfs.$(ARCH).squashfs: container-runtime/alpine.$(ARCH).squashfs container-runtime/containerRuntime.rc container-runtime/update-image.sh container-runtime/dist/index.js container-runtime/dist/node_modules core/target/$(ARCH)-unknown-linux-musl/release/containerbox | sudo
+container-runtime/rootfs.$(ARCH).squashfs: container-runtime/debian.$(ARCH).squashfs container-runtime/container-runtime.service container-runtime/update-image.sh container-runtime/deb-install.sh container-runtime/dist/index.js container-runtime/dist/node_modules core/target/$(ARCH)-unknown-linux-musl/release/containerbox | sudo
 	ARCH=$(ARCH) ./container-runtime/update-image.sh
 
 build/lib/depends build/lib/conflicts: build/dpkg-deps/*

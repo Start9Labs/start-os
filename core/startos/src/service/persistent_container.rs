@@ -10,7 +10,7 @@ use imbl_value::InternedString;
 use models::{ProcedureName, VolumeId};
 use rpc_toolkit::{Empty, Server, ShutdownHandle};
 use serde::de::DeserializeOwned;
-use tokio::fs::File;
+use tokio::fs::{create_dir_all, File};
 use tokio::process::Command;
 use tokio::sync::{oneshot, watch, Mutex, OnceCell};
 use tracing::instrument;
@@ -38,8 +38,6 @@ use crate::volume::{asset_dir, data_dir};
 use crate::ARCH;
 
 const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
-
-struct ProcedureId(u64);
 
 #[derive(Debug)]
 pub struct ServiceState {
@@ -99,7 +97,17 @@ pub struct PersistentContainer {
 impl PersistentContainer {
     #[instrument(skip_all)]
     pub async fn new(ctx: &RpcContext, s9pk: S9pk, start: StartStop) -> Result<Self, Error> {
-        let lxc_container = ctx.lxc_manager.create(LxcConfig::default()).await?;
+        let lxc_container = ctx
+            .lxc_manager
+            .create(
+                Some(
+                    &ctx.datadir
+                        .join("package-data/logs")
+                        .join(&s9pk.as_manifest().id),
+                ),
+                LxcConfig::default(),
+            )
+            .await?;
         let rpc_client = lxc_container.connect_rpc(Some(RPC_CONNECT_TIMEOUT)).await?;
         let js_mount = MountGuard::mount(
             &LoopDev::from(
@@ -114,6 +122,7 @@ impl PersistentContainer {
             ReadOnly,
         )
         .await?;
+
         let mut volumes = BTreeMap::new();
         for volume in &s9pk.as_manifest().volumes {
             let mountpoint = lxc_container
@@ -175,7 +184,7 @@ impl PersistentContainer {
             if let Some(env) = s9pk
                 .as_archive()
                 .contents()
-                .get_path(Path::new("images").join(&*ARCH).join(&env_filename))
+                .get_path(Path::new("images").join(*ARCH).join(&env_filename))
                 .and_then(|e| e.as_file())
             {
                 env.copy(&mut File::create(image_path.join(&env_filename)).await?)
@@ -185,7 +194,7 @@ impl PersistentContainer {
             if let Some(json) = s9pk
                 .as_archive()
                 .contents()
-                .get_path(Path::new("images").join(&*ARCH).join(&json_filename))
+                .get_path(Path::new("images").join(*ARCH).join(&json_filename))
                 .and_then(|e| e.as_file())
             {
                 json.copy(&mut File::create(image_path.join(&json_filename)).await?)
@@ -231,7 +240,7 @@ impl PersistentContainer {
             .join(HOST_RPC_SERVER_SOCKET);
         let (send, recv) = oneshot::channel();
         let handle = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            let (shutdown, fut) = match async {
+            let chown_status = async {
                 let res = server.run_unix(&path, |err| {
                     tracing::error!("error on unix socket {}: {err}", path.display())
                 })?;
@@ -241,9 +250,8 @@ impl PersistentContainer {
                     .invoke(ErrorKind::Filesystem)
                     .await?;
                 Ok::<_, Error>(res)
-            }
-            .await
-            {
+            };
+            let (shutdown, fut) = match chown_status.await {
                 Ok((shutdown, fut)) => (Ok(shutdown), Some(fut)),
                 Err(e) => (Err(e), None),
             };

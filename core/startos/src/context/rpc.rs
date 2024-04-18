@@ -16,7 +16,6 @@ use tokio::time::Instant;
 use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
-use crate::account::AccountInfo;
 use crate::context::config::ServerConfig;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation, WebSocketHandler};
 use crate::db::prelude::PatchDbExt;
@@ -26,13 +25,14 @@ use crate::init::check_time_is_synchronized;
 use crate::lxc::{LxcContainer, LxcManager};
 use crate::middleware::auth::HashSessionToken;
 use crate::net::net_controller::NetController;
-use crate::net::utils::find_eth_iface;
+use crate::net::utils::{find_eth_iface, find_wifi_iface};
 use crate::net::wifi::WpaCli;
 use crate::prelude::*;
 use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
 use crate::system::get_mem_info;
 use crate::util::lshw::{lshw, LshwDevice};
+use crate::{account::AccountInfo, lxc::ContainerId};
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
@@ -60,7 +60,7 @@ pub struct RpcContextSeed {
 }
 
 pub struct Dev {
-    pub lxc: Mutex<BTreeMap<InternedString, LxcContainer>>,
+    pub lxc: Mutex<BTreeMap<ContainerId, LxcContainer>>,
 }
 
 pub struct Hardware {
@@ -132,6 +132,8 @@ impl RpcContext {
             });
         }
 
+        let wifi_interface = find_wifi_iface().await?;
+
         let seed = Arc::new(RpcContextSeed {
             is_closed: AtomicBool::new(false),
             datadir: config.datadir().to_path_buf(),
@@ -141,7 +143,7 @@ impl RpcContext {
                     ErrorKind::Filesystem,
                 )
             })?,
-            wifi_interface: config.wifi_interface.clone(),
+            wifi_interface: wifi_interface.clone(),
             ethernet_interface: if let Some(eth) = config.ethernet_interface.clone() {
                 eth
             } else {
@@ -158,8 +160,7 @@ impl RpcContext {
             lxc_manager: Arc::new(LxcManager::new()),
             open_authed_websockets: Mutex::new(BTreeMap::new()),
             rpc_stream_continuations: Mutex::new(BTreeMap::new()),
-            wifi_manager: config
-                .wifi_interface
+            wifi_manager: wifi_interface
                 .clone()
                 .map(|i| Arc::new(RwLock::new(WpaCli::init(i)))),
             current_secret: Arc::new(

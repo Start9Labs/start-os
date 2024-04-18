@@ -68,13 +68,24 @@ export const matchManifest = object(
     volumes: dictionary([string, matchVolume]),
     interfaces: dictionary([
       string,
-      object({
-        name: string,
-        "tor-config": object({}),
-        "lan-config": object({}),
-        ui: boolean,
-        protocols: array(string),
-      }),
+      object(
+        {
+          name: string,
+          "tor-config": object({
+            "port-mapping": dictionary([string, string]),
+          }),
+          "lan-config": dictionary([
+            string,
+            object({
+              ssl: boolean,
+              internal: number,
+            }),
+          ]),
+          ui: boolean,
+          protocols: array(string),
+        },
+        ["lan-config", "tor-config"],
+      ),
     ]),
     backup: object({
       create: matchProcedure,

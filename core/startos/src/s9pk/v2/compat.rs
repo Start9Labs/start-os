@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -154,7 +155,7 @@ impl S9pk<Section<MultiCursorFile>> {
             i.strip_prefix(&format!("start9/{}/", manifest.id))
                 .map(|s| s.to_owned())
         }) {
-            new_manifest.images.push(image.parse()?);
+            new_manifest.images.insert(image.parse()?);
             let sqfs_path = images_dir.join(&image).with_extension("squashfs");
             let image_name = format!("start9/{}/{}:{}", manifest.id, image, manifest.version);
             let id = String::from_utf8(
@@ -334,7 +335,7 @@ impl From<ManifestV1> for Manifest {
             marketing_site: value.marketing_site.unwrap_or_else(|| default_url.clone()),
             donation_url: value.donation_url,
             description: value.description,
-            images: Vec::new(),
+            images: BTreeSet::new(),
             assets: value
                 .volumes
                 .iter()
