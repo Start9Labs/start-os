@@ -18,17 +18,13 @@ use tokio_stream::wrappers::LinesStream;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::instrument;
 
+use crate::context::{CliContext, RpcContext};
+use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::error::ResultExt;
+use crate::lxc::ContainerId;
 use crate::prelude::*;
 use crate::util::serde::Reversible;
-use crate::{
-    context::{CliContext, RpcContext},
-    lxc::ContainerId,
-};
-use crate::{
-    core::rpc_continuations::{RequestGuid, RpcContinuation},
-    util::Invoke,
-};
+use crate::util::Invoke;
 
 #[pin_project::pin_project]
 pub struct LogStream {
@@ -393,7 +389,9 @@ pub async fn journalctl(
     before: bool,
     follow: bool,
 ) -> Result<LogStream, Error> {
-    let mut cmd = gen_journalctl_command(&id, limit);
+    let mut cmd = gen_journalctl_command(&id);
+
+    cmd.arg(format!("--lines={}", limit));
 
     let cursor_formatted = format!("--after-cursor={}", cursor.unwrap_or(""));
     if cursor.is_some() {
@@ -410,12 +408,15 @@ pub async fn journalctl(
         .with_kind(ErrorKind::Deserialization)?;
 
     if follow {
-        let mut follow_cmd = gen_journalctl_command(&id, limit);
+        let mut follow_cmd = gen_journalctl_command(&id);
         follow_cmd.arg("-f");
         if let Some(last) = deserialized_entries.last() {
-            cmd.arg(format!("--after-cursor={}", last.cursor));
+            follow_cmd.arg(format!("--after-cursor={}", last.cursor));
+            follow_cmd.arg("--lines=all");
+        } else {
+            follow_cmd.arg("--lines=0");
         }
-        let mut child = cmd.stdout(Stdio::piped()).spawn()?;
+        let mut child = follow_cmd.stdout(Stdio::piped()).spawn()?;
         let out =
             BufReader::new(child.stdout.take().ok_or_else(|| {
                 Error::new(eyre!("No stdout available"), crate::ErrorKind::Journald)
@@ -450,7 +451,7 @@ pub async fn journalctl(
     }
 }
 
-fn gen_journalctl_command(id: &LogSource, limit: usize) -> Command {
+fn gen_journalctl_command(id: &LogSource) -> Command {
     let mut cmd = match id {
         LogSource::Container(container_id) => {
             let mut cmd = Command::new("lxc-attach");
@@ -465,7 +466,6 @@ fn gen_journalctl_command(id: &LogSource, limit: usize) -> Command {
 
     cmd.arg("--output=json");
     cmd.arg("--output-fields=MESSAGE");
-    cmd.arg(format!("-n{}", limit));
     match id {
         LogSource::Kernel => {
             cmd.arg("-k");
@@ -477,7 +477,6 @@ fn gen_journalctl_command(id: &LogSource, limit: usize) -> Command {
         LogSource::System => {
             cmd.arg("-u");
             cmd.arg(SYSTEM_UNIT);
-            cmd.arg(format!("_COMM={}", SYSTEM_UNIT));
         }
         LogSource::Container(_container_id) => {
             cmd.arg("-u").arg("container-runtime.service");

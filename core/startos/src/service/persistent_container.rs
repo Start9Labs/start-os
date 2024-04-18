@@ -320,6 +320,7 @@ impl PersistentContainer {
     #[instrument(skip_all)]
     pub async fn exit(mut self) -> Result<(), Error> {
         self.destroy().await?;
+        tracing::info!("Service for {} exited", self.s9pk.as_manifest().id);
 
         Ok(())
     }
