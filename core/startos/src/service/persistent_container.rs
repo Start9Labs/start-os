@@ -4,7 +4,7 @@ use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use futures::future::ready;
-use futures::Future;
+use futures::{Future, FutureExt};
 use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
 use models::{ProcedureName, VolumeId};
@@ -92,6 +92,7 @@ pub struct PersistentContainer {
     pub(super) overlays: Arc<Mutex<BTreeMap<InternedString, OverlayGuard>>>,
     pub(super) state: Arc<watch::Sender<ServiceState>>,
     pub(super) net_service: Mutex<NetService>,
+    destroyed: bool,
 }
 
 impl PersistentContainer {
@@ -217,6 +218,7 @@ impl PersistentContainer {
             overlays: Arc::new(Mutex::new(BTreeMap::new())),
             state: Arc::new(watch::channel(ServiceState::new(start)).0),
             net_service: Mutex::new(net_service),
+            destroyed: false,
         })
     }
 
@@ -285,7 +287,10 @@ impl PersistentContainer {
     }
 
     #[instrument(skip_all)]
-    fn destroy(&mut self) -> impl Future<Output = Result<(), Error>> + 'static {
+    fn destroy(&mut self) -> Option<impl Future<Output = Result<(), Error>> + 'static> {
+        if self.destroyed {
+            return None;
+        }
         let rpc_client = self.rpc_client.clone();
         let rpc_server = self.rpc_server.send_replace(None);
         let js_mount = self.js_mount.take();
@@ -293,33 +298,44 @@ impl PersistentContainer {
         let assets = std::mem::take(&mut self.assets);
         let overlays = self.overlays.clone();
         let lxc_container = self.lxc_container.take();
-        async move {
-            let mut errs = ErrorCollection::new();
-            if let Some((hdl, shutdown)) = rpc_server {
-                errs.handle(rpc_client.request(rpc::Exit, Empty {}).await);
-                shutdown.shutdown();
-                errs.handle(hdl.await.with_kind(ErrorKind::Cancelled));
+        self.destroyed = true;
+        Some(
+            async move {
+                dbg!(
+                    async move {
+                        let mut errs = ErrorCollection::new();
+                        if let Some((hdl, shutdown)) = rpc_server {
+                            errs.handle(rpc_client.request(rpc::Exit, Empty {}).await);
+                            shutdown.shutdown();
+                            errs.handle(hdl.await.with_kind(ErrorKind::Cancelled));
+                        }
+                        for (_, volume) in volumes {
+                            errs.handle(volume.unmount(true).await);
+                        }
+                        for (_, assets) in assets {
+                            errs.handle(assets.unmount(true).await);
+                        }
+                        for (_, overlay) in std::mem::take(&mut *overlays.lock().await) {
+                            errs.handle(overlay.unmount(true).await);
+                        }
+                        errs.handle(js_mount.unmount(true).await);
+                        if let Some(lxc_container) = lxc_container {
+                            errs.handle(lxc_container.exit().await);
+                        }
+                        dbg!(errs.into_result())
+                    }
+                    .await
+                )
             }
-            for (_, volume) in volumes {
-                errs.handle(volume.unmount(true).await);
-            }
-            for (_, assets) in assets {
-                errs.handle(assets.unmount(true).await);
-            }
-            for (_, overlay) in std::mem::take(&mut *overlays.lock().await) {
-                errs.handle(overlay.unmount(true).await);
-            }
-            errs.handle(js_mount.unmount(true).await);
-            if let Some(lxc_container) = lxc_container {
-                errs.handle(lxc_container.exit().await);
-            }
-            errs.into_result()
-        }
+            .map(|a| dbg!(a)),
+        )
     }
 
     #[instrument(skip_all)]
     pub async fn exit(mut self) -> Result<(), Error> {
-        self.destroy().await?;
+        if let Some(destroy) = self.destroy() {
+            dbg!(destroy.await)?;
+        }
         tracing::info!("Service for {} exited", self.s9pk.as_manifest().id);
 
         Ok(())
@@ -417,7 +433,8 @@ impl PersistentContainer {
 
 impl Drop for PersistentContainer {
     fn drop(&mut self) {
-        let destroy = self.destroy();
-        tokio::spawn(async move { destroy.await.unwrap() });
+        if let Some(destroy) = self.destroy() {
+            tokio::spawn(async move { destroy.await.unwrap() });
+        }
     }
 }

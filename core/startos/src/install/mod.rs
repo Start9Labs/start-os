@@ -424,7 +424,12 @@ pub async fn uninstall(
 
     let return_id = id.clone();
 
-    tokio::spawn(async move { ctx.services.uninstall(&ctx, &id).await });
+    tokio::spawn(async move {
+        if let Err(e) = ctx.services.uninstall(&ctx, &id).await {
+            tracing::error!("Error uninstalling service {id}: {e}");
+            tracing::debug!("{e:?}");
+        }
+    });
 
     Ok(return_id)
 }
