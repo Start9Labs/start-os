@@ -4646,7 +4646,6 @@ dependencies = [
  "p256",
  "patch-db",
  "pbkdf2",
- "percent-encoding",
  "pin-project",
  "pkcs8",
  "prettytable-rs",

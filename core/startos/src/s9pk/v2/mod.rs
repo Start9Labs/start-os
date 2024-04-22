@@ -173,7 +173,7 @@ impl<S: FileSource> S9pk<S> {
 
 impl<S: ArchiveSource> S9pk<Section<S>> {
     #[instrument(skip_all)]
-    pub async fn deserialize(source: &S) -> Result<Self, Error> {
+    pub async fn deserialize(source: &S, apply_filter: bool) -> Result<Self, Error> {
         use tokio::io::AsyncReadExt;
 
         let mut header = source
@@ -193,7 +193,9 @@ impl<S: ArchiveSource> S9pk<Section<S>> {
 
         let mut archive = MerkleArchive::deserialize(source, &mut header).await?;
 
-        archive.filter(filter)?;
+        if apply_filter {
+            archive.filter(filter)?;
+        }
 
         archive.sort_by(|a, b| match (priority(a), priority(b)) {
             (Some(a), Some(b)) => a.cmp(&b),
@@ -206,11 +208,15 @@ impl<S: ArchiveSource> S9pk<Section<S>> {
     }
 }
 impl S9pk {
-    pub async fn from_file(file: File) -> Result<Self, Error> {
-        Self::deserialize(&MultiCursorFile::from(file)).await
+    pub async fn from_file(file: File, apply_filter: bool) -> Result<Self, Error> {
+        Self::deserialize(&MultiCursorFile::from(file), apply_filter).await
     }
-    pub async fn open(path: impl AsRef<Path>, id: Option<&PackageId>) -> Result<Self, Error> {
-        let res = Self::from_file(tokio::fs::File::open(path).await?).await?;
+    pub async fn open(
+        path: impl AsRef<Path>,
+        id: Option<&PackageId>,
+        apply_filter: bool,
+    ) -> Result<Self, Error> {
+        let res = Self::from_file(tokio::fs::File::open(path).await?, apply_filter).await?;
         if let Some(id) = id {
             ensure_code!(
                 &res.as_manifest().id == id,

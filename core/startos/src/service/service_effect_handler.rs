@@ -14,7 +14,6 @@ use imbl_value::{json, InternedString};
 use itertools::Itertools;
 use models::{ActionId, DataUrl, HealthCheckId, HostId, ImageId, PackageId, VolumeId};
 use patch_db::json_ptr::JsonPointer;
-use percent_encoding::percent_decode_str;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
@@ -1139,49 +1138,6 @@ struct SetDependenciesParams {
     dependencies: Vec<DependencyRequirement>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-
-struct HttpSourceStructure {
-    registry_url: Url,
-    dep_id: PackageId,
-    version_spec: VersionRange,
-}
-impl HttpSourceStructure {
-    fn package_url(&self) -> Result<Url, Error> {
-        self.registry_url
-            .join(&format!(
-                "package/v2/{}.s9pk?spec={}",
-                self.dep_id, self.version_spec
-            ))
-            .with_kind(ErrorKind::InvalidRequest)
-    }
-}
-
-impl FromStr for HttpSourceStructure {
-    type Err = Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (registry_url, url_rest) = s
-            .split_once("/package/v2/")
-            .ok_or_else(|| Error::new(eyre!("Invalid format"), ErrorKind::InvalidRequest))?;
-        let (dep_id, version_spec) = url_rest
-            .split_once(".s9pk?spec=")
-            .ok_or_else(|| Error::new(eyre!("Invalid format"), ErrorKind::InvalidRequest))?;
-        let version_spec = percent_decode_str(version_spec)
-            .decode_utf8()
-            .map_err(|_e| {
-                Error::new(
-                    eyre!("Could not decode url from string of version spec"),
-                    ErrorKind::ParseVersion,
-                )
-            })?;
-        Ok(Self {
-            registry_url: registry_url.parse()?,
-            dep_id: dep_id.parse()?,
-            version_spec: version_spec.parse()?,
-        })
-    }
-}
-
 async fn set_dependencies(
     ctx: EffectContext,
     SetDependenciesParams { dependencies }: SetDependenciesParams,
@@ -1216,14 +1172,14 @@ async fn set_dependencies(
             ),
         };
         let (icon, title) = match async {
-            let http_source_structure = HttpSourceStructure {
-                registry_url: registry_url.clone(),
-                dep_id: dep_id.clone(),
-                version_spec: version_spec.clone(),
-            };
             let remote_s9pk = S9pk::deserialize(
-                &HttpSource::new(ctx.ctx.client.clone(), http_source_structure.package_url()?)
-                    .await?,
+                &HttpSource::new(
+                    ctx.ctx.client.clone(),
+                    registry_url
+                        .join(&format!("package/v2/{}.s9pk?spec={}", dep_id, version_spec))?,
+                )
+                .await?,
+                true,
             )
             .await?;
 
@@ -1390,14 +1346,4 @@ async fn check_dependencies(
         });
     }
     Ok(results)
-}
-
-#[test]
-fn test_http_source_structure() {
-    let hss: HttpSourceStructure = HttpSourceStructure {
-        registry_url: "https://registry.start9labs.com".parse().unwrap(),
-        dep_id: "filebrowser".parse().unwrap(),
-        version_spec: ">=1.0.0 <2.0.0".parse().unwrap(),
-    };
-    assert_eq!(hss, hss.package_url().unwrap().to_string().parse().unwrap());
 }

@@ -175,8 +175,10 @@ jobs:
 
       - name: Prevent rebuild of compiled artifacts
         run: |
+          mkdir -p web/node_modules
           mkdir -p web/dist/raw
           touch core/startos/bindings
+          touch sdk/lib/osBindings
           mkdir -p container-runtime/dist
           PLATFORM=${{ matrix.platform }} make -t compiled-${{ env.ARCH }}.tar
 

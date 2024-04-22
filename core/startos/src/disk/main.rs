@@ -64,10 +64,10 @@ where
             .await?;
     }
     let mut guid = format!(
-        "EMBASSY_{}",
+        "STARTOS_{}",
         base32::encode(
             base32::Alphabet::RFC4648 { padding: false },
-            &rand::random::<[u8; 32]>(),
+            &rand::random::<[u8; 20]>(),
         )
     );
     if !encrypted {
@@ -219,7 +219,7 @@ pub async fn import<P: AsRef<Path>>(
     if scan
         .values()
         .filter_map(|a| a.as_ref())
-        .filter(|a| a.starts_with("EMBASSY_"))
+        .filter(|a| a.starts_with("STARTOS_") || a.starts_with("EMBASSY_"))
         .next()
         .is_none()
     {

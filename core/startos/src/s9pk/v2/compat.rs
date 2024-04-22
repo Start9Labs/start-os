@@ -21,7 +21,6 @@ use crate::s9pk::v1::reader::S9pkReader;
 use crate::s9pk::v2::S9pk;
 use crate::util::io::TmpDir;
 use crate::util::Invoke;
-use crate::ARCH;
 
 pub const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x01];
 
@@ -96,155 +95,166 @@ impl S9pk<Section<MultiCursorFile>> {
         )?;
 
         // images
-        let images_dir = scratch_dir.join("images");
-        tokio::fs::create_dir_all(&images_dir).await?;
-        Command::new(CONTAINER_TOOL)
-            .arg("load")
-            .input(Some(&mut reader.docker_images().await?))
-            .invoke(ErrorKind::Docker)
-            .await?;
-        #[derive(serde::Deserialize)]
-        #[serde(rename_all = "PascalCase")]
-        struct DockerImagesOut {
-            repository: Option<String>,
-            tag: Option<String>,
-            #[serde(default)]
-            names: Vec<String>,
-        }
-        for image in {
-            #[cfg(feature = "docker")]
-            let images = std::str::from_utf8(
-                &Command::new(CONTAINER_TOOL)
-                    .arg("images")
-                    .arg("--format=json")
-                    .invoke(ErrorKind::Docker)
-                    .await?,
-            )?
-            .lines()
-            .map(|l| serde_json::from_str::<DockerImagesOut>(l))
-            .collect::<Result<Vec<_>, _>>()
-            .with_kind(ErrorKind::Deserialization)?
-            .into_iter();
-            #[cfg(not(feature = "docker"))]
-            let images = serde_json::from_slice::<Vec<DockerImagesOut>>(
-                &Command::new(CONTAINER_TOOL)
-                    .arg("images")
-                    .arg("--format=json")
-                    .invoke(ErrorKind::Docker)
-                    .await?,
-            )
-            .with_kind(ErrorKind::Deserialization)?
-            .into_iter();
-            images
-        }
-        .flat_map(|i| {
-            if let (Some(repository), Some(tag)) = (i.repository, i.tag) {
-                vec![format!("{repository}:{tag}")]
+        for arch in reader.docker_arches().await? {
+            let images_dir = scratch_dir.join("images").join(&arch);
+            let docker_platform = if arch == "x86_64" {
+                "--platform=linux/amd64".to_owned()
+            } else if arch == "aarch64" {
+                "--platform=linux/arm64".to_owned()
             } else {
-                i.names
-                    .into_iter()
-                    .filter_map(|i| i.strip_prefix("docker.io/").map(|s| s.to_owned()))
-                    .collect()
+                format!("--platform=linux/{arch}")
+            };
+            tokio::fs::create_dir_all(&images_dir).await?;
+            Command::new(CONTAINER_TOOL)
+                .arg("load")
+                .input(Some(&mut reader.docker_images(&arch).await?))
+                .invoke(ErrorKind::Docker)
+                .await?;
+            #[derive(serde::Deserialize)]
+            #[serde(rename_all = "PascalCase")]
+            struct DockerImagesOut {
+                repository: Option<String>,
+                tag: Option<String>,
+                #[serde(default)]
+                names: Vec<String>,
             }
-        })
-        .filter_map(|i| {
-            i.strip_suffix(&format!(":{}", manifest.version))
-                .map(|s| s.to_owned())
-        })
-        .filter_map(|i| {
-            i.strip_prefix(&format!("start9/{}/", manifest.id))
-                .map(|s| s.to_owned())
-        }) {
-            new_manifest.images.insert(image.parse()?);
-            let sqfs_path = images_dir.join(&image).with_extension("squashfs");
-            let image_name = format!("start9/{}/{}:{}", manifest.id, image, manifest.version);
-            let id = String::from_utf8(
-                Command::new(CONTAINER_TOOL)
-                    .arg("create")
-                    .arg(&image_name)
-                    .invoke(ErrorKind::Docker)
-                    .await?,
-            )?;
-            let env = String::from_utf8(
-                Command::new(CONTAINER_TOOL)
-                    .arg("run")
-                    .arg("--rm")
-                    .arg("--entrypoint")
-                    .arg("env")
-                    .arg(&image_name)
-                    .invoke(ErrorKind::Docker)
-                    .await?,
-            )?
-            .lines()
-            .filter(|l| {
-                l.trim()
-                    .split_once("=")
-                    .map_or(false, |(v, _)| !SKIP_ENV.contains(&v))
+            for image in {
+                #[cfg(feature = "docker")]
+                let images = std::str::from_utf8(
+                    &Command::new(CONTAINER_TOOL)
+                        .arg("images")
+                        .arg("--format=json")
+                        .invoke(ErrorKind::Docker)
+                        .await?,
+                )?
+                .lines()
+                .map(|l| serde_json::from_str::<DockerImagesOut>(l))
+                .collect::<Result<Vec<_>, _>>()
+                .with_kind(ErrorKind::Deserialization)?
+                .into_iter();
+                #[cfg(not(feature = "docker"))]
+                let images = serde_json::from_slice::<Vec<DockerImagesOut>>(
+                    &Command::new(CONTAINER_TOOL)
+                        .arg("images")
+                        .arg("--format=json")
+                        .invoke(ErrorKind::Docker)
+                        .await?,
+                )
+                .with_kind(ErrorKind::Deserialization)?
+                .into_iter();
+                images
+            }
+            .flat_map(|i| {
+                if let (Some(repository), Some(tag)) = (i.repository, i.tag) {
+                    vec![format!("{repository}:{tag}")]
+                } else {
+                    i.names
+                        .into_iter()
+                        .filter_map(|i| i.strip_prefix("docker.io/").map(|s| s.to_owned()))
+                        .collect()
+                }
             })
-            .join("\n")
-                + "\n";
-            let workdir = Path::new(
-                String::from_utf8(
+            .filter_map(|i| {
+                i.strip_suffix(&format!(":{}", manifest.version))
+                    .map(|s| s.to_owned())
+            })
+            .filter_map(|i| {
+                i.strip_prefix(&format!("start9/{}/", manifest.id))
+                    .map(|s| s.to_owned())
+            }) {
+                new_manifest.images.insert(image.parse()?);
+                let sqfs_path = images_dir.join(&image).with_extension("squashfs");
+                let image_name = format!("start9/{}/{}:{}", manifest.id, image, manifest.version);
+                let id = String::from_utf8(
+                    Command::new(CONTAINER_TOOL)
+                        .arg("create")
+                        .arg(&docker_platform)
+                        .arg(&image_name)
+                        .invoke(ErrorKind::Docker)
+                        .await?,
+                )?;
+                let env = String::from_utf8(
                     Command::new(CONTAINER_TOOL)
                         .arg("run")
                         .arg("--rm")
+                        .arg(&docker_platform)
                         .arg("--entrypoint")
-                        .arg("pwd")
+                        .arg("env")
                         .arg(&image_name)
                         .invoke(ErrorKind::Docker)
                         .await?,
                 )?
-                .trim(),
-            )
-            .to_owned();
-            Command::new("bash")
-                .arg("-c")
-                .arg(format!(
-                    "{CONTAINER_TOOL} export {id} | mksquashfs - {sqfs} -tar",
-                    id = id.trim(),
-                    sqfs = sqfs_path.display()
-                ))
-                .invoke(ErrorKind::Docker)
-                .await?;
-            Command::new(CONTAINER_TOOL)
-                .arg("rm")
-                .arg(id.trim())
-                .invoke(ErrorKind::Docker)
-                .await?;
-            archive.insert_path(
-                Path::new("images")
-                    .join(&*ARCH)
-                    .join(&image)
-                    .with_extension("squashfs"),
-                Entry::file(CompatSource::File(sqfs_path)),
-            )?;
-            archive.insert_path(
-                Path::new("images")
-                    .join(&*ARCH)
-                    .join(&image)
-                    .with_extension("env"),
-                Entry::file(CompatSource::Buffered(Vec::from(env).into())),
-            )?;
-            archive.insert_path(
-                Path::new("images")
-                    .join(&*ARCH)
-                    .join(&image)
-                    .with_extension("json"),
-                Entry::file(CompatSource::Buffered(
-                    serde_json::to_vec(&serde_json::json!({
-                        "workdir": workdir
-                    }))
-                    .with_kind(ErrorKind::Serialization)?
-                    .into(),
-                )),
-            )?;
+                .lines()
+                .filter(|l| {
+                    l.trim()
+                        .split_once("=")
+                        .map_or(false, |(v, _)| !SKIP_ENV.contains(&v))
+                })
+                .join("\n")
+                    + "\n";
+                let workdir = Path::new(
+                    String::from_utf8(
+                        Command::new(CONTAINER_TOOL)
+                            .arg("run")
+                            .arg("--rm")
+                            .arg(&docker_platform)
+                            .arg("--entrypoint")
+                            .arg("pwd")
+                            .arg(&image_name)
+                            .invoke(ErrorKind::Docker)
+                            .await?,
+                    )?
+                    .trim(),
+                )
+                .to_owned();
+                Command::new("bash")
+                    .arg("-c")
+                    .arg(format!(
+                        "{CONTAINER_TOOL} export {id} | mksquashfs - {sqfs} -tar",
+                        id = id.trim(),
+                        sqfs = sqfs_path.display()
+                    ))
+                    .invoke(ErrorKind::Docker)
+                    .await?;
+                Command::new(CONTAINER_TOOL)
+                    .arg("rm")
+                    .arg(id.trim())
+                    .invoke(ErrorKind::Docker)
+                    .await?;
+                archive.insert_path(
+                    Path::new("images")
+                        .join(&arch)
+                        .join(&image)
+                        .with_extension("squashfs"),
+                    Entry::file(CompatSource::File(sqfs_path)),
+                )?;
+                archive.insert_path(
+                    Path::new("images")
+                        .join(&arch)
+                        .join(&image)
+                        .with_extension("env"),
+                    Entry::file(CompatSource::Buffered(Vec::from(env).into())),
+                )?;
+                archive.insert_path(
+                    Path::new("images")
+                        .join(&arch)
+                        .join(&image)
+                        .with_extension("json"),
+                    Entry::file(CompatSource::Buffered(
+                        serde_json::to_vec(&serde_json::json!({
+                            "workdir": workdir
+                        }))
+                        .with_kind(ErrorKind::Serialization)?
+                        .into(),
+                    )),
+                )?;
+                Command::new(CONTAINER_TOOL)
+                    .arg("rmi")
+                    .arg(&image_name)
+                    .invoke(ErrorKind::Docker)
+                    .await?;
+            }
         }
-        Command::new(CONTAINER_TOOL)
-            .arg("image")
-            .arg("prune")
-            .arg("-af")
-            .invoke(ErrorKind::Docker)
-            .await?;
 
         // assets
         let asset_dir = scratch_dir.join("assets");
@@ -312,9 +322,10 @@ impl S9pk<Section<MultiCursorFile>> {
 
         scratch_dir.delete().await?;
 
-        Ok(S9pk::deserialize(&MultiCursorFile::from(
-            File::open(destination.as_ref()).await?,
-        ))
+        Ok(S9pk::deserialize(
+            &MultiCursorFile::from(File::open(destination.as_ref()).await?),
+            false,
+        )
         .await?)
     }
 }

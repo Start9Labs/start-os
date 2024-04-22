@@ -1,7 +1,11 @@
 export * as configTypes from "./config/configTypes"
-import { DependencyRequirement, SetHealth } from "../../core/startos/bindings"
-import { HealthCheckId } from "../../core/startos/bindings/HealthCheckId"
-import { HealthCheckResult } from "../../core/startos/bindings/HealthCheckResult"
+
+import {
+  DependencyRequirement,
+  SetHealth,
+  HealthCheckResult,
+} from "./osBindings"
+
 import { MainEffects, ServiceInterfaceType, Signals } from "./StartSdk"
 import { InputSpec } from "./config/configTypes"
 import { DependenciesReceipt } from "./config/setupConfig"
@@ -10,7 +14,7 @@ import { Daemons } from "./mainFn/Daemons"
 import { PathBuilder, StorePath } from "./store/PathBuilder"
 import { ExposedStorePaths } from "./store/setupExposeStore"
 import { UrlString } from "./util/getServiceInterface"
-export * from "../../core/startos/bindings"
+export * from "./osBindings"
 export { SDKManifest } from "./manifest/ManifestTypes"
 
 export type ExportedAction = (options: {

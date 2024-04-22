@@ -101,7 +101,7 @@ const evalType = object({
   }),
 })
 
-const jsonParse = (x: Buffer) => JSON.parse(x.toString())
+const jsonParse = (x: string) => JSON.parse(x)
 function reduceMethod(
   methodArgs: object,
   effects: HostSystem,
@@ -160,21 +160,21 @@ export class RpcListener {
             details: error?.message ?? String(error),
             debug: error?.stack,
           },
-          code: 0,
+          code: 1,
         },
       })
       const writeDataToSocket = (x: SocketResponse) =>
-        new Promise((resolve) => s.write(JSON.stringify(x), resolve))
+        new Promise((resolve) => s.write(JSON.stringify(x) + "\n", resolve))
       s.on("data", (a) =>
         Promise.resolve(a)
+          .then((b) => b.toString())
           .then(logData("dataIn"))
           .then(jsonParse)
           .then(captureId)
           .then((x) => this.dealWithInput(x))
           .catch(mapError)
           .then(logData("response"))
-          .then(writeDataToSocket)
-          .finally(() => void s.end()),
+          .then(writeDataToSocket),
       )
     })
   }
@@ -244,7 +244,7 @@ export class RpcListener {
           })),
       )
       .when(exitType, async ({ id }) => {
-        if (this._system) this._system.exit(this.effects)
+        if (this._system) await this._system.exit(this.effects)
         delete this._system
         delete this._effects
 

@@ -42,10 +42,9 @@ pub struct InstallProgressHandles {
 pub struct ServiceMap(Mutex<OrdMap<PackageId, Arc<RwLock<Option<Service>>>>>);
 impl ServiceMap {
     async fn entry(&self, id: &PackageId) -> Arc<RwLock<Option<Service>>> {
-        self.0
-            .lock()
-            .await
-            .entry(id.clone())
+        let mut lock = self.0.lock().await;
+        dbg!(lock.keys().collect::<Vec<_>>());
+        lock.entry(id.clone())
             .or_insert_with(|| Arc::new(RwLock::new(None)))
             .clone()
     }
@@ -230,7 +229,7 @@ impl ServiceMap {
                 .await?;
             Ok(reload_guard
                 .handle_last(async move {
-                    let s9pk = S9pk::open(&installed_path, Some(&id)).await?;
+                    let s9pk = S9pk::open(&installed_path, Some(&id), true).await?;
                     let prev = if let Some(service) = service.take() {
                         ensure_code!(
                             recovery_source.is_none(),
@@ -293,9 +292,14 @@ impl ServiceMap {
     /// This is ran during the cleanup, so when we are uninstalling the service
     #[instrument(skip_all)]
     pub async fn uninstall(&self, ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
-        if let Some(service) = self.get_mut(id).await.take() {
+        let mut guard = self.get_mut(id).await;
+        if let Some(service) = guard.take() {
             ServiceReloadGuard::new(ctx.clone(), id.clone(), "Uninstall")
-                .handle_last(service.uninstall(None))
+                .handle_last(async move {
+                    let res = service.uninstall(None).await;
+                    drop(guard);
+                    res
+                })
                 .await?;
         }
         Ok(())
