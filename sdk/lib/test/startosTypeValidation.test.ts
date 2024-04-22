@@ -1,5 +1,5 @@
 import { Effects } from "../types"
-import { ExecuteAction } from ".././osBindings"
+import { CheckDependenciesParam, ExecuteAction } from ".././osBindings"
 import { CreateOverlayedImageParams } from ".././osBindings"
 import { DestroyOverlayedImageParams } from ".././osBindings"
 import { BindParams } from ".././osBindings"
@@ -64,6 +64,8 @@ describe("startosTypeValidation ", () => {
       removeAction: {} as RemoveActionParams,
       reverseProxy: {} as ReverseProxyParams,
       mount: {} as MountParams,
+      checkDependencies: {} as CheckDependenciesParam,
+      getDependencies: undefined,
     })
     typeEquality<Parameters<Effects["executeAction"]>[0]>(
       testInput as ExecuteAction,

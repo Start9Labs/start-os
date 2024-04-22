@@ -71,7 +71,7 @@ export class Overlay {
     command: string[],
     options?: CommandOptions,
   ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
-    const imageMeta = await fs
+    const imageMeta: any = await fs
       .readFile(`/media/startos/images/${this.imageId}.json`, {
         encoding: "utf8",
       })
@@ -105,7 +105,7 @@ export class Overlay {
     command: string[],
     options?: CommandOptions,
   ): Promise<cp.ChildProcessWithoutNullStreams> {
-    const imageMeta = await fs
+    const imageMeta: any = await fs
       .readFile(`/media/startos/images/${this.imageId}.json`, {
         encoding: "utf8",
       })

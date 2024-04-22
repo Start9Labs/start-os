@@ -286,7 +286,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         Type extends Record<string, any> = ExtractConfigType<ConfigType>,
       >(
         spec: ConfigType,
-        write: Save<Store, Type, Manifest>,
+        write: Save<Type>,
         read: Read<Manifest, Store, Type>,
       ) => setupConfig<Store, ConfigType, Manifest, Type>(spec, write, read),
       setupConfigRead: <
@@ -303,7 +303,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           | Config<Record<string, never>, never>,
       >(
         _configSpec: ConfigSpec,
-        fn: Save<Store, ConfigSpec, Manifest>,
+        fn: Save<ConfigSpec>,
       ) => fn,
       setupDependencyConfig: <Input extends Record<string, any>>(
         config: Config<Input, Store> | Config<Input, never>,
