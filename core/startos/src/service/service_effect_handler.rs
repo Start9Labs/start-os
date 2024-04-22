@@ -11,8 +11,10 @@ use clap::Parser;
 use emver::VersionRange;
 use imbl::OrdMap;
 use imbl_value::{json, InternedString};
+use itertools::Itertools;
 use models::{ActionId, DataUrl, HealthCheckId, HostId, ImageId, PackageId, VolumeId};
 use patch_db::json_ptr::JsonPointer;
+use percent_encoding::percent_decode_str;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
@@ -1137,6 +1139,49 @@ struct SetDependenciesParams {
     dependencies: Vec<DependencyRequirement>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+
+struct HttpSourceStructure {
+    registry_url: Url,
+    dep_id: PackageId,
+    version_spec: VersionRange,
+}
+impl HttpSourceStructure {
+    fn package_url(&self) -> Result<Url, Error> {
+        self.registry_url
+            .join(&format!(
+                "package/v2/{}.s9pk?spec={}",
+                self.dep_id, self.version_spec
+            ))
+            .with_kind(ErrorKind::InvalidRequest)
+    }
+}
+
+impl FromStr for HttpSourceStructure {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (registry_url, url_rest) = s
+            .split_once("/package/v2/")
+            .ok_or_else(|| Error::new(eyre!("Invalid format"), ErrorKind::InvalidRequest))?;
+        let (dep_id, version_spec) = url_rest
+            .split_once(".s9pk?spec=")
+            .ok_or_else(|| Error::new(eyre!("Invalid format"), ErrorKind::InvalidRequest))?;
+        let version_spec = percent_decode_str(version_spec)
+            .decode_utf8()
+            .map_err(|_e| {
+                Error::new(
+                    eyre!("Could not decode url from string of version spec"),
+                    ErrorKind::ParseVersion,
+                )
+            })?;
+        Ok(Self {
+            registry_url: registry_url.parse()?,
+            dep_id: dep_id.parse()?,
+            version_spec: version_spec.parse()?,
+        })
+    }
+}
+
 async fn set_dependencies(
     ctx: EffectContext,
     SetDependenciesParams { dependencies }: SetDependenciesParams,
@@ -1171,13 +1216,14 @@ async fn set_dependencies(
             ),
         };
         let (icon, title) = match async {
+            let http_source_structure = HttpSourceStructure {
+                registry_url: registry_url.clone(),
+                dep_id: dep_id.clone(),
+                version_spec: version_spec.clone(),
+            };
             let remote_s9pk = S9pk::deserialize(
-                &HttpSource::new(
-                    ctx.ctx.client.clone(),
-                    registry_url
-                        .join(&format!("package/v2/{}.s9pk?spec={}", dep_id, version_spec))?,
-                )
-                .await?,
+                &HttpSource::new(ctx.ctx.client.clone(), http_source_structure.package_url()?)
+                    .await?,
             )
             .await?;
 
@@ -1242,104 +1288,32 @@ async fn get_dependencies(ctx: EffectContext) -> Result<Vec<DependencyRequiremen
         .as_current_dependencies()
         .de()?;
 
-    let result = data.0.into_iter().map(|(id, current_dependency_info)| {
-        let kind = match current_dependency_info.kind {
-            CurrentDependencyKind::Exists => DependencyRequirement::Exists {
-                id,
+    data.0
+        .into_iter()
+        .map(|(id, current_dependency_info)| {
+            let CurrentDependencyInfo {
                 registry_url,
                 version_spec,
-            },
-            CurrentDependencyKind::Running {} => "running",
-        };
-    });
-    todo!()
-    // let ctx = ctx.deref()?;
-    // let id = &ctx.id;
-    // let service_guard = ctx.ctx.services.get(id).await;
-    // let service = service_guard.as_ref().or_not_found(id)?;
-    // let mut deps = BTreeMap::new();
-    // for dependency in dependencies {
-    //     let (dep_id, kind, registry_url, version_spec) = match dependency {
-    //         DependencyRequirement::Exists {
-    //             id,
-    //             registry_url,
-    //             version_spec,
-    //         } => (
-    //             id,
-    //             CurrentDependencyKind::Exists,
-    //             registry_url,
-    //             version_spec,
-    //         ),
-    //         DependencyRequirement::Running {
-    //             id,
-    //             health_checks,
-    //             registry_url,
-    //             version_spec,
-    //         } => (
-    //             id,
-    //             CurrentDependencyKind::Running { health_checks },
-    //             registry_url,
-    //             version_spec,
-    //         ),
-    //     };
-    //     let (icon, title) = match async {
-    //         let remote_s9pk = S9pk::deserialize(
-    //             &HttpSource::new(
-    //                 ctx.ctx.client.clone(),
-    //                 registry_url
-    //                     .join(&format!("package/v2/{}.s9pk?spec={}", dep_id, version_spec))?,
-    //             )
-    //             .await?,
-    //         )
-    //         .await?;
-
-    //         let icon = remote_s9pk.icon_data_url().await?;
-
-    //         Ok::<_, Error>((icon, remote_s9pk.as_manifest().title.clone()))
-    //     }
-    //     .await
-    //     {
-    //         Ok(a) => a,
-    //         Err(e) => {
-    //             tracing::error!("Error fetching remote s9pk: {e}");
-    //             tracing::debug!("{e:?}");
-    //             (
-    //                 DataUrl::from_slice("image/png", include_bytes!("../install/package-icon.png")),
-    //                 dep_id.to_string(),
-    //             )
-    //         }
-    //     };
-    //     let config_satisfied = if let Some(dep_service) = &*ctx.ctx.services.get(&dep_id).await {
-    //         service
-    //             .dependency_config(dep_id.clone(), dep_service.get_config().await?.config)
-    //             .await?
-    //             .is_none()
-    //     } else {
-    //         true
-    //     };
-    //     deps.insert(
-    //         dep_id,
-    //         CurrentDependencyInfo {
-    //             kind,
-    //             registry_url,
-    //             version_spec,
-    //             icon,
-    //             title,
-    //             config_satisfied,
-    //         },
-    //     );
-    // }
-    // ctx.ctx
-    //     .db
-    //     .mutate(|db| {
-    //         db.as_public_mut()
-    //             .as_package_data_mut()
-    //             .as_idx_mut(id)
-    //             .or_not_found(id)?
-    //             .as_current_dependencies_mut()
-    //             .ser(&CurrentDependencies(deps))
-    //     })
-    //     .await
+                kind,
+                ..
+            } = current_dependency_info;
+            Ok::<_, Error>(match kind {
+                CurrentDependencyKind::Exists => DependencyRequirement::Exists {
+                    id,
+                    registry_url,
+                    version_spec,
+                },
+                CurrentDependencyKind::Running { health_checks } => {
+                    DependencyRequirement::Running {
+                        id,
+                        health_checks,
+                        version_spec,
+                        registry_url,
+                    }
+                }
+            })
+        })
+        .try_collect()
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
@@ -1457,4 +1431,14 @@ async fn check_dependencies(ctx: EffectContext) -> Result<Vec<CheckDependenciesR
     //             .ser(&CurrentDependencies(deps))
     //     })
     //     .await
+}
+
+#[test]
+fn test_http_source_structure() {
+    let hss: HttpSourceStructure = HttpSourceStructure {
+        registry_url: "https://registry.start9labs.com".parse().unwrap(),
+        dep_id: "filebrowser".parse().unwrap(),
+        version_spec: ">=1.0.0 <2.0.0".parse().unwrap(),
+    };
+    assert_eq!(hss, hss.package_url().unwrap().to_string().parse().unwrap());
 }
