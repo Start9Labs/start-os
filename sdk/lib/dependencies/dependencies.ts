@@ -1,12 +1,16 @@
-import { Effects, PackageId, DependencyRequirement, SetHealth } from "../types"
+import {
+  Effects,
+  PackageId,
+  DependencyRequirement,
+  SetHealth,
+  CheckDependencyResult,
+} from "../types"
 
 export type CheckAllDependencies = {
-  notRunning: () => Promise<
-    import("/home/jh/Projects/start-os/sdk/lib/types").CheckDependencyResult[]
-  >
-  notInstalled: () => Promise<
-    import("/home/jh/Projects/start-os/sdk/lib/types").CheckDependencyResult[]
-  >
+  notRunning: () => Promise<CheckDependencyResult[]>
+
+  notInstalled: () => Promise<CheckDependencyResult[]>
+
   errorMessages: () => Promise<{ [id: string]: SetHealth[] }>
   throwIfNotRunning: () => Promise<void>
   throwIfNotValid: () => Promise<undefined>
