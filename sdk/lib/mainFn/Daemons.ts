@@ -15,13 +15,6 @@ import * as CP from "node:child_process"
 
 const cpExec = promisify(CP.exec)
 const cpExecFile = promisify(CP.execFile)
-async function psTree(pid: number, overlay: Overlay): Promise<number[]> {
-  const { stdout } = await cpExec(`pstree -p ${pid}`)
-  const regex: RegExp = /\((\d+)\)/g
-  return [...stdout.toString().matchAll(regex)].map(([_all, pid]) =>
-    parseInt(pid),
-  )
-}
 type Daemon<
   Manifest extends SDKManifest,
   Ids extends string,
@@ -81,19 +74,15 @@ export const runDaemon =
     const pid = childProcess.pid
     return {
       async wait() {
-        const pids = pid ? await psTree(pid, overlay) : []
         try {
           return await answer
         } finally {
-          for (const process of pids) {
-            cpExecFile("kill", [`-9`, String(process)]).catch((_) => {})
-          }
+          await cpExecFile("pkill", ["-9", "-s", String(pid)]).catch((_) => {})
         }
       },
       async term({ signal = SIGTERM, timeout = NO_TIMEOUT } = {}) {
-        const pids = pid ? await psTree(pid, overlay) : []
         try {
-          childProcess.kill(signal)
+          await cpExecFile("pkill", [`-${signal}`, "-s", String(pid)])
 
           if (timeout > NO_TIMEOUT) {
             const didTimeout = await Promise.race([
@@ -103,23 +92,15 @@ export const runDaemon =
               answer.then(() => false),
             ])
             if (didTimeout) {
-              childProcess.kill(SIGKILL)
+              await cpExecFile("pkill", [`-9`, "-s", String(pid)]).catch(
+                (_) => {},
+              )
             }
           } else {
             await answer
           }
         } finally {
           await overlay.destroy()
-        }
-
-        try {
-          for (const process of pids) {
-            await cpExecFile("kill", [`-${signal}`, String(process)])
-          }
-        } finally {
-          for (const process of pids) {
-            cpExecFile("kill", [`-9`, String(process)]).catch((_) => {})
-          }
         }
       },
     }

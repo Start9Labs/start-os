@@ -539,6 +539,7 @@ fn chroot(
             cmd.env(k, v);
         }
     }
+    nix::unistd::setsid().with_kind(ErrorKind::Lxc)?; // TODO: error code
     std::os::unix::fs::chroot(path)?;
     if let Some(uid) = user.as_deref().and_then(|u| u.parse::<u32>().ok()) {
         cmd.uid(uid);
