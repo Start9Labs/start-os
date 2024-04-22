@@ -16,6 +16,7 @@ import { ExposedStorePaths } from "./store/setupExposeStore"
 import { UrlString } from "./util/getServiceInterface"
 export * from "./osBindings"
 export { SDKManifest } from "./manifest/ManifestTypes"
+export { HealthReceipt } from "./health/HealthReceipt"
 
 export type ExportedAction = (options: {
   effects: Effects

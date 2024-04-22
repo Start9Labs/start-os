@@ -14,9 +14,7 @@ export type CheckAllDependencies = {
   throwIfError: () => Promise<void>
   isValid: () => Promise<boolean>
 }
-export async function checkAllDependencies(
-  effects: Effects,
-): Promise<CheckAllDependencies> {
+export function checkAllDependencies(effects: Effects): CheckAllDependencies {
   const dependenciesPromise = effects.getDependencies()
   const resultsPromise = dependenciesPromise.then((dependencies) =>
     effects.checkDependencies({
