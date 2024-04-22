@@ -13,12 +13,14 @@ use start_stop::StartStop;
 use tokio::sync::Notify;
 use ts_rs::TS;
 
+use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::RequestGuid;
 use crate::db::model::package::{
     InstalledState, PackageDataEntry, PackageState, PackageStateMatchModelRef, UpdatingState,
 };
 use crate::disk::mount::guard::GenericMountGuard;
 use crate::install::PKG_ARCHIVE_DIR;
+use crate::lxc::ContainerId;
 use crate::prelude::*;
 use crate::progress::{NamedProgress, Progress};
 use crate::s9pk::S9pk;
@@ -31,10 +33,6 @@ use crate::util::actor::concurrent::ConcurrentActor;
 use crate::util::actor::Actor;
 use crate::util::serde::Pem;
 use crate::volume::data_dir;
-use crate::{
-    context::{CliContext, RpcContext},
-    lxc::ContainerId,
-};
 
 mod action;
 pub mod cli;
@@ -138,7 +136,7 @@ impl Service {
         match entry.as_state_info().as_match() {
             PackageStateMatchModelRef::Installing(_) => {
                 if disposition == LoadDisposition::Retry {
-                    if let Ok(s9pk) = S9pk::open(s9pk_path, Some(id)).await.map_err(|e| {
+                    if let Ok(s9pk) = S9pk::open(s9pk_path, Some(id), true).await.map_err(|e| {
                         tracing::error!("Error opening s9pk for install: {e}");
                         tracing::debug!("{e:?}")
                     }) {
@@ -171,7 +169,7 @@ impl Service {
                                 && progress == &Progress::Complete(true)
                         })
                 {
-                    if let Ok(s9pk) = S9pk::open(&s9pk_path, Some(id)).await.map_err(|e| {
+                    if let Ok(s9pk) = S9pk::open(&s9pk_path, Some(id), true).await.map_err(|e| {
                         tracing::error!("Error opening s9pk for update: {e}");
                         tracing::debug!("{e:?}")
                     }) {
@@ -190,7 +188,7 @@ impl Service {
                         }
                     }
                 }
-                let s9pk = S9pk::open(s9pk_path, Some(id)).await?;
+                let s9pk = S9pk::open(s9pk_path, Some(id), true).await?;
                 ctx.db
                     .mutate({
                         |db| {
@@ -215,7 +213,7 @@ impl Service {
                 handle_installed(s9pk, entry).await
             }
             PackageStateMatchModelRef::Removing(_) | PackageStateMatchModelRef::Restoring(_) => {
-                if let Ok(s9pk) = S9pk::open(s9pk_path, Some(id)).await.map_err(|e| {
+                if let Ok(s9pk) = S9pk::open(s9pk_path, Some(id), true).await.map_err(|e| {
                     tracing::error!("Error opening s9pk for removal: {e}");
                     tracing::debug!("{e:?}")
                 }) {
@@ -243,7 +241,7 @@ impl Service {
                 Ok(None)
             }
             PackageStateMatchModelRef::Installed(_) => {
-                handle_installed(S9pk::open(s9pk_path, Some(id)).await?, entry).await
+                handle_installed(S9pk::open(s9pk_path, Some(id), true).await?, entry).await
             }
             PackageStateMatchModelRef::Error(e) => Err(Error::new(
                 eyre!("Failed to parse PackageDataEntry, found {e:?}"),
@@ -349,6 +347,7 @@ impl Service {
         }
         Ok(())
     }
+
     pub async fn backup(&self, _guard: impl GenericMountGuard) -> Result<BackupReturn, Error> {
         // TODO
         Err(Error::new(eyre!("not yet implemented"), ErrorKind::Unknown))

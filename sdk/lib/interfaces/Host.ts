@@ -1,10 +1,10 @@
 import { object, string } from "ts-matches"
 import { Effects } from "../types"
 import { Origin } from "./Origin"
-import { AddSslOptions } from "../../../core/startos/bindings/AddSslOptions"
-import { Security } from "../../../core/startos/bindings/Security"
-import { BindOptions } from "../../../core/startos/bindings/BindOptions"
-import { AlpnInfo } from "../../../core/startos/bindings/AlpnInfo"
+import { AddSslOptions } from ".././osBindings"
+import { Security } from ".././osBindings"
+import { BindOptions } from ".././osBindings"
+import { AlpnInfo } from ".././osBindings"
 
 export { AddSslOptions, Security, BindOptions }
 

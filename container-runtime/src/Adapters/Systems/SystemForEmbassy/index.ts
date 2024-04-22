@@ -30,7 +30,7 @@ import {
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { JsonPath, unNestPath } from "../../../Models/JsonPath"
 import { RpcResult, matchRpcResult } from "../../RpcListener"
-import { InputSpec } from "@start9labs/start-sdk/cjs/sdk/lib/config/configTypes"
+import { CT } from "@start9labs/start-sdk"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
@@ -326,7 +326,7 @@ export class SystemForEmbassy implements System {
           name: action.name,
           description: action.description,
           warning: action.warning || null,
-          input: action["input-spec"] as InputSpec,
+          input: action["input-spec"] as CT.InputSpec,
           disabled: false,
           allowedStatuses,
           group: null,

@@ -9,15 +9,15 @@ IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo 
 BINS := core/target/$(ARCH)-unknown-linux-musl/release/startbox core/target/$(ARCH)-unknown-linux-musl/release/containerbox
 WEB_UIS := web/dist/raw/ui web/dist/raw/setup-wizard web/dist/raw/diagnostic-ui web/dist/raw/install-wizard
 FIRMWARE_ROMS := ./firmware/$(PLATFORM) $(shell jq --raw-output '.[] | select(.platform[] | contains("$(PLATFORM)")) | "./firmware/$(PLATFORM)/" + .id + ".rom.gz"' build/lib/firmware.json)
-BUILD_SRC := $(shell git ls-files build) build/lib/depends build/lib/conflicts container-runtime/rootfs.$(ARCH).squashfs $(FIRMWARE_ROMS)
+BUILD_SRC := $(shell git ls-files build) build/lib/depends build/lib/conflicts $(FIRMWARE_ROMS)
 DEBIAN_SRC := $(shell git ls-files debian/)
 IMAGE_RECIPE_SRC := $(shell git ls-files image-recipe/)
 STARTD_SRC := core/startos/startd.service $(BUILD_SRC)
 COMPAT_SRC := $(shell git ls-files system-images/compat/)
 UTILS_SRC := $(shell git ls-files system-images/utils/)
 BINFMT_SRC := $(shell git ls-files system-images/binfmt/)
-CORE_SRC := $(shell git ls-files -- core ':!:core/startos/bindings/*') $(shell git ls-files --recurse-submodules patch-db) web/dist/static web/patchdb-ui-seed.json $(GIT_HASH_FILE)
-WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules web/config.json patch-db/client/dist web/patchdb-ui-seed.json
+CORE_SRC := $(shell git ls-files core) $(shell git ls-files --recurse-submodules patch-db) web/dist/static web/patchdb-ui-seed.json $(GIT_HASH_FILE)
+WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules/.package-lock.json web/config.json patch-db/client/dist web/patchdb-ui-seed.json
 WEB_UI_SRC := $(shell git ls-files web/projects/ui)
 WEB_SETUP_WIZARD_SRC := $(shell git ls-files web/projects/setup-wizard)
 WEB_DIAGNOSTIC_UI_SRC := $(shell git ls-files web/projects/diagnostic-ui)
@@ -49,7 +49,7 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all metadata install clean format cli uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole test
+.PHONY: all metadata install clean format cli uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole wormhole-deb test
 
 all: $(ALL_TARGETS)
 
@@ -65,6 +65,7 @@ clean:
 	rm -f system-images/**/*.tar
 	rm -rf system-images/compat/target
 	rm -rf core/target
+	rm -rf core/startos/bindings
 	rm -rf web/.angular
 	rm -f web/config.json
 	rm -rf web/node_modules
@@ -80,8 +81,8 @@ clean:
 	rm -rf container-runtime/dist
 	rm -rf container-runtime/node_modules
 	rm -f container-runtime/*.squashfs
-	rm -rf sdk/dist
-	rm -rf sdk/node_modules
+	rm -rf container-runtime/tmp
+	(cd sdk && make clean)
 	rm -f ENVIRONMENT.txt
 	rm -f PLATFORM.txt
 	rm -f GIT_HASH.txt
@@ -92,7 +93,6 @@ format:
 
 test: $(CORE_SRC) $(ENVIRONMENT_FILE) 
 	(cd core && cargo build && cargo test)
-	npm --prefix sdk exec -- prettier -w ./core/startos/bindings/*.ts
 	(cd sdk && make test)
 
 cli:
@@ -158,6 +158,10 @@ wormhole: core/target/$(ARCH)-unknown-linux-musl/release/startbox
 	@echo "Paste the following command into the shell of your start-os server:"
 	@wormhole send core/target/$(ARCH)-unknown-linux-musl/release/startbox 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/startos/scripts/chroot-and-upgrade \"cd /usr/bin && rm startbox && wormhole receive --accept-file %s && chmod +x startbox\"\n", $$3 }'
 
+wormhole-deb: results/$(BASENAME).deb
+	@echo "Paste the following command into the shell of your start-os server:"
+	@wormhole send results/$(BASENAME).deb 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/startos/scripts/chroot-and-upgrade '"'"'cd $$(mktemp -d) && wormhole receive --accept-file %s && apt-get install -y --reinstall ./$(BASENAME).deb'"'"'\n", $$3 }'
+
 update: $(ALL_TARGETS)
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	$(call ssh,"sudo rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next/")
@@ -180,13 +184,19 @@ container-runtime/node_modules: container-runtime/package.json container-runtime
 	npm --prefix container-runtime ci
 	touch container-runtime/node_modules
 
-core/startos/bindings: $(shell git ls-files -- core ':!:core/startos/bindings/*') $(ENVIRONMENT_FILE)
-	rm -rf core/startos/bindings
-	(cd core/ && cargo test --features=test)
+sdk/lib/osBindings: core/startos/bindings
+	mkdir -p sdk/lib/osBindings
 	ls core/startos/bindings/*.ts | sed 's/core\/startos\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' > core/startos/bindings/index.ts
-	npm --prefix sdk exec -- prettier -w ./core/startos/bindings/*.ts
+	npm --prefix sdk exec -- prettier --config ./sdk/package.json -w ./core/startos/bindings/*.ts
+	rsync -ac --delete core/startos/bindings/ sdk/lib/osBindings/
+	touch sdk/lib/osBindings
 
-sdk/dist: $(shell git ls-files sdk) core/startos/bindings
+core/startos/bindings: $(shell git ls-files core) $(ENVIRONMENT_FILE)
+	rm -rf core/startos/bindings
+	(cd core/ && cargo test --features=test '::export_bindings_')
+	touch core/startos/bindings
+
+sdk/dist: $(shell git ls-files sdk) sdk/lib/osBindings
 	(cd sdk && make bundle)
 
 # TODO: make container-runtime its own makefile?
@@ -219,21 +229,25 @@ $(BINS): $(CORE_SRC) $(ENVIRONMENT_FILE)
 	cd core && ARCH=$(ARCH) ./build-prod.sh
 	touch $(BINS)
 
-web/node_modules: web/package.json sdk/dist
-	(cd sdk && make bundle)
+web/node_modules/.package-lock.json: web/package.json sdk/dist
 	npm --prefix web ci
+	touch web/node_modules/.package-lock.json
 
 web/dist/raw/ui: $(WEB_UI_SRC) $(WEB_SHARED_SRC)
 	npm --prefix web run build:ui
+	touch web/dist/raw/ui
 
 web/dist/raw/setup-wizard: $(WEB_SETUP_WIZARD_SRC) $(WEB_SHARED_SRC)
 	npm --prefix web run build:setup
+	touch web/dist/raw/setup-wizard
 
 web/dist/raw/diagnostic-ui: $(WEB_DIAGNOSTIC_UI_SRC) $(WEB_SHARED_SRC)
 	npm --prefix web run build:dui
+	touch web/dist/raw/diagnostic-ui
 
 web/dist/raw/install-wizard: $(WEB_INSTALL_WIZARD_SRC) $(WEB_SHARED_SRC)
 	npm --prefix web run build:install-wiz
+	touch web/dist/raw/install-wizard
 
 web/dist/static: $(WEB_UIS) $(ENVIRONMENT_FILE)
 	./compress-uis.sh
@@ -247,10 +261,11 @@ web/patchdb-ui-seed.json: web/package.json
 
 patch-db/client/node_modules: patch-db/client/package.json
 	npm --prefix patch-db/client ci
+	touch patch-db/client/node_modules
 
 patch-db/client/dist: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules
-	! test -d patch-db/client/dist || rm -rf patch-db/client/dist
-	npm --prefix web run build:deps
+	rm -rf patch-db/client/dist
+	npm --prefix patch-db/client run build
 
 # used by github actions
 compiled-$(ARCH).tar: $(COMPILED_TARGETS) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)

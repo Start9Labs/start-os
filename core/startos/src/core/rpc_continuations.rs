@@ -19,7 +19,7 @@ impl RequestGuid {
     }
 
     pub fn from(r: &str) -> Option<RequestGuid> {
-        if r.len() != 64 {
+        if r.len() != 32 {
             return None;
         }
         for c in r.chars() {

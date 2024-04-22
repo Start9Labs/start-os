@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Weak};
 
+use bytes::Buf;
 use lazy_static::lazy_static;
 use models::ResultExt;
 use tokio::sync::Mutex;
@@ -115,7 +116,7 @@ impl GenericMountGuard for MountGuard {
 async fn tmp_mountpoint(source: &impl FileSystem) -> Result<PathBuf, Error> {
     Ok(Path::new(TMP_MOUNTPOINT).join(base32::encode(
         base32::Alphabet::RFC4648 { padding: false },
-        &source.source_hash().await?,
+        &source.source_hash().await?[0..20],
     )))
 }
 

@@ -288,14 +288,6 @@ impl LxcContainer {
         }
         self.rootfs.take().unmount(true).await?;
         let rootfs_path = self.rootfs_dir();
-        let err_path = rootfs_path.join("var/log/containerRuntime.err");
-        if tokio::fs::metadata(&err_path).await.is_ok() {
-            let mut lines = BufReader::new(File::open(&err_path).await?).lines();
-            while let Some(line) = lines.next_line().await? {
-                let container = &**self.guid;
-                tracing::error!(container, "{}", line);
-            }
-        }
         if tokio::fs::metadata(&rootfs_path).await.is_ok()
             && tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(&rootfs_path).await?)
                 .count()

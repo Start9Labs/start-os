@@ -498,7 +498,7 @@ impl<'a, T> From<&'a T> for MaybeOwned<'a, T> {
 
 pub fn new_guid() -> InternedString {
     use rand::RngCore;
-    let mut buf = [0; 40];
+    let mut buf = [0; 20];
     rand::thread_rng().fill_bytes(&mut buf);
     InternedString::intern(base32::encode(
         base32::Alphabet::RFC4648 { padding: false },

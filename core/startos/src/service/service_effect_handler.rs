@@ -1165,6 +1165,7 @@ async fn set_dependencies(
                         .join(&format!("package/v2/{}.s9pk?spec={}", dep_id, version_spec))?,
                 )
                 .await?,
+                true,
             )
             .await?;
 
