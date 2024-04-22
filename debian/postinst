@@ -112,7 +112,7 @@ echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-embassy.conf
 locale-gen en_GB en_GB.UTF-8 
 echo "locales locales/locales_to_be_generated multiselect en_GB.UTF-8 UTF-8" | debconf-set-selections
 update-locale  LANGUAGE
-rm "/etc/locale.gen"
+rm -f "/etc/locale.gen"
 dpkg-reconfigure --frontend noninteractive locales
 
 if ! getent group | grep '^embassy:'; then
@@ -127,15 +127,15 @@ chmod -x /etc/update-motd.d/*
 chmod +x /etc/update-motd.d/00-embassy
 
 # LXC
-cat /etc/subuid | grep -v '^root:' > /etc/subuid.tmp
-echo "root:100000:65536" >>/etc/subuid.tmp
+cat /etc/subuid | grep -v '^root:' > /etc/subuid.tmp || true
+echo "root:100000:65536" >> /etc/subuid.tmp
 mv /etc/subuid.tmp /etc/subuid
 
-cat /etc/subgid | grep -v '^root:' > /etc/subgid.tmp
-echo "root:100000:65536" >>/etc/subgid.tmp
+cat /etc/subgid | grep -v '^root:' > /etc/subgid.tmp || true
+echo "root:100000:65536" >> /etc/subgid.tmp
 mv /etc/subgid.tmp /etc/subgid
 
-cat /etc/lxc/default.conf | grep -v '^lxc\.idmap = [ug]' > /etc/lxc/default.conf.tmp
-echo "lxc.idmap = u 0 100000 65536" >>/etc/lxc/default.conf.tmp
-echo "lxc.idmap = g 0 100000 65536" >>/etc/lxc/default.conf.tmp
+cat /etc/lxc/default.conf | grep -v '^lxc\.idmap = [ug]' > /etc/lxc/default.conf.tmp || true
+echo "lxc.idmap = u 0 100000 65536" >> /etc/lxc/default.conf.tmp
+echo "lxc.idmap = g 0 100000 65536" >> /etc/lxc/default.conf.tmp
 mv /etc/lxc/default.conf.tmp /etc/lxc/default.conf
