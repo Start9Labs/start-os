@@ -1,4 +1,5 @@
 export * as configTypes from "./config/configTypes"
+import { DependencyRequirement, SetHealth } from "../../core/startos/bindings"
 import { HealthCheckId } from "../../core/startos/bindings/HealthCheckId"
 import { HealthCheckResult } from "../../core/startos/bindings/HealthCheckResult"
 import { MainEffects, ServiceInterfaceType, Signals } from "./StartSdk"
@@ -471,16 +472,22 @@ export type Effects = {
     algorithm: "ecdsa" | "ed25519" | null
   }) => Promise<string>
 
-  setHealth(
-    o: HealthCheckResult & {
-      id: HealthCheckId
-    },
-  ): Promise<void>
+  setHealth(o: SetHealth): Promise<void>
 
   /** Set the dependencies of what the service needs, usually ran during the set config as a best practice */
   setDependencies(options: {
     dependencies: Dependencies
   }): Promise<DependenciesReceipt>
+
+  /** Get the list of the dependencies, both the dynamic set by the effect of setDependencies and the end result any required in the manifest  */
+  getDependencies(): Promise<DependencyRequirement[]>
+
+  /** When one wants to checks the status of several services during the checking of dependencies. The result will include things like the status
+   * of the service and what the current health checks are.
+   */
+  checkDependencies(options: {
+    packageIds: PackageId[]
+  }): Promise<CheckDependencyResult[]>
   /** Exists could be useful during the runtime to know if some service exists, option dep */
   exists(options: { packageId: PackageId }): Promise<boolean>
   /** Exists could be useful during the runtime to know if some service is running, option dep */
@@ -578,13 +585,16 @@ export type KnownError =
       errorCode: [number, string] | readonly [number, string]
     }
 
-export type Dependency = {
-  id: PackageId
-  versionSpec: string
-  registryUrl: string
-} & ({ kind: "exists" } | { kind: "running"; healthChecks: string[] })
-export type Dependencies = Array<Dependency>
+export type Dependencies = Array<DependencyRequirement>
 
 export type DeepPartial<T> = T extends {}
   ? { [P in keyof T]?: DeepPartial<T[P]> }
   : T
+
+export type CheckDependencyResult = {
+  packageId: PackageId
+  isInstalled: boolean
+  isRunning: boolean
+  healthChecks: SetHealth[]
+}
+export type CheckResults = CheckDependencyResult[]

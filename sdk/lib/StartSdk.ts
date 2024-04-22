@@ -24,7 +24,7 @@ import {
   ValidIfNoStupidEscape,
 } from "./types"
 import * as patterns from "./util/patterns"
-import { DependencyConfig, Update } from "./dependencyConfig/DependencyConfig"
+import { DependencyConfig, Update } from "./dependencies/DependencyConfig"
 import { BackupSet, Backups } from "./backup/Backups"
 import { smtpConfig } from "./config/configConstants"
 import { Daemons } from "./mainFn/Daemons"
@@ -35,7 +35,7 @@ import { List } from "./config/builder/list"
 import { Migration } from "./inits/migrations/Migration"
 import { Install, InstallFn } from "./inits/setupInstall"
 import { setupActions } from "./actions/setupActions"
-import { setupDependencyConfig } from "./dependencyConfig/setupDependencyConfig"
+import { setupDependencyConfig } from "./dependencies/setupDependencyConfig"
 import { SetupBackupsParams, setupBackups } from "./backup/setupBackups"
 import { setupInit } from "./inits/setupInit"
 import {
@@ -77,6 +77,7 @@ import * as T from "./types"
 import { Checker, EmVer } from "./emverLite/mod"
 import { ExposedStorePaths } from "./store/setupExposeStore"
 import { PathBuilder, extractJsonPath, pathBuilder } from "./store/PathBuilder"
+import { checkAllDependencies } from "./dependencies/dependencies"
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
@@ -124,6 +125,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
     }
 
     return {
+      checkAllDependencies,
       serviceInterface: {
         getOwn: <E extends Effects>(effects: E, id: ServiceInterfaceId) =>
           removeConstType<E>()(

@@ -148,6 +148,18 @@ pub fn service_effect_handler() -> ParentHandler {
                 .no_display()
                 .with_remote_cli::<ContainerCliContext>(),
         )
+        .subcommand(
+            "getDependencies",
+            from_fn_async(get_dependencies)
+                .no_display()
+                .with_remote_cli::<ContainerCliContext>(),
+        )
+        .subcommand(
+            "checkDependencies",
+            from_fn_async(check_dependencies)
+                .no_display()
+                .with_remote_cli::<ContainerCliContext>(),
+        )
         .subcommand("getSystemSmtp", from_fn_async(get_system_smtp).no_cli())
         .subcommand("getContainerIp", from_fn_async(get_container_ip).no_cli())
         .subcommand(
@@ -172,6 +184,7 @@ pub fn service_effect_handler() -> ParentHandler {
         .subcommand("removeAction", from_fn_async(remove_action).no_cli())
         .subcommand("reverseProxy", from_fn_async(reverse_proxy).no_cli())
         .subcommand("mount", from_fn_async(mount).no_cli())
+
     // TODO Callbacks
 }
 
@@ -1215,4 +1228,233 @@ async fn set_dependencies(
                 .ser(&CurrentDependencies(deps))
         })
         .await
+}
+
+async fn get_dependencies(ctx: EffectContext) -> Result<Vec<DependencyRequirement>, Error> {
+    let ctx = ctx.deref()?;
+    let id = &ctx.id;
+    let db = ctx.ctx.db.peek().await;
+    let data = db
+        .as_public()
+        .as_package_data()
+        .as_idx(id)
+        .or_not_found(id)?
+        .as_current_dependencies()
+        .de()?;
+
+    let result = data.0.into_iter().map(|(id, current_dependency_info)| {
+        let kind = match current_dependency_info.kind {
+            CurrentDependencyKind::Exists => DependencyRequirement::Exists {
+                id,
+                registry_url,
+                version_spec,
+            },
+            CurrentDependencyKind::Running {} => "running",
+        };
+    });
+    todo!()
+    // let ctx = ctx.deref()?;
+    // let id = &ctx.id;
+    // let service_guard = ctx.ctx.services.get(id).await;
+    // let service = service_guard.as_ref().or_not_found(id)?;
+    // let mut deps = BTreeMap::new();
+    // for dependency in dependencies {
+    //     let (dep_id, kind, registry_url, version_spec) = match dependency {
+    //         DependencyRequirement::Exists {
+    //             id,
+    //             registry_url,
+    //             version_spec,
+    //         } => (
+    //             id,
+    //             CurrentDependencyKind::Exists,
+    //             registry_url,
+    //             version_spec,
+    //         ),
+    //         DependencyRequirement::Running {
+    //             id,
+    //             health_checks,
+    //             registry_url,
+    //             version_spec,
+    //         } => (
+    //             id,
+    //             CurrentDependencyKind::Running { health_checks },
+    //             registry_url,
+    //             version_spec,
+    //         ),
+    //     };
+    //     let (icon, title) = match async {
+    //         let remote_s9pk = S9pk::deserialize(
+    //             &HttpSource::new(
+    //                 ctx.ctx.client.clone(),
+    //                 registry_url
+    //                     .join(&format!("package/v2/{}.s9pk?spec={}", dep_id, version_spec))?,
+    //             )
+    //             .await?,
+    //         )
+    //         .await?;
+
+    //         let icon = remote_s9pk.icon_data_url().await?;
+
+    //         Ok::<_, Error>((icon, remote_s9pk.as_manifest().title.clone()))
+    //     }
+    //     .await
+    //     {
+    //         Ok(a) => a,
+    //         Err(e) => {
+    //             tracing::error!("Error fetching remote s9pk: {e}");
+    //             tracing::debug!("{e:?}");
+    //             (
+    //                 DataUrl::from_slice("image/png", include_bytes!("../install/package-icon.png")),
+    //                 dep_id.to_string(),
+    //             )
+    //         }
+    //     };
+    //     let config_satisfied = if let Some(dep_service) = &*ctx.ctx.services.get(&dep_id).await {
+    //         service
+    //             .dependency_config(dep_id.clone(), dep_service.get_config().await?.config)
+    //             .await?
+    //             .is_none()
+    //     } else {
+    //         true
+    //     };
+    //     deps.insert(
+    //         dep_id,
+    //         CurrentDependencyInfo {
+    //             kind,
+    //             registry_url,
+    //             version_spec,
+    //             icon,
+    //             title,
+    //             config_satisfied,
+    //         },
+    //     );
+    // }
+    // ctx.ctx
+    //     .db
+    //     .mutate(|db| {
+    //         db.as_public_mut()
+    //             .as_package_data_mut()
+    //             .as_idx_mut(id)
+    //             .or_not_found(id)?
+    //             .as_current_dependencies_mut()
+    //             .ser(&CurrentDependencies(deps))
+    //     })
+    //     .await
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "camelCase")]
+#[ts(export)]
+struct CheckDependenciesParam {
+    #[ts(type = "string[]")]
+    package_ids: Vec<PackageId>,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "camelCase")]
+#[ts(export)]
+struct CheckDependenciesResult {
+    #[ts(type = "string")]
+    package_id: PackageId,
+    is_installed: bool,
+    is_running: bool,
+    health_checks: Vec<HealthCheckResult>,
+}
+impl ValueParserFactory for CheckDependenciesResult {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
+    }
+}
+
+async fn check_dependencies(ctx: EffectContext) -> Result<Vec<CheckDependenciesResult>, Error> {
+    todo!()
+    // let ctx = ctx.deref()?;
+    // let id = &ctx.id;
+    // let service_guard = ctx.ctx.services.get(id).await;
+    // let service = service_guard.as_ref().or_not_found(id)?;
+    // let mut deps = BTreeMap::new();
+    // for dependency in dependencies {
+    //     let (dep_id, kind, registry_url, version_spec) = match dependency {
+    //         DependencyRequirement::Exists {
+    //             id,
+    //             registry_url,
+    //             version_spec,
+    //         } => (
+    //             id,
+    //             CurrentDependencyKind::Exists,
+    //             registry_url,
+    //             version_spec,
+    //         ),
+    //         DependencyRequirement::Running {
+    //             id,
+    //             health_checks,
+    //             registry_url,
+    //             version_spec,
+    //         } => (
+    //             id,
+    //             CurrentDependencyKind::Running { health_checks },
+    //             registry_url,
+    //             version_spec,
+    //         ),
+    //     };
+    //     let (icon, title) = match async {
+    //         let remote_s9pk = S9pk::deserialize(
+    //             &HttpSource::new(
+    //                 ctx.ctx.client.clone(),
+    //                 registry_url
+    //                     .join(&format!("package/v2/{}.s9pk?spec={}", dep_id, version_spec))?,
+    //             )
+    //             .await?,
+    //         )
+    //         .await?;
+
+    //         let icon = remote_s9pk.icon_data_url().await?;
+
+    //         Ok::<_, Error>((icon, remote_s9pk.as_manifest().title.clone()))
+    //     }
+    //     .await
+    //     {
+    //         Ok(a) => a,
+    //         Err(e) => {
+    //             tracing::error!("Error fetching remote s9pk: {e}");
+    //             tracing::debug!("{e:?}");
+    //             (
+    //                 DataUrl::from_slice("image/png", include_bytes!("../install/package-icon.png")),
+    //                 dep_id.to_string(),
+    //             )
+    //         }
+    //     };
+    //     let config_satisfied = if let Some(dep_service) = &*ctx.ctx.services.get(&dep_id).await {
+    //         service
+    //             .dependency_config(dep_id.clone(), dep_service.get_config().await?.config)
+    //             .await?
+    //             .is_none()
+    //     } else {
+    //         true
+    //     };
+    //     deps.insert(
+    //         dep_id,
+    //         CurrentDependencyInfo {
+    //             kind,
+    //             registry_url,
+    //             version_spec,
+    //             icon,
+    //             title,
+    //             config_satisfied,
+    //         },
+    //     );
+    // }
+    // ctx.ctx
+    //     .db
+    //     .mutate(|db| {
+    //         db.as_public_mut()
+    //             .as_package_data_mut()
+    //             .as_idx_mut(id)
+    //             .or_not_found(id)?
+    //             .as_current_dependencies_mut()
+    //             .ser(&CurrentDependencies(deps))
+    //     })
+    //     .await
 }

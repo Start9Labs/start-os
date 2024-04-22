@@ -20,7 +20,6 @@ export type Save<
 > = (options: {
   effects: Effects
   input: ExtractConfigType<A> & Record<string, any>
-  dependencies: D.ConfigDependencies<Manifest>
 }) => Promise<{
   dependenciesReceipt: DependenciesReceipt
   interfacesReceipt: InterfacesReceipt
@@ -68,7 +67,6 @@ export function setupConfig<
       const { restart } = await write({
         input: JSON.parse(JSON.stringify(input)),
         effects,
-        dependencies: D.configDependenciesSet<Manifest>(),
       })
       if (restart) {
         await effects.restart()
