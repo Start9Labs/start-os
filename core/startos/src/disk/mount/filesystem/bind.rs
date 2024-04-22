@@ -1,14 +1,12 @@
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
-use async_trait::async_trait;
 use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
 use sha2::Sha256;
 
-use super::{FileSystem, MountType, ReadOnly};
-use crate::disk::mount::util::bind;
-use crate::{Error, ResultExt};
+use super::FileSystem;
+use crate::prelude::*;
 
 pub struct Bind<SrcDir: AsRef<Path>> {
     src_dir: SrcDir,
@@ -18,19 +16,16 @@ impl<SrcDir: AsRef<Path>> Bind<SrcDir> {
         Self { src_dir }
     }
 }
-#[async_trait]
 impl<SrcDir: AsRef<Path> + Send + Sync> FileSystem for Bind<SrcDir> {
-    async fn mount<P: AsRef<Path> + Send + Sync>(
-        &self,
-        mountpoint: P,
-        mount_type: MountType,
-    ) -> Result<(), Error> {
-        bind(
-            self.src_dir.as_ref(),
-            mountpoint,
-            matches!(mount_type, ReadOnly),
-        )
-        .await
+    async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
+        Ok(Some(&self.src_dir))
+    }
+    fn extra_args(&self) -> impl IntoIterator<Item = impl AsRef<std::ffi::OsStr>> {
+        ["--bind"]
+    }
+    async fn pre_mount(&self) -> Result<(), Error> {
+        tokio::fs::create_dir_all(self.src_dir.as_ref()).await?;
+        Ok(())
     }
     async fn source_hash(
         &self,

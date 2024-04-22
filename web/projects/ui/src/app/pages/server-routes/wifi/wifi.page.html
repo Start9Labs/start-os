@@ -16,21 +16,22 @@
 <ion-content class="ion-padding-top with-widgets">
   <ion-item-group>
     <!-- always -->
-    <ion-item>
+    <ion-item color="warning" class="ion-margin">
+      <ion-icon slot="start" name="warning-outline"></ion-icon>
       <ion-label>
-        <h2>
-          Adding WiFi credentials to your StartOS allows you to remove the
-          Ethernet cable and move the device anywhere you want. StartOS will
-          automatically connect to available networks.
-          <a
-            href="https://docs.start9.com/0.3.5.x/user-manual/wifi"
-            target="_blank"
-            rel="noreferrer"
-          >
-            View instructions
-          </a>
-        </h2>
+        <h2 style="font-weight: bold">WiFi is deprecated</h2>
+        <p style="font-weight: 600">
+          WiFi will be eliminated from StartOS in version v0.4.0, expected soon.
+          Before then, we highly recommend switching your server to a direct,
+          Ethernet connection, which is faster and more reliable. If using
+          Ethernet is not possible for you, we recommend using a WiFi extender
+          instead.
+        </p>
       </ion-label>
+      <ion-button slot="end" color="light" (click)="openDocs()">
+        Learn More
+        <ion-icon slot="end" name="open-outline"></ion-icon>
+      </ion-button>
     </ion-item>
 
     <ion-item-divider>Country</ion-item-divider>
@@ -129,7 +130,7 @@
       </ion-item>
 
       <ion-item-divider>Available Networks</ion-item-divider>
-      <ng-container *ngFor="let avWifi of wifi['available-wifi']">
+      <ng-container *ngFor="let avWifi of wifi.availableWifi">
         <ion-item
           button
           detail="false"

@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::io::SeekFrom;
 use std::path::Path;
@@ -10,10 +9,10 @@ use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 use tokio_tar::{Archive, Entry};
 
 use crate::util::io::from_cbor_async_reader;
-use crate::{Error, ErrorKind, ARCH};
+use crate::{Error, ErrorKind};
 
 #[derive(Default, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct DockerMultiArch {
     pub default: String,
     pub available: BTreeSet<String>,
@@ -26,8 +25,8 @@ pub enum DockerReader<R: AsyncRead + Unpin> {
     MultiArch(#[pin] Entry<Archive<R>>),
 }
 impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> DockerReader<R> {
-    pub async fn new(mut rdr: R) -> Result<Self, Error> {
-        let arch = if let Some(multiarch) = tokio_tar::Archive::new(&mut rdr)
+    pub async fn list_arches(rdr: &mut R) -> Result<BTreeSet<String>, Error> {
+        if let Some(multiarch) = tokio_tar::Archive::new(rdr)
             .entries()?
             .try_filter_map(|e| {
                 async move {
@@ -43,41 +42,38 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> DockerReader<R> {
             .await?
         {
             let multiarch: DockerMultiArch = from_cbor_async_reader(multiarch).await?;
-            Some(if multiarch.available.contains(&**ARCH) {
-                Cow::Borrowed(&**ARCH)
-            } else {
-                Cow::Owned(multiarch.default)
-            })
+            Ok(multiarch.available)
         } else {
-            None
-        };
+            Err(Error::new(
+                eyre!("Single arch legacy s9pks not supported"),
+                ErrorKind::ParseS9pk,
+            ))
+        }
+    }
+    pub async fn new(mut rdr: R, arch: &str) -> Result<Self, Error> {
         rdr.seek(SeekFrom::Start(0)).await?;
-        if let Some(arch) = arch {
-            if let Some(image) = tokio_tar::Archive::new(rdr)
-                .entries()?
-                .try_filter_map(|e| {
-                    let arch = arch.clone();
-                    async move {
-                        Ok(if &*e.path()? == Path::new(&format!("{}.tar", arch)) {
-                            Some(e)
-                        } else {
-                            None
-                        })
-                    }
-                    .boxed()
-                })
-                .try_next()
-                .await?
-            {
-                Ok(Self::MultiArch(image))
-            } else {
-                Err(Error::new(
-                    eyre!("Docker image section does not contain tarball for architecture"),
-                    ErrorKind::ParseS9pk,
-                ))
-            }
+        if let Some(image) = tokio_tar::Archive::new(rdr)
+            .entries()?
+            .try_filter_map(|e| {
+                let arch = arch.clone();
+                async move {
+                    Ok(if &*e.path()? == Path::new(&format!("{}.tar", arch)) {
+                        Some(e)
+                    } else {
+                        None
+                    })
+                }
+                .boxed()
+            })
+            .try_next()
+            .await?
+        {
+            Ok(Self::MultiArch(image))
         } else {
-            Ok(Self::SingleArch(rdr))
+            Err(Error::new(
+                eyre!("Docker image section does not contain tarball for architecture"),
+                ErrorKind::ParseS9pk,
+            ))
         }
     }
 }

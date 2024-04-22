@@ -28,3 +28,5 @@ secrets.db
 /dpkg-workdir
 /compiled.tar
 /compiled-*.tar
+/firmware
+/tmp

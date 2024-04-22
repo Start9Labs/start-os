@@ -1,6 +1,5 @@
 use std::path::Path;
 
-use async_trait::async_trait;
 use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
 use reqwest::Url;
@@ -23,7 +22,7 @@ pub async fn mount_httpdirfs(url: &Url, mountpoint: impl AsRef<Path>) -> Result<
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct HttpDirFS {
     url: Url,
 }
@@ -32,9 +31,8 @@ impl HttpDirFS {
         HttpDirFS { url }
     }
 }
-#[async_trait]
 impl FileSystem for HttpDirFS {
-    async fn mount<P: AsRef<Path> + Send + Sync>(
+    async fn mount<P: AsRef<Path> + Send>(
         &self,
         mountpoint: P,
         _mount_type: MountType,

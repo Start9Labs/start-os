@@ -6,7 +6,7 @@ if [ -n "$DPKG_MAINTSCRIPT_PACKAGE" ]; then
 	  SYSTEMCTL=deb-systemd-helper
 fi
 
-if [ -f /usr/sbin/grub-probe ]; then
+if [ -f /usr/sbin/grub-probe ] && ! [ -L /usr/sbin/grub-probe ]; then
   mv /usr/sbin/grub-probe /usr/sbin/grub-probe-default
   ln -s /usr/lib/startos/scripts/grub-probe-eos /usr/sbin/grub-probe
 fi
@@ -84,7 +84,9 @@ if cat /usr/lib/startos/ENVIRONMENT.txt | grep '(^|-)docker(-|$)'; then
     mkdir -p /etc/docker
     echo '{ "storage-driver": "overlay2" }' > /etc/docker/daemon.json
 else
-    podman network create -d bridge --subnet 172.18.0.1/24 --opt com.docker.network.bridge.name=br-start9 start9
+    if ! podman network ls | grep start9; then
+        podman network create -d bridge --subnet 172.18.0.1/24 --opt com.docker.network.bridge.name=br-start9 start9
+    fi
 fi
 mkdir -p /etc/nginx/ssl
 
@@ -110,14 +112,30 @@ echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-embassy.conf
 locale-gen en_GB en_GB.UTF-8 
 echo "locales locales/locales_to_be_generated multiselect en_GB.UTF-8 UTF-8" | debconf-set-selections
 update-locale  LANGUAGE
-rm "/etc/locale.gen"
+rm -f "/etc/locale.gen"
 dpkg-reconfigure --frontend noninteractive locales
 
-groupadd embassy
+if ! getent group | grep '^embassy:'; then
+    groupadd embassy
+fi
 
-ln -s /usr/lib/startos/scripts/dhclient-exit-hook /etc/dhcp/dhclient-exit-hooks.d/embassy
+ln -sf /usr/lib/startos/scripts/dhclient-exit-hook /etc/dhcp/dhclient-exit-hooks.d/embassy
 
 rm -f /etc/motd
 ln -sf /usr/lib/startos/motd /etc/update-motd.d/00-embassy
 chmod -x /etc/update-motd.d/*
 chmod +x /etc/update-motd.d/00-embassy
+
+# LXC
+cat /etc/subuid | grep -v '^root:' > /etc/subuid.tmp || true
+echo "root:100000:65536" >> /etc/subuid.tmp
+mv /etc/subuid.tmp /etc/subuid
+
+cat /etc/subgid | grep -v '^root:' > /etc/subgid.tmp || true
+echo "root:100000:65536" >> /etc/subgid.tmp
+mv /etc/subgid.tmp /etc/subgid
+
+cat /etc/lxc/default.conf | grep -v '^lxc\.idmap = [ug]' > /etc/lxc/default.conf.tmp || true
+echo "lxc.idmap = u 0 100000 65536" >> /etc/lxc/default.conf.tmp
+echo "lxc.idmap = g 0 100000 65536" >> /etc/lxc/default.conf.tmp
+mv /etc/lxc/default.conf.tmp /etc/lxc/default.conf

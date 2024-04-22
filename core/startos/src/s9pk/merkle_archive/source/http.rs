@@ -1,12 +1,9 @@
-use std::sync::Arc;
-
 use bytes::Bytes;
 use futures::stream::BoxStream;
 use futures::{StreamExt, TryStreamExt};
-use http::header::{ACCEPT_RANGES, RANGE};
+use reqwest::header::{ACCEPT_RANGES, CONTENT_LENGTH, RANGE};
 use reqwest::{Client, Url};
 use tokio::io::AsyncRead;
-use tokio::sync::Mutex;
 use tokio_util::io::StreamReader;
 
 use crate::prelude::*;
@@ -16,6 +13,7 @@ use crate::s9pk::merkle_archive::source::ArchiveSource;
 pub struct HttpSource {
     url: Url,
     client: Client,
+    size: Option<u64>,
     range_support: Result<
         (),
         (), // Arc<Mutex<Option<RangelessReader>>>
@@ -23,24 +21,31 @@ pub struct HttpSource {
 }
 impl HttpSource {
     pub async fn new(client: Client, url: Url) -> Result<Self, Error> {
-        let range_support = client
+        let head = client
             .head(url.clone())
             .send()
             .await
             .with_kind(ErrorKind::Network)?
             .error_for_status()
-            .with_kind(ErrorKind::Network)?
+            .with_kind(ErrorKind::Network)?;
+        let range_support = head
             .headers()
             .get(ACCEPT_RANGES)
             .and_then(|s| s.to_str().ok())
             == Some("bytes");
+        let size = head
+            .headers()
+            .get(CONTENT_LENGTH)
+            .and_then(|s| s.to_str().ok())
+            .and_then(|s| s.parse().ok());
         Ok(Self {
             url,
             client,
+            size,
             range_support: if range_support {
                 Ok(())
             } else {
-                todo!() // Err(Arc::new(Mutex::new(None)))
+                Err(()) // Err(Arc::new(Mutex::new(None)))
             },
         })
     }
@@ -48,6 +53,9 @@ impl HttpSource {
 #[async_trait::async_trait]
 impl ArchiveSource for HttpSource {
     type Reader = HttpReader;
+    async fn size(&self) -> Option<u64> {
+        self.size
+    }
     async fn fetch(&self, position: u64, size: u64) -> Result<Self::Reader, Error> {
         match self.range_support {
             Ok(_) => Ok(HttpReader::Range(StreamReader::new(if size > 0 {

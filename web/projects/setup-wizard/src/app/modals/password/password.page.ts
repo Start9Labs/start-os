@@ -31,11 +31,11 @@ export class PasswordPage {
   }
 
   async verifyPw() {
-    if (!this.target || !this.target['embassy-os'])
+    if (!this.target || !this.target.startOs)
       this.pwError = 'No recovery target' // unreachable
 
     try {
-      const passwordHash = this.target!['embassy-os']?.['password-hash'] || ''
+      const passwordHash = this.target!.startOs?.passwordHash || ''
 
       argon2.verify(passwordHash, this.password)
       this.modalController.dismiss({ password: this.password }, 'success')

@@ -4,7 +4,6 @@ use crate::prelude::*;
 use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::merkle_archive::{Entry, EntryContents};
-use crate::util::MaybeOwned;
 
 pub struct WriteQueue<'a, S> {
     next_available_position: u64,

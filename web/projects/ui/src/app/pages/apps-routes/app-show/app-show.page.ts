@@ -3,16 +3,11 @@ import { NavController } from '@ionic/angular'
 import { PatchDB } from 'patch-db-client'
 import {
   DataModel,
-  InstalledPackageDataEntry,
-  Manifest,
+  InstallingState,
   PackageDataEntry,
-  PackageState,
+  UpdatingState,
 } from 'src/app/services/patch-db/data-model'
-import {
-  PackageStatus,
-  PrimaryStatus,
-  renderPkgStatus,
-} from 'src/app/services/pkg-status-rendering.service'
+import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { map, tap } from 'rxjs/operators'
 import { ActivatedRoute, NavigationExtras } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
@@ -20,10 +15,17 @@ import { ModalService } from 'src/app/services/modal.service'
 import { DependentInfo } from 'src/app/types/dependent-info'
 import {
   DepErrorService,
-  DependencyErrorType,
   PkgDependencyErrors,
 } from 'src/app/services/dep-error.service'
 import { combineLatest } from 'rxjs'
+import {
+  getManifest,
+  isInstalled,
+  isInstalling,
+  isRestoring,
+  isUpdating,
+} from 'src/app/util/get-package-data'
+import { T } from '@start9labs/start-sdk'
 
 export interface DependencyInfo {
   id: string
@@ -35,12 +37,6 @@ export interface DependencyInfo {
   action: () => any
 }
 
-const STATES = [
-  PackageState.Installing,
-  PackageState.Updating,
-  PackageState.Restoring,
-]
-
 @Component({
   selector: 'app-show',
   templateUrl: './app-show.page.html',
@@ -50,7 +46,7 @@ export class AppShowPage {
   private readonly pkgId = getPkgId(this.route)
 
   readonly pkgPlus$ = combineLatest([
-    this.patch.watch$('package-data', this.pkgId),
+    this.patch.watch$('packageData', this.pkgId),
     this.depErrorService.getPkgDepErrors$(this.pkgId),
   ]).pipe(
     tap(([pkg, _]) => {
@@ -66,6 +62,8 @@ export class AppShowPage {
     }),
   )
 
+  isInstalled = isInstalled
+
   constructor(
     private readonly route: ActivatedRoute,
     private readonly navCtrl: NavController,
@@ -74,55 +72,45 @@ export class AppShowPage {
     private readonly depErrorService: DepErrorService,
   ) {}
 
-  isInstalled({ state }: PackageDataEntry): boolean {
-    return state === PackageState.Installed
-  }
-
-  isRunning({ primary }: PackageStatus): boolean {
-    return primary === PrimaryStatus.Running
-  }
-
-  isBackingUp({ primary }: PackageStatus): boolean {
-    return primary === PrimaryStatus.BackingUp
-  }
-
-  showProgress({ state }: PackageDataEntry): boolean {
-    return STATES.includes(state)
+  showProgress(
+    pkg: PackageDataEntry,
+  ): pkg is PackageDataEntry<InstallingState | UpdatingState> {
+    return isInstalling(pkg) || isUpdating(pkg) || isRestoring(pkg)
   }
 
   private getDepInfo(
     pkg: PackageDataEntry,
     depErrors: PkgDependencyErrors,
   ): DependencyInfo[] {
-    const pkgInstalled = pkg.installed
+    const manifest = getManifest(pkg)
 
-    if (!pkgInstalled) return []
-
-    return Object.keys(pkgInstalled['current-dependencies'])
-      .filter(id => !!pkgInstalled.manifest.dependencies[id])
-      .map(id => this.getDepValues(pkgInstalled, id, depErrors))
+    return Object.keys(pkg.currentDependencies)
+      .filter(id => !!manifest.dependencies[id])
+      .map(id => this.getDepValues(pkg, manifest, id, depErrors))
   }
 
   private getDepValues(
-    pkgInstalled: InstalledPackageDataEntry,
+    pkg: PackageDataEntry,
+    manifest: T.Manifest,
     depId: string,
     depErrors: PkgDependencyErrors,
   ): DependencyInfo {
     const { errorText, fixText, fixAction } = this.getDepErrors(
-      pkgInstalled,
+      pkg,
+      manifest,
       depId,
       depErrors,
     )
 
-    const depInfo = pkgInstalled['dependency-info'][depId]
+    const { title, icon, versionSpec } = pkg.currentDependencies[depId]
 
     return {
       id: depId,
-      version: pkgInstalled.manifest.dependencies[depId].version, // do we want this version range?
-      title: depInfo?.title || depId,
-      icon: depInfo?.icon || '',
+      version: versionSpec,
+      title,
+      icon,
       errorText: errorText
-        ? `${errorText}. ${pkgInstalled.manifest.title} will not work as expected.`
+        ? `${errorText}. ${manifest.title} will not work as expected.`
         : '',
       actionText: fixText || 'View',
       action:
@@ -131,11 +119,11 @@ export class AppShowPage {
   }
 
   private getDepErrors(
-    pkgInstalled: InstalledPackageDataEntry,
+    pkg: PackageDataEntry,
+    manifest: T.Manifest,
     depId: string,
     depErrors: PkgDependencyErrors,
   ) {
-    const pkgManifest = pkgInstalled.manifest
     const depError = depErrors[depId]
 
     let errorText: string | null = null
@@ -143,24 +131,24 @@ export class AppShowPage {
     let fixAction: (() => any) | null = null
 
     if (depError) {
-      if (depError.type === DependencyErrorType.NotInstalled) {
+      if (depError.type === 'notInstalled') {
         errorText = 'Not installed'
         fixText = 'Install'
-        fixAction = () => this.fixDep(pkgManifest, 'install', depId)
-      } else if (depError.type === DependencyErrorType.IncorrectVersion) {
+        fixAction = () => this.fixDep(pkg, manifest, 'install', depId)
+      } else if (depError.type === 'incorrectVersion') {
         errorText = 'Incorrect version'
         fixText = 'Update'
-        fixAction = () => this.fixDep(pkgManifest, 'update', depId)
-      } else if (depError.type === DependencyErrorType.ConfigUnsatisfied) {
+        fixAction = () => this.fixDep(pkg, manifest, 'update', depId)
+      } else if (depError.type === 'configUnsatisfied') {
         errorText = 'Config not satisfied'
         fixText = 'Auto config'
-        fixAction = () => this.fixDep(pkgManifest, 'configure', depId)
-      } else if (depError.type === DependencyErrorType.NotRunning) {
+        fixAction = () => this.fixDep(pkg, manifest, 'configure', depId)
+      } else if (depError.type === 'notRunning') {
         errorText = 'Not running'
         fixText = 'Start'
-      } else if (depError.type === DependencyErrorType.HealthChecksFailed) {
+      } else if (depError.type === 'healthChecksFailed') {
         errorText = 'Required health check not passing'
-      } else if (depError.type === DependencyErrorType.Transitive) {
+      } else if (depError.type === 'transitive') {
         errorText = 'Dependency has a dependency issue'
       }
     }
@@ -173,29 +161,29 @@ export class AppShowPage {
   }
 
   private async fixDep(
-    pkgManifest: Manifest,
+    pkg: PackageDataEntry,
+    pkgManifest: T.Manifest,
     action: 'install' | 'update' | 'configure',
     id: string,
   ): Promise<void> {
     switch (action) {
       case 'install':
       case 'update':
-        return this.installDep(pkgManifest, id)
+        return this.installDep(pkg, pkgManifest, id)
       case 'configure':
         return this.configureDep(pkgManifest, id)
     }
   }
 
   private async installDep(
-    pkgManifest: Manifest,
+    pkg: PackageDataEntry,
+    pkgManifest: T.Manifest,
     depId: string,
   ): Promise<void> {
-    const version = pkgManifest.dependencies[depId].version
-
     const dependentInfo: DependentInfo = {
       id: pkgManifest.id,
       title: pkgManifest.title,
-      version,
+      version: pkg.currentDependencies[depId].versionSpec,
     }
     const navigationExtras: NavigationExtras = {
       state: { dependentInfo },
@@ -208,7 +196,7 @@ export class AppShowPage {
   }
 
   private async configureDep(
-    pkgManifest: Manifest,
+    pkgManifest: T.Manifest,
     dependencyId: string,
   ): Promise<void> {
     const dependentInfo: DependentInfo = {

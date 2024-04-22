@@ -37,11 +37,10 @@ export class ServerShowPage {
   manageClicks = 0
   powerClicks = 0
 
-  readonly server$ = this.patch.watch$('server-info')
+  readonly server$ = this.patch.watch$('serverInfo')
   readonly showUpdate$ = this.eosService.showUpdate$
   readonly showDiskRepair$ = this.ClientStorageService.showDiskRepair$
-
-  readonly isTorHttp = this.config.isTorHttp()
+  readonly wifiConnected$ = this.patch.watch$('serverInfo', 'wifi', 'selected')
 
   constructor(
     private readonly alertCtrl: AlertController,
@@ -143,7 +142,7 @@ export class ServerShowPage {
     }
 
     // confirm current password is correct
-    const { 'password-hash': passwordHash } = await getServerInfo(this.patch)
+    const { passwordHash } = await getServerInfo(this.patch)
     try {
       argon2.verify(passwordHash, value.currPass)
     } catch (e) {
@@ -162,8 +161,8 @@ export class ServerShowPage {
 
     try {
       await this.embassyApi.resetPassword({
-        'old-password': value.currPass,
-        'new-password': value.newPass,
+        oldPassword: value.currPass,
+        newPassword: value.newPass,
       })
       const toast = await this.toastCtrl.create({
         header: 'Password changed!',
@@ -176,6 +175,73 @@ export class ServerShowPage {
     } catch (e: any) {
       this.errToast.present(e)
       return false
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  async presentAlertResetTor() {
+    const isTor = this.config.isTor()
+    const shared =
+      'Optionally wipe state to forcibly acquire new guard nodes. It is recommended to try without wiping state first.'
+    const alert = await this.alertCtrl.create({
+      header: isTor ? 'Warning' : 'Confirm',
+      message: isTor
+        ? `You are currently connected over Tor. If you reset the Tor daemon, you will loose connectivity until it comes back online.<br/><br/>${shared}`
+        : `Reset Tor?<br/><br/>${shared}`,
+      inputs: [
+        {
+          label: 'Wipe state',
+          type: 'checkbox',
+          value: 'wipe',
+        },
+      ],
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Reset',
+          handler: (value: string[]) => {
+            this.resetTor(value.some(v => v === 'wipe'))
+          },
+          cssClass: 'enter-click',
+        },
+      ],
+      cssClass: isTor ? 'alert-warning-message' : '',
+    })
+    await alert.present()
+  }
+
+  private async resetTor(wipeState: boolean) {
+    const loader = await this.loadingCtrl.create({
+      message: 'Resetting Tor...',
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.resetTor({
+        wipeState: wipeState,
+        reason: 'User triggered',
+      })
+      const toast = await this.toastCtrl.create({
+        header: 'Tor reset in progress',
+        position: 'bottom',
+        duration: 4000,
+        buttons: [
+          {
+            side: 'start',
+            icon: 'close',
+            handler: () => {
+              return true
+            },
+          },
+        ],
+      })
+      await toast.present()
+    } catch (e: any) {
+      this.errToast.present(e)
     } finally {
       loader.dismiss()
     }
@@ -303,11 +369,6 @@ export class ServerShowPage {
       cssClass: 'alert-warning-message',
     })
     await alert.present()
-  }
-
-  async launchHttps() {
-    const { 'tor-address': torAddress } = await getServerInfo(this.patch)
-    this.windowRef.open(torAddress, '_self')
   }
 
   addClick(title: string) {
@@ -493,7 +554,7 @@ export class ServerShowPage {
       },
       {
         title: 'WiFi',
-        description: 'Add or remove WiFi networks',
+        description: 'WiFi is deprecated. Click to learn more.',
         icon: 'wifi',
         action: () =>
           this.navCtrl.navigateForward(['wifi'], { relativeTo: this.route }),
@@ -520,14 +581,11 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
-        title: 'Experimental Features',
-        description: 'Try out new and potentially unstable new features',
-        icon: 'flask-outline',
-        action: () =>
-          this.navCtrl.navigateForward(['experimental-features'], {
-            relativeTo: this.route,
-          }),
-        detail: true,
+        title: 'Reset Tor',
+        description: 'May help resolve Tor connectivity issues.',
+        icon: 'reload-circle-outline',
+        action: () => this.presentAlertResetTor(),
+        detail: false,
         disabled$: of(false),
       },
     ],

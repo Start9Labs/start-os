@@ -1,16 +1,18 @@
 use base64::Engine;
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use reqwest::{StatusCode, Url};
-use rpc_toolkit::command;
+use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use ts_rs::TS;
 
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::version::VersionT;
 use crate::{Error, ResultExt};
 
-#[command(subcommands(get))]
-pub fn marketplace() -> Result<(), Error> {
-    Ok(())
+pub fn marketplace() -> ParentHandler {
+    ParentHandler::new().subcommand("get", from_fn_async(get).with_remote_cli::<CliContext>())
 }
 
 pub fn with_query_params(ctx: RpcContext, mut url: Url) -> Url {
@@ -35,8 +37,15 @@ pub fn with_query_params(ctx: RpcContext, mut url: Url) -> Url {
     url
 }
 
-#[command]
-pub async fn get(#[context] ctx: RpcContext, #[arg] url: Url) -> Result<Value, Error> {
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct GetParams {
+    #[ts(type = "string")]
+    url: Url,
+}
+
+pub async fn get(ctx: RpcContext, GetParams { url }: GetParams) -> Result<Value, Error> {
     let mut response = ctx
         .client
         .get(with_query_params(ctx.clone(), url))

@@ -8,12 +8,8 @@ official StartOS images, you can use the `run-local-build.sh` helper script:
 
 ```bash
 # Prerequisites
-sudo apt-get install -y debspawn
+sudo apt-get install -y debspawn binfmt-support
 sudo mkdir -p /etc/debspawn/ && echo "AllowUnsafePermissions=true" | sudo tee /etc/debspawn/global.toml
-
-# Get dpkg
-mkdir -p overlays/startos/root
-wget -O overlays/startos/root/startos_0.3.x-1_amd64.deb <dpkg_url>
 
 # Build image
 ./run-local-build.sh

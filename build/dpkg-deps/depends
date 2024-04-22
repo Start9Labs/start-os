@@ -20,12 +20,12 @@ httpdirfs
 iotop
 iw
 jq
-libavahi-client3
 libyajl2
 linux-cpupower
 lm-sensors
 lshw
 lvm2
+lxc
 magic-wormhole
 man-db
 ncdu
@@ -41,6 +41,7 @@ qemu-guest-agent
 rsync
 samba-common-bin
 smartmontools
+socat
 sqlite3
 squashfs-tools
 sudo

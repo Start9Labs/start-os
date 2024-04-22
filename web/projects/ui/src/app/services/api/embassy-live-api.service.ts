@@ -158,7 +158,7 @@ export class LiveApiService extends ApiService {
 
   async updateServer(url?: string): Promise<RR.UpdateServerRes> {
     const params = {
-      'marketplace-url': url || this.config.marketplace.start9,
+      marketplaceUrl: url || this.config.marketplace.start9,
     }
     return this.rpcRequest({ method: 'server.update', params })
   }
@@ -189,10 +189,6 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'net.tor.reset', params })
   }
 
-  async toggleZram(params: RR.ToggleZramReq): Promise<RR.ToggleZramRes> {
-    return this.rpcRequest({ method: 'server.experimental.zram', params })
-  }
-
   // marketplace URLs
 
   async marketplaceProxy<T>(
@@ -209,7 +205,7 @@ export class LiveApiService extends ApiService {
 
   async getEos(): Promise<RR.GetMarketplaceEosRes> {
     const { id } = await getServerInfo(this.patch)
-    const qp: RR.GetMarketplaceEosReq = { 'server-id': id }
+    const qp: RR.GetMarketplaceEosReq = { serverId: id }
 
     return this.marketplaceProxy(
       '/eos/v0/latest',

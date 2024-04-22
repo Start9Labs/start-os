@@ -1,4 +1,4 @@
-import { Component } from '@angular/core'
+import { Component, Inject } from '@angular/core'
 import {
   ActionSheetController,
   AlertController,
@@ -14,6 +14,7 @@ import { RR } from 'src/app/services/api/api.types'
 import { pauseFor, ErrorToastService } from '@start9labs/shared'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { ConfigService } from 'src/app/services/config.service'
+import { WINDOW } from '@ng-web-apis/common'
 
 @Component({
   selector: 'wifi',
@@ -36,10 +37,19 @@ export class WifiPage {
     private readonly errToast: ErrorToastService,
     private readonly actionCtrl: ActionSheetController,
     private readonly config: ConfigService,
+    @Inject(WINDOW) private readonly windowRef: Window,
   ) {}
 
   async ngOnInit() {
     await this.getWifi()
+  }
+
+  async openDocs() {
+    this.windowRef.open(
+      'https://docs.start9.com/user-manual/wifi.html',
+      '_blank',
+      'noreferrer',
+    )
   }
 
   async getWifi(timeout: number = 0): Promise<void> {

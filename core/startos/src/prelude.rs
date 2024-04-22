@@ -1,4 +1,5 @@
 pub use color_eyre::eyre::eyre;
+pub use lazy_format::lazy_format;
 pub use models::OptionExt;
 pub use tracing::instrument;
 

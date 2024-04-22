@@ -8,6 +8,7 @@ import { BackupDrivesComponentModule } from 'src/app/components/backup-drives/ba
 import { SharedPipesModule } from '@start9labs/shared'
 import { BackupSelectPageModule } from 'src/app/modals/backup-select/backup-select.module'
 import { PkgMainStatusPipe } from './backing-up/backing-up.component'
+import { UiPipeModule } from 'src/app/pipes/ui/ui.module'
 
 const routes: Routes = [
   {
@@ -24,6 +25,7 @@ const routes: Routes = [
     SharedPipesModule,
     BackupDrivesComponentModule,
     BackupSelectPageModule,
+    UiPipeModule,
   ],
   declarations: [ServerBackupPage, BackingUpComponent, PkgMainStatusPipe],
 })

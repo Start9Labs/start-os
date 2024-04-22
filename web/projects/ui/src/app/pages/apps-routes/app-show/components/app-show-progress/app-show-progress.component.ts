@@ -1,9 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import {
-  InstallProgress,
-  PackageDataEntry,
-} from 'src/app/services/patch-db/data-model'
-import { ProgressData } from 'src/app/types/progress-data'
+import { T } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'app-show-progress',
@@ -13,26 +9,5 @@ import { ProgressData } from 'src/app/types/progress-data'
 })
 export class AppShowProgressComponent {
   @Input()
-  pkg!: PackageDataEntry
-
-  @Input()
-  progressData!: ProgressData
-
-  get unpackingBuffer(): number {
-    return this.progressData.validateProgress === 100 &&
-      !this.progressData.unpackProgress
-      ? 0
-      : 1
-  }
-
-  get validationBuffer(): number {
-    return this.progressData.downloadProgress === 100 &&
-      !this.progressData.validateProgress
-      ? 0
-      : 1
-  }
-
-  getColor(action: keyof InstallProgress): string {
-    return this.pkg['install-progress']?.[action] ? 'success' : 'secondary'
-  }
+  phases!: T.FullProgress['phases']
 }
