@@ -1342,95 +1342,54 @@ impl ValueParserFactory for CheckDependenciesResult {
     }
 }
 
-async fn check_dependencies(ctx: EffectContext) -> Result<Vec<CheckDependenciesResult>, Error> {
-    todo!()
-    // let ctx = ctx.deref()?;
-    // let id = &ctx.id;
-    // let service_guard = ctx.ctx.services.get(id).await;
-    // let service = service_guard.as_ref().or_not_found(id)?;
-    // let mut deps = BTreeMap::new();
-    // for dependency in dependencies {
-    //     let (dep_id, kind, registry_url, version_spec) = match dependency {
-    //         DependencyRequirement::Exists {
-    //             id,
-    //             registry_url,
-    //             version_spec,
-    //         } => (
-    //             id,
-    //             CurrentDependencyKind::Exists,
-    //             registry_url,
-    //             version_spec,
-    //         ),
-    //         DependencyRequirement::Running {
-    //             id,
-    //             health_checks,
-    //             registry_url,
-    //             version_spec,
-    //         } => (
-    //             id,
-    //             CurrentDependencyKind::Running { health_checks },
-    //             registry_url,
-    //             version_spec,
-    //         ),
-    //     };
-    //     let (icon, title) = match async {
-    //         let remote_s9pk = S9pk::deserialize(
-    //             &HttpSource::new(
-    //                 ctx.ctx.client.clone(),
-    //                 registry_url
-    //                     .join(&format!("package/v2/{}.s9pk?spec={}", dep_id, version_spec))?,
-    //             )
-    //             .await?,
-    //         )
-    //         .await?;
-
-    //         let icon = remote_s9pk.icon_data_url().await?;
-
-    //         Ok::<_, Error>((icon, remote_s9pk.as_manifest().title.clone()))
-    //     }
-    //     .await
-    //     {
-    //         Ok(a) => a,
-    //         Err(e) => {
-    //             tracing::error!("Error fetching remote s9pk: {e}");
-    //             tracing::debug!("{e:?}");
-    //             (
-    //                 DataUrl::from_slice("image/png", include_bytes!("../install/package-icon.png")),
-    //                 dep_id.to_string(),
-    //             )
-    //         }
-    //     };
-    //     let config_satisfied = if let Some(dep_service) = &*ctx.ctx.services.get(&dep_id).await {
-    //         service
-    //             .dependency_config(dep_id.clone(), dep_service.get_config().await?.config)
-    //             .await?
-    //             .is_none()
-    //     } else {
-    //         true
-    //     };
-    //     deps.insert(
-    //         dep_id,
-    //         CurrentDependencyInfo {
-    //             kind,
-    //             registry_url,
-    //             version_spec,
-    //             icon,
-    //             title,
-    //             config_satisfied,
-    //         },
-    //     );
-    // }
-    // ctx.ctx
-    //     .db
-    //     .mutate(|db| {
-    //         db.as_public_mut()
-    //             .as_package_data_mut()
-    //             .as_idx_mut(id)
-    //             .or_not_found(id)?
-    //             .as_current_dependencies_mut()
-    //             .ser(&CurrentDependencies(deps))
-    //     })
-    //     .await
+async fn check_dependencies(
+    ctx: EffectContext,
+    CheckDependenciesParam { package_ids }: CheckDependenciesParam,
+) -> Result<Vec<CheckDependenciesResult>, Error> {
+    let ctx = ctx.deref()?;
+    let mut results = Vec::with_capacity(package_ids.len());
+    let db = ctx.ctx.db.peek().await;
+    for package_id in package_ids {
+        let Some(package) = db.as_public().as_package_data().as_idx(&package_id) else {
+            results.push(CheckDependenciesResult {
+                package_id,
+                is_installed: false,
+                is_running: false,
+                health_checks: vec![],
+            });
+            continue;
+        };
+        if package.as_state_info().as_installing_info().is_none() {
+            results.push(CheckDependenciesResult {
+                package_id,
+                is_installed: false,
+                is_running: false,
+                health_checks: vec![],
+            });
+            continue;
+        }
+        let is_installed = true;
+        let status = package.as_status().as_main().de()?;
+        let is_running = if is_installed {
+            status.running()
+        } else {
+            false
+        };
+        let health_checks = status
+            .health()
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(_, val)| val)
+            .collect();
+        results.push(CheckDependenciesResult {
+            package_id,
+            is_installed,
+            is_running,
+            health_checks,
+        });
+    }
+    Ok(results)
 }
 
 #[test]
