@@ -84,10 +84,19 @@ export class DockerProcedureContainer {
     }
   }
 
-  async execSpawn(commands: string[]) {
+  async execFail(commands: string[], timeoutMs: number | null) {
     try {
-      const spawned = await this.overlay.spawn(commands)
-      return spawned
+      const res = await this.overlay.exec(commands, {}, timeoutMs)
+      if (res.exitCode !== 0) {
+        const codeOrSignal =
+          res.exitCode !== null
+            ? `code ${res.exitCode}`
+            : `signal ${res.exitSignal}`
+        throw new Error(
+          `Process exited with ${codeOrSignal}: ${res.stderr.toString()}`,
+        )
+      }
+      return res
     } finally {
       await this.overlay.destroy()
     }
