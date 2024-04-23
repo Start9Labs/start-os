@@ -22,6 +22,7 @@ use url::Url;
 
 use crate::db::model::package::{
     ActionMetadata, CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind,
+    ManifestPreference,
 };
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
@@ -1277,25 +1278,18 @@ async fn get_dependencies(ctx: EffectContext) -> Result<Vec<DependencyRequiremen
 #[command(rename_all = "camelCase")]
 #[ts(export)]
 struct CheckDependenciesParam {
-    #[ts(type = "string[]")]
-    package_ids: Vec<PackageId>,
+    package_ids: Option<Vec<PackageId>>,
 }
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[command(rename_all = "camelCase")]
 #[ts(export)]
 struct CheckDependenciesResult {
-    #[ts(type = "string")]
     package_id: PackageId,
     is_installed: bool,
     is_running: bool,
     health_checks: Vec<HealthCheckResult>,
-}
-impl ValueParserFactory for CheckDependenciesResult {
-    type Parser = FromStrParser<Self>;
-    fn value_parser() -> Self::Parser {
-        FromStrParser::new()
-    }
+    #[ts(type = "string | null")]
+    version: Option<emver::Version>,
 }
 
 async fn check_dependencies(
@@ -1303,24 +1297,49 @@ async fn check_dependencies(
     CheckDependenciesParam { package_ids }: CheckDependenciesParam,
 ) -> Result<Vec<CheckDependenciesResult>, Error> {
     let ctx = ctx.deref()?;
-    let mut results = Vec::with_capacity(package_ids.len());
     let db = ctx.ctx.db.peek().await;
-    for package_id in package_ids {
+    let current_dependencies = db
+        .as_public()
+        .as_package_data()
+        .as_idx(&ctx.id)
+        .or_not_found(&ctx.id)?
+        .as_current_dependencies()
+        .de()?;
+    let package_ids: Vec<_> = package_ids
+        .unwrap_or_else(|| current_dependencies.0.keys().cloned().collect())
+        .into_iter()
+        .filter_map(|x| {
+            let info = current_dependencies.0.get(&x)?;
+            Some((x, info))
+        })
+        .collect();
+    let mut results = Vec::with_capacity(package_ids.len());
+
+    for (package_id, dependency_info) in package_ids {
         let Some(package) = db.as_public().as_package_data().as_idx(&package_id) else {
             results.push(CheckDependenciesResult {
                 package_id,
                 is_installed: false,
                 is_running: false,
                 health_checks: vec![],
+                version: None,
             });
             continue;
         };
-        if package.as_state_info().as_installing_info().is_none() {
+        let installed_version = package
+            .as_state_info()
+            .as_manifest(ManifestPreference::New)
+            .as_version()
+            .de()?
+            .into_version();
+        let version = Some(installed_version.clone());
+        if !installed_version.satisfies(&dependency_info.version_spec) {
             results.push(CheckDependenciesResult {
                 package_id,
                 is_installed: false,
                 is_running: false,
                 health_checks: vec![],
+                version,
             });
             continue;
         }
@@ -1343,6 +1362,7 @@ async fn check_dependencies(
             is_installed,
             is_running,
             health_checks,
+            version,
         });
     }
     Ok(results)

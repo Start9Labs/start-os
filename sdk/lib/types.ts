@@ -491,7 +491,7 @@ export type Effects = {
    * of the service and what the current health checks are.
    */
   checkDependencies(options: {
-    packageIds: PackageId[]
+    packageIds: PackageId[] | null
   }): Promise<CheckDependencyResult[]>
   /** Exists could be useful during the runtime to know if some service exists, option dep */
   exists(options: { packageId: PackageId }): Promise<boolean>
@@ -601,5 +601,6 @@ export type CheckDependencyResult = {
   isInstalled: boolean
   isRunning: boolean
   healthChecks: SetHealth[]
+  version: string | null
 }
 export type CheckResults = CheckDependencyResult[]
