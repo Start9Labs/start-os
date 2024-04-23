@@ -86,3 +86,17 @@ impl Model<HostInfo> {
             }) // TODO: handle host kind change
     }
 }
+
+impl HostInfo {
+    pub fn get_host_primary(&self, host_id: &HostId) -> Option<HostAddress> {
+        match self.0.get(&host_id) {
+            Some(h) => {
+                match h.primary {
+                    Some(ha) => Some(ha),
+                    None => None,
+                }
+            }
+            None => None,
+        }
+    }
+}

@@ -25,6 +25,7 @@ use crate::db::model::package::{
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
+use crate::net::host::address::HostAddress;
 use crate::net::host::binding::BindOptions;
 use crate::net::host::HostKind;
 use crate::prelude::*;
@@ -230,6 +231,7 @@ struct GetPrimaryUrlParams {
     package_id: Option<PackageId>,
     service_interface_id: String,
     callback: Callback,
+    host_id: HostId,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
@@ -343,8 +345,31 @@ async fn export_service_interface(
 async fn get_primary_url(
     context: EffectContext,
     data: GetPrimaryUrlParams,
-) -> Result<Value, Error> {
-    todo!()
+) -> Result<HostAddress, Error> {
+    let context = context.deref()?;
+    let package_id = context.id.clone();
+
+    let db_model = context
+    .ctx
+    .db
+    .peek()
+    .await;
+
+let pkg_data_model = db_model
+    .as_public()
+    .as_package_data()
+    .as_idx(&package_id)
+    .or_not_found(&package_id)?;
+
+    let host = pkg_data_model
+        .de()?
+        .hosts
+        .get_host_primary(&data.host_id);
+    
+    match host {
+        Some(host_address) => Ok(host_address),
+        None => Err(Error::new(eyre!("Primary Url not found for {}", data.host_id), crate::ErrorKind::NotFound)),
+    }
 }
 async fn list_service_interfaces(
     context: EffectContext,
