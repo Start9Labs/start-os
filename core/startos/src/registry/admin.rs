@@ -78,7 +78,7 @@ async fn do_upload(
     let req = httpc
         .post(url)
         .header(header::ACCEPT, "text/plain")
-        .query(&["id", pkg_id])
+        .query(&[("id", pkg_id)])
         .basic_auth(user, Some(pass))
         .body(body)
         .build()?;
