@@ -13,13 +13,16 @@ use crate::context::{CliContext, InstallContext};
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::efivarfs::EfiVarFs;
+use crate::disk::mount::filesystem::overlayfs::OverlayFs;
 use crate::disk::mount::filesystem::{MountType, ReadWrite};
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::disk::util::{DiskInfo, PartitionTable};
 use crate::disk::OsPartitionInfo;
 use crate::net::utils::find_eth_iface;
+use crate::prelude::*;
+use crate::util::io::TmpDir;
 use crate::util::serde::IoFormat;
-use crate::util::Invoke;
+use crate::util::{Apply, Invoke};
 use crate::ARCH;
 
 mod gpt;
@@ -215,43 +218,60 @@ pub async fn execute(
         .arg("rootfs")
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
-
     let rootfs = TmpMountGuard::mount(&BlockDev::new(&part_info.root), ReadWrite).await?;
+
+    let config_path = rootfs.path().join("config");
+
     if tokio::fs::metadata("/tmp/config.bak").await.is_ok() {
+        if tokio::fs::metadata(&config_path).await.is_ok() {
+            tokio::fs::remove_dir_all(&config_path).await?;
+        }
         Command::new("cp")
             .arg("-r")
             .arg("/tmp/config.bak")
-            .arg(rootfs.path().join("config"))
+            .arg(&config_path)
             .invoke(crate::ErrorKind::Filesystem)
             .await?;
     } else {
-        tokio::fs::create_dir(rootfs.path().join("config")).await?;
+        tokio::fs::create_dir_all(&config_path).await?;
     }
-    tokio::fs::create_dir(rootfs.path().join("next")).await?;
-    let current = rootfs.path().join("current");
-    tokio::fs::create_dir(&current).await?;
 
-    tokio::fs::create_dir(current.join("boot")).await?;
-    let boot = MountGuard::mount(
+    let images_path = rootfs.path().join("images");
+    tokio::fs::create_dir_all(&images_path).await?;
+    let image_filename = Command::new("b3sum") // TODO: use blake3 lib
+        .arg("/run/live/medium/live/filesystem.squashfs")
+        .invoke(crate::ErrorKind::DiskManagement)
+        .await?
+        .apply(|mut out| {
+            out.truncate(32);
+            String::from_utf8(out).map(|s| s + ".squashfs")
+        })?;
+    let image_path = images_path.join(&image_filename);
+    tokio::fs::copy("/run/live/medium/live/filesystem.squashfs", &image_path).await?;
+    // TODO: check hash of fs
+    let unsquash_target = TmpDir::new().await?;
+    let bootfs = MountGuard::mount(
         &BlockDev::new(&part_info.boot),
-        current.join("boot"),
+        unsquash_target.join("boot"),
         ReadWrite,
     )
     .await?;
-
-    let efi = if let Some(efi) = &part_info.efi {
-        Some(MountGuard::mount(&BlockDev::new(efi), current.join("boot/efi"), ReadWrite).await?)
-    } else {
-        None
-    };
-
     Command::new("unsquashfs")
         .arg("-n")
         .arg("-f")
         .arg("-d")
-        .arg(&current)
+        .arg(&*unsquash_target)
         .arg("/run/live/medium/live/filesystem.squashfs")
+        .arg("boot")
         .invoke(crate::ErrorKind::Filesystem)
+        .await?;
+    bootfs.unmount(true).await?;
+    unsquash_target.delete().await?;
+    Command::new("ln")
+        .arg("-rsf")
+        .arg(&image_path)
+        .arg(config_path.join("current.squashfs"))
+        .invoke(ErrorKind::DiskManagement)
         .await?;
 
     tokio::fs::write(
@@ -264,8 +284,55 @@ pub async fn execute(
     )
     .await?;
 
+    let lower = TmpMountGuard::mount(&BlockDev::new(&image_path), MountType::ReadOnly).await?;
+    let work = config_path.join("work");
+    let upper = config_path.join("overlay");
+    let overlay =
+        TmpMountGuard::mount(&OverlayFs::new(&lower.path(), &upper, &work), ReadWrite).await?;
+
+    let boot = MountGuard::mount(
+        &BlockDev::new(&part_info.boot),
+        overlay.path().join("boot"),
+        ReadWrite,
+    )
+    .await?;
+    let efi = if let Some(efi) = &part_info.efi {
+        Some(
+            MountGuard::mount(
+                &BlockDev::new(efi),
+                overlay.path().join("boot/efi"),
+                ReadWrite,
+            )
+            .await?,
+        )
+    } else {
+        None
+    };
+    let start_os_fs = MountGuard::mount(
+        &Bind::new(rootfs.path()),
+        overlay.path().join("media/startos/root"),
+        MountType::ReadOnly,
+    )
+    .await?;
+    let dev = MountGuard::mount(&Bind::new("/dev"), overlay.path().join("dev"), ReadWrite).await?;
+    let proc =
+        MountGuard::mount(&Bind::new("/proc"), overlay.path().join("proc"), ReadWrite).await?;
+    let sys = MountGuard::mount(&Bind::new("/sys"), overlay.path().join("sys"), ReadWrite).await?;
+    let efivarfs = if tokio::fs::metadata("/sys/firmware/efi").await.is_ok() {
+        Some(
+            MountGuard::mount(
+                &EfiVarFs,
+                overlay.path().join("sys/firmware/efi/efivars"),
+                ReadWrite,
+            )
+            .await?,
+        )
+    } else {
+        None
+    };
+
     tokio::fs::write(
-        current.join("etc/fstab"),
+        overlay.path().join("etc/fstab"),
         format!(
             include_str!("fstab.template"),
             boot = part_info.boot.display(),
@@ -280,42 +347,20 @@ pub async fn execute(
     .await?;
 
     Command::new("chroot")
-        .arg(&current)
+        .arg(overlay.path())
         .arg("systemd-machine-id-setup")
         .invoke(crate::ErrorKind::Systemd)
         .await?;
 
     Command::new("chroot")
-        .arg(&current)
+        .arg(overlay.path())
         .arg("ssh-keygen")
         .arg("-A")
         .invoke(crate::ErrorKind::OpenSsh)
         .await?;
 
-    let start_os_fs = MountGuard::mount(
-        &Bind::new(rootfs.path()),
-        current.join("media/embassy/embassyfs"),
-        MountType::ReadOnly,
-    )
-    .await?;
-    let dev = MountGuard::mount(&Bind::new("/dev"), current.join("dev"), ReadWrite).await?;
-    let proc = MountGuard::mount(&Bind::new("/proc"), current.join("proc"), ReadWrite).await?;
-    let sys = MountGuard::mount(&Bind::new("/sys"), current.join("sys"), ReadWrite).await?;
-    let efivarfs = if tokio::fs::metadata("/sys/firmware/efi").await.is_ok() {
-        Some(
-            MountGuard::mount(
-                &EfiVarFs,
-                current.join("sys/firmware/efi/efivars"),
-                ReadWrite,
-            )
-            .await?,
-        )
-    } else {
-        None
-    };
-
     let mut install = Command::new("chroot");
-    install.arg(&current).arg("grub-install");
+    install.arg(overlay.path()).arg("grub-install");
     if tokio::fs::metadata("/sys/firmware/efi").await.is_err() {
         install.arg("--target=i386-pc");
     } else {
@@ -331,7 +376,7 @@ pub async fn execute(
         .await?;
 
     Command::new("chroot")
-        .arg(&current)
+        .arg(overlay.path())
         .arg("update-grub2")
         .invoke(crate::ErrorKind::Grub)
         .await?;
@@ -346,7 +391,13 @@ pub async fn execute(
         efi.unmount(false).await?;
     }
     boot.unmount(false).await?;
+
+    overlay.unmount().await?;
+    tokio::fs::remove_dir_all(&work).await?;
+    lower.unmount().await?;
+
     rootfs.unmount().await?;
+
     Ok(())
 }
 

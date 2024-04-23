@@ -44,48 +44,38 @@ local_mount_root()
 
 	if [ -d /startos/images ]; then
 		if [ -h /startos/config/current.squashfs ] && [ -f /startos/config/current.squashfs ]; then
-			image=$(readlink /startos/config/current.squashfs)
+			image=$(readlink -f /startos/config/current.squashfs)
 		else
-			image=$(ls -t /startos/images/*.squashfs | head -n1)
+			image="$(ls -t1 /startos/images/*.squashfs | head -n1)"
 		fi
-
-		mkdir /lower /upper
-
-		mount -r $image /lower
-	else # backwards compatibility
-		if ! [ -d /startos/current ] && [ -d /startos/prev ]; then
-			mv /startos/prev /startos/current
+		if ! [ -f "$image" ]; then
+			>&2 echo "image $image not available to boot"
+			exit 1
 		fi
-
-		if ! [ -d /startos/current ]; then
-			mkdir /startos/current
-			for FILE in $(ls /startos); do
-				if [ "$FILE" != current ]; then
-					mv /startos/$FILE /startos/current/
-				fi
-			done
-		fi
-
-		mkdir -p /startos/config
-
+	else
 		if [ -f /startos/config/upgrade ] && [ -d /startos/next ]; then
-			mv /startos/current /startos/prev
-			mv /startos/next /startos/current
-			rm /startos/config/upgrade
+			oldroot=/startos/next
+		elif [ -d /startos/current ]; then
+			oldroot=/startos/current
+		elif [ -d /startos/prev ]; then
+			oldroot=/startos/prev
+		else
+			>&2 echo no StartOS filesystem found
+			exit 1
 		fi
-
-		if ! [ -d /startos/next ]; then
-			if [ -d /startos/prev ]; then
-				mv /startos/prev /startos/next
-			else
-				mkdir /startos/next
-			fi
-		fi
-
-		mkdir /lower /upper
-
-		mount -r --bind /startos/current /lower
+		exit 1 # TODO: install squashfs tools
+		mkdir -p /startos/images /startos/config/overlay
+		# move over machine-specific files to /startos/config/overlay
+		mksquashfs $oldroot /startos/images/old.squashfs
+		ln -rsf /startos/images/old.squashfs /startos/config/current.squashfs
+		image=$(readlink -f /startos/config/current.squashfs)
 	fi
+
+	mkdir /lower /upper
+
+	modprobe squashfs
+
+	mount -r $image /lower
 
 	modprobe overlay || insmod "/lower/lib/modules/$(uname -r)/kernel/fs/overlayfs/overlay.ko"
 
@@ -93,13 +83,19 @@ local_mount_root()
 	mount -t tmpfs tmpfs /upper
 	mkdir /upper/data /upper/work
 
+	mkdir -p /startos/config/overlay
+
 	# Mount the final overlay-root in $rootmnt
 	mount -t overlay \
-		-olowerdir=/lower,upperdir=/upper/data,workdir=/upper/work \
+		-olowerdir=/startos/config/overlay:/lower,upperdir=/upper/data,workdir=/upper/work \
 		overlay ${rootmnt}
 
 	mkdir -p ${rootmnt}/media/startos/config
 	mount --bind /startos/config ${rootmnt}/media/startos/config
 	mkdir -p ${rootmnt}/media/startos/images
 	mount --bind /startos/images ${rootmnt}/media/startos/images
+	mkdir -p ${rootmnt}/media/startos/root
+	mount -r --bind /startos ${rootmnt}/media/startos/root
+	mkdir -p ${rootmnt}/media/startos/current
+	mount -r --bind /lower ${rootmnt}/media/startos/current
 }

@@ -1,5 +1,6 @@
 avahi-daemon
 avahi-utils
+b3sum
 bash-completion
 beep
 bmon

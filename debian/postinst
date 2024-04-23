@@ -11,7 +11,7 @@ if [ -f /usr/sbin/grub-probe ] && ! [ -L /usr/sbin/grub-probe ]; then
   ln -s /usr/lib/startos/scripts/grub-probe-eos /usr/sbin/grub-probe
 fi
 
-cp /usr/lib/startos/scripts/embassy-initramfs-module /etc/initramfs-tools/scripts/embassy
+cp /usr/lib/startos/scripts/startos-initramfs-module /etc/initramfs-tools/scripts/startos
 
 if ! grep overlay /etc/initramfs-tools/modules > /dev/null; then
     echo overlay >> /etc/initramfs-tools/modules
@@ -20,7 +20,7 @@ fi
 update-initramfs -u -k all
 
 if [ -f /etc/default/grub ]; then
-    sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=embassy"' /etc/default/grub
+    sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=startos"' /etc/default/grub
     sed -i '/\(^\|#\)GRUB_DISTRIBUTOR=/c\GRUB_DISTRIBUTOR="StartOS v$(cat /usr/lib/startos/VERSION.txt)"' /etc/default/grub
 fi
 
