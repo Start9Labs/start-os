@@ -377,20 +377,17 @@ async fn list_service_interfaces(
     let context = context.deref()?;
     let package_id = context.id.clone();
 
-    let db_model = context
+    context
         .ctx
         .db
         .peek()
-        .await;
-
-    let svc_interfaces_model = db_model
-        .as_public()
-        .as_package_data()
-        .as_idx(&package_id)
+        .await
+        .into_public()
+        .into_package_data()
+        .into_idx(&package_id)
         .or_not_found(&package_id)?
-        .as_service_interfaces();
-
-    svc_interfaces_model.de()
+        .into_service_interfaces()
+        .de()
 }
 
 async fn remove_address(context: EffectContext, data: RemoveAddressParams) -> Result<Value, Error> {
