@@ -196,7 +196,7 @@ struct GetServicePortForwardParams {
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 struct ExportServiceInterfaceParams {
-    id: String,
+    id: ServiceInterfaceId,
     name: String,
     description: String,
     has_primary: bool,
@@ -325,11 +325,10 @@ async fn export_service_interface(
 ) -> Result<(), Error> {
     let context = context.deref()?;
     let package_id = context.id.clone();
-    let svc_interface_id = ServiceInterfaceId::from(Id::try_from(id)?);
-    let host_id = HostId::from(Id::try_from(address_info.host_id.clone())?);
+    let host_id = address_info.host_id.clone();
     
     let service_interface = ServiceInterface{
-        id: svc_interface_id.clone(),
+        id: id.clone(),
         name,
         description,
         has_primary,
@@ -358,7 +357,7 @@ async fn export_service_interface(
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
                 .as_service_interfaces_mut()
-                .insert(&svc_interface_id, &svc_interface_with_host_info)?;
+                .insert(&id, &svc_interface_with_host_info)?;
             Ok(())
         })
         .await?;
