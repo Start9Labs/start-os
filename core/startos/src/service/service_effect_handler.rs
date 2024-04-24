@@ -352,15 +352,14 @@ async fn export_service_interface(
         .ctx
         .db
         .mutate(|db| {
-            let model = db
+            db
                 .as_public_mut()
                 .as_package_data_mut()
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
-                .as_service_interfaces_mut();
-            model
-                .insert(&ServiceInterfaceId::from(svc_interface_id), &svc_interface_with_host_info)
-                .map(|_| ())
+                .as_service_interfaces_mut()
+                .insert(&svc_interface_id, &svc_interface_with_host_info)?;
+            Ok(())
         })
         .await?;
     Ok(())
