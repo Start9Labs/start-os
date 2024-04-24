@@ -11,7 +11,7 @@ export type CheckAllDependencies = {
 
   notInstalled: () => Promise<CheckDependencyResult[]>
 
-  errorMessages: () => Promise<{ [id: string]: SetHealth[] }>
+  healthErrors: () => Promise<{ [id: string]: SetHealth[] }>
   throwIfNotRunning: () => Promise<void>
   throwIfNotValid: () => Promise<undefined>
   throwIfNotInstalled: () => Promise<void>
@@ -36,7 +36,7 @@ export function checkAllDependencies(effects: Effects): CheckAllDependencies {
     ),
   )
 
-  const errorMessages = async () => {
+  const healthErrors = async () => {
     const results = await resultsPromise
     const dependenciesById = await dependenciesByIdPromise
     const answer: { [id: PackageId]: SetHealth[] } = {}
@@ -69,7 +69,7 @@ export function checkAllDependencies(effects: Effects): CheckAllDependencies {
   const first = <A>(x: A[]): A | undefined => x[0]
   const sinkVoid = <A>(x: A) => void 0
   const throwIfError = () =>
-    errorMessages()
+    healthErrors()
       .then(entries)
       .then(first)
       .then((x) => {
@@ -105,7 +105,7 @@ export function checkAllDependencies(effects: Effects): CheckAllDependencies {
   return {
     notRunning,
     notInstalled,
-    errorMessages,
+    healthErrors,
     throwIfNotRunning,
     throwIfNotValid,
     throwIfNotInstalled,
