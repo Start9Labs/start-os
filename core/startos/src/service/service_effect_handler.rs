@@ -358,12 +358,9 @@ async fn export_service_interface(
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
                 .as_service_interfaces_mut();
-            let mut value = model.de()?;
-            value
-                .insert(ServiceInterfaceId::from(svc_interface_id), svc_interface_with_host_info)
+            model
+                .insert(&ServiceInterfaceId::from(svc_interface_id), &svc_interface_with_host_info)
                 .map(|_| ())
-                .unwrap_or_default();
-            model.ser(&value)
         })
         .await?;
     Ok(())
@@ -394,10 +391,7 @@ async fn list_service_interfaces(
         .or_not_found(&package_id)?
         .as_service_interfaces();
 
-    match svc_interfaces_model.de() {
-        Ok(svc_interfaces) => Ok(svc_interfaces),
-        Err(e) => Err(e),
-    }
+    svc_interfaces_model.de()
 }
 
 async fn remove_address(context: EffectContext, data: RemoveAddressParams) -> Result<Value, Error> {
