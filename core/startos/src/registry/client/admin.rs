@@ -9,7 +9,6 @@ use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::{header, Body, Client, Url};
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::s9pk::S9pk;

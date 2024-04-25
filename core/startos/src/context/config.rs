@@ -107,6 +107,8 @@ pub struct ServerConfig {
     pub revision_cache_size: Option<usize>,
     #[arg(short = 'd', long = "datadir")]
     pub datadir: Option<PathBuf>,
+    #[arg(long = "registry-db")]
+    pub registry_db: Option<PathBuf>,
     #[arg(long = "disable-encryption")]
     pub disable_encryption: Option<bool>,
 }

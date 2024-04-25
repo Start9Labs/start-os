@@ -43,10 +43,10 @@ local_mount_root()
 	fi
 
 	if [ -d /startos/images ]; then
-		if [ -h /startos/config/current.squashfs ] && [ -f /startos/config/current.squashfs ]; then
-			image=$(readlink -f /startos/config/current.squashfs)
+		if [ -h /startos/config/current.rootfs ] && [ -e /startos/config/current.rootfs ]; then
+			image=$(readlink -f /startos/config/current.rootfs)
 		else
-			image="$(ls -t1 /startos/images/*.squashfs | head -n1)"
+			image="$(ls -t1 /startos/images/*.rootfs | head -n1)"
 		fi
 		if ! [ -f "$image" ]; then
 			>&2 echo "image $image not available to boot"
@@ -63,19 +63,32 @@ local_mount_root()
 			>&2 echo no StartOS filesystem found
 			exit 1
 		fi
-		exit 1 # TODO: install squashfs tools
-		mkdir -p /startos/images /startos/config/overlay
-		# move over machine-specific files to /startos/config/overlay
-		mksquashfs $oldroot /startos/images/old.squashfs
-		ln -rsf /startos/images/old.squashfs /startos/config/current.squashfs
-		image=$(readlink -f /startos/config/current.squashfs)
+
+		mkdir -p /startos/config/overlay/etc
+		mv $oldroot/etc/fstab /startos/config/overlay/etc/fstab
+		mv $oldroot/etc/machine-id /startos/config/overlay/etc/machine-id
+		mv $oldroot/etc/ssh /startos/config/overlay/etc/ssh
+
+		mkdir -p /startos/images
+		mv $oldroot /startos/images/legacy.rootfs
+
+		rm -rf /startos/next /startos/current /startos/prev
+
+		ln -rsf /startos/images/old.squashfs /startos/config/current.rootfs
+		image=$(readlink -f /startos/config/current.rootfs)
 	fi
 
 	mkdir /lower /upper
 
-	modprobe squashfs
-
-	mount -r $image /lower
+	if [ -d "$image" ]; then
+		mount -r --bind $image /lower
+	elif [ -f "$image" ]; then
+		modprobe squashfs
+		mount -r $image /lower
+	else
+		>&2 echo "not a regular file or directory: $image"
+		exit 1
+	fi
 
 	modprobe overlay || insmod "/lower/lib/modules/$(uname -r)/kernel/fs/overlayfs/overlay.ko"
 

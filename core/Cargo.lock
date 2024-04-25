@@ -2653,6 +2653,7 @@ dependencies = [
 name = "models"
 version = "0.1.0"
 dependencies = [
+ "axum 0.7.5",
  "base64 0.21.5",
  "color-eyre",
  "ed25519-dalek 2.1.1",

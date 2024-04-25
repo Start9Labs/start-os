@@ -1,5 +1,6 @@
 use std::fmt::{Debug, Display};
 
+use axum::http::StatusCode;
 use color_eyre::eyre::eyre;
 use num_enum::TryFromPrimitive;
 use patch_db::Revision;
@@ -205,6 +206,13 @@ impl Error {
             kind: self.kind,
             revision: self.revision.clone(),
         }
+    }
+}
+impl axum::response::IntoResponse for Error {
+    fn into_response(self) -> axum::response::Response {
+        let mut res = axum::Json(RpcError::from(self)).into_response();
+        *res.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+        res
     }
 }
 impl From<std::convert::Infallible> for Error {

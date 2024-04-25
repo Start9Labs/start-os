@@ -244,7 +244,7 @@ pub async fn execute(
         .await?
         .apply(|mut out| {
             out.truncate(32);
-            String::from_utf8(out).map(|s| s + ".squashfs")
+            String::from_utf8(out).map(|s| s + ".rootfs")
         })?;
     let image_path = images_path.join(&image_filename);
     tokio::fs::copy("/run/live/medium/live/filesystem.squashfs", &image_path).await?;
@@ -270,7 +270,7 @@ pub async fn execute(
     Command::new("ln")
         .arg("-rsf")
         .arg(&image_path)
-        .arg(config_path.join("current.squashfs"))
+        .arg(config_path.join("current.rootfs"))
         .invoke(ErrorKind::DiskManagement)
         .await?;
 

@@ -12,6 +12,7 @@ use tracing::instrument;
 use crate::account::AccountInfo;
 use crate::context::config::ServerConfig;
 use crate::db::model::public::ServerStatus;
+use crate::db::model::Database;
 use crate::disk::mount::util::unmount;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
@@ -179,7 +180,7 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
 }
 
 pub struct InitResult {
-    pub db: patch_db::PatchDb,
+    pub db: TypedPatchDb<Database>,
 }
 
 #[instrument(skip_all)]
@@ -207,7 +208,7 @@ pub async fn init(cfg: &ServerConfig) -> Result<InitResult, Error> {
             .await?;
     }
 
-    let db = cfg.db().await?;
+    let db = TypedPatchDb::<Database>::load_unchecked(cfg.db().await?);
     let peek = db.peek().await;
     tracing::info!("Opened PatchDB");
 

@@ -31,10 +31,6 @@ use crate::{Error, ErrorKind, ResultExt, PLATFORM};
 
 mod latest_information;
 
-lazy_static! {
-    static ref UPDATED: AtomicBool = AtomicBool::new(false);
-}
-
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
@@ -50,7 +46,16 @@ pub async fn update_system(
     ctx: RpcContext,
     UpdateSystemParams { marketplace_url }: UpdateSystemParams,
 ) -> Result<UpdateResult, Error> {
-    if UPDATED.load(Ordering::SeqCst) {
+    if ctx
+        .db
+        .peek()
+        .await
+        .into_public()
+        .into_server_info()
+        .into_status_info()
+        .into_updated()
+        .de()?
+    {
         return Ok(UpdateResult::NoUpdates);
     }
     Ok(if maybe_do_update(ctx, marketplace_url).await?.is_some() {
@@ -194,31 +199,8 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
 
 #[instrument(skip_all)]
 async fn do_update(ctx: RpcContext, eos_url: EosUrl) -> Result<(), Error> {
-    let mut rsync = Rsync::new(
-        eos_url.rsync_path()?,
-        "/media/startos/next/",
-        Default::default(),
-    )
-    .await?;
-    while let Some(progress) = rsync.progress.next().await {
-        ctx.db
-            .mutate(|db| {
-                db.as_public_mut()
-                    .as_server_info_mut()
-                    .as_status_info_mut()
-                    .as_update_progress_mut()
-                    .ser(&Some(UpdateProgress {
-                        size: Some(100),
-                        downloaded: (100.0 * progress) as u64,
-                    }))
-            })
-            .await?;
-    }
-    rsync.wait().await?;
+    // TODO: download squashfs
 
-    copy_fstab().await?;
-    copy_machine_id().await?;
-    copy_ssh_host_keys().await?;
     sync_boot().await?;
     swap_boot_label().await?;
 
@@ -226,14 +208,15 @@ async fn do_update(ctx: RpcContext, eos_url: EosUrl) -> Result<(), Error> {
 }
 
 #[derive(Debug)]
-struct EosUrl {
+struct OsDownloadUrl {
     base: Url,
     version: Version,
 }
 
-impl EosUrl {
+impl OsDownloadUrl {
     #[instrument()]
-    pub fn rsync_path(&self) -> Result<PathBuf, Error> {
+    pub fn url(&self) -> Result<Url, Error> {
+        self.base.join("os/v0")
         let host = self
             .base
             .host_str()
@@ -245,66 +228,8 @@ impl EosUrl {
     }
 }
 
-async fn copy_fstab() -> Result<(), Error> {
-    tokio::fs::copy("/etc/fstab", "/media/startos/next/etc/fstab").await?;
-    Ok(())
-}
-
-async fn copy_machine_id() -> Result<(), Error> {
-    tokio::fs::copy("/etc/machine-id", "/media/startos/next/etc/machine-id").await?;
-    Ok(())
-}
-
-async fn copy_ssh_host_keys() -> Result<(), Error> {
-    tokio::fs::copy(
-        "/etc/ssh/ssh_host_rsa_key",
-        "/media/startos/next/etc/ssh/ssh_host_rsa_key",
-    )
-    .await?;
-    tokio::fs::copy(
-        "/etc/ssh/ssh_host_rsa_key.pub",
-        "/media/startos/next/etc/ssh/ssh_host_rsa_key.pub",
-    )
-    .await?;
-    tokio::fs::copy(
-        "/etc/ssh/ssh_host_ecdsa_key",
-        "/media/startos/next/etc/ssh/ssh_host_ecdsa_key",
-    )
-    .await?;
-    tokio::fs::copy(
-        "/etc/ssh/ssh_host_ecdsa_key.pub",
-        "/media/startos/next/etc/ssh/ssh_host_ecdsa_key.pub",
-    )
-    .await?;
-    tokio::fs::copy(
-        "/etc/ssh/ssh_host_ed25519_key",
-        "/media/startos/next/etc/ssh/ssh_host_ed25519_key",
-    )
-    .await?;
-    tokio::fs::copy(
-        "/etc/ssh/ssh_host_ed25519_key.pub",
-        "/media/startos/next/etc/ssh/ssh_host_ed25519_key.pub",
-    )
-    .await?;
-    Ok(())
-}
-
 async fn sync_boot() -> Result<(), Error> {
-    Rsync::new(
-        "/media/startos/next/boot/",
-        "/boot/",
-        RsyncOptions {
-            delete: false,
-            force: false,
-            ignore_existing: false,
-            exclude: Vec::new(),
-            no_permissions: false,
-            no_owner: false,
-        },
-    )
-    .await?
-    .wait()
-    .await?;
+    // TODO: unsquashfs
     if &*PLATFORM != "raspberrypi" {
         let dev_mnt =
             MountGuard::mount(&Bind::new("/dev"), "/media/startos/next/dev", ReadWrite).await?;

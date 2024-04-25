@@ -6,9 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use imbl_value::InternedString;
 use josekit::jwk::Jwk;
-use patch_db::PatchDb;
 use reqwest::{Client, Proxy};
 use rpc_toolkit::Context;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
@@ -16,13 +14,14 @@ use tokio::time::Instant;
 use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
+use crate::account::AccountInfo;
 use crate::context::config::ServerConfig;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation, WebSocketHandler};
-use crate::db::prelude::PatchDbExt;
+use crate::db::model::Database;
 use crate::dependencies::compute_dependency_config_errs;
 use crate::disk::OsPartitionInfo;
 use crate::init::check_time_is_synchronized;
-use crate::lxc::{LxcContainer, LxcManager};
+use crate::lxc::{ContainerId, LxcContainer, LxcManager};
 use crate::middleware::auth::HashSessionToken;
 use crate::net::net_controller::NetController;
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
@@ -32,7 +31,6 @@ use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
 use crate::system::get_mem_info;
 use crate::util::lshw::{lshw, LshwDevice};
-use crate::{account::AccountInfo, lxc::ContainerId};
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
@@ -41,7 +39,7 @@ pub struct RpcContextSeed {
     pub ethernet_interface: String,
     pub datadir: PathBuf,
     pub disk_guid: Arc<String>,
-    pub db: PatchDb,
+    pub db: TypedPatchDb<Database>,
     pub account: RwLock<AccountInfo>,
     pub net_controller: Arc<NetController>,
     pub services: ServiceMap,
@@ -80,7 +78,7 @@ impl RpcContext {
         )));
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
 
-        let db = config.db().await?;
+        let db = TypedPatchDb::<Database>::load(config.db().await?).await?;
         let peek = db.peek().await;
         let account = AccountInfo::load(&peek)?;
         tracing::info!("Opened PatchDB");

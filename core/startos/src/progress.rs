@@ -11,7 +11,7 @@ use tokio::io::{AsyncSeek, AsyncWrite};
 use tokio::sync::{mpsc, watch};
 use ts_rs::TS;
 
-use crate::db::model::DatabaseModel;
+use crate::db::model::{Database, DatabaseModel};
 use crate::prelude::*;
 
 lazy_static::lazy_static! {
@@ -218,7 +218,7 @@ impl FullProgressTracker {
     }
     pub fn sync_to_db<DerefFn>(
         mut self,
-        db: PatchDb,
+        db: TypedPatchDb<Database>,
         deref: DerefFn,
         min_interval: Option<Duration>,
     ) -> impl Future<Output = Result<(), Error>> + 'static

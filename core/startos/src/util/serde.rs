@@ -938,6 +938,8 @@ impl<'de, K: Deserialize<'de>, V: Deserialize<'de>> Deserialize<'de> for KeyVal<
     }
 }
 
+#[derive(TS)]
+#[ts(type = "string", concrete(T = Vec<u8>))]
 pub struct Base32<T>(pub T);
 impl<'de, T: TryFrom<Vec<u8>>> Deserialize<'de> for Base32<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -969,6 +971,8 @@ impl<T: AsRef<[u8]>> Serialize for Base32<T> {
     }
 }
 
+#[derive(Debug, TS)]
+#[ts(type = "string", concrete(T = Vec<u8>))]
 pub struct Base64<T>(pub T);
 impl<'de, T: TryFrom<Vec<u8>>> Deserialize<'de> for Base64<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -1163,7 +1167,8 @@ pub mod pem {
 }
 
 #[repr(transparent)]
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash, TS)]
+#[ts(type = "string", concrete(T = ed25519_dalek::VerifyingKey))]
 pub struct Pem<T: PemEncoding>(#[serde(with = "pem")] pub T);
 impl<T: PemEncoding> Pem<T> {
     pub fn new(value: T) -> Self {

@@ -20,7 +20,7 @@ use crate::backup::os::OsBackup;
 use crate::backup::{BackupReport, ServerBackupReport};
 use crate::context::RpcContext;
 use crate::db::model::public::BackupProgress;
-use crate::db::model::DatabaseModel;
+use crate::db::model::{Database, DatabaseModel};
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
@@ -42,9 +42,9 @@ pub struct BackupParams {
     password: crate::auth::PasswordType,
 }
 
-struct BackupStatusGuard(Option<PatchDb>);
+struct BackupStatusGuard(Option<TypedPatchDb<Database>>);
 impl BackupStatusGuard {
-    fn new(db: PatchDb) -> Self {
+    fn new(db: TypedPatchDb<Database>) -> Self {
         Self(Some(db))
     }
     async fn handle_result(

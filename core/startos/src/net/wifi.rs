@@ -17,6 +17,7 @@ use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::WifiInfo;
+use crate::db::model::Database;
 use crate::net::utils::find_wifi_iface;
 use crate::prelude::*;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
@@ -113,7 +114,7 @@ pub async fn add(ctx: RpcContext, AddParams { ssid, password }: AddParams) -> Re
         ));
     }
     async fn add_procedure(
-        db: PatchDb,
+        db: TypedPatchDb<Database>,
         wifi_manager: WifiManager,
         ssid: &Ssid,
         password: &Psk,
@@ -170,7 +171,7 @@ pub async fn connect(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result
         ));
     }
     async fn connect_procedure(
-        db: PatchDb,
+        db: TypedPatchDb<Database>,
         wifi_manager: WifiManager,
         ssid: &Ssid,
     ) -> Result<(), Error> {
@@ -718,7 +719,7 @@ impl WpaCli {
 
         Ok(())
     }
-    pub async fn save_config(&mut self, db: PatchDb) -> Result<(), Error> {
+    pub async fn save_config(&mut self, db: TypedPatchDb<Database>) -> Result<(), Error> {
         let new_country = self.get_country_low().await?;
         db.mutate(|d| {
             d.as_public_mut()
@@ -758,7 +759,11 @@ impl WpaCli {
             .collect())
     }
     #[instrument(skip_all)]
-    pub async fn select_network(&mut self, db: PatchDb, ssid: &Ssid) -> Result<bool, Error> {
+    pub async fn select_network(
+        &mut self,
+        db: TypedPatchDb<Database>,
+        ssid: &Ssid,
+    ) -> Result<bool, Error> {
         let m_id = self.check_active_network(ssid).await?;
         match m_id {
             None => Err(Error::new(
@@ -810,7 +815,11 @@ impl WpaCli {
         }
     }
     #[instrument(skip_all)]
-    pub async fn remove_network(&mut self, db: PatchDb, ssid: &Ssid) -> Result<bool, Error> {
+    pub async fn remove_network(
+        &mut self,
+        db: TypedPatchDb<Database>,
+        ssid: &Ssid,
+    ) -> Result<bool, Error> {
         let found_networks = self.find_networks(ssid).await?;
         if found_networks.is_empty() {
             return Ok(true);
@@ -824,7 +833,7 @@ impl WpaCli {
     #[instrument(skip_all)]
     pub async fn set_add_network(
         &mut self,
-        db: PatchDb,
+        db: TypedPatchDb<Database>,
         ssid: &Ssid,
         psk: &Psk,
     ) -> Result<(), Error> {
@@ -833,7 +842,12 @@ impl WpaCli {
         Ok(())
     }
     #[instrument(skip_all)]
-    pub async fn add_network(&mut self, db: PatchDb, ssid: &Ssid, psk: &Psk) -> Result<(), Error> {
+    pub async fn add_network(
+        &mut self,
+        db: TypedPatchDb<Database>,
+        ssid: &Ssid,
+        psk: &Psk,
+    ) -> Result<(), Error> {
         self.add_network_low(ssid, psk).await?;
         self.save_config(db).await?;
         Ok(())

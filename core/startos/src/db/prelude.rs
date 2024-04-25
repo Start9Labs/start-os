@@ -15,8 +15,6 @@ use serde::{Deserialize, Serialize};
 use crate::db::model::DatabaseModel;
 use crate::prelude::*;
 
-pub type Peeked = Model<super::model::Database>;
-
 pub fn to_value<T>(value: &T) -> Result<Value, Error>
 where
     T: Serialize,
@@ -31,45 +29,7 @@ where
     patch_db::value::from_value(value).with_kind(ErrorKind::Deserialization)
 }
 
-pub trait PatchDbExt {
-    fn peek(&self) -> impl Future<Output = DatabaseModel> + Send;
-    fn mutate<U: UnwindSafe + Send>(
-        &self,
-        f: impl FnOnce(&mut DatabaseModel) -> Result<U, Error> + UnwindSafe + Send,
-    ) -> impl Future<Output = Result<U, Error>> + Send;
-    fn map_mutate(
-        &self,
-        f: impl FnOnce(DatabaseModel) -> Result<DatabaseModel, Error> + UnwindSafe + Send,
-    ) -> impl Future<Output = Result<DatabaseModel, Error>> + Send;
-}
-impl PatchDbExt for PatchDb {
-    async fn peek(&self) -> DatabaseModel {
-        DatabaseModel::from(self.dump(&ROOT).await.value)
-    }
-    async fn mutate<U: UnwindSafe + Send>(
-        &self,
-        f: impl FnOnce(&mut DatabaseModel) -> Result<U, Error> + UnwindSafe + Send,
-    ) -> Result<U, Error> {
-        Ok(self
-            .apply_function(|mut v| {
-                let model = <&mut DatabaseModel>::from(&mut v);
-                let res = f(model)?;
-                Ok::<_, Error>((v, res))
-            })
-            .await?
-            .1)
-    }
-    async fn map_mutate(
-        &self,
-        f: impl FnOnce(DatabaseModel) -> Result<DatabaseModel, Error> + UnwindSafe + Send,
-    ) -> Result<DatabaseModel, Error> {
-        Ok(DatabaseModel::from(
-            self.apply_function(|v| f(DatabaseModel::from(v)).map(|a| (a.into(), ())))
-                .await?
-                .0,
-        ))
-    }
-}
+pub type TypedPatchDb<T> = patch_db::TypedPatchDb<T, Error>;
 
 /// &mut Model<T> <=> &mut Value
 #[repr(transparent)]

@@ -5,6 +5,7 @@ use futures::future::BoxFuture;
 use futures::{Future, FutureExt};
 use imbl_value::InternedString;
 
+use crate::db::model::Database;
 use crate::prelude::*;
 use crate::Error;
 
@@ -56,9 +57,12 @@ where
     fn new() -> Self;
     fn semver(&self) -> emver::Version;
     fn compat(&self) -> &'static emver::VersionRange;
-    fn up(&self, db: &PatchDb) -> impl Future<Output = Result<(), Error>> + Send;
-    fn down(&self, db: &PatchDb) -> impl Future<Output = Result<(), Error>> + Send;
-    fn commit(&self, db: &PatchDb) -> impl Future<Output = Result<(), Error>> + Send {
+    fn up(&self, db: &TypedPatchDb<Database>) -> impl Future<Output = Result<(), Error>> + Send;
+    fn down(&self, db: &TypedPatchDb<Database>) -> impl Future<Output = Result<(), Error>> + Send;
+    fn commit(
+        &self,
+        db: &TypedPatchDb<Database>,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
         async {
             let semver = self.semver().into();
             let compat = self.compat().clone();
@@ -80,7 +84,7 @@ where
     fn migrate_to<V: VersionT>(
         &self,
         version: &V,
-        db: &PatchDb,
+        db: &TypedPatchDb<Database>,
     ) -> impl Future<Output = Result<(), Error>> + Send {
         async {
             match self.semver().cmp(&version.semver()) {
@@ -93,7 +97,7 @@ where
     fn migrate_from_unchecked<'a, V: VersionT>(
         &'a self,
         version: &'a V,
-        db: &'a PatchDb,
+        db: &'a TypedPatchDb<Database>,
     ) -> BoxFuture<'a, Result<(), Error>> {
         async {
             let previous = Self::Previous::new();
@@ -118,7 +122,7 @@ where
     fn rollback_to_unchecked<'a, V: VersionT>(
         &'a self,
         version: &'a V,
-        db: &'a PatchDb,
+        db: &'a TypedPatchDb<Database>,
     ) -> BoxFuture<'a, Result<(), Error>> {
         async {
             let previous = Self::Previous::new();
@@ -192,7 +196,7 @@ where
     }
 }
 
-pub async fn init(db: &PatchDb) -> Result<(), Error> {
+pub async fn init(db: &TypedPatchDb<Database>) -> Result<(), Error> {
     let version = Version::from_util_version(
         db.peek()
             .await

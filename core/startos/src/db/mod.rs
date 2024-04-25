@@ -245,24 +245,27 @@ async fn cli_apply(
     if let Some(path) = path {
         PatchDb::open(path)
             .await?
-            .mutate(|db| {
+            .apply_function(|db| {
                 let res = apply_expr(
-                    serde_json::to_value(patch_db::Value::from(db.clone()))
+                    serde_json::to_value(patch_db::Value::from(db))
                         .with_kind(ErrorKind::Deserialization)?
                         .into(),
                     &expr,
                 )?;
 
-                db.ser(
-                    &serde_json::from_value::<model::Database>(res.clone().into()).with_ctx(
-                        |_| {
-                            (
-                                crate::ErrorKind::Deserialization,
-                                "result does not match database model",
-                            )
-                        },
+                Ok::<_, Error>((
+                    to_value(
+                        &serde_json::from_value::<model::Database>(res.clone().into()).with_ctx(
+                            |_| {
+                                (
+                                    crate::ErrorKind::Deserialization,
+                                    "result does not match database model",
+                                )
+                            },
+                        )?,
                     )?,
-                )
+                    (),
+                ))
             })
             .await?;
     } else {
