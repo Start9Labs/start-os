@@ -365,26 +365,22 @@ async fn get_primary_url(
     let context = context.deref()?;
     let package_id = context.id.clone();
 
-    let db_model = context
-    .ctx
-    .db
-    .peek()
-    .await;
+    let db_model = context.ctx.db.peek().await;
 
-let pkg_data_model = db_model
-    .as_public()
-    .as_package_data()
-    .as_idx(&package_id)
-    .or_not_found(&package_id)?;
+    let pkg_data_model = db_model
+        .as_public()
+        .as_package_data()
+        .as_idx(&package_id)
+        .or_not_found(&package_id)?;
 
-    let host = pkg_data_model
-        .de()?
-        .hosts
-        .get_host_primary(&data.host_id);
-    
+    let host = pkg_data_model.de()?.hosts.get_host_primary(&data.host_id);
+
     match host {
         Some(host_address) => Ok(host_address),
-        None => Err(Error::new(eyre!("Primary Url not found for {}", data.host_id), crate::ErrorKind::NotFound)),
+        None => Err(Error::new(
+            eyre!("Primary Url not found for {}", data.host_id),
+            crate::ErrorKind::NotFound,
+        )),
     }
 }
 async fn list_service_interfaces(
