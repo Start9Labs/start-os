@@ -11,7 +11,9 @@ use clap::Parser;
 use emver::VersionRange;
 use imbl::OrdMap;
 use imbl_value::{json, InternedString};
-use models::{ActionId, DataUrl, HealthCheckId, HostId, ImageId, PackageId, VolumeId};
+use models::{
+    ActionId, DataUrl, HealthCheckId, HostId, ImageId, PackageId, ServiceInterfaceId, VolumeId,
+};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
@@ -245,7 +247,7 @@ struct ListServiceInterfacesParams {
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 struct RemoveAddressParams {
-    id: String,
+    id: ServiceInterfaceId,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
@@ -389,8 +391,24 @@ async fn list_service_interfaces(
 ) -> Result<Value, Error> {
     todo!()
 }
-async fn remove_address(context: EffectContext, data: RemoveAddressParams) -> Result<Value, Error> {
-    todo!()
+async fn remove_address(context: EffectContext, data: RemoveAddressParams) -> Result<(), Error> {
+    let context = context.deref()?;
+    let package_id = context.id.clone();
+
+    context
+        .ctx
+        .db
+        .mutate(|db| {
+            let model = db
+                .as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&package_id)
+                .or_not_found(&package_id)?
+                .as_service_interfaces_mut();
+            model.remove(&data.id)
+        })
+        .await?;
+    Ok(())
 }
 async fn export_action(context: EffectContext, data: ExportActionParams) -> Result<(), Error> {
     let context = context.deref()?;
