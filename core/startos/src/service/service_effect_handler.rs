@@ -333,8 +333,24 @@ async fn get_service_port_forward(
     let net_service = context.persistent_container.net_service.lock().await;
     net_service.get_ext_port(data.host_id, internal_port)
 }
-async fn clear_network_interfaces(context: EffectContext, _: Empty) -> Result<Value, Error> {
-    todo!()
+async fn clear_network_interfaces(context: EffectContext, _: Empty) -> Result<(), Error> {
+    let context = context.deref()?;
+    let package_id = context.id.clone();
+
+    context
+        .ctx
+        .db
+        .mutate(|db| {
+            let model = db
+                .as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&package_id)
+                .or_not_found(&package_id)?
+                .as_service_interfaces_mut();
+            let mut new_map = BTreeMap::new();
+            model.ser(&mut new_map)
+        })
+        .await
 }
 async fn export_service_interface(
     context: EffectContext,
