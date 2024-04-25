@@ -11,7 +11,9 @@ use clap::Parser;
 use emver::VersionRange;
 use imbl::OrdMap;
 use imbl_value::{json, InternedString};
-use models::{ActionId, DataUrl, HealthCheckId, HostId, ImageId, PackageId, VolumeId};
+use models::{
+    ActionId, DataUrl, HealthCheckId, HostId, Id, ImageId, PackageId, ServiceInterfaceId, VolumeId,
+};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
@@ -26,7 +28,11 @@ use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::net::host::binding::BindOptions;
-use crate::net::host::HostKind;
+use crate::net::host::{self, HostKind};
+use crate::net::service_interface::{
+    AddressInfo, ExportedHostInfo, ExportedHostnameInfo, ServiceInterface, ServiceInterfaceType,
+    ServiceInterfaceWithHostInfo,
+};
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::http::{HttpReader, HttpSource};
 use crate::s9pk::rpc::SKIP_ENV;
@@ -194,26 +200,8 @@ struct GetServicePortForwardParams {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
-struct AddressInfo {
-    username: Option<String>,
-    host_id: String,
-    bind_options: BindOptions,
-    suffix: String,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-enum ServiceInterfaceType {
-    Ui,
-    P2p,
-    Api,
-}
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
 struct ExportServiceInterfaceParams {
-    id: String,
+    id: ServiceInterfaceId,
     name: String,
     description: String,
     has_primary: bool,
@@ -221,6 +209,8 @@ struct ExportServiceInterfaceParams {
     masked: bool,
     address_info: AddressInfo,
     r#type: ServiceInterfaceType,
+    host_kind: HostKind,
+    hostnames: Vec<ExportedHostnameInfo>,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
@@ -336,9 +326,57 @@ async fn clear_network_interfaces(context: EffectContext, _: Empty) -> Result<Va
 }
 async fn export_service_interface(
     context: EffectContext,
-    data: ExportServiceInterfaceParams,
-) -> Result<Value, Error> {
-    todo!()
+    ExportServiceInterfaceParams {
+        id,
+        name,
+        description,
+        has_primary,
+        disabled,
+        masked,
+        address_info,
+        r#type,
+        host_kind,
+        hostnames,
+    }: ExportServiceInterfaceParams,
+) -> Result<(), Error> {
+    let context = context.deref()?;
+    let package_id = context.id.clone();
+    let host_id = address_info.host_id.clone();
+
+    let service_interface = ServiceInterface {
+        id: id.clone(),
+        name,
+        description,
+        has_primary,
+        disabled,
+        masked,
+        address_info,
+        interface_type: r#type,
+    };
+    let host_info = ExportedHostInfo {
+        id: host_id,
+        kind: host_kind,
+        hostnames,
+    };
+    let svc_interface_with_host_info = ServiceInterfaceWithHostInfo {
+        service_interface,
+        host_info,
+    };
+
+    context
+        .ctx
+        .db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&package_id)
+                .or_not_found(&package_id)?
+                .as_service_interfaces_mut()
+                .insert(&id, &svc_interface_with_host_info)?;
+            Ok(())
+        })
+        .await?;
+    Ok(())
 }
 async fn get_primary_url(
     context: EffectContext,
@@ -349,9 +387,23 @@ async fn get_primary_url(
 async fn list_service_interfaces(
     context: EffectContext,
     data: ListServiceInterfacesParams,
-) -> Result<Value, Error> {
-    todo!()
+) -> Result<BTreeMap<ServiceInterfaceId, ServiceInterfaceWithHostInfo>, Error> {
+    let context = context.deref()?;
+    let package_id = context.id.clone();
+
+    context
+        .ctx
+        .db
+        .peek()
+        .await
+        .into_public()
+        .into_package_data()
+        .into_idx(&package_id)
+        .or_not_found(&package_id)?
+        .into_service_interfaces()
+        .de()
 }
+
 async fn remove_address(context: EffectContext, data: RemoveAddressParams) -> Result<Value, Error> {
     todo!()
 }
