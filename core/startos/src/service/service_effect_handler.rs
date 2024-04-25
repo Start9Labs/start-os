@@ -317,8 +317,17 @@ struct MountParams {
 async fn get_system_smtp(
     context: EffectContext,
     data: GetSystemSmtpParams,
-) -> Result<Value, Error> {
-    todo!()
+) -> Result<String, Error> {
+    let context = context.deref()?;
+    context
+        .ctx
+        .db
+        .peek()
+        .await
+        .into_public()
+        .into_server_info()
+        .into_smtp()
+        .de()
 }
 async fn get_container_ip(context: EffectContext, _: Empty) -> Result<Ipv4Addr, Error> {
     let context = context.deref()?;
