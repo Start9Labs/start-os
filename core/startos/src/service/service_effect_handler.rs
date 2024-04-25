@@ -11,7 +11,9 @@ use clap::Parser;
 use emver::VersionRange;
 use imbl::OrdMap;
 use imbl_value::{json, InternedString};
-use models::{ActionId, DataUrl, HealthCheckId, HostId, Id, ImageId, PackageId, ServiceInterfaceId, VolumeId};
+use models::{
+    ActionId, DataUrl, HealthCheckId, HostId, Id, ImageId, PackageId, ServiceInterfaceId, VolumeId,
+};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
@@ -27,7 +29,10 @@ use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::net::host::binding::BindOptions;
 use crate::net::host::{self, HostKind};
-use crate::net::service_interface::{AddressInfo, ExportedHostInfo, ExportedHostnameInfo, ServiceInterface, ServiceInterfaceType, ServiceInterfaceWithHostInfo};
+use crate::net::service_interface::{
+    AddressInfo, ExportedHostInfo, ExportedHostnameInfo, ServiceInterface, ServiceInterfaceType,
+    ServiceInterfaceWithHostInfo,
+};
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::http::{HttpReader, HttpSource};
 use crate::s9pk::rpc::SKIP_ENV;
@@ -205,7 +210,7 @@ struct ExportServiceInterfaceParams {
     address_info: AddressInfo,
     r#type: ServiceInterfaceType,
     host_kind: HostKind,
-    hostnames: Vec<ExportedHostnameInfo>
+    hostnames: Vec<ExportedHostnameInfo>,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
@@ -321,13 +326,24 @@ async fn clear_network_interfaces(context: EffectContext, _: Empty) -> Result<Va
 }
 async fn export_service_interface(
     context: EffectContext,
-    ExportServiceInterfaceParams { id, name, description, has_primary, disabled, masked, address_info, r#type, host_kind, hostnames }: ExportServiceInterfaceParams,
+    ExportServiceInterfaceParams {
+        id,
+        name,
+        description,
+        has_primary,
+        disabled,
+        masked,
+        address_info,
+        r#type,
+        host_kind,
+        hostnames,
+    }: ExportServiceInterfaceParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
     let package_id = context.id.clone();
     let host_id = address_info.host_id.clone();
-    
-    let service_interface = ServiceInterface{
+
+    let service_interface = ServiceInterface {
         id: id.clone(),
         name,
         description,
@@ -346,13 +362,12 @@ async fn export_service_interface(
         service_interface,
         host_info,
     };
-    
+
     context
         .ctx
         .db
         .mutate(|db| {
-            db
-                .as_public_mut()
+            db.as_public_mut()
                 .as_package_data_mut()
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
