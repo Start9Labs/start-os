@@ -7,6 +7,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
   providedIn: 'root',
 })
 export class MetricsService extends Observable<Metrics> {
+  // @TODO get real url, 'rpc/{guid}' or something like that
   private readonly metrics$ = inject(ApiService)
     .openMetricsWebsocket$({
       url: '',
