@@ -3,8 +3,9 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink } from '@angular/router'
 import { TuiIconModule } from '@taiga-ui/experimental'
-import { map, timer } from 'rxjs'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { map } from 'rxjs'
+import { MetricsService } from 'src/app/services/metrics.service'
+import { TimeService } from 'src/app/services/time.service'
 import { MetricsComponent } from './metrics.component'
 import { ServicesComponent } from './services.component'
 import { UtilitiesComponent } from './utilities.component'
@@ -131,6 +132,8 @@ import { UtilitiesComponent } from './utilities.component'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardComponent {
-  readonly date = toSignal(timer(0, 1000).pipe(map(() => new Date())))
-  readonly metrics$ = inject(ApiService).openMetricsWebsocket$({ url: '' })
+  readonly metrics$ = inject(MetricsService)
+  readonly date = toSignal(
+    inject(TimeService).now$.pipe(map(({ now }) => new Date(now))),
+  )
 }

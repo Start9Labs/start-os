@@ -1,9 +1,17 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { AsyncPipe } from '@angular/common'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  Input,
+} from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { TuiProgressModule } from '@taiga-ui/kit'
 import { CpuComponent } from 'src/app/routes/portal/routes/dashboard/cpu.component'
 import { MetricComponent } from 'src/app/routes/portal/routes/dashboard/metric.component'
 import { TemperatureComponent } from 'src/app/routes/portal/routes/dashboard/temperature.component'
 import { Metrics } from 'src/app/services/api/api.types'
+import { TimeService } from 'src/app/services/time.service'
 
 @Component({
   standalone: true,
@@ -60,7 +68,7 @@ import { Metrics } from 'src/app/services/api/api.types'
       <aside>
         <app-metric label="Uptime" [style.flex]="'unset'">
           <label>
-            -:-:-:-
+            {{ uptime() }}
             <div>Days : Hrs : Mins : Secs</div>
           </label>
         </app-metric>
@@ -192,11 +200,14 @@ import { Metrics } from 'src/app/services/api/api.types'
     MetricComponent,
     TemperatureComponent,
     CpuComponent,
+    AsyncPipe,
   ],
 })
 export class MetricsComponent {
   @Input({ required: true })
   metrics: Metrics | null = null
+
+  readonly uptime = toSignal(inject(TimeService).uptime$)
 
   get cpu(): number {
     return Number(this.metrics?.cpu.percentageUsed.value || 0) / 100
