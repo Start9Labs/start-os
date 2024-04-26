@@ -161,7 +161,7 @@ export class Host {
     options: BindOptionsByKnownProtocol,
     protoInfo: KnownProtocols[keyof KnownProtocols],
   ): AddSslOptions | null {
-    if ("noAddSsl" in options && options.noAddSsl) return null
+    if (inObject("noAddSsl", options) && options.noAddSsl) return null
     if ("withSsl" in protoInfo && protoInfo.withSsl)
       return {
         // addXForwardedHeaders: null,
@@ -172,6 +172,13 @@ export class Host {
       }
     return null
   }
+}
+
+function inObject<Key extends string>(
+  key: Key,
+  obj: any,
+): obj is { [K in Key]: unknown } {
+  return key in obj
 }
 
 export class StaticHost extends Host {

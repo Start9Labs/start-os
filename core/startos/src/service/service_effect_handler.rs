@@ -11,6 +11,7 @@ use clap::Parser;
 use emver::VersionRange;
 use imbl::OrdMap;
 use imbl_value::{json, InternedString};
+use itertools::Itertools;
 use models::{
     ActionId, DataUrl, HealthCheckId, HostId, Id, ImageId, PackageId, ServiceInterfaceId, VolumeId,
 };
@@ -23,6 +24,7 @@ use url::Url;
 
 use crate::db::model::package::{
     ActionMetadata, CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind,
+    ManifestPreference,
 };
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
@@ -154,6 +156,18 @@ pub fn service_effect_handler() -> ParentHandler {
                 .no_display()
                 .with_remote_cli::<ContainerCliContext>(),
         )
+        .subcommand(
+            "getDependencies",
+            from_fn_async(get_dependencies)
+                .no_display()
+                .with_remote_cli::<ContainerCliContext>(),
+        )
+        .subcommand(
+            "checkDependencies",
+            from_fn_async(check_dependencies)
+                .no_display()
+                .with_remote_cli::<ContainerCliContext>(),
+        )
         .subcommand("getSystemSmtp", from_fn_async(get_system_smtp).no_cli())
         .subcommand("getContainerIp", from_fn_async(get_container_ip).no_cli())
         .subcommand(
@@ -178,6 +192,7 @@ pub fn service_effect_handler() -> ParentHandler {
         .subcommand("removeAction", from_fn_async(remove_action).no_cli())
         .subcommand("reverseProxy", from_fn_async(reverse_proxy).no_cli())
         .subcommand("mount", from_fn_async(mount).no_cli())
+
     // TODO Callbacks
 }
 
@@ -1269,4 +1284,139 @@ async fn set_dependencies(
                 .ser(&CurrentDependencies(deps))
         })
         .await
+}
+
+async fn get_dependencies(ctx: EffectContext) -> Result<Vec<DependencyRequirement>, Error> {
+    let ctx = ctx.deref()?;
+    let id = &ctx.id;
+    let db = ctx.ctx.db.peek().await;
+    let data = db
+        .as_public()
+        .as_package_data()
+        .as_idx(id)
+        .or_not_found(id)?
+        .as_current_dependencies()
+        .de()?;
+
+    data.0
+        .into_iter()
+        .map(|(id, current_dependency_info)| {
+            let CurrentDependencyInfo {
+                registry_url,
+                version_spec,
+                kind,
+                ..
+            } = current_dependency_info;
+            Ok::<_, Error>(match kind {
+                CurrentDependencyKind::Exists => DependencyRequirement::Exists {
+                    id,
+                    registry_url,
+                    version_spec,
+                },
+                CurrentDependencyKind::Running { health_checks } => {
+                    DependencyRequirement::Running {
+                        id,
+                        health_checks,
+                        version_spec,
+                        registry_url,
+                    }
+                }
+            })
+        })
+        .try_collect()
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "camelCase")]
+#[ts(export)]
+struct CheckDependenciesParam {
+    package_ids: Option<Vec<PackageId>>,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+struct CheckDependenciesResult {
+    package_id: PackageId,
+    is_installed: bool,
+    is_running: bool,
+    health_checks: Vec<HealthCheckResult>,
+    #[ts(type = "string | null")]
+    version: Option<emver::Version>,
+}
+
+async fn check_dependencies(
+    ctx: EffectContext,
+    CheckDependenciesParam { package_ids }: CheckDependenciesParam,
+) -> Result<Vec<CheckDependenciesResult>, Error> {
+    let ctx = ctx.deref()?;
+    let db = ctx.ctx.db.peek().await;
+    let current_dependencies = db
+        .as_public()
+        .as_package_data()
+        .as_idx(&ctx.id)
+        .or_not_found(&ctx.id)?
+        .as_current_dependencies()
+        .de()?;
+    let package_ids: Vec<_> = package_ids
+        .unwrap_or_else(|| current_dependencies.0.keys().cloned().collect())
+        .into_iter()
+        .filter_map(|x| {
+            let info = current_dependencies.0.get(&x)?;
+            Some((x, info))
+        })
+        .collect();
+    let mut results = Vec::with_capacity(package_ids.len());
+
+    for (package_id, dependency_info) in package_ids {
+        let Some(package) = db.as_public().as_package_data().as_idx(&package_id) else {
+            results.push(CheckDependenciesResult {
+                package_id,
+                is_installed: false,
+                is_running: false,
+                health_checks: vec![],
+                version: None,
+            });
+            continue;
+        };
+        let installed_version = package
+            .as_state_info()
+            .as_manifest(ManifestPreference::New)
+            .as_version()
+            .de()?
+            .into_version();
+        let version = Some(installed_version.clone());
+        if !installed_version.satisfies(&dependency_info.version_spec) {
+            results.push(CheckDependenciesResult {
+                package_id,
+                is_installed: false,
+                is_running: false,
+                health_checks: vec![],
+                version,
+            });
+            continue;
+        }
+        let is_installed = true;
+        let status = package.as_status().as_main().de()?;
+        let is_running = if is_installed {
+            status.running()
+        } else {
+            false
+        };
+        let health_checks = status
+            .health()
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(_, val)| val)
+            .collect();
+        results.push(CheckDependenciesResult {
+            package_id,
+            is_installed,
+            is_running,
+            health_checks,
+            version,
+        });
+    }
+    Ok(results)
 }

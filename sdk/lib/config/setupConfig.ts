@@ -11,16 +11,13 @@ export type DependenciesReceipt = void & {
 }
 
 export type Save<
-  Store,
   A extends
     | Record<string, any>
     | Config<Record<string, any>, any>
     | Config<Record<string, never>, never>,
-  Manifest extends SDKManifest,
 > = (options: {
   effects: Effects
   input: ExtractConfigType<A> & Record<string, any>
-  dependencies: D.ConfigDependencies<Manifest>
 }) => Promise<{
   dependenciesReceipt: DependenciesReceipt
   interfacesReceipt: InterfacesReceipt
@@ -53,7 +50,7 @@ export function setupConfig<
   Type extends Record<string, any> = ExtractConfigType<ConfigType>,
 >(
   spec: Config<Type, Store> | Config<Type, never>,
-  write: Save<Store, Type, Manifest>,
+  write: Save<Type>,
   read: Read<Manifest, Store, Type>,
 ) {
   const validator = spec.validator
@@ -66,9 +63,8 @@ export function setupConfig<
       await effects.clearBindings()
       await effects.clearServiceInterfaces()
       const { restart } = await write({
-        input: JSON.parse(JSON.stringify(input)),
+        input: JSON.parse(JSON.stringify(input)) as any,
         effects,
-        dependencies: D.configDependenciesSet<Manifest>(),
       })
       if (restart) {
         await effects.restart()

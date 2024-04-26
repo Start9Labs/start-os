@@ -1,9 +1,12 @@
 import { SDKManifest } from "../manifest/ManifestTypes"
-import { Dependency } from "../types"
+import { Dependencies } from "../types"
 
 export type ConfigDependencies<T extends SDKManifest> = {
-  exists(id: keyof T["dependencies"]): Dependency
-  running(id: keyof T["dependencies"], healthChecks: string[]): Dependency
+  exists(id: keyof T["dependencies"]): Dependencies[number]
+  running(
+    id: keyof T["dependencies"],
+    healthChecks: string[],
+  ): Dependencies[number]
 }
 
 export const configDependenciesSet = <
@@ -13,7 +16,7 @@ export const configDependenciesSet = <
     return {
       id,
       kind: "exists",
-    } as Dependency
+    } as Dependencies[number]
   },
 
   running(id: keyof T["dependencies"], healthChecks: string[]) {
@@ -21,6 +24,6 @@ export const configDependenciesSet = <
       id,
       kind: "running",
       healthChecks,
-    } as Dependency
+    } as Dependencies[number]
   },
 })

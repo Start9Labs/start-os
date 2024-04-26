@@ -7,6 +7,7 @@ import { TriggerInput } from "../trigger/TriggerInput"
 import { defaultTrigger } from "../trigger/defaultTrigger"
 import { once } from "../util/once"
 import { Overlay } from "../util/Overlay"
+import { object, unknown } from "ts-matches"
 
 export function healthCheck(o: {
   effects: Effects
@@ -66,8 +67,7 @@ export function healthCheck(o: {
   return {} as HealthReceipt
 }
 function asMessage(e: unknown) {
-  if (typeof e === "object" && e != null && "message" in e)
-    return String(e.message)
+  if (object({ message: unknown }).test(e)) return String(e.message)
   const value = String(e)
   if (value.length == null) return null
   return value

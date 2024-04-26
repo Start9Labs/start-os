@@ -256,6 +256,18 @@ export class HostSystemStartOs implements Effects {
       T.Effects["setDependencies"]
     >
   }
+  checkDependencies(
+    options: Parameters<T.Effects["checkDependencies"]>[0],
+  ): ReturnType<T.Effects["checkDependencies"]> {
+    return this.rpcRound("checkDependencies", options) as ReturnType<
+      T.Effects["checkDependencies"]
+    >
+  }
+  getDependencies(): ReturnType<T.Effects["getDependencies"]> {
+    return this.rpcRound("getDependencies", null) as ReturnType<
+      T.Effects["getDependencies"]
+    >
+  }
   setHealth(...[options]: Parameters<T.Effects["setHealth"]>) {
     return this.rpcRound("setHealth", options) as ReturnType<
       T.Effects["setHealth"]
