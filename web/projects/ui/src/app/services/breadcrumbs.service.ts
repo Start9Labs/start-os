@@ -41,9 +41,6 @@ function toBreadcrumbs(
   id: string,
   packages: Record<string, PackageDataEntry> = {},
 ): Breadcrumb[] {
-  const item = SYSTEM_UTILITIES[id]
-  const routerLink = toRouterLink(id)
-
   if (id.startsWith('/portal/system/')) {
     const [page, ...path] = id.replace('/portal/system/', '').split('/')
     const service = `/portal/system/${page}`

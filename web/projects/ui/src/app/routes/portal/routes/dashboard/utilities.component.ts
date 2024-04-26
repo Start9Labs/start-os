@@ -100,10 +100,12 @@ import { BadgeService } from 'src/app/services/badge.service'
 export class UtilitiesComponent {
   private readonly badge = inject(BadgeService)
   readonly items = Object.keys(SYSTEM_UTILITIES)
-    .filter(key => key !== '/portal/system/notifications')
+    .filter(key => !SKIPPED.includes(key))
     .map(key => ({
       ...SYSTEM_UTILITIES[key],
       routerLink: key,
       notification$: this.badge.getCount(key),
     }))
 }
+
+const SKIPPED = ['/portal/system/notifications', '/portal/system/metrics']

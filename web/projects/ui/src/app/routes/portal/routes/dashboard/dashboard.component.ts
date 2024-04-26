@@ -1,8 +1,11 @@
-import { DatePipe } from '@angular/common'
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { AsyncPipe, DatePipe } from '@angular/common'
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
+import { RouterLink } from '@angular/router'
 import { TuiIconModule } from '@taiga-ui/experimental'
-import { map, timer } from 'rxjs'
+import { map } from 'rxjs'
+import { MetricsService } from 'src/app/services/metrics.service'
+import { TimeService } from 'src/app/services/time.service'
 import { MetricsComponent } from './metrics.component'
 import { ServicesComponent } from './services.component'
 import { UtilitiesComponent } from './utilities.component'
@@ -11,7 +14,7 @@ import { UtilitiesComponent } from './utilities.component'
   standalone: true,
   template: `
     <time>{{ date() | date: 'medium' }}</time>
-    <app-metrics>
+    <app-metrics [metrics]="metrics$ | async">
       <h2>
         <tui-icon icon="tuiIconActivity" />
         Metrics
@@ -60,6 +63,7 @@ import { UtilitiesComponent } from './utilities.component'
       left: 22%;
       font-weight: bold;
       line-height: 1.75rem;
+      text-shadow: 0 0 0.25rem #000;
     }
 
     h2 {
@@ -78,10 +82,11 @@ import { UtilitiesComponent } from './utilities.component'
     }
 
     :host-context(tui-root._mobile) {
-      height: calc(100vh - 7rem);
+      height: calc(100vh - 7.375rem);
       display: block;
       margin: 0;
       border-top: 0;
+      border-bottom: 0;
 
       app-metrics,
       app-utilities,
@@ -121,9 +126,14 @@ import { UtilitiesComponent } from './utilities.component'
     UtilitiesComponent,
     TuiIconModule,
     DatePipe,
+    RouterLink,
+    AsyncPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardComponent {
-  readonly date = toSignal(timer(0, 1000).pipe(map(() => new Date())))
+  readonly metrics$ = inject(MetricsService)
+  readonly date = toSignal(
+    inject(TimeService).now$.pipe(map(({ now }) => new Date(now))),
+  )
 }
