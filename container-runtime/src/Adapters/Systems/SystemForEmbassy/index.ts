@@ -263,37 +263,65 @@ export class SystemForEmbassy implements System {
     const input = options.input
     switch (options.procedure) {
       case "/backup/create":
-        return this.createBackup(effects)
+        return this.createBackup(effects, options.timeout || null)
       case "/backup/restore":
-        return this.restoreBackup(effects)
+        return this.restoreBackup(effects, options.timeout || null)
       case "/config/get":
-        return this.getConfig(effects)
+        return this.getConfig(effects, options.timeout || null)
       case "/config/set":
-        return this.setConfig(effects, input)
+        return this.setConfig(effects, input, options.timeout || null)
       case "/properties":
-        return this.properties(effects)
+        return this.properties(effects, options.timeout || null)
       case "/actions/metadata":
         return todo()
       case "/init":
-        return this.init(effects, string.optional().unsafeCast(input))
+        return this.init(
+          effects,
+          string.optional().unsafeCast(input),
+          options.timeout || null,
+        )
       case "/uninit":
-        return this.uninit(effects, string.optional().unsafeCast(input))
+        return this.uninit(
+          effects,
+          string.optional().unsafeCast(input),
+          options.timeout || null,
+        )
       case "/main/start":
-        return this.mainStart(effects)
+        return this.mainStart(effects, options.timeout || null)
       case "/main/stop":
-        return this.mainStop(effects)
+        return this.mainStop(effects, options.timeout || null)
       default:
         const procedures = unNestPath(options.procedure)
         switch (true) {
           case procedures[1] === "actions" && procedures[3] === "get":
-            return this.action(effects, procedures[2], input)
+            return this.action(
+              effects,
+              procedures[2],
+              input,
+              options.timeout || null,
+            )
           case procedures[1] === "actions" && procedures[3] === "run":
-            return this.action(effects, procedures[2], input)
+            return this.action(
+              effects,
+              procedures[2],
+              input,
+              options.timeout || null,
+            )
           case procedures[1] === "dependencies" && procedures[3] === "query":
-            return this.dependenciesAutoconfig(effects, procedures[2], input)
+            return this.dependenciesAutoconfig(
+              effects,
+              procedures[2],
+              input,
+              options.timeout || null,
+            )
 
           case procedures[1] === "dependencies" && procedures[3] === "update":
-            return this.dependenciesAutoconfig(effects, procedures[2], input)
+            return this.dependenciesAutoconfig(
+              effects,
+              procedures[2],
+              input,
+              options.timeout || null,
+            )
         }
     }
     throw new Error(`Could not find the path for ${options.procedure}`)
@@ -301,8 +329,10 @@ export class SystemForEmbassy implements System {
   private async init(
     effects: HostSystemStartOs,
     previousVersion: Optional<string>,
+    timeoutMs: number | null,
   ): Promise<void> {
-    if (previousVersion) await this.migration(effects, previousVersion)
+    if (previousVersion)
+      await this.migration(effects, previousVersion, timeoutMs)
     await effects.setMainStatus({ status: "stopped" })
     await this.exportActions(effects)
   }
@@ -337,29 +367,36 @@ export class SystemForEmbassy implements System {
   private async uninit(
     effects: HostSystemStartOs,
     nextVersion: Optional<string>,
+    timeoutMs: number | null,
   ): Promise<void> {
     // TODO Do a migration down if the version exists
     await effects.setMainStatus({ status: "stopped" })
   }
-  private async mainStart(effects: HostSystemStartOs): Promise<void> {
+  private async mainStart(
+    effects: HostSystemStartOs,
+    timeoutMs: number | null,
+  ): Promise<void> {
     if (!!this.currentRunning) return
 
     this.currentRunning = new MainLoop(this, effects)
   }
   private async mainStop(
     effects: HostSystemStartOs,
-    options?: { timeout?: number },
+    timeoutMs: number | null,
   ): Promise<Duration> {
     const { currentRunning } = this
     delete this.currentRunning
     if (currentRunning) {
       await currentRunning.clean({
-        timeout: options?.timeout || this.manifest.main["sigterm-timeout"],
+        timeout: this.manifest.main["sigterm-timeout"],
       })
     }
     return duration(this.manifest.main["sigterm-timeout"], "s")
   }
-  private async createBackup(effects: HostSystemStartOs): Promise<void> {
+  private async createBackup(
+    effects: HostSystemStartOs,
+    timeoutMs: number | null,
+  ): Promise<void> {
     const backup = this.manifest.backup.create
     if (backup.type === "docker") {
       const container = await DockerProcedureContainer.of(
@@ -367,7 +404,7 @@ export class SystemForEmbassy implements System {
         backup,
         this.manifest.volumes,
       )
-      await container.exec([backup.entrypoint, ...backup.args])
+      await container.execFail([backup.entrypoint, ...backup.args], timeoutMs)
     } else {
       const moduleCode = await this.moduleCode
       await moduleCode.createBackup?.(
@@ -375,7 +412,10 @@ export class SystemForEmbassy implements System {
       )
     }
   }
-  private async restoreBackup(effects: HostSystemStartOs): Promise<void> {
+  private async restoreBackup(
+    effects: HostSystemStartOs,
+    timeoutMs: number | null,
+  ): Promise<void> {
     const restoreBackup = this.manifest.backup.restore
     if (restoreBackup.type === "docker") {
       const container = await DockerProcedureContainer.of(
@@ -383,7 +423,10 @@ export class SystemForEmbassy implements System {
         restoreBackup,
         this.manifest.volumes,
       )
-      await container.exec([restoreBackup.entrypoint, ...restoreBackup.args])
+      await container.execFail(
+        [restoreBackup.entrypoint, ...restoreBackup.args],
+        timeoutMs,
+      )
     } else {
       const moduleCode = await this.moduleCode
       await moduleCode.restoreBackup?.(
@@ -391,11 +434,15 @@ export class SystemForEmbassy implements System {
       )
     }
   }
-  private async getConfig(effects: HostSystemStartOs): Promise<T.ConfigRes> {
-    return this.getConfigUncleaned(effects).then(removePointers)
+  private async getConfig(
+    effects: HostSystemStartOs,
+    timeoutMs: number | null,
+  ): Promise<T.ConfigRes> {
+    return this.getConfigUncleaned(effects, timeoutMs).then(removePointers)
   }
   private async getConfigUncleaned(
     effects: HostSystemStartOs,
+    timeoutMs: number | null,
   ): Promise<T.ConfigRes> {
     const config = this.manifest.config?.get
     if (!config) return { spec: {} }
@@ -408,7 +455,10 @@ export class SystemForEmbassy implements System {
       // TODO: yaml
       return JSON.parse(
         (
-          await container.exec([config.entrypoint, ...config.args])
+          await container.execFail(
+            [config.entrypoint, ...config.args],
+            timeoutMs,
+          )
         ).stdout.toString(),
       )
     } else {
@@ -427,11 +477,12 @@ export class SystemForEmbassy implements System {
   private async setConfig(
     effects: HostSystemStartOs,
     newConfigWithoutPointers: unknown,
+    timeoutMs: number | null,
   ): Promise<void> {
     const newConfig = structuredClone(newConfigWithoutPointers)
     await updateConfig(
       effects,
-      await this.getConfigUncleaned(effects).then((x) => x.spec),
+      await this.getConfigUncleaned(effects, timeoutMs).then((x) => x.spec),
       newConfig,
     )
     const setConfigValue = this.manifest.config?.set
@@ -445,11 +496,14 @@ export class SystemForEmbassy implements System {
       const answer = matchSetResult.unsafeCast(
         JSON.parse(
           (
-            await container.exec([
-              setConfigValue.entrypoint,
-              ...setConfigValue.args,
-              JSON.stringify(newConfig),
-            ])
+            await container.execFail(
+              [
+                setConfigValue.entrypoint,
+                ...setConfigValue.args,
+                JSON.stringify(newConfig),
+              ],
+              timeoutMs,
+            )
           ).stdout.toString(),
         ),
       )
@@ -508,6 +562,7 @@ export class SystemForEmbassy implements System {
   private async migration(
     effects: HostSystemStartOs,
     fromVersion: string,
+    timeoutMs: number | null,
   ): Promise<T.MigrationRes> {
     const fromEmver = EmVer.from(fromVersion)
     const currentEmver = EmVer.from(this.manifest.version)
@@ -542,11 +597,14 @@ export class SystemForEmbassy implements System {
         )
         return JSON.parse(
           (
-            await container.exec([
-              procedure.entrypoint,
-              ...procedure.args,
-              JSON.stringify(fromVersion),
-            ])
+            await container.execFail(
+              [
+                procedure.entrypoint,
+                ...procedure.args,
+                JSON.stringify(fromVersion),
+              ],
+              timeoutMs,
+            )
           ).stdout.toString(),
         )
       } else if (procedure.type === "script") {
@@ -568,6 +626,7 @@ export class SystemForEmbassy implements System {
   }
   private async properties(
     effects: HostSystemStartOs,
+    timeoutMs: number | null,
   ): Promise<ReturnType<T.ExpectedExports.Properties>> {
     // TODO BLU-J set the properties ever so often
     const setConfigValue = this.manifest.properties
@@ -581,10 +640,10 @@ export class SystemForEmbassy implements System {
       const properties = matchProperties.unsafeCast(
         JSON.parse(
           (
-            await container.exec([
-              setConfigValue.entrypoint,
-              ...setConfigValue.args,
-            ])
+            await container.execFail(
+              [setConfigValue.entrypoint, ...setConfigValue.args],
+              timeoutMs,
+            )
           ).stdout.toString(),
         ),
       )
@@ -609,6 +668,7 @@ export class SystemForEmbassy implements System {
     effects: HostSystemStartOs,
     healthId: string,
     timeSinceStarted: unknown,
+    timeoutMs: number | null,
   ): Promise<void> {
     const healthProcedure = this.manifest["health-checks"][healthId]
     if (!healthProcedure) return
@@ -620,11 +680,14 @@ export class SystemForEmbassy implements System {
       )
       return JSON.parse(
         (
-          await container.exec([
-            healthProcedure.entrypoint,
-            ...healthProcedure.args,
-            JSON.stringify(timeSinceStarted),
-          ])
+          await container.execFail(
+            [
+              healthProcedure.entrypoint,
+              ...healthProcedure.args,
+              JSON.stringify(timeSinceStarted),
+            ],
+            timeoutMs,
+          )
         ).stdout.toString(),
       )
     } else if (healthProcedure.type === "script") {
@@ -645,6 +708,7 @@ export class SystemForEmbassy implements System {
     effects: HostSystemStartOs,
     actionId: string,
     formData: unknown,
+    timeoutMs: number | null,
   ): Promise<T.ActionResult> {
     const actionProcedure = this.manifest.actions?.[actionId]?.implementation
     if (!actionProcedure) return { message: "Action not found", value: null }
@@ -656,11 +720,14 @@ export class SystemForEmbassy implements System {
       )
       return JSON.parse(
         (
-          await container.exec([
-            actionProcedure.entrypoint,
-            ...actionProcedure.args,
-            JSON.stringify(formData),
-          ])
+          await container.execFail(
+            [
+              actionProcedure.entrypoint,
+              ...actionProcedure.args,
+              JSON.stringify(formData),
+            ],
+            timeoutMs,
+          )
         ).stdout.toString(),
       )
     } else {
@@ -681,6 +748,7 @@ export class SystemForEmbassy implements System {
     effects: HostSystemStartOs,
     id: string,
     oldConfig: unknown,
+    timeoutMs: number | null,
   ): Promise<object> {
     const actionProcedure = this.manifest.dependencies?.[id]?.config?.check
     if (!actionProcedure) return { message: "Action not found", value: null }
@@ -692,11 +760,14 @@ export class SystemForEmbassy implements System {
       )
       return JSON.parse(
         (
-          await container.exec([
-            actionProcedure.entrypoint,
-            ...actionProcedure.args,
-            JSON.stringify(oldConfig),
-          ])
+          await container.execFail(
+            [
+              actionProcedure.entrypoint,
+              ...actionProcedure.args,
+              JSON.stringify(oldConfig),
+            ],
+            timeoutMs,
+          )
         ).stdout.toString(),
       )
     } else if (actionProcedure.type === "script") {
@@ -722,7 +793,9 @@ export class SystemForEmbassy implements System {
     effects: HostSystemStartOs,
     id: string,
     oldConfig: unknown,
+    timeoutMs: number | null,
   ): Promise<void> {
+    // TODO: docker
     const moduleCode = await this.moduleCode
     const method = moduleCode.dependencies?.[id]?.autoConfigure
     if (!method)

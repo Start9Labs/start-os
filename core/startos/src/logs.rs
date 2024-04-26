@@ -242,7 +242,7 @@ pub fn logs() -> ParentHandler<LogsParam> {
                 .with_inherited(|params, _| params),
         )
         .root_handler(
-            from_fn_async(logs_follow)
+            from_fn_async(logs_nofollow)
                 .with_inherited(|params, _| params)
                 .no_cli(),
         )
