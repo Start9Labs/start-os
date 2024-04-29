@@ -151,6 +151,7 @@ pub fn service_effect_handler() -> ParentHandler {
                 .no_display()
                 .with_remote_cli::<ContainerCliContext>(),
         )
+        .subcommand("setSystemSmtp", from_fn_async(set_system_smtp).no_cli())
         .subcommand("getSystemSmtp", from_fn_async(get_system_smtp).no_cli())
         .subcommand("getContainerIp", from_fn_async(get_container_ip).no_cli())
         .subcommand(
