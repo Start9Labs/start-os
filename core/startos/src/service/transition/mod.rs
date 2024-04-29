@@ -59,21 +59,23 @@ impl Drop for TransitionState {
 }
 
 #[derive(Debug, Clone)]
-pub struct TempDesiredState(pub(super) Arc<watch::Sender<ServiceState>>);
-impl TempDesiredState {
+pub struct TempDesiredRestore(pub(super) Arc<watch::Sender<ServiceState>>, StartStop);
+impl TempDesiredRestore {
     pub fn new(state: &Arc<watch::Sender<ServiceState>>) -> Self {
-        Self(state.clone())
+        Self(state.clone(), state.borrow().desired_state)
     }
     pub fn stop(&self) {
         self.0
             .send_modify(|s| s.temp_desired_state = Some(StartStop::Stop));
     }
-    pub fn start(&self) {
+    pub fn restore(&self) -> StartStop {
+        let restore_state = self.1;
         self.0
-            .send_modify(|s| s.temp_desired_state = Some(StartStop::Start));
+            .send_modify(|s| s.temp_desired_state = Some(restore_state));
+        restore_state
     }
 }
-impl Drop for TempDesiredState {
+impl Drop for TempDesiredRestore {
     fn drop(&mut self) {
         self.0.send_modify(|s| s.temp_desired_state = None);
     }

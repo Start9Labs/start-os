@@ -1069,11 +1069,6 @@ pub async fn create_overlayed_image(
             .rootfs_dir();
         let mountpoint = rootfs_dir.join("media/startos/overlays").join(&*guid);
         tokio::fs::create_dir_all(&mountpoint).await?;
-        Command::new("chown")
-            .arg("100000:100000")
-            .arg(&mountpoint)
-            .invoke(ErrorKind::Filesystem)
-            .await?;
         let container_mountpoint = Path::new("/").join(
             mountpoint
                 .strip_prefix(rootfs_dir)
@@ -1082,9 +1077,14 @@ pub async fn create_overlayed_image(
         tracing::info!("Mounting overlay {guid} for {image_id}");
         let guard = OverlayGuard::mount(
             &IdMapped::new(LoopDev::from(&**image), 0, 100000, 65536),
-            mountpoint,
+            &mountpoint,
         )
         .await?;
+        Command::new("chown")
+            .arg("100000:100000")
+            .arg(&mountpoint)
+            .invoke(ErrorKind::Filesystem)
+            .await?;
         tracing::info!("Mounted overlay {guid} for {image_id}");
         ctx.persistent_container
             .overlays

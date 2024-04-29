@@ -68,7 +68,10 @@ export class DockerProcedureContainer {
             },
           })
         } else if (volumeMount.type === "backup") {
-          throw new Error("TODO")
+          await overlay.mount(
+            { type: "volume", id: mount, subpath: null, readonly: false },
+            mounts[mount],
+          )
         }
       }
     }

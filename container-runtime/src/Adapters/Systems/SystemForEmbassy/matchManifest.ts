@@ -57,6 +57,7 @@ export const matchManifest = object(
         matchProcedure,
         object({
           name: string,
+          ["success-message"]: string,
         }),
       ),
     ]),

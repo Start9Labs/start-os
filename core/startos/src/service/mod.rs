@@ -348,9 +348,14 @@ impl Service {
         Ok(())
     }
 
-    pub async fn backup(&self, _guard: impl GenericMountGuard) -> Result<BackupReturn, Error> {
-        // TODO
-        Err(Error::new(eyre!("not yet implemented"), ErrorKind::Unknown))
+    #[instrument(skip_all)]
+    pub async fn backup(&self, guard: impl GenericMountGuard) -> Result<(), Error> {
+        self.actor
+            .send(transition::backup::Backup {
+                path: guard.path().to_path_buf(),
+            })
+            .await?;
+        Ok(())
     }
 
     pub fn container_id(&self) -> Result<ContainerId, Error> {

@@ -1,7 +1,7 @@
-use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
+use std::{collections::BTreeMap, path::PathBuf};
 
 use futures::future::ready;
 use futures::{Future, FutureExt};
@@ -220,6 +220,36 @@ impl PersistentContainer {
             net_service: Mutex::new(net_service),
             destroyed: false,
         })
+    }
+
+    #[instrument(skip_all)]
+    pub async fn mount_backup(&self, backup_path: impl AsRef<Path>) -> Result<MountGuard, Error> {
+        let backup_path: PathBuf = backup_path.as_ref().to_path_buf();
+        let mountpoint = self
+            .lxc_container
+            .get()
+            .ok_or_else(|| {
+                Error::new(
+                    eyre!("PersistentContainer has been destroyed"),
+                    ErrorKind::Incoherent,
+                )
+            })?
+            .rootfs_dir()
+            .join("media/startos/volumes/BACKUP");
+        tokio::fs::create_dir_all(&mountpoint).await?;
+        let bind = Bind::new(&backup_path);
+        let mount_guard = MountGuard::mount(&bind, &mountpoint, MountType::ReadWrite).await;
+        Command::new("chown")
+            .arg("100000:100000")
+            .arg(mountpoint.as_os_str())
+            .invoke(ErrorKind::Filesystem)
+            .await?;
+        Command::new("chown")
+            .arg("100000:100000")
+            .arg(backup_path.as_os_str())
+            .invoke(ErrorKind::Filesystem)
+            .await?;
+        mount_guard
     }
 
     #[instrument(skip_all)]
