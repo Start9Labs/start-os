@@ -13,7 +13,7 @@ use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 use ts_rs::TS;
 
-use super::target::BackupTargetId;
+use super::target::{BackupTargetId, PackageBackupInfo};
 use super::PackageBackupReport;
 use crate::auth::check_password_against_db;
 use crate::backup::os::OsBackup;
@@ -246,19 +246,43 @@ async fn perform_backup(
     backup_guard: BackupMountGuard<TmpMountGuard>,
     package_ids: &OrdSet<PackageId>,
 ) -> Result<BTreeMap<PackageId, PackageBackupReport>, Error> {
+    let db = ctx.db.peek().await;
     let mut backup_report = BTreeMap::new();
     let backup_guard = Arc::new(backup_guard);
+    let mut package_backups: BTreeMap<PackageId, PackageBackupInfo> =
+        backup_guard.metadata.package_backups.clone();
 
     for id in package_ids {
         if let Some(service) = &*ctx.services.get(id).await {
+            let backup_result = service
+                .backup(backup_guard.package_backup(id))
+                .await
+                .err()
+                .map(|e| e.to_string());
+            if backup_result.is_none() {
+                let manifest = db
+                    .as_public()
+                    .as_package_data()
+                    .as_idx(id)
+                    .or_not_found(id)?
+                    .as_state_info()
+                    .expect_installed()?
+                    .as_manifest();
+
+                package_backups.insert(
+                    id.clone(),
+                    PackageBackupInfo {
+                        os_version: manifest.as_os_version().de()?,
+                        version: manifest.as_version().de()?,
+                        title: manifest.as_title().de()?,
+                        timestamp: Utc::now(),
+                    },
+                );
+            }
             backup_report.insert(
                 id.clone(),
                 PackageBackupReport {
-                    error: service
-                        .backup(backup_guard.package_backup(id))
-                        .await
-                        .err()
-                        .map(|e| e.to_string()),
+                    error: backup_result,
                 },
             );
         }
@@ -298,7 +322,7 @@ async fn perform_backup(
     }
     let luks_folder = Path::new("/media/embassy/config/luks");
     if tokio::fs::metadata(&luks_folder).await.is_ok() {
-        dir_copy(&luks_folder, &luks_folder_bak, None).await?;
+        dir_copy(luks_folder, &luks_folder_bak, None).await?;
     }
 
     let timestamp = Some(Utc::now());
@@ -307,8 +331,9 @@ async fn perform_backup(
     backup_guard.unencrypted_metadata.full = true;
     backup_guard.metadata.version = crate::version::Current::new().semver().into();
     backup_guard.metadata.timestamp = timestamp;
+    backup_guard.metadata.package_backups = package_backups;
 
-    backup_guard.save_and_unmount().await?;
+    backup_guard.save().await?;
 
     ctx.db
         .mutate(|v| {

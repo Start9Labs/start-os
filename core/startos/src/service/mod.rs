@@ -296,13 +296,28 @@ impl Service {
     }
 
     pub async fn restore(
-        _ctx: RpcContext,
-        _s9pk: S9pk,
-        _guard: impl GenericMountGuard,
-        _progress: Option<InstallProgressHandles>,
+        ctx: RpcContext,
+        s9pk: S9pk,
+        backup_source: impl GenericMountGuard,
+        progress: Option<InstallProgressHandles>,
     ) -> Result<Self, Error> {
-        // TODO
-        Err(Error::new(eyre!("not yet implemented"), ErrorKind::Unknown))
+        dbg!("Restoring starting");
+        let service = Service::install(ctx.clone(), s9pk, None, progress).await?;
+
+        let backup_guard = service
+            .seed
+            .persistent_container
+            .mount_backup(backup_source.path())
+            .await?;
+        service
+            .seed
+            .persistent_container
+            .execute(ProcedureName::RestoreBackup, Value::Null, None)
+            .await?;
+        backup_guard.unmount(true).await?;
+
+        dbg!("Restoring done");
+        Ok(service)
     }
 
     pub async fn shutdown(self) -> Result<(), Error> {

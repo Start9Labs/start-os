@@ -420,7 +420,10 @@ export class SystemForEmbassy implements System {
       const container = await DockerProcedureContainer.of(
         effects,
         restoreBackup,
-        this.manifest.volumes,
+        {
+          ...this.manifest.volumes,
+          BACKUP: { type: "backup", readonly: true },
+        },
       )
       await container.execFail(
         [restoreBackup.entrypoint, ...restoreBackup.args],

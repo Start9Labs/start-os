@@ -41,7 +41,7 @@ impl Handler<Backup> for ServiceActor {
             seed.persistent_container
                 .execute(ProcedureName::CreateBackup, Value::Null, None)
                 .await?;
-            drop(backup_guard);
+            backup_guard.unmount(true).await?;
 
             if temp.restore().is_start() {
                 current
