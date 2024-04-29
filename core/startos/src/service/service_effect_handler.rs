@@ -187,6 +187,12 @@ struct GetSystemSmtpParams {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
+struct SetSystemSmtpParams {
+    smtp: String,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
 struct GetServicePortForwardParams {
     #[ts(type = "string | null")]
     package_id: Option<PackageId>,
@@ -316,7 +322,7 @@ struct MountParams {
 }
 async fn set_system_smtp(
     context: EffectContext,
-    smtp: String,
+    data: SetSystemSmtpParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
     context
@@ -326,7 +332,7 @@ async fn set_system_smtp(
             let model = db.as_public_mut()
             .as_server_info_mut()
             .as_smtp_mut();
-            model.ser(&mut Some(smtp))
+            model.ser(&mut Some(data.smtp))
         })
         .await
 }
