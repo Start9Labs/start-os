@@ -314,12 +314,28 @@ struct MountParams {
     location: String,
     target: MountTarget,
 }
+async fn set_system_smtp(
+    context: EffectContext,
+    smtp: String,
+) -> Result<(), Error> {
+    let context = context.deref()?;
+    context
+        .ctx
+        .db
+        .mutate(|db| {
+            let model = db.as_public_mut()
+            .as_server_info_mut()
+            .as_smtp_mut();
+            model.ser(&mut Some(smtp))
+        })
+        .await
+}
 async fn get_system_smtp(
     context: EffectContext,
     data: GetSystemSmtpParams,
 ) -> Result<String, Error> {
     let context = context.deref()?;
-    context
+    let res = context
         .ctx
         .db
         .peek()
@@ -327,7 +343,15 @@ async fn get_system_smtp(
         .into_public()
         .into_server_info()
         .into_smtp()
-        .de()
+        .de()?;
+
+    match res {
+        Some(smtp) => Ok(smtp),
+        None => Err(Error::new(
+            eyre!("SMTP not found"),
+            crate::ErrorKind::NotFound,
+        )),
+    }
 }
 async fn get_container_ip(context: EffectContext, _: Empty) -> Result<Ipv4Addr, Error> {
     let context = context.deref()?;
