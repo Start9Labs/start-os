@@ -18,7 +18,7 @@ use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
 use crate::s9pk::rpc::SKIP_ENV;
 use crate::s9pk::v1::manifest::Manifest as ManifestV1;
 use crate::s9pk::v1::reader::S9pkReader;
-use crate::s9pk::v2::S9pk;
+use crate::s9pk::v2::{S9pk, SIG_CONTEXT};
 use crate::util::io::TmpDir;
 use crate::util::Invoke;
 
@@ -315,7 +315,7 @@ impl S9pk<Section<MultiCursorFile>> {
             )),
         )?;
 
-        let mut s9pk = S9pk::new(MerkleArchive::new(archive, signer), None).await?;
+        let mut s9pk = S9pk::new(MerkleArchive::new(archive, signer, SIG_CONTEXT), None).await?;
         let mut dest_file = File::create(destination.as_ref()).await?;
         s9pk.serialize(&mut dest_file, false).await?;
         dest_file.sync_all().await?;

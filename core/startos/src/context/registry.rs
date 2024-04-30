@@ -10,9 +10,11 @@ use tracing::instrument;
 use crate::context::config::ServerConfig;
 use crate::prelude::*;
 use crate::registry::server::RegistryDatabase;
+use crate::rpc_continuations::RpcContinuations;
 
 pub struct RegistryContextSeed {
     pub db: TypedPatchDb<RegistryDatabase>,
+    pub rpc_continuations: RpcContinuations,
     pub shutdown: Sender<()>,
 }
 
@@ -31,8 +33,13 @@ impl RegistryContext {
         let db = TypedPatchDb::<RegistryDatabase>::load_or_init(
             PatchDb::open(&db_path).await?,
             || async { Ok(Default::default()) },
-        );
-        Ok(Self(Arc::new(RegistryContextSeed { db, shutdown })))
+        )
+        .await?;
+        Ok(Self(Arc::new(RegistryContextSeed {
+            db,
+            rpc_continuations: RpcContinuations::new(),
+            shutdown,
+        })))
     }
 }
 

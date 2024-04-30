@@ -27,7 +27,7 @@ pub trait FileSource: Clone + Send + Sync + Sized + 'static {
     ) -> Result<(), Error> {
         let mut w = VerifyingWriter::new(w, verify);
         tokio::io::copy(&mut self.reader().await?, &mut w).await?;
-        w.verify()?;
+        w.verify().await?;
         Ok(())
     }
     async fn to_vec(&self, verify: Option<Hash>) -> Result<Vec<u8>, Error> {

@@ -16,7 +16,6 @@ use tracing::instrument;
 use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
 use crate::context::config::ServerConfig;
-use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation, WebSocketHandler};
 use crate::db::model::Database;
 use crate::dependencies::compute_dependency_config_errs;
 use crate::disk::OsPartitionInfo;
@@ -27,6 +26,7 @@ use crate::net::net_controller::NetController;
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
 use crate::net::wifi::WpaCli;
 use crate::prelude::*;
+use crate::rpc_continuations::RpcContinuations;
 use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
 use crate::system::get_mem_info;
@@ -48,7 +48,7 @@ pub struct RpcContextSeed {
     pub tor_socks: SocketAddr,
     pub lxc_manager: Arc<LxcManager>,
     pub open_authed_websockets: Mutex<BTreeMap<HashSessionToken, Vec<oneshot::Sender<()>>>>,
-    pub rpc_stream_continuations: Mutex<BTreeMap<RequestGuid, RpcContinuation>>,
+    pub rpc_continuations: RpcContinuations,
     pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
     pub current_secret: Arc<Jwk>,
     pub client: Client,
@@ -157,7 +157,7 @@ impl RpcContext {
             tor_socks: tor_proxy,
             lxc_manager: Arc::new(LxcManager::new()),
             open_authed_websockets: Mutex::new(BTreeMap::new()),
-            rpc_stream_continuations: Mutex::new(BTreeMap::new()),
+            rpc_continuations: RpcContinuations::new(),
             wifi_manager: wifi_interface
                 .clone()
                 .map(|i| Arc::new(RwLock::new(WpaCli::init(i)))),
@@ -233,55 +233,6 @@ impl RpcContext {
             .await?;
 
         Ok(())
-    }
-
-    #[instrument(skip_all)]
-    pub async fn clean_continuations(&self) {
-        let mut continuations = self.rpc_stream_continuations.lock().await;
-        let mut to_remove = Vec::new();
-        for (guid, cont) in &*continuations {
-            if cont.is_timed_out() {
-                to_remove.push(guid.clone());
-            }
-        }
-        for guid in to_remove {
-            continuations.remove(&guid);
-        }
-    }
-
-    #[instrument(skip_all)]
-    pub async fn add_continuation(&self, guid: RequestGuid, handler: RpcContinuation) {
-        self.clean_continuations().await;
-        self.rpc_stream_continuations
-            .lock()
-            .await
-            .insert(guid, handler);
-    }
-
-    pub async fn get_ws_continuation_handler(
-        &self,
-        guid: &RequestGuid,
-    ) -> Option<WebSocketHandler> {
-        let mut continuations = self.rpc_stream_continuations.lock().await;
-        if !matches!(continuations.get(guid), Some(RpcContinuation::WebSocket(_))) {
-            return None;
-        }
-        let Some(RpcContinuation::WebSocket(x)) = continuations.remove(guid) else {
-            return None;
-        };
-        x.get().await
-    }
-
-    pub async fn get_rest_continuation_handler(&self, guid: &RequestGuid) -> Option<RestHandler> {
-        let mut continuations: tokio::sync::MutexGuard<'_, BTreeMap<RequestGuid, RpcContinuation>> =
-            self.rpc_stream_continuations.lock().await;
-        if !matches!(continuations.get(guid), Some(RpcContinuation::Rest(_))) {
-            return None;
-        }
-        let Some(RpcContinuation::Rest(x)) = continuations.remove(guid) else {
-            return None;
-        };
-        x.get().await
     }
 }
 impl AsRef<Jwk> for RpcContext {

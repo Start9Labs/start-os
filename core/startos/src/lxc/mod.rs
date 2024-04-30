@@ -25,7 +25,6 @@ use tokio::time::Instant;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
@@ -34,6 +33,7 @@ use crate::disk::mount::filesystem::{MountType, ReadWrite};
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::disk::mount::util::unmount;
 use crate::prelude::*;
+use crate::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::util::clap::FromStrParser;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::{new_guid, Invoke};
@@ -374,7 +374,7 @@ pub fn lxc() -> ParentHandler {
     ParentHandler::new()
         .subcommand(
             "create",
-            from_fn_async(create).with_remote_cli::<CliContext>(),
+            from_fn_async(create).with_call_remote::<CliContext>(),
         )
         .subcommand(
             "list",
@@ -388,13 +388,13 @@ pub fn lxc() -> ParentHandler {
                     table.printstd();
                     Ok(())
                 })
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "remove",
             from_fn_async(remove)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand("connect", from_fn_async(connect_rpc).no_cli())
         .subcommand("connect", from_fn_async(connect_rpc_cli).no_display())
@@ -448,59 +448,59 @@ pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Reque
 
     let rpc = container.connect_rpc(Some(Duration::from_secs(30))).await?;
     let guid = RequestGuid::new();
-    ctx.add_continuation(
-        guid.clone(),
-        RpcContinuation::ws(
-            Box::new(|mut ws| {
-                async move {
-                    if let Err(e) = async {
-                        loop {
-                            match ws.next().await {
-                                None => break,
-                                Some(Ok(Message::Text(txt))) => {
-                                    let mut id = None;
-                                    let result = async {
-                                        let req: RpcRequest =
-                                            serde_json::from_str(&txt).map_err(|e| RpcError {
-                                                data: Some(serde_json::Value::String(
-                                                    e.to_string(),
-                                                )),
-                                                ..rpc_toolkit::yajrc::PARSE_ERROR
-                                            })?;
-                                        id = req.id;
-                                        rpc.request(req.method, req.params).await
+    ctx.rpc_continuations
+        .add(
+            guid.clone(),
+            RpcContinuation::ws(
+                Box::new(|mut ws| {
+                    async move {
+                        if let Err(e) = async {
+                            loop {
+                                match ws.next().await {
+                                    None => break,
+                                    Some(Ok(Message::Text(txt))) => {
+                                        let mut id = None;
+                                        let result = async {
+                                            let req: RpcRequest = serde_json::from_str(&txt)
+                                                .map_err(|e| RpcError {
+                                                    data: Some(serde_json::Value::String(
+                                                        e.to_string(),
+                                                    )),
+                                                    ..rpc_toolkit::yajrc::PARSE_ERROR
+                                                })?;
+                                            id = req.id;
+                                            rpc.request(req.method, req.params).await
+                                        }
+                                        .await;
+                                        ws.send(Message::Text(
+                                            serde_json::to_string(
+                                                &RpcResponse::<GenericRpcMethod> { id, result },
+                                            )
+                                            .with_kind(ErrorKind::Serialization)?,
+                                        ))
+                                        .await
+                                        .with_kind(ErrorKind::Network)?;
                                     }
-                                    .await;
-                                    ws.send(Message::Text(
-                                        serde_json::to_string(&RpcResponse::<GenericRpcMethod> {
-                                            id,
-                                            result,
-                                        })
-                                        .with_kind(ErrorKind::Serialization)?,
-                                    ))
-                                    .await
-                                    .with_kind(ErrorKind::Network)?;
-                                }
-                                Some(Ok(_)) => (),
-                                Some(Err(e)) => {
-                                    return Err(Error::new(e, ErrorKind::Network));
+                                    Some(Ok(_)) => (),
+                                    Some(Err(e)) => {
+                                        return Err(Error::new(e, ErrorKind::Network));
+                                    }
                                 }
                             }
+                            Ok::<_, Error>(())
                         }
-                        Ok::<_, Error>(())
+                        .await
+                        {
+                            tracing::error!("{e}");
+                            tracing::debug!("{e:?}");
+                        }
                     }
-                    .await
-                    {
-                        tracing::error!("{e}");
-                        tracing::debug!("{e:?}");
-                    }
-                }
-                .boxed()
-            }),
-            Duration::from_secs(30),
-        ),
-    )
-    .await;
+                    .boxed()
+                }),
+                Duration::from_secs(30),
+            ),
+        )
+        .await;
     Ok(guid)
 }
 

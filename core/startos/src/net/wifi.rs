@@ -43,19 +43,19 @@ pub fn wifi() -> ParentHandler {
             "add",
             from_fn_async(add)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "connect",
             from_fn_async(connect)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "delete",
             from_fn_async(delete)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "get",
@@ -64,7 +64,7 @@ pub fn wifi() -> ParentHandler {
                 .with_custom_display_fn::<AnyContext, _>(|handle, result| {
                     Ok(display_wifi_info(handle.params, result))
                 })
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand("country", country())
         .subcommand("available", available())
@@ -78,7 +78,7 @@ pub fn available() -> ParentHandler {
             .with_custom_display_fn::<AnyContext, _>(|handle, result| {
                 Ok(display_wifi_list(handle.params, result))
             })
-            .with_remote_cli::<CliContext>(),
+            .with_call_remote::<CliContext>(),
     )
 }
 
@@ -87,7 +87,7 @@ pub fn country() -> ParentHandler {
         "set",
         from_fn_async(set_country)
             .no_display()
-            .with_remote_cli::<CliContext>(),
+            .with_call_remote::<CliContext>(),
     )
 }
 

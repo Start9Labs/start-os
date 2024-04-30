@@ -71,7 +71,7 @@ pub fn service_effect_handler() -> ParentHandler {
         .subcommand("gitInfo", from_fn(crate::version::git_info))
         .subcommand(
             "echo",
-            from_fn(echo).with_remote_cli::<ContainerCliContext>(),
+            from_fn(echo).with_call_remote::<ContainerCliContext>(),
         )
         .subcommand("chroot", from_fn(chroot).no_display())
         .subcommand("exists", from_fn_async(exists).no_cli())
@@ -81,35 +81,35 @@ pub fn service_effect_handler() -> ParentHandler {
             "stopped",
             from_fn_async(stopped)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "running",
             from_fn_async(running)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "restart",
             from_fn_async(restart)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "shutdown",
             from_fn_async(shutdown)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "setConfigured",
             from_fn_async(set_configured)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "setMainStatus",
-            from_fn_async(set_main_status).with_remote_cli::<ContainerCliContext>(),
+            from_fn_async(set_main_status).with_call_remote::<ContainerCliContext>(),
         )
         .subcommand("setHealth", from_fn_async(set_health).no_cli())
         .subcommand("getStore", from_fn_async(get_store).no_cli())
@@ -124,7 +124,7 @@ pub fn service_effect_handler() -> ParentHandler {
                 .with_custom_display_fn::<AnyContext, _>(|_, (path, _)| {
                     Ok(println!("{}", path.display()))
                 })
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "destroyOverlayedImage",
@@ -146,7 +146,7 @@ pub fn service_effect_handler() -> ParentHandler {
             "setDependencies",
             from_fn_async(set_dependencies)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand("getSystemSmtp", from_fn_async(get_system_smtp).no_cli())
         .subcommand("getContainerIp", from_fn_async(get_container_ip).no_cli())

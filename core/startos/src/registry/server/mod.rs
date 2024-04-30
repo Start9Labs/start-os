@@ -1,11 +1,11 @@
-use axum::routing::get;
-use axum::{Json, Router};
+use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::context::RegistryContext;
+use crate::context::{CliContext, RegistryContext};
 use crate::prelude::*;
-use crate::registry::server::os::{get_os_index, OsIndex};
+use crate::registry::server::os::OsIndex;
+use crate::util::serde::HandlerExtSerde;
 
 pub mod admin;
 pub mod os;
@@ -31,12 +31,12 @@ pub async fn get_full_index(ctx: RegistryContext) -> Result<FullIndex, Error> {
     ctx.db.peek().await.into_index().de()
 }
 
-pub fn router(ctx: &RegistryContext) -> Router {
-    Router::new()
-        .route("/index", {
-            let ctx = ctx.clone();
-            get(|| async { Ok::<_, Error>(Json(get_full_index(ctx).await?)) })
-        })
-        .nest("/os", os::router(ctx))
-        .nest("/admin", admin::router(ctx))
+pub fn registry_api() -> ParentHandler {
+    ParentHandler::new()
+        .subcommand(
+            "index",
+            from_fn_async(get_full_index).with_display_serializable(), // .with_call_remote::<CliContext>(),
+        )
+        .subcommand("os", os::os_api())
+        .subcommand("admin", admin::admin_api())
 }

@@ -19,10 +19,10 @@ use tokio_tungstenite::tungstenite::Message;
 use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
-use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::error::ResultExt;
 use crate::lxc::ContainerId;
 use crate::prelude::*;
+use crate::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::util::serde::Reversible;
 use crate::util::Invoke;
 
@@ -336,7 +336,8 @@ pub async fn cli_logs_generic_nofollow(
     before: bool,
 ) -> Result<(), RpcError> {
     let res = from_value::<LogResponse>(
-        ctx.call_remote(
+        <CliContext as CallRemote<RpcContext>>::call_remote(
+            &ctx,
             method,
             imbl_value::json!({
                 "id": id,
@@ -362,7 +363,8 @@ pub async fn cli_logs_generic_follow(
     limit: Option<usize>,
 ) -> Result<(), RpcError> {
     let res = from_value::<LogFollowResponse>(
-        ctx.call_remote(
+        <CliContext as CallRemote<RpcContext>>::call_remote(
+            &ctx,
             method,
             imbl_value::json!({
                 "id": id,
@@ -556,23 +558,24 @@ pub async fn follow_logs(
     }
 
     let guid = RequestGuid::new();
-    ctx.add_continuation(
-        guid.clone(),
-        RpcContinuation::ws(
-            Box::new(move |socket| {
-                ws_handler(first_entry, stream, socket)
-                    .map(|x| match x {
-                        Ok(_) => (),
-                        Err(e) => {
-                            tracing::error!("Error in log stream: {}", e);
-                        }
-                    })
-                    .boxed()
-            }),
-            Duration::from_secs(30),
-        ),
-    )
-    .await;
+    ctx.rpc_continuations
+        .add(
+            guid.clone(),
+            RpcContinuation::ws(
+                Box::new(move |socket| {
+                    ws_handler(first_entry, stream, socket)
+                        .map(|x| match x {
+                            Ok(_) => (),
+                            Err(e) => {
+                                tracing::error!("Error in log stream: {}", e);
+                            }
+                        })
+                        .boxed()
+                }),
+                Duration::from_secs(30),
+            ),
+        )
+        .await;
     Ok(LogFollowResponse { start_cursor, guid })
 }
 

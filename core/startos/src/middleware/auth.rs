@@ -274,7 +274,6 @@ impl Auth {
         }
     }
 }
-#[async_trait::async_trait]
 impl Middleware<RpcContext> for Auth {
     type Metadata = Metadata;
     async fn process_http_request(

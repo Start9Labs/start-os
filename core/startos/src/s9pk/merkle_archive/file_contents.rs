@@ -1,9 +1,10 @@
 use tokio::io::AsyncRead;
 
 use crate::prelude::*;
-use crate::s9pk::merkle_archive::hash::{Hash, HashWriter};
+use crate::s9pk::merkle_archive::hash::Hash;
 use crate::s9pk::merkle_archive::sink::{Sink, TrackingWriter};
 use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
+use crate::util::io::ParallelBlake3Writer;
 
 #[derive(Debug, Clone)]
 pub struct FileContents<S>(S);
@@ -37,9 +38,10 @@ impl<S: ArchiveSource> FileContents<Section<S>> {
 }
 impl<S: FileSource> FileContents<S> {
     pub async fn hash(&self) -> Result<Hash, Error> {
-        let mut hasher = TrackingWriter::new(0, HashWriter::new());
+        let mut hasher =
+            TrackingWriter::new(0, ParallelBlake3Writer::new(super::hash::BUFFER_CAPACITY));
         self.serialize_body(&mut hasher, None).await?;
-        Ok(hasher.into_inner().finalize())
+        hasher.into_inner().finalize().await
     }
     #[instrument(skip_all)]
     pub async fn serialize_header<W: Sink>(&self, position: u64, w: &mut W) -> Result<u64, Error> {

@@ -35,13 +35,13 @@ pub fn install() -> ParentHandler {
             "execute",
             from_fn_async(execute)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "reboot",
             from_fn_async(reboot)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
 }
 
@@ -50,7 +50,7 @@ pub fn disk() -> ParentHandler {
         "list",
         from_fn_async(list)
             .no_display()
-            .with_remote_cli::<CliContext>(),
+            .with_call_remote::<CliContext>(),
     )
 }
 

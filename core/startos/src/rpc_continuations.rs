@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::time::Duration;
 
 use axum::extract::ws::WebSocket;
@@ -6,6 +7,7 @@ use axum::response::Response;
 use futures::future::BoxFuture;
 use helpers::TimedResource;
 use imbl_value::InternedString;
+use tokio::sync::Mutex;
 
 #[allow(unused_imports)]
 use crate::prelude::*;
@@ -71,5 +73,55 @@ impl RpcContinuation {
             RpcContinuation::Rest(a) => a.is_timed_out(),
             RpcContinuation::WebSocket(a) => a.is_timed_out(),
         }
+    }
+}
+
+pub struct RpcContinuations(Mutex<BTreeMap<RequestGuid, RpcContinuation>>);
+impl RpcContinuations {
+    pub fn new() -> Self {
+        RpcContinuations(Mutex::new(BTreeMap::new()))
+    }
+
+    #[instrument(skip_all)]
+    pub async fn clean(&self) {
+        let mut continuations = self.0.lock().await;
+        let mut to_remove = Vec::new();
+        for (guid, cont) in &*continuations {
+            if cont.is_timed_out() {
+                to_remove.push(guid.clone());
+            }
+        }
+        for guid in to_remove {
+            continuations.remove(&guid);
+        }
+    }
+
+    #[instrument(skip_all)]
+    pub async fn add(&self, guid: RequestGuid, handler: RpcContinuation) {
+        self.clean().await;
+        self.0.lock().await.insert(guid, handler);
+    }
+
+    pub async fn get_ws_handler(&self, guid: &RequestGuid) -> Option<WebSocketHandler> {
+        let mut continuations = self.0.lock().await;
+        if !matches!(continuations.get(guid), Some(RpcContinuation::WebSocket(_))) {
+            return None;
+        }
+        let Some(RpcContinuation::WebSocket(x)) = continuations.remove(guid) else {
+            return None;
+        };
+        x.get().await
+    }
+
+    pub async fn get_rest_handler(&self, guid: &RequestGuid) -> Option<RestHandler> {
+        let mut continuations: tokio::sync::MutexGuard<'_, BTreeMap<RequestGuid, RpcContinuation>> =
+            self.0.lock().await;
+        if !matches!(continuations.get(guid), Some(RpcContinuation::Rest(_))) {
+            return None;
+        }
+        let Some(RpcContinuation::Rest(x)) = continuations.remove(guid) else {
+            return None;
+        };
+        x.get().await
     }
 }

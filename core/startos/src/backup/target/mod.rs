@@ -145,7 +145,7 @@ pub fn target() -> ParentHandler {
             "list",
             from_fn_async(list)
                 .with_display_serializable()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "info",
@@ -154,7 +154,7 @@ pub fn target() -> ParentHandler {
                 .with_custom_display_fn::<AnyContext, _>(|params, info| {
                     Ok(display_backup_info(params.params, info))
                 })
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
 }
 

@@ -85,13 +85,13 @@ pub fn ssh() -> ParentHandler {
             "add",
             from_fn_async(add)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "delete",
             from_fn_async(delete)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "list",
@@ -100,7 +100,7 @@ pub fn ssh() -> ParentHandler {
                 .with_custom_display_fn::<AnyContext, _>(|handle, result| {
                     Ok(display_all_ssh_keys(handle.params, result))
                 })
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
 }
 

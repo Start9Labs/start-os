@@ -18,10 +18,10 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::package::{ManifestPreference, PackageState, PackageStateMatchModelRef};
 use crate::prelude::*;
 use crate::progress::{FullProgress, PhasedProgressBar};
+use crate::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::S9pk;
@@ -188,7 +188,7 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
                 .with_kind(ErrorKind::Database)?,
         )
         .await;
-    ctx.add_continuation(
+    ctx.rpc_continuations.add(
         progress.clone(),
         RpcContinuation::ws(
             Box::new(|mut ws| {
@@ -329,8 +329,12 @@ pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<()
 
             // rpc call remote sideload
             let SideloadResponse { upload, progress } = from_value::<SideloadResponse>(
-                ctx.call_remote("package.sideload", imbl_value::json!({}))
-                    .await?,
+                <CliContext as CallRemote<RpcContext>>::call_remote(
+                    &ctx,
+                    "package.sideload",
+                    imbl_value::json!({}),
+                )
+                .await?,
             )?;
 
             let upload = async {
@@ -387,8 +391,12 @@ pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<()
             upload?;
         }
         CliInstallParams::Marketplace(params) => {
-            ctx.call_remote("package.install", to_value(&params)?)
-                .await?;
+            <CliContext as CallRemote<RpcContext>>::call_remote(
+                &ctx,
+                "package.install",
+                to_value(&params)?,
+            )
+            .await?;
         }
     }
     Ok(())

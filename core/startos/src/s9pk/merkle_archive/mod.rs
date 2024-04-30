@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use ed25519_dalek::{Signature, SigningKey, VerifyingKey};
+use sha2::{Digest, Sha512};
 use tokio::io::AsyncRead;
 
 use crate::prelude::*;
@@ -23,8 +24,8 @@ pub mod write_queue;
 
 #[derive(Debug, Clone)]
 enum Signer {
-    Signed(VerifyingKey, Signature),
-    Signer(SigningKey),
+    Signed(VerifyingKey, Signature, &'static str),
+    Signer(SigningKey, &'static str),
 }
 
 #[derive(Debug, Clone)]
@@ -33,16 +34,16 @@ pub struct MerkleArchive<S> {
     contents: DirectoryContents<S>,
 }
 impl<S> MerkleArchive<S> {
-    pub fn new(contents: DirectoryContents<S>, signer: SigningKey) -> Self {
+    pub fn new(contents: DirectoryContents<S>, signer: SigningKey, context: &'static str) -> Self {
         Self {
-            signer: Signer::Signer(signer),
+            signer: Signer::Signer(signer, context),
             contents,
         }
     }
     pub fn signer(&self) -> VerifyingKey {
         match &self.signer {
-            Signer::Signed(k, _) => *k,
-            Signer::Signer(k) => k.verifying_key(),
+            Signer::Signed(k, _, _) => *k,
+            Signer::Signer(k, _) => k.verifying_key(),
         }
     }
     pub const fn header_size() -> u64 {
@@ -57,8 +58,8 @@ impl<S> MerkleArchive<S> {
     pub fn contents_mut(&mut self) -> &mut DirectoryContents<S> {
         &mut self.contents
     }
-    pub fn set_signer(&mut self, key: SigningKey) {
-        self.signer = Signer::Signer(key);
+    pub fn set_signer(&mut self, key: SigningKey, context: &'static str) {
+        self.signer = Signer::Signer(key, context);
     }
     pub fn sort_by(
         &mut self,
@@ -71,6 +72,7 @@ impl<S: ArchiveSource> MerkleArchive<Section<S>> {
     #[instrument(skip_all)]
     pub async fn deserialize(
         source: &S,
+        context: &'static str,
         header: &mut (impl AsyncRead + Unpin + Send),
     ) -> Result<Self, Error> {
         use tokio::io::AsyncReadExt;
@@ -89,10 +91,14 @@ impl<S: ArchiveSource> MerkleArchive<Section<S>> {
 
         let contents = DirectoryContents::deserialize(source, header, sighash).await?;
 
-        pubkey.verify_strict(contents.sighash().await?.as_bytes(), &signature)?;
+        pubkey.verify_prehashed_strict(
+            Sha512::new_with_prefix(contents.sighash().await?.as_bytes()),
+            Some(context.as_bytes()),
+            &signature,
+        )?;
 
         Ok(Self {
-            signer: Signer::Signed(pubkey, signature),
+            signer: Signer::Signed(pubkey, signature, context),
             contents,
         })
     }
@@ -111,8 +117,15 @@ impl<S: FileSource> MerkleArchive<S> {
         let sighash = self.contents.sighash().await?;
 
         let (pubkey, signature) = match &self.signer {
-            Signer::Signed(pubkey, signature) => (*pubkey, *signature),
-            Signer::Signer(s) => (s.into(), ed25519_dalek::Signer::sign(s, sighash.as_bytes())),
+            Signer::Signed(pubkey, signature, _) => (*pubkey, *signature),
+            Signer::Signer(s, context) => (
+                s.into(),
+                ed25519_dalek::SigningKey::sign_prehashed(
+                    s,
+                    Sha512::new_with_prefix(sighash.as_bytes()),
+                    Some(context.as_bytes()),
+                )?,
+            ),
         };
 
         w.write_all(pubkey.as_bytes()).await?;

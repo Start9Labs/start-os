@@ -23,7 +23,6 @@ impl SyncDb {
     }
 }
 
-#[async_trait::async_trait]
 impl Middleware<RpcContext> for SyncDb {
     type Metadata = Metadata;
     async fn process_rpc_request(

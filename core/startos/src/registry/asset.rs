@@ -14,3 +14,8 @@ pub struct RegistryAsset {
     pub url: Url,
     pub signature_info: SignatureInfo,
 }
+impl AsRef<RegistryAsset> for RegistryAsset {
+    fn as_ref(&self) -> &RegistryAsset {
+        self
+    }
+}

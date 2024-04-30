@@ -58,6 +58,8 @@ pub struct ClientConfig {
     pub config: Option<PathBuf>,
     #[arg(short = 'h', long = "host")]
     pub host: Option<Url>,
+    #[arg(short = 'r', long = "registry")]
+    pub registry: Option<Url>,
     #[arg(short = 'p', long = "proxy")]
     pub proxy: Option<Url>,
     #[arg(long = "cookie-path")]
@@ -71,8 +73,10 @@ impl ContextConfig for ClientConfig {
     }
     fn merge_with(&mut self, other: Self) {
         self.host = self.host.take().or(other.host);
+        self.registry = self.registry.take().or(other.registry);
         self.proxy = self.proxy.take().or(other.proxy);
         self.cookie_path = self.cookie_path.take().or(other.cookie_path);
+        self.developer_key_path = self.developer_key_path.take().or(other.developer_key_path);
     }
 }
 impl ClientConfig {
@@ -128,6 +132,7 @@ impl ContextConfig for ServerConfig {
             .take()
             .or(other.revision_cache_size);
         self.datadir = self.datadir.take().or(other.datadir);
+        self.registry_db = self.registry_db.take().or(other.registry_db);
         self.disable_encryption = self.disable_encryption.take().or(other.disable_encryption);
     }
 }

@@ -11,11 +11,12 @@ use itertools::Itertools;
 use tokio::io::AsyncRead;
 
 use crate::prelude::*;
-use crate::s9pk::merkle_archive::hash::{Hash, HashWriter};
+use crate::s9pk::merkle_archive::hash::Hash;
 use crate::s9pk::merkle_archive::sink::{Sink, TrackingWriter};
 use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
 use crate::s9pk::merkle_archive::write_queue::WriteQueue;
 use crate::s9pk::merkle_archive::{varint, Entry, EntryContents};
+use crate::util::io::ParallelBlake3Writer;
 
 #[derive(Clone)]
 pub struct DirectoryContents<S> {
@@ -233,7 +234,8 @@ impl<S: FileSource> DirectoryContents<S> {
     #[instrument(skip_all)]
     pub fn sighash<'a>(&'a self) -> BoxFuture<'a, Result<Hash, Error>> {
         async move {
-            let mut hasher = TrackingWriter::new(0, HashWriter::new());
+            let mut hasher =
+                TrackingWriter::new(0, ParallelBlake3Writer::new(super::hash::BUFFER_CAPACITY));
             let mut sig_contents = OrdMap::new();
             for (name, entry) in &**self {
                 sig_contents.insert(name.clone(), entry.to_missing().await?);
@@ -244,7 +246,7 @@ impl<S: FileSource> DirectoryContents<S> {
             }
             .serialize_toc(&mut WriteQueue::new(0), &mut hasher)
             .await?;
-            Ok(hasher.into_inner().finalize())
+            hasher.into_inner().finalize().await
         }
         .boxed()
     }

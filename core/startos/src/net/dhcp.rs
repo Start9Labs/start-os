@@ -58,7 +58,7 @@ pub fn dhcp() -> ParentHandler {
         "update",
         from_fn_async::<_, _, (), Error, (RpcContext, UpdateParams)>(update)
             .no_display()
-            .with_remote_cli::<CliContext>(),
+            .with_call_remote::<CliContext>(),
     )
 }
 #[derive(Deserialize, Serialize, Parser, TS)]

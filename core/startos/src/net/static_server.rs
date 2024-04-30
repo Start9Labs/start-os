@@ -24,13 +24,13 @@ use tokio::io::BufReader;
 use tokio_util::io::ReaderStream;
 
 use crate::context::{DiagnosticContext, InstallContext, RpcContext, SetupContext};
-use crate::core::rpc_continuations::RequestGuid;
 use crate::db::subscribe;
 use crate::hostname::Hostname;
 use crate::middleware::auth::{Auth, HasValidSession};
 use crate::middleware::cors::Cors;
 use crate::middleware::db::SyncDb;
 use crate::middleware::diagnostic::DiagnosticMode;
+use crate::rpc_continuations::RequestGuid;
 use crate::{diagnostic_api, install_api, main_api, setup_api, Error, ErrorKind, ResultExt};
 
 const NOT_FOUND: &[u8] = b"Not Found";
@@ -140,7 +140,7 @@ pub fn main_ui_server_router(ctx: RpcContext) -> Router {
                             tracing::debug!("No Guid Path");
                             bad_request()
                         }
-                        Some(guid) => match ctx.get_ws_continuation_handler(&guid).await {
+                        Some(guid) => match ctx.rpc_continuations.get_ws_handler(&guid).await {
                             Some(cont) => ws.on_upgrade(cont),
                             _ => not_found(),
                         },
@@ -163,7 +163,7 @@ pub fn main_ui_server_router(ctx: RpcContext) -> Router {
                             tracing::debug!("No Guid Path");
                             bad_request()
                         }
-                        Some(guid) => match ctx.get_rest_continuation_handler(&guid).await {
+                        Some(guid) => match ctx.rpc_continuations.get_rest_handler(&guid).await {
                             None => not_found(),
                             Some(cont) => cont(request).await.unwrap_or_else(server_error),
                         },

@@ -14,7 +14,6 @@ use tokio::sync::Notify;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::core::rpc_continuations::RequestGuid;
 use crate::db::model::package::{
     InstalledState, PackageDataEntry, PackageState, PackageStateMatchModelRef, UpdatingState,
 };
@@ -23,6 +22,7 @@ use crate::install::PKG_ARCHIVE_DIR;
 use crate::lxc::ContainerId;
 use crate::prelude::*;
 use crate::progress::{NamedProgress, Progress};
+use crate::rpc_continuations::RequestGuid;
 use crate::s9pk::S9pk;
 use crate::service::service_map::InstallProgressHandles;
 use crate::service::transition::TransitionKind;

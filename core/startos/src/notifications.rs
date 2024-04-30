@@ -27,25 +27,25 @@ pub fn notification() -> ParentHandler {
             "list",
             from_fn_async(list)
                 .with_display_serializable()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "delete",
             from_fn_async(delete)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "delete-before",
             from_fn_async(delete_before)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "create",
             from_fn_async(create)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
 }
 

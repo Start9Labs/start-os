@@ -12,7 +12,7 @@ use crate::version::VersionT;
 use crate::{Error, ResultExt};
 
 pub fn marketplace() -> ParentHandler {
-    ParentHandler::new().subcommand("get", from_fn_async(get).with_remote_cli::<CliContext>())
+    ParentHandler::new().subcommand("get", from_fn_async(get).with_call_remote::<CliContext>())
 }
 
 pub fn with_query_params(ctx: RpcContext, mut url: Url) -> Url {

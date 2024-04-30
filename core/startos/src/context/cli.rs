@@ -10,7 +10,7 @@ use reqwest::Proxy;
 use reqwest_cookie_store::CookieStoreMutex;
 use rpc_toolkit::reqwest::{Client, Url};
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{call_remote_http, CallRemote, Context};
+use rpc_toolkit::{call_remote_http, AnyContext, CallRemote, Context};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
@@ -18,15 +18,19 @@ use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
 use crate::context::config::{local_config_path, ClientConfig};
-use crate::core::rpc_continuations::RequestGuid;
+use crate::context::{
+    DiagnosticContext, InstallContext, RegistryContext, RpcContext, SetupContext,
+};
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
+use crate::rpc_continuations::RequestGuid;
 
 #[derive(Debug)]
 pub struct CliContextSeed {
     pub runtime: OnceCell<Runtime>,
     pub base_url: Url,
     pub rpc_url: Url,
+    pub registry_url: Url,
     pub client: Client,
     pub cookie_store: Arc<CookieStoreMutex>,
     pub cookie_path: PathBuf,
@@ -66,6 +70,12 @@ impl CliContext {
             "http://localhost".parse()?
         };
 
+        let mut registry = if let Some(registry) = config.registry {
+            registry
+        } else {
+            "https://registry.start9.com".parse()?
+        };
+
         let cookie_path = config.cookie_path.unwrap_or_else(|| {
             local_config_path()
                 .as_deref()
@@ -103,6 +113,15 @@ impl CliContext {
                     .push("rpc")
                     .push("v1");
                 url
+            },
+            registry_url: {
+                registry
+                    .path_segments_mut()
+                    .map_err(|_| eyre!("Url cannot be base"))
+                    .with_kind(crate::ErrorKind::ParseUrl)?
+                    .push("rpc")
+                    .push("v0");
+                registry
             },
             client: {
                 let mut builder = Client::builder().cookie_provider(cookie_store.clone());
@@ -223,10 +242,34 @@ impl Context for CliContext {
             .clone()
     }
 }
-#[async_trait::async_trait]
-impl CallRemote for CliContext {
+impl CallRemote<AnyContext> for CliContext {
     async fn call_remote(&self, method: &str, params: Value) -> Result<Value, RpcError> {
         call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
+    }
+}
+impl CallRemote<RpcContext> for CliContext {
+    async fn call_remote(&self, method: &str, params: Value) -> Result<Value, RpcError> {
+        call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
+    }
+}
+impl CallRemote<DiagnosticContext> for CliContext {
+    async fn call_remote(&self, method: &str, params: Value) -> Result<Value, RpcError> {
+        call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
+    }
+}
+impl CallRemote<SetupContext> for CliContext {
+    async fn call_remote(&self, method: &str, params: Value) -> Result<Value, RpcError> {
+        call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
+    }
+}
+impl CallRemote<InstallContext> for CliContext {
+    async fn call_remote(&self, method: &str, params: Value) -> Result<Value, RpcError> {
+        call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
+    }
+}
+impl CallRemote<RegistryContext> for CliContext {
+    async fn call_remote(&self, method: &str, params: Value) -> Result<Value, RpcError> {
+        call_remote_http(&self.client, self.registry_url.clone(), method, params).await
     }
 }
 

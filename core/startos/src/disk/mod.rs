@@ -49,13 +49,13 @@ pub fn disk() -> ParentHandler {
                 .with_custom_display_fn::<AnyContext, _>(|handle, result| {
                     Ok(display_disk_info(handle.params, result))
                 })
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "repair",
             from_fn_async(repair)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
 }
 

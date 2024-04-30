@@ -33,7 +33,7 @@ pub fn experimental() -> ParentHandler {
             "zram",
             from_fn_async(zram)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "governor",
@@ -42,7 +42,7 @@ pub fn experimental() -> ParentHandler {
                 .with_custom_display_fn::<AnyContext, _>(|handle, result| {
                     Ok(display_governor_info(handle.params, result))
                 })
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
 }
 

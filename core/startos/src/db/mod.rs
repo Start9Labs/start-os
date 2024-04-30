@@ -205,7 +205,8 @@ async fn cli_dump(
         PatchDb::open(path).await?.dump(&ROOT).await
     } else {
         from_value::<Dump>(
-            ctx.call_remote(
+            <CliContext as CallRemote<RpcContext>>::call_remote(
+                &ctx,
                 "db.dump",
                 imbl_value::json!({ "includePrivate":include_private }),
             )
@@ -269,8 +270,12 @@ async fn cli_apply(
             })
             .await?;
     } else {
-        ctx.call_remote("db.apply", imbl_value::json!({ "expr": expr }))
-            .await?;
+        <CliContext as CallRemote<RpcContext>>::call_remote(
+            &ctx,
+            "db.apply",
+            imbl_value::json!({ "expr": expr }),
+        )
+        .await?;
     }
 
     Ok(())
@@ -311,7 +316,7 @@ pub fn put() -> ParentHandler {
         "ui",
         from_fn_async(ui)
             .with_display_serializable()
-            .with_remote_cli::<CliContext>(),
+            .with_call_remote::<CliContext>(),
     )
 }
 #[derive(Deserialize, Serialize, Parser, TS)]

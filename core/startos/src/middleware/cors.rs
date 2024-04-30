@@ -44,8 +44,7 @@ impl Cors {
         }
     }
 }
-#[async_trait::async_trait]
-impl<Context: Send + 'static> Middleware<Context> for Cors {
+impl<Context: Send + Sync + 'static> Middleware<Context> for Cors {
     type Metadata = Empty;
     async fn process_http_request(
         &mut self,

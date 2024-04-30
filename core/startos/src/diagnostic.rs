@@ -15,24 +15,24 @@ use crate::Error;
 
 pub fn diagnostic() -> ParentHandler {
     ParentHandler::new()
-        .subcommand("error", from_fn(error).with_remote_cli::<CliContext>())
+        .subcommand("error", from_fn(error).with_call_remote::<CliContext>())
         .subcommand("logs", from_fn_async(logs).no_cli())
         .subcommand(
             "exit",
-            from_fn(exit).no_display().with_remote_cli::<CliContext>(),
+            from_fn(exit).no_display().with_call_remote::<CliContext>(),
         )
         .subcommand(
             "restart",
             from_fn(restart)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand("disk", disk())
         .subcommand(
             "rebuild",
             from_fn_async(rebuild)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
 }
 
@@ -88,7 +88,7 @@ pub fn disk() -> ParentHandler {
         "forget",
         from_fn_async(forget_disk)
             .no_display()
-            .with_remote_cli::<CliContext>(),
+            .with_call_remote::<CliContext>(),
     )
 }
 

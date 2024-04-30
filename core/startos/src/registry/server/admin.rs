@@ -1,7 +1,7 @@
-use axum::Router;
+use rpc_toolkit::ParentHandler;
 
 use crate::context::RegistryContext;
 
-pub fn router(ctx: &RegistryContext) -> Router {
-    Router::new()
+pub fn admin_api() -> ParentHandler {
+    ParentHandler::new()
 }

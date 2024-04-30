@@ -17,6 +17,7 @@ use crate::s9pk::manifest::Manifest;
 use crate::s9pk::merkle_archive::source::DynFileSource;
 use crate::s9pk::merkle_archive::Entry;
 use crate::s9pk::v2::compat::CONTAINER_TOOL;
+use crate::s9pk::v2::SIG_CONTEXT;
 use crate::s9pk::S9pk;
 use crate::util::io::TmpDir;
 use crate::util::serde::{apply_expr, HandlerExtSerde};
@@ -162,7 +163,7 @@ async fn add_image(
             .invoke(ErrorKind::Docker)
             .await?;
         let archive = s9pk.as_archive_mut();
-        archive.set_signer(ctx.developer_key()?.clone());
+        archive.set_signer(ctx.developer_key()?.clone(), SIG_CONTEXT);
         archive.contents_mut().insert_path(
             Path::new("images")
                 .join(&arch)
@@ -217,7 +218,7 @@ async fn edit_manifest(
     let tmp_path = s9pk_path.with_extension("s9pk.tmp");
     let mut tmp_file = File::create(&tmp_path).await?;
     s9pk.as_archive_mut()
-        .set_signer(ctx.developer_key()?.clone());
+        .set_signer(ctx.developer_key()?.clone(), SIG_CONTEXT);
     s9pk.serialize(&mut tmp_file, true).await?;
     tmp_file.sync_all().await?;
     tokio::fs::rename(&tmp_path, &s9pk_path).await?;

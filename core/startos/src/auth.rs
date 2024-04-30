@@ -95,7 +95,7 @@ pub fn auth() -> ParentHandler {
             "logout",
             from_fn_async(logout)
                 .with_metadata("get-session", Value::Bool(true))
-                .with_remote_cli::<CliContext>()
+                .with_call_remote::<CliContext>()
                 .no_display(),
         )
         .subcommand("session", session())
@@ -112,7 +112,7 @@ pub fn auth() -> ParentHandler {
             from_fn_async(get_pubkey)
                 .with_metadata("authenticated", Value::Bool(false))
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
 }
 
@@ -146,7 +146,8 @@ async fn cli_login(
         rpassword::prompt_password("Password: ")?
     };
 
-    ctx.call_remote(
+    <CliContext as CallRemote<RpcContext>>::call_remote(
+        &ctx,
         "auth.login",
         json!({
             "password": password,
@@ -272,13 +273,13 @@ pub fn session() -> ParentHandler {
                 .with_custom_display_fn::<AnyContext, _>(|handle, result| {
                     Ok(display_sessions(handle.params, result))
                 })
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "kill",
             from_fn_async(kill)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
 }
 
@@ -400,7 +401,8 @@ async fn cli_reset_password(
         new_password
     };
 
-    ctx.call_remote(
+    <CliContext as CallRemote<RpcContext>>::call_remote(
+        &ctx,
         "auth.reset-password",
         imbl_value::json!({ "old-password": old_password, "new-password": new_password }),
     )

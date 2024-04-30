@@ -506,7 +506,6 @@ impl<T: HandlerTypes> HandlerTypes for DisplaySerializable<T> {
     type Ok = T::Ok;
     type Err = T::Err;
 }
-#[async_trait::async_trait]
 impl<T: Handler> Handler for DisplaySerializable<T> {
     type Context = T::Context;
     fn handle_sync(
@@ -970,8 +969,13 @@ impl<T: AsRef<[u8]>> Serialize for Base32<T> {
         ))
     }
 }
+impl<T: AsRef<[u8]>> std::fmt::Display for Base32<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        base32::encode(base32::Alphabet::RFC4648 { padding: true }, self.0.as_ref()).fmt(f)
+    }
+}
 
-#[derive(Debug, TS)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TS)]
 #[ts(type = "string", concrete(T = Vec<u8>))]
 pub struct Base64<T>(pub T);
 impl<'de, T: TryFrom<Vec<u8>>> Deserialize<'de> for Base64<T> {
@@ -993,6 +997,12 @@ impl<T: AsRef<[u8]>> Serialize for Base64<T> {
         S: Serializer,
     {
         serializer.serialize_str(&base64::encode(self.0.as_ref()))
+    }
+}
+impl<T> Deref for Base64<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -1167,7 +1177,7 @@ pub mod pem {
 }
 
 #[repr(transparent)]
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash, TS)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash, TS)]
 #[ts(type = "string", concrete(T = ed25519_dalek::VerifyingKey))]
 pub struct Pem<T: PemEncoding>(#[serde(with = "pem")] pub T);
 impl<T: PemEncoding> Pem<T> {
@@ -1179,6 +1189,12 @@ impl<T: PemEncoding> Pem<T> {
     }
     pub fn new_mut(value: &mut T) -> &mut Self {
         unsafe { std::mem::transmute(value) }
+    }
+}
+impl<T: PemEncoding> Deref for Pem<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

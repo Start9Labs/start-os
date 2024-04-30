@@ -21,7 +21,6 @@ use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::MountGuard;
 use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
-use crate::registry::marketplace::with_query_params;
 use crate::sound::{
     CIRCLE_OF_5THS_SHORT, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4,
 };
@@ -87,25 +86,13 @@ pub fn display_update_result(_: UpdateSystemParams, status: UpdateResult) {
 #[instrument(skip_all)]
 async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option<()>, Error> {
     let peeked = ctx.db.peek().await;
-    let latest_version: Version = ctx
-        .client
-        .get(with_query_params(
-            ctx.clone(),
-            format!("{}/eos/v0/latest", marketplace_url,).parse()?,
-        ))
-        .send()
-        .await
-        .with_kind(ErrorKind::Network)?
-        .json::<LatestInformation>()
-        .await
-        .with_kind(ErrorKind::Network)?
-        .version;
+    let latest_version: Version = todo!();
     let current_version = peeked.as_public().as_server_info().as_version().de()?;
     if latest_version < *current_version {
         return Ok(None);
     }
 
-    let eos_url = EosUrl {
+    let eos_url = OsDownloadUrl {
         base: marketplace_url,
         version: latest_version,
     };
@@ -198,7 +185,7 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
 }
 
 #[instrument(skip_all)]
-async fn do_update(ctx: RpcContext, eos_url: EosUrl) -> Result<(), Error> {
+async fn do_update(ctx: RpcContext, eos_url: OsDownloadUrl) -> Result<(), Error> {
     // TODO: download squashfs
 
     sync_boot().await?;
@@ -216,7 +203,7 @@ struct OsDownloadUrl {
 impl OsDownloadUrl {
     #[instrument()]
     pub fn url(&self) -> Result<Url, Error> {
-        self.base.join("os/v0")
+        self.base.join("os/v0");
         let host = self
             .base
             .host_str()

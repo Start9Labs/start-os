@@ -95,14 +95,14 @@ pub fn tor() -> ParentHandler {
                 .with_custom_display_fn::<AnyContext, _>(|handle, result| {
                     Ok(display_services(handle.params, result))
                 })
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand("logs", logs())
         .subcommand(
             "reset",
             from_fn_async(reset)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
 }
 #[derive(Deserialize, Serialize, Parser, TS)]
