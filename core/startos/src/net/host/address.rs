@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use torut::onion::OnionAddressV3;
 use ts_rs::TS;
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, TS)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "kind")]
 #[ts(export)]
