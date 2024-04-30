@@ -21,18 +21,47 @@ pub struct SignerInfo {
     pub keys: Vec<SignerKey>,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
+#[serde(tag = "alg", content = "pubkey")]
 pub enum SignerKey {
     Ed25519(Pem<ed25519_dalek::VerifyingKey>),
 }
 impl SignerKey {
-    pub fn verify_message(&self, message: &[u8], signature: &[u8]) -> Result<(), Error> {
+    pub fn verifier(&self) -> Verifier {
         match self {
-            Self::Ed25519(k) => {
-                k.verify_strict(message, &ed25519_dalek::Signature::from_slice(signature)?)?;
-            }
+            Self::Ed25519(k) => Verifier::Ed25519(*k, Sha512::new()),
+        }
+    }
+    pub fn verify_message(
+        &self,
+        message: &[u8],
+        signature: &[u8],
+        context: &str,
+    ) -> Result<(), Error> {
+        let mut v = self.verifier();
+        v.update(message);
+        v.verify(signature, context)
+    }
+}
+
+pub enum Verifier {
+    Ed25519(Pem<ed25519_dalek::VerifyingKey>, Sha512),
+}
+impl Verifier {
+    pub fn update(&mut self, data: &[u8]) {
+        match self {
+            Self::Ed25519(_, h) => h.update(data),
+        }
+    }
+    pub fn verify(self, signature: &[u8], context: &str) -> Result<(), Error> {
+        match self {
+            Self::Ed25519(k, h) => k.verify_prehashed_strict(
+                h,
+                Some(context.as_bytes()),
+                &ed25519_dalek::Signature::from_slice(signature)?,
+            )?,
         }
         Ok(())
     }
@@ -61,7 +90,7 @@ impl SignatureInfo {
             blake3_ed255i9: None,
         }
     }
-    pub fn add_sig(&mut self, signature: &Signature, context: &'static str) -> Result<(), Error> {
+    pub fn add_sig(&mut self, signature: &Signature, context: &str) -> Result<(), Error> {
         match signature {
             Signature::Blake3Ed25519(s) => {
                 if self
@@ -183,7 +212,7 @@ impl Blake3Ed25519Signature {
         Ok(())
     }
 
-    pub fn info(&self, context: &'static str) -> Blake3Ed2551SignatureInfo {
+    pub fn info(&self, context: &str) -> Blake3Ed2551SignatureInfo {
         Blake3Ed2551SignatureInfo {
             context: InternedString::intern(context),
             hash: self.hash,

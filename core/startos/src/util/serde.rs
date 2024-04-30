@@ -939,6 +939,41 @@ impl<'de, K: Deserialize<'de>, V: Deserialize<'de>> Deserialize<'de> for KeyVal<
 
 #[derive(TS)]
 #[ts(type = "string", concrete(T = Vec<u8>))]
+pub struct Base16<T>(pub T);
+impl<'de, T: TryFrom<Vec<u8>>> Deserialize<'de> for Base16<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        hex::decode(&s)
+            .map_err(|_| {
+                serde::de::Error::invalid_value(
+                    serde::de::Unexpected::Str(&s),
+                    &"a valid hex string",
+                )
+            })?
+            .try_into()
+            .map_err(|_| serde::de::Error::custom("invalid length"))
+            .map(Self)
+    }
+}
+impl<T: AsRef<[u8]>> Serialize for Base16<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&hex::encode(self.0.as_ref()))
+    }
+}
+impl<T: AsRef<[u8]>> std::fmt::Display for Base16<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        hex::encode(self.0.as_ref()).fmt(f)
+    }
+}
+
+#[derive(TS)]
+#[ts(type = "string", concrete(T = Vec<u8>))]
 pub struct Base32<T>(pub T);
 impl<'de, T: TryFrom<Vec<u8>>> Deserialize<'de> for Base32<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

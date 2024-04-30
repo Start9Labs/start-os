@@ -89,6 +89,7 @@ helpers = { path = "../helpers" }
 hex = "0.4.3"
 hmac = "0.12.1"
 http = "1.0.0"
+http-body-util = "0.1"
 id-pool = { version = "0.2.2", default-features = false, features = [
   "serde",
   "u16",
@@ -145,6 +146,7 @@ serde = { version = "1.0", features = ["derive", "rc"] }
 serde_cbor = { package = "ciborium", version = "0.2.1" }
 serde_json = "1.0"
 serde_toml = { package = "toml", version = "0.8.2" }
+serde_urlencoded = "0.7"
 serde_with = { version = "3.4.0", features = ["macros", "json"] }
 serde_yaml = "0.9.25"
 sha2 = "0.10.2"

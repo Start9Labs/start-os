@@ -94,7 +94,7 @@ pub fn auth() -> ParentHandler {
         .subcommand(
             "logout",
             from_fn_async(logout)
-                .with_metadata("get-session", Value::Bool(true))
+                .with_metadata("getSession", Value::Bool(true))
                 .with_call_remote::<CliContext>()
                 .no_display(),
         )
@@ -186,7 +186,8 @@ pub fn check_password_against_db(db: &DatabaseModel, password: &str) -> Result<(
 #[command(rename_all = "kebab-case")]
 pub struct LoginParams {
     password: Option<PasswordType>,
-    #[serde(default)]
+    #[ts(skip)]
+    #[serde(rename = "__auth_userAgent")] // from Auth middleware
     user_agent: Option<String>,
     #[serde(default)]
     #[ts(type = "any")]
@@ -227,7 +228,8 @@ pub async fn login_impl(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct LogoutParams {
-    #[ts(type = "string")]
+    #[ts(skip)]
+    #[serde(rename = "__auth_session")] // from Auth middleware
     session: InternedString,
 }
 

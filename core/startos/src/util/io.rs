@@ -19,6 +19,7 @@ use tokio::io::{
     duplex, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, WriteHalf,
 };
 use tokio::net::TcpStream;
+use tokio::sync::Notify;
 use tokio::time::{Instant, Sleep};
 
 use crate::prelude::*;
@@ -888,28 +889,29 @@ impl<W1: AsyncWrite, W2: AsyncWrite> AsyncWrite for TeeWriter<W1, W2> {
 pub struct ParallelBlake3Writer {
     #[pin]
     hasher: NonDetachingJoinHandle<blake3::Hash>,
-    buffer: Arc<std::sync::Mutex<(BytesMut, Vec<Waker>, bool)>>,
+    buffer: Arc<(std::sync::Mutex<(BytesMut, Vec<Waker>, bool)>, Notify)>,
     capacity: usize,
 }
 impl ParallelBlake3Writer {
     /// memory usage can be as much as 2x capacity
     pub fn new(capacity: usize) -> Self {
-        let buffer = Arc::new(std::sync::Mutex::new((
-            BytesMut::new(),
-            Vec::<Waker>::new(),
-            false,
-        )));
+        let buffer = Arc::new((
+            std::sync::Mutex::new((BytesMut::new(), Vec::<Waker>::new(), false)),
+            Notify::new(),
+        ));
         let hasher_buffer = buffer.clone();
         Self {
             hasher: tokio::spawn(async move {
                 let mut hasher = blake3::Hasher::new();
                 let mut to_hash = BytesMut::new();
+                let mut notified;
                 while {
-                    let mut guard = hasher_buffer.lock().unwrap();
+                    let mut guard = hasher_buffer.0.lock().unwrap();
                     let (buffer, wakers, shutdown) = &mut *guard;
                     std::mem::swap(buffer, &mut to_hash);
                     let wakers = std::mem::take(wakers);
                     let shutdown = *shutdown;
+                    notified = hasher_buffer.1.notified();
                     drop(guard);
                     if to_hash.len() > 128 * 1024
                     /* 128 KiB */
@@ -924,7 +926,7 @@ impl ParallelBlake3Writer {
                     }
                     !shutdown && to_hash.len() == 0
                 } {
-                    tokio::task::yield_now().await;
+                    notified.await;
                 }
                 hasher.finalize()
             })
@@ -946,7 +948,7 @@ impl AsyncWrite for ParallelBlake3Writer {
         buf: &[u8],
     ) -> Poll<Result<usize, std::io::Error>> {
         let this = self.project();
-        let mut guard = this.buffer.lock().map_err(|_| {
+        let mut guard = this.buffer.0.lock().map_err(|_| {
             std::io::Error::new(std::io::ErrorKind::Other, eyre!("hashing thread panicked"))
         })?;
         let (buffer, wakers, shutdown) = &mut *guard;
@@ -954,6 +956,9 @@ impl AsyncWrite for ParallelBlake3Writer {
             if buffer.len() < *this.capacity {
                 let to_write = std::cmp::min(*this.capacity - buffer.len(), buf.len());
                 buffer.extend_from_slice(&buf[0..to_write]);
+                if buffer.len() >= *this.capacity / 2 {
+                    this.buffer.1.notify_waiters();
+                }
                 Poll::Ready(Ok(to_write))
             } else {
                 wakers.push(cx.waker().clone());
@@ -971,7 +976,7 @@ impl AsyncWrite for ParallelBlake3Writer {
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(), std::io::Error>> {
         let this = self.project();
-        let mut guard = this.buffer.lock().map_err(|_| {
+        let mut guard = this.buffer.0.lock().map_err(|_| {
             std::io::Error::new(std::io::ErrorKind::Other, eyre!("hashing thread panicked"))
         })?;
         let (buffer, wakers, _) = &mut *guard;
@@ -979,6 +984,7 @@ impl AsyncWrite for ParallelBlake3Writer {
             Poll::Ready(Ok(()))
         } else {
             wakers.push(cx.waker().clone());
+            this.buffer.1.notify_waiters();
             Poll::Pending
         }
     }
@@ -988,7 +994,7 @@ impl AsyncWrite for ParallelBlake3Writer {
     ) -> Poll<Result<(), std::io::Error>> {
         futures::ready!(self.as_mut().poll_flush(cx)?);
         let this = self.project();
-        let mut guard = this.buffer.lock().map_err(|_| {
+        let mut guard = this.buffer.0.lock().map_err(|_| {
             std::io::Error::new(std::io::ErrorKind::Other, eyre!("hashing thread panicked"))
         })?;
         let (buffer, wakers, shutdown) = &mut *guard;
@@ -997,6 +1003,7 @@ impl AsyncWrite for ParallelBlake3Writer {
         }
         wakers.push(cx.waker().clone());
         *shutdown = true;
+        this.buffer.1.notify_waiters();
         Poll::Pending
     }
 }

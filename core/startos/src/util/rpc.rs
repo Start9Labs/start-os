@@ -12,7 +12,7 @@ use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource};
 use crate::util::io::ParallelBlake3Writer;
-use crate::util::serde::Base32;
+use crate::util::serde::Base16;
 
 pub fn util() -> ParentHandler {
     ParentHandler::new().subcommand("b3sum", from_fn_async(b3sum))
@@ -28,12 +28,12 @@ pub struct B3sumParams {
 pub async fn b3sum(
     ctx: CliContext,
     B3sumParams { file, allow_mmap }: B3sumParams,
-) -> Result<Base32<[u8; 32]>, Error> {
+) -> Result<Base16<[u8; 32]>, Error> {
     let source = if let Ok(url) = file.parse::<Url>() {
         if url.scheme() == "file" {
             let file = MultiCursorFile::from(File::open(url.path()).await?);
             if allow_mmap {
-                return file.blake3_mmap().await.map(|h| *h.as_bytes()).map(Base32);
+                return file.blake3_mmap().await.map(|h| *h.as_bytes()).map(Base16);
             }
             DynFileSource::new(file.section(
                 0,
@@ -58,7 +58,7 @@ pub async fn b3sum(
     } else {
         let file = MultiCursorFile::from(File::open(file).await?);
         if allow_mmap {
-            return file.blake3_mmap().await.map(|h| *h.as_bytes()).map(Base32);
+            return file.blake3_mmap().await.map(|h| *h.as_bytes()).map(Base16);
         }
         DynFileSource::new(file.section(
             0,
@@ -69,5 +69,5 @@ pub async fn b3sum(
     };
     let mut hasher = ParallelBlake3Writer::new(crate::s9pk::merkle_archive::hash::BUFFER_CAPACITY);
     source.copy(&mut hasher).await?;
-    hasher.finalize().await.map(|h| *h.as_bytes()).map(Base32)
+    hasher.finalize().await.map(|h| *h.as_bytes()).map(Base16)
 }

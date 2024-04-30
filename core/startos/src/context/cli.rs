@@ -18,9 +18,7 @@ use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
 use crate::context::config::{local_config_path, ClientConfig};
-use crate::context::{
-    DiagnosticContext, InstallContext, RegistryContext, RpcContext, SetupContext,
-};
+use crate::context::{DiagnosticContext, InstallContext, RpcContext, SetupContext};
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
 use crate::rpc_continuations::RequestGuid;
@@ -265,11 +263,6 @@ impl CallRemote<SetupContext> for CliContext {
 impl CallRemote<InstallContext> for CliContext {
     async fn call_remote(&self, method: &str, params: Value) -> Result<Value, RpcError> {
         call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
-    }
-}
-impl CallRemote<RegistryContext> for CliContext {
-    async fn call_remote(&self, method: &str, params: Value) -> Result<Value, RpcError> {
-        call_remote_http(&self.client, self.registry_url.clone(), method, params).await
     }
 }
 

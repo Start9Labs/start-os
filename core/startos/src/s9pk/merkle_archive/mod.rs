@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use ed25519_dalek::{Signature, SigningKey, VerifyingKey};
+use imbl_value::InternedString;
 use sha2::{Digest, Sha512};
 use tokio::io::AsyncRead;
 
@@ -24,7 +25,7 @@ pub mod write_queue;
 
 #[derive(Debug, Clone)]
 enum Signer {
-    Signed(VerifyingKey, Signature, &'static str),
+    Signed(VerifyingKey, Signature, InternedString),
     Signer(SigningKey, &'static str),
 }
 
@@ -34,7 +35,7 @@ pub struct MerkleArchive<S> {
     contents: DirectoryContents<S>,
 }
 impl<S> MerkleArchive<S> {
-    pub fn new(contents: DirectoryContents<S>, signer: SigningKey, context: &'static str) -> Self {
+    pub fn new(contents: DirectoryContents<S>, signer: SigningKey, context: &str) -> Self {
         Self {
             signer: Signer::Signer(signer, context),
             contents,
@@ -58,7 +59,7 @@ impl<S> MerkleArchive<S> {
     pub fn contents_mut(&mut self) -> &mut DirectoryContents<S> {
         &mut self.contents
     }
-    pub fn set_signer(&mut self, key: SigningKey, context: &'static str) {
+    pub fn set_signer(&mut self, key: SigningKey, context: &str) {
         self.signer = Signer::Signer(key, context);
     }
     pub fn sort_by(
@@ -72,7 +73,7 @@ impl<S: ArchiveSource> MerkleArchive<Section<S>> {
     #[instrument(skip_all)]
     pub async fn deserialize(
         source: &S,
-        context: &'static str,
+        context: &str,
         header: &mut (impl AsyncRead + Unpin + Send),
     ) -> Result<Self, Error> {
         use tokio::io::AsyncReadExt;
@@ -98,7 +99,7 @@ impl<S: ArchiveSource> MerkleArchive<Section<S>> {
         )?;
 
         Ok(Self {
-            signer: Signer::Signed(pubkey, signature, context),
+            signer: Signer::Signed(pubkey, signature, context.into()),
             contents,
         })
     }

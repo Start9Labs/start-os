@@ -104,6 +104,9 @@ impl Progress {
     pub fn complete(&mut self) {
         *self = Self::Complete(true);
     }
+    pub fn is_complete(&self) -> bool {
+        matches!(self, Self::Complete(true))
+    }
 }
 impl std::ops::Add<u64> for Progress {
     type Output = Self;

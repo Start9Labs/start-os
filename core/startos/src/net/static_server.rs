@@ -36,6 +36,7 @@ use crate::{diagnostic_api, install_api, main_api, setup_api, Error, ErrorKind, 
 const NOT_FOUND: &[u8] = b"Not Found";
 const METHOD_NOT_ALLOWED: &[u8] = b"Method Not Allowed";
 const NOT_AUTHORIZED: &[u8] = b"Not Authorized";
+const INTERNAL_SERVER_ERROR: &[u8] = b"Internal Server Error";
 
 #[cfg(all(feature = "daemon", not(feature = "test")))]
 const EMBEDDED_UIS: Dir<'_> =
@@ -216,7 +217,7 @@ async fn if_authorized<
 ) -> Result<Response, Error> {
     if let Err(e) = HasValidSession::from_header(parts.headers.get(http::header::COOKIE), ctx).await
     {
-        un_authorized(e, parts.uri.path())
+        Ok(unauthorized(e, parts.uri.path()))
     } else {
         f().await
     }
@@ -305,17 +306,17 @@ async fn main_start_os_ui(req: Request, ctx: RpcContext) -> Result<Response, Err
     }
 }
 
-fn un_authorized(err: Error, path: &str) -> Result<Response, Error> {
+pub fn unauthorized(err: Error, path: &str) -> Response {
     tracing::warn!("unauthorized for {} @{:?}", err, path);
     tracing::debug!("{:?}", err);
-    Ok(Response::builder()
+    Response::builder()
         .status(StatusCode::UNAUTHORIZED)
         .body(NOT_AUTHORIZED.into())
-        .unwrap())
+        .unwrap()
 }
 
 /// HTTP status code 404
-fn not_found() -> Response {
+pub fn not_found() -> Response {
     Response::builder()
         .status(StatusCode::NOT_FOUND)
         .body(NOT_FOUND.into())
@@ -323,21 +324,23 @@ fn not_found() -> Response {
 }
 
 /// HTTP status code 405
-fn method_not_allowed() -> Response {
+pub fn method_not_allowed() -> Response {
     Response::builder()
         .status(StatusCode::METHOD_NOT_ALLOWED)
         .body(METHOD_NOT_ALLOWED.into())
         .unwrap()
 }
 
-fn server_error(err: Error) -> Response {
+pub fn server_error(err: Error) -> Response {
+    tracing::error!("internal server error: {}", err);
+    tracing::debug!("{:?}", err);
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .body(err.to_string().into())
+        .body(INTERNAL_SERVER_ERROR.into())
         .unwrap()
 }
 
-fn bad_request() -> Response {
+pub fn bad_request() -> Response {
     Response::builder()
         .status(StatusCode::BAD_REQUEST)
         .body(Body::empty())
