@@ -89,14 +89,6 @@ impl Model<HostInfo> {
 
 impl HostInfo {
     pub fn get_host_primary(&self, host_id: &HostId) -> Option<HostAddress> {
-        match self.0.get(&host_id) {
-            Some(h) => {
-                match h.primary {
-                    Some(ha) => Some(ha),
-                    None => None,
-                }
-            }
-            None => None,
-        }
+        self.0.get(&host_id).and_then(|h| h.primary.clone())
     }
 }
