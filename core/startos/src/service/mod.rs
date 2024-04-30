@@ -10,7 +10,7 @@ use persistent_container::PersistentContainer;
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, Handler, HandlerArgs};
 use serde::{Deserialize, Serialize};
 use start_stop::StartStop;
-use tokio::sync::Notify;
+use tokio::{fs::File, sync::Notify};
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
@@ -365,6 +365,15 @@ impl Service {
 
     #[instrument(skip_all)]
     pub async fn backup(&self, guard: impl GenericMountGuard) -> Result<(), Error> {
+        let id = &self.seed.id;
+        let mut file = File::create(guard.path().join(id).with_extension("s9pk")).await?;
+        self.seed
+            .persistent_container
+            .s9pk
+            .clone()
+            .serialize(&mut file, true)
+            .await?;
+        drop(file);
         self.actor
             .send(transition::backup::Backup {
                 path: guard.path().to_path_buf(),
