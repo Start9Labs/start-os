@@ -5,6 +5,8 @@ use std::path::Path;
 #[cfg(feature = "container-runtime")]
 pub mod container_cli;
 pub mod deprecated;
+#[cfg(feature = "registry")]
+pub mod registry;
 #[cfg(feature = "cli")]
 pub mod start_cli;
 #[cfg(feature = "daemon")]
@@ -20,6 +22,8 @@ fn select_executable(name: &str) -> Option<fn(VecDeque<OsString>)> {
         "start-cli" => Some(container_cli::main),
         #[cfg(feature = "daemon")]
         "startd" => Some(startd::main),
+        #[cfg(feature = "registry")]
+        "registry" => Some(registry::main),
         "embassy-cli" => Some(|_| deprecated::renamed("embassy-cli", "start-cli")),
         "embassy-sdk" => Some(|_| deprecated::renamed("embassy-sdk", "start-sdk")),
         "embassyd" => Some(|_| deprecated::renamed("embassyd", "startd")),

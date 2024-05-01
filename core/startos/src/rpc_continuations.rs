@@ -1,9 +1,11 @@
 use std::collections::BTreeMap;
+use std::str::FromStr;
 use std::time::Duration;
 
 use axum::extract::ws::WebSocket;
 use axum::extract::Request;
 use axum::response::Response;
+use clap::builder::ValueParserFactory;
 use futures::future::BoxFuture;
 use helpers::TimedResource;
 use imbl_value::InternedString;
@@ -11,6 +13,7 @@ use tokio::sync::Mutex;
 
 #[allow(unused_imports)]
 use crate::prelude::*;
+use crate::util::clap::FromStrParser;
 use crate::util::new_guid;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
@@ -35,6 +38,18 @@ impl RequestGuid {
 impl AsRef<str> for RequestGuid {
     fn as_ref(&self) -> &str {
         self.0.as_ref()
+    }
+}
+impl FromStr for RequestGuid {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::from(s).ok_or_else(|| Error::new(eyre!("invalid guid"), ErrorKind::Deserialization))
+    }
+}
+impl ValueParserFactory for RequestGuid {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        Self::Parser::new()
     }
 }
 

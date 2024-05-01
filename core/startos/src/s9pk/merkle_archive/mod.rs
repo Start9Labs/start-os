@@ -26,7 +26,7 @@ pub mod write_queue;
 #[derive(Debug, Clone)]
 enum Signer {
     Signed(VerifyingKey, Signature, InternedString),
-    Signer(SigningKey, &'static str),
+    Signer(SigningKey, InternedString),
 }
 
 #[derive(Debug, Clone)]
@@ -37,7 +37,7 @@ pub struct MerkleArchive<S> {
 impl<S> MerkleArchive<S> {
     pub fn new(contents: DirectoryContents<S>, signer: SigningKey, context: &str) -> Self {
         Self {
-            signer: Signer::Signer(signer, context),
+            signer: Signer::Signer(signer, context.into()),
             contents,
         }
     }
@@ -60,7 +60,7 @@ impl<S> MerkleArchive<S> {
         &mut self.contents
     }
     pub fn set_signer(&mut self, key: SigningKey, context: &str) {
-        self.signer = Signer::Signer(key, context);
+        self.signer = Signer::Signer(key, context.into());
     }
     pub fn sort_by(
         &mut self,

@@ -28,10 +28,7 @@ set +e
 fail=
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-if ! rust-musl-builder sh -c "(cd core && cargo build --release --no-default-features --features cli,daemon,$FEATURES --locked --bin startbox --target=$ARCH-unknown-linux-musl)"; then 
-	fail=true
-fi
-if ! rust-musl-builder sh -c "(cd core && cargo build --release --no-default-features --features container-runtime,$FEATURES --locked --bin containerbox --target=$ARCH-unknown-linux-musl)"; then 
+if ! rust-musl-builder sh -c "(cd core && cargo build --release --no-default-features --features cli,registry,$FEATURES --locked --bin registrybox --target=$ARCH-unknown-linux-musl)"; then 
 	fail=true
 fi
 set -e

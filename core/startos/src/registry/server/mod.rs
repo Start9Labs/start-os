@@ -1,14 +1,20 @@
+use std::collections::{BTreeMap, BTreeSet};
+use std::net::SocketAddr;
+
 use axum::Router;
 use futures::future::ready;
-use rpc_toolkit::{from_fn_async, ParentHandler, Server};
+use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler, Server};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::context::CliContext;
 use crate::middleware::cors::Cors;
 use crate::net::static_server::{bad_request, not_found, server_error};
+use crate::net::web_server::WebServer;
 use crate::prelude::*;
+use crate::registry::server::auth::Auth;
 use crate::registry::server::context::RegistryContext;
-use crate::registry::server::os::OsIndex;
+use crate::registry::server::os::index::OsIndex;
 use crate::registry::signer::SignerInfo;
 use crate::rpc_continuations::RequestGuid;
 use crate::util::serde::HandlerExtSerde;
@@ -16,13 +22,14 @@ use crate::util::serde::HandlerExtSerde;
 pub mod admin;
 pub mod auth;
 pub mod context;
+pub mod db;
 pub mod os;
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct RegistryDatabase {
-    pub admins: Vec<SignerInfo>,
+    pub admins: BTreeSet<RequestGuid>,
     pub index: FullIndex,
 }
 
@@ -33,6 +40,8 @@ pub struct RegistryDatabase {
 pub struct FullIndex {
     // pub package: PackageIndex,
     pub os: OsIndex,
+    #[ts(as = "BTreeMap::<String, SignerInfo>")]
+    pub signers: BTreeMap<RequestGuid, SignerInfo>,
 }
 
 pub async fn get_full_index(ctx: RegistryContext) -> Result<FullIndex, Error> {
@@ -43,10 +52,13 @@ pub fn registry_api() -> ParentHandler {
     ParentHandler::new()
         .subcommand(
             "index",
-            from_fn_async(get_full_index).with_display_serializable(), // .with_call_remote::<CliContext>(),
+            from_fn_async(get_full_index)
+                .with_display_serializable()
+                .with_call_remote::<CliContext>(),
         )
         .subcommand("os", os::os_api())
         .subcommand("admin", admin::admin_api())
+        .subcommand("db", db::db_api())
 }
 
 pub fn registry_server_router(ctx: RegistryContext) -> Router {
@@ -57,7 +69,8 @@ pub fn registry_server_router(ctx: RegistryContext) -> Router {
             let ctx = ctx.clone();
             post(
                 Server::new(move || ready(Ok(ctx.clone())), registry_api())
-                    .middleware(Cors::new()),
+                    .middleware(Cors::new())
+                    .middleware(Auth::new()),
             )
         })
         .route(
@@ -102,4 +115,10 @@ pub fn registry_server_router(ctx: RegistryContext) -> Router {
                 }
             }),
         )
+}
+
+impl WebServer {
+    pub fn registry(bind: SocketAddr, ctx: RegistryContext) -> Self {
+        Self::new(bind, registry_server_router(ctx))
+    }
 }

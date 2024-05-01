@@ -1,3 +1,4 @@
+use std::net::{Ipv4Addr, SocketAddr};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -24,6 +25,8 @@ use crate::rpc_continuations::RpcContinuations;
 pub struct RegistryConfig {
     #[arg(short = 'c', long = "config")]
     pub config: Option<PathBuf>,
+    #[arg(short = 'l', long = "listen")]
+    pub listen: Option<SocketAddr>,
     #[arg(short = 'h', long = "hostname")]
     pub hostname: InternedString,
     #[arg(short = 'd', long = "datadir")]
@@ -49,6 +52,7 @@ impl RegistryConfig {
 
 pub struct RegistryContextSeed {
     pub hostname: InternedString,
+    pub listen: SocketAddr,
     pub db: TypedPatchDb<RegistryDatabase>,
     pub datadir: PathBuf,
     pub rpc_continuations: RpcContinuations,
@@ -77,6 +81,9 @@ impl RegistryContext {
         .await?;
         Ok(Self(Arc::new(RegistryContextSeed {
             hostname: config.hostname.clone(),
+            listen: config
+                .listen
+                .unwrap_or(SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 5959)),
             db,
             datadir,
             rpc_continuations: RpcContinuations::new(),
@@ -94,12 +101,14 @@ impl Deref for RegistryContext {
 }
 
 impl CallRemote<RegistryContext> for CliContext {
-    async fn call_remote(&self, method: &str, params: Value) -> Result<Value, RpcError> {
+    async fn call_remote(&self, mut method: &str, params: Value) -> Result<Value, RpcError> {
         use reqwest::header::{ACCEPT, CONTENT_LENGTH, CONTENT_TYPE};
         use reqwest::Method;
         use rpc_toolkit::yajrc::{GenericRpcMethod, Id, RpcRequest};
         use rpc_toolkit::RpcResponse;
         // use rpc_toolkit::RpcRequest;
+
+        method = method.strip_prefix("registry.").unwrap_or(method);
 
         let rpc_req = RpcRequest {
             id: Some(Id::Number(0.into())),

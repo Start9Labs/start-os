@@ -6,7 +6,6 @@ use color_eyre::eyre::eyre;
 use imbl::OrdMap;
 use lazy_format::lazy_format;
 use models::{HostId, OptionExt, PackageId};
-use patch_db::PatchDb;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 

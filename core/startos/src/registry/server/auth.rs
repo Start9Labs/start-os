@@ -10,7 +10,7 @@ use http_body_util::BodyExt;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{Middleware, RpcRequest, RpcResponse};
 use serde::{Deserialize, Serialize};
-use sha2::Sha512;
+use sha2::{Digest, Sha512};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
 use ts_rs::TS;
@@ -181,15 +181,9 @@ impl Middleware<RegistryContext> for Auth {
             if metadata.admin {
                 let signer = signer
                     .ok_or_else(|| Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))?;
-                if let Some(admin) = ctx
-                    .db
-                    .peek()
-                    .await
-                    .into_admins()
-                    .de()?
-                    .into_iter()
-                    .find(|a| a.keys.iter().any(|k| k == &signer))
-                {
+                let db = ctx.db.peek().await;
+                let (guid, admin) = db.as_index().as_signers().get_signer_info(&signer)?;
+                if db.into_admins().de()?.contains(&guid) {
                     let mut log = tokio::fs::OpenOptions::new()
                         .create(true)
                         .append(true)

@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Weak};
 
-use bytes::Buf;
 use lazy_static::lazy_static;
 use models::ResultExt;
 use tokio::sync::Mutex;

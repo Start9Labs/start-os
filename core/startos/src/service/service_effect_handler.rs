@@ -666,7 +666,7 @@ async fn set_store(
             let model = db
                 .as_private_mut()
                 .as_package_stores_mut()
-                .upsert(&package_id, || Box::new(json!({})))?;
+                .upsert(&package_id, || json!({}))?;
             let mut model_value = model.de()?;
             if model_value.is_null() {
                 model_value = json!({});

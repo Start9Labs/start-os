@@ -22,7 +22,7 @@ name = "startos"
 path = "src/lib.rs"
 
 [[bin]]
-name = "containerbox"
+name = "startbox"
 path = "src/main.rs"
 
 [[bin]]
@@ -30,14 +30,19 @@ name = "start-cli"
 path = "src/main.rs"
 
 [[bin]]
-name = "startbox"
+name = "containerbox"
+path = "src/main.rs"
+
+[[bin]]
+name = "registrybox"
 path = "src/main.rs"
 
 [features]
 cli = []
 container-runtime = []
 daemon = []
-default = ["cli", "daemon"]
+registry = []
+default = ["cli", "daemon", "registry"]
 dev = []
 unstable = ["console-subscriber", "tokio/tracing"]
 docker = []

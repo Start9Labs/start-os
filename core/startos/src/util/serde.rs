@@ -18,8 +18,8 @@ use serde_json::Value;
 use ts_rs::TS;
 
 use super::IntoDoubleEndedIterator;
+use crate::prelude::*;
 use crate::util::clap::FromStrParser;
-use crate::{Error, ResultExt};
 
 pub fn deserialize_from_str<
     'de,
@@ -1230,6 +1230,27 @@ impl<T: PemEncoding> Deref for Pem<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+impl<T: PemEncoding> std::fmt::Display for Pem<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.to_pem::<serde_json::Error>()
+            .map_err(|_| std::fmt::Error::default())?
+            .fmt(f)
+    }
+}
+impl<T: PemEncoding> FromStr for Pem<T> {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(
+            T::from_pem::<serde_json::Error>(s).with_kind(ErrorKind::Pem)?,
+        ))
+    }
+}
+impl<T: PemEncoding> ValueParserFactory for Pem<T> {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        Self::Parser::new()
     }
 }
 

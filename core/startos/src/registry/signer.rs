@@ -1,5 +1,7 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
 
+use clap::builder::ValueParserFactory;
 use imbl_value::InternedString;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
@@ -9,6 +11,7 @@ use url::Url;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::ArchiveSource;
+use crate::util::clap::FromStrParser;
 use crate::util::serde::{Base64, Pem};
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
@@ -18,10 +21,10 @@ use crate::util::serde::{Base64, Pem};
 pub struct SignerInfo {
     pub name: String,
     pub contact: Vec<ContactInfo>,
-    pub keys: Vec<SignerKey>,
+    pub keys: HashSet<SignerKey>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, Hash, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 #[serde(tag = "alg", content = "pubkey")]
@@ -43,6 +46,13 @@ impl SignerKey {
         let mut v = self.verifier();
         v.update(message);
         v.verify(signature, context)
+    }
+}
+impl std::fmt::Display for SignerKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Ed25519(k) => write!(f, "{k}"),
+        }
     }
 }
 
@@ -67,7 +77,7 @@ impl Verifier {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 // TODO: better types
@@ -75,6 +85,33 @@ pub enum ContactInfo {
     Email(String),
     Matrix(String),
     Website(#[ts(type = "string")] Url),
+}
+impl std::fmt::Display for ContactInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Email(e) => write!(f, "mailto:{e}"),
+            Self::Matrix(m) => write!(f, "https://matrix.to/#/{m}"),
+            Self::Website(w) => write!(f, "{w}"),
+        }
+    }
+}
+impl FromStr for ContactInfo {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(if let Some(s) = s.strip_prefix("mailto:") {
+            Self::Email(s.to_owned())
+        } else if let Some(s) = s.strip_prefix("https://matrix.to/#/") {
+            Self::Matrix(s.to_owned())
+        } else {
+            Self::Website(s.parse()?)
+        })
+    }
+}
+impl ValueParserFactory for ContactInfo {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        Self::Parser::new()
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]

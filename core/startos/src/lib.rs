@@ -276,8 +276,13 @@ pub fn install_api() -> ParentHandler {
 }
 
 pub fn expanded_api() -> ParentHandler {
-    main_api()
+    let mut api = main_api()
         .subcommand("diagnostic", diagnostic::diagnostic())
         .subcommand("setup", setup::setup())
-        .subcommand("install", os_install::install())
+        .subcommand("install", os_install::install());
+    #[cfg(feature = "registry")]
+    {
+        api = api.subcommand("registry", registry::server::registry_api());
+    }
+    api
 }

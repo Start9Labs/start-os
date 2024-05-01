@@ -1,18 +1,14 @@
 use std::collections::BTreeMap;
-use std::future::Future;
 use std::marker::PhantomData;
-use std::panic::UnwindSafe;
 use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
 pub use imbl_value::Value;
-use patch_db::json_ptr::ROOT;
 use patch_db::value::InternedString;
 pub use patch_db::{HasModel, PatchDb};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::db::model::DatabaseModel;
 use crate::prelude::*;
 
 pub fn to_value<T>(value: &T) -> Result<Value, Error>
@@ -334,6 +330,18 @@ where
     }
 }
 impl<T: Map> Model<T> {
+    pub fn contains_key(&self, key: &T::Key) -> Result<bool, Error> {
+        use serde::de::Error;
+        let s = T::key_str(key)?;
+        match &self.value {
+            Value::Object(o) => Ok(o.contains_key(s.as_ref())),
+            v => Err(patch_db::value::Error {
+                source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),
+                kind: patch_db::value::ErrorKind::Deserialization,
+            }
+            .into()),
+        }
+    }
     pub fn into_idx(self, key: &T::Key) -> Option<Model<T::Value>> {
         use patch_db::ModelExt;
         let s = T::key_str(key).ok()?;
