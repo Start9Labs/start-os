@@ -301,22 +301,14 @@ impl Service {
         backup_source: impl GenericMountGuard,
         progress: Option<InstallProgressHandles>,
     ) -> Result<Self, Error> {
-        dbg!("Restoring starting");
         let service = Service::install(ctx.clone(), s9pk, None, progress).await?;
 
-        let backup_guard = service
-            .seed
-            .persistent_container
-            .mount_backup(backup_source.path())
-            .await?;
         service
-            .seed
-            .persistent_container
-            .execute(ProcedureName::RestoreBackup, Value::Null, None)
+            .actor
+            .send(transition::restore::Restore {
+                path: backup_source.path().to_path_buf(),
+            })
             .await?;
-        backup_guard.unmount(true).await?;
-
-        dbg!("Restoring done");
         Ok(service)
     }
 
@@ -454,6 +446,7 @@ impl Actor for ServiceActor {
                         kinds.running_status,
                     ) {
                         (Some(TransitionKind::Restarting), _, _) => MainStatus::Restarting,
+                        (Some(TransitionKind::Restoring), _, _) => MainStatus::Restoring,
                         (Some(TransitionKind::BackingUp), _, Some(status)) => {
                             MainStatus::BackingUp {
                                 started: Some(status.started),

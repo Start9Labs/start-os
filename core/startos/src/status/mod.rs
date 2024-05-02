@@ -25,6 +25,7 @@ pub struct Status {
 pub enum MainStatus {
     Stopped,
     Restarting,
+    Restoring,
     #[serde(rename_all = "camelCase")]
     Stopping {
         timeout: crate::util::serde::Duration,
@@ -54,6 +55,7 @@ impl MainStatus {
                 started: Some(_), ..
             } => true,
             MainStatus::Stopped
+            | MainStatus::Restoring
             | MainStatus::Stopping { .. }
             | MainStatus::Restarting
             | MainStatus::BackingUp { started: None, .. } => false,
@@ -75,6 +77,7 @@ impl MainStatus {
             MainStatus::Running { started, .. } => Some(*started),
             MainStatus::BackingUp { started, .. } => *started,
             MainStatus::Stopped => None,
+            MainStatus::Restoring => None,
             MainStatus::Restarting => None,
             MainStatus::Stopping { .. } => None,
             MainStatus::Starting { .. } => None,
@@ -84,9 +87,10 @@ impl MainStatus {
         let (started, health) = match self {
             MainStatus::Starting { .. } => (Some(Utc::now()), Default::default()),
             MainStatus::Running { started, health } => (Some(started.clone()), health.clone()),
-            MainStatus::Stopped | MainStatus::Stopping { .. } | MainStatus::Restarting => {
-                (None, Default::default())
-            }
+            MainStatus::Stopped
+            | MainStatus::Stopping { .. }
+            | MainStatus::Restoring
+            | MainStatus::Restarting => (None, Default::default()),
             MainStatus::BackingUp { .. } => return self.clone(),
         };
         MainStatus::BackingUp { started, health }
@@ -96,7 +100,10 @@ impl MainStatus {
         match self {
             MainStatus::Running { health, .. } => Some(health),
             MainStatus::BackingUp { health, .. } => Some(health),
-            MainStatus::Stopped | MainStatus::Stopping { .. } | MainStatus::Restarting => None,
+            MainStatus::Stopped
+            | MainStatus::Restoring
+            | MainStatus::Stopping { .. }
+            | MainStatus::Restarting => None,
             MainStatus::Starting { .. } => None,
         }
     }

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use futures::FutureExt;
+use futures::{FutureExt, TryFutureExt};
 use models::ProcedureName;
 
 use super::TempDesiredRestore;
@@ -17,7 +17,7 @@ pub(in crate::service) struct Backup {
     pub path: PathBuf,
 }
 impl Handler<Backup> for ServiceActor {
-    type Response = ();
+    type Response = Result<(), Error>;
     fn conflicts_with(_: &Backup) -> ConflictBuilder<Self> {
         ConflictBuilder::everything()
             .except::<GetConfig>()
@@ -30,36 +30,44 @@ impl Handler<Backup> for ServiceActor {
         let path = backup.path.clone();
         let seed = self.0.clone();
 
-        let transition = RemoteCancellable::new(async move {
-            temp.stop();
-            current
-                .wait_for(|s| s.running_status.is_none())
-                .await
-                .with_kind(ErrorKind::Unknown)?;
-
-            let backup_guard = seed.persistent_container.mount_backup(path).await?;
-            seed.persistent_container
-                .execute(ProcedureName::CreateBackup, Value::Null, None)
-                .await?;
-            backup_guard.unmount(true).await?;
-
-            if temp.restore().is_start() {
+        let state = self.0.persistent_container.state.clone();
+        let transition = RemoteCancellable::new(
+            async move {
+                temp.stop();
                 current
-                    .wait_for(|s| s.running_status.is_some())
+                    .wait_for(|s| s.running_status.is_none())
                     .await
                     .with_kind(ErrorKind::Unknown)?;
+
+                let backup_guard = seed.persistent_container.mount_backup(path).await?;
+                seed.persistent_container
+                    .execute(ProcedureName::CreateBackup, Value::Null, None)
+                    .await?;
+                backup_guard.unmount(true).await?;
+
+                if temp.restore().is_start() {
+                    current
+                        .wait_for(|s| s.running_status.is_some())
+                        .await
+                        .with_kind(ErrorKind::Unknown)?;
+                }
+                drop(temp);
+                state.send_modify(|s| {
+                    s.transition_state.take();
+                });
+                Ok::<_, Error>(())
             }
-            drop(temp);
-            Ok::<_, Error>(())
-        });
+            .map(|x| {
+                if let Err(err) = dbg!(x) {
+                    tracing::debug!("{:?}", err);
+                    tracing::warn!("{}", err);
+                }
+            }),
+        );
         let cancel_handle = transition.cancellation_handle();
-        jobs.add_job(transition.map(|x| {
-            if let Some(Err(err)) = x {
-                tracing::debug!("{:?}", err);
-                tracing::warn!("{}", err);
-            }
-        }));
-        let notified = self.0.synchronized.notified();
+        let transition = transition.shared();
+        let job_transition = transition.clone();
+        jobs.add_job(job_transition.map(|_| ()));
 
         let mut old = None;
         self.0.persistent_container.state.send_modify(|s| {
@@ -74,10 +82,9 @@ impl Handler<Backup> for ServiceActor {
         if let Some(t) = old {
             t.abort().await;
         }
-        notified.await;
-
-        self.0.persistent_container.state.send_modify(|s| {
-            s.transition_state.take();
-        });
+        match transition.await {
+            None => Err(Error::new(eyre!("Backup canceled"), ErrorKind::Unknown)),
+            Some(x) => Ok(x),
+        }
     }
 }
