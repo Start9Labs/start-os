@@ -68,10 +68,7 @@ export class DockerProcedureContainer {
             },
           })
         } else if (volumeMount.type === "backup") {
-          await overlay.mount(
-            { type: "volume", id: mount, subpath: null, readonly: false },
-            mounts[mount],
-          )
+          await overlay.mount({ type: "backup", subpath: null }, mounts[mount])
         }
       }
     }

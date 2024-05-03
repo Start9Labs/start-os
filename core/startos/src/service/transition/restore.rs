@@ -1,12 +1,10 @@
 use std::path::PathBuf;
 
-use futures::{FutureExt, TryFutureExt};
+use futures::FutureExt;
 use models::ProcedureName;
 
-use super::TempDesiredRestore;
+use crate::disk::mount::filesystem::ReadOnly;
 use crate::prelude::*;
-use crate::service::config::GetConfig;
-use crate::service::dependencies::DependencyConfig;
 use crate::service::transition::{TransitionKind, TransitionState};
 use crate::service::ServiceActor;
 use crate::util::actor::background::BackgroundJobQueue;
@@ -29,7 +27,10 @@ impl Handler<Restore> for ServiceActor {
         let state = self.0.persistent_container.state.clone();
         let transition = RemoteCancellable::new(
             async move {
-                let backup_guard = seed.persistent_container.mount_backup(path).await?;
+                let backup_guard = seed
+                    .persistent_container
+                    .mount_backup(path, ReadOnly)
+                    .await?;
                 seed.persistent_container
                     .execute(ProcedureName::RestoreBackup, Value::Null, None)
                     .await?;

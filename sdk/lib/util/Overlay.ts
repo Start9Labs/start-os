@@ -55,6 +55,17 @@ export class Overlay {
       ])
     } else if (options.type === "pointer") {
       await this.effects.mount({ location: path, target: options })
+    } else if (options.type === "backup") {
+      const subpath = options.subpath
+        ? options.subpath.startsWith("/")
+          ? options.subpath
+          : `/${options.subpath}`
+        : "/"
+      await execFile("mount", [
+        "--bind",
+        `/media/startos/backup${subpath}`,
+        path,
+      ])
     } else {
       throw new Error(`unknown type ${(options as any).type}`)
     }
@@ -188,6 +199,7 @@ export type MountOptions =
   | MountOptionsVolume
   | MountOptionsAssets
   | MountOptionsPointer
+  | MountOptionsBackup
 
 export type MountOptionsVolume = {
   type: "volume"
@@ -208,4 +220,9 @@ export type MountOptionsPointer = {
   volumeId: string
   subpath: string | null
   readonly: boolean
+}
+
+export type MountOptionsBackup = {
+  type: "backup"
+  subpath: string | null
 }

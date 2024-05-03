@@ -1,9 +1,10 @@
 use std::path::PathBuf;
 
-use futures::{FutureExt, TryFutureExt};
+use futures::FutureExt;
 use models::ProcedureName;
 
 use super::TempDesiredRestore;
+use crate::disk::mount::filesystem::ReadWrite;
 use crate::prelude::*;
 use crate::service::config::GetConfig;
 use crate::service::dependencies::DependencyConfig;
@@ -39,7 +40,10 @@ impl Handler<Backup> for ServiceActor {
                     .await
                     .with_kind(ErrorKind::Unknown)?;
 
-                let backup_guard = seed.persistent_container.mount_backup(path).await?;
+                let backup_guard = seed
+                    .persistent_container
+                    .mount_backup(path, ReadWrite)
+                    .await?;
                 seed.persistent_container
                     .execute(ProcedureName::CreateBackup, Value::Null, None)
                     .await?;
