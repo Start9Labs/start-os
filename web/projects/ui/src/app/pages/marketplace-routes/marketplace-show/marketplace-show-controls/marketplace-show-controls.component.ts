@@ -65,7 +65,7 @@ export class MarketplaceShowControlsComponent {
     if (!this.localPkg) {
       this.alertInstall(url)
     } else {
-      const originalUrl = this.localPkg.marketplaceUrl
+      const originalUrl = this.localPkg.registry
 
       if (!sameUrl(url, originalUrl)) {
         const proceed = await this.presentAlertDifferentMarketplace(

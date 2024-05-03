@@ -71,12 +71,14 @@ pub use error::{Error, ErrorKind, ResultExt};
 use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
-    command, from_fn, from_fn_async, from_fn_blocking, AnyContext, Empty, HandlerExt, ParentHandler,
+    from_fn, from_fn_async, from_fn_blocking, AnyContext, CallRemoteHandler, Empty, HandlerExt,
+    ParentHandler,
 };
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
+use crate::registry::context::RegistryUrlParams;
 use crate::util::serde::HandlerExtSerde;
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -109,7 +111,10 @@ pub fn main_api() -> ParentHandler {
         .subcommand("disk", disk::disk())
         .subcommand("notification", notifications::notification())
         .subcommand("backup", backup::backup())
-        .subcommand("marketplace", registry::client::marketplace::marketplace())
+        .subcommand(
+            "registry",
+            CallRemoteHandler::<CliContext, _, RegistryUrlParams>::new(registry::registry_api()),
+        )
         .subcommand("lxc", lxc::lxc())
         .subcommand("s9pk", s9pk::rpc::s9pk())
         .subcommand("util", util::rpc::util())
@@ -287,15 +292,11 @@ pub fn install_api() -> ParentHandler {
 }
 
 pub fn expanded_api() -> ParentHandler {
-    let mut api = main_api()
+    main_api()
         .subcommand("init", from_fn_blocking(developer::init).no_display())
         .subcommand("pubkey", from_fn_blocking(developer::pubkey))
         .subcommand("diagnostic", diagnostic::diagnostic())
         .subcommand("setup", setup::setup())
-        .subcommand("install", os_install::install());
-    #[cfg(feature = "registry")]
-    {
-        api = api.subcommand("registry", registry::server::registry_api());
-    }
-    api
+        .subcommand("install", os_install::install())
+        .subcommand("registry", registry::registry_api())
 }

@@ -13,9 +13,9 @@ use crate::context::CliContext;
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhasedProgressBar};
 use crate::registry::asset::RegistryAsset;
-use crate::registry::server::context::RegistryContext;
-use crate::registry::server::os::index::OsVersionInfo;
-use crate::registry::server::os::SIG_CONTEXT;
+use crate::registry::context::RegistryContext;
+use crate::registry::os::index::OsVersionInfo;
+use crate::registry::os::SIG_CONTEXT;
 use crate::registry::signer::{Blake3Ed25519Signature, Signature};
 use crate::util::Version;
 

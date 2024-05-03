@@ -14,8 +14,8 @@ use crate::context::CliContext;
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhasedProgressBar};
 use crate::registry::asset::RegistryAsset;
-use crate::registry::server::context::RegistryContext;
-use crate::registry::server::os::index::OsVersionInfo;
+use crate::registry::context::RegistryContext;
+use crate::registry::os::index::OsVersionInfo;
 use crate::util::Version;
 
 pub fn get_api() -> ParentHandler {

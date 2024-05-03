@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use clap::Parser;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{command, from_fn, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 

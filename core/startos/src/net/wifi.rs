@@ -8,7 +8,7 @@ use clap::Parser;
 use isocountry::CountryCode;
 use lazy_static::lazy_static;
 use regex::Regex;
-use rpc_toolkit::{command, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::RwLock;

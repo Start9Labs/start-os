@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use chrono::{DateTime, Utc};
 use models::{HostId, PackageId};
 use reqwest::Url;
-use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 
 use crate::context::CliContext;
@@ -61,5 +61,5 @@ struct BackupMetadata {
     pub network_keys: BTreeMap<HostId, Base64<[u8; 32]>>,
     #[serde(default)]
     pub tor_keys: BTreeMap<HostId, Base32<[u8; 64]>>, // DEPRECATED
-    pub marketplace_url: Option<Url>,
+    pub registry: Option<Url>,
 }

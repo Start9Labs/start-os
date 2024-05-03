@@ -4,7 +4,7 @@ use std::time::Duration;
 use clap::Parser;
 use models::PackageId;
 use patch_db::json_patch::merge;
-use rpc_toolkit::{command, from_fn_async, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;

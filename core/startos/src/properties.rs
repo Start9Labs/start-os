@@ -1,7 +1,6 @@
 use clap::Parser;
 use imbl_value::{json, Value};
 use models::PackageId;
-use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 
 use crate::context::RpcContext;

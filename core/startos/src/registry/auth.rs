@@ -16,7 +16,7 @@ use tokio::sync::Mutex;
 use ts_rs::TS;
 
 use crate::prelude::*;
-use crate::registry::server::context::RegistryContext;
+use crate::registry::context::RegistryContext;
 use crate::registry::signer::SignerKey;
 use crate::util::serde::{Base64, Pem};
 

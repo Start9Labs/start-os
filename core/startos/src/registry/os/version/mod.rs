@@ -9,8 +9,8 @@ use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::prelude::*;
-use crate::registry::server::context::RegistryContext;
-use crate::registry::server::os::index::OsVersionInfo;
+use crate::registry::context::RegistryContext;
+use crate::registry::os::index::OsVersionInfo;
 use crate::registry::signer::SignerKey;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Version;
@@ -24,6 +24,13 @@ pub fn version_api() -> ParentHandler {
             from_fn_async(add_version)
                 .with_metadata("admin", Value::Bool(true))
                 .with_metadata("getSigner", Value::Bool(true))
+                .no_display()
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "remove",
+            from_fn_async(remove_version)
+                .with_metadata("admin", Value::Bool(true))
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
@@ -82,6 +89,30 @@ pub async fn add_version(
                     i.signers.extend(signer);
                     Ok(())
                 })
+        })
+        .await
+}
+
+#[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[command(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct RemoveVersionParams {
+    #[ts(type = "string")]
+    pub version: Version,
+}
+
+pub async fn remove_version(
+    ctx: RegistryContext,
+    RemoveVersionParams { version }: RemoveVersionParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_index_mut()
+                .as_os_mut()
+                .as_versions_mut()
+                .remove(&version)?;
+            Ok(())
         })
         .await
 }

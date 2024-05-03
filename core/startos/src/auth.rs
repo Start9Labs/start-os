@@ -8,7 +8,7 @@ use itertools::Itertools;
 use josekit::jwk::Jwk;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
-    command, from_fn_async, AnyContext, CallRemote, HandlerArgs, HandlerExt, ParentHandler,
+    from_fn_async, AnyContext, CallRemote, Empty, HandlerArgs, HandlerExt, ParentHandler,
 };
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -97,7 +97,7 @@ pub fn auth() -> ParentHandler {
         .subcommand(
             "logout",
             from_fn_async(logout)
-                .with_metadata("getSession", Value::Bool(true))
+                .with_metadata("get_session", Value::Bool(true))
                 .with_call_remote::<CliContext>()
                 .no_display(),
         )
@@ -266,7 +266,7 @@ pub fn session() -> ParentHandler {
         .subcommand(
             "list",
             from_fn_async(list)
-                .with_metadata("get-session", Value::Bool(true))
+                .with_metadata("get_session", Value::Bool(true))
                 .with_display_serializable()
                 .with_custom_display_fn::<AnyContext, _>(|handle, result| {
                     Ok(display_sessions(handle.params, result))

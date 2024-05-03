@@ -29,10 +29,6 @@ pub fn s9pk() -> ParentHandler {
     ParentHandler::new()
         .subcommand("edit", edit())
         .subcommand("inspect", inspect())
-        .subcommand(
-            "upload",
-            from_fn_async(crate::registry::client::admin::publish).no_display(),
-        )
 }
 
 #[derive(Deserialize, Serialize, Parser)]

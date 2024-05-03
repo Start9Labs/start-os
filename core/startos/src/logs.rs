@@ -12,8 +12,7 @@ use itertools::Itertools;
 use models::PackageId;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
-    command, from_fn_async, CallRemote, Empty, Handler, HandlerArgs, HandlerExt, IntoContext,
-    ParentHandler,
+    from_fn_async, CallRemote, Empty, Handler, HandlerArgs, HandlerExt, IntoContext, ParentHandler,
 };
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};

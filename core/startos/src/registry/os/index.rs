@@ -7,7 +7,7 @@ use ts_rs::TS;
 
 use crate::prelude::*;
 use crate::registry::asset::RegistryAsset;
-use crate::registry::server::context::RegistryContext;
+use crate::registry::context::RegistryContext;
 use crate::rpc_continuations::RequestGuid;
 use crate::util::Version;
 

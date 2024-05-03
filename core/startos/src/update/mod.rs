@@ -1,16 +1,10 @@
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
-
 use clap::Parser;
 use color_eyre::eyre::{eyre, Result};
-use emver::Version;
-use helpers::{Rsync, RsyncOptions};
-use lazy_static::lazy_static;
+use emver::{Version, VersionRange};
 use reqwest::Url;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
-use tokio_stream::StreamExt;
 use tracing::instrument;
 use ts_rs::TS;
 
@@ -24,18 +18,16 @@ use crate::prelude::*;
 use crate::sound::{
     CIRCLE_OF_5THS_SHORT, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4,
 };
-use crate::update::latest_information::LatestInformation;
 use crate::util::Invoke;
-use crate::{Error, ErrorKind, ResultExt, PLATFORM};
-
-mod latest_information;
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UpdateSystemParams {
+    #[ts(type = "string | null")]
+    target_version: Option<VersionRange>,
     #[ts(type = "string")]
-    marketplace_url: Url,
+    registry: Url,
 }
 
 /// An user/ daemon would call this to update the system to the latest version and do the updates available,
@@ -43,7 +35,10 @@ pub struct UpdateSystemParams {
 #[instrument(skip_all)]
 pub async fn update_system(
     ctx: RpcContext,
-    UpdateSystemParams { marketplace_url }: UpdateSystemParams,
+    UpdateSystemParams {
+        target_version,
+        registry,
+    }: UpdateSystemParams,
 ) -> Result<UpdateResult, Error> {
     if ctx
         .db
@@ -55,13 +50,15 @@ pub async fn update_system(
         .into_updated()
         .de()?
     {
-        return Ok(UpdateResult::NoUpdates);
+        return Err(Error::new(eyre!("Server was already updated. Please restart your device before attempting to update again."), ErrorKind::InvalidRequest));
     }
-    Ok(if maybe_do_update(ctx, marketplace_url).await?.is_some() {
-        UpdateResult::Updating
-    } else {
-        UpdateResult::NoUpdates
-    })
+    Ok(
+        if maybe_do_update(ctx, registry, target_version.unwrap_or(VersionRange::Any)).await? {
+            UpdateResult::Updating
+        } else {
+            UpdateResult::NoUpdates
+        },
+    )
 }
 
 /// What is the status of the updates?
@@ -84,7 +81,11 @@ pub fn display_update_result(_: UpdateSystemParams, status: UpdateResult) {
 }
 
 #[instrument(skip_all)]
-async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option<()>, Error> {
+async fn maybe_do_update(
+    ctx: RpcContext,
+    registry: Url,
+    target_version: VersionRange,
+) -> Result<bool, Error> {
     let peeked = ctx.db.peek().await;
     let latest_version: Version = todo!();
     let current_version = peeked.as_public().as_server_info().as_version().de()?;
@@ -93,7 +94,7 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
     }
 
     let eos_url = OsDownloadUrl {
-        base: marketplace_url,
+        base: registry,
         version: latest_version,
     };
     let status = ctx

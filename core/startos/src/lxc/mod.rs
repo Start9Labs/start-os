@@ -12,7 +12,7 @@ use imbl_value::{InOMap, InternedString};
 use models::InvalidId;
 use rpc_toolkit::yajrc::{RpcError, RpcResponse};
 use rpc_toolkit::{
-    from_fn_async, AnyContext, CallRemoteHandler, GenericRpcMethod, Handler, HandlerArgs,
+    from_fn_async, AnyContext, CallRemoteHandler, Empty, GenericRpcMethod, Handler, HandlerArgs,
     HandlerExt, ParentHandler, RpcRequest,
 };
 use rustyline_async::{ReadlineEvent, SharedWriter};
@@ -614,11 +614,25 @@ pub async fn connect_cli(ctx: &CliContext, guid: RequestGuid) -> Result<(), Erro
 }
 
 pub async fn connect_rpc_cli(
-    handle_args: HandlerArgs<CliContext, ConnectParams>,
+    HandlerArgs {
+        context,
+        parent_method,
+        method,
+        params,
+        inherited_params,
+        raw_params,
+    }: HandlerArgs<CliContext, ConnectParams>,
 ) -> Result<(), Error> {
-    let ctx = handle_args.context.clone();
+    let ctx = context.clone();
     let guid = CallRemoteHandler::<CliContext, _>::new(from_fn_async(connect_rpc))
-        .handle_async(handle_args)
+        .handle_async(HandlerArgs {
+            context,
+            parent_method,
+            method,
+            params: rpc_toolkit::util::Flat(params, Empty {}),
+            inherited_params,
+            raw_params,
+        })
         .await?;
 
     connect_cli(&ctx, guid).await

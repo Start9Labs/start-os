@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use imbl_value::InternedString;
-use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 

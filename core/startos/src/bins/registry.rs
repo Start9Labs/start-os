@@ -7,7 +7,7 @@ use tracing::instrument;
 
 use crate::net::web_server::WebServer;
 use crate::prelude::*;
-use crate::registry::server::context::{RegistryConfig, RegistryContext};
+use crate::registry::context::{RegistryConfig, RegistryContext};
 use crate::util::logger::EmbassyLogger;
 
 #[instrument(skip_all)]

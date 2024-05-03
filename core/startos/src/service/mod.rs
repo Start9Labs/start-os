@@ -510,11 +510,25 @@ pub async fn connect_rpc(
 }
 
 pub async fn connect_rpc_cli(
-    handle_args: HandlerArgs<CliContext, ConnectParams>,
+    HandlerArgs {
+        context,
+        parent_method,
+        method,
+        params,
+        inherited_params,
+        raw_params,
+    }: HandlerArgs<CliContext, ConnectParams>,
 ) -> Result<(), Error> {
-    let ctx = handle_args.context.clone();
+    let ctx = context.clone();
     let guid = CallRemoteHandler::<CliContext, _>::new(from_fn_async(connect_rpc))
-        .handle_async(handle_args)
+        .handle_async(HandlerArgs {
+            context,
+            parent_method,
+            method,
+            params: rpc_toolkit::util::Flat(params, Empty {}),
+            inherited_params,
+            raw_params,
+        })
         .await?;
 
     crate::lxc::connect_cli(&ctx, guid).await

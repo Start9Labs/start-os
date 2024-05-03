@@ -245,7 +245,6 @@ impl Borrow<str> for HashSessionToken {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Metadata {
     #[serde(default = "const_true")]
     authenticated: bool,

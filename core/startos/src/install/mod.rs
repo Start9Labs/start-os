@@ -6,11 +6,12 @@ use clap::{value_parser, CommandFactory, FromArgMatches, Parser};
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::{FutureExt, StreamExt};
+use itertools::Itertools;
 use patch_db::json_ptr::JsonPointer;
 use reqwest::header::{HeaderMap, CONTENT_LENGTH};
 use reqwest::Url;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::CallRemote;
+use rpc_toolkit::{CallRemote, HandlerArgs};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::oneshot;
@@ -110,7 +111,7 @@ pub struct InstallParams {
     id: PackageId,
     #[arg(short = 'm', long = "marketplace-url")]
     #[ts(type = "string | null")]
-    marketplace_url: Option<Url>,
+    registry: Option<Url>,
     #[arg(short = 'v', long = "version-spec")]
     version_spec: Option<String>,
     #[arg(long = "version-priority")]
@@ -125,7 +126,7 @@ pub async fn install(
     ctx: RpcContext,
     InstallParams {
         id,
-        marketplace_url,
+        registry,
         version_spec,
         version_priority,
     }: InstallParams,
@@ -135,15 +136,14 @@ pub async fn install(
         Some(v) => &*v,
     };
     let version: VersionRange = version_str.parse()?;
-    let marketplace_url =
-        marketplace_url.unwrap_or_else(|| crate::DEFAULT_MARKETPLACE.parse().unwrap());
+    let registry = registry.unwrap_or_else(|| crate::DEFAULT_MARKETPLACE.parse().unwrap());
     let version_priority = version_priority.unwrap_or_default();
     let s9pk = S9pk::deserialize(
         &HttpSource::new(
             ctx.client.clone(),
             format!(
                 "{}/package/v0/{}.s9pk?spec={}&version-priority={}",
-                marketplace_url, id, version, version_priority,
+                registry, id, version, version_priority,
             )
             .parse()?,
         )
@@ -322,16 +322,27 @@ impl FromArgMatches for CliInstallParams {
 }
 
 #[instrument(skip_all)]
-pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<(), RpcError> {
+pub async fn cli_install(
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        params,
+        ..
+    }: HandlerArgs<CliContext, CliInstallParams>,
+) -> Result<(), RpcError> {
+    let method = parent_method.into_iter().chain(method).collect_vec();
     match params {
         CliInstallParams::Sideload(path) => {
             let file = crate::s9pk::load(&ctx, path).await?;
 
             // rpc call remote sideload
             let SideloadResponse { upload, progress } = from_value::<SideloadResponse>(
-                <CliContext as CallRemote<RpcContext>>::call_remote(
-                    &ctx,
-                    "package.sideload",
+                ctx.call_remote::<RpcContext>(
+                    &method[..method.len() - 1]
+                        .into_iter()
+                        .chain(std::iter::once(&"sideload"))
+                        .join("."),
                     imbl_value::json!({}),
                 )
                 .await?,
@@ -391,12 +402,8 @@ pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<()
             upload?;
         }
         CliInstallParams::Marketplace(params) => {
-            <CliContext as CallRemote<RpcContext>>::call_remote(
-                &ctx,
-                "package.install",
-                to_value(&params)?,
-            )
-            .await?;
+            ctx.call_remote::<RpcContext>(&method.join("."), to_value(&params)?)
+                .await?;
         }
     }
     Ok(())

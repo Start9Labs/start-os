@@ -325,7 +325,7 @@ pub struct PackageDataEntry {
     pub state_info: PackageState,
     pub status: Status,
     #[ts(type = "string | null")]
-    pub marketplace_url: Option<Url>,
+    pub registry: Option<Url>,
     #[ts(type = "string")]
     pub developer_key: Pem<ed25519_dalek::VerifyingKey>,
     pub icon: DataUrl<'static>,

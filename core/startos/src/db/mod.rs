@@ -11,10 +11,11 @@ use clap::Parser;
 use futures::{FutureExt, StreamExt};
 use http::header::COOKIE;
 use http::HeaderMap;
+use itertools::Itertools;
 use patch_db::json_ptr::{JsonPointer, ROOT};
 use patch_db::{Dump, Revision};
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{command, from_fn_async, CallRemote, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, CallRemote, Empty, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::oneshot;
@@ -195,22 +196,28 @@ pub struct CliDumpParams {
 
 #[instrument(skip_all)]
 async fn cli_dump(
-    ctx: CliContext,
-    CliDumpParams {
-        path,
-        include_private,
-    }: CliDumpParams,
+    HandlerArgs {
+        context,
+        parent_method,
+        method,
+        params: CliDumpParams {
+            include_private,
+            path,
+        },
+        ..
+    }: HandlerArgs<CliContext, CliDumpParams>,
 ) -> Result<Dump, RpcError> {
     let dump = if let Some(path) = path {
         PatchDb::open(path).await?.dump(&ROOT).await
     } else {
+        let method = parent_method.into_iter().chain(method).join(".");
         from_value::<Dump>(
-            <CliContext as CallRemote<RpcContext>>::call_remote(
-                &ctx,
-                "db.dump",
-                imbl_value::json!({ "includePrivate":include_private }),
-            )
-            .await?,
+            context
+                .call_remote::<RpcContext>(
+                    &method,
+                    imbl_value::json!({ "includePrivate":include_private }),
+                )
+                .await?,
         )?
     };
 
@@ -238,10 +245,23 @@ pub async fn dump(
     })
 }
 
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct CliApplyParams {
+    expr: String,
+    path: Option<PathBuf>,
+}
+
 #[instrument(skip_all)]
 async fn cli_apply(
-    ctx: CliContext,
-    ApplyParams { expr, path }: ApplyParams,
+    HandlerArgs {
+        context,
+        parent_method,
+        method,
+        params: CliApplyParams { expr, path },
+        ..
+    }: HandlerArgs<CliContext, CliApplyParams>,
 ) -> Result<(), RpcError> {
     if let Some(path) = path {
         PatchDb::open(path)
@@ -270,12 +290,10 @@ async fn cli_apply(
             })
             .await?;
     } else {
-        <CliContext as CallRemote<RpcContext>>::call_remote(
-            &ctx,
-            "db.apply",
-            imbl_value::json!({ "expr": expr }),
-        )
-        .await?;
+        let method = parent_method.into_iter().chain(method).join(".");
+        context
+            .call_remote::<RpcContext>(&method, imbl_value::json!({ "expr": expr }))
+            .await?;
     }
 
     Ok(())
@@ -286,10 +304,9 @@ async fn cli_apply(
 #[command(rename_all = "kebab-case")]
 pub struct ApplyParams {
     expr: String,
-    path: Option<PathBuf>,
 }
 
-pub async fn apply(ctx: RpcContext, ApplyParams { expr, .. }: ApplyParams) -> Result<(), Error> {
+pub async fn apply(ctx: RpcContext, ApplyParams { expr }: ApplyParams) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
             let res = apply_expr(

@@ -9,9 +9,9 @@ use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::prelude::*;
-use crate::registry::server::context::RegistryContext;
-use crate::registry::server::RegistryDatabase;
+use crate::registry::context::RegistryContext;
 use crate::registry::signer::{ContactInfo, SignerInfo, SignerKey};
+use crate::registry::RegistryDatabase;
 use crate::rpc_continuations::RequestGuid;
 use crate::util::serde::{display_serializable, HandlerExtSerde, Pem, WithIoFormat};
 

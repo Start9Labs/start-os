@@ -1,7 +1,6 @@
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use models::PackageId;
-use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;

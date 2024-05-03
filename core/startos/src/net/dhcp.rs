@@ -3,7 +3,7 @@ use std::net::IpAddr;
 
 use clap::Parser;
 use futures::TryStreamExt;
-use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use ts_rs::TS;

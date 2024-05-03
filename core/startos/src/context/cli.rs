@@ -10,7 +10,7 @@ use reqwest::Proxy;
 use reqwest_cookie_store::CookieStoreMutex;
 use rpc_toolkit::reqwest::{Client, Url};
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{call_remote_http, AnyContext, CallRemote, Context};
+use rpc_toolkit::{call_remote_http, AnyContext, CallRemote, Context, Empty};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
@@ -28,7 +28,7 @@ pub struct CliContextSeed {
     pub runtime: OnceCell<Runtime>,
     pub base_url: Url,
     pub rpc_url: Url,
-    pub registry_url: Url,
+    pub registry_url: Option<Url>,
     pub client: Client,
     pub cookie_store: Arc<CookieStoreMutex>,
     pub cookie_path: PathBuf,
@@ -68,11 +68,7 @@ impl CliContext {
             "http://localhost".parse()?
         };
 
-        let mut registry = if let Some(registry) = config.registry {
-            registry
-        } else {
-            "https://registry.start9.com".parse()?
-        };
+        let mut registry = config.registry.clone();
 
         let cookie_path = config.cookie_path.unwrap_or_else(|| {
             local_config_path()
@@ -112,15 +108,17 @@ impl CliContext {
                     .push("v1");
                 url
             },
-            registry_url: {
-                registry
-                    .path_segments_mut()
-                    .map_err(|_| eyre!("Url cannot be base"))
-                    .with_kind(crate::ErrorKind::ParseUrl)?
-                    .push("rpc")
-                    .push("v0");
-                registry
-            },
+            registry_url: registry
+                .map(|registry| {
+                    registry
+                        .path_segments_mut()
+                        .map_err(|_| eyre!("Url cannot be base"))
+                        .with_kind(crate::ErrorKind::ParseUrl)?
+                        .push("rpc")
+                        .push("v0");
+                    Ok::<_, Error>(registry)
+                })
+                .transpose()?,
             client: {
                 let mut builder = Client::builder().cookie_provider(cookie_store.clone());
                 if let Some(proxy) = config.proxy {
@@ -224,7 +222,19 @@ impl CliContext {
     where
         Self: CallRemote<RemoteContext>,
     {
-        <Self as CallRemote<RemoteContext>>::call_remote(&self, method, params).await
+        <Self as CallRemote<RemoteContext, Empty>>::call_remote(&self, method, params, Empty {})
+            .await
+    }
+    pub async fn call_remote_with<RemoteContext, T>(
+        &self,
+        method: &str,
+        params: Value,
+        extra: T,
+    ) -> Result<Value, RpcError>
+    where
+        Self: CallRemote<RemoteContext, T>,
+    {
+        <Self as CallRemote<RemoteContext, T>>::call_remote(&self, method, params, extra).await
     }
 }
 impl AsRef<Jwk> for CliContext {
@@ -252,27 +262,27 @@ impl Context for CliContext {
     }
 }
 impl CallRemote<AnyContext> for CliContext {
-    async fn call_remote(&self, method: &str, params: Value) -> Result<Value, RpcError> {
+    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
         call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
     }
 }
 impl CallRemote<RpcContext> for CliContext {
-    async fn call_remote(&self, method: &str, params: Value) -> Result<Value, RpcError> {
+    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
         call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
     }
 }
 impl CallRemote<DiagnosticContext> for CliContext {
-    async fn call_remote(&self, method: &str, params: Value) -> Result<Value, RpcError> {
+    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
         call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
     }
 }
 impl CallRemote<SetupContext> for CliContext {
-    async fn call_remote(&self, method: &str, params: Value) -> Result<Value, RpcError> {
+    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
         call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
     }
 }
 impl CallRemote<InstallContext> for CliContext {
-    async fn call_remote(&self, method: &str, params: Value) -> Result<Value, RpcError> {
+    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
         call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
     }
 }

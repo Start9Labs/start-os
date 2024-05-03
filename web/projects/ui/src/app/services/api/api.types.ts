@@ -56,7 +56,7 @@ export module RR {
   export type GetServerMetricsReq = {} // server.metrics
   export type GetServerMetricsRes = Metrics
 
-  export type UpdateServerReq = { marketplaceUrl: string } // server.update
+  export type UpdateServerReq = { registry: string } // server.update
   export type UpdateServerRes = 'updating' | 'no-updates'
 
   export type RestartServerReq = {} // server.restart
@@ -192,7 +192,7 @@ export module RR {
     id: string
     versionSpec?: string
     versionPriority?: 'min' | 'max'
-    marketplaceUrl: string
+    registry: string
   } // package.install
   export type InstallPackageRes = null
 

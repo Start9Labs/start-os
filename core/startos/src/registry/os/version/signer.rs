@@ -7,8 +7,8 @@ use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::prelude::*;
-use crate::registry::server::admin::display_signers;
-use crate::registry::server::context::RegistryContext;
+use crate::registry::admin::display_signers;
+use crate::registry::context::RegistryContext;
 use crate::registry::signer::SignerInfo;
 use crate::rpc_continuations::RequestGuid;
 use crate::util::serde::HandlerExtSerde;

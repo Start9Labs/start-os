@@ -5,10 +5,7 @@ use chrono::Utc;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
-use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{
-    command, from_fn_async, AnyContext, Empty, HandlerExt, IntoContext, ParentHandler,
-};
+use rpc_toolkit::{from_fn_async, AnyContext, Empty, HandlerExt, IntoContext, ParentHandler};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::process::Command;
 use tokio::sync::broadcast::Receiver;
@@ -18,16 +15,13 @@ use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::disk::util::{get_available, get_used};
-use crate::logs::{
-    fetch_logs, follow_logs, LogFollowResponse, LogResponse, LogSource, LogsParams, SYSTEM_UNIT,
-};
+use crate::logs::{LogSource, LogsParams, SYSTEM_UNIT};
 use crate::prelude::*;
 use crate::rpc_continuations::RpcContinuations;
 use crate::shutdown::Shutdown;
 use crate::util::cpupower::{get_available_governors, set_governor, Governor};
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;
-use crate::{Error, ErrorKind, ResultExt};
 
 pub fn experimental() -> ParentHandler {
     ParentHandler::new()

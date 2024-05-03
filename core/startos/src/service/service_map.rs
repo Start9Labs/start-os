@@ -165,7 +165,7 @@ impl ServiceMap {
                                     configured: false,
                                     main: MainStatus::Stopped,
                                 },
-                                marketplace_url: None,
+                                registry: None,
                                 developer_key: Pem::new(developer_key),
                                 icon,
                                 last_backup: None,
