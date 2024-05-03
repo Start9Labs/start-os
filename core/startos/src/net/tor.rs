@@ -12,7 +12,6 @@ use helpers::NonDetachingJoinHandle;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
-use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{command, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpStream;
@@ -25,10 +24,7 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::logs::{
-    cli_logs_generic_follow, cli_logs_generic_nofollow, fetch_logs, follow_logs, journalctl,
-    LogFollowResponse, LogResponse, LogSource,
-};
+use crate::logs::{journalctl, LogSource, LogsParams};
 use crate::prelude::*;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;
@@ -99,6 +95,10 @@ pub fn tor() -> ParentHandler {
         )
         .subcommand("logs", logs())
         .subcommand(
+            "logs",
+            from_fn_async(crate::logs::cli_logs::<RpcContext, Empty>).no_display(),
+        )
+        .subcommand(
             "reset",
             from_fn_async(reset)
                 .no_display()
@@ -143,89 +143,10 @@ pub async fn list_services(ctx: RpcContext, _: Empty) -> Result<Vec<OnionAddress
     ctx.net_controller.tor.list_services().await
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
-#[serde(rename_all = "camelCase")]
-#[command(rename_all = "kebab-case")]
-pub struct LogsParams {
-    #[arg(short = 'l', long = "limit")]
-    #[ts(type = "number | null")]
-    limit: Option<usize>,
-    #[arg(short = 'c', long = "cursor")]
-    cursor: Option<String>,
-    #[arg(short = 'B', long = "before")]
-    #[serde(default)]
-    before: bool,
-    #[arg(short = 'f', long = "follow")]
-    #[serde(default)]
-    follow: bool,
-}
-
 pub fn logs() -> ParentHandler<LogsParams> {
-    ParentHandler::new()
-        .root_handler(
-            from_fn_async(cli_logs)
-                .no_display()
-                .with_inherited(|params, _| params),
-        )
-        .root_handler(
-            from_fn_async(logs_nofollow)
-                .with_inherited(|params, _| params)
-                .no_cli(),
-        )
-        .subcommand(
-            "follow",
-            from_fn_async(logs_follow)
-                .with_inherited(|params, _| params)
-                .no_cli(),
-        )
-}
-pub async fn cli_logs(
-    ctx: CliContext,
-    _: Empty,
-    LogsParams {
-        limit,
-        cursor,
-        before,
-        follow,
-    }: LogsParams,
-) -> Result<(), RpcError> {
-    if follow {
-        if cursor.is_some() {
-            return Err(RpcError::from(Error::new(
-                eyre!("The argument '--cursor <cursor>' cannot be used with '--follow'"),
-                crate::ErrorKind::InvalidRequest,
-            )));
-        }
-        if before {
-            return Err(RpcError::from(Error::new(
-                eyre!("The argument '--before' cannot be used with '--follow'"),
-                crate::ErrorKind::InvalidRequest,
-            )));
-        }
-        cli_logs_generic_follow(ctx, "net.tor.logs.follow", None, limit).await
-    } else {
-        cli_logs_generic_nofollow(ctx, "net.tor.logs", None, limit, cursor, before).await
-    }
-}
-pub async fn logs_nofollow(
-    _: AnyContext,
-    _: Empty,
-    LogsParams {
-        limit,
-        cursor,
-        before,
-        ..
-    }: LogsParams,
-) -> Result<LogResponse, Error> {
-    fetch_logs(LogSource::Unit(SYSTEMD_UNIT), limit, cursor, before).await
-}
-
-pub async fn logs_follow(
-    ctx: RpcContext,
-    _: Empty,
-    LogsParams { limit, .. }: LogsParams,
-) -> Result<LogFollowResponse, Error> {
-    follow_logs(ctx, LogSource::Unit(SYSTEMD_UNIT), limit).await
+    crate::logs::logs::<RpcContext, Empty>(|_: &RpcContext, _| async {
+        Ok(LogSource::Unit(SYSTEMD_UNIT))
+    })
 }
 
 fn event_handler(_event: AsyncEvent<'static>) -> BoxFuture<'static, Result<(), ConnError>> {

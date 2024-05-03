@@ -215,6 +215,17 @@ impl CliContext {
             .await
             .with_kind(ErrorKind::Network)
     }
+
+    pub async fn call_remote<RemoteContext>(
+        &self,
+        method: &str,
+        params: Value,
+    ) -> Result<Value, RpcError>
+    where
+        Self: CallRemote<RemoteContext>,
+    {
+        <Self as CallRemote<RemoteContext>>::call_remote(&self, method, params).await
+    }
 }
 impl AsRef<Jwk> for CliContext {
     fn as_ref(&self) -> &Jwk {

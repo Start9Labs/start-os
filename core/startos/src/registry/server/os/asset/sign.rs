@@ -17,12 +17,10 @@ use crate::registry::server::context::RegistryContext;
 use crate::registry::server::os::index::OsVersionInfo;
 use crate::registry::server::os::SIG_CONTEXT;
 use crate::registry::signer::{Blake3Ed25519Signature, Signature};
-use crate::s9pk::merkle_archive::source::ArchiveSource;
 use crate::util::Version;
 
 pub fn sign_api() -> ParentHandler {
     ParentHandler::new()
-        .root_handler(from_fn_async(cli_sign_asset).no_display())
         .subcommand("iso", from_fn_async(sign_iso).no_cli())
         .subcommand("img", from_fn_async(sign_img).no_cli())
         .subcommand("squashfs", from_fn_async(sign_squashfs).no_cli())
@@ -79,7 +77,7 @@ async fn sign_asset(
             .as_idx_mut(&platform)
             .or_not_found(&platform)?
             .as_signature_info_mut()
-            .mutate(|s| s.add_sig(&signature, SIG_CONTEXT))?;
+            .mutate(|s| s.add_sig(&signature))?;
 
             Ok(())
         })
@@ -153,12 +151,13 @@ pub async fn cli_sign_asset(
     })
     .into();
 
+    sign_phase.start();
     let blake3_sig =
         Blake3Ed25519Signature::sign_file(ctx.developer_key()?, &file, SIG_CONTEXT).await?;
-    let size = blake3_sig.size;
     let signature = Signature::Blake3Ed25519(blake3_sig);
     sign_phase.complete();
 
+    index_phase.start();
     <CliContext as CallRemote<RegistryContext>>::call_remote(
         &ctx,
         &format!("os.asset.sign.{ext}"),

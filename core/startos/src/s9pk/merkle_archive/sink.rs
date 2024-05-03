@@ -36,6 +36,9 @@ impl<W> TrackingWriter<W> {
             writer: w,
         }
     }
+    pub fn position(&self) -> u64 {
+        self.position
+    }
     pub fn into_inner(self) -> W {
         self.writer
     }

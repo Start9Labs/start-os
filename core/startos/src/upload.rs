@@ -199,7 +199,6 @@ impl UploadingFile {
         Ok(())
     }
 }
-#[async_trait::async_trait]
 impl ArchiveSource for UploadingFile {
     type Reader = <MultiCursorFile as ArchiveSource>::Reader;
     async fn size(&self) -> Option<u64> {

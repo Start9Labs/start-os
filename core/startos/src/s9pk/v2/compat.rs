@@ -40,7 +40,6 @@ enum CompatSource {
     Buffered(Arc<[u8]>),
     File(PathBuf),
 }
-#[async_trait::async_trait]
 impl FileSource for CompatSource {
     type Reader = Box<dyn AsyncRead + Unpin + Send + Sync + 'static>;
     async fn size(&self) -> Result<u64, Error> {

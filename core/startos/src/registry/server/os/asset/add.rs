@@ -28,7 +28,6 @@ use crate::util::{Apply, Version};
 
 pub fn add_api() -> ParentHandler {
     ParentHandler::new()
-        .root_handler(from_fn_async(cli_add_asset).no_display())
         .subcommand(
             "iso",
             from_fn_async(add_iso)
@@ -85,7 +84,6 @@ async fn add_asset(
         ErrorKind::InvalidSignature,
         "asset signature does not match request signer"
     );
-    signature.validate(SIG_CONTEXT)?;
 
     ctx.db
         .mutate(|db| {
@@ -109,10 +107,10 @@ async fn add_asset(
                 )
                 .upsert(&platform, || RegistryAsset {
                     url,
-                    signature_info: SignatureInfo::new(),
+                    signature_info: SignatureInfo::new(SIG_CONTEXT),
                 })?
                 .as_signature_info_mut()
-                .mutate(|s| s.add_sig(&signature, SIG_CONTEXT))?;
+                .mutate(|s| s.add_sig(&signature))?;
                 Ok(())
             } else {
                 Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
@@ -262,12 +260,14 @@ pub async fn cli_add_asset(
     })
     .into();
 
+    sign_phase.start();
     let blake3_sig =
         Blake3Ed25519Signature::sign_file(ctx.developer_key()?, &file, SIG_CONTEXT).await?;
     let size = blake3_sig.size;
     let signature = Signature::Blake3Ed25519(blake3_sig);
     sign_phase.complete();
 
+    index_phase.start();
     let add_res = from_value::<Option<RequestGuid>>(
         <CliContext as CallRemote<RegistryContext>>::call_remote(
             &ctx,
@@ -285,6 +285,7 @@ pub async fn cli_add_asset(
     index_phase.complete();
 
     if let Some(guid) = add_res {
+        upload_phase.as_mut().map(|p| p.start());
         upload_phase.as_mut().map(|p| p.set_total(size));
         ctx.client
             .post(url)
@@ -318,6 +319,7 @@ pub async fn cli_add_asset(
             ))
             .send()
             .await?;
+        // upload_phase.as_mut().map(|p| p.complete());
     }
 
     progress_handle.complete();

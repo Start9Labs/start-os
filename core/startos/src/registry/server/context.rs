@@ -91,6 +91,11 @@ impl RegistryContext {
         })))
     }
 }
+impl AsRef<RpcContinuations> for RegistryContext {
+    fn as_ref(&self) -> &RpcContinuations {
+        &self.rpc_continuations
+    }
+}
 
 impl Context for RegistryContext {}
 impl Deref for RegistryContext {

@@ -77,7 +77,6 @@ impl AsyncRead for FileSectionReader {
     }
 }
 
-#[async_trait::async_trait]
 impl ArchiveSource for MultiCursorFile {
     type Reader = FileSectionReader;
     async fn size(&self) -> Option<u64> {

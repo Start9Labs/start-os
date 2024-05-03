@@ -23,6 +23,7 @@ lazy_static::lazy_static! {
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, TS)]
 #[serde(untagged)]
 pub enum Progress {
+    NotStarted(()),
     Complete(bool),
     Progress {
         #[ts(type = "number")]
@@ -33,10 +34,13 @@ pub enum Progress {
 }
 impl Progress {
     pub fn new() -> Self {
-        Progress::Complete(false)
+        Progress::NotStarted(())
     }
     pub fn update_bar(self, bar: &ProgressBar) {
         match self {
+            Self::NotStarted(()) => {
+                bar.set_style(SPINNER.clone());
+            }
             Self::Complete(false) => {
                 bar.set_style(SPINNER.clone());
                 bar.tick();
@@ -60,9 +64,15 @@ impl Progress {
             }
         }
     }
+    pub fn start(&mut self) {
+        *self = match *self {
+            Self::NotStarted(()) => Self::Complete(false),
+            a => a,
+        };
+    }
     pub fn set_done(&mut self, done: u64) {
         *self = match *self {
-            Self::Complete(false) => Self::Progress { done, total: None },
+            Self::Complete(false) | Self::NotStarted(()) => Self::Progress { done, total: None },
             Self::Progress { mut done, total } => {
                 if let Some(total) = total {
                     if done > total {
@@ -76,7 +86,7 @@ impl Progress {
     }
     pub fn set_total(&mut self, total: u64) {
         *self = match *self {
-            Self::Complete(false) => Self::Progress {
+            Self::Complete(false) | Self::NotStarted(()) => Self::Progress {
                 done: 0,
                 total: Some(total),
             },
@@ -112,7 +122,7 @@ impl std::ops::Add<u64> for Progress {
     type Output = Self;
     fn add(self, rhs: u64) -> Self::Output {
         match self {
-            Self::Complete(false) => Self::Progress {
+            Self::Complete(false) | Self::NotStarted(()) => Self::Progress {
                 done: rhs,
                 total: None,
             },
@@ -311,6 +321,9 @@ impl PhaseProgressTrackerHandle {
             }
         }
     }
+    pub fn start(&mut self) {
+        self.progress.send_modify(|p| p.start());
+    }
     pub fn set_done(&mut self, done: u64) {
         self.progress.send_modify(|p| p.set_done(done));
         self.update_overall();
@@ -326,6 +339,12 @@ impl PhaseProgressTrackerHandle {
     pub fn complete(&mut self) {
         self.progress.send_modify(|p| p.complete());
         self.update_overall();
+    }
+    pub fn writer<W>(self, writer: W) -> ProgressTrackerWriter<W> {
+        ProgressTrackerWriter {
+            writer,
+            progress: self,
+        }
     }
 }
 impl std::ops::AddAssign<u64> for PhaseProgressTrackerHandle {

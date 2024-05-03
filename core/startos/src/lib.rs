@@ -71,12 +71,12 @@ pub use error::{Error, ErrorKind, ResultExt};
 use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
-    command, from_fn, from_fn_async, from_fn_blocking, AnyContext, HandlerExt, ParentHandler,
+    command, from_fn, from_fn_async, from_fn_blocking, AnyContext, Empty, HandlerExt, ParentHandler,
 };
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::context::CliContext;
+use crate::context::{CliContext, RpcContext};
 use crate::util::serde::HandlerExtSerde;
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -99,7 +99,6 @@ pub fn main_api() -> ParentHandler {
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("init", from_fn_blocking(developer::init).no_display())
         .subcommand("server", server())
         .subcommand("package", package())
         .subcommand("net", net::net())
@@ -128,8 +127,16 @@ pub fn server() -> ParentHandler {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand("experimental", system::experimental())
-        .subcommand("logs", system::logs())
-        .subcommand("kernel-logs", system::kernel_logs())
+        .subcommand("logs", system::logs::<RpcContext>())
+        .subcommand(
+            "logs",
+            from_fn_async(logs::cli_logs::<RpcContext, Empty>).no_display(),
+        )
+        .subcommand("kernel-logs", system::kernel_logs::<RpcContext>())
+        .subcommand(
+            "kernel-logs",
+            from_fn_async(logs::cli_logs::<RpcContext, Empty>).no_display(),
+        )
         .subcommand(
             "metrics",
             from_fn_async(system::metrics)
@@ -227,7 +234,11 @@ pub fn package() -> ParentHandler {
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("logs", logs::logs())
+        .subcommand("logs", logs::package_logs())
+        .subcommand(
+            "logs",
+            from_fn_async(logs::cli_logs::<RpcContext, logs::PackageIdParams>).no_display(),
+        )
         .subcommand(
             "properties",
             from_fn_async(properties::properties)
@@ -277,6 +288,8 @@ pub fn install_api() -> ParentHandler {
 
 pub fn expanded_api() -> ParentHandler {
     let mut api = main_api()
+        .subcommand("init", from_fn_blocking(developer::init).no_display())
+        .subcommand("pubkey", from_fn_blocking(developer::pubkey))
         .subcommand("diagnostic", diagnostic::diagnostic())
         .subcommand("setup", setup::setup())
         .subcommand("install", os_install::install());

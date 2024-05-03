@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use blake3::Hash;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use imbl::OrdMap;
@@ -11,7 +12,6 @@ use itertools::Itertools;
 use tokio::io::AsyncRead;
 
 use crate::prelude::*;
-use crate::s9pk::merkle_archive::hash::Hash;
 use crate::s9pk::merkle_archive::sink::{Sink, TrackingWriter};
 use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
 use crate::s9pk::merkle_archive::write_queue::WriteQueue;
@@ -82,17 +82,13 @@ impl<S> DirectoryContents<S> {
 
     pub const fn header_size() -> u64 {
         8 // position: u64 BE
-        + 8 // size: u64 BE
     }
 
     #[instrument(skip_all)]
     pub async fn serialize_header<W: Sink>(&self, position: u64, w: &mut W) -> Result<u64, Error> {
         use tokio::io::AsyncWriteExt;
 
-        let size = self.toc_size();
-
         w.write_all(&position.to_be_bytes()).await?;
-        w.write_all(&size.to_be_bytes()).await?;
 
         Ok(position)
     }
@@ -156,7 +152,7 @@ impl<S: ArchiveSource> DirectoryContents<Section<S>> {
     pub fn deserialize<'a>(
         source: &'a S,
         header: &'a mut (impl AsyncRead + Unpin + Send),
-        sighash: Hash,
+        (sighash, size): (Hash, u64),
     ) -> BoxFuture<'a, Result<Self, Error>> {
         async move {
             use tokio::io::AsyncReadExt;
@@ -164,10 +160,6 @@ impl<S: ArchiveSource> DirectoryContents<Section<S>> {
             let mut position = [0u8; 8];
             header.read_exact(&mut position).await?;
             let position = u64::from_be_bytes(position);
-
-            let mut size = [0u8; 8];
-            header.read_exact(&mut size).await?;
-            let size = u64::from_be_bytes(size);
 
             let mut toc_reader = source.fetch(position, size).await?;
 
@@ -185,7 +177,7 @@ impl<S: ArchiveSource> DirectoryContents<Section<S>> {
                 sort_by: None,
             };
 
-            if res.sighash().await? == sighash {
+            if res.sighash().await? == (sighash, size) {
                 Ok(res)
             } else {
                 Err(Error::new(
@@ -232,7 +224,7 @@ impl<S: FileSource> DirectoryContents<S> {
     }
 
     #[instrument(skip_all)]
-    pub fn sighash<'a>(&'a self) -> BoxFuture<'a, Result<Hash, Error>> {
+    pub fn sighash<'a>(&'a self) -> BoxFuture<'a, Result<(Hash, u64), Error>> {
         async move {
             let mut hasher =
                 TrackingWriter::new(0, ParallelBlake3Writer::new(super::hash::BUFFER_CAPACITY));
@@ -246,7 +238,9 @@ impl<S: FileSource> DirectoryContents<S> {
             }
             .serialize_toc(&mut WriteQueue::new(0), &mut hasher)
             .await?;
-            hasher.into_inner().finalize().await
+            let size = hasher.position();
+            let hash = hasher.into_inner().finalize().await?;
+            Ok((hash, size))
         }
         .boxed()
     }

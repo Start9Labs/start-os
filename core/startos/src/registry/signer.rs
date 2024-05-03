@@ -1,16 +1,20 @@
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 use std::str::FromStr;
 
 use clap::builder::ValueParserFactory;
 use imbl_value::InternedString;
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
+use tokio::io::AsyncWrite;
 use ts_rs::TS;
 use url::Url;
 
 use crate::prelude::*;
+use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
-use crate::s9pk::merkle_archive::source::ArchiveSource;
+use crate::s9pk::merkle_archive::source::{ArchiveSource, FileSource};
 use crate::util::clap::FromStrParser;
 use crate::util::serde::{Base64, Pem};
 
@@ -119,15 +123,45 @@ impl ValueParserFactory for ContactInfo {
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct SignatureInfo {
+    #[ts(type = "string")]
+    pub context: InternedString,
     pub blake3_ed255i9: Option<Blake3Ed2551SignatureInfo>,
 }
 impl SignatureInfo {
-    pub fn new() -> Self {
+    pub fn new(context: &str) -> Self {
         Self {
+            context: context.into(),
             blake3_ed255i9: None,
         }
     }
-    pub fn add_sig(&mut self, signature: &Signature, context: &str) -> Result<(), Error> {
+    pub fn validate(&self, accept: AcceptSigners) -> Result<FileValidator, Error> {
+        FileValidator::from_signatures(self.signatures(), accept, &self.context)
+    }
+    pub fn all_signers(&self) -> AcceptSigners {
+        AcceptSigners::All(
+            self.signatures()
+                .map(|s| AcceptSigners::Signer(s.signer()))
+                .collect(),
+        )
+        .flatten()
+    }
+    pub fn signatures(&self) -> impl Iterator<Item = Signature> + '_ {
+        self.blake3_ed255i9.iter().flat_map(|info| {
+            info.signatures
+                .iter()
+                .map(|(k, s)| (k.clone(), *s))
+                .map(|(pubkey, signature)| {
+                    Signature::Blake3Ed25519(Blake3Ed25519Signature {
+                        hash: info.hash,
+                        size: info.size,
+                        pubkey,
+                        signature,
+                    })
+                })
+        })
+    }
+    pub fn add_sig(&mut self, signature: &Signature) -> Result<(), Error> {
+        signature.validate(&self.context)?;
         match signature {
             Signature::Blake3Ed25519(s) => {
                 if self
@@ -139,7 +173,7 @@ impl SignatureInfo {
                         info.signatures.insert(s.pubkey, s.signature);
                         info
                     } else {
-                        s.info(context)
+                        s.info()
                     };
                     self.blake3_ed255i9 = Some(new);
                     Ok(())
@@ -154,16 +188,197 @@ impl SignatureInfo {
     }
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum AcceptSigners {
+    #[serde(skip)]
+    Accepted(Signature),
+    Signer(SignerKey),
+    Any(Vec<AcceptSigners>),
+    All(Vec<AcceptSigners>),
+}
+impl AcceptSigners {
+    const fn null() -> Self {
+        Self::Any(Vec::new())
+    }
+    pub fn flatten(self) -> Self {
+        match self {
+            Self::Any(mut s) | Self::All(mut s) if s.len() == 1 => s.swap_remove(0).flatten(),
+            s => s,
+        }
+    }
+    pub fn accepted(&self) -> bool {
+        match self {
+            Self::Accepted(_) => true,
+            Self::All(s) => s.iter().all(|s| s.accepted()),
+            _ => false,
+        }
+    }
+    pub fn try_accept(
+        self,
+        context: &str,
+    ) -> Box<dyn Iterator<Item = Result<Signature, Error>> + Send + Sync + '_> {
+        match self {
+            Self::Accepted(s) => Box::new(std::iter::once(s).map(|s| {
+                s.validate(context)?;
+                Ok(s)
+            })),
+            Self::All(s) => Box::new(s.into_iter().flat_map(|s| s.try_accept(context))),
+            _ => Box::new(std::iter::once(Err(Error::new(
+                eyre!("signer(s) not accepted"),
+                ErrorKind::InvalidSignature,
+            )))),
+        }
+    }
+    pub fn process_signature(&mut self, sig: &Signature) {
+        let new = match std::mem::replace(self, Self::null()) {
+            Self::Accepted(s) => Self::Accepted(s),
+            Self::Signer(s) => {
+                if s == sig.signer() {
+                    Self::Accepted(sig.clone())
+                } else {
+                    Self::Signer(s)
+                }
+            }
+            Self::All(mut s) => {
+                s.iter_mut().for_each(|s| s.process_signature(sig));
+
+                Self::All(s)
+            }
+            Self::Any(mut s) => {
+                if let Some(s) = s
+                    .iter_mut()
+                    .map(|s| {
+                        s.process_signature(sig);
+                        s
+                    })
+                    .filter(|s| s.accepted())
+                    .next()
+                {
+                    std::mem::replace(s, Self::null())
+                } else {
+                    Self::Any(s)
+                }
+            }
+        };
+        *self = new;
+    }
+}
+
+#[must_use]
+pub struct FileValidator {
+    blake3: Option<blake3::Hash>,
+    size: Option<u64>,
+}
+impl FileValidator {
+    fn add_blake3(&mut self, hash: [u8; 32], size: u64) -> Result<(), Error> {
+        if let Some(h) = self.blake3 {
+            ensure_code!(h == hash, ErrorKind::InvalidSignature, "hash sum mismatch");
+        }
+        self.blake3 = Some(blake3::Hash::from_bytes(hash));
+        if let Some(s) = self.size {
+            ensure_code!(s == size, ErrorKind::InvalidSignature, "file size mismatch");
+        }
+        self.size = Some(size);
+        Ok(())
+    }
+    pub fn size(&self) -> Result<u64, Error> {
+        if let Some(size) = self.size {
+            Ok(size)
+        } else {
+            Err(Error::new(
+                eyre!("no signatures found"),
+                ErrorKind::InvalidSignature,
+            ))
+        }
+    }
+    pub fn from_signatures(
+        signatures: impl IntoIterator<Item = Signature>,
+        mut accept: AcceptSigners,
+        context: &str,
+    ) -> Result<Self, Error> {
+        let mut res = Self {
+            blake3: None,
+            size: None,
+        };
+        for signature in signatures {
+            accept.process_signature(&signature);
+        }
+        for signature in accept.try_accept(context) {
+            match signature? {
+                Signature::Blake3Ed25519(s) => res.add_blake3(*s.hash, s.size)?,
+            }
+        }
+
+        Ok(res)
+    }
+    pub async fn download(
+        &self,
+        url: Url,
+        client: Client,
+        dst: &mut (impl AsyncWrite + Unpin + Send + ?Sized),
+    ) -> Result<(), Error> {
+        let src = HttpSource::new(client, url).await?;
+        let (Some(hash), Some(size)) = (self.blake3, self.size) else {
+            return Err(Error::new(
+                eyre!("no BLAKE3 signatures found"),
+                ErrorKind::InvalidSignature,
+            ));
+        };
+        src.section(0, size)
+            .copy_verify(dst, Some((hash, size)))
+            .await?;
+
+        Ok(())
+    }
+    pub async fn validate_file(&self, file: impl AsRef<Path>) -> Result<(), Error> {
+        let src = MultiCursorFile::from(tokio::fs::File::open(file).await?);
+        let (Some(hash), Some(size)) = (self.blake3, self.size) else {
+            return Err(Error::new(
+                eyre!("no BLAKE3 signatures found"),
+                ErrorKind::InvalidSignature,
+            ));
+        };
+        ensure_code!(
+            src.size().await == Some(size),
+            ErrorKind::InvalidSignature,
+            "file size mismatch"
+        );
+        ensure_code!(
+            src.blake3_mmap().await? == hash,
+            ErrorKind::InvalidSignature,
+            "hash sum mismatch"
+        );
+        Ok(())
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct Blake3Ed2551SignatureInfo {
-    #[ts(type = "string")]
-    pub context: InternedString,
     pub hash: Base64<[u8; 32]>,
     pub size: u64,
     pub signatures: HashMap<Pem<ed25519_dalek::VerifyingKey>, Base64<[u8; 64]>>,
+}
+impl Blake3Ed2551SignatureInfo {
+    pub fn validate(&self, context: &str) -> Result<Vec<Pem<ed25519_dalek::VerifyingKey>>, Error> {
+        self.signatures
+            .iter()
+            .map(|(k, s)| {
+                let sig = Blake3Ed25519Signature {
+                    hash: self.hash,
+                    size: self.size,
+                    pubkey: k.clone(),
+                    signature: *s,
+                };
+                sig.validate(context)?;
+                Ok(sig.pubkey)
+            })
+            .collect()
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
@@ -249,9 +464,8 @@ impl Blake3Ed25519Signature {
         Ok(())
     }
 
-    pub fn info(&self, context: &str) -> Blake3Ed2551SignatureInfo {
+    pub fn info(&self) -> Blake3Ed2551SignatureInfo {
         Blake3Ed2551SignatureInfo {
-            context: InternedString::intern(context),
             hash: self.hash,
             size: self.size,
             signatures: [(self.pubkey, self.signature)].into_iter().collect(),

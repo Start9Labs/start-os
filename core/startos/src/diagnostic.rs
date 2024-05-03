@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use clap::Parser;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{command, from_fn, from_fn_async, AnyContext, HandlerExt, ParentHandler};
+use rpc_toolkit::{command, from_fn, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -16,7 +16,19 @@ use crate::Error;
 pub fn diagnostic() -> ParentHandler {
     ParentHandler::new()
         .subcommand("error", from_fn(error).with_call_remote::<CliContext>())
-        .subcommand("logs", from_fn_async(logs).no_cli())
+        .subcommand("logs", crate::system::logs::<DiagnosticContext>())
+        .subcommand(
+            "logs",
+            from_fn_async(crate::logs::cli_logs::<DiagnosticContext, Empty>).no_display(),
+        )
+        .subcommand(
+            "kernel-logs",
+            crate::system::kernel_logs::<DiagnosticContext>(),
+        )
+        .subcommand(
+            "kernel-logs",
+            from_fn_async(crate::logs::cli_logs::<DiagnosticContext, Empty>).no_display(),
+        )
         .subcommand(
             "exit",
             from_fn(exit).no_display().with_call_remote::<CliContext>(),
@@ -39,26 +51,6 @@ pub fn diagnostic() -> ParentHandler {
 // #[command]
 pub fn error(ctx: DiagnosticContext) -> Result<Arc<RpcError>, Error> {
     Ok(ctx.error.clone())
-}
-
-#[derive(Deserialize, Serialize, Parser, TS)]
-#[serde(rename_all = "camelCase")]
-#[command(rename_all = "kebab-case")]
-pub struct LogsParams {
-    #[ts(type = "number | null")]
-    limit: Option<usize>,
-    cursor: Option<String>,
-    before: bool,
-}
-pub async fn logs(
-    _: AnyContext,
-    LogsParams {
-        limit,
-        cursor,
-        before,
-    }: LogsParams,
-) -> Result<LogResponse, Error> {
-    Ok(fetch_logs(LogSource::System, limit, cursor, before).await?)
 }
 
 pub fn exit(ctx: DiagnosticContext) -> Result<(), Error> {

@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use blake3::Hash;
 use ed25519_dalek::{Signature, SigningKey, VerifyingKey};
 use imbl_value::InternedString;
 use sha2::{Digest, Sha512};
@@ -8,7 +9,6 @@ use tokio::io::AsyncRead;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::file_contents::FileContents;
-use crate::s9pk::merkle_archive::hash::Hash;
 use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
 use crate::s9pk::merkle_archive::write_queue::WriteQueue;
@@ -90,13 +90,17 @@ impl<S: ArchiveSource> MerkleArchive<Section<S>> {
         header.read_exact(&mut sighash).await?;
         let sighash = Hash::from_bytes(sighash);
 
-        let contents = DirectoryContents::deserialize(source, header, sighash).await?;
+        let mut size = [0u8; 8];
+        header.read_exact(&mut size).await?;
+        let size = u64::from_be_bytes(size);
 
         pubkey.verify_prehashed_strict(
-            Sha512::new_with_prefix(contents.sighash().await?.as_bytes()),
+            Sha512::new_with_prefix(sighash.as_bytes()).chain_update(&u64::to_be_bytes(size)),
             Some(context.as_bytes()),
             &signature,
         )?;
+
+        let contents = DirectoryContents::deserialize(source, header, (sighash, size)).await?;
 
         Ok(Self {
             signer: Signer::Signed(pubkey, signature, context.into()),
@@ -115,7 +119,7 @@ impl<S: FileSource> MerkleArchive<S> {
     pub async fn serialize<W: Sink>(&self, w: &mut W, verify: bool) -> Result<(), Error> {
         use tokio::io::AsyncWriteExt;
 
-        let sighash = self.contents.sighash().await?;
+        let (sighash, size) = self.contents.sighash().await?;
 
         let (pubkey, signature) = match &self.signer {
             Signer::Signed(pubkey, signature, _) => (*pubkey, *signature),
@@ -123,7 +127,8 @@ impl<S: FileSource> MerkleArchive<S> {
                 s.into(),
                 ed25519_dalek::SigningKey::sign_prehashed(
                     s,
-                    Sha512::new_with_prefix(sighash.as_bytes()),
+                    Sha512::new_with_prefix(sighash.as_bytes())
+                        .chain_update(&u64::to_be_bytes(size)),
                     Some(context.as_bytes()),
                 )?,
             ),
@@ -132,6 +137,7 @@ impl<S: FileSource> MerkleArchive<S> {
         w.write_all(pubkey.as_bytes()).await?;
         w.write_all(&signature.to_bytes()).await?;
         w.write_all(sighash.as_bytes()).await?;
+        w.write_all(&u64::to_be_bytes(size)).await?;
         let mut next_pos = w.current_position().await?;
         next_pos += DirectoryContents::<S>::header_size();
         self.contents.serialize_header(next_pos, w).await?;
@@ -151,7 +157,7 @@ impl<S: FileSource> MerkleArchive<S> {
 
 #[derive(Debug, Clone)]
 pub struct Entry<S> {
-    hash: Option<Hash>,
+    hash: Option<(Hash, u64)>,
     contents: EntryContents<S>,
 }
 impl<S> Entry<S> {
@@ -164,7 +170,7 @@ impl<S> Entry<S> {
     pub fn file(source: S) -> Self {
         Self::new(EntryContents::File(FileContents::new(source)))
     }
-    pub fn hash(&self) -> Option<Hash> {
+    pub fn hash(&self) -> Option<(Hash, u64)> {
         self.hash
     }
     pub fn as_contents(&self) -> &EntryContents<S> {
@@ -203,6 +209,7 @@ impl<S> Entry<S> {
     }
     pub fn header_size(&self) -> u64 {
         32 // hash
+        + 8 // size: u64 BE
         + self.contents.header_size()
     }
 }
@@ -219,10 +226,14 @@ impl<S: ArchiveSource> Entry<Section<S>> {
         header.read_exact(&mut hash).await?;
         let hash = Hash::from_bytes(hash);
 
-        let contents = EntryContents::deserialize(source, header, hash).await?;
+        let mut size = [0u8; 8];
+        header.read_exact(&mut size).await?;
+        let size = u64::from_be_bytes(size);
+
+        let contents = EntryContents::deserialize(source, header, (hash, size)).await?;
 
         Ok(Self {
-            hash: Some(hash),
+            hash: Some((hash, size)),
             contents,
         })
     }
@@ -272,12 +283,13 @@ impl<S: FileSource> Entry<S> {
     ) -> Result<Option<u64>, Error> {
         use tokio::io::AsyncWriteExt;
 
-        let hash = if let Some(hash) = self.hash {
+        let (hash, size) = if let Some(hash) = self.hash {
             hash
         } else {
             self.contents.hash().await?
         };
         w.write_all(hash.as_bytes()).await?;
+        w.write_all(&u64::to_be_bytes(size)).await?;
         self.contents.serialize_header(position, w).await
     }
     pub fn into_dyn(self) -> Entry<DynFileSource> {
@@ -319,7 +331,7 @@ impl<S: ArchiveSource> EntryContents<Section<S>> {
     pub async fn deserialize(
         source: &S,
         header: &mut (impl AsyncRead + Unpin + Send),
-        hash: Hash,
+        (hash, size): (Hash, u64),
     ) -> Result<Self, Error> {
         use tokio::io::AsyncReadExt;
 
@@ -327,9 +339,11 @@ impl<S: ArchiveSource> EntryContents<Section<S>> {
         header.read_exact(&mut type_id).await?;
         match type_id[0] {
             0 => Ok(Self::Missing),
-            1 => Ok(Self::File(FileContents::deserialize(source, header).await?)),
+            1 => Ok(Self::File(
+                FileContents::deserialize(source, header, size).await?,
+            )),
             2 => Ok(Self::Directory(
-                DirectoryContents::deserialize(source, header, hash).await?,
+                DirectoryContents::deserialize(source, header, (hash, size)).await?,
             )),
             id => Err(Error::new(
                 eyre!("Unknown type id {id} found in MerkleArchive"),
@@ -339,7 +353,7 @@ impl<S: ArchiveSource> EntryContents<Section<S>> {
     }
 }
 impl<S: FileSource> EntryContents<S> {
-    pub async fn hash(&self) -> Result<Hash, Error> {
+    pub async fn hash(&self) -> Result<(Hash, u64), Error> {
         match self {
             Self::Missing => Err(Error::new(
                 eyre!("Cannot compute hash of missing file"),

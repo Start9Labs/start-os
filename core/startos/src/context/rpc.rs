@@ -240,6 +240,11 @@ impl AsRef<Jwk> for RpcContext {
         &CURRENT_SECRET
     }
 }
+impl AsRef<RpcContinuations> for RpcContext {
+    fn as_ref(&self) -> &RpcContinuations {
+        &self.rpc_continuations
+    }
+}
 impl Context for RpcContext {}
 impl Deref for RpcContext {
     type Target = RpcContextSeed;

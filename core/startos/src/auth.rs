@@ -4,9 +4,12 @@ use chrono::{DateTime, Utc};
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use imbl_value::{json, InternedString};
+use itertools::Itertools;
 use josekit::jwk::Jwk;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{command, from_fn_async, AnyContext, CallRemote, HandlerExt, ParentHandler};
+use rpc_toolkit::{
+    command, from_fn_async, AnyContext, CallRemote, HandlerArgs, HandlerExt, ParentHandler,
+};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
@@ -128,27 +131,20 @@ fn gen_pwd() {
         .unwrap()
     )
 }
-#[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "camelCase")]
-#[command(rename_all = "kebab-case")]
-pub struct CliLoginParams {
-    password: Option<PasswordType>,
-}
 
 #[instrument(skip_all)]
 async fn cli_login(
-    ctx: CliContext,
-    CliLoginParams { password }: CliLoginParams,
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        ..
+    }: HandlerArgs<CliContext>,
 ) -> Result<(), RpcError> {
-    let password = if let Some(password) = password {
-        password.decrypt(&ctx)?
-    } else {
-        rpassword::prompt_password("Password: ")?
-    };
+    let password = rpassword::prompt_password("Password: ")?;
 
-    <CliContext as CallRemote<RpcContext>>::call_remote(
-        &ctx,
-        "auth.login",
+    ctx.call_remote::<RpcContext>(
+        &parent_method.into_iter().chain(method).join("."),
         json!({
             "password": password,
             "metadata": {
@@ -377,21 +373,16 @@ pub struct ResetPasswordParams {
 
 #[instrument(skip_all)]
 async fn cli_reset_password(
-    ctx: CliContext,
-    ResetPasswordParams {
-        old_password,
-        new_password,
-    }: ResetPasswordParams,
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        ..
+    }: HandlerArgs<CliContext>,
 ) -> Result<(), RpcError> {
-    let old_password = if let Some(old_password) = old_password {
-        old_password.decrypt(&ctx)?
-    } else {
-        rpassword::prompt_password("Current Password: ")?
-    };
+    let old_password = rpassword::prompt_password("Current Password: ")?;
 
-    let new_password = if let Some(new_password) = new_password {
-        new_password.decrypt(&ctx)?
-    } else {
+    let new_password = {
         let new_password = rpassword::prompt_password("New Password: ")?;
         if new_password != rpassword::prompt_password("Confirm: ")? {
             return Err(Error::new(
@@ -403,9 +394,8 @@ async fn cli_reset_password(
         new_password
     };
 
-    <CliContext as CallRemote<RpcContext>>::call_remote(
-        &ctx,
-        "auth.reset-password",
+    ctx.call_remote::<RpcContext>(
+        &parent_method.into_iter().chain(method).join("."),
         imbl_value::json!({ "old-password": old_password, "new-password": new_password }),
     )
     .await?;
@@ -451,7 +441,7 @@ pub async fn reset_password_impl(
 
 #[instrument(skip_all)]
 pub async fn get_pubkey(ctx: RpcContext) -> Result<Jwk, RpcError> {
-    let secret = ctx.as_ref().clone();
+    let secret = <RpcContext as AsRef<Jwk>>::as_ref(&ctx).clone();
     let pub_key = secret.to_public_key()?;
     Ok(pub_key)
 }
