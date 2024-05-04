@@ -82,13 +82,17 @@ impl<S> DirectoryContents<S> {
 
     pub const fn header_size() -> u64 {
         8 // position: u64 BE
+        + 8 // size: u64 BE
     }
 
     #[instrument(skip_all)]
     pub async fn serialize_header<W: Sink>(&self, position: u64, w: &mut W) -> Result<u64, Error> {
         use tokio::io::AsyncWriteExt;
 
+        let size = self.toc_size();
+
         w.write_all(&position.to_be_bytes()).await?;
+        w.write_all(&size.to_be_bytes()).await?;
 
         Ok(position)
     }
@@ -152,7 +156,7 @@ impl<S: ArchiveSource> DirectoryContents<Section<S>> {
     pub fn deserialize<'a>(
         source: &'a S,
         header: &'a mut (impl AsyncRead + Unpin + Send),
-        (sighash, size): (Hash, u64),
+        (sighash, max_size): (Hash, u64),
     ) -> BoxFuture<'a, Result<Self, Error>> {
         async move {
             use tokio::io::AsyncReadExt;
@@ -161,15 +165,24 @@ impl<S: ArchiveSource> DirectoryContents<Section<S>> {
             header.read_exact(&mut position).await?;
             let position = u64::from_be_bytes(position);
 
+            let mut size = [0u8; 8];
+            header.read_exact(&mut size).await?;
+            let size = u64::from_be_bytes(size);
+
+            ensure_code!(
+                size <= max_size,
+                ErrorKind::InvalidSignature,
+                "size is greater than signed"
+            );
+
             let mut toc_reader = source.fetch(position, size).await?;
 
             let len = varint::deserialize_varint(&mut toc_reader).await?;
             let mut entries = OrdMap::new();
             for _ in 0..len {
-                entries.insert(
-                    varint::deserialize_varstring(&mut toc_reader).await?.into(),
-                    Entry::deserialize(source, &mut toc_reader).await?,
-                );
+                let name = varint::deserialize_varstring(&mut toc_reader).await?;
+                let entry = Entry::deserialize(source, &mut toc_reader).await?;
+                entries.insert(name.into(), entry);
             }
 
             let res = Self {
@@ -177,7 +190,7 @@ impl<S: ArchiveSource> DirectoryContents<Section<S>> {
                 sort_by: None,
             };
 
-            if res.sighash().await? == (sighash, size) {
+            if res.sighash().await? == sighash {
                 Ok(res)
             } else {
                 Err(Error::new(
@@ -224,7 +237,7 @@ impl<S: FileSource> DirectoryContents<S> {
     }
 
     #[instrument(skip_all)]
-    pub fn sighash<'a>(&'a self) -> BoxFuture<'a, Result<(Hash, u64), Error>> {
+    pub fn sighash<'a>(&'a self) -> BoxFuture<'a, Result<Hash, Error>> {
         async move {
             let mut hasher =
                 TrackingWriter::new(0, ParallelBlake3Writer::new(super::hash::BUFFER_CAPACITY));
@@ -238,9 +251,8 @@ impl<S: FileSource> DirectoryContents<S> {
             }
             .serialize_toc(&mut WriteQueue::new(0), &mut hasher)
             .await?;
-            let size = hasher.position();
             let hash = hasher.into_inner().finalize().await?;
-            Ok((hash, size))
+            Ok(hash)
         }
         .boxed()
     }
@@ -263,7 +275,9 @@ impl<S: FileSource> DirectoryContents<S> {
             _ => std::cmp::Ordering::Equal,
         }) {
             varint::serialize_varstring(&**name, w).await?;
-            entry.serialize_header(queue.add(entry).await?, w).await?;
+            if let Some(pos) = entry.serialize_header(queue.add(entry).await?, w).await? {
+                eprintln!("DEBUG ====> {name} @ {pos}");
+            }
         }
 
         Ok(())

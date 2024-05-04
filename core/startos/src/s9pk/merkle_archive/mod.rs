@@ -25,7 +25,7 @@ pub mod write_queue;
 
 #[derive(Debug, Clone)]
 enum Signer {
-    Signed(VerifyingKey, Signature, InternedString),
+    Signed(VerifyingKey, Signature, u64, InternedString),
     Signer(SigningKey, InternedString),
 }
 
@@ -43,7 +43,7 @@ impl<S> MerkleArchive<S> {
     }
     pub fn signer(&self) -> VerifyingKey {
         match &self.signer {
-            Signer::Signed(k, _, _) => *k,
+            Signer::Signed(k, _, _, _) => *k,
             Signer::Signer(k, _) => k.verifying_key(),
         }
     }
@@ -51,6 +51,7 @@ impl<S> MerkleArchive<S> {
         32 // pubkey
                  + 64 // signature
                  + 32 // sighash
+                 + 8 // size
                  + DirectoryContents::<Section<S>>::header_size()
     }
     pub fn contents(&self) -> &DirectoryContents<S> {
@@ -90,20 +91,20 @@ impl<S: ArchiveSource> MerkleArchive<Section<S>> {
         header.read_exact(&mut sighash).await?;
         let sighash = Hash::from_bytes(sighash);
 
-        let mut size = [0u8; 8];
-        header.read_exact(&mut size).await?;
-        let size = u64::from_be_bytes(size);
+        let mut max_size = [0u8; 8];
+        header.read_exact(&mut max_size).await?;
+        let max_size = u64::from_be_bytes(max_size);
 
         pubkey.verify_prehashed_strict(
-            Sha512::new_with_prefix(sighash.as_bytes()).chain_update(&u64::to_be_bytes(size)),
+            Sha512::new_with_prefix(sighash.as_bytes()).chain_update(&u64::to_be_bytes(max_size)),
             Some(context.as_bytes()),
             &signature,
         )?;
 
-        let contents = DirectoryContents::deserialize(source, header, (sighash, size)).await?;
+        let contents = DirectoryContents::deserialize(source, header, (sighash, max_size)).await?;
 
         Ok(Self {
-            signer: Signer::Signed(pubkey, signature, context.into()),
+            signer: Signer::Signed(pubkey, signature, max_size, context.into()),
             contents,
         })
     }
@@ -119,10 +120,11 @@ impl<S: FileSource> MerkleArchive<S> {
     pub async fn serialize<W: Sink>(&self, w: &mut W, verify: bool) -> Result<(), Error> {
         use tokio::io::AsyncWriteExt;
 
-        let (sighash, size) = self.contents.sighash().await?;
+        let sighash = self.contents.sighash().await?;
+        let size = self.contents.toc_size();
 
-        let (pubkey, signature) = match &self.signer {
-            Signer::Signed(pubkey, signature, _) => (*pubkey, *signature),
+        let (pubkey, signature, max_size) = match &self.signer {
+            Signer::Signed(pubkey, signature, max_size, _) => (*pubkey, *signature, *max_size),
             Signer::Signer(s, context) => (
                 s.into(),
                 ed25519_dalek::SigningKey::sign_prehashed(
@@ -131,13 +133,14 @@ impl<S: FileSource> MerkleArchive<S> {
                         .chain_update(&u64::to_be_bytes(size)),
                     Some(context.as_bytes()),
                 )?,
+                size,
             ),
         };
 
         w.write_all(pubkey.as_bytes()).await?;
         w.write_all(&signature.to_bytes()).await?;
         w.write_all(sighash.as_bytes()).await?;
-        w.write_all(&u64::to_be_bytes(size)).await?;
+        w.write_all(&u64::to_be_bytes(max_size)).await?;
         let mut next_pos = w.current_position().await?;
         next_pos += DirectoryContents::<S>::header_size();
         self.contents.serialize_header(next_pos, w).await?;
@@ -360,7 +363,7 @@ impl<S: FileSource> EntryContents<S> {
                 ErrorKind::Pack,
             )),
             Self::File(f) => f.hash().await,
-            Self::Directory(d) => d.sighash().await,
+            Self::Directory(d) => Ok((d.sighash().await?, d.toc_size())),
         }
     }
     #[instrument(skip_all)]
