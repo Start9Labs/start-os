@@ -140,7 +140,7 @@ export class MainLoop {
               actionProcedure,
               manifest.volumes,
             )
-            const executed = await container.execSpawn([
+            const executed = await container.exec([
               actionProcedure.entrypoint,
               ...actionProcedure.args,
               JSON.stringify(timeChanged),

@@ -3,8 +3,10 @@ use std::ops::Deref;
 use std::str::FromStr;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use ts_rs::TS;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, TS)]
+#[ts(type = "string")]
 pub struct Version {
     version: emver::Version,
     string: String,
