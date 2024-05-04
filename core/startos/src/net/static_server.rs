@@ -113,7 +113,7 @@ pub fn main_ui_server_router(ctx: RpcContext) -> Router {
         .route("/rpc/*path", {
             let ctx = ctx.clone();
             post(
-                Server::new(move || ready(Ok(ctx.clone())), main_api())
+                Server::new(move || ready(Ok(ctx.clone())), main_api::<RpcContext>())
                     .middleware(Cors::new())
                     .middleware(Auth::new())
                     .middleware(SyncDb::new()),

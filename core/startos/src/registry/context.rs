@@ -221,11 +221,7 @@ impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
             .header(CONTENT_TYPE, "application/json")
             .header(ACCEPT, "application/json")
             .header(CONTENT_LENGTH, body.len())
-            .header(
-                AUTH_SIG_HEADER,
-                serde_urlencoded::to_string(&hardware_header(self))
-                    .with_kind(ErrorKind::Serialization)?,
-            )
+            .header("X-StartOS-Hardware", &hardware_header(self))
             .body(body)
             .send()
             .await?;

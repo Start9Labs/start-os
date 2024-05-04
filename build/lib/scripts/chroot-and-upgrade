@@ -95,7 +95,7 @@ if [ "$CHROOT_RES" -eq 0 ]; then
     echo 'Upgrading...'
 
     time mksquashfs /media/startos/next /media/startos/images/next.squashfs -b 4096 -comp gzip
-    hash=$(b3sum /media/startos/images/next.squashfs | head -c 32)
+    hash=$(start-cli util b3sum /media/startos/images/next.squashfs | head -c 32)
     mv /media/startos/images/next.squashfs /media/startos/images/${hash}.rootfs
     ln -rsf /media/startos/images/${hash}.rootfs /media/startos/config/current.rootfs
 

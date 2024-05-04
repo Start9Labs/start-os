@@ -3715,7 +3715,7 @@ dependencies = [
 [[package]]
 name = "rpc-toolkit"
 version = "0.2.3"
-source = "git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/no-dyn-ctx#0603928164ce2862b9bdd6021f371a6151ad8688"
+source = "git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/no-dyn-ctx#f5566840bb9af0743612fede4034f5a390cd1eee"
 dependencies = [
  "async-stream",
  "async-trait",

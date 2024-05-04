@@ -20,9 +20,10 @@ use crate::disk::util::{DiskInfo, PartitionTable};
 use crate::disk::OsPartitionInfo;
 use crate::net::utils::find_eth_iface;
 use crate::prelude::*;
+use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::util::io::TmpDir;
 use crate::util::serde::IoFormat;
-use crate::util::{Apply, Invoke};
+use crate::util::Invoke;
 use crate::ARCH;
 
 mod gpt;
@@ -238,15 +239,16 @@ pub async fn execute<C: Context>(
 
     let images_path = rootfs.path().join("images");
     tokio::fs::create_dir_all(&images_path).await?;
-    let image_filename = Command::new("b3sum") // TODO: use blake3 lib
-        .arg("/run/live/medium/live/filesystem.squashfs")
-        .invoke(crate::ErrorKind::DiskManagement)
-        .await?
-        .apply(|mut out| {
-            out.truncate(32);
-            String::from_utf8(out).map(|s| s + ".rootfs")
-        })?;
-    let image_path = images_path.join(&image_filename);
+    let image_path = images_path
+        .join(hex::encode(
+            &MultiCursorFile::from(
+                tokio::fs::File::open("/run/live/medium/live/filesystem.squashfs").await?,
+            )
+            .blake3_mmap()
+            .await?
+            .as_bytes()[..16],
+        ))
+        .with_extension("rootfs");
     tokio::fs::copy("/run/live/medium/live/filesystem.squashfs", &image_path).await?;
     // TODO: check hash of fs
     let unsquash_target = TmpDir::new().await?;
