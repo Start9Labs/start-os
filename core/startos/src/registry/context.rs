@@ -206,7 +206,7 @@ impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
         use rpc_toolkit::yajrc::{GenericRpcMethod, Id, RpcRequest};
         use rpc_toolkit::RpcResponse;
 
-        let url = registry;
+        let url = registry.join("rpc/v0")?;
         method = method.strip_prefix("registry.").unwrap_or(method);
 
         let rpc_req = RpcRequest {

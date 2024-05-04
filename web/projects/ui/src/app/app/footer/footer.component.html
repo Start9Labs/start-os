@@ -8,13 +8,13 @@
     <ng-container *ngIf="!!progress.overall && progress.overall !== true && progress.overall.total; else calculating">
       <ion-list-header>
         <ion-label>
-          Downloading: {{ getProgress(progress.overall.done, progress.overall.total) }}%
+          Downloading: {{ getProgress(progress.overall.total, progress.overall.done) }}%
         </ion-label>
       </ion-list-header>
       <ion-progress-bar
         class="progress"
         color="secondary"
-        [value]="getProgress(progress.overall.done, progress.overall.total) / 100"
+        [value]="getProgress(progress.overall.total, progress.overall.done) / 100"
       ></ion-progress-bar>
     </ng-container>
     <!-- show calculating -->
