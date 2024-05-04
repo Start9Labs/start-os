@@ -36,7 +36,7 @@ use crate::net::service_interface::{
     ServiceInterfaceWithHostInfo,
 };
 use crate::prelude::*;
-use crate::s9pk::merkle_archive::source::http::{ HttpSource};
+use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::rpc::SKIP_ENV;
 use crate::s9pk::S9pk;
 use crate::service::cli::ContainerCliContext;
@@ -161,13 +161,13 @@ pub fn service_effect_handler<C: Context>() -> ParentHandler<C> {
             "getDependencies",
             from_fn_async(get_dependencies)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "checkDependencies",
             from_fn_async(check_dependencies)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand("getSystemSmtp", from_fn_async(get_system_smtp).no_cli())
         .subcommand("getContainerIp", from_fn_async(get_container_ip).no_cli())

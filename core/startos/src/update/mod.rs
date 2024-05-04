@@ -313,7 +313,6 @@ async fn maybe_do_update(
         .await;
         match res {
             Ok(()) => {
-                progress_task.await.with_kind(ErrorKind::Unknown)??;
                 ctx.db
                     .mutate(|db| {
                         let status_info =
@@ -322,6 +321,7 @@ async fn maybe_do_update(
                         status_info.as_updated_mut().ser(&true)
                     })
                     .await?;
+                progress_task.await.with_kind(ErrorKind::Unknown)??;
                 CIRCLE_OF_5THS_SHORT
                     .play()
                     .await
