@@ -5,16 +5,16 @@
 >
   <ion-list class="list">
     <!-- show progress -->
-    <ng-container *ngIf="progress.size !== null; else calculating">
+    <ng-container *ngIf="!!progress.overall && progress.overall !== true && progress.overall.total; else calculating">
       <ion-list-header>
         <ion-label>
-          Downloading: {{ getProgress(progress.size, progress.downloaded) }}%
+          Downloading: {{ getProgress(progress.overall.done, progress.overall.total) }}%
         </ion-label>
       </ion-list-header>
       <ion-progress-bar
         class="progress"
         color="secondary"
-        [value]="getProgress(progress.size, progress.downloaded) / 100"
+        [value]="getProgress(progress.overall.done, progress.overall.total) / 100"
       ></ion-progress-bar>
     </ng-container>
     <!-- show calculating -->
