@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use itertools::Itertools;
-use rpc_toolkit::{from_fn_async, AnyContext, CallRemote, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, CallRemote, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -15,32 +15,28 @@ use crate::registry::RegistryDatabase;
 use crate::rpc_continuations::RequestGuid;
 use crate::util::serde::{display_serializable, HandlerExtSerde, Pem, WithIoFormat};
 
-pub fn admin_api() -> ParentHandler {
+pub fn admin_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("signer", signers_api())
+        .subcommand("signer", signers_api::<C>())
         .subcommand("add", from_fn_async(add_admin).no_cli())
         .subcommand("add", from_fn_async(cli_add_admin).no_display())
-        .subcommand(
+        .subcommand::<C, _>(
             "list",
             from_fn_async(list_admins)
                 .with_display_serializable()
-                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
-                    Ok(display_signers(handle.params, result))
-                })
+                .with_custom_display_fn(|handle, result| Ok(display_signers(handle.params, result)))
                 .with_call_remote::<CliContext>(),
         )
 }
 
-fn signers_api() -> ParentHandler {
+fn signers_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand(
+        .subcommand::<C, _>(
             "list",
             from_fn_async(list_signers)
                 .with_metadata("admin", Value::Bool(true))
                 .with_display_serializable()
-                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
-                    Ok(display_signers(handle.params, result))
-                })
+                .with_custom_display_fn(|handle, result| Ok(display_signers(handle.params, result)))
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -147,13 +143,19 @@ pub struct CliAddSignerParams {
 }
 
 pub async fn cli_add_signer(
-    ctx: CliContext,
-    CliAddSignerParams {
-        name,
-        contact,
-        ed25519_keys,
-        database,
-    }: CliAddSignerParams,
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        params:
+            CliAddSignerParams {
+                name,
+                contact,
+                ed25519_keys,
+                database,
+            },
+        ..
+    }: HandlerArgs<CliContext, CliAddSignerParams>,
 ) -> Result<(), Error> {
     let signer = SignerInfo {
         name,
@@ -166,9 +168,8 @@ pub async fn cli_add_signer(
             .mutate(|db| db.as_index_mut().as_signers_mut().add_signer(&signer))
             .await?;
     } else {
-        <CliContext as CallRemote<RegistryContext>>::call_remote(
-            &ctx,
-            "admin.signer.add",
+        ctx.call_remote::<RegistryContext>(
+            &parent_method.into_iter().chain(method).join("."),
             to_value(&signer)?,
         )
         .await?;
@@ -210,8 +211,13 @@ pub struct CliAddAdminParams {
 }
 
 pub async fn cli_add_admin(
-    ctx: CliContext,
-    CliAddAdminParams { signer, database }: CliAddAdminParams,
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        params: CliAddAdminParams { signer, database },
+        ..
+    }: HandlerArgs<CliContext, CliAddAdminParams>,
 ) -> Result<(), Error> {
     if let Some(database) = database {
         TypedPatchDb::<RegistryDatabase>::load(PatchDb::open(database).await?)
@@ -227,9 +233,8 @@ pub async fn cli_add_admin(
             })
             .await?;
     } else {
-        <CliContext as CallRemote<RegistryContext>>::call_remote(
-            &ctx,
-            "admin.add",
+        ctx.call_remote::<RegistryContext>(
+            &parent_method.into_iter().chain(method).join("."),
             to_value(&AddAdminParams { signer })?,
         )
         .await?;

@@ -5,7 +5,7 @@ use itertools::Itertools;
 use patch_db::json_ptr::{JsonPointer, ROOT};
 use patch_db::Dump;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{from_fn_async, CallRemote, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, CallRemote, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
@@ -16,7 +16,7 @@ use crate::registry::context::RegistryContext;
 use crate::registry::RegistryDatabase;
 use crate::util::serde::{apply_expr, HandlerExtSerde};
 
-pub fn db_api() -> ParentHandler {
+pub fn db_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("dump", from_fn_async(cli_dump).with_display_serializable())
         .subcommand(

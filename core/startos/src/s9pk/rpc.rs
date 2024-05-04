@@ -5,7 +5,7 @@ use std::sync::Arc;
 use clap::Parser;
 use itertools::Itertools;
 use models::ImageId;
-use rpc_toolkit::{from_fn_async, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::process::Command;
@@ -25,7 +25,7 @@ use crate::util::Invoke;
 
 pub const SKIP_ENV: &[&str] = &["TERM", "container", "HOME", "HOSTNAME"];
 
-pub fn s9pk() -> ParentHandler {
+pub fn s9pk() -> ParentHandler<CliContext> {
     ParentHandler::new()
         .subcommand("edit", edit())
         .subcommand("inspect", inspect())
@@ -36,9 +36,9 @@ struct S9pkPath {
     s9pk: PathBuf,
 }
 
-fn edit() -> ParentHandler<S9pkPath> {
+fn edit() -> ParentHandler<CliContext, S9pkPath> {
     let only_parent = |a, _| a;
-    ParentHandler::<S9pkPath>::new()
+    ParentHandler::new()
         .subcommand(
             "add-image",
             from_fn_async(add_image)
@@ -53,9 +53,9 @@ fn edit() -> ParentHandler<S9pkPath> {
         )
 }
 
-fn inspect() -> ParentHandler<S9pkPath> {
+fn inspect() -> ParentHandler<CliContext, S9pkPath> {
     let only_parent = |a, _| a;
-    ParentHandler::<S9pkPath>::new()
+    ParentHandler::new()
         .subcommand(
             "file-tree",
             from_fn_async(file_tree)

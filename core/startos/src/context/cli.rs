@@ -10,7 +10,7 @@ use reqwest::Proxy;
 use reqwest_cookie_store::CookieStoreMutex;
 use rpc_toolkit::reqwest::{Client, Url};
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{call_remote_http, AnyContext, CallRemote, Context, Empty};
+use rpc_toolkit::{call_remote_http, CallRemote, Context, Empty};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
@@ -259,11 +259,6 @@ impl Context for CliContext {
             })
             .handle()
             .clone()
-    }
-}
-impl CallRemote<AnyContext> for CliContext {
-    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
-        call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
     }
 }
 impl CallRemote<RpcContext> for CliContext {

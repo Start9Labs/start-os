@@ -12,8 +12,8 @@ use imbl_value::{InOMap, InternedString};
 use models::InvalidId;
 use rpc_toolkit::yajrc::{RpcError, RpcResponse};
 use rpc_toolkit::{
-    from_fn_async, AnyContext, CallRemoteHandler, Empty, GenericRpcMethod, Handler, HandlerArgs,
-    HandlerExt, ParentHandler, RpcRequest,
+    from_fn_async, CallRemoteHandler, Context, Empty, GenericRpcMethod, HandlerArgs, HandlerExt,
+    HandlerFor, ParentHandler, RpcRequest,
 };
 use rustyline_async::{ReadlineEvent, SharedWriter};
 use serde::{Deserialize, Serialize};
@@ -370,16 +370,16 @@ impl Drop for LxcContainer {
 #[derive(Default, Serialize)]
 pub struct LxcConfig {}
 
-pub fn lxc() -> ParentHandler {
+pub fn lxc<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand(
+        .subcommand::<C, _>(
             "create",
             from_fn_async(create).with_call_remote::<CliContext>(),
         )
-        .subcommand(
+        .subcommand::<C, _>(
             "list",
             from_fn_async(list)
-                .with_custom_display_fn::<AnyContext, _>(|_, res| {
+                .with_custom_display_fn(|_, res| {
                     use prettytable::*;
                     let mut table = table!([bc => "GUID"]);
                     for guid in res {
@@ -390,7 +390,7 @@ pub fn lxc() -> ParentHandler {
                 })
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand(
+        .subcommand::<C, _>(
             "remove",
             from_fn_async(remove)
                 .no_display()
@@ -624,7 +624,7 @@ pub async fn connect_rpc_cli(
     }: HandlerArgs<CliContext, ConnectParams>,
 ) -> Result<(), Error> {
     let ctx = context.clone();
-    let guid = CallRemoteHandler::<CliContext, _>::new(from_fn_async(connect_rpc))
+    let guid = CallRemoteHandler::<CliContext, _, _>::new(from_fn_async(connect_rpc))
         .handle_async(HandlerArgs {
             context,
             parent_method,

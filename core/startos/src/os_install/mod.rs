@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use models::Error;
-use rpc_toolkit::{from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
@@ -28,16 +28,16 @@ use crate::ARCH;
 mod gpt;
 mod mbr;
 
-pub fn install() -> ParentHandler {
+pub fn install<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("disk", disk())
-        .subcommand(
+        .subcommand("disk", disk::<C>())
+        .subcommand::<C, _>(
             "execute",
-            from_fn_async(execute)
+            from_fn_async(execute::<InstallContext>)
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand(
+        .subcommand::<C, _>(
             "reboot",
             from_fn_async(reboot)
                 .no_display()
@@ -45,8 +45,8 @@ pub fn install() -> ParentHandler {
         )
 }
 
-pub fn disk() -> ParentHandler {
-    ParentHandler::new().subcommand(
+pub fn disk<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new().subcommand::<C, _>(
         "list",
         from_fn_async(list)
             .no_display()
@@ -54,7 +54,7 @@ pub fn disk() -> ParentHandler {
     )
 }
 
-pub async fn list() -> Result<Vec<DiskInfo>, Error> {
+pub async fn list(_: InstallContext) -> Result<Vec<DiskInfo>, Error> {
     let skip = match async {
         Ok::<_, Error>(
             Path::new(
@@ -125,8 +125,8 @@ pub struct ExecuteParams {
     overwrite: bool,
 }
 
-pub async fn execute(
-    _: AnyContext,
+pub async fn execute<C: Context>(
+    _: C,
     ExecuteParams {
         logicalname,
         mut overwrite,

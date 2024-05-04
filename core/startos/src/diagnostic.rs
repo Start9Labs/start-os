@@ -3,19 +3,21 @@ use std::sync::Arc;
 
 use clap::Parser;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{
+    from_fn, from_fn_async, CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler,
+};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::context::{CliContext, DiagnosticContext};
+use crate::context::{CliContext, DiagnosticContext, RpcContext};
 use crate::init::SYSTEM_REBUILD_PATH;
 use crate::logs::{fetch_logs, LogResponse, LogSource};
 use crate::shutdown::Shutdown;
 use crate::Error;
 
-pub fn diagnostic() -> ParentHandler {
+pub fn diagnostic<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("error", from_fn(error).with_call_remote::<CliContext>())
+        .subcommand::<C, _>("error", from_fn(error).with_call_remote::<CliContext>())
         .subcommand("logs", crate::system::logs::<DiagnosticContext>())
         .subcommand(
             "logs",
@@ -29,18 +31,18 @@ pub fn diagnostic() -> ParentHandler {
             "kernel-logs",
             from_fn_async(crate::logs::cli_logs::<DiagnosticContext, Empty>).no_display(),
         )
-        .subcommand(
+        .subcommand::<C, _>(
             "exit",
             from_fn(exit).no_display().with_call_remote::<CliContext>(),
         )
-        .subcommand(
+        .subcommand::<C, _>(
             "restart",
             from_fn(restart)
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("disk", disk())
-        .subcommand(
+        .subcommand("disk", disk::<C>())
+        .subcommand::<C, _>(
             "rebuild",
             from_fn_async(rebuild)
                 .no_display()
@@ -75,16 +77,19 @@ pub async fn rebuild(ctx: DiagnosticContext) -> Result<(), Error> {
     restart(ctx)
 }
 
-pub fn disk() -> ParentHandler {
-    ParentHandler::new().subcommand(
-        "forget",
-        from_fn_async(forget_disk)
-            .no_display()
-            .with_call_remote::<CliContext>(),
-    )
+pub fn disk<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand::<C, _>("forget", from_fn_async(forget_disk::<C>).no_cli())
+        .subcommand(
+            "forget",
+            CallRemoteHandler::<CliContext, _, _>::new(
+                from_fn_async(forget_disk::<RpcContext>).no_display(),
+            )
+            .no_display(),
+        )
 }
 
-pub async fn forget_disk(_: AnyContext) -> Result<(), Error> {
+pub async fn forget_disk<C: Context>(_: C) -> Result<(), Error> {
     let disk_guid = Path::new("/media/startos/config/disk.guid");
     if tokio::fs::metadata(disk_guid).await.is_ok() {
         tokio::fs::remove_file(disk_guid).await?;

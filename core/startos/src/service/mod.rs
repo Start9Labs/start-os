@@ -7,7 +7,7 @@ use futures::future::BoxFuture;
 use imbl::OrdMap;
 use models::{HealthCheckId, PackageId, ProcedureName};
 use persistent_container::PersistentContainer;
-use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, Handler, HandlerArgs};
+use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerFor};
 use serde::{Deserialize, Serialize};
 use start_stop::StartStop;
 use tokio::sync::Notify;
@@ -520,7 +520,7 @@ pub async fn connect_rpc_cli(
     }: HandlerArgs<CliContext, ConnectParams>,
 ) -> Result<(), Error> {
     let ctx = context.clone();
-    let guid = CallRemoteHandler::<CliContext, _>::new(from_fn_async(connect_rpc))
+    let guid = CallRemoteHandler::<CliContext, _, _>::new(from_fn_async(connect_rpc))
         .handle_async(HandlerArgs {
             context,
             parent_method,

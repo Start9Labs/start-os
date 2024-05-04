@@ -8,7 +8,7 @@ use itertools::Itertools;
 use josekit::jwk::Jwk;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
-    from_fn_async, AnyContext, CallRemote, Empty, HandlerArgs, HandlerExt, ParentHandler,
+    from_fn_async, CallRemote, Context, Empty, HandlerArgs, HandlerExt, ParentHandler,
 };
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -85,7 +85,7 @@ impl std::str::FromStr for PasswordType {
         })
     }
 }
-pub fn auth() -> ParentHandler {
+pub fn auth<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "login",
@@ -94,14 +94,14 @@ pub fn auth() -> ParentHandler {
                 .no_cli(),
         )
         .subcommand("login", from_fn_async(cli_login).no_display())
-        .subcommand(
+        .subcommand::<C, _>(
             "logout",
             from_fn_async(logout)
                 .with_metadata("get_session", Value::Bool(true))
-                .with_call_remote::<CliContext>()
-                .no_display(),
+                .no_display()
+                .with_call_remote::<CliContext>(),
         )
-        .subcommand("session", session())
+        .subcommand("session", session::<C>())
         .subcommand(
             "reset-password",
             from_fn_async(reset_password_impl).no_cli(),
@@ -110,7 +110,7 @@ pub fn auth() -> ParentHandler {
             "reset-password",
             from_fn_async(cli_reset_password).no_display(),
         )
-        .subcommand(
+        .subcommand::<C, _>(
             "get-pubkey",
             from_fn_async(get_pubkey)
                 .with_metadata("authenticated", Value::Bool(false))
@@ -261,19 +261,19 @@ pub struct SessionList {
     sessions: Sessions,
 }
 
-pub fn session() -> ParentHandler {
+pub fn session<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand(
+        .subcommand::<C, _>(
             "list",
             from_fn_async(list)
                 .with_metadata("get_session", Value::Bool(true))
                 .with_display_serializable()
-                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                .with_custom_display_fn(|handle, result| {
                     Ok(display_sessions(handle.params, result))
                 })
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand(
+        .subcommand::<C, _>(
             "kill",
             from_fn_async(kill)
                 .no_display()

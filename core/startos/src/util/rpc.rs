@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use clap::Parser;
-use rpc_toolkit::{from_fn_async, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use url::Url;
@@ -14,7 +14,7 @@ use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSour
 use crate::util::io::ParallelBlake3Writer;
 use crate::util::serde::Base16;
 
-pub fn util() -> ParentHandler {
+pub fn util<C: Context>() -> ParentHandler<C> {
     ParentHandler::new().subcommand("b3sum", from_fn_async(b3sum))
 }
 

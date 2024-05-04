@@ -12,7 +12,7 @@ use helpers::NonDetachingJoinHandle;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
-use rpc_toolkit::{from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpStream;
 use tokio::process::Command;
@@ -82,13 +82,13 @@ lazy_static! {
     static ref PROGRESS_REGEX: Regex = Regex::new("PROGRESS=([0-9]+)").unwrap();
 }
 
-pub fn tor() -> ParentHandler {
+pub fn tor<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand(
+        .subcommand::<C, _>(
             "list-services",
             from_fn_async(list_services)
                 .with_display_serializable()
-                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                .with_custom_display_fn(|handle, result| {
                     Ok(display_services(handle.params, result))
                 })
                 .with_call_remote::<CliContext>(),
@@ -98,7 +98,7 @@ pub fn tor() -> ParentHandler {
             "logs",
             from_fn_async(crate::logs::cli_logs::<RpcContext, Empty>).no_display(),
         )
-        .subcommand(
+        .subcommand::<C, _>(
             "reset",
             from_fn_async(reset)
                 .no_display()
@@ -143,7 +143,7 @@ pub async fn list_services(ctx: RpcContext, _: Empty) -> Result<Vec<OnionAddress
     ctx.net_controller.tor.list_services().await
 }
 
-pub fn logs() -> ParentHandler<LogsParams> {
+pub fn logs() -> ParentHandler<RpcContext, LogsParams> {
     crate::logs::logs::<RpcContext, Empty>(|_: &RpcContext, _| async {
         Ok(LogSource::Unit(SYSTEMD_UNIT))
     })

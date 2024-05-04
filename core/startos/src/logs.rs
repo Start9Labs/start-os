@@ -12,7 +12,8 @@ use itertools::Itertools;
 use models::PackageId;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
-    from_fn_async, CallRemote, Empty, Handler, HandlerArgs, HandlerExt, IntoContext, ParentHandler,
+    from_fn_async, CallRemote, Context, Empty, Handler, HandlerArgs, HandlerExt, HandlerFor,
+    ParentHandler,
 };
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -257,20 +258,20 @@ pub struct CliLogsParams<Extra: FromArgMatches + Args = Empty> {
 
 #[allow(private_bounds)]
 pub fn logs<
-    Context: IntoContext + AsRef<RpcContinuations>,
+    C: Context + AsRef<RpcContinuations>,
     Extra: FromArgMatches + Serialize + DeserializeOwned + Args + Send + Sync + 'static,
 >(
-    source: impl for<'a> LogSourceFn<'a, Context, Extra>,
-) -> ParentHandler<LogsParams<Extra>> {
-    ParentHandler::<LogsParams<Extra>>::new()
+    source: impl for<'a> LogSourceFn<'a, C, Extra>,
+) -> ParentHandler<C, LogsParams<Extra>> {
+    ParentHandler::new()
         .root_handler(
-            logs_nofollow::<Context, Extra>(source.clone())
+            logs_nofollow::<C, Extra>(source.clone())
                 .with_inherited(|params, _| params)
                 .no_cli(),
         )
         .subcommand(
             "follow",
-            logs_follow::<Context, Extra>(source)
+            logs_follow::<C, Extra>(source)
                 .with_inherited(|params, _| params)
                 .no_cli(),
         )
@@ -326,28 +327,22 @@ trait LogSourceFn<'a, Context, Extra>: Clone + Send + Sync + 'static {
     fn call(&self, ctx: &'a Context, extra: Extra) -> Self::Fut;
 }
 
-impl<'a, Context: IntoContext, Extra, F, Fut> LogSourceFn<'a, Context, Extra> for F
+impl<'a, C: Context, Extra, F, Fut> LogSourceFn<'a, C, Extra> for F
 where
-    F: Fn(&'a Context, Extra) -> Fut + Clone + Send + Sync + 'static,
+    F: Fn(&'a C, Extra) -> Fut + Clone + Send + Sync + 'static,
     Fut: Future<Output = Result<LogSource, Error>> + Send + 'a,
 {
     type Fut = Fut;
-    fn call(&self, ctx: &'a Context, extra: Extra) -> Self::Fut {
+    fn call(&self, ctx: &'a C, extra: Extra) -> Self::Fut {
         self(ctx, extra)
     }
 }
 
-fn logs_nofollow<Context, Extra>(
-    f: impl for<'a> LogSourceFn<'a, Context, Extra>,
-) -> impl Handler<
-    Params = Empty,
-    InheritedParams = LogsParams<Extra>,
-    Context = Context,
-    Ok = LogResponse,
-    Err = Error,
->
+fn logs_nofollow<C, Extra>(
+    f: impl for<'a> LogSourceFn<'a, C, Extra>,
+) -> impl HandlerFor<C, Params = Empty, InheritedParams = LogsParams<Extra>, Ok = LogResponse, Err = Error>
 where
-    Context: IntoContext,
+    C: Context,
     Extra: FromArgMatches + Args + Send + Sync + 'static,
 {
     from_fn_async(
@@ -361,7 +356,7 @@ where
                           before,
                       },
                   ..
-              }: HandlerArgs<Context, Empty, LogsParams<Extra>>| {
+              }: HandlerArgs<C, Empty, LogsParams<Extra>>| {
             let f = f.clone();
             async move { fetch_logs(f.call(&context, extra).await?, limit, cursor, before).await }
         },
@@ -369,14 +364,14 @@ where
 }
 
 fn logs_follow<
-    Context: IntoContext + AsRef<RpcContinuations>,
+    C: Context + AsRef<RpcContinuations>,
     Extra: FromArgMatches + Args + Send + Sync + 'static,
 >(
-    f: impl for<'a> LogSourceFn<'a, Context, Extra>,
-) -> impl Handler<
+    f: impl for<'a> LogSourceFn<'a, C, Extra>,
+) -> impl HandlerFor<
+    C,
     Params = Empty,
     InheritedParams = LogsParams<Extra>,
-    Context = Context,
     Ok = LogFollowResponse,
     Err = Error,
 > {
@@ -385,7 +380,7 @@ fn logs_follow<
                   context,
                   inherited_params: LogsParams { extra, limit, .. },
                   ..
-              }: HandlerArgs<Context, Empty, LogsParams<Extra>>| {
+              }: HandlerArgs<C, Empty, LogsParams<Extra>>| {
             let f = f.clone();
             async move {
                 let src = f.call(&context, extra).await?;
@@ -414,7 +409,7 @@ async fn get_package_id(
     Ok(LogSource::Container(container_id))
 }
 
-pub fn package_logs() -> ParentHandler<LogsParams<PackageIdParams>> {
+pub fn package_logs() -> ParentHandler<RpcContext, LogsParams<PackageIdParams>> {
     logs::<RpcContext, PackageIdParams>(get_package_id)
 }
 

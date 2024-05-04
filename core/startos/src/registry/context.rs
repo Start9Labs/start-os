@@ -9,7 +9,7 @@ use imbl_value::InternedString;
 use patch_db::PatchDb;
 use reqwest::Client;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{CallRemote, Context, EitherContext, Empty};
+use rpc_toolkit::{CallRemote, Context, Empty};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::Sender;
 use tracing::instrument;

@@ -8,7 +8,7 @@ use clap::Parser;
 use isocountry::CountryCode;
 use lazy_static::lazy_static;
 use regex::Regex;
-use rpc_toolkit::{from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::RwLock;
@@ -37,53 +37,51 @@ pub fn wifi_manager(ctx: &RpcContext) -> Result<&WifiManager, Error> {
     }
 }
 
-pub fn wifi() -> ParentHandler {
+pub fn wifi<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand(
+        .subcommand::<C, _>(
             "add",
             from_fn_async(add)
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand(
+        .subcommand::<C, _>(
             "connect",
             from_fn_async(connect)
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand(
+        .subcommand::<C, _>(
             "delete",
             from_fn_async(delete)
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand(
+        .subcommand::<C, _>(
             "get",
             from_fn_async(get)
                 .with_display_serializable()
-                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                .with_custom_display_fn(|handle, result| {
                     Ok(display_wifi_info(handle.params, result))
                 })
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("country", country())
-        .subcommand("available", available())
+        .subcommand("country", country::<C>())
+        .subcommand("available", available::<C>())
 }
 
-pub fn available() -> ParentHandler {
-    ParentHandler::new().subcommand(
+pub fn available<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new().subcommand::<C, _>(
         "get",
         from_fn_async(get_available)
             .with_display_serializable()
-            .with_custom_display_fn::<AnyContext, _>(|handle, result| {
-                Ok(display_wifi_list(handle.params, result))
-            })
+            .with_custom_display_fn(|handle, result| Ok(display_wifi_list(handle.params, result)))
             .with_call_remote::<CliContext>(),
     )
 }
 
-pub fn country() -> ParentHandler {
-    ParentHandler::new().subcommand(
+pub fn country<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new().subcommand::<C, _>(
         "set",
         from_fn_async(set_country)
             .no_display()

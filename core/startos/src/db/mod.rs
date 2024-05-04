@@ -15,7 +15,7 @@ use itertools::Itertools;
 use patch_db::json_ptr::{JsonPointer, ROOT};
 use patch_db::{Dump, Revision};
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{from_fn_async, CallRemote, Empty, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, CallRemote, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::oneshot;
@@ -168,11 +168,11 @@ pub async fn subscribe(
     }))
 }
 
-pub fn db() -> ParentHandler {
+pub fn db<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("dump", from_fn_async(cli_dump).with_display_serializable())
         .subcommand("dump", from_fn_async(dump).no_cli())
-        .subcommand("put", put())
+        .subcommand("put", put::<C>())
         .subcommand("apply", from_fn_async(cli_apply).no_display())
         .subcommand("apply", from_fn_async(apply).no_cli())
 }
@@ -328,8 +328,8 @@ pub async fn apply(ctx: RpcContext, ApplyParams { expr }: ApplyParams) -> Result
         .await
 }
 
-pub fn put() -> ParentHandler {
-    ParentHandler::new().subcommand(
+pub fn put<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new().subcommand::<C, _>(
         "ui",
         from_fn_async(ui)
             .with_display_serializable()

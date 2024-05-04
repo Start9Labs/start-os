@@ -5,7 +5,8 @@ use std::path::PathBuf;
 use clap::Parser;
 use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
-use rpc_toolkit::{from_fn_async, CallRemote, HandlerExt, ParentHandler};
+use itertools::Itertools;
+use rpc_toolkit::{from_fn_async, CallRemote, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -19,7 +20,7 @@ use crate::registry::os::SIG_CONTEXT;
 use crate::registry::signer::{Blake3Ed25519Signature, Signature};
 use crate::util::Version;
 
-pub fn sign_api() -> ParentHandler {
+pub fn sign_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("iso", from_fn_async(sign_iso).no_cli())
         .subcommand("img", from_fn_async(sign_img).no_cli())
@@ -108,12 +109,18 @@ pub struct CliSignAssetParams {
 }
 
 pub async fn cli_sign_asset(
-    ctx: CliContext,
-    CliSignAssetParams {
-        platform,
-        version,
-        file: path,
-    }: CliSignAssetParams,
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        params:
+            CliSignAssetParams {
+                platform,
+                version,
+                file: path,
+            },
+        ..
+    }: HandlerArgs<CliContext, CliSignAssetParams>,
 ) -> Result<(), Error> {
     let ext = match path.extension().and_then(|e| e.to_str()) {
         Some("iso") => "iso",
@@ -158,9 +165,12 @@ pub async fn cli_sign_asset(
     sign_phase.complete();
 
     index_phase.start();
-    <CliContext as CallRemote<RegistryContext>>::call_remote(
-        &ctx,
-        &format!("os.asset.sign.{ext}"),
+    ctx.call_remote::<RegistryContext>(
+        &parent_method
+            .into_iter()
+            .chain(method)
+            .chain([ext])
+            .join("."),
         imbl_value::json!({
             "platform": platform,
             "version": version,

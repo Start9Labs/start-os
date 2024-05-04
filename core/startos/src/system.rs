@@ -5,7 +5,7 @@ use chrono::Utc;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
-use rpc_toolkit::{from_fn_async, AnyContext, Empty, HandlerExt, IntoContext, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::process::Command;
 use tokio::sync::broadcast::Receiver;
@@ -23,7 +23,7 @@ use crate::util::cpupower::{get_available_governors, set_governor, Governor};
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;
 
-pub fn experimental() -> ParentHandler {
+pub fn experimental<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "zram",
@@ -35,7 +35,7 @@ pub fn experimental() -> ParentHandler {
             "governor",
             from_fn_async(governor)
                 .with_display_serializable()
-                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                .with_custom_display_fn(|handle, result| {
                     Ok(display_governor_info(handle.params, result))
                 })
                 .with_call_remote::<CliContext>(),
@@ -227,11 +227,11 @@ pub async fn time(ctx: RpcContext, _: Empty) -> Result<TimeInfo, Error> {
     })
 }
 
-pub fn logs<Context: IntoContext + AsRef<RpcContinuations>>() -> ParentHandler<LogsParams> {
+pub fn logs<C: Context + AsRef<RpcContinuations>>() -> ParentHandler<C, LogsParams> {
     crate::logs::logs(|_: &Context, _| async { Ok(LogSource::Unit(SYSTEM_UNIT)) })
 }
 
-pub fn kernel_logs<Context: IntoContext + AsRef<RpcContinuations>>() -> ParentHandler<LogsParams> {
+pub fn kernel_logs<C: Context + AsRef<RpcContinuations>>() -> ParentHandler<C, LogsParams> {
     crate::logs::logs(|_: &Context, _| async { Ok(LogSource::Kernel) })
 }
 

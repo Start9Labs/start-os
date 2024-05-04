@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use rpc_toolkit::{from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{
+    from_fn_async, CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler, RemoteCaller,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::context::{CliContext, RpcContext};
@@ -40,22 +42,23 @@ impl OsPartitionInfo {
     }
 }
 
-pub fn disk() -> ParentHandler {
+pub fn disk<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand(
+        .subcommand::<C, _>(
             "list",
             from_fn_async(list)
                 .with_display_serializable()
-                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                .with_custom_display_fn(|handle, result| {
                     Ok(display_disk_info(handle.params, result))
                 })
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand::<C, _>("repair", HandlerExt::<C>::no_cli(from_fn_async(repair)))
         .subcommand(
             "repair",
-            from_fn_async(repair)
-                .no_display()
-                .with_call_remote::<CliContext>(),
+            CallRemoteHandler::<CliContext, RpcContext, _>::new(
+                HandlerExt::<RpcContext>::no_display(from_fn_async(repair)),
+            ),
         )
 }
 

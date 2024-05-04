@@ -143,7 +143,7 @@ regex = "1.10.2"
 reqwest = { version = "0.12.4", features = ["stream", "json", "socks"] }
 reqwest_cookie_store = "0.7.0"
 rpassword = "7.2.0"
-rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", branch = "refactor/traits" }
+rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", branch = "refactor/no-dyn-ctx" }
 rust-argon2 = "2.0.0"
 rustyline-async = "0.4.1"
 semver = { version = "1.0.20", features = ["serde"] }

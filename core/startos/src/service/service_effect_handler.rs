@@ -13,7 +13,7 @@ use imbl::OrdMap;
 use imbl_value::{json, InternedString};
 use models::{ActionId, DataUrl, HealthCheckId, HostId, ImageId, PackageId, VolumeId};
 use patch_db::json_ptr::JsonPointer;
-use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn, from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
@@ -66,48 +66,51 @@ struct RpcData {
     method: String,
     params: Value,
 }
-pub fn service_effect_handler() -> ParentHandler {
+pub fn service_effect_handler<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("gitInfo", from_fn(crate::version::git_info))
-        .subcommand(
+        .subcommand::<C, _>("gitInfo", from_fn(crate::version::git_info))
+        .subcommand::<C, _>(
             "echo",
-            from_fn(echo).with_call_remote::<ContainerCliContext>(),
+            from_fn(echo::<EffectContext>).with_call_remote::<ContainerCliContext>(),
         )
-        .subcommand("chroot", from_fn(chroot).no_display())
+        .subcommand(
+            "chroot",
+            from_fn(chroot::<ContainerCliContext>).no_display(),
+        )
         .subcommand("exists", from_fn_async(exists).no_cli())
         .subcommand("executeAction", from_fn_async(execute_action).no_cli())
         .subcommand("getConfigured", from_fn_async(get_configured).no_cli())
-        .subcommand(
+        .subcommand::<C, _>(
             "stopped",
             from_fn_async(stopped)
                 .no_display()
                 .with_call_remote::<ContainerCliContext>(),
         )
-        .subcommand(
+        .subcommand::<C, _>(
             "running",
             from_fn_async(running)
                 .no_display()
                 .with_call_remote::<ContainerCliContext>(),
         )
-        .subcommand(
+        .subcommand::<C, _>(
             "restart",
             from_fn_async(restart)
                 .no_display()
                 .with_call_remote::<ContainerCliContext>(),
         )
-        .subcommand(
+        .subcommand::<C, _>(
             "shutdown",
             from_fn_async(shutdown)
                 .no_display()
                 .with_call_remote::<ContainerCliContext>(),
         )
-        .subcommand(
+        .subcommand::<C, _>(
             "setConfigured",
             from_fn_async(set_configured)
                 .no_display()
                 .with_call_remote::<ContainerCliContext>(),
         )
-        .subcommand(
+        .subcommand::<C, _>(
             "setMainStatus",
             from_fn_async(set_main_status).with_call_remote::<ContainerCliContext>(),
         )
@@ -118,12 +121,10 @@ pub fn service_effect_handler() -> ParentHandler {
             "exposeForDependents",
             from_fn_async(expose_for_dependents).no_cli(),
         )
-        .subcommand(
+        .subcommand::<C, _>(
             "createOverlayedImage",
             from_fn_async(create_overlayed_image)
-                .with_custom_display_fn::<AnyContext, _>(|_, (path, _)| {
-                    Ok(println!("{}", path.display()))
-                })
+                .with_custom_display_fn(|_, (path, _)| Ok(println!("{}", path.display())))
                 .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
@@ -142,7 +143,7 @@ pub fn service_effect_handler() -> ParentHandler {
         .subcommand("clearBindings", from_fn_async(clear_bindings).no_cli())
         .subcommand("bind", from_fn_async(bind).no_cli())
         .subcommand("getHostInfo", from_fn_async(get_host_info).no_cli())
-        .subcommand(
+        .subcommand::<C, _>(
             "setDependencies",
             from_fn_async(set_dependencies)
                 .no_display()
@@ -426,7 +427,7 @@ struct GetHostInfoParams {
     callback: Callback,
 }
 async fn get_host_info(
-    _: AnyContext,
+    _: EffectContext,
     GetHostInfoParams { .. }: GetHostInfoParams,
 ) -> Result<Value, Error> {
     todo!()
@@ -470,7 +471,7 @@ struct GetServiceInterfaceParams {
     callback: Callback,
 }
 async fn get_service_interface(
-    _: AnyContext,
+    _: EffectContext,
     GetServiceInterfaceParams {
         callback,
         package_id,
@@ -517,8 +518,8 @@ struct ChrootParams {
     #[ts(type = "string[]")]
     args: Vec<OsString>,
 }
-fn chroot(
-    _: AnyContext,
+fn chroot<C: Context>(
+    _: C,
     ChrootParams {
         env,
         workdir,

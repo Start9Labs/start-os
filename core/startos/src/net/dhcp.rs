@@ -3,7 +3,7 @@ use std::net::IpAddr;
 
 use clap::Parser;
 use futures::TryStreamExt;
-use rpc_toolkit::{from_fn_async, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use ts_rs::TS;
@@ -53,8 +53,8 @@ pub async fn init_ips() -> Result<BTreeMap<String, IpInfo>, Error> {
 }
 
 // #[command(subcommands(update))]
-pub fn dhcp() -> ParentHandler {
-    ParentHandler::new().subcommand(
+pub fn dhcp<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new().subcommand::<C, _>(
         "update",
         from_fn_async::<_, _, (), Error, (RpcContext, UpdateParams)>(update)
             .no_display()

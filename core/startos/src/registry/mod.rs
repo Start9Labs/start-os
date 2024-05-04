@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 
 use axum::Router;
 use futures::future::ready;
-use rpc_toolkit::{from_fn_async, Empty, HandlerExt, ParentHandler, Server};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler, Server};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -50,17 +50,17 @@ pub async fn get_full_index(ctx: RegistryContext) -> Result<FullIndex, Error> {
     ctx.db.peek().await.into_index().de()
 }
 
-pub fn registry_api() -> ParentHandler {
+pub fn registry_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand(
+        .subcommand::<C, _>(
             "index",
             from_fn_async(get_full_index)
                 .with_display_serializable()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("os", os::os_api())
-        .subcommand("admin", admin::admin_api())
-        .subcommand("db", db::db_api())
+        .subcommand("os", os::os_api::<C>())
+        .subcommand("admin", admin::admin_api::<C>())
+        .subcommand("db", db::db_api::<C>())
 }
 
 pub fn registry_server_router(ctx: RegistryContext) -> Router {

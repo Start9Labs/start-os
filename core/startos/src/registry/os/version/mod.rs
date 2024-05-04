@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use clap::Parser;
 use emver::VersionRange;
 use itertools::Itertools;
-use rpc_toolkit::{from_fn_async, AnyContext, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -17,9 +17,9 @@ use crate::util::Version;
 
 pub mod signer;
 
-pub fn version_api() -> ParentHandler {
+pub fn version_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand(
+        .subcommand::<C, _>(
             "add",
             from_fn_async(add_version)
                 .with_metadata("admin", Value::Bool(true))
@@ -27,19 +27,19 @@ pub fn version_api() -> ParentHandler {
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand(
+        .subcommand::<C, _>(
             "remove",
             from_fn_async(remove_version)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("signer", signer::signer_api())
-        .subcommand(
+        .subcommand("signer", signer::signer_api::<C>())
+        .subcommand::<C, _>(
             "get",
             from_fn_async(get_version)
                 .with_display_serializable()
-                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                .with_custom_display_fn(|handle, result| {
                     Ok(display_version_info(handle.params, result))
                 })
                 .with_call_remote::<CliContext>(),

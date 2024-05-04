@@ -5,7 +5,7 @@ use clap::builder::ValueParserFactory;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use imbl_value::InternedString;
-use rpc_toolkit::{from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
@@ -79,7 +79,7 @@ impl std::str::FromStr for SshPubKey {
 }
 
 // #[command(subcommands(add, delete, list,))]
-pub fn ssh() -> ParentHandler {
+pub fn ssh<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "add",
@@ -97,7 +97,7 @@ pub fn ssh() -> ParentHandler {
             "list",
             from_fn_async(list)
                 .with_display_serializable()
-                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                .with_custom_display_fn(|handle, result| {
                     Ok(display_all_ssh_keys(handle.params, result))
                 })
                 .with_call_remote::<CliContext>(),

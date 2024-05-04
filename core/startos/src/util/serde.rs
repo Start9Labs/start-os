@@ -10,7 +10,10 @@ use color_eyre::eyre::eyre;
 use imbl::OrdMap;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::{X509Ref, X509};
-use rpc_toolkit::{AnyContext, Handler, HandlerArgs, HandlerArgsFor, HandlerTypes, PrintCliResult};
+use rpc_toolkit::{
+    CliBindings, Context, Handler, HandlerArgs, HandlerArgsFor, HandlerFor, HandlerTypes,
+    PrintCliResult,
+};
 use serde::de::DeserializeOwned;
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -489,10 +492,10 @@ impl<T: CommandFactory> CommandFactory for WithIoFormat<T> {
     }
 }
 
-pub trait HandlerExtSerde: Handler {
+pub trait HandlerExtSerde<C: Context>: HandlerFor<C> {
     fn with_display_serializable(self) -> DisplaySerializable<Self>;
 }
-impl<T: Handler> HandlerExtSerde for T {
+impl<T: HandlerFor<C>, C: Context> HandlerExtSerde<C> for T {
     fn with_display_serializable(self) -> DisplaySerializable<Self> {
         DisplaySerializable(self)
     }
@@ -506,8 +509,7 @@ impl<T: HandlerTypes> HandlerTypes for DisplaySerializable<T> {
     type Ok = T::Ok;
     type Err = T::Err;
 }
-impl<T: Handler> Handler for DisplaySerializable<T> {
-    type Context = T::Context;
+impl<T: HandlerFor<C>, C: Context> HandlerFor<C> for DisplaySerializable<T> {
     fn handle_sync(
         &self,
         HandlerArgs {
@@ -517,7 +519,7 @@ impl<T: Handler> Handler for DisplaySerializable<T> {
             params,
             inherited_params,
             raw_params,
-        }: HandlerArgsFor<Self::Context, Self>,
+        }: HandlerArgsFor<C, Self>,
     ) -> Result<Self::Ok, Self::Err> {
         self.0.handle_sync(HandlerArgs {
             context,
@@ -537,7 +539,7 @@ impl<T: Handler> Handler for DisplaySerializable<T> {
             params,
             inherited_params,
             raw_params,
-        }: HandlerArgsFor<Self::Context, Self>,
+        }: HandlerArgsFor<C, Self>,
     ) -> Result<Self::Ok, Self::Err> {
         self.0
             .handle_async(HandlerArgs {
@@ -550,32 +552,54 @@ impl<T: Handler> Handler for DisplaySerializable<T> {
             })
             .await
     }
-    fn contexts(&self) -> Option<imbl::OrdSet<std::any::TypeId>> {
-        self.0.contexts()
+    fn metadata(&self, method: VecDeque<&'static str>) -> OrdMap<&'static str, imbl_value::Value> {
+        self.0.metadata(method)
     }
-    fn metadata(
-        &self,
-        method: VecDeque<&'static str>,
-        ctx_ty: TypeId,
-    ) -> OrdMap<&'static str, imbl_value::Value> {
-        self.0.metadata(method, ctx_ty)
-    }
-    fn method_from_dots(&self, method: &str, ctx_ty: TypeId) -> Option<VecDeque<&'static str>> {
-        self.0.method_from_dots(method, ctx_ty)
+    fn method_from_dots(&self, method: &str) -> Option<VecDeque<&'static str>> {
+        self.0.method_from_dots(method)
     }
 }
-impl<T: HandlerTypes> PrintCliResult for DisplaySerializable<T>
+impl<T: HandlerTypes, C: Context> PrintCliResult<C> for DisplaySerializable<T>
 where
     T::Ok: Serialize,
 {
-    type Context = AnyContext;
     fn print(
         &self,
-        HandlerArgs { params, .. }: HandlerArgsFor<Self::Context, Self>,
+        HandlerArgs { params, .. }: HandlerArgsFor<C, Self>,
         result: Self::Ok,
     ) -> Result<(), Self::Err> {
         display_serializable(params.format.unwrap_or_default(), result);
         Ok(())
+    }
+}
+impl<Context, T> CliBindings<Context> for DisplaySerializable<T>
+where
+    Context: crate::Context,
+    Self: HandlerTypes,
+    Self::Params: CommandFactory + FromArgMatches + Serialize,
+    Self: PrintCliResult<Context>,
+{
+    fn cli_command(&self) -> clap::Command {
+        Self::Params::command()
+    }
+    fn cli_parse(
+        &self,
+        matches: &clap::ArgMatches,
+    ) -> Result<(VecDeque<&'static str>, patch_db::Value), clap::Error> {
+        Self::Params::from_arg_matches(matches).and_then(|a| {
+            Ok((
+                VecDeque::new(),
+                imbl_value::to_value(&a)
+                    .map_err(|e| clap::Error::raw(clap::error::ErrorKind::ValueValidation, e))?,
+            ))
+        })
+    }
+    fn cli_display(
+        &self,
+        handle_args: HandlerArgsFor<Context, Self>,
+        result: Self::Ok,
+    ) -> Result<(), Self::Err> {
+        self.print(handle_args, result)
     }
 }
 

@@ -2901,9 +2901,9 @@ dependencies = [
 
 [[package]]
 name = "num-iter"
-version = "0.1.44"
+version = "0.1.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d869c01cc0c455284163fd0092f1f93835385ccab5a98a0dcc497b2f8bf055a9"
+checksum = "1429034a0490724d0075ebb2bc9e875d6503c3cf69e235a8941aa757d83ef5bf"
 dependencies = [
  "autocfg",
  "num-integer",
@@ -2924,9 +2924,9 @@ dependencies = [
 
 [[package]]
 name = "num-traits"
-version = "0.2.18"
+version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da0df0e5185db44f69b44f26786fe401b6c293d1907744beaa7fa62b2e5a517a"
+checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
  "libm",
@@ -3820,7 +3820,7 @@ dependencies = [
 [[package]]
 name = "rpc-toolkit"
 version = "0.2.3"
-source = "git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/traits#02e65718662ebbf19a44193d62e8ca59e7fb24f0"
+source = "git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/no-dyn-ctx#0603928164ce2862b9bdd6021f371a6151ad8688"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -4797,7 +4797,7 @@ dependencies = [
  "reqwest 0.12.4",
  "reqwest_cookie_store",
  "rpassword",
- "rpc-toolkit 0.2.3 (git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/traits)",
+ "rpc-toolkit 0.2.3 (git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor/no-dyn-ctx)",
  "rust-argon2",
  "rustyline-async",
  "semver",

@@ -6,7 +6,7 @@ use clap::Parser;
 use helpers::{AtomicFile, NonDetachingJoinHandle};
 use imbl_value::{json, InternedString};
 use itertools::Itertools;
-use rpc_toolkit::{from_fn_async, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -18,7 +18,7 @@ use crate::registry::context::RegistryContext;
 use crate::registry::os::index::OsVersionInfo;
 use crate::util::Version;
 
-pub fn get_api() -> ParentHandler {
+pub fn get_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("iso", from_fn_async(get_iso).no_cli())
         .subcommand("iso", from_fn_async(cli_get_os_asset).no_display())

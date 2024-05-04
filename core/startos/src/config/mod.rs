@@ -9,7 +9,7 @@ use models::{ErrorKind, OptionExt, PackageId};
 use patch_db::value::InternedString;
 use patch_db::Value;
 use regex::Regex;
-use rpc_toolkit::{from_fn_async, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
@@ -134,16 +134,19 @@ pub struct ConfigParams {
 }
 
 // #[command(subcommands(get, set))]
-pub fn config() -> ParentHandler<ConfigParams> {
+pub fn config<C: Context>() -> ParentHandler<C, ConfigParams> {
     ParentHandler::new()
-        .subcommand(
+        .subcommand::<C, _>(
             "get",
             from_fn_async(get)
                 .with_inherited(|ConfigParams { id }, _| id)
                 .with_display_serializable()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("set", set().with_inherited(|ConfigParams { id }, _| id))
+        .subcommand(
+            "set",
+            set::<C>().with_inherited(|ConfigParams { id }, _| id),
+        )
 }
 
 #[instrument(skip_all)]
@@ -173,8 +176,8 @@ pub struct SetParams {
 //     metadata(sync_db = true)
 // )]
 #[instrument(skip_all)]
-pub fn set() -> ParentHandler<SetParams, PackageId> {
-    ParentHandler::new().root_handler(
+pub fn set<C: Context>() -> ParentHandler<C, SetParams, PackageId> {
+    ParentHandler::new().root_handler::<C, _>(
         from_fn_async(set_impl)
             .with_metadata("sync_db", Value::Bool(true))
             .with_inherited(|set_params, id| (id, set_params))

@@ -8,7 +8,8 @@ use clap::Parser;
 use futures::{FutureExt, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
-use rpc_toolkit::{from_fn_async, CallRemote, HandlerExt, ParentHandler};
+use itertools::Itertools;
+use rpc_toolkit::{from_fn_async, CallRemote, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
 use ts_rs::TS;
@@ -26,7 +27,7 @@ use crate::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::s9pk::merkle_archive::source::ArchiveSource;
 use crate::util::{Apply, Version};
 
-pub fn add_api() -> ParentHandler {
+pub fn add_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "iso",
@@ -210,14 +211,20 @@ pub struct CliAddAssetParams {
 }
 
 pub async fn cli_add_asset(
-    ctx: CliContext,
-    CliAddAssetParams {
-        platform,
-        version,
-        file: path,
-        url,
-        upload,
-    }: CliAddAssetParams,
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        params:
+            CliAddAssetParams {
+                platform,
+                version,
+                file: path,
+                url,
+                upload,
+            },
+        ..
+    }: HandlerArgs<CliContext, CliAddAssetParams>,
 ) -> Result<(), Error> {
     let ext = match path.extension().and_then(|e| e.to_str()) {
         Some("iso") => "iso",
@@ -269,9 +276,12 @@ pub async fn cli_add_asset(
 
     index_phase.start();
     let add_res = from_value::<Option<RequestGuid>>(
-        <CliContext as CallRemote<RegistryContext>>::call_remote(
-            &ctx,
-            &format!("os.asset.add.{ext}"),
+        ctx.call_remote(
+            &parent_method
+                .into_iter()
+                .chain(method)
+                .chain([ext])
+                .join("."),
             imbl_value::json!({
                 "platform": platform,
                 "version": version,
@@ -287,6 +297,7 @@ pub async fn cli_add_asset(
     if let Some(guid) = add_res {
         upload_phase.as_mut().map(|p| p.start());
         upload_phase.as_mut().map(|p| p.set_total(size));
+        let reg_url = ctx.registry_url.as_ref().or_not_found("--registry")?;
         ctx.client
             .post(url)
             .header("X-StartOS-Registry-Token", guid.as_ref())
@@ -297,7 +308,7 @@ pub async fn cli_add_asset(
                         .sign_prehashed(
                             Sha512::new_with_prefix(guid.as_ref().as_bytes()),
                             Some(
-                                ctx.registry_url
+                                reg_url
                                     .host()
                                     .or_not_found("registry hostname")?
                                     .to_string()
