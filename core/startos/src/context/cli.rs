@@ -68,7 +68,7 @@ impl CliContext {
             "http://localhost".parse()?
         };
 
-        let mut registry = config.registry.clone();
+        let registry = config.registry.clone();
 
         let cookie_path = config.cookie_path.unwrap_or_else(|| {
             local_config_path()
@@ -109,7 +109,7 @@ impl CliContext {
                 url
             },
             registry_url: registry
-                .map(|registry| {
+                .map(|mut registry| {
                     registry
                         .path_segments_mut()
                         .map_err(|_| eyre!("Url cannot be base"))

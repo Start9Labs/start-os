@@ -45,10 +45,10 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
                 .with_metadata("authenticated", Value::Bool(false))
                 .no_cli(),
         )
-        .subcommand("disk", disk())
+        .subcommand("disk", disk::<C>())
         .subcommand("attach", from_fn_async(attach).no_cli())
         .subcommand("execute", from_fn_async(execute).no_cli())
-        .subcommand("cifs", cifs())
+        .subcommand("cifs", cifs::<C>())
         .subcommand("complete", from_fn_async(complete).no_cli())
         .subcommand(
             "get-pubkey",

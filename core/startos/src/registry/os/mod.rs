@@ -11,7 +11,7 @@ pub mod version;
 
 pub fn os_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand::<C, _>(
+        .subcommand(
             "index",
             from_fn_async(index::get_os_index)
                 .with_display_serializable()

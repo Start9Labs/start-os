@@ -283,6 +283,16 @@ impl FileValidator {
         self.size = Some(size);
         Ok(())
     }
+    pub fn blake3(&self) -> Result<blake3::Hash, Error> {
+        if let Some(hash) = self.blake3 {
+            Ok(hash)
+        } else {
+            Err(Error::new(
+                eyre!("no BLAKE3 signatures found"),
+                ErrorKind::InvalidSignature,
+            ))
+        }
+    }
     pub fn size(&self) -> Result<u64, Error> {
         if let Some(size) = self.size {
             Ok(size)
@@ -332,21 +342,14 @@ impl FileValidator {
 
         Ok(())
     }
-    pub async fn validate_file(&self, file: impl AsRef<Path>) -> Result<(), Error> {
-        let src = MultiCursorFile::from(tokio::fs::File::open(file).await?);
-        let (Some(hash), Some(size)) = (self.blake3, self.size) else {
-            return Err(Error::new(
-                eyre!("no BLAKE3 signatures found"),
-                ErrorKind::InvalidSignature,
-            ));
-        };
+    pub async fn validate_file(&self, file: &MultiCursorFile) -> Result<(), Error> {
         ensure_code!(
-            src.size().await == Some(size),
+            file.size().await == Some(self.size()?),
             ErrorKind::InvalidSignature,
             "file size mismatch"
         );
         ensure_code!(
-            src.blake3_mmap().await? == hash,
+            file.blake3_mmap().await? == self.blake3()?,
             ErrorKind::InvalidSignature,
             "hash sum mismatch"
         );

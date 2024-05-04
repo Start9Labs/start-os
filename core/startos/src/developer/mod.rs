@@ -3,7 +3,6 @@ use std::io::Write;
 use std::path::Path;
 
 use ed25519::pkcs8::EncodePrivateKey;
-use ed25519::signature::Keypair;
 use ed25519::PublicKeyBytes;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use tracing::instrument;

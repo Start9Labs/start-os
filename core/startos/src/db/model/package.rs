@@ -54,7 +54,7 @@ impl PackageState {
     pub fn expect_installed(&self) -> Result<&InstalledState, Error> {
         match self {
             Self::Installed(a) => Ok(a),
-            a => Err(Error::new(
+            _ => Err(Error::new(
                 eyre!(
                     "Package {} is not in installed state",
                     self.as_manifest(ManifestPreference::Old).id
@@ -161,7 +161,7 @@ impl Model<PackageState> {
     pub fn expect_installed(&self) -> Result<&Model<InstalledState>, Error> {
         match self.as_match() {
             PackageStateMatchModelRef::Installed(a) => Ok(a),
-            a => Err(Error::new(
+            _ => Err(Error::new(
                 eyre!(
                     "Package {} is not in installed state",
                     self.as_manifest(ManifestPreference::Old).as_id().de()?
@@ -251,7 +251,7 @@ impl Model<PackageState> {
             PackageStateMatchModelMut::Installed(s) | PackageStateMatchModelMut::Removing(s) => {
                 s.as_manifest_mut()
             }
-            PackageStateMatchModelMut::Error(s) => {
+            PackageStateMatchModelMut::Error(_) => {
                 return Err(Error::new(
                     eyre!("could not determine package state to get manifest"),
                     ErrorKind::Database,

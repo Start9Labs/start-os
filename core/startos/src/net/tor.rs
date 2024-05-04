@@ -84,7 +84,7 @@ lazy_static! {
 
 pub fn tor<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand::<C, _>(
+        .subcommand(
             "list-services",
             from_fn_async(list_services)
                 .with_display_serializable()
@@ -98,7 +98,7 @@ pub fn tor<C: Context>() -> ParentHandler<C> {
             "logs",
             from_fn_async(crate::logs::cli_logs::<RpcContext, Empty>).no_display(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "reset",
             from_fn_async(reset)
                 .no_display()

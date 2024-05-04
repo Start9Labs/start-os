@@ -6,7 +6,7 @@ use clap::Parser;
 use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
 use itertools::Itertools;
-use rpc_toolkit::{from_fn_async, CallRemote, Context, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 

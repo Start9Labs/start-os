@@ -2,5 +2,6 @@
 import type { Blake3Ed2551SignatureInfo } from "./Blake3Ed2551SignatureInfo"
 
 export type SignatureInfo = {
+  context: string
   "blake-3-ed-25-5i-9": Blake3Ed2551SignatureInfo | null
 }

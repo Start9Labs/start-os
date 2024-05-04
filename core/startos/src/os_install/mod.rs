@@ -31,13 +31,13 @@ mod mbr;
 pub fn install<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("disk", disk::<C>())
-        .subcommand::<C, _>(
+        .subcommand(
             "execute",
             from_fn_async(execute::<InstallContext>)
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "reboot",
             from_fn_async(reboot)
                 .no_display()
@@ -46,7 +46,7 @@ pub fn install<C: Context>() -> ParentHandler<C> {
 }
 
 pub fn disk<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new().subcommand::<C, _>(
+    ParentHandler::new().subcommand(
         "list",
         from_fn_async(list)
             .no_display()

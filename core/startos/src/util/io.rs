@@ -10,7 +10,7 @@ use std::task::{Poll, Waker};
 use std::time::Duration;
 
 use bytes::{Buf, BytesMut};
-use futures::future::{BoxFuture, Either, Fuse};
+use futures::future::{BoxFuture, Fuse};
 use futures::{AsyncSeek, FutureExt, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
 use nix::unistd::{Gid, Uid};

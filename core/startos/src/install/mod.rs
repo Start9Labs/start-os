@@ -11,7 +11,7 @@ use patch_db::json_ptr::JsonPointer;
 use reqwest::header::{HeaderMap, CONTENT_LENGTH};
 use reqwest::Url;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{CallRemote, HandlerArgs};
+use rpc_toolkit::HandlerArgs;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::oneshot;
@@ -203,28 +203,26 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
                         })?;
                         tokio::select! {
                             res = async {
-                                while let Some(rev) = sub.recv().await {
-                                    if !rev.patch.0.is_empty() { // TODO: don't send empty patches?
-                                        ws.send(Message::Text(
-                                            serde_json::to_string(&if let Some(p) = db
-                                                .peek()
-                                                .await
-                                                .as_public()
-                                                .as_package_data()
-                                                .as_idx(&id)
-                                                .and_then(|e| e.as_state_info().as_installing_info()).map(|i| i.as_progress())
-                                            {
-                                                Ok::<_, ()>(p.de()?)
-                                            } else {
-                                                let mut p = FullProgress::new();
-                                                p.overall.complete();
-                                                Ok(p)
-                                            })
-                                            .with_kind(ErrorKind::Serialization)?,
-                                        ))
-                                        .await
-                                        .with_kind(ErrorKind::Network)?;
-                                    }
+                                while let Some(_) = sub.recv().await {
+                                    ws.send(Message::Text(
+                                        serde_json::to_string(&if let Some(p) = db
+                                            .peek()
+                                            .await
+                                            .as_public()
+                                            .as_package_data()
+                                            .as_idx(&id)
+                                            .and_then(|e| e.as_state_info().as_installing_info()).map(|i| i.as_progress())
+                                        {
+                                            Ok::<_, ()>(p.de()?)
+                                        } else {
+                                            let mut p = FullProgress::new();
+                                            p.overall.complete();
+                                            Ok(p)
+                                        })
+                                        .with_kind(ErrorKind::Serialization)?,
+                                    ))
+                                    .await
+                                    .with_kind(ErrorKind::Network)?;
                                 }
                                 Ok::<_, Error>(())
                             } => res?,

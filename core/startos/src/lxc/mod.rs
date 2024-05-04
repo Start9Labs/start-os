@@ -372,11 +372,11 @@ pub struct LxcConfig {}
 
 pub fn lxc<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand::<C, _>(
+        .subcommand(
             "create",
             from_fn_async(create).with_call_remote::<CliContext>(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "list",
             from_fn_async(list)
                 .with_custom_display_fn(|_, res| {
@@ -390,7 +390,7 @@ pub fn lxc<C: Context>() -> ParentHandler<C> {
                 })
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "remove",
             from_fn_async(remove)
                 .no_display()

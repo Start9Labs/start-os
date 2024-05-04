@@ -5,6 +5,7 @@ export type OsVersionInfo = {
   headline: string
   releaseNotes: string
   sourceVersion: string
+  signers: string[]
   iso: { [key: string]: RegistryAsset }
   squashfs: { [key: string]: RegistryAsset }
   img: { [key: string]: RegistryAsset }

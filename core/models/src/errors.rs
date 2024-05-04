@@ -1,10 +1,10 @@
 use std::fmt::{Debug, Display};
 
+use axum::http::uri::InvalidUri;
 use axum::http::StatusCode;
 use color_eyre::eyre::eyre;
 use num_enum::TryFromPrimitive;
 use patch_db::Revision;
-use rpc_toolkit::hyper::http::uri::InvalidUri;
 use rpc_toolkit::reqwest;
 use rpc_toolkit::yajrc::{
     RpcError, INVALID_PARAMS_ERROR, INVALID_REQUEST_ERROR, METHOD_NOT_FOUND_ERROR, PARSE_ERROR,

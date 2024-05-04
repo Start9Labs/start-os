@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use chrono::{DateTime, Utc};
 use models::{HostId, PackageId};
 use reqwest::Url;
-use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 
 use crate::context::CliContext;
@@ -36,7 +36,7 @@ pub struct PackageBackupReport {
 // #[command(subcommands(backup_bulk::backup_all, target::target))]
 pub fn backup<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand::<C, _>(
+        .subcommand(
             "create",
             from_fn_async(backup_bulk::backup_all)
                 .no_display()
@@ -46,7 +46,7 @@ pub fn backup<C: Context>() -> ParentHandler<C> {
 }
 
 pub fn package_backup<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new().subcommand::<C, _>(
+    ParentHandler::new().subcommand(
         "restore",
         from_fn_async(restore::restore_packages_rpc)
             .no_display()

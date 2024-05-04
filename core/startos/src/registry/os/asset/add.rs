@@ -276,7 +276,7 @@ pub async fn cli_add_asset(
 
     index_phase.start();
     let add_res = from_value::<Option<RequestGuid>>(
-        ctx.call_remote(
+        ctx.call_remote::<RegistryContext>(
             &parent_method
                 .into_iter()
                 .chain(method)

@@ -95,7 +95,7 @@ pub fn echo<C: Context>(_: C, EchoParams { message }: EchoParams) -> Result<Stri
 pub fn main_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand::<C, _>("git-info", from_fn(version::git_info))
-        .subcommand::<C, _>(
+        .subcommand(
             "echo",
             from_fn(echo::<RpcContext>)
                 .with_metadata("authenticated", Value::Bool(false))
@@ -173,14 +173,15 @@ pub fn server<C: Context>() -> ParentHandler<C> {
             "update",
             from_fn_async(update::update_system)
                 .with_metadata("sync_db", Value::Bool(true))
-                .with_custom_display_fn(|handle, result| {
-                    Ok(update::display_update_result(handle.params, result))
-                })
-                .with_call_remote::<CliContext>(),
+                .no_cli(),
+        )
+        .subcommand(
+            "update",
+            from_fn_async(update::cli_update_system).no_display(),
         )
         .subcommand(
             "update-firmware",
-            from_fn_async(firmware::update_firmware)
+            from_fn_async(|_: RpcContext| firmware::update_firmware())
                 .with_custom_display_fn(|_handle, result| {
                     Ok(firmware::display_firmware_update_result(result))
                 })
@@ -190,7 +191,7 @@ pub fn server<C: Context>() -> ParentHandler<C> {
 
 pub fn package<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand::<C, _>(
+        .subcommand(
             "action",
             from_fn_async(action::action)
                 .with_display_serializable()
@@ -207,35 +208,35 @@ pub fn package<C: Context>() -> ParentHandler<C> {
         )
         .subcommand("sideload", from_fn_async(install::sideload).no_cli())
         .subcommand("install", from_fn_async(install::cli_install).no_display())
-        .subcommand::<C, _>(
+        .subcommand(
             "uninstall",
             from_fn_async(install::uninstall)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "list",
             from_fn_async(install::list)
                 .with_display_serializable()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("config", config::config())
-        .subcommand::<C, _>(
+        .subcommand("config", config::config::<C>())
+        .subcommand(
             "start",
             from_fn_async(control::start)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "stop",
             from_fn_async(control::stop)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "restart",
             from_fn_async(control::restart)
                 .with_metadata("sync_db", Value::Bool(true))
@@ -247,7 +248,7 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             "logs",
             from_fn_async(logs::cli_logs::<RpcContext, logs::PackageIdParams>).no_display(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "properties",
             from_fn_async(properties::properties)
                 .with_custom_display_fn(|_handle, result| {
@@ -255,8 +256,8 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                 })
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("dependency", dependencies::dependency())
-        .subcommand("backup", backup::package_backup())
+        .subcommand("dependency", dependencies::dependency::<C>())
+        .subcommand("backup", backup::package_backup::<C>())
         .subcommand("connect", from_fn_async(service::connect_rpc).no_cli())
         .subcommand(
             "connect",
@@ -270,7 +271,7 @@ pub fn diagnostic_api() -> ParentHandler<DiagnosticContext> {
             "git-info",
             from_fn(version::git_info).with_metadata("authenticated", Value::Bool(false)),
         )
-        .subcommand::<DiagnosticContext, _>(
+        .subcommand(
             "echo",
             from_fn(echo::<DiagnosticContext>).with_call_remote::<CliContext>(),
         )
@@ -283,7 +284,7 @@ pub fn setup_api() -> ParentHandler<SetupContext> {
             "git-info",
             from_fn(version::git_info).with_metadata("authenticated", Value::Bool(false)),
         )
-        .subcommand::<SetupContext, _>(
+        .subcommand(
             "echo",
             from_fn(echo::<SetupContext>).with_call_remote::<CliContext>(),
         )
@@ -296,7 +297,7 @@ pub fn install_api() -> ParentHandler<InstallContext> {
             "git-info",
             from_fn(version::git_info).with_metadata("authenticated", Value::Bool(false)),
         )
-        .subcommand::<InstallContext, _>(
+        .subcommand(
             "echo",
             from_fn(echo::<InstallContext>).with_call_remote::<CliContext>(),
         )

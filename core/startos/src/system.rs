@@ -228,11 +228,11 @@ pub async fn time(ctx: RpcContext, _: Empty) -> Result<TimeInfo, Error> {
 }
 
 pub fn logs<C: Context + AsRef<RpcContinuations>>() -> ParentHandler<C, LogsParams> {
-    crate::logs::logs(|_: &Context, _| async { Ok(LogSource::Unit(SYSTEM_UNIT)) })
+    crate::logs::logs(|_: &C, _| async { Ok(LogSource::Unit(SYSTEM_UNIT)) })
 }
 
 pub fn kernel_logs<C: Context + AsRef<RpcContinuations>>() -> ParentHandler<C, LogsParams> {
-    crate::logs::logs(|_: &Context, _| async { Ok(LogSource::Kernel) })
+    crate::logs::logs(|_: &C, _| async { Ok(LogSource::Kernel) })
 }
 
 #[derive(Serialize, Deserialize)]

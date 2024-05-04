@@ -8,7 +8,6 @@ use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{call_remote_socket, yajrc, CallRemote, Context, Empty};
 use tokio::runtime::Runtime;
 
-use crate::context::RpcContext;
 use crate::lxc::HOST_RPC_SERVER_SOCKET;
 use crate::service::service_effect_handler::EffectContext;
 

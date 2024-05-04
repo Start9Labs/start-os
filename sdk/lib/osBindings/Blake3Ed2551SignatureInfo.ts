@@ -3,7 +3,6 @@ import type { Base64 } from "./Base64"
 import type { Pem } from "./Pem"
 
 export type Blake3Ed2551SignatureInfo = {
-  context: string
   hash: Base64
   size: bigint
   signatures: { [key: Pem]: Base64 }

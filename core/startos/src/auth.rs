@@ -7,9 +7,7 @@ use imbl_value::{json, InternedString};
 use itertools::Itertools;
 use josekit::jwk::Jwk;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{
-    from_fn_async, CallRemote, Context, Empty, HandlerArgs, HandlerExt, ParentHandler,
-};
+use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
@@ -94,7 +92,7 @@ pub fn auth<C: Context>() -> ParentHandler<C> {
                 .no_cli(),
         )
         .subcommand("login", from_fn_async(cli_login).no_display())
-        .subcommand::<C, _>(
+        .subcommand(
             "logout",
             from_fn_async(logout)
                 .with_metadata("get_session", Value::Bool(true))
@@ -110,7 +108,7 @@ pub fn auth<C: Context>() -> ParentHandler<C> {
             "reset-password",
             from_fn_async(cli_reset_password).no_display(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "get-pubkey",
             from_fn_async(get_pubkey)
                 .with_metadata("authenticated", Value::Bool(false))
@@ -263,7 +261,7 @@ pub struct SessionList {
 
 pub fn session<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand::<C, _>(
+        .subcommand(
             "list",
             from_fn_async(list)
                 .with_metadata("get_session", Value::Bool(true))
@@ -273,7 +271,7 @@ pub fn session<C: Context>() -> ParentHandler<C> {
                 })
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "kill",
             from_fn_async(kill)
                 .no_display()

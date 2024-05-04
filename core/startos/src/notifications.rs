@@ -8,7 +8,7 @@ use clap::Parser;
 use color_eyre::eyre::eyre;
 use imbl_value::InternedString;
 use models::PackageId;
-use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;

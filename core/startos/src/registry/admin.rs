@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use itertools::Itertools;
-use rpc_toolkit::{from_fn_async, CallRemote, Context, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -20,7 +20,7 @@ pub fn admin_api<C: Context>() -> ParentHandler<C> {
         .subcommand("signer", signers_api::<C>())
         .subcommand("add", from_fn_async(add_admin).no_cli())
         .subcommand("add", from_fn_async(cli_add_admin).no_display())
-        .subcommand::<C, _>(
+        .subcommand(
             "list",
             from_fn_async(list_admins)
                 .with_display_serializable()
@@ -31,7 +31,7 @@ pub fn admin_api<C: Context>() -> ParentHandler<C> {
 
 fn signers_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand::<C, _>(
+        .subcommand(
             "list",
             from_fn_async(list_signers)
                 .with_metadata("admin", Value::Bool(true))

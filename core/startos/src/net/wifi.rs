@@ -39,25 +39,25 @@ pub fn wifi_manager(ctx: &RpcContext) -> Result<&WifiManager, Error> {
 
 pub fn wifi<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand::<C, _>(
+        .subcommand(
             "add",
             from_fn_async(add)
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "connect",
             from_fn_async(connect)
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "delete",
             from_fn_async(delete)
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "get",
             from_fn_async(get)
                 .with_display_serializable()
@@ -71,7 +71,7 @@ pub fn wifi<C: Context>() -> ParentHandler<C> {
 }
 
 pub fn available<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new().subcommand::<C, _>(
+    ParentHandler::new().subcommand(
         "get",
         from_fn_async(get_available)
             .with_display_serializable()
@@ -81,7 +81,7 @@ pub fn available<C: Context>() -> ParentHandler<C> {
 }
 
 pub fn country<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new().subcommand::<C, _>(
+    ParentHandler::new().subcommand(
         "set",
         from_fn_async(set_country)
             .no_display()

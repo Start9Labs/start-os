@@ -5,7 +5,7 @@ use std::sync::Arc;
 use clap::Parser;
 use itertools::Itertools;
 use models::ImageId;
-use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::process::Command;

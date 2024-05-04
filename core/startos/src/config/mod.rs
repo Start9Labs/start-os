@@ -136,7 +136,7 @@ pub struct ConfigParams {
 // #[command(subcommands(get, set))]
 pub fn config<C: Context>() -> ParentHandler<C, ConfigParams> {
     ParentHandler::new()
-        .subcommand::<C, _>(
+        .subcommand(
             "get",
             from_fn_async(get)
                 .with_inherited(|ConfigParams { id }, _| id)
@@ -177,7 +177,7 @@ pub struct SetParams {
 // )]
 #[instrument(skip_all)]
 pub fn set<C: Context>() -> ParentHandler<C, SetParams, PackageId> {
-    ParentHandler::new().root_handler::<C, _>(
+    ParentHandler::new().root_handler(
         from_fn_async(set_impl)
             .with_metadata("sync_db", Value::Bool(true))
             .with_inherited(|set_params, id| (id, set_params))

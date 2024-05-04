@@ -393,7 +393,7 @@ impl NetService {
     pub fn get_ext_port(&self, host_id: HostId, internal_port: u16) -> Result<u16, Error> {
         let host_id_binds = self.binds.get_key_value(&host_id);
         match host_id_binds {
-            Some((id, binds)) => {
+            Some((_, binds)) => {
                 if let Some(ext_port_info) = binds.lan.get(&internal_port) {
                     Ok(ext_port_info.0)
                 } else {

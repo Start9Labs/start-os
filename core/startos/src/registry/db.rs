@@ -5,7 +5,7 @@ use itertools::Itertools;
 use patch_db::json_ptr::{JsonPointer, ROOT};
 use patch_db::Dump;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{from_fn_async, CallRemote, Context, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;

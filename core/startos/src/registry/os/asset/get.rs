@@ -16,6 +16,7 @@ use crate::progress::{FullProgressTracker, PhasedProgressBar};
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
 use crate::registry::os::index::OsVersionInfo;
+use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::util::Version;
 
 pub fn get_api<C: Context>() -> ParentHandler<C> {
@@ -164,7 +165,11 @@ async fn cli_get_os_asset(
 
         if let Some(mut reverify_phase) = reverify_phase {
             reverify_phase.start();
-            validator.validate_file(&download).await?;
+            validator
+                .validate_file(&MultiCursorFile::from(
+                    tokio::fs::File::open(download).await?,
+                ))
+                .await?;
             reverify_phase.complete();
         }
 

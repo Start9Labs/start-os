@@ -3,17 +3,17 @@ use std::net::SocketAddr;
 
 use axum::Router;
 use futures::future::ready;
-use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler, Server};
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler, Server};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::context::{CliContext, RpcContext};
+use crate::context::{CliContext};
 use crate::middleware::cors::Cors;
 use crate::net::static_server::{bad_request, not_found, server_error};
 use crate::net::web_server::WebServer;
 use crate::prelude::*;
 use crate::registry::auth::Auth;
-use crate::registry::context::{RegistryContext, RegistryUrlParams};
+use crate::registry::context::{RegistryContext};
 use crate::registry::os::index::OsIndex;
 use crate::registry::signer::SignerInfo;
 use crate::rpc_continuations::RequestGuid;
@@ -52,7 +52,7 @@ pub async fn get_full_index(ctx: RegistryContext) -> Result<FullIndex, Error> {
 
 pub fn registry_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand::<C, _>(
+        .subcommand(
             "index",
             from_fn_async(get_full_index)
                 .with_display_serializable()

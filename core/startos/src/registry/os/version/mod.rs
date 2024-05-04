@@ -19,7 +19,7 @@ pub mod signer;
 
 pub fn version_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand::<C, _>(
+        .subcommand(
             "add",
             from_fn_async(add_version)
                 .with_metadata("admin", Value::Bool(true))
@@ -27,7 +27,7 @@ pub fn version_api<C: Context>() -> ParentHandler<C> {
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "remove",
             from_fn_async(remove_version)
                 .with_metadata("admin", Value::Bool(true))
@@ -35,7 +35,7 @@ pub fn version_api<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand("signer", signer::signer_api::<C>())
-        .subcommand::<C, _>(
+        .subcommand(
             "get",
             from_fn_async(get_version)
                 .with_display_serializable()
@@ -124,20 +124,17 @@ pub async fn remove_version(
 pub struct GetVersionParams {
     #[ts(type = "string | null")]
     #[arg(long = "src")]
-    pub source_version: Option<Version>,
+    pub source: Option<Version>,
     #[ts(type = "string | null")]
     #[arg(long = "target")]
-    pub target_version: Option<VersionRange>,
+    pub target: Option<VersionRange>,
 }
 
 pub async fn get_version(
     ctx: RegistryContext,
-    GetVersionParams {
-        source_version,
-        target_version,
-    }: GetVersionParams,
+    GetVersionParams { source, target }: GetVersionParams,
 ) -> Result<BTreeMap<Version, OsVersionInfo>, Error> {
-    let target_version = target_version.unwrap_or(VersionRange::Any);
+    let target = target.unwrap_or(VersionRange::Any);
     ctx.db
         .peek()
         .await
@@ -148,8 +145,8 @@ pub async fn get_version(
         .into_iter()
         .map(|(v, i)| i.de().map(|i| (v, i)))
         .filter_ok(|(version, info)| {
-            version.satisfies(&target_version)
-                && source_version
+            version.satisfies(&target)
+                && source
                     .as_ref()
                     .map_or(true, |s| s.satisfies(&info.source_version))
         })

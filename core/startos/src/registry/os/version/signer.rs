@@ -16,21 +16,21 @@ use crate::util::Version;
 
 pub fn signer_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand::<C, _>(
+        .subcommand(
             "add",
             from_fn_async(add_version_signer)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "remove",
             from_fn_async(remove_version_signer)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "list",
             from_fn_async(list_version_signers)
                 .with_display_serializable()

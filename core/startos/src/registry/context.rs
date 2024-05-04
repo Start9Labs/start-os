@@ -4,10 +4,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use clap::Parser;
-use emver::VersionRange;
 use imbl_value::InternedString;
 use patch_db::PatchDb;
-use reqwest::Client;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty};
 use serde::{Deserialize, Serialize};

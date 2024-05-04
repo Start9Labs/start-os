@@ -8,7 +8,8 @@ use std::time::Duration;
 
 use josekit::jwk::Jwk;
 use reqwest::{Client, Proxy};
-use rpc_toolkit::Context;
+use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{CallRemote, Context, Empty};
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tokio::time::Instant;
 use tracing::instrument;
@@ -233,6 +234,28 @@ impl RpcContext {
             .await?;
 
         Ok(())
+    }
+    pub async fn call_remote<RemoteContext>(
+        &self,
+        method: &str,
+        params: Value,
+    ) -> Result<Value, RpcError>
+    where
+        Self: CallRemote<RemoteContext>,
+    {
+        <Self as CallRemote<RemoteContext, Empty>>::call_remote(&self, method, params, Empty {})
+            .await
+    }
+    pub async fn call_remote_with<RemoteContext, T>(
+        &self,
+        method: &str,
+        params: Value,
+        extra: T,
+    ) -> Result<Value, RpcError>
+    where
+        Self: CallRemote<RemoteContext, T>,
+    {
+        <Self as CallRemote<RemoteContext, T>>::call_remote(&self, method, params, extra).await
     }
 }
 impl AsRef<Jwk> for RpcContext {

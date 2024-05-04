@@ -28,7 +28,7 @@ use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::net::host::binding::BindOptions;
 use crate::net::host::HostKind;
 use crate::prelude::*;
-use crate::s9pk::merkle_archive::source::http::{HttpReader, HttpSource};
+use crate::s9pk::merkle_archive::source::http::{ HttpSource};
 use crate::s9pk::rpc::SKIP_ENV;
 use crate::s9pk::S9pk;
 use crate::service::cli::ContainerCliContext;
@@ -68,8 +68,8 @@ struct RpcData {
 }
 pub fn service_effect_handler<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand::<C, _>("gitInfo", from_fn(crate::version::git_info))
-        .subcommand::<C, _>(
+        .subcommand("gitInfo", from_fn(|_: C| crate::version::git_info()))
+        .subcommand(
             "echo",
             from_fn(echo::<EffectContext>).with_call_remote::<ContainerCliContext>(),
         )
@@ -80,37 +80,37 @@ pub fn service_effect_handler<C: Context>() -> ParentHandler<C> {
         .subcommand("exists", from_fn_async(exists).no_cli())
         .subcommand("executeAction", from_fn_async(execute_action).no_cli())
         .subcommand("getConfigured", from_fn_async(get_configured).no_cli())
-        .subcommand::<C, _>(
+        .subcommand(
             "stopped",
             from_fn_async(stopped)
                 .no_display()
                 .with_call_remote::<ContainerCliContext>(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "running",
             from_fn_async(running)
                 .no_display()
                 .with_call_remote::<ContainerCliContext>(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "restart",
             from_fn_async(restart)
                 .no_display()
                 .with_call_remote::<ContainerCliContext>(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "shutdown",
             from_fn_async(shutdown)
                 .no_display()
                 .with_call_remote::<ContainerCliContext>(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "setConfigured",
             from_fn_async(set_configured)
                 .no_display()
                 .with_call_remote::<ContainerCliContext>(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "setMainStatus",
             from_fn_async(set_main_status).with_call_remote::<ContainerCliContext>(),
         )
@@ -121,7 +121,7 @@ pub fn service_effect_handler<C: Context>() -> ParentHandler<C> {
             "exposeForDependents",
             from_fn_async(expose_for_dependents).no_cli(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "createOverlayedImage",
             from_fn_async(create_overlayed_image)
                 .with_custom_display_fn(|_, (path, _)| Ok(println!("{}", path.display())))
@@ -143,7 +143,7 @@ pub fn service_effect_handler<C: Context>() -> ParentHandler<C> {
         .subcommand("clearBindings", from_fn_async(clear_bindings).no_cli())
         .subcommand("bind", from_fn_async(bind).no_cli())
         .subcommand("getHostInfo", from_fn_async(get_host_info).no_cli())
-        .subcommand::<C, _>(
+        .subcommand(
             "setDependencies",
             from_fn_async(set_dependencies)
                 .no_display()

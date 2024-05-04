@@ -1,23 +1,19 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use clap::Parser;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
     from_fn, from_fn_async, CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler,
 };
-use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use crate::context::{CliContext, DiagnosticContext, RpcContext};
 use crate::init::SYSTEM_REBUILD_PATH;
-use crate::logs::{fetch_logs, LogResponse, LogSource};
 use crate::shutdown::Shutdown;
 use crate::Error;
 
 pub fn diagnostic<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand::<C, _>("error", from_fn(error).with_call_remote::<CliContext>())
+        .subcommand("error", from_fn(error).with_call_remote::<CliContext>())
         .subcommand("logs", crate::system::logs::<DiagnosticContext>())
         .subcommand(
             "logs",
@@ -31,18 +27,18 @@ pub fn diagnostic<C: Context>() -> ParentHandler<C> {
             "kernel-logs",
             from_fn_async(crate::logs::cli_logs::<DiagnosticContext, Empty>).no_display(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "exit",
             from_fn(exit).no_display().with_call_remote::<CliContext>(),
         )
-        .subcommand::<C, _>(
+        .subcommand(
             "restart",
             from_fn(restart)
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
         .subcommand("disk", disk::<C>())
-        .subcommand::<C, _>(
+        .subcommand(
             "rebuild",
             from_fn_async(rebuild)
                 .no_display()
@@ -79,7 +75,7 @@ pub async fn rebuild(ctx: DiagnosticContext) -> Result<(), Error> {
 
 pub fn disk<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand::<C, _>("forget", from_fn_async(forget_disk::<C>).no_cli())
+        .subcommand("forget", from_fn_async(forget_disk::<C>).no_cli())
         .subcommand(
             "forget",
             CallRemoteHandler::<CliContext, _, _>::new(
