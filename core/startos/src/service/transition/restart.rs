@@ -1,6 +1,6 @@
 use futures::FutureExt;
 
-use super::TempDesiredState;
+use super::TempDesiredRestore;
 use crate::prelude::*;
 use crate::service::config::GetConfig;
 use crate::service::dependencies::DependencyConfig;
@@ -20,18 +20,39 @@ impl Handler<Restart> for ServiceActor {
     }
     async fn handle(&mut self, _: Restart, jobs: &BackgroundJobQueue) -> Self::Response {
         // So Need a handle to just a single field in the state
-        let temp = TempDesiredState::new(&self.0.persistent_container.state);
+        let temp = TempDesiredRestore::new(&self.0.persistent_container.state);
         let mut current = self.0.persistent_container.state.subscribe();
-        let transition = RemoteCancellable::new(async move {
-            temp.stop();
-            current.wait_for(|s| s.running_status.is_none()).await;
-            temp.start();
-            current.wait_for(|s| s.running_status.is_some()).await;
-            drop(temp);
-        });
+        let state = self.0.persistent_container.state.clone();
+        let transition = RemoteCancellable::new(
+            async move {
+                temp.stop();
+                current
+                    .wait_for(|s| s.running_status.is_none())
+                    .await
+                    .with_kind(ErrorKind::Unknown)?;
+                if temp.restore().is_start() {
+                    current
+                        .wait_for(|s| s.running_status.is_some())
+                        .await
+                        .with_kind(ErrorKind::Unknown)?;
+                }
+                drop(temp);
+                state.send_modify(|s| {
+                    s.transition_state.take();
+                });
+                Ok::<_, Error>(())
+            }
+            .map(|x| {
+                if let Err(err) = x {
+                    tracing::debug!("{:?}", err);
+                    tracing::warn!("{}", err);
+                }
+            }),
+        );
         let cancel_handle = transition.cancellation_handle();
-        jobs.add_job(transition.map(|_| ()));
-        let notified = self.0.synchronized.notified();
+        let transition = transition.shared();
+        let job_transition = transition.clone();
+        jobs.add_job(job_transition.map(|_| ()));
 
         let mut old = None;
         self.0.persistent_container.state.send_modify(|s| {
@@ -46,10 +67,13 @@ impl Handler<Restart> for ServiceActor {
         if let Some(t) = old {
             t.abort().await;
         }
-        notified.await
+        if transition.await.is_none() {
+            tracing::warn!("Service {} has been cancelled", &self.0.id);
+        }
     }
 }
 impl Service {
+    #[instrument(skip_all)]
     pub async fn restart(&self) -> Result<(), Error> {
         self.actor.send(Restart).await
     }

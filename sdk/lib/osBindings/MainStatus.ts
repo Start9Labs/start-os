@@ -6,6 +6,7 @@ import type { HealthCheckResult } from "./HealthCheckResult"
 export type MainStatus =
   | { status: "stopped" }
   | { status: "restarting" }
+  | { status: "restoring" }
   | { status: "stopping"; timeout: Duration }
   | { status: "starting" }
   | {

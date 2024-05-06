@@ -145,6 +145,15 @@ export class MainLoop {
               ...actionProcedure.args,
               JSON.stringify(timeChanged),
             ])
+            if (executed.exitCode === 0) {
+              await effects.setHealth({
+                id: healthId,
+                name: value.name,
+                result: "success",
+                message: actionProcedure["success-message"],
+              })
+              return
+            }
             if (executed.exitCode === 59) {
               await effects.setHealth({
                 id: healthId,

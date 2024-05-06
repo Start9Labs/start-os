@@ -399,11 +399,10 @@ export class SystemForEmbassy implements System {
   ): Promise<void> {
     const backup = this.manifest.backup.create
     if (backup.type === "docker") {
-      const container = await DockerProcedureContainer.of(
-        effects,
-        backup,
-        this.manifest.volumes,
-      )
+      const container = await DockerProcedureContainer.of(effects, backup, {
+        ...this.manifest.volumes,
+        BACKUP: { type: "backup", readonly: false },
+      })
       await container.execFail([backup.entrypoint, ...backup.args], timeoutMs)
     } else {
       const moduleCode = await this.moduleCode
@@ -421,7 +420,10 @@ export class SystemForEmbassy implements System {
       const container = await DockerProcedureContainer.of(
         effects,
         restoreBackup,
-        this.manifest.volumes,
+        {
+          ...this.manifest.volumes,
+          BACKUP: { type: "backup", readonly: true },
+        },
       )
       await container.execFail(
         [restoreBackup.entrypoint, ...restoreBackup.args],
@@ -663,46 +665,6 @@ export class SystemForEmbassy implements System {
       return asProperty(properties.data)
     }
     throw new Error(`Unknown type in the fetch properties: ${setConfigValue}`)
-  }
-  private async health(
-    effects: HostSystemStartOs,
-    healthId: string,
-    timeSinceStarted: unknown,
-    timeoutMs: number | null,
-  ): Promise<void> {
-    const healthProcedure = this.manifest["health-checks"][healthId]
-    if (!healthProcedure) return
-    if (healthProcedure.type === "docker") {
-      const container = await DockerProcedureContainer.of(
-        effects,
-        healthProcedure,
-        this.manifest.volumes,
-      )
-      return JSON.parse(
-        (
-          await container.execFail(
-            [
-              healthProcedure.entrypoint,
-              ...healthProcedure.args,
-              JSON.stringify(timeSinceStarted),
-            ],
-            timeoutMs,
-          )
-        ).stdout.toString(),
-      )
-    } else if (healthProcedure.type === "script") {
-      const moduleCode = await this.moduleCode
-      const method = moduleCode.health?.[healthId]
-      if (!method) throw new Error("Expecting that the method health exists")
-      await method(
-        new PolyfillEffects(effects, this.manifest),
-        Number(timeSinceStarted),
-      ).then((x) => {
-        if ("result" in x) return x.result
-        if ("error" in x) throw new Error("Error getting config: " + x.error)
-        throw new Error("Error getting config: " + x["error-code"][1])
-      })
-    }
   }
   private async action(
     effects: HostSystemStartOs,
