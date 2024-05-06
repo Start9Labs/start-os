@@ -1,7 +1,7 @@
-use std::path::Path;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Weak};
 use std::time::Duration;
-use std::{collections::BTreeMap, path::PathBuf};
 
 use futures::future::ready;
 use futures::{Future, FutureExt};
@@ -223,7 +223,11 @@ impl PersistentContainer {
     }
 
     #[instrument(skip_all)]
-    pub async fn mount_backup(&self, backup_path: impl AsRef<Path>) -> Result<MountGuard, Error> {
+    pub async fn mount_backup(
+        &self,
+        backup_path: impl AsRef<Path>,
+        mount_type: MountType,
+    ) -> Result<MountGuard, Error> {
         let backup_path: PathBuf = backup_path.as_ref().to_path_buf();
         let mountpoint = self
             .lxc_container
@@ -235,10 +239,10 @@ impl PersistentContainer {
                 )
             })?
             .rootfs_dir()
-            .join("media/startos/volumes/BACKUP");
+            .join("media/startos/backup");
         tokio::fs::create_dir_all(&mountpoint).await?;
         let bind = Bind::new(&backup_path);
-        let mount_guard = MountGuard::mount(&bind, &mountpoint, MountType::ReadWrite).await;
+        let mount_guard = MountGuard::mount(&bind, &mountpoint, mount_type).await;
         Command::new("chown")
             .arg("100000:100000")
             .arg(mountpoint.as_os_str())
