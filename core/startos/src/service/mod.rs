@@ -10,7 +10,7 @@ use persistent_container::PersistentContainer;
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerFor};
 use serde::{Deserialize, Serialize};
 use start_stop::StartStop;
-use tokio::sync::Notify;
+use tokio::{fs::File, sync::Notify};
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
@@ -296,13 +296,20 @@ impl Service {
     }
 
     pub async fn restore(
-        _ctx: RpcContext,
-        _s9pk: S9pk,
-        _guard: impl GenericMountGuard,
-        _progress: Option<InstallProgressHandles>,
+        ctx: RpcContext,
+        s9pk: S9pk,
+        backup_source: impl GenericMountGuard,
+        progress: Option<InstallProgressHandles>,
     ) -> Result<Self, Error> {
-        // TODO
-        Err(Error::new(eyre!("not yet implemented"), ErrorKind::Unknown))
+        let service = Service::install(ctx.clone(), s9pk, None, progress).await?;
+
+        service
+            .actor
+            .send(transition::restore::Restore {
+                path: backup_source.path().to_path_buf(),
+            })
+            .await?;
+        Ok(service)
     }
 
     pub async fn shutdown(self) -> Result<(), Error> {
@@ -348,9 +355,23 @@ impl Service {
         Ok(())
     }
 
-    pub async fn backup(&self, _guard: impl GenericMountGuard) -> Result<BackupReturn, Error> {
-        // TODO
-        Err(Error::new(eyre!("not yet implemented"), ErrorKind::Unknown))
+    #[instrument(skip_all)]
+    pub async fn backup(&self, guard: impl GenericMountGuard) -> Result<(), Error> {
+        let id = &self.seed.id;
+        let mut file = File::create(guard.path().join(id).with_extension("s9pk")).await?;
+        self.seed
+            .persistent_container
+            .s9pk
+            .clone()
+            .serialize(&mut file, true)
+            .await?;
+        drop(file);
+        self.actor
+            .send(transition::backup::Backup {
+                path: guard.path().to_path_buf(),
+            })
+            .await?;
+        Ok(())
     }
 
     pub fn container_id(&self) -> Result<ContainerId, Error> {
@@ -425,6 +446,7 @@ impl Actor for ServiceActor {
                         kinds.running_status,
                     ) {
                         (Some(TransitionKind::Restarting), _, _) => MainStatus::Restarting,
+                        (Some(TransitionKind::Restoring), _, _) => MainStatus::Restoring,
                         (Some(TransitionKind::BackingUp), _, Some(status)) => {
                             MainStatus::BackingUp {
                                 started: Some(status.started),

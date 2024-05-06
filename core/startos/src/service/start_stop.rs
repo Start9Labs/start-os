@@ -15,6 +15,7 @@ impl From<MainStatus> for StartStop {
     fn from(value: MainStatus) -> Self {
         match value {
             MainStatus::Stopped => StartStop::Stop,
+            MainStatus::Restoring => StartStop::Stop,
             MainStatus::Restarting => StartStop::Start,
             MainStatus::Stopping { .. } => StartStop::Stop,
             MainStatus::Starting => StartStop::Start,
