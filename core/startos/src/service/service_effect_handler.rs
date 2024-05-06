@@ -694,7 +694,7 @@ fn chroot<C: Context>(
             cmd.env(k, v);
         }
     }
-    nix::unistd::setsid().with_kind(ErrorKind::Lxc)?; // TODO: error code
+    nix::unistd::setsid().ok(); // https://stackoverflow.com/questions/25701333/os-setsid-operation-not-permitted
     std::os::unix::fs::chroot(path)?;
     if let Some(uid) = user.as_deref().and_then(|u| u.parse::<u32>().ok()) {
         cmd.uid(uid);

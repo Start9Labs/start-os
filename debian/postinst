@@ -81,10 +81,6 @@ sed -i '/^\s*#\?\s*issue_discards\s*=\s*/c\issue_discards = 1' /etc/lvm/lvm.conf
 
 mkdir -p /etc/nginx/ssl
 
-# fix to suppress docker warning, fixed in 21.xx release of docker cli: https://github.com/docker/cli/pull/2934
-mkdir -p /root/.docker
-touch /root/.docker/config.json
-
 cat << EOF > /etc/tor/torrc
 SocksPort 0.0.0.0:9050
 SocksPolicy accept 127.0.0.1

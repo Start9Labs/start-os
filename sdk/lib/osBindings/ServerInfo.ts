@@ -28,4 +28,5 @@ export type ServerInfo = {
   ntpSynced: boolean
   zram: boolean
   governor: Governor | null
+  smtp: string | null
 }

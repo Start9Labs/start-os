@@ -162,7 +162,7 @@ impl NetController {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct HostBinds {
     lan: BTreeMap<u16, (u16, Option<AddSslOptions>, Arc<()>)>,
     tor: BTreeMap<OnionAddressV3, (OrdMap<u16, SocketAddr>, Vec<Arc<()>>)>,
@@ -193,6 +193,7 @@ impl NetService {
         internal_port: u16,
         options: BindOptions,
     ) -> Result<(), Error> {
+        dbg!("bind", &kind, &id, internal_port, &options);
         let id_ref = &id;
         let pkg_id = &self.id;
         let host = self
@@ -219,6 +220,8 @@ impl NetService {
     }
 
     async fn update(&mut self, id: HostId, host: Host) -> Result<(), Error> {
+        dbg!(&host);
+        dbg!(&self.binds);
         let ctrl = self.net_controller()?;
         let binds = {
             if !self.binds.contains_key(&id) {
