@@ -30,7 +30,7 @@ export class LiveApiService extends ApiService {
     private readonly patch: PatchDB<DataModel>,
   ) {
     super()
-    ; (window as any).rpcClient = this
+    ;(window as any).rpcClient = this
   }
 
   // for getting static files: ex icons, instructions, licenses
@@ -158,7 +158,7 @@ export class LiveApiService extends ApiService {
 
   async updateServer(url?: string): Promise<RR.UpdateServerRes> {
     const params = {
-      marketplaceUrl: url || this.config.marketplace.start9,
+      registry: url || this.config.marketplace.start9,
     }
     return this.rpcRequest({ method: 'server.update', params })
   }

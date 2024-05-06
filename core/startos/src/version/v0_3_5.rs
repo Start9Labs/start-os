@@ -1,6 +1,7 @@
 use emver::VersionRange;
 
 use super::VersionT;
+use crate::db::model::Database;
 use crate::prelude::*;
 use crate::version::Current;
 
@@ -30,10 +31,10 @@ impl VersionT for Version {
     fn compat(&self) -> &'static VersionRange {
         &V0_3_0_COMPAT
     }
-    async fn up(&self, _db: &PatchDb) -> Result<(), Error> {
+    async fn up(&self, _db: &TypedPatchDb<Database>) -> Result<(), Error> {
         Ok(())
     }
-    async fn down(&self, _db: &PatchDb) -> Result<(), Error> {
+    async fn down(&self, _db: &TypedPatchDb<Database>) -> Result<(), Error> {
         Ok(())
     }
 }

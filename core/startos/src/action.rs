@@ -1,7 +1,6 @@
 use clap::Parser;
 pub use models::ActionId;
 use models::PackageId;
-use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;

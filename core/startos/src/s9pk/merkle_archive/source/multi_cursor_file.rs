@@ -31,6 +31,16 @@ impl MultiCursorFile {
             file: Arc::new(Mutex::new(File::open(path_from_fd(fd)).await?)),
         })
     }
+    pub async fn blake3_mmap(&self) -> Result<blake3::Hash, Error> {
+        let path = self.path();
+        tokio::task::spawn_blocking(move || {
+            let mut hasher = blake3::Hasher::new();
+            hasher.update_mmap_rayon(path)?;
+            Ok(hasher.finalize())
+        })
+        .await
+        .with_kind(ErrorKind::Unknown)?
+    }
 }
 impl From<File> for MultiCursorFile {
     fn from(value: File) -> Self {
@@ -67,7 +77,6 @@ impl AsyncRead for FileSectionReader {
     }
 }
 
-#[async_trait::async_trait]
 impl ArchiveSource for MultiCursorFile {
     type Reader = FileSectionReader;
     async fn size(&self) -> Option<u64> {

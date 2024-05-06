@@ -122,7 +122,7 @@ export class ToButtonsPipe implements PipeTransform {
   private viewInMarketplaceButton(
     pkg: PackageDataEntry<InstalledState>,
   ): Button {
-    const url = pkg.marketplaceUrl
+    const url = pkg.registry
     const queryParams = url ? { url } : {}
 
     let button: Button = {

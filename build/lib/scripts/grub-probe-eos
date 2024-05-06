@@ -3,8 +3,8 @@
 ARGS=
 
 for ARG in $@; do
-  if [ -d "/media/embassy/embassyfs" ] && [ "$ARG" = "/" ]; then
-   ARG=/media/embassy/embassyfs
+  if [ -d "/media/startos/root" ] && [ "$ARG" = "/" ]; then
+   ARG=/media/startos/root
   fi
   ARGS="$ARGS $ARG"
 done

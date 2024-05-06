@@ -348,7 +348,7 @@ export const mockPatchData: DataModel = {
       currentDependencies: {},
       hosts: {},
       storeExposedDependents: [],
-      marketplaceUrl: 'https://registry.start9.com/',
+      registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
     },
     lnd: {
@@ -600,7 +600,7 @@ export const mockPatchData: DataModel = {
       },
       hosts: {},
       storeExposedDependents: [],
-      marketplaceUrl: 'https://registry.start9.com/',
+      registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
     },
   },

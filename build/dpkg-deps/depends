@@ -34,7 +34,6 @@ network-manager
 nvme-cli
 nyx
 openssh-server
-podman
 postgresql
 psmisc
 qemu-guest-agent

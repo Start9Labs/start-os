@@ -8,6 +8,7 @@ use ed25519_dalek::{SigningKey, VerifyingKey};
 use tracing::instrument;
 
 use crate::context::CliContext;
+use crate::util::serde::Pem;
 use crate::{Error, ResultExt};
 
 #[instrument(skip_all)]
@@ -44,4 +45,8 @@ pub fn init(ctx: CliContext) -> Result<(), Error> {
         );
     }
     Ok(())
+}
+
+pub fn pubkey(ctx: CliContext) -> Result<Pem<ed25519_dalek::VerifyingKey>, Error> {
+    Ok(Pem(ctx.developer_key()?.verifying_key()))
 }

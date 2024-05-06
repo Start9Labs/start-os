@@ -11,7 +11,7 @@ futures = "0.3.28"
 lazy_async_pool = "0.3.3"
 models = { path = "../models" }
 pin-project = "1.1.3"
-rpc-toolkit = "0.2.3"
+rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", branch = "refactor/no-dyn-ctx" }
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }

@@ -7,7 +7,8 @@ import { T } from '@start9labs/start-sdk'
 export class InstallingProgressDisplayPipe implements PipeTransform {
   transform(progress: T.Progress): string {
     if (progress === true) return 'finalizing'
-    if (progress === false || !progress.total) return 'unknown %'
+    if (progress === false || progress === null || !progress.total)
+      return 'unknown %'
     const percentage = Math.round((100 * progress.done) / progress.total)
 
     return percentage < 99 ? String(percentage) + '%' : 'finalizing'
@@ -20,7 +21,7 @@ export class InstallingProgressDisplayPipe implements PipeTransform {
 export class InstallingProgressPipe implements PipeTransform {
   transform(progress: T.Progress): number | null {
     if (progress === true) return 1
-    if (progress === false || !progress.total) return null
+    if (progress === false || progress === null || !progress.total) return null
     return Number((progress.done / progress.total).toFixed(2))
   }
 }

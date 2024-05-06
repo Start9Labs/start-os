@@ -1,12 +1,14 @@
 use std::path::Path;
 
+use blake3::Hash;
 use ed25519_dalek::{Signature, SigningKey, VerifyingKey};
+use imbl_value::InternedString;
+use sha2::{Digest, Sha512};
 use tokio::io::AsyncRead;
 
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::file_contents::FileContents;
-use crate::s9pk::merkle_archive::hash::Hash;
 use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
 use crate::s9pk::merkle_archive::write_queue::WriteQueue;
@@ -23,8 +25,8 @@ pub mod write_queue;
 
 #[derive(Debug, Clone)]
 enum Signer {
-    Signed(VerifyingKey, Signature),
-    Signer(SigningKey),
+    Signed(VerifyingKey, Signature, u64, InternedString),
+    Signer(SigningKey, InternedString),
 }
 
 #[derive(Debug, Clone)]
@@ -33,22 +35,23 @@ pub struct MerkleArchive<S> {
     contents: DirectoryContents<S>,
 }
 impl<S> MerkleArchive<S> {
-    pub fn new(contents: DirectoryContents<S>, signer: SigningKey) -> Self {
+    pub fn new(contents: DirectoryContents<S>, signer: SigningKey, context: &str) -> Self {
         Self {
-            signer: Signer::Signer(signer),
+            signer: Signer::Signer(signer, context.into()),
             contents,
         }
     }
     pub fn signer(&self) -> VerifyingKey {
         match &self.signer {
-            Signer::Signed(k, _) => *k,
-            Signer::Signer(k) => k.verifying_key(),
+            Signer::Signed(k, _, _, _) => *k,
+            Signer::Signer(k, _) => k.verifying_key(),
         }
     }
     pub const fn header_size() -> u64 {
         32 // pubkey
                  + 64 // signature
                  + 32 // sighash
+                 + 8 // size
                  + DirectoryContents::<Section<S>>::header_size()
     }
     pub fn contents(&self) -> &DirectoryContents<S> {
@@ -57,8 +60,8 @@ impl<S> MerkleArchive<S> {
     pub fn contents_mut(&mut self) -> &mut DirectoryContents<S> {
         &mut self.contents
     }
-    pub fn set_signer(&mut self, key: SigningKey) {
-        self.signer = Signer::Signer(key);
+    pub fn set_signer(&mut self, key: SigningKey, context: &str) {
+        self.signer = Signer::Signer(key, context.into());
     }
     pub fn sort_by(
         &mut self,
@@ -71,6 +74,7 @@ impl<S: ArchiveSource> MerkleArchive<Section<S>> {
     #[instrument(skip_all)]
     pub async fn deserialize(
         source: &S,
+        context: &str,
         header: &mut (impl AsyncRead + Unpin + Send),
     ) -> Result<Self, Error> {
         use tokio::io::AsyncReadExt;
@@ -87,12 +91,20 @@ impl<S: ArchiveSource> MerkleArchive<Section<S>> {
         header.read_exact(&mut sighash).await?;
         let sighash = Hash::from_bytes(sighash);
 
-        let contents = DirectoryContents::deserialize(source, header, sighash).await?;
+        let mut max_size = [0u8; 8];
+        header.read_exact(&mut max_size).await?;
+        let max_size = u64::from_be_bytes(max_size);
 
-        pubkey.verify_strict(contents.sighash().await?.as_bytes(), &signature)?;
+        pubkey.verify_prehashed_strict(
+            Sha512::new_with_prefix(sighash.as_bytes()).chain_update(&u64::to_be_bytes(max_size)),
+            Some(context.as_bytes()),
+            &signature,
+        )?;
+
+        let contents = DirectoryContents::deserialize(source, header, (sighash, max_size)).await?;
 
         Ok(Self {
-            signer: Signer::Signed(pubkey, signature),
+            signer: Signer::Signed(pubkey, signature, max_size, context.into()),
             contents,
         })
     }
@@ -109,15 +121,26 @@ impl<S: FileSource> MerkleArchive<S> {
         use tokio::io::AsyncWriteExt;
 
         let sighash = self.contents.sighash().await?;
+        let size = self.contents.toc_size();
 
-        let (pubkey, signature) = match &self.signer {
-            Signer::Signed(pubkey, signature) => (*pubkey, *signature),
-            Signer::Signer(s) => (s.into(), ed25519_dalek::Signer::sign(s, sighash.as_bytes())),
+        let (pubkey, signature, max_size) = match &self.signer {
+            Signer::Signed(pubkey, signature, max_size, _) => (*pubkey, *signature, *max_size),
+            Signer::Signer(s, context) => (
+                s.into(),
+                ed25519_dalek::SigningKey::sign_prehashed(
+                    s,
+                    Sha512::new_with_prefix(sighash.as_bytes())
+                        .chain_update(&u64::to_be_bytes(size)),
+                    Some(context.as_bytes()),
+                )?,
+                size,
+            ),
         };
 
         w.write_all(pubkey.as_bytes()).await?;
         w.write_all(&signature.to_bytes()).await?;
         w.write_all(sighash.as_bytes()).await?;
+        w.write_all(&u64::to_be_bytes(max_size)).await?;
         let mut next_pos = w.current_position().await?;
         next_pos += DirectoryContents::<S>::header_size();
         self.contents.serialize_header(next_pos, w).await?;
@@ -137,7 +160,7 @@ impl<S: FileSource> MerkleArchive<S> {
 
 #[derive(Debug, Clone)]
 pub struct Entry<S> {
-    hash: Option<Hash>,
+    hash: Option<(Hash, u64)>,
     contents: EntryContents<S>,
 }
 impl<S> Entry<S> {
@@ -150,7 +173,7 @@ impl<S> Entry<S> {
     pub fn file(source: S) -> Self {
         Self::new(EntryContents::File(FileContents::new(source)))
     }
-    pub fn hash(&self) -> Option<Hash> {
+    pub fn hash(&self) -> Option<(Hash, u64)> {
         self.hash
     }
     pub fn as_contents(&self) -> &EntryContents<S> {
@@ -189,6 +212,7 @@ impl<S> Entry<S> {
     }
     pub fn header_size(&self) -> u64 {
         32 // hash
+        + 8 // size: u64 BE
         + self.contents.header_size()
     }
 }
@@ -205,10 +229,14 @@ impl<S: ArchiveSource> Entry<Section<S>> {
         header.read_exact(&mut hash).await?;
         let hash = Hash::from_bytes(hash);
 
-        let contents = EntryContents::deserialize(source, header, hash).await?;
+        let mut size = [0u8; 8];
+        header.read_exact(&mut size).await?;
+        let size = u64::from_be_bytes(size);
+
+        let contents = EntryContents::deserialize(source, header, (hash, size)).await?;
 
         Ok(Self {
-            hash: Some(hash),
+            hash: Some((hash, size)),
             contents,
         })
     }
@@ -258,12 +286,13 @@ impl<S: FileSource> Entry<S> {
     ) -> Result<Option<u64>, Error> {
         use tokio::io::AsyncWriteExt;
 
-        let hash = if let Some(hash) = self.hash {
+        let (hash, size) = if let Some(hash) = self.hash {
             hash
         } else {
             self.contents.hash().await?
         };
         w.write_all(hash.as_bytes()).await?;
+        w.write_all(&u64::to_be_bytes(size)).await?;
         self.contents.serialize_header(position, w).await
     }
     pub fn into_dyn(self) -> Entry<DynFileSource> {
@@ -305,7 +334,7 @@ impl<S: ArchiveSource> EntryContents<Section<S>> {
     pub async fn deserialize(
         source: &S,
         header: &mut (impl AsyncRead + Unpin + Send),
-        hash: Hash,
+        (hash, size): (Hash, u64),
     ) -> Result<Self, Error> {
         use tokio::io::AsyncReadExt;
 
@@ -313,9 +342,11 @@ impl<S: ArchiveSource> EntryContents<Section<S>> {
         header.read_exact(&mut type_id).await?;
         match type_id[0] {
             0 => Ok(Self::Missing),
-            1 => Ok(Self::File(FileContents::deserialize(source, header).await?)),
+            1 => Ok(Self::File(
+                FileContents::deserialize(source, header, size).await?,
+            )),
             2 => Ok(Self::Directory(
-                DirectoryContents::deserialize(source, header, hash).await?,
+                DirectoryContents::deserialize(source, header, (hash, size)).await?,
             )),
             id => Err(Error::new(
                 eyre!("Unknown type id {id} found in MerkleArchive"),
@@ -325,14 +356,14 @@ impl<S: ArchiveSource> EntryContents<Section<S>> {
     }
 }
 impl<S: FileSource> EntryContents<S> {
-    pub async fn hash(&self) -> Result<Hash, Error> {
+    pub async fn hash(&self) -> Result<(Hash, u64), Error> {
         match self {
             Self::Missing => Err(Error::new(
                 eyre!("Cannot compute hash of missing file"),
                 ErrorKind::Pack,
             )),
             Self::File(f) => f.hash().await,
-            Self::Directory(d) => d.sighash().await,
+            Self::Directory(d) => Ok((d.sighash().await?, d.toc_size())),
         }
     }
     #[instrument(skip_all)]

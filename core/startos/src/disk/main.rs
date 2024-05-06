@@ -302,7 +302,7 @@ pub async fn mount_fs<P: AsRef<Path>>(
 
     if !guid.ends_with("_UNENC") {
         // Backup LUKS header if e2fsck succeeded
-        let luks_folder = Path::new("/media/embassy/config/luks");
+        let luks_folder = Path::new("/media/startos/config/luks");
         tokio::fs::create_dir_all(luks_folder).await?;
         let tmp_luks_bak = luks_folder.join(format!(".{full_name}.luks.bak.tmp"));
         if tokio::fs::metadata(&tmp_luks_bak).await.is_ok() {

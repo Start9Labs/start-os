@@ -1,4 +1,4 @@
-use rpc_toolkit::ParentHandler;
+use rpc_toolkit::{Context, ParentHandler};
 
 pub mod dhcp;
 pub mod dns;
@@ -18,8 +18,8 @@ pub mod wifi;
 
 pub const PACKAGE_CERT_PATH: &str = "/var/lib/embassy/ssl";
 
-pub fn net() -> ParentHandler {
+pub fn net<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("tor", tor::tor())
-        .subcommand("dhcp", dhcp::dhcp())
+        .subcommand("tor", tor::tor::<C>())
+        .subcommand("dhcp", dhcp::dhcp::<C>())
 }

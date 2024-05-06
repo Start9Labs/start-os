@@ -1,46 +1,60 @@
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::collections::BTreeMap;
+use std::path::Path;
+use std::time::Duration;
 
-use clap::Parser;
+use clap::{ArgAction, Parser};
 use color_eyre::eyre::{eyre, Result};
-use emver::Version;
-use helpers::{Rsync, RsyncOptions};
-use lazy_static::lazy_static;
+use emver::{Version, VersionRange};
+use futures::{FutureExt, TryStreamExt};
+use helpers::{AtomicFile, NonDetachingJoinHandle};
+use imbl_value::json;
+use itertools::Itertools;
+use patch_db::json_ptr::JsonPointer;
 use reqwest::Url;
-use rpc_toolkit::command;
+use rpc_toolkit::HandlerArgs;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
-use tokio_stream::StreamExt;
 use tracing::instrument;
 use ts_rs::TS;
 
-use crate::context::RpcContext;
-use crate::db::model::public::UpdateProgress;
-use crate::disk::mount::filesystem::bind::Bind;
-use crate::disk::mount::filesystem::ReadWrite;
-use crate::disk::mount::guard::MountGuard;
+use crate::context::{CliContext, RpcContext};
 use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
-use crate::registry::marketplace::with_query_params;
+use crate::progress::{
+    FullProgressTracker, FullProgressTrackerHandle, PhaseProgressTrackerHandle, PhasedProgressBar,
+};
+use crate::registry::asset::RegistryAsset;
+use crate::registry::context::{RegistryContext, RegistryUrlParams};
+use crate::registry::os::index::OsVersionInfo;
+use crate::registry::signer::FileValidator;
+use crate::rpc_continuations::{RequestGuid, RpcContinuation};
+use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::sound::{
     CIRCLE_OF_5THS_SHORT, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4,
 };
-use crate::update::latest_information::LatestInformation;
 use crate::util::Invoke;
-use crate::{Error, ErrorKind, ResultExt, PLATFORM};
-
-mod latest_information;
-
-lazy_static! {
-    static ref UPDATED: AtomicBool = AtomicBool::new(false);
-}
+use crate::PLATFORM;
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct UpdateSystemParams {
     #[ts(type = "string")]
-    marketplace_url: Url,
+    registry: Url,
+    #[ts(type = "string | null")]
+    #[arg(long = "to")]
+    target: Option<VersionRange>,
+    #[arg(long = "no-progress", action = ArgAction::SetFalse)]
+    #[serde(default)]
+    progress: bool,
+}
+
+#[derive(Deserialize, Serialize, TS)]
+pub struct UpdateSystemRes {
+    #[ts(type = "string | null")]
+    target: Option<Version>,
+    #[ts(type = "string | null")]
+    progress: Option<RequestGuid>,
 }
 
 /// An user/ daemon would call this to update the system to the latest version and do the updates available,
@@ -48,16 +62,137 @@ pub struct UpdateSystemParams {
 #[instrument(skip_all)]
 pub async fn update_system(
     ctx: RpcContext,
-    UpdateSystemParams { marketplace_url }: UpdateSystemParams,
-) -> Result<UpdateResult, Error> {
-    if UPDATED.load(Ordering::SeqCst) {
-        return Ok(UpdateResult::NoUpdates);
+    UpdateSystemParams {
+        target,
+        registry,
+        progress,
+    }: UpdateSystemParams,
+) -> Result<UpdateSystemRes, Error> {
+    if ctx
+        .db
+        .peek()
+        .await
+        .into_public()
+        .into_server_info()
+        .into_status_info()
+        .into_updated()
+        .de()?
+    {
+        return Err(Error::new(eyre!("Server was already updated. Please restart your device before attempting to update again."), ErrorKind::InvalidRequest));
     }
-    Ok(if maybe_do_update(ctx, marketplace_url).await?.is_some() {
-        UpdateResult::Updating
+    let target =
+        maybe_do_update(ctx.clone(), registry, target.unwrap_or(VersionRange::Any)).await?;
+    let progress = if progress && target.is_some() {
+        let guid = RequestGuid::new();
+        ctx.clone()
+            .rpc_continuations
+            .add(
+                guid.clone(),
+                RpcContinuation::ws(
+                    Box::new(|mut ws| {
+                        async move {
+                            if let Err(e) = async {
+                                let mut sub = ctx
+                                    .db
+                                    .subscribe(
+                                        "/public/serverInfo/statusInfo/updateProgress"
+                                            .parse::<JsonPointer>()
+                                            .with_kind(ErrorKind::Database)?,
+                                    )
+                                    .await;
+                                while {
+                                    let progress = ctx
+                                        .db
+                                        .peek()
+                                        .await
+                                        .into_public()
+                                        .into_server_info()
+                                        .into_status_info()
+                                        .into_update_progress()
+                                        .de()?;
+                                    ws.send(axum::extract::ws::Message::Text(
+                                        serde_json::to_string(&progress)
+                                            .with_kind(ErrorKind::Serialization)?,
+                                    ))
+                                    .await
+                                    .with_kind(ErrorKind::Network)?;
+                                    progress.is_some()
+                                } {
+                                    sub.recv().await;
+                                }
+
+                                ws.close().await.with_kind(ErrorKind::Network)?;
+
+                                Ok::<_, Error>(())
+                            }
+                            .await
+                            {
+                                tracing::error!("Error returning progress of update: {e}");
+                                tracing::debug!("{e:?}")
+                            }
+                        }
+                        .boxed()
+                    }),
+                    Duration::from_secs(30),
+                ),
+            )
+            .await;
+        Some(guid)
     } else {
-        UpdateResult::NoUpdates
-    })
+        None
+    };
+    Ok(UpdateSystemRes { target, progress })
+}
+
+pub async fn cli_update_system(
+    HandlerArgs {
+        context,
+        parent_method,
+        method,
+        raw_params,
+        ..
+    }: HandlerArgs<CliContext, UpdateSystemParams>,
+) -> Result<(), Error> {
+    let res = from_value::<UpdateSystemRes>(
+        context
+            .call_remote::<RpcContext>(
+                &parent_method.into_iter().chain(method).join("."),
+                raw_params,
+            )
+            .await?,
+    )?;
+    match res.target {
+        None => println!("No updates available"),
+        Some(v) => {
+            if let Some(progress) = res.progress {
+                let mut ws = context.ws_continuation(progress).await?;
+                let mut progress = PhasedProgressBar::new(&format!("Updating to v{v}..."));
+                let mut prev = None;
+                while let Some(msg) = ws.try_next().await.with_kind(ErrorKind::Network)? {
+                    if let tokio_tungstenite::tungstenite::Message::Text(msg) = msg {
+                        if let Some(snap) =
+                            serde_json::from_str(&msg).with_kind(ErrorKind::Deserialization)?
+                        {
+                            progress.update(&snap);
+                            prev = Some(snap);
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                if let Some(mut prev) = prev {
+                    for phase in &mut prev.phases {
+                        phase.progress.complete();
+                    }
+                    prev.overall.complete();
+                    progress.update(&prev);
+                }
+            } else {
+                println!("Updating to v{v}...")
+            }
+        }
+    }
+    Ok(())
 }
 
 /// What is the status of the updates?
@@ -80,30 +215,49 @@ pub fn display_update_result(_: UpdateSystemParams, status: UpdateResult) {
 }
 
 #[instrument(skip_all)]
-async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option<()>, Error> {
+async fn maybe_do_update(
+    ctx: RpcContext,
+    registry: Url,
+    target: VersionRange,
+) -> Result<Option<Version>, Error> {
     let peeked = ctx.db.peek().await;
-    let latest_version: Version = ctx
-        .client
-        .get(with_query_params(
-            ctx.clone(),
-            format!("{}/eos/v0/latest", marketplace_url,).parse()?,
-        ))
-        .send()
-        .await
-        .with_kind(ErrorKind::Network)?
-        .json::<LatestInformation>()
-        .await
-        .with_kind(ErrorKind::Network)?
-        .version;
     let current_version = peeked.as_public().as_server_info().as_version().de()?;
-    if latest_version < *current_version {
+    let mut available = from_value::<BTreeMap<Version, OsVersionInfo>>(
+        ctx.call_remote_with::<RegistryContext, _>(
+            "os.version.get",
+            json!({
+                "source": current_version,
+                "target": target,
+            }),
+            RegistryUrlParams { registry },
+        )
+        .await?,
+    )?;
+    let Some((target_version, asset)) = available
+        .pop_last()
+        .and_then(|(v, mut info)| info.squashfs.remove(&**PLATFORM).map(|a| (v, a)))
+    else {
         return Ok(None);
+    };
+    if !target_version.satisfies(&target) {
+        return Err(Error::new(
+            eyre!("got back version from registry that does not satisfy {target}"),
+            ErrorKind::Registry,
+        ));
     }
 
-    let eos_url = EosUrl {
-        base: marketplace_url,
-        version: latest_version,
-    };
+    let validator = asset.validate(asset.signature_info.all_signers())?;
+
+    let mut progress = FullProgressTracker::new();
+    let progress_handle = progress.handle();
+    let mut download_phase = progress_handle.add_phase("Downloading File".into(), Some(100));
+    download_phase.set_total(validator.size()?);
+    let reverify_phase = progress_handle.add_phase("Reverifying File".into(), Some(10));
+    let sync_boot_phase = progress_handle.add_phase("Syncing Boot Files".into(), Some(1));
+    let finalize_phase = progress_handle.add_phase("Finalizing Update".into(), Some(1));
+
+    let start_progress = progress.snapshot();
+
     let status = ctx
         .db
         .mutate(|db| {
@@ -115,10 +269,7 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
                 ));
             }
 
-            status.update_progress = Some(UpdateProgress {
-                size: None,
-                downloaded: 0,
-            });
+            status.update_progress = Some(start_progress);
             db.as_public_mut()
                 .as_server_info_mut()
                 .as_status_info_mut()
@@ -128,11 +279,38 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
         .await?;
 
     if status.updated {
-        return Ok(None);
+        return Err(Error::new(
+            eyre!("Server was already updated. Please restart your device before attempting to update again."),
+            crate::ErrorKind::InvalidRequest,
+        ));
     }
 
+    let progress_task = NonDetachingJoinHandle::from(tokio::spawn(progress.sync_to_db(
+        ctx.db.clone(),
+        |db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_status_info_mut()
+                .as_update_progress_mut()
+                .transpose_mut()
+        },
+        Some(Duration::from_millis(300)),
+    )));
+
     tokio::spawn(async move {
-        let res = do_update(ctx.clone(), eos_url).await;
+        let res = do_update(
+            ctx.clone(),
+            validator,
+            asset,
+            UpdateProgressHandles {
+                progress_handle,
+                download_phase,
+                reverify_phase,
+                sync_boot_phase,
+                finalize_phase,
+            },
+        )
+        .await;
         match res {
             Ok(()) => {
                 ctx.db
@@ -143,6 +321,7 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
                         status_info.as_updated_mut().ser(&true)
                     })
                     .await?;
+                progress_task.await.with_kind(ErrorKind::Unknown)??;
                 CIRCLE_OF_5THS_SHORT
                     .play()
                     .await
@@ -189,146 +368,73 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
         }
         Ok::<(), Error>(())
     });
-    Ok(Some(()))
+    Ok(Some(target_version))
+}
+
+struct UpdateProgressHandles {
+    progress_handle: FullProgressTrackerHandle,
+    download_phase: PhaseProgressTrackerHandle,
+    reverify_phase: PhaseProgressTrackerHandle,
+    sync_boot_phase: PhaseProgressTrackerHandle,
+    finalize_phase: PhaseProgressTrackerHandle,
 }
 
 #[instrument(skip_all)]
-async fn do_update(ctx: RpcContext, eos_url: EosUrl) -> Result<(), Error> {
-    let mut rsync = Rsync::new(
-        eos_url.rsync_path()?,
-        "/media/embassy/next/",
-        Default::default(),
-    )
-    .await?;
-    while let Some(progress) = rsync.progress.next().await {
-        ctx.db
-            .mutate(|db| {
-                db.as_public_mut()
-                    .as_server_info_mut()
-                    .as_status_info_mut()
-                    .as_update_progress_mut()
-                    .ser(&Some(UpdateProgress {
-                        size: Some(100),
-                        downloaded: (100.0 * progress) as u64,
-                    }))
-            })
-            .await?;
-    }
-    rsync.wait().await?;
+async fn do_update(
+    ctx: RpcContext,
+    validator: FileValidator,
+    asset: RegistryAsset,
+    UpdateProgressHandles {
+        progress_handle,
+        mut download_phase,
+        mut reverify_phase,
+        mut sync_boot_phase,
+        mut finalize_phase,
+    }: UpdateProgressHandles,
+) -> Result<(), Error> {
+    download_phase.start();
+    let path = Path::new("/media/startos/images")
+        .join(hex::encode(&validator.blake3()?.as_bytes()[..16]))
+        .with_extension("rootfs");
+    let mut dst = AtomicFile::new(&path, None::<&Path>)
+        .await
+        .with_kind(ErrorKind::Filesystem)?;
+    let mut download_writer = download_phase.writer(&mut *dst);
+    asset
+        .download(ctx.client.clone(), &mut download_writer, &validator)
+        .await?;
+    let (_, mut download_phase) = download_writer.into_inner();
+    download_phase.complete();
 
-    copy_fstab().await?;
-    copy_machine_id().await?;
-    copy_ssh_host_keys().await?;
-    sync_boot().await?;
-    swap_boot_label().await?;
+    reverify_phase.start();
+    validator
+        .validate_file(&MultiCursorFile::open(&*dst).await?)
+        .await?;
+    dst.save().await.with_kind(ErrorKind::Filesystem)?;
+    reverify_phase.complete();
 
-    Ok(())
-}
+    sync_boot_phase.start();
+    Command::new("unsquashfs")
+        .arg("-n")
+        .arg("-f")
+        .arg("-d")
+        .arg("/")
+        .arg(&path)
+        .arg("boot")
+        .invoke(crate::ErrorKind::Filesystem)
+        .await?;
+    sync_boot_phase.complete();
 
-#[derive(Debug)]
-struct EosUrl {
-    base: Url,
-    version: Version,
-}
+    finalize_phase.start();
+    Command::new("ln")
+        .arg("-rsf")
+        .arg(&path)
+        .arg("/media/startos/config/current.rootfs")
+        .invoke(crate::ErrorKind::Filesystem)
+        .await?;
+    finalize_phase.complete();
 
-impl EosUrl {
-    #[instrument()]
-    pub fn rsync_path(&self) -> Result<PathBuf, Error> {
-        let host = self
-            .base
-            .host_str()
-            .ok_or_else(|| Error::new(eyre!("Could not get host of base"), ErrorKind::ParseUrl))?;
-        let version: &Version = &self.version;
-        Ok(format!("{host}::{version}/{}/", &*PLATFORM)
-            .parse()
-            .map_err(|_| Error::new(eyre!("Could not parse path"), ErrorKind::ParseUrl))?)
-    }
-}
+    progress_handle.complete();
 
-async fn copy_fstab() -> Result<(), Error> {
-    tokio::fs::copy("/etc/fstab", "/media/embassy/next/etc/fstab").await?;
-    Ok(())
-}
-
-async fn copy_machine_id() -> Result<(), Error> {
-    tokio::fs::copy("/etc/machine-id", "/media/embassy/next/etc/machine-id").await?;
-    Ok(())
-}
-
-async fn copy_ssh_host_keys() -> Result<(), Error> {
-    tokio::fs::copy(
-        "/etc/ssh/ssh_host_rsa_key",
-        "/media/embassy/next/etc/ssh/ssh_host_rsa_key",
-    )
-    .await?;
-    tokio::fs::copy(
-        "/etc/ssh/ssh_host_rsa_key.pub",
-        "/media/embassy/next/etc/ssh/ssh_host_rsa_key.pub",
-    )
-    .await?;
-    tokio::fs::copy(
-        "/etc/ssh/ssh_host_ecdsa_key",
-        "/media/embassy/next/etc/ssh/ssh_host_ecdsa_key",
-    )
-    .await?;
-    tokio::fs::copy(
-        "/etc/ssh/ssh_host_ecdsa_key.pub",
-        "/media/embassy/next/etc/ssh/ssh_host_ecdsa_key.pub",
-    )
-    .await?;
-    tokio::fs::copy(
-        "/etc/ssh/ssh_host_ed25519_key",
-        "/media/embassy/next/etc/ssh/ssh_host_ed25519_key",
-    )
-    .await?;
-    tokio::fs::copy(
-        "/etc/ssh/ssh_host_ed25519_key.pub",
-        "/media/embassy/next/etc/ssh/ssh_host_ed25519_key.pub",
-    )
-    .await?;
-    Ok(())
-}
-
-async fn sync_boot() -> Result<(), Error> {
-    Rsync::new(
-        "/media/embassy/next/boot/",
-        "/boot/",
-        RsyncOptions {
-            delete: false,
-            force: false,
-            ignore_existing: false,
-            exclude: Vec::new(),
-            no_permissions: false,
-            no_owner: false,
-        },
-    )
-    .await?
-    .wait()
-    .await?;
-    if &*PLATFORM != "raspberrypi" {
-        let dev_mnt =
-            MountGuard::mount(&Bind::new("/dev"), "/media/embassy/next/dev", ReadWrite).await?;
-        let sys_mnt =
-            MountGuard::mount(&Bind::new("/sys"), "/media/embassy/next/sys", ReadWrite).await?;
-        let proc_mnt =
-            MountGuard::mount(&Bind::new("/proc"), "/media/embassy/next/proc", ReadWrite).await?;
-        let boot_mnt =
-            MountGuard::mount(&Bind::new("/boot"), "/media/embassy/next/boot", ReadWrite).await?;
-        Command::new("chroot")
-            .arg("/media/embassy/next")
-            .arg("update-grub2")
-            .invoke(ErrorKind::MigrationFailed)
-            .await?;
-        boot_mnt.unmount(false).await?;
-        proc_mnt.unmount(false).await?;
-        sys_mnt.unmount(false).await?;
-        dev_mnt.unmount(false).await?;
-    }
-    Ok(())
-}
-
-#[instrument(skip_all)]
-async fn swap_boot_label() -> Result<(), Error> {
-    tokio::fs::write("/media/embassy/config/upgrade", b"").await?;
     Ok(())
 }

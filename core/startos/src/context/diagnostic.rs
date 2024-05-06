@@ -8,6 +8,7 @@ use tokio::sync::broadcast::Sender;
 use tracing::instrument;
 
 use crate::context::config::ServerConfig;
+use crate::rpc_continuations::RpcContinuations;
 use crate::shutdown::Shutdown;
 use crate::Error;
 
@@ -16,6 +17,7 @@ pub struct DiagnosticContextSeed {
     pub shutdown: Sender<Option<Shutdown>>,
     pub error: Arc<RpcError>,
     pub disk_guid: Option<Arc<String>>,
+    pub rpc_continuations: RpcContinuations,
 }
 
 #[derive(Clone)]
@@ -37,10 +39,15 @@ impl DiagnosticContext {
             shutdown,
             disk_guid,
             error: Arc::new(error.into()),
+            rpc_continuations: RpcContinuations::new(),
         })))
     }
 }
-
+impl AsRef<RpcContinuations> for DiagnosticContext {
+    fn as_ref(&self) -> &RpcContinuations {
+        &self.rpc_continuations
+    }
+}
 impl Context for DiagnosticContext {}
 impl Deref for DiagnosticContext {
     type Target = DiagnosticContextSeed;

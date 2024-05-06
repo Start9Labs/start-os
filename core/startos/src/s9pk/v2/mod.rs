@@ -17,6 +17,8 @@ use crate::ARCH;
 
 const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x02];
 
+pub const SIG_CONTEXT: &str = "s9pk";
+
 pub mod compat;
 pub mod manifest;
 
@@ -191,7 +193,7 @@ impl<S: ArchiveSource> S9pk<Section<S>> {
             "Invalid Magic or Unexpected Version"
         );
 
-        let mut archive = MerkleArchive::deserialize(source, &mut header).await?;
+        let mut archive = MerkleArchive::deserialize(source, SIG_CONTEXT, &mut header).await?;
 
         if apply_filter {
             archive.filter(filter)?;

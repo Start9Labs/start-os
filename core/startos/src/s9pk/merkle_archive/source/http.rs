@@ -3,7 +3,7 @@ use futures::stream::BoxStream;
 use futures::{StreamExt, TryStreamExt};
 use reqwest::header::{ACCEPT_RANGES, CONTENT_LENGTH, RANGE};
 use reqwest::{Client, Url};
-use tokio::io::AsyncRead;
+use tokio::io::{AsyncRead, AsyncReadExt, Take};
 use tokio_util::io::StreamReader;
 
 use crate::prelude::*;
@@ -50,9 +50,8 @@ impl HttpSource {
         })
     }
 }
-#[async_trait::async_trait]
 impl ArchiveSource for HttpSource {
-    type Reader = HttpReader;
+    type Reader = Take<HttpReader>;
     async fn size(&self) -> Option<u64> {
         self.size
     }
@@ -72,7 +71,8 @@ impl ArchiveSource for HttpSource {
                     .boxed()
             } else {
                 futures::stream::empty().boxed()
-            }))),
+            }))
+            .take(size)),
             _ => todo!(),
         }
     }

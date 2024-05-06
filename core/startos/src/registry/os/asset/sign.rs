@@ -1,0 +1,188 @@
+use std::collections::BTreeMap;
+use std::panic::UnwindSafe;
+use std::path::PathBuf;
+
+use clap::Parser;
+use helpers::NonDetachingJoinHandle;
+use imbl_value::InternedString;
+use itertools::Itertools;
+use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+
+use crate::context::CliContext;
+use crate::prelude::*;
+use crate::progress::{FullProgressTracker, PhasedProgressBar};
+use crate::registry::asset::RegistryAsset;
+use crate::registry::context::RegistryContext;
+use crate::registry::os::index::OsVersionInfo;
+use crate::registry::os::SIG_CONTEXT;
+use crate::registry::signer::{Blake3Ed25519Signature, Signature};
+use crate::util::Version;
+
+pub fn sign_api<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand("iso", from_fn_async(sign_iso).no_cli())
+        .subcommand("img", from_fn_async(sign_img).no_cli())
+        .subcommand("squashfs", from_fn_async(sign_squashfs).no_cli())
+}
+
+#[derive(Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SignAssetParams {
+    #[ts(type = "string")]
+    version: Version,
+    #[ts(type = "string")]
+    platform: InternedString,
+    signature: Signature,
+}
+
+async fn sign_asset(
+    ctx: RegistryContext,
+    SignAssetParams {
+        version,
+        platform,
+        signature,
+    }: SignAssetParams,
+    accessor: impl FnOnce(&mut Model<OsVersionInfo>) -> &mut Model<BTreeMap<InternedString, RegistryAsset>>
+        + UnwindSafe
+        + Send,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            let guid = db.as_index().as_signers().get_signer(&signature.signer())?;
+            if !db
+                .as_index()
+                .as_os()
+                .as_versions()
+                .as_idx(&version)
+                .or_not_found(&version)?
+                .as_signers()
+                .de()?
+                .contains(&guid)
+            {
+                return Err(Error::new(
+                    eyre!("signer {guid} is not authorized"),
+                    ErrorKind::Authorization,
+                ));
+            }
+
+            accessor(
+                db.as_index_mut()
+                    .as_os_mut()
+                    .as_versions_mut()
+                    .as_idx_mut(&version)
+                    .or_not_found(&version)?,
+            )
+            .as_idx_mut(&platform)
+            .or_not_found(&platform)?
+            .as_signature_info_mut()
+            .mutate(|s| s.add_sig(&signature))?;
+
+            Ok(())
+        })
+        .await
+}
+
+pub async fn sign_iso(ctx: RegistryContext, params: SignAssetParams) -> Result<(), Error> {
+    sign_asset(ctx, params, |m| m.as_iso_mut()).await
+}
+
+pub async fn sign_img(ctx: RegistryContext, params: SignAssetParams) -> Result<(), Error> {
+    sign_asset(ctx, params, |m| m.as_img_mut()).await
+}
+
+pub async fn sign_squashfs(ctx: RegistryContext, params: SignAssetParams) -> Result<(), Error> {
+    sign_asset(ctx, params, |m| m.as_squashfs_mut()).await
+}
+
+#[derive(Debug, Deserialize, Serialize, Parser)]
+#[command(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
+pub struct CliSignAssetParams {
+    #[arg(short = 'p', long = "platform")]
+    pub platform: InternedString,
+    #[arg(short = 'v', long = "version")]
+    pub version: Version,
+    pub file: PathBuf,
+}
+
+pub async fn cli_sign_asset(
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        params:
+            CliSignAssetParams {
+                platform,
+                version,
+                file: path,
+            },
+        ..
+    }: HandlerArgs<CliContext, CliSignAssetParams>,
+) -> Result<(), Error> {
+    let ext = match path.extension().and_then(|e| e.to_str()) {
+        Some("iso") => "iso",
+        Some("img") => "img",
+        Some("squashfs") => "squashfs",
+        _ => {
+            return Err(Error::new(
+                eyre!("Unknown extension"),
+                ErrorKind::InvalidRequest,
+            ))
+        }
+    };
+
+    let file = tokio::fs::File::open(&path).await?.into();
+
+    let mut progress = FullProgressTracker::new();
+    let progress_handle = progress.handle();
+    let mut sign_phase =
+        progress_handle.add_phase(InternedString::intern("Signing File"), Some(10));
+    let mut index_phase = progress_handle.add_phase(
+        InternedString::intern("Adding Signature to Registry Index"),
+        Some(1),
+    );
+
+    let progress_task: NonDetachingJoinHandle<()> = tokio::spawn(async move {
+        let mut bar = PhasedProgressBar::new(&format!("Adding {} to registry...", path.display()));
+        loop {
+            let snap = progress.snapshot();
+            bar.update(&snap);
+            if snap.overall.is_complete() {
+                break;
+            }
+            progress.changed().await
+        }
+    })
+    .into();
+
+    sign_phase.start();
+    let blake3_sig =
+        Blake3Ed25519Signature::sign_file(ctx.developer_key()?, &file, SIG_CONTEXT).await?;
+    let signature = Signature::Blake3Ed25519(blake3_sig);
+    sign_phase.complete();
+
+    index_phase.start();
+    ctx.call_remote::<RegistryContext>(
+        &parent_method
+            .into_iter()
+            .chain(method)
+            .chain([ext])
+            .join("."),
+        imbl_value::json!({
+            "platform": platform,
+            "version": version,
+            "signature": signature,
+        }),
+    )
+    .await?;
+    index_phase.complete();
+
+    progress_handle.complete();
+
+    progress_task.await.with_kind(ErrorKind::Unknown)?;
+
+    Ok(())
+}

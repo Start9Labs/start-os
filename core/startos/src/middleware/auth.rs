@@ -245,7 +245,6 @@ impl Borrow<str> for HashSessionToken {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Metadata {
     #[serde(default = "const_true")]
     authenticated: bool,
@@ -274,7 +273,6 @@ impl Auth {
         }
     }
 }
-#[async_trait::async_trait]
 impl Middleware<RpcContext> for Auth {
     type Metadata = Metadata;
     async fn process_http_request(
@@ -306,7 +304,7 @@ impl Middleware<RpcContext> for Auth {
                 });
             }
             if let Some(user_agent) = self.user_agent.as_ref().and_then(|h| h.to_str().ok()) {
-                request.params["user-agent"] = Value::String(Arc::new(user_agent.to_owned()))
+                request.params["__auth_userAgent"] = Value::String(Arc::new(user_agent.to_owned()))
                 // TODO: will this panic?
             }
         } else if metadata.authenticated {
@@ -318,7 +316,7 @@ impl Middleware<RpcContext> for Auth {
                     })
                 }
                 Ok(HasValidSession(SessionType::Session(s))) if metadata.get_session => {
-                    request.params["session"] =
+                    request.params["__auth_session"] =
                         Value::String(Arc::new(s.hashed().deref().to_owned()));
                     // TODO: will this panic?
                 }

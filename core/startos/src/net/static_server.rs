@@ -24,18 +24,19 @@ use tokio::io::BufReader;
 use tokio_util::io::ReaderStream;
 
 use crate::context::{DiagnosticContext, InstallContext, RpcContext, SetupContext};
-use crate::core::rpc_continuations::RequestGuid;
 use crate::db::subscribe;
 use crate::hostname::Hostname;
 use crate::middleware::auth::{Auth, HasValidSession};
 use crate::middleware::cors::Cors;
 use crate::middleware::db::SyncDb;
 use crate::middleware::diagnostic::DiagnosticMode;
+use crate::rpc_continuations::RequestGuid;
 use crate::{diagnostic_api, install_api, main_api, setup_api, Error, ErrorKind, ResultExt};
 
 const NOT_FOUND: &[u8] = b"Not Found";
 const METHOD_NOT_ALLOWED: &[u8] = b"Method Not Allowed";
 const NOT_AUTHORIZED: &[u8] = b"Not Authorized";
+const INTERNAL_SERVER_ERROR: &[u8] = b"Internal Server Error";
 
 #[cfg(all(feature = "daemon", not(feature = "test")))]
 const EMBEDDED_UIS: Dir<'_> =
@@ -112,7 +113,7 @@ pub fn main_ui_server_router(ctx: RpcContext) -> Router {
         .route("/rpc/*path", {
             let ctx = ctx.clone();
             post(
-                Server::new(move || ready(Ok(ctx.clone())), main_api())
+                Server::new(move || ready(Ok(ctx.clone())), main_api::<RpcContext>())
                     .middleware(Cors::new())
                     .middleware(Auth::new())
                     .middleware(SyncDb::new()),
@@ -140,7 +141,7 @@ pub fn main_ui_server_router(ctx: RpcContext) -> Router {
                             tracing::debug!("No Guid Path");
                             bad_request()
                         }
-                        Some(guid) => match ctx.get_ws_continuation_handler(&guid).await {
+                        Some(guid) => match ctx.rpc_continuations.get_ws_handler(&guid).await {
                             Some(cont) => ws.on_upgrade(cont),
                             _ => not_found(),
                         },
@@ -163,7 +164,7 @@ pub fn main_ui_server_router(ctx: RpcContext) -> Router {
                             tracing::debug!("No Guid Path");
                             bad_request()
                         }
-                        Some(guid) => match ctx.get_rest_continuation_handler(&guid).await {
+                        Some(guid) => match ctx.rpc_continuations.get_rest_handler(&guid).await {
                             None => not_found(),
                             Some(cont) => cont(request).await.unwrap_or_else(server_error),
                         },
@@ -216,7 +217,7 @@ async fn if_authorized<
 ) -> Result<Response, Error> {
     if let Err(e) = HasValidSession::from_header(parts.headers.get(http::header::COOKIE), ctx).await
     {
-        un_authorized(e, parts.uri.path())
+        Ok(unauthorized(e, parts.uri.path()))
     } else {
         f().await
     }
@@ -305,17 +306,17 @@ async fn main_start_os_ui(req: Request, ctx: RpcContext) -> Result<Response, Err
     }
 }
 
-fn un_authorized(err: Error, path: &str) -> Result<Response, Error> {
+pub fn unauthorized(err: Error, path: &str) -> Response {
     tracing::warn!("unauthorized for {} @{:?}", err, path);
     tracing::debug!("{:?}", err);
-    Ok(Response::builder()
+    Response::builder()
         .status(StatusCode::UNAUTHORIZED)
         .body(NOT_AUTHORIZED.into())
-        .unwrap())
+        .unwrap()
 }
 
 /// HTTP status code 404
-fn not_found() -> Response {
+pub fn not_found() -> Response {
     Response::builder()
         .status(StatusCode::NOT_FOUND)
         .body(NOT_FOUND.into())
@@ -323,21 +324,23 @@ fn not_found() -> Response {
 }
 
 /// HTTP status code 405
-fn method_not_allowed() -> Response {
+pub fn method_not_allowed() -> Response {
     Response::builder()
         .status(StatusCode::METHOD_NOT_ALLOWED)
         .body(METHOD_NOT_ALLOWED.into())
         .unwrap()
 }
 
-fn server_error(err: Error) -> Response {
+pub fn server_error(err: Error) -> Response {
+    tracing::error!("internal server error: {}", err);
+    tracing::debug!("{:?}", err);
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .body(err.to_string().into())
+        .body(INTERNAL_SERVER_ERROR.into())
         .unwrap()
 }
 
-fn bad_request() -> Response {
+pub fn bad_request() -> Response {
     Response::builder()
         .status(StatusCode::BAD_REQUEST)
         .body(Body::empty())

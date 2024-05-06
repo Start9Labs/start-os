@@ -16,7 +16,7 @@ use models::{
     ActionId, DataUrl, HealthCheckId, HostId, Id, ImageId, PackageId, ServiceInterfaceId, VolumeId,
 };
 use patch_db::json_ptr::JsonPointer;
-use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn, from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
@@ -36,7 +36,7 @@ use crate::net::service_interface::{
     ServiceInterfaceWithHostInfo,
 };
 use crate::prelude::*;
-use crate::s9pk::merkle_archive::source::http::{HttpReader, HttpSource};
+use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::rpc::SKIP_ENV;
 use crate::s9pk::S9pk;
 use crate::service::cli::ContainerCliContext;
@@ -74,14 +74,17 @@ struct RpcData {
     method: String,
     params: Value,
 }
-pub fn service_effect_handler() -> ParentHandler {
+pub fn service_effect_handler<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("gitInfo", from_fn(crate::version::git_info))
+        .subcommand("gitInfo", from_fn(|_: C| crate::version::git_info()))
         .subcommand(
             "echo",
-            from_fn(echo).with_remote_cli::<ContainerCliContext>(),
+            from_fn(echo::<EffectContext>).with_call_remote::<ContainerCliContext>(),
         )
-        .subcommand("chroot", from_fn(chroot).no_display())
+        .subcommand(
+            "chroot",
+            from_fn(chroot::<ContainerCliContext>).no_display(),
+        )
         .subcommand("exists", from_fn_async(exists).no_cli())
         .subcommand("executeAction", from_fn_async(execute_action).no_cli())
         .subcommand("getConfigured", from_fn_async(get_configured).no_cli())
@@ -89,35 +92,35 @@ pub fn service_effect_handler() -> ParentHandler {
             "stopped",
             from_fn_async(stopped)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "running",
             from_fn_async(running)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "restart",
             from_fn_async(restart)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "shutdown",
             from_fn_async(shutdown)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "setConfigured",
             from_fn_async(set_configured)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "setMainStatus",
-            from_fn_async(set_main_status).with_remote_cli::<ContainerCliContext>(),
+            from_fn_async(set_main_status).with_call_remote::<ContainerCliContext>(),
         )
         .subcommand("setHealth", from_fn_async(set_health).no_cli())
         .subcommand("getStore", from_fn_async(get_store).no_cli())
@@ -129,10 +132,8 @@ pub fn service_effect_handler() -> ParentHandler {
         .subcommand(
             "createOverlayedImage",
             from_fn_async(create_overlayed_image)
-                .with_custom_display_fn::<AnyContext, _>(|_, (path, _)| {
-                    Ok(println!("{}", path.display()))
-                })
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_custom_display_fn(|_, (path, _)| Ok(println!("{}", path.display())))
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "destroyOverlayedImage",
@@ -154,19 +155,19 @@ pub fn service_effect_handler() -> ParentHandler {
             "setDependencies",
             from_fn_async(set_dependencies)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "getDependencies",
             from_fn_async(get_dependencies)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "checkDependencies",
             from_fn_async(check_dependencies)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand("getSystemSmtp", from_fn_async(get_system_smtp).no_cli())
         .subcommand("getContainerIp", from_fn_async(get_container_ip).no_cli())
@@ -493,7 +494,7 @@ struct GetHostInfoParams {
     callback: Callback,
 }
 async fn get_host_info(
-    _: AnyContext,
+    _: EffectContext,
     GetHostInfoParams { .. }: GetHostInfoParams,
 ) -> Result<Value, Error> {
     todo!()
@@ -537,7 +538,7 @@ struct GetServiceInterfaceParams {
     callback: Callback,
 }
 async fn get_service_interface(
-    _: AnyContext,
+    _: EffectContext,
     GetServiceInterfaceParams {
         callback,
         package_id,
@@ -584,8 +585,8 @@ struct ChrootParams {
     #[ts(type = "string[]")]
     args: Vec<OsString>,
 }
-fn chroot(
-    _: AnyContext,
+fn chroot<C: Context>(
+    _: C,
     ChrootParams {
         env,
         workdir,
@@ -734,7 +735,7 @@ async fn set_store(
             let model = db
                 .as_private_mut()
                 .as_package_stores_mut()
-                .upsert(&package_id, || Box::new(json!({})))?;
+                .upsert(&package_id, || json!({}))?;
             let mut model_value = model.de()?;
             if model_value.is_null() {
                 model_value = json!({});

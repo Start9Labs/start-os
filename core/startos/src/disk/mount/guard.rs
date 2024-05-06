@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Weak};
 
-use bytes::Buf;
 use lazy_static::lazy_static;
 use models::ResultExt;
 use tokio::sync::Mutex;
@@ -13,7 +12,7 @@ use super::util::unmount;
 use crate::util::{Invoke, Never};
 use crate::Error;
 
-pub const TMP_MOUNTPOINT: &'static str = "/media/embassy/tmp";
+pub const TMP_MOUNTPOINT: &'static str = "/media/startos/tmp";
 
 #[async_trait::async_trait]
 pub trait GenericMountGuard: std::fmt::Debug + Send + Sync + 'static {

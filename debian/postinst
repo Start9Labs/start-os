@@ -11,7 +11,7 @@ if [ -f /usr/sbin/grub-probe ] && ! [ -L /usr/sbin/grub-probe ]; then
   ln -s /usr/lib/startos/scripts/grub-probe-eos /usr/sbin/grub-probe
 fi
 
-cp /usr/lib/startos/scripts/embassy-initramfs-module /etc/initramfs-tools/scripts/embassy
+cp /usr/lib/startos/scripts/startos-initramfs-module /etc/initramfs-tools/scripts/startos
 
 if ! grep overlay /etc/initramfs-tools/modules > /dev/null; then
     echo overlay >> /etc/initramfs-tools/modules
@@ -20,7 +20,7 @@ fi
 update-initramfs -u -k all
 
 if [ -f /etc/default/grub ]; then
-    sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=embassy"' /etc/default/grub
+    sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=startos"' /etc/default/grub
     sed -i '/\(^\|#\)GRUB_DISTRIBUTOR=/c\GRUB_DISTRIBUTOR="StartOS v$(cat /usr/lib/startos/VERSION.txt)"' /etc/default/grub
 fi
 
@@ -79,15 +79,6 @@ sed -i '/\(^\|#\)SystemMaxUse=/c\SystemMaxUse=1G' /etc/systemd/journald.conf
 sed -i '/\(^\|#\)ForwardToSyslog=/c\ForwardToSyslog=no' /etc/systemd/journald.conf
 sed -i '/^\s*#\?\s*issue_discards\s*=\s*/c\issue_discards = 1' /etc/lvm/lvm.conf
 
-if cat /usr/lib/startos/ENVIRONMENT.txt | grep '(^|-)docker(-|$)'; then
-    sed -i 's/ExecStart=\/usr\/bin\/dockerd/ExecStart=\/usr\/bin\/dockerd --exec-opt native.cgroupdriver=systemd/g' /lib/systemd/system/docker.service
-    mkdir -p /etc/docker
-    echo '{ "storage-driver": "overlay2" }' > /etc/docker/daemon.json
-else
-    if ! podman network ls | grep start9; then
-        podman network create -d bridge --subnet 172.18.0.1/24 --opt com.docker.network.bridge.name=br-start9 start9
-    fi
-fi
 mkdir -p /etc/nginx/ssl
 
 # fix to suppress docker warning, fixed in 21.xx release of docker cli: https://github.com/docker/cli/pull/2934

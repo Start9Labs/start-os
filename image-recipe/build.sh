@@ -326,7 +326,7 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	unsquashfs -f -d $TMPDIR $prep_results_dir/binary/live/filesystem.squashfs
 
 	if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-		sed -i 's| boot=embassy| init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/cmdline.txt
+		sed -i 's| boot=startos| init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/cmdline.txt
 		rsync -a $base_dir/raspberrypi/img/ $TMPDIR/
 	fi
 

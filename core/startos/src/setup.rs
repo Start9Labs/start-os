@@ -7,7 +7,7 @@ use josekit::jwk::Jwk;
 use openssl::x509::X509;
 use patch_db::json_ptr::ROOT;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{from_fn_async, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
@@ -37,7 +37,7 @@ use crate::util::crypto::EncryptedWire;
 use crate::util::io::{dir_copy, dir_size, Counter};
 use crate::{Error, ErrorKind, ResultExt};
 
-pub fn setup() -> ParentHandler {
+pub fn setup<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "status",
@@ -45,10 +45,10 @@ pub fn setup() -> ParentHandler {
                 .with_metadata("authenticated", Value::Bool(false))
                 .no_cli(),
         )
-        .subcommand("disk", disk())
+        .subcommand("disk", disk::<C>())
         .subcommand("attach", from_fn_async(attach).no_cli())
         .subcommand("execute", from_fn_async(execute).no_cli())
-        .subcommand("cifs", cifs())
+        .subcommand("cifs", cifs::<C>())
         .subcommand("complete", from_fn_async(complete).no_cli())
         .subcommand(
             "get-pubkey",
@@ -59,7 +59,7 @@ pub fn setup() -> ParentHandler {
         .subcommand("exit", from_fn_async(exit).no_cli())
 }
 
-pub fn disk() -> ParentHandler {
+pub fn disk<C: Context>() -> ParentHandler<C> {
     ParentHandler::new().subcommand(
         "list",
         from_fn_async(list_disks)
@@ -207,7 +207,7 @@ pub async fn get_pubkey(ctx: SetupContext) -> Result<Jwk, RpcError> {
     Ok(pub_key)
 }
 
-pub fn cifs() -> ParentHandler {
+pub fn cifs<C: Context>() -> ParentHandler<C> {
     ParentHandler::new().subcommand("verify", from_fn_async(verify_cifs).no_cli())
 }
 
@@ -360,7 +360,7 @@ pub async fn complete(ctx: SetupContext) -> Result<SetupResult, Error> {
             crate::ErrorKind::InvalidRequest,
         ));
     };
-    let mut guid_file = File::create("/media/embassy/config/disk.guid").await?;
+    let mut guid_file = File::create("/media/startos/config/disk.guid").await?;
     guid_file.write_all(guid.as_bytes()).await?;
     guid_file.sync_all().await?;
     Ok(setup_result)
@@ -463,7 +463,7 @@ async fn migrate(
 
     let _ = crate::disk::main::import(
         &old_guid,
-        "/media/embassy/migrate",
+        "/media/startos/migrate",
         RepairStrategy::Preen,
         if guid.ends_with("_UNENC") {
             None
@@ -473,9 +473,9 @@ async fn migrate(
     )
     .await?;
 
-    let main_transfer_args = ("/media/embassy/migrate/main/", "/embassy-data/main/");
+    let main_transfer_args = ("/media/startos/migrate/main/", "/embassy-data/main/");
     let package_data_transfer_args = (
-        "/media/embassy/migrate/package-data/",
+        "/media/startos/migrate/package-data/",
         "/embassy-data/package-data/",
     );
 
@@ -540,7 +540,7 @@ async fn migrate(
 
     let (hostname, tor_addr, root_ca) = setup_init(&ctx, Some(start_os_password)).await?;
 
-    crate::disk::main::export(&old_guid, "/media/embassy/migrate").await?;
+    crate::disk::main::export(&old_guid, "/media/startos/migrate").await?;
 
     Ok((guid, hostname, tor_addr, root_ca))
 }

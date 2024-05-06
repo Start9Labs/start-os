@@ -165,7 +165,7 @@ impl ServiceMap {
                                     configured: false,
                                     main: MainStatus::Stopped,
                                 },
-                                marketplace_url: None,
+                                registry: None,
                                 developer_key: Pem::new(developer_key),
                                 icon,
                                 last_backup: None,
@@ -206,6 +206,7 @@ impl ServiceMap {
                             Some(Duration::from_millis(100)),
                         )));
 
+                    download_progress.start();
                     let mut progress_writer = ProgressTrackerWriter::new(
                         crate::util::io::create_file(&download_path).await?,
                         download_progress,
@@ -229,6 +230,7 @@ impl ServiceMap {
                 .await?;
             Ok(reload_guard
                 .handle_last(async move {
+                    finalization_progress.start();
                     let s9pk = S9pk::open(&installed_path, Some(&id), true).await?;
                     let prev = if let Some(service) = service.take() {
                         ensure_code!(
@@ -246,7 +248,6 @@ impl ServiceMap {
                         service
                             .uninstall(Some(s9pk.as_manifest().version.clone()))
                             .await?;
-                        finalization_progress.complete();
                         progress_handle.complete();
                         Some(version)
                     } else {

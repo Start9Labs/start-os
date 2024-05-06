@@ -104,7 +104,7 @@ async fn setup_or_init(config: &ServerConfig) -> Result<Option<Shutdown>, Error>
         Command::new("reboot")
             .invoke(crate::ErrorKind::Unknown)
             .await?;
-    } else if tokio::fs::metadata("/media/embassy/config/disk.guid")
+    } else if tokio::fs::metadata("/media/startos/config/disk.guid")
         .await
         .is_err()
     {
@@ -136,7 +136,7 @@ async fn setup_or_init(config: &ServerConfig) -> Result<Option<Shutdown>, Error>
             tracing::debug!("{:?}", e);
         }
     } else {
-        let guid_string = tokio::fs::read_to_string("/media/embassy/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
+        let guid_string = tokio::fs::read_to_string("/media/startos/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
             .await?;
         let guid = guid_string.trim();
         let requires_reboot = crate::disk::main::import(
@@ -202,7 +202,7 @@ async fn inner_main(config: &ServerConfig) -> Result<Option<Shutdown>, Error> {
 
     crate::sound::BEP.play().await?;
 
-    run_script_if_exists("/media/embassy/config/preinit.sh").await;
+    run_script_if_exists("/media/startos/config/preinit.sh").await;
 
     let res = match setup_or_init(config).await {
         Err(e) => {
@@ -213,12 +213,12 @@ async fn inner_main(config: &ServerConfig) -> Result<Option<Shutdown>, Error> {
 
                 let ctx = DiagnosticContext::init(
                     config,
-                    if tokio::fs::metadata("/media/embassy/config/disk.guid")
+                    if tokio::fs::metadata("/media/startos/config/disk.guid")
                         .await
                         .is_ok()
                     {
                         Some(Arc::new(
-                            tokio::fs::read_to_string("/media/embassy/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
+                            tokio::fs::read_to_string("/media/startos/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
                                 .await?
                                 .trim()
                                 .to_owned(),
@@ -245,7 +245,7 @@ async fn inner_main(config: &ServerConfig) -> Result<Option<Shutdown>, Error> {
         Ok(s) => Ok(s),
     };
 
-    run_script_if_exists("/media/embassy/config/postinit.sh").await;
+    run_script_if_exists("/media/startos/config/postinit.sh").await;
 
     res
 }
