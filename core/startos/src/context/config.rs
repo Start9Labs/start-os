@@ -14,7 +14,7 @@ use crate::init::init_postgres;
 use crate::prelude::*;
 use crate::util::serde::IoFormat;
 
-pub const DEVICE_CONFIG_PATH: &str = "/media/embassy/config/config.yaml"; // "/media/startos/config/config.yaml";
+pub const DEVICE_CONFIG_PATH: &str = "/media/startos/config/config.yaml"; // "/media/startos/config/config.yaml";
 pub const CONFIG_PATH: &str = "/etc/startos/config.yaml";
 pub const CONFIG_PATH_LOCAL: &str = ".startos/config.yaml";
 
@@ -58,6 +58,8 @@ pub struct ClientConfig {
     pub config: Option<PathBuf>,
     #[arg(short = 'h', long = "host")]
     pub host: Option<Url>,
+    #[arg(short = 'r', long = "registry")]
+    pub registry: Option<Url>,
     #[arg(short = 'p', long = "proxy")]
     pub proxy: Option<Url>,
     #[arg(long = "cookie-path")]
@@ -71,8 +73,10 @@ impl ContextConfig for ClientConfig {
     }
     fn merge_with(&mut self, other: Self) {
         self.host = self.host.take().or(other.host);
+        self.registry = self.registry.take().or(other.registry);
         self.proxy = self.proxy.take().or(other.proxy);
         self.cookie_path = self.cookie_path.take().or(other.cookie_path);
+        self.developer_key_path = self.developer_key_path.take().or(other.developer_key_path);
     }
 }
 impl ClientConfig {

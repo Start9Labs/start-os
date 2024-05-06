@@ -8,7 +8,7 @@ use color_eyre::eyre::eyre;
 use digest::generic_array::GenericArray;
 use digest::OutputSizeUser;
 use models::PackageId;
-use rpc_toolkit::{command, from_fn_async, AnyContext, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use tokio::sync::Mutex;
@@ -138,23 +138,23 @@ impl FileSystem for BackupTargetFS {
 }
 
 // #[command(subcommands(cifs::cifs, list, info, mount, umount))]
-pub fn target() -> ParentHandler {
+pub fn target<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("cifs", cifs::cifs())
+        .subcommand("cifs", cifs::cifs::<C>())
         .subcommand(
             "list",
             from_fn_async(list)
                 .with_display_serializable()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "info",
             from_fn_async(info)
                 .with_display_serializable()
-                .with_custom_display_fn::<AnyContext, _>(|params, info| {
+                .with_custom_display_fn::<CliContext, _>(|params, info| {
                     Ok(display_backup_info(params.params, info))
                 })
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
 }
 

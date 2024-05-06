@@ -91,4 +91,13 @@ impl MainStatus {
         };
         MainStatus::BackingUp { started, health }
     }
+
+    pub fn health(&self) -> Option<&OrdMap<HealthCheckId, HealthCheckResult>> {
+        match self {
+            MainStatus::Running { health, .. } => Some(health),
+            MainStatus::BackingUp { health, .. } => Some(health),
+            MainStatus::Stopped | MainStatus::Stopping { .. } | MainStatus::Restarting => None,
+            MainStatus::Starting { .. } => None,
+        }
+    }
 }

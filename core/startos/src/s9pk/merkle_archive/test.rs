@@ -52,7 +52,7 @@ fn test(files: Vec<(PathBuf, String)>) -> Result<(), Error> {
         }
     }
     let key = SigningKey::generate(&mut rand::thread_rng());
-    let mut a1 = MerkleArchive::new(root, key);
+    let mut a1 = MerkleArchive::new(root, key, "test");
     tokio::runtime::Builder::new_current_thread()
         .enable_io()
         .build()
@@ -63,7 +63,7 @@ fn test(files: Vec<(PathBuf, String)>) -> Result<(), Error> {
             a1.serialize(&mut TrackingWriter::new(0, &mut s1), true)
                 .await?;
             let s1: Arc<[u8]> = s1.into();
-            let a2 = MerkleArchive::deserialize(&s1, &mut Cursor::new(s1.clone())).await?;
+            let a2 = MerkleArchive::deserialize(&s1, "test", &mut Cursor::new(s1.clone())).await?;
 
             for (path, content) in check_set {
                 match a2

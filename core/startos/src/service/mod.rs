@@ -7,14 +7,13 @@ use futures::future::BoxFuture;
 use imbl::OrdMap;
 use models::{HealthCheckId, PackageId, ProcedureName};
 use persistent_container::PersistentContainer;
-use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, Handler, HandlerArgs};
+use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerFor};
 use serde::{Deserialize, Serialize};
 use start_stop::StartStop;
 use tokio::sync::Notify;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::core::rpc_continuations::RequestGuid;
 use crate::db::model::package::{
     InstalledState, PackageDataEntry, PackageState, PackageStateMatchModelRef, UpdatingState,
 };
@@ -23,6 +22,7 @@ use crate::install::PKG_ARCHIVE_DIR;
 use crate::lxc::ContainerId;
 use crate::prelude::*;
 use crate::progress::{NamedProgress, Progress};
+use crate::rpc_continuations::RequestGuid;
 use crate::s9pk::S9pk;
 use crate::service::service_map::InstallProgressHandles;
 use crate::service::transition::TransitionKind;
@@ -510,11 +510,25 @@ pub async fn connect_rpc(
 }
 
 pub async fn connect_rpc_cli(
-    handle_args: HandlerArgs<CliContext, ConnectParams>,
+    HandlerArgs {
+        context,
+        parent_method,
+        method,
+        params,
+        inherited_params,
+        raw_params,
+    }: HandlerArgs<CliContext, ConnectParams>,
 ) -> Result<(), Error> {
-    let ctx = handle_args.context.clone();
-    let guid = CallRemoteHandler::<CliContext, _>::new(from_fn_async(connect_rpc))
-        .handle_async(handle_args)
+    let ctx = context.clone();
+    let guid = CallRemoteHandler::<CliContext, _, _>::new(from_fn_async(connect_rpc))
+        .handle_async(HandlerArgs {
+            context,
+            parent_method,
+            method,
+            params: rpc_toolkit::util::Flat(params, Empty {}),
+            inherited_params,
+            raw_params,
+        })
         .await?;
 
     crate::lxc::connect_cli(&ctx, guid).await

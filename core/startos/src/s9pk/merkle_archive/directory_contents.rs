@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use blake3::Hash;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use imbl::OrdMap;
@@ -11,11 +12,11 @@ use itertools::Itertools;
 use tokio::io::AsyncRead;
 
 use crate::prelude::*;
-use crate::s9pk::merkle_archive::hash::{Hash, HashWriter};
 use crate::s9pk::merkle_archive::sink::{Sink, TrackingWriter};
 use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
 use crate::s9pk::merkle_archive::write_queue::WriteQueue;
 use crate::s9pk::merkle_archive::{varint, Entry, EntryContents};
+use crate::util::io::ParallelBlake3Writer;
 
 #[derive(Clone)]
 pub struct DirectoryContents<S> {
@@ -155,7 +156,7 @@ impl<S: ArchiveSource> DirectoryContents<Section<S>> {
     pub fn deserialize<'a>(
         source: &'a S,
         header: &'a mut (impl AsyncRead + Unpin + Send),
-        sighash: Hash,
+        (sighash, max_size): (Hash, u64),
     ) -> BoxFuture<'a, Result<Self, Error>> {
         async move {
             use tokio::io::AsyncReadExt;
@@ -168,15 +169,20 @@ impl<S: ArchiveSource> DirectoryContents<Section<S>> {
             header.read_exact(&mut size).await?;
             let size = u64::from_be_bytes(size);
 
+            ensure_code!(
+                size <= max_size,
+                ErrorKind::InvalidSignature,
+                "size is greater than signed"
+            );
+
             let mut toc_reader = source.fetch(position, size).await?;
 
             let len = varint::deserialize_varint(&mut toc_reader).await?;
             let mut entries = OrdMap::new();
             for _ in 0..len {
-                entries.insert(
-                    varint::deserialize_varstring(&mut toc_reader).await?.into(),
-                    Entry::deserialize(source, &mut toc_reader).await?,
-                );
+                let name = varint::deserialize_varstring(&mut toc_reader).await?;
+                let entry = Entry::deserialize(source, &mut toc_reader).await?;
+                entries.insert(name.into(), entry);
             }
 
             let res = Self {
@@ -233,7 +239,8 @@ impl<S: FileSource> DirectoryContents<S> {
     #[instrument(skip_all)]
     pub fn sighash<'a>(&'a self) -> BoxFuture<'a, Result<Hash, Error>> {
         async move {
-            let mut hasher = TrackingWriter::new(0, HashWriter::new());
+            let mut hasher =
+                TrackingWriter::new(0, ParallelBlake3Writer::new(super::hash::BUFFER_CAPACITY));
             let mut sig_contents = OrdMap::new();
             for (name, entry) in &**self {
                 sig_contents.insert(name.clone(), entry.to_missing().await?);
@@ -244,7 +251,8 @@ impl<S: FileSource> DirectoryContents<S> {
             }
             .serialize_toc(&mut WriteQueue::new(0), &mut hasher)
             .await?;
-            Ok(hasher.into_inner().finalize())
+            let hash = hasher.into_inner().finalize().await?;
+            Ok(hash)
         }
         .boxed()
     }
@@ -267,7 +275,9 @@ impl<S: FileSource> DirectoryContents<S> {
             _ => std::cmp::Ordering::Equal,
         }) {
             varint::serialize_varstring(&**name, w).await?;
-            entry.serialize_header(queue.add(entry).await?, w).await?;
+            if let Some(pos) = entry.serialize_header(queue.add(entry).await?, w).await? {
+                eprintln!("DEBUG ====> {name} @ {pos}");
+            }
         }
 
         Ok(())

@@ -19,6 +19,7 @@ use crate::account::AccountInfo;
 use crate::db::model::package::AllPackageData;
 use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::prelude::*;
+use crate::progress::FullProgress;
 use crate::util::cpupower::Governor;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
@@ -177,22 +178,11 @@ pub struct BackupProgress {
 pub struct ServerStatus {
     pub backup_progress: Option<BTreeMap<PackageId, BackupProgress>>,
     pub updated: bool,
-    pub update_progress: Option<UpdateProgress>,
+    pub update_progress: Option<FullProgress>,
     #[serde(default)]
     pub shutting_down: bool,
     #[serde(default)]
     pub restarting: bool,
-}
-
-#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
-#[serde(rename_all = "camelCase")]
-#[model = "Model<Self>"]
-#[ts(export)]
-pub struct UpdateProgress {
-    #[ts(type = "number | null")]
-    pub size: Option<u64>,
-    #[ts(type = "number")]
-    pub downloaded: u64,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]

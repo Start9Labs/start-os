@@ -5,10 +5,11 @@ use clap::Parser;
 use imbl_value::Value;
 use once_cell::sync::OnceCell;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{call_remote_socket, yajrc, CallRemote, Context};
+use rpc_toolkit::{call_remote_socket, yajrc, CallRemote, Context, Empty};
 use tokio::runtime::Runtime;
 
 use crate::lxc::HOST_RPC_SERVER_SOCKET;
+use crate::service::service_effect_handler::EffectContext;
 
 #[derive(Debug, Default, Parser)]
 pub struct ContainerClientConfig {
@@ -48,9 +49,8 @@ impl Context for ContainerCliContext {
     }
 }
 
-#[async_trait::async_trait]
-impl CallRemote for ContainerCliContext {
-    async fn call_remote(&self, method: &str, params: Value) -> Result<Value, RpcError> {
+impl CallRemote<EffectContext> for ContainerCliContext {
+    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
         call_remote_socket(
             tokio::net::UnixStream::connect(&self.0.socket)
                 .await

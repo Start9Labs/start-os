@@ -55,7 +55,6 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> DockerReader<R> {
         if let Some(image) = tokio_tar::Archive::new(rdr)
             .entries()?
             .try_filter_map(|e| {
-                let arch = arch.clone();
                 async move {
                     Ok(if &*e.path()? == Path::new(&format!("{}.tar", arch)) {
                         Some(e)

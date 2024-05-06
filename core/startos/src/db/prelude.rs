@@ -1,21 +1,15 @@
 use std::collections::BTreeMap;
-use std::future::Future;
 use std::marker::PhantomData;
-use std::panic::UnwindSafe;
 use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
 pub use imbl_value::Value;
-use patch_db::json_ptr::ROOT;
 use patch_db::value::InternedString;
 pub use patch_db::{HasModel, PatchDb};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::db::model::DatabaseModel;
 use crate::prelude::*;
-
-pub type Peeked = Model<super::model::Database>;
 
 pub fn to_value<T>(value: &T) -> Result<Value, Error>
 where
@@ -31,45 +25,7 @@ where
     patch_db::value::from_value(value).with_kind(ErrorKind::Deserialization)
 }
 
-pub trait PatchDbExt {
-    fn peek(&self) -> impl Future<Output = DatabaseModel> + Send;
-    fn mutate<U: UnwindSafe + Send>(
-        &self,
-        f: impl FnOnce(&mut DatabaseModel) -> Result<U, Error> + UnwindSafe + Send,
-    ) -> impl Future<Output = Result<U, Error>> + Send;
-    fn map_mutate(
-        &self,
-        f: impl FnOnce(DatabaseModel) -> Result<DatabaseModel, Error> + UnwindSafe + Send,
-    ) -> impl Future<Output = Result<DatabaseModel, Error>> + Send;
-}
-impl PatchDbExt for PatchDb {
-    async fn peek(&self) -> DatabaseModel {
-        DatabaseModel::from(self.dump(&ROOT).await.value)
-    }
-    async fn mutate<U: UnwindSafe + Send>(
-        &self,
-        f: impl FnOnce(&mut DatabaseModel) -> Result<U, Error> + UnwindSafe + Send,
-    ) -> Result<U, Error> {
-        Ok(self
-            .apply_function(|mut v| {
-                let model = <&mut DatabaseModel>::from(&mut v);
-                let res = f(model)?;
-                Ok::<_, Error>((v, res))
-            })
-            .await?
-            .1)
-    }
-    async fn map_mutate(
-        &self,
-        f: impl FnOnce(DatabaseModel) -> Result<DatabaseModel, Error> + UnwindSafe + Send,
-    ) -> Result<DatabaseModel, Error> {
-        Ok(DatabaseModel::from(
-            self.apply_function(|v| f(DatabaseModel::from(v)).map(|a| (a.into(), ())))
-                .await?
-                .0,
-        ))
-    }
-}
+pub type TypedPatchDb<T> = patch_db::TypedPatchDb<T, Error>;
 
 /// &mut Model<T> <=> &mut Value
 #[repr(transparent)]
@@ -125,7 +81,7 @@ impl<T: Serialize + DeserializeOwned> Model<T> {
         Ok(res)
     }
     pub fn map_mutate(&mut self, f: impl FnOnce(T) -> Result<T, Error>) -> Result<T, Error> {
-        let mut orig = self.de()?;
+        let orig = self.de()?;
         let res = f(orig)?;
         self.ser(&res)?;
         Ok(res)
@@ -262,10 +218,9 @@ where
             .into()),
         }
     }
-    pub fn upsert<F, D>(&mut self, key: &T::Key, value: F) -> Result<&mut Model<T::Value>, Error>
+    pub fn upsert<F>(&mut self, key: &T::Key, value: F) -> Result<&mut Model<T::Value>, Error>
     where
-        F: FnOnce() -> D,
-        D: AsRef<T::Value>,
+        F: FnOnce() -> T::Value,
     {
         use serde::ser::Error;
         match &mut self.value {
@@ -278,7 +233,7 @@ where
                     s.as_ref().index_or_insert(v)
                 });
                 if !exists {
-                    res.ser(value().as_ref())?;
+                    res.ser(&value())?;
                 }
                 Ok(res)
             }
@@ -375,6 +330,18 @@ where
     }
 }
 impl<T: Map> Model<T> {
+    pub fn contains_key(&self, key: &T::Key) -> Result<bool, Error> {
+        use serde::de::Error;
+        let s = T::key_str(key)?;
+        match &self.value {
+            Value::Object(o) => Ok(o.contains_key(s.as_ref())),
+            v => Err(patch_db::value::Error {
+                source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),
+                kind: patch_db::value::ErrorKind::Deserialization,
+            }
+            .into()),
+        }
+    }
     pub fn into_idx(self, key: &T::Key) -> Option<Model<T::Value>> {
         use patch_db::ModelExt;
         let s = T::key_str(key).ok()?;

@@ -19,6 +19,7 @@ use tokio_rustls::{LazyConfigAcceptor, TlsConnector};
 use tracing::instrument;
 use ts_rs::TS;
 
+use crate::db::model::Database;
 use crate::prelude::*;
 use crate::util::io::{BackTrackingReader, TimeoutStream};
 use crate::util::serde::MaybeUtf8String;
@@ -26,11 +27,11 @@ use crate::util::serde::MaybeUtf8String;
 // not allowed: <=1024, >=32768, 5355, 5432, 9050, 6010, 9051, 5353
 
 pub struct VHostController {
-    db: PatchDb,
+    db: TypedPatchDb<Database>,
     servers: Mutex<BTreeMap<u16, VHostServer>>,
 }
 impl VHostController {
-    pub fn new(db: PatchDb) -> Self {
+    pub fn new(db: TypedPatchDb<Database>) -> Self {
         Self {
             db,
             servers: Mutex::new(BTreeMap::new()),
@@ -100,7 +101,7 @@ struct VHostServer {
 }
 impl VHostServer {
     #[instrument(skip_all)]
-    async fn new(port: u16, db: PatchDb) -> Result<Self, Error> {
+    async fn new(port: u16, db: TypedPatchDb<Database>) -> Result<Self, Error> {
         // check if port allowed
         let listener = TcpListener::bind(SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), port))
             .await

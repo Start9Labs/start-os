@@ -1017,7 +1017,11 @@ export class MockApiService extends ApiService {
     const progress = JSON.parse(JSON.stringify(PROGRESS))
 
     for (let [i, phase] of progress.phases.entries()) {
-      if (typeof phase.progress !== 'object' || !phase.progress.total) {
+      if (
+        !phase.progress ||
+        typeof phase.progress !== 'object' ||
+        !phase.progress.total
+      ) {
         await pauseFor(2000)
 
         const patches: Operation<any>[] = [
@@ -1029,7 +1033,11 @@ export class MockApiService extends ApiService {
         ]
 
         // overall
-        if (typeof progress.overall === 'object' && progress.overall.total) {
+        if (
+          progress.overall &&
+          typeof progress.overall === 'object' &&
+          progress.overall.total
+        ) {
           const step = progress.overall.total / progress.phases.length
 
           progress.overall.done += step
@@ -1059,7 +1067,11 @@ export class MockApiService extends ApiService {
           ]
 
           // overall
-          if (typeof progress.overall === 'object' && progress.overall.total) {
+          if (
+            progress.overall &&
+            typeof progress.overall === 'object' &&
+            progress.overall.total
+          ) {
             const step = progress.overall.total / progress.phases.length / 4
 
             progress.overall.done += step

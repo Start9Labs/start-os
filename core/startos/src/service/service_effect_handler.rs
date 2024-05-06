@@ -11,11 +11,12 @@ use clap::Parser;
 use emver::VersionRange;
 use imbl::OrdMap;
 use imbl_value::{json, InternedString};
+use itertools::Itertools;
 use models::{
     ActionId, DataUrl, HealthCheckId, HostId, ImageId, PackageId, ServiceInterfaceId, VolumeId,
 };
 use patch_db::json_ptr::JsonPointer;
-use rpc_toolkit::{from_fn, from_fn_async, AnyContext, Context, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn, from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
@@ -23,15 +24,20 @@ use url::Url;
 
 use crate::db::model::package::{
     ActionMetadata, CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind,
+    ManifestPreference,
 };
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::net::host::address::HostAddress;
 use crate::net::host::binding::BindOptions;
-use crate::net::host::HostKind;
+use crate::net::host::{self, HostKind};
+use crate::net::service_interface::{
+    AddressInfo, ExportedHostInfo, ExportedHostnameInfo, ServiceInterface, ServiceInterfaceType,
+    ServiceInterfaceWithHostInfo,
+};
 use crate::prelude::*;
-use crate::s9pk::merkle_archive::source::http::{HttpReader, HttpSource};
+use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::rpc::SKIP_ENV;
 use crate::s9pk::S9pk;
 use crate::service::cli::ContainerCliContext;
@@ -69,14 +75,17 @@ struct RpcData {
     method: String,
     params: Value,
 }
-pub fn service_effect_handler() -> ParentHandler {
+pub fn service_effect_handler<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("gitInfo", from_fn(crate::version::git_info))
+        .subcommand("gitInfo", from_fn(|_: C| crate::version::git_info()))
         .subcommand(
             "echo",
-            from_fn(echo).with_remote_cli::<ContainerCliContext>(),
+            from_fn(echo::<EffectContext>).with_call_remote::<ContainerCliContext>(),
         )
-        .subcommand("chroot", from_fn(chroot).no_display())
+        .subcommand(
+            "chroot",
+            from_fn(chroot::<ContainerCliContext>).no_display(),
+        )
         .subcommand("exists", from_fn_async(exists).no_cli())
         .subcommand("executeAction", from_fn_async(execute_action).no_cli())
         .subcommand("getConfigured", from_fn_async(get_configured).no_cli())
@@ -84,35 +93,35 @@ pub fn service_effect_handler() -> ParentHandler {
             "stopped",
             from_fn_async(stopped)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "running",
             from_fn_async(running)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "restart",
             from_fn_async(restart)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "shutdown",
             from_fn_async(shutdown)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "setConfigured",
             from_fn_async(set_configured)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "setMainStatus",
-            from_fn_async(set_main_status).with_remote_cli::<ContainerCliContext>(),
+            from_fn_async(set_main_status).with_call_remote::<ContainerCliContext>(),
         )
         .subcommand("setHealth", from_fn_async(set_health).no_cli())
         .subcommand("getStore", from_fn_async(get_store).no_cli())
@@ -124,10 +133,8 @@ pub fn service_effect_handler() -> ParentHandler {
         .subcommand(
             "createOverlayedImage",
             from_fn_async(create_overlayed_image)
-                .with_custom_display_fn::<AnyContext, _>(|_, (path, _)| {
-                    Ok(println!("{}", path.display()))
-                })
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_custom_display_fn(|_, (path, _)| Ok(println!("{}", path.display())))
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "destroyOverlayedImage",
@@ -149,7 +156,19 @@ pub fn service_effect_handler() -> ParentHandler {
             "setDependencies",
             from_fn_async(set_dependencies)
                 .no_display()
-                .with_remote_cli::<ContainerCliContext>(),
+                .with_call_remote::<ContainerCliContext>(),
+        )
+        .subcommand(
+            "getDependencies",
+            from_fn_async(get_dependencies)
+                .no_display()
+                .with_call_remote::<ContainerCliContext>(),
+        )
+        .subcommand(
+            "checkDependencies",
+            from_fn_async(check_dependencies)
+                .no_display()
+                .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand("setSystemSmtp", from_fn_async(set_system_smtp).no_cli())
         .subcommand("getSystemSmtp", from_fn_async(get_system_smtp).no_cli())
@@ -176,6 +195,7 @@ pub fn service_effect_handler() -> ParentHandler {
         .subcommand("removeAction", from_fn_async(remove_action).no_cli())
         .subcommand("reverseProxy", from_fn_async(reverse_proxy).no_cli())
         .subcommand("mount", from_fn_async(mount).no_cli())
+
     // TODO Callbacks
 }
 
@@ -204,26 +224,8 @@ struct GetServicePortForwardParams {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
-struct AddressInfo {
-    username: Option<String>,
-    host_id: String,
-    bind_options: BindOptions,
-    suffix: String,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-enum ServiceInterfaceType {
-    Ui,
-    P2p,
-    Api,
-}
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
 struct ExportServiceInterfaceParams {
-    id: String,
+    id: ServiceInterfaceId,
     name: String,
     description: String,
     has_primary: bool,
@@ -231,6 +233,8 @@ struct ExportServiceInterfaceParams {
     masked: bool,
     address_info: AddressInfo,
     r#type: ServiceInterfaceType,
+    host_kind: HostKind,
+    hostnames: Vec<ExportedHostnameInfo>,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
@@ -321,18 +325,13 @@ struct MountParams {
     location: String,
     target: MountTarget,
 }
-async fn set_system_smtp(
-    context: EffectContext,
-    data: SetSystemSmtpParams,
-) -> Result<(), Error> {
+async fn set_system_smtp(context: EffectContext, data: SetSystemSmtpParams) -> Result<(), Error> {
     let context = context.deref()?;
     context
         .ctx
         .db
         .mutate(|db| {
-            let model = db.as_public_mut()
-            .as_server_info_mut()
-            .as_smtp_mut();
+            let model = db.as_public_mut().as_server_info_mut().as_smtp_mut();
             model.ser(&mut Some(data.smtp))
         })
         .await
@@ -396,9 +395,57 @@ async fn clear_network_interfaces(context: EffectContext, _: Empty) -> Result<()
 }
 async fn export_service_interface(
     context: EffectContext,
-    data: ExportServiceInterfaceParams,
-) -> Result<Value, Error> {
-    todo!()
+    ExportServiceInterfaceParams {
+        id,
+        name,
+        description,
+        has_primary,
+        disabled,
+        masked,
+        address_info,
+        r#type,
+        host_kind,
+        hostnames,
+    }: ExportServiceInterfaceParams,
+) -> Result<(), Error> {
+    let context = context.deref()?;
+    let package_id = context.id.clone();
+    let host_id = address_info.host_id.clone();
+
+    let service_interface = ServiceInterface {
+        id: id.clone(),
+        name,
+        description,
+        has_primary,
+        disabled,
+        masked,
+        address_info,
+        interface_type: r#type,
+    };
+    let host_info = ExportedHostInfo {
+        id: host_id,
+        kind: host_kind,
+        hostnames,
+    };
+    let svc_interface_with_host_info = ServiceInterfaceWithHostInfo {
+        service_interface,
+        host_info,
+    };
+
+    context
+        .ctx
+        .db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&package_id)
+                .or_not_found(&package_id)?
+                .as_service_interfaces_mut()
+                .insert(&id, &svc_interface_with_host_info)?;
+            Ok(())
+        })
+        .await?;
+    Ok(())
 }
 async fn get_primary_url(
     context: EffectContext,
@@ -428,8 +475,21 @@ async fn get_primary_url(
 async fn list_service_interfaces(
     context: EffectContext,
     data: ListServiceInterfacesParams,
-) -> Result<Value, Error> {
-    todo!()
+) -> Result<BTreeMap<ServiceInterfaceId, ServiceInterfaceWithHostInfo>, Error> {
+    let context = context.deref()?;
+    let package_id = context.id.clone();
+
+    context
+        .ctx
+        .db
+        .peek()
+        .await
+        .into_public()
+        .into_package_data()
+        .into_idx(&package_id)
+        .or_not_found(&package_id)?
+        .into_service_interfaces()
+        .de()
 }
 async fn remove_address(context: EffectContext, data: RemoveAddressParams) -> Result<(), Error> {
     let context = context.deref()?;
@@ -521,7 +581,7 @@ struct GetHostInfoParams {
     callback: Callback,
 }
 async fn get_host_info(
-    _: AnyContext,
+    _: EffectContext,
     GetHostInfoParams { .. }: GetHostInfoParams,
 ) -> Result<Value, Error> {
     todo!()
@@ -565,7 +625,7 @@ struct GetServiceInterfaceParams {
     callback: Callback,
 }
 async fn get_service_interface(
-    _: AnyContext,
+    _: EffectContext,
     GetServiceInterfaceParams {
         callback,
         package_id,
@@ -612,8 +672,8 @@ struct ChrootParams {
     #[ts(type = "string[]")]
     args: Vec<OsString>,
 }
-fn chroot(
-    _: AnyContext,
+fn chroot<C: Context>(
+    _: C,
     ChrootParams {
         env,
         workdir,
@@ -634,6 +694,7 @@ fn chroot(
             cmd.env(k, v);
         }
     }
+    nix::unistd::setsid().with_kind(ErrorKind::Lxc)?; // TODO: error code
     std::os::unix::fs::chroot(path)?;
     if let Some(uid) = user.as_deref().and_then(|u| u.parse::<u32>().ok()) {
         cmd.uid(uid);
@@ -761,7 +822,7 @@ async fn set_store(
             let model = db
                 .as_private_mut()
                 .as_package_stores_mut()
-                .upsert(&package_id, || Box::new(json!({})))?;
+                .upsert(&package_id, || json!({}))?;
             let mut model_value = model.de()?;
             if model_value.is_null() {
                 model_value = json!({});
@@ -1311,4 +1372,139 @@ async fn set_dependencies(
                 .ser(&CurrentDependencies(deps))
         })
         .await
+}
+
+async fn get_dependencies(ctx: EffectContext) -> Result<Vec<DependencyRequirement>, Error> {
+    let ctx = ctx.deref()?;
+    let id = &ctx.id;
+    let db = ctx.ctx.db.peek().await;
+    let data = db
+        .as_public()
+        .as_package_data()
+        .as_idx(id)
+        .or_not_found(id)?
+        .as_current_dependencies()
+        .de()?;
+
+    data.0
+        .into_iter()
+        .map(|(id, current_dependency_info)| {
+            let CurrentDependencyInfo {
+                registry_url,
+                version_spec,
+                kind,
+                ..
+            } = current_dependency_info;
+            Ok::<_, Error>(match kind {
+                CurrentDependencyKind::Exists => DependencyRequirement::Exists {
+                    id,
+                    registry_url,
+                    version_spec,
+                },
+                CurrentDependencyKind::Running { health_checks } => {
+                    DependencyRequirement::Running {
+                        id,
+                        health_checks,
+                        version_spec,
+                        registry_url,
+                    }
+                }
+            })
+        })
+        .try_collect()
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "camelCase")]
+#[ts(export)]
+struct CheckDependenciesParam {
+    package_ids: Option<Vec<PackageId>>,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+struct CheckDependenciesResult {
+    package_id: PackageId,
+    is_installed: bool,
+    is_running: bool,
+    health_checks: Vec<HealthCheckResult>,
+    #[ts(type = "string | null")]
+    version: Option<emver::Version>,
+}
+
+async fn check_dependencies(
+    ctx: EffectContext,
+    CheckDependenciesParam { package_ids }: CheckDependenciesParam,
+) -> Result<Vec<CheckDependenciesResult>, Error> {
+    let ctx = ctx.deref()?;
+    let db = ctx.ctx.db.peek().await;
+    let current_dependencies = db
+        .as_public()
+        .as_package_data()
+        .as_idx(&ctx.id)
+        .or_not_found(&ctx.id)?
+        .as_current_dependencies()
+        .de()?;
+    let package_ids: Vec<_> = package_ids
+        .unwrap_or_else(|| current_dependencies.0.keys().cloned().collect())
+        .into_iter()
+        .filter_map(|x| {
+            let info = current_dependencies.0.get(&x)?;
+            Some((x, info))
+        })
+        .collect();
+    let mut results = Vec::with_capacity(package_ids.len());
+
+    for (package_id, dependency_info) in package_ids {
+        let Some(package) = db.as_public().as_package_data().as_idx(&package_id) else {
+            results.push(CheckDependenciesResult {
+                package_id,
+                is_installed: false,
+                is_running: false,
+                health_checks: vec![],
+                version: None,
+            });
+            continue;
+        };
+        let installed_version = package
+            .as_state_info()
+            .as_manifest(ManifestPreference::New)
+            .as_version()
+            .de()?
+            .into_version();
+        let version = Some(installed_version.clone());
+        if !installed_version.satisfies(&dependency_info.version_spec) {
+            results.push(CheckDependenciesResult {
+                package_id,
+                is_installed: false,
+                is_running: false,
+                health_checks: vec![],
+                version,
+            });
+            continue;
+        }
+        let is_installed = true;
+        let status = package.as_status().as_main().de()?;
+        let is_running = if is_installed {
+            status.running()
+        } else {
+            false
+        };
+        let health_checks = status
+            .health()
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(_, val)| val)
+            .collect();
+        results.push(CheckDependenciesResult {
+            package_id,
+            is_installed,
+            is_running,
+            health_checks,
+            version,
+        });
+    }
+    Ok(results)
 }

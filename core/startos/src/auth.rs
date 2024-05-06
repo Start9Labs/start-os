@@ -4,9 +4,10 @@ use chrono::{DateTime, Utc};
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use imbl_value::{json, InternedString};
+use itertools::Itertools;
 use josekit::jwk::Jwk;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{command, from_fn_async, AnyContext, CallRemote, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
@@ -82,7 +83,7 @@ impl std::str::FromStr for PasswordType {
         })
     }
 }
-pub fn auth() -> ParentHandler {
+pub fn auth<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "login",
@@ -94,11 +95,11 @@ pub fn auth() -> ParentHandler {
         .subcommand(
             "logout",
             from_fn_async(logout)
-                .with_metadata("get-session", Value::Bool(true))
-                .with_remote_cli::<CliContext>()
-                .no_display(),
+                .with_metadata("get_session", Value::Bool(true))
+                .no_display()
+                .with_call_remote::<CliContext>(),
         )
-        .subcommand("session", session())
+        .subcommand("session", session::<C>())
         .subcommand(
             "reset-password",
             from_fn_async(reset_password_impl).no_cli(),
@@ -112,7 +113,7 @@ pub fn auth() -> ParentHandler {
             from_fn_async(get_pubkey)
                 .with_metadata("authenticated", Value::Bool(false))
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
 }
 
@@ -128,26 +129,20 @@ fn gen_pwd() {
         .unwrap()
     )
 }
-#[derive(Deserialize, Serialize, Parser)]
-#[serde(rename_all = "camelCase")]
-#[command(rename_all = "kebab-case")]
-pub struct CliLoginParams {
-    password: Option<PasswordType>,
-}
 
 #[instrument(skip_all)]
 async fn cli_login(
-    ctx: CliContext,
-    CliLoginParams { password }: CliLoginParams,
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        ..
+    }: HandlerArgs<CliContext>,
 ) -> Result<(), RpcError> {
-    let password = if let Some(password) = password {
-        password.decrypt(&ctx)?
-    } else {
-        rpassword::prompt_password("Password: ")?
-    };
+    let password = rpassword::prompt_password("Password: ")?;
 
-    ctx.call_remote(
-        "auth.login",
+    ctx.call_remote::<RpcContext>(
+        &parent_method.into_iter().chain(method).join("."),
         json!({
             "password": password,
             "metadata": {
@@ -185,7 +180,8 @@ pub fn check_password_against_db(db: &DatabaseModel, password: &str) -> Result<(
 #[command(rename_all = "kebab-case")]
 pub struct LoginParams {
     password: Option<PasswordType>,
-    #[serde(default)]
+    #[ts(skip)]
+    #[serde(rename = "__auth_userAgent")] // from Auth middleware
     user_agent: Option<String>,
     #[serde(default)]
     #[ts(type = "any")]
@@ -226,7 +222,8 @@ pub async fn login_impl(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct LogoutParams {
-    #[ts(type = "string")]
+    #[ts(skip)]
+    #[serde(rename = "__auth_session")] // from Auth middleware
     session: InternedString,
 }
 
@@ -262,23 +259,23 @@ pub struct SessionList {
     sessions: Sessions,
 }
 
-pub fn session() -> ParentHandler {
+pub fn session<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "list",
             from_fn_async(list)
-                .with_metadata("get-session", Value::Bool(true))
+                .with_metadata("get_session", Value::Bool(true))
                 .with_display_serializable()
-                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                .with_custom_display_fn(|handle, result| {
                     Ok(display_sessions(handle.params, result))
                 })
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "kill",
             from_fn_async(kill)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
 }
 
@@ -374,21 +371,16 @@ pub struct ResetPasswordParams {
 
 #[instrument(skip_all)]
 async fn cli_reset_password(
-    ctx: CliContext,
-    ResetPasswordParams {
-        old_password,
-        new_password,
-    }: ResetPasswordParams,
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        ..
+    }: HandlerArgs<CliContext>,
 ) -> Result<(), RpcError> {
-    let old_password = if let Some(old_password) = old_password {
-        old_password.decrypt(&ctx)?
-    } else {
-        rpassword::prompt_password("Current Password: ")?
-    };
+    let old_password = rpassword::prompt_password("Current Password: ")?;
 
-    let new_password = if let Some(new_password) = new_password {
-        new_password.decrypt(&ctx)?
-    } else {
+    let new_password = {
         let new_password = rpassword::prompt_password("New Password: ")?;
         if new_password != rpassword::prompt_password("Confirm: ")? {
             return Err(Error::new(
@@ -400,8 +392,8 @@ async fn cli_reset_password(
         new_password
     };
 
-    ctx.call_remote(
-        "auth.reset-password",
+    ctx.call_remote::<RpcContext>(
+        &parent_method.into_iter().chain(method).join("."),
         imbl_value::json!({ "old-password": old_password, "new-password": new_password }),
     )
     .await?;
@@ -447,7 +439,7 @@ pub async fn reset_password_impl(
 
 #[instrument(skip_all)]
 pub async fn get_pubkey(ctx: RpcContext) -> Result<Jwk, RpcError> {
-    let secret = ctx.as_ref().clone();
+    let secret = <RpcContext as AsRef<Jwk>>::as_ref(&ctx).clone();
     let pub_key = secret.to_public_key()?;
     Ok(pub_key)
 }

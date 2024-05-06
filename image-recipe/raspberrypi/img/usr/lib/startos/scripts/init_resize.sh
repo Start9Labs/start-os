@@ -114,7 +114,7 @@ mount / -o remount,ro
 beep
 
 if main; then
-  sed -i 's| init=/usr/lib/startos/scripts/init_resize\.sh| boot=embassy|' /boot/cmdline.txt
+  sed -i 's| init=/usr/lib/startos/scripts/init_resize\.sh| boot=startos|' /boot/cmdline.txt
   echo "Resized root filesystem. Rebooting in 5 seconds..."
   sleep 5
 else

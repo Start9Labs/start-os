@@ -4,7 +4,7 @@ use std::time::Duration;
 use clap::Parser;
 use models::PackageId;
 use patch_db::json_patch::merge;
-use rpc_toolkit::{command, from_fn_async, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
@@ -15,8 +15,8 @@ use crate::db::model::package::CurrentDependencies;
 use crate::prelude::*;
 use crate::Error;
 
-pub fn dependency() -> ParentHandler {
-    ParentHandler::new().subcommand("configure", configure())
+pub fn dependency<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new().subcommand("configure", configure::<C>())
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel, TS)]
@@ -50,7 +50,7 @@ pub struct ConfigureParams {
     dependent_id: PackageId,
     dependency_id: PackageId,
 }
-pub fn configure() -> ParentHandler<ConfigureParams> {
+pub fn configure<C: Context>() -> ParentHandler<C, ConfigureParams> {
     ParentHandler::new().root_handler(
         from_fn_async(configure_impl)
             .with_inherited(|params, _| params)

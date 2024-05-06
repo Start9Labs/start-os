@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use imbl_value::InternedString;
-use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -46,25 +46,25 @@ pub struct CifsBackupTarget {
     start_os: Option<EmbassyOsRecoveryInfo>,
 }
 
-pub fn cifs() -> ParentHandler {
+pub fn cifs<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "add",
             from_fn_async(add)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "update",
             from_fn_async(update)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "remove",
             from_fn_async(remove)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
 }
 

@@ -14,7 +14,6 @@ impl DiagnosticMode {
     }
 }
 
-#[async_trait::async_trait]
 impl Middleware<DiagnosticContext> for DiagnosticMode {
     type Metadata = Empty;
     async fn process_rpc_request(

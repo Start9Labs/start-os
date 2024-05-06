@@ -70,8 +70,14 @@ export class Overlay {
   async exec(
     command: string[],
     options?: CommandOptions,
-  ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
-    const imageMeta = await fs
+    timeoutMs: number | null = 30000,
+  ): Promise<{
+    exitCode: number | null
+    exitSignal: NodeJS.Signals | null
+    stdout: string | Buffer
+    stderr: string | Buffer
+  }> {
+    const imageMeta: any = await fs
       .readFile(`/media/startos/images/${this.imageId}.json`, {
         encoding: "utf8",
       })
@@ -87,7 +93,7 @@ export class Overlay {
       workdir = options.cwd
       delete options.cwd
     }
-    return await execFile(
+    const child = cp.spawn(
       "start-cli",
       [
         "chroot",
@@ -97,15 +103,51 @@ export class Overlay {
         this.rootfs,
         ...command,
       ],
-      options,
+      options || {},
     )
+    const pid = child.pid
+    const stdout = { data: "" as string | Buffer }
+    const stderr = { data: "" as string | Buffer }
+    const appendData =
+      (appendTo: { data: string | Buffer }) =>
+      (chunk: string | Buffer | any) => {
+        if (typeof appendTo.data === "string" && typeof chunk === "string") {
+          appendTo.data += chunk
+        } else if (typeof chunk === "string" || chunk instanceof Buffer) {
+          appendTo.data = Buffer.concat([
+            Buffer.from(appendTo.data),
+            Buffer.from(chunk),
+          ])
+        } else {
+          console.error("received unexpected chunk", chunk)
+        }
+      }
+    return new Promise((resolve, reject) => {
+      child.on("error", reject)
+      if (timeoutMs !== null && pid) {
+        setTimeout(
+          () => execFile("pkill", ["-9", "-s", String(pid)]).catch((_) => {}),
+          timeoutMs,
+        )
+      }
+      child.stdout.on("data", appendData(stdout))
+      child.stderr.on("data", appendData(stderr))
+      child.on("exit", (code, signal) =>
+        resolve({
+          exitCode: code,
+          exitSignal: signal,
+          stdout: stdout.data,
+          stderr: stderr.data,
+        }),
+      )
+    })
   }
 
   async spawn(
     command: string[],
     options?: CommandOptions,
   ): Promise<cp.ChildProcessWithoutNullStreams> {
-    const imageMeta = await fs
+    const imageMeta: any = await fs
       .readFile(`/media/startos/images/${this.imageId}.json`, {
         encoding: "utf8",
       })

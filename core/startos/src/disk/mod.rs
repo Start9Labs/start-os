@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use rpc_toolkit::{from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{
+    from_fn_async, CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::context::{CliContext, RpcContext};
@@ -14,7 +16,7 @@ pub mod mount;
 pub mod util;
 
 pub const BOOT_RW_PATH: &str = "/media/boot-rw";
-pub const REPAIR_DISK_PATH: &str = "/media/embassy/config/repair-disk";
+pub const REPAIR_DISK_PATH: &str = "/media/startos/config/repair-disk";
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -40,22 +42,23 @@ impl OsPartitionInfo {
     }
 }
 
-pub fn disk() -> ParentHandler {
+pub fn disk<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "list",
             from_fn_async(list)
                 .with_display_serializable()
-                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                .with_custom_display_fn(|handle, result| {
                     Ok(display_disk_info(handle.params, result))
                 })
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
+        .subcommand("repair", from_fn_async(|_: C| repair()).no_cli())
         .subcommand(
             "repair",
-            from_fn_async(repair)
-                .no_display()
-                .with_remote_cli::<CliContext>(),
+            CallRemoteHandler::<CliContext, _, _>::new(
+                from_fn_async(|_: RpcContext| repair()).no_display(),
+            ),
         )
 }
 

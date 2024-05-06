@@ -211,7 +211,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
     const params: RR.InstallPackageReq = {
       id,
       versionSpec: `=${version}`,
-      marketplaceUrl: url,
+      registry: url,
     }
 
     await this.api.installPackage(params)

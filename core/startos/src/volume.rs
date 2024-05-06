@@ -9,7 +9,7 @@ use crate::prelude::*;
 use crate::util::Version;
 
 pub const PKG_VOLUME_DIR: &str = "package-data/volumes";
-pub const BACKUP_DIR: &str = "/media/embassy/backups";
+pub const BACKUP_DIR: &str = "/media/startos/backups";
 
 pub fn data_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, volume_id: &VolumeId) -> PathBuf {
     datadir

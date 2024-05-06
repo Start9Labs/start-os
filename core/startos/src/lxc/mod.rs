@@ -12,8 +12,8 @@ use imbl_value::{InOMap, InternedString};
 use models::InvalidId;
 use rpc_toolkit::yajrc::{RpcError, RpcResponse};
 use rpc_toolkit::{
-    from_fn_async, AnyContext, CallRemoteHandler, GenericRpcMethod, Handler, HandlerArgs,
-    HandlerExt, ParentHandler, RpcRequest,
+    from_fn_async, CallRemoteHandler, Context, Empty, GenericRpcMethod, HandlerArgs, HandlerExt,
+    HandlerFor, ParentHandler, RpcRequest,
 };
 use rustyline_async::{ReadlineEvent, SharedWriter};
 use serde::{Deserialize, Serialize};
@@ -25,7 +25,6 @@ use tokio::time::Instant;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
@@ -34,6 +33,7 @@ use crate::disk::mount::filesystem::{MountType, ReadWrite};
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::disk::mount::util::unmount;
 use crate::prelude::*;
+use crate::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::util::clap::FromStrParser;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::{new_guid, Invoke};
@@ -370,16 +370,16 @@ impl Drop for LxcContainer {
 #[derive(Default, Serialize)]
 pub struct LxcConfig {}
 
-pub fn lxc() -> ParentHandler {
+pub fn lxc<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "create",
-            from_fn_async(create).with_remote_cli::<CliContext>(),
+            from_fn_async(create).with_call_remote::<CliContext>(),
         )
         .subcommand(
             "list",
             from_fn_async(list)
-                .with_custom_display_fn::<AnyContext, _>(|_, res| {
+                .with_custom_display_fn(|_, res| {
                     use prettytable::*;
                     let mut table = table!([bc => "GUID"]);
                     for guid in res {
@@ -388,13 +388,13 @@ pub fn lxc() -> ParentHandler {
                     table.printstd();
                     Ok(())
                 })
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "remove",
             from_fn_async(remove)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand("connect", from_fn_async(connect_rpc).no_cli())
         .subcommand("connect", from_fn_async(connect_rpc_cli).no_display())
@@ -448,59 +448,59 @@ pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Reque
 
     let rpc = container.connect_rpc(Some(Duration::from_secs(30))).await?;
     let guid = RequestGuid::new();
-    ctx.add_continuation(
-        guid.clone(),
-        RpcContinuation::ws(
-            Box::new(|mut ws| {
-                async move {
-                    if let Err(e) = async {
-                        loop {
-                            match ws.next().await {
-                                None => break,
-                                Some(Ok(Message::Text(txt))) => {
-                                    let mut id = None;
-                                    let result = async {
-                                        let req: RpcRequest =
-                                            serde_json::from_str(&txt).map_err(|e| RpcError {
-                                                data: Some(serde_json::Value::String(
-                                                    e.to_string(),
-                                                )),
-                                                ..rpc_toolkit::yajrc::PARSE_ERROR
-                                            })?;
-                                        id = req.id;
-                                        rpc.request(req.method, req.params).await
+    ctx.rpc_continuations
+        .add(
+            guid.clone(),
+            RpcContinuation::ws(
+                Box::new(|mut ws| {
+                    async move {
+                        if let Err(e) = async {
+                            loop {
+                                match ws.next().await {
+                                    None => break,
+                                    Some(Ok(Message::Text(txt))) => {
+                                        let mut id = None;
+                                        let result = async {
+                                            let req: RpcRequest = serde_json::from_str(&txt)
+                                                .map_err(|e| RpcError {
+                                                    data: Some(serde_json::Value::String(
+                                                        e.to_string(),
+                                                    )),
+                                                    ..rpc_toolkit::yajrc::PARSE_ERROR
+                                                })?;
+                                            id = req.id;
+                                            rpc.request(req.method, req.params).await
+                                        }
+                                        .await;
+                                        ws.send(Message::Text(
+                                            serde_json::to_string(
+                                                &RpcResponse::<GenericRpcMethod> { id, result },
+                                            )
+                                            .with_kind(ErrorKind::Serialization)?,
+                                        ))
+                                        .await
+                                        .with_kind(ErrorKind::Network)?;
                                     }
-                                    .await;
-                                    ws.send(Message::Text(
-                                        serde_json::to_string(&RpcResponse::<GenericRpcMethod> {
-                                            id,
-                                            result,
-                                        })
-                                        .with_kind(ErrorKind::Serialization)?,
-                                    ))
-                                    .await
-                                    .with_kind(ErrorKind::Network)?;
-                                }
-                                Some(Ok(_)) => (),
-                                Some(Err(e)) => {
-                                    return Err(Error::new(e, ErrorKind::Network));
+                                    Some(Ok(_)) => (),
+                                    Some(Err(e)) => {
+                                        return Err(Error::new(e, ErrorKind::Network));
+                                    }
                                 }
                             }
+                            Ok::<_, Error>(())
                         }
-                        Ok::<_, Error>(())
+                        .await
+                        {
+                            tracing::error!("{e}");
+                            tracing::debug!("{e:?}");
+                        }
                     }
-                    .await
-                    {
-                        tracing::error!("{e}");
-                        tracing::debug!("{e:?}");
-                    }
-                }
-                .boxed()
-            }),
-            Duration::from_secs(30),
-        ),
-    )
-    .await;
+                    .boxed()
+                }),
+                Duration::from_secs(30),
+            ),
+        )
+        .await;
     Ok(guid)
 }
 
@@ -614,11 +614,25 @@ pub async fn connect_cli(ctx: &CliContext, guid: RequestGuid) -> Result<(), Erro
 }
 
 pub async fn connect_rpc_cli(
-    handle_args: HandlerArgs<CliContext, ConnectParams>,
+    HandlerArgs {
+        context,
+        parent_method,
+        method,
+        params,
+        inherited_params,
+        raw_params,
+    }: HandlerArgs<CliContext, ConnectParams>,
 ) -> Result<(), Error> {
-    let ctx = handle_args.context.clone();
-    let guid = CallRemoteHandler::<CliContext, _>::new(from_fn_async(connect_rpc))
-        .handle_async(handle_args)
+    let ctx = context.clone();
+    let guid = CallRemoteHandler::<CliContext, _, _>::new(from_fn_async(connect_rpc))
+        .handle_async(HandlerArgs {
+            context,
+            parent_method,
+            method,
+            params: rpc_toolkit::util::Flat(params, Empty {}),
+            inherited_params,
+            raw_params,
+        })
         .await?;
 
     connect_cli(&ctx, guid).await

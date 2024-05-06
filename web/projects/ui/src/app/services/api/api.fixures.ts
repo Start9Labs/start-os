@@ -1633,7 +1633,7 @@ export module Mock {
     currentDependencies: {},
     hosts: {},
     storeExposedDependents: [],
-    marketplaceUrl: 'https://registry.start9.com/',
+    registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
   }
 
@@ -1773,7 +1773,7 @@ export module Mock {
     },
     hosts: {},
     storeExposedDependents: [],
-    marketplaceUrl: 'https://registry.start9.com/',
+    registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
   }
 
@@ -2024,7 +2024,7 @@ export module Mock {
     },
     hosts: {},
     storeExposedDependents: [],
-    marketplaceUrl: 'https://registry.start9.com/',
+    registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
   }
 

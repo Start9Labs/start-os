@@ -12,7 +12,7 @@ import type { Status } from "./Status"
 export type PackageDataEntry = {
   stateInfo: PackageState
   status: Status
-  marketplaceUrl: string | null
+  registry: string | null
   developerKey: string
   icon: DataUrl
   lastBackup: string | null
