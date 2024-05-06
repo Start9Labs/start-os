@@ -241,13 +241,13 @@ impl PersistentContainer {
             .rootfs_dir()
             .join("media/startos/backup");
         tokio::fs::create_dir_all(&mountpoint).await?;
-        let bind = Bind::new(&backup_path);
-        let mount_guard = MountGuard::mount(&bind, &mountpoint, mount_type).await;
         Command::new("chown")
             .arg("100000:100000")
             .arg(mountpoint.as_os_str())
             .invoke(ErrorKind::Filesystem)
             .await?;
+        let bind = Bind::new(&backup_path);
+        let mount_guard = MountGuard::mount(&bind, &mountpoint, mount_type).await;
         Command::new("chown")
             .arg("100000:100000")
             .arg(backup_path.as_os_str())
