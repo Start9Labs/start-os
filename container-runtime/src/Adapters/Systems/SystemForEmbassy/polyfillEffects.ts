@@ -267,7 +267,38 @@ export class PolyfillEffects implements oet.Effects {
       json: () => fetched.json(),
     }
   }
+
   runRsync(rsyncOptions: {
+    srcVolume: string
+    dstVolume: string
+    srcPath: string
+    dstPath: string
+    options: oet.BackupOptions
+  }): {
+    id: () => Promise<string>
+    wait: () => Promise<null>
+    progress: () => Promise<number>
+  } {
+    let secondRun: ReturnType<typeof this._runRsync> | undefined
+    let firstRun = this._runRsync(rsyncOptions)
+    let waitValue = firstRun.wait().then((x) => {
+      secondRun = this._runRsync(rsyncOptions)
+      return secondRun.wait()
+    })
+    const id = async () => {
+      return secondRun?.id?.() ?? firstRun.id()
+    }
+    const wait = () => waitValue
+    const progress = async () => {
+      const secondProgress = secondRun?.progress?.()
+      if (secondProgress) {
+        return (await secondProgress) / 2.0 + 0.5
+      }
+      return (await firstRun.progress()) / 2.0
+    }
+    return { id, wait, progress }
+  }
+  _runRsync(rsyncOptions: {
     srcVolume: string
     dstVolume: string
     srcPath: string
