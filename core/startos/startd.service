@@ -1,7 +1,5 @@
 [Unit]
 Description=StartOS Daemon
-After=lxc-net.service
-Wants=lxc-net.service
 
 [Service]
 Type=simple

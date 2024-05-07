@@ -53,7 +53,7 @@ export class MainLoop {
     }
     const daemon = await daemons.runDaemon()(
       this.effects,
-      this.system.manifest.main.image,
+      { id: this.system.manifest.main.image },
       currentCommand,
       {
         overlay: dockerProcedureContainer.overlay,

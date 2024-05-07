@@ -81,7 +81,7 @@ pub async fn add_version(
             db.as_index_mut()
                 .as_os_mut()
                 .as_versions_mut()
-                .upsert(&version, || OsVersionInfo::default())?
+                .upsert(&version, || Ok(OsVersionInfo::default()))?
                 .mutate(|i| {
                     i.headline = headline;
                     i.release_notes = release_notes;

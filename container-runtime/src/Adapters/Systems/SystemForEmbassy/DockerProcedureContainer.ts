@@ -17,7 +17,7 @@ export class DockerProcedureContainer {
     data: DockerProcedure,
     volumes: { [id: VolumeId]: Volume },
   ) {
-    const overlay = await Overlay.of(effects, data.image)
+    const overlay = await Overlay.of(effects, { id: data.image })
 
     if (data.mounts) {
       const mounts = data.mounts

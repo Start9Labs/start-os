@@ -29,7 +29,7 @@ impl ContainerCliContext {
         Self(Arc::new(ContainerCliSeed {
             socket: cfg
                 .socket
-                .unwrap_or_else(|| Path::new("/").join(HOST_RPC_SERVER_SOCKET)),
+                .unwrap_or_else(|| Path::new("/media/startos/rpc").join(HOST_RPC_SERVER_SOCKET)),
             runtime: OnceCell::new(),
         }))
     }

@@ -822,7 +822,7 @@ async fn set_store(
             let model = db
                 .as_private_mut()
                 .as_package_stores_mut()
-                .upsert(&package_id, || json!({}))?;
+                .upsert(&package_id, || Ok(json!({})))?;
             let mut model_value = model.de()?;
             if model_value.is_null() {
                 model_value = json!({});
@@ -1140,7 +1140,7 @@ pub async fn create_overlayed_image(
         .s9pk
         .as_archive()
         .contents()
-        .get_path(dbg!(&path))
+        .get_path(&path)
         .and_then(|e| e.as_file())
     {
         let guid = new_guid();

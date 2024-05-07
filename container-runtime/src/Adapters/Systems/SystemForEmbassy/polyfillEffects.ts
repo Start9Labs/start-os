@@ -96,7 +96,7 @@ export class PolyfillEffects implements oet.Effects {
     return startSdk
       .runCommand(
         this.effects,
-        this.manifest.main.image,
+        { id: this.manifest.main.image },
         [command, ...(args || [])],
         {},
       )
@@ -118,7 +118,7 @@ export class PolyfillEffects implements oet.Effects {
     const daemon = dockerProcedureContainer.then((dockerProcedureContainer) =>
       daemons.runDaemon()(
         this.effects,
-        this.manifest.main.image,
+        { id: this.manifest.main.image },
         [input.command, ...(input.args || [])],
         {
           overlay: dockerProcedureContainer.overlay,
@@ -143,7 +143,7 @@ export class PolyfillEffects implements oet.Effects {
     await startSdk
       .runCommand(
         this.effects,
-        this.manifest.main.image,
+        { id: this.manifest.main.image },
         ["chown", "--recursive", input.uid, `/drive/${input.path}`],
         {
           mounts: [
@@ -178,7 +178,7 @@ export class PolyfillEffects implements oet.Effects {
     await startSdk
       .runCommand(
         this.effects,
-        this.manifest.main.image,
+        { id: this.manifest.main.image },
         ["chmod", "--recursive", input.mode, `/drive/${input.path}`],
         {
           mounts: [

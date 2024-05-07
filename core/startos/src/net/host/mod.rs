@@ -1,10 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use imbl_value::InternedString;
-use models::HostId;
+use models::{HostId, PackageId};
 use serde::{Deserialize, Serialize};
+use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use ts_rs::TS;
 
+use crate::db::model::DatabaseModel;
 use crate::net::forward::AvailablePorts;
 use crate::net::host::address::HostAddress;
 use crate::net::host::binding::{BindInfo, BindOptions};
@@ -64,26 +66,67 @@ impl Map for HostInfo {
     }
 }
 
-impl Model<HostInfo> {
+pub fn host_for<'a>(
+    db: &'a mut DatabaseModel,
+    package_id: &PackageId,
+    host_id: &HostId,
+    host_kind: HostKind,
+) -> Result<&'a mut Model<Host>, Error> {
+    fn host_info<'a>(
+        db: &'a mut DatabaseModel,
+        package_id: &PackageId,
+    ) -> Result<&'a mut Model<HostInfo>, Error> {
+        Ok::<_, Error>(
+            db.as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(package_id)
+                .or_not_found(package_id)?
+                .as_hosts_mut(),
+        )
+    }
+    let tor_key = if host_info(db, package_id)?.as_idx(host_id).is_none() {
+        Some(
+            db.as_private_mut()
+                .as_key_store_mut()
+                .as_onion_mut()
+                .new_key()?,
+        )
+    } else {
+        None
+    };
+    host_info(db, package_id)?.upsert(host_id, || {
+        let mut h = Host::new(host_kind);
+        h.addresses.insert(HostAddress::Onion {
+            address: tor_key
+                .or_not_found("generated tor key")?
+                .public()
+                .get_onion_address(),
+        });
+        Ok(h)
+    })
+}
+
+impl Model<Host> {
+    pub fn set_kind(&mut self, kind: HostKind) -> Result<(), Error> {
+        match (self.as_kind().de()?, kind) {
+            (HostKind::Multi, HostKind::Multi) => Ok(()),
+        }
+    }
     pub fn add_binding(
         &mut self,
         available_ports: &mut AvailablePorts,
-        kind: HostKind,
-        id: &HostId,
         internal_port: u16,
         options: BindOptions,
     ) -> Result<(), Error> {
-        self.upsert(id, || Host::new(kind))?
-            .as_bindings_mut()
-            .mutate(|b| {
-                let info = if let Some(info) = b.remove(&internal_port) {
-                    info.update(available_ports, options)?
-                } else {
-                    BindInfo::new(available_ports, options)?
-                };
-                b.insert(internal_port, info);
-                Ok(())
-            }) // TODO: handle host kind change
+        self.as_bindings_mut().mutate(|b| {
+            let info = if let Some(info) = b.remove(&internal_port) {
+                info.update(available_ports, options)?
+            } else {
+                BindInfo::new(available_ports, options)?
+            };
+            b.insert(internal_port, info);
+            Ok(())
+        })
     }
 }
 

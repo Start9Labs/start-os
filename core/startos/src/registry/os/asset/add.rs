@@ -9,7 +9,7 @@ use futures::{FutureExt, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
 use itertools::Itertools;
-use rpc_toolkit::{from_fn_async, CallRemote, Context, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
 use ts_rs::TS;
@@ -106,9 +106,11 @@ async fn add_asset(
                         .as_idx_mut(&version)
                         .or_not_found(&version)?,
                 )
-                .upsert(&platform, || RegistryAsset {
-                    url,
-                    signature_info: SignatureInfo::new(SIG_CONTEXT),
+                .upsert(&platform, || {
+                    Ok(RegistryAsset {
+                        url,
+                        signature_info: SignatureInfo::new(SIG_CONTEXT),
+                    })
                 })?
                 .as_signature_info_mut()
                 .mutate(|s| s.add_sig(&signature))?;

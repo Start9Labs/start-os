@@ -23,7 +23,7 @@ type Daemon<
 > = {
   id: "" extends Id ? never : Id
   command: ValidIfNoStupidEscape<Command> | [string, ...string[]]
-  imageId: Manifest["images"][number]
+  image: { id: Manifest["images"][number]; sharedRun?: boolean }
   mounts: Mounts<Manifest>
   env?: Record<string, string>
   ready: {
@@ -40,7 +40,7 @@ export const runDaemon =
   <Manifest extends SDKManifest>() =>
   async <A extends string>(
     effects: Effects,
-    imageId: Manifest["images"][number],
+    image: { id: Manifest["images"][number]; sharedRun?: boolean },
     command: ValidIfNoStupidEscape<A> | [string, ...string[]],
     options: CommandOptions & {
       mounts?: { path: string; options: MountOptions }[]
@@ -48,7 +48,7 @@ export const runDaemon =
     },
   ): Promise<DaemonReturned> => {
     const commands = splitCommand(command)
-    const overlay = options.overlay || (await Overlay.of(effects, imageId))
+    const overlay = options.overlay || (await Overlay.of(effects, image))
     for (let mount of options.mounts || []) {
       await overlay.mount(mount.options, mount.path)
     }
@@ -183,9 +183,9 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
         daemon.requires?.map((id) => daemonsStarted[id]) ?? [],
       )
       daemonsStarted[daemon.id] = requiredPromise.then(async () => {
-        const { command, imageId } = daemon
+        const { command, image } = daemon
 
-        const child = runDaemon<Manifest>()(effects, imageId, command, {
+        const child = runDaemon<Manifest>()(effects, image, command, {
           env: daemon.env,
           mounts: daemon.mounts.build(),
         })
