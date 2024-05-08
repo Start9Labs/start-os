@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use color_eyre::eyre::eyre;
 use helpers::const_true;
+use imbl_value::InternedString;
 pub use models::PackageId;
 use models::{ImageId, VolumeId};
 use serde::{Deserialize, Serialize};
@@ -10,7 +11,7 @@ use url::Url;
 
 use crate::dependencies::Dependencies;
 use crate::prelude::*;
-use crate::s9pk::v1::git_hash::GitHash;
+use crate::s9pk::git_hash::GitHash;
 use crate::util::serde::Regex;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
@@ -29,9 +30,8 @@ pub struct Manifest {
     #[ts(type = "string")]
     pub version: Version,
     pub release_notes: String,
-    pub license: String, // type of license
-    #[serde(default)]
-    pub replaces: Vec<String>,
+    #[ts(type = "string")]
+    pub license: InternedString, // type of license
     #[ts(type = "string")]
     pub wrapper_repo: Url,
     #[ts(type = "string")]
