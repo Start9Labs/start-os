@@ -581,10 +581,28 @@ struct GetHostInfoParams {
     callback: Callback,
 }
 async fn get_host_info(
-    _: EffectContext,
+    ctx: EffectContext,
     GetHostInfoParams { .. }: GetHostInfoParams,
 ) -> Result<Value, Error> {
-    todo!()
+    let ctx = ctx.deref()?;
+    Ok(json!({
+        "id": "fakeId1",
+        "kind": "multi",
+        "hostnames": [{
+            "kind": "ip",
+            "networkInterfaceId": "fakeNetworkInterfaceId1",
+            "public": true,
+            "hostname":{
+                  "kind": "domain",
+                  "domain": format!("{}", ctx.id),
+                  "subdomain": (),
+                  "port": (),
+                  "sslPort": ()
+                }
+          }
+
+        ]
+    }))
 }
 
 async fn clear_bindings(context: EffectContext, _: Empty) -> Result<Value, Error> {

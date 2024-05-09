@@ -154,6 +154,7 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
     return {
       term: async (options?: { signal?: Signals; timeout?: number }) => {
         await Promise.all(this.healthDaemons.map((x) => x.term(options)))
+        this.effects.setMainStatus({ status: "stopped" })
       },
     }
   }

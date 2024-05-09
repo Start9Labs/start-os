@@ -48,7 +48,7 @@ export class Daemon {
     new Promise(async () => {
       while (this.shouldBeRunning) {
         this.commandController = await this.startCommand()
-        await this.commandController.wait()
+        await this.commandController.wait().catch((err) => console.error(err))
       }
     }).catch((err) => {
       console.error(err)
