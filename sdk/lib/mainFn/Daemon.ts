@@ -65,6 +65,9 @@ export class Daemon {
     timeout?: number | undefined
   }) {
     this.shouldBeRunning = false
-    await this.commandController?.term(termOptions)
+    await this.commandController
+      ?.term(termOptions)
+      .catch((e) => console.error(e))
+    this.commandController = null
   }
 }

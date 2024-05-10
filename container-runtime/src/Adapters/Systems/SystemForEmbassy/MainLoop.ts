@@ -116,7 +116,8 @@ export class MainLoop {
     const main = await mainEvent
     delete this.mainEvent
     delete this.healthLoops
-    if (mainEvent) await main?.daemon.stop()
+    await main?.daemon.stop().catch((e) => console.error(e))
+    this.effects.setMainStatus({ status: "stopped" })
     if (healthLoops) healthLoops.forEach((x) => clearInterval(x.interval))
   }
 
