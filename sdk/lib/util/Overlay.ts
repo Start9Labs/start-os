@@ -12,10 +12,19 @@ export class Overlay {
     readonly rootfs: string,
     readonly guid: string,
   ) {}
-  static async of(effects: T.Effects, imageId: string) {
+  static async of(
+    effects: T.Effects,
+    image: { id: string; sharedRun?: boolean },
+  ) {
+    const { id: imageId, sharedRun } = image
     const [rootfs, guid] = await effects.createOverlayedImage({ imageId })
 
-    for (const dirPart of ["dev", "sys", "proc", "run"] as const) {
+    const shared = ["dev", "sys", "proc"]
+    if (!!sharedRun) {
+      shared.push("run")
+    }
+
+    for (const dirPart of shared) {
       await fs.mkdir(`${rootfs}/${dirPart}`, { recursive: true })
       await execFile("mount", [
         "--rbind",

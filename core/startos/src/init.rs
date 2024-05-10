@@ -348,6 +348,12 @@ pub async fn init(cfg: &ServerConfig) -> Result<InitResult, Error> {
     })
     .await?;
 
+    Command::new("systemctl")
+        .arg("start")
+        .arg("lxc-net.service")
+        .invoke(ErrorKind::Lxc)
+        .await?;
+
     crate::version::init(&db).await?;
 
     db.mutate(|d| {

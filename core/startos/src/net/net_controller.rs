@@ -16,7 +16,7 @@ use crate::net::dns::DnsController;
 use crate::net::forward::LanPortForwardController;
 use crate::net::host::address::HostAddress;
 use crate::net::host::binding::{AddSslOptions, BindOptions};
-use crate::net::host::{Host, HostKind};
+use crate::net::host::{host_for, Host, HostKind};
 use crate::net::tor::TorController;
 use crate::net::vhost::{AlpnInfo, VHostController};
 use crate::prelude::*;
@@ -162,7 +162,7 @@ impl NetController {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct HostBinds {
     lan: BTreeMap<u16, (u16, Option<AddSslOptions>, Arc<()>)>,
     tor: BTreeMap<OnionAddressV3, (OrdMap<u16, SocketAddr>, Vec<Arc<()>>)>,
@@ -193,25 +193,17 @@ impl NetService {
         internal_port: u16,
         options: BindOptions,
     ) -> Result<(), Error> {
-        let id_ref = &id;
+        dbg!("bind", &kind, &id, internal_port, &options);
         let pkg_id = &self.id;
         let host = self
             .net_controller()?
             .db
-            .mutate(|d| {
-                let mut ports = d.as_private().as_available_ports().de()?;
-                let hosts = d
-                    .as_public_mut()
-                    .as_package_data_mut()
-                    .as_idx_mut(pkg_id)
-                    .or_not_found(pkg_id)?
-                    .as_hosts_mut();
-                hosts.add_binding(&mut ports, kind, &id, internal_port, options)?;
-                let host = hosts
-                    .as_idx(&id)
-                    .or_not_found(lazy_format!("Host {id_ref} for {pkg_id}"))?
-                    .de()?;
-                d.as_private_mut().as_available_ports_mut().ser(&ports)?;
+            .mutate(|db| {
+                let mut ports = db.as_private().as_available_ports().de()?;
+                let host = host_for(db, pkg_id, &id, kind)?;
+                host.add_binding(&mut ports, internal_port, options)?;
+                let host = host.de()?;
+                db.as_private_mut().as_available_ports_mut().ser(&ports)?;
                 Ok(host)
             })
             .await?;
@@ -219,6 +211,8 @@ impl NetService {
     }
 
     async fn update(&mut self, id: HostId, host: Host) -> Result<(), Error> {
+        dbg!(&host);
+        dbg!(&self.binds);
         let ctrl = self.net_controller()?;
         let binds = {
             if !self.binds.contains_key(&id) {

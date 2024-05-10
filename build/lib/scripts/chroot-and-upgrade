@@ -33,6 +33,7 @@ set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 if [ -z "$NO_SYNC" ]; then
     echo 'Syncing...'
     umount -R /media/startos/next 2> /dev/null
+    umount -R /media/startos/upper 2> /dev/null
     rm -rf /media/startos/upper /media/startos/next
     mkdir /media/startos/upper
     mount -t tmpfs tmpfs /media/startos/upper
@@ -105,4 +106,5 @@ if [ "$CHROOT_RES" -eq 0 ]; then
 fi
 
 umount -R /media/startos/next
+umount -R /media/startos/upper
 rm -rf /media/startos/upper /media/startos/next

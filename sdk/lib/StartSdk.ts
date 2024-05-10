@@ -28,7 +28,7 @@ import { DependencyConfig, Update } from "./dependencies/DependencyConfig"
 import { BackupSet, Backups } from "./backup/Backups"
 import { smtpConfig } from "./config/configConstants"
 import { Daemons } from "./mainFn/Daemons"
-import { healthCheck } from "./health/HealthCheck"
+import { healthCheck, HealthCheckParams } from "./health/HealthCheck"
 import { checkPortListening } from "./health/checkFns/checkPortListening"
 import { checkWebUrl, runHealthScript } from "./health/checkFns"
 import { List } from "./config/builder/list"
@@ -78,6 +78,7 @@ import { Checker, EmVer } from "./emverLite/mod"
 import { ExposedStorePaths } from "./store/setupExposeStore"
 import { PathBuilder, extractJsonPath, pathBuilder } from "./store/PathBuilder"
 import { checkAllDependencies } from "./dependencies/dependencies"
+import { health } from "."
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
@@ -186,13 +187,13 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
       nullIfEmpty,
       runCommand: async <A extends string>(
         effects: Effects,
-        imageId: Manifest["images"][number],
+        image: { id: Manifest["images"][number]; sharedRun?: boolean },
         command: ValidIfNoStupidEscape<A> | [string, ...string[]],
         options: CommandOptions & {
           mounts?: { path: string; options: MountOptions }[]
         },
       ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> => {
-        return runCommand<Manifest>(effects, imageId, command, options)
+        return runCommand<Manifest>(effects, image, command, options)
       },
 
       createAction: <
@@ -264,7 +265,9 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         )
       },
       HealthCheck: {
-        of: healthCheck,
+        of(o: HealthCheckParams<Manifest>) {
+          return healthCheck<Manifest>(o)
+        },
       },
       Dependency: {
         of(data: Dependency["data"]) {
@@ -740,14 +743,14 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
 
 export async function runCommand<Manifest extends SDKManifest>(
   effects: Effects,
-  imageId: Manifest["images"][number],
+  image: { id: Manifest["images"][number]; sharedRun?: boolean },
   command: string | [string, ...string[]],
   options: CommandOptions & {
     mounts?: { path: string; options: MountOptions }[]
   },
 ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
   const commands = splitCommand(command)
-  const overlay = await Overlay.of(effects, imageId)
+  const overlay = await Overlay.of(effects, image)
   try {
     for (let mount of options.mounts || []) {
       await overlay.mount(mount.options, mount.path)

@@ -74,6 +74,7 @@ export const mockPatchData: DataModel = {
     platform: 'x86_64-nonfree',
     zram: true,
     governor: 'performance',
+    smtp: 'todo',
     wifi: {
       interface: 'wlan0',
       ssids: [],

@@ -76,6 +76,7 @@ impl Public {
                 ntp_synced: false,
                 zram: true,
                 governor: None,
+                smtp: None,
             },
             package_data: AllPackageData::default(),
             ui: serde_json::from_str(include_str!(concat!(
@@ -135,6 +136,7 @@ pub struct ServerInfo {
     #[serde(default)]
     pub zram: bool,
     pub governor: Option<Governor>,
+    pub smtp: Option<String>
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]

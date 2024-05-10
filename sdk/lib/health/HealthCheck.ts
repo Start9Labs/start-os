@@ -1,5 +1,5 @@
 import { InterfaceReceipt } from "../interfaces/interfaceReceipt"
-import { Daemon, Effects } from "../types"
+import { Daemon, Effects, SDKManifest } from "../types"
 import { CheckResult } from "./checkFns/CheckResult"
 import { HealthReceipt } from "./HealthReceipt"
 import { Trigger } from "../trigger"
@@ -9,16 +9,23 @@ import { once } from "../util/once"
 import { Overlay } from "../util/Overlay"
 import { object, unknown } from "ts-matches"
 
-export function healthCheck(o: {
+export type HealthCheckParams<Manifest extends SDKManifest> = {
   effects: Effects
   name: string
-  imageId: string
+  image: {
+    id: Manifest["images"][number]
+    sharedRun?: boolean
+  }
   trigger?: Trigger
   fn(overlay: Overlay): Promise<CheckResult> | CheckResult
   onFirstSuccess?: () => unknown | Promise<unknown>
-}) {
+}
+
+export function healthCheck<Manifest extends SDKManifest>(
+  o: HealthCheckParams<Manifest>,
+) {
   new Promise(async () => {
-    const overlay = await Overlay.of(o.effects, o.imageId)
+    const overlay = await Overlay.of(o.effects, o.image)
     try {
       let currentValue: TriggerInput = {
         hadSuccess: false,

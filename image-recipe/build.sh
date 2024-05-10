@@ -166,12 +166,6 @@ fi
 curl -fsSL https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc > config/archives/tor.key
 echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/tor.key.gpg] https://deb.torproject.org/torproject.org ${IB_SUITE} main" > config/archives/tor.list
 
-curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o config/archives/docker.key
-echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/docker.key.gpg] https://download.docker.com/linux/debian ${IB_SUITE} stable" > config/archives/docker.list
-
-curl -fsSL https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/unstable/Debian_Testing/Release.key | gpg --dearmor -o config/archives/podman.key
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/trusted.gpg.d/podman.key.gpg] https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/unstable/Debian_Testing/ /" > config/archives/podman.list
-
 # Dependencies
 
 ## Base dependencies

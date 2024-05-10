@@ -28,8 +28,13 @@ lazy_static::lazy_static! {
     pub static ref SYSTEM_ID: Id = Id(InternedString::intern("x_system"));
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Id(InternedString);
+impl std::fmt::Debug for Id {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
 impl TryFrom<InternedString> for Id {
     type Error = InvalidId;
     fn try_from(value: InternedString) -> Result<Self, Self::Error> {

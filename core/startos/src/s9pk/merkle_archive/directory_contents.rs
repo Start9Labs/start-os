@@ -275,9 +275,7 @@ impl<S: FileSource> DirectoryContents<S> {
             _ => std::cmp::Ordering::Equal,
         }) {
             varint::serialize_varstring(&**name, w).await?;
-            if let Some(pos) = entry.serialize_header(queue.add(entry).await?, w).await? {
-                eprintln!("DEBUG ====> {name} @ {pos}");
-            }
+            entry.serialize_header(queue.add(entry).await?, w).await?;
         }
 
         Ok(())

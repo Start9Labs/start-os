@@ -220,7 +220,7 @@ where
     }
     pub fn upsert<F>(&mut self, key: &T::Key, value: F) -> Result<&mut Model<T::Value>, Error>
     where
-        F: FnOnce() -> T::Value,
+        F: FnOnce() -> Result<T::Value, Error>,
     {
         use serde::ser::Error;
         match &mut self.value {
@@ -233,7 +233,7 @@ where
                     s.as_ref().index_or_insert(v)
                 });
                 if !exists {
-                    res.ser(&value())?;
+                    res.ser(&value()?)?;
                 }
                 Ok(res)
             }

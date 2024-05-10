@@ -13,7 +13,7 @@ use imbl::OrdMap;
 use imbl_value::{json, InternedString};
 use itertools::Itertools;
 use models::{
-    ActionId, DataUrl, HealthCheckId, HostId, Id, ImageId, PackageId, ServiceInterfaceId, VolumeId,
+    ActionId, DataUrl, HealthCheckId, HostId, ImageId, PackageId, ServiceInterfaceId, VolumeId,
 };
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn, from_fn_async, Context, Empty, HandlerExt, ParentHandler};
@@ -29,6 +29,7 @@ use crate::db::model::package::{
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
+use crate::net::host::address::HostAddress;
 use crate::net::host::binding::BindOptions;
 use crate::net::host::{self, HostKind};
 use crate::net::service_interface::{
@@ -169,6 +170,7 @@ pub fn service_effect_handler<C: Context>() -> ParentHandler<C> {
                 .no_display()
                 .with_call_remote::<ContainerCliContext>(),
         )
+        .subcommand("setSystemSmtp", from_fn_async(set_system_smtp).no_cli())
         .subcommand("getSystemSmtp", from_fn_async(get_system_smtp).no_cli())
         .subcommand("getContainerIp", from_fn_async(get_container_ip).no_cli())
         .subcommand(
@@ -206,6 +208,12 @@ struct GetSystemSmtpParams {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
+struct SetSystemSmtpParams {
+    smtp: String,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
 struct GetServicePortForwardParams {
     #[ts(type = "string | null")]
     package_id: Option<PackageId>,
@@ -236,6 +244,7 @@ struct GetPrimaryUrlParams {
     package_id: Option<PackageId>,
     service_interface_id: String,
     callback: Callback,
+    host_id: HostId,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
@@ -249,7 +258,7 @@ struct ListServiceInterfacesParams {
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 struct RemoveAddressParams {
-    id: String,
+    id: ServiceInterfaceId,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
@@ -316,11 +325,39 @@ struct MountParams {
     location: String,
     target: MountTarget,
 }
+async fn set_system_smtp(context: EffectContext, data: SetSystemSmtpParams) -> Result<(), Error> {
+    let context = context.deref()?;
+    context
+        .ctx
+        .db
+        .mutate(|db| {
+            let model = db.as_public_mut().as_server_info_mut().as_smtp_mut();
+            model.ser(&mut Some(data.smtp))
+        })
+        .await
+}
 async fn get_system_smtp(
     context: EffectContext,
     data: GetSystemSmtpParams,
-) -> Result<Value, Error> {
-    todo!()
+) -> Result<String, Error> {
+    let context = context.deref()?;
+    let res = context
+        .ctx
+        .db
+        .peek()
+        .await
+        .into_public()
+        .into_server_info()
+        .into_smtp()
+        .de()?;
+
+    match res {
+        Some(smtp) => Ok(smtp),
+        None => Err(Error::new(
+            eyre!("SMTP not found"),
+            crate::ErrorKind::NotFound,
+        )),
+    }
 }
 async fn get_container_ip(context: EffectContext, _: Empty) -> Result<Ipv4Addr, Error> {
     let context = context.deref()?;
@@ -337,8 +374,24 @@ async fn get_service_port_forward(
     let net_service = context.persistent_container.net_service.lock().await;
     net_service.get_ext_port(data.host_id, internal_port)
 }
-async fn clear_network_interfaces(context: EffectContext, _: Empty) -> Result<Value, Error> {
-    todo!()
+async fn clear_network_interfaces(context: EffectContext, _: Empty) -> Result<(), Error> {
+    let context = context.deref()?;
+    let package_id = context.id.clone();
+
+    context
+        .ctx
+        .db
+        .mutate(|db| {
+            let model = db
+                .as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&package_id)
+                .or_not_found(&package_id)?
+                .as_service_interfaces_mut();
+            let mut new_map = BTreeMap::new();
+            model.ser(&mut new_map)
+        })
+        .await
 }
 async fn export_service_interface(
     context: EffectContext,
@@ -397,8 +450,27 @@ async fn export_service_interface(
 async fn get_primary_url(
     context: EffectContext,
     data: GetPrimaryUrlParams,
-) -> Result<Value, Error> {
-    todo!()
+) -> Result<HostAddress, Error> {
+    let context = context.deref()?;
+    let package_id = context.id.clone();
+
+    let db_model = context.ctx.db.peek().await;
+
+    let pkg_data_model = db_model
+        .as_public()
+        .as_package_data()
+        .as_idx(&package_id)
+        .or_not_found(&package_id)?;
+
+    let host = pkg_data_model.de()?.hosts.get_host_primary(&data.host_id);
+
+    match host {
+        Some(host_address) => Ok(host_address),
+        None => Err(Error::new(
+            eyre!("Primary Url not found for {}", data.host_id),
+            crate::ErrorKind::NotFound,
+        )),
+    }
 }
 async fn list_service_interfaces(
     context: EffectContext,
@@ -419,9 +491,24 @@ async fn list_service_interfaces(
         .into_service_interfaces()
         .de()
 }
+async fn remove_address(context: EffectContext, data: RemoveAddressParams) -> Result<(), Error> {
+    let context = context.deref()?;
+    let package_id = context.id.clone();
 
-async fn remove_address(context: EffectContext, data: RemoveAddressParams) -> Result<Value, Error> {
-    todo!()
+    context
+        .ctx
+        .db
+        .mutate(|db| {
+            let model = db
+                .as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&package_id)
+                .or_not_found(&package_id)?
+                .as_service_interfaces_mut();
+            model.remove(&data.id)
+        })
+        .await?;
+    Ok(())
 }
 async fn export_action(context: EffectContext, data: ExportActionParams) -> Result<(), Error> {
     let context = context.deref()?;
@@ -607,7 +694,7 @@ fn chroot<C: Context>(
             cmd.env(k, v);
         }
     }
-    nix::unistd::setsid().with_kind(ErrorKind::Lxc)?; // TODO: error code
+    nix::unistd::setsid().ok(); // https://stackoverflow.com/questions/25701333/os-setsid-operation-not-permitted
     std::os::unix::fs::chroot(path)?;
     if let Some(uid) = user.as_deref().and_then(|u| u.parse::<u32>().ok()) {
         cmd.uid(uid);
@@ -735,7 +822,7 @@ async fn set_store(
             let model = db
                 .as_private_mut()
                 .as_package_stores_mut()
-                .upsert(&package_id, || json!({}))?;
+                .upsert(&package_id, || Ok(json!({})))?;
             let mut model_value = model.de()?;
             if model_value.is_null() {
                 model_value = json!({});
@@ -1053,7 +1140,7 @@ pub async fn create_overlayed_image(
         .s9pk
         .as_archive()
         .contents()
-        .get_path(dbg!(&path))
+        .get_path(&path)
         .and_then(|e| e.as_file())
     {
         let guid = new_guid();
