@@ -75,11 +75,16 @@ export class CommandController {
       return await this.runningAnswer
     } finally {
       await cpExecFile("pkill", ["-9", "-s", String(this.pid)]).catch((_) => {})
+      await this.overlay.destroy().catch((_) => {})
     }
   }
   async term({ signal = SIGTERM, timeout = NO_TIMEOUT } = {}) {
     try {
-      await cpExecFile("pkill", [`-${signal}`, "-s", String(this.pid)])
+      await cpExecFile("pkill", [
+        `-${signal.replace("SIG", "")}`,
+        "-s",
+        String(this.pid),
+      ])
 
       if (timeout > NO_TIMEOUT) {
         const didTimeout = await Promise.race([
