@@ -1,28 +1,33 @@
-import { CommonModule } from '@angular/common'
+import { AsyncPipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
   inject,
   Input,
 } from '@angular/core'
+import { HealthCheckResult } from '@startos'
+import { ServiceHealthCheckComponent } from 'src/app/routes/portal/routes/service/components/health-check.component'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { ServiceHealthCheckComponent } from './health-check.component'
-import { HealthCheckResult } from '../../../../../../../../../../core/startos/bindings/HealthCheckResult'
 
 @Component({
   selector: 'service-health-checks',
   template: `
-    <h3 class="g-title">Health Checks</h3>
-    <service-health-check
-      *ngFor="let check of checks"
-      class="g-action"
-      [check]="check"
-      [connected]="!!(connected$ | async)"
-    ></service-health-check>
+    @for (check of checks; track $index) {
+      <service-health-check
+        class="g-action"
+        [check]="check"
+        [connected]="!!(connected$ | async)"
+      />
+    }
+
+    @if (!checks.length) {
+      No health checks
+    }
   `,
+  styles: ':host { display: block; min-height: var(--tui-height-s) }',
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, ServiceHealthCheckComponent],
+  imports: [AsyncPipe, ServiceHealthCheckComponent],
 })
 export class ServiceHealthChecksComponent {
   @Input({ required: true })

@@ -1,22 +1,26 @@
-import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { ServiceDependencyComponent } from './dependency.component'
 import { DependencyInfo } from '../types/dependency-info'
+import { ServiceDependencyComponent } from './dependency.component'
 
 @Component({
   selector: 'service-dependencies',
   template: `
-    <h3 class="g-title">Dependencies</h3>
-    <button
-      *ngFor="let dep of dependencies"
-      class="g-action"
-      [serviceDependency]="dep"
-      (click)="dep.action()"
-    ></button>
+    @for (dep of dependencies; track $index) {
+      <button
+        class="g-action"
+        [serviceDependency]="dep"
+        (click)="dep.action()"
+      ></button>
+    }
+
+    @if (!dependencies.length) {
+      No dependencies
+    }
   `,
+  styles: ':host { display: block; min-height: var(--tui-height-s) }',
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, ServiceDependencyComponent],
+  imports: [ServiceDependencyComponent],
 })
 export class ServiceDependenciesComponent {
   @Input({ required: true })

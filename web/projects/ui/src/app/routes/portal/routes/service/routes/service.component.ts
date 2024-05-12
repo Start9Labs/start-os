@@ -2,8 +2,15 @@ import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ActivatedRoute, NavigationExtras, Router } from '@angular/router'
 import { isEmptyObject } from '@start9labs/shared'
+import { HealthCheckResult, MainStatus, Manifest } from '@startos'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map, switchMap } from 'rxjs'
+import {
+  ConfigModal,
+  PackageConfigData,
+} from 'src/app/routes/portal/modals/config.component'
+import { ServiceBackupsComponent } from 'src/app/routes/portal/routes/service/components/backups.component'
+import { InstallingProgressPipe } from 'src/app/routes/portal/routes/service/pipes/install-progress.pipe'
 import { ConnectionService } from 'src/app/services/connection.service'
 import {
   DepErrorService,
@@ -21,85 +28,120 @@ import {
   StatusRendering,
 } from 'src/app/services/pkg-status-rendering.service'
 import { DependentInfo } from 'src/app/types/dependent-info'
+import { getManifest } from 'src/app/utils/get-package-data'
 import { ServiceActionsComponent } from '../components/actions.component'
-import { ServiceAdditionalComponent } from '../components/additional.component'
 import { ServiceDependenciesComponent } from '../components/dependencies.component'
 import { ServiceHealthChecksComponent } from '../components/health-checks.component'
 import { ServiceInterfaceListComponent } from '../components/interface-list.component'
 import { ServiceMenuComponent } from '../components/menu.component'
 import { ServiceProgressComponent } from '../components/progress.component'
 import { ServiceStatusComponent } from '../components/status.component'
-import {
-  PackageConfigData,
-  ConfigModal,
-} from 'src/app/routes/portal/modals/config.component'
 import { DependencyInfo } from '../types/dependency-info'
-import { getManifest } from 'src/app/utils/get-package-data'
-import { InstallingProgressPipe } from 'src/app/routes/portal/routes/service/pipes/install-progress.pipe'
-import { Manifest } from '../../../../../../../../../../core/startos/bindings/Manifest'
-import { HealthCheckResult } from '../../../../../../../../../../core/startos/bindings/HealthCheckResult'
-import { MainStatus } from '../../../../../../../../../../core/startos/bindings/MainStatus'
 
 @Component({
   template: `
     @if (service$ | async; as service) {
-      <h3 class="g-title">Status</h3>
-      <service-status
-        [connected]="!!(connected$ | async)"
-        [installingInfo]="service.pkg.stateInfo.installingInfo"
-        [rendering]="getRendering(service.status)"
-        [sigtermTimeout]="
-          service.pkg.status.main.status === 'stopping'
-            ? service.pkg.status.main.timeout
-            : null
-        "
-      />
-
-      @if (
-        service.pkg.stateInfo.state === 'installing' ||
-        service.pkg.stateInfo.state === 'updating' ||
-        service.pkg.stateInfo.state === 'restoring'
-      ) {
-        <p
-          *ngFor="
-            let phase of service.pkg.stateInfo.installingInfo.progress.phases
+      <section [style.grid-column]="'span 3'">
+        <h3>Status</h3>
+        <service-status
+          [connected]="!!(connected$ | async)"
+          [installingInfo]="service.pkg.stateInfo.installingInfo"
+          [rendering]="getRendering(service.status)"
+          [sigtermTimeout]="
+            service.pkg.status.main.status === 'stopping'
+              ? service.pkg.status.main.timeout
+              : null
           "
-          [progress]="phase.progress"
-        >
-          {{ phase.name }}
-        </p>
-      } @else {
-        @if (
-          service.pkg.stateInfo.state === 'installed' &&
-          service.status.primary !== 'backingUp'
-        ) {
-          @if (connected$ | async) {
-            <service-actions
-              [pkg]="service.pkg"
-              [dependencies]="service.dependencies"
-            />
-          }
+        />
 
+        @if (isInstalled(service) && (connected$ | async)) {
+          <service-actions
+            [pkg]="service.pkg"
+            [dependencies]="service.dependencies"
+          />
+        }
+      </section>
+
+      @if (isInstalled(service)) {
+        <section [style.grid-column]="'span 3'">
+          <h3>Backups</h3>
+          <service-backups />
+        </section>
+
+        <section [style.grid-column]="'span 6'">
+          <h3>Metrics</h3>
+          TODO
+        </section>
+
+        <section [style.grid-column]="'span 4'" [style.align-self]="'start'">
+          <h3>Menu</h3>
+          <service-menu [pkg]="service.pkg" />
+        </section>
+
+        <div>
+          <section>
+            <h3>Health Checks</h3>
+            <service-health-checks [checks]="(health$ | async) || []" />
+          </section>
+
+          <section>
+            <h3>Dependencies</h3>
+            <service-dependencies [dependencies]="service.dependencies" />
+          </section>
+        </div>
+
+        <section [style.grid-column]="'span 4'" [style.align-self]="'start'">
+          <h3>Service Interfaces</h3>
           <service-interface-list
             [pkg]="service.pkg"
             [status]="service.status"
           />
+        </section>
+      }
 
-          @if (
-            service.status.primary === 'running' && (health$ | async);
-            as checks
-          ) {
-            <service-health-checks [checks]="checks" />
-          }
-
-          @if (service.dependencies.length) {
-            <service-dependencies [dependencies]="service.dependencies" />
-          }
-
-          <service-menu [pkg]="service.pkg" />
-          <service-additional [pkg]="service.pkg" />
+      @if (isInstalling(service.pkg.stateInfo.state)) {
+        @for (
+          item of service.pkg.stateInfo.installingInfo?.progress?.phases;
+          track $index
+        ) {
+          <p [progress]="item.progress">{{ item.name }}</p>
         }
       }
+    }
+  `,
+  styles: `
+    :host {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      flex-direction: column;
+      gap: 1rem;
+      margin: 1rem -1rem 0;
+    }
+
+    :host-context(tui-root._mobile) {
+      display: flex;
+    }
+
+    section {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      padding: 1rem 1.5rem 0.5rem;
+      border-radius: 1rem;
+      background: var(--tui-clear);
+      box-shadow: inset 0 7rem 0 -4rem var(--tui-clear);
+      clip-path: polygon(0 1.5rem, 1.5rem 0, 100% 0, 100% 100%, 0 100%);
+    }
+
+    h3 {
+      margin-bottom: 1.25rem;
+    }
+
+    div {
+      display: flex;
+      flex-direction: column;
+      gap: inherit;
+      grid-column: span 4;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -113,7 +155,7 @@ import { MainStatus } from '../../../../../../../../../../core/startos/bindings/
     ServiceHealthChecksComponent,
     ServiceDependenciesComponent,
     ServiceMenuComponent,
-    ServiceAdditionalComponent,
+    ServiceBackupsComponent,
     InstallingProgressPipe,
   ],
 })
@@ -134,13 +176,11 @@ export class ServiceRoute {
         this.depErrorService.getPkgDepErrors$(pkgId),
       ]),
     ),
-    map(([pkg, depErrors]) => {
-      return {
-        pkg,
-        dependencies: this.getDepInfo(pkg, depErrors),
-        status: renderPkgStatus(pkg, depErrors),
-      }
-    }),
+    map(([pkg, depErrors]) => ({
+      pkg,
+      dependencies: this.getDepInfo(pkg, depErrors),
+      status: renderPkgStatus(pkg, depErrors),
+    })),
   )
 
   readonly health$ = this.pkgId$.pipe(
@@ -149,6 +189,16 @@ export class ServiceRoute {
     ),
     map(toHealthCheck),
   )
+
+  isInstalling(state: string): boolean {
+    return (
+      state === 'installing' || state === 'updating' || state === 'restoring'
+    )
+  }
+
+  isInstalled({ pkg, status }: any): boolean {
+    return pkg.stateInfo.state === 'installed' && status.primary !== 'backingUp'
+  }
 
   getRendering({ primary }: PackageStatus): StatusRendering {
     return PrimaryRendering[primary]

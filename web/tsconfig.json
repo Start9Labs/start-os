@@ -23,7 +23,8 @@
     "paths": {
       /* These paths are relative to each app base folder */
       "@start9labs/marketplace": ["../marketplace/index"],
-      "@start9labs/shared": ["../shared/src/public-api"]
+      "@start9labs/shared": ["../shared/src/public-api"],
+      "@startos": ["../../../core/startos/bindings/index"]
     },
     "typeRoots": ["node_modules/@types"],
     "types": ["node"]

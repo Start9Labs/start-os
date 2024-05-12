@@ -9,7 +9,7 @@
 /* stylelint-disable order/order */
 [tuiAppearance][data-appearance='secondary-warning'] {
   background: var(--tui-warning-bg);
-  color: var(--tui-warning-fill);
+  color: var(--tui-text-01);
 
   @include appearance-hover {
     background: var(--tui-warning-bg-hover);
@@ -58,6 +58,7 @@
 
   @include appearance-disabled {
     background: #eaecee;
+    color: #333;
   }
 }
 
@@ -75,6 +76,7 @@
 
   @include appearance-disabled {
     background: #eaecee;
+    color: #333;
   }
 }
 
@@ -92,6 +94,7 @@
 
   @include appearance-disabled {
     background: #eaecee;
+    color: #333;
   }
 }
 
@@ -109,6 +112,7 @@
 
   @include appearance-disabled {
     background: #eaecee;
+    color: #333;
   }
 }
 
@@ -126,6 +130,7 @@
 
   @include appearance-disabled {
     background: #eaecee;
+    color: #333;
   }
 }
 

@@ -50,7 +50,7 @@ import { getAllPackages, getManifest } from 'src/app/utils/get-package-data'
             [action]="{
               name: action.name,
               description: action.description,
-              icon: 'tuiIconPlayCircleLarge'
+              icon: 'tuiIconPlayCircle'
             }"
             (click)="handleAction(action)"
           ></button>
@@ -75,7 +75,7 @@ export class ServiceActionsRoute {
     .pipe(filter(pkg => pkg.stateInfo.state === 'installed'))
 
   readonly action = {
-    icon: 'tuiIconTrash2Large',
+    icon: 'tuiIconTrash2',
     name: 'Uninstall',
     description:
       'This will uninstall the service from StartOS and delete all data permanently.',

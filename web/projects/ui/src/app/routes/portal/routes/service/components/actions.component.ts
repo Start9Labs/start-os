@@ -4,13 +4,16 @@ import {
   inject,
   Input,
 } from '@angular/core'
+import { Manifest } from '@startos'
 import { tuiPure } from '@taiga-ui/cdk'
-import { TuiButtonModule } from '@taiga-ui/experimental'
+import {
+  TuiButtonModule,
+  tuiButtonOptionsProvider,
+} from '@taiga-ui/experimental'
 import { DependencyInfo } from 'src/app/routes/portal/routes/service/types/dependency-info'
 import { ActionsService } from 'src/app/services/actions.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
-import { Manifest } from '../../../../../../../../../../core/startos/bindings/Manifest'
 
 @Component({
   selector: 'service-actions',
@@ -18,7 +21,7 @@ import { Manifest } from '../../../../../../../../../../core/startos/bindings/Ma
     @if (pkg.status.main.status === 'running') {
       <button
         tuiButton
-        appearance="secondary-destructive"
+        appearance="danger-solid"
         iconLeft="tuiIconSquare"
         (click)="actions.stop(manifest)"
       >
@@ -27,7 +30,6 @@ import { Manifest } from '../../../../../../../../../../core/startos/bindings/Ma
 
       <button
         tuiButton
-        appearance="secondary"
         iconLeft="tuiIconRotateCw"
         (click)="actions.restart(manifest)"
       >
@@ -56,10 +58,20 @@ import { Manifest } from '../../../../../../../../../../core/startos/bindings/Ma
       </button>
     }
   `,
-  styles: [':host { display: flex; gap: 1rem }'],
+  styles: [
+    `
+      :host {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding-bottom: 1rem;
+      }
+    `,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [TuiButtonModule],
+  providers: [tuiButtonOptionsProvider({ size: 's' })],
 })
 export class ServiceActionsComponent {
   @Input({ required: true })

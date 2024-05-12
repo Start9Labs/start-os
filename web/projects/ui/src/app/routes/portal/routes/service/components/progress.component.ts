@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { Progress } from '@startos'
 import { TuiProgressModule } from '@taiga-ui/kit'
-import { InstallingProgressPipe } from '../pipes/install-progress.pipe'
-import { Progress } from '../../../../../../../../../../core/startos/bindings/Progress'
+import { InstallingProgressPipe } from 'src/app/routes/portal/routes/service/pipes/install-progress.pipe'
 
 @Component({
   selector: '[progress]',

@@ -26,7 +26,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
       Past Events
       <button
         tuiButton
-        appearance="secondary-destructive"
+        appearance="danger-solid"
         [disabled]="disabled"
         (click)="delete()"
       >

@@ -1,20 +1,21 @@
 import { inject, Pipe, PipeTransform } from '@angular/core'
 import { Params } from '@angular/router'
 import { MarkdownComponent } from '@start9labs/shared'
+import { Manifest } from '@startos'
 import { TuiDialogService } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { from } from 'rxjs'
 import {
-  PackageConfigData,
   ConfigModal,
+  PackageConfigData,
 } from 'src/app/routes/portal/modals/config.component'
+import { ServiceAdditionalModal } from 'src/app/routes/portal/routes/service/modals/additional.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { ProxyService } from 'src/app/services/proxy.service'
-import { ServicePropertiesModal } from '../modals/properties.component'
 import { getManifest } from 'src/app/utils/get-package-data'
-import { Manifest } from '../../../../../../../../../../core/startos/bindings/Manifest'
+import { ServicePropertiesModal } from 'src/app/routes/portal/routes/service/modals/properties.component'
 
 export interface ServiceMenu {
   icon: string
@@ -40,19 +41,19 @@ export class ToMenuPipe implements PipeTransform {
 
     return [
       {
-        icon: 'tuiIconListLarge',
+        icon: 'tuiIconList',
         name: 'Instructions',
         description: `Understand how to use ${manifest.title}`,
         action: () => this.showInstructions(manifest),
       },
       {
-        icon: 'tuiIconSlidersLarge',
+        icon: 'tuiIconSliders',
         name: 'Config',
         description: `Customize ${manifest.title}`,
         action: () => this.openConfig(manifest),
       },
       {
-        icon: 'tuiIconKeyLarge',
+        icon: 'tuiIconKey',
         name: 'Properties',
         description: `Runtime information, credentials, and other values of interest`,
         action: () =>
@@ -64,13 +65,13 @@ export class ToMenuPipe implements PipeTransform {
             .subscribe(),
       },
       {
-        icon: 'tuiIconZapLarge',
+        icon: 'tuiIconZap',
         name: 'Actions',
         description: `Uninstall and other commands specific to ${manifest.title}`,
         routerLink: `actions`,
       },
       {
-        icon: 'tuiIconShieldLarge',
+        icon: 'tuiIconShield',
         name: 'Outbound Proxy',
         description: `Proxy all outbound traffic from ${manifest.title}`,
         action: () =>
@@ -80,21 +81,33 @@ export class ToMenuPipe implements PipeTransform {
           ),
       },
       {
-        icon: 'tuiIconFileTextLarge',
+        icon: 'tuiIconFileText',
         name: 'Logs',
         description: `Raw, unfiltered logs`,
         routerLink: 'logs',
       },
+      {
+        icon: 'tuiIconInfo',
+        name: 'Additional Info',
+        description: `View package details`,
+        action: () =>
+          this.dialogs
+            .open(new PolymorpheusComponent(ServiceAdditionalModal), {
+              label: `Additional Info`,
+              data: pkg,
+            })
+            .subscribe(),
+      },
       pkg.marketplaceUrl
         ? {
-            icon: 'tuiIconShoppingBagLarge',
+            icon: 'tuiIconShoppingBag',
             name: 'Marketplace Listing',
             description: `View ${manifest.title} on the Marketplace`,
             routerLink: `/portal/system/marketplace`,
             params: { url: pkg.marketplaceUrl, id: manifest.id },
           }
         : {
-            icon: 'tuiIconShoppingBagLarge',
+            icon: 'tuiIconShoppingBag',
             name: 'Marketplace Listing',
             description: `This package was not installed from the marketplace`,
           },

@@ -2,20 +2,20 @@ import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
-  Input,
   inject,
+  Input,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
+import { Manifest } from '@startos'
 import { tuiPure } from '@taiga-ui/cdk'
 import { TuiSvgModule } from '@taiga-ui/core'
 import { TuiLineClampModule } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
-import { Observable, first } from 'rxjs'
+import { first, Observable } from 'rxjs'
 import { ServerNotification } from 'src/app/services/api/api.types'
-import { DataModel } from 'src/app/services/patch-db/data-model'
 import { NotificationService } from 'src/app/services/notification.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { toRouterLink } from 'src/app/utils/to-router-link'
-import { Manifest } from '../../../../../../../../../../core/startos/bindings/Manifest'
 
 @Component({
   selector: '[notificationItem]',
