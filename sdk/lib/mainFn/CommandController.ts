@@ -121,7 +121,7 @@ function waitSession(
     }
   }
   return new Promise((resolve, reject) => {
-    let to = null
+    let to: NodeJS.Timeout | null = null
     if (timeout !== 0) {
       to = setTimeout(() => {
         waitSession(sid, nextTimeout, nextInterval).then(resolve, reject)
