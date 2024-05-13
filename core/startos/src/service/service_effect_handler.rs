@@ -193,7 +193,6 @@ pub fn service_effect_handler<C: Context>() -> ParentHandler<C> {
         .subcommand("removeAddress", from_fn_async(remove_address).no_cli())
         .subcommand("exportAction", from_fn_async(export_action).no_cli())
         .subcommand("removeAction", from_fn_async(remove_action).no_cli())
-        .subcommand("reverseProxy", from_fn_async(reverse_proxy).no_cli())
         .subcommand("mount", from_fn_async(mount).no_cli())
 
     // TODO Callbacks
@@ -553,9 +552,6 @@ async fn remove_action(context: EffectContext, data: RemoveActionParams) -> Resu
         .await?;
     Ok(())
 }
-async fn reverse_proxy(context: EffectContext, data: ReverseProxyParams) -> Result<Value, Error> {
-    todo!()
-}
 async fn mount(context: EffectContext, data: MountParams) -> Result<Value, Error> {
     todo!()
 }
@@ -605,8 +601,11 @@ async fn get_host_info(
     }))
 }
 
-async fn clear_bindings(context: EffectContext, _: Empty) -> Result<Value, Error> {
-    todo!()
+async fn clear_bindings(context: EffectContext, _: Empty) -> Result<(), Error> {
+    let ctx = context.deref()?;
+    let mut svc = ctx.persistent_container.net_service.lock().await;
+    svc.clear_bindings().await?;
+    Ok(())
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]

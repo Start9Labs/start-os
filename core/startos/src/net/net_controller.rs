@@ -209,6 +209,21 @@ impl NetService {
             .await?;
         self.update(id, host).await
     }
+    pub async fn clear_bindings(&mut self) -> Result<(), Error> {
+        let package_id = &self.id;
+        self.net_controller()?
+            .db
+            .mutate(|db| {
+                db.as_public_mut()
+                    .as_package_data_mut()
+                    .as_idx_mut(package_id)
+                    .or_not_found(package_id)?
+                    .as_hosts_mut()
+                    .ser(&Default::default())
+            })
+            .await?;
+        Ok(())
+    }
 
     async fn update(&mut self, id: HostId, host: Host) -> Result<(), Error> {
         dbg!(&host);
