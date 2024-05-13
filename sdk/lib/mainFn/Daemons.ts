@@ -19,7 +19,7 @@ import { HealthDaemon } from "./HealthDaemon"
 import { Daemon } from "./Daemon"
 import { CommandController } from "./CommandController"
 
-const cpExec = promisify(CP.exec)
+export const cpExec = promisify(CP.exec)
 export const cpExecFile = promisify(CP.execFile)
 export type Ready = {
   display: string | null

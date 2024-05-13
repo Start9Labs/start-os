@@ -1,9 +1,9 @@
-import { NO_TIMEOUT, SIGTERM } from "../StartSdk"
+import { NO_TIMEOUT, SIGKILL, SIGTERM } from "../StartSdk"
 import { SDKManifest } from "../manifest/ManifestTypes"
 import { Effects, ValidIfNoStupidEscape } from "../types"
 import { MountOptions, Overlay } from "../util/Overlay"
 import { splitCommand } from "../util/splitCommand"
-import { cpExecFile } from "./Daemons"
+import { cpExecFile, cpExec } from "./Daemons"
 
 export class CommandController {
   private constructor(
@@ -74,11 +74,16 @@ export class CommandController {
     try {
       return await this.runningAnswer
     } finally {
-      await cpExecFile("pkill", ["-9", "-s", String(this.pid)]).catch((_) => {})
+      if (this.pid !== undefined) {
+        await cpExecFile("pkill", ["-9", "-s", String(this.pid)]).catch(
+          (_) => {},
+        )
+      }
       await this.overlay.destroy().catch((_) => {})
     }
   }
   async term({ signal = SIGTERM, timeout = NO_TIMEOUT } = {}) {
+    if (this.pid === undefined) return
     try {
       await cpExecFile("pkill", [
         `-${signal.replace("SIG", "")}`,
@@ -86,23 +91,58 @@ export class CommandController {
         String(this.pid),
       ])
 
-      if (timeout > NO_TIMEOUT) {
-        const didTimeout = await Promise.race([
-          new Promise((resolve) => setTimeout(resolve, timeout)).then(
-            () => true,
-          ),
-          this.runningAnswer.then(() => false),
-        ])
-        if (didTimeout) {
-          await cpExecFile("pkill", [`-9`, "-s", String(this.pid)]).catch(
-            (_: any) => {},
-          )
-        }
-      } else {
-        await this.runningAnswer
+      const didTimeout = await waitSession(this.pid, timeout)
+      if (didTimeout) {
+        await cpExecFile("pkill", [`-9`, "-s", String(this.pid)]).catch(
+          (_) => {},
+        )
       }
     } finally {
       await this.overlay.destroy()
     }
   }
+}
+
+function waitSession(
+  sid: number,
+  timeout = NO_TIMEOUT,
+  interval = 100,
+): Promise<boolean> {
+  let nextInterval = interval * 2
+  if (timeout >= 0 && timeout < nextInterval) {
+    nextInterval = timeout
+  }
+  let nextTimeout = timeout
+  if (timeout > 0) {
+    if (timeout >= interval) {
+      nextTimeout -= interval
+    } else {
+      nextTimeout = 0
+    }
+  }
+  return new Promise((resolve, reject) => {
+    let to = null
+    if (timeout !== 0) {
+      to = setTimeout(() => {
+        waitSession(sid, nextTimeout, nextInterval).then(resolve, reject)
+      }, interval)
+    }
+    cpExecFile("ps", [`--sid=${sid}`, "-o", "--pid="]).then(
+      (_) => {
+        if (timeout === 0) {
+          resolve(true)
+        }
+      },
+      (e) => {
+        if (to) {
+          clearTimeout(to)
+        }
+        if (typeof e === "object" && e && "code" in e && e.code) {
+          resolve(false)
+        } else {
+          reject(e)
+        }
+      },
+    )
+  })
 }
