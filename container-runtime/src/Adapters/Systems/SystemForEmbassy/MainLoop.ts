@@ -3,6 +3,7 @@ import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import { SystemForEmbassy } from "."
 import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { Daemons, T, daemons } from "@start9labs/start-sdk"
+import { Daemon } from "@start9labs/start-sdk/cjs/lib/mainFn/Daemon"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
 const EMBASSY_PROPERTIES_LOOP = 30 * 1000
@@ -21,8 +22,7 @@ export class MainLoop {
 
   private mainEvent:
     | Promise<{
-        daemon: T.DaemonReturned
-        wait: Promise<unknown>
+        daemon: Daemon
       }>
     | undefined
   constructor(
@@ -51,7 +51,7 @@ export class MainLoop {
     if (jsMain) {
       throw new Error("Unreachable")
     }
-    const daemon = await daemons.runDaemon()(
+    const daemon = await Daemon.of()(
       this.effects,
       { id: this.system.manifest.main.image },
       currentCommand,
@@ -59,14 +59,9 @@ export class MainLoop {
         overlay: dockerProcedureContainer.overlay,
       },
     )
+    daemon.start()
     return {
       daemon,
-      wait: daemon.wait().finally(() => {
-        this.clean()
-        effects
-          .setMainStatus({ status: "stopped" })
-          .catch((e) => console.error("Could not set the status to stopped"))
-      }),
     }
   }
 
@@ -121,7 +116,8 @@ export class MainLoop {
     const main = await mainEvent
     delete this.mainEvent
     delete this.healthLoops
-    if (mainEvent) await main?.daemon.term()
+    await main?.daemon.stop().catch((e) => console.error(e))
+    this.effects.setMainStatus({ status: "stopped" })
     if (healthLoops) healthLoops.forEach((x) => clearInterval(x.interval))
   }
 

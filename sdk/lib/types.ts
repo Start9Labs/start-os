@@ -4,6 +4,7 @@ import {
   DependencyRequirement,
   SetHealth,
   HealthCheckResult,
+  SetMainStatus,
 } from "./osBindings"
 
 import { MainEffects, ServiceInterfaceType, Signals } from "./StartSdk"
@@ -163,7 +164,7 @@ export type CommandType<A extends string> =
   | [string, ...string[]]
 
 export type DaemonReturned = {
-  wait(): Promise<null>
+  wait(): Promise<unknown>
   term(options?: { signal?: Signals; timeout?: number }): Promise<void>
 }
 
@@ -379,6 +380,8 @@ export type Effects = {
       value: ExtractStore
     }): Promise<void>
   }
+
+  setMainStatus(o: SetMainStatus): Promise<void>
 
   getSystemSmtp(input: {
     callback: (config: unknown, previousConfig: unknown) => void

@@ -581,10 +581,28 @@ struct GetHostInfoParams {
     callback: Callback,
 }
 async fn get_host_info(
-    _: EffectContext,
+    ctx: EffectContext,
     GetHostInfoParams { .. }: GetHostInfoParams,
 ) -> Result<Value, Error> {
-    todo!()
+    let ctx = ctx.deref()?;
+    Ok(json!({
+        "id": "fakeId1",
+        "kind": "multi",
+        "hostnames": [{
+            "kind": "ip",
+            "networkInterfaceId": "fakeNetworkInterfaceId1",
+            "public": true,
+            "hostname":{
+                  "kind": "domain",
+                  "domain": format!("{}", ctx.id),
+                  "subdomain": (),
+                  "port": (),
+                  "sslPort": ()
+                }
+          }
+
+        ]
+    }))
 }
 
 async fn clear_bindings(context: EffectContext, _: Empty) -> Result<Value, Error> {
@@ -1011,21 +1029,23 @@ async fn set_configured(context: EffectContext, params: SetConfigured) -> Result
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-enum Status {
+enum SetMainStatusStatus {
     Running,
     Stopped,
+    Starting,
 }
-impl FromStr for Status {
+impl FromStr for SetMainStatusStatus {
     type Err = color_eyre::eyre::Report;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "running" => Ok(Self::Running),
             "stopped" => Ok(Self::Stopped),
+            "starting" => Ok(Self::Starting),
             _ => Err(eyre!("unknown status {s}")),
         }
     }
 }
-impl ValueParserFactory for Status {
+impl ValueParserFactory for SetMainStatusStatus {
     type Parser = FromStrParser<Self>;
     fn value_parser() -> Self::Parser {
         FromStrParser::new()
@@ -1037,14 +1057,15 @@ impl ValueParserFactory for Status {
 #[command(rename_all = "camelCase")]
 #[ts(export)]
 struct SetMainStatus {
-    status: Status,
+    status: SetMainStatusStatus,
 }
 async fn set_main_status(context: EffectContext, params: SetMainStatus) -> Result<Value, Error> {
     dbg!(format!("Status for main will be is {params:?}"));
     let context = context.deref()?;
     match params.status {
-        Status::Running => context.started(),
-        Status::Stopped => context.stopped(),
+        SetMainStatusStatus::Running => context.started(),
+        SetMainStatusStatus::Stopped => context.stopped(),
+        SetMainStatusStatus::Starting => context.stopped(),
     }
     Ok(Value::Null)
 }

@@ -116,7 +116,7 @@ export class PolyfillEffects implements oet.Effects {
       this.manifest.volumes,
     )
     const daemon = dockerProcedureContainer.then((dockerProcedureContainer) =>
-      daemons.runDaemon()(
+      daemons.runCommand()(
         this.effects,
         { id: this.manifest.main.image },
         [input.command, ...(input.args || [])],
