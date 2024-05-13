@@ -121,9 +121,9 @@ function waitSession(
     }
   }
   return new Promise((resolve, reject) => {
-    let to: NodeJS.Timeout | null = null
+    let next: NodeJS.Timeout | null = null
     if (timeout !== 0) {
-      to = setTimeout(() => {
+      next = setTimeout(() => {
         waitSession(sid, nextTimeout, nextInterval).then(resolve, reject)
       }, interval)
     }
@@ -134,8 +134,8 @@ function waitSession(
         }
       },
       (e) => {
-        if (to) {
-          clearTimeout(to)
+        if (next) {
+          clearTimeout(next)
         }
         if (typeof e === "object" && e && "code" in e && e.code) {
           resolve(false)
