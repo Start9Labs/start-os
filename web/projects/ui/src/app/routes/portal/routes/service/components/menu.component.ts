@@ -7,7 +7,6 @@ import { RouterLink } from '@angular/router'
 @Component({
   selector: 'service-menu',
   template: `
-    <h3 class="g-title">Menu</h3>
     @for (menu of pkg | toMenu; track $index) {
       @if (menu.routerLink) {
         <a

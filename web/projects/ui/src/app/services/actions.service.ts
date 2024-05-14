@@ -1,19 +1,19 @@
 import { inject, Injectable } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
+import { Manifest } from '@startos'
 import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
 import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
+import { PatchDB } from 'patch-db-client'
 import { defaultIfEmpty, filter, firstValueFrom } from 'rxjs'
 import {
-  PackageConfigData,
   ConfigModal,
+  PackageConfigData,
 } from 'src/app/routes/portal/modals/config.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { hasCurrentDeps } from 'src/app/utils/has-deps'
 import { getAllPackages } from 'src/app/utils/get-package-data'
-import { PatchDB } from 'patch-db-client'
-import { Manifest } from '../../../../../../core/startos/bindings/Manifest'
+import { hasCurrentDeps } from 'src/app/utils/has-deps'
 
 @Injectable({
   providedIn: 'root',

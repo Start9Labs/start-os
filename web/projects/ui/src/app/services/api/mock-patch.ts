@@ -146,7 +146,8 @@ export const mockPatchData: DataModel = {
       },
       icon: '/assets/img/service-icons/bitcoind.svg',
       installedAt: new Date().toISOString(),
-      lastBackup: null,
+      lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
+      nextBackup: new Date(new Date().valueOf() + 100000000).toISOString(),
       status: {
         configured: true,
         main: {
@@ -419,6 +420,7 @@ export const mockPatchData: DataModel = {
       icon: '/assets/img/service-icons/lnd.png',
       installedAt: new Date().toISOString(),
       lastBackup: null,
+      nextBackup: null,
       status: {
         configured: true,
         main: {

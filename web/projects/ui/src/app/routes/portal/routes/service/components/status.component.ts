@@ -32,9 +32,11 @@ import { UnitConversionPipesModule } from '@start9labs/shared'
   styles: [
     `
       :host {
-        font-size: x-large;
-        margin: 1em 0;
         display: block;
+        font-size: x-large;
+        white-space: nowrap;
+        margin: auto 0;
+        height: 2.75rem;
       }
     `,
   ],

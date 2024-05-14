@@ -1,7 +1,10 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { TuiSvgModule } from '@taiga-ui/core'
-import { AdditionalItem, FALLBACK_URL } from '../pipes/to-additional.pipe'
+import {
+  AdditionalItem,
+  FALLBACK_URL,
+} from 'src/app/routes/portal/routes/service/pipes/to-additional.pipe'
 
 @Component({
   selector: '[additionalItem]',

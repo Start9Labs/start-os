@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { HealthCheckResult } from '@startos'
 import { TuiLoaderModule, TuiSvgModule } from '@taiga-ui/core'
-import { HealthCheckResult } from '../../../../../../../../../../core/startos/bindings/HealthCheckResult'
 
 @Component({
   selector: 'service-health-check',
