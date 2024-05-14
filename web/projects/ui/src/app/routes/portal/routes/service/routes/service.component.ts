@@ -65,7 +65,7 @@ import { DependencyInfo } from '../types/dependency-info'
       @if (isInstalled(service)) {
         <section [style.grid-column]="'span 3'">
           <h3>Backups</h3>
-          <service-backups />
+          <service-backups [pkg]="service.pkg" />
         </section>
 
         <section [style.grid-column]="'span 6'">

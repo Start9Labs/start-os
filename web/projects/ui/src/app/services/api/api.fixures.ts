@@ -913,7 +913,7 @@ export module Mock {
                   integer: false,
                 }),
               }),
-              displayAs: 'I\'m {{last-name}}, {{first-name}} {{last-name}}',
+              displayAs: `I'm {{last-name}}, {{first-name}} {{last-name}}`,
               uniqueBy: 'last-name',
             },
           ),
@@ -1295,6 +1295,7 @@ export module Mock {
     icon: '/assets/img/service-icons/bitcoind.svg',
     installedAt: new Date().toISOString(),
     lastBackup: null,
+    nextBackup: null,
     status: {
       configured: true,
       main: {
@@ -1539,6 +1540,7 @@ export module Mock {
     icon: '/assets/img/service-icons/btc-rpc-proxy.png',
     installedAt: new Date().toISOString(),
     lastBackup: null,
+    nextBackup: null,
     status: {
       configured: false,
       main: {
@@ -1681,6 +1683,7 @@ export module Mock {
     icon: '/assets/img/service-icons/lnd.png',
     installedAt: new Date().toISOString(),
     lastBackup: null,
+    nextBackup: null,
     status: {
       configured: true,
       main: {

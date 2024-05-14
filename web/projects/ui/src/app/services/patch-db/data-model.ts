@@ -131,6 +131,7 @@ export type PackageDataEntry<T extends StateInfo = StateInfo> =
     stateInfo: T
     installedAt: string
     outboundProxy: string | null
+    nextBackup: string | null
   }
 
 export type StateInfo = InstalledState | InstallingState | UpdatingState

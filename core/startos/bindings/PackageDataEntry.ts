@@ -16,6 +16,7 @@ export type PackageDataEntry = {
   developerKey: string;
   icon: DataUrl;
   lastBackup: string | null;
+  nextBackup: string | null;
   currentDependencies: CurrentDependencies;
   actions: { [key: ActionId]: ActionMetadata };
   serviceInterfaces: {
