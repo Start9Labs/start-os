@@ -210,9 +210,9 @@ export class ServiceRoute {
   ): DependencyInfo[] {
     const manifest = getManifest(pkg)
 
-    return Object.keys(pkg.currentDependencies)
-      .filter(id => !!manifest.dependencies[id])
-      .map(id => this.getDepValues(pkg, manifest, id, depErrors))
+    return Object.keys(pkg.currentDependencies).map(id =>
+      this.getDepValues(pkg, manifest, id, depErrors),
+    )
   }
 
   private getDepValues(
@@ -253,7 +253,7 @@ export class ServiceRoute {
     depId: string,
     depErrors: PkgDependencyErrors,
   ) {
-    const depError = depErrors[pkgManifest.id]
+    const depError = depErrors[depId]
 
     let errorText: string | null = null
     let fixText: string | null = null
@@ -321,10 +321,15 @@ export class ServiceRoute {
       version: pkg.currentDependencies[depId].versionSpec,
     }
     const navigationExtras: NavigationExtras = {
+      // @TODO state not being used by marketplace component. Maybe it is not important to use.
       state: { dependentInfo },
+      queryParams: { id: depId },
     }
 
-    await this.router.navigate(['marketplace', depId], navigationExtras)
+    await this.router.navigate(
+      ['portal', 'system', 'marketplace'],
+      navigationExtras,
+    )
   }
 }
 
