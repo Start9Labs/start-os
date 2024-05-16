@@ -66,7 +66,6 @@ describe("startosTypeValidation ", () => {
       removeAddress: {} as RemoveAddressParams,
       exportAction: {} as ExportActionParams,
       removeAction: {} as RemoveActionParams,
-      reverseProxy: {} as ReverseProxyParams,
       mount: {} as MountParams,
       checkDependencies: {} as CheckDependenciesParam,
       getDependencies: undefined,

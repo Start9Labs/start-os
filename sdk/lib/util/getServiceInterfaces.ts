@@ -21,23 +21,20 @@ const makeManyInterfaceFilled = async ({
 
   const serviceInterfacesFilled: ServiceInterfaceFilled[] = await Promise.all(
     Object.values(serviceInterfaceValues).map(async (serviceInterfaceValue) => {
-      console.log(
-        "BLUJ Getting the values of serviceInterfaceValue",
-        serviceInterfaceValue,
-      )
       const host = await effects.getHostInfo({
         kind: null,
         packageId,
         hostId: serviceInterfaceValue.hostInfo.id,
         callback,
       })
-      console.log("BLUJ host", host)
-      const primaryUrl = await effects.getPrimaryUrl({
-        serviceInterfaceId: serviceInterfaceValue.id,
-        packageId,
-        callback,
-      })
-      console.log("BLUJ primaryUrl", primaryUrl)
+      const primaryUrl = await effects
+        .getPrimaryUrl({
+          serviceInterfaceId: serviceInterfaceValue.id,
+          hostId: serviceInterfaceValue.hostInfo.id,
+          packageId,
+          callback,
+        })
+        .catch(() => null)
       return {
         ...serviceInterfaceValue,
         primaryUrl: primaryUrl,

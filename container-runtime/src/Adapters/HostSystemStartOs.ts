@@ -228,11 +228,6 @@ export class HostSystemStartOs implements Effects {
   restart(...[]: Parameters<T.Effects["restart"]>) {
     return this.rpcRound("restart", null)
   }
-  reverseProxy(...[options]: Parameters<T.Effects["reverseProxy"]>) {
-    return this.rpcRound("reverseProxy", options) as ReturnType<
-      T.Effects["reverseProxy"]
-    >
-  }
   running(...[packageId]: Parameters<T.Effects["running"]>) {
     return this.rpcRound("running", { packageId }) as ReturnType<
       T.Effects["running"]

@@ -10,6 +10,8 @@ import {
   HostInfo,
   Host,
   ExportServiceInterfaceParams,
+  BindParams,
+  GetPrimaryUrlParams,
 } from "./osBindings"
 
 import { MainEffects, ServiceInterfaceType, Signals } from "./StartSdk"
@@ -392,11 +394,7 @@ export type Effects = {
    * The user sets the primary url for a interface
    * @param options
    */
-  getPrimaryUrl(options: {
-    packageId: PackageId | null
-    serviceInterfaceId: ServiceInterfaceId
-    callback: () => void
-  }): Promise<UrlString | null>
+  getPrimaryUrl(options: GetPrimaryUrlParams): Promise<UrlString | null>
 
   /**
    * There are times that we want to see the addresses that where exported
@@ -471,25 +469,6 @@ export type Effects = {
   /** Exists could be useful during the runtime to know if some service is running, option dep */
   running(options: { packageId: PackageId }): Promise<boolean>
 
-  /** Instead of creating proxies with nginx, we have a utility to create and maintain a proxy in the lifetime of this running. */
-  reverseProxy(options: {
-    bind: {
-      /** Optional, default is 0.0.0.0 */
-      ip: string | null
-      port: number
-      ssl: boolean
-    }
-    dst: {
-      /** Optional: default is 127.0.0.1 */
-      ip: string | null // optional, default 127.0.0.1
-      port: number
-      ssl: boolean
-    }
-    http: {
-      // optional, will do TCP layer proxy only if not present
-      headers: Record<string, string> | null
-    } | null
-  }): Promise<{ stop(): Promise<void> }>
   restart(): void
   shutdown(): void
 

@@ -335,12 +335,64 @@ export class SystemForEmbassy implements System {
       await this.migration(effects, previousVersion, timeoutMs)
     await effects.setMainStatus({ status: "stopped" })
     await this.exportActions(effects)
-    await this.exportInterfaces(effects)
+    await this.exportNetwork(effects)
   }
-  async exportInterfaces(effects: HostSystemStartOs) {
+  async exportNetwork(effects: HostSystemStartOs) {
     for (const [id, interfaceValue] of Object.entries(
       this.manifest.interfaces,
     )) {
+      const hostId = `${id}-host`
+      for (const [external, internal] of Object.entries(
+        interfaceValue["tor-config"]?.["port-mapping"] ?? {},
+      )) {
+        const bindParams: T.BindParams = {
+          kind: "multi",
+          id: hostId,
+          internalPort: Number.parseInt(internal),
+          scheme: "http",
+          preferredExternalPort: Number.parseInt(external),
+          addSsl:
+            external === "443"
+              ? {
+                  scheme: "https",
+                  preferredExternalPort: Number.parseInt(external),
+                  alpn: "reflect",
+                }
+              : null,
+          secure:
+            external === "443"
+              ? {
+                  ssl: true,
+                }
+              : null,
+        }
+        await effects.bind(bindParams)
+      }
+      for (const [external, value] of Object.entries(
+        interfaceValue["lan-config"] ?? {},
+      )) {
+        const ssl = value.ssl
+        const internal = value.internal
+        const bindParams: T.BindParams = {
+          kind: "multi",
+          id: hostId,
+          internalPort: internal,
+          scheme: "http",
+          preferredExternalPort: Number.parseInt(external),
+          addSsl:
+            external === "443"
+              ? {
+                  scheme: "https",
+                  preferredExternalPort: Number.parseInt(external),
+                  alpn: "reflect",
+                }
+              : null,
+          secure: {
+            ssl: true,
+          },
+        }
+        await effects.bind(bindParams)
+      }
       const options: T.ExportServiceInterfaceParams = {
         id,
         name: interfaceValue.name,
@@ -350,7 +402,7 @@ export class SystemForEmbassy implements System {
         masked: false,
         addressInfo: {
           username: null,
-          hostId: `${id}-host`,
+          hostId: hostId,
           bindOptions: {
             scheme: "http",
             preferredExternalPort: 80,
@@ -965,7 +1017,6 @@ async function updateConfig(
           return null
         })
 
-      console.log("BLUJ filled", filled)
       mutConfigValue[key] =
         filled === null
           ? ""

@@ -76,7 +76,7 @@ function stringifyHostname(hostAddress: null | HostAddress): [Hostname] | [] {
 
   if (!hostAddress) return []
   if (hostAddress.kind === "onion")
-    return [hostAddress.address.replace(/\.onion$/, "") as Hostname]
+    return [`${hostAddress.address.replace(/\.onion$/, "")}.onion` as Hostname]
 
   return []
 }
@@ -182,29 +182,25 @@ const makeInterfaceFilled = async ({
   packageId: string | null
   callback: () => void
 }) => {
-  console.log("BLUJ makeInterfaceFilled params", { id, packageId, callback })
   const serviceInterfaceValue = await effects.getServiceInterface({
     serviceInterfaceId: id,
     packageId,
     callback,
   })
-  console.log(
-    "BLUJ makeInterfaceFilled serviceInterfaceValue",
-    serviceInterfaceValue,
-  )
   const host = await effects.getHostInfo({
     packageId,
     kind: null,
     hostId: serviceInterfaceValue.hostInfo.id,
     callback,
   })
-  console.log("BLUJ makeInterfaceFilled host", host)
-  const primaryUrl = await effects.getPrimaryUrl({
-    serviceInterfaceId: id,
-    packageId,
-    callback,
-  })
-  console.log("BLUJ makeInterfaceFilled primaryUrl", primaryUrl)
+  const primaryUrl = await effects
+    .getPrimaryUrl({
+      serviceInterfaceId: id,
+      packageId,
+      hostId: serviceInterfaceValue.hostInfo.id,
+      callback,
+    })
+    .catch((e) => null)
 
   const interfaceFilled: ServiceInterfaceFilled = {
     ...serviceInterfaceValue,
