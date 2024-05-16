@@ -6,8 +6,7 @@ use tokio_util::either::Either;
 
 use crate::prelude::*;
 use crate::util::io::{ParallelBlake3Writer, TeeWriter};
-
-pub const BUFFER_CAPACITY: usize = 10 * 1024 * 1024; // 10MiB
+use crate::CAP_10_MiB;
 
 #[pin_project::pin_project]
 pub struct VerifyingWriter<W> {
@@ -21,8 +20,8 @@ impl<W: AsyncWrite> VerifyingWriter<W> {
             writer: if verify.is_some() {
                 Either::Left(TeeWriter::new(
                     w,
-                    ParallelBlake3Writer::new(BUFFER_CAPACITY),
-                    BUFFER_CAPACITY,
+                    ParallelBlake3Writer::new(CAP_10_MiB),
+                    CAP_10_MiB,
                 ))
             } else {
                 Either::Right(w)

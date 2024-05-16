@@ -96,7 +96,7 @@ impl<S> S9pk<S> {
     }
 }
 
-impl<S: FileSource> S9pk<S> {
+impl<S: FileSource + Clone> S9pk<S> {
     pub async fn new(archive: MerkleArchive<S>, size: Option<u64>) -> Result<Self, Error> {
         let manifest = extract_manifest(&archive).await?;
         Ok(Self {
@@ -173,7 +173,7 @@ impl<S: FileSource> S9pk<S> {
     }
 }
 
-impl<S: ArchiveSource> S9pk<Section<S>> {
+impl<S: ArchiveSource + Clone> S9pk<Section<S>> {
     #[instrument(skip_all)]
     pub async fn deserialize(source: &S, apply_filter: bool) -> Result<Self, Error> {
         use tokio::io::AsyncReadExt;

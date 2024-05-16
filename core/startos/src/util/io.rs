@@ -804,7 +804,7 @@ pub struct TeeWriter<W1, W2> {
     #[pin]
     writer2: W2,
 }
-impl<W1: AsyncWrite, W2: AsyncWrite> TeeWriter<W1, W2> {
+impl<W1, W2> TeeWriter<W1, W2> {
     pub fn new(writer1: W1, writer2: W2, capacity: usize) -> Self {
         Self {
             capacity,
@@ -815,7 +815,6 @@ impl<W1: AsyncWrite, W2: AsyncWrite> TeeWriter<W1, W2> {
         }
     }
 }
-
 impl<W1: AsyncWrite + Unpin, W2: AsyncWrite + Unpin> TeeWriter<W1, W2> {
     pub async fn into_inner(mut self) -> Result<(W1, W2), Error> {
         self.flush().await?;
@@ -1005,5 +1004,63 @@ impl AsyncWrite for ParallelBlake3Writer {
         *shutdown = true;
         this.buffer.1.notify_waiters();
         Poll::Pending
+    }
+}
+
+#[pin_project::pin_project]
+pub struct TrackingIO<T> {
+    position: u64,
+    #[pin]
+    io: T,
+}
+impl<T> TrackingIO<T> {
+    pub fn new(start: u64, io: T) -> Self {
+        Self {
+            position: start,
+            io,
+        }
+    }
+    pub fn position(&self) -> u64 {
+        self.position
+    }
+    pub fn into_inner(self) -> T {
+        self.io
+    }
+}
+impl<W: AsyncWrite> AsyncWrite for TrackingIO<W> {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<Result<usize, std::io::Error>> {
+        let this = self.project();
+        let written = futures::ready!(this.io.poll_write(cx, buf)?);
+        *this.position += written as u64;
+        Poll::Ready(Ok(written))
+    }
+    fn poll_flush(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        self.project().io.poll_flush(cx)
+    }
+    fn poll_shutdown(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        self.project().io.poll_shutdown(cx)
+    }
+}
+impl<R: AsyncRead> AsyncRead for TrackingIO<R> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        let this = self.project();
+        let start = buf.filled().len();
+        futures::ready!(this.io.poll_read(cx, buf)?);
+        *this.position += (buf.filled().len() - start) as u64;
+        Poll::Ready(Ok(()))
     }
 }

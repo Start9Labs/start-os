@@ -10,10 +10,11 @@ use ts_rs::TS;
 use crate::context::CliContext;
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
-use crate::registry::signer::{ContactInfo, SignerInfo, SignerKey};
+use crate::registry::signer::sign::AnyVerifyingKey;
+use crate::registry::signer::{ContactInfo, SignerInfo};
 use crate::registry::RegistryDatabase;
 use crate::rpc_continuations::RequestGuid;
-use crate::util::serde::{display_serializable, HandlerExtSerde, Pem, WithIoFormat};
+use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 
 pub fn admin_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -49,7 +50,7 @@ fn signers_api<C: Context>() -> ParentHandler<C> {
 }
 
 impl Model<BTreeMap<RequestGuid, SignerInfo>> {
-    pub fn get_signer(&self, key: &SignerKey) -> Result<RequestGuid, Error> {
+    pub fn get_signer(&self, key: &AnyVerifyingKey) -> Result<RequestGuid, Error> {
         self.as_entries()?
             .into_iter()
             .map(|(guid, s)| Ok::<_, Error>((guid, s.as_keys().de()?)))
@@ -60,7 +61,10 @@ impl Model<BTreeMap<RequestGuid, SignerInfo>> {
             .ok_or_else(|| Error::new(eyre!("unknown signer"), ErrorKind::Authorization))
     }
 
-    pub fn get_signer_info(&self, key: &SignerKey) -> Result<(RequestGuid, SignerInfo), Error> {
+    pub fn get_signer_info(
+        &self,
+        key: &AnyVerifyingKey,
+    ) -> Result<(RequestGuid, SignerInfo), Error> {
         self.as_entries()?
             .into_iter()
             .map(|(guid, s)| Ok::<_, Error>((guid, s.de()?)))
@@ -137,8 +141,8 @@ pub struct CliAddSignerParams {
     pub name: String,
     #[arg(long = "contact", short = 'c')]
     pub contact: Vec<ContactInfo>,
-    #[arg(long = "ed25519-key")]
-    pub ed25519_keys: Vec<Pem<ed25519_dalek::VerifyingKey>>,
+    #[arg(long = "key")]
+    pub keys: Vec<AnyVerifyingKey>,
     pub database: Option<PathBuf>,
 }
 
@@ -151,7 +155,7 @@ pub async fn cli_add_signer(
             CliAddSignerParams {
                 name,
                 contact,
-                ed25519_keys,
+                keys,
                 database,
             },
         ..
@@ -160,7 +164,7 @@ pub async fn cli_add_signer(
     let signer = SignerInfo {
         name,
         contact,
-        keys: ed25519_keys.into_iter().map(SignerKey::Ed25519).collect(),
+        keys: keys.into_iter().collect(),
     };
     if let Some(database) = database {
         TypedPatchDb::<RegistryDatabase>::load(PatchDb::open(database).await?)

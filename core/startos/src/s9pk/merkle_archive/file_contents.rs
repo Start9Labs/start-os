@@ -2,9 +2,10 @@ use blake3::Hash;
 use tokio::io::AsyncRead;
 
 use crate::prelude::*;
-use crate::s9pk::merkle_archive::sink::{Sink, TrackingWriter};
+use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
-use crate::util::io::ParallelBlake3Writer;
+use crate::util::io::{ParallelBlake3Writer, TrackingIO};
+use crate::CAP_10_MiB;
 
 #[derive(Debug, Clone)]
 pub struct FileContents<S>(S);
@@ -19,7 +20,7 @@ impl<S> FileContents<S> {
 impl<S: ArchiveSource> FileContents<Section<S>> {
     #[instrument(skip_all)]
     pub async fn deserialize(
-        source: &S,
+        source: S,
         header: &mut (impl AsyncRead + Unpin + Send),
         size: u64,
     ) -> Result<Self, Error> {
@@ -34,8 +35,7 @@ impl<S: ArchiveSource> FileContents<Section<S>> {
 }
 impl<S: FileSource> FileContents<S> {
     pub async fn hash(&self) -> Result<(Hash, u64), Error> {
-        let mut hasher =
-            TrackingWriter::new(0, ParallelBlake3Writer::new(super::hash::BUFFER_CAPACITY));
+        let mut hasher = TrackingIO::new(0, ParallelBlake3Writer::new(CAP_10_MiB));
         self.serialize_body(&mut hasher, None).await?;
         let size = hasher.position();
         let hash = hasher.into_inner().finalize().await?;

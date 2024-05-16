@@ -16,7 +16,7 @@ use crate::prelude::*;
 use crate::registry::auth::Auth;
 use crate::registry::context::RegistryContext;
 use crate::registry::os::index::OsIndex;
-use crate::registry::package::PackageIndex;
+use crate::registry::package::index::PackageIndex;
 use crate::registry::signer::SignerInfo;
 use crate::rpc_continuations::RequestGuid;
 use crate::util::serde::HandlerExtSerde;

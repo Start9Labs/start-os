@@ -1,53 +1,28 @@
-use std::collections::BTreeMap;
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 
-use emver::Version;
-use imbl_value::InternedString;
-use models::{DataUrl, PackageId};
-use serde::{Deserialize, Serialize};
-use ts_rs::TS;
-use url::Url;
-
+use crate::context::CliContext;
 use crate::prelude::*;
-use crate::s9pk::git_hash::GitHash;
-use crate::s9pk::manifest::Description;
+use crate::util::serde::HandlerExtSerde;
 
-#[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
-#[serde(rename_all = "camelCase")]
-#[model = "Model<Self>"]
-#[ts(export)]
-pub struct PackageIndex {
-    #[ts(as = "BTreeMap::<String, Category>")]
-    pub categories: BTreeMap<InternedString, Category>,
-    #[ts(as = "BTreeMap::<PackageId, BTreeMap::<String, PackageInfo>>")]
-    pub packages: BTreeMap<PackageId, BTreeMap<Version, PackageInfo>>,
-}
+pub mod add;
+pub mod get;
+pub mod index;
 
-#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
-#[serde(rename_all = "camelCase")]
-#[model = "Model<Self>"]
-#[ts(export)]
-pub struct Category {
-    pub name: String,
-}
-
-#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
-#[serde(rename_all = "camelCase")]
-#[model = "Model<Self>"]
-#[ts(export)]
-pub struct PackageInfo {
-    pub title: String,
-    pub icon: DataUrl<'static>,
-    pub description: Description,
-    #[ts(type = "string")]
-    pub git_hash: GitHash,
-    #[ts(type = "string")]
-    pub license: InternedString,
-    #[ts(type = "string")]
-    pub wrapper_repo: Url,
-    #[ts(type = "string")]
-    pub upstream_repo: Url,
-    #[ts(type = "string")]
-    pub support_site: Url,
-    #[ts(type = "string")]
-    pub marketing_site: Url,
+pub fn package_api<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new().subcommand(
+        "index",
+        from_fn_async(index::get_package_index)
+            .with_display_serializable()
+            .with_call_remote::<CliContext>(),
+    )
+    // .subcommand("add", from_fn_async(add::add_package).no_cli())
+    // .subcommand("add", from_fn_async(add::cli_add_package).no_display())
+    // .subcommand(
+    //     "get",
+    //     from_fn_async(get::get_package)
+    //         .with_display_serializable()
+    //         .with_custom_display_fn(|handle, result| {
+    //             Ok(get::display_package_info(handle.params, result))
+    //         }),
+    // )
 }

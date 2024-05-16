@@ -22,7 +22,8 @@ use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
 use crate::registry::os::index::OsVersionInfo;
 use crate::registry::os::SIG_CONTEXT;
-use crate::registry::signer::{Blake3Ed25519Signature, Signature, SignatureInfo, SignerKey};
+use crate::registry::signer::sign::AnyVerifyingKey;
+use crate::registry::signer::{Blake3Ed25519Signature, Signature, SignatureInfo};
 use crate::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::s9pk::merkle_archive::source::ArchiveSource;
 use crate::util::{Apply, Version};
@@ -63,7 +64,7 @@ pub struct AddAssetParams {
     #[serde(default)]
     pub upload: bool,
     #[serde(rename = "__auth_signer")]
-    pub signer: SignerKey,
+    pub signer: AnyVerifyingKey,
 }
 
 async fn add_asset(

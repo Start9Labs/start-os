@@ -1,23 +1,24 @@
+use std::pin::Pin;
+use std::sync::Arc;
+
 use bytes::Bytes;
-use futures::stream::BoxStream;
-use futures::{StreamExt, TryStreamExt};
+use futures::{Stream, StreamExt, TryStreamExt};
 use reqwest::header::{ACCEPT_RANGES, CONTENT_LENGTH, RANGE};
 use reqwest::{Client, Url};
 use tokio::io::{AsyncRead, AsyncReadExt, Take};
+use tokio::sync::{Mutex, RwLock};
 use tokio_util::io::StreamReader;
 
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::ArchiveSource;
+use crate::util::io::TrackingIO;
+use crate::util::Apply;
 
-#[derive(Clone)]
 pub struct HttpSource {
     url: Url,
     client: Client,
     size: Option<u64>,
-    range_support: Result<
-        (),
-        (), // Arc<Mutex<Option<RangelessReader>>>
-    >,
+    range_support: Result<(), Mutex<Vec<Arc<RwLock<TrackingIO<HttpBodyReader>>>>>>,
 }
 impl HttpSource {
     pub async fn new(client: Client, url: Url) -> Result<Self, Error> {
@@ -45,7 +46,7 @@ impl HttpSource {
             range_support: if range_support {
                 Ok(())
             } else {
-                Err(()) // Err(Arc::new(Mutex::new(None)))
+                Err(Mutex::new(Vec::new()))
             },
         })
     }
@@ -55,8 +56,22 @@ impl ArchiveSource for HttpSource {
     async fn size(&self) -> Option<u64> {
         self.size
     }
+    async fn fetch_all(&self) -> Result<impl AsyncRead + Unpin + Send, Error> {
+        Ok(StreamReader::new(
+            self.client
+                .get(self.url.clone())
+                .send()
+                .await
+                .with_kind(ErrorKind::Network)?
+                .error_for_status()
+                .with_kind(ErrorKind::Network)?
+                .bytes_stream()
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                .apply(boxed),
+        ))
+    }
     async fn fetch(&self, position: u64, size: u64) -> Result<Self::Reader, Error> {
-        match self.range_support {
+        match &self.range_support {
             Ok(_) => Ok(HttpReader::Range(StreamReader::new(if size > 0 {
                 self.client
                     .get(self.url.clone())
@@ -68,20 +83,26 @@ impl ArchiveSource for HttpSource {
                     .with_kind(ErrorKind::Network)?
                     .bytes_stream()
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
-                    .boxed()
+                    .apply(boxed)
             } else {
-                futures::stream::empty().boxed()
+                futures::stream::empty().apply(boxed)
             }))
             .take(size)),
-            _ => todo!(),
+            Err(cached) => todo!(),
         }
     }
 }
 
+type BoxStream<'a, T> = Pin<Box<dyn Stream<Item = T> + Send + Sync + 'a>>;
+fn boxed<'a, T>(stream: impl Stream<Item = T> + Send + Sync + 'a) -> BoxStream<'a, T> {
+    Box::pin(stream)
+}
+type HttpBodyReader = StreamReader<BoxStream<'static, Result<Bytes, std::io::Error>>, Bytes>;
+
 #[pin_project::pin_project(project = HttpReaderProj)]
 pub enum HttpReader {
-    Range(#[pin] StreamReader<BoxStream<'static, Result<Bytes, std::io::Error>>, Bytes>),
-    // Rangeless(#[pin] RangelessReader),
+    Range(#[pin] HttpBodyReader),
+    Rangeless(#[pin] StreamReader<BoxStream<'static, Result<Bytes, std::io::Error>>, Bytes>),
 }
 impl AsyncRead for HttpReader {
     fn poll_read(

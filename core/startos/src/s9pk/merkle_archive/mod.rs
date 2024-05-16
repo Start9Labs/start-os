@@ -7,11 +7,13 @@ use sha2::{Digest, Sha512};
 use tokio::io::AsyncRead;
 
 use crate::prelude::*;
+use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::file_contents::FileContents;
 use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
 use crate::s9pk::merkle_archive::write_queue::WriteQueue;
+use crate::util::serde::Base64;
 
 pub mod directory_contents;
 pub mod file_contents;
@@ -70,7 +72,7 @@ impl<S> MerkleArchive<S> {
         self.contents.sort_by(sort_by)
     }
 }
-impl<S: ArchiveSource> MerkleArchive<Section<S>> {
+impl<S: ArchiveSource + Clone> MerkleArchive<Section<S>> {
     #[instrument(skip_all)]
     pub async fn deserialize(
         source: &S,
@@ -109,7 +111,18 @@ impl<S: ArchiveSource> MerkleArchive<Section<S>> {
         })
     }
 }
-impl<S: FileSource> MerkleArchive<S> {
+impl<S: FileSource + Clone> MerkleArchive<S> {
+    pub async fn commitment(&self) -> Result<MerkleArchiveCommitment, Error> {
+        let root_maxsize = match self.signer {
+            Signer::Signed(_, _, s, _) => s,
+            _ => self.contents.toc_size(),
+        };
+        let root_sighash = self.contents.sighash().await?;
+        Ok(MerkleArchiveCommitment {
+            root_sighash: Base64(*root_sighash.as_bytes()),
+            root_maxsize,
+        })
+    }
     pub async fn update_hashes(&mut self, only_missing: bool) -> Result<(), Error> {
         self.contents.update_hashes(only_missing).await
     }
@@ -216,11 +229,10 @@ impl<S> Entry<S> {
         + self.contents.header_size()
     }
 }
-impl<S: Clone> Entry<S> {}
-impl<S: ArchiveSource> Entry<Section<S>> {
+impl<S: ArchiveSource + Clone> Entry<Section<S>> {
     #[instrument(skip_all)]
     pub async fn deserialize(
-        source: &S,
+        source: S,
         header: &mut (impl AsyncRead + Unpin + Send),
     ) -> Result<Self, Error> {
         use tokio::io::AsyncReadExt;
@@ -241,24 +253,19 @@ impl<S: ArchiveSource> Entry<Section<S>> {
         })
     }
 }
-impl<S: FileSource> Entry<S> {
+impl<S: FileSource + Clone> Entry<S> {
     pub fn filter(&mut self, filter: impl Fn(&Path) -> bool) -> Result<(), Error> {
         if let EntryContents::Directory(d) = &mut self.contents {
             d.filter(filter)?;
         }
         Ok(())
     }
-    pub async fn read_file_to_vec(&self) -> Result<Vec<u8>, Error> {
-        match self.as_contents() {
-            EntryContents::File(f) => Ok(f.to_vec(self.hash).await?),
-            EntryContents::Directory(_) => Err(Error::new(
-                eyre!("expected file, found directory"),
-                ErrorKind::ParseS9pk,
-            )),
-            EntryContents::Missing => {
-                Err(Error::new(eyre!("entry is missing"), ErrorKind::ParseS9pk))
-            }
+    pub async fn update_hash(&mut self, only_missing: bool) -> Result<(), Error> {
+        if let EntryContents::Directory(d) = &mut self.contents {
+            d.update_hashes(only_missing).await?;
         }
+        self.hash = Some(self.contents.hash().await?);
+        Ok(())
     }
     pub async fn to_missing(&self) -> Result<Self, Error> {
         let hash = if let Some(hash) = self.hash {
@@ -270,13 +277,6 @@ impl<S: FileSource> Entry<S> {
             hash: Some(hash),
             contents: EntryContents::Missing,
         })
-    }
-    pub async fn update_hash(&mut self, only_missing: bool) -> Result<(), Error> {
-        if let EntryContents::Directory(d) = &mut self.contents {
-            d.update_hashes(only_missing).await?;
-        }
-        self.hash = Some(self.contents.hash().await?);
-        Ok(())
     }
     #[instrument(skip_all)]
     pub async fn serialize_header<W: Sink>(
@@ -299,6 +299,20 @@ impl<S: FileSource> Entry<S> {
         Entry {
             hash: self.hash,
             contents: self.contents.into_dyn(),
+        }
+    }
+}
+impl<S: FileSource> Entry<S> {
+    pub async fn read_file_to_vec(&self) -> Result<Vec<u8>, Error> {
+        match self.as_contents() {
+            EntryContents::File(f) => Ok(f.to_vec(self.hash).await?),
+            EntryContents::Directory(_) => Err(Error::new(
+                eyre!("expected file, found directory"),
+                ErrorKind::ParseS9pk,
+            )),
+            EntryContents::Missing => {
+                Err(Error::new(eyre!("entry is missing"), ErrorKind::ParseS9pk))
+            }
         }
     }
 }
@@ -329,10 +343,10 @@ impl<S> EntryContents<S> {
         matches!(self, &EntryContents::Directory(_))
     }
 }
-impl<S: ArchiveSource> EntryContents<Section<S>> {
+impl<S: ArchiveSource + Clone> EntryContents<Section<S>> {
     #[instrument(skip_all)]
     pub async fn deserialize(
-        source: &S,
+        source: S,
         header: &mut (impl AsyncRead + Unpin + Send),
         (hash, size): (Hash, u64),
     ) -> Result<Self, Error> {
@@ -346,7 +360,7 @@ impl<S: ArchiveSource> EntryContents<Section<S>> {
                 FileContents::deserialize(source, header, size).await?,
             )),
             2 => Ok(Self::Directory(
-                DirectoryContents::deserialize(source, header, (hash, size)).await?,
+                DirectoryContents::deserialize(&source, header, (hash, size)).await?,
             )),
             id => Err(Error::new(
                 eyre!("Unknown type id {id} found in MerkleArchive"),
@@ -355,7 +369,7 @@ impl<S: ArchiveSource> EntryContents<Section<S>> {
         }
     }
 }
-impl<S: FileSource> EntryContents<S> {
+impl<S: FileSource + Clone> EntryContents<S> {
     pub async fn hash(&self) -> Result<(Hash, u64), Error> {
         match self {
             Self::Missing => Err(Error::new(
@@ -366,6 +380,15 @@ impl<S: FileSource> EntryContents<S> {
             Self::Directory(d) => Ok((d.sighash().await?, d.toc_size())),
         }
     }
+    pub fn into_dyn(self) -> EntryContents<DynFileSource> {
+        match self {
+            Self::Missing => EntryContents::Missing,
+            Self::File(f) => EntryContents::File(f.into_dyn()),
+            Self::Directory(d) => EntryContents::Directory(d.into_dyn()),
+        }
+    }
+}
+impl<S: FileSource> EntryContents<S> {
     #[instrument(skip_all)]
     pub async fn serialize_header<W: Sink>(
         &self,
@@ -380,12 +403,5 @@ impl<S: FileSource> EntryContents<S> {
             Self::File(f) => Some(f.serialize_header(position, w).await?),
             Self::Directory(d) => Some(d.serialize_header(position, w).await?),
         })
-    }
-    pub fn into_dyn(self) -> EntryContents<DynFileSource> {
-        match self {
-            Self::Missing => EntryContents::Missing,
-            Self::File(f) => EntryContents::File(f.into_dyn()),
-            Self::Directory(d) => EntryContents::Directory(d.into_dyn()),
-        }
     }
 }

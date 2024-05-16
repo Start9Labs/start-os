@@ -11,7 +11,7 @@ use crate::context::CliContext;
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
 use crate::registry::os::index::OsVersionInfo;
-use crate::registry::signer::SignerKey;
+use crate::registry::signer::sign::AnyVerifyingKey;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Version;
 
@@ -60,7 +60,7 @@ pub struct AddVersionParams {
     #[arg(skip)]
     #[ts(skip)]
     #[serde(rename = "__auth_signer")]
-    pub signer: Option<SignerKey>,
+    pub signer: Option<AnyVerifyingKey>,
 }
 
 pub async fn add_version(

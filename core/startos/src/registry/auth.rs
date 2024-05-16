@@ -17,7 +17,7 @@ use ts_rs::TS;
 
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
-use crate::registry::signer::SignerKey;
+use crate::registry::signer::sign::{AnyDigest, AnySignature, AnyVerifyingKey, SignatureScheme};
 use crate::util::serde::{Base64, Pem};
 
 pub const AUTH_SIG_HEADER: &str = "X-StartOS-Registry-Auth-Sig";
@@ -34,7 +34,7 @@ pub struct Metadata {
 #[derive(Clone)]
 pub struct Auth {
     nonce_cache: Arc<Mutex<BTreeMap<Instant, u64>>>, // for replay protection
-    signer: Option<Result<SignerKey, RpcError>>,
+    signer: Option<Result<AnyVerifyingKey, RpcError>>,
 }
 impl Auth {
     pub fn new() -> Self {
@@ -68,7 +68,7 @@ pub struct RegistryAdminLogRecord {
     pub name: String,
     #[ts(type = "{ id: string | number | null; method: string; params: any }")]
     pub request: RpcRequest,
-    pub key: SignerKey,
+    pub key: AnyVerifyingKey,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -76,7 +76,7 @@ pub struct SignatureHeader {
     pub timestamp: i64,
     pub nonce: u64,
     #[serde(flatten)]
-    pub signer: SignerKey,
+    pub signer: AnyVerifyingKey,
     pub signature: Base64<[u8; 64]>,
 }
 impl SignatureHeader {
@@ -90,7 +90,7 @@ impl SignatureHeader {
             .map(|d| d.as_secs() as i64)
             .unwrap_or_else(|e| e.duration().as_secs() as i64 * -1);
         let nonce = rand::random();
-        let signer = SignerKey::Ed25519(Pem(key.verifying_key()));
+        let signer = AnyVerifyingKey::Ed25519(Pem(key.verifying_key()));
         let mut hasher = Sha512::new();
         hasher.update(&i64::to_be_bytes(timestamp));
         hasher.update(&u64::to_be_bytes(nonce));
@@ -150,13 +150,18 @@ impl Middleware<RegistryContext> for Auth {
                         .await
                         .with_kind(ErrorKind::Network)?
                         .to_bytes();
-                    let mut verifier = signer.verifier();
+                    let AnyDigest::Sha512(mut verifier) = signer.scheme().new_digest();
                     verifier.update(&i64::to_be_bytes(timestamp));
                     verifier.update(&u64::to_be_bytes(nonce));
                     verifier.update(&body);
                     *request.body_mut() = Body::from(body);
 
-                    verifier.verify(&*signature, &ctx.hostname)?;
+                    signer.scheme().verify(
+                        &signer,
+                        AnyDigest::Sha512(verifier),
+                        &ctx.hostname,
+                        &AnySignature::Ed25519(ed25519_dalek::Signature::from_bytes(&*signature)),
+                    )?;
                     Ok(signer)
                 }
                 .await

@@ -12,11 +12,16 @@ use ts_rs::TS;
 use url::Url;
 
 use crate::prelude::*;
+use crate::registry::signer::sign::ed25519::Ed25519;
+use crate::registry::signer::sign::{AnyVerifyingKey, SignatureScheme};
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, FileSource};
 use crate::util::clap::FromStrParser;
 use crate::util::serde::{Base64, Pem};
+
+pub mod commitment;
+pub mod sign;
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
@@ -25,39 +30,7 @@ use crate::util::serde::{Base64, Pem};
 pub struct SignerInfo {
     pub name: String,
     pub contact: Vec<ContactInfo>,
-    pub keys: HashSet<SignerKey>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, Hash, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-#[serde(tag = "alg", content = "pubkey")]
-pub enum SignerKey {
-    Ed25519(Pem<ed25519_dalek::VerifyingKey>),
-}
-impl SignerKey {
-    pub fn verifier(&self) -> Verifier {
-        match self {
-            Self::Ed25519(k) => Verifier::Ed25519(*k, Sha512::new()),
-        }
-    }
-    pub fn verify_message(
-        &self,
-        message: &[u8],
-        signature: &[u8],
-        context: &str,
-    ) -> Result<(), Error> {
-        let mut v = self.verifier();
-        v.update(message);
-        v.verify(signature, context)
-    }
-}
-impl std::fmt::Display for SignerKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Ed25519(k) => write!(f, "{k}"),
-        }
-    }
+    pub keys: HashSet<AnyVerifyingKey>,
 }
 
 pub enum Verifier {
@@ -125,13 +98,14 @@ impl ValueParserFactory for ContactInfo {
 pub struct SignatureInfo {
     #[ts(type = "string")]
     pub context: InternedString,
-    pub blake3_ed255i9: Option<Blake3Ed2551SignatureInfo>,
+    pub blake3_ed25519: Option<Blake3Ed25519SignatureInfo>,
+    // pub merkle_archive_ed25519: Option<MerkleArchiveEd25519SignatureInfo>,
 }
 impl SignatureInfo {
     pub fn new(context: &str) -> Self {
         Self {
             context: context.into(),
-            blake3_ed255i9: None,
+            blake3_ed25519: None,
         }
     }
     pub fn validate(&self, accept: AcceptSigners) -> Result<FileValidator, Error> {
@@ -146,7 +120,7 @@ impl SignatureInfo {
         .flatten()
     }
     pub fn signatures(&self) -> impl Iterator<Item = Signature> + '_ {
-        self.blake3_ed255i9.iter().flat_map(|info| {
+        self.blake3_ed25519.iter().flat_map(|info| {
             info.signatures
                 .iter()
                 .map(|(k, s)| (k.clone(), *s))
@@ -165,17 +139,17 @@ impl SignatureInfo {
         match signature {
             Signature::Blake3Ed25519(s) => {
                 if self
-                    .blake3_ed255i9
+                    .blake3_ed25519
                     .as_ref()
                     .map_or(true, |info| info.hash == s.hash)
                 {
-                    let new = if let Some(mut info) = self.blake3_ed255i9.take() {
+                    let new = if let Some(mut info) = self.blake3_ed25519.take() {
                         info.signatures.insert(s.pubkey, s.signature);
                         info
                     } else {
                         s.info()
                     };
-                    self.blake3_ed255i9 = Some(new);
+                    self.blake3_ed25519 = Some(new);
                     Ok(())
                 } else {
                     Err(Error::new(
@@ -194,7 +168,7 @@ impl SignatureInfo {
 pub enum AcceptSigners {
     #[serde(skip)]
     Accepted(Signature),
-    Signer(SignerKey),
+    Signer(AnyVerifyingKey),
     Any(Vec<AcceptSigners>),
     All(Vec<AcceptSigners>),
 }
@@ -361,12 +335,12 @@ impl FileValidator {
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 #[ts(export)]
-pub struct Blake3Ed2551SignatureInfo {
+pub struct Blake3Ed25519SignatureInfo {
     pub hash: Base64<[u8; 32]>,
     pub size: u64,
     pub signatures: HashMap<Pem<ed25519_dalek::VerifyingKey>, Base64<[u8; 64]>>,
 }
-impl Blake3Ed2551SignatureInfo {
+impl Blake3Ed25519SignatureInfo {
     pub fn validate(&self, context: &str) -> Result<Vec<Pem<ed25519_dalek::VerifyingKey>>, Error> {
         self.signatures
             .iter()
@@ -389,6 +363,7 @@ impl Blake3Ed2551SignatureInfo {
 #[ts(export)]
 pub enum Signature {
     Blake3Ed25519(Blake3Ed25519Signature),
+    MerkleArchiveEd25519(MerkleArchiveEd25519Signature),
 }
 impl Signature {
     pub fn validate(&self, context: &str) -> Result<(), Error> {
@@ -396,9 +371,9 @@ impl Signature {
             Self::Blake3Ed25519(a) => a.validate(context),
         }
     }
-    pub fn signer(&self) -> SignerKey {
+    pub fn signer(&self) -> AnyVerifyingKey {
         match self {
-            Self::Blake3Ed25519(s) => SignerKey::Ed25519(s.pubkey.clone()),
+            Self::Blake3Ed25519(s) => AnyVerifyingKey::Ed25519(s.pubkey.clone()),
         }
     }
 }
@@ -467,11 +442,22 @@ impl Blake3Ed25519Signature {
         Ok(())
     }
 
-    pub fn info(&self) -> Blake3Ed2551SignatureInfo {
-        Blake3Ed2551SignatureInfo {
+    pub fn info(&self) -> Blake3Ed25519SignatureInfo {
+        Blake3Ed25519SignatureInfo {
             hash: self.hash,
             size: self.size,
             signatures: [(self.pubkey, self.signature)].into_iter().collect(),
         }
     }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct MerkleArchiveEd25519Signature {
+    pub root_sighash: Base64<[u8; 32]>,
+    pub root_maxsize: u64,
+    pub pubkey: Pem<ed25519_dalek::VerifyingKey>,
+    // ed25519-sig(sha512(root_sighash + u64_be(root_maxsize)))
+    pub signature: Base64<[u8; 64]>,
 }
