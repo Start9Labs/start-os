@@ -184,7 +184,7 @@ container-runtime/node_modules: container-runtime/package.json container-runtime
 	npm --prefix container-runtime ci
 	touch container-runtime/node_modules
 
-sdk/lib/osBindings: $(shell core/startos/bindings)
+sdk/lib/osBindings: core/startos/bindings
 	mkdir -p sdk/lib/osBindings
 	ls core/startos/bindings/*.ts | sed 's/core\/startos\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' > core/startos/bindings/index.ts
 	npm --prefix sdk exec -- prettier --config ./sdk/package.json -w ./core/startos/bindings/*.ts

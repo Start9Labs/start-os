@@ -2,6 +2,8 @@ import { ServiceInterfaceType } from "../StartSdk"
 import {
   AddressInfo,
   Effects,
+  Host,
+  HostAddress,
   HostInfo,
   Hostname,
   HostnameInfo,
@@ -50,7 +52,7 @@ export type ServiceInterfaceFilled = {
   /** Whether or not to mask the URIs for this interface. Useful if the URIs contain sensitive information, such as a password, macaroon, or API key */
   masked: boolean
   /** Information about the host for this binding */
-  hostInfo: HostInfo
+  host: Host
   /** URI information */
   addressInfo: FilledAddressInfo
   /** Indicates if we are a ui/p2p/api for the kind of interface that this is representing */
@@ -69,23 +71,14 @@ const negate =
   (a: A) =>
     !fn(a)
 const unique = <A>(values: A[]) => Array.from(new Set(values))
-function stringifyHostname(info: HostnameInfo): Hostname {
+function stringifyHostname(hostAddress: null | HostAddress): [Hostname] | [] {
   let base: string
-  if ("kind" in info.hostname && info.hostname.kind === "domain") {
-    base = info.hostname.subdomain
-      ? `${info.hostname.subdomain}.${info.hostname.domain}`
-      : info.hostname.domain
-  } else {
-    base = info.hostname.value
-  }
-  if (info.hostname.port && info.hostname.sslPort) {
-    return `${base}:${info.hostname.port}` as Hostname
-  } else if (info.hostname.sslPort) {
-    return `${base}:${info.hostname.sslPort}` as Hostname
-  } else if (info.hostname.port) {
-    return `${base}:${info.hostname.port}` as Hostname
-  }
-  return base as Hostname
+
+  if (!hostAddress) return []
+  if (hostAddress.kind === "onion")
+    return [hostAddress.address.replace(/\.onion$/, "") as Hostname]
+
+  return []
 }
 const addressHostToUrl = (
   { bindOptions, username, suffix }: AddressInfo,
@@ -101,57 +94,58 @@ const addressHostToUrl = (
   }${host}${suffix}`
 }
 export const filledAddress = (
-  hostInfo: HostInfo,
+  host: Host,
   addressInfo: AddressInfo,
 ): FilledAddressInfo => {
   const toUrl = addressHostToUrl.bind(null, addressInfo)
-  const hostnameInfo =
-    hostInfo.kind == "multi"
-      ? hostInfo.hostnames
-      : hostInfo.hostname
-        ? [hostInfo.hostname]
-        : []
+  const addresses = host.addresses
+
   return {
     ...addressInfo,
-    hostnames: hostnameInfo.flatMap((h) => stringifyHostname(h)),
+    hostnames: addresses.flatMap(stringifyHostname),
     get onionHostnames() {
-      return hostnameInfo
+      return addresses
         .filter((h) => h.kind === "onion")
-        .map((h) => stringifyHostname(h))
+        .flatMap(stringifyHostname)
     },
     get localHostnames() {
-      return hostnameInfo
-        .filter((h) => h.kind === "ip" && h.hostname.kind === "local")
-        .map((h) => stringifyHostname(h))
+      return []
+      // return addresses
+      //   .filter((h) => h.kind === "ip" && h.hostname.kind === "local")
+      //   .flatMap(stringifyHostname)
     },
     get ipHostnames() {
-      return hostnameInfo
-        .filter(
-          (h) =>
-            h.kind === "ip" &&
-            (h.hostname.kind === "ipv4" || h.hostname.kind === "ipv6"),
-        )
-        .map((h) => stringifyHostname(h))
+      return []
+      // return addresses
+      //   .filter(
+      //     (h) =>
+      //       h.kind === "ip" &&
+      //       (h.hostname.kind === "ipv4" || h.hostname.kind === "ipv6"),
+      //   )
+      //   .flatMap(stringifyHostname)
     },
     get ipv4Hostnames() {
-      return hostnameInfo
-        .filter((h) => h.kind === "ip" && h.hostname.kind === "ipv4")
-        .map((h) => stringifyHostname(h))
+      return []
+      // return addresses
+      //   .filter((h) => h.kind === "ip" && h.hostname.kind === "ipv4")
+      //   .flatMap(stringifyHostname)
     },
     get ipv6Hostnames() {
-      return hostnameInfo
-        .filter((h) => h.kind === "ip" && h.hostname.kind === "ipv6")
-        .map((h) => stringifyHostname(h))
+      return []
+      // return addresses
+      //   .filter((h) => h.kind === "ip" && h.hostname.kind === "ipv6")
+      //   .flatMap(stringifyHostname)
     },
     get nonIpHostnames() {
-      return hostnameInfo
-        .filter(
-          (h) =>
-            h.kind === "ip" &&
-            h.hostname.kind !== "ipv4" &&
-            h.hostname.kind !== "ipv6",
-        )
-        .map((h) => stringifyHostname(h))
+      return []
+      // return addresses
+      //   .filter(
+      //     (h) =>
+      //       h.kind === "ip" &&
+      //       h.hostname.kind !== "ipv4" &&
+      //       h.hostname.kind !== "ipv6",
+      //   )
+      //   .flatMap(stringifyHostname)
     },
     get urls() {
       return this.hostnames.map(toUrl)
@@ -188,28 +182,35 @@ const makeInterfaceFilled = async ({
   packageId: string | null
   callback: () => void
 }) => {
+  console.log("BLUJ makeInterfaceFilled params", { id, packageId, callback })
   const serviceInterfaceValue = await effects.getServiceInterface({
     serviceInterfaceId: id,
     packageId,
     callback,
   })
-  const hostInfo = await effects.getHostInfo({
+  console.log(
+    "BLUJ makeInterfaceFilled serviceInterfaceValue",
+    serviceInterfaceValue,
+  )
+  const host = await effects.getHostInfo({
     packageId,
     kind: null,
-    serviceInterfaceId: serviceInterfaceValue.id,
+    hostId: serviceInterfaceValue.hostInfo.id,
     callback,
   })
+  console.log("BLUJ makeInterfaceFilled host", host)
   const primaryUrl = await effects.getPrimaryUrl({
     serviceInterfaceId: id,
     packageId,
     callback,
   })
+  console.log("BLUJ makeInterfaceFilled primaryUrl", primaryUrl)
 
   const interfaceFilled: ServiceInterfaceFilled = {
     ...serviceInterfaceValue,
     primaryUrl: primaryUrl,
-    hostInfo,
-    addressInfo: filledAddress(hostInfo, serviceInterfaceValue.addressInfo),
+    host,
+    addressInfo: filledAddress(host, serviceInterfaceValue.addressInfo),
     get primaryHostname() {
       if (primaryUrl == null) return null
       return getHostname(primaryUrl)

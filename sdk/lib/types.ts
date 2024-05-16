@@ -5,6 +5,11 @@ import {
   SetHealth,
   HealthCheckResult,
   SetMainStatus,
+  ServiceInterface,
+  ServiceInterfaceWithHostInfo,
+  HostInfo,
+  Host,
+  ExportServiceInterfaceParams,
 } from "./osBindings"
 
 import { MainEffects, ServiceInterfaceType, Signals } from "./StartSdk"
@@ -219,44 +224,9 @@ export type HostnameInfoOnion = {
 
 export type HostnameInfo = HostnameInfoIp | HostnameInfoOnion
 
-export type SingleHost = {
-  id: string
-  kind: "single" | "static"
-  hostname: HostnameInfo | null
-}
-
-export type MultiHost = {
-  id: string
-  kind: "multi"
-  hostnames: HostnameInfo[]
-}
-
-export type HostInfo = SingleHost | MultiHost
-
 export type ServiceInterfaceId = string
 
-export type ServiceInterface = {
-  id: ServiceInterfaceId
-  /** The title of this field to be displayed */
-  name: string
-  /** Human readable description, used as tooltip usually */
-  description: string
-  /** Whether or not one address must be the primary address */
-  hasPrimary: boolean
-  /** Disabled interfaces do not serve, but they retain their metadata and addresses */
-  disabled: boolean
-  /** Whether or not to mask the URIs for this interface. Useful if the URIs contain sensitive information, such as a password, macaroon, or API key */
-  masked: boolean
-  /** URI Information */
-  addressInfo: AddressInfo
-  /** The network interface could be several types, something like ui, p2p, or network */
-  type: ServiceInterfaceType
-}
-
-export type ServiceInterfaceWithHostInfo = ServiceInterface & {
-  hostInfo: HostInfo
-}
-
+export { ServiceInterface, ServiceInterfaceWithHostInfo }
 export type ExposeServicePaths<Store = never> = {
   /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
   paths: ExposedStorePaths
@@ -342,10 +312,10 @@ export type Effects = {
   // }): Promise<SingleHost>
   getHostInfo(options: {
     kind: "multi" | null
-    serviceInterfaceId: string
+    hostId: string
     packageId: string | null
     callback: () => void
-  }): Promise<MultiHost>
+  }): Promise<Host>
 
   // /**
   //  * Run rsync between two volumes. This is used to backup data between volumes.
@@ -402,7 +372,7 @@ export type Effects = {
   /** When we want to create a link in the front end interfaces, and example is
    * exposing a url to view a web service
    */
-  exportServiceInterface(options: ServiceInterface): Promise<string>
+  exportServiceInterface(options: ExportServiceInterfaceParams): Promise<string>
 
   exposeForDependents(options: { paths: string[] }): Promise<void>
 
@@ -416,7 +386,7 @@ export type Effects = {
     packageId: PackageId | null
     serviceInterfaceId: ServiceInterfaceId
     callback: () => void
-  }): Promise<ServiceInterface>
+  }): Promise<ServiceInterfaceWithHostInfo>
 
   /**
    * The user sets the primary url for a interface
@@ -437,7 +407,7 @@ export type Effects = {
   listServiceInterfaces(options: {
     packageId: PackageId | null
     callback: () => void
-  }): Promise<ServiceInterface[]>
+  }): Promise<Record<ServiceInterfaceId, ServiceInterfaceWithHostInfo>>
 
   /**
    *Remove an address that was exported. Used problably during main or during setConfig.

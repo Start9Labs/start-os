@@ -71,6 +71,7 @@ export class Origin<T extends Host> {
         schemeOverride,
       })
 
+      // TODO BLUJ
       await serviceInterface.options.effects.exportServiceInterface({
         id,
         name,
@@ -80,6 +81,8 @@ export class Origin<T extends Host> {
         addressInfo,
         type,
         masked,
+        hostKind: "multi",
+        hostnames: [],
       })
 
       addressesInfo.push(addressInfo)

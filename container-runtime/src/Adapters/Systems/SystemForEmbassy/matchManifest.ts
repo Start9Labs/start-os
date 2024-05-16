@@ -72,6 +72,7 @@ export const matchManifest = object(
       object(
         {
           name: string,
+          description: string,
           "tor-config": object({
             "port-mapping": dictionary([string, string]),
           }),

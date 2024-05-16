@@ -335,6 +335,61 @@ export class SystemForEmbassy implements System {
       await this.migration(effects, previousVersion, timeoutMs)
     await effects.setMainStatus({ status: "stopped" })
     await this.exportActions(effects)
+    await this.exportInterfaces(effects)
+  }
+  async exportInterfaces(effects: HostSystemStartOs) {
+    for (const [id, interfaceValue] of Object.entries(
+      this.manifest.interfaces,
+    )) {
+      const options: T.ExportServiceInterfaceParams = {
+        id,
+        name: interfaceValue.name,
+        description: interfaceValue.description,
+        hasPrimary: id === "main" ? true : false,
+        disabled: false,
+        masked: false,
+        addressInfo: {
+          username: null,
+          hostId: `${id}-host`,
+          bindOptions: {
+            scheme: "http",
+            preferredExternalPort: 80,
+            addSsl: null,
+            secure: null,
+          },
+          suffix: "",
+        },
+        type: interfaceValue.ui ? "ui" : "api",
+        hostKind: "multi",
+        hostnames: [
+          ...Object.entries(interfaceValue["lan-config"] || {}).map(
+            ([key, value]): T.ExportedHostnameInfo => ({
+              kind: "ip",
+              networkInterfaceId: `${id}-lan-${key}`,
+              public: true,
+              hostname: {
+                kind: "local",
+                value: `${id}-lan-${key}-value`,
+                port: value.internal,
+                sslPort: null,
+              },
+            }),
+          ),
+          ...Object.entries(interfaceValue["tor-config"] || {}).map(
+            ([key, value]): T.ExportedHostnameInfo =>
+              ({
+                kind: "onion",
+                hostname: {
+                  value: `${id}-lan-${key}-value`,
+                  port: Number.parseInt(value.internal),
+                  sslPort: null,
+                },
+              }) as const,
+          ),
+        ],
+      }
+      await effects.exportServiceInterface(options)
+    }
   }
   async exportActions(effects: HostSystemStartOs) {
     const manifest = this.manifest
@@ -905,14 +960,20 @@ async function updateConfig(
           id: specValue.interface,
         })
         .once()
-        .catch(() => null)
+        .catch((x) => {
+          console.error("Could not get the service interface", x)
+          return null
+        })
 
+      console.log("BLUJ filled", filled)
       mutConfigValue[key] =
         filled === null
           ? ""
           : specValue.target === "lan-address"
-            ? filled.addressInfo.localHostnames[0]
-            : filled.addressInfo.onionHostnames[0]
+            ? filled.addressInfo.localHostnames[0] ||
+              filled.addressInfo.onionHostnames[0]
+            : filled.addressInfo.onionHostnames[0] ||
+              filled.addressInfo.localHostnames[0]
     }
   }
 }

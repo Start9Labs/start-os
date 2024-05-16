@@ -22,10 +22,6 @@ use tokio::process::Command;
 use ts_rs::TS;
 use url::Url;
 
-use crate::db::model::package::{
-    ActionMetadata, CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind,
-    ManifestPreference,
-};
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
@@ -46,6 +42,13 @@ use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::clap::FromStrParser;
 use crate::util::{new_guid, Invoke};
+use crate::{
+    db::model::package::{
+        ActionMetadata, CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind,
+        ManifestPreference,
+    },
+    net::host::Host,
+};
 use crate::{echo, ARCH};
 
 #[derive(Clone)]
@@ -553,6 +556,7 @@ async fn remove_action(context: EffectContext, data: RemoveActionParams) -> Resu
     Ok(())
 }
 async fn mount(context: EffectContext, data: MountParams) -> Result<Value, Error> {
+    // TODO
     todo!()
 }
 
@@ -571,34 +575,32 @@ enum GetHostInfoParamsKind {
 #[ts(export)]
 struct GetHostInfoParams {
     kind: Option<GetHostInfoParamsKind>,
-    service_interface_id: String,
+    host_id: HostId,
     #[ts(type = "string | null")]
     package_id: Option<PackageId>,
     callback: Callback,
 }
 async fn get_host_info(
     ctx: EffectContext,
-    GetHostInfoParams { .. }: GetHostInfoParams,
-) -> Result<Value, Error> {
+    GetHostInfoParams {
+        callback,
+        kind,
+        package_id,
+        host_id,
+    }: GetHostInfoParams,
+) -> Result<Host, Error> {
     let ctx = ctx.deref()?;
-    Ok(json!({
-        "id": "fakeId1",
-        "kind": "multi",
-        "hostnames": [{
-            "kind": "ip",
-            "networkInterfaceId": "fakeNetworkInterfaceId1",
-            "public": true,
-            "hostname":{
-                  "kind": "domain",
-                  "domain": format!("{}", ctx.id),
-                  "subdomain": (),
-                  "port": (),
-                  "sslPort": ()
-                }
-          }
+    let db = ctx.ctx.db.peek().await;
+    let package_id = package_id.unwrap_or_else(|| ctx.id.clone());
 
-        ]
-    }))
+    db.as_public()
+        .as_package_data()
+        .as_idx(&package_id)
+        .or_not_found(&package_id)?
+        .as_hosts()
+        .as_idx(&host_id)
+        .or_not_found(&host_id)?
+        .de()
 }
 
 async fn clear_bindings(context: EffectContext, _: Empty) -> Result<(), Error> {
@@ -638,39 +640,32 @@ async fn bind(
 struct GetServiceInterfaceParams {
     #[ts(type = "string | null")]
     package_id: Option<PackageId>,
-    service_interface_id: String,
+    service_interface_id: ServiceInterfaceId,
     callback: Callback,
 }
+
 async fn get_service_interface(
-    _: EffectContext,
+    ctx: EffectContext,
     GetServiceInterfaceParams {
         callback,
         package_id,
         service_interface_id,
     }: GetServiceInterfaceParams,
-) -> Result<Value, Error> {
-    // TODO @Dr_Bonez
-    Ok(json!({
-        "id": service_interface_id,
-        "name": service_interface_id,
-        "description": "This is a fake",
-        "hasPrimary": true,
-        "disabled": false,
-        "masked": false,
-        "addressInfo": json!({
-            "username": Value::Null,
-            "hostId": "HostId?",
-            "options": json!({
-                "scheme": Value::Null,
-                "preferredExternalPort": 80,
-                "addSsl":Value::Null,
-                "secure": false,
-                "ssl": false
-            }),
-            "suffix": "http"
-        }),
-        "type": "api"
-    }))
+) -> Result<ServiceInterfaceWithHostInfo, Error> {
+    let ctx = ctx.deref()?;
+    let package_id = package_id.unwrap_or_else(|| ctx.id.clone());
+    let db = ctx.ctx.db.peek().await;
+
+    let interface = db
+        .as_public()
+        .as_package_data()
+        .as_idx(&package_id)
+        .or_not_found(&package_id)?
+        .as_service_interfaces()
+        .as_idx(&service_interface_id)
+        .or_not_found(&service_interface_id)?
+        .de()?;
+    Ok(interface)
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
@@ -763,6 +758,7 @@ async fn get_ssl_certificate(
         host_id,
     }: GetSslCertificateParams,
 ) -> Result<Value, Error> {
+    // TODO
     let fake = include_str!("./fake.cert.pem");
     Ok(json!([fake, fake, fake]))
 }
@@ -784,6 +780,7 @@ async fn get_ssl_key(
         algorithm,
     }: GetSslKeyParams,
 ) -> Result<Value, Error> {
+    // TODO
     let fake = include_str!("./fake.cert.key");
     Ok(json!(fake))
 }
