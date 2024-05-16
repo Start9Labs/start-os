@@ -13,7 +13,6 @@ export type Manifest = {
   version: string
   releaseNotes: string
   license: string
-  replaces: Array<string>
   wrapperRepo: string
   upstreamRepo: string
   supportSite: string

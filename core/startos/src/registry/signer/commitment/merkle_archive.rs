@@ -1,3 +1,4 @@
+use digest::Update;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWrite;
 use ts_rs::TS;
@@ -16,19 +17,20 @@ use crate::util::serde::Base64;
 #[ts(export)]
 pub struct MerkleArchiveCommitment {
     pub root_sighash: Base64<[u8; 32]>,
+    #[ts(type = "number")]
     pub root_maxsize: u64,
 }
 impl Digestable for MerkleArchiveCommitment {
-    fn update<D: sha2::Digest>(&self, digest: &mut D) {
+    fn update<D: Update>(&self, digest: &mut D) {
         digest.update(&*self.root_sighash);
         digest.update(&u64::to_be_bytes(self.root_maxsize));
     }
 }
-impl<S: FileSource + Clone> Commitment<MerkleArchive<S>> for MerkleArchiveCommitment {
-    async fn create(resource: &MerkleArchive<S>) -> Result<Self, Error> {
+impl<'a, S: FileSource + Clone> Commitment<&'a MerkleArchive<S>> for MerkleArchiveCommitment {
+    async fn create(resource: &'a MerkleArchive<S>) -> Result<Self, Error> {
         resource.commitment().await
     }
-    async fn check(&self, resource: &MerkleArchive<S>) -> Result<(), Error> {
+    async fn check(&self, resource: &'a MerkleArchive<S>) -> Result<(), Error> {
         let MerkleArchiveCommitment {
             root_sighash,
             root_maxsize,
@@ -49,7 +51,7 @@ impl<S: FileSource + Clone> Commitment<MerkleArchive<S>> for MerkleArchiveCommit
     }
     async fn copy_to<W: AsyncWrite + Unpin + Send>(
         &self,
-        resource: &MerkleArchive<S>,
+        resource: &'a MerkleArchive<S>,
         writer: W,
     ) -> Result<(), Error> {
         self.check(resource).await?;
@@ -59,11 +61,11 @@ impl<S: FileSource + Clone> Commitment<MerkleArchive<S>> for MerkleArchiveCommit
     }
 }
 
-impl<S: FileSource + Clone> Commitment<S9pk<S>> for MerkleArchiveCommitment {
-    async fn create(resource: &S9pk<S>) -> Result<Self, Error> {
+impl<'a, S: FileSource + Clone> Commitment<&'a S9pk<S>> for MerkleArchiveCommitment {
+    async fn create(resource: &'a S9pk<S>) -> Result<Self, Error> {
         resource.as_archive().commitment().await
     }
-    async fn check(&self, resource: &S9pk<S>) -> Result<(), Error> {
+    async fn check(&self, resource: &'a S9pk<S>) -> Result<(), Error> {
         let MerkleArchiveCommitment {
             root_sighash,
             root_maxsize,
@@ -84,7 +86,7 @@ impl<S: FileSource + Clone> Commitment<S9pk<S>> for MerkleArchiveCommitment {
     }
     async fn copy_to<W: AsyncWrite + Unpin + Send>(
         &self,
-        resource: &S9pk<S>,
+        resource: &'a S9pk<S>,
         writer: W,
     ) -> Result<(), Error> {
         self.check(resource).await?;

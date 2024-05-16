@@ -5,7 +5,6 @@ use ::ed25519::pkcs8::BitStringRef;
 use clap::builder::ValueParserFactory;
 use der::referenced::OwnedToRef;
 use der::{Decode, Encode};
-use digest::Digest;
 use pkcs8::der::AnyRef;
 use pkcs8::{PrivateKeyInfo, SubjectPublicKeyInfo};
 use serde::{Deserialize, Serialize};
@@ -13,6 +12,7 @@ use sha2::Sha512;
 use ts_rs::TS;
 
 use crate::prelude::*;
+use crate::registry::signer::commitment::Digestable;
 use crate::registry::signer::sign::ed25519::Ed25519;
 use crate::util::clap::FromStrParser;
 use crate::util::serde::{deserialize_from_str, serialize_display};
@@ -23,7 +23,7 @@ pub trait SignatureScheme {
     type SigningKey;
     type VerifyingKey;
     type Signature;
-    type Digest;
+    type Digest: digest::Update;
     fn new_digest(&self) -> Self::Digest;
     fn sign(
         &self,
@@ -31,6 +31,16 @@ pub trait SignatureScheme {
         digest: Self::Digest,
         context: &str,
     ) -> Result<Self::Signature, Error>;
+    fn sign_commitment<C: Digestable>(
+        &self,
+        key: &Self::SigningKey,
+        commitment: &C,
+        context: &str,
+    ) -> Result<Self::Signature, Error> {
+        let mut digest = self.new_digest();
+        commitment.update(&mut digest);
+        self.sign(key, digest, context)
+    }
     fn verify(
         &self,
         key: &Self::VerifyingKey,
@@ -38,6 +48,17 @@ pub trait SignatureScheme {
         context: &str,
         signature: &Self::Signature,
     ) -> Result<(), Error>;
+    fn verify_commitment<C: Digestable>(
+        &self,
+        key: &Self::VerifyingKey,
+        commitment: &C,
+        context: &str,
+        signature: &Self::Signature,
+    ) -> Result<(), Error> {
+        let mut digest = self.new_digest();
+        commitment.update(&mut digest);
+        self.verify(key, digest, context, signature)
+    }
 }
 
 pub enum AnyScheme {
@@ -100,6 +121,18 @@ impl SignatureScheme for AnyScheme {
 #[ts(export, type = "string")]
 pub enum AnySigningKey {
     Ed25519(<Ed25519 as SignatureScheme>::SigningKey),
+}
+impl AnySigningKey {
+    pub fn scheme(&self) -> AnyScheme {
+        match self {
+            Self::Ed25519(_) => AnyScheme::Ed25519(Ed25519),
+        }
+    }
+    pub fn verifying_key(&self) -> AnyVerifyingKey {
+        match self {
+            Self::Ed25519(k) => AnyVerifyingKey::Ed25519(k.into()),
+        }
+    }
 }
 impl<'a> TryFrom<PrivateKeyInfo<'a>> for AnySigningKey {
     type Error = pkcs8::Error;
@@ -240,7 +273,8 @@ impl digest::Update for AnyDigest {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, TS)]
+#[ts(export, type = "string")]
 pub enum AnySignature {
     Ed25519(<Ed25519 as SignatureScheme>::Signature),
 }
@@ -275,12 +309,12 @@ impl Display for AnySignature {
         #[derive(der::Sequence)]
         struct AnySignatureDer<'a> {
             alg: pkcs8::AlgorithmIdentifierRef<'a>,
-            sig: der::asn1::OctetStringRef<'a>,
+            sig: der::asn1::OctetString,
         }
         let to_encode = match self {
             Self::Ed25519(s) => AnySignatureDer {
                 alg: ed25519_dalek::pkcs8::ALGORITHM_ID,
-                sig: der::asn1::OctetStringRef::new(&s.to_bytes()).map_err(|_| std::fmt::Error)?,
+                sig: der::asn1::OctetString::new(s.to_bytes()).map_err(|_| std::fmt::Error)?,
             },
         };
         let mut buf = vec![
@@ -290,6 +324,7 @@ impl Display for AnySignature {
         ];
         let mut w = der::PemWriter::new("SIGNATURE", der::pem::LineEnding::LF, &mut buf)
             .map_err(|_| std::fmt::Error)?;
+        to_encode.encode(&mut w).map_err(|_| std::fmt::Error)?;
         f.write_str(&String::from_utf8(buf).map_err(|_| std::fmt::Error)?)
     }
 }

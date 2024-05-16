@@ -13,10 +13,10 @@ use crate::prelude::*;
 use crate::s9pk::git_hash::GitHash;
 use crate::s9pk::manifest::{Alerts, Description, HardwareRequirements};
 use crate::util::serde::{Duration, IoFormat};
-use crate::util::Version;
+use crate::util::VersionString;
 use crate::version::{Current, VersionT};
 
-fn current_version() -> Version {
+fn current_version() -> VersionString {
     Current::new().semver().into()
 }
 
@@ -24,12 +24,12 @@ fn current_version() -> Version {
 #[serde(rename_all = "kebab-case")]
 pub struct Manifest {
     #[serde(default = "current_version")]
-    pub eos_version: Version,
+    pub eos_version: VersionString,
     pub id: PackageId,
     #[serde(default)]
     pub git_hash: Option<GitHash>,
     pub title: String,
-    pub version: Version,
+    pub version: VersionString,
     pub description: Description,
     #[serde(default)]
     pub assets: Assets,

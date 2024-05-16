@@ -15,10 +15,11 @@ use crate::net::web_server::WebServer;
 use crate::prelude::*;
 use crate::registry::auth::Auth;
 use crate::registry::context::RegistryContext;
+use crate::registry::device_info::DeviceInfoMiddleware;
 use crate::registry::os::index::OsIndex;
 use crate::registry::package::index::PackageIndex;
 use crate::registry::signer::SignerInfo;
-use crate::rpc_continuations::RequestGuid;
+use crate::rpc_continuations::Guid;
 use crate::util::serde::HandlerExtSerde;
 
 pub mod admin;
@@ -26,6 +27,7 @@ pub mod asset;
 pub mod auth;
 pub mod context;
 pub mod db;
+pub mod device_info;
 pub mod os;
 pub mod package;
 pub mod signer;
@@ -34,7 +36,7 @@ pub mod signer;
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct RegistryDatabase {
-    pub admins: BTreeSet<RequestGuid>,
+    pub admins: BTreeSet<Guid>,
     pub index: FullIndex,
 }
 impl RegistryDatabase {}
@@ -47,8 +49,7 @@ pub struct FullIndex {
     pub icon: Option<DataUrl<'static>>,
     pub package: PackageIndex,
     pub os: OsIndex,
-    #[ts(as = "BTreeMap::<String, SignerInfo>")]
-    pub signers: BTreeMap<RequestGuid, SignerInfo>,
+    pub signers: BTreeMap<Guid, SignerInfo>,
 }
 
 pub async fn get_full_index(ctx: RegistryContext) -> Result<FullIndex, Error> {
@@ -77,7 +78,8 @@ pub fn registry_server_router(ctx: RegistryContext) -> Router {
             post(
                 Server::new(move || ready(Ok(ctx.clone())), registry_api())
                     .middleware(Cors::new())
-                    .middleware(Auth::new()),
+                    .middleware(Auth::new())
+                    .middleware(DeviceInfoMiddleware::new()),
             )
         })
         .route(
@@ -86,7 +88,7 @@ pub fn registry_server_router(ctx: RegistryContext) -> Router {
                 let ctx = ctx.clone();
                 move |x::Path(path): x::Path<String>,
                       ws: axum::extract::ws::WebSocketUpgrade| async move {
-                    match RequestGuid::from(&path) {
+                    match Guid::from(&path) {
                         None => {
                             tracing::debug!("No Guid Path");
                             bad_request()
@@ -109,7 +111,7 @@ pub fn registry_server_router(ctx: RegistryContext) -> Router {
                         .path()
                         .strip_prefix("/rest/rpc/")
                         .unwrap_or_default();
-                    match RequestGuid::from(&path) {
+                    match Guid::from(&path) {
                         None => {
                             tracing::debug!("No Guid Path");
                             bad_request()

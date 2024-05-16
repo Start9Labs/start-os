@@ -17,9 +17,10 @@ use crate::context::config::{ContextConfig, CONFIG_PATH};
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
 use crate::registry::auth::{SignatureHeader, AUTH_SIG_HEADER};
+use crate::registry::device_info::{DeviceInfo, DEVICE_INFO_HEADER};
+use crate::registry::signer::sign::AnySigningKey;
 use crate::registry::RegistryDatabase;
 use crate::rpc_continuations::RpcContinuations;
-use crate::version::VersionT;
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, Parser)]
 #[serde(rename_all = "kebab-case")]
@@ -145,8 +146,8 @@ impl CallRemote<RegistryContext> for CliContext {
             .header(CONTENT_LENGTH, body.len())
             .header(
                 AUTH_SIG_HEADER,
-                serde_urlencoded::to_string(&SignatureHeader::sign_ed25519(
-                    self.developer_key()?,
+                serde_urlencoded::to_string(&SignatureHeader::sign(
+                    &AnySigningKey::Ed25519(self.developer_key()?.clone()),
                     &body,
                     &host,
                 )?)
@@ -169,29 +170,6 @@ impl CallRemote<RegistryContext> for CliContext {
             _ => Err(Error::new(eyre!("missing content type"), ErrorKind::Network).into()),
         }
     }
-}
-
-fn hardware_header(ctx: &RpcContext) -> String {
-    let mut url: Url = "http://localhost".parse().unwrap();
-    url.query_pairs_mut()
-        .append_pair(
-            "os.version",
-            &crate::version::Current::new().semver().to_string(),
-        )
-        .append_pair(
-            "os.compat",
-            &crate::version::Current::new().compat().to_string(),
-        )
-        .append_pair("os.arch", &*crate::PLATFORM)
-        .append_pair("hardware.arch", &*crate::ARCH)
-        .append_pair("hardware.ram", &ctx.hardware.ram.to_string());
-
-    for hw in &ctx.hardware.devices {
-        url.query_pairs_mut()
-            .append_pair(&format!("hardware.device.{}", hw.class()), hw.product());
-    }
-
-    url.query().unwrap_or_default().to_string()
 }
 
 impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
@@ -221,7 +199,7 @@ impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
             .header(CONTENT_TYPE, "application/json")
             .header(ACCEPT, "application/json")
             .header(CONTENT_LENGTH, body.len())
-            .header("X-StartOS-Hardware", &hardware_header(self))
+            .header(DEVICE_INFO_HEADER, DeviceInfo::from(self).to_header_value())
             .body(body)
             .send()
             .await?;

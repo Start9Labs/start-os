@@ -8,16 +8,16 @@ use ts_rs::TS;
 use crate::prelude::*;
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
-use crate::rpc_continuations::RequestGuid;
-use crate::util::Version;
+use crate::registry::signer::commitment::blake3::Blake3Commitment;
+use crate::rpc_continuations::Guid;
+use crate::util::VersionString;
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct OsIndex {
-    #[ts(as = "BTreeMap::<String, OsVersionInfo>")]
-    pub versions: BTreeMap<Version, OsVersionInfo>,
+    pub versions: BTreeMap<VersionString, OsVersionInfo>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
@@ -29,14 +29,13 @@ pub struct OsVersionInfo {
     pub release_notes: String,
     #[ts(type = "string")]
     pub source_version: VersionRange,
-    #[ts(type = "string[]")]
-    pub signers: BTreeSet<RequestGuid>,
-    #[ts(as = "BTreeMap::<String, RegistryAsset>")]
-    pub iso: BTreeMap<InternedString, RegistryAsset>, // platform (i.e. x86_64-nonfree) -> asset
-    #[ts(as = "BTreeMap::<String, RegistryAsset>")]
-    pub squashfs: BTreeMap<InternedString, RegistryAsset>, // platform (i.e. x86_64-nonfree) -> asset
-    #[ts(as = "BTreeMap::<String, RegistryAsset>")]
-    pub img: BTreeMap<InternedString, RegistryAsset>, // platform (i.e. raspberrypi) -> asset
+    pub signers: BTreeSet<Guid>,
+    #[ts(as = "BTreeMap::<String, RegistryAsset::<Blake3Commitment>>")]
+    pub iso: BTreeMap<InternedString, RegistryAsset<Blake3Commitment>>, // platform (i.e. x86_64-nonfree) -> asset
+    #[ts(as = "BTreeMap::<String, RegistryAsset::<Blake3Commitment>>")]
+    pub squashfs: BTreeMap<InternedString, RegistryAsset<Blake3Commitment>>, // platform (i.e. x86_64-nonfree) -> asset
+    #[ts(as = "BTreeMap::<String, RegistryAsset::<Blake3Commitment>>")]
+    pub img: BTreeMap<InternedString, RegistryAsset<Blake3Commitment>>, // platform (i.e. raspberrypi) -> asset
 }
 
 pub async fn get_os_index(ctx: RegistryContext) -> Result<OsIndex, Error> {

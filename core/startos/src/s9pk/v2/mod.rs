@@ -7,6 +7,7 @@ use models::{mime, DataUrl, PackageId};
 use tokio::fs::File;
 
 use crate::prelude::*;
+use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::merkle_archive::file_contents::FileContents;
 use crate::s9pk::merkle_archive::sink::Sink;
@@ -175,7 +176,11 @@ impl<S: FileSource + Clone> S9pk<S> {
 
 impl<S: ArchiveSource + Clone> S9pk<Section<S>> {
     #[instrument(skip_all)]
-    pub async fn deserialize(source: &S, apply_filter: bool) -> Result<Self, Error> {
+    pub async fn deserialize(
+        source: &S,
+        commitment: Option<&MerkleArchiveCommitment>,
+        apply_filter: bool,
+    ) -> Result<Self, Error> {
         use tokio::io::AsyncReadExt;
 
         let mut header = source
@@ -193,7 +198,8 @@ impl<S: ArchiveSource + Clone> S9pk<Section<S>> {
             "Invalid Magic or Unexpected Version"
         );
 
-        let mut archive = MerkleArchive::deserialize(source, SIG_CONTEXT, &mut header).await?;
+        let mut archive =
+            MerkleArchive::deserialize(source, SIG_CONTEXT, &mut header, commitment).await?;
 
         if apply_filter {
             archive.filter(filter)?;
@@ -211,7 +217,7 @@ impl<S: ArchiveSource + Clone> S9pk<Section<S>> {
 }
 impl S9pk {
     pub async fn from_file(file: File, apply_filter: bool) -> Result<Self, Error> {
-        Self::deserialize(&MultiCursorFile::from(file), apply_filter).await
+        Self::deserialize(&MultiCursorFile::from(file), None, apply_filter).await
     }
     pub async fn open(
         path: impl AsRef<Path>,

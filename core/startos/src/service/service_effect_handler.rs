@@ -1344,6 +1344,7 @@ async fn set_dependencies(
                     )
                     .await?,
                 ),
+                None, // TODO
                 true,
             )
             .await?;

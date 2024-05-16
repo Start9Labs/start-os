@@ -13,10 +13,10 @@ use crate::dependencies::Dependencies;
 use crate::prelude::*;
 use crate::s9pk::git_hash::GitHash;
 use crate::util::serde::Regex;
-use crate::util::Version;
+use crate::util::VersionString;
 use crate::version::{Current, VersionT};
 
-fn current_version() -> Version {
+fn current_version() -> VersionString {
     Current::new().semver().into()
 }
 
@@ -27,8 +27,7 @@ fn current_version() -> Version {
 pub struct Manifest {
     pub id: PackageId,
     pub title: String,
-    #[ts(type = "string")]
-    pub version: Version,
+    pub version: VersionString,
     pub release_notes: String,
     #[ts(type = "string")]
     pub license: InternedString, // type of license
@@ -56,8 +55,7 @@ pub struct Manifest {
     #[ts(type = "string | null")]
     pub git_hash: Option<GitHash>,
     #[serde(default = "current_version")]
-    #[ts(type = "string")]
-    pub os_version: Version,
+    pub os_version: VersionString,
     #[serde(default = "const_true")]
     pub has_config: bool,
 }
@@ -68,8 +66,9 @@ pub struct Manifest {
 pub struct HardwareRequirements {
     #[serde(default)]
     #[ts(type = "{ [key: string]: string }")]
-    device: BTreeMap<String, Regex>,
-    ram: Option<u64>,
+    pub device: BTreeMap<String, Regex>,
+    #[ts(type = "number | null")]
+    pub ram: Option<u64>,
     pub arch: Option<Vec<String>>,
 }
 

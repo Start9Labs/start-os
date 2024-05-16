@@ -14,13 +14,13 @@ use tokio::sync::watch;
 
 use crate::context::RpcContext;
 use crate::prelude::*;
-use crate::rpc_continuations::{RequestGuid, RpcContinuation};
+use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::ArchiveSource;
 use crate::util::io::TmpDir;
 
-pub async fn upload(ctx: &RpcContext) -> Result<(RequestGuid, UploadingFile), Error> {
-    let guid = RequestGuid::new();
+pub async fn upload(ctx: &RpcContext) -> Result<(Guid, UploadingFile), Error> {
+    let guid = Guid::new();
     let (mut handle, file) = UploadingFile::new().await?;
     ctx.rpc_continuations
         .add(

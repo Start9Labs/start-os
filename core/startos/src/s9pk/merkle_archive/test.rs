@@ -62,7 +62,13 @@ fn test(files: Vec<(PathBuf, String)>) -> Result<(), Error> {
             let mut s1 = Vec::new();
             a1.serialize(&mut TrackingIO::new(0, &mut s1), true).await?;
             let s1: Arc<[u8]> = s1.into();
-            let a2 = MerkleArchive::deserialize(&s1, "test", &mut Cursor::new(s1.clone())).await?;
+            let a2 = MerkleArchive::deserialize(
+                &s1,
+                "test",
+                &mut Cursor::new(s1.clone()),
+                Some(&a1.commitment().await?),
+            )
+            .await?;
 
             for (path, content) in check_set {
                 match a2

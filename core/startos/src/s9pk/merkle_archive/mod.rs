@@ -78,6 +78,7 @@ impl<S: ArchiveSource + Clone> MerkleArchive<Section<S>> {
         source: &S,
         context: &str,
         header: &mut (impl AsyncRead + Unpin + Send),
+        commitment: Option<&MerkleArchiveCommitment>,
     ) -> Result<Self, Error> {
         use tokio::io::AsyncReadExt;
 
@@ -102,6 +103,25 @@ impl<S: ArchiveSource + Clone> MerkleArchive<Section<S>> {
             Some(context.as_bytes()),
             &signature,
         )?;
+
+        if let Some(MerkleArchiveCommitment {
+            root_sighash,
+            root_maxsize,
+        }) = commitment
+        {
+            if sighash.as_bytes() != &**root_sighash {
+                return Err(Error::new(
+                    eyre!("merkle root mismatch"),
+                    ErrorKind::InvalidSignature,
+                ));
+            }
+            if max_size > *root_maxsize {
+                return Err(Error::new(
+                    eyre!("merkle root directory max size too large"),
+                    ErrorKind::InvalidSignature,
+                ));
+            }
+        }
 
         let contents = DirectoryContents::deserialize(source, header, (sighash, max_size)).await?;
 

@@ -288,6 +288,7 @@ impl S9pk<Section<MultiCursorFile>> {
 
         Ok(S9pk::deserialize(
             &MultiCursorFile::from(File::open(destination.as_ref()).await?),
+            None,
             false,
         )
         .await?)

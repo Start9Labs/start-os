@@ -98,7 +98,11 @@ impl ArchiveSource for MultiCursorFile {
             .map(|m| m.len())
     }
     async fn fetch_all(&self) -> Result<impl AsyncRead + Unpin + Send, Error> {
-        self.cursor().await
+        use tokio::io::AsyncSeekExt;
+
+        let mut file = self.cursor().await?;
+        file.0.seek(SeekFrom::Start(0)).await?;
+        Ok(file)
     }
     async fn fetch(&self, position: u64, size: u64) -> Result<Self::Reader, Error> {
         use tokio::io::AsyncSeekExt;

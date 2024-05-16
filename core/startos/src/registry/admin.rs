@@ -13,7 +13,7 @@ use crate::registry::context::RegistryContext;
 use crate::registry::signer::sign::AnyVerifyingKey;
 use crate::registry::signer::{ContactInfo, SignerInfo};
 use crate::registry::RegistryDatabase;
-use crate::rpc_continuations::RequestGuid;
+use crate::rpc_continuations::Guid;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 
 pub fn admin_api<C: Context>() -> ParentHandler<C> {
@@ -49,8 +49,8 @@ fn signers_api<C: Context>() -> ParentHandler<C> {
         .subcommand("add", from_fn_async(cli_add_signer).no_display())
 }
 
-impl Model<BTreeMap<RequestGuid, SignerInfo>> {
-    pub fn get_signer(&self, key: &AnyVerifyingKey) -> Result<RequestGuid, Error> {
+impl Model<BTreeMap<Guid, SignerInfo>> {
+    pub fn get_signer(&self, key: &AnyVerifyingKey) -> Result<Guid, Error> {
         self.as_entries()?
             .into_iter()
             .map(|(guid, s)| Ok::<_, Error>((guid, s.as_keys().de()?)))
@@ -61,10 +61,7 @@ impl Model<BTreeMap<RequestGuid, SignerInfo>> {
             .ok_or_else(|| Error::new(eyre!("unknown signer"), ErrorKind::Authorization))
     }
 
-    pub fn get_signer_info(
-        &self,
-        key: &AnyVerifyingKey,
-    ) -> Result<(RequestGuid, SignerInfo), Error> {
+    pub fn get_signer_info(&self, key: &AnyVerifyingKey) -> Result<(Guid, SignerInfo), Error> {
         self.as_entries()?
             .into_iter()
             .map(|(guid, s)| Ok::<_, Error>((guid, s.de()?)))
@@ -92,17 +89,15 @@ impl Model<BTreeMap<RequestGuid, SignerInfo>> {
                 ErrorKind::InvalidRequest,
             ));
         }
-        self.insert(&RequestGuid::new(), signer)
+        self.insert(&Guid::new(), signer)
     }
 }
 
-pub async fn list_signers(
-    ctx: RegistryContext,
-) -> Result<BTreeMap<RequestGuid, SignerInfo>, Error> {
+pub async fn list_signers(ctx: RegistryContext) -> Result<BTreeMap<Guid, SignerInfo>, Error> {
     ctx.db.peek().await.into_index().into_signers().de()
 }
 
-pub fn display_signers<T>(params: WithIoFormat<T>, signers: BTreeMap<RequestGuid, SignerInfo>) {
+pub fn display_signers<T>(params: WithIoFormat<T>, signers: BTreeMap<Guid, SignerInfo>) {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -185,8 +180,7 @@ pub async fn cli_add_signer(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct AddAdminParams {
-    #[ts(type = "string")]
-    pub signer: RequestGuid,
+    pub signer: Guid,
 }
 
 pub async fn add_admin(
@@ -210,7 +204,7 @@ pub async fn add_admin(
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliAddAdminParams {
-    pub signer: RequestGuid,
+    pub signer: Guid,
     pub database: Option<PathBuf>,
 }
 
@@ -246,7 +240,7 @@ pub async fn cli_add_admin(
     Ok(())
 }
 
-pub async fn list_admins(ctx: RegistryContext) -> Result<BTreeMap<RequestGuid, SignerInfo>, Error> {
+pub async fn list_admins(ctx: RegistryContext) -> Result<BTreeMap<Guid, SignerInfo>, Error> {
     let db = ctx.db.peek().await;
     let admins = db.as_admins().de()?;
     Ok(db
