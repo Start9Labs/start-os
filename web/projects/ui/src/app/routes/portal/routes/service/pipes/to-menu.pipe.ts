@@ -1,7 +1,7 @@
 import { inject, Pipe, PipeTransform } from '@angular/core'
 import { Params } from '@angular/router'
 import { MarkdownComponent } from '@start9labs/shared'
-import { Manifest } from '@startos'
+import { T } from '@start9labs/start-sdk'
 import { TuiDialogService } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { from } from 'rxjs'
@@ -114,7 +114,7 @@ export class ToMenuPipe implements PipeTransform {
     ]
   }
 
-  private showInstructions({ title, id, version }: Manifest) {
+  private showInstructions({ title, id, version }: T.Manifest) {
     this.api
       .setDbValue<boolean>(['ack-instructions', id], true)
       .catch(e => console.error('Failed to mark instructions as seen', e))
@@ -134,7 +134,7 @@ export class ToMenuPipe implements PipeTransform {
       .subscribe()
   }
 
-  private openConfig({ title, id }: Manifest) {
+  private openConfig({ title, id }: T.Manifest) {
     this.formDialog.open<PackageConfigData>(ConfigModal, {
       label: `${title} configuration`,
       data: { pkgId: id },

@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ActivatedRoute, NavigationExtras, Router } from '@angular/router'
 import { isEmptyObject } from '@start9labs/shared'
-import { HealthCheckResult, MainStatus, Manifest } from '@startos'
+import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map, switchMap } from 'rxjs'
 import {
@@ -217,7 +217,7 @@ export class ServiceRoute {
 
   private getDepValues(
     pkg: PackageDataEntry,
-    pkgManifest: Manifest,
+    pkgManifest: T.Manifest,
     depId: string,
     depErrors: PkgDependencyErrors,
   ): DependencyInfo {
@@ -249,7 +249,7 @@ export class ServiceRoute {
 
   private getDepErrors(
     pkg: PackageDataEntry,
-    pkgManifest: Manifest,
+    pkgManifest: T.Manifest,
     depId: string,
     depErrors: PkgDependencyErrors,
   ) {
@@ -291,7 +291,7 @@ export class ServiceRoute {
 
   async fixDep(
     pkg: PackageDataEntry,
-    pkgManifest: Manifest,
+    pkgManifest: T.Manifest,
     action: 'install' | 'update' | 'configure',
     depId: string,
   ): Promise<void> {
@@ -312,7 +312,7 @@ export class ServiceRoute {
 
   private async installDep(
     pkg: PackageDataEntry,
-    manifest: Manifest,
+    manifest: T.Manifest,
     depId: string,
   ): Promise<void> {
     const dependentInfo: DependentInfo = {
@@ -333,7 +333,7 @@ export class ServiceRoute {
   }
 }
 
-function toHealthCheck(main: MainStatus): HealthCheckResult[] | null {
+function toHealthCheck(main: T.MainStatus): T.HealthCheckResult[] | null {
   return main.status !== 'running' || isEmptyObject(main.health)
     ? null
     : Object.values(main.health)

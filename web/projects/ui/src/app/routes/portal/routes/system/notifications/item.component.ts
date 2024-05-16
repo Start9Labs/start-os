@@ -6,7 +6,7 @@ import {
   Input,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
-import { Manifest } from '@startos'
+import { T } from '@start9labs/start-sdk'
 import { tuiPure } from '@taiga-ui/cdk'
 import { TuiSvgModule } from '@taiga-ui/core'
 import { TuiLineClampModule } from '@taiga-ui/kit'
@@ -67,7 +67,7 @@ export class NotificationItemComponent {
   overflow = false
 
   @tuiPure
-  get manifest$(): Observable<Manifest> {
+  get manifest$(): Observable<T.Manifest> {
     return this.patch
       .watch$(
         'packageData',

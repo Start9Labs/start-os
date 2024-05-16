@@ -6,7 +6,7 @@ import {
   input,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
-import { PackageDataEntry } from '@startos'
+import { T } from '@start9labs/start-sdk'
 import { TuiButtonModule } from '@taiga-ui/experimental'
 
 @Component({
@@ -52,7 +52,7 @@ import { TuiButtonModule } from '@taiga-ui/experimental'
   imports: [TuiButtonModule, RouterLink, I18nPluralPipe],
 })
 export class ServiceBackupsComponent {
-  pkg = input.required<PackageDataEntry>()
+  pkg = input.required<T.PackageDataEntry>()
 
   readonly previous = computed(() =>
     daysBetween(new Date(), new Date(this.pkg().lastBackup || new Date())),
