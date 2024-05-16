@@ -4,7 +4,7 @@ import {
   inject,
   Input,
 } from '@angular/core'
-import { Manifest } from '@startos'
+import { T } from '@start9labs/start-sdk'
 import { tuiPure } from '@taiga-ui/cdk'
 import {
   TuiButtonModule,
@@ -86,7 +86,7 @@ export class ServiceActionsComponent {
     return this.pkg.status.configured
   }
 
-  get manifest(): Manifest {
+  get manifest(): T.Manifest {
     return getManifest(this.pkg)
   }
 

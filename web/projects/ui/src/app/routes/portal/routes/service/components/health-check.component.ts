@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { HealthCheckResult } from '@startos'
+import { T } from '@start9labs/start-sdk'
 import { TuiLoaderModule, TuiSvgModule } from '@taiga-ui/core'
 
 @Component({
@@ -43,7 +43,7 @@ import { TuiLoaderModule, TuiSvgModule } from '@taiga-ui/core'
 })
 export class ServiceHealthCheckComponent {
   @Input({ required: true })
-  check!: HealthCheckResult
+  check!: T.HealthCheckResult
 
   @Input()
   connected = false

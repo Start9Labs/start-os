@@ -5,7 +5,7 @@ import {
   inject,
   Input,
 } from '@angular/core'
-import { HealthCheckResult } from '@startos'
+import { T } from '@start9labs/start-sdk'
 import { ServiceHealthCheckComponent } from 'src/app/routes/portal/routes/service/components/health-check.component'
 import { ConnectionService } from 'src/app/services/connection.service'
 
@@ -31,7 +31,7 @@ import { ConnectionService } from 'src/app/services/connection.service'
 })
 export class ServiceHealthChecksComponent {
   @Input({ required: true })
-  checks: readonly HealthCheckResult[] = []
+  checks: readonly T.HealthCheckResult[] = []
 
   readonly connected$ = inject(ConnectionService).connected$
 }

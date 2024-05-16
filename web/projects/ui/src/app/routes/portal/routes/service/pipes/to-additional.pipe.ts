@@ -1,6 +1,6 @@
 import { inject, Pipe, PipeTransform } from '@angular/core'
 import { CopyService, MarkdownComponent } from '@start9labs/shared'
-import { Manifest } from '@startos'
+import { T } from '@start9labs/start-sdk'
 import { TuiDialogService } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { from } from 'rxjs'
@@ -68,7 +68,7 @@ export class ToAdditionalPipe implements PipeTransform {
     ]
   }
 
-  private showLicense({ id, version }: Manifest) {
+  private showLicense({ id, version }: T.Manifest) {
     this.dialogs
       .open(new PolymorpheusComponent(MarkdownComponent), {
         label: 'License',

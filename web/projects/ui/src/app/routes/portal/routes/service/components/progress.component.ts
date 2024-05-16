@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { Progress } from '@startos'
+import { T } from '@start9labs/start-sdk'
 import { TuiProgressModule } from '@taiga-ui/kit'
 import { InstallingProgressPipe } from 'src/app/routes/portal/routes/service/pipes/install-progress.pipe'
 
@@ -26,5 +26,5 @@ import { InstallingProgressPipe } from 'src/app/routes/portal/routes/service/pip
   imports: [TuiProgressModule, InstallingProgressPipe],
 })
 export class ServiceProgressComponent {
-  @Input({ required: true }) progress!: Progress
+  @Input({ required: true }) progress!: T.Progress
 }

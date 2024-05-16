@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { Manifest } from '@startos'
+import { T } from '@start9labs/start-sdk'
 import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
 import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
@@ -26,14 +26,14 @@ export class ActionsService {
   private readonly formDialog = inject(FormDialogService)
   private readonly patch = inject(PatchDB<DataModel>)
 
-  configure(manifest: Manifest): void {
+  configure(manifest: T.Manifest): void {
     this.formDialog.open<PackageConfigData>(ConfigModal, {
       label: `${manifest.title} configuration`,
       data: { pkgId: manifest.id },
     })
   }
 
-  async start(manifest: Manifest, unmet: boolean): Promise<void> {
+  async start(manifest: T.Manifest, unmet: boolean): Promise<void> {
     const deps = `${manifest.title} has unmet dependencies. It will not work as expected.`
 
     if (
@@ -44,7 +44,7 @@ export class ActionsService {
     }
   }
 
-  async stop({ id, title, alerts }: Manifest): Promise<void> {
+  async stop({ id, title, alerts }: T.Manifest): Promise<void> {
     let content = alerts.stop || ''
 
     if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
@@ -62,7 +62,7 @@ export class ActionsService {
     }
   }
 
-  async restart({ id, title }: Manifest): Promise<void> {
+  async restart({ id, title }: T.Manifest): Promise<void> {
     if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
       this.dialogs
         .open(
