@@ -69,7 +69,8 @@ pub struct HardwareRequirements {
     pub device: BTreeMap<String, Regex>,
     #[ts(type = "number | null")]
     pub ram: Option<u64>,
-    pub arch: Option<Vec<String>>,
+    #[ts(type = "string[] | null")]
+    pub arch: Option<BTreeSet<InternedString>>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]

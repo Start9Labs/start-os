@@ -44,9 +44,11 @@ impl DeviceInfo {
             .append_pair("hardware.arch", &*self.hardware.arch)
             .append_pair("hardware.ram", &self.hardware.ram.to_string());
 
-        for (class, product) in &self.hardware.devices {
-            url.query_pairs_mut()
-                .append_pair(&format!("hardware.device.{}", class), product);
+        for (class, products) in &self.hardware.devices {
+            for product in products {
+                url.query_pairs_mut()
+                    .append_pair(&format!("hardware.device.{}", class), product);
+            }
         }
 
         HeaderValue::from_str(url.query().unwrap_or_default()).unwrap()
@@ -87,7 +89,12 @@ impl DeviceInfo {
                         k.strip_prefix("hardware.device.")
                             .map(|k| (k.into(), v.into_owned()))
                     })
-                    .collect(),
+                    .fold(BTreeMap::new(), |mut acc, (k, v)| {
+                        let mut devs = acc.remove(&k).unwrap_or_default();
+                        devs.push(v);
+                        acc.insert(k, devs);
+                        acc
+                    }),
             },
         })
     }
@@ -120,8 +127,8 @@ pub struct HardwareInfo {
     pub arch: InternedString,
     #[ts(type = "number")]
     pub ram: u64,
-    #[ts(as = "BTreeMap::<String, String>")]
-    pub devices: BTreeMap<InternedString, String>,
+    #[ts(as = "BTreeMap::<String, Vec<String>>")]
+    pub devices: BTreeMap<InternedString, Vec<String>>,
 }
 
 impl From<&RpcContext> for HardwareInfo {
@@ -133,8 +140,12 @@ impl From<&RpcContext> for HardwareInfo {
                 .hardware
                 .devices
                 .iter()
-                .map(|hw| (InternedString::intern(hw.class()), hw.product().to_owned()))
-                .collect(),
+                .fold(BTreeMap::new(), |mut acc, dev| {
+                    let mut devs = acc.remove(dev.class()).unwrap_or_default();
+                    devs.push(dev.product().to_owned());
+                    acc.insert(dev.class().into(), devs);
+                    acc
+                }),
         }
     }
 }

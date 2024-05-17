@@ -8,12 +8,15 @@ use tokio::io::AsyncRead;
 
 use crate::prelude::*;
 use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment;
+use crate::registry::signer::sign::ed25519::Ed25519;
+use crate::registry::signer::sign::SignatureScheme;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::file_contents::FileContents;
 use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
 use crate::s9pk::merkle_archive::write_queue::WriteQueue;
 use crate::util::serde::Base64;
+use crate::CAP_1_MiB;
 
 pub mod directory_contents;
 pub mod file_contents;
@@ -121,6 +124,13 @@ impl<S: ArchiveSource + Clone> MerkleArchive<Section<S>> {
                     ErrorKind::InvalidSignature,
                 ));
             }
+        } else {
+            if max_size > CAP_1_MiB as u64 {
+                return Err(Error::new(
+                    eyre!("merkle root directory max size over 1MiB, cancelling download in case of DOS attack"),
+                    ErrorKind::InvalidSignature,
+                ));
+            }
         }
 
         let contents = DirectoryContents::deserialize(source, header, (sighash, max_size)).await?;
@@ -132,6 +142,12 @@ impl<S: ArchiveSource + Clone> MerkleArchive<Section<S>> {
     }
 }
 impl<S: FileSource + Clone> MerkleArchive<S> {
+    pub async fn update_hashes(&mut self, only_missing: bool) -> Result<(), Error> {
+        self.contents.update_hashes(only_missing).await
+    }
+    pub fn filter(&mut self, filter: impl Fn(&Path) -> bool) -> Result<(), Error> {
+        self.contents.filter(filter)
+    }
     pub async fn commitment(&self) -> Result<MerkleArchiveCommitment, Error> {
         let root_maxsize = match self.signer {
             Signer::Signed(_, _, s, _) => s,
@@ -143,37 +159,32 @@ impl<S: FileSource + Clone> MerkleArchive<S> {
             root_maxsize,
         })
     }
-    pub async fn update_hashes(&mut self, only_missing: bool) -> Result<(), Error> {
-        self.contents.update_hashes(only_missing).await
-    }
-    pub fn filter(&mut self, filter: impl Fn(&Path) -> bool) -> Result<(), Error> {
-        self.contents.filter(filter)
+    pub async fn signature(&self) -> Result<Signature, Error> {
+        match &self.signer {
+            Signer::Signed(_, s, _, _) => Ok(*s),
+            Signer::Signer(k, context) => {
+                Ed25519.sign_commitment(k, &self.commitment().await?, context)
+            }
+        }
     }
     #[instrument(skip_all)]
     pub async fn serialize<W: Sink>(&self, w: &mut W, verify: bool) -> Result<(), Error> {
         use tokio::io::AsyncWriteExt;
 
-        let sighash = self.contents.sighash().await?;
-        let size = self.contents.toc_size();
+        let commitment = self.commitment().await?;
 
-        let (pubkey, signature, max_size) = match &self.signer {
-            Signer::Signed(pubkey, signature, max_size, _) => (*pubkey, *signature, *max_size),
-            Signer::Signer(s, context) => (
-                s.into(),
-                ed25519_dalek::SigningKey::sign_prehashed(
-                    s,
-                    Sha512::new_with_prefix(sighash.as_bytes())
-                        .chain_update(&u64::to_be_bytes(size)),
-                    Some(context.as_bytes()),
-                )?,
-                size,
-            ),
+        let (pubkey, signature) = match &self.signer {
+            Signer::Signed(pubkey, signature, _, _) => (*pubkey, *signature),
+            Signer::Signer(s, context) => {
+                (s.into(), Ed25519.sign_commitment(s, &commitment, context)?)
+            }
         };
 
         w.write_all(pubkey.as_bytes()).await?;
         w.write_all(&signature.to_bytes()).await?;
-        w.write_all(sighash.as_bytes()).await?;
-        w.write_all(&u64::to_be_bytes(max_size)).await?;
+        w.write_all(&*commitment.root_sighash).await?;
+        w.write_all(&u64::to_be_bytes(commitment.root_maxsize))
+            .await?;
         let mut next_pos = w.current_position().await?;
         next_pos += DirectoryContents::<S>::header_size();
         self.contents.serialize_header(next_pos, w).await?;

@@ -83,7 +83,7 @@ async fn sign_asset(
                 .as_versions()
                 .as_idx(&version)
                 .or_not_found(&version)?
-                .as_signers()
+                .as_authorized()
                 .de()?
                 .contains(&guid)
             {

@@ -1,17 +1,13 @@
 use std::collections::{BTreeMap, HashMap};
 use std::panic::UnwindSafe;
 use std::path::PathBuf;
-use std::time::Duration;
 
-use axum::response::Response;
 use clap::Parser;
-use futures::{FutureExt, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha512};
 use ts_rs::TS;
 use url::Url;
 
@@ -23,14 +19,14 @@ use crate::registry::context::RegistryContext;
 use crate::registry::os::index::OsVersionInfo;
 use crate::registry::os::SIG_CONTEXT;
 use crate::registry::signer::commitment::blake3::Blake3Commitment;
-use crate::registry::signer::commitment::Digestable;
 use crate::registry::signer::sign::ed25519::Ed25519;
 use crate::registry::signer::sign::{AnySignature, AnyVerifyingKey, SignatureScheme};
-use crate::rpc_continuations::{Guid, RpcContinuation};
+use crate::s9pk::merkle_archive::hash::VerifyingWriter;
+use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::ArchiveSource;
 use crate::util::serde::Base64;
-use crate::util::{Apply, VersionString};
+use crate::util::VersionString;
 
 pub fn add_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -61,8 +57,6 @@ pub struct AddAssetParams {
     pub version: VersionString,
     #[ts(type = "string")]
     pub platform: InternedString,
-    #[serde(default)]
-    pub upload: bool,
     #[ts(type = "string")]
     pub url: Url,
     #[serde(rename = "__auth_signer")]
@@ -77,7 +71,6 @@ async fn add_asset(
     AddAssetParams {
         version,
         platform,
-        upload,
         url,
         signer,
         signature,
@@ -88,7 +81,7 @@ async fn add_asset(
         ) -> &mut Model<BTreeMap<InternedString, RegistryAsset<Blake3Commitment>>>
         + UnwindSafe
         + Send,
-) -> Result<Option<Guid>, Error> {
+) -> Result<(), Error> {
     signer
         .scheme()
         .verify_commitment(&signer, &commitment, SIG_CONTEXT, &signature)?;
@@ -101,7 +94,7 @@ async fn add_asset(
                 .as_versions()
                 .as_idx(&version)
                 .or_not_found(&version)?
-                .as_signers()
+                .as_authorized()
                 .de()?
                 .contains(&signer_guid)
             {
@@ -137,67 +130,18 @@ async fn add_asset(
         })
         .await?;
 
-    let guid = if upload {
-        let guid = Guid::new();
-        let auth_guid = guid.clone();
-        let hostname = ctx.hostname.clone();
-        ctx.rpc_continuations
-            .add(
-                guid.clone(),
-                RpcContinuation::rest(
-                    Box::new(|req| {
-                        async move {
-                            Ok(
-                                if async move {
-                                    let auth_sig = base64::decode(
-                                        req.headers().get("X-StartOS-Registry-Auth-Sig")?,
-                                    )
-                                    .ok()?;
-                                    todo!();
-
-                                    Some(())
-                                }
-                                .await
-                                .is_some()
-                                {
-                                    Response::builder()
-                                        .status(200)
-                                        .body(axum::body::Body::empty())
-                                        .with_kind(ErrorKind::Network)?
-                                } else {
-                                    Response::builder()
-                                        .status(401)
-                                        .body(axum::body::Body::empty())
-                                        .with_kind(ErrorKind::Network)?
-                                },
-                            )
-                        }
-                        .boxed()
-                    }),
-                    Duration::from_secs(30),
-                ),
-            )
-            .await;
-        Some(guid)
-    } else {
-        None
-    };
-
-    Ok(guid)
+    Ok(())
 }
 
-pub async fn add_iso(ctx: RegistryContext, params: AddAssetParams) -> Result<Option<Guid>, Error> {
+pub async fn add_iso(ctx: RegistryContext, params: AddAssetParams) -> Result<(), Error> {
     add_asset(ctx, params, |m| m.as_iso_mut()).await
 }
 
-pub async fn add_img(ctx: RegistryContext, params: AddAssetParams) -> Result<Option<Guid>, Error> {
+pub async fn add_img(ctx: RegistryContext, params: AddAssetParams) -> Result<(), Error> {
     add_asset(ctx, params, |m| m.as_img_mut()).await
 }
 
-pub async fn add_squashfs(
-    ctx: RegistryContext,
-    params: AddAssetParams,
-) -> Result<Option<Guid>, Error> {
+pub async fn add_squashfs(ctx: RegistryContext, params: AddAssetParams) -> Result<(), Error> {
     add_asset(ctx, params, |m| m.as_squashfs_mut()).await
 }
 
@@ -211,8 +155,6 @@ pub struct CliAddAssetParams {
     pub version: VersionString,
     pub file: PathBuf,
     pub url: Url,
-    #[arg(short = 'u', long = "upload")]
-    pub upload: bool,
 }
 
 pub async fn cli_add_asset(
@@ -226,7 +168,6 @@ pub async fn cli_add_asset(
                 version,
                 file: path,
                 url,
-                upload,
             },
         ..
     }: HandlerArgs<CliContext, CliAddAssetParams>,
@@ -249,15 +190,12 @@ pub async fn cli_add_asset(
     let progress_handle = progress.handle();
     let mut sign_phase =
         progress_handle.add_phase(InternedString::intern("Signing File"), Some(10));
+    let mut verify_phase =
+        progress_handle.add_phase(InternedString::intern("Verifying URL"), Some(100));
     let mut index_phase = progress_handle.add_phase(
         InternedString::intern("Adding File to Registry Index"),
         Some(1),
     );
-    let mut upload_phase = if upload {
-        Some(progress_handle.add_phase(InternedString::intern("Uploading File"), Some(100)))
-    } else {
-        None
-    };
 
     let progress_task: NonDetachingJoinHandle<()> = tokio::spawn(async move {
         let mut bar = PhasedProgressBar::new(&format!("Adding {} to registry...", path.display()));
@@ -285,65 +223,34 @@ pub async fn cli_add_asset(
     let signature = Ed25519.sign_commitment(ctx.developer_key()?, &commitment, SIG_CONTEXT)?;
     sign_phase.complete();
 
-    index_phase.start();
-    let add_res = from_value::<Option<Guid>>(
-        ctx.call_remote::<RegistryContext>(
-            &parent_method
-                .into_iter()
-                .chain(method)
-                .chain([ext])
-                .join("."),
-            imbl_value::json!({
-                "platform": platform,
-                "version": version,
-                "upload": upload,
-                "url": &url,
-                "signature": signature,
-                "commitment": commitment,
-            }),
-        )
-        .await?,
-    )?;
-    index_phase.complete();
+    verify_phase.start();
+    let src = HttpSource::new(ctx.client.clone(), url.clone()).await?;
+    let mut writer = verify_phase.writer(VerifyingWriter::new(
+        tokio::io::sink(),
+        Some((blake3::Hash::from_bytes(*commitment.hash), commitment.size)),
+    ));
+    src.copy_all_to(&mut writer).await?;
+    let (verifier, mut verify_phase) = writer.into_inner();
+    verifier.verify().await?;
+    verify_phase.complete();
 
-    if let Some(guid) = add_res {
-        upload_phase.as_mut().map(|p| p.start());
-        upload_phase.as_mut().map(|p| p.set_total(size));
-        let reg_url = ctx.registry_url.as_ref().or_not_found("--registry")?;
-        ctx.client
-            .post(url)
-            .header("X-StartOS-Registry-Token", guid.as_ref())
-            .header(
-                "X-StartOS-Registry-Auth-Sig",
-                base64::encode(
-                    ctx.developer_key()?
-                        .sign_prehashed(
-                            Sha512::new_with_prefix(guid.as_ref().as_bytes()),
-                            Some(
-                                reg_url
-                                    .host()
-                                    .or_not_found("registry hostname")?
-                                    .to_string()
-                                    .as_bytes(),
-                            ),
-                        )?
-                        .to_bytes(),
-                ),
-            )
-            .body(reqwest::Body::wrap_stream(
-                tokio_util::io::ReaderStream::new(file.fetch(0, size).await?).inspect_ok(
-                    move |b| {
-                        upload_phase
-                            .as_mut()
-                            .map(|p| *p += b.len() as u64)
-                            .apply(|_| ())
-                    },
-                ),
-            ))
-            .send()
-            .await?;
-        // upload_phase.as_mut().map(|p| p.complete());
-    }
+    index_phase.start();
+    ctx.call_remote::<RegistryContext>(
+        &parent_method
+            .into_iter()
+            .chain(method)
+            .chain([ext])
+            .join("."),
+        imbl_value::json!({
+            "platform": platform,
+            "version": version,
+            "url": &url,
+            "signature": signature,
+            "commitment": commitment,
+        }),
+    )
+    .await?;
+    index_phase.complete();
 
     progress_handle.complete();
 

@@ -1,8 +1,8 @@
-use std::collections::BTreeMap;
-use std::ops::Deref;
+use std::collections::{BTreeMap, BTreeSet};
 
 use clap::{Parser, ValueEnum};
 use emver::{Version, VersionRange};
+use imbl_value::InternedString;
 use itertools::Itertools;
 use models::PackageId;
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,9 @@ use ts_rs::TS;
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfo;
+use crate::registry::os::version;
 use crate::registry::package::index::{PackageIndex, PackageVersionInfo};
+use crate::util::serde::{display_serializable, WithIoFormat};
 use crate::util::VersionString;
 
 #[derive(
@@ -35,6 +37,14 @@ impl Default for PackageDetailLevel {
 pub struct PackageInfoShort {
     pub release_notes: String,
 }
+impl PackageInfoShort {
+    pub fn extend_table(&self, table: &mut prettytable::Table) {
+        use prettytable::*;
+
+        table.add_row(row![bc -> "RELEASE NOTES"]);
+        todo!()
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize, TS, Parser)]
 #[serde(rename_all = "camelCase")]
@@ -57,16 +67,46 @@ pub struct GetPackageParams {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct GetPackageResponse {
+    #[ts(type = "string[]")]
+    pub categories: BTreeSet<InternedString>,
     pub best: BTreeMap<VersionString, PackageVersionInfo>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub other_versions: Option<BTreeMap<VersionString, PackageInfoShort>>,
+}
+impl GetPackageResponse {
+    pub fn tables(&self) -> prettytable::Table {
+        use prettytable::*;
+
+        let mut table = Table::new();
+
+        let empty = BTreeMap::new();
+        let versions: BTreeSet<_> = self
+            .best
+            .keys()
+            .chain(self.other_versions.as_ref().unwrap_or(&empty).keys())
+            .collect();
+
+        for version in versions {
+            if let Some(info) = self.best.get(version) {
+                table.add_row(row![bcFg => &format!("v{version}")]);
+                info.extend_table(&mut table);
+            } else if let Some(info) = self.other_versions.as_ref().and_then(|o| o.get(version)) {
+                table.add_row(row![bc => &format!("v{version}")]);
+                info.extend_table(&mut table);
+            }
+        }
+
+        table
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct GetPackageResponseFull {
+    #[ts(type = "string[]")]
+    pub categories: BTreeSet<InternedString>,
     pub best: BTreeMap<VersionString, PackageVersionInfo>,
     pub other_versions: BTreeMap<VersionString, PackageVersionInfo>,
 }
@@ -81,7 +121,7 @@ fn get_matching_models<'a>(
         version,
         source_version,
         device_info,
-        other_versions,
+        ..
     }: &GetPackageParams,
 ) -> Result<Vec<(PackageId, Version, &'a Model<PackageVersionInfo>)>, Error> {
     if let Some(id) = id {
@@ -113,6 +153,9 @@ fn get_matching_models<'a>(
                                 ),
                             )
                         })?
+                        && device_info
+                            .as_ref()
+                            .map_or(Ok(true), |device_info| info.works_for_device(device_info))?
                     {
                         Some((k.clone(), Version::from(v), info))
                     } else {
@@ -127,10 +170,7 @@ fn get_matching_models<'a>(
     .collect()
 }
 
-pub async fn get_package_rpc(
-    ctx: RegistryContext,
-    params: GetPackageParams,
-) -> Result<Value, Error> {
+pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Result<Value, Error> {
     use patch_db::ModelExt;
 
     let peek = ctx.db.peek().await;
@@ -160,6 +200,14 @@ pub async fn get_package_rpc(
         }
     }
     if let Some(id) = params.id {
+        let categories = peek
+            .as_index()
+            .as_package()
+            .as_packages()
+            .as_idx(&id)
+            .map(|p| p.as_categories().de())
+            .transpose()?
+            .unwrap_or_default();
         let best = best
             .remove(&id)
             .unwrap_or_default()
@@ -169,10 +217,12 @@ pub async fn get_package_rpc(
         let other = other.remove(&id).unwrap_or_default();
         match params.other_versions {
             None => to_value(&GetPackageResponse {
+                categories,
                 best,
                 other_versions: None,
             }),
             Some(PackageDetailLevel::Short) => to_value(&GetPackageResponse {
+                categories,
                 best,
                 other_versions: Some(
                     other
@@ -182,6 +232,7 @@ pub async fn get_package_rpc(
                 ),
             }),
             Some(PackageDetailLevel::Full) => to_value(&GetPackageResponseFull {
+                categories,
                 best,
                 other_versions: other
                     .into_iter()
@@ -195,9 +246,18 @@ pub async fn get_package_rpc(
                 &best
                     .into_iter()
                     .map(|(id, best)| {
+                        let categories = peek
+                            .as_index()
+                            .as_package()
+                            .as_packages()
+                            .as_idx(&id)
+                            .map(|p| p.as_categories().de())
+                            .transpose()?
+                            .unwrap_or_default();
                         Ok::<_, Error>((
                             id,
                             GetPackageResponse {
+                                categories,
                                 best: best
                                     .into_iter()
                                     .map(|(k, v)| v.de().map(|v| (k, v)))
@@ -212,10 +272,19 @@ pub async fn get_package_rpc(
                 &best
                     .into_iter()
                     .map(|(id, best)| {
+                        let categories = peek
+                            .as_index()
+                            .as_package()
+                            .as_packages()
+                            .as_idx(&id)
+                            .map(|p| p.as_categories().de())
+                            .transpose()?
+                            .unwrap_or_default();
                         let other = other.remove(&id).unwrap_or_default();
                         Ok::<_, Error>((
                             id,
                             GetPackageResponse {
+                                categories,
                                 best: best
                                     .into_iter()
                                     .map(|(k, v)| v.de().map(|v| (k, v)))
@@ -237,10 +306,19 @@ pub async fn get_package_rpc(
                 &best
                     .into_iter()
                     .map(|(id, best)| {
+                        let categories = peek
+                            .as_index()
+                            .as_package()
+                            .as_packages()
+                            .as_idx(&id)
+                            .map(|p| p.as_categories().de())
+                            .transpose()?
+                            .unwrap_or_default();
                         let other = other.remove(&id).unwrap_or_default();
                         Ok::<_, Error>((
                             id,
                             GetPackageResponseFull {
+                                categories,
                                 best: best
                                     .into_iter()
                                     .map(|(k, v)| v.de().map(|v| (k, v)))
@@ -256,4 +334,19 @@ pub async fn get_package_rpc(
             ),
         }
     }
+}
+
+pub fn display_package_info(
+    params: WithIoFormat<GetPackageParams>,
+    info: Value,
+) -> Result<(), Error> {
+    use prettytable::*;
+
+    if let Some(format) = params.format {
+        display_serializable(format, info);
+        return Ok(());
+    }
+
+    // table.print_tty(false).unwrap();
+    todo!()
 }

@@ -65,7 +65,7 @@ pub async fn add_version_signer(
                 .as_versions_mut()
                 .as_idx_mut(&version)
                 .or_not_found(&version)?
-                .as_signers_mut()
+                .as_authorized_mut()
                 .mutate(|s| Ok(s.insert(signer)))?;
 
             Ok(())
@@ -85,7 +85,7 @@ pub async fn remove_version_signer(
                 .as_versions_mut()
                 .as_idx_mut(&version)
                 .or_not_found(&version)?
-                .as_signers_mut()
+                .as_authorized_mut()
                 .mutate(|s| Ok(s.remove(&signer)))?
             {
                 return Err(Error::new(
@@ -117,7 +117,7 @@ pub async fn list_version_signers(
         .as_versions()
         .as_idx(&version)
         .or_not_found(&version)?
-        .as_signers()
+        .as_authorized()
         .de()?
         .into_iter()
         .filter_map(|guid| {

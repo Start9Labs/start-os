@@ -85,7 +85,7 @@ pub async fn add_version(
                     i.headline = headline;
                     i.release_notes = release_notes;
                     i.source_version = source_version;
-                    i.signers.extend(signer);
+                    i.authorized.extend(signer);
                     Ok(())
                 })
         })

@@ -29,7 +29,7 @@ pub struct OsVersionInfo {
     pub release_notes: String,
     #[ts(type = "string")]
     pub source_version: VersionRange,
-    pub signers: BTreeSet<Guid>,
+    pub authorized: BTreeSet<Guid>,
     #[ts(as = "BTreeMap::<String, RegistryAsset::<Blake3Commitment>>")]
     pub iso: BTreeMap<InternedString, RegistryAsset<Blake3Commitment>>, // platform (i.e. x86_64-nonfree) -> asset
     #[ts(as = "BTreeMap::<String, RegistryAsset::<Blake3Commitment>>")]

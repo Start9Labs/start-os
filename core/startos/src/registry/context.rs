@@ -6,6 +6,7 @@ use std::sync::Arc;
 use clap::Parser;
 use imbl_value::InternedString;
 use patch_db::PatchDb;
+use reqwest::{Client, Proxy};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty};
 use serde::{Deserialize, Serialize};
@@ -32,6 +33,8 @@ pub struct RegistryConfig {
     pub listen: Option<SocketAddr>,
     #[arg(short = 'h', long = "hostname")]
     pub hostname: InternedString,
+    #[arg(short = 'p', long = "proxy")]
+    pub tor_proxy: Option<Url>,
     #[arg(short = 'd', long = "datadir")]
     pub datadir: Option<PathBuf>,
 }
@@ -59,6 +62,7 @@ pub struct RegistryContextSeed {
     pub db: TypedPatchDb<RegistryDatabase>,
     pub datadir: PathBuf,
     pub rpc_continuations: RpcContinuations,
+    pub client: Client,
     pub shutdown: Sender<()>,
 }
 
@@ -82,6 +86,11 @@ impl RegistryContext {
             || async { Ok(Default::default()) },
         )
         .await?;
+        let tor_proxy_url = config
+            .tor_proxy
+            .clone()
+            .map(Ok)
+            .unwrap_or_else(|| "socks5h://localhost:9050".parse())?;
         Ok(Self(Arc::new(RegistryContextSeed {
             hostname: config.hostname.clone(),
             listen: config
@@ -90,6 +99,16 @@ impl RegistryContext {
             db,
             datadir,
             rpc_continuations: RpcContinuations::new(),
+            client: Client::builder()
+                .proxy(Proxy::custom(move |url| {
+                    if url.host_str().map_or(false, |h| h.ends_with(".onion")) {
+                        Some(tor_proxy_url.clone())
+                    } else {
+                        None
+                    }
+                }))
+                .build()
+                .with_kind(crate::ErrorKind::ParseUrl)?,
             shutdown,
         })))
     }
