@@ -21,16 +21,17 @@ const makeManyInterfaceFilled = async ({
 
   const serviceInterfacesFilled: ServiceInterfaceFilled[] = await Promise.all(
     Object.values(serviceInterfaceValues).map(async (serviceInterfaceValue) => {
+      const hostId = serviceInterfaceValue.addressInfo.hostId
       const host = await effects.getHostInfo({
         kind: null,
         packageId,
-        hostId: serviceInterfaceValue.hostInfo.id,
+        hostId,
         callback,
       })
       const primaryUrl = await effects
         .getPrimaryUrl({
           serviceInterfaceId: serviceInterfaceValue.id,
-          hostId: serviceInterfaceValue.hostInfo.id,
+          hostId,
           packageId,
           callback,
         })

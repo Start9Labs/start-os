@@ -53,7 +53,7 @@ pub enum HostKind {
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[model = "Model<Self>"]
 #[ts(export)]
-pub struct HostInfo(BTreeMap<HostId, Host>);
+pub struct HostInfo(pub BTreeMap<HostId, Host>);
 
 impl Map for HostInfo {
     type Key = HostId;

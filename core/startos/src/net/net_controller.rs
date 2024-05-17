@@ -211,17 +211,29 @@ impl NetService {
     }
     pub async fn clear_bindings(&mut self) -> Result<(), Error> {
         let package_id = &self.id;
-        self.net_controller()?
+        let old_hosts = self
+            .net_controller()?
             .db
             .mutate(|db| {
+                let old_hosts = db
+                    .as_public()
+                    .as_package_data()
+                    .as_idx(package_id)
+                    .or_not_found(package_id)?
+                    .as_hosts()
+                    .de()?;
                 db.as_public_mut()
                     .as_package_data_mut()
                     .as_idx_mut(package_id)
                     .or_not_found(package_id)?
                     .as_hosts_mut()
-                    .ser(&Default::default())
+                    .ser(&Default::default())?;
+                Ok(old_hosts)
             })
             .await?;
+        for (id, host) in old_hosts.0 {
+            self.update(id, host).await?;
+        }
         Ok(())
     }
 

@@ -27,10 +27,9 @@ use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::net::host::address::HostAddress;
 use crate::net::host::binding::BindOptions;
-use crate::net::host::{self, HostKind};
+use crate::net::host::HostKind;
 use crate::net::service_interface::{
-    AddressInfo, ExportedHostInfo, ExportedHostnameInfo, ServiceInterface, ServiceInterfaceType,
-    ServiceInterfaceWithHostInfo,
+    AddressInfo, ServiceInterface, ServiceInterfaceType, ServiceInterfaceWithHostInfo,
 };
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
@@ -235,8 +234,6 @@ struct ExportServiceInterfaceParams {
     masked: bool,
     address_info: AddressInfo,
     r#type: ServiceInterfaceType,
-    host_kind: HostKind,
-    hostnames: Vec<ExportedHostnameInfo>,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
@@ -406,13 +403,10 @@ async fn export_service_interface(
         masked,
         address_info,
         r#type,
-        host_kind,
-        hostnames,
     }: ExportServiceInterfaceParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
     let package_id = context.id.clone();
-    let host_id = address_info.host_id.clone();
 
     let service_interface = ServiceInterface {
         id: id.clone(),
@@ -424,15 +418,7 @@ async fn export_service_interface(
         address_info,
         interface_type: r#type,
     };
-    let host_info = ExportedHostInfo {
-        id: host_id,
-        kind: host_kind,
-        hostnames,
-    };
-    let svc_interface_with_host_info = ServiceInterfaceWithHostInfo {
-        service_interface,
-        host_info,
-    };
+    let svc_interface_with_host_info = ServiceInterfaceWithHostInfo { service_interface };
 
     context
         .ctx

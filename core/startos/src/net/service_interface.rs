@@ -5,8 +5,6 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::net::host::binding::BindOptions;
-use crate::net::host::HostKind;
-use crate::prelude::*;
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[ts(export)]
@@ -14,16 +12,6 @@ use crate::prelude::*;
 pub struct ServiceInterfaceWithHostInfo {
     #[serde(flatten)]
     pub service_interface: ServiceInterface,
-    pub host_info: ExportedHostInfo,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-pub struct ExportedHostInfo {
-    pub id: HostId,
-    pub kind: HostKind,
-    pub hostnames: Vec<ExportedHostnameInfo>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]

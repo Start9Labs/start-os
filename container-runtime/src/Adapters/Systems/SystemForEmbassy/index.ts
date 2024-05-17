@@ -402,7 +402,7 @@ export class SystemForEmbassy implements System {
         masked: false,
         addressInfo: {
           username: null,
-          hostId: hostId,
+          hostId,
           bindOptions: {
             scheme: "http",
             preferredExternalPort: 80,
@@ -412,33 +412,6 @@ export class SystemForEmbassy implements System {
           suffix: "",
         },
         type: interfaceValue.ui ? "ui" : "api",
-        hostKind: "multi",
-        hostnames: [
-          ...Object.entries(interfaceValue["lan-config"] || {}).map(
-            ([key, value]): T.ExportedHostnameInfo => ({
-              kind: "ip",
-              networkInterfaceId: `${id}-lan-${key}`,
-              public: true,
-              hostname: {
-                kind: "local",
-                value: `${id}-lan-${key}-value`,
-                port: value.internal,
-                sslPort: null,
-              },
-            }),
-          ),
-          ...Object.entries(interfaceValue["tor-config"] || {}).map(
-            ([key, value]): T.ExportedHostnameInfo =>
-              ({
-                kind: "onion",
-                hostname: {
-                  value: `${id}-lan-${key}-value`,
-                  port: Number.parseInt(value.internal),
-                  sslPort: null,
-                },
-              }) as const,
-          ),
-        ],
       }
       await effects.exportServiceInterface(options)
     }

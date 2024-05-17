@@ -187,17 +187,18 @@ const makeInterfaceFilled = async ({
     packageId,
     callback,
   })
+  const hostId = serviceInterfaceValue.addressInfo.hostId
   const host = await effects.getHostInfo({
     packageId,
     kind: null,
-    hostId: serviceInterfaceValue.hostInfo.id,
+    hostId,
     callback,
   })
   const primaryUrl = await effects
     .getPrimaryUrl({
       serviceInterfaceId: id,
       packageId,
-      hostId: serviceInterfaceValue.hostInfo.id,
+      hostId,
       callback,
     })
     .catch((e) => null)

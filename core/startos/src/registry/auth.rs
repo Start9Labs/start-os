@@ -118,7 +118,6 @@ impl Middleware<RegistryContext> for Auth {
         if request.headers().contains_key(AUTH_SIG_HEADER) {
             self.signer = Some(
                 async {
-                    let request = request;
                     let SignatureHeader {
                         timestamp,
                         nonce,
