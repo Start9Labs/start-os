@@ -6,11 +6,9 @@ import {
   HealthCheckResult,
   SetMainStatus,
   ServiceInterface,
-  ServiceInterfaceWithHostInfo,
-  HostInfo,
+  ServiceInterfaceWrapper,
   Host,
   ExportServiceInterfaceParams,
-  BindParams,
   GetPrimaryUrlParams,
 } from "./osBindings"
 
@@ -19,7 +17,7 @@ import { InputSpec } from "./config/configTypes"
 import { DependenciesReceipt } from "./config/setupConfig"
 import { BindOptions, Scheme } from "./interfaces/Host"
 import { Daemons } from "./mainFn/Daemons"
-import { PathBuilder, StorePath } from "./store/PathBuilder"
+import { StorePath } from "./store/PathBuilder"
 import { ExposedStorePaths } from "./store/setupExposeStore"
 import { UrlString } from "./util/getServiceInterface"
 export * from "./osBindings"
@@ -228,7 +226,7 @@ export type HostnameInfo = HostnameInfoIp | HostnameInfoOnion
 
 export type ServiceInterfaceId = string
 
-export { ServiceInterface, ServiceInterfaceWithHostInfo }
+export { ServiceInterface, ServiceInterfaceWrapper }
 export type ExposeServicePaths<Store = never> = {
   /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
   paths: ExposedStorePaths
@@ -388,7 +386,7 @@ export type Effects = {
     packageId: PackageId | null
     serviceInterfaceId: ServiceInterfaceId
     callback: () => void
-  }): Promise<ServiceInterfaceWithHostInfo>
+  }): Promise<ServiceInterfaceWrapper>
 
   /**
    * The user sets the primary url for a interface
@@ -405,7 +403,7 @@ export type Effects = {
   listServiceInterfaces(options: {
     packageId: PackageId | null
     callback: () => void
-  }): Promise<Record<ServiceInterfaceId, ServiceInterfaceWithHostInfo>>
+  }): Promise<Record<ServiceInterfaceId, ServiceInterfaceWrapper>>
 
   /**
    *Remove an address that was exported. Used problably during main or during setConfig.

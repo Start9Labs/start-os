@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::net::host::HostInfo;
-use crate::net::service_interface::ServiceInterfaceWithHostInfo;
+use crate::net::service_interface::ServiceInterfaceWrapper;
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::s9pk::manifest::Manifest;
@@ -333,7 +333,7 @@ pub struct PackageDataEntry {
     pub last_backup: Option<DateTime<Utc>>,
     pub current_dependencies: CurrentDependencies,
     pub actions: BTreeMap<ActionId, ActionMetadata>,
-    pub service_interfaces: BTreeMap<ServiceInterfaceId, ServiceInterfaceWithHostInfo>,
+    pub service_interfaces: BTreeMap<ServiceInterfaceId, ServiceInterfaceWrapper>,
     pub hosts: HostInfo,
     #[ts(type = "string[]")]
     pub store_exposed_dependents: Vec<JsonPointer>,

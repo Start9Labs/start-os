@@ -6,7 +6,7 @@ import type { DataUrl } from "./DataUrl"
 import type { HostInfo } from "./HostInfo"
 import type { PackageState } from "./PackageState"
 import type { ServiceInterfaceId } from "./ServiceInterfaceId"
-import type { ServiceInterfaceWithHostInfo } from "./ServiceInterfaceWithHostInfo"
+import type { ServiceInterfaceWrapper } from "./ServiceInterfaceWrapper"
 import type { Status } from "./Status"
 
 export type PackageDataEntry = {
@@ -18,7 +18,7 @@ export type PackageDataEntry = {
   lastBackup: string | null
   currentDependencies: CurrentDependencies
   actions: { [key: ActionId]: ActionMetadata }
-  serviceInterfaces: { [key: ServiceInterfaceId]: ServiceInterfaceWithHostInfo }
+  serviceInterfaces: { [key: ServiceInterfaceId]: ServiceInterfaceWrapper }
   hosts: HostInfo
   storeExposedDependents: string[]
 }

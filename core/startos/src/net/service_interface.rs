@@ -9,7 +9,7 @@ use crate::net::host::binding::BindOptions;
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
-pub struct ServiceInterfaceWithHostInfo {
+pub struct ServiceInterfaceWrapper {
     #[serde(flatten)]
     pub service_interface: ServiceInterface,
 }

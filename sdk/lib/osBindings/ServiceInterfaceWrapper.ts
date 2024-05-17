@@ -3,7 +3,7 @@ import type { AddressInfo } from "./AddressInfo"
 import type { ServiceInterfaceId } from "./ServiceInterfaceId"
 import type { ServiceInterfaceType } from "./ServiceInterfaceType"
 
-export type ServiceInterfaceWithHostInfo = {
+export type ServiceInterfaceWrapper = {
   id: ServiceInterfaceId
   name: string
   description: string
