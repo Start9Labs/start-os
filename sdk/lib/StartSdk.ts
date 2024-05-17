@@ -91,7 +91,7 @@ export type ServiceInterfaceType = "ui" | "p2p" | "api"
 export type MainEffects = Effects & { _type: "main" }
 export type Signals = NodeJS.Signals
 export const SIGTERM: Signals = "SIGTERM"
-export const SIGKILL: Signals = "SIGTERM"
+export const SIGKILL: Signals = "SIGKILL"
 export const NO_TIMEOUT = -1
 
 function removeConstType<E>() {
