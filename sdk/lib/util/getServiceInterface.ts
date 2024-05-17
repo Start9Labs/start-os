@@ -110,12 +110,14 @@ export const filledAddress = (
     },
     get localHostnames() {
       return []
+      // TODO
       // return addresses
       //   .filter((h) => h.kind === "ip" && h.hostname.kind === "local")
       //   .flatMap(stringifyHostname)
     },
     get ipHostnames() {
       return []
+      // TODO
       // return addresses
       //   .filter(
       //     (h) =>
@@ -126,18 +128,21 @@ export const filledAddress = (
     },
     get ipv4Hostnames() {
       return []
+      // TODO
       // return addresses
       //   .filter((h) => h.kind === "ip" && h.hostname.kind === "ipv4")
       //   .flatMap(stringifyHostname)
     },
     get ipv6Hostnames() {
       return []
+      // TODO
       // return addresses
       //   .filter((h) => h.kind === "ip" && h.hostname.kind === "ipv6")
       //   .flatMap(stringifyHostname)
     },
     get nonIpHostnames() {
       return []
+      // TODO
       // return addresses
       //   .filter(
       //     (h) =>
