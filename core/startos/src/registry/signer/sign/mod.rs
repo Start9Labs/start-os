@@ -281,16 +281,18 @@ pub enum AnySignature {
 impl FromStr for AnySignature {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use der::DecodePem;
+
         #[derive(der::Sequence)]
         struct AnySignatureDer {
             alg: pkcs8::spki::AlgorithmIdentifierOwned,
             sig: der::asn1::OctetString,
         }
+        impl der::pem::PemLabel for AnySignatureDer {
+            const PEM_LABEL: &'static str = "SIGNATURE";
+        }
 
-        let der = AnySignatureDer::decode(
-            &mut der::PemReader::new(s.as_bytes()).with_kind(ErrorKind::Deserialization)?,
-        )
-        .with_kind(ErrorKind::Deserialization)?;
+        let der = AnySignatureDer::from_pem(s.as_bytes()).with_kind(ErrorKind::Deserialization)?;
         if der.alg.oid == ed25519_dalek::pkcs8::ALGORITHM_ID.oid
             && der.alg.parameters.owned_to_ref() == ed25519_dalek::pkcs8::ALGORITHM_ID.parameters
         {
@@ -306,26 +308,26 @@ impl FromStr for AnySignature {
 }
 impl Display for AnySignature {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use der::EncodePem;
+
         #[derive(der::Sequence)]
         struct AnySignatureDer<'a> {
             alg: pkcs8::AlgorithmIdentifierRef<'a>,
             sig: der::asn1::OctetString,
         }
-        let to_encode = match self {
-            Self::Ed25519(s) => AnySignatureDer {
-                alg: ed25519_dalek::pkcs8::ALGORITHM_ID,
-                sig: der::asn1::OctetString::new(s.to_bytes()).map_err(|_| std::fmt::Error)?,
-            },
-        };
-        let mut buf = vec![
-            0u8;
-            usize::try_from(to_encode.encoded_len().map_err(|_| std::fmt::Error)?)
-                .map_err(|_| std::fmt::Error)?
-        ];
-        let mut w = der::PemWriter::new("SIGNATURE", der::pem::LineEnding::LF, &mut buf)
-            .map_err(|_| std::fmt::Error)?;
-        to_encode.encode(&mut w).map_err(|_| std::fmt::Error)?;
-        f.write_str(&String::from_utf8(buf).map_err(|_| std::fmt::Error)?)
+        impl<'a> der::pem::PemLabel for AnySignatureDer<'a> {
+            const PEM_LABEL: &'static str = "SIGNATURE";
+        }
+        f.write_str(
+            &match self {
+                Self::Ed25519(s) => AnySignatureDer {
+                    alg: ed25519_dalek::pkcs8::ALGORITHM_ID,
+                    sig: der::asn1::OctetString::new(s.to_bytes()).map_err(|_| std::fmt::Error)?,
+                },
+            }
+            .to_pem(der::pem::LineEnding::LF)
+            .map_err(|_| std::fmt::Error)?,
+        )
     }
 }
 impl<'de> Deserialize<'de> for AnySignature {
