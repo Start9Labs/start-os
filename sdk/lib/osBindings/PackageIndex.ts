@@ -5,5 +5,5 @@ import type { PackageInfo } from "./PackageInfo"
 
 export type PackageIndex = {
   categories: { [key: string]: Category }
-  packages: { [key: PackageId]: { [key: string]: PackageInfo } }
+  packages: { [key: PackageId]: PackageInfo }
 }

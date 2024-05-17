@@ -1,14 +1,3 @@
-<ng-container *ngIf="pkg.manifest.replaces as replaces">
-  <div *ngIf="replaces.length" class="ion-padding-bottom">
-    <ion-item-divider>Intended to replace</ion-item-divider>
-    <ul>
-      <li *ngFor="let app of replaces">
-        {{ app }}
-      </li>
-    </ul>
-  </div>
-</ng-container>
-
 <ion-item-divider>Additional Info</ion-item-divider>
 <ion-grid *ngIf="pkg.manifest as manifest">
   <ion-row>
