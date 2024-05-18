@@ -6,12 +6,14 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::response::Response;
 use chrono::Utc;
+use http::HeaderValue;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{Middleware, RpcRequest, RpcResponse};
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
 use ts_rs::TS;
+use url::Url;
 
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
@@ -81,6 +83,28 @@ pub struct SignatureHeader {
     pub signature: AnySignature,
 }
 impl SignatureHeader {
+    pub fn to_header(&self) -> HeaderValue {
+        let mut url: Url = "http://localhost".parse().unwrap();
+        self.commitment.append_query(&mut url);
+        url.query_pairs_mut()
+            .append_pair("signer", &self.signer.to_string());
+        url.query_pairs_mut()
+            .append_pair("signature", &self.signature.to_string());
+        HeaderValue::from_str(url.query().unwrap_or_default()).unwrap()
+    }
+    pub fn from_header(header: &HeaderValue) -> Result<Self, Error> {
+        let url: Url = format!(
+            "http://localhost/?{}",
+            header.to_str().with_kind(ErrorKind::Utf8)?
+        )
+        .parse()?;
+        let query: BTreeMap<_, _> = url.query_pairs().collect();
+        Ok(Self {
+            commitment: RequestCommitment::from_query(&url)?,
+            signer: query.get("signer").or_not_found("signer")?.parse()?,
+            signature: query.get("signature").or_not_found("signature")?.parse()?,
+        })
+    }
     pub fn sign(signer: &AnySigningKey, body: &[u8], context: &str) -> Result<Self, Error> {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -119,16 +143,13 @@ impl Middleware<RegistryContext> for Auth {
                         commitment,
                         signer,
                         signature,
-                    } = serde_urlencoded::from_str(
+                    } = SignatureHeader::from_header(
                         request
                             .headers()
                             .get(AUTH_SIG_HEADER)
                             .or_not_found("missing X-StartOS-Registry-Auth-Sig")
-                            .with_kind(ErrorKind::InvalidRequest)?
-                            .to_str()
-                            .with_kind(ErrorKind::Utf8)?,
-                    )
-                    .with_kind(ErrorKind::Deserialization)?;
+                            .with_kind(ErrorKind::InvalidRequest)?,
+                    )?;
 
                     signer.scheme().verify_commitment(
                         &signer,

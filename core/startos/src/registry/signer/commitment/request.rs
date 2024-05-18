@@ -1,4 +1,5 @@
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::collections::BTreeMap;
 
 use axum::body::Body;
 use axum::extract::Request;
@@ -8,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWrite;
 use tokio_util::io::StreamReader;
 use ts_rs::TS;
+use url::Url;
 
 use crate::prelude::*;
 use crate::registry::signer::commitment::{Commitment, Digestable};
@@ -26,6 +28,24 @@ pub struct RequestCommitment {
     #[ts(type = "number")]
     pub size: u64,
     pub blake3: Base64<[u8; 32]>,
+}
+impl RequestCommitment {
+    pub fn append_query(&self, url: &mut Url) {
+        url.query_pairs_mut()
+            .append_pair("timestamp", &self.timestamp.to_string())
+            .append_pair("nonce", &self.nonce.to_string())
+            .append_pair("size", &self.size.to_string())
+            .append_pair("blake3", &self.blake3.to_string());
+    }
+    pub fn from_query(url: &Url) -> Result<Self, Error> {
+        let query: BTreeMap<_, _> = url.query_pairs().collect();
+        Ok(Self {
+            timestamp: query.get("timestamp").or_not_found("timestamp")?.parse()?,
+            nonce: query.get("nonce").or_not_found("nonce")?.parse()?,
+            size: query.get("size").or_not_found("size")?.parse()?,
+            blake3: query.get("blake3").or_not_found("blake3")?.parse()?,
+        })
+    }
 }
 impl Digestable for RequestCommitment {
     fn update<D: Update>(&self, digest: &mut D) {

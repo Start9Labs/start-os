@@ -65,6 +65,7 @@ pub fn registry_api<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand("os", os::os_api::<C>())
+        .subcommand("package", package::package_api::<C>())
         .subcommand("admin", admin::admin_api::<C>())
         .subcommand("db", db::db_api::<C>())
 }

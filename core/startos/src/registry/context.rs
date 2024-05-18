@@ -165,12 +165,11 @@ impl CallRemote<RegistryContext> for CliContext {
             .header(CONTENT_LENGTH, body.len())
             .header(
                 AUTH_SIG_HEADER,
-                serde_urlencoded::to_string(&SignatureHeader::sign(
+                SignatureHeader::sign(
                     &AnySigningKey::Ed25519(self.developer_key()?.clone()),
                     &body,
                     &host,
-                )?)
-                .with_kind(ErrorKind::Serialization)?,
+                )?.to_header(),
             )
             .body(body)
             .send()
