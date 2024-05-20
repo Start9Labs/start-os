@@ -176,7 +176,8 @@ import { TimeService } from 'src/app/services/time.service'
 
       section {
         flex-wrap: wrap;
-        padding: 1rem;
+        padding: 0;
+        margin: 1rem -1rem;
       }
 
       aside {

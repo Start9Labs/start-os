@@ -67,6 +67,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
     :host {
       padding: 0;
       border: none;
+      cursor: default;
     }
 
     :host-context(tui-root._mobile) {

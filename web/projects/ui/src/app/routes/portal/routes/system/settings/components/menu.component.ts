@@ -51,7 +51,6 @@ import { SettingsUpdateComponent } from './update.component'
         display: flex;
         flex-direction: column;
         gap: 1rem;
-        padding-top: 1rem;
       }
     `,
   ],

@@ -48,6 +48,12 @@ const ROUTES: Routes = [
     loadComponent: () => import('./updates/updates.component'),
     data: toNavigationItem('/portal/system/updates'),
   },
+  {
+    title: systemTabResolver,
+    path: 'metrics',
+    loadComponent: () => import('./metrics/metrics.component'),
+    data: toNavigationItem('/portal/system/metrics'),
+  },
 ]
 
 @NgModule({ imports: [RouterModule.forChild(ROUTES)] })

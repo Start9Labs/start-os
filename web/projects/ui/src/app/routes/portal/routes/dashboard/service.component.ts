@@ -4,6 +4,7 @@ import {
   Component,
   inject,
   Input,
+  OnChanges,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { tuiPure } from '@taiga-ui/cdk'
@@ -19,7 +20,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
   selector: 'tr[appService]',
   template: `
     <td [style.grid-area]="'1 / 1 / 4'">
-      <a [routerLink]="routerLink"><img alt="logo" [src]="pkg.icon" /></a>
+      <img alt="logo" [src]="pkg.icon" />
     </td>
     <td [style.grid-area]="'1 / 2'">
       <a [routerLink]="routerLink">{{ manifest.title }}</a>
@@ -36,11 +37,25 @@ import { getManifest } from 'src/app/utils/get-package-data'
         appControls
         [disabled]="!installed || !(connected$ | async)"
         [pkg]="pkg"
+        (click.stop)="(0)"
       ></fieldset>
     </td>
   `,
   styles: `
+    @import '@taiga-ui/core/styles/taiga-ui-local';
+
+    :host {
+      @include transition(background);
+      clip-path: inset(0 round 0.5rem);
+      cursor: pointer;
+
+      &:hover {
+        background: var(--tui-clear);
+      }
+    }
+
     img {
+      display: block;
       height: 2rem;
       width: 2rem;
       border-radius: 100%;
@@ -80,10 +95,13 @@ import { getManifest } from 'src/app/utils/get-package-data'
       }
     }
   `,
+  hostDirectives: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, AsyncPipe, StatusComponent, ControlsComponent],
 })
-export class ServiceComponent {
+export class ServiceComponent implements OnChanges {
+  private readonly link = inject(RouterLink)
+
   @Input()
   pkg!: PackageDataEntry
 
@@ -102,6 +120,10 @@ export class ServiceComponent {
 
   get routerLink() {
     return `/portal/service/${this.manifest.id}`
+  }
+
+  ngOnChanges() {
+    this.link.routerLink = this.routerLink
   }
 
   @tuiPure

@@ -43,7 +43,9 @@ import { hasCurrentDeps } from 'src/app/utils/has-deps'
   template: `
     <tui-accordion-item borders="top-bottom">
       <div class="g-action">
-        <tui-avatar size="s" [src]="marketplacePkg" />
+        <tui-avatar size="s">
+          <img alt="" [src]="marketplacePkg.icon" />
+        </tui-avatar>
         <div [style.flex]="1" [style.overflow]="'hidden'">
           <strong>{{ marketplacePkg.manifest.title }}</strong>
           <div>

@@ -9,8 +9,9 @@ import { LogsComponent } from '../../../components/logs/logs.component'
 @Component({
   template: `
     <tui-select
-      tuiTextfieldAppearance="unstyled"
+      tuiTextfieldAppearance="secondary"
       tuiTextfieldSize="m"
+      [style.max-width.rem]="26"
       [(ngModel)]="logs"
     >
       {{ subtitle }}
@@ -50,7 +51,7 @@ import { LogsComponent } from '../../../components/logs/logs.component'
       }
 
       logs {
-        height: calc(100% - 4rem);
+        height: calc(100% - 5rem);
       }
     `,
   ],

@@ -8,7 +8,7 @@ import {
 import { RouterLink } from '@angular/router'
 import { T } from '@start9labs/start-sdk'
 import { tuiPure } from '@taiga-ui/cdk'
-import { TuiSvgModule } from '@taiga-ui/core'
+import { TuiLinkModule, TuiSvgModule } from '@taiga-ui/core'
 import { TuiLineClampModule } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { first, Observable } from 'rxjs'
@@ -20,10 +20,10 @@ import { toRouterLink } from 'src/app/utils/to-router-link'
 @Component({
   selector: '[notificationItem]',
   template: `
-    <td><ng-content /></td>
+    <td [style.padding-top.rem]="0.4"><ng-content /></td>
     <td>{{ notificationItem.createdAt | date: 'MMM d, y, h:mm a' }}</td>
     <td [style.color]="color">
-      <tui-svg [style.color]="color" [src]="icon"></tui-svg>
+      <tui-svg [src]="icon" />
       {{ notificationItem.title }}
     </td>
     <td>
@@ -43,20 +43,44 @@ import { toRouterLink } from 'src/app/utils/to-router-link'
         [content]="notificationItem.message"
         (overflownChange)="overflow = $event"
       />
-      <a *ngIf="overflow" (click)="service.viewFull(notificationItem)">
+      <button
+        *ngIf="overflow"
+        tuiLink
+        (click)="service.viewFull(notificationItem)"
+      >
         View Full
-      </a>
-      <a
+      </button>
+      <button
         *ngIf="notificationItem.code === 1"
+        tuiLink
         (click)="service.viewReport(notificationItem)"
       >
         View Report
-      </a>
+      </button>
     </td>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, RouterLink, TuiLineClampModule, TuiSvgModule],
+  host: {
+    '[class._new]': '!notificationItem.read',
+  },
+  styles: `
+    :host._new {
+      background: var(--tui-clear);
+    }
+
+    td {
+      padding: 0.25rem;
+      vertical-align: top;
+    }
+  `,
+  imports: [
+    CommonModule,
+    RouterLink,
+    TuiLineClampModule,
+    TuiSvgModule,
+    TuiLinkModule,
+  ],
 })
 export class NotificationItemComponent {
   private readonly patch = inject(PatchDB<DataModel>)
