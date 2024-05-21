@@ -139,6 +139,10 @@
   &:active {
     background: transparent !important;
   }
+
+  tui-root._mobile &:after {
+    display: none;
+  }
 }
 
 tui-dialog {
