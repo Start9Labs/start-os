@@ -24,10 +24,8 @@ import { NotificationService } from 'src/app/services/notification.service'
       <a
         tuiTabBarItem
         icon="tuiIconActivity"
-        routerLink="/portal/dashboard"
+        routerLink="/portal/system/metrics"
         routerLinkActive
-        [routerLinkActiveOptions]="{ exact: true }"
-        [queryParams]="{ tab: 'metrics' }"
       >
         Metrics
       </a>
@@ -58,7 +56,9 @@ import { NotificationService } from 'src/app/services/notification.service'
       display: none;
       // TODO: Theme
       --tui-elevation-01: #333;
+      --tui-base-01: #fff;
       --tui-base-04: var(--tui-clear);
+      --tui-error-fill: #f52222;
       backdrop-filter: blur(1rem);
     }
 

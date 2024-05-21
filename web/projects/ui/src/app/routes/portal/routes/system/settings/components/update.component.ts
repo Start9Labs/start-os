@@ -47,10 +47,20 @@ import { UPDATE } from '../modals/update.component'
       </div>
     </button>
   `,
-  styles: [
-    ':host { display: block; box-shadow: 0 1px var(--tui-clear); }',
-    '.small { width: 1rem; height: 1rem; }',
-  ],
+  styles: `
+    :host {
+      display: block;
+      box-shadow: 0 1px var(--tui-clear);
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .small {
+      font-size: 1rem;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [CommonModule, TuiIconModule, TuiTitleModule],

@@ -1,20 +1,18 @@
-import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
   Input,
   OnChanges,
 } from '@angular/core'
+import { FormsModule } from '@angular/forms'
+import { TuiCheckboxModule } from '@taiga-ui/experimental'
+import { TuiLineClampModule } from '@taiga-ui/kit'
+import { BehaviorSubject } from 'rxjs'
 import {
   ServerNotification,
   ServerNotifications,
 } from 'src/app/services/api/api.types'
-import { TuiForModule } from '@taiga-ui/cdk'
-import { BehaviorSubject } from 'rxjs'
-import { TuiLineClampModule } from '@taiga-ui/kit'
-import { FormsModule } from '@angular/forms'
 import { NotificationItemComponent } from './item.component'
-import { TuiCheckboxModule } from '@taiga-ui/experimental'
 
 @Component({
   selector: 'table[notifications]',
@@ -39,39 +37,40 @@ import { TuiCheckboxModule } from '@taiga-ui/experimental'
       </tr>
     </thead>
     <tbody>
-      <tr
-        *ngFor="let notification of notifications; else: loading; empty: blank"
-        [notificationItem]="notification"
-        [style.font-weight]="notification.read ? 'normal' : 'bold'"
-      >
-        <input
-          tuiCheckbox
-          size="s"
-          type="checkbox"
-          [style.display]="'block'"
-          [ngModel]="selected$.value.includes(notification)"
-          (ngModelChange)="handleToggle(notification)"
-        />
-      </tr>
-      <ng-template #blank>
-        <tr>
-          <td colspan="5">You have no notifications</td>
-        </tr>
-      </ng-template>
-      <ng-template #loading>
-        <tr *ngFor="let row of ['', '']">
-          <td colspan="5"><div class="tui-skeleton">Loading</div></td>
-        </tr>
-      </ng-template>
+      @if (notifications) {
+        @for (notification of notifications; track $index) {
+          <tr
+            [notificationItem]="notification"
+            [style.font-weight]="notification.read ? 'normal' : 'bold'"
+          >
+            <input
+              tuiCheckbox
+              size="s"
+              type="checkbox"
+              [style.display]="'block'"
+              [ngModel]="selected$.value.includes(notification)"
+              (ngModelChange)="handleToggle(notification)"
+            />
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="5">You have no notifications</td>
+          </tr>
+        }
+      } @else {
+        @for (row of ['', '']; track $index) {
+          <tr>
+            <td colspan="5"><div class="tui-skeleton">Loading</div></td>
+          </tr>
+        }
+      }
     </tbody>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [
-    CommonModule,
-    TuiForModule,
-    TuiCheckboxModule,
     FormsModule,
+    TuiCheckboxModule,
     TuiLineClampModule,
     NotificationItemComponent,
   ],

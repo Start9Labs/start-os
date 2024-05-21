@@ -1,5 +1,11 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  Input,
+} from '@angular/core'
 import { RouterLink } from '@angular/router'
+import { WINDOW } from '@ng-web-apis/common'
 import { TuiIconModule } from '@taiga-ui/experimental'
 import { Breadcrumb } from 'src/app/services/breadcrumbs.service'
 
@@ -7,8 +13,12 @@ import { Breadcrumb } from 'src/app/services/breadcrumbs.service'
   standalone: true,
   selector: '[headerMobile]',
   template: `
-    @if (headerMobile?.length) {
-      <a [routerLink]="back" [style.padding.rem]="0.75">
+    @if (headerMobile && headerMobile.length > 1) {
+      <a
+        [routerLink]="back"
+        [style.padding.rem]="0.75"
+        [queryParams]="queryParams"
+      >
         <tui-icon icon="tuiIconArrowLeft" />
       </a>
     }
@@ -46,6 +56,11 @@ import { Breadcrumb } from 'src/app/services/breadcrumbs.service'
       .title {
         @include text-overflow();
         max-width: calc(100% - 5rem);
+        text-transform: capitalize;
+
+        &:first-child {
+          margin-inline-start: 1rem;
+        }
       }
     `,
   ],
@@ -53,10 +68,15 @@ import { Breadcrumb } from 'src/app/services/breadcrumbs.service'
   imports: [TuiIconModule, RouterLink],
 })
 export class HeaderMobileComponent {
+  private readonly win = inject(WINDOW)
+
   @Input() headerMobile: readonly Breadcrumb[] | null = []
 
   get title() {
-    return this.headerMobile?.[this.headerMobile?.length - 1]?.title || ''
+    return (
+      this.headerMobile?.[this.headerMobile?.length - 1]?.title ||
+      (this.win.location.search ? 'Utilities' : 'Services')
+    )
   }
 
   get back() {
@@ -64,5 +84,9 @@ export class HeaderMobileComponent {
       this.headerMobile?.[this.headerMobile?.length - 2]?.routerLink ||
       '/portal/dashboard'
     )
+  }
+
+  get queryParams() {
+    return this.back === '/portal/dashboard' ? { tab: 'utilities' } : null
   }
 }

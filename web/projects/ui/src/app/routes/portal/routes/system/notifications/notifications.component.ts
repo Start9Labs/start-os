@@ -14,25 +14,24 @@ import { NotificationsTableComponent } from './table.component'
   template: `
     <ng-container *tuiLet="notifications$ | async as notifications">
       <h3 class="g-title">
-        Notifications
-        <ng-container *ngIf="table.selected$ | async as selected">
-          <tui-hosted-dropdown
-            tuiDropdownAlign="right"
-            [content]="dropdown"
-            [sided]="true"
-            [(open)]="open"
+        <tui-hosted-dropdown
+          *ngIf="table.selected$ | async as selected"
+          tuiDropdownAlign="right"
+          [content]="dropdown"
+          [sided]="true"
+          [(open)]="open"
+          [canOpen]="!!selected.length"
+        >
+          <button
+            appearance="primary"
+            iconRight="tuiIconChevronDown"
+            tuiButton
+            size="xs"
+            type="button"
+            [disabled]="!selected.length"
           >
-            <button
-              appearance="primary"
-              iconRight="tuiIconChevronDown"
-              tuiButton
-              size="xs"
-              type="button"
-              [disabled]="!selected.length"
-            >
-              Batch Action
-            </button>
-          </tui-hosted-dropdown>
+            Batch Action
+          </button>
           <ng-template #dropdown>
             <tui-data-list>
               <button tuiOption (click)="markSeen(notifications!, selected)">
@@ -46,7 +45,7 @@ import { NotificationsTableComponent } from './table.component'
               </button>
             </tui-data-list>
           </ng-template>
-        </ng-container>
+        </tui-hosted-dropdown>
       </h3>
       <table #table class="g-table" [notifications]="notifications"></table>
     </ng-container>

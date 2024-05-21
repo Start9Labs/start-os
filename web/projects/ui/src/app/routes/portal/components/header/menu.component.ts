@@ -9,13 +9,10 @@ import {
 } from '@taiga-ui/core'
 import { TuiButtonModule, TuiIconModule } from '@taiga-ui/experimental'
 import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
-import { PatchDB } from 'patch-db-client'
 import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { ABOUT } from './about.component'
-import { getAllPackages } from 'src/app/utils/get-package-data'
-import { DataModel } from 'src/app/services/patch-db/data-model'
 import { HeaderConnectionComponent } from './connection.component'
 
 @Component({
@@ -114,7 +111,6 @@ export class HeaderMenuComponent {
   private readonly errorService = inject(ErrorService)
   private readonly loader = inject(LoadingService)
   private readonly auth = inject(AuthService)
-  private readonly patch = inject(PatchDB<DataModel>)
   private readonly dialogs = inject(TuiDialogService)
 
   readonly links = [
@@ -137,10 +133,6 @@ export class HeaderMenuComponent {
 
   readonly system = [
     {
-      icon: 'tuiIconTool',
-      action: 'System Rebuild',
-    },
-    {
       icon: 'tuiIconRefreshCw',
       action: 'Restart',
     },
@@ -159,20 +151,17 @@ export class HeaderMenuComponent {
     this.auth.setUnverified()
   }
 
-  async prompt(action: keyof typeof METHODS) {
-    const minutes =
-      action === 'System Rebuild'
-        ? Object.keys(await getAllPackages(this.patch)).length * 2
-        : ''
-
+  async prompt(action: 'Restart' | 'Shutdown') {
     this.dialogs
-      .open(TUI_PROMPT, getOptions(action, minutes))
+      .open(TUI_PROMPT, getOptions(action))
       .pipe(filter(Boolean))
       .subscribe(async () => {
         const loader = this.loader.open(`Beginning ${action}...`).subscribe()
 
         try {
-          await this.api[METHODS[action]]({})
+          await this.api[
+            action === 'Restart' ? 'restartServer' : 'shutdownServer'
+          ]({})
         } catch (e: any) {
           this.errorService.handleError(e)
         } finally {
@@ -182,19 +171,11 @@ export class HeaderMenuComponent {
   }
 }
 
-const METHODS = {
-  Restart: 'restartServer',
-  Shutdown: 'shutdownServer',
-  'System Rebuild': 'systemRebuild',
-} as const
-
 function getOptions(
-  key: keyof typeof METHODS,
-  minutes: unknown,
+  operation: 'Restart' | 'Shutdown',
 ): Partial<TuiDialogOptions<TuiPromptData>> {
-  switch (key) {
-    case 'Restart':
-      return {
+  return operation === 'Restart'
+    ? {
         label: 'Restart',
         size: 's',
         data: {
@@ -204,8 +185,7 @@ function getOptions(
           no: 'Cancel',
         },
       }
-    case 'Shutdown':
-      return {
+    : {
         label: 'Warning',
         size: 's',
         data: {
@@ -215,15 +195,4 @@ function getOptions(
           no: 'Cancel',
         },
       }
-    default:
-      return {
-        label: 'Warning',
-        size: 's',
-        data: {
-          content: `This action will tear down all service containers and rebuild them from scratch. No data will be deleted. This action is useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues. It may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your server.`,
-          yes: 'Rebuild',
-          no: 'Cancel',
-        },
-      }
-  }
 }

@@ -19,9 +19,7 @@ import { DepErrorService } from 'src/app/services/dep-error.service'
             <th>Name</th>
             <th>Version</th>
             <th [style.width.rem]="13">Status</th>
-            <th [style.width.rem]="8" [style.text-align]="'center'">
-              Controls
-            </th>
+            <th [style.width.rem]="8" [style.text-indent.rem]="1">Controls</th>
           </tr>
         </thead>
         <tbody>

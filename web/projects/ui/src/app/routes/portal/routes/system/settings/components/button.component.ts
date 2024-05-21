@@ -27,9 +27,16 @@ import { SettingBtn } from '../settings.types'
       <tui-icon *ngIf="button.routerLink" icon="tuiIconChevronRight" />
     </ng-template>
   `,
-  styles: [
-    ':host:not(:last-child) { display: block; box-shadow: 0 1px var(--tui-clear); }',
-  ],
+  styles: `
+    :host:not(:last-child) {
+      display: block;
+      box-shadow: 0 1px var(--tui-clear);
+    }
+
+    button {
+      cursor: pointer;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [CommonModule, TuiIconModule, TuiTitleModule, RouterLink],
