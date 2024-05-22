@@ -30,6 +30,7 @@ pub mod db;
 pub mod device_info;
 pub mod os;
 pub mod package;
+pub mod pg_db;
 pub mod signer;
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel)]
