@@ -1,5 +1,5 @@
 use chrono::Utc;
-use sqlx::{Pool, Postgres};
+use sqlx::{query, Pool, Postgres};
 
 use crate::Error;
 
@@ -10,8 +10,8 @@ pub struct MetricsParams {
 
 pub struct ActivityParams {
     server_id: char,
-    os_version: char,
-    arch: char,
+    os_version: Option<char>,
+    arch: Option<char>,
 }
 
 // TODO: replace pool placeholders
@@ -20,7 +20,7 @@ pub async fn record_metrics(
     MetricsParams { version, pkg_id }: MetricsParams,
 ) -> Result<(), Error> {
     let created_at = Utc::now().to_rfc3339();
-    sqlx::query!(
+    query!(
         "INSERT INTO user_activity (created_at, version, pkg_id) VALUES ($1, $2, $3)",
         created_at,
         version,
@@ -40,10 +40,10 @@ pub async fn record_user_activity(
     }: ActivityParams,
 ) -> Result<(), Error> {
     let created_at = Utc::now().to_rfc3339();
-    sqlx::query!("INSERT INTO user_activity (created_at, server_id, os_version, arch) VALUES ($1, $2, $3, $4)",
+    query!("INSERT INTO user_activity (created_at, server_id, os_version, arch) VALUES ($1, $2, $3, $4)",
     created_at,
-    server_id,
-    os_version,
+    server_id.map(|c| c.to_string()),
+    os_versionmap.map(|c| c.to_string()),
     arch
     )
     .execute(pool)
