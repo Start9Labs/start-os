@@ -19,7 +19,7 @@ pub async fn record_metrics(
 ) -> Result<(), Error> {
     let created_at = Utc::now().to_rfc3339();
     query!(
-        "INSERT INTO user_activity (created_at, version, pkg_id) VALUES ($1, $2, $3)",
+        "INSERT INTO metric (created_at, version, pkg_id) VALUES ($1, $2, $3)",
         created_at,
         version,
         pkg_id
