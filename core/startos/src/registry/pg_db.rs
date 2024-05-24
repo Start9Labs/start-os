@@ -1,6 +1,10 @@
+use std::ops::Deref;
+
 use chrono::Utc;
 use sqlx::{query, Pool, Postgres};
 
+use super::device_info::DeviceInfo;
+use crate::context::RpcContext;
 use crate::Error;
 
 pub struct MetricsParams {
@@ -8,13 +12,7 @@ pub struct MetricsParams {
     pkg_id: char,
 }
 
-pub struct ActivityParams {
-    server_id: char,
-    os_version: Option<char>,
-    arch: Option<char>,
-}
-
-// TODO: replace pool placeholders
+// TODO: replace pool placeholders (and MetricsParams?)
 pub async fn record_metrics(
     pool: Pool<Postgres>,
     MetricsParams { version, pkg_id }: MetricsParams,
@@ -31,19 +29,17 @@ pub async fn record_metrics(
     Ok(())
 }
 
-pub async fn record_user_activity(
-    pool: Pool<Postgres>,
-    ActivityParams {
-        server_id,
-        os_version,
-        arch,
-    }: ActivityParams,
-) -> Result<(), Error> {
+pub async fn record_user_activity(pool: Pool<Postgres>, context: RpcContext) -> Result<(), Error> {
+    let info = DeviceInfo::from(&context);
     let created_at = Utc::now().to_rfc3339();
+    let server_id = context.account.read().await.server_id;
+    let os_vers = serde_json::to_string(&info.os.version).unwrap();
+    let arch = info.hardware.arch.deref();
+
     query!("INSERT INTO user_activity (created_at, server_id, os_version, arch) VALUES ($1, $2, $3, $4)",
     created_at,
-    server_id.map(|c| c.to_string()),
-    os_versionmap.map(|c| c.to_string()),
+    server_id,
+    os_vers,
     arch
     )
     .execute(pool)
