@@ -5,16 +5,25 @@ import {
   Injectable,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { TuiAlertService, TuiDialogService } from '@taiga-ui/core'
+import {
+  TuiAlertService,
+  TuiDialogOptions,
+  TuiDialogService,
+} from '@taiga-ui/core'
 import * as argon2 from '@start9labs/argon2'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TUI_PROMPT, TuiCheckboxLabeledModule } from '@taiga-ui/kit'
+import {
+  TUI_PROMPT,
+  TuiCheckboxLabeledModule,
+  TuiPromptData,
+} from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { filter, firstValueFrom, from, take } from 'rxjs'
 import { switchMap } from 'rxjs/operators'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { PROMPT } from 'src/app/routes/portal/modals/prompt.component'
+import { AuthService } from 'src/app/services/auth.service'
 import { ProxyService } from 'src/app/services/proxy.service'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { getServerInfo } from 'src/app/utils/get-server-info'
@@ -35,6 +44,7 @@ export class SettingsService {
   private readonly formDialog = inject(FormDialogService)
   private readonly patch = inject(PatchDB<DataModel>)
   private readonly api = inject(ApiService)
+  private readonly auth = inject(AuthService)
   private readonly isTor = inject(ConfigService).isTor()
 
   wipe = false
@@ -100,6 +110,27 @@ export class SettingsService {
         icon: 'tuiIconMonitor',
         routerLink: 'ui',
       },
+      {
+        title: 'Restart',
+        icon: 'tuiIconRefreshCw',
+        description: 'Restart Start OS server',
+        action: () => this.promptPower('Restart'),
+      },
+      {
+        title: 'Shutdown',
+        icon: 'tuiIconPower',
+        description: 'Turn Start OS server off',
+        action: () => this.promptPower('Shutdown'),
+      },
+      {
+        title: 'Logout',
+        icon: 'tuiIconLogOut',
+        description: 'Log off from Start OS',
+        action: () => {
+          this.api.logout({}).catch(e => console.error('Failed to log out', e))
+          this.auth.setUnverified()
+        },
+      },
     ],
     'Privacy and Security': [
       {
@@ -144,6 +175,25 @@ export class SettingsService {
       })
       .pipe(filter(Boolean))
       .subscribe(() => this.resetTor(this.wipe))
+  }
+
+  private async promptPower(action: 'Restart' | 'Shutdown') {
+    this.dialogs
+      .open(TUI_PROMPT, getOptions(action))
+      .pipe(filter(Boolean))
+      .subscribe(async () => {
+        const loader = this.loader.open(`Beginning ${action}...`).subscribe()
+
+        try {
+          await this.api[
+            action === 'Restart' ? 'restartServer' : 'shutdownServer'
+          ]({})
+        } catch (e: any) {
+          this.errorService.handleError(e)
+        } finally {
+          loader.unsubscribe()
+        }
+      })
   }
 
   private async resetTor(wipeState: boolean) {
@@ -293,4 +343,30 @@ export class SettingsService {
 class WipeComponent {
   readonly isTor = inject(ConfigService).isTor()
   readonly service = inject(SettingsService)
+}
+
+function getOptions(
+  operation: 'Restart' | 'Shutdown',
+): Partial<TuiDialogOptions<TuiPromptData>> {
+  return operation === 'Restart'
+    ? {
+        label: 'Restart',
+        size: 's',
+        data: {
+          content:
+            'Are you sure you want to restart your server? It can take several minutes to come back online.',
+          yes: 'Restart',
+          no: 'Cancel',
+        },
+      }
+    : {
+        label: 'Warning',
+        size: 's',
+        data: {
+          content:
+            'Are you sure you want to power down your server? This can take several minutes, and your server will not come back online automatically. To power on again, You will need to physically unplug your server and plug it back in',
+          yes: 'Shutdown',
+          no: 'Cancel',
+        },
+      }
 }

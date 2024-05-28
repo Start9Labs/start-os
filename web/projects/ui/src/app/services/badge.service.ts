@@ -15,6 +15,7 @@ import {
   switchMap,
 } from 'rxjs'
 import { EOSService } from 'src/app/services/eos.service'
+import { NotificationService } from 'src/app/services/notification.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { ConnectionService } from 'src/app/services/connection.service'
@@ -24,6 +25,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
   providedIn: 'root',
 })
 export class BadgeService {
+  private readonly notifications = inject(NotificationService)
   private readonly emver = inject(Emver)
   private readonly patch = inject(PatchDB<DataModel>)
   private readonly settings$ = combineLatest([
@@ -85,6 +87,8 @@ export class BadgeService {
         return this.updates$
       case '/portal/system/settings':
         return this.settings$
+      case '/portal/system/notifications':
+        return this.notifications.unreadCount$
       default:
         return EMPTY
     }

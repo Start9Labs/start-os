@@ -11,7 +11,7 @@ interface ActionItem {
 @Component({
   selector: '[action]',
   template: `
-    <tui-icon [icon]="action.icon"></tui-icon>
+    <tui-icon [icon]="action.icon" />
     <div>
       <strong>{{ action.name }}</strong>
       <div>{{ action.description }}</div>

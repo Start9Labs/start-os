@@ -1,54 +1,52 @@
-import { CommonModule } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  ElementRef,
-  HostListener,
-  inject,
-  ViewChild,
-} from '@angular/core'
-import { Router } from '@angular/router'
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { RouterLink } from '@angular/router'
 import { TuiSidebarModule } from '@taiga-ui/addon-mobile'
-import { tuiContainsOrAfter, tuiIsElement, TuiLetModule } from '@taiga-ui/cdk'
+import { TuiLetModule } from '@taiga-ui/cdk'
+import {
+  TUI_ANIMATION_OPTIONS,
+  tuiFadeIn,
+  tuiScaleIn,
+  tuiWidthCollapse,
+} from '@taiga-ui/core'
 import {
   TuiBadgedContentModule,
   TuiBadgeNotificationModule,
   TuiButtonModule,
 } from '@taiga-ui/experimental'
-import { Subject } from 'rxjs'
-import { HeaderMenuComponent } from './menu.component'
-import { HeaderNotificationsComponent } from './notifications.component'
 import { SidebarDirective } from 'src/app/components/sidebar-host.component'
-import { NotificationService } from 'src/app/services/notification.service'
+import { getMenu } from 'src/app/utils/system-utilities'
+import { HeaderMenuComponent } from './menu.component'
 
 @Component({
   standalone: true,
   selector: 'header-corner',
   template: `
     <ng-content />
-    <tui-badged-content
-      *tuiLet="notificationService.unreadCount$ | async as unread"
-      [style.--tui-radius.%]="50"
-    >
-      <tui-badge-notification *ngIf="unread" tuiSlot="top" size="s">
-        {{ unread }}
-      </tui-badge-notification>
-      <button
-        tuiIconButton
-        iconLeft="tuiIconBellLarge"
-        appearance="icon"
-        size="s"
-        [style.color]="'var(--tui-text-01)'"
-        (click)="handleNotificationsClick(unread || 0)"
-      >
-        Notifications
-      </button>
-    </tui-badged-content>
+    @for (item of utils; track $index) {
+      @if (item.badge(); as badge) {
+        <tui-badged-content
+          [style.--tui-radius.%]="50"
+          [@tuiFadeIn]="animation"
+          [@tuiWidthCollapse]="animation"
+          [@tuiScaleIn]="animation"
+        >
+          <tui-badge-notification tuiSlot="top" size="s">
+            {{ badge }}
+          </tui-badge-notification>
+          <a
+            tuiIconButton
+            appearance="icon"
+            size="s"
+            [iconLeft]="item.icon"
+            [routerLink]="item.routerLink"
+            [style.color]="'var(--tui-text-01)'"
+          >
+            {{ item.name }}
+          </a>
+        </tui-badged-content>
+      }
+    }
     <header-menu></header-menu>
-    <header-notifications
-      (onEmpty)="this.open$.next(false)"
-      *tuiSidebar="!!(open$ | async); direction: 'right'; autoWidth: true"
-    />
   `,
   styles: [
     `
@@ -65,48 +63,20 @@ import { NotificationService } from 'src/app/services/notification.service'
       }
     `,
   ],
+  animations: [tuiFadeIn, tuiWidthCollapse, tuiScaleIn],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
     HeaderMenuComponent,
-    HeaderNotificationsComponent,
     SidebarDirective,
     TuiBadgeNotificationModule,
     TuiBadgedContentModule,
     TuiButtonModule,
     TuiLetModule,
     TuiSidebarModule,
+    RouterLink,
   ],
 })
 export class HeaderCornerComponent {
-  private readonly router = inject(Router)
-  readonly notificationService = inject(NotificationService)
-
-  @ViewChild(HeaderNotificationsComponent, { read: ElementRef })
-  private readonly panel?: ElementRef<HTMLElement>
-
-  private readonly _ = this.router.events.subscribe(() => {
-    this.open$.next(false)
-  })
-
-  readonly open$ = new Subject<boolean>()
-
-  @HostListener('document:click.capture', ['$event.target'])
-  onClick(target: EventTarget | null) {
-    if (
-      tuiIsElement(target) &&
-      this.panel?.nativeElement &&
-      !tuiContainsOrAfter(this.panel.nativeElement, target)
-    ) {
-      this.open$.next(false)
-    }
-  }
-
-  handleNotificationsClick(unread: number) {
-    if (unread) {
-      this.open$.next(true)
-    } else {
-      this.router.navigateByUrl('/portal/system/notifications')
-    }
-  }
+  readonly animation = inject(TUI_ANIMATION_OPTIONS)
+  readonly utils = getMenu()
 }

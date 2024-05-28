@@ -3,6 +3,7 @@ import { NgModule } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { ServiceWorkerModule } from '@angular/service-worker'
 import { LoadingModule } from '@start9labs/shared'
+import { TuiSheetDialogModule } from '@taiga-ui/addon-mobile'
 import {
   TuiAlertModule,
   TuiDialogModule,
@@ -27,6 +28,7 @@ import { RoutingModule } from './routing.module'
     ToastContainerComponent,
     TuiRootModule,
     TuiDialogModule,
+    TuiSheetDialogModule,
     TuiAlertModule,
     TuiModeModule,
     TuiThemeNightModule,

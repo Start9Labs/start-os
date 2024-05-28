@@ -64,10 +64,11 @@ import { BreadcrumbsService } from 'src/app/services/breadcrumbs.service'
           margin-left: -1.25rem;
           backdrop-filter: blur(1rem);
           clip-path: var(--clip-path);
+        }
 
-          &:active {
-            backdrop-filter: blur(2rem) brightness(0.75) saturate(0.75);
-          }
+        > a:active,
+        > button:active {
+          backdrop-filter: blur(2rem) brightness(0.75) saturate(0.75);
         }
 
         &:has([data-connection='error']) {
