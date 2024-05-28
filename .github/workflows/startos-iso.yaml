@@ -52,15 +52,8 @@ env:
   ENVIRONMENT: '${{ fromJson(format(''["{0}", ""]'', github.event.inputs.environment || ''dev''))[github.event.inputs.environment == ''NONE''] }}'
 
 jobs:
-  setup:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install specific version of Rust
-        uses: dtolnay/rust-toolchain@1.74.0  # specify the Rust version here or use stable
-
   compile:
     name: Compile Base Binaries
-    needs: [setup]
     strategy:
       fail-fast: true
       matrix:
