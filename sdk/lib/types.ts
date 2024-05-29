@@ -6,7 +6,6 @@ import {
   HealthCheckResult,
   SetMainStatus,
   ServiceInterface,
-  ServiceInterfaceWrapper,
   Host,
   ExportServiceInterfaceParams,
   GetPrimaryUrlParams,
@@ -226,7 +225,7 @@ export type HostnameInfo = HostnameInfoIp | HostnameInfoOnion
 
 export type ServiceInterfaceId = string
 
-export { ServiceInterface, ServiceInterfaceWrapper }
+export { ServiceInterface }
 export type ExposeServicePaths<Store = never> = {
   /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
   paths: ExposedStorePaths
@@ -386,7 +385,7 @@ export type Effects = {
     packageId: PackageId | null
     serviceInterfaceId: ServiceInterfaceId
     callback: () => void
-  }): Promise<ServiceInterfaceWrapper>
+  }): Promise<ServiceInterface>
 
   /**
    * The user sets the primary url for a interface
@@ -403,7 +402,7 @@ export type Effects = {
   listServiceInterfaces(options: {
     packageId: PackageId | null
     callback: () => void
-  }): Promise<Record<ServiceInterfaceId, ServiceInterfaceWrapper>>
+  }): Promise<Record<ServiceInterfaceId, ServiceInterface>>
 
   /**
    *Remove an address that was exported. Used problably during main or during setConfig.

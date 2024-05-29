@@ -28,9 +28,7 @@ use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::net::host::address::HostAddress;
 use crate::net::host::binding::BindOptions;
 use crate::net::host::HostKind;
-use crate::net::service_interface::{
-    AddressInfo, ServiceInterface, ServiceInterfaceType, ServiceInterfaceWrapper,
-};
+use crate::net::service_interface::{AddressInfo, ServiceInterface, ServiceInterfaceType};
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::rpc::SKIP_ENV;
@@ -418,7 +416,7 @@ async fn export_service_interface(
         address_info,
         interface_type: r#type,
     };
-    let svc_interface_with_host_info = ServiceInterfaceWrapper { service_interface };
+    let svc_interface_with_host_info = service_interface;
 
     context
         .ctx
@@ -463,7 +461,7 @@ async fn get_primary_url(
 async fn list_service_interfaces(
     context: EffectContext,
     data: ListServiceInterfacesParams,
-) -> Result<BTreeMap<ServiceInterfaceId, ServiceInterfaceWrapper>, Error> {
+) -> Result<BTreeMap<ServiceInterfaceId, ServiceInterface>, Error> {
     let context = context.deref()?;
     let package_id = context.id.clone();
 
@@ -637,7 +635,7 @@ async fn get_service_interface(
         package_id,
         service_interface_id,
     }: GetServiceInterfaceParams,
-) -> Result<ServiceInterfaceWrapper, Error> {
+) -> Result<ServiceInterface, Error> {
     let ctx = ctx.deref()?;
     let package_id = package_id.unwrap_or_else(|| ctx.id.clone());
     let db = ctx.ctx.db.peek().await;

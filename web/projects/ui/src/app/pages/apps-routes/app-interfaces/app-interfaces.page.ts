@@ -103,7 +103,7 @@ export class AppInterfacesItemComponent {
 }
 
 function getAddresses(
-  serviceInterface: T.ServiceInterfaceWrapper,
+  serviceInterface: T.ServiceInterface,
   host: T.Host,
 ): MappedAddress[] {
   const addressInfo = serviceInterface.addressInfo

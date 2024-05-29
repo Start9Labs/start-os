@@ -10,8 +10,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::net::host::HostInfo;
-use crate::net::service_interface::ServiceInterfaceWrapper;
+use crate::net::{host::HostInfo, service_interface::ServiceInterface};
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::s9pk::manifest::Manifest;
@@ -333,7 +332,7 @@ pub struct PackageDataEntry {
     pub last_backup: Option<DateTime<Utc>>,
     pub current_dependencies: CurrentDependencies,
     pub actions: BTreeMap<ActionId, ActionMetadata>,
-    pub service_interfaces: BTreeMap<ServiceInterfaceId, ServiceInterfaceWrapper>,
+    pub service_interfaces: BTreeMap<ServiceInterfaceId, ServiceInterface>,
     pub hosts: HostInfo,
     #[ts(type = "string[]")]
     pub store_exposed_dependents: Vec<JsonPointer>,

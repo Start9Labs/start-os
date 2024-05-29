@@ -9,14 +9,6 @@ use crate::net::host::binding::BindOptions;
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
-pub struct ServiceInterfaceWrapper {
-    #[serde(flatten)]
-    pub service_interface: ServiceInterface,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
 #[serde(rename_all_fields = "camelCase")]
 #[serde(tag = "kind")]
 pub enum ExportedHostnameInfo {
