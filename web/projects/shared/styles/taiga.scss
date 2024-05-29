@@ -178,24 +178,34 @@ tui-hint[data-appearance='onDark'] {
 
 tui-dropdown[data-appearance='start-os'][data-appearance='start-os'] {
   border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(0.25rem);
   box-shadow: 0 0.25rem 0.25rem rgb(0 0 0 / 25%);
+  border-radius: 0.325rem;
   // TODO: Replace --tui-elevation-02 when Taiga UI is updated
-  background: rgb(63 63 63 / 95%);
+  background: rgb(63 63 63 / 80%);
 
   tui-opt-group {
     &::before {
       background: var(--tui-clear);
-      box-shadow:
-        1rem 0 var(--tui-clear),
-        -1rem 0 var(--tui-clear);
-      padding-top: 0.25rem !important;
-      padding-bottom: 0 !important;
-      margin: 0.25rem;
+      height: 1px;
     }
 
     &::after {
       display: none;
+    }
+  }
+
+  [tuiOption] {
+    border-radius: 0.1875rem !important;
+    transition-property: background, box-shadow;
+
+    &:focus,
+    &._with-dropdown {
+      box-shadow:
+        inset 0 -1px rgba(0, 0, 0, 0.3),
+        inset 0 1px rgba(255, 255, 255, 0.1),
+        inset 0 -3rem 4rem -2rem rgba(0, 0, 0, 0.3);
     }
   }
 }

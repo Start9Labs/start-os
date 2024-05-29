@@ -63,7 +63,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
       :host {
         display: flex;
         flex-wrap: wrap;
-        gap: 1rem;
+        gap: 0.5rem;
         padding-bottom: 1rem;
       }
     `,

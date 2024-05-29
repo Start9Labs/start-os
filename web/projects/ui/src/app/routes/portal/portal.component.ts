@@ -1,15 +1,10 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
-import {
-  ActivatedRoute,
-  NavigationEnd,
-  Router,
-  RouterOutlet,
-} from '@angular/router'
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router'
 import { TuiScrollbarModule } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
-import { filter, map } from 'rxjs'
+import { filter } from 'rxjs'
 import { TabsComponent } from 'src/app/routes/portal/components/tabs.component'
 import { BreadcrumbsService } from 'src/app/services/breadcrumbs.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -19,7 +14,7 @@ import { HeaderComponent } from './components/header/header.component'
   standalone: true,
   template: `
     <header appHeader>{{ name$ | async }}</header>
-    <main [attr.data-dashboard]="tab$ | async">
+    <main>
       <tui-scrollbar [style.max-height.%]="100">
         <router-outlet />
       </tui-scrollbar>
@@ -64,7 +59,4 @@ export class PortalComponent {
     })
 
   readonly name$ = inject(PatchDB<DataModel>).watch$('ui', 'name')
-  readonly tab$ = inject(ActivatedRoute).queryParams.pipe(
-    map(params => params['tab']),
-  )
 }

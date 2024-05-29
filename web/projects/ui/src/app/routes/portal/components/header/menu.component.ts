@@ -1,65 +1,86 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import { RouterLink } from '@angular/router'
+import { TuiActiveZoneModule } from '@taiga-ui/cdk'
 import {
   TuiDataListModule,
-  TuiDialogOptions,
   TuiDialogService,
+  TuiDropdownModule,
   TuiHostedDropdownModule,
   TuiSvgModule,
 } from '@taiga-ui/core'
-import { TuiButtonModule, TuiIconModule } from '@taiga-ui/experimental'
-import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
-import { filter } from 'rxjs'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { AuthService } from 'src/app/services/auth.service'
+import {
+  TuiBadgeNotificationModule,
+  TuiButtonModule,
+  TuiIconModule,
+} from '@taiga-ui/experimental'
+import { TuiDataListDropdownManagerModule } from '@taiga-ui/kit'
+import { RESOURCES } from 'src/app/utils/resources'
+import { getMenu } from 'src/app/utils/system-utilities'
 import { ABOUT } from './about.component'
 import { HeaderConnectionComponent } from './connection.component'
 
 @Component({
   selector: 'header-menu',
   template: `
-    <tui-hosted-dropdown [content]="content" [tuiDropdownMaxHeight]="9999">
+    <tui-hosted-dropdown
+      [content]="content"
+      [(open)]="open"
+      [tuiDropdownMaxHeight]="9999"
+    >
       <button tuiIconButton appearance="">
-        <img style="max-width: 62%" src="assets/img/icon.png" alt="StartOS" />
+        <img [style.max-width.%]="50" src="assets/img/icon.png" alt="StartOS" />
       </button>
-      <ng-template #content>
-        <tui-data-list>
+      <ng-template #content let-zone>
+        <tui-data-list tuiDataListDropdownManager [tuiActiveZoneParent]="zone">
           <header-connection class="status">
             <h3 class="title">StartOS</h3>
           </header-connection>
-          <button tuiOption class="item" (click)="about()">
-            <tui-icon icon="tuiIconInfo" />
-            About this server
+          @for (link of utils; track $index) {
+            <a
+              tuiOption
+              class="item"
+              [routerLink]="link.routerLink"
+              (click)="open = false"
+            >
+              <tui-icon [icon]="link.icon" />
+              {{ link.name }}
+              @if (link.badge(); as badge) {
+                <tui-badge-notification>{{ badge }}</tui-badge-notification>
+              }
+            </a>
+          }
+          <button
+            tuiOption
+            class="item"
+            tuiDropdownSided
+            [tuiDropdown]="dropdown"
+            [tuiDropdownOffset]="12"
+            [tuiDropdownManual]="false"
+          >
+            <tui-icon icon="tuiIconHelpCircle" />
+            Resources
+            <ng-template #dropdown>
+              <tui-data-list [tuiActiveZoneParent]="zone">
+                <button tuiOption class="item" (click)="about()">
+                  <tui-icon icon="tuiIconInfo" />
+                  About this server
+                </button>
+                @for (link of links; track $index) {
+                  <a
+                    tuiOption
+                    class="item"
+                    target="_blank"
+                    rel="noreferrer"
+                    [href]="link.href"
+                  >
+                    <tui-icon [icon]="link.icon" />
+                    {{ link.name }}
+                    <tui-icon class="external" icon="tuiIconExternalLink" />
+                  </a>
+                }
+              </tui-data-list>
+            </ng-template>
           </button>
-          <tui-opt-group>
-            @for (link of links; track $index) {
-              <a
-                tuiOption
-                class="item"
-                target="_blank"
-                rel="noreferrer"
-                [href]="link.href"
-              >
-                <tui-icon [icon]="link.icon" />
-                {{ link.name }}
-                <tui-icon class="external" icon="tuiIconArrowUpRight" />
-              </a>
-            }
-          </tui-opt-group>
-          <tui-opt-group>
-            @for (item of system; track $index) {
-              <button tuiOption class="item" (click)="prompt(item.action)">
-                <tui-icon [icon]="item.icon" />
-                {{ item.action }}
-              </button>
-            }
-          </tui-opt-group>
-          <tui-opt-group>
-            <button tuiOption class="item" (click)="logout()">
-              <tui-icon icon="tuiIconLogOut" />
-              Logout
-            </button>
-          </tui-opt-group>
         </tui-data-list>
       </ng-template>
     </tui-hosted-dropdown>
@@ -70,9 +91,22 @@ import { HeaderConnectionComponent } from './connection.component'
         font-size: 1rem;
       }
 
+      tui-hosted-dropdown {
+        margin: 0 -0.5rem;
+
+        [tuiIconButton] {
+          height: calc(var(--tui-height-m) + 0.375rem);
+          width: calc(var(--tui-height-m) + 0.625rem);
+        }
+      }
+
       .item {
         justify-content: flex-start;
         gap: 0.75rem;
+
+        ::ng-deep tui-svg {
+          margin-left: auto;
+        }
       }
 
       .status {
@@ -80,7 +114,7 @@ import { HeaderConnectionComponent } from './connection.component'
         font-size: 0;
         padding: 0 0.5rem;
         height: 2rem;
-        width: 14rem;
+        width: 13rem;
       }
 
       .title {
@@ -104,95 +138,22 @@ import { HeaderConnectionComponent } from './connection.component'
     TuiButtonModule,
     TuiIconModule,
     HeaderConnectionComponent,
+    RouterLink,
+    TuiBadgeNotificationModule,
+    TuiDropdownModule,
+    TuiDataListDropdownManagerModule,
+    TuiActiveZoneModule,
   ],
 })
 export class HeaderMenuComponent {
-  private readonly api = inject(ApiService)
-  private readonly errorService = inject(ErrorService)
-  private readonly loader = inject(LoadingService)
-  private readonly auth = inject(AuthService)
   private readonly dialogs = inject(TuiDialogService)
 
-  readonly links = [
-    {
-      name: 'User Manual',
-      icon: 'tuiIconBookOpen',
-      href: 'https://docs.start9.com/0.3.5.x/user-manual',
-    },
-    {
-      name: 'Contact Support',
-      icon: 'tuiIconHeadphones',
-      href: 'https://start9.com/contact',
-    },
-    {
-      name: 'Donate to Start9',
-      icon: 'tuiIconDollarSign',
-      href: 'https://donate.start9.com',
-    },
-  ]
+  open = false
 
-  readonly system = [
-    {
-      icon: 'tuiIconRefreshCw',
-      action: 'Restart',
-    },
-    {
-      icon: 'tuiIconPower',
-      action: 'Shutdown',
-    },
-  ] as const
+  readonly utils = getMenu()
+  readonly links = RESOURCES
 
   about() {
     this.dialogs.open(ABOUT, { label: 'About this server' }).subscribe()
   }
-
-  logout() {
-    this.api.logout({}).catch(e => console.error('Failed to log out', e))
-    this.auth.setUnverified()
-  }
-
-  async prompt(action: 'Restart' | 'Shutdown') {
-    this.dialogs
-      .open(TUI_PROMPT, getOptions(action))
-      .pipe(filter(Boolean))
-      .subscribe(async () => {
-        const loader = this.loader.open(`Beginning ${action}...`).subscribe()
-
-        try {
-          await this.api[
-            action === 'Restart' ? 'restartServer' : 'shutdownServer'
-          ]({})
-        } catch (e: any) {
-          this.errorService.handleError(e)
-        } finally {
-          loader.unsubscribe()
-        }
-      })
-  }
-}
-
-function getOptions(
-  operation: 'Restart' | 'Shutdown',
-): Partial<TuiDialogOptions<TuiPromptData>> {
-  return operation === 'Restart'
-    ? {
-        label: 'Restart',
-        size: 's',
-        data: {
-          content:
-            'Are you sure you want to restart your server? It can take several minutes to come back online.',
-          yes: 'Restart',
-          no: 'Cancel',
-        },
-      }
-    : {
-        label: 'Warning',
-        size: 's',
-        data: {
-          content:
-            'Are you sure you want to power down your server? This can take several minutes, and your server will not come back online automatically. To power on again, You will need to physically unplug your server and plug it back in',
-          yes: 'Shutdown',
-          no: 'Cancel',
-        },
-      }
 }
