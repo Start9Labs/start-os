@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use emver::VersionRange;
+use emver::{Version, VersionRange};
 use imbl_value::InternedString;
 use models::{DataUrl, PackageId, VersionString};
 use serde::{Deserialize, Serialize};
@@ -105,11 +105,24 @@ impl PackageVersionInfo {
             },
         })
     }
-    pub fn extend_table(&self, table: &mut prettytable::Table) {
+    pub fn table(&self, version: &VersionString) -> prettytable::Table {
         use prettytable::*;
 
-        table.add_row(row![bc -> "TITLE"]);
-        todo!()
+        let mut table = Table::new();
+
+        table.add_row(row![bc => &self.title]);
+        table.add_row(row![br -> "VERSION", AsRef::<str>::as_ref(version)]);
+        table.add_row(row![br -> "RELEASE NOTES", &self.release_notes]);
+        table.add_row(row![br -> "ABOUT", &self.description.short]);
+        table.add_row(row![br -> "DESCRIPTION", &self.description.long]);
+        table.add_row(row![br -> "GIT HASH", AsRef::<str>::as_ref(&self.git_hash)]);
+        table.add_row(row![br -> "LICENSE", &self.license]);
+        table.add_row(row![br -> "PACKAGE REPO", &self.wrapper_repo.to_string()]);
+        table.add_row(row![br -> "SERVICE REPO", &self.upstream_repo.to_string()]);
+        table.add_row(row![br -> "WEBSITE", &self.marketing_site.to_string()]);
+        table.add_row(row![br -> "SUPPORT", &self.support_site.to_string()]);
+
+        table
     }
 }
 impl Model<PackageVersionInfo> {

@@ -11,7 +11,6 @@ use ts_rs::TS;
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfo;
-use crate::registry::os::version;
 use crate::registry::package::index::{PackageIndex, PackageVersionInfo};
 use crate::util::serde::{display_serializable, WithIoFormat};
 use crate::util::VersionString;
@@ -36,14 +35,6 @@ impl Default for PackageDetailLevel {
 #[ts(export)]
 pub struct PackageInfoShort {
     pub release_notes: String,
-}
-impl PackageInfoShort {
-    pub fn extend_table(&self, table: &mut prettytable::Table) {
-        use prettytable::*;
-
-        table.add_row(row![bc -> "RELEASE NOTES"]);
-        todo!()
-    }
 }
 
 #[derive(Debug, Deserialize, Serialize, TS, Parser)]
@@ -75,29 +66,34 @@ pub struct GetPackageResponse {
     pub other_versions: Option<BTreeMap<VersionString, PackageInfoShort>>,
 }
 impl GetPackageResponse {
-    pub fn tables(&self) -> prettytable::Table {
+    pub fn tables(&self) -> Vec<prettytable::Table> {
         use prettytable::*;
 
-        let mut table = Table::new();
+        let mut res = Vec::with_capacity(self.best.len());
 
-        let empty = BTreeMap::new();
-        let versions: BTreeSet<_> = self
-            .best
-            .keys()
-            .chain(self.other_versions.as_ref().unwrap_or(&empty).keys())
-            .collect();
+        for (version, info) in &self.best {
+            let mut table = info.table(version);
 
-        for version in versions {
-            if let Some(info) = self.best.get(version) {
-                table.add_row(row![bcFg => &format!("v{version}")]);
-                info.extend_table(&mut table);
-            } else if let Some(info) = self.other_versions.as_ref().and_then(|o| o.get(version)) {
-                table.add_row(row![bc => &format!("v{version}")]);
-                info.extend_table(&mut table);
+            let lesser_versions: BTreeMap<_, _> = self
+                .other_versions
+                .as_ref()
+                .into_iter()
+                .flatten()
+                .filter(|(v, _)| ***v < **version)
+                .collect();
+
+            if !lesser_versions.is_empty() {
+                table.add_row(row![bc => "OLDER VERSIONS"]);
+                table.add_row(row![bc => "VERSION", "RELEASE NOTES"]);
+                for (version, info) in lesser_versions {
+                    table.add_row(row![AsRef::<str>::as_ref(version), &info.release_notes]);
+                }
             }
+
+            res.push(table);
         }
 
-        table
+        res
     }
 }
 
@@ -109,6 +105,19 @@ pub struct GetPackageResponseFull {
     pub categories: BTreeSet<InternedString>,
     pub best: BTreeMap<VersionString, PackageVersionInfo>,
     pub other_versions: BTreeMap<VersionString, PackageVersionInfo>,
+}
+impl GetPackageResponseFull {
+    pub fn tables(&self) -> Vec<prettytable::Table> {
+        let mut res = Vec::with_capacity(self.best.len());
+
+        let all: BTreeMap<_, _> = self.best.iter().chain(self.other_versions.iter()).collect();
+
+        for (version, info) in all {
+            res.push(info.table(version));
+        }
+
+        res
+    }
 }
 
 pub type GetPackagesResponse = BTreeMap<PackageId, GetPackageResponse>;
@@ -340,13 +349,39 @@ pub fn display_package_info(
     params: WithIoFormat<GetPackageParams>,
     info: Value,
 ) -> Result<(), Error> {
-    use prettytable::*;
-
     if let Some(format) = params.format {
         display_serializable(format, info);
         return Ok(());
     }
 
-    // table.print_tty(false).unwrap();
-    todo!()
+    if let Some(_) = params.rest.id {
+        if params.rest.other_versions == Some(PackageDetailLevel::Full) {
+            for table in from_value::<GetPackageResponseFull>(info)?.tables() {
+                table.print_tty(false)?;
+                println!();
+            }
+        } else {
+            for table in from_value::<GetPackageResponse>(info)?.tables() {
+                table.print_tty(false)?;
+                println!();
+            }
+        }
+    } else {
+        if params.rest.other_versions == Some(PackageDetailLevel::Full) {
+            for (_, package) in from_value::<GetPackagesResponseFull>(info)? {
+                for table in package.tables() {
+                    table.print_tty(false)?;
+                    println!();
+                }
+            }
+        } else {
+            for (_, package) in from_value::<GetPackagesResponse>(info)? {
+                for table in package.tables() {
+                    table.print_tty(false)?;
+                    println!();
+                }
+            }
+        }
+    }
+    Ok(())
 }
