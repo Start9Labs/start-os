@@ -105,7 +105,6 @@ import { DepErrorService } from 'src/app/services/dep-error.service'
 
     :host-context(tui-root._mobile) {
       height: calc(100vh - 7.375rem);
-      margin: 0 0.375rem;
       --clip-path: none !important;
 
       table {

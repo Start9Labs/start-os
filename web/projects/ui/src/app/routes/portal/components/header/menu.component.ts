@@ -17,7 +17,6 @@ import { TuiDataListDropdownManagerModule } from '@taiga-ui/kit'
 import { RESOURCES } from 'src/app/utils/resources'
 import { getMenu } from 'src/app/utils/system-utilities'
 import { ABOUT } from './about.component'
-import { HeaderConnectionComponent } from './connection.component'
 
 @Component({
   selector: 'header-menu',
@@ -31,10 +30,11 @@ import { HeaderConnectionComponent } from './connection.component'
         <img [style.max-width.%]="50" src="assets/img/icon.png" alt="StartOS" />
       </button>
       <ng-template #content let-zone>
-        <tui-data-list tuiDataListDropdownManager [tuiActiveZoneParent]="zone">
-          <header-connection class="status">
-            <h3 class="title">StartOS</h3>
-          </header-connection>
+        <tui-data-list
+          tuiDataListDropdownManager
+          [tuiActiveZoneParent]="zone"
+          [style.width.rem]="13"
+        >
           @for (link of utils; track $index) {
             <a
               tuiOption
@@ -48,7 +48,11 @@ import { HeaderConnectionComponent } from './connection.component'
                 <tui-badge-notification>{{ badge }}</tui-badge-notification>
               }
             </a>
+            @if (!$index || $index === 3 || $index === 5) {
+              <hr />
+            }
           }
+          <hr />
           <button
             tuiOption
             class="item"
@@ -65,6 +69,7 @@ import { HeaderConnectionComponent } from './connection.component'
                   <tui-icon icon="tuiIconInfo" />
                   About this server
                 </button>
+                <hr />
                 @for (link of links; track $index) {
                   <a
                     tuiOption
@@ -95,7 +100,7 @@ import { HeaderConnectionComponent } from './connection.component'
         margin: 0 -0.5rem;
 
         [tuiIconButton] {
-          height: calc(var(--tui-height-m) + 0.375rem);
+          height: calc(var(--tui-height-m) + 0.25rem);
           width: calc(var(--tui-height-m) + 0.625rem);
         }
       }
@@ -107,20 +112,6 @@ import { HeaderConnectionComponent } from './connection.component'
         ::ng-deep tui-svg {
           margin-left: auto;
         }
-      }
-
-      .status {
-        display: flex !important;
-        font-size: 0;
-        padding: 0 0.5rem;
-        height: 2rem;
-        width: 13rem;
-      }
-
-      .title {
-        margin: 0 auto 0 0;
-        font: var(--tui-font-text-l);
-        font-weight: bold;
       }
 
       .external {
@@ -137,7 +128,6 @@ import { HeaderConnectionComponent } from './connection.component'
     TuiSvgModule,
     TuiButtonModule,
     TuiIconModule,
-    HeaderConnectionComponent,
     RouterLink,
     TuiBadgeNotificationModule,
     TuiDropdownModule,
