@@ -18,7 +18,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
         [style.color]="connection.color"
         [style.font-size.em]="1.5"
         [attr.data-connection]="connection.status"
-      ></tui-icon>
+      />
       {{ connection.message }}
     }
   `,

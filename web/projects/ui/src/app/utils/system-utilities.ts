@@ -16,21 +16,21 @@ export const SYSTEM_UTILITIES: Record<string, { icon: string; title: string }> =
       icon: 'tuiIconGlobe',
       title: 'Updates',
     },
-    '/portal/system/backups': {
-      icon: 'tuiIconSave',
-      title: 'Backups',
-    },
-    '/portal/system/metrics': {
-      icon: 'tuiIconActivity',
-      title: 'Metrics',
+    '/portal/system/sideload': {
+      icon: 'tuiIconUpload',
+      title: 'Sideload',
     },
     '/portal/system/logs': {
       icon: 'tuiIconFileText',
       title: 'Logs',
     },
-    '/portal/system/sideload': {
-      icon: 'tuiIconUpload',
-      title: 'Sideload',
+    '/portal/system/metrics': {
+      icon: 'tuiIconActivity',
+      title: 'Metrics',
+    },
+    '/portal/system/backups': {
+      icon: 'tuiIconSave',
+      title: 'Backups',
     },
     '/portal/system/settings': {
       icon: 'tuiIconTool',
