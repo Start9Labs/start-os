@@ -9,7 +9,6 @@ use std::sync::{Arc, Weak};
 use clap::builder::ValueParserFactory;
 use clap::Parser;
 use emver::VersionRange;
-use imbl::OrdMap;
 use imbl_value::{json, InternedString};
 use itertools::Itertools;
 use models::{
@@ -22,12 +21,16 @@ use tokio::process::Command;
 use ts_rs::TS;
 use url::Url;
 
+use crate::db::model::package::{
+    ActionMetadata, CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind,
+    ManifestPreference,
+};
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::net::host::address::HostAddress;
-use crate::net::host::binding::BindOptions;
-use crate::net::host::HostKind;
+use crate::net::host::binding::{BindOptions, LanInfo};
+use crate::net::host::{Host, HostKind};
 use crate::net::service_interface::{AddressInfo, ServiceInterface, ServiceInterfaceType};
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
@@ -39,13 +42,6 @@ use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::clap::FromStrParser;
 use crate::util::{new_guid, Invoke};
-use crate::{
-    db::model::package::{
-        ActionMetadata, CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind,
-        ManifestPreference,
-    },
-    net::host::Host,
-};
 use crate::{echo, ARCH};
 
 #[derive(Clone)]
@@ -239,9 +235,8 @@ struct ExportServiceInterfaceParams {
 struct GetPrimaryUrlParams {
     #[ts(type = "string | null")]
     package_id: Option<PackageId>,
-    service_interface_id: String,
+    service_interface_id: ServiceInterfaceId,
     callback: Callback,
-    host_id: HostId,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
@@ -273,37 +268,7 @@ struct RemoveActionParams {
     #[ts(type = "string")]
     id: ActionId,
 }
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-struct ReverseProxyBind {
-    ip: Option<String>,
-    port: u32,
-    ssl: bool,
-}
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-struct ReverseProxyDestination {
-    ip: Option<String>,
-    port: u32,
-    ssl: bool,
-}
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-struct ReverseProxyHttp {
-    #[ts(type = "null | {[key: string]: string}")]
-    headers: Option<OrdMap<String, String>>,
-}
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-struct ReverseProxyParams {
-    bind: ReverseProxyBind,
-    dst: ReverseProxyDestination,
-    http: ReverseProxyHttp,
-}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
@@ -364,7 +329,7 @@ async fn get_container_ip(context: EffectContext, _: Empty) -> Result<Ipv4Addr, 
 async fn get_service_port_forward(
     context: EffectContext,
     data: GetServicePortForwardParams,
-) -> Result<u16, Error> {
+) -> Result<LanInfo, Error> {
     let internal_port = data.internal_port as u16;
 
     let context = context.deref()?;
@@ -435,35 +400,26 @@ async fn export_service_interface(
 }
 async fn get_primary_url(
     context: EffectContext,
-    data: GetPrimaryUrlParams,
-) -> Result<HostAddress, Error> {
+    GetPrimaryUrlParams {
+        package_id,
+        service_interface_id,
+        callback,
+    }: GetPrimaryUrlParams,
+) -> Result<Option<HostAddress>, Error> {
     let context = context.deref()?;
-    let package_id = context.id.clone();
+    let package_id = package_id.unwrap_or_else(|| context.id.clone());
 
-    let db_model = context.ctx.db.peek().await;
-
-    let pkg_data_model = db_model
-        .as_public()
-        .as_package_data()
-        .as_idx(&package_id)
-        .or_not_found(&package_id)?;
-
-    let host = pkg_data_model.de()?.hosts.get_host_primary(&data.host_id);
-
-    match host {
-        Some(host_address) => Ok(host_address),
-        None => Err(Error::new(
-            eyre!("Primary Url not found for {}", data.host_id),
-            crate::ErrorKind::NotFound,
-        )),
-    }
+    Ok(None) // TODO
 }
 async fn list_service_interfaces(
     context: EffectContext,
-    data: ListServiceInterfacesParams,
+    ListServiceInterfacesParams {
+        package_id,
+        callback,
+    }: ListServiceInterfacesParams,
 ) -> Result<BTreeMap<ServiceInterfaceId, ServiceInterface>, Error> {
     let context = context.deref()?;
-    let package_id = context.id.clone();
+    let package_id = package_id.unwrap_or_else(|| context.id.clone());
 
     context
         .ctx
@@ -551,14 +507,7 @@ struct Callback(#[ts(type = "() => void")] i64);
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-enum GetHostInfoParamsKind {
-    Multi,
-}
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
 struct GetHostInfoParams {
-    kind: Option<GetHostInfoParamsKind>,
     host_id: HostId,
     #[ts(type = "string | null")]
     package_id: Option<PackageId>,
@@ -568,7 +517,6 @@ async fn get_host_info(
     ctx: EffectContext,
     GetHostInfoParams {
         callback,
-        kind,
         package_id,
         host_id,
     }: GetHostInfoParams,

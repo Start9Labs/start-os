@@ -73,7 +73,7 @@ export class ConfigService {
 
     if (host.kind === 'multi') {
       const onionHostname = host.addresses.find(h => h.kind === 'onion')
-        ?.address as T.ExportedOnionHostname | undefined
+        ?.address as T.OnionHostname | undefined
 
       if (!onionHostname)
         throw new Error('Expecting that there is an onion hostname')

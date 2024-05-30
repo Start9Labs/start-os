@@ -9,6 +9,7 @@ import {
   Host,
   ExportServiceInterfaceParams,
   GetPrimaryUrlParams,
+  LanInfo,
 } from "./osBindings"
 
 import { MainEffects, ServiceInterfaceType, Signals } from "./StartSdk"
@@ -188,14 +189,6 @@ export declare const hostName: unique symbol
 // asdflkjadsf.onion | 1.2.3.4
 export type Hostname = string & { [hostName]: never }
 
-/** ${scheme}://${username}@${host}:${externalPort}${suffix} */
-export type AddressInfo = {
-  username: string | null
-  hostId: string
-  bindOptions: BindOptions
-  suffix: string
-}
-
 export type HostnameInfoIp = {
   kind: "ip"
   networkInterfaceId: string
@@ -310,7 +303,6 @@ export type Effects = {
   //   callback: () => void
   // }): Promise<SingleHost>
   getHostInfo(options: {
-    kind: "multi" | null
     hostId: string
     packageId: string | null
     callback: () => void
@@ -364,7 +356,7 @@ export type Effects = {
   getServicePortForward(options: {
     internalPort: number
     packageId: string | null
-  }): Promise<number>
+  }): Promise<LanInfo>
 
   /** Removes all network interfaces */
   clearServiceInterfaces(): Promise<void>

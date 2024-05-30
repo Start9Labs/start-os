@@ -31,6 +31,16 @@ import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { JsonPath, unNestPath } from "../../../Models/JsonPath"
 import { RpcResult, matchRpcResult } from "../../RpcListener"
 import { CT } from "@start9labs/start-sdk"
+import {
+  AddSslOptions,
+  BindOptions,
+} from "@start9labs/start-sdk/cjs/lib/osBindings"
+import {
+  BindOptionsByProtocol,
+  Host,
+  MultiHost,
+} from "@start9labs/start-sdk/cjs/lib/interfaces/Host"
+import { ServiceInterfaceBuilder } from "@start9labs/start-sdk/cjs/lib/interfaces/ServiceInterfaceBuilder"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
@@ -341,79 +351,69 @@ export class SystemForEmbassy implements System {
     for (const [id, interfaceValue] of Object.entries(
       this.manifest.interfaces,
     )) {
-      const hostId = `${id}-host`
-      for (const [external, internal] of Object.entries(
-        interfaceValue["tor-config"]?.["port-mapping"] ?? {},
-      )) {
-        const bindParams: T.BindParams = {
-          kind: "multi",
-          id: hostId,
-          internalPort: Number.parseInt(internal),
-          scheme: "http",
-          preferredExternalPort: Number.parseInt(external),
-          addSsl:
-            external === "443"
-              ? {
-                  scheme: "https",
-                  preferredExternalPort: Number.parseInt(external),
-                  alpn: "reflect",
-                }
-              : null,
-          secure:
-            external === "443"
-              ? {
-                  ssl: true,
-                }
-              : null,
-        }
-        await effects.bind(bindParams)
-      }
-      for (const [external, value] of Object.entries(
-        interfaceValue["lan-config"] ?? {},
-      )) {
-        const ssl = value.ssl
-        const internal = value.internal
-        const bindParams: T.BindParams = {
-          kind: "multi",
-          id: hostId,
-          internalPort: internal,
-          scheme: "http",
-          preferredExternalPort: Number.parseInt(external),
-          addSsl:
-            external === "443"
-              ? {
-                  scheme: "https",
-                  preferredExternalPort: Number.parseInt(external),
-                  alpn: "reflect",
-                }
-              : null,
-          secure: {
-            ssl: true,
+      const host = new MultiHost({ effects, id })
+      const internalPorts = new Set(
+        Object.values(interfaceValue["tor-config"]?.["port-mapping"] ?? {})
+          .map(Number.parseInt)
+          .concat(
+            Object.values(interfaceValue["lan-config"] ?? {}).map(
+              (c) => c.internal,
+            ),
+          ),
+      )
+      const bindings = Object.fromEntries(
+        Array.from(internalPorts).map<[number, BindOptionsByProtocol]>(
+          (port) => {
+            const lanPort = Object.entries(
+              interfaceValue["lan-config"] ?? {},
+            ).find(([external, internal]) => internal.internal === port)?.[0]
+            const torPort = Object.entries(
+              interfaceValue["tor-config"]?.["port-mapping"] ?? {},
+            ).find(
+              ([external, internal]) => Number.parseInt(internal) === port,
+            )?.[0]
+            let addSsl: AddSslOptions | null = null
+            if (lanPort) {
+              const lanPortNum = Number.parseInt(lanPort)
+              if (lanPortNum === 443) {
+                return [port, { protocol: "http" }]
+              }
+              addSsl = {
+                preferredExternalPort: lanPortNum,
+                alpn: { specified: [] },
+              }
+            }
+            return [
+              port,
+              {
+                secure: null,
+                preferredExternalPort: Number.parseInt(
+                  torPort || lanPort || String(port),
+                ),
+                addSsl,
+              },
+            ]
           },
-        }
-        await effects.bind(bindParams)
+        ),
+      )
+      for (const [internal, options] of Object.entries(bindings)) {
+        ;(await host.bindPort(Number.parseInt(internal), options)).export([
+          new ServiceInterfaceBuilder({
+            effects,
+            name: interfaceValue.name,
+            id: `${id}-${internal}`,
+            description: interfaceValue.description,
+            hasPrimary: false,
+            disabled: false,
+            type: "api",
+            masked: false,
+            path: "",
+            schemeOverride: null,
+            search: {},
+            username: null,
+          }),
+        ])
       }
-      const options: T.ExportServiceInterfaceParams = {
-        id,
-        name: interfaceValue.name,
-        description: interfaceValue.description,
-        hasPrimary: id === "main" ? true : false,
-        disabled: false,
-        masked: false,
-        addressInfo: {
-          username: null,
-          hostId,
-          bindOptions: {
-            scheme: "http",
-            preferredExternalPort: 80,
-            addSsl: null,
-            secure: null,
-          },
-          suffix: "",
-        },
-        type: interfaceValue.ui ? "ui" : "api",
-      }
-      await effects.exportServiceInterface(options)
     }
   }
   async exportActions(effects: HostSystemStartOs) {

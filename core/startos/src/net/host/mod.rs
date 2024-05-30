@@ -3,13 +3,13 @@ use std::collections::{BTreeMap, BTreeSet};
 use imbl_value::InternedString;
 use models::{HostId, PackageId};
 use serde::{Deserialize, Serialize};
-use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use ts_rs::TS;
 
 use crate::db::model::DatabaseModel;
 use crate::net::forward::AvailablePorts;
 use crate::net::host::address::HostAddress;
 use crate::net::host::binding::{BindInfo, BindOptions};
+use crate::net::service_interface::HostnameInfo;
 use crate::prelude::*;
 
 pub mod address;
@@ -23,7 +23,8 @@ pub struct Host {
     pub kind: HostKind,
     pub bindings: BTreeMap<u16, BindInfo>,
     pub addresses: BTreeSet<HostAddress>,
-    pub primary: Option<HostAddress>,
+    /// COMPUTED: NetService::update
+    pub hostname_info: BTreeMap<u16, Vec<HostnameInfo>>, // internal port -> Hostnames
 }
 impl AsRef<Host> for Host {
     fn as_ref(&self) -> &Host {
@@ -36,7 +37,7 @@ impl Host {
             kind,
             bindings: BTreeMap::new(),
             addresses: BTreeSet::new(),
-            primary: None,
+            hostname_info: BTreeMap::new(),
         }
     }
 }
@@ -53,9 +54,9 @@ pub enum HostKind {
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[model = "Model<Self>"]
 #[ts(export)]
-pub struct HostInfo(pub BTreeMap<HostId, Host>);
+pub struct Hosts(pub BTreeMap<HostId, Host>);
 
-impl Map for HostInfo {
+impl Map for Hosts {
     type Key = HostId;
     type Value = Host;
     fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
@@ -75,7 +76,7 @@ pub fn host_for<'a>(
     fn host_info<'a>(
         db: &'a mut DatabaseModel,
         package_id: &PackageId,
-    ) -> Result<&'a mut Model<HostInfo>, Error> {
+    ) -> Result<&'a mut Model<Hosts>, Error> {
         Ok::<_, Error>(
             db.as_public_mut()
                 .as_package_data_mut()
@@ -127,11 +128,5 @@ impl Model<Host> {
             b.insert(internal_port, info);
             Ok(())
         })
-    }
-}
-
-impl HostInfo {
-    pub fn get_host_primary(&self, host_id: &HostId) -> Option<HostAddress> {
-        self.0.get(&host_id).and_then(|h| h.primary.clone())
     }
 }

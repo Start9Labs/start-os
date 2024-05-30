@@ -23,7 +23,6 @@ const makeManyInterfaceFilled = async ({
     Object.values(serviceInterfaceValues).map(async (serviceInterfaceValue) => {
       const hostId = serviceInterfaceValue.addressInfo.hostId
       const host = await effects.getHostInfo({
-        kind: null,
         packageId,
         hostId,
         callback,
@@ -31,7 +30,6 @@ const makeManyInterfaceFilled = async ({
       const primaryUrl = await effects
         .getPrimaryUrl({
           serviceInterfaceId: serviceInterfaceValue.id,
-          hostId,
           packageId,
           callback,
         })

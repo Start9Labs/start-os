@@ -25,7 +25,6 @@ import { ListServiceInterfacesParams } from ".././osBindings"
 import { RemoveAddressParams } from ".././osBindings"
 import { ExportActionParams } from ".././osBindings"
 import { RemoveActionParams } from ".././osBindings"
-import { ReverseProxyParams } from ".././osBindings"
 import { MountParams } from ".././osBindings"
 function typeEquality<ExpectedType>(_a: ExpectedType) {}
 describe("startosTypeValidation ", () => {

@@ -136,7 +136,7 @@ pub struct ServerInfo {
     #[serde(default)]
     pub zram: bool,
     pub governor: Option<Governor>,
-    pub smtp: Option<String>
+    pub smtp: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]

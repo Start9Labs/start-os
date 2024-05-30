@@ -10,7 +10,8 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::net::{host::HostInfo, service_interface::ServiceInterface};
+use crate::net::host::Hosts;
+use crate::net::service_interface::ServiceInterface;
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::s9pk::manifest::Manifest;
@@ -333,7 +334,7 @@ pub struct PackageDataEntry {
     pub current_dependencies: CurrentDependencies,
     pub actions: BTreeMap<ActionId, ActionMetadata>,
     pub service_interfaces: BTreeMap<ServiceInterfaceId, ServiceInterface>,
-    pub hosts: HostInfo,
+    pub hosts: Hosts,
     #[ts(type = "string[]")]
     pub store_exposed_dependents: Vec<JsonPointer>,
 }

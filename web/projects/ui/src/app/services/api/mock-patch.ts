@@ -141,17 +141,9 @@ export const mockPatchData: DataModel = {
           addressInfo: {
             username: null,
             hostId: 'abcdefg',
-            bindOptions: {
-              scheme: 'http',
-              preferredExternalPort: 80,
-              addSsl: {
-                // addXForwardedHeaders: false,
-                preferredExternalPort: 443,
-                scheme: 'https',
-                alpn: { specified: ['http/1.1', 'h2'] },
-              },
-              secure: null,
-            },
+            internalPort: 80,
+            scheme: 'http',
+            sslScheme: 'https',
             suffix: '',
           },
         },
@@ -167,17 +159,9 @@ export const mockPatchData: DataModel = {
           addressInfo: {
             username: null,
             hostId: 'bcdefgh',
-            bindOptions: {
-              scheme: 'http',
-              preferredExternalPort: 80,
-              addSsl: {
-                // addXForwardedHeaders: false,
-                preferredExternalPort: 443,
-                scheme: 'https',
-                alpn: { specified: ['http/1.1'] },
-              },
-              secure: null,
-            },
+            internalPort: 8332,
+            scheme: 'http',
+            sslScheme: 'https',
             suffix: '',
           },
         },
@@ -193,14 +177,9 @@ export const mockPatchData: DataModel = {
           addressInfo: {
             username: null,
             hostId: 'cdefghi',
-            bindOptions: {
-              scheme: 'bitcoin',
-              preferredExternalPort: 8333,
-              addSsl: null,
-              secure: {
-                ssl: false,
-              },
-            },
+            internalPort: 8333,
+            scheme: 'bitcoin',
+            sslScheme: null,
             suffix: '',
           },
         },
@@ -241,14 +220,9 @@ export const mockPatchData: DataModel = {
           addressInfo: {
             username: null,
             hostId: 'qrstuv',
-            bindOptions: {
-              scheme: 'grpc',
-              preferredExternalPort: 10009,
-              addSsl: null,
-              secure: {
-                ssl: true,
-              },
-            },
+            internalPort: 10009,
+            scheme: null,
+            sslScheme: 'grpc',
             suffix: '',
           },
         },
@@ -264,14 +238,9 @@ export const mockPatchData: DataModel = {
           addressInfo: {
             username: null,
             hostId: 'qrstuv',
-            bindOptions: {
-              scheme: 'lndconnect',
-              preferredExternalPort: 10009,
-              addSsl: null,
-              secure: {
-                ssl: true,
-              },
-            },
+            internalPort: 10009,
+            scheme: null,
+            sslScheme: 'lndconnect',
             suffix: 'cert=askjdfbjadnaskjnd&macaroon=ksjbdfnhjasbndjksand',
           },
         },
@@ -287,12 +256,9 @@ export const mockPatchData: DataModel = {
           addressInfo: {
             username: null,
             hostId: 'rstuvw',
-            bindOptions: {
-              scheme: null,
-              preferredExternalPort: 9735,
-              addSsl: null,
-              secure: { ssl: true },
-            },
+            internalPort: 8333,
+            scheme: 'bitcoin',
+            sslScheme: null,
             suffix: '',
           },
         },

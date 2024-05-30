@@ -1,4 +1,3 @@
-
 use clap::Parser;
 use rpc_toolkit::{from_fn_async, Context, ParentHandler};
 use serde::{Deserialize, Serialize};

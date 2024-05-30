@@ -3,10 +3,10 @@ import type { ActionId } from "./ActionId"
 import type { ActionMetadata } from "./ActionMetadata"
 import type { CurrentDependencies } from "./CurrentDependencies"
 import type { DataUrl } from "./DataUrl"
-import type { HostInfo } from "./HostInfo"
+import type { Hosts } from "./Hosts"
 import type { PackageState } from "./PackageState"
-import type { ServiceInterfaceId } from "./ServiceInterfaceId"
 import type { ServiceInterface } from "./ServiceInterface"
+import type { ServiceInterfaceId } from "./ServiceInterfaceId"
 import type { Status } from "./Status"
 
 export type PackageDataEntry = {
@@ -19,6 +19,6 @@ export type PackageDataEntry = {
   currentDependencies: CurrentDependencies
   actions: { [key: ActionId]: ActionMetadata }
   serviceInterfaces: { [key: ServiceInterfaceId]: ServiceInterface }
-  hosts: HostInfo
+  hosts: Hosts
   storeExposedDependents: string[]
 }
