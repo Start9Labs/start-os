@@ -273,28 +273,46 @@ export module RR {
     manifest: T.Manifest
     icon: string // base64
   }
-  export type SideloadPacakgeRes = string //guid
+  export type SideloadPackageRes = string //guid
 
-  // marketplace
+  // registry
 
-  export type GetMarketplaceInfoReq = { serverId: string }
-  export type GetMarketplaceInfoRes = StoreInfo
+  /** these are returned in ASCENDING order. the newest available version will be the LAST in the object */
+  export type GetRegistryOsUpdateRes = { [version: string]: T.OsVersionInfo }
 
   export type CheckOSUpdateReq = { serverId: string }
   export type CheckOSUpdateRes = OSUpdate
+  export type GetRegistryInfoRes = T.RegistryInfo
 
-  export type GetMarketplacePackagesReq = {
-    ids?: { id: string; version: string }[]
-    // iff !ids
-    category?: string
-    query?: string
-    page?: number
-    perPage?: number
-  }
-  export type GetMarketplacePackagesRes = MarketplacePkg[]
-
-  export type GetReleaseNotesReq = { id: string }
-  export type GetReleaseNotesRes = { [version: string]: string }
+  export type GetRegistryPackagesReq = T.GetPackageParams
+  export type GetRegistryPackagesRes<T extends GetRegistryPackagesReq> =
+    T extends {
+      id: null
+      otherVersions: null
+    }
+      ? { [id: T.PackageId]: Omit<T.GetPackageResponse, 'otherVersions'> }
+      : T extends { id: null; otherVersions: 'short' }
+      ? {
+          [id: T.PackageId]: T.GetPackageResponse & {
+            otherVersions: { [version: string]: T.PackageInfoShort }
+          }
+        }
+      : T extends { id: null; otherVersions: 'full' }
+      ? {
+          [id: T.PackageId]: T.GetPackageResponseFull
+        }
+      : T extends {
+          id: T.PackageId
+          otherVersions: null
+        }
+      ? Omit<T.GetPackageResponse, 'otherVersions'>
+      : T extends { id: T.PackageId; otherVersions: 'short' }
+      ? T.GetPackageResponse & {
+          otherVersions: { [version: string]: T.PackageInfoShort }
+        }
+      : T extends { id: T.PackageId; otherVersions: 'full' }
+      ? T.GetPackageResponseFull
+      : never
 }
 
 export interface OSUpdate {

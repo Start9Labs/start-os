@@ -3,10 +3,25 @@ import {
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import { Metric, NotificationLevel, RR, ServerNotifications } from './api.types'
-import { BTC_ICON, LND_ICON, PROXY_ICON } from './api-icons'
+import { BTC_ICON, LND_ICON, PROXY_ICON, REGISTRY_ICON } from './api-icons'
 import { DependencyMetadata, MarketplacePkg } from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
+
+const mockBlake3Commitment: T.Blake3Commitment = {
+  hash: 'fakehash',
+  size: 0,
+}
+
+const mockMerkleArchiveCommitment: T.MerkleArchiveCommitment = {
+  rootSighash: 'fakehash',
+  rootMaxsize: 0,
+}
+
+const mockDescription = {
+  short: 'Lorem ipsum dolor sit amet',
+  long: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
+}
 
 export module Mock {
   export const ServerUpdated: T.ServerStatus = {
@@ -16,30 +31,52 @@ export module Mock {
     restarting: false,
     shuttingDown: false,
   }
-  export const MarketplaceEos: RR.CheckOSUpdateRes = {
-    version: '0.3.5.2',
-    headline: 'Our biggest release ever.',
-    releaseNotes: {
-      '0.3.5.2': 'Some **Markdown** release _notes_ for 0.3.5.2',
-      '0.3.5.1': 'Some **Markdown** release _notes_ for 0.3.5.1',
-      '0.3.4.4': 'Some **Markdown** release _notes_ for 0.3.4.4',
-      '0.3.4.3': 'Some **Markdown** release _notes_ for 0.3.4.3',
-      '0.3.4.2': 'Some **Markdown** release _notes_ for 0.3.4.2',
-      '0.3.4.1': 'Some **Markdown** release _notes_ for 0.3.4.1',
-      '0.3.4': 'Some **Markdown** release _notes_ for 0.3.4',
-      '0.3.3': 'Some **Markdown** release _notes_ for 0.3.3',
-      '0.3.2.1': 'Some **Markdown** release _notes_ for 0.3.2.1',
-      '0.3.2': 'Some **Markdown** release _notes_ for 0.3.2',
-      '0.3.1': 'Some **Markdown** release _notes_ for 0.3.1',
-      '0.3.0': 'Some **Markdown** release _notes_ from a prior version',
+
+  export const RegistryOsUpdate: RR.GetRegistryOsUpdateRes = {
+    '0.3.5.2': {
+      headline: 'Our second biggest release ever.',
+      releaseNotes: 'Some **Markdown** release _notes_ for 0.3.5.2',
+      authorized: [],
+      img: {},
+      iso: {},
+      sourceVersion: '>=0.3.4 <=0.3.5.2',
+      squashfs: {
+        x86_64: {
+          url: 'https://github.com/Start9Labs/start-os/releases/download/v0.3.5.2/startos-0.3.5.2-unknown_x86_64.squashfs',
+          commitment: mockBlake3Commitment,
+          signatures: {},
+        },
+        // TODO: other arches
+      },
+    },
+    '0.3.6': {
+      headline: 'Our biggest release ever.',
+      releaseNotes: 'Some **Markdown** release _notes_ for 0.3.6',
+      authorized: [],
+      img: {},
+      iso: {},
+      sourceVersion: '>=0.3.5 <=0.3.6',
+      squashfs: {
+        x86_64: {
+          url: 'https://github.com/Start9Labs/start-os/releases/download/v0.3.6/startos-0.3.6-unknown_x86_64.squashfs',
+          commitment: mockBlake3Commitment,
+          signatures: {},
+        },
+        // TODO: other arches
+      },
     },
   }
 
-  export const ReleaseNotes: RR.GetReleaseNotesRes = {
-    '0.19.2':
-      'Contrary to popular belief, Lorem Ipsum is not simply random text.',
-    '0.19.1': 'release notes for Bitcoin 0.19.1',
-    '0.19.0': 'release notes for Bitcoin 0.19.0',
+  export const RegistryInfo: RR.GetRegistryInfoRes = {
+    name: 'Start9 Registry',
+    icon: REGISTRY_ICON,
+    categories: {
+      bitcoin: {
+        name: 'Bitcoin',
+        description: mockDescription,
+      },
+      // TODO: add more
+    },
   }
 
   export const MockManifestBitcoind: T.Manifest = {
@@ -199,135 +236,97 @@ export module Mock {
     hidden: false,
   }
 
-  export const MarketplacePkgs: {
-    [id: string]: {
-      [version: string]: MarketplacePkg
-    }
+  export const RegistryPackages: {
+    [id: T.PackageId]: T.GetPackageResponseFull
   } = {
     bitcoind: {
-      '0.19.0': {
-        icon: BTC_ICON,
-        license: 'licenseUrl',
-        instructions: 'instructionsUrl',
-        manifest: {
-          ...Mock.MockManifestBitcoind,
-          version: '0.19.0',
+      best: {
+        '27.0.0': {
+          title: 'Bitcoin Core',
+          description: mockDescription,
+          hardwareRequirements: { arch: null, device: {}, ram: null },
+          license: 'mit',
+          wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
+          upstreamRepo: 'https://github.com/bitcoin/bitcoin',
+          supportSite: 'https://bitcoin.org',
+          marketingSite: 'https://bitcoin.org',
+          releaseNotes: 'Even better support for Bitcoin and wallets!',
+          osVersion: '0.3.6',
+          gitHash: 'fakehash',
+          icon: BTC_ICON,
+          sourceVersion: null,
+          s9pk: {
+            url: 'https://github.com/Start9Labs/bitcoind-startos/releases/download/v27.0.0/bitcoind.s9pk',
+            commitment: mockMerkleArchiveCommitment,
+            signatures: {},
+          },
         },
-        categories: ['bitcoin', 'cryptocurrency'],
-        versions: ['0.19.0', '0.20.0', '0.21.0'],
-        dependencyMetadata: {},
-        publishedAt: new Date().toISOString(),
+        'knots-26.1.20240513': {
+          title: 'Bitcoin Knots',
+          description: mockDescription,
+          hardwareRequirements: { arch: null, device: {}, ram: null },
+          license: 'mit',
+          wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
+          upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
+          supportSite: 'https://bitcoinknots.org',
+          marketingSite: 'https://bitcoinknots.org',
+          releaseNotes: 'Even better support for Bitcoin and wallets!',
+          osVersion: '0.3.6',
+          gitHash: 'fakehash',
+          icon: BTC_ICON,
+          sourceVersion: null,
+          s9pk: {
+            url: 'https://github.com/Start9Labs/bitcoinknots-startos/releases/download/v26.1.20240513/bitcoind.s9pk',
+            commitment: mockMerkleArchiveCommitment,
+            signatures: {},
+          },
+        },
       },
-      '0.20.0': {
-        icon: BTC_ICON,
-        license: 'licenseUrl',
-        instructions: 'instructionsUrl',
-        manifest: {
-          ...Mock.MockManifestBitcoind,
-          version: '0.20.0',
+      categories: ['bitcoin'],
+      otherVersions: {
+        '26.1.0': {
+          title: 'Bitcoin Core',
+          description: mockDescription,
+          hardwareRequirements: { arch: null, device: {}, ram: null },
+          license: 'mit',
+          wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
+          upstreamRepo: 'https://github.com/bitcoin/bitcoin',
+          supportSite: 'https://bitcoin.org',
+          marketingSite: 'https://bitcoin.org',
+          releaseNotes: 'Even better support for Bitcoin and wallets!',
+          osVersion: '0.3.6',
+          gitHash: 'fakehash',
+          icon: BTC_ICON,
+          sourceVersion: null,
+          s9pk: {
+            url: 'https://github.com/Start9Labs/bitcoind-startos/releases/download/v26.1.0/bitcoind.s9pk',
+            commitment: mockMerkleArchiveCommitment,
+            signatures: {},
+          },
         },
-        categories: ['bitcoin', 'cryptocurrency'],
-        versions: ['0.19.0', '0.20.0', '0.21.0'],
-        dependencyMetadata: {},
-        publishedAt: new Date().toISOString(),
-      },
-      '0.21.0': {
-        icon: BTC_ICON,
-        license: 'licenseUrl',
-        instructions: 'instructionsUrl',
-        manifest: {
-          ...Mock.MockManifestBitcoind,
-          version: '0.21.0',
-          releaseNotes:
-            'For a complete list of changes, please visit <a href="https://bitcoincore.org/en/releases/0.21.0/">https://bitcoincore.org/en/releases/0.21.0/</a><br /><ul><li>Taproot!</li><li>New RPCs</li><li>Experimental Descriptor Wallets</li></ul>',
+        'knots-26.1.20240325': {
+          title: 'Bitcoin Knots',
+          description: mockDescription,
+          hardwareRequirements: { arch: null, device: {}, ram: null },
+          license: 'mit',
+          wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
+          upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
+          supportSite: 'https://bitcoinknots.org',
+          marketingSite: 'https://bitcoinknots.org',
+          releaseNotes: 'Even better support for Bitcoin and wallets!',
+          osVersion: '0.3.6',
+          gitHash: 'fakehash',
+          icon: BTC_ICON,
+          sourceVersion: null,
+          s9pk: {
+            url: 'https://github.com/Start9Labs/bitcoinknots-startos/releases/download/v26.1.20240325/bitcoind.s9pk',
+            commitment: mockMerkleArchiveCommitment,
+            signatures: {},
+          },
         },
-        categories: ['bitcoin', 'cryptocurrency'],
-        versions: ['0.19.0', '0.20.0', '0.21.0'],
-        dependencyMetadata: {},
-        publishedAt: new Date().toISOString(),
-      },
-      latest: {
-        icon: BTC_ICON,
-        license: 'licenseUrl',
-        instructions: 'instructionsUrl',
-        manifest: {
-          ...Mock.MockManifestBitcoind,
-          releaseNotes:
-            'For a complete list of changes, please visit <a href="https://bitcoincore.org/en/releases/0.21.0/" target="_blank">https://bitcoincore.org/en/releases/0.21.0/</a><br />Or in [markdown](https://bitcoincore.org/en/releases/0.21.0/)<ul><li>Taproot!</li><li>New RPCs</li><li>Experimental Descriptor Wallets</li></ul>',
-        },
-        categories: ['bitcoin', 'cryptocurrency'],
-        versions: ['0.19.0', '0.20.0', '0.21.0'],
-        dependencyMetadata: {},
-        publishedAt: new Date().toISOString(),
-      },
-    },
-    lnd: {
-      '0.11.0': {
-        icon: LND_ICON,
-        license: 'licenseUrl',
-        instructions: 'instructionsUrl',
-        manifest: {
-          ...Mock.MockManifestLnd,
-          version: '0.11.0',
-          releaseNotes: 'release notes for LND 0.11.0',
-        },
-        categories: ['bitcoin', 'lightning', 'cryptocurrency'],
-        versions: ['0.11.0', '0.11.1'],
-        dependencyMetadata: {
-          bitcoind: BitcoinDep,
-          'btc-rpc-proxy': ProxyDep,
-        },
-        publishedAt: new Date().toISOString(),
-      },
-      '0.11.1': {
-        icon: LND_ICON,
-        license: 'licenseUrl',
-        instructions: 'instructionsUrl',
-        manifest: {
-          ...Mock.MockManifestLnd,
-          version: '0.11.1',
-          releaseNotes: 'release notes for LND 0.11.1',
-        },
-        categories: ['bitcoin', 'lightning', 'cryptocurrency'],
-        versions: ['0.11.0', '0.11.1'],
-        dependencyMetadata: {
-          bitcoind: BitcoinDep,
-          'btc-rpc-proxy': ProxyDep,
-        },
-        publishedAt: new Date().toISOString(),
-      },
-      latest: {
-        icon: LND_ICON,
-        license: 'licenseUrl',
-        instructions: 'instructionsUrl',
-        manifest: Mock.MockManifestLnd,
-        categories: ['bitcoin', 'lightning', 'cryptocurrency'],
-        versions: ['0.11.0', '0.11.1'],
-        dependencyMetadata: {
-          bitcoind: BitcoinDep,
-          'btc-rpc-proxy': ProxyDep,
-        },
-        publishedAt: new Date(new Date().valueOf() + 10).toISOString(),
-      },
-    },
-    'btc-rpc-proxy': {
-      latest: {
-        icon: PROXY_ICON,
-        license: 'licenseUrl',
-        instructions: 'instructionsUrl',
-        manifest: Mock.MockManifestBitcoinProxy,
-        categories: ['bitcoin'],
-        versions: ['0.2.2'],
-        dependencyMetadata: {
-          bitcoind: BitcoinDep,
-        },
-        publishedAt: new Date().toISOString(),
       },
     },
   }
-
-  export const MarketplacePkgsList: RR.GetMarketplacePackagesRes =
-    Object.values(Mock.MarketplacePkgs).map(service => service['latest'])
 
   export const Notifications: ServerNotifications = [
     {

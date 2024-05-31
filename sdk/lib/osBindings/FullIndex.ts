@@ -6,6 +6,7 @@ import type { PackageIndex } from "./PackageIndex"
 import type { SignerInfo } from "./SignerInfo"
 
 export type FullIndex = {
+  name: string | null
   icon: DataUrl | null
   package: PackageIndex
   os: OsIndex
