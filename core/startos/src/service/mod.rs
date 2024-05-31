@@ -309,7 +309,7 @@ impl Service {
             .send(transition::restore::Restore {
                 path: backup_source.path().to_path_buf(),
             })
-            .await?;
+            .await??;
         Ok(service)
     }
 
