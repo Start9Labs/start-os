@@ -1,20 +1,15 @@
 use std::collections::BTreeSet;
 use std::net::Ipv4Addr;
-use std::ops::Deref;
 use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use clap::builder::ValueParserFactory;
-use clap::Parser;
 use futures::{AsyncWriteExt, FutureExt, StreamExt};
 use imbl_value::{InOMap, InternedString};
 use models::InvalidId;
-use rpc_toolkit::yajrc::{RpcError, RpcResponse};
-use rpc_toolkit::{
-    from_fn_async, CallRemoteHandler, Context, Empty, GenericRpcMethod, HandlerArgs, HandlerExt,
-    HandlerFor, ParentHandler, RpcRequest,
-};
+use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{GenericRpcMethod, RpcRequest, RpcResponse};
 use rustyline_async::{ReadlineEvent, SharedWriter};
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
@@ -37,6 +32,9 @@ use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::util::clap::FromStrParser;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::{new_guid, Invoke};
+
+#[cfg(feature = "dev")]
+pub mod dev;
 
 const LXC_CONTAINER_DIR: &str = "/var/lib/lxc";
 const RPC_DIR: &str = "media/startos/rpc"; // must not be absolute path
@@ -369,80 +367,6 @@ impl Drop for LxcContainer {
 
 #[derive(Default, Serialize)]
 pub struct LxcConfig {}
-
-pub fn lxc<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new()
-        .subcommand(
-            "create",
-            from_fn_async(create).with_call_remote::<CliContext>(),
-        )
-        .subcommand(
-            "list",
-            from_fn_async(list)
-                .with_custom_display_fn(|_, res| {
-                    use prettytable::*;
-                    let mut table = table!([bc => "GUID"]);
-                    for guid in res {
-                        table.add_row(row![&*guid]);
-                    }
-                    table.printstd();
-                    Ok(())
-                })
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand(
-            "remove",
-            from_fn_async(remove)
-                .no_display()
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand("connect", from_fn_async(connect_rpc).no_cli())
-        .subcommand("connect", from_fn_async(connect_rpc_cli).no_display())
-}
-
-pub async fn create(ctx: RpcContext) -> Result<ContainerId, Error> {
-    let container = ctx.lxc_manager.create(None, LxcConfig::default()).await?;
-    let guid = container.guid.deref().clone();
-    ctx.dev.lxc.lock().await.insert(guid.clone(), container);
-    Ok(guid)
-}
-
-pub async fn list(ctx: RpcContext) -> Result<Vec<ContainerId>, Error> {
-    Ok(ctx.dev.lxc.lock().await.keys().cloned().collect())
-}
-
-#[derive(Deserialize, Serialize, Parser, TS)]
-pub struct RemoveParams {
-    #[ts(type = "string")]
-    pub guid: ContainerId,
-}
-
-pub async fn remove(ctx: RpcContext, RemoveParams { guid }: RemoveParams) -> Result<(), Error> {
-    if let Some(container) = ctx.dev.lxc.lock().await.remove(&guid) {
-        container.exit().await?;
-    }
-    Ok(())
-}
-
-#[derive(Deserialize, Serialize, Parser, TS)]
-pub struct ConnectParams {
-    #[ts(type = "string")]
-    pub guid: ContainerId,
-}
-
-pub async fn connect_rpc(
-    ctx: RpcContext,
-    ConnectParams { guid }: ConnectParams,
-) -> Result<Guid, Error> {
-    connect(
-        &ctx,
-        ctx.dev.lxc.lock().await.get(&guid).ok_or_else(|| {
-            Error::new(eyre!("No container with guid: {guid}"), ErrorKind::NotFound)
-        })?,
-    )
-    .await
-}
-
 pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Guid, Error> {
     use axum::extract::ws::Message;
 
@@ -473,10 +397,8 @@ pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Guid,
                                         }
                                         .await;
                                         ws.send(Message::Text(
-                                            serde_json::to_string(
-                                                &RpcResponse::<GenericRpcMethod> { id, result },
-                                            )
-                                            .with_kind(ErrorKind::Serialization)?,
+                                            serde_json::to_string(&RpcResponse { id, result })
+                                                .with_kind(ErrorKind::Serialization)?,
                                         ))
                                         .await
                                         .with_kind(ErrorKind::Network)?;
@@ -611,29 +533,4 @@ pub async fn connect_cli(ctx: &CliContext, guid: Guid) -> Result<(), Error> {
     }
 
     Ok(())
-}
-
-pub async fn connect_rpc_cli(
-    HandlerArgs {
-        context,
-        parent_method,
-        method,
-        params,
-        inherited_params,
-        raw_params,
-    }: HandlerArgs<CliContext, ConnectParams>,
-) -> Result<(), Error> {
-    let ctx = context.clone();
-    let guid = CallRemoteHandler::<CliContext, _, _>::new(from_fn_async(connect_rpc))
-        .handle_async(HandlerArgs {
-            context,
-            parent_method,
-            method,
-            params: rpc_toolkit::util::Flat(params, Empty {}),
-            inherited_params,
-            raw_params,
-        })
-        .await?;
-
-    connect_cli(&ctx, guid).await
 }

@@ -32,8 +32,8 @@ pub struct RegistryConfig {
     #[arg(short = 'l', long = "listen")]
     pub listen: Option<SocketAddr>,
     #[arg(short = 'h', long = "hostname")]
-    pub hostname: InternedString,
-    #[arg(short = 'p', long = "proxy")]
+    pub hostname: Option<InternedString>,
+    #[arg(short = 'p', long = "tor-proxy")]
     pub tor_proxy: Option<Url>,
     #[arg(short = 'd', long = "datadir")]
     pub datadir: Option<PathBuf>,
@@ -43,6 +43,9 @@ impl ContextConfig for RegistryConfig {
         self.config.take()
     }
     fn merge_with(&mut self, other: Self) {
+        self.listen = self.listen.take().or(other.listen);
+        self.hostname = self.hostname.take().or(other.hostname);
+        self.tor_proxy = self.tor_proxy.take().or(other.tor_proxy);
         self.datadir = self.datadir.take().or(other.datadir);
     }
 }
@@ -92,7 +95,16 @@ impl RegistryContext {
             .map(Ok)
             .unwrap_or_else(|| "socks5h://localhost:9050".parse())?;
         Ok(Self(Arc::new(RegistryContextSeed {
-            hostname: config.hostname.clone(),
+            hostname: config
+                .hostname
+                .as_ref()
+                .ok_or_else(|| {
+                    Error::new(
+                        eyre!("missing required configuration: hostname"),
+                        ErrorKind::NotFound,
+                    )
+                })?
+                .clone(),
             listen: config
                 .listen
                 .unwrap_or(SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 5959)),
@@ -169,7 +181,8 @@ impl CallRemote<RegistryContext> for CliContext {
                     &AnySigningKey::Ed25519(self.developer_key()?.clone()),
                     &body,
                     &host,
-                )?.to_header(),
+                )?
+                .to_header(),
             )
             .body(body)
             .send()

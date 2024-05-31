@@ -2,6 +2,8 @@ use std::collections::VecDeque;
 use std::ffi::OsString;
 use std::path::Path;
 
+#[cfg(feature = "analytics")]
+pub mod analytics;
 #[cfg(feature = "container-runtime")]
 pub mod container_cli;
 pub mod deprecated;
@@ -24,6 +26,8 @@ fn select_executable(name: &str) -> Option<fn(VecDeque<OsString>)> {
         "startd" => Some(startd::main),
         #[cfg(feature = "registry")]
         "registry" => Some(registry::main),
+        #[cfg(feature = "analyticsd")]
+        "analyticsd" => Some(analyticsd::main),
         "embassy-cli" => Some(|_| deprecated::renamed("embassy-cli", "start-cli")),
         "embassy-sdk" => Some(|_| deprecated::renamed("embassy-sdk", "start-sdk")),
         "embassyd" => Some(|_| deprecated::renamed("embassyd", "startd")),

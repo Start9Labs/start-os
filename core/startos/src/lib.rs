@@ -24,6 +24,7 @@ lazy_static::lazy_static! {
 
 pub mod account;
 pub mod action;
+pub mod analytics;
 pub mod auth;
 pub mod backup;
 pub mod bins;
@@ -95,7 +96,7 @@ pub fn echo<C: Context>(_: C, EchoParams { message }: EchoParams) -> Result<Stri
 }
 
 pub fn main_api<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new()
+    let api = ParentHandler::new()
         .subcommand::<C, _>("git-info", from_fn(version::git_info))
         .subcommand(
             "echo",
@@ -120,9 +121,11 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
             )
             .no_cli(),
         )
-        .subcommand("lxc", lxc::lxc::<C>())
         .subcommand("s9pk", s9pk::rpc::s9pk())
-        .subcommand("util", util::rpc::util::<C>())
+        .subcommand("util", util::rpc::util::<C>());
+    #[cfg(feature = "dev")]
+    let api = api.subcommand("lxc", lxc::dev::lxc::<C>());
+    api
 }
 
 pub fn server<C: Context>() -> ParentHandler<C> {

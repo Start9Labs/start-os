@@ -13,6 +13,7 @@ use rpc_toolkit::{CallRemote, Context, Empty};
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tokio::time::Instant;
 use tracing::instrument;
+use url::Url;
 
 use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
@@ -55,7 +56,9 @@ pub struct RpcContextSeed {
     pub client: Client,
     pub hardware: Hardware,
     pub start_time: Instant,
+    #[cfg(feature = "dev")]
     pub dev: Dev,
+    pub analytics_url: Option<Url>,
 }
 
 pub struct Dev {
@@ -184,9 +187,11 @@ impl RpcContext {
                 .with_kind(crate::ErrorKind::ParseUrl)?,
             hardware: Hardware { devices, ram },
             start_time: Instant::now(),
+            #[cfg(feature = "dev")]
             dev: Dev {
                 lxc: Mutex::new(BTreeMap::new()),
             },
+            analytics_url: config.analytics_url.clone(),
         });
 
         let res = Self(seed.clone());
