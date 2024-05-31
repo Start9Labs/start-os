@@ -172,14 +172,14 @@ async fn add_image(
                 .join(&arch)
                 .join(&id)
                 .with_extension("env"),
-            Entry::file(DynFileSource::new(Arc::from(Vec::from(env)))),
+            Entry::file(DynFileSource::new(Arc::<[u8]>::from(Vec::from(env)))),
         )?;
         archive.contents_mut().insert_path(
             Path::new("images")
                 .join(&arch)
                 .join(&id)
                 .with_extension("json"),
-            Entry::file(DynFileSource::new(Arc::from(
+            Entry::file(DynFileSource::new(Arc::<[u8]>::from(
                 serde_json::to_vec(&serde_json::json!({
                     "workdir": workdir
                 }))

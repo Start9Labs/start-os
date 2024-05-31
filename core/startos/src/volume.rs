@@ -6,7 +6,7 @@ use models::{HostId, PackageId};
 
 use crate::net::PACKAGE_CERT_PATH;
 use crate::prelude::*;
-use crate::util::Version;
+use crate::util::VersionString;
 
 pub const PKG_VOLUME_DIR: &str = "package-data/volumes";
 pub const BACKUP_DIR: &str = "/media/startos/backups";
@@ -20,7 +20,7 @@ pub fn data_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, volume_id: &Volu
         .join(volume_id)
 }
 
-pub fn asset_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, version: &Version) -> PathBuf {
+pub fn asset_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, version: &VersionString) -> PathBuf {
     datadir
         .as_ref()
         .join(PKG_VOLUME_DIR)

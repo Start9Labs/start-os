@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use clap::builder::ValueParserFactory;
@@ -22,7 +23,7 @@ use crate::context::{CliContext, RpcContext};
 use crate::db::model::package::{ManifestPreference, PackageState, PackageStateMatchModelRef};
 use crate::prelude::*;
 use crate::progress::{FullProgress, PhasedProgressBar};
-use crate::rpc_continuations::{RequestGuid, RpcContinuation};
+use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::S9pk;
@@ -139,15 +140,18 @@ pub async fn install(
     let registry = registry.unwrap_or_else(|| crate::DEFAULT_MARKETPLACE.parse().unwrap());
     let version_priority = version_priority.unwrap_or_default();
     let s9pk = S9pk::deserialize(
-        &HttpSource::new(
-            ctx.client.clone(),
-            format!(
-                "{}/package/v0/{}.s9pk?spec={}&version-priority={}",
-                registry, id, version, version_priority,
+        &Arc::new(
+            HttpSource::new(
+                ctx.client.clone(),
+                format!(
+                    "{}/package/v0/{}.s9pk?spec={}&version-priority={}",
+                    registry, id, version, version_priority,
+                )
+                .parse()?,
             )
-            .parse()?,
-        )
-        .await?,
+            .await?,
+        ),
+        None, // TODO
         true,
     )
     .await?;
@@ -170,8 +174,8 @@ pub async fn install(
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SideloadResponse {
-    pub upload: RequestGuid,
-    pub progress: RequestGuid,
+    pub upload: Guid,
+    pub progress: Guid,
 }
 
 #[instrument(skip_all)]
@@ -179,7 +183,7 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
     let (upload, file) = upload(&ctx).await?;
     let (id_send, id_recv) = oneshot::channel();
     let (err_send, err_recv) = oneshot::channel();
-    let progress = RequestGuid::new();
+    let progress = Guid::new();
     let db = ctx.db.clone();
     let mut sub = db
         .subscribe(
@@ -256,7 +260,11 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
     .await;
     tokio::spawn(async move {
         if let Err(e) = async {
-            let s9pk = S9pk::deserialize(&file, true).await?;
+            let s9pk = S9pk::deserialize(
+                &file, None, // TODO
+                true,
+            )
+            .await?;
             let _ = id_send.send(s9pk.as_manifest().id.clone());
             ctx.services
                 .install(ctx.clone(), s9pk, None::<Never>)

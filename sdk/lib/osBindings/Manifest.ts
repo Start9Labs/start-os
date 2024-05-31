@@ -5,15 +5,15 @@ import type { Description } from "./Description"
 import type { HardwareRequirements } from "./HardwareRequirements"
 import type { ImageId } from "./ImageId"
 import type { PackageId } from "./PackageId"
+import type { Version } from "./Version"
 import type { VolumeId } from "./VolumeId"
 
 export type Manifest = {
   id: PackageId
   title: string
-  version: string
+  version: Version
   releaseNotes: string
   license: string
-  replaces: Array<string>
   wrapperRepo: string
   upstreamRepo: string
   supportSite: string
@@ -27,6 +27,6 @@ export type Manifest = {
   dependencies: Dependencies
   hardwareRequirements: HardwareRequirements
   gitHash: string | null
-  osVersion: string
+  osVersion: Version
   hasConfig: boolean
 }

@@ -2,6 +2,7 @@
 import type { Governor } from "./Governor"
 import type { IpInfo } from "./IpInfo"
 import type { ServerStatus } from "./ServerStatus"
+import type { Version } from "./Version"
 import type { WifiInfo } from "./WifiInfo"
 
 export type ServerInfo = {
@@ -9,7 +10,7 @@ export type ServerInfo = {
   platform: string
   id: string
   hostname: string
-  version: string
+  version: Version
   lastBackup: string | null
   eosVersionCompat: string
   lanAddress: string

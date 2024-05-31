@@ -89,7 +89,7 @@ impl ServiceMap {
     }
 
     #[instrument(skip_all)]
-    pub async fn install<S: FileSource>(
+    pub async fn install<S: FileSource + Clone>(
         &self,
         ctx: RpcContext,
         mut s9pk: S9pk<S>,

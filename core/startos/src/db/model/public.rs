@@ -21,7 +21,7 @@ use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::util::cpupower::Governor;
-use crate::util::Version;
+use crate::util::VersionString;
 use crate::version::{Current, VersionT};
 use crate::{ARCH, PLATFORM};
 
@@ -109,8 +109,7 @@ pub struct ServerInfo {
     pub platform: InternedString,
     pub id: String,
     pub hostname: String,
-    #[ts(type = "string")]
-    pub version: Version,
+    pub version: VersionString,
     #[ts(type = "string | null")]
     pub last_backup: Option<DateTime<Utc>>,
     #[ts(type = "string")]
@@ -136,7 +135,7 @@ pub struct ServerInfo {
     #[serde(default)]
     pub zram: bool,
     pub governor: Option<Governor>,
-    pub smtp: Option<String>
+    pub smtp: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]

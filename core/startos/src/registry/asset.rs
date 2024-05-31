@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWrite;
@@ -5,32 +7,48 @@ use ts_rs::TS;
 use url::Url;
 
 use crate::prelude::*;
-use crate::registry::signer::{AcceptSigners, FileValidator, SignatureInfo};
+use crate::registry::signer::commitment::{Commitment, Digestable};
+use crate::registry::signer::sign::{AnySignature, AnyVerifyingKey};
+use crate::registry::signer::AcceptSigners;
+use crate::s9pk::merkle_archive::source::http::HttpSource;
 
-#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[model = "Model<Self>"]
 #[ts(export)]
-pub struct RegistryAsset {
+pub struct RegistryAsset<Commitment> {
     #[ts(type = "string")]
     pub url: Url,
-    pub signature_info: SignatureInfo,
+    pub commitment: Commitment,
+    pub signatures: HashMap<AnyVerifyingKey, AnySignature>,
 }
-impl AsRef<RegistryAsset> for RegistryAsset {
-    fn as_ref(&self) -> &RegistryAsset {
-        self
+impl<Commitment> RegistryAsset<Commitment> {
+    pub fn all_signers(&self) -> AcceptSigners {
+        AcceptSigners::All(
+            self.signatures
+                .keys()
+                .cloned()
+                .map(AcceptSigners::Signer)
+                .collect(),
+        )
     }
 }
-impl RegistryAsset {
-    pub fn validate(&self, accept: AcceptSigners) -> Result<FileValidator, Error> {
-        self.signature_info.validate(accept)
+impl<Commitment: Digestable> RegistryAsset<Commitment> {
+    pub fn validate(&self, context: &str, mut accept: AcceptSigners) -> Result<&Commitment, Error> {
+        for (signer, signature) in &self.signatures {
+            accept.process_signature(signer, &self.commitment, context, signature)?;
+        }
+        accept.try_accept()?;
+        Ok(&self.commitment)
     }
+}
+impl<C: for<'a> Commitment<&'a HttpSource>> RegistryAsset<C> {
     pub async fn download(
         &self,
         client: Client,
         dst: &mut (impl AsyncWrite + Unpin + Send + ?Sized),
-        validator: &FileValidator,
     ) -> Result<(), Error> {
-        validator.download(self.url.clone(), client, dst).await
+        self.commitment
+            .copy_to(&HttpSource::new(client, self.url.clone()).await?, dst)
+            .await
     }
 }

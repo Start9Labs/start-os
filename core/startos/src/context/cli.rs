@@ -21,7 +21,7 @@ use crate::context::config::{local_config_path, ClientConfig};
 use crate::context::{DiagnosticContext, InstallContext, RpcContext, SetupContext};
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
-use crate::rpc_continuations::RequestGuid;
+use crate::rpc_continuations::Guid;
 
 #[derive(Debug)]
 pub struct CliContextSeed {
@@ -164,7 +164,7 @@ impl CliContext {
 
     pub async fn ws_continuation(
         &self,
-        guid: RequestGuid,
+        guid: Guid,
     ) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, Error> {
         let mut url = self.base_url.clone();
         let ws_scheme = match url.scheme() {
@@ -194,7 +194,7 @@ impl CliContext {
 
     pub async fn rest_continuation(
         &self,
-        guid: RequestGuid,
+        guid: Guid,
         body: reqwest::Body,
         headers: reqwest::header::HeaderMap,
     ) -> Result<reqwest::Response, Error> {

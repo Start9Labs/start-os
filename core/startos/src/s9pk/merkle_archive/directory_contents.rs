@@ -12,11 +12,12 @@ use itertools::Itertools;
 use tokio::io::AsyncRead;
 
 use crate::prelude::*;
-use crate::s9pk::merkle_archive::sink::{Sink, TrackingWriter};
+use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
 use crate::s9pk::merkle_archive::write_queue::WriteQueue;
 use crate::s9pk::merkle_archive::{varint, Entry, EntryContents};
-use crate::util::io::ParallelBlake3Writer;
+use crate::util::io::{ParallelBlake3Writer, TrackingIO};
+use crate::CAP_10_MiB;
 
 #[derive(Clone)]
 pub struct DirectoryContents<S> {
@@ -151,7 +152,7 @@ impl<S: Clone> DirectoryContents<S> {
         Ok(())
     }
 }
-impl<S: ArchiveSource> DirectoryContents<Section<S>> {
+impl<S: ArchiveSource + Clone> DirectoryContents<Section<S>> {
     #[instrument(skip_all)]
     pub fn deserialize<'a>(
         source: &'a S,
@@ -181,7 +182,7 @@ impl<S: ArchiveSource> DirectoryContents<Section<S>> {
             let mut entries = OrdMap::new();
             for _ in 0..len {
                 let name = varint::deserialize_varstring(&mut toc_reader).await?;
-                let entry = Entry::deserialize(source, &mut toc_reader).await?;
+                let entry = Entry::deserialize(source.clone(), &mut toc_reader).await?;
                 entries.insert(name.into(), entry);
             }
 
@@ -202,7 +203,7 @@ impl<S: ArchiveSource> DirectoryContents<Section<S>> {
         .boxed()
     }
 }
-impl<S: FileSource> DirectoryContents<S> {
+impl<S: FileSource + Clone> DirectoryContents<S> {
     pub fn filter(&mut self, filter: impl Fn(&Path) -> bool) -> Result<(), Error> {
         for k in self.keys().cloned().collect::<Vec<_>>() {
             let path = Path::new(&*k);
@@ -239,8 +240,7 @@ impl<S: FileSource> DirectoryContents<S> {
     #[instrument(skip_all)]
     pub fn sighash<'a>(&'a self) -> BoxFuture<'a, Result<Hash, Error>> {
         async move {
-            let mut hasher =
-                TrackingWriter::new(0, ParallelBlake3Writer::new(super::hash::BUFFER_CAPACITY));
+            let mut hasher = TrackingIO::new(0, ParallelBlake3Writer::new(CAP_10_MiB));
             let mut sig_contents = OrdMap::new();
             for (name, entry) in &**self {
                 sig_contents.insert(name.clone(), entry.to_missing().await?);
@@ -280,6 +280,7 @@ impl<S: FileSource> DirectoryContents<S> {
 
         Ok(())
     }
+
     pub fn into_dyn(self) -> DirectoryContents<DynFileSource> {
         DirectoryContents {
             contents: self

@@ -30,7 +30,7 @@ use crate::middleware::auth::{Auth, HasValidSession};
 use crate::middleware::cors::Cors;
 use crate::middleware::db::SyncDb;
 use crate::middleware::diagnostic::DiagnosticMode;
-use crate::rpc_continuations::RequestGuid;
+use crate::rpc_continuations::Guid;
 use crate::{diagnostic_api, install_api, main_api, setup_api, Error, ErrorKind, ResultExt};
 
 const NOT_FOUND: &[u8] = b"Not Found";
@@ -136,7 +136,7 @@ pub fn main_ui_server_router(ctx: RpcContext) -> Router {
                 let ctx = ctx.clone();
                 move |x::Path(path): x::Path<String>,
                       ws: axum::extract::ws::WebSocketUpgrade| async move {
-                    match RequestGuid::from(&path) {
+                    match Guid::from(&path) {
                         None => {
                             tracing::debug!("No Guid Path");
                             bad_request()
@@ -159,7 +159,7 @@ pub fn main_ui_server_router(ctx: RpcContext) -> Router {
                         .path()
                         .strip_prefix("/rest/rpc/")
                         .unwrap_or_default();
-                    match RequestGuid::from(&path) {
+                    match Guid::from(&path) {
                         None => {
                             tracing::debug!("No Guid Path");
                             bad_request()

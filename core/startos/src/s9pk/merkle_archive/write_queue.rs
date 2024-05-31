@@ -30,6 +30,8 @@ impl<'a, S: FileSource> WriteQueue<'a, S> {
         self.queue.push_back(entry);
         Ok(res)
     }
+}
+impl<'a, S: FileSource + Clone> WriteQueue<'a, S> {
     pub async fn serialize<W: Sink>(&mut self, w: &mut W, verify: bool) -> Result<(), Error> {
         loop {
             let Some(next) = self.queue.pop_front() else {

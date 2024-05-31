@@ -6,6 +6,7 @@ use std::sync::Arc;
 use clap::Parser;
 use imbl_value::InternedString;
 use patch_db::PatchDb;
+use reqwest::{Client, Proxy};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty};
 use serde::{Deserialize, Serialize};
@@ -17,9 +18,10 @@ use crate::context::config::{ContextConfig, CONFIG_PATH};
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
 use crate::registry::auth::{SignatureHeader, AUTH_SIG_HEADER};
+use crate::registry::device_info::{DeviceInfo, DEVICE_INFO_HEADER};
+use crate::registry::signer::sign::AnySigningKey;
 use crate::registry::RegistryDatabase;
 use crate::rpc_continuations::RpcContinuations;
-use crate::version::VersionT;
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, Parser)]
 #[serde(rename_all = "kebab-case")]
@@ -31,6 +33,8 @@ pub struct RegistryConfig {
     pub listen: Option<SocketAddr>,
     #[arg(short = 'h', long = "hostname")]
     pub hostname: InternedString,
+    #[arg(short = 'p', long = "proxy")]
+    pub tor_proxy: Option<Url>,
     #[arg(short = 'd', long = "datadir")]
     pub datadir: Option<PathBuf>,
 }
@@ -58,6 +62,7 @@ pub struct RegistryContextSeed {
     pub db: TypedPatchDb<RegistryDatabase>,
     pub datadir: PathBuf,
     pub rpc_continuations: RpcContinuations,
+    pub client: Client,
     pub shutdown: Sender<()>,
 }
 
@@ -81,6 +86,11 @@ impl RegistryContext {
             || async { Ok(Default::default()) },
         )
         .await?;
+        let tor_proxy_url = config
+            .tor_proxy
+            .clone()
+            .map(Ok)
+            .unwrap_or_else(|| "socks5h://localhost:9050".parse())?;
         Ok(Self(Arc::new(RegistryContextSeed {
             hostname: config.hostname.clone(),
             listen: config
@@ -89,6 +99,16 @@ impl RegistryContext {
             db,
             datadir,
             rpc_continuations: RpcContinuations::new(),
+            client: Client::builder()
+                .proxy(Proxy::custom(move |url| {
+                    if url.host_str().map_or(false, |h| h.ends_with(".onion")) {
+                        Some(tor_proxy_url.clone())
+                    } else {
+                        None
+                    }
+                }))
+                .build()
+                .with_kind(crate::ErrorKind::ParseUrl)?,
             shutdown,
         })))
     }
@@ -145,12 +165,11 @@ impl CallRemote<RegistryContext> for CliContext {
             .header(CONTENT_LENGTH, body.len())
             .header(
                 AUTH_SIG_HEADER,
-                serde_urlencoded::to_string(&SignatureHeader::sign_ed25519(
-                    self.developer_key()?,
+                SignatureHeader::sign(
+                    &AnySigningKey::Ed25519(self.developer_key()?.clone()),
                     &body,
                     &host,
-                )?)
-                .with_kind(ErrorKind::Serialization)?,
+                )?.to_header(),
             )
             .body(body)
             .send()
@@ -169,29 +188,6 @@ impl CallRemote<RegistryContext> for CliContext {
             _ => Err(Error::new(eyre!("missing content type"), ErrorKind::Network).into()),
         }
     }
-}
-
-fn hardware_header(ctx: &RpcContext) -> String {
-    let mut url: Url = "http://localhost".parse().unwrap();
-    url.query_pairs_mut()
-        .append_pair(
-            "os.version",
-            &crate::version::Current::new().semver().to_string(),
-        )
-        .append_pair(
-            "os.compat",
-            &crate::version::Current::new().compat().to_string(),
-        )
-        .append_pair("os.arch", &*crate::PLATFORM)
-        .append_pair("hardware.arch", &*crate::ARCH)
-        .append_pair("hardware.ram", &ctx.hardware.ram.to_string());
-
-    for hw in &ctx.hardware.devices {
-        url.query_pairs_mut()
-            .append_pair(&format!("hardware.device.{}", hw.class()), hw.product());
-    }
-
-    url.query().unwrap_or_default().to_string()
 }
 
 impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
@@ -221,7 +217,7 @@ impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
             .header(CONTENT_TYPE, "application/json")
             .header(ACCEPT, "application/json")
             .header(CONTENT_LENGTH, body.len())
-            .header("X-StartOS-Hardware", &hardware_header(self))
+            .header(DEVICE_INFO_HEADER, DeviceInfo::from(self).to_header_value())
             .body(body)
             .send()
             .await?;
