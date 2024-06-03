@@ -575,6 +575,7 @@ export class SystemForEmbassy implements System {
     const newConfig = structuredClone(newConfigWithoutPointers)
     await updateConfig(
       effects,
+      this.manifest,
       await this.getConfigUncleaned(effects, timeoutMs).then((x) => x.spec),
       newConfig,
     )
@@ -955,6 +956,7 @@ function cleanConfigFromPointers<C, S>(
 
 async function updateConfig(
   effects: HostSystemStartOs,
+  manifest: Manifest,
   spec: unknown,
   mutConfigValue: unknown,
 ) {
@@ -966,7 +968,12 @@ async function updateConfig(
     const newConfigValue = mutConfigValue[key]
     if (matchSpec.test(specValue)) {
       const updateObject = { spec: null }
-      await updateConfig(effects, { spec: specValue.spec }, updateObject)
+      await updateConfig(
+        effects,
+        manifest,
+        { spec: specValue.spec },
+        updateObject,
+      )
       mutConfigValue[key] = updateObject.spec
     }
     if (
@@ -988,25 +995,50 @@ async function updateConfig(
     if (matchPointerPackage.test(specValue)) {
       if (specValue.target === "tor-key")
         throw new Error("This service uses an unsupported target TorKey")
+
+      const specInterface = specValue.interface
+      const serviceInterfaceId = extractServiceInterfaceId(
+        manifest,
+        specInterface,
+      )
       const filled = await utils
         .getServiceInterface(effects, {
           packageId: specValue["package-id"],
-          id: specValue.interface,
+          id: serviceInterfaceId,
         })
         .once()
         .catch((x) => {
           console.error("Could not get the service interface", x)
           return null
         })
-
-      mutConfigValue[key] =
+      const catchFn = <X>(fn: () => X) => {
+        try {
+          return fn()
+        } catch (e) {
+          return undefined
+        }
+      }
+      const url: string =
         filled === null
           ? ""
-          : specValue.target === "lan-address"
-            ? filled.addressInfo.localHostnames[0] ||
-              filled.addressInfo.onionHostnames[0]
-            : filled.addressInfo.onionHostnames[0] ||
-              filled.addressInfo.localHostnames[0]
+          : catchFn(
+              () =>
+                utils.addressHostToUrl(
+                  filled.addressInfo,
+                  specValue.target === "lan-address"
+                    ? filled.addressInfo.localHostnames[0] ||
+                        filled.addressInfo.onionHostnames[0]
+                    : filled.addressInfo.onionHostnames[0] ||
+                        filled.addressInfo.localHostnames[0],
+                )[0],
+            ) || ""
+      mutConfigValue[key] = url
     }
   }
+}
+function extractServiceInterfaceId(manifest: Manifest, specInterface: string) {
+  let serviceInterfaceId
+  const lanConfig = manifest.interfaces[specInterface]?.["lan-config"] || {}
+  serviceInterfaceId = `${specInterface}-${Object.entries(lanConfig)[0]?.[1]?.internal}`
+  return serviceInterfaceId
 }

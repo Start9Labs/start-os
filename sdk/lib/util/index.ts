@@ -10,6 +10,7 @@ import "./once"
 
 export { GetServiceInterface, getServiceInterface } from "./getServiceInterface"
 export { getServiceInterfaces } from "./getServiceInterfaces"
+export { addressHostToUrl } from "./getServiceInterface"
 // prettier-ignore
 export type FlattenIntersection<T> = 
 T extends ArrayLike<any> ? T :

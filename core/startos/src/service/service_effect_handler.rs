@@ -553,8 +553,6 @@ struct BindParams {
     options: BindOptions,
 }
 async fn bind(context: EffectContext, bind_params: Value) -> Result<(), Error> {
-    // BLUJ
-    dbg!(&bind_params);
     let BindParams {
         kind,
         id,
