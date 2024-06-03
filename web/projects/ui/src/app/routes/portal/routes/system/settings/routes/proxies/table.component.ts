@@ -2,15 +2,31 @@ import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
-  EventEmitter,
   inject,
   Input,
-  Output,
 } from '@angular/core'
-import { TuiDialogService, TuiLinkModule } from '@taiga-ui/core'
-import { TuiBadgeModule, TuiButtonModule } from '@taiga-ui/experimental'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { CB } from '@start9labs/start-sdk'
+import {
+  TuiDataListModule,
+  TuiDialogOptions,
+  TuiDialogService,
+  TuiLinkModule,
+} from '@taiga-ui/core'
+import { TuiButtonModule, TuiIconsModule } from '@taiga-ui/experimental'
+import { TUI_PROMPT } from '@taiga-ui/kit'
+import { filter } from 'rxjs'
+import {
+  FormComponent,
+  FormContext,
+} from 'src/app/routes/portal/components/form.component'
+import {
+  DELETE_OPTIONS,
+  ProxyUpdate,
+} from 'src/app/routes/portal/routes/system/settings/routes/proxies/constants'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { Proxy } from 'src/app/services/patch-db/data-model'
-import { ProxiesMenuComponent } from './menu.component'
 
 @Component({
   selector: 'table[proxies]',
@@ -21,46 +37,111 @@ import { ProxiesMenuComponent } from './menu.component'
         <th>Created</th>
         <th>Type</th>
         <th>Used By</th>
-        <th></th>
+        <th [style.width.rem]="3.5"></th>
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let proxy of proxies">
-        <td>{{ proxy.name }}</td>
-        <td>{{ proxy.createdAt | date: 'short' }}</td>
-        <td>{{ proxy.type }}</td>
-        <td>
-          <button
-            *ngIf="getLength(proxy); else unused"
-            tuiLink
-            (click)="onUsedBy(proxy)"
-          >
-            Connections: {{ getLength(proxy) }}
-          </button>
-          <ng-template #unused>N/A</ng-template>
-        </td>
-        <td><proxies-menu [proxy]="proxy" /></td>
-      </tr>
+      @for (proxy of proxies; track $index) {
+        <tr>
+          <td class="title">{{ proxy.name }}</td>
+          <td class="date">{{ proxy.createdAt | date: 'short' }}</td>
+          <td class="type">{{ proxy.type }}</td>
+          <td class="used">
+            @if (getLength(proxy); as length) {
+              <button tuiLink (click)="onUsedBy(proxy)">
+                Connections: {{ length }}
+              </button>
+            } @else {
+              N/A
+            }
+          </td>
+          <td class="actions">
+            <button
+              tuiIconButton
+              appearance="icon"
+              size="xs"
+              iconLeft="tuiIconEdit2"
+              (click)="rename(proxy)"
+            >
+              Rename
+            </button>
+            <button
+              tuiIconButton
+              appearance="icon"
+              size="xs"
+              iconLeft="tuiIconTrash2"
+              (click)="delete(proxy)"
+            >
+              Delete
+            </button>
+          </td>
+        </tr>
+      } @empty {
+        @if (proxies) {
+          <tr><td colspan="5">No proxies added</td></tr>
+        } @else {
+          <tr>
+            <td colspan="5"><div class="tui-skeleton">Loading</div></td>
+          </tr>
+        }
+      }
     </tbody>
+  `,
+  styles: `
+    :host-context(tui-root._mobile) {
+      tr {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      td:only-child {
+        grid-column: span 2;
+      }
+
+      .title {
+        order: 1;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+
+      .actions {
+        order: 2;
+        padding: 0;
+        text-align: right;
+      }
+
+      .date {
+        order: 3;
+        grid-column: span 2;
+        color: var(--tui-text-02);
+      }
+
+      .type {
+        order: 4;
+      }
+
+      .used {
+        order: 5;
+        text-align: right;
+
+        &:not(:has(button)) {
+          display: none;
+        }
+      }
+    }
   `,
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    CommonModule,
-    TuiButtonModule,
-    TuiBadgeModule,
-    TuiLinkModule,
-    ProxiesMenuComponent,
-  ],
+  imports: [CommonModule, TuiLinkModule, TuiIconsModule, TuiButtonModule],
 })
 export class ProxiesTableComponent {
   private readonly dialogs = inject(TuiDialogService)
+  private readonly loader = inject(LoadingService)
+  private readonly errorService = inject(ErrorService)
+  private readonly api = inject(ApiService)
+  private readonly formDialog = inject(FormDialogService)
 
   @Input()
-  proxies: readonly Proxy[] = []
-
-  @Output()
-  readonly delete = new EventEmitter<Proxy>()
+  proxies: readonly Proxy[] | null = null
 
   getLength({ usedBy }: Proxy) {
     return usedBy.domains.length + usedBy.services.length
@@ -80,5 +161,55 @@ export class ProxiesTableComponent {
     }
 
     this.dialogs.open(message, { label: 'Used by', size: 's' }).subscribe()
+  }
+
+  delete({ id }: Proxy) {
+    this.dialogs
+      .open(TUI_PROMPT, DELETE_OPTIONS)
+      .pipe(filter(Boolean))
+      .subscribe(async () => {
+        const loader = this.loader.open('Deleting...').subscribe()
+
+        try {
+          await this.api.deleteProxy({ id })
+        } catch (e: any) {
+          this.errorService.handleError(e)
+        } finally {
+          loader.unsubscribe()
+        }
+      })
+  }
+
+  async rename(proxy: Proxy) {
+    const spec = { name: 'Name', required: { default: proxy.name } }
+    const name = await CB.Value.text(spec).build({} as any)
+    const options: Partial<TuiDialogOptions<FormContext<{ name: string }>>> = {
+      label: `Rename ${proxy.name}`,
+      data: {
+        spec: { name },
+        buttons: [
+          {
+            text: 'Save',
+            handler: value => this.update(value),
+          },
+        ],
+      },
+    }
+
+    this.formDialog.open(FormComponent, options)
+  }
+
+  private async update(value: ProxyUpdate): Promise<boolean> {
+    const loader = this.loader.open('Saving...').subscribe()
+
+    try {
+      await this.api.updateProxy(value)
+      return true
+    } catch (e: any) {
+      this.errorService.handleError(e)
+      return false
+    } finally {
+      loader.unsubscribe()
+    }
   }
 }

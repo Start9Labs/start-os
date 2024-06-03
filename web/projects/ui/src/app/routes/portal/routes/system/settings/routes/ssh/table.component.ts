@@ -6,19 +6,14 @@ import {
   inject,
   Input,
 } from '@angular/core'
-import {
-  TuiDialogOptions,
-  TuiDialogService,
-  TuiLinkModule,
-} from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
+import { TuiButtonModule, TuiFadeModule } from '@taiga-ui/experimental'
+import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
+import { filter, take } from 'rxjs'
 import { PROMPT } from 'src/app/routes/portal/modals/prompt.component'
 import { SSHKey } from 'src/app/services/api/api.types'
-import { filter, take } from 'rxjs'
-import { ErrorService, LoadingService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
-import { TuiForModule } from '@taiga-ui/cdk'
 
 @Component({
   selector: 'table[keys]',
@@ -33,34 +28,78 @@ import { TuiForModule } from '@taiga-ui/cdk'
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let key of keys; else: loading">
-        <td>{{ key.hostname }}</td>
-        <td>{{ key.createdAt | date: 'medium' }}</td>
-        <td>{{ key.alg }}</td>
-        <td>{{ key.fingerprint }}</td>
-        <td>
-          <button
-            tuiIconButton
-            size="xs"
-            appearance="icon"
-            iconLeft="tuiIconTrash2"
-            [style.display]="'flex'"
-            (click)="delete(key)"
-          >
-            Delete
-          </button>
-        </td>
-      </tr>
-      <ng-template #loading>
-        <tr *ngFor="let _ of ['', '']">
-          <td colspan="5"><div class="tui-skeleton">Loading</div></td>
+      @for (key of keys; track $index) {
+        <tr>
+          <td class="title">{{ key.hostname }}</td>
+          <td class="date">{{ key.createdAt | date: 'medium' }}</td>
+          <td class="algorithm">{{ key.alg }}</td>
+          <td class="fingerprint" tuiFade>{{ key.fingerprint }}</td>
+          <td class="actions">
+            <button
+              tuiIconButton
+              size="xs"
+              appearance="icon"
+              iconLeft="tuiIconTrash2"
+              (click)="delete(key)"
+            >
+              Delete
+            </button>
+          </td>
         </tr>
-      </ng-template>
+      } @empty {
+        @if (keys) {
+          <tr><td colspan="5">No keys added</td></tr>
+        } @else {
+          @for (i of ['', '']; track $index) {
+            <tr>
+              <td colspan="5"><div class="tui-skeleton">Loading</div></td>
+            </tr>
+          }
+        }
+      }
     </tbody>
+  `,
+  styles: `
+    :host-context(tui-root._mobile) {
+      tr {
+        grid-template-columns: 2fr 1fr;
+      }
+
+      td:only-child {
+        grid-column: span 2;
+      }
+
+      .title {
+        order: 1;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+
+      .actions {
+        order: 2;
+        padding: 0;
+        text-align: right;
+      }
+
+      .date {
+        order: 3;
+      }
+
+      .algorithm {
+        order: 4;
+        text-align: right;
+      }
+
+      .fingerprint {
+        order: 5;
+        grid-column: span 2;
+        color: var(--tui-text-02);
+      }
+    }
   `,
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, TuiForModule, TuiButtonModule, TuiLinkModule],
+  imports: [CommonModule, TuiButtonModule, TuiFadeModule],
 })
 export class SSHTableComponent {
   private readonly loader = inject(LoadingService)

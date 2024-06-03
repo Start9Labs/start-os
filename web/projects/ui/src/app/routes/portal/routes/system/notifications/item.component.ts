@@ -8,7 +8,8 @@ import {
 import { RouterLink } from '@angular/router'
 import { T } from '@start9labs/start-sdk'
 import { tuiPure } from '@taiga-ui/cdk'
-import { TuiLinkModule, TuiSvgModule } from '@taiga-ui/core'
+import { TuiLinkModule } from '@taiga-ui/core'
+import { TuiIconModule } from '@taiga-ui/experimental'
 import { TuiLineClampModule } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { first, Observable } from 'rxjs'
@@ -20,22 +21,24 @@ import { toRouterLink } from 'src/app/utils/to-router-link'
 @Component({
   selector: '[notificationItem]',
   template: `
-    <td [style.padding-top.rem]="0.4"><ng-content /></td>
-    <td>{{ notificationItem.createdAt | date: 'MMM d, y, h:mm a' }}</td>
-    <td [style.color]="color">
-      <tui-svg [src]="icon" />
+    <td class="checkbox"><ng-content /></td>
+    <td class="date">
+      {{ notificationItem.createdAt | date: 'MMM d, y, h:mm a' }}
+    </td>
+    <td class="title" [style.color]="color">
+      <tui-icon [icon]="icon" [style.font-size.rem]="1" />
       {{ notificationItem.title }}
     </td>
-    <td>
-      <a
-        *ngIf="manifest$ | async as manifest; else na"
-        [routerLink]="getLink(manifest.id)"
-      >
-        {{ manifest.title }}
-      </a>
-      <ng-template #na>N/A</ng-template>
+    <td class="service">
+      @if (manifest$ | async; as manifest) {
+        <a tuiLink [routerLink]="getLink(manifest.id)">
+          {{ manifest.title }}
+        </a>
+      } @else {
+        N/A
+      }
     </td>
-    <td [style.padding-bottom.rem]="0.5">
+    <td class="content">
       <tui-line-clamp
         style="pointer-events: none"
         [linesLimit]="4"
@@ -43,20 +46,16 @@ import { toRouterLink } from 'src/app/utils/to-router-link'
         [content]="notificationItem.message"
         (overflownChange)="overflow = $event"
       />
-      <button
-        *ngIf="overflow"
-        tuiLink
-        (click)="service.viewFull(notificationItem)"
-      >
-        View Full
-      </button>
-      <button
-        *ngIf="notificationItem.code === 1"
-        tuiLink
-        (click)="service.viewReport(notificationItem)"
-      >
-        View Report
-      </button>
+      @if (overflow) {
+        <button tuiLink (click)="service.viewFull(notificationItem)">
+          View Full
+        </button>
+      }
+      @if (notificationItem.code === 1) {
+        <button tuiLink (click)="service.viewReport(notificationItem)">
+          View Report
+        </button>
+      }
     </td>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -65,21 +64,50 @@ import { toRouterLink } from 'src/app/utils/to-router-link'
     '[class._new]': '!notificationItem.read',
   },
   styles: `
-    :host._new {
-      background: var(--tui-clear);
+    :host {
+      grid-template-columns: 1.75rem 1fr;
+
+      &._new {
+        background: var(--tui-clear) !important;
+      }
     }
 
     td {
+      grid-column: span 2;
       padding: 0.25rem;
       vertical-align: top;
+    }
+
+    .checkbox {
+      grid-column: span 1;
+      padding-top: 0.4rem;
+    }
+
+    :host-context(tui-root._mobile) {
+      .date {
+        grid-column: span 1;
+        color: var(--tui-text-02);
+      }
+
+      .title {
+        font-weight: bold;
+        font-size: 1.2em;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .service:not(:has(a)) {
+        display: none;
+      }
     }
   `,
   imports: [
     CommonModule,
     RouterLink,
     TuiLineClampModule,
-    TuiSvgModule,
     TuiLinkModule,
+    TuiIconModule,
   ],
 })
 export class NotificationItemComponent {

@@ -1,27 +1,27 @@
 import { CommonModule } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  signal,
+} from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
-import {
-  ALWAYS_FALSE_HANDLER,
-  ALWAYS_TRUE_HANDLER,
-  TuiForModule,
-} from '@taiga-ui/cdk'
-import { TuiDialogService, TuiLinkModule, TuiSvgModule } from '@taiga-ui/core'
-import { TuiButtonModule, TuiFadeModule } from '@taiga-ui/experimental'
+import { ALWAYS_FALSE_HANDLER, ALWAYS_TRUE_HANDLER } from '@taiga-ui/cdk'
+import { TuiDialogService, TuiLinkModule } from '@taiga-ui/core'
+import { TuiButtonModule, TuiIconModule } from '@taiga-ui/experimental'
 import { TuiCheckboxModule } from '@taiga-ui/kit'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { BehaviorSubject } from 'rxjs'
+import { REPORT } from 'src/app/components/report.component'
 import { BackupRun } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { REPORT } from 'src/app/components/report.component'
 import { DurationPipe } from '../pipes/duration.pipe'
-import { HasErrorPipe } from '../pipes/has-error.pipe'
 import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
+import { HasErrorPipe } from '../pipes/has-error.pipe'
 
 @Component({
   template: `
-    <ng-container *ngIf="loading$ | async"></ng-container>
     <h3 class="g-title">
       Past Events
       <button
@@ -33,80 +33,96 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
         Delete Selected
       </button>
     </h3>
-    <div tuiFade class="g-hidden-scrollbar">
-      <table class="g-table">
-        <thead>
-          <tr>
-            <th>
-              <tui-checkbox
-                [disabled]="!selected.length"
-                [ngModel]="all"
-                (ngModelChange)="toggle()"
-              ></tui-checkbox>
-            </th>
-            <th>Started At</th>
-            <th>Duration</th>
-            <th>Result</th>
-            <th>Job</th>
-            <th>Target</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            *ngFor="
-              let run of runs;
-              let index = index;
-              else: loading;
-              empty: blank
-            "
-            [style.background]="selected[index] ? 'var(--tui-clear)' : ''"
-          >
-            <td><tui-checkbox [(ngModel)]="selected[index]"></tui-checkbox></td>
+    <table class="g-table">
+      <thead>
+        <tr>
+          <th>
+            <tui-checkbox
+              [disabled]="!selected.length"
+              [ngModel]="all"
+              (ngModelChange)="toggle()"
+            />
+          </th>
+          <th>Started At</th>
+          <th>Duration</th>
+          <th>Job</th>
+          <th>Result</th>
+          <th>Target</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (run of runs(); track $index) {
+          <tr [style.background]="selected[$index] ? 'var(--tui-clear)' : ''">
+            <td><tui-checkbox [(ngModel)]="selected[$index]" /></td>
             <td>{{ run.startedAt | date: 'medium' }}</td>
-            <td>{{ run.startedAt | duration: run.completedAt }} Minutes</td>
-            <td>
-              <tui-svg
-                *ngIf="run.report | hasError; else noError"
-                src="tuiIconClose"
-                [style.color]="'var(--tui-negative)'"
-              ></tui-svg>
-              <ng-template #noError>
-                <tui-svg
-                  src="tuiIconCheck"
-                  [style.color]="'var(--tui-positive)'"
-                ></tui-svg>
-              </ng-template>
+            <td class="duration">
+              {{ run.startedAt | duration: run.completedAt }} minutes
+            </td>
+            <td class="title">{{ run.job.name || 'No job' }}</td>
+            <td class="result">
+              @if (run.report | hasError) {
+                <tui-icon icon="tuiIconClose" class="g-error" />
+              } @else {
+                <tui-icon icon="tuiIconCheck" class="g-success" />
+              }
               <button tuiLink (click)="showReport(run)">Report</button>
             </td>
-            <td>{{ run.job.name || 'No job' }}</td>
-            <td>
-              <tui-svg [src]="run.job.target.type | getBackupIcon"></tui-svg>
+            <td [style.grid-column]="'span 3'">
+              <tui-icon [icon]="run.job.target.type | getBackupIcon" />
               {{ run.job.target.name }}
             </td>
           </tr>
-          <ng-template #loading>
-            <tr *ngFor="let row of ['', '', '']">
-              <td colspan="6"><div class="tui-skeleton">Loading</div></td>
-            </tr>
-          </ng-template>
-          <ng-template #blank>
+        } @empty {
+          @if (runs()) {
             <tr><td colspan="6">No backups have been run yet.</td></tr>
-          </ng-template>
-        </tbody>
-      </table>
-    </div>
+          } @else {
+            @for (row of ['', '']; track $index) {
+              <tr>
+                <td colspan="6"><div class="tui-skeleton">Loading</div></td>
+              </tr>
+            }
+          }
+        }
+      </tbody>
+    </table>
+  `,
+  styles: `
+    tui-icon {
+      font-size: 1rem;
+      vertical-align: sub;
+      margin-inline-end: 0.25rem;
+    }
+
+    :host-context(tui-root._mobile) {
+      tr {
+        grid-template-columns: 1.75rem 1fr 7rem;
+      }
+
+      td:only-child {
+        grid-column: span 3;
+      }
+
+      .title {
+        grid-column: span 2;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+
+      .duration,
+      .result {
+        text-align: right;
+      }
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [
     CommonModule,
     FormsModule,
-    TuiForModule,
     TuiButtonModule,
     TuiCheckboxModule,
-    TuiSvgModule,
+    TuiIconModule,
     TuiLinkModule,
-    TuiFadeModule,
     DurationPipe,
     HasErrorPipe,
     GetBackupIconPipe,
@@ -118,9 +134,7 @@ export class BackupsHistoryModal {
   private readonly errorService = inject(ErrorService)
   private readonly loader = inject(LoadingService)
 
-  readonly loading$ = new BehaviorSubject(true)
-
-  runs: BackupRun[] | null = null
+  runs = signal<BackupRun[] | null>(null)
   selected: boolean[] = []
 
   get all(): boolean | null {
@@ -143,13 +157,11 @@ export class BackupsHistoryModal {
 
   async ngOnInit() {
     try {
-      this.runs = await this.api.getBackupRuns({})
-      this.selected = this.runs.map(ALWAYS_FALSE_HANDLER)
+      this.runs.set(await this.api.getBackupRuns({}))
+      this.selected = this.runs()?.map(ALWAYS_FALSE_HANDLER) || []
     } catch (e: any) {
-      this.runs = []
+      this.runs.set([])
       this.errorService.handleError(e)
-    } finally {
-      this.loading$.next(false)
     }
   }
 
@@ -157,12 +169,12 @@ export class BackupsHistoryModal {
     const loader = this.loader.open('Deleting...').subscribe()
     const ids = this.selected
       .filter(Boolean)
-      .map((_, i) => this.runs?.[i].id || '')
+      .map((_, i) => this.runs()?.[i].id || '')
 
     try {
       await this.api.deleteBackupRuns({ ids })
-      this.runs = this.runs?.filter(r => !ids.includes(r.id)) || []
-      this.selected = this.runs.map(ALWAYS_FALSE_HANDLER)
+      this.runs.set(this.runs()?.filter(r => !ids.includes(r.id)) || [])
+      this.selected = this.runs()?.map(ALWAYS_FALSE_HANDLER) || []
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
