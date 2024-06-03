@@ -20,7 +20,7 @@ use super::header::{FileSection, Header, TableOfContents};
 use super::SIG_CONTEXT;
 use crate::prelude::*;
 use crate::s9pk::v1::docker::DockerReader;
-use crate::util::Version;
+use crate::util::VersionString;
 
 #[pin_project::pin_project]
 #[derive(Debug)]
@@ -83,11 +83,11 @@ impl<'a, R: AsyncSeek + Unpin> AsyncSeek for ReadHandle<'a, R> {
 pub struct ImageTag {
     pub package_id: PackageId,
     pub image_id: ImageId,
-    pub version: Version,
+    pub version: VersionString,
 }
 impl ImageTag {
     #[instrument(skip_all)]
-    pub fn validate(&self, id: &PackageId, version: &Version) -> Result<(), Error> {
+    pub fn validate(&self, id: &PackageId, version: &VersionString) -> Result<(), Error> {
         if id != &self.package_id {
             return Err(Error::new(
                 eyre!(

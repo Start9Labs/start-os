@@ -29,7 +29,7 @@ use crate::util::clap::FromStrParser;
 use crate::util::serde::{
     deserialize_from_str, display_serializable, serialize_display, HandlerExtSerde, WithIoFormat,
 };
-use crate::util::Version;
+use crate::util::VersionString;
 
 pub mod cifs;
 
@@ -194,7 +194,7 @@ pub async fn list(ctx: RpcContext) -> Result<BTreeMap<BackupTargetId, BackupTarg
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BackupInfo {
-    pub version: Version,
+    pub version: VersionString,
     pub timestamp: Option<DateTime<Utc>>,
     pub package_backups: BTreeMap<PackageId, PackageBackupInfo>,
 }
@@ -203,8 +203,8 @@ pub struct BackupInfo {
 #[serde(rename_all = "camelCase")]
 pub struct PackageBackupInfo {
     pub title: String,
-    pub version: Version,
-    pub os_version: Version,
+    pub version: VersionString,
+    pub os_version: VersionString,
     pub timestamp: DateTime<Utc>,
 }
 

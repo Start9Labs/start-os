@@ -1336,12 +1336,15 @@ async fn set_dependencies(
         };
         let (icon, title) = match async {
             let remote_s9pk = S9pk::deserialize(
-                &HttpSource::new(
-                    ctx.ctx.client.clone(),
-                    registry_url
-                        .join(&format!("package/v2/{}.s9pk?spec={}", dep_id, version_spec))?,
-                )
-                .await?,
+                &Arc::new(
+                    HttpSource::new(
+                        ctx.ctx.client.clone(),
+                        registry_url
+                            .join(&format!("package/v2/{}.s9pk?spec={}", dep_id, version_spec))?,
+                    )
+                    .await?,
+                ),
+                None, // TODO
                 true,
             )
             .await?;

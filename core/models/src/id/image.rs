@@ -5,7 +5,7 @@ use std::str::FromStr;
 use serde::{Deserialize, Deserializer, Serialize};
 use ts_rs::TS;
 
-use crate::{Id, InvalidId, PackageId, Version};
+use crate::{Id, InvalidId, PackageId, VersionString};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TS)]
 #[ts(type = "string")]
@@ -21,7 +21,7 @@ impl std::fmt::Display for ImageId {
     }
 }
 impl ImageId {
-    pub fn for_package(&self, pkg_id: &PackageId, pkg_version: Option<&Version>) -> String {
+    pub fn for_package(&self, pkg_id: &PackageId, pkg_version: Option<&VersionString>) -> String {
         format!(
             "start9/{}/{}:{}",
             pkg_id,

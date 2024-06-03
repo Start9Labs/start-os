@@ -26,8 +26,10 @@ use crate::progress::{
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
 use crate::registry::os::index::OsVersionInfo;
-use crate::registry::signer::FileValidator;
-use crate::rpc_continuations::{RequestGuid, RpcContinuation};
+use crate::registry::os::SIG_CONTEXT;
+use crate::registry::signer::commitment::blake3::Blake3Commitment;
+use crate::registry::signer::commitment::Commitment;
+use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::sound::{
     CIRCLE_OF_5THS_SHORT, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4,
@@ -54,7 +56,7 @@ pub struct UpdateSystemRes {
     #[ts(type = "string | null")]
     target: Option<Version>,
     #[ts(type = "string | null")]
-    progress: Option<RequestGuid>,
+    progress: Option<Guid>,
 }
 
 /// An user/ daemon would call this to update the system to the latest version and do the updates available,
@@ -83,7 +85,7 @@ pub async fn update_system(
     let target =
         maybe_do_update(ctx.clone(), registry, target.unwrap_or(VersionRange::Any)).await?;
     let progress = if progress && target.is_some() {
-        let guid = RequestGuid::new();
+        let guid = Guid::new();
         ctx.clone()
             .rpc_continuations
             .add(
@@ -246,12 +248,12 @@ async fn maybe_do_update(
         ));
     }
 
-    let validator = asset.validate(asset.signature_info.all_signers())?;
+    asset.validate(SIG_CONTEXT, asset.all_signers())?;
 
     let mut progress = FullProgressTracker::new();
     let progress_handle = progress.handle();
     let mut download_phase = progress_handle.add_phase("Downloading File".into(), Some(100));
-    download_phase.set_total(validator.size()?);
+    download_phase.set_total(asset.commitment.size);
     let reverify_phase = progress_handle.add_phase("Reverifying File".into(), Some(10));
     let sync_boot_phase = progress_handle.add_phase("Syncing Boot Files".into(), Some(1));
     let finalize_phase = progress_handle.add_phase("Finalizing Update".into(), Some(1));
@@ -300,7 +302,6 @@ async fn maybe_do_update(
     tokio::spawn(async move {
         let res = do_update(
             ctx.clone(),
-            validator,
             asset,
             UpdateProgressHandles {
                 progress_handle,
@@ -382,8 +383,7 @@ struct UpdateProgressHandles {
 #[instrument(skip_all)]
 async fn do_update(
     ctx: RpcContext,
-    validator: FileValidator,
-    asset: RegistryAsset,
+    asset: RegistryAsset<Blake3Commitment>,
     UpdateProgressHandles {
         progress_handle,
         mut download_phase,
@@ -394,21 +394,23 @@ async fn do_update(
 ) -> Result<(), Error> {
     download_phase.start();
     let path = Path::new("/media/startos/images")
-        .join(hex::encode(&validator.blake3()?.as_bytes()[..16]))
+        .join(hex::encode(&asset.commitment.hash[..16]))
         .with_extension("rootfs");
     let mut dst = AtomicFile::new(&path, None::<&Path>)
         .await
         .with_kind(ErrorKind::Filesystem)?;
     let mut download_writer = download_phase.writer(&mut *dst);
     asset
-        .download(ctx.client.clone(), &mut download_writer, &validator)
+        .download(ctx.client.clone(), &mut download_writer)
         .await?;
     let (_, mut download_phase) = download_writer.into_inner();
+    dst.sync_all().await?;
     download_phase.complete();
 
     reverify_phase.start();
-    validator
-        .validate_file(&MultiCursorFile::open(&*dst).await?)
+    asset
+        .commitment
+        .check(&MultiCursorFile::open(&*dst).await?)
         .await?;
     dst.save().await.with_kind(ErrorKind::Filesystem)?;
     reverify_phase.complete();

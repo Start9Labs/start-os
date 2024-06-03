@@ -2,6 +2,6 @@
 
 export type HardwareRequirements = {
   device: { [key: string]: string }
-  ram: bigint | null
+  ram: number | null
   arch: Array<string> | null
 }

@@ -17,25 +17,47 @@ use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
 use crate::registry::os::index::OsVersionInfo;
 use crate::registry::os::SIG_CONTEXT;
-use crate::registry::signer::{Blake3Ed25519Signature, Signature};
-use crate::util::Version;
+use crate::registry::signer::commitment::blake3::Blake3Commitment;
+use crate::registry::signer::sign::ed25519::Ed25519;
+use crate::registry::signer::sign::{AnySignature, AnyVerifyingKey, SignatureScheme};
+use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
+use crate::s9pk::merkle_archive::source::ArchiveSource;
+use crate::util::serde::Base64;
+use crate::util::VersionString;
 
 pub fn sign_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("iso", from_fn_async(sign_iso).no_cli())
-        .subcommand("img", from_fn_async(sign_img).no_cli())
-        .subcommand("squashfs", from_fn_async(sign_squashfs).no_cli())
+        .subcommand(
+            "iso",
+            from_fn_async(sign_iso)
+                .with_metadata("getSigner", Value::Bool(true))
+                .no_cli(),
+        )
+        .subcommand(
+            "img",
+            from_fn_async(sign_img)
+                .with_metadata("getSigner", Value::Bool(true))
+                .no_cli(),
+        )
+        .subcommand(
+            "squashfs",
+            from_fn_async(sign_squashfs)
+                .with_metadata("getSigner", Value::Bool(true))
+                .no_cli(),
+        )
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SignAssetParams {
-    #[ts(type = "string")]
-    version: Version,
+    version: VersionString,
     #[ts(type = "string")]
     platform: InternedString,
-    signature: Signature,
+    #[ts(skip)]
+    #[serde(rename = "__auth_signer")]
+    signer: AnyVerifyingKey,
+    signature: AnySignature,
 }
 
 async fn sign_asset(
@@ -43,22 +65,25 @@ async fn sign_asset(
     SignAssetParams {
         version,
         platform,
+        signer,
         signature,
     }: SignAssetParams,
-    accessor: impl FnOnce(&mut Model<OsVersionInfo>) -> &mut Model<BTreeMap<InternedString, RegistryAsset>>
+    accessor: impl FnOnce(
+            &mut Model<OsVersionInfo>,
+        ) -> &mut Model<BTreeMap<InternedString, RegistryAsset<Blake3Commitment>>>
         + UnwindSafe
         + Send,
 ) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
-            let guid = db.as_index().as_signers().get_signer(&signature.signer())?;
+            let guid = db.as_index().as_signers().get_signer(&signer)?;
             if !db
                 .as_index()
                 .as_os()
                 .as_versions()
                 .as_idx(&version)
                 .or_not_found(&version)?
-                .as_signers()
+                .as_authorized()
                 .de()?
                 .contains(&guid)
             {
@@ -77,8 +102,16 @@ async fn sign_asset(
             )
             .as_idx_mut(&platform)
             .or_not_found(&platform)?
-            .as_signature_info_mut()
-            .mutate(|s| s.add_sig(&signature))?;
+            .mutate(|s| {
+                signer.scheme().verify_commitment(
+                    &signer,
+                    &s.commitment,
+                    SIG_CONTEXT,
+                    &signature,
+                )?;
+                s.signatures.insert(signer, signature);
+                Ok(())
+            })?;
 
             Ok(())
         })
@@ -104,7 +137,7 @@ pub struct CliSignAssetParams {
     #[arg(short = 'p', long = "platform")]
     pub platform: InternedString,
     #[arg(short = 'v', long = "version")]
-    pub version: Version,
+    pub version: VersionString,
     pub file: PathBuf,
 }
 
@@ -134,7 +167,7 @@ pub async fn cli_sign_asset(
         }
     };
 
-    let file = tokio::fs::File::open(&path).await?.into();
+    let file = MultiCursorFile::from(tokio::fs::File::open(&path).await?);
 
     let mut progress = FullProgressTracker::new();
     let progress_handle = progress.handle();
@@ -159,9 +192,16 @@ pub async fn cli_sign_asset(
     .into();
 
     sign_phase.start();
-    let blake3_sig =
-        Blake3Ed25519Signature::sign_file(ctx.developer_key()?, &file, SIG_CONTEXT).await?;
-    let signature = Signature::Blake3Ed25519(blake3_sig);
+    let blake3 = file.blake3_mmap().await?;
+    let size = file
+        .size()
+        .await
+        .ok_or_else(|| Error::new(eyre!("failed to read file metadata"), ErrorKind::Filesystem))?;
+    let commitment = Blake3Commitment {
+        hash: Base64(*blake3.as_bytes()),
+        size,
+    };
+    let signature = Ed25519.sign_commitment(ctx.developer_key()?, &commitment, SIG_CONTEXT)?;
     sign_phase.complete();
 
     index_phase.start();

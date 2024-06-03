@@ -28,7 +28,7 @@ enum Version {
 }
 
 impl Version {
-    fn from_util_version(version: crate::util::Version) -> Self {
+    fn from_util_version(version: crate::util::VersionString) -> Self {
         serde_json::to_value(version.clone())
             .and_then(serde_json::from_value)
             .unwrap_or_else(|_e| {
@@ -161,7 +161,7 @@ where
     T: VersionT,
 {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let v = crate::util::Version::deserialize(deserializer)?;
+        let v = crate::util::VersionString::deserialize(deserializer)?;
         let version = T::new();
         if *v < version.semver() {
             Ok(Self(version, v.into_version()))
@@ -186,7 +186,7 @@ where
     T: VersionT,
 {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let v = crate::util::Version::deserialize(deserializer)?;
+        let v = crate::util::VersionString::deserialize(deserializer)?;
         let version = T::new();
         if *v == version.semver() {
             Ok(Wrapper(version))
