@@ -140,7 +140,6 @@ install: $(ALL_TARGETS)
 	$(call mkdir,$(DESTDIR)/usr/lib/startos/system-images)
 	$(call cp,system-images/compat/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/startos/system-images/compat.tar)
 	$(call cp,system-images/utils/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/startos/system-images/utils.tar)
-	$(call cp,system-images/binfmt/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/startos/system-images/binfmt.tar)
 	
 	$(call cp,firmware/$(PLATFORM),$(DESTDIR)/usr/lib/startos/firmware)
 

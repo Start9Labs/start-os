@@ -26,7 +26,7 @@ use crate::context::{CliContext, RpcContext};
 use crate::error::ResultExt;
 use crate::lxc::ContainerId;
 use crate::prelude::*;
-use crate::rpc_continuations::{RequestGuid, RpcContinuation, RpcContinuations};
+use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 use crate::util::serde::Reversible;
 use crate::util::Invoke;
 
@@ -118,7 +118,7 @@ pub struct LogResponse {
 #[serde(rename_all = "camelCase")]
 pub struct LogFollowResponse {
     start_cursor: Option<String>,
-    guid: RequestGuid,
+    guid: Guid,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -581,7 +581,7 @@ pub async fn follow_logs<Context: AsRef<RpcContinuations>>(
         first_entry = Some(entry);
     }
 
-    let guid = RequestGuid::new();
+    let guid = Guid::new();
     ctx.as_ref()
         .add(
             guid.clone(),

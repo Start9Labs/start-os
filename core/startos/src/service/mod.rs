@@ -23,7 +23,7 @@ use crate::install::PKG_ARCHIVE_DIR;
 use crate::lxc::ContainerId;
 use crate::prelude::*;
 use crate::progress::{NamedProgress, Progress};
-use crate::rpc_continuations::RequestGuid;
+use crate::rpc_continuations::Guid;
 use crate::s9pk::S9pk;
 use crate::service::service_map::InstallProgressHandles;
 use crate::service::transition::TransitionKind;
@@ -255,7 +255,7 @@ impl Service {
     pub async fn install(
         ctx: RpcContext,
         s9pk: S9pk,
-        src_version: Option<models::Version>,
+        src_version: Option<models::VersionString>,
         progress: Option<InstallProgressHandles>,
     ) -> Result<Self, Error> {
         let manifest = s9pk.as_manifest().clone();
@@ -340,7 +340,7 @@ impl Service {
         Ok(())
     }
 
-    pub async fn uninstall(self, target_version: Option<models::Version>) -> Result<(), Error> {
+    pub async fn uninstall(self, target_version: Option<models::VersionString>) -> Result<(), Error> {
         self.seed
             .persistent_container
             .execute(ProcedureName::Uninit, to_value(&target_version)?, None) // TODO timeout
@@ -514,7 +514,7 @@ pub struct ConnectParams {
 pub async fn connect_rpc(
     ctx: RpcContext,
     ConnectParams { id }: ConnectParams,
-) -> Result<RequestGuid, Error> {
+) -> Result<Guid, Error> {
     let id_ref = &id;
     crate::lxc::connect(
         &ctx,

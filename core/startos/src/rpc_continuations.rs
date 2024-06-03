@@ -10,20 +10,24 @@ use futures::future::BoxFuture;
 use helpers::TimedResource;
 use imbl_value::InternedString;
 use tokio::sync::Mutex;
+use ts_rs::TS;
 
 #[allow(unused_imports)]
 use crate::prelude::*;
 use crate::util::clap::FromStrParser;
 use crate::util::new_guid;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
-pub struct RequestGuid(InternedString);
-impl RequestGuid {
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize, TS,
+)]
+#[ts(type = "string")]
+pub struct Guid(InternedString);
+impl Guid {
     pub fn new() -> Self {
         Self(new_guid())
     }
 
-    pub fn from(r: &str) -> Option<RequestGuid> {
+    pub fn from(r: &str) -> Option<Guid> {
         if r.len() != 32 {
             return None;
         }
@@ -32,21 +36,21 @@ impl RequestGuid {
                 return None;
             }
         }
-        Some(RequestGuid(InternedString::intern(r)))
+        Some(Guid(InternedString::intern(r)))
     }
 }
-impl AsRef<str> for RequestGuid {
+impl AsRef<str> for Guid {
     fn as_ref(&self) -> &str {
         self.0.as_ref()
     }
 }
-impl FromStr for RequestGuid {
+impl FromStr for Guid {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::from(s).ok_or_else(|| Error::new(eyre!("invalid guid"), ErrorKind::Deserialization))
     }
 }
-impl ValueParserFactory for RequestGuid {
+impl ValueParserFactory for Guid {
     type Parser = FromStrParser<Self>;
     fn value_parser() -> Self::Parser {
         Self::Parser::new()
@@ -55,13 +59,10 @@ impl ValueParserFactory for RequestGuid {
 
 #[test]
 fn parse_guid() {
-    println!(
-        "{:?}",
-        RequestGuid::from(&format!("{}", RequestGuid::new()))
-    )
+    println!("{:?}", Guid::from(&format!("{}", Guid::new())))
 }
 
-impl std::fmt::Display for RequestGuid {
+impl std::fmt::Display for Guid {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
     }
@@ -91,7 +92,7 @@ impl RpcContinuation {
     }
 }
 
-pub struct RpcContinuations(Mutex<BTreeMap<RequestGuid, RpcContinuation>>);
+pub struct RpcContinuations(Mutex<BTreeMap<Guid, RpcContinuation>>);
 impl RpcContinuations {
     pub fn new() -> Self {
         RpcContinuations(Mutex::new(BTreeMap::new()))
@@ -112,12 +113,12 @@ impl RpcContinuations {
     }
 
     #[instrument(skip_all)]
-    pub async fn add(&self, guid: RequestGuid, handler: RpcContinuation) {
+    pub async fn add(&self, guid: Guid, handler: RpcContinuation) {
         self.clean().await;
         self.0.lock().await.insert(guid, handler);
     }
 
-    pub async fn get_ws_handler(&self, guid: &RequestGuid) -> Option<WebSocketHandler> {
+    pub async fn get_ws_handler(&self, guid: &Guid) -> Option<WebSocketHandler> {
         let mut continuations = self.0.lock().await;
         if !matches!(continuations.get(guid), Some(RpcContinuation::WebSocket(_))) {
             return None;
@@ -128,8 +129,8 @@ impl RpcContinuations {
         x.get().await
     }
 
-    pub async fn get_rest_handler(&self, guid: &RequestGuid) -> Option<RestHandler> {
-        let mut continuations: tokio::sync::MutexGuard<'_, BTreeMap<RequestGuid, RpcContinuation>> =
+    pub async fn get_rest_handler(&self, guid: &Guid) -> Option<RestHandler> {
+        let mut continuations: tokio::sync::MutexGuard<'_, BTreeMap<Guid, RpcContinuation>> =
             self.0.lock().await;
         if !matches!(continuations.get(guid), Some(RpcContinuation::Rest(_))) {
             return None;

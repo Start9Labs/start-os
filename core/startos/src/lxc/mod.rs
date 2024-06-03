@@ -33,7 +33,7 @@ use crate::disk::mount::filesystem::{MountType, ReadWrite};
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::disk::mount::util::unmount;
 use crate::prelude::*;
-use crate::rpc_continuations::{RequestGuid, RpcContinuation};
+use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::util::clap::FromStrParser;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::{new_guid, Invoke};
@@ -433,7 +433,7 @@ pub struct ConnectParams {
 pub async fn connect_rpc(
     ctx: RpcContext,
     ConnectParams { guid }: ConnectParams,
-) -> Result<RequestGuid, Error> {
+) -> Result<Guid, Error> {
     connect(
         &ctx,
         ctx.dev.lxc.lock().await.get(&guid).ok_or_else(|| {
@@ -443,11 +443,11 @@ pub async fn connect_rpc(
     .await
 }
 
-pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<RequestGuid, Error> {
+pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Guid, Error> {
     use axum::extract::ws::Message;
 
     let rpc = container.connect_rpc(Some(Duration::from_secs(30))).await?;
-    let guid = RequestGuid::new();
+    let guid = Guid::new();
     ctx.rpc_continuations
         .add(
             guid.clone(),
@@ -504,7 +504,7 @@ pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Reque
     Ok(guid)
 }
 
-pub async fn connect_cli(ctx: &CliContext, guid: RequestGuid) -> Result<(), Error> {
+pub async fn connect_cli(ctx: &CliContext, guid: Guid) -> Result<(), Error> {
     use futures::SinkExt;
     use tokio_tungstenite::tungstenite::Message;
 

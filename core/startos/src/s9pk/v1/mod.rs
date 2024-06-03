@@ -6,7 +6,6 @@ use ts_rs::TS;
 
 pub mod builder;
 pub mod docker;
-pub mod git_hash;
 pub mod header;
 pub mod manifest;
 pub mod reader;

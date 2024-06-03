@@ -89,6 +89,7 @@ pub enum ErrorKind {
     Timeout = 71,
     Lxc = 72,
     Cancelled = 73,
+    Git = 74,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -167,6 +168,7 @@ impl ErrorKind {
             Timeout => "Timeout Error",
             Lxc => "LXC Error",
             Cancelled => "Cancelled",
+            Git => "Git Error",
         }
     }
 }
