@@ -1,7 +1,7 @@
-import { object, string } from "ts-matches"
+import { number, object, string } from "ts-matches"
 import { Effects } from "../types"
 import { Origin } from "./Origin"
-import { AddSslOptions } from ".././osBindings"
+import { AddSslOptions, BindParams } from ".././osBindings"
 import { Security } from ".././osBindings"
 import { BindOptions } from ".././osBindings"
 import { AlpnInfo } from ".././osBindings"
@@ -69,17 +69,17 @@ type NotProtocolsWithSslVariants = Exclude<
 type BindOptionsByKnownProtocol =
   | {
       protocol: ProtocolsWithSslVariants
-      preferredExternalPort?: number
+      preferredExternalPort: number
       addSsl?: Partial<AddSslOptions>
     }
   | {
       protocol: NotProtocolsWithSslVariants
-      preferredExternalPort?: number
+      preferredExternalPort: number
       addSsl?: AddSslOptions
     }
 export type BindOptionsByProtocol = BindOptionsByKnownProtocol | BindOptions
 
-export type HostKind = "static" | "single" | "multi"
+export type HostKind = BindParams["kind"]
 
 const hasStringProtocol = object({
   protocol: string,
@@ -113,12 +113,13 @@ export class Host {
       secure: { ssl: boolean } | null
     },
   ) {
-    await this.options.effects.bind({
+    const binderOptions = {
       kind: this.options.kind,
       id: this.options.id,
-      internalPort: internalPort,
+      internalPort,
       ...options,
-    })
+    }
+    await this.options.effects.bind(binderOptions)
 
     return new Origin(this, internalPort, null, null)
   }
@@ -174,17 +175,17 @@ function inObject<Key extends string>(
   return key in obj
 }
 
-export class StaticHost extends Host {
-  constructor(options: { effects: Effects; id: string }) {
-    super({ ...options, kind: "static" })
-  }
-}
+// export class StaticHost extends Host {
+//   constructor(options: { effects: Effects; id: string }) {
+//     super({ ...options, kind: "static" })
+//   }
+// }
 
-export class SingleHost extends Host {
-  constructor(options: { effects: Effects; id: string }) {
-    super({ ...options, kind: "single" })
-  }
-}
+// export class SingleHost extends Host {
+//   constructor(options: { effects: Effects; id: string }) {
+//     super({ ...options, kind: "single" })
+//   }
+// }
 
 export class MultiHost extends Host {
   constructor(options: { effects: Effects; id: string }) {

@@ -552,15 +552,15 @@ struct BindParams {
     #[serde(flatten)]
     options: BindOptions,
 }
-async fn bind(
-    context: EffectContext,
-    BindParams {
+async fn bind(context: EffectContext, bind_params: Value) -> Result<(), Error> {
+    // BLUJ
+    dbg!(&bind_params);
+    let BindParams {
         kind,
         id,
         internal_port,
         options,
-    }: BindParams,
-) -> Result<(), Error> {
+    } = from_value(bind_params)?;
     let ctx = context.deref()?;
     let mut svc = ctx.persistent_container.net_service.lock().await;
     svc.bind(kind, id, internal_port, options).await

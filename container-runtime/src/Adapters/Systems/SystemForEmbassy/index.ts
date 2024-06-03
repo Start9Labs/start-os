@@ -356,64 +356,73 @@ export class SystemForEmbassy implements System {
         Object.values(interfaceValue["tor-config"]?.["port-mapping"] ?? {})
           .map(Number.parseInt)
           .concat(
-            Object.values(interfaceValue["lan-config"] ?? {}).map(
+            ...Object.values(interfaceValue["lan-config"] ?? {}).map(
               (c) => c.internal,
             ),
-          ),
+          )
+          .filter(Boolean),
       )
-      const bindings = Object.fromEntries(
-        Array.from(internalPorts).map<[number, BindOptionsByProtocol]>(
-          (port) => {
-            const lanPort = Object.entries(
-              interfaceValue["lan-config"] ?? {},
-            ).find(([external, internal]) => internal.internal === port)?.[0]
-            const torPort = Object.entries(
-              interfaceValue["tor-config"]?.["port-mapping"] ?? {},
-            ).find(
-              ([external, internal]) => Number.parseInt(internal) === port,
-            )?.[0]
-            let addSsl: AddSslOptions | null = null
-            if (lanPort) {
-              const lanPortNum = Number.parseInt(lanPort)
-              if (lanPortNum === 443) {
-                return [port, { protocol: "http" }]
-              }
-              addSsl = {
-                preferredExternalPort: lanPortNum,
-                alpn: { specified: [] },
-              }
-            }
-            return [
-              port,
-              {
-                secure: null,
-                preferredExternalPort: Number.parseInt(
-                  torPort || lanPort || String(port),
-                ),
-                addSsl,
-              },
-            ]
+      const bindings = Array.from(internalPorts).map<
+        [number, BindOptionsByProtocol]
+      >((port) => {
+        const lanPort = Object.entries(interfaceValue["lan-config"] ?? {}).find(
+          ([external, internal]) => internal.internal === port,
+        )?.[0]
+        const torPort = Object.entries(
+          interfaceValue["tor-config"]?.["port-mapping"] ?? {},
+        ).find(
+          ([external, internal]) => Number.parseInt(internal) === port,
+        )?.[0]
+        let addSsl: AddSslOptions | null = null
+        if (lanPort) {
+          const lanPortNum = Number.parseInt(lanPort)
+          if (lanPortNum === 443) {
+            return [port, { protocol: "http", preferredExternalPort: 80 }]
+          }
+          addSsl = {
+            preferredExternalPort: lanPortNum,
+            alpn: { specified: [] },
+          }
+        }
+        return [
+          port,
+          {
+            secure: null,
+            preferredExternalPort: Number.parseInt(
+              torPort || lanPort || String(port),
+            ),
+            addSsl,
           },
-        ),
+        ]
+      })
+
+      await Promise.all(
+        bindings.map(async ([internal, options]) => {
+          if (internal == null) {
+            return
+          }
+          if (options?.preferredExternalPort == null) {
+            return
+          }
+          const origin = await host.bindPort(internal, options)
+          await origin.export([
+            new ServiceInterfaceBuilder({
+              effects,
+              name: interfaceValue.name,
+              id: `${id}-${internal}`,
+              description: interfaceValue.description,
+              hasPrimary: false,
+              disabled: false,
+              type: "api",
+              masked: false,
+              path: "",
+              schemeOverride: null,
+              search: {},
+              username: null,
+            }),
+          ])
+        }),
       )
-      for (const [internal, options] of Object.entries(bindings)) {
-        ;(await host.bindPort(Number.parseInt(internal), options)).export([
-          new ServiceInterfaceBuilder({
-            effects,
-            name: interfaceValue.name,
-            id: `${id}-${internal}`,
-            description: interfaceValue.description,
-            hasPrimary: false,
-            disabled: false,
-            type: "api",
-            masked: false,
-            path: "",
-            schemeOverride: null,
-            search: {},
-            username: null,
-          }),
-        ])
-      }
     }
   }
   async exportActions(effects: HostSystemStartOs) {

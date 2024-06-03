@@ -96,7 +96,10 @@ export class HostSystemStartOs implements Effects {
   }
 
   bind(...[options]: Parameters<T.Effects["bind"]>) {
-    return this.rpcRound("bind", options) as ReturnType<T.Effects["bind"]>
+    return this.rpcRound("bind", {
+      ...options,
+      stack: new Error().stack,
+    }) as ReturnType<T.Effects["bind"]>
   }
   clearBindings(...[]: Parameters<T.Effects["clearBindings"]>) {
     return this.rpcRound("clearBindings", null) as ReturnType<

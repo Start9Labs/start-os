@@ -10,6 +10,7 @@ import {
   ExportServiceInterfaceParams,
   GetPrimaryUrlParams,
   LanInfo,
+  BindParams,
 } from "./osBindings"
 
 import { MainEffects, ServiceInterfaceType, Signals } from "./StartSdk"
@@ -288,13 +289,7 @@ export type Effects = {
   /** Removes all network bindings */
   clearBindings(): Promise<void>
   /** Creates a host connected to the specified port with the provided options */
-  bind(
-    options: {
-      kind: "static" | "single" | "multi"
-      id: string
-      internalPort: number
-    } & BindOptions,
-  ): Promise<void>
+  bind(options: BindParams): Promise<void>
   /** Retrieves the current hostname(s) associated with a host id */
   // getHostInfo(options: {
   //   kind: "static" | "single"

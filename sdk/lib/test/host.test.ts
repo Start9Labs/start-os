@@ -8,6 +8,7 @@ describe("host", () => {
       const foo = sdk.host.multi(effects, "foo")
       const fooOrigin = await foo.bindPort(80, {
         protocol: "http" as const,
+        preferredExternalPort: 80,
       })
       const fooInterface = new ServiceInterfaceBuilder({
         effects,

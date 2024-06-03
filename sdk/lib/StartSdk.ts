@@ -59,7 +59,7 @@ import {
 } from "./interfaces/setupInterfaces"
 import { successFailure } from "./trigger/successFailure"
 import { HealthReceipt } from "./health/HealthReceipt"
-import { MultiHost, Scheme, SingleHost, StaticHost } from "./interfaces/Host"
+import { MultiHost, Scheme } from "./interfaces/Host"
 import { ServiceInterfaceBuilder } from "./interfaces/ServiceInterfaceBuilder"
 import { GetSystemSmtp } from "./util/GetSystemSmtp"
 import nullIfEmpty from "./util/nullIfEmpty"
@@ -178,10 +178,10 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
       },
 
       host: {
-        static: (effects: Effects, id: string) =>
-          new StaticHost({ id, effects }),
-        single: (effects: Effects, id: string) =>
-          new SingleHost({ id, effects }),
+        // static: (effects: Effects, id: string) =>
+        //   new StaticHost({ id, effects }),
+        // single: (effects: Effects, id: string) =>
+        //   new SingleHost({ id, effects }),
         multi: (effects: Effects, id: string) => new MultiHost({ id, effects }),
       },
       nullIfEmpty,
