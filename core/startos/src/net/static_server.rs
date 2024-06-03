@@ -1,4 +1,3 @@
-use std::fs::Metadata;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
@@ -13,25 +12,26 @@ use digest::Digest;
 use futures::future::ready;
 use http::header::ACCEPT_ENCODING;
 use http::request::Parts as RequestParts;
-use http::{HeaderMap, Method, StatusCode};
+use http::{Method, StatusCode};
+use imbl_value::InternedString;
 use include_dir::Dir;
 use new_mime_guess::MimeGuess;
 use openssl::hash::MessageDigest;
 use openssl::x509::X509;
-use rpc_toolkit::Server;
+use rpc_toolkit::{Context, HttpServer, Server};
 use tokio::fs::File;
 use tokio::io::BufReader;
 use tokio_util::io::ReaderStream;
 
-use crate::context::{DiagnosticContext, InstallContext, RpcContext, SetupContext};
-use crate::db::subscribe;
+use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
 use crate::hostname::Hostname;
 use crate::middleware::auth::{Auth, HasValidSession};
 use crate::middleware::cors::Cors;
 use crate::middleware::db::SyncDb;
-use crate::middleware::diagnostic::DiagnosticMode;
-use crate::rpc_continuations::Guid;
-use crate::{diagnostic_api, install_api, main_api, setup_api, Error, ErrorKind, ResultExt};
+use crate::rpc_continuations::{Guid, RpcContinuations};
+use crate::{
+    diagnostic_api, init_api, install_api, main_api, setup_api, Error, ErrorKind, ResultExt,
+};
 
 const NOT_FOUND: &[u8] = b"Not Found";
 const METHOD_NOT_ALLOWED: &[u8] = b"Method Not Allowed";
@@ -49,7 +49,6 @@ const PROXY_STRIP_HEADERS: &[&str] = &["cookie", "host", "origin", "referer", "u
 #[derive(Clone)]
 pub enum UiMode {
     Setup,
-    Diag,
     Install,
     Main,
 }
@@ -58,128 +57,46 @@ impl UiMode {
     fn path(&self, path: &str) -> PathBuf {
         match self {
             Self::Setup => Path::new("setup-wizard").join(path),
-            Self::Diag => Path::new("diagnostic-ui").join(path),
             Self::Install => Path::new("install-wizard").join(path),
             Self::Main => Path::new("ui").join(path),
         }
     }
 }
 
-pub fn setup_ui_file_router(ctx: SetupContext) -> Router {
+pub fn rpc_router<C: Context + Clone + AsRef<RpcContinuations>>(
+    ctx: C,
+    server: HttpServer<C>,
+) -> Router {
     Router::new()
-        .route_service(
-            "/rpc/*path",
-            post(Server::new(move || ready(Ok(ctx.clone())), setup_api()).middleware(Cors::new())),
-        )
-        .fallback(any(|request: Request| async move {
-            alt_ui(request, UiMode::Setup)
-                .await
-                .unwrap_or_else(server_error)
-        }))
-}
-
-pub fn diag_ui_file_router(ctx: DiagnosticContext) -> Router {
-    Router::new()
+        .route("/rpc/*path", post(server))
         .route(
-            "/rpc/*path",
-            post(
-                Server::new(move || ready(Ok(ctx.clone())), diagnostic_api())
-                    .middleware(Cors::new())
-                    .middleware(DiagnosticMode::new()),
-            ),
-        )
-        .fallback(any(|request: Request| async move {
-            alt_ui(request, UiMode::Diag)
-                .await
-                .unwrap_or_else(server_error)
-        }))
-}
-
-pub fn install_ui_file_router(ctx: InstallContext) -> Router {
-    Router::new()
-        .route("/rpc/*path", {
-            let ctx = ctx.clone();
-            post(Server::new(move || ready(Ok(ctx.clone())), install_api()).middleware(Cors::new()))
-        })
-        .fallback(any(|request: Request| async move {
-            alt_ui(request, UiMode::Install)
-                .await
-                .unwrap_or_else(server_error)
-        }))
-}
-
-pub fn main_ui_server_router(ctx: RpcContext) -> Router {
-    Router::new()
-        .route("/rpc/*path", {
-            let ctx = ctx.clone();
-            post(
-                Server::new(move || ready(Ok(ctx.clone())), main_api::<RpcContext>())
-                    .middleware(Cors::new())
-                    .middleware(Auth::new())
-                    .middleware(SyncDb::new()),
-            )
-        })
-        .route(
-            "/ws/db",
-            any({
-                let ctx = ctx.clone();
-                move |headers: HeaderMap, ws: x::WebSocketUpgrade| async move {
-                    subscribe(ctx, headers, ws)
-                        .await
-                        .unwrap_or_else(server_error)
-                }
-            }),
-        )
-        .route(
-            "/ws/rpc/*path",
+            "/ws/rpc/:guid",
             get({
                 let ctx = ctx.clone();
-                move |x::Path(path): x::Path<String>,
+                move |x::Path(guid): x::Path<Guid>,
                       ws: axum::extract::ws::WebSocketUpgrade| async move {
-                    match Guid::from(&path) {
-                        None => {
-                            tracing::debug!("No Guid Path");
-                            bad_request()
-                        }
-                        Some(guid) => match ctx.rpc_continuations.get_ws_handler(&guid).await {
-                            Some(cont) => ws.on_upgrade(cont),
-                            _ => not_found(),
-                        },
+                    match AsRef::<RpcContinuations>::as_ref(&ctx).get_ws_handler(&guid).await {
+                        Some(cont) => ws.on_upgrade(cont),
+                        _ => not_found(),
                     }
                 }
             }),
         )
         .route(
-            "/rest/rpc/*path",
+            "/rest/rpc/:guid",
             any({
                 let ctx = ctx.clone();
-                move |request: x::Request| async move {
-                    let path = request
-                        .uri()
-                        .path()
-                        .strip_prefix("/rest/rpc/")
-                        .unwrap_or_default();
-                    match Guid::from(&path) {
-                        None => {
-                            tracing::debug!("No Guid Path");
-                            bad_request()
-                        }
-                        Some(guid) => match ctx.rpc_continuations.get_rest_handler(&guid).await {
-                            None => not_found(),
-                            Some(cont) => cont(request).await.unwrap_or_else(server_error),
-                        },
+                move |x::Path(guid): x::Path<Guid>, request: x::Request| async move {
+                    match AsRef::<RpcContinuations>::as_ref(&ctx).get_rest_handler(&guid).await {
+                        None => not_found(),
+                        Some(cont) => cont(request).await.unwrap_or_else(server_error),
                     }
                 }
             }),
         )
-        .fallback(any(move |request: Request| async move {
-            main_start_os_ui(request, ctx)
-                .await
-                .unwrap_or_else(server_error)
-        }))
 }
 
-async fn alt_ui(req: Request, ui_mode: UiMode) -> Result<Response, Error> {
+fn serve_ui(req: Request, ui_mode: UiMode) -> Result<Response, Error> {
     let (request_parts, _body) = req.into_parts();
     match &request_parts.method {
         &Method::GET => {
@@ -196,15 +113,82 @@ async fn alt_ui(req: Request, ui_mode: UiMode) -> Result<Response, Error> {
                 .or_else(|| EMBEDDED_UIS.get_file(&*ui_mode.path("index.html")));
 
             if let Some(file) = file {
-                FileData::from_embedded(&request_parts, file)
-                    .into_response(&request_parts)
-                    .await
+                FileData::from_embedded(&request_parts, file).into_response(&request_parts)
             } else {
                 Ok(not_found())
             }
         }
         _ => Ok(method_not_allowed()),
     }
+}
+
+pub fn setup_ui_router(ctx: SetupContext) -> Router {
+    rpc_router(
+        ctx.clone(),
+        Server::new(move || ready(Ok(ctx.clone())), setup_api()).middleware(Cors::new()),
+    )
+    .fallback(any(|request: Request| async move {
+        serve_ui(request, UiMode::Setup).unwrap_or_else(server_error)
+    }))
+}
+
+pub fn diagnostic_ui_router(ctx: DiagnosticContext) -> Router {
+    rpc_router(
+        ctx.clone(),
+        Server::new(move || ready(Ok(ctx.clone())), diagnostic_api()).middleware(Cors::new()),
+    )
+    .fallback(any(|request: Request| async move {
+        serve_ui(request, UiMode::Main).unwrap_or_else(server_error)
+    }))
+}
+
+pub fn install_ui_router(ctx: InstallContext) -> Router {
+    rpc_router(
+        ctx.clone(),
+        Server::new(move || ready(Ok(ctx.clone())), install_api()).middleware(Cors::new()),
+    )
+    .fallback(any(|request: Request| async move {
+        serve_ui(request, UiMode::Install).unwrap_or_else(server_error)
+    }))
+}
+
+pub fn init_ui_router(ctx: InitContext) -> Router {
+    rpc_router(
+        ctx.clone(),
+        Server::new(move || ready(Ok(ctx.clone())), init_api()).middleware(Cors::new()),
+    )
+    .fallback(any(|request: Request| async move {
+        serve_ui(request, UiMode::Main).unwrap_or_else(server_error)
+    }))
+}
+
+pub fn main_ui_router(ctx: RpcContext) -> Router {
+    rpc_router(
+        ctx.clone(),
+        Server::new(move || ready(Ok(ctx.clone())), main_api::<RpcContext>())
+            .middleware(Cors::new())
+            .middleware(Auth::new())
+            .middleware(SyncDb::new()),
+    )
+    // TODO: cert
+    .fallback(any(|request: Request| async move {
+        serve_ui(request, UiMode::Main).unwrap_or_else(server_error)
+    }))
+}
+
+pub fn refresher() -> Router {
+    Router::new().fallback(get(|request: Request| async move {
+        let res = include_bytes!("./refresher.html");
+        FileData {
+            data: Body::from(&res[..]),
+            e_tag: None,
+            encoding: None,
+            len: Some(res.len() as u64),
+            mime: Some("text/html".into()),
+        }
+        .into_response(&request.into_parts().0)
+        .unwrap_or_else(server_error)
+    }))
 }
 
 async fn if_authorized<
@@ -220,89 +204,6 @@ async fn if_authorized<
         Ok(unauthorized(e, parts.uri.path()))
     } else {
         f().await
-    }
-}
-
-async fn main_start_os_ui(req: Request, ctx: RpcContext) -> Result<Response, Error> {
-    let (request_parts, _body) = req.into_parts();
-    match (
-        &request_parts.method,
-        request_parts
-            .uri
-            .path()
-            .strip_prefix('/')
-            .unwrap_or(request_parts.uri.path())
-            .split_once('/'),
-    ) {
-        (&Method::GET, Some(("public", path))) => {
-            todo!("pull directly from s9pk")
-        }
-        (&Method::GET, Some(("proxy", target))) => {
-            if_authorized(&ctx, &request_parts, || async {
-                let target = urlencoding::decode(target)?;
-                let res = ctx
-                    .client
-                    .get(target.as_ref())
-                    .headers(
-                        request_parts
-                            .headers
-                            .iter()
-                            .filter(|(h, _)| {
-                                !PROXY_STRIP_HEADERS
-                                    .iter()
-                                    .any(|bad| h.as_str().eq_ignore_ascii_case(bad))
-                            })
-                            .flat_map(|(h, v)| {
-                                Some((
-                                    reqwest::header::HeaderName::from_lowercase(
-                                        h.as_str().as_bytes(),
-                                    )
-                                    .ok()?,
-                                    reqwest::header::HeaderValue::from_bytes(v.as_bytes()).ok()?,
-                                ))
-                            })
-                            .collect(),
-                    )
-                    .send()
-                    .await
-                    .with_kind(crate::ErrorKind::Network)?;
-                let mut hres = Response::builder().status(res.status().as_u16());
-                for (h, v) in res.headers().clone() {
-                    if let Some(h) = h {
-                        hres = hres.header(h.to_string(), v.as_bytes());
-                    }
-                }
-                hres.body(Body::from_stream(res.bytes_stream()))
-                    .with_kind(crate::ErrorKind::Network)
-            })
-            .await
-        }
-        (&Method::GET, Some(("eos", "local.crt"))) => {
-            let account = ctx.account.read().await;
-            cert_send(&account.root_ca_cert, &account.hostname)
-        }
-        (&Method::GET, _) => {
-            let uri_path = UiMode::Main.path(
-                request_parts
-                    .uri
-                    .path()
-                    .strip_prefix('/')
-                    .unwrap_or(request_parts.uri.path()),
-            );
-
-            let file = EMBEDDED_UIS
-                .get_file(&*uri_path)
-                .or_else(|| EMBEDDED_UIS.get_file(&*UiMode::Main.path("index.html")));
-
-            if let Some(file) = file {
-                FileData::from_embedded(&request_parts, file)
-                    .into_response(&request_parts)
-                    .await
-            } else {
-                Ok(not_found())
-            }
-        }
-        _ => Ok(method_not_allowed()),
     }
 }
 
@@ -373,8 +274,8 @@ struct FileData {
     data: Body,
     len: Option<u64>,
     encoding: Option<&'static str>,
-    e_tag: String,
-    mime: Option<String>,
+    e_tag: Option<String>,
+    mime: Option<InternedString>,
 }
 impl FileData {
     fn from_embedded(req: &RequestParts, file: &'static include_dir::File<'static>) -> Self {
@@ -407,10 +308,23 @@ impl FileData {
             len: Some(data.len() as u64),
             encoding,
             data: data.into(),
-            e_tag: e_tag(path, None),
+            e_tag: file.metadata().map(|metadata| {
+                e_tag(
+                    path,
+                    format!(
+                        "{}",
+                        metadata
+                            .modified()
+                            .duration_since(UNIX_EPOCH)
+                            .map(|d| d.as_secs() as i64)
+                            .unwrap_or_else(|e| e.duration().as_secs() as i64 * -1),
+                    )
+                    .as_bytes(),
+                )
+            }),
             mime: MimeGuess::from_path(path)
                 .first()
-                .map(|m| m.essence_str().to_owned()),
+                .map(|m| m.essence_str().into()),
         }
     }
 
@@ -434,7 +348,18 @@ impl FileData {
             .await
             .with_ctx(|_| (ErrorKind::Filesystem, path.display().to_string()))?;
 
-        let e_tag = e_tag(path, Some(&metadata));
+        let e_tag = Some(e_tag(
+            path,
+            format!(
+                "{}",
+                metadata
+                    .modified()?
+                    .duration_since(UNIX_EPOCH)
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or_else(|e| e.duration().as_secs() as i64 * -1)
+            )
+            .as_bytes(),
+        ));
 
         let (len, data) = if encoding == Some("gzip") {
             (
@@ -455,16 +380,18 @@ impl FileData {
             e_tag,
             mime: MimeGuess::from_path(path)
                 .first()
-                .map(|m| m.essence_str().to_owned()),
+                .map(|m| m.essence_str().into()),
         })
     }
 
-    async fn into_response(self, req: &RequestParts) -> Result<Response, Error> {
+    fn into_response(self, req: &RequestParts) -> Result<Response, Error> {
         let mut builder = Response::builder();
         if let Some(mime) = self.mime {
             builder = builder.header(http::header::CONTENT_TYPE, &*mime);
         }
-        builder = builder.header(http::header::ETAG, &*self.e_tag);
+        if let Some(e_tag) = &self.e_tag {
+            builder = builder.header(http::header::ETAG, &**e_tag);
+        }
         builder = builder.header(
             http::header::CACHE_CONTROL,
             "public, max-age=21000000, immutable",
@@ -485,7 +412,7 @@ impl FileData {
             .headers
             .get("if-none-match")
             .and_then(|h| h.to_str().ok())
-            == Some(self.e_tag.as_ref())
+            == self.e_tag.as_deref()
         {
             builder = builder.status(StatusCode::NOT_MODIFIED);
             builder.body(Body::empty())
@@ -503,21 +430,14 @@ impl FileData {
     }
 }
 
-fn e_tag(path: &Path, metadata: Option<&Metadata>) -> String {
+lazy_static::lazy_static! {
+    static ref INSTANCE_NONCE: u64 = rand::random();
+}
+
+fn e_tag(path: &Path, modified: impl AsRef<[u8]>) -> String {
     let mut hasher = sha2::Sha256::new();
     hasher.update(format!("{:?}", path).as_bytes());
-    if let Some(modified) = metadata.and_then(|m| m.modified().ok()) {
-        hasher.update(
-            format!(
-                "{}",
-                modified
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs()
-            )
-            .as_bytes(),
-        );
-    }
+    hasher.update(modified.as_ref());
     let res = hasher.finalize();
     format!(
         "\"{}\"",

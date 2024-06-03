@@ -1,47 +1,54 @@
-use std::net::{Ipv6Addr, SocketAddr};
 use std::path::Path;
 use std::sync::Arc;
-use std::time::Duration;
 
-use helpers::NonDetachingJoinHandle;
 use tokio::process::Command;
 use tracing::instrument;
 
 use crate::context::config::ServerConfig;
-use crate::context::{DiagnosticContext, InstallContext, SetupContext};
-use crate::disk::fsck::{RepairStrategy, RequiresReboot};
+use crate::context::{DiagnosticContext, InitContext, InstallContext, SetupContext};
+use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::REPAIR_DISK_PATH;
-use crate::firmware::update_firmware;
+use crate::firmware::{check_for_firmware_update, update_firmware};
 use crate::init::STANDBY_MODE_PATH;
 use crate::net::web_server::WebServer;
 use crate::shutdown::Shutdown;
-use crate::sound::{BEP, CHIME};
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt, PLATFORM};
 
 #[instrument(skip_all)]
-async fn setup_or_init(config: &ServerConfig) -> Result<Option<Shutdown>, Error> {
-    let song = NonDetachingJoinHandle::from(tokio::spawn(async {
-        loop {
-            BEP.play().await.unwrap();
-            BEP.play().await.unwrap();
-            tokio::time::sleep(Duration::from_secs(30)).await;
-        }
-    }));
+async fn setup_or_init(
+    server: &mut WebServer,
+    config: &ServerConfig,
+) -> Result<Option<Shutdown>, Error> {
+    if let Some(firmware) = check_for_firmware_update()
+        .await
+        .map_err(|e| {
+            tracing::warn!("Error checking for firmware update: {e}");
+            tracing::debug!("{e:?}");
+        })
+        .ok()
+        .and_then(|a| a)
+    {
+        let init_ctx = InitContext::init().await?;
+        let handle = init_ctx.progress.handle();
+        let mut update_phase = handle.add_phase("Updating Firmware".into(), Some(10));
+        let mut reboot_phase = handle.add_phase("Rebooting".into(), Some(1));
 
-    match update_firmware().await {
-        Ok(RequiresReboot(true)) => {
+        server.serve_init(init_ctx);
+
+        update_phase.start();
+        if let Err(e) = update_firmware(firmware).await {
+            tracing::warn!("Error performing firmware update: {e}");
+            tracing::debug!("{e:?}");
+        } else {
+            update_phase.complete();
+            reboot_phase.start();
             return Ok(Some(Shutdown {
                 export_args: None,
                 restart: true,
-            }))
+            }));
         }
-        Err(e) => {
-            tracing::warn!("Error performing firmware update: {e}");
-            tracing::debug!("{e:?}");
-        }
-        _ => (),
     }
 
     Command::new("ln")
@@ -84,14 +91,7 @@ async fn setup_or_init(config: &ServerConfig) -> Result<Option<Shutdown>, Error>
 
         let ctx = InstallContext::init().await?;
 
-        let server = WebServer::install(
-            SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
-            ctx.clone(),
-        )?;
-
-        drop(song);
-        tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
-        CHIME.play().await?;
+        server.serve_install(ctx.clone());
 
         ctx.shutdown
             .subscribe()
@@ -99,32 +99,20 @@ async fn setup_or_init(config: &ServerConfig) -> Result<Option<Shutdown>, Error>
             .await
             .expect("context dropped");
 
-        server.shutdown().await;
-
-        Command::new("reboot")
-            .invoke(crate::ErrorKind::Unknown)
-            .await?;
+        return Ok(Some(Shutdown {
+            export_args: None,
+            restart: true,
+        }));
     } else if tokio::fs::metadata("/media/startos/config/disk.guid")
         .await
         .is_err()
     {
         let ctx = SetupContext::init(config)?;
 
-        let server = WebServer::setup(
-            SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
-            ctx.clone(),
-        )?;
-
-        drop(song);
-        tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
-        CHIME.play().await?;
+        server.serve_setup(ctx.clone());
 
         let mut shutdown = ctx.shutdown.subscribe();
         shutdown.recv().await.expect("context dropped");
-
-        server.shutdown().await;
-
-        drop(shutdown);
 
         tokio::task::yield_now().await;
         if let Err(e) = Command::new("killall")
@@ -166,8 +154,10 @@ async fn setup_or_init(config: &ServerConfig) -> Result<Option<Shutdown>, Error>
                 .await?;
         }
         tracing::info!("Loaded Disk");
+
+        run_script_if_exists("/media/startos/config/preinit.sh").await;
         crate::init::init(config).await?;
-        drop(song);
+        run_script_if_exists("/media/startos/config/postinit.sh").await;
     }
 
     Ok(None)
@@ -192,7 +182,10 @@ async fn run_script_if_exists<P: AsRef<Path>>(path: P) {
 }
 
 #[instrument(skip_all)]
-async fn inner_main(config: &ServerConfig) -> Result<Option<Shutdown>, Error> {
+pub async fn main(
+    server: &mut WebServer,
+    config: &ServerConfig,
+) -> Result<Option<Shutdown>, Error> {
     if &*PLATFORM == "raspberrypi" && tokio::fs::metadata(STANDBY_MODE_PATH).await.is_ok() {
         tokio::fs::remove_file(STANDBY_MODE_PATH).await?;
         Command::new("sync").invoke(ErrorKind::Filesystem).await?;
@@ -200,16 +193,11 @@ async fn inner_main(config: &ServerConfig) -> Result<Option<Shutdown>, Error> {
         futures::future::pending::<()>().await;
     }
 
-    crate::sound::BEP.play().await?;
-
-    run_script_if_exists("/media/startos/config/preinit.sh").await;
-
-    let res = match setup_or_init(config).await {
+    let res = match setup_or_init(server, config).await {
         Err(e) => {
             async move {
-                tracing::error!("{}", e.source);
-                tracing::debug!("{}", e.source);
-                crate::sound::BEETHOVEN.play().await?;
+                tracing::error!("{e}");
+                tracing::debug!("{e:?}");
 
                 let ctx = DiagnosticContext::init(
                     config,
@@ -229,14 +217,9 @@ async fn inner_main(config: &ServerConfig) -> Result<Option<Shutdown>, Error> {
                     e,
                 )?;
 
-                let server = WebServer::diagnostic(
-                    SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
-                    ctx.clone(),
-                )?;
+                server.serve_diagnostic(ctx.clone());
 
                 let shutdown = ctx.shutdown.subscribe().recv().await.unwrap();
-
-                server.shutdown().await;
 
                 Ok(shutdown)
             }
@@ -245,28 +228,5 @@ async fn inner_main(config: &ServerConfig) -> Result<Option<Shutdown>, Error> {
         Ok(s) => Ok(s),
     };
 
-    run_script_if_exists("/media/startos/config/postinit.sh").await;
-
     res
-}
-
-pub fn main(config: &ServerConfig) {
-    let res = {
-        let rt = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .expect("failed to initialize runtime");
-        rt.block_on(inner_main(config))
-    };
-
-    match res {
-        Ok(Some(shutdown)) => shutdown.execute(),
-        Ok(None) => (),
-        Err(e) => {
-            eprintln!("{}", e.source);
-            tracing::debug!("{:?}", e.source);
-            drop(e.source);
-            std::process::exit(e.kind as i32)
-        }
-    }
 }

@@ -79,13 +79,17 @@ use rpc_toolkit::{
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::context::{CliContext, DiagnosticContext, InstallContext, RpcContext, SetupContext};
+use crate::context::{
+    CliContext, DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext,
+};
+use crate::disk::fsck::RequiresReboot;
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
 use crate::util::serde::HandlerExtSerde;
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct EchoParams {
     message: String,
 }
@@ -94,12 +98,32 @@ pub fn echo<C: Context>(_: C, EchoParams { message }: EchoParams) -> Result<Stri
     Ok(message)
 }
 
+#[derive(Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum ApiState {
+    Error,
+    Initializing,
+    Running,
+}
+impl std::fmt::Display for ApiState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(&self, f)
+    }
+}
+
 pub fn main_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand::<C, _>("git-info", from_fn(version::git_info))
         .subcommand(
             "echo",
             from_fn(echo::<RpcContext>)
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "state",
+            from_fn(|_: RpcContext| Ok::<_, Error>(ApiState::Running))
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_call_remote::<CliContext>(),
         )
@@ -183,11 +207,18 @@ pub fn server<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "update-firmware",
-            from_fn_async(|_: RpcContext| firmware::update_firmware())
-                .with_custom_display_fn(|_handle, result| {
-                    Ok(firmware::display_firmware_update_result(result))
-                })
-                .with_call_remote::<CliContext>(),
+            from_fn_async(|_: RpcContext| async {
+                if let Some(firmware) = firmware::check_for_firmware_update().await? {
+                    firmware::update_firmware(firmware).await?;
+                    Ok::<_, Error>(RequiresReboot(true))
+                } else {
+                    Ok(RequiresReboot(false))
+                }
+            })
+            .with_custom_display_fn(|_handle, result| {
+                Ok(firmware::display_firmware_update_result(result))
+            })
+            .with_call_remote::<CliContext>(),
         )
 }
 
@@ -277,7 +308,32 @@ pub fn diagnostic_api() -> ParentHandler<DiagnosticContext> {
             "echo",
             from_fn(echo::<DiagnosticContext>).with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "state",
+            from_fn(|_: RpcContext| Ok::<_, Error>(ApiState::Error))
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_call_remote::<CliContext>(),
+        )
         .subcommand("diagnostic", diagnostic::diagnostic::<DiagnosticContext>())
+}
+
+pub fn init_api() -> ParentHandler<InitContext> {
+    ParentHandler::new()
+        .subcommand::<InitContext, _>(
+            "git-info",
+            from_fn(version::git_info).with_metadata("authenticated", Value::Bool(false)),
+        )
+        .subcommand(
+            "echo",
+            from_fn(echo::<InitContext>).with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "state",
+            from_fn(|_: RpcContext| Ok::<_, Error>(ApiState::Initializing))
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand("init", init::init_api::<InitContext>())
 }
 
 pub fn setup_api() -> ParentHandler<SetupContext> {

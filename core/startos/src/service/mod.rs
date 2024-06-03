@@ -10,7 +10,8 @@ use persistent_container::PersistentContainer;
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerFor};
 use serde::{Deserialize, Serialize};
 use start_stop::StartStop;
-use tokio::{fs::File, sync::Notify};
+use tokio::fs::File;
+use tokio::sync::Notify;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
@@ -339,7 +340,10 @@ impl Service {
         Ok(())
     }
 
-    pub async fn uninstall(self, target_version: Option<models::VersionString>) -> Result<(), Error> {
+    pub async fn uninstall(
+        self,
+        target_version: Option<models::VersionString>,
+    ) -> Result<(), Error> {
         self.seed
             .persistent_container
             .execute(ProcedureName::Uninit, to_value(&target_version)?, None) // TODO timeout

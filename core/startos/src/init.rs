@@ -6,11 +6,13 @@ use std::time::{Duration, SystemTime};
 use color_eyre::eyre::eyre;
 use models::ResultExt;
 use rand::random;
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use tokio::process::Command;
 use tracing::instrument;
 
 use crate::account::AccountInfo;
 use crate::context::config::ServerConfig;
+use crate::context::{CliContext, InitContext};
 use crate::db::model::public::ServerStatus;
 use crate::db::model::Database;
 use crate::disk::mount::util::unmount;
@@ -185,9 +187,9 @@ pub struct InitResult {
 
 #[instrument(skip_all)]
 pub async fn init(cfg: &ServerConfig) -> Result<InitResult, Error> {
-    tokio::fs::create_dir_all("/run/embassy")
+    tokio::fs::create_dir_all("/run/startos")
         .await
-        .with_ctx(|_| (crate::ErrorKind::Filesystem, "mkdir -p /run/embassy"))?;
+        .with_ctx(|_| (crate::ErrorKind::Filesystem, "mkdir -p /run/startos"))?;
     if tokio::fs::metadata(LOCAL_AUTH_COOKIE_PATH).await.is_err() {
         tokio::fs::write(
             LOCAL_AUTH_COOKIE_PATH,
@@ -373,4 +375,19 @@ pub async fn init(cfg: &ServerConfig) -> Result<InitResult, Error> {
     tracing::info!("System initialized.");
 
     Ok(InitResult { db })
+}
+
+pub fn init_api<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand("logs", crate::system::logs::<InitContext>())
+        .subcommand(
+            "logs",
+            from_fn_async(crate::logs::cli_logs::<InitContext, Empty>).no_display(),
+        )
+        .subcommand("kernel-logs", crate::system::kernel_logs::<InitContext>())
+        .subcommand(
+            "kernel-logs",
+            from_fn_async(crate::logs::cli_logs::<InitContext, Empty>).no_display(),
+        )
+        .subcommand("subscribe", todo!())
 }

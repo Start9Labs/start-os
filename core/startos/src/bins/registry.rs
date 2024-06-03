@@ -14,7 +14,8 @@ use crate::util::logger::EmbassyLogger;
 async fn inner_main(config: &RegistryConfig) -> Result<(), Error> {
     let server = async {
         let ctx = RegistryContext::init(config).await?;
-        let server = WebServer::registry(ctx.listen, ctx.clone());
+        let mut server = WebServer::new(ctx.listen);
+        server.serve_registry(ctx.clone());
 
         let mut shutdown_recv = ctx.shutdown.subscribe();
 

@@ -1,8 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use rpc_toolkit::{
-    from_fn_async, CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler,
-};
+use rpc_toolkit::{from_fn_async, CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 
 use crate::context::{CliContext, RpcContext};

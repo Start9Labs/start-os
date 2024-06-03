@@ -20,7 +20,11 @@ pub fn data_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, volume_id: &Volu
         .join(volume_id)
 }
 
-pub fn asset_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, version: &VersionString) -> PathBuf {
+pub fn asset_dir<P: AsRef<Path>>(
+    datadir: P,
+    pkg_id: &PackageId,
+    version: &VersionString,
+) -> PathBuf {
     datadir
         .as_ref()
         .join(PKG_VOLUME_DIR)

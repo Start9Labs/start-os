@@ -205,7 +205,7 @@ impl VHostServer {
                                                     .into_entries()?
                                                     .into_iter()
                                                     .flat_map(|(_, ips)| [
-                                                        ips.as_ipv4().de().map(|ip| ip.map(IpAddr::V4)), 
+                                                        ips.as_ipv4().de().map(|ip| ip.map(IpAddr::V4)),
                                                         ips.as_ipv6().de().map(|ip| ip.map(IpAddr::V6))
                                                     ])
                                                     .filter_map(|a| a.transpose())

@@ -59,6 +59,7 @@ async-stream = "0.3.5"
 async-trait = "0.1.74"
 axum = { version = "0.7.3", features = ["ws"] }
 axum-server = "0.6.0"
+barrage = "0.2.3"
 base32 = "0.4.0"
 base64 = "0.21.4"
 base64ct = "1.6.0"
@@ -102,7 +103,7 @@ id-pool = { version = "0.2.2", default-features = false, features = [
 ] }
 imbl = "2.0.2"
 imbl-value = { git = "https://github.com/Start9Labs/imbl-value.git" }
-include_dir = "0.7.3"
+include_dir = { version = "0.7.3", features = ["metadata"] }
 indexmap = { version = "2.0.2", features = ["serde"] }
 indicatif = { version = "0.17.7", features = ["tokio"] }
 integer-encoding = { version = "4.0.0", features = ["tokio_async"] }
@@ -178,6 +179,7 @@ tokio-util = { version = "0.7.9", features = ["io"] }
 torut = { git = "https://github.com/Start9Labs/torut.git", branch = "update/dependencies", features = [
   "serialize",
 ] }
+tower-service = "0.3.2"
 tracing = "0.1.39"
 tracing-error = "0.2.0"
 tracing-futures = "0.2.5"

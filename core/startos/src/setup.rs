@@ -128,7 +128,7 @@ pub async fn attach(
     tokio::task::spawn(async move {
         if let Err(e) = async {
             let password: Option<String> = match password {
-                Some(a) => match a.decrypt(&*ctx) {
+                Some(a) => match a.decrypt(&ctx) {
                     a @ Some(_) => a,
                     None => {
                         return Err(Error::new(
@@ -202,7 +202,7 @@ pub async fn status(ctx: SetupContext) -> Result<Option<SetupStatus>, RpcError> 
 /// without knowing the password over clearnet. We use the public key shared across the network
 /// since it is fine to share the public, and encrypt against the public.
 pub async fn get_pubkey(ctx: SetupContext) -> Result<Jwk, RpcError> {
-    let secret = ctx.as_ref().clone();
+    let secret = AsRef::<Jwk>::as_ref(&ctx).clone();
     let pub_key = secret.to_public_key()?;
     Ok(pub_key)
 }
@@ -230,7 +230,7 @@ pub async fn verify_cifs(
         password,
     }: VerifyCifsParams,
 ) -> Result<EmbassyOsRecoveryInfo, Error> {
-    let password: Option<String> = password.map(|x| x.decrypt(&*ctx)).flatten();
+    let password: Option<String> = password.map(|x| x.decrypt(&ctx)).flatten();
     let guard = TmpMountGuard::mount(
         &Cifs {
             hostname,
@@ -273,7 +273,7 @@ pub async fn execute(
         recovery_password,
     }: ExecuteParams,
 ) -> Result<(), Error> {
-    let start_os_password = match start_os_password.decrypt(&*ctx) {
+    let start_os_password = match start_os_password.decrypt(&ctx) {
         Some(a) => a,
         None => {
             return Err(Error::new(
@@ -283,7 +283,7 @@ pub async fn execute(
         }
     };
     let recovery_password: Option<String> = match recovery_password {
-        Some(a) => match a.decrypt(&*ctx) {
+        Some(a) => match a.decrypt(&ctx) {
             Some(a) => Some(a),
             None => {
                 return Err(Error::new(

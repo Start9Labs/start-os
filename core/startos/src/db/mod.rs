@@ -172,6 +172,7 @@ pub fn db<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("dump", from_fn_async(cli_dump).with_display_serializable())
         .subcommand("dump", from_fn_async(dump).no_cli())
+        .subcommand("subscribe", todo!())
         .subcommand("put", put::<C>())
         .subcommand("apply", from_fn_async(cli_apply).no_display())
         .subcommand("apply", from_fn_async(apply).no_cli())

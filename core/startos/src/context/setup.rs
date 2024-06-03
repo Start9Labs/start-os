@@ -17,6 +17,7 @@ use crate::context::config::ServerConfig;
 use crate::disk::OsPartitionInfo;
 use crate::init::init_postgres;
 use crate::prelude::*;
+use crate::rpc_continuations::RpcContinuations;
 use crate::setup::SetupStatus;
 
 lazy_static::lazy_static! {
@@ -45,12 +46,7 @@ pub struct SetupContextSeed {
     pub cached_product_key: RwLock<Option<Arc<String>>>,
     pub setup_status: RwLock<Option<Result<SetupStatus, RpcError>>>,
     pub setup_result: RwLock<Option<(Arc<String>, SetupResult)>>,
-}
-
-impl AsRef<Jwk> for SetupContextSeed {
-    fn as_ref(&self) -> &Jwk {
-        &*CURRENT_SECRET
-    }
+    pub rpc_continuations: RpcContinuations,
 }
 
 #[derive(Clone)]
@@ -75,6 +71,7 @@ impl SetupContext {
             cached_product_key: RwLock::new(None),
             setup_status: RwLock::new(None),
             setup_result: RwLock::new(None),
+            rpc_continuations: RpcContinuations::new(),
         })))
     }
     #[instrument(skip_all)]
@@ -96,6 +93,18 @@ impl SetupContext {
             .await
             .with_kind(crate::ErrorKind::Database)?;
         Ok(secret_store)
+    }
+}
+
+impl AsRef<Jwk> for SetupContext {
+    fn as_ref(&self) -> &Jwk {
+        &*CURRENT_SECRET
+    }
+}
+
+impl AsRef<RpcContinuations> for SetupContext {
+    fn as_ref(&self) -> &RpcContinuations {
+        &self.rpc_continuations
     }
 }
 

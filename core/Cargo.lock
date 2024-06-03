@@ -187,7 +187,7 @@ version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81953c529336010edd6d8e358f886d9581267795c61b19475b71314bffa46d35"
 dependencies = [
- "concurrent-queue",
+ "concurrent-queue 2.5.0",
  "event-listener",
  "futures-core",
 ]
@@ -403,6 +403,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "barrage"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be5951c75bdabb58753d140dd5802f12ff3a483cb2e16fb5276e111b94b19e87"
+dependencies = [
+ "concurrent-queue 1.2.4",
+ "event-listener",
+ "spin 0.9.8",
+]
+
+[[package]]
 name = "base16ct"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -584,6 +595,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "514de17de45fdb8dc022b1a7975556c53c86f9f0aa5f534b98977b171857c2c9"
 
 [[package]]
+name = "cache-padded"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "981520c98f422fcc584dc1a95c334e6953900b9106bc47a9839b81790009eb21"
+
+[[package]]
 name = "cc"
 version = "1.0.96"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -737,6 +754,15 @@ name = "colorchoice"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b6a852b24ab71dffc585bcb46eaf7959d175cb865a7152e35b348d1b2960422"
+
+[[package]]
+name = "concurrent-queue"
+version = "1.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af4780a44ab5696ea9e28294517f1fffb421a83a25af521333c838635509db9c"
+dependencies = [
+ "cache-padded",
+]
 
 [[package]]
 name = "concurrent-queue"
@@ -4600,6 +4626,7 @@ dependencies = [
  "async-trait",
  "axum 0.7.5",
  "axum-server",
+ "barrage",
  "base32",
  "base64 0.21.7",
  "base64ct",
@@ -4700,6 +4727,7 @@ dependencies = [
  "tokio-util",
  "toml 0.8.12",
  "torut",
+ "tower-service",
  "tracing",
  "tracing-error",
  "tracing-futures",
