@@ -48,7 +48,8 @@
 <br />
 
 ## Running StartOS
-There are multiple ways to get started with StartOS:
+> [!WARNING]
+> StartOS is in beta. It lacks features. It doesn't always work perfectly. Start9 servers are not plug and play. Using them properly requires some effort and patience. Please do not use StartOS or purchase a server if you are unable or unwilling to follow instructions and learn new concepts.
 
 ### 💰 Buy a Start9 server
 This is the most convenient option. Simply [buy a server](https://store.start9.com) from Start9 and plug it in.
