@@ -1,6 +1,6 @@
 import { Component, ViewChild } from '@angular/core'
 import { IonContent } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/api.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService, toLocalIsoString } from '@start9labs/shared'
 
 var Convert = require('ansi-to-html')
@@ -49,7 +49,7 @@ export class LogsPage {
 
   private async getLogs() {
     try {
-      const { startCursor, entries } = await this.api.getLogs({
+      const { startCursor, entries } = await this.api.diagnosticGetLogs({
         cursor: this.startCursor,
         before: !!this.startCursor,
         limit: this.limit,

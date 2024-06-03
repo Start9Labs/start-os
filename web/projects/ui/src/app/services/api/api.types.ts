@@ -33,6 +33,14 @@ export module RR {
   } // auth.reset-password
   export type ResetPasswordRes = null
 
+  // diagnostic
+
+  export type DiagnosticErrorRes = {
+    code: number
+    message: string
+    data: { details: string }
+  }
+
   // server
 
   export type EchoReq = { message: string; timeout?: number } // server.echo
@@ -65,8 +73,8 @@ export module RR {
   export type ShutdownServerReq = {} // server.shutdown
   export type ShutdownServerRes = null
 
-  export type SystemRebuildReq = {} // server.rebuild
-  export type SystemRebuildRes = null
+  export type DiskRepairReq = {} // server.disk.repair
+  export type DiskRepairRes = null
 
   export type ResetTorReq = {
     wipeState: boolean

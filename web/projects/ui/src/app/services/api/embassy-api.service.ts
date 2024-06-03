@@ -2,7 +2,7 @@ import { Observable } from 'rxjs'
 import { Update } from 'patch-db-client'
 import { RR } from './api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { Log } from '@start9labs/shared'
+import { Log, RPCErrorDetails } from '@start9labs/shared'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
 export abstract class ApiService {
@@ -34,6 +34,16 @@ export abstract class ApiService {
   abstract resetPassword(
     params: RR.ResetPasswordReq,
   ): Promise<RR.ResetPasswordRes>
+
+  // diagnostic
+
+  abstract diagnosticGetError(): Promise<RR.DiagnosticErrorRes>
+  abstract diagnosticRestart(): Promise<void>
+  abstract diagnosticForgetDrive(): Promise<void>
+  abstract diagnosticRepairDisk(): Promise<void>
+  abstract diagnosticGetLogs(
+    params: RR.GetServerLogsReq,
+  ): Promise<RR.GetServerLogsRes>
 
   // server
 
@@ -89,11 +99,7 @@ export abstract class ApiService {
     params: RR.ShutdownServerReq,
   ): Promise<RR.ShutdownServerRes>
 
-  abstract systemRebuild(
-    params: RR.SystemRebuildReq,
-  ): Promise<RR.SystemRebuildRes>
-
-  abstract repairDisk(params: RR.SystemRebuildReq): Promise<RR.SystemRebuildRes>
+  abstract repairDisk(params: RR.DiskRepairReq): Promise<RR.DiskRepairRes>
 
   abstract resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes>
 

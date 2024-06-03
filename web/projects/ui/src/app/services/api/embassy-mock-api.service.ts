@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { Log, pauseFor } from '@start9labs/shared'
+import { Log, RPCErrorDetails, pauseFor } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import {
   Operation,
@@ -164,6 +164,44 @@ export class MockApiService extends ApiService {
   ): Promise<RR.ResetPasswordRes> {
     await pauseFor(2000)
     return null
+  }
+
+  // diagnostic
+
+  async getError(): Promise<RPCErrorDetails> {
+    await pauseFor(1000)
+    return {
+      code: 15,
+      message: 'Unknown server',
+      data: { details: 'Some details about the error here' },
+    }
+  }
+
+  async diagnosticGetError(): Promise<RR.DiagnosticErrorRes> {
+    await pauseFor(1000)
+    return {
+      code: 15,
+      message: 'Unknown server',
+      data: { details: 'Some details about the error here' },
+    }
+  }
+
+  async diagnosticRestart(): Promise<void> {
+    await pauseFor(1000)
+  }
+
+  async diagnosticForgetDrive(): Promise<void> {
+    await pauseFor(1000)
+  }
+
+  async diagnosticRepairDisk(): Promise<void> {
+    await pauseFor(1000)
+  }
+
+  async diagnosticGetLogs(
+    params: RR.GetServerLogsReq,
+  ): Promise<RR.GetServerLogsRes> {
+    return this.getServerLogs(params)
   }
 
   // server
@@ -372,12 +410,6 @@ export class MockApiService extends ApiService {
     }, 2000)
 
     return null
-  }
-
-  async systemRebuild(
-    params: RR.SystemRebuildReq,
-  ): Promise<RR.SystemRebuildRes> {
-    return this.restartServer(params)
   }
 
   async repairDisk(params: RR.RestartServerReq): Promise<RR.RestartServerRes> {

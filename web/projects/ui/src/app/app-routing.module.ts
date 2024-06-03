@@ -16,6 +16,18 @@ const routes: Routes = [
       import('./pages/login/login.module').then(m => m.LoginPageModule),
   },
   {
+    path: 'diagnostic',
+    loadChildren: () =>
+      import('./pages/diagnostic-routes/diagnostic-routing.module').then(
+        m => m.DiagnosticModule,
+      ),
+  },
+  {
+    path: 'initializing',
+    loadChildren: () =>
+      import('./pages/init/init.module').then(m => m.InitPageModule),
+  },
+  {
     path: 'home',
     canActivate: [AuthGuard],
     loadChildren: () =>

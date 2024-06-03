@@ -6,6 +6,7 @@ import {
   Log,
   Method,
   RpcError,
+  RPCErrorDetails,
   RPCOptions,
 } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
@@ -30,7 +31,7 @@ export class LiveApiService extends ApiService {
     private readonly patch: PatchDB<DataModel>,
   ) {
     super()
-    ;(window as any).rpcClient = this
+    ; (window as any).rpcClient = this
   }
 
   // for getting static files: ex icons, instructions, licenses
@@ -85,6 +86,45 @@ export class LiveApiService extends ApiService {
     params: RR.ResetPasswordReq,
   ): Promise<RR.ResetPasswordRes> {
     return this.rpcRequest({ method: 'auth.reset-password', params })
+  }
+
+  // diagnostic
+
+  async diagnosticGetError(): Promise<RR.DiagnosticErrorRes> {
+    return this.rpcRequest<RR.DiagnosticErrorRes>({
+      method: 'diagnostic.error',
+      params: {},
+    })
+  }
+
+  async diagnosticRestart(): Promise<void> {
+    return this.rpcRequest<void>({
+      method: 'diagnostic.restart',
+      params: {},
+    })
+  }
+
+  async diagnosticForgetDrive(): Promise<void> {
+    return this.rpcRequest<void>({
+      method: 'diagnostic.disk.forget',
+      params: {},
+    })
+  }
+
+  async diagnosticRepairDisk(): Promise<void> {
+    return this.rpcRequest<void>({
+      method: 'diagnostic.disk.repair',
+      params: {},
+    })
+  }
+
+  async diagnosticGetLogs(
+    params: RR.GetServerLogsReq,
+  ): Promise<RR.GetServerLogsRes> {
+    return this.rpcRequest<RR.GetServerLogsRes>({
+      method: 'diagnostic.logs',
+      params,
+    })
   }
 
   // server
@@ -173,12 +213,6 @@ export class LiveApiService extends ApiService {
     params: RR.ShutdownServerReq,
   ): Promise<RR.ShutdownServerRes> {
     return this.rpcRequest({ method: 'server.shutdown', params })
-  }
-
-  async systemRebuild(
-    params: RR.RestartServerReq,
-  ): Promise<RR.RestartServerRes> {
-    return this.rpcRequest({ method: 'server.rebuild', params })
   }
 
   async repairDisk(params: RR.RestartServerReq): Promise<RR.RestartServerRes> {

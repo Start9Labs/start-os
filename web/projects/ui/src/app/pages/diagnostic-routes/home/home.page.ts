@@ -1,9 +1,9 @@
 import { Component } from '@angular/core'
 import { AlertController, LoadingController } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/api.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
-  selector: 'app-home',
+  selector: 'diagnostic-home',
   templateUrl: 'home.page.html',
   styleUrls: ['home.page.scss'],
 })
@@ -25,7 +25,7 @@ export class HomePage {
 
   async ngOnInit() {
     try {
-      const error = await this.api.getError()
+      const error = await this.api.diagnosticGetError()
       // incorrect drive
       if (error.code === 15) {
         this.error = {
@@ -92,7 +92,7 @@ export class HomePage {
     await loader.present()
 
     try {
-      await this.api.restart()
+      await this.api.diagnosticRestart()
       this.restarted = true
     } catch (e) {
       console.error(e)
@@ -108,40 +108,14 @@ export class HomePage {
     await loader.present()
 
     try {
-      await this.api.forgetDrive()
-      await this.api.restart()
+      await this.api.diagnosticForgetDrive()
+      await this.api.diagnosticRestart()
       this.restarted = true
     } catch (e) {
       console.error(e)
     } finally {
       loader.dismiss()
     }
-  }
-
-  async presentAlertSystemRebuild() {
-    const alert = await this.alertCtrl.create({
-      header: 'Warning',
-      message:
-        '<p>This action will tear down all service containers and rebuild them from scratch. No data will be deleted.</p><p>A system rebuild can be useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues.</p><p>It may take up to an hour to complete. During this time, you will lose all connectivity to your Start9 server.</p>',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Rebuild',
-          handler: () => {
-            try {
-              this.systemRebuild()
-            } catch (e) {
-              console.error(e)
-            }
-          },
-        },
-      ],
-      cssClass: 'alert-warning-message',
-    })
-    await alert.present()
   }
 
   async presentAlertRepairDisk() {
@@ -174,23 +148,6 @@ export class HomePage {
     window.location.reload()
   }
 
-  private async systemRebuild(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      cssClass: 'loader',
-    })
-    await loader.present()
-
-    try {
-      await this.api.systemRebuild()
-      await this.api.restart()
-      this.restarted = true
-    } catch (e) {
-      console.error(e)
-    } finally {
-      loader.dismiss()
-    }
-  }
-
   private async repairDisk(): Promise<void> {
     const loader = await this.loadingCtrl.create({
       cssClass: 'loader',
@@ -198,8 +155,8 @@ export class HomePage {
     await loader.present()
 
     try {
-      await this.api.repairDisk()
-      await this.api.restart()
+      await this.api.diagnosticRepairDisk()
+      await this.api.diagnosticRestart()
       this.restarted = true
     } catch (e) {
       console.error(e)
