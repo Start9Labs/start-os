@@ -6,11 +6,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use imbl_value::InternedString;
 use josekit::jwk::Jwk;
 use reqwest::{Client, Proxy};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty};
-use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
+use tokio::sync::{broadcast, Mutex, RwLock};
 use tokio::time::Instant;
 use tracing::instrument;
 
@@ -22,12 +23,11 @@ use crate::dependencies::compute_dependency_config_errs;
 use crate::disk::OsPartitionInfo;
 use crate::init::check_time_is_synchronized;
 use crate::lxc::{ContainerId, LxcContainer, LxcManager};
-use crate::middleware::auth::HashSessionToken;
 use crate::net::net_controller::NetController;
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
 use crate::net::wifi::WpaCli;
 use crate::prelude::*;
-use crate::rpc_continuations::RpcContinuations;
+use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
 use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
 use crate::system::get_mem_info;
@@ -48,7 +48,7 @@ pub struct RpcContextSeed {
     pub shutdown: broadcast::Sender<Option<Shutdown>>,
     pub tor_socks: SocketAddr,
     pub lxc_manager: Arc<LxcManager>,
-    pub open_authed_websockets: Mutex<BTreeMap<HashSessionToken, Vec<oneshot::Sender<()>>>>,
+    pub open_authed_continuations: OpenAuthedContinuations<InternedString>,
     pub rpc_continuations: RpcContinuations,
     pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
     pub current_secret: Arc<Jwk>,
@@ -157,7 +157,7 @@ impl RpcContext {
             shutdown,
             tor_socks: tor_proxy,
             lxc_manager: Arc::new(LxcManager::new()),
-            open_authed_websockets: Mutex::new(BTreeMap::new()),
+            open_authed_continuations: OpenAuthedContinuations::new(),
             rpc_continuations: RpcContinuations::new(),
             wifi_manager: wifi_interface
                 .clone()
@@ -266,6 +266,11 @@ impl AsRef<Jwk> for RpcContext {
 impl AsRef<RpcContinuations> for RpcContext {
     fn as_ref(&self) -> &RpcContinuations {
         &self.rpc_continuations
+    }
+}
+impl AsRef<OpenAuthedContinuations<InternedString>> for RpcContext {
+    fn as_ref(&self) -> &OpenAuthedContinuations<InternedString> {
+        &self.open_authed_continuations
     }
 }
 impl Context for RpcContext {}

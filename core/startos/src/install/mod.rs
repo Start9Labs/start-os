@@ -6,7 +6,8 @@ use clap::builder::ValueParserFactory;
 use clap::{value_parser, CommandFactory, FromArgMatches, Parser};
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
-use futures::{FutureExt, StreamExt};
+use futures::StreamExt;
+use imbl_value::InternedString;
 use itertools::Itertools;
 use patch_db::json_ptr::JsonPointer;
 use reqwest::header::{HeaderMap, CONTENT_LENGTH};
@@ -171,7 +172,15 @@ pub async fn install(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SideloadParams {
+    #[ts(skip)]
+    #[serde(rename = "__auth_session")]
+    session: InternedString,
+}
+
+#[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SideloadResponse {
     pub upload: Guid,
@@ -179,8 +188,11 @@ pub struct SideloadResponse {
 }
 
 #[instrument(skip_all)]
-pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
-    let (upload, file) = upload(&ctx).await?;
+pub async fn sideload(
+    ctx: RpcContext,
+    SideloadParams { session }: SideloadParams,
+) -> Result<SideloadResponse, Error> {
+    let (upload, file) = upload(&ctx, session.clone()).await?;
     let (id_send, id_recv) = oneshot::channel();
     let (err_send, err_recv) = oneshot::channel();
     let progress = Guid::new();
@@ -194,8 +206,8 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
         .await;
     ctx.rpc_continuations.add(
         progress.clone(),
-        RpcContinuation::ws(
-            Box::new(|mut ws| {
+        RpcContinuation::ws_authed(&ctx, session,
+            |mut ws| {
                 use axum::extract::ws::Message;
                 async move {
                     if let Err(e) = async {
@@ -252,8 +264,7 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
                         tracing::debug!("{e:?}");
                     }
                 }
-                .boxed()
-            }),
+            },
             Duration::from_secs(600),
         ),
     )

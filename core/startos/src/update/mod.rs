@@ -91,50 +91,47 @@ pub async fn update_system(
             .add(
                 guid.clone(),
                 RpcContinuation::ws(
-                    Box::new(|mut ws| {
-                        async move {
-                            if let Err(e) = async {
-                                let mut sub = ctx
+                    |mut ws| async move {
+                        if let Err(e) = async {
+                            let mut sub = ctx
+                                .db
+                                .subscribe(
+                                    "/public/serverInfo/statusInfo/updateProgress"
+                                        .parse::<JsonPointer>()
+                                        .with_kind(ErrorKind::Database)?,
+                                )
+                                .await;
+                            while {
+                                let progress = ctx
                                     .db
-                                    .subscribe(
-                                        "/public/serverInfo/statusInfo/updateProgress"
-                                            .parse::<JsonPointer>()
-                                            .with_kind(ErrorKind::Database)?,
-                                    )
-                                    .await;
-                                while {
-                                    let progress = ctx
-                                        .db
-                                        .peek()
-                                        .await
-                                        .into_public()
-                                        .into_server_info()
-                                        .into_status_info()
-                                        .into_update_progress()
-                                        .de()?;
-                                    ws.send(axum::extract::ws::Message::Text(
-                                        serde_json::to_string(&progress)
-                                            .with_kind(ErrorKind::Serialization)?,
-                                    ))
+                                    .peek()
                                     .await
-                                    .with_kind(ErrorKind::Network)?;
-                                    progress.is_some()
-                                } {
-                                    sub.recv().await;
-                                }
-
-                                ws.close().await.with_kind(ErrorKind::Network)?;
-
-                                Ok::<_, Error>(())
+                                    .into_public()
+                                    .into_server_info()
+                                    .into_status_info()
+                                    .into_update_progress()
+                                    .de()?;
+                                ws.send(axum::extract::ws::Message::Text(
+                                    serde_json::to_string(&progress)
+                                        .with_kind(ErrorKind::Serialization)?,
+                                ))
+                                .await
+                                .with_kind(ErrorKind::Network)?;
+                                progress.is_some()
+                            } {
+                                sub.recv().await;
                             }
-                            .await
-                            {
-                                tracing::error!("Error returning progress of update: {e}");
-                                tracing::debug!("{e:?}")
-                            }
+
+                            ws.close().await.with_kind(ErrorKind::Network)?;
+
+                            Ok::<_, Error>(())
                         }
-                        .boxed()
-                    }),
+                        .await
+                        {
+                            tracing::error!("Error returning progress of update: {e}");
+                            tracing::debug!("{e:?}")
+                        }
+                    },
                     Duration::from_secs(30),
                 ),
             )

@@ -5,9 +5,10 @@ use std::time::Duration;
 
 use axum::body::Body;
 use axum::response::Response;
-use futures::{FutureExt, StreamExt};
+use futures::StreamExt;
 use http::header::CONTENT_LENGTH;
 use http::StatusCode;
+use imbl_value::InternedString;
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use tokio::sync::watch;
@@ -19,68 +20,70 @@ use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::ArchiveSource;
 use crate::util::io::TmpDir;
 
-pub async fn upload(ctx: &RpcContext) -> Result<(Guid, UploadingFile), Error> {
+pub async fn upload(
+    ctx: &RpcContext,
+    session: InternedString,
+) -> Result<(Guid, UploadingFile), Error> {
     let guid = Guid::new();
     let (mut handle, file) = UploadingFile::new().await?;
     ctx.rpc_continuations
         .add(
             guid.clone(),
-            RpcContinuation::rest(
-                Box::new(|request| {
-                    async move {
-                        let headers = request.headers();
-                        let content_length = match headers.get(CONTENT_LENGTH).map(|a| a.to_str()) {
-                            None => {
-                                return Response::builder()
-                                    .status(StatusCode::BAD_REQUEST)
-                                    .body(Body::from("Content-Length is required"))
-                                    .with_kind(ErrorKind::Network)
-                            }
-                            Some(Err(_)) => {
+            RpcContinuation::rest_authed(
+                ctx,
+                session,
+                |request| async move {
+                    let headers = request.headers();
+                    let content_length = match headers.get(CONTENT_LENGTH).map(|a| a.to_str()) {
+                        None => {
+                            return Response::builder()
+                                .status(StatusCode::BAD_REQUEST)
+                                .body(Body::from("Content-Length is required"))
+                                .with_kind(ErrorKind::Network)
+                        }
+                        Some(Err(_)) => {
+                            return Response::builder()
+                                .status(StatusCode::BAD_REQUEST)
+                                .body(Body::from("Invalid Content-Length"))
+                                .with_kind(ErrorKind::Network)
+                        }
+                        Some(Ok(a)) => match a.parse::<u64>() {
+                            Err(_) => {
                                 return Response::builder()
                                     .status(StatusCode::BAD_REQUEST)
                                     .body(Body::from("Invalid Content-Length"))
                                     .with_kind(ErrorKind::Network)
                             }
-                            Some(Ok(a)) => match a.parse::<u64>() {
-                                Err(_) => {
-                                    return Response::builder()
-                                        .status(StatusCode::BAD_REQUEST)
-                                        .body(Body::from("Invalid Content-Length"))
-                                        .with_kind(ErrorKind::Network)
-                                }
-                                Ok(a) => a,
-                            },
-                        };
+                            Ok(a) => a,
+                        },
+                    };
 
-                        handle
-                            .progress
-                            .send_modify(|p| p.expected_size = Some(content_length));
+                    handle
+                        .progress
+                        .send_modify(|p| p.expected_size = Some(content_length));
 
-                        let mut body = request.into_body().into_data_stream();
-                        while let Some(next) = body.next().await {
-                            if let Err(e) = async {
-                                handle
-                                    .write_all(&next.map_err(|e| {
-                                        std::io::Error::new(std::io::ErrorKind::Other, e)
-                                    })?)
-                                    .await?;
-                                Ok(())
-                            }
-                            .await
-                            {
-                                handle.progress.send_if_modified(|p| p.handle_error(&e));
-                                break;
-                            }
+                    let mut body = request.into_body().into_data_stream();
+                    while let Some(next) = body.next().await {
+                        if let Err(e) = async {
+                            handle
+                                .write_all(&next.map_err(|e| {
+                                    std::io::Error::new(std::io::ErrorKind::Other, e)
+                                })?)
+                                .await?;
+                            Ok(())
                         }
-
-                        Response::builder()
-                            .status(StatusCode::NO_CONTENT)
-                            .body(Body::empty())
-                            .with_kind(ErrorKind::Network)
+                        .await
+                        {
+                            handle.progress.send_if_modified(|p| p.handle_error(&e));
+                            break;
+                        }
                     }
-                    .boxed()
-                }),
+
+                    Response::builder()
+                        .status(StatusCode::NO_CONTENT)
+                        .body(Body::empty())
+                        .with_kind(ErrorKind::Network)
+                },
                 Duration::from_secs(30),
             ),
         )

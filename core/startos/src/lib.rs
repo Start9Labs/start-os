@@ -239,7 +239,12 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_cli(),
         )
-        .subcommand("sideload", from_fn_async(install::sideload).no_cli())
+        .subcommand(
+            "sideload",
+            from_fn_async(install::sideload)
+                .with_metadata("get_session", Value::Bool(true))
+                .no_cli(),
+        )
         .subcommand("install", from_fn_async(install::cli_install).no_display())
         .subcommand(
             "uninstall",
