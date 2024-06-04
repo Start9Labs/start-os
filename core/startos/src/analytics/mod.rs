@@ -18,7 +18,6 @@ pub mod context;
 
 pub fn analytics_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("recordMetrics", from_fn_async(record_metrics).no_cli())
         .subcommand(
             "recordUserActivity",
             from_fn_async(record_user_activity).no_cli(),
@@ -89,38 +88,10 @@ impl WebServer {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
-struct MetricsParams {
-    version: char,
-    pkg_id: char,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
 struct ActivityParams {
     server_id: String,
     os_version: String,
     arch: String,
-}
-
-async fn record_metrics(
-    ctx: AnalyticsContext,
-    MetricsParams {
-        version,
-        pkg_id,
-    }: MetricsParams,
-) -> Result<(), Error> {
-    let pool = ctx.db;
-    let created_at = Utc::now().to_rfc3339();
-    query!(
-        "INSERT INTO metric (created_at, version, pkg_id) VALUES ($1, $2, $3)",
-        created_at,
-        version,
-        pkg_id
-    )
-    .execute(pool)
-    .await?;
-    Ok(())
 }
 
 async fn record_user_activity(
