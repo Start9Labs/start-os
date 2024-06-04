@@ -1021,16 +1021,14 @@ async function updateConfig(
       const url: string =
         filled === null
           ? ""
-          : catchFn(
-              () =>
-                utils.addressHostToUrl(
-                  filled.addressInfo,
-                  specValue.target === "lan-address"
-                    ? filled.addressInfo.localHostnames[0] ||
-                        filled.addressInfo.onionHostnames[0]
-                    : filled.addressInfo.onionHostnames[0] ||
-                        filled.addressInfo.localHostnames[0],
-                )[0],
+          : catchFn(() =>
+              utils.hostnameInfoToAddress(
+                specValue.target === "lan-address"
+                  ? filled.addressInfo.localHostnames[0] ||
+                      filled.addressInfo.onionHostnames[0]
+                  : filled.addressInfo.onionHostnames[0] ||
+                      filled.addressInfo.localHostnames[0],
+              ),
             ) || ""
       mutConfigValue[key] = url
     }

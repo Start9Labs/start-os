@@ -94,7 +94,7 @@ export const addressHostToUrl = (
         hostname = host.hostname.value
       }
     }
-    return `${scheme ? `${scheme}//` : ""}${
+    return `${scheme ? `${scheme}://` : ""}${
       username ? `${username}@` : ""
     }${hostname}${includePort ? `:${port}` : ""}${suffix}`
   }
