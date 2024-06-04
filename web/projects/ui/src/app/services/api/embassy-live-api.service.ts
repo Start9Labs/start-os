@@ -3,22 +3,20 @@ import {
   HttpOptions,
   HttpService,
   isRpcError,
-  Log,
   Method,
   RpcError,
-  RPCErrorDetails,
   RPCOptions,
 } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import { RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { ConfigService } from '../config.service'
-import { webSocket, WebSocketSubjectConfig } from 'rxjs/webSocket'
+import { webSocket } from 'rxjs/webSocket'
 import { Observable, filter, firstValueFrom } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
-import { PatchDB, pathFromArray, Update } from 'patch-db-client'
+import { PatchDB, pathFromArray } from 'patch-db-client'
 import { getServerInfo } from 'src/app/util/get-server-info'
 
 @Injectable()
@@ -35,6 +33,7 @@ export class LiveApiService extends ApiService {
   }
 
   // for getting static files: ex icons, instructions, licenses
+
   async getStatic(url: string): Promise<string> {
     return this.httpRequest({
       method: Method.GET,
@@ -44,6 +43,7 @@ export class LiveApiService extends ApiService {
   }
 
   // for sideloading packages
+
   async uploadPackage(guid: string, body: Blob): Promise<string> {
     return this.httpRequest({
       method: Method.POST,
@@ -53,7 +53,35 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  // websocket
+
+  openWebsocket$<T>(
+    guid: string,
+    config: RR.WebsocketConfig<T>,
+  ): Observable<T> {
+    const { location } = this.document.defaultView!
+    const protocol = location.protocol === 'http:' ? 'ws' : 'wss'
+    const host = location.host
+
+    return webSocket({
+      url: `${protocol}://${host}/ws/rpc/${guid}`,
+      ...config,
+    })
+  }
+
+  // state
+
+  async getState(): Promise<RR.ServerState> {
+    return this.rpcRequest({ method: 'state', params: {} })
+  }
+
   // db
+
+  async subscribeToPatchDB(
+    params: RR.SubscribePatchReq,
+  ): Promise<RR.SubscribePatchRes> {
+    return this.rpcRequest({ method: 'db.subscribe', params })
+  }
 
   async setDbValue<T>(
     pathArr: Array<string | number>,
@@ -128,27 +156,6 @@ export class LiveApiService extends ApiService {
   }
 
   // server
-
-  async echo(params: RR.EchoReq, urlOverride?: string): Promise<RR.EchoRes> {
-    return this.rpcRequest({ method: 'echo', params }, urlOverride)
-  }
-
-  openPatchWebsocket$(): Observable<Update<DataModel>> {
-    const config: WebSocketSubjectConfig<Update<DataModel>> = {
-      url: `/db`,
-      closeObserver: {
-        next: val => {
-          if (val.reason === 'UNAUTHORIZED') this.auth.setUnverified()
-        },
-      },
-    }
-
-    return this.openWebsocket(config)
-  }
-
-  openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
-    return this.openWebsocket(config)
-  }
 
   async getSystemTime(
     params: RR.GetSystemTimeReq,
@@ -451,16 +458,6 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  private openWebsocket<T>(config: WebSocketSubjectConfig<T>): Observable<T> {
-    const { location } = this.document.defaultView!
-    const protocol = location.protocol === 'http:' ? 'ws' : 'wss'
-    const host = location.host
-
-    config.url = `${protocol}://${host}/ws${config.url}`
-
-    return webSocket(config)
-  }
-
   private async rpcRequest<T>(
     options: RPCOptions,
     urlOverride?: string,
@@ -479,9 +476,7 @@ export class LiveApiService extends ApiService {
     const patchSequence = res.headers.get('x-patch-sequence')
     if (patchSequence)
       await firstValueFrom(
-        this.patch.cache$.pipe(
-          filter(({ sequence }) => sequence >= Number(patchSequence)),
-        ),
+        this.patch.cache$.pipe(filter(({ id }) => id >= Number(patchSequence))),
       )
 
     return body.result

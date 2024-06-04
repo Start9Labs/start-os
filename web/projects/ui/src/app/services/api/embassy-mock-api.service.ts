@@ -6,10 +6,9 @@ import {
   PatchOp,
   pathFromArray,
   RemoveOperation,
-  Update,
+  Revision,
 } from 'patch-db-client'
 import {
-  DataModel,
   InstallingState,
   PackageDataEntry,
   StateInfo,
@@ -21,19 +20,19 @@ import { Mock } from './api.fixures'
 import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
 import {
   EMPTY,
+  from,
   iif,
   interval,
   map,
   Observable,
   shareReplay,
+  startWith,
   Subject,
   switchMap,
   tap,
   timer,
 } from 'rxjs'
-import { LocalStorageBootstrap } from '../patch-db/local-storage-bootstrap'
 import { mockPatchData } from './mock-patch'
-import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import { AuthService } from '../auth.service'
 import { ConnectionService } from '../connection.service'
 import { StoreInfo } from '@start9labs/marketplace'
@@ -71,12 +70,11 @@ const PROGRESS: T.FullProgress = {
 
 @Injectable()
 export class MockApiService extends ApiService {
-  readonly mockWsSource$ = new Subject<Update<DataModel>>()
+  readonly mockWsSource$ = new Subject<Revision>()
   private readonly revertTime = 1800
   sequence = 0
 
   constructor(
-    private readonly bootstrapper: LocalStorageBootstrap,
     private readonly connectionService: ConnectionService,
     private readonly auth: AuthService,
   ) {
@@ -111,7 +109,52 @@ export class MockApiService extends ApiService {
     return 'success'
   }
 
+  // websocket
+
+  openWebsocket$<T>(
+    guid: string,
+    config: RR.WebsocketConfig<T>,
+  ): Observable<T> {
+    if (guid === 'db-guid') {
+      return this.mockWsSource$.pipe<any>(
+        shareReplay({ bufferSize: 1, refCount: true }),
+      )
+    } else if (guid === 'logs-guid') {
+      return interval(50).pipe<any>(
+        map((_, index) => {
+          // mock fire open observer
+          if (index === 0) config.openObserver?.next(new Event(''))
+          if (index === 100) throw new Error('HAAHHA')
+          return Mock.ServerLogs[0]
+        }),
+      )
+    } else if (guid === 'init-progress-guid') {
+      return from(this.initProgress()).pipe(
+        startWith(PROGRESS),
+      ) as Observable<T>
+    } else {
+      throw new Error('invalid guid type')
+    }
+  }
+
+  // server state
+
+  async getState(): Promise<RR.ServerState> {
+    await pauseFor(1000)
+    return 'running'
+  }
+
   // db
+
+  async subscribeToPatchDB(
+    params: RR.SubscribePatchReq,
+  ): Promise<RR.SubscribePatchRes> {
+    await pauseFor(2000)
+    return {
+      dump: { id: 1, value: mockPatchData },
+      guid: 'db-guid',
+    }
+  }
 
   async setDbValue<T>(
     pathArr: Array<string | number>,
@@ -136,11 +179,6 @@ export class MockApiService extends ApiService {
 
   async login(params: RR.LoginReq): Promise<RR.loginRes> {
     await pauseFor(2000)
-
-    setTimeout(() => {
-      this.mockWsSource$.next({ id: 1, value: mockPatchData })
-    }, 2000)
-
     return null
   }
 
@@ -206,33 +244,6 @@ export class MockApiService extends ApiService {
 
   // server
 
-  async echo(params: RR.EchoReq, url?: string): Promise<RR.EchoRes> {
-    if (url) {
-      const num = Math.floor(Math.random() * 10) + 1
-      if (num > 8) return params.message
-      throw new Error()
-    }
-    await pauseFor(2000)
-    return params.message
-  }
-
-  openPatchWebsocket$(): Observable<Update<DataModel>> {
-    return this.mockWsSource$.pipe(
-      shareReplay({ bufferSize: 1, refCount: true }),
-    )
-  }
-
-  openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
-    return interval(50).pipe(
-      map((_, index) => {
-        // mock fire open observer
-        if (index === 0) config.openObserver?.next(new Event(''))
-        if (index === 100) throw new Error('HAAHHA')
-        return Mock.ServerLogs[0]
-      }),
-    )
-  }
-
   async getSystemTime(
     params: RR.GetSystemTimeReq,
   ): Promise<RR.GetSystemTimeRes> {
@@ -286,7 +297,7 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     return {
       startCursor: 'start-cursor',
-      guid: '7251d5be-645f-4362-a51b-3a85be92b31e',
+      guid: 'logs-guid',
     }
   }
 
@@ -296,7 +307,7 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     return {
       startCursor: 'start-cursor',
-      guid: '7251d5be-645f-4362-a51b-3a85be92b31e',
+      guid: 'logs-guid',
     }
   }
 
@@ -306,11 +317,11 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     return {
       startCursor: 'start-cursor',
-      guid: '7251d5be-645f-4362-a51b-3a85be92b31e',
+      guid: 'logs-guid',
     }
   }
 
-  randomLogs(limit = 1): Log[] {
+  private randomLogs(limit = 1): Log[] {
     const arrLength = Math.ceil(limit / Mock.ServerLogs.length)
     const logs = new Array(arrLength)
       .fill(Mock.ServerLogs)
@@ -695,7 +706,7 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     return {
       startCursor: 'start-cursor',
-      guid: '7251d5be-645f-4362-a51b-3a85be92b31e',
+      guid: 'logs-guid',
     }
   }
 
@@ -705,7 +716,7 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
 
     setTimeout(async () => {
-      this.updateProgress(params.id)
+      this.installProgress(params.id)
     }, 1000)
 
     const patch: Operation<
@@ -777,7 +788,7 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     const patch: Operation<PackageDataEntry>[] = params.ids.map(id => {
       setTimeout(async () => {
-        this.updateProgress(id)
+        this.installProgress(id)
       }, 2000)
 
       return {
@@ -1045,7 +1056,57 @@ export class MockApiService extends ApiService {
     return '4120e092-05ab-4de2-9fbd-c3f1f4b1df9e' // no significance, randomly generated
   }
 
-  private async updateProgress(id: string): Promise<void> {
+  private async initProgress(): Promise<T.FullProgress> {
+    const progress = JSON.parse(JSON.stringify(PROGRESS))
+
+    for (let [i, phase] of progress.phases.entries()) {
+      if (
+        !phase.progress ||
+        typeof phase.progress !== 'object' ||
+        !phase.progress.total
+      ) {
+        await pauseFor(2000)
+
+        progress.phases[i].progress = true
+
+        if (
+          progress.overall &&
+          typeof progress.overall === 'object' &&
+          progress.overall.total
+        ) {
+          const step = progress.overall.total / progress.phases.length
+          progress.overall.done += step
+        }
+      } else {
+        const step = phase.progress.total / 4
+
+        while (phase.progress.done < phase.progress.total) {
+          await pauseFor(200)
+
+          phase.progress.done += step
+
+          if (
+            progress.overall &&
+            typeof progress.overall === 'object' &&
+            progress.overall.total
+          ) {
+            const step = progress.overall.total / progress.phases.length / 4
+
+            progress.overall.done += step
+          }
+
+          if (phase.progress.done === phase.progress.total) {
+            await pauseFor(250)
+
+            progress.phases[i].progress = true
+          }
+        }
+      }
+    }
+    return progress
+  }
+
+  private async installProgress(id: string): Promise<void> {
     const progress = JSON.parse(JSON.stringify(PROGRESS))
 
     for (let [i, phase] of progress.phases.entries()) {
@@ -1226,10 +1287,6 @@ export class MockApiService extends ApiService {
   }
 
   private async mockRevision<T>(patch: Operation<T>[]): Promise<void> {
-    if (!this.sequence) {
-      const { sequence } = this.bootstrapper.init()
-      this.sequence = sequence
-    }
     const revision = {
       id: ++this.sequence,
       patch,

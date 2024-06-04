@@ -14,6 +14,7 @@ import { ThemeSwitcherService } from './services/theme-switcher.service'
 import { THEME } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from './services/patch-db/data-model'
+import { StorageService } from './services/storage.service'
 
 @Component({
   selector: 'app-root',
@@ -44,6 +45,7 @@ export class AppComponent implements OnDestroy {
     private readonly patchMonitor: PatchMonitorService,
     private readonly splitPane: SplitPaneTracker,
     private readonly patch: PatchDB<DataModel>,
+    private readonly storage: StorageService,
     readonly authService: AuthService,
     readonly connection: ConnectionService,
     readonly clientStorageService: ClientStorageService,
@@ -51,6 +53,8 @@ export class AppComponent implements OnDestroy {
   ) {}
 
   async ngOnInit() {
+    this.storage.migrate036()
+
     this.patch
       .watch$('ui', 'name')
       .subscribe(name => this.titleService.setTitle(name || 'StartOS'))

@@ -1,9 +1,5 @@
 import { Observable } from 'rxjs'
-import { Update } from 'patch-db-client'
 import { RR } from './api.types'
-import { DataModel } from 'src/app/services/patch-db/data-model'
-import { Log, RPCErrorDetails } from '@start9labs/shared'
-import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
 export abstract class ApiService {
   // http
@@ -14,7 +10,22 @@ export abstract class ApiService {
   // for sideloading packages
   abstract uploadPackage(guid: string, body: Blob): Promise<string>
 
+  // websocket
+
+  abstract openWebsocket$<T>(
+    guid: string,
+    config: RR.WebsocketConfig<T>,
+  ): Observable<T>
+
+  // server state
+
+  abstract getState(): Promise<RR.ServerState>
+
   // db
+
+  abstract subscribeToPatchDB(
+    params: RR.SubscribePatchReq,
+  ): Promise<RR.SubscribePatchRes>
 
   abstract setDbValue<T>(
     pathArr: Array<string | number>,
@@ -46,14 +57,6 @@ export abstract class ApiService {
   ): Promise<RR.GetServerLogsRes>
 
   // server
-
-  abstract echo(params: RR.EchoReq, urlOverride?: string): Promise<RR.EchoRes>
-
-  abstract openPatchWebsocket$(): Observable<Update<DataModel>>
-
-  abstract openLogsWebsocket$(
-    config: WebSocketSubjectConfig<Log>,
-  ): Observable<Log>
 
   abstract getSystemTime(
     params: RR.GetSystemTimeReq,

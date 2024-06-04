@@ -42,7 +42,7 @@ export class CAWizardComponent {
 
   private async testHttps() {
     const url = `https://${this.document.location.host}${this.relativeUrl}`
-    await this.api.echo({ message: 'ping' }, url).then(() => {
+    await this.api.getState().then(() => {
       this.caTrusted = true
     })
   }

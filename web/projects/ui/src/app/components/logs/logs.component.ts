@@ -11,7 +11,6 @@ import {
   takeUntil,
   tap,
 } from 'rxjs'
-import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import {
   LogsRes,
   ServerLogsReq,
@@ -149,43 +148,42 @@ export class LogsComponent {
   private reconnect$(): Observable<Log[]> {
     return from(this.followLogs({})).pipe(
       tap(_ => this.recordConnectionChange()),
-      switchMap(({ guid }) => this.connect$(guid, true)),
+      switchMap(({ guid }) => this.connect$(guid)),
     )
   }
 
-  private connect$(guid: string, reconnect = false) {
-    const config: WebSocketSubjectConfig<Log> = {
-      url: `/rpc/${guid}`,
-      openObserver: {
-        next: () => {
-          this.websocketStatus = 'connected'
+  private connect$(guid: string) {
+    return this.api
+      .openWebsocket$<Log>(guid, {
+        openObserver: {
+          next: () => {
+            this.websocketStatus = 'connected'
+          },
         },
-      },
-    }
-
-    return this.api.openLogsWebsocket$(config).pipe(
-      tap(_ => this.count++),
-      bufferTime(1000),
-      tap(msgs => {
-        this.loading = false
-        this.processRes({ entries: msgs })
-        if (this.infiniteStatus === 0 && this.count >= this.limit)
-          this.infiniteStatus = 1
-      }),
-      catchError(() => {
-        this.recordConnectionChange(false)
-        return this.connectionService.connected$.pipe(
-          tap(
-            connected =>
-              (this.websocketStatus = connected
-                ? 'reconnecting'
-                : 'disconnected'),
-          ),
-          filter(Boolean),
-          switchMap(() => this.reconnect$()),
-        )
-      }),
-    )
+      })
+      .pipe(
+        tap(_ => this.count++),
+        bufferTime(1000),
+        tap(msgs => {
+          this.loading = false
+          this.processRes({ entries: msgs })
+          if (this.infiniteStatus === 0 && this.count >= this.limit)
+            this.infiniteStatus = 1
+        }),
+        catchError(() => {
+          this.recordConnectionChange(false)
+          return this.connectionService.connected$.pipe(
+            tap(
+              connected =>
+                (this.websocketStatus = connected
+                  ? 'reconnecting'
+                  : 'disconnected'),
+            ),
+            filter(Boolean),
+            switchMap(() => this.reconnect$()),
+          )
+        }),
+      )
   }
 
   private recordConnectionChange(success = true) {
