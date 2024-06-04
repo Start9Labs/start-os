@@ -1,9 +1,10 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use itertools::Itertools;
+use models::ImageId;
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWriteExt};
 use tokio::process::Command;
@@ -16,7 +17,7 @@ use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::{FileSource, Section};
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
 use crate::s9pk::rpc::SKIP_ENV;
-use crate::s9pk::v1::manifest::Manifest as ManifestV1;
+use crate::s9pk::v1::manifest::{Manifest as ManifestV1, PackageProcedure};
 use crate::s9pk::v1::reader::S9pkReader;
 use crate::s9pk::v2::{S9pk, SIG_CONTEXT};
 use crate::util::io::TmpDir;
@@ -72,6 +73,17 @@ impl S9pk<Section<MultiCursorFile>> {
         let manifest = from_value::<ManifestV1>(manifest_raw.clone())?;
         let mut new_manifest = Manifest::from(manifest.clone());
 
+        let images: BTreeMap<ImageId, bool> = manifest
+            .package_procedures()
+            .filter_map(|p| {
+                if let PackageProcedure::Docker(p) = p {
+                    Some((p.image.clone(), p.system))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
         // LICENSE.md
         let license: Arc<[u8]> = reader.license().await?.to_vec().await?.into();
         archive.insert_path(
@@ -109,61 +121,14 @@ impl S9pk<Section<MultiCursorFile>> {
                 .input(Some(&mut reader.docker_images(&arch).await?))
                 .invoke(ErrorKind::Docker)
                 .await?;
-            #[derive(serde::Deserialize)]
-            #[serde(rename_all = "PascalCase")]
-            struct DockerImagesOut {
-                repository: Option<String>,
-                tag: Option<String>,
-                #[serde(default)]
-                names: Vec<String>,
-            }
-            for image in {
-                #[cfg(feature = "docker")]
-                let images = std::str::from_utf8(
-                    &Command::new(CONTAINER_TOOL)
-                        .arg("images")
-                        .arg("--format=json")
-                        .invoke(ErrorKind::Docker)
-                        .await?,
-                )?
-                .lines()
-                .map(|l| serde_json::from_str::<DockerImagesOut>(l))
-                .collect::<Result<Vec<_>, _>>()
-                .with_kind(ErrorKind::Deserialization)?
-                .into_iter();
-                #[cfg(not(feature = "docker"))]
-                let images = serde_json::from_slice::<Vec<DockerImagesOut>>(
-                    &Command::new(CONTAINER_TOOL)
-                        .arg("images")
-                        .arg("--format=json")
-                        .invoke(ErrorKind::Docker)
-                        .await?,
-                )
-                .with_kind(ErrorKind::Deserialization)?
-                .into_iter();
-                images
-            }
-            .flat_map(|i| {
-                if let (Some(repository), Some(tag)) = (i.repository, i.tag) {
-                    vec![format!("{repository}:{tag}")]
+            for (image, system) in &images {
+                new_manifest.images.insert(image.clone());
+                let sqfs_path = images_dir.join(image).with_extension("squashfs");
+                let image_name = if *system {
+                    format!("start9/{}:latest", image)
                 } else {
-                    i.names
-                        .into_iter()
-                        .filter_map(|i| i.strip_prefix("docker.io/").map(|s| s.to_owned()))
-                        .collect()
-                }
-            })
-            .filter_map(|i| {
-                i.strip_suffix(&format!(":{}", manifest.version))
-                    .map(|s| s.to_owned())
-            })
-            .filter_map(|i| {
-                i.strip_prefix(&format!("start9/{}/", manifest.id))
-                    .map(|s| s.to_owned())
-            }) {
-                new_manifest.images.insert(image.parse()?);
-                let sqfs_path = images_dir.join(&image).with_extension("squashfs");
-                let image_name = format!("start9/{}/{}:{}", manifest.id, image, manifest.version);
+                    format!("start9/{}/{}:{}", manifest.id, image, manifest.version)
+                };
                 let id = String::from_utf8(
                     Command::new(CONTAINER_TOOL)
                         .arg("create")
@@ -323,6 +288,7 @@ impl S9pk<Section<MultiCursorFile>> {
 
         Ok(S9pk::deserialize(
             &MultiCursorFile::from(File::open(destination.as_ref()).await?),
+            None,
             false,
         )
         .await?)
@@ -337,8 +303,7 @@ impl From<ManifestV1> for Manifest {
             title: value.title,
             version: value.version,
             release_notes: value.release_notes,
-            license: value.license,
-            replaces: value.replaces,
+            license: value.license.into(),
             wrapper_repo: value.wrapper_repo,
             upstream_repo: value.upstream_repo,
             support_site: value.support_site.unwrap_or_else(|| default_url.clone()),

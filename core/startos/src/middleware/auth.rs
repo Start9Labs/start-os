@@ -23,7 +23,7 @@ use tokio::sync::Mutex;
 use crate::context::RpcContext;
 use crate::prelude::*;
 
-pub const LOCAL_AUTH_COOKIE_PATH: &str = "/run/embassy/rpc.authcookie";
+pub const LOCAL_AUTH_COOKIE_PATH: &str = "/run/startos/rpc.authcookie";
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]

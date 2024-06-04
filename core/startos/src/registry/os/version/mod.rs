@@ -11,9 +11,9 @@ use crate::context::CliContext;
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
 use crate::registry::os::index::OsVersionInfo;
-use crate::registry::signer::SignerKey;
+use crate::registry::signer::sign::AnyVerifyingKey;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
-use crate::util::Version;
+use crate::util::VersionString;
 
 pub mod signer;
 
@@ -51,8 +51,7 @@ pub fn version_api<C: Context>() -> ParentHandler<C> {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct AddVersionParams {
-    #[ts(type = "string")]
-    pub version: Version,
+    pub version: VersionString,
     pub headline: String,
     pub release_notes: String,
     #[ts(type = "string")]
@@ -60,7 +59,7 @@ pub struct AddVersionParams {
     #[arg(skip)]
     #[ts(skip)]
     #[serde(rename = "__auth_signer")]
-    pub signer: Option<SignerKey>,
+    pub signer: Option<AnyVerifyingKey>,
 }
 
 pub async fn add_version(
@@ -86,7 +85,7 @@ pub async fn add_version(
                     i.headline = headline;
                     i.release_notes = release_notes;
                     i.source_version = source_version;
-                    i.signers.extend(signer);
+                    i.authorized.extend(signer);
                     Ok(())
                 })
         })
@@ -98,8 +97,7 @@ pub async fn add_version(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct RemoveVersionParams {
-    #[ts(type = "string")]
-    pub version: Version,
+    pub version: VersionString,
 }
 
 pub async fn remove_version(
@@ -124,7 +122,7 @@ pub async fn remove_version(
 pub struct GetVersionParams {
     #[ts(type = "string | null")]
     #[arg(long = "src")]
-    pub source: Option<Version>,
+    pub source: Option<VersionString>,
     #[ts(type = "string | null")]
     #[arg(long = "target")]
     pub target: Option<VersionRange>,
@@ -133,7 +131,7 @@ pub struct GetVersionParams {
 pub async fn get_version(
     ctx: RegistryContext,
     GetVersionParams { source, target }: GetVersionParams,
-) -> Result<BTreeMap<Version, OsVersionInfo>, Error> {
+) -> Result<BTreeMap<VersionString, OsVersionInfo>, Error> {
     let target = target.unwrap_or(VersionRange::Any);
     ctx.db
         .peek()
@@ -153,7 +151,10 @@ pub async fn get_version(
         .collect()
 }
 
-pub fn display_version_info<T>(params: WithIoFormat<T>, info: BTreeMap<Version, OsVersionInfo>) {
+pub fn display_version_info<T>(
+    params: WithIoFormat<T>,
+    info: BTreeMap<VersionString, OsVersionInfo>,
+) {
     use prettytable::*;
 
     if let Some(format) = params.format {

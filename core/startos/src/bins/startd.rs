@@ -1,6 +1,5 @@
 use std::ffi::OsString;
 use std::net::{Ipv6Addr, SocketAddr};
-use std::path::Path;
 use std::sync::Arc;
 
 use clap::Parser;
@@ -18,8 +17,19 @@ use crate::util::logger::EmbassyLogger;
 use crate::{Error, ErrorKind, ResultExt};
 
 #[instrument(skip_all)]
-async fn inner_main(config: &ServerConfig) -> Result<Option<Shutdown>, Error> {
-    let (rpc_ctx, server, shutdown) = async {
+async fn inner_main(
+    server: &mut WebServer,
+    config: &ServerConfig,
+) -> Result<Option<Shutdown>, Error> {
+    if !tokio::fs::metadata("/run/startos/initialized")
+        .await
+        .is_ok()
+    {
+        super::start_init::main(server, &config).await?;
+        tokio::fs::write("/run/startos/initialized", "").await?;
+    }
+
+    let (rpc_ctx, shutdown) = async {
         let rpc_ctx = RpcContext::init(
             config,
             Arc::new(
@@ -31,10 +41,7 @@ async fn inner_main(config: &ServerConfig) -> Result<Option<Shutdown>, Error> {
         )
         .await?;
         crate::hostname::sync_hostname(&rpc_ctx.account.read().await.hostname).await?;
-        let server = WebServer::main(
-            SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
-            rpc_ctx.clone(),
-        )?;
+        server.serve_main(rpc_ctx.clone());
 
         let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
@@ -74,8 +81,6 @@ async fn inner_main(config: &ServerConfig) -> Result<Option<Shutdown>, Error> {
             .await
         });
 
-        crate::sound::CHIME.play().await?;
-
         metrics_task
             .map_err(|e| {
                 Error::new(
@@ -93,10 +98,9 @@ async fn inner_main(config: &ServerConfig) -> Result<Option<Shutdown>, Error> {
 
         sig_handler.abort();
 
-        Ok::<_, Error>((rpc_ctx, server, shutdown))
+        Ok::<_, Error>((rpc_ctx, shutdown))
     }
     .await?;
-    server.shutdown().await;
     rpc_ctx.shutdown().await?;
 
     tracing::info!("RPC Context is dropped");
@@ -109,24 +113,22 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
 
     let config = ServerConfig::parse_from(args).load().unwrap();
 
-    if !Path::new("/run/embassy/initialized").exists() {
-        super::start_init::main(&config);
-        std::fs::write("/run/embassy/initialized", "").unwrap();
-    }
-
     let res = {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .expect("failed to initialize runtime");
         rt.block_on(async {
-            match inner_main(&config).await {
-                Ok(a) => Ok(a),
+            let mut server = WebServer::new(SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80));
+            match inner_main(&mut server, &config).await {
+                Ok(a) => {
+                    server.shutdown().await;
+                    Ok(a)
+                }
                 Err(e) => {
                     async {
-                        tracing::error!("{}", e.source);
-                        tracing::debug!("{:?}", e.source);
-                        crate::sound::BEETHOVEN.play().await?;
+                        tracing::error!("{e}");
+                        tracing::debug!("{e:?}");
                         let ctx = DiagnosticContext::init(
                             &config,
                             if tokio::fs::metadata("/media/startos/config/disk.guid")
@@ -145,10 +147,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
                             e,
                         )?;
 
-                        let server = WebServer::diagnostic(
-                            SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
-                            ctx.clone(),
-                        )?;
+                        server.serve_diagnostic(ctx.clone());
 
                         let mut shutdown = ctx.shutdown.subscribe();
 

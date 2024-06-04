@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -13,7 +14,7 @@ use crate::s9pk::merkle_archive::hash::VerifyingWriter;
 pub mod http;
 pub mod multi_cursor_file;
 
-pub trait FileSource: Clone + Send + Sync + Sized + 'static {
+pub trait FileSource: Send + Sync + Sized + 'static {
     type Reader: AsyncRead + Unpin + Send;
     fn size(&self) -> impl Future<Output = Result<u64, Error>> + Send;
     fn reader(&self) -> impl Future<Output = Result<Self::Reader, Error>> + Send;
@@ -58,6 +59,29 @@ pub trait FileSource: Clone + Send + Sync + Sized + 'static {
             .boxed()
         }
         to_vec(self, verify)
+    }
+}
+
+impl<T: FileSource> FileSource for Arc<T> {
+    type Reader = T::Reader;
+    async fn size(&self) -> Result<u64, Error> {
+        self.deref().size().await
+    }
+    async fn reader(&self) -> Result<Self::Reader, Error> {
+        self.deref().reader().await
+    }
+    async fn copy<W: AsyncWrite + Unpin + Send + ?Sized>(&self, w: &mut W) -> Result<(), Error> {
+        self.deref().copy(w).await
+    }
+    async fn copy_verify<W: AsyncWrite + Unpin + Send + ?Sized>(
+        &self,
+        w: &mut W,
+        verify: Option<(Hash, u64)>,
+    ) -> Result<(), Error> {
+        self.deref().copy_verify(w, verify).await
+    }
+    async fn to_vec(&self, verify: Option<(Hash, u64)>) -> Result<Vec<u8>, Error> {
+        self.deref().to_vec(verify).await
     }
 }
 
@@ -155,16 +179,28 @@ impl FileSource for Arc<[u8]> {
     }
 }
 
-pub trait ArchiveSource: Clone + Send + Sync + Sized + 'static {
+pub trait ArchiveSource: Send + Sync + Sized + 'static {
     type Reader: AsyncRead + Unpin + Send;
     fn size(&self) -> impl Future<Output = Option<u64>> + Send {
         async { None }
     }
+    fn fetch_all(
+        &self,
+    ) -> impl Future<Output = Result<impl AsyncRead + Unpin + Send, Error>> + Send;
     fn fetch(
         &self,
         position: u64,
         size: u64,
     ) -> impl Future<Output = Result<Self::Reader, Error>> + Send;
+    fn copy_all_to<W: AsyncWrite + Unpin + Send + ?Sized>(
+        &self,
+        w: &mut W,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        async move {
+            tokio::io::copy(&mut self.fetch_all().await?, w).await?;
+            Ok(())
+        }
+    }
     fn copy_to<W: AsyncWrite + Unpin + Send + ?Sized>(
         &self,
         position: u64,
@@ -176,17 +212,47 @@ pub trait ArchiveSource: Clone + Send + Sync + Sized + 'static {
             Ok(())
         }
     }
-    fn section(&self, position: u64, size: u64) -> Section<Self> {
+    fn section(self, position: u64, size: u64) -> Section<Self> {
         Section {
-            source: self.clone(),
+            source: self,
             position,
             size,
         }
     }
 }
 
+impl<T: ArchiveSource> ArchiveSource for Arc<T> {
+    type Reader = T::Reader;
+    async fn size(&self) -> Option<u64> {
+        self.deref().size().await
+    }
+    async fn fetch_all(&self) -> Result<impl AsyncRead + Unpin + Send, Error> {
+        self.deref().fetch_all().await
+    }
+    async fn fetch(&self, position: u64, size: u64) -> Result<Self::Reader, Error> {
+        self.deref().fetch(position, size).await
+    }
+    async fn copy_all_to<W: AsyncWrite + Unpin + Send + ?Sized>(
+        &self,
+        w: &mut W,
+    ) -> Result<(), Error> {
+        self.deref().copy_all_to(w).await
+    }
+    async fn copy_to<W: AsyncWrite + Unpin + Send + ?Sized>(
+        &self,
+        position: u64,
+        size: u64,
+        w: &mut W,
+    ) -> Result<(), Error> {
+        self.deref().copy_to(position, size, w).await
+    }
+}
+
 impl ArchiveSource for Arc<[u8]> {
     type Reader = tokio::io::Take<std::io::Cursor<Self>>;
+    async fn fetch_all(&self) -> Result<impl AsyncRead + Unpin + Send, Error> {
+        Ok(std::io::Cursor::new(self.clone()))
+    }
     async fn fetch(&self, position: u64, size: u64) -> Result<Self::Reader, Error> {
         use tokio::io::AsyncReadExt;
 

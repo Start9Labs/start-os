@@ -23,6 +23,7 @@ use ts_rs::TS;
 use super::IntoDoubleEndedIterator;
 use crate::prelude::*;
 use crate::util::clap::FromStrParser;
+use crate::util::Apply;
 
 pub fn deserialize_from_str<
     'de,
@@ -999,6 +1000,11 @@ impl<T: AsRef<[u8]>> std::fmt::Display for Base16<T> {
 #[derive(TS)]
 #[ts(type = "string", concrete(T = Vec<u8>))]
 pub struct Base32<T>(pub T);
+impl<T: AsRef<[u8]>> std::fmt::Display for Base32<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        base32::encode(base32::Alphabet::RFC4648 { padding: true }, self.0.as_ref()).fmt(f)
+    }
+}
 impl<'de, T: TryFrom<Vec<u8>>> Deserialize<'de> for Base32<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -1022,32 +1028,39 @@ impl<T: AsRef<[u8]>> Serialize for Base32<T> {
     where
         S: Serializer,
     {
-        serializer.serialize_str(&base32::encode(
-            base32::Alphabet::RFC4648 { padding: true },
-            self.0.as_ref(),
-        ))
-    }
-}
-impl<T: AsRef<[u8]>> std::fmt::Display for Base32<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        base32::encode(base32::Alphabet::RFC4648 { padding: true }, self.0.as_ref()).fmt(f)
+        serialize_display(self, serializer)
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TS)]
 #[ts(type = "string", concrete(T = Vec<u8>))]
 pub struct Base64<T>(pub T);
+impl<T: AsRef<[u8]>> std::fmt::Display for Base64<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&base64::encode(self.0.as_ref()))
+    }
+}
+impl<T: TryFrom<Vec<u8>>> FromStr for Base64<T> {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        base64::decode(&s)
+            .with_kind(ErrorKind::Deserialization)?
+            .apply(TryFrom::try_from)
+            .map(Self)
+            .map_err(|_| {
+                Error::new(
+                    eyre!("failed to create from buffer"),
+                    ErrorKind::Deserialization,
+                )
+            })
+    }
+}
 impl<'de, T: TryFrom<Vec<u8>>> Deserialize<'de> for Base64<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let s = String::deserialize(deserializer)?;
-        base64::decode(&s)
-            .map_err(serde::de::Error::custom)?
-            .try_into()
-            .map_err(|_| serde::de::Error::custom("invalid length"))
-            .map(Self)
+        deserialize_from_str(deserializer)
     }
 }
 impl<T: AsRef<[u8]>> Serialize for Base64<T> {
@@ -1055,7 +1068,7 @@ impl<T: AsRef<[u8]>> Serialize for Base64<T> {
     where
         S: Serializer,
     {
-        serializer.serialize_str(&base64::encode(self.0.as_ref()))
+        serialize_display(self, serializer)
     }
 }
 impl<T> Deref for Base64<T> {

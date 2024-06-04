@@ -18,10 +18,10 @@ use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
 use crate::context::config::{local_config_path, ClientConfig};
-use crate::context::{DiagnosticContext, InstallContext, RpcContext, SetupContext};
+use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
-use crate::rpc_continuations::RequestGuid;
+use crate::rpc_continuations::Guid;
 
 #[derive(Debug)]
 pub struct CliContextSeed {
@@ -164,7 +164,7 @@ impl CliContext {
 
     pub async fn ws_continuation(
         &self,
-        guid: RequestGuid,
+        guid: Guid,
     ) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, Error> {
         let mut url = self.base_url.clone();
         let ws_scheme = match url.scheme() {
@@ -194,7 +194,7 @@ impl CliContext {
 
     pub async fn rest_continuation(
         &self,
-        guid: RequestGuid,
+        guid: Guid,
         body: reqwest::Body,
         headers: reqwest::header::HeaderMap,
     ) -> Result<reqwest::Response, Error> {
@@ -267,6 +267,11 @@ impl CallRemote<RpcContext> for CliContext {
     }
 }
 impl CallRemote<DiagnosticContext> for CliContext {
+    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
+        call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
+    }
+}
+impl CallRemote<InitContext> for CliContext {
     async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
         call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
     }

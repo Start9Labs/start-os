@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use color_eyre::eyre::eyre;
 use helpers::const_true;
+use imbl_value::InternedString;
 pub use models::PackageId;
 use models::{ImageId, VolumeId};
 use serde::{Deserialize, Serialize};
@@ -10,12 +11,12 @@ use url::Url;
 
 use crate::dependencies::Dependencies;
 use crate::prelude::*;
-use crate::s9pk::v1::git_hash::GitHash;
+use crate::s9pk::git_hash::GitHash;
 use crate::util::serde::Regex;
-use crate::util::Version;
+use crate::util::VersionString;
 use crate::version::{Current, VersionT};
 
-fn current_version() -> Version {
+fn current_version() -> VersionString {
     Current::new().semver().into()
 }
 
@@ -26,12 +27,10 @@ fn current_version() -> Version {
 pub struct Manifest {
     pub id: PackageId,
     pub title: String,
-    #[ts(type = "string")]
-    pub version: Version,
+    pub version: VersionString,
     pub release_notes: String,
-    pub license: String, // type of license
-    #[serde(default)]
-    pub replaces: Vec<String>,
+    #[ts(type = "string")]
+    pub license: InternedString, // type of license
     #[ts(type = "string")]
     pub wrapper_repo: Url,
     #[ts(type = "string")]
@@ -56,8 +55,7 @@ pub struct Manifest {
     #[ts(type = "string | null")]
     pub git_hash: Option<GitHash>,
     #[serde(default = "current_version")]
-    #[ts(type = "string")]
-    pub os_version: Version,
+    pub os_version: VersionString,
     #[serde(default = "const_true")]
     pub has_config: bool,
 }
@@ -68,9 +66,11 @@ pub struct Manifest {
 pub struct HardwareRequirements {
     #[serde(default)]
     #[ts(type = "{ [key: string]: string }")]
-    device: BTreeMap<String, Regex>,
-    ram: Option<u64>,
-    pub arch: Option<Vec<String>>,
+    pub device: BTreeMap<String, Regex>,
+    #[ts(type = "number | null")]
+    pub ram: Option<u64>,
+    #[ts(type = "string[] | null")]
+    pub arch: Option<BTreeSet<InternedString>>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]

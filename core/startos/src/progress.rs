@@ -8,7 +8,7 @@ use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncSeek, AsyncWrite};
-use tokio::sync::{mpsc, watch};
+use tokio::sync::watch;
 use ts_rs::TS;
 
 use crate::db::model::{Database, DatabaseModel};
@@ -168,13 +168,14 @@ impl FullProgress {
     }
 }
 
+#[derive(Clone)]
 pub struct FullProgressTracker {
     overall: Arc<watch::Sender<Progress>>,
     overall_recv: watch::Receiver<Progress>,
     phases: InOMap<InternedString, watch::Receiver<Progress>>,
     new_phase: (
-        mpsc::UnboundedSender<(InternedString, watch::Receiver<Progress>)>,
-        mpsc::UnboundedReceiver<(InternedString, watch::Receiver<Progress>)>,
+        barrage::Sender<(InternedString, watch::Receiver<Progress>)>,
+        barrage::Receiver<(InternedString, watch::Receiver<Progress>)>,
     ),
 }
 impl FullProgressTracker {
@@ -184,12 +185,12 @@ impl FullProgressTracker {
             overall: Arc::new(overall),
             overall_recv,
             phases: InOMap::new(),
-            new_phase: mpsc::unbounded_channel(),
+            new_phase: barrage::unbounded(),
         }
     }
     fn fill_phases(&mut self) -> bool {
         let mut changed = false;
-        while let Ok((name, phase)) = self.new_phase.1.try_recv() {
+        while let Ok(Some((name, phase))) = self.new_phase.1.try_recv() {
             self.phases.insert(name, phase);
             changed = true;
         }
@@ -271,7 +272,7 @@ impl FullProgressTracker {
 #[derive(Clone)]
 pub struct FullProgressTrackerHandle {
     overall: Arc<watch::Sender<Progress>>,
-    new_phase: mpsc::UnboundedSender<(InternedString, watch::Receiver<Progress>)>,
+    new_phase: barrage::Sender<(InternedString, watch::Receiver<Progress>)>,
 }
 impl FullProgressTrackerHandle {
     pub fn add_phase(

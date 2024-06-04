@@ -16,8 +16,11 @@ use crate::progress::{FullProgressTracker, PhasedProgressBar};
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
 use crate::registry::os::index::OsVersionInfo;
+use crate::registry::os::SIG_CONTEXT;
+use crate::registry::signer::commitment::blake3::Blake3Commitment;
+use crate::registry::signer::commitment::Commitment;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
-use crate::util::Version;
+use crate::util::VersionString;
 
 pub fn get_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -33,8 +36,7 @@ pub fn get_api<C: Context>() -> ParentHandler<C> {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct GetOsAssetParams {
-    #[ts(type = "string")]
-    pub version: Version,
+    pub version: VersionString,
     #[ts(type = "string")]
     pub platform: InternedString,
 }
@@ -42,10 +44,12 @@ pub struct GetOsAssetParams {
 async fn get_os_asset(
     ctx: RegistryContext,
     GetOsAssetParams { version, platform }: GetOsAssetParams,
-    accessor: impl FnOnce(&Model<OsVersionInfo>) -> &Model<BTreeMap<InternedString, RegistryAsset>>
+    accessor: impl FnOnce(
+            &Model<OsVersionInfo>,
+        ) -> &Model<BTreeMap<InternedString, RegistryAsset<Blake3Commitment>>>
         + UnwindSafe
         + Send,
-) -> Result<RegistryAsset, Error> {
+) -> Result<RegistryAsset<Blake3Commitment>, Error> {
     accessor(
         ctx.db
             .peek()
@@ -64,21 +68,21 @@ async fn get_os_asset(
 pub async fn get_iso(
     ctx: RegistryContext,
     params: GetOsAssetParams,
-) -> Result<RegistryAsset, Error> {
+) -> Result<RegistryAsset<Blake3Commitment>, Error> {
     get_os_asset(ctx, params, |info| info.as_iso()).await
 }
 
 pub async fn get_img(
     ctx: RegistryContext,
     params: GetOsAssetParams,
-) -> Result<RegistryAsset, Error> {
+) -> Result<RegistryAsset<Blake3Commitment>, Error> {
     get_os_asset(ctx, params, |info| info.as_img()).await
 }
 
 pub async fn get_squashfs(
     ctx: RegistryContext,
     params: GetOsAssetParams,
-) -> Result<RegistryAsset, Error> {
+) -> Result<RegistryAsset<Blake3Commitment>, Error> {
     get_os_asset(ctx, params, |info| info.as_squashfs()).await
 }
 
@@ -86,7 +90,7 @@ pub async fn get_squashfs(
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliGetOsAssetParams {
-    pub version: Version,
+    pub version: VersionString,
     pub platform: InternedString,
     #[arg(long = "download", short = 'd')]
     pub download: Option<PathBuf>,
@@ -112,8 +116,8 @@ async fn cli_get_os_asset(
             },
         ..
     }: HandlerArgs<CliContext, CliGetOsAssetParams>,
-) -> Result<RegistryAsset, Error> {
-    let res = from_value::<RegistryAsset>(
+) -> Result<RegistryAsset<Blake3Commitment>, Error> {
+    let res = from_value::<RegistryAsset<Blake3Commitment>>(
         ctx.call_remote::<RegistryContext>(
             &parent_method.into_iter().chain(method).join("."),
             json!({
@@ -124,7 +128,7 @@ async fn cli_get_os_asset(
         .await?,
     )?;
 
-    let validator = res.validate(res.signature_info.all_signers())?;
+    res.validate(SIG_CONTEXT, res.all_signers())?;
 
     if let Some(download) = download {
         let mut file = AtomicFile::new(&download, None::<&Path>)
@@ -135,7 +139,7 @@ async fn cli_get_os_asset(
         let progress_handle = progress.handle();
         let mut download_phase =
             progress_handle.add_phase(InternedString::intern("Downloading File"), Some(100));
-        download_phase.set_total(validator.size()?);
+        download_phase.set_total(res.commitment.size);
         let reverify_phase = if reverify {
             Some(progress_handle.add_phase(InternedString::intern("Reverifying File"), Some(10)))
         } else {
@@ -157,7 +161,7 @@ async fn cli_get_os_asset(
 
         download_phase.start();
         let mut download_writer = download_phase.writer(&mut *file);
-        res.download(ctx.client.clone(), &mut download_writer, &validator)
+        res.download(ctx.client.clone(), &mut download_writer)
             .await?;
         let (_, mut download_phase) = download_writer.into_inner();
         file.save().await.with_kind(ErrorKind::Filesystem)?;
@@ -165,8 +169,8 @@ async fn cli_get_os_asset(
 
         if let Some(mut reverify_phase) = reverify_phase {
             reverify_phase.start();
-            validator
-                .validate_file(&MultiCursorFile::from(
+            res.commitment
+                .check(&MultiCursorFile::from(
                     tokio::fs::File::open(download).await?,
                 ))
                 .await?;

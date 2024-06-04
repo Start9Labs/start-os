@@ -20,7 +20,7 @@ use super::mount::guard::TmpMountGuard;
 use crate::disk::mount::guard::GenericMountGuard;
 use crate::disk::OsPartitionInfo;
 use crate::util::serde::IoFormat;
-use crate::util::{Invoke, Version};
+use crate::util::{Invoke, VersionString};
 use crate::{Error, ResultExt as _};
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
@@ -56,7 +56,7 @@ pub struct PartitionInfo {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EmbassyOsRecoveryInfo {
-    pub version: Version,
+    pub version: VersionString,
     pub full: bool,
     pub password_hash: Option<String>,
     pub wrapped_key: Option<String>,

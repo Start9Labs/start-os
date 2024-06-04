@@ -140,7 +140,6 @@ install: $(ALL_TARGETS)
 	$(call mkdir,$(DESTDIR)/usr/lib/startos/system-images)
 	$(call cp,system-images/compat/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/startos/system-images/compat.tar)
 	$(call cp,system-images/utils/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/startos/system-images/utils.tar)
-	$(call cp,system-images/binfmt/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/startos/system-images/binfmt.tar)
 	
 	$(call cp,firmware/$(PLATFORM),$(DESTDIR)/usr/lib/startos/firmware)
 
@@ -184,7 +183,7 @@ container-runtime/node_modules: container-runtime/package.json container-runtime
 	npm --prefix container-runtime ci
 	touch container-runtime/node_modules
 
-sdk/lib/osBindings: $(shell core/startos/bindings)
+sdk/lib/osBindings: core/startos/bindings
 	mkdir -p sdk/lib/osBindings
 	ls core/startos/bindings/*.ts | sed 's/core\/startos\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' > core/startos/bindings/index.ts
 	npm --prefix sdk exec -- prettier --config ./sdk/package.json -w ./core/startos/bindings/*.ts
