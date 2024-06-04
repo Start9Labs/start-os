@@ -90,21 +90,19 @@ impl WebServer {
 #[serde(rename_all = "camelCase")]
 struct ActivityParams {
     server_id: String,
-    os_version: String,
     arch: String,
 }
 
 async fn record_user_activity(
-    analytics_ctx: AnalyticsContext,
-    ActivityParams { server_id, os_version, arch }: ActivityParams,
+    ctx: AnalyticsContext,
+    ActivityParams { server_id, arch }: ActivityParams,
 ) -> Result<(), Error> {
-    let pool = analytics_ctx.db;
+    let pool = ctx.db;
     let created_at = Utc::now().to_rfc3339();
 
     query!("INSERT INTO user_activity (created_at, server_id, os_version, arch) VALUES ($1, $2, $3, $4)",
     created_at,
     server_id,
-    os_vers,
     arch
     )
     .execute(pool)
