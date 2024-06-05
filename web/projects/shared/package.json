@@ -1,6 +1,6 @@
 {
   "name": "@start9labs/shared",
-  "version": "0.3.12",
+  "version": "0.3.13",
   "peerDependencies": {
     "@angular/common": "^17.0.6",
     "@angular/core": "^17.0.6",

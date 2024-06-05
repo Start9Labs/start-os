@@ -1,23 +1,30 @@
 import { CommonModule } from '@angular/common'
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Input,
+  inject,
+} from '@angular/core'
 import { SharedPipesModule, TickerModule } from '@start9labs/shared'
-import { MarketplacePkg } from '../../../types'
+import { MarketplacePkg, StoreIdentity } from '../../../types'
+import { TuiLetModule } from '@taiga-ui/cdk'
+import { AbstractMarketplaceService } from '../../../services/marketplace.service'
 
 @Component({
   selector: 'marketplace-package-hero',
   template: `
-    <div class="outer-container">
+    <div class="outer-container" *tuiLet="marketplace$ | async as marketplace">
       <div class="inner-container box-shadow-lg">
         <!-- icon -->
         <img
-          [src]="pkg.icon | trustUrl"
+          [src]="determineIcon(marketplace) | trustUrl"
           class="box-shadow-lg"
           alt="{{ pkg.manifest.title }} Icon"
         />
         <!-- color background -->
         <div class="color-background">
           <img
-            [src]="pkg.icon | trustUrl"
+            [src]="determineIcon(marketplace) | trustUrl"
             alt="{{ pkg.manifest.title }} background image"
           />
         </div>
@@ -61,11 +68,11 @@ import { MarketplacePkg } from '../../../types'
         padding: 4rem 2rem 0 2rem;
 
         @media (min-width: 376px) {
-          min-height: 26vh;
+          min-height: 20vh;
         }
 
         @media (min-width: 768px) {
-          min-height: 14rem;
+          min-height: 11rem;
         }
 
         img {
@@ -157,9 +164,21 @@ import { MarketplacePkg } from '../../../types'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, SharedPipesModule, TickerModule],
+  imports: [CommonModule, SharedPipesModule, TickerModule, TuiLetModule],
 })
 export class MarketplacePackageHeroComponent {
   @Input({ required: true })
   pkg!: MarketplacePkg
+
+  private readonly marketplaceService = inject(AbstractMarketplaceService)
+  readonly marketplace$ = this.marketplaceService.getSelectedHost$()
+
+  determineIcon(marketplace: StoreIdentity | null) {
+    try {
+      const iconUrl = new URL(this.pkg.icon)
+      return iconUrl.href
+    } catch (e) {
+      return `${marketplace?.url}package/v0/icon/${this.pkg.manifest.id}`
+    }
+  }
 }

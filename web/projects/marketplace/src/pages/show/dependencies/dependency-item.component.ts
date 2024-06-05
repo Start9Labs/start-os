@@ -1,19 +1,26 @@
 import { CommonModule, KeyValue } from '@angular/common'
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Input,
+  inject,
+} from '@angular/core'
 import { EmverPipesModule } from '@start9labs/shared'
-import { Dependency, MarketplacePkg } from '../../../types'
+import { Dependency, MarketplacePkg, StoreIdentity } from '../../../types'
 import { RouterModule } from '@angular/router'
 import { TuiAvatarModule, TuiLineClampModule } from '@taiga-ui/kit'
+import { TuiLetModule } from '@taiga-ui/cdk'
+import { AbstractMarketplaceService } from '../../../services/marketplace.service'
 
 @Component({
   selector: 'marketplace-dep-item',
   template: `
-    <div class="outer-container">
+    <div class="outer-container" *tuiLet="marketplace$ | async as marketplace">
       <tui-avatar
         class="dep-img"
         [rounded]="true"
         [size]="'l'"
-        [avatarUrl]="getImage(dep.key)"
+        [avatarUrl]="getImage(dep.key, marketplace)"
       ></tui-avatar>
       <div>
         <tui-line-clamp
@@ -103,6 +110,7 @@ import { TuiAvatarModule, TuiLineClampModule } from '@taiga-ui/kit'
     TuiAvatarModule,
     EmverPipesModule,
     TuiLineClampModule,
+    TuiLetModule,
   ],
 })
 export class MarketplaceDepItemComponent {
@@ -112,11 +120,22 @@ export class MarketplaceDepItemComponent {
   @Input({ required: true })
   dep!: KeyValue<string, Dependency>
 
-  getImage(key: string): string {
+  private readonly marketplaceService = inject(AbstractMarketplaceService)
+  readonly marketplace$ = this.marketplaceService.getSelectedHost$()
+
+  getImage(key: string, marketplace: StoreIdentity | null) {
     const icon = this.pkg.dependencyMetadata[key]?.icon
-    // @TODO fix when registry api is updated to include mimetype in icon url
-    // return icon ? `data:image/png;base64,${icon}` : key.substring(0, 2)
-    return icon ? icon : key.substring(0, 2)
+
+    if (icon) {
+      try {
+        const iconUrl = new URL(icon)
+        return iconUrl.href
+      } catch (e) {
+        return `${marketplace?.url}package/v0/icon/${key}`
+      }
+    } else {
+      return key.substring(0, 2)
+    }
   }
 
   getTitle(key: string): string {

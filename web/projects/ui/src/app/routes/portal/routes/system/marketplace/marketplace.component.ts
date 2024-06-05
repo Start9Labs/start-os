@@ -101,8 +101,7 @@ import { TuiScrollbarModule } from '@taiga-ui/core'
         &-list {
           display: grid;
           grid-template-columns: repeat(1, minmax(0, 1fr));
-          gap: 4rem;
-          list-style-type: none;
+          gap: 4rem 3rem;
           padding: 1.5rem;
 
           @media (min-width: 768px) {
@@ -111,8 +110,11 @@ import { TuiScrollbarModule } from '@taiga-ui/core'
           @media (min-width: 1024px) {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
-          @media (min-width: 1536px) {
+          @media (min-width: 1280px) {
             grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+          @media (min-width: 1536px) {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
           }
 
           .tile-wrapper {

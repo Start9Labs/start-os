@@ -66,6 +66,7 @@ export class MenuComponent implements OnDestroy {
     this.query = ''
     this.categoryService.resetQuery()
     this.categoryService.changeCategory(category)
+    this.categoryService.handleNavigation()
   }
 
   onQueryChange(query: string): void {

@@ -1,10 +1,7 @@
 .item-container {
-  height: 100%;
   position: relative;
-  min-width: 300px;
   border-radius: 1.5rem;
   padding: 5rem 2rem 2rem 2.5rem;
-  gap: 1rem;
   transition-property: transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 500ms;
@@ -56,21 +53,20 @@
   top: -2.5rem;
   border-radius: 9999px;
   object-fit: cover;
-  backdrop-filter: blur(24px);
-  background-color: rgb(0 0 0 / 0.5);
   transform: none;
 }
 
 .detail {
   margin-top: 0.75rem;
   mix-blend-mode: plus-lighter;
-
+  
   &-title {
     display: inline-block;
     font-size: 1.5rem;
     line-height: 2rem;
     margin-bottom: 0.25rem;
     font-weight: 400;
+    will-change: transform, text-indent;
   }
 
   &-description {
