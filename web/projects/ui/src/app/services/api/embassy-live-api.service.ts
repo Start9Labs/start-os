@@ -155,6 +155,16 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  // init
+
+  async initGetProgress(): Promise<RR.InitGetProgressRes> {
+    return this.rpcRequest({ method: 'init.subscribe', params: {} })
+  }
+
+  async initFollowLogs(): Promise<RR.FollowServerLogsRes> {
+    return this.rpcRequest({ method: 'init.logs.follow', params: {} })
+  }
+
   // server
 
   async getSystemTime(

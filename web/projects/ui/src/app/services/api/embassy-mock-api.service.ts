@@ -242,6 +242,30 @@ export class MockApiService extends ApiService {
     return this.getServerLogs(params)
   }
 
+  // init
+
+  async initGetProgress(): Promise<RR.InitGetProgressRes> {
+    await pauseFor(250)
+    return {
+      progress: {
+        overall: {
+          done: 0,
+          total: 100,
+        },
+        phases: [],
+      },
+      guid: 'init-progress-guid',
+    }
+  }
+
+  async initFollowLogs(): Promise<RR.FollowServerLogsRes> {
+    await pauseFor(2000)
+    return {
+      startCursor: 'start-cursor',
+      guid: 'logs-guid',
+    }
+  }
+
   // server
 
   async getSystemTime(

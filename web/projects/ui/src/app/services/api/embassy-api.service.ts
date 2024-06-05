@@ -56,6 +56,14 @@ export abstract class ApiService {
     params: RR.GetServerLogsReq,
   ): Promise<RR.GetServerLogsRes>
 
+  // init
+
+  abstract initGetProgress(): Promise<RR.InitGetProgressRes>
+
+  abstract initFollowLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes>
+
   // server
 
   abstract getSystemTime(

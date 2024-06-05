@@ -52,6 +52,13 @@ export module RR {
     data: { details: string }
   }
 
+  // init
+
+  export type InitGetProgressRes = {
+    progress: T.FullProgress
+    guid: string
+  }
+
   // server
 
   export type GetSystemTimeReq = {} // server.time
