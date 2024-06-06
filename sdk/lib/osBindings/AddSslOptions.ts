@@ -2,7 +2,6 @@
 import type { AlpnInfo } from "./AlpnInfo"
 
 export type AddSslOptions = {
-  scheme: string | null
   preferredExternalPort: number
-  alpn: AlpnInfo
+  alpn: AlpnInfo | null
 }

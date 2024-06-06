@@ -99,6 +99,7 @@ export type Effects = {
   /** Sandbox mode lets us read but not write */
   is_sandboxed(): boolean
 
+  // Does a volume and path exist?
   exists(input: { volumeId: string; path: string }): Promise<boolean>
 
   fetch(

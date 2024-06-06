@@ -5,6 +5,12 @@ import {
   SetHealth,
   HealthCheckResult,
   SetMainStatus,
+  ServiceInterface,
+  Host,
+  ExportServiceInterfaceParams,
+  GetPrimaryUrlParams,
+  LanInfo,
+  BindParams,
 } from "./osBindings"
 
 import { MainEffects, ServiceInterfaceType, Signals } from "./StartSdk"
@@ -12,7 +18,7 @@ import { InputSpec } from "./config/configTypes"
 import { DependenciesReceipt } from "./config/setupConfig"
 import { BindOptions, Scheme } from "./interfaces/Host"
 import { Daemons } from "./mainFn/Daemons"
-import { PathBuilder, StorePath } from "./store/PathBuilder"
+import { StorePath } from "./store/PathBuilder"
 import { ExposedStorePaths } from "./store/setupExposeStore"
 import { UrlString } from "./util/getServiceInterface"
 export * from "./osBindings"
@@ -184,14 +190,6 @@ export declare const hostName: unique symbol
 // asdflkjadsf.onion | 1.2.3.4
 export type Hostname = string & { [hostName]: never }
 
-/** ${scheme}://${username}@${host}:${externalPort}${suffix} */
-export type AddressInfo = {
-  username: string | null
-  hostId: string
-  bindOptions: BindOptions
-  suffix: string
-}
-
 export type HostnameInfoIp = {
   kind: "ip"
   networkInterfaceId: string
@@ -219,44 +217,9 @@ export type HostnameInfoOnion = {
 
 export type HostnameInfo = HostnameInfoIp | HostnameInfoOnion
 
-export type SingleHost = {
-  id: string
-  kind: "single" | "static"
-  hostname: HostnameInfo | null
-}
-
-export type MultiHost = {
-  id: string
-  kind: "multi"
-  hostnames: HostnameInfo[]
-}
-
-export type HostInfo = SingleHost | MultiHost
-
 export type ServiceInterfaceId = string
 
-export type ServiceInterface = {
-  id: ServiceInterfaceId
-  /** The title of this field to be displayed */
-  name: string
-  /** Human readable description, used as tooltip usually */
-  description: string
-  /** Whether or not one address must be the primary address */
-  hasPrimary: boolean
-  /** Disabled interfaces do not serve, but they retain their metadata and addresses */
-  disabled: boolean
-  /** Whether or not to mask the URIs for this interface. Useful if the URIs contain sensitive information, such as a password, macaroon, or API key */
-  masked: boolean
-  /** URI Information */
-  addressInfo: AddressInfo
-  /** The network interface could be several types, something like ui, p2p, or network */
-  type: ServiceInterfaceType
-}
-
-export type ServiceInterfaceWithHostInfo = ServiceInterface & {
-  hostInfo: HostInfo
-}
-
+export { ServiceInterface }
 export type ExposeServicePaths<Store = never> = {
   /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
   paths: ExposedStorePaths
@@ -326,13 +289,7 @@ export type Effects = {
   /** Removes all network bindings */
   clearBindings(): Promise<void>
   /** Creates a host connected to the specified port with the provided options */
-  bind(
-    options: {
-      kind: "static" | "single" | "multi"
-      id: string
-      internalPort: number
-    } & BindOptions,
-  ): Promise<void>
+  bind(options: BindParams): Promise<void>
   /** Retrieves the current hostname(s) associated with a host id */
   // getHostInfo(options: {
   //   kind: "static" | "single"
@@ -341,11 +298,10 @@ export type Effects = {
   //   callback: () => void
   // }): Promise<SingleHost>
   getHostInfo(options: {
-    kind: "multi" | null
-    serviceInterfaceId: string
+    hostId: string
     packageId: string | null
     callback: () => void
-  }): Promise<MultiHost>
+  }): Promise<Host>
 
   // /**
   //  * Run rsync between two volumes. This is used to backup data between volumes.
@@ -395,14 +351,14 @@ export type Effects = {
   getServicePortForward(options: {
     internalPort: number
     packageId: string | null
-  }): Promise<number>
+  }): Promise<LanInfo>
 
   /** Removes all network interfaces */
   clearServiceInterfaces(): Promise<void>
   /** When we want to create a link in the front end interfaces, and example is
    * exposing a url to view a web service
    */
-  exportServiceInterface(options: ServiceInterface): Promise<string>
+  exportServiceInterface(options: ExportServiceInterfaceParams): Promise<string>
 
   exposeForDependents(options: { paths: string[] }): Promise<void>
 
@@ -422,11 +378,7 @@ export type Effects = {
    * The user sets the primary url for a interface
    * @param options
    */
-  getPrimaryUrl(options: {
-    packageId: PackageId | null
-    serviceInterfaceId: ServiceInterfaceId
-    callback: () => void
-  }): Promise<UrlString | null>
+  getPrimaryUrl(options: GetPrimaryUrlParams): Promise<UrlString | null>
 
   /**
    * There are times that we want to see the addresses that where exported
@@ -437,7 +389,7 @@ export type Effects = {
   listServiceInterfaces(options: {
     packageId: PackageId | null
     callback: () => void
-  }): Promise<ServiceInterface[]>
+  }): Promise<Record<ServiceInterfaceId, ServiceInterface>>
 
   /**
    *Remove an address that was exported. Used problably during main or during setConfig.
@@ -501,25 +453,6 @@ export type Effects = {
   /** Exists could be useful during the runtime to know if some service is running, option dep */
   running(options: { packageId: PackageId }): Promise<boolean>
 
-  /** Instead of creating proxies with nginx, we have a utility to create and maintain a proxy in the lifetime of this running. */
-  reverseProxy(options: {
-    bind: {
-      /** Optional, default is 0.0.0.0 */
-      ip: string | null
-      port: number
-      ssl: boolean
-    }
-    dst: {
-      /** Optional: default is 127.0.0.1 */
-      ip: string | null // optional, default 127.0.0.1
-      port: number
-      ssl: boolean
-    }
-    http: {
-      // optional, will do TCP layer proxy only if not present
-      headers: Record<string, string> | null
-    } | null
-  }): Promise<{ stop(): Promise<void> }>
   restart(): void
   shutdown(): void
 

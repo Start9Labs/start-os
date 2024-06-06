@@ -6,7 +6,9 @@ import { ServiceInterfaceBuilder } from "./ServiceInterfaceBuilder"
 export class Origin<T extends Host> {
   constructor(
     readonly host: T,
-    readonly options: BindOptions,
+    readonly internalPort: number,
+    readonly scheme: string | null,
+    readonly sslScheme: string | null,
   ) {}
 
   build({ username, path, search, schemeOverride }: BuildOptions): AddressInfo {
@@ -20,18 +22,9 @@ export class Origin<T extends Host> {
 
     return {
       hostId: this.host.options.id,
-      bindOptions: {
-        ...this.options,
-        scheme: schemeOverride ? schemeOverride.noSsl : this.options.scheme,
-        addSsl: this.options.addSsl
-          ? {
-              ...this.options.addSsl,
-              scheme: schemeOverride
-                ? schemeOverride.ssl
-                : this.options.addSsl.scheme,
-            }
-          : null,
-      },
+      internalPort: this.internalPort,
+      scheme: schemeOverride ? schemeOverride.noSsl : this.scheme,
+      sslScheme: schemeOverride ? schemeOverride.ssl : this.sslScheme,
       suffix: `${path}${qp}`,
       username,
     }

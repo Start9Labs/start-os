@@ -97,11 +97,9 @@ export class MainLoop {
           id: interfaceId,
           internalPort,
           preferredExternalPort: torConf?.external || internalPort,
-          scheme: "http",
           secure: null,
           addSsl: lanConf?.ssl
             ? {
-                scheme: "https",
                 preferredExternalPort: lanConf.external,
                 alpn: { specified: ["http/1.1"] },
               }
