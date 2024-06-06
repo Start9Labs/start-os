@@ -389,10 +389,13 @@ export class SystemForEmbassy implements System {
     delete this.currentRunning
     if (currentRunning) {
       await currentRunning.clean({
-        timeout: this.manifest.main["sigterm-timeout"],
+        timeout: Number(this.manifest.main["sigterm-timeout"]),
       })
     }
-    const durationValue = duration(this.manifest.main["sigterm-timeout"], "s")
+    const durationValue = duration(
+      Number(this.manifest.main["sigterm-timeout"]),
+      "s",
+    )
     return durationValue
   }
   private async createBackup(
