@@ -370,7 +370,7 @@ export class PolyfillEffects implements oet.Effects {
   async diskUsage(
     options?: { volumeId: string; path: string } | undefined,
   ): Promise<{ used: number; total: number }> {
-    const output = await execFile("df", ["--block-size=1", "-P"])
+    const output = await execFile("df", ["--block-size=1", "-P", "/"])
       .then((x: any) => ({
         stderr: x.stderr.toString(),
         stdout: x.stdout.toString(),
