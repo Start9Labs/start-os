@@ -8,7 +8,8 @@ import { HostSystemStartOs } from "../../HostSystemStartOs"
 import "isomorphic-fetch"
 import { Manifest } from "./matchManifest"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
-
+import * as cp from "child_process"
+export const execFile = promisify(cp.execFile)
 export class PolyfillEffects implements oet.Effects {
   constructor(
     readonly effects: HostSystemStartOs,
@@ -369,14 +370,7 @@ export class PolyfillEffects implements oet.Effects {
   async diskUsage(
     options?: { volumeId: string; path: string } | undefined,
   ): Promise<{ used: number; total: number }> {
-    let path = options ? new Volume(options.volumeId, options.path).path : "/"
-    return await startSdk
-      .runCommand(
-        this.effects,
-        { id: this.manifest.main.image },
-        ["df", "--", "-P", path],
-        {},
-      )
+    const output = await execFile("df", ["--block-size=1", "-P"])
       .then((x: any) => ({
         stderr: x.stderr.toString(),
         stdout: x.stdout.toString(),
@@ -387,6 +381,29 @@ export class PolyfillEffects implements oet.Effects {
         }
         return parseDfOutput(x.stdout)
       })
+    if (!!options) {
+      const used = await execFile("du", [
+        "-s",
+        "--block-size=1",
+        "-P",
+        new Volume(options.volumeId, options.path).path,
+      ])
+        .then((x: any) => ({
+          stderr: x.stderr.toString(),
+          stdout: x.stdout.toString(),
+        }))
+        .then((x: any) => {
+          if (!!x.stderr) {
+            throw new Error(x.stderr)
+          }
+          return Number.parseInt(x.stdout.split(/\s+/)[0])
+        })
+      return {
+        ...output,
+        used,
+      }
+    }
+    return output
   }
 }
 
