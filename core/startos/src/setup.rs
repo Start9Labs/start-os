@@ -4,7 +4,6 @@ use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use josekit::jwk::Jwk;
-use openssl::x509::X509;
 use patch_db::json_ptr::ROOT;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
@@ -12,15 +11,15 @@ use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tokio::try_join;
-use torut::onion::OnionAddressV3;
 use tracing::instrument;
 use ts_rs::TS;
 
 use crate::account::AccountInfo;
 use crate::backup::restore::recover_full_embassy;
 use crate::backup::target::BackupTargetFS;
+use crate::context::rpc::InitRpcContextPhases;
 use crate::context::setup::SetupResult;
-use crate::context::SetupContext;
+use crate::context::{RpcContext, SetupContext};
 use crate::db::model::Database;
 use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
@@ -29,10 +28,11 @@ use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::disk::util::{pvscan, recovery_info, DiskInfo, EmbassyOsRecoveryInfo};
 use crate::disk::REPAIR_DISK_PATH;
-use crate::hostname::Hostname;
-use crate::init::{init, InitResult};
+use crate::init::{init, InitPhases, InitResult};
 use crate::net::ssl::root_ca_start_time;
 use crate::prelude::*;
+use crate::progress::{FullProgress, PhaseProgressTrackerHandle};
+use crate::rpc_continuations::Guid;
 use crate::util::crypto::EncryptedWire;
 use crate::util::io::{dir_copy, dir_size, Counter};
 use crate::{Error, ErrorKind, ResultExt};
@@ -75,8 +75,9 @@ pub async fn list_disks(ctx: SetupContext) -> Result<Vec<DiskInfo>, Error> {
 async fn setup_init(
     ctx: &SetupContext,
     password: Option<String>,
-) -> Result<(Hostname, OnionAddressV3, X509), Error> {
-    let InitResult { db } = init(&ctx.config).await?;
+    init_phases: InitPhases,
+) -> Result<AccountInfo, Error> {
+    let InitResult { db } = init(&ctx.config, init_phases).await?;
 
     let account = db
         .mutate(|m| {
@@ -93,15 +94,12 @@ async fn setup_init(
         })
         .await?;
 
-    Ok((
-        account.hostname,
-        account.tor_key.public().get_onion_address(),
-        account.root_ca_cert,
-    ))
+    Ok(account)
 }
 
 #[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct AttachParams {
     #[serde(rename = "startOsPassword")]
     password: Option<EncryptedWire>,
@@ -110,25 +108,20 @@ pub struct AttachParams {
 
 pub async fn attach(
     ctx: SetupContext,
-    AttachParams { password, guid }: AttachParams,
-) -> Result<(), Error> {
-    let mut status = ctx.setup_status.write().await;
-    if status.is_some() {
-        return Err(Error::new(
-            eyre!("Setup already in progress"),
-            ErrorKind::InvalidRequest,
-        ));
-    }
-    *status = Some(Ok(SetupStatus {
-        bytes_transferred: 0,
-        total_bytes: None,
-        complete: false,
-    }));
-    drop(status);
-    tokio::task::spawn(async move {
-        if let Err(e) = async {
+    AttachParams {
+        password,
+        guid: disk_guid,
+    }: AttachParams,
+) -> Result<SetupProgress, Error> {
+    let setup_ctx = ctx.clone();
+    ctx.run_setup(|| async move {
+            let progress_handle = setup_ctx.progress.handle();
+            let mut disk_phase = progress_handle.add_phase("Opening data drive".into(), Some(10));
+            let init_phases = InitPhases::new(&progress_handle);
+            let rpc_ctx_phases = InitRpcContextPhases::new(&progress_handle);
+
             let password: Option<String> = match password {
-                Some(a) => match a.decrypt(&ctx) {
+                Some(a) => match a.decrypt(&setup_ctx) {
                     a @ Some(_) => a,
                     None => {
                         return Err(Error::new(
@@ -139,15 +132,17 @@ pub async fn attach(
                 },
                 None => None,
             };
+
+            disk_phase.start();
             let requires_reboot = crate::disk::main::import(
-                &*guid,
-                &ctx.datadir,
+                &*disk_guid,
+                &setup_ctx.datadir,
                 if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
                     RepairStrategy::Aggressive
                 } else {
                     RepairStrategy::Preen
                 },
-                if guid.ends_with("_UNENC") { None } else { Some(DEFAULT_PASSWORD) },
+                if disk_guid.ends_with("_UNENC") { None } else { Some(DEFAULT_PASSWORD) },
             )
             .await?;
             if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
@@ -156,7 +151,7 @@ pub async fn attach(
                     .with_ctx(|_| (ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
             }
             if requires_reboot.0 {
-                crate::disk::main::export(&*guid, &ctx.datadir).await?;
+                crate::disk::main::export(&*disk_guid, &setup_ctx.datadir).await?;
                 return Err(Error::new(
                     eyre!(
                         "Errors were corrected with your disk, but the server must be restarted in order to proceed"
@@ -164,37 +159,48 @@ pub async fn attach(
                     ErrorKind::DiskManagement,
                 ));
             }
-            let (hostname, tor_addr, root_ca) = setup_init(&ctx, password).await?;
-            *ctx.setup_result.write().await = Some((guid, SetupResult {
-                tor_address: format!("https://{}", tor_addr),
-                lan_address: hostname.lan_address(),
-                root_ca: String::from_utf8(root_ca.to_pem()?)?,
-            }));
-            *ctx.setup_status.write().await = Some(Ok(SetupStatus {
-                bytes_transferred: 0,
-                total_bytes: None,
-                complete: true,
-            }));
-            Ok(())
-        }.await {
-            tracing::error!("Error Setting Up Embassy: {}", e);
-            tracing::debug!("{:?}", e);
-            *ctx.setup_status.write().await = Some(Err(e.into()));
-        }
-    });
-    Ok(())
+            disk_phase.complete();
+
+            let account = setup_init(&setup_ctx, password, init_phases).await?;
+
+            let rpc_ctx = RpcContext::init(&setup_ctx.config, disk_guid, rpc_ctx_phases).await?;
+
+            Ok(((&account).try_into()?, rpc_ctx))
+        })?;
+
+    Ok(ctx.progress().await)
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-pub struct SetupStatus {
-    pub bytes_transferred: u64,
-    pub total_bytes: Option<u64>,
-    pub complete: bool,
+#[ts(export)]
+#[serde(tag = "status")]
+pub enum SetupStatusRes {
+    Complete(SetupResult),
+    Running(SetupProgress),
 }
 
-pub async fn status(ctx: SetupContext) -> Result<Option<SetupStatus>, RpcError> {
-    ctx.setup_status.read().await.clone().transpose()
+#[derive(Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SetupProgress {
+    pub progress: FullProgress,
+    pub guid: Guid,
+}
+
+pub async fn status(ctx: SetupContext) -> Result<Option<SetupStatusRes>, Error> {
+    if let Some(res) = ctx.result.get() {
+        match res {
+            Ok((res, _)) => Ok(Some(SetupStatusRes::Complete(res.clone()))),
+            Err(e) => Err(e.clone_output()),
+        }
+    } else {
+        if ctx.task.initialized() {
+            Ok(Some(SetupStatusRes::Running(ctx.progress().await)))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 /// We want to be able to get a secret, a shared private key with the frontend
@@ -213,6 +219,7 @@ pub fn cifs<C: Context>() -> ParentHandler<C> {
 
 #[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct VerifyCifsParams {
     hostname: String,
     path: PathBuf,
@@ -256,7 +263,8 @@ pub enum RecoverySource {
 
 #[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-pub struct ExecuteParams {
+#[ts(export)]
+pub struct SetupExecuteParams {
     start_os_logicalname: PathBuf,
     start_os_password: EncryptedWire,
     recovery_source: Option<RecoverySource>,
@@ -266,18 +274,18 @@ pub struct ExecuteParams {
 // #[command(rpc_only)]
 pub async fn execute(
     ctx: SetupContext,
-    ExecuteParams {
+    SetupExecuteParams {
         start_os_logicalname,
         start_os_password,
         recovery_source,
         recovery_password,
-    }: ExecuteParams,
-) -> Result<(), Error> {
+    }: SetupExecuteParams,
+) -> Result<SetupProgress, Error> {
     let start_os_password = match start_os_password.decrypt(&ctx) {
         Some(a) => a,
         None => {
             return Err(Error::new(
-                color_eyre::eyre::eyre!("Couldn't decode embassy-password"),
+                color_eyre::eyre::eyre!("Couldn't decode startOsPassword"),
                 crate::ErrorKind::Unknown,
             ))
         }
@@ -287,83 +295,44 @@ pub async fn execute(
             Some(a) => Some(a),
             None => {
                 return Err(Error::new(
-                    color_eyre::eyre::eyre!("Couldn't decode recovery-password"),
+                    color_eyre::eyre::eyre!("Couldn't decode recoveryPassword"),
                     crate::ErrorKind::Unknown,
                 ))
             }
         },
         None => None,
     };
-    let mut status = ctx.setup_status.write().await;
-    if status.is_some() {
-        return Err(Error::new(
-            eyre!("Setup already in progress"),
-            ErrorKind::InvalidRequest,
-        ));
-    }
-    *status = Some(Ok(SetupStatus {
-        bytes_transferred: 0,
-        total_bytes: None,
-        complete: false,
-    }));
-    drop(status);
-    tokio::task::spawn({
-        async move {
-            let ctx = ctx.clone();
-            match execute_inner(
-                ctx.clone(),
-                start_os_logicalname,
-                start_os_password,
-                recovery_source,
-                recovery_password,
-            )
-            .await
-            {
-                Ok((guid, hostname, tor_addr, root_ca)) => {
-                    tracing::info!("Setup Complete!");
-                    *ctx.setup_result.write().await = Some((
-                        guid,
-                        SetupResult {
-                            tor_address: format!("https://{}", tor_addr),
-                            lan_address: hostname.lan_address(),
-                            root_ca: String::from_utf8(
-                                root_ca.to_pem().expect("failed to serialize root ca"),
-                            )
-                            .expect("invalid pem string"),
-                        },
-                    ));
-                    *ctx.setup_status.write().await = Some(Ok(SetupStatus {
-                        bytes_transferred: 0,
-                        total_bytes: None,
-                        complete: true,
-                    }));
-                }
-                Err(e) => {
-                    tracing::error!("Error Setting Up Server: {}", e);
-                    tracing::debug!("{:?}", e);
-                    *ctx.setup_status.write().await = Some(Err(e.into()));
-                }
-            }
-        }
-    });
-    Ok(())
+
+    let setup_ctx = ctx.clone();
+    ctx.run_setup(|| {
+        execute_inner(
+            setup_ctx,
+            start_os_logicalname,
+            start_os_password,
+            recovery_source,
+            recovery_password,
+        )
+    })?;
+
+    Ok(ctx.progress().await)
 }
 
 #[instrument(skip_all)]
 // #[command(rpc_only)]
 pub async fn complete(ctx: SetupContext) -> Result<SetupResult, Error> {
-    let (guid, setup_result) = if let Some((guid, setup_result)) = &*ctx.setup_result.read().await {
-        (guid.clone(), setup_result.clone())
-    } else {
-        return Err(Error::new(
+    match ctx.result.get() {
+        Some(Ok((res, ctx))) => {
+            let mut guid_file = File::create("/media/startos/config/disk.guid").await?;
+            guid_file.write_all(ctx.disk_guid.as_bytes()).await?;
+            guid_file.sync_all().await?;
+            Ok(res.clone())
+        }
+        Some(Err(e)) => Err(e.clone_output()),
+        None => Err(Error::new(
             eyre!("setup.execute has not completed successfully"),
             crate::ErrorKind::InvalidRequest,
-        ));
-    };
-    let mut guid_file = File::create("/media/startos/config/disk.guid").await?;
-    guid_file.write_all(guid.as_bytes()).await?;
-    guid_file.sync_all().await?;
-    Ok(setup_result)
+        )),
+    }
 }
 
 #[instrument(skip_all)]
@@ -380,7 +349,22 @@ pub async fn execute_inner(
     start_os_password: String,
     recovery_source: Option<RecoverySource>,
     recovery_password: Option<String>,
-) -> Result<(Arc<String>, Hostname, OnionAddressV3, X509), Error> {
+) -> Result<(SetupResult, RpcContext), Error> {
+    let progress_handle = ctx.progress.handle();
+    let mut disk_phase = progress_handle.add_phase("Formatting data drive".into(), Some(10));
+    let restore_phase = match &recovery_source {
+        Some(RecoverySource::Backup { .. }) => {
+            Some(progress_handle.add_phase("Restoring backup".into(), Some(100)))
+        }
+        Some(RecoverySource::Migrate { .. }) => {
+            Some(progress_handle.add_phase("Transferring data".into(), Some(100)))
+        }
+        None => None,
+    };
+    let init_phases = InitPhases::new(&progress_handle);
+    let rpc_ctx_phases = InitRpcContextPhases::new(&progress_handle);
+
+    disk_phase.start();
     let encryption_password = if ctx.disable_encryption {
         None
     } else {
@@ -402,41 +386,70 @@ pub async fn execute_inner(
         encryption_password,
     )
     .await?;
+    disk_phase.complete();
 
-    if let Some(RecoverySource::Backup { target }) = recovery_source {
-        recover(ctx, guid, start_os_password, target, recovery_password).await
-    } else if let Some(RecoverySource::Migrate { guid: old_guid }) = recovery_source {
-        migrate(ctx, guid, &old_guid, start_os_password).await
-    } else {
-        let (hostname, tor_addr, root_ca) = fresh_setup(&ctx, &start_os_password).await?;
-        Ok((guid, hostname, tor_addr, root_ca))
+    let progress = SetupExecuteProgress {
+        init_phases,
+        restore_phase,
+        rpc_ctx_phases,
+    };
+
+    match recovery_source {
+        Some(RecoverySource::Backup { target }) => {
+            recover(
+                &ctx,
+                guid,
+                start_os_password,
+                target,
+                recovery_password,
+                progress,
+            )
+            .await
+        }
+        Some(RecoverySource::Migrate { guid: old_guid }) => {
+            migrate(&ctx, guid, &old_guid, start_os_password, progress).await
+        }
+        None => fresh_setup(&ctx, guid, &start_os_password, progress).await,
     }
+}
+
+pub struct SetupExecuteProgress {
+    pub init_phases: InitPhases,
+    pub restore_phase: Option<PhaseProgressTrackerHandle>,
+    pub rpc_ctx_phases: InitRpcContextPhases,
 }
 
 async fn fresh_setup(
     ctx: &SetupContext,
+    guid: Arc<String>,
     start_os_password: &str,
-) -> Result<(Hostname, OnionAddressV3, X509), Error> {
+    SetupExecuteProgress {
+        init_phases,
+        rpc_ctx_phases,
+        ..
+    }: SetupExecuteProgress,
+) -> Result<(SetupResult, RpcContext), Error> {
     let account = AccountInfo::new(start_os_password, root_ca_start_time().await?)?;
     let db = ctx.db().await?;
     db.put(&ROOT, &Database::init(&account)?).await?;
     drop(db);
-    init(&ctx.config).await?;
-    Ok((
-        account.hostname,
-        account.tor_key.public().get_onion_address(),
-        account.root_ca_cert,
-    ))
+
+    init(&ctx.config, init_phases).await?;
+
+    let rpc_ctx = RpcContext::init(&ctx.config, guid, rpc_ctx_phases).await?;
+
+    Ok(((&account).try_into()?, rpc_ctx))
 }
 
 #[instrument(skip_all)]
 async fn recover(
-    ctx: SetupContext,
+    ctx: &SetupContext,
     guid: Arc<String>,
     start_os_password: String,
     recovery_source: BackupTargetFS,
     recovery_password: Option<String>,
-) -> Result<(Arc<String>, Hostname, OnionAddressV3, X509), Error> {
+    progress: SetupExecuteProgress,
+) -> Result<(SetupResult, RpcContext), Error> {
     let recovery_source = TmpMountGuard::mount(&recovery_source, ReadWrite).await?;
     recover_full_embassy(
         ctx,
@@ -444,23 +457,26 @@ async fn recover(
         start_os_password,
         recovery_source,
         recovery_password,
+        progress,
     )
     .await
 }
 
 #[instrument(skip_all)]
 async fn migrate(
-    ctx: SetupContext,
+    ctx: &SetupContext,
     guid: Arc<String>,
     old_guid: &str,
     start_os_password: String,
-) -> Result<(Arc<String>, Hostname, OnionAddressV3, X509), Error> {
-    *ctx.setup_status.write().await = Some(Ok(SetupStatus {
-        bytes_transferred: 0,
-        total_bytes: None,
-        complete: false,
-    }));
+    SetupExecuteProgress {
+        init_phases,
+        restore_phase,
+        rpc_ctx_phases,
+    }: SetupExecuteProgress,
+) -> Result<(SetupResult, RpcContext), Error> {
+    let mut restore_phase = restore_phase.or_not_found("restore progress")?;
 
+    restore_phase.start();
     let _ = crate::disk::main::import(
         &old_guid,
         "/media/startos/migrate",
@@ -500,20 +516,12 @@ async fn migrate(
         res = async {
             loop {
                 tokio::time::sleep(Duration::from_secs(1)).await;
-                *ctx.setup_status.write().await = Some(Ok(SetupStatus {
-                    bytes_transferred: 0,
-                    total_bytes: Some(main_transfer_size.load() + package_data_transfer_size.load()),
-                    complete: false,
-                }));
+                restore_phase.set_total(main_transfer_size.load() + package_data_transfer_size.load());
             }
         } => res,
     };
 
-    *ctx.setup_status.write().await = Some(Ok(SetupStatus {
-        bytes_transferred: 0,
-        total_bytes: Some(size),
-        complete: false,
-    }));
+    restore_phase.set_total(size);
 
     let main_transfer_progress = Counter::new(0, ordering);
     let package_data_transfer_progress = Counter::new(0, ordering);
@@ -529,18 +537,17 @@ async fn migrate(
         res = async {
             loop {
                 tokio::time::sleep(Duration::from_secs(1)).await;
-                *ctx.setup_status.write().await = Some(Ok(SetupStatus {
-                    bytes_transferred: main_transfer_progress.load() + package_data_transfer_progress.load(),
-                    total_bytes: Some(size),
-                    complete: false,
-                }));
+                restore_phase.set_done(main_transfer_progress.load() + package_data_transfer_progress.load());
             }
         } => res,
     }
 
-    let (hostname, tor_addr, root_ca) = setup_init(&ctx, Some(start_os_password)).await?;
-
     crate::disk::main::export(&old_guid, "/media/startos/migrate").await?;
+    restore_phase.complete();
 
-    Ok((guid, hostname, tor_addr, root_ca))
+    let account = setup_init(&ctx, Some(start_os_password), init_phases).await?;
+
+    let rpc_ctx = RpcContext::init(&ctx.config, guid, rpc_ctx_phases).await?;
+
+    Ok(((&account).try_into()?, rpc_ctx))
 }

@@ -5,11 +5,13 @@ use rpc_toolkit::Context;
 use tokio::sync::broadcast::Sender;
 use tracing::instrument;
 
+use crate::context::config::ServerConfig;
 use crate::progress::FullProgressTracker;
 use crate::rpc_continuations::RpcContinuations;
 use crate::Error;
 
 pub struct InitContextSeed {
+    pub config: ServerConfig,
     pub progress: FullProgressTracker,
     pub shutdown: Sender<()>,
     pub rpc_continuations: RpcContinuations,
@@ -19,9 +21,10 @@ pub struct InitContextSeed {
 pub struct InitContext(Arc<InitContextSeed>);
 impl InitContext {
     #[instrument(skip_all)]
-    pub async fn init() -> Result<Self, Error> {
+    pub async fn init(cfg: &ServerConfig) -> Result<Self, Error> {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         Ok(Self(Arc::new(InitContextSeed {
+            config: cfg.clone(),
             progress: FullProgressTracker::new(),
             shutdown,
             rpc_continuations: RpcContinuations::new(),

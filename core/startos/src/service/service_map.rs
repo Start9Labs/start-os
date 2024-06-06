@@ -60,13 +60,22 @@ impl ServiceMap {
     }
 
     #[instrument(skip_all)]
-    pub async fn init(&self, ctx: &RpcContext) -> Result<(), Error> {
-        for id in ctx.db.peek().await.as_public().as_package_data().keys()? {
+    pub async fn init(
+        &self,
+        ctx: &RpcContext,
+        mut progress: PhaseProgressTrackerHandle,
+    ) -> Result<(), Error> {
+        progress.start();
+        let ids = ctx.db.peek().await.as_public().as_package_data().keys()?;
+        progress.set_total(ids.len() as u64);
+        for id in ids {
             if let Err(e) = self.load(ctx, &id, LoadDisposition::Retry).await {
                 tracing::error!("Error loading installed package as service: {e}");
                 tracing::debug!("{e:?}");
             }
+            progress += 1;
         }
+        progress.complete();
         Ok(())
     }
 

@@ -27,6 +27,7 @@ use crate::net::net_controller::NetController;
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
 use crate::net::wifi::WpaCli;
 use crate::prelude::*;
+use crate::progress::{FullProgressTrackerHandle, PhaseProgressTrackerHandle};
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
 use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
@@ -67,22 +68,64 @@ pub struct Hardware {
     pub ram: u64,
 }
 
+pub struct InitRpcContextPhases {
+    load_db: PhaseProgressTrackerHandle,
+    init_net_ctrl: PhaseProgressTrackerHandle,
+    read_device_info: PhaseProgressTrackerHandle,
+    cleanup_init: CleanupInitPhases,
+}
+impl InitRpcContextPhases {
+    pub fn new(handle: &FullProgressTrackerHandle) -> Self {
+        Self {
+            load_db: handle.add_phase("Loading database".into(), Some(5)),
+            init_net_ctrl: handle.add_phase("Initializing network".into(), Some(1)),
+            read_device_info: handle.add_phase("Reading device information".into(), Some(1)),
+            cleanup_init: CleanupInitPhases::new(handle),
+        }
+    }
+}
+
+pub struct CleanupInitPhases {
+    init_services: PhaseProgressTrackerHandle,
+    check_dependencies: PhaseProgressTrackerHandle,
+}
+impl CleanupInitPhases {
+    pub fn new(handle: &FullProgressTrackerHandle) -> Self {
+        Self {
+            init_services: handle.add_phase("Initializing services".into(), Some(10)),
+            check_dependencies: handle.add_phase("Checking dependencies".into(), Some(1)),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
     #[instrument(skip_all)]
-    pub async fn init(config: &ServerConfig, disk_guid: Arc<String>) -> Result<Self, Error> {
-        tracing::info!("Loaded Config");
+    pub async fn init(
+        config: &ServerConfig,
+        disk_guid: Arc<String>,
+        InitRpcContextPhases {
+            mut load_db,
+            mut init_net_ctrl,
+            mut read_device_info,
+            cleanup_init,
+        }: InitRpcContextPhases,
+    ) -> Result<Self, Error> {
         let tor_proxy = config.tor_socks.unwrap_or(SocketAddr::V4(SocketAddrV4::new(
             Ipv4Addr::new(127, 0, 0, 1),
             9050,
         )));
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
 
+        load_db.start();
         let db = TypedPatchDb::<Database>::load(config.db().await?).await?;
         let peek = db.peek().await;
         let account = AccountInfo::load(&peek)?;
+        load_db.complete();
         tracing::info!("Opened PatchDB");
+
+        init_net_ctrl.start();
         let net_controller = Arc::new(
             NetController::init(
                 db.clone(),
@@ -99,13 +142,17 @@ impl RpcContext {
             )
             .await?,
         );
+        init_net_ctrl.complete();
         tracing::info!("Initialized Net Controller");
+
         let services = ServiceMap::default();
         let metrics_cache = RwLock::<Option<crate::system::Metrics>>::new(None);
-        tracing::info!("Initialized Notification Manager");
         let tor_proxy_url = format!("socks5h://{tor_proxy}");
+
+        read_device_info.start();
         let devices = lshw().await?;
         let ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
+        read_device_info.complete();
 
         if !db
             .peek()
@@ -190,7 +237,7 @@ impl RpcContext {
         });
 
         let res = Self(seed.clone());
-        res.cleanup_and_initialize().await?;
+        res.cleanup_and_initialize(cleanup_init).await?;
         tracing::info!("Cleaned up transient states");
         Ok(res)
     }
@@ -204,11 +251,18 @@ impl RpcContext {
         Ok(())
     }
 
-    #[instrument(skip(self))]
-    pub async fn cleanup_and_initialize(&self) -> Result<(), Error> {
-        self.services.init(&self).await?;
+    #[instrument(skip_all)]
+    pub async fn cleanup_and_initialize(
+        &self,
+        CleanupInitPhases {
+            init_services,
+            mut check_dependencies,
+        }: CleanupInitPhases,
+    ) -> Result<(), Error> {
+        self.services.init(&self, init_services).await?;
         tracing::info!("Initialized Package Managers");
 
+        check_dependencies.start();
         let mut updated_current_dependents = BTreeMap::new();
         let peek = self.db.peek().await;
         for (package_id, package) in peek.as_public().as_package_data().as_entries()?.into_iter() {
@@ -232,6 +286,7 @@ impl RpcContext {
                 Ok(())
             })
             .await?;
+        check_dependencies.complete();
 
         Ok(())
     }

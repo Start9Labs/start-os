@@ -8,15 +8,8 @@ import {
   RpcError,
   RPCOptions,
 } from '@start9labs/shared'
-import {
-  ApiService,
-  CifsRecoverySource,
-  DiskRecoverySource,
-  StatusRes,
-  AttachReq,
-  ExecuteReq,
-  CompleteRes,
-} from './api.service'
+import { T } from '@start9labs/start-sdk'
+import { ApiService } from './api.service'
 import * as jose from 'node-jose'
 
 @Injectable({
@@ -28,7 +21,7 @@ export class LiveApiService extends ApiService {
   }
 
   async getStatus() {
-    return this.rpcRequest<StatusRes>({
+    return this.rpcRequest<T.SetupStatusRes | null>({
       method: 'setup.status',
       params: {},
     })
@@ -57,7 +50,7 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async verifyCifs(source: CifsRecoverySource) {
+  async verifyCifs(source: T.VerifyCifsParams) {
     source.path = source.path.replace('/\\/g', '/')
     return this.rpcRequest<StartOSDiskInfo>({
       method: 'setup.cifs.verify',
@@ -65,14 +58,14 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async attach(params: AttachReq) {
-    await this.rpcRequest<void>({
+  async attach(params: T.AttachParams) {
+    return this.rpcRequest<T.SetupProgress>({
       method: 'setup.attach',
       params,
     })
   }
 
-  async execute(setupInfo: ExecuteReq) {
+  async execute(setupInfo: T.SetupExecuteParams) {
     if (setupInfo.recoverySource?.type === 'backup') {
       if (isCifsSource(setupInfo.recoverySource.target)) {
         setupInfo.recoverySource.target.path =
@@ -80,14 +73,14 @@ export class LiveApiService extends ApiService {
       }
     }
 
-    await this.rpcRequest<void>({
+    return this.rpcRequest<T.SetupProgress>({
       method: 'setup.execute',
       params: setupInfo,
     })
   }
 
   async complete() {
-    const res = await this.rpcRequest<CompleteRes>({
+    const res = await this.rpcRequest<T.SetupResult>({
       method: 'setup.complete',
       params: {},
     })
@@ -119,7 +112,7 @@ export class LiveApiService extends ApiService {
 }
 
 function isCifsSource(
-  source: CifsRecoverySource | DiskRecoverySource | null,
-): source is CifsRecoverySource {
-  return !!(source as CifsRecoverySource)?.hostname
+  source: T.BackupTargetFS | null,
+): source is T.Cifs & { type: 'cifs' } {
+  return !!(source as T.Cifs)?.hostname
 }

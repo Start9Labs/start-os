@@ -275,6 +275,81 @@ pub fn response_to_reader(response: reqwest::Response) -> impl AsyncRead + Unpin
 }
 
 #[pin_project::pin_project]
+pub struct IOHook<'a, T> {
+    #[pin]
+    pub io: T,
+    pre_write: Option<Box<dyn FnMut(&[u8]) -> Result<(), std::io::Error> + Send + 'a>>,
+    post_write: Option<Box<dyn FnMut(&[u8]) + Send + 'a>>,
+    post_read: Option<Box<dyn FnMut(&[u8]) + Send + 'a>>,
+}
+impl<'a, T> IOHook<'a, T> {
+    pub fn new(io: T) -> Self {
+        Self {
+            io,
+            pre_write: None,
+            post_write: None,
+            post_read: None,
+        }
+    }
+    pub fn into_inner(self) -> T {
+        self.io
+    }
+    pub fn pre_write<F: FnMut(&[u8]) -> Result<(), std::io::Error> + Send + 'a>(&mut self, f: F) {
+        self.pre_write = Some(Box::new(f))
+    }
+    pub fn post_write<F: FnMut(&[u8]) + Send + 'a>(&mut self, f: F) {
+        self.post_write = Some(Box::new(f))
+    }
+    pub fn post_read<F: FnMut(&[u8]) + Send + 'a>(&mut self, f: F) {
+        self.post_read = Some(Box::new(f))
+    }
+}
+impl<'a, T: AsyncWrite> AsyncWrite for IOHook<'a, T> {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        let this = self.project();
+        if let Some(pre_write) = this.pre_write {
+            pre_write(buf)?;
+        }
+        let written = futures::ready!(this.io.poll_write(cx, buf)?);
+        if let Some(post_write) = this.post_write {
+            post_write(&buf[..written]);
+        }
+        Poll::Ready(Ok(written))
+    }
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        self.project().io.poll_flush(cx)
+    }
+    fn poll_shutdown(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        self.project().io.poll_shutdown(cx)
+    }
+}
+impl<'a, T: AsyncRead> AsyncRead for IOHook<'a, T> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        let this = self.project();
+        let start = buf.filled().len();
+        futures::ready!(this.io.poll_read(cx, buf)?);
+        if let Some(post_read) = this.post_read {
+            post_read(&buf.filled()[start..]);
+        }
+        Poll::Ready(Ok(()))
+    }
+}
+
+#[pin_project::pin_project]
 pub struct BufferedWriteReader {
     #[pin]
     hdl: Fuse<NonDetachingJoinHandle<Result<(), std::io::Error>>>,

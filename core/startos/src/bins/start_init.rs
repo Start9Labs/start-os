@@ -1,3 +1,4 @@
+use std::io::Cursor;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -5,22 +6,26 @@ use tokio::process::Command;
 use tracing::instrument;
 
 use crate::context::config::ServerConfig;
-use crate::context::{DiagnosticContext, InitContext, InstallContext, SetupContext};
+use crate::context::rpc::InitRpcContextPhases;
+use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
 use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::REPAIR_DISK_PATH;
 use crate::firmware::{check_for_firmware_update, update_firmware};
-use crate::init::STANDBY_MODE_PATH;
+use crate::init::{InitPhases, STANDBY_MODE_PATH};
 use crate::net::web_server::WebServer;
+use crate::prelude::*;
+use crate::progress::{FullProgressTrackerHandle, PhaseProgressTrackerHandle};
 use crate::shutdown::Shutdown;
+use crate::util::io::IOHook;
 use crate::util::Invoke;
-use crate::{Error, ErrorKind, ResultExt, PLATFORM};
+use crate::PLATFORM;
 
 #[instrument(skip_all)]
 async fn setup_or_init(
     server: &mut WebServer,
     config: &ServerConfig,
-) -> Result<Option<Shutdown>, Error> {
+) -> Result<Result<(RpcContext, FullProgressTrackerHandle), Shutdown>, Error> {
     if let Some(firmware) = check_for_firmware_update()
         .await
         .map_err(|e| {
@@ -30,7 +35,7 @@ async fn setup_or_init(
         .ok()
         .and_then(|a| a)
     {
-        let init_ctx = InitContext::init().await?;
+        let init_ctx = InitContext::init(config).await?;
         let handle = init_ctx.progress.handle();
         let mut update_phase = handle.add_phase("Updating Firmware".into(), Some(10));
         let mut reboot_phase = handle.add_phase("Rebooting".into(), Some(1));
@@ -44,7 +49,7 @@ async fn setup_or_init(
         } else {
             update_phase.complete();
             reboot_phase.start();
-            return Ok(Some(Shutdown {
+            return Ok(Err(Shutdown {
                 export_args: None,
                 restart: true,
             }));
@@ -99,11 +104,13 @@ async fn setup_or_init(
             .await
             .expect("context dropped");
 
-        return Ok(Some(Shutdown {
+        return Ok(Err(Shutdown {
             export_args: None,
             restart: true,
         }));
-    } else if tokio::fs::metadata("/media/startos/config/disk.guid")
+    }
+
+    if tokio::fs::metadata("/media/startos/config/disk.guid")
         .await
         .is_err()
     {
@@ -123,19 +130,56 @@ async fn setup_or_init(
             tracing::error!("Failed to kill kiosk: {}", e);
             tracing::debug!("{:?}", e);
         }
+
+        Ok(Ok(match ctx.result.get() {
+            Some(Ok((_, rpc_ctx))) => (rpc_ctx.clone(), ctx.progress.handle()),
+            Some(Err(e)) => return Err(e.clone_output()),
+            None => {
+                return Err(Error::new(
+                    eyre!("Setup mode exited before setup completed"),
+                    ErrorKind::Unknown,
+                ))
+            }
+        }))
     } else {
+        let init_ctx = InitContext::init(config).await?;
+        let handle = init_ctx.progress.handle();
+
+        let mut disk_phase = handle.add_phase("Opening data drive".into(), Some(10));
+        let preinit_phase = if tokio::fs::metadata("/media/startos/config/preinit.sh")
+            .await
+            .is_ok()
+        {
+            Some(handle.add_phase("Running preinit.sh".into(), Some(5)))
+        } else {
+            None
+        };
+        let init_phases = InitPhases::new(&handle);
+        let postinit_phase = if tokio::fs::metadata("/media/startos/config/postinit.sh")
+            .await
+            .is_ok()
+        {
+            Some(handle.add_phase("Running postinit.sh".into(), Some(5)))
+        } else {
+            None
+        };
+        let rpc_ctx_phases = InitRpcContextPhases::new(&handle);
+
+        server.serve_init(init_ctx);
+
+        disk_phase.start();
         let guid_string = tokio::fs::read_to_string("/media/startos/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
             .await?;
-        let guid = guid_string.trim();
+        let disk_guid = Arc::new(String::from(guid_string.trim()));
         let requires_reboot = crate::disk::main::import(
-            guid,
+            &**disk_guid,
             config.datadir(),
             if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
                 RepairStrategy::Aggressive
             } else {
                 RepairStrategy::Preen
             },
-            if guid.ends_with("_UNENC") {
+            if disk_guid.ends_with("_UNENC") {
                 None
             } else {
                 Some(DEFAULT_PASSWORD)
@@ -147,37 +191,23 @@ async fn setup_or_init(
                 .await
                 .with_ctx(|_| (crate::ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
         }
-        if requires_reboot.0 {
-            crate::disk::main::export(guid, config.datadir()).await?;
-            Command::new("reboot")
-                .invoke(crate::ErrorKind::Unknown)
-                .await?;
-        }
+        disk_phase.complete();
         tracing::info!("Loaded Disk");
 
-        run_script_if_exists("/media/startos/config/preinit.sh").await;
-        crate::init::init(config).await?;
-        run_script_if_exists("/media/startos/config/postinit.sh").await;
-    }
-
-    Ok(None)
-}
-
-async fn run_script_if_exists<P: AsRef<Path>>(path: P) {
-    let script = path.as_ref();
-    if script.exists() {
-        match Command::new("/bin/bash").arg(script).spawn() {
-            Ok(mut c) => {
-                if let Err(e) = c.wait().await {
-                    tracing::error!("Error Running {}: {}", script.display(), e);
-                    tracing::debug!("{:?}", e);
-                }
-            }
-            Err(e) => {
-                tracing::error!("Error Running {}: {}", script.display(), e);
-                tracing::debug!("{:?}", e);
-            }
+        if requires_reboot.0 {
+            let mut reboot_phase = handle.add_phase("Rebooting".into(), Some(1));
+            reboot_phase.start();
+            return Ok(Err(Shutdown {
+                export_args: Some((disk_guid, config.datadir().to_owned())),
+                restart: true,
+            }));
         }
+
+        crate::init::init(config, init_phases).await?;
+
+        let rpc_ctx = RpcContext::init(config, disk_guid, rpc_ctx_phases).await?;
+
+        Ok(Ok((rpc_ctx, handle)))
     }
 }
 
@@ -185,7 +215,7 @@ async fn run_script_if_exists<P: AsRef<Path>>(path: P) {
 pub async fn main(
     server: &mut WebServer,
     config: &ServerConfig,
-) -> Result<Option<Shutdown>, Error> {
+) -> Result<Result<(RpcContext, FullProgressTrackerHandle), Shutdown>, Error> {
     if &*PLATFORM == "raspberrypi" && tokio::fs::metadata(STANDBY_MODE_PATH).await.is_ok() {
         tokio::fs::remove_file(STANDBY_MODE_PATH).await?;
         Command::new("sync").invoke(ErrorKind::Filesystem).await?;
@@ -221,7 +251,7 @@ pub async fn main(
 
                 let shutdown = ctx.shutdown.subscribe().recv().await.unwrap();
 
-                Ok(shutdown)
+                Ok(Err(shutdown))
             }
             .await
         }

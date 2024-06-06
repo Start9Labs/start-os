@@ -9,7 +9,8 @@ use tokio::signal::unix::signal;
 use tracing::instrument;
 
 use crate::context::config::ServerConfig;
-use crate::context::{DiagnosticContext, RpcContext};
+use crate::context::rpc::InitRpcContextPhases;
+use crate::context::{DiagnosticContext, InitContext, RpcContext};
 use crate::net::web_server::WebServer;
 use crate::shutdown::Shutdown;
 use crate::system::launch_metrics_task;
@@ -21,16 +22,27 @@ async fn inner_main(
     server: &mut WebServer,
     config: &ServerConfig,
 ) -> Result<Option<Shutdown>, Error> {
-    if !tokio::fs::metadata("/run/startos/initialized")
+    let rpc_ctx = if !tokio::fs::metadata("/run/startos/initialized")
         .await
         .is_ok()
     {
-        super::start_init::main(server, &config).await?;
+        let (ctx, handle) = match super::start_init::main(server, &config).await? {
+            Err(s) => return Ok(Some(s)),
+            Ok(ctx) => ctx,
+        };
         tokio::fs::write("/run/startos/initialized", "").await?;
-    }
 
-    let (rpc_ctx, shutdown) = async {
-        let rpc_ctx = RpcContext::init(
+        server.serve_main(ctx.clone());
+        handle.complete();
+
+        ctx
+    } else {
+        let init_ctx = InitContext::init(config).await?;
+        let handle = init_ctx.progress.handle();
+        let rpc_ctx_phases = InitRpcContextPhases::new(&handle);
+        server.serve_init(init_ctx);
+
+        let ctx = RpcContext::init(
             config,
             Arc::new(
                 tokio::fs::read_to_string("/media/startos/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
@@ -38,10 +50,18 @@ async fn inner_main(
                     .trim()
                     .to_owned(),
             ),
+            rpc_ctx_phases,
         )
         .await?;
+
+        server.serve_main(ctx.clone());
+        handle.complete();
+
+        ctx
+    };
+
+    let (rpc_ctx, shutdown) = async {
         crate::hostname::sync_hostname(&rpc_ctx.account.read().await.hostname).await?;
-        server.serve_main(rpc_ctx.clone());
 
         let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
@@ -156,7 +176,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
 
                         server.shutdown().await;
 
-                        Ok::<_, Error>(shutdown)
+                        Ok::<_, Error>(Some(shutdown))
                     }
                     .await
                 }

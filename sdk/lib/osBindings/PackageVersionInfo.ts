@@ -17,7 +17,6 @@ export type PackageVersionInfo = {
   upstreamRepo: string
   supportSite: string
   marketingSite: string
-  categories: string[]
   osVersion: Version
   hardwareRequirements: HardwareRequirements
   sourceVersion: string | null
