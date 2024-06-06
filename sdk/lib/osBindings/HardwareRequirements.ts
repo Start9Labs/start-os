@@ -3,5 +3,5 @@
 export type HardwareRequirements = {
   device: { [key: string]: string }
   ram: number | null
-  arch: Array<string> | null
+  arch: string[] | null
 }

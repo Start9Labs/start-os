@@ -2,7 +2,7 @@ import { types as T, utils, EmVer } from "@start9labs/start-sdk"
 import * as fs from "fs/promises"
 
 import { PolyfillEffects } from "./polyfillEffects"
-import { Duration, duration } from "../../../Models/Duration"
+import { Duration, duration, fromDuration } from "../../../Models/Duration"
 import { System } from "../../../Interfaces/System"
 import { matchManifest, Manifest, Procedure } from "./matchManifest"
 import * as childProcess from "node:child_process"
@@ -389,10 +389,13 @@ export class SystemForEmbassy implements System {
     delete this.currentRunning
     if (currentRunning) {
       await currentRunning.clean({
-        timeout: this.manifest.main["sigterm-timeout"],
+        timeout: fromDuration(this.manifest.main["sigterm-timeout"]),
       })
     }
-    const durationValue = duration(this.manifest.main["sigterm-timeout"], "s")
+    const durationValue = duration(
+      fromDuration(this.manifest.main["sigterm-timeout"]),
+      "s",
+    )
     return durationValue
   }
   private async createBackup(
