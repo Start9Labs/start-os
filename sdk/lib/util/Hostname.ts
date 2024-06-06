@@ -9,13 +9,15 @@ export function hostnameInfoToAddress(hostInfo: HostnameInfo): string {
   }
   const hostname = hostInfo.hostname
   if (hostname.kind === "domain") {
-    return `${hostname.subdomain ? `${hostname.subdomain}.` : ""}${hostname.domain}.local`
+    return `${hostname.subdomain ? `${hostname.subdomain}.` : ""}${hostname.domain}`
   }
+  const port = hostname.sslPort || hostname.port
+  const portString = port ? `:${port}` : ""
   if ("ipv4" === hostname.kind || "ipv6" === hostname.kind) {
-    return hostname.value
+    return `${hostname.value}${portString}`
   }
   if ("local" === hostname.kind) {
-    return `${hostname.value}`
+    return `${hostname.value}${portString}`
   }
   throw Error(
     "Expecting to have a valid hostname kind." + JSON.stringify(hostname),
