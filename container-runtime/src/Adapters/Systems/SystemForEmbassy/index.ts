@@ -879,7 +879,7 @@ async function updateConfig(
 
     const newConfigValue = mutConfigValue[key]
     if (matchSpec.test(specValue)) {
-      const updateObject = { spec: null }
+      const updateObject = { spec: newConfigValue }
       await updateConfig(effects, { spec: specValue.spec }, updateObject)
       mutConfigValue[key] = updateObject.spec
     }
