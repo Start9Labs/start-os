@@ -4,6 +4,7 @@ import type { PackageVersionInfo } from "./PackageVersionInfo"
 import type { Version } from "./Version"
 
 export type PackageInfo = {
-  signers: Array<Guid>
+  authorized: Array<Guid>
   versions: { [key: Version]: PackageVersionInfo }
+  categories: string[]
 }

@@ -1422,65 +1422,10 @@ export module Mock {
         addressInfo: {
           username: null,
           hostId: 'abcdefg',
-          bindOptions: {
-            scheme: 'http',
-            preferredExternalPort: 80,
-            addSsl: {
-              // addXForwardedHeaders: false,
-              preferredExternalPort: 443,
-              scheme: 'https',
-              alpn: { specified: ['http/1.1', 'h2'] },
-            },
-            secure: null,
-          },
+          internalPort: 80,
+          scheme: 'http',
+          sslScheme: 'https',
           suffix: '',
-        },
-        hostInfo: {
-          id: 'abcdefg',
-          kind: 'multi',
-          hostnames: [
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'local',
-                value: 'adjective-noun.local',
-                port: null,
-                sslPort: 1234,
-              },
-            },
-            {
-              kind: 'onion',
-              hostname: {
-                value: 'bitcoin-ui-address.onion',
-                port: 80,
-                sslPort: 443,
-              },
-            },
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'ipv4',
-                value: '192.168.1.5',
-                port: null,
-                sslPort: 1234,
-              },
-            },
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'ipv6',
-                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
-                port: null,
-                sslPort: 1234,
-              },
-            },
-          ],
         },
       },
       rpc: {
@@ -1495,65 +1440,10 @@ export module Mock {
         addressInfo: {
           username: null,
           hostId: 'bcdefgh',
-          bindOptions: {
-            scheme: 'http',
-            preferredExternalPort: 80,
-            addSsl: {
-              // addXForwardedHeaders: false,
-              preferredExternalPort: 443,
-              scheme: 'https',
-              alpn: { specified: ['http/1.1'] },
-            },
-            secure: null,
-          },
+          internalPort: 8332,
+          scheme: 'http',
+          sslScheme: 'https',
           suffix: '',
-        },
-        hostInfo: {
-          id: 'bcdefgh',
-          kind: 'multi',
-          hostnames: [
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'local',
-                value: 'adjective-noun.local',
-                port: null,
-                sslPort: 2345,
-              },
-            },
-            {
-              kind: 'onion',
-              hostname: {
-                value: 'bitcoin-rpc-address.onion',
-                port: 80,
-                sslPort: 443,
-              },
-            },
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'ipv4',
-                value: '192.168.1.5',
-                port: null,
-                sslPort: 2345,
-              },
-            },
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'ipv6',
-                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
-                port: null,
-                sslPort: 2345,
-              },
-            },
-          ],
         },
       },
       p2p: {
@@ -1568,62 +1458,10 @@ export module Mock {
         addressInfo: {
           username: null,
           hostId: 'cdefghi',
-          bindOptions: {
-            scheme: 'bitcoin',
-            preferredExternalPort: 8333,
-            addSsl: null,
-            secure: {
-              ssl: false,
-            },
-          },
+          internalPort: 8333,
+          scheme: 'bitcoin',
+          sslScheme: null,
           suffix: '',
-        },
-        hostInfo: {
-          id: 'cdefghi',
-          kind: 'multi',
-          hostnames: [
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'local',
-                value: 'adjective-noun.local',
-                port: 3456,
-                sslPort: null,
-              },
-            },
-            {
-              kind: 'onion',
-              hostname: {
-                value: 'bitcoin-p2p-address.onion',
-                port: 8333,
-                sslPort: null,
-              },
-            },
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'ipv4',
-                value: '192.168.1.5',
-                port: 3456,
-                sslPort: null,
-              },
-            },
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'ipv6',
-                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
-                port: 3456,
-                sslPort: null,
-              },
-            },
-          ],
         },
       },
     },
@@ -1660,100 +1498,10 @@ export module Mock {
         addressInfo: {
           username: null,
           hostId: 'hijklmnop',
-          bindOptions: {
-            scheme: 'http',
-            preferredExternalPort: 80,
-            addSsl: {
-              // addXForwardedHeaders: false,
-              preferredExternalPort: 443,
-              scheme: 'https',
-              alpn: { specified: ['http/1.1', 'h2'] },
-            },
-            secure: {
-              ssl: true,
-            },
-          },
+          internalPort: 80,
+          scheme: 'http',
+          sslScheme: 'https',
           suffix: '',
-        },
-        hostInfo: {
-          id: 'hijklmnop',
-          kind: 'multi',
-          hostnames: [
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'local',
-                value: 'adjective-noun.local',
-                port: null,
-                sslPort: 4567,
-              },
-            },
-            {
-              kind: 'onion',
-              hostname: {
-                value: 'proxy-ui-address.onion',
-                port: 80,
-                sslPort: 443,
-              },
-            },
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'ipv4',
-                value: '192.168.1.5',
-                port: null,
-                sslPort: 4567,
-              },
-            },
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'ipv6',
-                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
-                port: null,
-                sslPort: 4567,
-              },
-            },
-            {
-              kind: 'ip',
-              networkInterfaceId: 'wlan0',
-              public: false,
-              hostname: {
-                kind: 'local',
-                value: 'adjective-noun.local',
-                port: null,
-                sslPort: 4567,
-              },
-            },
-            {
-              kind: 'ip',
-              networkInterfaceId: 'wlan0',
-              public: false,
-              hostname: {
-                kind: 'ipv4',
-                value: '192.168.1.7',
-                port: null,
-                sslPort: 4567,
-              },
-            },
-            {
-              kind: 'ip',
-              networkInterfaceId: 'wlan0',
-              public: false,
-              hostname: {
-                kind: 'ipv6',
-                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
-                port: null,
-                sslPort: 4567,
-              },
-            },
-          ],
         },
       },
     },
@@ -1801,62 +1549,10 @@ export module Mock {
         addressInfo: {
           username: null,
           hostId: 'qrstuv',
-          bindOptions: {
-            scheme: 'grpc',
-            preferredExternalPort: 10009,
-            addSsl: null,
-            secure: {
-              ssl: true,
-            },
-          },
+          internalPort: 10009,
+          scheme: null,
+          sslScheme: 'grpc',
           suffix: '',
-        },
-        hostInfo: {
-          id: 'qrstuv',
-          kind: 'multi',
-          hostnames: [
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'local',
-                value: 'adjective-noun.local',
-                port: 5678,
-                sslPort: null,
-              },
-            },
-            {
-              kind: 'onion',
-              hostname: {
-                value: 'lnd-grpc-address.onion',
-                port: 10009,
-                sslPort: null,
-              },
-            },
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'ipv4',
-                value: '192.168.1.5',
-                port: 5678,
-                sslPort: null,
-              },
-            },
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'ipv6',
-                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
-                port: 5678,
-                sslPort: null,
-              },
-            },
-          ],
         },
       },
       lndconnect: {
@@ -1871,62 +1567,10 @@ export module Mock {
         addressInfo: {
           username: null,
           hostId: 'qrstuv',
-          bindOptions: {
-            scheme: 'lndconnect',
-            preferredExternalPort: 10009,
-            addSsl: null,
-            secure: {
-              ssl: true,
-            },
-          },
+          internalPort: 10009,
+          scheme: null,
+          sslScheme: 'lndconnect',
           suffix: 'cert=askjdfbjadnaskjnd&macaroon=ksjbdfnhjasbndjksand',
-        },
-        hostInfo: {
-          id: 'qrstuv',
-          kind: 'multi',
-          hostnames: [
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'local',
-                value: 'adjective-noun.local',
-                port: 5678,
-                sslPort: null,
-              },
-            },
-            {
-              kind: 'onion',
-              hostname: {
-                value: 'lnd-grpc-address.onion',
-                port: 10009,
-                sslPort: null,
-              },
-            },
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'ipv4',
-                value: '192.168.1.5',
-                port: 5678,
-                sslPort: null,
-              },
-            },
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'ipv6',
-                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
-                port: 5678,
-                sslPort: null,
-              },
-            },
-          ],
         },
       },
       p2p: {
@@ -1941,62 +1585,10 @@ export module Mock {
         addressInfo: {
           username: null,
           hostId: 'rstuvw',
-          bindOptions: {
-            scheme: null,
-            preferredExternalPort: 9735,
-            addSsl: null,
-            secure: {
-              ssl: true,
-            },
-          },
+          internalPort: 9735,
+          scheme: 'lightning',
+          sslScheme: null,
           suffix: '',
-        },
-        hostInfo: {
-          id: 'rstuvw',
-          kind: 'multi',
-          hostnames: [
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'local',
-                value: 'adjective-noun.local',
-                port: 6789,
-                sslPort: null,
-              },
-            },
-            {
-              kind: 'onion',
-              hostname: {
-                value: 'lnd-p2p-address.onion',
-                port: 9735,
-                sslPort: null,
-              },
-            },
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'ipv4',
-                value: '192.168.1.5',
-                port: 6789,
-                sslPort: null,
-              },
-            },
-            {
-              kind: 'ip',
-              networkInterfaceId: 'elan0',
-              public: false,
-              hostname: {
-                kind: 'ipv6',
-                value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
-                port: 6789,
-                sslPort: null,
-              },
-            },
-          ],
         },
       },
     },

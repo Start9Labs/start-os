@@ -2,10 +2,14 @@
 import type { BindInfo } from "./BindInfo"
 import type { HostAddress } from "./HostAddress"
 import type { HostKind } from "./HostKind"
+import type { HostnameInfo } from "./HostnameInfo"
 
 export type Host = {
   kind: HostKind
   bindings: { [key: number]: BindInfo }
   addresses: Array<HostAddress>
-  primary: HostAddress | null
+  /**
+   * COMPUTED: NetService::update
+   */
+  hostnameInfo: { [key: number]: Array<HostnameInfo> }
 }

@@ -10,7 +10,8 @@ use persistent_container::PersistentContainer;
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerFor};
 use serde::{Deserialize, Serialize};
 use start_stop::StartStop;
-use tokio::{fs::File, sync::Notify};
+use tokio::fs::File;
+use tokio::sync::Notify;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
@@ -308,7 +309,7 @@ impl Service {
             .send(transition::restore::Restore {
                 path: backup_source.path().to_path_buf(),
             })
-            .await?;
+            .await??;
         Ok(service)
     }
 
@@ -370,7 +371,7 @@ impl Service {
             .send(transition::backup::Backup {
                 path: guard.path().to_path_buf(),
             })
-            .await?;
+            .await??;
         Ok(())
     }
 

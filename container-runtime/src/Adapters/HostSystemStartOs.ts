@@ -96,7 +96,10 @@ export class HostSystemStartOs implements Effects {
   }
 
   bind(...[options]: Parameters<T.Effects["bind"]>) {
-    return this.rpcRound("bind", options) as ReturnType<T.Effects["bind"]>
+    return this.rpcRound("bind", {
+      ...options,
+      stack: new Error().stack,
+    }) as ReturnType<T.Effects["bind"]>
   }
   clearBindings(...[]: Parameters<T.Effects["clearBindings"]>) {
     return this.rpcRound("clearBindings", null) as ReturnType<
@@ -227,11 +230,6 @@ export class HostSystemStartOs implements Effects {
   }
   restart(...[]: Parameters<T.Effects["restart"]>) {
     return this.rpcRound("restart", null)
-  }
-  reverseProxy(...[options]: Parameters<T.Effects["reverseProxy"]>) {
-    return this.rpcRound("reverseProxy", options) as ReturnType<
-      T.Effects["reverseProxy"]
-    >
   }
   running(...[packageId]: Parameters<T.Effects["running"]>) {
     return this.rpcRound("running", { packageId }) as ReturnType<

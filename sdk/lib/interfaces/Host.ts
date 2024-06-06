@@ -1,14 +1,14 @@
-import { object, string } from "ts-matches"
+import { number, object, string } from "ts-matches"
 import { Effects } from "../types"
 import { Origin } from "./Origin"
-import { AddSslOptions } from ".././osBindings"
+import { AddSslOptions, BindParams } from ".././osBindings"
 import { Security } from ".././osBindings"
 import { BindOptions } from ".././osBindings"
 import { AlpnInfo } from ".././osBindings"
 
 export { AddSslOptions, Security, BindOptions }
 
-const knownProtocols = {
+export const knownProtocols = {
   http: {
     secure: null,
     defaultPort: 80,
@@ -69,19 +69,17 @@ type NotProtocolsWithSslVariants = Exclude<
 type BindOptionsByKnownProtocol =
   | {
       protocol: ProtocolsWithSslVariants
-      preferredExternalPort?: number
-      scheme?: Scheme
+      preferredExternalPort: number
       addSsl?: Partial<AddSslOptions>
     }
   | {
       protocol: NotProtocolsWithSslVariants
-      preferredExternalPort?: number
-      scheme?: Scheme
+      preferredExternalPort: number
       addSsl?: AddSslOptions
     }
-type BindOptionsByProtocol = BindOptionsByKnownProtocol | BindOptions
+export type BindOptionsByProtocol = BindOptionsByKnownProtocol | BindOptions
 
-export type HostKind = "static" | "single" | "multi"
+export type HostKind = BindParams["kind"]
 
 const hasStringProtocol = object({
   protocol: string,
@@ -110,66 +108,62 @@ export class Host {
   private async bindPortForUnknown(
     internalPort: number,
     options: {
-      scheme: Scheme
       preferredExternalPort: number
       addSsl: AddSslOptions | null
       secure: { ssl: boolean } | null
     },
   ) {
-    await this.options.effects.bind({
+    const binderOptions = {
       kind: this.options.kind,
       id: this.options.id,
-      internalPort: internalPort,
+      internalPort,
       ...options,
-    })
+    }
+    await this.options.effects.bind(binderOptions)
 
-    return new Origin(this, options)
+    return new Origin(this, internalPort, null, null)
   }
 
   private async bindPortForKnown(
     options: BindOptionsByKnownProtocol,
     internalPort: number,
   ) {
-    const scheme =
-      options.scheme === undefined ? options.protocol : options.scheme
     const protoInfo = knownProtocols[options.protocol]
     const preferredExternalPort =
       options.preferredExternalPort ||
       knownProtocols[options.protocol].defaultPort
-    const addSsl = this.getAddSsl(options, protoInfo)
+    const sslProto = this.getSslProto(options, protoInfo)
+    const addSsl =
+      sslProto && "alpn" in protoInfo
+        ? {
+            // addXForwardedHeaders: null,
+            preferredExternalPort: knownProtocols[sslProto].defaultPort,
+            scheme: sslProto,
+            alpn: protoInfo.alpn,
+            ...("addSsl" in options ? options.addSsl : null),
+          }
+        : null
 
     const secure: Security | null = !protoInfo.secure ? null : { ssl: false }
-
-    const newOptions = {
-      scheme,
-      preferredExternalPort,
-      addSsl,
-      secure,
-    }
 
     await this.options.effects.bind({
       kind: this.options.kind,
       id: this.options.id,
       internalPort,
-      ...newOptions,
+      preferredExternalPort,
+      addSsl,
+      secure,
     })
 
-    return new Origin(this, newOptions)
+    return new Origin(this, internalPort, options.protocol, sslProto)
   }
 
-  private getAddSsl(
+  private getSslProto(
     options: BindOptionsByKnownProtocol,
     protoInfo: KnownProtocols[keyof KnownProtocols],
-  ): AddSslOptions | null {
+  ) {
     if (inObject("noAddSsl", options) && options.noAddSsl) return null
-    if ("withSsl" in protoInfo && protoInfo.withSsl)
-      return {
-        // addXForwardedHeaders: null,
-        preferredExternalPort: knownProtocols[protoInfo.withSsl].defaultPort,
-        scheme: protoInfo.withSsl,
-        alpn: protoInfo.alpn,
-        ...("addSsl" in options ? options.addSsl : null),
-      }
+    if ("withSsl" in protoInfo && protoInfo.withSsl) return protoInfo.withSsl
     return null
   }
 }
@@ -181,17 +175,17 @@ function inObject<Key extends string>(
   return key in obj
 }
 
-export class StaticHost extends Host {
-  constructor(options: { effects: Effects; id: string }) {
-    super({ ...options, kind: "static" })
-  }
-}
+// export class StaticHost extends Host {
+//   constructor(options: { effects: Effects; id: string }) {
+//     super({ ...options, kind: "static" })
+//   }
+// }
 
-export class SingleHost extends Host {
-  constructor(options: { effects: Effects; id: string }) {
-    super({ ...options, kind: "single" })
-  }
-}
+// export class SingleHost extends Host {
+//   constructor(options: { effects: Effects; id: string }) {
+//     super({ ...options, kind: "single" })
+//   }
+// }
 
 export class MultiHost extends Host {
   constructor(options: { effects: Effects; id: string }) {
