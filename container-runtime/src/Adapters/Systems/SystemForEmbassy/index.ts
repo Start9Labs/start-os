@@ -1004,7 +1004,7 @@ async function updateConfig(
         manifest,
         specInterface,
       )
-      if (serviceInterfaceId instanceof Error) {
+      if (!serviceInterfaceId) {
         mutConfigValue[key] = ""
         return
       }
@@ -1042,8 +1042,7 @@ async function updateConfig(
   }
 }
 function extractServiceInterfaceId(manifest: Manifest, specInterface: string) {
-  
-  const lanConfig =
+  const internalPort =
     Object.entries(
       manifest.interfaces[specInterface]?.["lan-config"] || {},
     )[0]?.[1]?.internal ||
@@ -1052,7 +1051,7 @@ function extractServiceInterfaceId(manifest: Manifest, specInterface: string) {
         {},
     )?.[0]?.[1]
 
-  if (!lanConfig) return new Error()
-  const serviceInterfaceId = `${specInterface}-${lanConfig}`
+  if (!internalPort) return null
+  const serviceInterfaceId = `${specInterface}-${internalPort}`
   return serviceInterfaceId
 }
