@@ -1004,6 +1004,10 @@ async function updateConfig(
         manifest,
         specInterface,
       )
+      if (serviceInterfaceId instanceof Error) {
+        mutConfigValue[key] = ""
+        return
+      }
       const filled = await utils
         .getServiceInterface(effects, {
           packageId: specValue["package-id"],
@@ -1038,8 +1042,17 @@ async function updateConfig(
   }
 }
 function extractServiceInterfaceId(manifest: Manifest, specInterface: string) {
-  let serviceInterfaceId
-  const lanConfig = manifest.interfaces[specInterface]?.["lan-config"] || {}
-  serviceInterfaceId = `${specInterface}-${Object.entries(lanConfig)[0]?.[1]?.internal}`
+  
+  const lanConfig =
+    Object.entries(
+      manifest.interfaces[specInterface]?.["lan-config"] || {},
+    )[0]?.[1]?.internal ||
+    Object.entries(
+      manifest.interfaces[specInterface]?.["tor-config"]?.["port-mapping"] ||
+        {},
+    )?.[0]?.[1]
+
+  if (!lanConfig) return new Error()
+  const serviceInterfaceId = `${specInterface}-${lanConfig}`
   return serviceInterfaceId
 }
