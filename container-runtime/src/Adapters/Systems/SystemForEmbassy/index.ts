@@ -2,7 +2,7 @@ import { types as T, utils, EmVer } from "@start9labs/start-sdk"
 import * as fs from "fs/promises"
 
 import { PolyfillEffects } from "./polyfillEffects"
-import { Duration, duration } from "../../../Models/Duration"
+import { Duration, duration, fromDuration } from "../../../Models/Duration"
 import { System } from "../../../Interfaces/System"
 import { matchManifest, Manifest, Procedure } from "./matchManifest"
 import * as childProcess from "node:child_process"
@@ -478,10 +478,13 @@ export class SystemForEmbassy implements System {
     delete this.currentRunning
     if (currentRunning) {
       await currentRunning.clean({
-        timeout: this.manifest.main["sigterm-timeout"],
+        timeout: fromDuration(this.manifest.main["sigterm-timeout"]),
       })
     }
-    const durationValue = duration(this.manifest.main["sigterm-timeout"], "s")
+    const durationValue = duration(
+      fromDuration(this.manifest.main["sigterm-timeout"]),
+      "s",
+    )
     return durationValue
   }
   private async createBackup(
@@ -967,7 +970,7 @@ async function updateConfig(
 
     const newConfigValue = mutConfigValue[key]
     if (matchSpec.test(specValue)) {
-      const updateObject = { spec: null }
+      const updateObject = { spec: newConfigValue }
       await updateConfig(
         effects,
         manifest,
@@ -1001,6 +1004,10 @@ async function updateConfig(
         manifest,
         specInterface,
       )
+      if (!serviceInterfaceId) {
+        mutConfigValue[key] = ""
+        return
+      }
       const filled = await utils
         .getServiceInterface(effects, {
           packageId: specValue["package-id"],
@@ -1035,8 +1042,16 @@ async function updateConfig(
   }
 }
 function extractServiceInterfaceId(manifest: Manifest, specInterface: string) {
-  let serviceInterfaceId
-  const lanConfig = manifest.interfaces[specInterface]?.["lan-config"] || {}
-  serviceInterfaceId = `${specInterface}-${Object.entries(lanConfig)[0]?.[1]?.internal}`
+  const internalPort =
+    Object.entries(
+      manifest.interfaces[specInterface]?.["lan-config"] || {},
+    )[0]?.[1]?.internal ||
+    Object.entries(
+      manifest.interfaces[specInterface]?.["tor-config"]?.["port-mapping"] ||
+        {},
+    )?.[0]?.[1]
+
+  if (!internalPort) return null
+  const serviceInterfaceId = `${specInterface}-${internalPort}`
   return serviceInterfaceId
 }

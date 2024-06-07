@@ -8,7 +8,9 @@ import {
   literals,
   number,
   Parser,
+  some,
 } from "ts-matches"
+import { matchDuration } from "./Duration"
 
 const VolumeId = string
 const Path = string
@@ -31,7 +33,7 @@ export const matchDockerProcedure = object(
       "toml",
       "toml-pretty",
     ),
-    "sigterm-timeout": number,
+    "sigterm-timeout": some(number, matchDuration),
     inject: boolean,
   },
   ["io-format", "sigterm-timeout", "system", "args", "inject", "mounts"],
