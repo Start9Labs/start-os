@@ -61,13 +61,7 @@ PLATFORM_CONFIG_EXTRAS=
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --firmware-binary false"
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --firmware-chroot false"
-	# BEGIN stupid ugly hack
-	# The actual name of the package is `raspberrypi-kernel`
-	# live-build determines thte name of the package for the kernel by combining the `linux-packages` flag, with the `linux-flavours` flag
-	# the `linux-flavours` flag defaults to the architecture, so there's no way to remove the suffix.
-	# So we're doing this, cause thank the gods our package name contains a hypen. Cause if it didn't we'd be SOL
-	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-packages raspberrypi"
-	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours kernel"
+	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours rpi-v8"
 	# END stupid ugly hack
 elif [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours rockchip64"
