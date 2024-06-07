@@ -149,12 +149,17 @@ mkdir -p config/archives
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	curl -fsSL https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o config/archives/raspi.key
-	echo "deb https://archive.raspberrypi.org/debian/ bullseye main" > config/archives/raspi.list
+	echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/raspi.key.gpg] https://archive.raspberrypi.org/debian/ ${IB_SUITE} main" > config/archives/raspi.list
+	cat > config/archives/raspi.pref <<- EOF
+	Package: *
+	Pin: origin archive.raspberrypi.org
+	Pin-Priority: 600
+	EOF
 fi
 
 cat > config/archives/backports.pref <<- EOF
 Package: *
-Pin: release a=stable-backports
+Pin: release n=${IB_SUITE}-backports
 Pin-Priority: 500
 EOF
 
@@ -177,7 +182,7 @@ if [ "$NON_FREE" = 1 ]; then
 fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	echo 'raspberrypi-bootloader rpi-update parted' > config/package-lists/bootloader.list.chroot
+	echo 'raspberrypi-net-mods raspberrypi-sys-mods raspi-config raspi-firmware raspi-gpio raspi-utils rpi-eeprom rpi-update rpi.gpio-common parted' > config/package-lists/bootloader.list.chroot
 else
 	echo 'grub-efi grub2-common' > config/package-lists/bootloader.list.chroot
 fi
@@ -209,10 +214,6 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 		update-initramfs -c -k \$v
 	done
 	ln -sf /usr/bin/pi-beep /usr/local/bin/beep
-	wget https://archive.raspberrypi.org/debian/pool/main/w/wireless-regdb/wireless-regdb_2018.05.09-0~rpt1_all.deb
-	echo 1b7b1076257726609535b71d146a5721622d19a0843061ee7568188e836dd10f wireless-regdb_2018.05.09-0~rpt1_all.deb | sha256sum -c
-	apt-get install -y --allow-downgrades ./wireless-regdb_2018.05.09-0~rpt1_all.deb
-	rm wireless-regdb_2018.05.09-0~rpt1_all.deb
 fi
 
 useradd --shell /bin/bash -G embassy -m start9
