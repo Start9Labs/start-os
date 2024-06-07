@@ -8,7 +8,8 @@ import { HostSystemStartOs } from "../../HostSystemStartOs"
 import "isomorphic-fetch"
 import { Manifest } from "./matchManifest"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
-
+import * as cp from "child_process"
+export const execFile = promisify(cp.execFile)
 export class PolyfillEffects implements oet.Effects {
   constructor(
     readonly effects: HostSystemStartOs,
@@ -104,7 +105,9 @@ export class PolyfillEffects implements oet.Effects {
         stderr: x.stderr.toString(),
         stdout: x.stdout.toString(),
       }))
-      .then((x) => (!!x.stderr ? { error: x.stderr } : { result: x.stdout }))
+      .then((x: any) =>
+        !!x.stderr ? { error: x.stderr } : { result: x.stdout },
+      )
   }
   runDaemon(input: { command: string; args?: string[] | undefined }): {
     wait(): Promise<oet.ResultType<string>>
@@ -163,7 +166,7 @@ export class PolyfillEffects implements oet.Effects {
         stderr: x.stderr.toString(),
         stdout: x.stdout.toString(),
       }))
-      .then((x) => {
+      .then((x: any) => {
         if (!!x.stderr) {
           throw new Error(x.stderr)
         }
@@ -198,7 +201,7 @@ export class PolyfillEffects implements oet.Effects {
         stderr: x.stderr.toString(),
         stdout: x.stdout.toString(),
       }))
-      .then((x) => {
+      .then((x: any) => {
         if (!!x.stderr) {
           throw new Error(x.stderr)
         }
@@ -352,7 +355,7 @@ export class PolyfillEffects implements oet.Effects {
       return String(pid)
     }
     const waitPromise = new Promise<null>((resolve, reject) => {
-      spawned.on("exit", (code) => {
+      spawned.on("exit", (code: any) => {
         if (code === 0) {
           resolve(null)
         } else {
@@ -364,4 +367,55 @@ export class PolyfillEffects implements oet.Effects {
     const progress = () => Promise.resolve(percentage)
     return { id, wait, progress }
   }
+  async diskUsage(
+    options?: { volumeId: string; path: string } | undefined,
+  ): Promise<{ used: number; total: number }> {
+    const output = await execFile("df", ["--block-size=1", "-P", "/"])
+      .then((x: any) => ({
+        stderr: x.stderr.toString(),
+        stdout: x.stdout.toString(),
+      }))
+      .then((x: any) => {
+        if (!!x.stderr) {
+          throw new Error(x.stderr)
+        }
+        return parseDfOutput(x.stdout)
+      })
+    if (!!options) {
+      const used = await execFile("du", [
+        "-s",
+        "--block-size=1",
+        "-P",
+        new Volume(options.volumeId, options.path).path,
+      ])
+        .then((x: any) => ({
+          stderr: x.stderr.toString(),
+          stdout: x.stdout.toString(),
+        }))
+        .then((x: any) => {
+          if (!!x.stderr) {
+            throw new Error(x.stderr)
+          }
+          return Number.parseInt(x.stdout.split(/\s+/)[0])
+        })
+      return {
+        ...output,
+        used,
+      }
+    }
+    return output
+  }
+}
+
+function parseDfOutput(output: string): { used: number; total: number } {
+  const lines = output
+    .split("\n")
+    .filter((x) => x.length)
+    .map((x) => x.split(/\s+/))
+  const index = lines.splice(0, 1)[0].map((x) => x.toLowerCase())
+  const usedIndex = index.indexOf("used")
+  const availableIndex = index.indexOf("available")
+  const used = lines.map((x) => Number.parseInt(x[usedIndex]))[0] || 0
+  const total = lines.map((x) => Number.parseInt(x[availableIndex]))[0] || 0
+  return { used, total }
 }

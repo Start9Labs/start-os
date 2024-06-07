@@ -120,6 +120,10 @@ export type Effects = {
     /// Returns the body as a json
     json(): Promise<unknown>
   }>
+  diskUsage(options?: {
+    volumeId: string
+    path: string
+  }): Promise<{ used: number; total: number }>
 
   runRsync(options: {
     srcVolume: string
