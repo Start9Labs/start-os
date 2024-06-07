@@ -18,7 +18,6 @@ import { AbstractMarketplaceService } from '../../../services/marketplace.servic
         <!-- icon -->
         <img
           [src]="determineIcon(marketplace) | trustUrl"
-          class="box-shadow-lg"
           alt="{{ pkg.manifest.title }} Icon"
         />
         <!-- color background -->
@@ -82,8 +81,6 @@ import { AbstractMarketplaceService } from '../../../services/marketplace.servic
           border-radius: 9999px;
           object-fit: cover;
           position: absolute;
-          backdrop-filter: blur(24px);
-          background-color: rgb(0 0 0 / 0.5);
           top: -2.25rem;
           left: 1.75rem;
           z-index: 1;
