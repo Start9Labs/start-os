@@ -1,4 +1,5 @@
 import {
+  TuiAlertModule,
   TuiDialogModule,
   TuiModeModule,
   TuiRootModule,
@@ -58,6 +59,7 @@ import { environment } from '../environments/environment'
     ConnectionBarComponentModule,
     TuiRootModule,
     TuiDialogModule,
+    TuiAlertModule,
     TuiModeModule,
     TuiThemeNightModule,
     WidgetsPageModule,
