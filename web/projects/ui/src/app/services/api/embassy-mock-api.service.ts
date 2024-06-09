@@ -247,13 +247,7 @@ export class MockApiService extends ApiService {
   async initGetProgress(): Promise<RR.InitGetProgressRes> {
     await pauseFor(250)
     return {
-      progress: {
-        overall: {
-          done: 0,
-          total: 100,
-        },
-        phases: [],
-      },
+      progress: PROGRESS,
       guid: 'init-progress-guid',
     }
   }

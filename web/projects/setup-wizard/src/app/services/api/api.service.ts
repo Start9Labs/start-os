@@ -1,6 +1,9 @@
 import * as jose from 'node-jose'
 import { DiskListResponse, StartOSDiskInfo } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
+import { WebSocketSubjectConfig } from 'rxjs/webSocket'
+import { Observable } from 'rxjs'
+
 export abstract class ApiService {
   pubkey?: jose.JWK.Key
 
@@ -12,6 +15,7 @@ export abstract class ApiService {
   abstract execute(setupInfo: T.SetupExecuteParams): Promise<T.SetupProgress> // setup.execute
   abstract complete(): Promise<T.SetupResult> // setup.complete
   abstract exit(): Promise<void> // setup.exit
+  abstract openProgressWebsocket$(guid: string): Observable<T.FullProgress>
 
   async encrypt(toEncrypt: string): Promise<Encrypted> {
     if (!this.pubkey) throw new Error('No pubkey found!')
@@ -26,4 +30,24 @@ export abstract class ApiService {
 
 type Encrypted = {
   encrypted: string
+}
+
+export type WebsocketConfig<T> = Omit<WebSocketSubjectConfig<T>, 'url'>
+
+export type DiskBackupTarget = {
+  vendor: string | null
+  model: string | null
+  logicalname: string | null
+  label: string | null
+  capacity: number
+  used: number | null
+  startOs: StartOSDiskInfo | null
+}
+
+export type CifsBackupTarget = {
+  hostname: string
+  path: string
+  username: string
+  mountable: boolean
+  startOs: StartOSDiskInfo | null
 }

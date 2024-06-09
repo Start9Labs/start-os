@@ -21,7 +21,7 @@ export class AppComponent {
 
       let route = '/home'
       if (inProgress) {
-        route = inProgress.complete ? '/success' : '/loading'
+        route = inProgress.status === 'complete' ? '/success' : '/loading'
       }
 
       await this.navCtrl.navigateForward(route)
