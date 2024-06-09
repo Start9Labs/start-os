@@ -1,1 +1,18 @@
-initializing
+<section *tuiLet="progress$ | async as progress">
+  <h1 [style.font-size.rem]="2.5" [style.margin.rem]="1">
+    Initializing StartOS
+  </h1>
+  <div *ngIf="progress" class="center-wrapper">
+    Progress: {{ (progress * 100).toFixed(0) }}%
+  </div>
+
+  <progress
+    tuiProgressBar
+    class="progress"
+    [style.max-width.rem]="40"
+    [style.margin]="'1rem auto'"
+    [attr.value]="progress && progress < 1 ? progress : null"
+  ></progress>
+  <p>{{ getMessage(progress) }}</p>
+</section>
+<logs-window></logs-window>
