@@ -2,11 +2,11 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { FormsModule } from '@angular/forms'
-import { LoadingPage, ToMessagePipe } from './loading.page'
+import { LoadingPage, ToDetailsPipe } from './loading.page'
 import { LoadingPageRoutingModule } from './loading-routing.module'
 
 @NgModule({
   imports: [CommonModule, FormsModule, IonicModule, LoadingPageRoutingModule],
-  declarations: [LoadingPage, ToMessagePipe],
+  declarations: [LoadingPage, ToDetailsPipe],
 })
 export class LoadingPageModule {}
