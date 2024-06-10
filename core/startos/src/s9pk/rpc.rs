@@ -27,6 +27,7 @@ pub const SKIP_ENV: &[&str] = &["TERM", "container", "HOME", "HOSTNAME"];
 
 pub fn s9pk() -> ParentHandler<CliContext> {
     ParentHandler::new()
+        .subcommand("pack", from_fn_async(super::v2::pack::pack).no_display())
         .subcommand("edit", edit())
         .subcommand("inspect", inspect())
 }

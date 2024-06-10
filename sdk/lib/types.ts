@@ -11,6 +11,8 @@ import {
   GetPrimaryUrlParams,
   LanInfo,
   BindParams,
+  Manifest,
+  ImageSources,
 } from "./osBindings"
 
 import { MainEffects, ServiceInterfaceType, Signals } from "./StartSdk"
@@ -110,9 +112,13 @@ export namespace ExpectedExports {
    */
   export type dependencyConfig = Record<PackageId, DependencyConfig | null>
 
-  export type Properties = (options: {
+  export type properties = (options: {
     effects: Effects
   }) => Promise<PropertiesReturn>
+
+  export type manifest = Manifest
+
+  export type images = ImageSources
 }
 export type TimeMs = number
 export type VersionString = string

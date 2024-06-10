@@ -97,7 +97,7 @@ impl ArchiveSource for MultiCursorFile {
             .ok()
             .map(|m| m.len())
     }
-    async fn fetch_all(&self) -> Result<impl AsyncRead + Unpin + Send, Error> {
+    async fn fetch_all(&self) -> Result<impl AsyncRead + Unpin + Send + 'static, Error> {
         use tokio::io::AsyncSeekExt;
 
         let mut file = self.cursor().await?;

@@ -35,7 +35,7 @@ type DaemonsParams<
 > = {
   command: ValidIfNoStupidEscape<Command> | [string, ...string[]]
   image: { id: Manifest["images"][number]; sharedRun?: boolean }
-  mounts: { path: string; options: MountOptions }[]
+  mounts: Mounts<Manifest>
   env?: Record<string, string>
   ready: Ready
   requires: Exclude<Ids, Id>[]
@@ -116,12 +116,10 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
     options: DaemonsParams<Manifest, Ids, Command, Id>,
   ) {
     const daemonIndex = this.daemons.length
-    const daemon = Daemon.of()(
-      this.effects,
-      options.image,
-      options.command,
-      options,
-    )
+    const daemon = Daemon.of()(this.effects, options.image, options.command, {
+      ...options,
+      mounts: options.mounts.build(),
+    })
     const healthDaemon = new HealthDaemon(
       daemon,
       daemonIndex,

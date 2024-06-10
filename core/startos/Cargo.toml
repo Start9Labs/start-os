@@ -59,6 +59,7 @@ async-stream = "0.3.5"
 async-trait = "0.1.74"
 axum = { version = "0.7.3", features = ["ws"] }
 axum-server = "0.6.0"
+backhand = "0.18.0"
 base32 = "0.4.0"
 base64 = "0.21.4"
 base64ct = "1.6.0"

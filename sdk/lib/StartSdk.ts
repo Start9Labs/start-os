@@ -396,7 +396,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
       setupProperties:
         (
           fn: (options: { effects: Effects }) => Promise<T.SdkPropertiesReturn>,
-        ): T.ExpectedExports.Properties =>
+        ): T.ExpectedExports.properties =>
         (options) =>
           fn(options).then(nullifyProperties),
       setupUninstall: (fn: UninstallFn<Manifest, Store>) =>

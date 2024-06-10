@@ -22,6 +22,7 @@ pub const SIG_CONTEXT: &str = "s9pk";
 
 pub mod compat;
 pub mod manifest;
+pub mod pack;
 
 /**
     /
@@ -34,6 +35,7 @@ pub mod manifest;
     │   └── <id>.squashfs (xN)
     └── images
         └── <arch>
+            ├── <id>.json (xN)
             ├── <id>.env (xN)
             └── <id>.squashfs (xN)
 */

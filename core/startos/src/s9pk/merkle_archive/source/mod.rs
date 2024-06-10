@@ -280,3 +280,8 @@ impl<S: ArchiveSource> FileSource for Section<S> {
         self.source.copy_to(self.position, self.size, w).await
     }
 }
+
+pub type DynRead = Box<dyn AsyncRead + Unpin + Send + Sync + 'static>;
+pub fn into_dyn_read<R: AsyncRead + Unpin + Send + Sync + 'static>(r: R) -> DynRead {
+    Box::new(r)
+}
