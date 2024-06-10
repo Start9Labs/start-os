@@ -85,9 +85,6 @@ export class FileHelper<A> {
   }
 
   async merge(data: A, effects: T.Effects) {
-    if (!fs.existsSync(this.path)) {
-      return null
-    }
     const fileData = (await this.read(effects).catch(() => ({}))) || {}
     const mergeData = _.merge({}, fileData, data)
     return await this.write(mergeData, effects)
