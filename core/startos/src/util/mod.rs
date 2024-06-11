@@ -183,6 +183,12 @@ impl<'a> Invoke<'a> for ExtendedCommand<'a> {
         self
     }
     async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error> {
+        let cmd_str = self
+            .cmd
+            .as_std()
+            .get_program()
+            .to_string_lossy()
+            .into_owned();
         self.cmd.kill_on_drop(true);
         if self.input.is_some() {
             self.cmd.stdin(Stdio::piped());
@@ -192,7 +198,7 @@ impl<'a> Invoke<'a> for ExtendedCommand<'a> {
                 self.cmd.stdout(Stdio::piped());
                 self.cmd.stderr(Stdio::piped());
             }
-            let mut child = self.cmd.spawn().with_kind(error_kind)?;
+            let mut child = self.cmd.spawn().with_ctx(|_| (error_kind, &cmd_str))?;
             if let (Some(mut stdin), Some(input)) = (child.stdin.take(), self.input.take()) {
                 use tokio::io::AsyncWriteExt;
                 tokio::io::copy(input, &mut stdin).await?;
@@ -201,10 +207,14 @@ impl<'a> Invoke<'a> for ExtendedCommand<'a> {
                 drop(stdin);
             }
             let res = match self.timeout {
-                None => child.wait_with_output().await?,
+                None => child
+                    .wait_with_output()
+                    .await
+                    .with_ctx(|_| (error_kind, &cmd_str))?,
                 Some(t) => tokio::time::timeout(t, child.wait_with_output())
                     .await
-                    .with_kind(ErrorKind::Timeout)??,
+                    .with_kind(ErrorKind::Timeout)?
+                    .with_ctx(|_| (error_kind, &cmd_str))?,
             };
             crate::ensure_code!(
                 res.status.success(),
