@@ -145,8 +145,10 @@ export class HostSystemStartOs implements Effects {
       T.Effects["exportServiceInterface"]
     >
   }
-  exposeForDependents(...[options]: any) {
-    return this.rpcRound("exposeForDependents", null) as ReturnType<
+  exposeForDependents(
+    ...[options]: Parameters<T.Effects["exposeForDependents"]>
+  ) {
+    return this.rpcRound("exposeForDependents", options) as ReturnType<
       T.Effects["exposeForDependents"]
     >
   }
