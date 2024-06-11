@@ -182,6 +182,7 @@ impl<'a> Invoke<'a> for ExtendedCommand<'a> {
         self.capture = capture;
         self
     }
+    #[instrument(skip_all)]
     async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error> {
         let cmd_str = self
             .cmd

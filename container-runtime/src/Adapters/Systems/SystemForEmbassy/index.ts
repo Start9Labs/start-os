@@ -49,7 +49,7 @@ function todo(): never {
 const execFile = promisify(childProcess.execFile)
 
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
-const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
+export const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
 const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig"
 
 const matchSetResult = object(

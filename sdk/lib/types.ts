@@ -117,6 +117,21 @@ export namespace ExpectedExports {
 
   export type manifest = Manifest
 }
+export type ABI = {
+  setConfig: ExpectedExports.setConfig
+  getConfig: ExpectedExports.getConfig
+  createBackup: ExpectedExports.createBackup
+  restoreBackup: ExpectedExports.restoreBackup
+  actions: ExpectedExports.actions
+  actionsMetadata: ExpectedExports.actionsMetadata
+  main: ExpectedExports.main
+  afterShutdown: ExpectedExports.afterShutdown
+  init: ExpectedExports.init
+  uninit: ExpectedExports.uninit
+  dependencyConfig: ExpectedExports.dependencyConfig
+  properties: ExpectedExports.properties
+  manifest: ExpectedExports.manifest
+}
 export type TimeMs = number
 export type VersionString = string
 

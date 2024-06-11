@@ -59,9 +59,10 @@ export class FileHelper<A> {
     readonly readData: (stringValue: string) => A,
   ) {}
   async write(data: A, effects: T.Effects) {
-    if (previousPath.exec(this.path)) {
+    const parent = previousPath.exec(this.path)
+    if (parent) {
       await new Promise((resolve, reject) =>
-        fs.mkdir(this.path, (err: any) => (!err ? resolve(null) : reject(err))),
+        fs.mkdir(parent[1], (err: any) => (!err ? resolve(null) : reject(err))),
       )
     }
 

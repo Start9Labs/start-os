@@ -41,7 +41,7 @@ impl<'a, T: Clone> Expected<'a, T> {
         path: impl AsRef<Path>,
         mut valid_extension: impl FnMut(Option<&OsStr>) -> bool,
     ) -> Result<(), Error> {
-        let (dir, stem) = if let Some(parent) = path.as_ref().parent() {
+        let (dir, stem) = if let Some(parent) = path.as_ref().parent().filter(|p| *p != Path::new("")) {
             (
                 self.dir
                     .get_path(parent)

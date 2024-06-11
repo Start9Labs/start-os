@@ -488,21 +488,6 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
             tmpdir.clone(),
         )))),
     );
-    let mut assets_dir = DirectoryContents::<PackSource>::new();
-    let mut assets = tokio::fs::read_dir(params.assets()).await?;
-    while let Some(assets) = assets.next_entry().await? {
-        assets_dir.insert(
-            InternedString::from_display(
-                &AsRef::<Path>::as_ref(&assets.file_name())
-                    .with_extension("squashfs")
-                    .display(),
-            ),
-            Entry::file(PackSource::Squashfs(Arc::new(SqfsDir::new(
-                assets.path(),
-                tmpdir.clone(),
-            )))),
-        );
-    }
 
     let mut s9pk = S9pk::new(
         MerkleArchive::new(files, ctx.developer_key()?.clone(), SIG_CONTEXT),
@@ -510,7 +495,20 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
     )
     .await?;
 
+    let assets_dir = params.assets();
+    for assets in s9pk.as_manifest().assets.clone() {
+        s9pk.as_archive_mut().contents_mut().insert_path(
+            Path::new("assets").join(&assets).with_extension("squashfs"),
+            Entry::file(PackSource::Squashfs(Arc::new(SqfsDir::new(
+                assets_dir.join(&assets),
+                tmpdir.clone(),
+            )))),
+        )?;
+    }
+
     s9pk.load_images(&*tmpdir).await?;
+
+    s9pk.validate_and_filter(None)?;
 
     s9pk.serialize(
         &mut File::create(params.output(&s9pk.as_manifest().id)).await?,
