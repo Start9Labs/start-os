@@ -2,5 +2,5 @@
 
 export type ImageSource =
   | "packed"
-  | { dockerfile: string }
+  | { dockerBuild: { workdir: string | null; dockerfile: string | null } }
   | { dockerTag: string }

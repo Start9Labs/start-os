@@ -6,7 +6,6 @@ use std::time::Duration;
 use futures::future::ready;
 use futures::{Future, FutureExt};
 use helpers::NonDetachingJoinHandle;
-use imbl_value::InternedString;
 use models::{ImageId, ProcedureName, VolumeId};
 use rpc_toolkit::{Empty, Server, ShutdownHandle};
 use serde::de::DeserializeOwned;
@@ -197,7 +196,9 @@ impl PersistentContainer {
                 .and_then(|e| e.as_file())
                 .is_some()
             {
-                let Some(arch) = config.emulate_missing_as.as_deref() else {
+                arch = if let Some(arch) = config.emulate_missing_as.as_deref() {
+                    arch
+                } else {
                     continue;
                 };
                 sqfs_path = Path::new("images")

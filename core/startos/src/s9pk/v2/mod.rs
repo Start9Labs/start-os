@@ -1,25 +1,21 @@
 use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
 use imbl_value::InternedString;
 use models::{mime, DataUrl, PackageId};
-use serde::Deserialize;
 use tokio::fs::File;
-use tokio::process::Command;
 
 use crate::prelude::*;
 use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment;
-use crate::rpc_continuations::Guid;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::merkle_archive::file_contents::FileContents;
 use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
-use crate::s9pk::v2::pack::{ImageMetadata, ImageSource, PackSource};
+use crate::s9pk::v2::pack::{ImageSource, PackSource};
 use crate::util::io::TmpDir;
-use crate::util::Invoke;
 
 const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x02];
 

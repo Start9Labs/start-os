@@ -24,7 +24,7 @@ impl GenericMountGuard for Never {
     fn path(&self) -> &Path {
         match *self {}
     }
-    async fn unmount(mut self) -> Result<(), Error> {
+    async fn unmount(self) -> Result<(), Error> {
         match self {}
     }
 }
@@ -36,7 +36,7 @@ where
     fn path(&self) -> &Path {
         (&**self).path()
     }
-    async fn unmount(mut self) -> Result<(), Error> {
+    async fn unmount(self) -> Result<(), Error> {
         if let Ok(guard) = Arc::try_unwrap(self) {
             guard.unmount().await?;
         }
@@ -104,7 +104,7 @@ impl GenericMountGuard for MountGuard {
     fn path(&self) -> &Path {
         &self.mountpoint
     }
-    async fn unmount(mut self) -> Result<(), Error> {
+    async fn unmount(self) -> Result<(), Error> {
         MountGuard::unmount(self, false).await
     }
 }
@@ -166,7 +166,7 @@ impl GenericMountGuard for TmpMountGuard {
     fn path(&self) -> &Path {
         self.guard.path()
     }
-    async fn unmount(mut self) -> Result<(), Error> {
+    async fn unmount(self) -> Result<(), Error> {
         self.guard.unmount().await
     }
 }
@@ -187,7 +187,7 @@ impl<G: GenericMountGuard> GenericMountGuard for SubPath<G> {
     fn path(&self) -> &Path {
         self.path.as_path()
     }
-    async fn unmount(mut self) -> Result<(), Error> {
+    async fn unmount(self) -> Result<(), Error> {
         self.guard.unmount().await
     }
 }

@@ -1,13 +1,11 @@
-use std::collections::{BTreeMap, BTreeSet};
-use std::fs::Metadata;
+use std::collections::BTreeSet;
+use std::ffi::OsStr;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 use std::sync::Arc;
-use std::time::SystemTime;
 
 use clap::Parser;
-use futures::future::BoxFuture;
+use futures::future::{ready, BoxFuture};
 use futures::{FutureExt, TryStreamExt};
 use imbl_value::InternedString;
 use models::{ImageId, PackageId, VersionString};
@@ -22,7 +20,6 @@ use ts_rs::TS;
 use crate::context::CliContext;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
-use crate::s9pk::manifest::Manifest;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::{
@@ -32,7 +29,6 @@ use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
 use crate::s9pk::v2::SIG_CONTEXT;
 use crate::s9pk::S9pk;
 use crate::util::io::TmpDir;
-use crate::util::serde::IoFormat;
 use crate::util::Invoke;
 
 #[cfg(not(feature = "docker"))]
@@ -41,13 +37,13 @@ pub const CONTAINER_TOOL: &str = "podman";
 #[cfg(feature = "docker")]
 pub const CONTAINER_TOOL: &str = "docker";
 
-struct SqfsDir {
+pub struct SqfsDir {
     path: PathBuf,
     tmpdir: Arc<TmpDir>,
     sqfs: OnceCell<MultiCursorFile>,
 }
 impl SqfsDir {
-    fn new(path: PathBuf, tmpdir: Arc<TmpDir>) -> Self {
+    pub fn new(path: PathBuf, tmpdir: Arc<TmpDir>) -> Self {
         Self {
             path,
             tmpdir,
@@ -138,7 +134,7 @@ impl PackParams {
         if let Some(icon) = &self.icon {
             Ok(icon.clone())
         } else {
-            ReadDirStream::new(tokio::fs::read_dir(self.path()).await?).map_err(Error::from).try_fold(Err(Error::new(eyre!("icon not found"), ErrorKind::NotFound)), |acc, x| async move { match acc {
+            ReadDirStream::new(tokio::fs::read_dir(self.path()).await?).try_filter(|x| ready(x.path().file_stem() == Some(OsStr::new("icon")))).map_err(Error::from).try_fold(Err(Error::new(eyre!("icon not found"), ErrorKind::NotFound)), |acc, x| async move { match acc {
                 Ok(_) => Err(Error::new(eyre!("multiple icons found in working directory, please specify which to use with `--icon`"), ErrorKind::InvalidRequest)),
                 Err(e) => Ok({
                     let path = x.path();
@@ -194,8 +190,12 @@ impl Default for ImageConfig {
 #[derive(Parser)]
 struct CliImageConfig {
     #[arg(long, conflicts_with("docker-tag"))]
+    docker_build: bool,
+    #[arg(long, requires("docker-build"))]
     dockerfile: Option<PathBuf>,
-    #[arg(long, conflicts_with("dockerfile"))]
+    #[arg(long, requires("docker-build"))]
+    workdir: Option<PathBuf>,
+    #[arg(long, conflicts_with_all(["dockerfile", "workdir"]))]
     docker_tag: Option<String>,
     #[arg(long)]
     arch: Vec<InternedString>,
@@ -206,8 +206,11 @@ impl TryFrom<CliImageConfig> for ImageConfig {
     type Error = clap::Error;
     fn try_from(value: CliImageConfig) -> Result<Self, Self::Error> {
         let res = Self {
-            source: if let Some(dockerfile) = value.dockerfile {
-                ImageSource::Dockerfile(dockerfile)
+            source: if value.docker_build {
+                ImageSource::DockerBuild {
+                    dockerfile: value.dockerfile,
+                    workdir: value.workdir,
+                }
             } else if let Some(tag) = value.docker_tag {
                 ImageSource::DockerTag(tag)
             } else {
@@ -255,7 +258,11 @@ impl clap::FromArgMatches for ImageConfig {
 #[ts(export)]
 pub enum ImageSource {
     Packed,
-    Dockerfile(PathBuf),
+    #[serde(rename_all = "camelCase")]
+    DockerBuild {
+        workdir: Option<PathBuf>,
+        dockerfile: Option<PathBuf>,
+    },
     DockerTag(String),
 }
 impl ImageSource {
@@ -272,13 +279,22 @@ impl ImageSource {
         #[serde(rename_all = "PascalCase")]
         struct DockerImageConfig {
             env: Vec<String>,
+            #[serde(default)]
             working_dir: PathBuf,
+            #[serde(default)]
             user: String,
         }
         async move {
             match self {
                 ImageSource::Packed => Ok(()),
-                ImageSource::Dockerfile(dockerfile) => {
+                ImageSource::DockerBuild {
+                    workdir,
+                    dockerfile,
+                } => {
+                    let workdir = workdir.as_deref().unwrap_or(Path::new("."));
+                    let dockerfile = dockerfile
+                        .clone()
+                        .unwrap_or_else(|| workdir.join("Dockerfile"));
                     let docker_platform = if arch == "x86_64" {
                         "--platform=linux/amd64".to_owned()
                     } else if arch == "aarch64" {
@@ -289,12 +305,15 @@ impl ImageSource {
                     // docker buildx build ${path} -o type=image,name=start9/${id}
                     let tag = format!("start9/{id}/{image_id}:{version}");
                     Command::new(CONTAINER_TOOL)
-                        .arg("buildx")
                         .arg("build")
+                        .arg(workdir)
+                        .arg("-f")
                         .arg(dockerfile)
-                        .arg("-o")
-                        .arg(format!("type=image,name={tag}"))
+                        .arg("-t")
+                        .arg(&tag)
                         .arg(&docker_platform)
+                        .arg("-o")
+                        .arg("type=image")
                         .capture(false)
                         .invoke(ErrorKind::Docker)
                         .await?;
@@ -310,24 +329,49 @@ impl ImageSource {
                     } else {
                         format!("--platform=linux/{arch}")
                     };
-                    let config = serde_json::from_slice::<DockerImageConfig>(
-                        &Command::new(CONTAINER_TOOL)
-                            .arg("image")
-                            .arg("inspect")
-                            .arg("--format")
-                            .arg("{{json .Config}}")
-                            .arg(&tag)
-                            .invoke(ErrorKind::Docker)
-                            .await?,
-                    )
-                    .with_kind(ErrorKind::Deserialization)?;
+                    let mut inspect_cmd = Command::new(CONTAINER_TOOL);
+                    inspect_cmd
+                        .arg("image")
+                        .arg("inspect")
+                        .arg("--format")
+                        .arg("{{json .Config}}")
+                        .arg(&tag);
+                    let inspect_res = match inspect_cmd.invoke(ErrorKind::Docker).await {
+                        Ok(a) => a,
+                        Err(e)
+                            if {
+                                let msg = e.source.to_string();
+                                #[cfg(feature = "docker")]
+                                let matches = msg.contains("No such image:");
+                                #[cfg(not(feature = "docker"))]
+                                let matches = msg.contains(": image not known");
+                                matches
+                            } =>
+                        {
+                            Command::new(CONTAINER_TOOL)
+                                .arg("pull")
+                                .arg(&docker_platform)
+                                .arg(tag)
+                                .capture(false)
+                                .invoke(ErrorKind::Docker)
+                                .await?;
+                            inspect_cmd.invoke(ErrorKind::Docker).await?
+                        }
+                        Err(e) => return Err(e),
+                    };
+                    let config = serde_json::from_slice::<DockerImageConfig>(&inspect_res)
+                        .with_kind(ErrorKind::Deserialization)?;
                     let base_path = Path::new("images").join(arch).join(image_id);
                     into.insert_path(
                         base_path.with_extension("json"),
                         Entry::file(
                             PackSource::Buffered(
                                 serde_json::to_vec(&ImageMetadata {
-                                    workdir: config.working_dir,
+                                    workdir: if config.working_dir == Path::new("") {
+                                        "/".into()
+                                    } else {
+                                        config.working_dir
+                                    },
                                     user: if config.user.is_empty() {
                                         "root".into()
                                     } else {
@@ -350,6 +394,7 @@ impl ImageSource {
                     let container = String::from_utf8(
                         Command::new(CONTAINER_TOOL)
                             .arg("create")
+                            .arg(&docker_platform)
                             .arg(&tag)
                             .invoke(ErrorKind::Docker)
                             .await?,

@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
-use std::io::Cursor;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -14,7 +13,7 @@ use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
-use crate::s9pk::merkle_archive::source::{into_dyn_read, FileSource, Section};
+use crate::s9pk::merkle_archive::source::Section;
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
 use crate::s9pk::rpc::SKIP_ENV;
 use crate::s9pk::v1::manifest::{Manifest as ManifestV1, PackageProcedure};
