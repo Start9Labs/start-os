@@ -340,6 +340,7 @@ impl ImageSource {
                         .await?;
                     Command::new(CONTAINER_TOOL)
                         .arg("rmi")
+                        .arg("-f")
                         .arg(&tag)
                         .invoke(ErrorKind::Docker)
                         .await?;
