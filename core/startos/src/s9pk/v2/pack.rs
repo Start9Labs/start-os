@@ -63,7 +63,11 @@ impl SqfsDir {
                     .arg(&path)
                     .invoke(ErrorKind::Filesystem)
                     .await?;
-                Ok(MultiCursorFile::from(File::open(&path).await?))
+                Ok(MultiCursorFile::from(
+                    File::open(&path)
+                        .await
+                        .with_ctx(|_| (ErrorKind::Filesystem, path.display()))?,
+                ))
             })
             .await
     }
@@ -80,14 +84,27 @@ impl FileSource for PackSource {
     async fn size(&self) -> Result<u64, Error> {
         match self {
             Self::Buffered(a) => Ok(a.len() as u64),
-            Self::File(f) => Ok(tokio::fs::metadata(f).await?.len()),
-            Self::Squashfs(dir) => dir.file().await?.size().await.or_not_found("file metadata"),
+            Self::File(f) => Ok(tokio::fs::metadata(f)
+                .await
+                .with_ctx(|_| (ErrorKind::Filesystem, f.display()))?
+                .len()),
+            Self::Squashfs(dir) => dir
+                .file()
+                .await
+                .with_ctx(|_| (ErrorKind::Filesystem, dir.path.display()))?
+                .size()
+                .await
+                .or_not_found("file metadata"),
         }
     }
     async fn reader(&self) -> Result<Self::Reader, Error> {
         match self {
             Self::Buffered(a) => Ok(into_dyn_read(Cursor::new(a.clone()))),
-            Self::File(f) => Ok(into_dyn_read(File::open(f).await?)),
+            Self::File(f) => Ok(into_dyn_read(
+                File::open(f)
+                    .await
+                    .with_ctx(|_| (ErrorKind::Filesystem, f.display()))?,
+            )),
             Self::Squashfs(dir) => dir.file().await?.fetch_all().await.map(into_dyn_read),
         }
     }
