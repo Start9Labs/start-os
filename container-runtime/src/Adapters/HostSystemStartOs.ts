@@ -102,14 +102,14 @@ export class HostSystemStartOs implements Effects {
     }) as ReturnType<T.Effects["bind"]>
   }
   clearBindings(...[]: Parameters<T.Effects["clearBindings"]>) {
-    return this.rpcRound("clearBindings", null) as ReturnType<
+    return this.rpcRound("clearBindings", {}) as ReturnType<
       T.Effects["clearBindings"]
     >
   }
   clearServiceInterfaces(
     ...[]: Parameters<T.Effects["clearServiceInterfaces"]>
   ) {
-    return this.rpcRound("clearServiceInterfaces", null) as ReturnType<
+    return this.rpcRound("clearServiceInterfaces", {}) as ReturnType<
       T.Effects["clearServiceInterfaces"]
     >
   }
@@ -231,7 +231,7 @@ export class HostSystemStartOs implements Effects {
     >
   }
   restart(...[]: Parameters<T.Effects["restart"]>) {
-    return this.rpcRound("restart", null)
+    return this.rpcRound("restart", {})
   }
   running(...[packageId]: Parameters<T.Effects["running"]>) {
     return this.rpcRound("running", { packageId }) as ReturnType<
