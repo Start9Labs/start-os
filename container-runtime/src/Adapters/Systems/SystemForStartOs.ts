@@ -74,10 +74,13 @@ export class SystemForStartOs implements System {
           if (this.onTerm) await this.onTerm()
           this.onTerm = onTerm
         }
-        return this.abi.main({
-          effects: { ...effects, _type: "main" },
-          started,
-        })
+        const daemons = await (
+          await this.abi.main({
+            effects: { ...effects, _type: "main" },
+            started,
+          })
+        ).build()
+        this.onTerm = daemons.term
       }
       case "/main/stop": {
         await effects.setMainStatus({ status: "stopped" })
@@ -127,9 +130,9 @@ export class SystemForStartOs implements System {
           }
         }
     }
-    throw new Error("Method not implemented.")
+    throw new Error(`Method ${options.procedure} not implemented.`)
   }
-  exit(effects: Effects): Promise<void> {
-    throw new Error("Method not implemented.")
+  async exit(effects: Effects): Promise<void> {
+    return void null
   }
 }

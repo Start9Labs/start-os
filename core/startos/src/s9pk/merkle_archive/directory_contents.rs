@@ -211,7 +211,10 @@ impl<S: FileSource + Clone> DirectoryContents<S> {
                 if !filter(path) {
                     if v.hash.is_none() {
                         return Err(Error::new(
-                            eyre!("cannot filter out unhashed file, run `update_hashes` first"),
+                            eyre!(
+                                "cannot filter out unhashed file {}, run `update_hashes` first",
+                                path.display()
+                            ),
                             ErrorKind::InvalidRequest,
                         ));
                     }

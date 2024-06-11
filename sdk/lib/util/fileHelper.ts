@@ -138,7 +138,7 @@ export class FileHelper<A> {
     return new FileHelper<A>(
       path,
       (inData) => {
-        return JSON.stringify(inData, null, 2)
+        return YAML.stringify(inData, null, 2)
       },
       (inString) => {
         return shape.unsafeCast(YAML.parse(inString))

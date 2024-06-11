@@ -335,9 +335,15 @@ impl ImageSource {
                         .capture(false)
                         .invoke(ErrorKind::Docker)
                         .await?;
-                    ImageSource::DockerTag(tag)
+                    ImageSource::DockerTag(tag.clone())
                         .load(tmpdir, id, version, image_id, arch, into)
-                        .await
+                        .await?;
+                    Command::new(CONTAINER_TOOL)
+                        .arg("rmi")
+                        .arg(&tag)
+                        .invoke(ErrorKind::Docker)
+                        .await?;
+                    Ok(())
                 }
                 ImageSource::DockerTag(tag) => {
                     let docker_platform = if arch == "x86_64" {
@@ -422,6 +428,11 @@ impl ImageSource {
                         .arg(container.trim())
                         .pipe(Command::new("mksquashfs").arg("-").arg(&dest).arg("-tar"))
                         .capture(false)
+                        .invoke(ErrorKind::Docker)
+                        .await?;
+                    Command::new(CONTAINER_TOOL)
+                        .arg("rm")
+                        .arg(container.trim())
                         .invoke(ErrorKind::Docker)
                         .await?;
                     into.insert_path(
