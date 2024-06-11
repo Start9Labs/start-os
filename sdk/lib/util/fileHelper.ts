@@ -3,7 +3,7 @@ import * as YAML from "yaml"
 import * as TOML from "@iarna/toml"
 import _ from "lodash"
 import * as T from "../types"
-import * as fs from "fs"
+import * as fs from "node:fs/promises"
 
 const previousPath = /(.+?)\/([^/]*)$/
 
@@ -61,27 +61,22 @@ export class FileHelper<A> {
   async write(data: A, effects: T.Effects) {
     const parent = previousPath.exec(this.path)
     if (parent) {
-      await new Promise((resolve, reject) =>
-        fs.mkdir(parent[1], (err: any) => (!err ? resolve(null) : reject(err))),
-      )
+      await fs.mkdir(parent[1], { recursive: true })
     }
 
-    await new Promise((resolve, reject) =>
-      fs.writeFile(this.path, this.writeData(data), (err: any) =>
-        !err ? resolve(null) : reject(err),
-      ),
-    )
+    await fs.writeFile(this.path, this.writeData(data))
   }
   async read(effects: T.Effects) {
-    if (!fs.existsSync(this.path)) {
+    if (
+      !(await fs.access(this.path).then(
+        () => true,
+        () => false,
+      ))
+    ) {
       return null
     }
     return this.readData(
-      await new Promise((resolve, reject) =>
-        fs.readFile(this.path, (err: any, data: any) =>
-          !err ? resolve(data.toString("utf-8")) : reject(err),
-        ),
-      ),
+      await fs.readFile(this.path).then((data) => data.toString("utf-8")),
     )
   }
 
