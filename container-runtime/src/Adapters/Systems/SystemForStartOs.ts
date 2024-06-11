@@ -1,9 +1,9 @@
 import { ExecuteResult, System } from "../../Interfaces/System"
 import { unNestPath } from "../../Models/JsonPath"
-import { string } from "ts-matches"
+import matches, { any, number, object, string, tuple } from "ts-matches"
 import { HostSystemStartOs } from "../HostSystemStartOs"
 import { Effects } from "../../Models/Effects"
-import { RpcResult } from "../RpcListener"
+import { RpcResult, matchRpcResult } from "../RpcListener"
 import { duration } from "../../Models/Duration"
 import { T } from "@start9labs/start-sdk"
 import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
@@ -35,7 +35,59 @@ export class SystemForStartOs implements System {
       timeout?: number | undefined
     },
   ): Promise<RpcResult> {
-    return { result: await this._execute(effects, options) }
+    return this._execute(effects, options)
+      .then((x) =>
+        matches(x)
+          .when(
+            object({
+              result: any,
+            }),
+            (x) => x,
+          )
+          .when(
+            object({
+              error: string,
+            }),
+            (x) => ({
+              error: {
+                code: 0,
+                message: x.error,
+              },
+            }),
+          )
+          .when(
+            object({
+              "error-code": tuple(number, string),
+            }),
+            ({ "error-code": [code, message] }) => ({
+              error: {
+                code,
+                message,
+              },
+            }),
+          )
+          .defaultTo({ result: x }),
+      )
+      .catch((error: unknown) => {
+        if (error instanceof Error)
+          return {
+            error: {
+              code: 0,
+              message: error.name,
+              data: {
+                details: error.message,
+                debug: `${error?.cause ?? "[noCause]"}:${error?.stack ?? "[noStack]"}`,
+              },
+            },
+          }
+        if (matchRpcResult.test(error)) return error
+        return {
+          error: {
+            code: 0,
+            message: String(error),
+          },
+        }
+      })
   }
   async _execute(
     effects: Effects,

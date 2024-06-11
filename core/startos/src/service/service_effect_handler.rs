@@ -1217,8 +1217,7 @@ async fn set_dependencies(
 ) -> Result<(), Error> {
     let ctx = ctx.deref()?;
     let id = &ctx.id;
-    let service_guard = ctx.ctx.services.get(id).await;
-    let service = service_guard.as_ref().or_not_found(id)?;
+
     let mut deps = BTreeMap::new();
     for dependency in dependencies {
         let (dep_id, kind, registry_url, version_spec) = match dependency {
@@ -1275,8 +1274,7 @@ async fn set_dependencies(
             }
         };
         let config_satisfied = if let Some(dep_service) = &*ctx.ctx.services.get(&dep_id).await {
-            service
-                .dependency_config(dep_id.clone(), dep_service.get_config().await?.config)
+            ctx.dependency_config(dep_id.clone(), dep_service.get_config().await?.config)
                 .await?
                 .is_none()
         } else {
