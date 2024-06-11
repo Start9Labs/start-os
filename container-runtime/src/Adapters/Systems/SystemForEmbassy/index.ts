@@ -724,7 +724,7 @@ export class SystemForEmbassy implements System {
   private async properties(
     effects: HostSystemStartOs,
     timeoutMs: number | null,
-  ): Promise<ReturnType<T.ExpectedExports.Properties>> {
+  ): Promise<ReturnType<T.ExpectedExports.properties>> {
     // TODO BLU-J set the properties ever so often
     const setConfigValue = this.manifest.properties
     if (!setConfigValue) throw new Error("There is no properties")

@@ -283,6 +283,7 @@ pub enum ImageSource {
     DockerTag(String),
 }
 impl ImageSource {
+    #[instrument(skip_all)]
     pub fn load<'a, S: From<PackSource> + FileSource + Clone>(
         &'a self,
         tmpdir: &'a TmpDir,
@@ -445,6 +446,7 @@ pub struct ImageMetadata {
     pub user: InternedString,
 }
 
+#[instrument(skip_all)]
 pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
     let tmpdir = Arc::new(TmpDir::new().await?);
     let mut files = DirectoryContents::<PackSource>::new();

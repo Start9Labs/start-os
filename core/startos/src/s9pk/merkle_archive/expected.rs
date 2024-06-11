@@ -27,7 +27,7 @@ impl<'a, T: Clone> Expected<'a, T> {
             .and_then(|e| e.as_file())
             .is_some()
         {
-            self.keep.insert_path(path, Entry::file(()));
+            self.keep.insert_path(path, Entry::file(()))?;
             Ok(())
         } else {
             Err(Error::new(
@@ -85,7 +85,7 @@ impl<'a, T: Clone> Expected<'a, T> {
                     }
             )??;
         self.keep
-            .insert_path(path.as_ref().with_file_name(name), Entry::file(()));
+            .insert_path(path.as_ref().with_file_name(name), Entry::file(()))?;
         Ok(())
     }
     pub fn into_filter(self) -> Filter {
