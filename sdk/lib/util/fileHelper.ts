@@ -1,6 +1,7 @@
 import * as matches from "ts-matches"
 import * as YAML from "yaml"
 import * as TOML from "@iarna/toml"
+import _ from "lodash"
 import * as T from "../types"
 import * as fs from "fs"
 
@@ -81,6 +82,12 @@ export class FileHelper<A> {
         ),
       ),
     )
+  }
+
+  async merge(data: A, effects: T.Effects) {
+    const fileData = (await this.read(effects).catch(() => ({}))) || {}
+    const mergeData = _.merge({}, fileData, data)
+    return await this.write(mergeData, effects)
   }
   /**
    * Create a File Helper for an arbitrary file type.
