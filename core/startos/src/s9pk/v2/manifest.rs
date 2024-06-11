@@ -124,7 +124,15 @@ impl Manifest {
                     check_arch(arch)?;
                 }
             } else if let Some(arch) = config.emulate_missing_as.as_deref() {
-                check_arch(arch)?;
+                if !config.arch.contains(arch) {
+                    return Err(Error::new(
+                        eyre!("`emulateMissingAs` must match an included `arch`"),
+                        ErrorKind::ParseS9pk,
+                    ));
+                }
+                for arch in &config.arch {
+                    check_arch(&arch)?;
+                }
             } else {
                 return Err(Error::new(eyre!("`emulateMissingAs` required for all images if no `arch` specified in `hardwareRequirements`"), ErrorKind::ParseS9pk));
             }
