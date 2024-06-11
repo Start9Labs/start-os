@@ -1,6 +1,6 @@
 {
   "name": "@start9labs/start-sdk",
-  "version": "0.3.6-alpha1",
+  "version": "0.3.6-alpha3",
   "description": "Software development kit to facilitate packaging services for StartOS",
   "main": "./cjs/lib/index.js",
   "types": "./cjs/lib/index.d.ts",
