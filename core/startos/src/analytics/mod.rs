@@ -1,27 +1,19 @@
 use std::net::SocketAddr;
 
 use axum::Router;
-use chrono::Utc;
 use futures::future::ready;
-use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler, Server};
-use sqlx::query;
-use ts_rs::TS;
+use rpc_toolkit::{Context, ParentHandler, Server};
 
 use crate::analytics::context::AnalyticsContext;
 use crate::middleware::cors::Cors;
 use crate::net::static_server::{bad_request, not_found, server_error};
 use crate::net::web_server::WebServer;
 use crate::rpc_continuations::Guid;
-use crate::Error;
 
 pub mod context;
 
 pub fn analytics_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand(
-            "recordUserActivity",
-            from_fn_async(record_user_activity).no_cli(),
-        )
 }
 
 pub fn analytics_server_router(ctx: AnalyticsContext) -> Router {
@@ -83,30 +75,4 @@ impl WebServer {
     pub fn analytics(bind: SocketAddr, ctx: AnalyticsContext) -> Self {
         Self::new(bind, analytics_server_router(ctx))
     }
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-struct ActivityParams {
-    server_id: String,
-    arch: String,
-}
-
-async fn record_user_activity(
-    ctx: AnalyticsContext,
-    ActivityParams { server_id, arch }: ActivityParams,
-) -> Result<(), Error> {
-    let pool = ctx.db;
-    let created_at = Utc::now().to_rfc3339();
-
-    query!("INSERT INTO user_activity (created_at, server_id, os_version, arch) VALUES ($1, $2, $3, $4)",
-    created_at,
-    server_id,
-    arch
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(())
 }
