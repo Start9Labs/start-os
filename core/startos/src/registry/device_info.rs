@@ -134,7 +134,7 @@ pub struct HardwareInfo {
 impl From<&RpcContext> for HardwareInfo {
     fn from(value: &RpcContext) -> Self {
         Self {
-            arch: InternedString::intern(&**crate::ARCH),
+            arch: InternedString::intern(crate::ARCH),
             ram: value.hardware.ram,
             devices: value
                 .hardware

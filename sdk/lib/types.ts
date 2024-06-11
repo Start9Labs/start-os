@@ -12,7 +12,6 @@ import {
   LanInfo,
   BindParams,
   Manifest,
-  ImageSources,
 } from "./osBindings"
 
 import { MainEffects, ServiceInterfaceType, Signals } from "./StartSdk"
@@ -117,8 +116,6 @@ export namespace ExpectedExports {
   }) => Promise<PropertiesReturn>
 
   export type manifest = Manifest
-
-  export type images = ImageSources
 }
 export type TimeMs = number
 export type VersionString = string

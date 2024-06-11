@@ -19,6 +19,7 @@ use crate::util::serde::Base64;
 use crate::CAP_1_MiB;
 
 pub mod directory_contents;
+pub mod expected;
 pub mod file_contents;
 pub mod hash;
 pub mod sink;

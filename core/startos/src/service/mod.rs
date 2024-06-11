@@ -137,7 +137,7 @@ impl Service {
         match entry.as_state_info().as_match() {
             PackageStateMatchModelRef::Installing(_) => {
                 if disposition == LoadDisposition::Retry {
-                    if let Ok(s9pk) = S9pk::open(s9pk_path, Some(id), true).await.map_err(|e| {
+                    if let Ok(s9pk) = S9pk::open(s9pk_path, Some(id)).await.map_err(|e| {
                         tracing::error!("Error opening s9pk for install: {e}");
                         tracing::debug!("{e:?}")
                     }) {
@@ -170,7 +170,7 @@ impl Service {
                                 && progress == &Progress::Complete(true)
                         })
                 {
-                    if let Ok(s9pk) = S9pk::open(&s9pk_path, Some(id), true).await.map_err(|e| {
+                    if let Ok(s9pk) = S9pk::open(&s9pk_path, Some(id)).await.map_err(|e| {
                         tracing::error!("Error opening s9pk for update: {e}");
                         tracing::debug!("{e:?}")
                     }) {
@@ -189,7 +189,7 @@ impl Service {
                         }
                     }
                 }
-                let s9pk = S9pk::open(s9pk_path, Some(id), true).await?;
+                let s9pk = S9pk::open(s9pk_path, Some(id)).await?;
                 ctx.db
                     .mutate({
                         |db| {
@@ -214,7 +214,7 @@ impl Service {
                 handle_installed(s9pk, entry).await
             }
             PackageStateMatchModelRef::Removing(_) | PackageStateMatchModelRef::Restoring(_) => {
-                if let Ok(s9pk) = S9pk::open(s9pk_path, Some(id), true).await.map_err(|e| {
+                if let Ok(s9pk) = S9pk::open(s9pk_path, Some(id)).await.map_err(|e| {
                     tracing::error!("Error opening s9pk for removal: {e}");
                     tracing::debug!("{e:?}")
                 }) {
@@ -242,7 +242,7 @@ impl Service {
                 Ok(None)
             }
             PackageStateMatchModelRef::Installed(_) => {
-                handle_installed(S9pk::open(s9pk_path, Some(id), true).await?, entry).await
+                handle_installed(S9pk::open(s9pk_path, Some(id)).await?, entry).await
             }
             PackageStateMatchModelRef::Error(e) => Err(Error::new(
                 eyre!("Failed to parse PackageDataEntry, found {e:?}"),
@@ -340,7 +340,10 @@ impl Service {
         Ok(())
     }
 
-    pub async fn uninstall(self, target_version: Option<models::VersionString>) -> Result<(), Error> {
+    pub async fn uninstall(
+        self,
+        target_version: Option<models::VersionString>,
+    ) -> Result<(), Error> {
         self.seed
             .persistent_container
             .execute(ProcedureName::Uninit, to_value(&target_version)?, None) // TODO timeout

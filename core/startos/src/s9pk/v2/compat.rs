@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -19,38 +19,12 @@ use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
 use crate::s9pk::rpc::SKIP_ENV;
 use crate::s9pk::v1::manifest::{Manifest as ManifestV1, PackageProcedure};
 use crate::s9pk::v1::reader::S9pkReader;
+use crate::s9pk::v2::pack::{PackSource, CONTAINER_TOOL};
 use crate::s9pk::v2::{S9pk, SIG_CONTEXT};
 use crate::util::io::TmpDir;
 use crate::util::Invoke;
 
 pub const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x01];
-
-#[cfg(not(feature = "docker"))]
-pub const CONTAINER_TOOL: &str = "podman";
-
-#[cfg(feature = "docker")]
-pub const CONTAINER_TOOL: &str = "docker";
-
-#[derive(Clone)]
-enum CompatSource {
-    Buffered(Arc<[u8]>),
-    File(PathBuf),
-}
-impl FileSource for CompatSource {
-    type Reader = Box<dyn AsyncRead + Unpin + Send + Sync + 'static>;
-    async fn size(&self) -> Result<u64, Error> {
-        match self {
-            Self::Buffered(a) => Ok(a.len() as u64),
-            Self::File(f) => Ok(tokio::fs::metadata(f).await?.len()),
-        }
-    }
-    async fn reader(&self) -> Result<Self::Reader, Error> {
-        match self {
-            Self::Buffered(a) => Ok(into_dyn_read(Cursor::new(a.clone()))),
-            Self::File(f) => Ok(into_dyn_read(File::open(f).await?)),
-        }
-    }
-}
 
 impl S9pk<Section<MultiCursorFile>> {
     #[instrument(skip_all)]
@@ -61,7 +35,7 @@ impl S9pk<Section<MultiCursorFile>> {
     ) -> Result<Self, Error> {
         let scratch_dir = TmpDir::new().await?;
 
-        let mut archive = DirectoryContents::<CompatSource>::new();
+        let mut archive = DirectoryContents::<PackSource>::new();
 
         // manifest.json
         let manifest_raw = reader.manifest().await?;
@@ -83,21 +57,21 @@ impl S9pk<Section<MultiCursorFile>> {
         let license: Arc<[u8]> = reader.license().await?.to_vec().await?.into();
         archive.insert_path(
             "LICENSE.md",
-            Entry::file(CompatSource::Buffered(license.into())),
+            Entry::file(PackSource::Buffered(license.into())),
         )?;
 
         // instructions.md
         let instructions: Arc<[u8]> = reader.instructions().await?.to_vec().await?.into();
         archive.insert_path(
             "instructions.md",
-            Entry::file(CompatSource::Buffered(instructions.into())),
+            Entry::file(PackSource::Buffered(instructions.into())),
         )?;
 
         // icon.md
         let icon: Arc<[u8]> = reader.icon().await?.to_vec().await?.into();
         archive.insert_path(
             format!("icon.{}", manifest.assets.icon_type()),
-            Entry::file(CompatSource::Buffered(icon.into())),
+            Entry::file(PackSource::Buffered(icon.into())),
         )?;
 
         // images
@@ -117,7 +91,9 @@ impl S9pk<Section<MultiCursorFile>> {
                 .invoke(ErrorKind::Docker)
                 .await?;
             for (image, system) in &images {
-                new_manifest.images.insert(image.clone());
+                let mut image_config = new_manifest.images.remove(image).unwrap_or_default();
+                image_config.arch.insert(arch.as_str().into());
+                new_manifest.images.insert(image.clone(), image_config);
                 let sqfs_path = images_dir.join(image).with_extension("squashfs");
                 let image_name = if *system {
                     format!("start9/{}:latest", image)
@@ -185,21 +161,21 @@ impl S9pk<Section<MultiCursorFile>> {
                         .join(&arch)
                         .join(&image)
                         .with_extension("squashfs"),
-                    Entry::file(CompatSource::File(sqfs_path)),
+                    Entry::file(PackSource::File(sqfs_path)),
                 )?;
                 archive.insert_path(
                     Path::new("images")
                         .join(&arch)
                         .join(&image)
                         .with_extension("env"),
-                    Entry::file(CompatSource::Buffered(Vec::from(env).into())),
+                    Entry::file(PackSource::Buffered(Vec::from(env).into())),
                 )?;
                 archive.insert_path(
                     Path::new("images")
                         .join(&arch)
                         .join(&image)
                         .with_extension("json"),
-                    Entry::file(CompatSource::Buffered(
+                    Entry::file(PackSource::Buffered(
                         serde_json::to_vec(&serde_json::json!({
                             "workdir": workdir
                         }))
@@ -235,7 +211,7 @@ impl S9pk<Section<MultiCursorFile>> {
                 .await?;
             archive.insert_path(
                 Path::new("assets").join(&asset_id),
-                Entry::file(CompatSource::File(sqfs_path)),
+                Entry::file(PackSource::File(sqfs_path)),
             )?;
         }
 
@@ -262,12 +238,12 @@ impl S9pk<Section<MultiCursorFile>> {
             .await?;
         archive.insert_path(
             Path::new("javascript.squashfs"),
-            Entry::file(CompatSource::File(sqfs_path)),
+            Entry::file(PackSource::File(sqfs_path)),
         )?;
 
         archive.insert_path(
             "manifest.json",
-            Entry::file(CompatSource::Buffered(
+            Entry::file(PackSource::Buffered(
                 serde_json::to_vec::<Manifest>(&new_manifest)
                     .with_kind(ErrorKind::Serialization)?
                     .into(),
@@ -284,7 +260,6 @@ impl S9pk<Section<MultiCursorFile>> {
         Ok(S9pk::deserialize(
             &MultiCursorFile::from(File::open(destination.as_ref()).await?),
             None,
-            false,
         )
         .await?)
     }
@@ -305,7 +280,7 @@ impl From<ManifestV1> for Manifest {
             marketing_site: value.marketing_site.unwrap_or_else(|| default_url.clone()),
             donation_url: value.donation_url,
             description: value.description,
-            images: BTreeSet::new(),
+            images: BTreeMap::new(),
             assets: value
                 .volumes
                 .iter()

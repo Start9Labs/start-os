@@ -242,7 +242,7 @@ pub async fn init(cfg: &ServerConfig) -> Result<InitResult, Error> {
 
     let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok()
         || &*server_info.version < &emver::Version::new(0, 3, 2, 0)
-        || (*ARCH == "x86_64" && &*server_info.version < &emver::Version::new(0, 3, 4, 0));
+        || (ARCH == "x86_64" && &*server_info.version < &emver::Version::new(0, 3, 4, 0));
 
     let log_dir = cfg.datadir().join("main/logs");
     if tokio::fs::metadata(&log_dir).await.is_err() {

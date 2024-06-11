@@ -73,7 +73,6 @@ console = "0.15.7"
 console-subscriber = { version = "0.2", optional = true }
 cookie = "0.18.0"
 cookie_store = "0.20.0"
-current_platform = "0.2.0"
 der = { version = "0.7.9", features = ["derive", "pem"] }
 digest = "0.10.7"
 divrem = "1.0.0"

@@ -400,7 +400,7 @@ describe("values", () => {
               long: "",
             },
             containers: {},
-            images: [],
+            images: {},
             volumes: [],
             assets: [],
             alerts: {

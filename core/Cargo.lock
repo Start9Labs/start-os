@@ -1080,12 +1080,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "current_platform"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a74858bcfe44b22016cb49337d7b6f04618c58e5dbfdef61b06b8c434324a0bc"
-
-[[package]]
 name = "curve25519-dalek"
 version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4696,7 +4690,6 @@ dependencies = [
  "console-subscriber",
  "cookie 0.18.1",
  "cookie_store",
- "current_platform",
  "der",
  "digest 0.10.7",
  "divrem",

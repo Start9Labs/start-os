@@ -4,12 +4,8 @@ pub const CAP_1_KiB: usize = 1024;
 pub const CAP_1_MiB: usize = CAP_1_KiB * CAP_1_KiB;
 pub const CAP_10_MiB: usize = 10 * CAP_1_MiB;
 pub const HOST_IP: [u8; 4] = [172, 18, 0, 1];
-pub const TARGET: &str = current_platform::CURRENT_PLATFORM;
+pub use std::env::consts::ARCH;
 lazy_static::lazy_static! {
-    pub static ref ARCH: &'static str = {
-        let (arch, _) = TARGET.split_once("-").unwrap();
-        arch
-    };
     pub static ref PLATFORM: String = {
         if let Ok(platform) = std::fs::read_to_string("/usr/lib/startos/PLATFORM.txt") {
             platform

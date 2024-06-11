@@ -95,6 +95,7 @@ impl ServiceMap {
         mut s9pk: S9pk<S>,
         recovery_source: Option<impl GenericMountGuard>,
     ) -> Result<DownloadInstallFuture, Error> {
+        s9pk.validate_and_filter(ctx.s9pk_arch)?;
         let manifest = s9pk.as_manifest().clone();
         let id = manifest.id.clone();
         let icon = s9pk.icon_data_url().await?;
@@ -231,7 +232,7 @@ impl ServiceMap {
             Ok(reload_guard
                 .handle_last(async move {
                     finalization_progress.start();
-                    let s9pk = S9pk::open(&installed_path, Some(&id), true).await?;
+                    let s9pk = S9pk::open(&installed_path, Some(&id)).await?;
                     let prev = if let Some(service) = service.take() {
                         ensure_code!(
                             recovery_source.is_none(),

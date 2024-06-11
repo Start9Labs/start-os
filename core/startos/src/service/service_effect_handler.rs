@@ -9,7 +9,7 @@ use std::sync::{Arc, Weak};
 use clap::builder::ValueParserFactory;
 use clap::Parser;
 use emver::VersionRange;
-use imbl_value::{json, InternedString};
+use imbl_value::json;
 use itertools::Itertools;
 use models::{
     ActionId, DataUrl, HealthCheckId, HostId, ImageId, PackageId, ServiceInterfaceId, VolumeId,
@@ -25,14 +25,13 @@ use crate::db::model::package::{
     ActionMetadata, CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind,
     ManifestPreference,
 };
-use crate::disk::mount::filesystem::idmapped::IdMapped;
-use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::net::host::address::HostAddress;
 use crate::net::host::binding::{BindOptions, LanInfo};
 use crate::net::host::{Host, HostKind};
 use crate::net::service_interface::{AddressInfo, ServiceInterface, ServiceInterfaceType};
 use crate::prelude::*;
+use crate::rpc_continuations::Guid;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::rpc::SKIP_ENV;
 use crate::s9pk::S9pk;
@@ -1041,8 +1040,7 @@ async fn set_health(
 #[command(rename_all = "camelCase")]
 #[ts(export)]
 pub struct DestroyOverlayedImageParams {
-    #[ts(type = "string")]
-    guid: InternedString,
+    guid: Guid,
 }
 
 #[instrument(skip_all)]
@@ -1068,7 +1066,6 @@ pub async fn destroy_overlayed_image(
 #[command(rename_all = "camelCase")]
 #[ts(export)]
 pub struct CreateOverlayedImageParams {
-    #[ts(type = "string")]
     image_id: ImageId,
 }
 
@@ -1076,21 +1073,10 @@ pub struct CreateOverlayedImageParams {
 pub async fn create_overlayed_image(
     ctx: EffectContext,
     CreateOverlayedImageParams { image_id }: CreateOverlayedImageParams,
-) -> Result<(PathBuf, InternedString), Error> {
+) -> Result<(PathBuf, Guid), Error> {
     let ctx = ctx.deref()?;
-    let path = Path::new("images")
-        .join(*ARCH)
-        .join(&image_id)
-        .with_extension("squashfs");
-    if let Some(image) = ctx
-        .persistent_container
-        .s9pk
-        .as_archive()
-        .contents()
-        .get_path(&path)
-        .and_then(|e| e.as_file())
-    {
-        let guid = new_guid();
+    if let Some(image) = ctx.persistent_container.images.get(&image_id).cloned() {
+        let guid = Guid::new();
         let rootfs_dir = ctx
             .persistent_container
             .lxc_container
@@ -1102,7 +1088,9 @@ pub async fn create_overlayed_image(
                 )
             })?
             .rootfs_dir();
-        let mountpoint = rootfs_dir.join("media/startos/overlays").join(&*guid);
+        let mountpoint = rootfs_dir
+            .join("media/startos/overlays")
+            .join(guid.as_ref());
         tokio::fs::create_dir_all(&mountpoint).await?;
         let container_mountpoint = Path::new("/").join(
             mountpoint
@@ -1110,11 +1098,7 @@ pub async fn create_overlayed_image(
                 .with_kind(ErrorKind::Incoherent)?,
         );
         tracing::info!("Mounting overlay {guid} for {image_id}");
-        let guard = OverlayGuard::mount(
-            &IdMapped::new(LoopDev::from(&**image), 0, 100000, 65536),
-            &mountpoint,
-        )
-        .await?;
+        let guard = OverlayGuard::mount(image, &mountpoint).await?;
         Command::new("chown")
             .arg("100000:100000")
             .arg(&mountpoint)
@@ -1271,7 +1255,6 @@ async fn set_dependencies(
                     .await?,
                 ),
                 None, // TODO
-                true,
             )
             .await?;
 

@@ -681,8 +681,6 @@ impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
     }
 }
 
-pub struct TmpFile {}
-
 #[derive(Debug)]
 pub struct TmpDir {
     path: PathBuf,
@@ -706,6 +704,14 @@ impl TmpDir {
     pub async fn delete(self) -> Result<(), Error> {
         tokio::fs::remove_dir_all(&self.path).await?;
         Ok(())
+    }
+
+    pub async fn gc(self: Arc<Self>) -> Result<(), Error> {
+        if let Ok(dir) = Arc::try_unwrap(self) {
+            dir.delete().await
+        } else {
+            Ok(())
+        }
     }
 }
 impl std::ops::Deref for TmpDir {

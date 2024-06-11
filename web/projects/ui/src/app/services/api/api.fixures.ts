@@ -116,7 +116,13 @@ export module Mock {
       },
     },
     hasConfig: true,
-    images: ['main'],
+    images: {
+      main: {
+        source: 'none',
+        arch: ['x86_64', 'aarch64'],
+        emulateMissingAs: 'aarch64',
+      },
+    },
     assets: [],
     volumes: ['main'],
     hardwareRequirements: {
@@ -157,7 +163,13 @@ export module Mock {
       },
     },
     hasConfig: false,
-    images: ['main'],
+    images: {
+      main: {
+        source: 'none',
+        arch: ['x86_64', 'aarch64'],
+        emulateMissingAs: 'aarch64',
+      },
+    },
     assets: [],
     volumes: ['main'],
     hardwareRequirements: {

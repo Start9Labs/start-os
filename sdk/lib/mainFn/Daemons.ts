@@ -5,7 +5,12 @@ import { SDKManifest } from "../manifest/ManifestTypes"
 import { Trigger } from "../trigger"
 import { TriggerInput } from "../trigger/TriggerInput"
 import { defaultTrigger } from "../trigger/defaultTrigger"
-import { DaemonReturned, Effects, ValidIfNoStupidEscape } from "../types"
+import {
+  DaemonReturned,
+  Effects,
+  ImageId,
+  ValidIfNoStupidEscape,
+} from "../types"
 import { Mounts } from "./Mounts"
 import { CommandOptions, MountOptions, Overlay } from "../util/Overlay"
 import { splitCommand } from "../util/splitCommand"
@@ -34,7 +39,7 @@ type DaemonsParams<
   Id extends string,
 > = {
   command: ValidIfNoStupidEscape<Command> | [string, ...string[]]
-  image: { id: Manifest["images"][number]; sharedRun?: boolean }
+  image: { id: keyof Manifest["images"] & ImageId; sharedRun?: boolean }
   mounts: Mounts<Manifest>
   env?: Record<string, string>
   ready: Ready

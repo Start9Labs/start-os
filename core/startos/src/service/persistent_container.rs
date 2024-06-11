@@ -7,7 +7,7 @@ use futures::future::ready;
 use futures::{Future, FutureExt};
 use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
-use models::{ProcedureName, VolumeId};
+use models::{ImageId, ProcedureName, VolumeId};
 use rpc_toolkit::{Empty, Server, ShutdownHandle};
 use serde::de::DeserializeOwned;
 use tokio::fs::File;
@@ -24,10 +24,11 @@ use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::disk::mount::filesystem::{MountType, ReadOnly};
-use crate::disk::mount::guard::MountGuard;
+use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
 use crate::lxc::{LxcConfig, LxcContainer, HOST_RPC_SERVER_SOCKET};
 use crate::net::net_controller::NetService;
 use crate::prelude::*;
+use crate::rpc_continuations::Guid;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
 use crate::service::start_stop::StartStop;
@@ -89,7 +90,8 @@ pub struct PersistentContainer {
     js_mount: MountGuard,
     volumes: BTreeMap<VolumeId, MountGuard>,
     assets: BTreeMap<VolumeId, MountGuard>,
-    pub(super) overlays: Arc<Mutex<BTreeMap<InternedString, OverlayGuard>>>,
+    pub(super) images: BTreeMap<ImageId, Arc<MountGuard>>,
+    pub(super) overlays: Arc<Mutex<BTreeMap<Guid, OverlayGuard<Arc<MountGuard>>>>>,
     pub(super) state: Arc<watch::Sender<ServiceState>>,
     pub(super) net_service: Mutex<NetService>,
     destroyed: bool,
@@ -178,14 +180,60 @@ impl PersistentContainer {
                 .await?,
             );
         }
+
+        let mut images = BTreeMap::new();
         let image_path = lxc_container.rootfs_dir().join("media/startos/images");
         tokio::fs::create_dir_all(&image_path).await?;
-        for image in &s9pk.as_manifest().images {
+        for (image, config) in &s9pk.as_manifest().images {
+            let mut arch = ARCH;
+            let mut sqfs_path = Path::new("images")
+                .join(arch)
+                .join(image)
+                .with_extension("squashfs");
+            if !s9pk
+                .as_archive()
+                .contents()
+                .get_path(&sqfs_path)
+                .and_then(|e| e.as_file())
+                .is_some()
+            {
+                let Some(arch) = config.emulate_missing_as.as_deref() else {
+                    continue;
+                };
+                sqfs_path = Path::new("images")
+                    .join(arch)
+                    .join(image)
+                    .with_extension("squashfs");
+            }
+            let sqfs = s9pk
+                .as_archive()
+                .contents()
+                .get_path(&sqfs_path)
+                .and_then(|e| e.as_file())
+                .or_not_found(sqfs_path.display())?;
+            let mountpoint = image_path.join(image);
+            tokio::fs::create_dir_all(&mountpoint).await?;
+            Command::new("chown")
+                .arg("100000:100000")
+                .arg(&mountpoint)
+                .invoke(ErrorKind::Filesystem)
+                .await?;
+            images.insert(
+                image.clone(),
+                Arc::new(
+                    MountGuard::mount(
+                        &IdMapped::new(LoopDev::from(&**sqfs), 0, 100000, 65536),
+                        &mountpoint,
+                        ReadOnly,
+                    )
+                    .await?,
+                ),
+            );
             let env_filename = Path::new(image.as_ref()).with_extension("env");
             if let Some(env) = s9pk
                 .as_archive()
                 .contents()
-                .get_path(Path::new("images").join(*ARCH).join(&env_filename))
+                .get_path(Path::new("images").join(arch).join(&env_filename))
                 .and_then(|e| e.as_file())
             {
                 env.copy(&mut File::create(image_path.join(&env_filename)).await?)
@@ -195,7 +243,7 @@ impl PersistentContainer {
             if let Some(json) = s9pk
                 .as_archive()
                 .contents()
-                .get_path(Path::new("images").join(*ARCH).join(&json_filename))
+                .get_path(Path::new("images").join(arch).join(&json_filename))
                 .and_then(|e| e.as_file())
             {
                 json.copy(&mut File::create(image_path.join(&json_filename)).await?)
@@ -215,6 +263,7 @@ impl PersistentContainer {
             js_mount,
             volumes,
             assets,
+            images,
             overlays: Arc::new(Mutex::new(BTreeMap::new())),
             state: Arc::new(watch::channel(ServiceState::new(start)).0),
             net_service: Mutex::new(net_service),
@@ -330,6 +379,7 @@ impl PersistentContainer {
         let js_mount = self.js_mount.take();
         let volumes = std::mem::take(&mut self.volumes);
         let assets = std::mem::take(&mut self.assets);
+        let images = std::mem::take(&mut self.images);
         let overlays = self.overlays.clone();
         let lxc_container = self.lxc_container.take();
         self.destroyed = true;
@@ -351,6 +401,9 @@ impl PersistentContainer {
                         }
                         for (_, overlay) in std::mem::take(&mut *overlays.lock().await) {
                             errs.handle(overlay.unmount(true).await);
+                        }
+                        for (_, images) in images {
+                            errs.handle(images.unmount().await);
                         }
                         errs.handle(js_mount.unmount(true).await);
                         if let Some(lxc_container) = lxc_container {
