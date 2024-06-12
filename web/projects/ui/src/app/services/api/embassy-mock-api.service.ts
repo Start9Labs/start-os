@@ -74,27 +74,13 @@ export class MockApiService extends ApiService {
   private readonly revertTime = 1800
   sequence = 0
 
-  constructor(
-    private readonly connectionService: ConnectionService,
-    private readonly auth: AuthService,
-  ) {
+  constructor(private readonly auth: AuthService) {
     super()
     this.auth.isVerified$
       .pipe(
         tap(() => {
           this.sequence = 0
         }),
-        switchMap(verified =>
-          iif(
-            () => verified,
-            timer(2000).pipe(
-              tap(() => {
-                this.connectionService.websocketConnected$.next(true)
-              }),
-            ),
-            EMPTY,
-          ),
-        ),
       )
       .subscribe()
   }

@@ -1,4 +1,4 @@
-<ng-container *ngIf="connected$ | async; else disconnected">
+<ng-container *ngIf="connection$ | async; else disconnected">
   <ion-icon
     *ngIf="pkg.error; else noError"
     class="warning-icon"

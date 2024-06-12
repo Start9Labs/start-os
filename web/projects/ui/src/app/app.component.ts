@@ -29,7 +29,7 @@ export class AppComponent implements OnDestroy {
   readonly theme$ = inject(THEME)
   readonly offline$ = combineLatest([
     this.authService.isVerified$,
-    this.connection.connected$,
+    this.connection$,
     this.patch
       .watch$('serverInfo', 'statusInfo')
       .pipe(startWith({ restarting: false, shuttingDown: false })),
@@ -49,7 +49,7 @@ export class AppComponent implements OnDestroy {
     private readonly storage: StorageService,
     private readonly router: Router,
     readonly authService: AuthService,
-    readonly connection: ConnectionService,
+    readonly connection$: ConnectionService,
     readonly clientStorageService: ClientStorageService,
     readonly themeSwitcher: ThemeSwitcherService,
   ) {}

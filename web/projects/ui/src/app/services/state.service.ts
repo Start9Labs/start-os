@@ -24,7 +24,7 @@ import {
 } from 'rxjs/operators'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ConnectionService } from 'src/app/services/connection.service'
+import { NetworkService } from 'src/app/services/network.service'
 
 const OPTIONS: IsActiveMatchOptions = {
   paths: 'subset',
@@ -40,7 +40,7 @@ export class StateService extends Observable<RR.ServerState | null> {
   private readonly alerts = inject(TuiAlertService)
   private readonly api = inject(ApiService)
   private readonly router = inject(Router)
-  private readonly connection = inject(ConnectionService)
+  private readonly network$ = inject(NetworkService)
   private readonly trigger$ = new BehaviorSubject<void>(undefined)
   private readonly stream$ = this.trigger$.pipe(
     switchMap(() =>
@@ -70,7 +70,7 @@ export class StateService extends Observable<RR.ServerState | null> {
 
   private readonly alert = merge(
     this.trigger$.pipe(skip(1)),
-    this.connection.networkConnected$.pipe(filter(v => !v)),
+    this.network$.pipe(filter(v => !v)),
   )
     .pipe(
       exhaustMap(() =>
@@ -83,10 +83,9 @@ export class StateService extends Observable<RR.ServerState | null> {
             })
             .pipe(
               takeUntil(
-                combineLatest([
-                  this.stream$,
-                  this.connection.networkConnected$,
-                ]).pipe(filter(state => state.every(Boolean))),
+                combineLatest([this.stream$, this.network$]).pipe(
+                  filter(state => state.every(Boolean)),
+                ),
               ),
             ),
           this.alerts.open('Connection restored', {

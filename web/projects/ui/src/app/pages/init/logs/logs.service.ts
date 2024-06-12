@@ -29,7 +29,7 @@ export class LogsService extends Observable<readonly string[]> {
   private readonly api = inject(ApiService)
   private readonly log$ = defer(() => this.api.followServerLogs({})).pipe(
     switchMap(({ guid }) => this.api.openWebsocket$(guid, {})),
-    bufferTime(1000),
+    bufferTime(250),
     map(convertAnsi),
     scan((logs: readonly string[], log) => [...logs, log], []),
   )

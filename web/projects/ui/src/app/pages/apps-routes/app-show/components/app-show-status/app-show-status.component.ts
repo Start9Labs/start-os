@@ -39,8 +39,6 @@ export class AppShowStatusComponent {
 
   isInstalled = isInstalled
 
-  readonly connected$ = this.connectionService.connected$
-
   constructor(
     private readonly alertCtrl: AlertController,
     private readonly errToast: ErrorToastService,
@@ -48,7 +46,7 @@ export class AppShowStatusComponent {
     private readonly embassyApi: ApiService,
     private readonly launcherService: UiLauncherService,
     private readonly modalService: ModalService,
-    private readonly connectionService: ConnectionService,
+    readonly connection$: ConnectionService,
     private readonly patch: PatchDB<DataModel>,
   ) {}
 

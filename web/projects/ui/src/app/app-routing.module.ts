@@ -18,7 +18,7 @@ const routes: Routes = [
   },
   {
     path: 'diagnostic',
-    canActivate: [stateNot(['initializing'])],
+    canActivate: [stateNot(['initializing', 'running'])],
     loadChildren: () =>
       import('./pages/diagnostic-routes/diagnostic-routing.module').then(
         m => m.DiagnosticModule,

@@ -1,12 +1,12 @@
 <p
   [style.color]="
-    (connected$ | async) ? 'var(--ion-color-' + rendering.color + ')' : 'gray'
+    (connection$ | async) ? 'var(--ion-color-' + rendering.color + ')' : 'gray'
   "
   [style.font-size]="size"
   [style.font-style]="style"
   [style.font-weight]="weight"
 >
-  {{ (connected$ | async) ? rendering.display : 'Unknown' }}
+  {{ (connection$ | async) ? rendering.display : 'Unknown' }}
 
   <span *ngIf="sigtermTimeout && (sigtermTimeout | durationToSeconds) > 30">
     . This may take a while
