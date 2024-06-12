@@ -11,6 +11,7 @@ import {
   GetPrimaryUrlParams,
   LanInfo,
   BindParams,
+  Manifest,
 } from "./osBindings"
 
 import { MainEffects, ServiceInterfaceType, Signals } from "./StartSdk"
@@ -110,9 +111,26 @@ export namespace ExpectedExports {
    */
   export type dependencyConfig = Record<PackageId, DependencyConfig | null>
 
-  export type Properties = (options: {
+  export type properties = (options: {
     effects: Effects
   }) => Promise<PropertiesReturn>
+
+  export type manifest = Manifest
+}
+export type ABI = {
+  setConfig: ExpectedExports.setConfig
+  getConfig: ExpectedExports.getConfig
+  createBackup: ExpectedExports.createBackup
+  restoreBackup: ExpectedExports.restoreBackup
+  actions: ExpectedExports.actions
+  actionsMetadata: ExpectedExports.actionsMetadata
+  main: ExpectedExports.main
+  afterShutdown: ExpectedExports.afterShutdown
+  init: ExpectedExports.init
+  uninit: ExpectedExports.uninit
+  dependencyConfig: ExpectedExports.dependencyConfig
+  properties: ExpectedExports.properties
+  manifest: ExpectedExports.manifest
 }
 export type TimeMs = number
 export type VersionString = string
@@ -453,8 +471,8 @@ export type Effects = {
   /** Exists could be useful during the runtime to know if some service is running, option dep */
   running(options: { packageId: PackageId }): Promise<boolean>
 
-  restart(): void
-  shutdown(): void
+  restart(): Promise<void>
+  shutdown(): Promise<void>
 
   mount(options: {
     location: string

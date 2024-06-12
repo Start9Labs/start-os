@@ -1,20 +1,23 @@
 import { ExecuteResult, System } from "../../Interfaces/System"
 import { unNestPath } from "../../Models/JsonPath"
-import { string } from "ts-matches"
+import matches, { any, number, object, string, tuple } from "ts-matches"
 import { HostSystemStartOs } from "../HostSystemStartOs"
 import { Effects } from "../../Models/Effects"
-import { RpcResult } from "../RpcListener"
+import { RpcResult, matchRpcResult } from "../RpcListener"
 import { duration } from "../../Models/Duration"
-const LOCATION = "/usr/lib/startos/package/startos"
+import { T } from "@start9labs/start-sdk"
+import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
+export const STARTOS_JS_LOCATION = "/usr/lib/startos/package/index.js"
 export class SystemForStartOs implements System {
   private onTerm: (() => Promise<void>) | undefined
   static of() {
-    return new SystemForStartOs()
+    return new SystemForStartOs(require(STARTOS_JS_LOCATION))
   }
-  constructor() {}
+  constructor(readonly abi: T.ABI) {}
   async execute(
     effects: HostSystemStartOs,
     options: {
+      id: string
       procedure:
         | "/init"
         | "/uninit"
@@ -33,7 +36,61 @@ export class SystemForStartOs implements System {
       timeout?: number | undefined
     },
   ): Promise<RpcResult> {
-    return { result: await this._execute(effects, options) }
+    effects = Object.create(effects)
+    effects.procedureId = options.id
+    return this._execute(effects, options)
+      .then((x) =>
+        matches(x)
+          .when(
+            object({
+              result: any,
+            }),
+            (x) => x,
+          )
+          .when(
+            object({
+              error: string,
+            }),
+            (x) => ({
+              error: {
+                code: 0,
+                message: x.error,
+              },
+            }),
+          )
+          .when(
+            object({
+              "error-code": tuple(number, string),
+            }),
+            ({ "error-code": [code, message] }) => ({
+              error: {
+                code,
+                message,
+              },
+            }),
+          )
+          .defaultTo({ result: x }),
+      )
+      .catch((error: unknown) => {
+        if (error instanceof Error)
+          return {
+            error: {
+              code: 0,
+              message: error.name,
+              data: {
+                details: error.message,
+                debug: `${error?.cause ?? "[noCause]"}:${error?.stack ?? "[noStack]"}`,
+              },
+            },
+          }
+        if (matchRpcResult.test(error)) return error
+        return {
+          error: {
+            code: 0,
+            message: String(error),
+          },
+        }
+      })
   }
   async _execute(
     effects: Effects,
@@ -58,26 +115,27 @@ export class SystemForStartOs implements System {
   ): Promise<unknown> {
     switch (options.procedure) {
       case "/init": {
-        const path = `${LOCATION}/procedures/init`
-        const procedure: any = await import(path).catch(() => require(path))
-        const previousVersion = string.optional().unsafeCast(options)
-        return procedure.init({ effects, previousVersion })
+        const previousVersion =
+          string.optional().unsafeCast(options.input) || null
+        return this.abi.init({ effects, previousVersion })
       }
       case "/uninit": {
-        const path = `${LOCATION}/procedures/init`
-        const procedure: any = await import(path).catch(() => require(path))
-        const nextVersion = string.optional().unsafeCast(options)
-        return procedure.uninit({ effects, nextVersion })
+        const nextVersion = string.optional().unsafeCast(options.input) || null
+        return this.abi.uninit({ effects, nextVersion })
       }
       case "/main/start": {
-        const path = `${LOCATION}/procedures/main`
-        const procedure: any = await import(path).catch(() => require(path))
         const started = async (onTerm: () => Promise<void>) => {
           await effects.setMainStatus({ status: "running" })
           if (this.onTerm) await this.onTerm()
           this.onTerm = onTerm
         }
-        return procedure.main({ effects, started })
+        const daemons = await (
+          await this.abi.main({
+            effects: { ...effects, _type: "main" },
+            started,
+          })
+        ).build()
+        this.onTerm = daemons.term
       }
       case "/main/stop": {
         await effects.setMainStatus({ status: "stopped" })
@@ -86,67 +144,50 @@ export class SystemForStartOs implements System {
         return duration(30, "s")
       }
       case "/config/set": {
-        const path = `${LOCATION}/procedures/config`
-        const procedure: any = await import(path).catch(() => require(path))
-        const input = options.input
-        return procedure.setConfig({ effects, input })
+        const input = options.input as any // TODO
+        return this.abi.setConfig({ effects, input })
       }
       case "/config/get": {
-        const path = `${LOCATION}/procedures/config`
-        const procedure: any = await import(path).catch(() => require(path))
-        return procedure.getConfig({ effects })
+        return this.abi.getConfig({ effects })
       }
       case "/backup/create":
       case "/backup/restore":
         throw new Error("this should be called with the init/unit")
       case "/actions/metadata": {
-        const path = `${LOCATION}/procedures/actions`
-        const procedure: any = await import(path).catch(() => require(path))
-        return procedure.actionsMetadata({ effects })
+        return this.abi.actionsMetadata({ effects })
       }
       default:
         const procedures = unNestPath(options.procedure)
         const id = procedures[2]
         switch (true) {
           case procedures[1] === "actions" && procedures[3] === "get": {
-            const path = `${LOCATION}/procedures/actions`
-            const action: any = (await import(path).catch(() => require(path)))
-              .actions[id]
+            const action = (await this.abi.actions({ effects }))[id]
             if (!action) throw new Error(`Action ${id} not found`)
-            return action.get({ effects })
+            return action.getConfig({ effects })
           }
           case procedures[1] === "actions" && procedures[3] === "run": {
-            const path = `${LOCATION}/procedures/actions`
-            const action: any = (await import(path).catch(() => require(path)))
-              .actions[id]
+            const action = (await this.abi.actions({ effects }))[id]
             if (!action) throw new Error(`Action ${id} not found`)
-            const input = options.input
-            return action.run({ effects, input })
+            return action.run({ effects, input: options.input as any }) // TODO
           }
           case procedures[1] === "dependencies" && procedures[3] === "query": {
-            const path = `${LOCATION}/procedures/dependencies`
-            const dependencyConfig: any = (
-              await import(path).catch(() => require(path))
-            ).dependencyConfig[id]
+            const dependencyConfig = this.abi.dependencyConfig[id]
             if (!dependencyConfig)
               throw new Error(`dependencyConfig ${id} not found`)
             const localConfig = options.input
-            return dependencyConfig.query({ effects, localConfig })
+            return dependencyConfig.query({ effects })
           }
           case procedures[1] === "dependencies" && procedures[3] === "update": {
-            const path = `${LOCATION}/procedures/dependencies`
-            const dependencyConfig: any = (
-              await import(path).catch(() => require(path))
-            ).dependencyConfig[id]
+            const dependencyConfig = this.abi.dependencyConfig[id]
             if (!dependencyConfig)
               throw new Error(`dependencyConfig ${id} not found`)
-            return dependencyConfig.update(options.input)
+            return dependencyConfig.update(options.input as any) // TODO
           }
         }
     }
-    throw new Error("Method not implemented.")
+    throw new Error(`Method ${options.procedure} not implemented.`)
   }
-  exit(effects: Effects): Promise<void> {
-    throw new Error("Method not implemented.")
+  async exit(effects: Effects): Promise<void> {
+    return void null
   }
 }

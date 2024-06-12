@@ -39,6 +39,11 @@ impl Guid {
         Some(Guid(InternedString::intern(r)))
     }
 }
+impl Default for Guid {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl AsRef<str> for Guid {
     fn as_ref(&self) -> &str {
         self.0.as_ref()

@@ -366,7 +366,7 @@ pub async fn execute<C: Context>(
     if tokio::fs::metadata("/sys/firmware/efi").await.is_err() {
         install.arg("--target=i386-pc");
     } else {
-        match *ARCH {
+        match ARCH {
             "x86_64" => install.arg("--target=x86_64-efi"),
             "aarch64" => install.arg("--target=arm64-efi"),
             _ => &mut install,

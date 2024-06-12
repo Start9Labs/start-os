@@ -59,6 +59,7 @@ async-stream = "0.3.5"
 async-trait = "0.1.74"
 axum = { version = "0.7.3", features = ["ws"] }
 axum-server = "0.6.0"
+backhand = "0.18.0"
 base32 = "0.4.0"
 base64 = "0.21.4"
 base64ct = "1.6.0"
@@ -72,7 +73,6 @@ console = "0.15.7"
 console-subscriber = { version = "0.2", optional = true }
 cookie = "0.18.0"
 cookie_store = "0.20.0"
-current_platform = "0.2.0"
 der = { version = "0.7.9", features = ["derive", "pem"] }
 digest = "0.10.7"
 divrem = "1.0.0"
@@ -154,7 +154,7 @@ serde_json = "1.0"
 serde_toml = { package = "toml", version = "0.8.2" }
 serde_urlencoded = "0.7"
 serde_with = { version = "3.4.0", features = ["macros", "json"] }
-serde_yaml = "0.9.25"
+serde_yaml = { package = "serde_yml", version = "0.0.10" }
 sha2 = "0.10.2"
 shell-words = "1"
 simple-logging = "2.0.2"

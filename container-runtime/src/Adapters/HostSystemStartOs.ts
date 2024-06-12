@@ -32,6 +32,8 @@ type RpcError = typeof matchRpcError._TYPE
 const SOCKET_PATH = "/media/startos/rpc/host.sock"
 const MAIN = "/main" as const
 export class HostSystemStartOs implements Effects {
+  procedureId: string | null = null
+
   static of(callbackHolder: CallbackHolder) {
     return new HostSystemStartOs(callbackHolder)
   }
@@ -40,7 +42,7 @@ export class HostSystemStartOs implements Effects {
   id = 0
   rpcRound<K extends keyof Effects | "getStore" | "setStore">(
     method: K,
-    params: unknown,
+    params: Record<string, unknown>,
   ) {
     const id = this.id++
     const client = net.createConnection({ path: SOCKET_PATH }, () => {
@@ -48,7 +50,7 @@ export class HostSystemStartOs implements Effects {
         JSON.stringify({
           id,
           method,
-          params,
+          params: { ...params, procedureId: this.procedureId },
         }) + "\n",
       )
     })
@@ -102,14 +104,14 @@ export class HostSystemStartOs implements Effects {
     }) as ReturnType<T.Effects["bind"]>
   }
   clearBindings(...[]: Parameters<T.Effects["clearBindings"]>) {
-    return this.rpcRound("clearBindings", null) as ReturnType<
+    return this.rpcRound("clearBindings", {}) as ReturnType<
       T.Effects["clearBindings"]
     >
   }
   clearServiceInterfaces(
     ...[]: Parameters<T.Effects["clearServiceInterfaces"]>
   ) {
-    return this.rpcRound("clearServiceInterfaces", null) as ReturnType<
+    return this.rpcRound("clearServiceInterfaces", {}) as ReturnType<
       T.Effects["clearServiceInterfaces"]
     >
   }
@@ -145,18 +147,20 @@ export class HostSystemStartOs implements Effects {
       T.Effects["exportServiceInterface"]
     >
   }
-  exposeForDependents(...[options]: any) {
-    return this.rpcRound("exposeForDependents", null) as ReturnType<
+  exposeForDependents(
+    ...[options]: Parameters<T.Effects["exposeForDependents"]>
+  ) {
+    return this.rpcRound("exposeForDependents", options) as ReturnType<
       T.Effects["exposeForDependents"]
     >
   }
   getConfigured(...[]: Parameters<T.Effects["getConfigured"]>) {
-    return this.rpcRound("getConfigured", null) as ReturnType<
+    return this.rpcRound("getConfigured", {}) as ReturnType<
       T.Effects["getConfigured"]
     >
   }
   getContainerIp(...[]: Parameters<T.Effects["getContainerIp"]>) {
-    return this.rpcRound("getContainerIp", null) as ReturnType<
+    return this.rpcRound("getContainerIp", {}) as ReturnType<
       T.Effects["getContainerIp"]
     >
   }
@@ -229,7 +233,7 @@ export class HostSystemStartOs implements Effects {
     >
   }
   restart(...[]: Parameters<T.Effects["restart"]>) {
-    return this.rpcRound("restart", null)
+    return this.rpcRound("restart", {}) as ReturnType<T.Effects["restart"]>
   }
   running(...[packageId]: Parameters<T.Effects["running"]>) {
     return this.rpcRound("running", { packageId }) as ReturnType<
@@ -262,7 +266,7 @@ export class HostSystemStartOs implements Effects {
     >
   }
   getDependencies(): ReturnType<T.Effects["getDependencies"]> {
-    return this.rpcRound("getDependencies", null) as ReturnType<
+    return this.rpcRound("getDependencies", {}) as ReturnType<
       T.Effects["getDependencies"]
     >
   }
@@ -279,7 +283,7 @@ export class HostSystemStartOs implements Effects {
   }
 
   shutdown(...[]: Parameters<T.Effects["shutdown"]>) {
-    return this.rpcRound("shutdown", null)
+    return this.rpcRound("shutdown", {}) as ReturnType<T.Effects["shutdown"]>
   }
   stopped(...[packageId]: Parameters<T.Effects["stopped"]>) {
     return this.rpcRound("stopped", { packageId }) as ReturnType<

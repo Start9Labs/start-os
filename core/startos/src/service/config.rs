@@ -5,6 +5,7 @@ use models::ProcedureName;
 use crate::config::action::ConfigRes;
 use crate::config::ConfigureContext;
 use crate::prelude::*;
+use crate::rpc_continuations::Guid;
 use crate::service::dependencies::DependencyConfig;
 use crate::service::{Service, ServiceActor};
 use crate::util::actor::background::BackgroundJobQueue;
@@ -19,6 +20,7 @@ impl Handler<Configure> for ServiceActor {
     }
     async fn handle(
         &mut self,
+        id: Guid,
         Configure(ConfigureContext { timeout, config }): Configure,
         _: &BackgroundJobQueue,
     ) -> Self::Response {
@@ -26,7 +28,7 @@ impl Handler<Configure> for ServiceActor {
         let package_id = &self.0.id;
 
         container
-            .execute::<NoOutput>(ProcedureName::SetConfig, to_value(&config)?, timeout)
+            .execute::<NoOutput>(id, ProcedureName::SetConfig, to_value(&config)?, timeout)
             .await
             .with_kind(ErrorKind::ConfigRulesViolation)?;
         self.0
@@ -52,10 +54,11 @@ impl Handler<GetConfig> for ServiceActor {
     fn conflicts_with(_: &GetConfig) -> ConflictBuilder<Self> {
         ConflictBuilder::nothing().except::<Configure>()
     }
-    async fn handle(&mut self, _: GetConfig, _: &BackgroundJobQueue) -> Self::Response {
+    async fn handle(&mut self, id: Guid, _: GetConfig, _: &BackgroundJobQueue) -> Self::Response {
         let container = &self.0.persistent_container;
         container
             .execute::<ConfigRes>(
+                id,
                 ProcedureName::GetConfig,
                 Value::Null,
                 Some(Duration::from_secs(30)), // TODO timeout
@@ -66,10 +69,10 @@ impl Handler<GetConfig> for ServiceActor {
 }
 
 impl Service {
-    pub async fn configure(&self, ctx: ConfigureContext) -> Result<(), Error> {
-        self.actor.send(Configure(ctx)).await?
+    pub async fn configure(&self, id: Guid, ctx: ConfigureContext) -> Result<(), Error> {
+        self.actor.send(id, Configure(ctx)).await?
     }
-    pub async fn get_config(&self) -> Result<ConfigRes, Error> {
-        self.actor.send(GetConfig).await?
+    pub async fn get_config(&self, id: Guid) -> Result<ConfigRes, Error> {
+        self.actor.send(id, GetConfig).await?
     }
 }

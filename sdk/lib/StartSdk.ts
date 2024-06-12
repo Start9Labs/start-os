@@ -187,7 +187,10 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
       nullIfEmpty,
       runCommand: async <A extends string>(
         effects: Effects,
-        image: { id: Manifest["images"][number]; sharedRun?: boolean },
+        image: {
+          id: keyof Manifest["images"] & T.ImageId
+          sharedRun?: boolean
+        },
         command: ValidIfNoStupidEscape<A> | [string, ...string[]],
         options: CommandOptions & {
           mounts?: { path: string; options: MountOptions }[]
@@ -396,7 +399,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
       setupProperties:
         (
           fn: (options: { effects: Effects }) => Promise<T.SdkPropertiesReturn>,
-        ): T.ExpectedExports.Properties =>
+        ): T.ExpectedExports.properties =>
         (options) =>
           fn(options).then(nullifyProperties),
       setupUninstall: (fn: UninstallFn<Manifest, Store>) =>
@@ -743,7 +746,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
 
 export async function runCommand<Manifest extends SDKManifest>(
   effects: Effects,
-  image: { id: Manifest["images"][number]; sharedRun?: boolean },
+  image: { id: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },
   command: string | [string, ...string[]],
   options: CommandOptions & {
     mounts?: { path: string; options: MountOptions }[]

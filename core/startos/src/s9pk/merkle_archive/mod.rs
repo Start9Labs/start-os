@@ -19,6 +19,7 @@ use crate::util::serde::Base64;
 use crate::CAP_1_MiB;
 
 pub mod directory_contents;
+pub mod expected;
 pub mod file_contents;
 pub mod hash;
 pub mod sink;
@@ -216,6 +217,9 @@ impl<S> Entry<S> {
     }
     pub fn file(source: S) -> Self {
         Self::new(EntryContents::File(FileContents::new(source)))
+    }
+    pub fn directory(directory: DirectoryContents<S>) -> Self {
+        Self::new(EntryContents::Directory(directory))
     }
     pub fn hash(&self) -> Option<(Hash, u64)> {
         self.hash

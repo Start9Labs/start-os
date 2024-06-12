@@ -49,7 +49,7 @@ function todo(): never {
 const execFile = promisify(childProcess.execFile)
 
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
-const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
+export const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
 const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig"
 
 const matchSetResult = object(
@@ -199,11 +199,14 @@ export class SystemForEmbassy implements System {
   async execute(
     effects: HostSystemStartOs,
     options: {
+      id: string
       procedure: JsonPath
       input: unknown
       timeout?: number | undefined
     },
   ): Promise<RpcResult> {
+    effects = Object.create(effects)
+    effects.procedureId = options.id
     return this._execute(effects, options)
       .then((x) =>
         matches(x)
@@ -724,7 +727,7 @@ export class SystemForEmbassy implements System {
   private async properties(
     effects: HostSystemStartOs,
     timeoutMs: number | null,
-  ): Promise<ReturnType<T.ExpectedExports.Properties>> {
+  ): Promise<ReturnType<T.ExpectedExports.properties>> {
     // TODO BLU-J set the properties ever so often
     const setConfigValue = this.manifest.properties
     if (!setConfigValue) throw new Error("There is no properties")

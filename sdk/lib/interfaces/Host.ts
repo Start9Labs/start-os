@@ -69,12 +69,12 @@ type NotProtocolsWithSslVariants = Exclude<
 type BindOptionsByKnownProtocol =
   | {
       protocol: ProtocolsWithSslVariants
-      preferredExternalPort: number
+      preferredExternalPort?: number
       addSsl?: Partial<AddSslOptions>
     }
   | {
       protocol: NotProtocolsWithSslVariants
-      preferredExternalPort: number
+      preferredExternalPort?: number
       addSsl?: AddSslOptions
     }
 export type BindOptionsByProtocol = BindOptionsByKnownProtocol | BindOptions

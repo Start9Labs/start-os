@@ -6,6 +6,7 @@ use models::ProcedureName;
 use super::TempDesiredRestore;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::prelude::*;
+use crate::rpc_continuations::Guid;
 use crate::service::config::GetConfig;
 use crate::service::dependencies::DependencyConfig;
 use crate::service::transition::{TransitionKind, TransitionState};
@@ -24,7 +25,12 @@ impl Handler<Backup> for ServiceActor {
             .except::<GetConfig>()
             .except::<DependencyConfig>()
     }
-    async fn handle(&mut self, backup: Backup, jobs: &BackgroundJobQueue) -> Self::Response {
+    async fn handle(
+        &mut self,
+        id: Guid,
+        backup: Backup,
+        jobs: &BackgroundJobQueue,
+    ) -> Self::Response {
         // So Need a handle to just a single field in the state
         let temp: TempDesiredRestore = TempDesiredRestore::new(&self.0.persistent_container.state);
         let mut current = self.0.persistent_container.state.subscribe();
@@ -45,7 +51,7 @@ impl Handler<Backup> for ServiceActor {
                     .mount_backup(path, ReadWrite)
                     .await?;
                 seed.persistent_container
-                    .execute(ProcedureName::CreateBackup, Value::Null, None)
+                    .execute(id, ProcedureName::CreateBackup, Value::Null, None)
                     .await?;
                 backup_guard.unmount(true).await?;
 

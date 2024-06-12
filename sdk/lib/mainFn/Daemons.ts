@@ -5,7 +5,12 @@ import { SDKManifest } from "../manifest/ManifestTypes"
 import { Trigger } from "../trigger"
 import { TriggerInput } from "../trigger/TriggerInput"
 import { defaultTrigger } from "../trigger/defaultTrigger"
-import { DaemonReturned, Effects, ValidIfNoStupidEscape } from "../types"
+import {
+  DaemonReturned,
+  Effects,
+  ImageId,
+  ValidIfNoStupidEscape,
+} from "../types"
 import { Mounts } from "./Mounts"
 import { CommandOptions, MountOptions, Overlay } from "../util/Overlay"
 import { splitCommand } from "../util/splitCommand"
@@ -34,8 +39,8 @@ type DaemonsParams<
   Id extends string,
 > = {
   command: ValidIfNoStupidEscape<Command> | [string, ...string[]]
-  image: { id: Manifest["images"][number]; sharedRun?: boolean }
-  mounts: { path: string; options: MountOptions }[]
+  image: { id: keyof Manifest["images"] & ImageId; sharedRun?: boolean }
+  mounts: Mounts<Manifest>
   env?: Record<string, string>
   ready: Ready
   requires: Exclude<Ids, Id>[]
@@ -116,12 +121,10 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
     options: DaemonsParams<Manifest, Ids, Command, Id>,
   ) {
     const daemonIndex = this.daemons.length
-    const daemon = Daemon.of()(
-      this.effects,
-      options.image,
-      options.command,
-      options,
-    )
+    const daemon = Daemon.of()(this.effects, options.image, options.command, {
+      ...options,
+      mounts: options.mounts.build(),
+    })
     const healthDaemon = new HealthDaemon(
       daemon,
       daemonIndex,

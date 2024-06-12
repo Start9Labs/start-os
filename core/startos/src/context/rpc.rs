@@ -43,6 +43,7 @@ pub struct RpcContextSeed {
     pub db: TypedPatchDb<Database>,
     pub account: RwLock<AccountInfo>,
     pub net_controller: Arc<NetController>,
+    pub s9pk_arch: Option<&'static str>,
     pub services: ServiceMap,
     pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
     pub shutdown: broadcast::Sender<Option<Shutdown>>,
@@ -152,6 +153,11 @@ impl RpcContext {
             db,
             account: RwLock::new(account),
             net_controller,
+            s9pk_arch: if config.multi_arch_s9pks.unwrap_or(false) {
+                None
+            } else {
+                Some(crate::ARCH)
+            },
             services,
             metrics_cache,
             shutdown,

@@ -21,7 +21,7 @@ export const sdk = StartSdk.of()
         long: "",
       },
       containers: {},
-      images: [],
+      images: {},
       volumes: [],
       assets: [],
       alerts: {

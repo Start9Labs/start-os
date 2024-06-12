@@ -25,7 +25,7 @@ use crate::progress::{
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
-use crate::service::{LoadDisposition, Service};
+use crate::service::{LoadDisposition, Service, ServiceRef};
 use crate::status::{MainStatus, Status};
 use crate::util::serde::Pem;
 
@@ -39,23 +39,22 @@ pub struct InstallProgressHandles {
 
 /// This is the structure to contain all the services
 #[derive(Default)]
-pub struct ServiceMap(Mutex<OrdMap<PackageId, Arc<RwLock<Option<Service>>>>>);
+pub struct ServiceMap(Mutex<OrdMap<PackageId, Arc<RwLock<Option<ServiceRef>>>>>);
 impl ServiceMap {
-    async fn entry(&self, id: &PackageId) -> Arc<RwLock<Option<Service>>> {
+    async fn entry(&self, id: &PackageId) -> Arc<RwLock<Option<ServiceRef>>> {
         let mut lock = self.0.lock().await;
-        dbg!(lock.keys().collect::<Vec<_>>());
         lock.entry(id.clone())
             .or_insert_with(|| Arc::new(RwLock::new(None)))
             .clone()
     }
 
     #[instrument(skip_all)]
-    pub async fn get(&self, id: &PackageId) -> OwnedRwLockReadGuard<Option<Service>> {
+    pub async fn get(&self, id: &PackageId) -> OwnedRwLockReadGuard<Option<ServiceRef>> {
         self.entry(id).await.read_owned().await
     }
 
     #[instrument(skip_all)]
-    pub async fn get_mut(&self, id: &PackageId) -> OwnedRwLockWriteGuard<Option<Service>> {
+    pub async fn get_mut(&self, id: &PackageId) -> OwnedRwLockWriteGuard<Option<ServiceRef>> {
         self.entry(id).await.write_owned().await
     }
 
@@ -83,7 +82,7 @@ impl ServiceMap {
             shutdown_err = service.shutdown().await;
         }
         // TODO: retry on error?
-        *service = Service::load(ctx, id, disposition).await?;
+        *service = Service::load(ctx, id, disposition).await?.map(From::from);
         shutdown_err?;
         Ok(())
     }
@@ -95,6 +94,7 @@ impl ServiceMap {
         mut s9pk: S9pk<S>,
         recovery_source: Option<impl GenericMountGuard>,
     ) -> Result<DownloadInstallFuture, Error> {
+        s9pk.validate_and_filter(ctx.s9pk_arch)?;
         let manifest = s9pk.as_manifest().clone();
         let id = manifest.id.clone();
         let icon = s9pk.icon_data_url().await?;
@@ -128,7 +128,7 @@ impl ServiceMap {
         );
         let restoring = recovery_source.is_some();
 
-        let mut reload_guard = ServiceReloadGuard::new(ctx.clone(), id.clone(), op_name);
+        let mut reload_guard = ServiceRefReloadGuard::new(ctx.clone(), id.clone(), op_name);
 
         reload_guard
             .handle(ctx.db.mutate({
@@ -231,7 +231,7 @@ impl ServiceMap {
             Ok(reload_guard
                 .handle_last(async move {
                     finalization_progress.start();
-                    let s9pk = S9pk::open(&installed_path, Some(&id), true).await?;
+                    let s9pk = S9pk::open(&installed_path, Some(&id)).await?;
                     let prev = if let Some(service) = service.take() {
                         ensure_code!(
                             recovery_source.is_none(),
@@ -264,7 +264,8 @@ impl ServiceMap {
                                     progress_handle,
                                 }),
                             )
-                            .await?,
+                            .await?
+                            .into(),
                         );
                     } else {
                         *service = Some(
@@ -277,7 +278,8 @@ impl ServiceMap {
                                     progress_handle,
                                 }),
                             )
-                            .await?,
+                            .await?
+                            .into(),
                         );
                     }
                     sync_progress_task.await.map_err(|_| {
@@ -295,7 +297,7 @@ impl ServiceMap {
     pub async fn uninstall(&self, ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
         let mut guard = self.get_mut(id).await;
         if let Some(service) = guard.take() {
-            ServiceReloadGuard::new(ctx.clone(), id.clone(), "Uninstall")
+            ServiceRefReloadGuard::new(ctx.clone(), id.clone(), "Uninstall")
                 .handle_last(async move {
                     let res = service.uninstall(None).await;
                     drop(guard);
@@ -326,17 +328,17 @@ impl ServiceMap {
     }
 }
 
-pub struct ServiceReloadGuard(Option<ServiceReloadInfo>);
-impl Drop for ServiceReloadGuard {
+pub struct ServiceRefReloadGuard(Option<ServiceRefReloadInfo>);
+impl Drop for ServiceRefReloadGuard {
     fn drop(&mut self) {
         if let Some(info) = self.0.take() {
             tokio::spawn(info.reload(None));
         }
     }
 }
-impl ServiceReloadGuard {
+impl ServiceRefReloadGuard {
     pub fn new(ctx: RpcContext, id: PackageId, operation: &'static str) -> Self {
-        Self(Some(ServiceReloadInfo { ctx, id, operation }))
+        Self(Some(ServiceRefReloadInfo { ctx, id, operation }))
     }
 
     pub async fn handle<T>(
@@ -365,12 +367,12 @@ impl ServiceReloadGuard {
     }
 }
 
-struct ServiceReloadInfo {
+struct ServiceRefReloadInfo {
     ctx: RpcContext,
     id: PackageId,
     operation: &'static str,
 }
-impl ServiceReloadInfo {
+impl ServiceRefReloadInfo {
     async fn reload(self, error: Option<Error>) -> Result<(), Error> {
         self.ctx
             .services

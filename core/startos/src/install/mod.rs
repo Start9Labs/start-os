@@ -152,7 +152,6 @@ pub async fn install(
             .await?,
         ),
         None, // TODO
-        true,
     )
     .await?;
 
@@ -262,7 +261,6 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
         if let Err(e) = async {
             let s9pk = S9pk::deserialize(
                 &file, None, // TODO
-                true,
             )
             .await?;
             let _ = id_send.send(s9pk.as_manifest().id.clone());

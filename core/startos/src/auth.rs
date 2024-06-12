@@ -178,6 +178,7 @@ pub fn check_password_against_db(db: &DatabaseModel, password: &str) -> Result<(
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct LoginParams {
     password: Option<PasswordType>,
     #[ts(skip)]

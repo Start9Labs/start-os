@@ -7,6 +7,7 @@ use rpc_toolkit::Empty;
 use ts_rs::TS;
 
 use crate::prelude::*;
+use crate::rpc_continuations::Guid;
 
 #[derive(Clone)]
 pub struct Init;
@@ -46,14 +47,21 @@ impl serde::Serialize for Exit {
 
 #[derive(Clone, serde::Deserialize, serde::Serialize, TS)]
 pub struct ExecuteParams {
+    id: Guid,
     procedure: String,
     #[ts(type = "any")]
     input: Value,
     timeout: Option<u128>,
 }
 impl ExecuteParams {
-    pub fn new(procedure: ProcedureName, input: Value, timeout: Option<Duration>) -> Self {
+    pub fn new(
+        id: Guid,
+        procedure: ProcedureName,
+        input: Value,
+        timeout: Option<Duration>,
+    ) -> Self {
         Self {
+            id,
             procedure: procedure.js_function_name(),
             input,
             timeout: timeout.map(|d| d.as_millis()),

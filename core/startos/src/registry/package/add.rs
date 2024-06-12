@@ -53,7 +53,6 @@ pub async fn add_package(
     let s9pk = S9pk::deserialize(
         &Arc::new(HttpSource::new(ctx.client.clone(), url.clone()).await?),
         Some(&commitment),
-        false,
     )
     .await?;
 
@@ -109,7 +108,7 @@ pub async fn cli_add_package(
         ..
     }: HandlerArgs<CliContext, CliAddPackageParams>,
 ) -> Result<(), Error> {
-    let s9pk = S9pk::open(&file, None, false).await?;
+    let s9pk = S9pk::open(&file, None).await?;
 
     let mut progress = FullProgressTracker::new();
     let progress_handle = progress.handle();
@@ -143,7 +142,6 @@ pub async fn cli_add_package(
     let mut src = S9pk::deserialize(
         &Arc::new(HttpSource::new(ctx.client.clone(), url.clone()).await?),
         Some(&commitment),
-        false,
     )
     .await?;
     src.serialize(&mut TrackingIO::new(0, tokio::io::sink()), true)
