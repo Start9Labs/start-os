@@ -13,6 +13,7 @@ use crate::config::{Config, ConfigSpec, ConfigureContext};
 use crate::context::RpcContext;
 use crate::db::model::package::CurrentDependencies;
 use crate::prelude::*;
+use crate::rpc_continuations::Guid;
 use crate::Error;
 
 pub fn dependency<C: Context>() -> ParentHandler<C> {
@@ -86,7 +87,7 @@ pub async fn configure_impl(
                 ErrorKind::Unknown,
             )
         })?
-        .configure(configure_context)
+        .configure(Guid::new(), configure_context)
         .await?;
     Ok(())
 }
@@ -103,14 +104,15 @@ pub async fn configure_logic(
     ctx: RpcContext,
     (dependent_id, dependency_id): (PackageId, PackageId),
 ) -> Result<ConfigDryRes, Error> {
+    let procedure_id = Guid::new();
     let dependency_guard = ctx.services.get(&dependency_id).await;
     let dependency = dependency_guard.as_ref().or_not_found(&dependency_id)?;
     let dependent_guard = ctx.services.get(&dependent_id).await;
     let dependent = dependent_guard.as_ref().or_not_found(&dependent_id)?;
-    let config_res = dependency.get_config().await?;
+    let config_res = dependency.get_config(procedure_id.clone()).await?;
     let diff = Value::Object(
         dependent
-            .dependency_config(dependency_id, config_res.config.clone())
+            .dependency_config(procedure_id, dependency_id, config_res.config.clone())
             .await?
             .unwrap_or_default(),
     );
@@ -129,6 +131,7 @@ pub async fn compute_dependency_config_errs(
     id: &PackageId,
     current_dependencies: &mut CurrentDependencies,
 ) -> Result<(), Error> {
+    let procedure_id = Guid::new();
     let service_guard = ctx.services.get(id).await;
     let service = service_guard.as_ref().or_not_found(id)?;
     for (dep_id, dep_info) in current_dependencies.0.iter_mut() {
@@ -137,10 +140,10 @@ pub async fn compute_dependency_config_errs(
             continue;
         };
 
-        let dep_config = dependency.get_config().await?.config;
+        let dep_config = dependency.get_config(procedure_id.clone()).await?.config;
 
         dep_info.config_satisfied = service
-            .dependency_config(dep_id.clone(), dep_config)
+            .dependency_config(procedure_id.clone(), dep_id.clone(), dep_config)
             .await?
             .is_none();
     }

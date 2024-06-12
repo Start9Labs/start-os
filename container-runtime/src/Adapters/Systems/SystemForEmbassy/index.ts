@@ -199,11 +199,14 @@ export class SystemForEmbassy implements System {
   async execute(
     effects: HostSystemStartOs,
     options: {
+      id: string
       procedure: JsonPath
       input: unknown
       timeout?: number | undefined
     },
   ): Promise<RpcResult> {
+    effects = Object.create(effects)
+    effects.procedureId = options.id
     return this._execute(effects, options)
       .then((x) =>
         matches(x)

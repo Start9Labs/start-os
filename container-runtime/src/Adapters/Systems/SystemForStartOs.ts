@@ -17,6 +17,7 @@ export class SystemForStartOs implements System {
   async execute(
     effects: HostSystemStartOs,
     options: {
+      id: string
       procedure:
         | "/init"
         | "/uninit"
@@ -35,6 +36,8 @@ export class SystemForStartOs implements System {
       timeout?: number | undefined
     },
   ): Promise<RpcResult> {
+    effects = Object.create(effects)
+    effects.procedureId = options.id
     return this._execute(effects, options)
       .then((x) =>
         matches(x)

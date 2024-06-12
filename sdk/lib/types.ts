@@ -471,8 +471,8 @@ export type Effects = {
   /** Exists could be useful during the runtime to know if some service is running, option dep */
   running(options: { packageId: PackageId }): Promise<boolean>
 
-  restart(): void
-  shutdown(): void
+  restart(): Promise<void>
+  shutdown(): Promise<void>
 
   mount(options: {
     location: string

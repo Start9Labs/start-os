@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use crate::rpc_continuations::Guid;
 use crate::service::config::GetConfig;
 use crate::service::dependencies::DependencyConfig;
 use crate::service::start_stop::StartStop;
@@ -15,7 +16,7 @@ impl Handler<Start> for ServiceActor {
             .except::<GetConfig>()
             .except::<DependencyConfig>()
     }
-    async fn handle(&mut self, _: Start, _: &BackgroundJobQueue) -> Self::Response {
+    async fn handle(&mut self, _: Guid, _: Start, _: &BackgroundJobQueue) -> Self::Response {
         self.0.persistent_container.state.send_modify(|x| {
             x.desired_state = StartStop::Start;
         });
@@ -23,8 +24,8 @@ impl Handler<Start> for ServiceActor {
     }
 }
 impl Service {
-    pub async fn start(&self) -> Result<(), Error> {
-        self.actor.send(Start).await
+    pub async fn start(&self, id: Guid) -> Result<(), Error> {
+        self.actor.send(id, Start).await
     }
 }
 
@@ -36,7 +37,7 @@ impl Handler<Stop> for ServiceActor {
             .except::<GetConfig>()
             .except::<DependencyConfig>()
     }
-    async fn handle(&mut self, _: Stop, _: &BackgroundJobQueue) -> Self::Response {
+    async fn handle(&mut self, _: Guid, _: Stop, _: &BackgroundJobQueue) -> Self::Response {
         let mut transition_state = None;
         self.0.persistent_container.state.send_modify(|x| {
             x.desired_state = StartStop::Stop;
@@ -51,7 +52,7 @@ impl Handler<Stop> for ServiceActor {
     }
 }
 impl Service {
-    pub async fn stop(&self) -> Result<(), Error> {
-        self.actor.send(Stop).await
+    pub async fn stop(&self, id: Guid) -> Result<(), Error> {
+        self.actor.send(id, Stop).await
     }
 }

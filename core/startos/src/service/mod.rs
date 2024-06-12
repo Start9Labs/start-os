@@ -1,4 +1,5 @@
-use std::sync::Arc;
+use std::ops::Deref;
+use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
@@ -68,13 +69,87 @@ pub enum LoadDisposition {
     Undo,
 }
 
+pub struct ServiceRef(Arc<Service>);
+impl ServiceRef {
+    pub fn weak(&self) -> Weak<Service> {
+        Arc::downgrade(&self.0)
+    }
+    pub async fn uninstall(
+        self,
+        target_version: Option<models::VersionString>,
+    ) -> Result<(), Error> {
+        self.seed
+            .persistent_container
+            .execute(
+                Guid::new(),
+                ProcedureName::Uninit,
+                to_value(&target_version)?,
+                None,
+            ) // TODO timeout
+            .await?;
+        let id = self.seed.persistent_container.s9pk.as_manifest().id.clone();
+        let ctx = self.seed.ctx.clone();
+        self.shutdown().await?;
+        if target_version.is_none() {
+            ctx.db
+                .mutate(|d| d.as_public_mut().as_package_data_mut().remove(&id))
+                .await?;
+        }
+        Ok(())
+    }
+    pub async fn shutdown(self) -> Result<(), Error> {
+        if let Some((hdl, shutdown)) = self.seed.persistent_container.rpc_server.send_replace(None)
+        {
+            self.seed
+                .persistent_container
+                .rpc_client
+                .request(rpc::Exit, Empty {})
+                .await?;
+            shutdown.shutdown();
+            hdl.await.with_kind(ErrorKind::Cancelled)?;
+        }
+        let service = Arc::try_unwrap(self.0).map_err(|_| {
+            Error::new(
+                eyre!("ServiceActor held somewhere after actor shutdown"),
+                ErrorKind::Unknown,
+            )
+        })?;
+        service
+            .actor
+            .shutdown(crate::util::actor::PendingMessageStrategy::FinishAll { timeout: None }) // TODO timeout
+            .await;
+        Arc::try_unwrap(service.seed)
+            .map_err(|_| {
+                Error::new(
+                    eyre!("ServiceActorSeed held somewhere after actor shutdown"),
+                    ErrorKind::Unknown,
+                )
+            })?
+            .persistent_container
+            .exit()
+            .await?;
+        Ok(())
+    }
+}
+impl Deref for ServiceRef {
+    type Target = Service;
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+impl From<Service> for ServiceRef {
+    fn from(value: Service) -> Self {
+        Self(Arc::new(value))
+    }
+}
+
 pub struct Service {
     actor: ConcurrentActor<ServiceActor>,
     seed: Arc<ServiceActorSeed>,
 }
 impl Service {
     #[instrument(skip_all)]
-    async fn new(ctx: RpcContext, s9pk: S9pk, start: StartStop) -> Result<Self, Error> {
+    async fn new(ctx: RpcContext, s9pk: S9pk, start: StartStop) -> Result<ServiceRef, Error> {
         let id = s9pk.as_manifest().id.clone();
         let persistent_container = PersistentContainer::new(
             &ctx, s9pk,
@@ -89,13 +164,17 @@ impl Service {
             ctx,
             synchronized: Arc::new(Notify::new()),
         });
-        seed.persistent_container
-            .init(Arc::downgrade(&seed))
-            .await?;
-        Ok(Self {
+        let service: ServiceRef = Self {
             actor: ConcurrentActor::new(ServiceActor(seed.clone())),
             seed,
-        })
+        }
+        .into();
+        service
+            .seed
+            .persistent_container
+            .init(service.weak())
+            .await?;
+        Ok(service)
     }
 
     #[instrument(skip_all)]
@@ -103,7 +182,7 @@ impl Service {
         ctx: &RpcContext,
         id: &PackageId,
         disposition: LoadDisposition,
-    ) -> Result<Option<Self>, Error> {
+    ) -> Result<Option<ServiceRef>, Error> {
         let handle_installed = {
             let ctx = ctx.clone();
             move |s9pk: S9pk, i: Model<PackageDataEntry>| async move {
@@ -225,7 +304,7 @@ impl Service {
                             tracing::debug!("{e:?}")
                         })
                     {
-                        match service.uninstall(None).await {
+                        match ServiceRef::from(service).uninstall(None).await {
                             Err(e) => {
                                 tracing::error!("Error uninstalling service: {e}");
                                 tracing::debug!("{e:?}")
@@ -257,7 +336,7 @@ impl Service {
         s9pk: S9pk,
         src_version: Option<models::VersionString>,
         progress: Option<InstallProgressHandles>,
-    ) -> Result<Self, Error> {
+    ) -> Result<ServiceRef, Error> {
         let manifest = s9pk.as_manifest().clone();
         let developer_key = s9pk.as_archive().signer();
         let icon = s9pk.icon_data_url().await?;
@@ -265,7 +344,12 @@ impl Service {
         service
             .seed
             .persistent_container
-            .execute(ProcedureName::Init, to_value(&src_version)?, None) // TODO timeout
+            .execute(
+                Guid::new(),
+                ProcedureName::Init,
+                to_value(&src_version)?,
+                None,
+            ) // TODO timeout
             .await
             .with_kind(ErrorKind::MigrationFailed)?; // TODO: handle cancellation
         if let Some(mut progress) = progress {
@@ -301,62 +385,19 @@ impl Service {
         s9pk: S9pk,
         backup_source: impl GenericMountGuard,
         progress: Option<InstallProgressHandles>,
-    ) -> Result<Self, Error> {
+    ) -> Result<ServiceRef, Error> {
         let service = Service::install(ctx.clone(), s9pk, None, progress).await?;
 
         service
             .actor
-            .send(transition::restore::Restore {
-                path: backup_source.path().to_path_buf(),
-            })
+            .send(
+                Guid::new(),
+                transition::restore::Restore {
+                    path: backup_source.path().to_path_buf(),
+                },
+            )
             .await??;
         Ok(service)
-    }
-
-    pub async fn shutdown(self) -> Result<(), Error> {
-        self.actor
-            .shutdown(crate::util::actor::PendingMessageStrategy::FinishAll { timeout: None }) // TODO timeout
-            .await;
-        if let Some((hdl, shutdown)) = self.seed.persistent_container.rpc_server.send_replace(None)
-        {
-            self.seed
-                .persistent_container
-                .rpc_client
-                .request(rpc::Exit, Empty {})
-                .await?;
-            shutdown.shutdown();
-            hdl.await.with_kind(ErrorKind::Cancelled)?;
-        }
-        Arc::try_unwrap(self.seed)
-            .map_err(|_| {
-                Error::new(
-                    eyre!("ServiceActorSeed held somewhere after actor shutdown"),
-                    ErrorKind::Unknown,
-                )
-            })?
-            .persistent_container
-            .exit()
-            .await?;
-        Ok(())
-    }
-
-    pub async fn uninstall(
-        self,
-        target_version: Option<models::VersionString>,
-    ) -> Result<(), Error> {
-        self.seed
-            .persistent_container
-            .execute(ProcedureName::Uninit, to_value(&target_version)?, None) // TODO timeout
-            .await?;
-        let id = self.seed.persistent_container.s9pk.as_manifest().id.clone();
-        let ctx = self.seed.ctx.clone();
-        self.shutdown().await?;
-        if target_version.is_none() {
-            ctx.db
-                .mutate(|d| d.as_public_mut().as_package_data_mut().remove(&id))
-                .await?;
-        }
-        Ok(())
     }
 
     #[instrument(skip_all)]
@@ -371,9 +412,12 @@ impl Service {
             .await?;
         drop(file);
         self.actor
-            .send(transition::backup::Backup {
-                path: guard.path().to_path_buf(),
-            })
+            .send(
+                Guid::new(),
+                transition::backup::Backup {
+                    path: guard.path().to_path_buf(),
+                },
+            )
             .await??;
         Ok(())
     }

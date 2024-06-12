@@ -31,7 +31,7 @@ use crate::rpc_continuations::Guid;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
 use crate::service::start_stop::StartStop;
-use crate::service::{rpc, RunningStatus};
+use crate::service::{rpc, RunningStatus, Service};
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::Invoke;
 use crate::volume::{asset_dir, data_dir};
@@ -307,7 +307,7 @@ impl PersistentContainer {
     }
 
     #[instrument(skip_all)]
-    pub async fn init(&self, seed: Weak<ServiceActorSeed>) -> Result<(), Error> {
+    pub async fn init(&self, seed: Weak<Service>) -> Result<(), Error> {
         let socket_server_context = EffectContext::new(seed);
         let server = Server::new(
             move || ready(Ok(socket_server_context.clone())),
@@ -432,6 +432,7 @@ impl PersistentContainer {
     #[instrument(skip_all)]
     pub async fn start(&self) -> Result<(), Error> {
         self.execute(
+            Guid::new(),
             ProcedureName::StartMain,
             Value::Null,
             Some(Duration::from_secs(5)), // TODO
@@ -443,7 +444,7 @@ impl PersistentContainer {
     #[instrument(skip_all)]
     pub async fn stop(&self) -> Result<Duration, Error> {
         let timeout: Option<crate::util::serde::Duration> = self
-            .execute(ProcedureName::StopMain, Value::Null, None)
+            .execute(Guid::new(), ProcedureName::StopMain, Value::Null, None)
             .await?;
         Ok(timeout.map(|a| *a).unwrap_or(Duration::from_secs(30)))
     }
@@ -451,6 +452,7 @@ impl PersistentContainer {
     #[instrument(skip_all)]
     pub async fn execute<O>(
         &self,
+        id: Guid,
         name: ProcedureName,
         input: Value,
         timeout: Option<Duration>,
@@ -458,7 +460,7 @@ impl PersistentContainer {
     where
         O: DeserializeOwned,
     {
-        self._execute(name, input, timeout)
+        self._execute(id, name, input, timeout)
             .await
             .and_then(from_value)
     }
@@ -466,6 +468,7 @@ impl PersistentContainer {
     #[instrument(skip_all)]
     pub async fn sanboxed<O>(
         &self,
+        id: Guid,
         name: ProcedureName,
         input: Value,
         timeout: Option<Duration>,
@@ -473,7 +476,7 @@ impl PersistentContainer {
     where
         O: DeserializeOwned,
     {
-        self._sandboxed(name, input, timeout)
+        self._sandboxed(id, name, input, timeout)
             .await
             .and_then(from_value)
     }
@@ -481,13 +484,15 @@ impl PersistentContainer {
     #[instrument(skip_all)]
     async fn _execute(
         &self,
+        id: Guid,
         name: ProcedureName,
         input: Value,
         timeout: Option<Duration>,
     ) -> Result<Value, Error> {
-        let fut = self
-            .rpc_client
-            .request(rpc::Execute, rpc::ExecuteParams::new(name, input, timeout));
+        let fut = self.rpc_client.request(
+            rpc::Execute,
+            rpc::ExecuteParams::new(id, name, input, timeout),
+        );
 
         Ok(if let Some(timeout) = timeout {
             tokio::time::timeout(timeout, fut)
@@ -501,13 +506,15 @@ impl PersistentContainer {
     #[instrument(skip_all)]
     async fn _sandboxed(
         &self,
+        id: Guid,
         name: ProcedureName,
         input: Value,
         timeout: Option<Duration>,
     ) -> Result<Value, Error> {
-        let fut = self
-            .rpc_client
-            .request(rpc::Sandbox, rpc::ExecuteParams::new(name, input, timeout));
+        let fut = self.rpc_client.request(
+            rpc::Sandbox,
+            rpc::ExecuteParams::new(id, name, input, timeout),
+        );
 
         Ok(if let Some(timeout) = timeout {
             tokio::time::timeout(timeout, fut)

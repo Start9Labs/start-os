@@ -5,6 +5,7 @@ use models::ProcedureName;
 
 use crate::disk::mount::filesystem::ReadOnly;
 use crate::prelude::*;
+use crate::rpc_continuations::Guid;
 use crate::service::transition::{TransitionKind, TransitionState};
 use crate::service::ServiceActor;
 use crate::util::actor::background::BackgroundJobQueue;
@@ -19,7 +20,12 @@ impl Handler<Restore> for ServiceActor {
     fn conflicts_with(_: &Restore) -> ConflictBuilder<Self> {
         ConflictBuilder::everything()
     }
-    async fn handle(&mut self, restore: Restore, jobs: &BackgroundJobQueue) -> Self::Response {
+    async fn handle(
+        &mut self,
+        id: Guid,
+        restore: Restore,
+        jobs: &BackgroundJobQueue,
+    ) -> Self::Response {
         // So Need a handle to just a single field in the state
         let path = restore.path.clone();
         let seed = self.0.clone();
@@ -32,7 +38,7 @@ impl Handler<Restore> for ServiceActor {
                     .mount_backup(path, ReadOnly)
                     .await?;
                 seed.persistent_container
-                    .execute(ProcedureName::RestoreBackup, Value::Null, None)
+                    .execute(id, ProcedureName::RestoreBackup, Value::Null, None)
                     .await?;
                 backup_guard.unmount(true).await?;
 
