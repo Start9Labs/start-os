@@ -7,6 +7,7 @@ use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::merkle_archive::Entry;
 
+/// An object for tracking the files expected to be in an s9pk 
 pub struct Expected<'a, T> {
     keep: DirectoryContents<()>,
     dir: &'a DirectoryContents<T>,
