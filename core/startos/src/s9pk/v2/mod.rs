@@ -14,7 +14,8 @@ use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
-use crate::ARCH;
+use crate::s9pk::v2::pack::{ImageSource, PackSource};
+use crate::util::io::TmpDir;
 
 const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x02];
 
@@ -22,6 +23,7 @@ pub const SIG_CONTEXT: &str = "s9pk";
 
 pub mod compat;
 pub mod manifest;
+pub mod pack;
 
 /**
     /
@@ -34,10 +36,14 @@ pub mod manifest;
     │   └── <id>.squashfs (xN)
     └── images
         └── <arch>
+            ├── <id>.json (xN)
             ├── <id>.env (xN)
             └── <id>.squashfs (xN)
 */
 
+// this sorts the s9pk to optimize such that the parts that are used first appear earlier in the s9pk
+// this is useful for manipulating an s9pk while partially downloaded on a source that does not support
+// random access
 fn priority(s: &str) -> Option<usize> {
     match s {
         "manifest.json" => Some(0),
@@ -48,26 +54,6 @@ fn priority(s: &str) -> Option<usize> {
         "assets" => Some(5),
         "images" => Some(6),
         _ => None,
-    }
-}
-
-fn filter(p: &Path) -> bool {
-    match p.iter().count() {
-        1 if p.file_name() == Some(OsStr::new("manifest.json")) => true,
-        1 if p.file_stem() == Some(OsStr::new("icon")) => true,
-        1 if p.file_name() == Some(OsStr::new("LICENSE.md")) => true,
-        1 if p.file_name() == Some(OsStr::new("instructions.md")) => true,
-        1 if p.file_name() == Some(OsStr::new("javascript.squashfs")) => true,
-        1 if p.file_name() == Some(OsStr::new("assets")) => true,
-        1 if p.file_name() == Some(OsStr::new("images")) => true,
-        2 if p.parent() == Some(Path::new("assets")) => {
-            p.extension().map_or(false, |ext| ext == "squashfs")
-        }
-        2 if p.parent() == Some(Path::new("images")) => p.file_name() == Some(OsStr::new(&*ARCH)),
-        3 if p.parent() == Some(&*Path::new("images").join(&*ARCH)) => p
-            .extension()
-            .map_or(false, |ext| ext == "squashfs" || ext == "env"),
-        _ => false,
     }
 }
 
@@ -106,6 +92,11 @@ impl<S: FileSource + Clone> S9pk<S> {
             archive,
             size,
         })
+    }
+
+    pub fn validate_and_filter(&mut self, arch: Option<&str>) -> Result<(), Error> {
+        let filter = self.manifest.validate_for(arch, self.archive.contents())?;
+        filter.keep_checked(self.archive.contents_mut())
     }
 
     pub async fn icon(&self) -> Result<(InternedString, FileContents<S>), Error> {
@@ -174,12 +165,37 @@ impl<S: FileSource + Clone> S9pk<S> {
     }
 }
 
+impl<S: From<PackSource> + FileSource + Clone> S9pk<S> {
+    pub async fn load_images(&mut self, tmpdir: &TmpDir) -> Result<(), Error> {
+        let id = &self.manifest.id;
+        let version = &self.manifest.version;
+        for (image_id, image_config) in &mut self.manifest.images {
+            self.manifest_dirty = true;
+            for arch in &image_config.arch {
+                image_config
+                    .source
+                    .load(
+                        tmpdir,
+                        id,
+                        version,
+                        image_id,
+                        arch,
+                        self.archive.contents_mut(),
+                    )
+                    .await?;
+            }
+            image_config.source = ImageSource::Packed;
+        }
+
+        Ok(())
+    }
+}
+
 impl<S: ArchiveSource + Clone> S9pk<Section<S>> {
     #[instrument(skip_all)]
     pub async fn deserialize(
         source: &S,
         commitment: Option<&MerkleArchiveCommitment>,
-        apply_filter: bool,
     ) -> Result<Self, Error> {
         use tokio::io::AsyncReadExt;
 
@@ -201,10 +217,6 @@ impl<S: ArchiveSource + Clone> S9pk<Section<S>> {
         let mut archive =
             MerkleArchive::deserialize(source, SIG_CONTEXT, &mut header, commitment).await?;
 
-        if apply_filter {
-            archive.filter(filter)?;
-        }
-
         archive.sort_by(|a, b| match (priority(a), priority(b)) {
             (Some(a), Some(b)) => a.cmp(&b),
             (Some(_), None) => std::cmp::Ordering::Less,
@@ -216,15 +228,11 @@ impl<S: ArchiveSource + Clone> S9pk<Section<S>> {
     }
 }
 impl S9pk {
-    pub async fn from_file(file: File, apply_filter: bool) -> Result<Self, Error> {
-        Self::deserialize(&MultiCursorFile::from(file), None, apply_filter).await
+    pub async fn from_file(file: File) -> Result<Self, Error> {
+        Self::deserialize(&MultiCursorFile::from(file), None).await
     }
-    pub async fn open(
-        path: impl AsRef<Path>,
-        id: Option<&PackageId>,
-        apply_filter: bool,
-    ) -> Result<Self, Error> {
-        let res = Self::from_file(tokio::fs::File::open(path).await?, apply_filter).await?;
+    pub async fn open(path: impl AsRef<Path>, id: Option<&PackageId>) -> Result<Self, Error> {
+        let res = Self::from_file(tokio::fs::File::open(path).await?).await?;
         if let Some(id) = id {
             ensure_code!(
                 &res.as_manifest().id == id,

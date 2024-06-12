@@ -8,6 +8,7 @@ use ts_rs::TS;
 use crate::config::Config;
 use crate::context::RpcContext;
 use crate::prelude::*;
+use crate::rpc_continuations::Guid;
 use crate::util::serde::{display_serializable, StdinDeserializable, WithIoFormat};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -77,6 +78,7 @@ pub async fn action(
         .as_ref()
         .or_not_found(lazy_format!("Manager for {}", package_id))?
         .action(
+            Guid::new(),
             action_id,
             input.map(|c| to_value(&c)).transpose()?.unwrap_or_default(),
         )

@@ -2,7 +2,7 @@ import { types as T, utils, EmVer } from "@start9labs/start-sdk"
 import * as fs from "fs/promises"
 
 import { PolyfillEffects } from "./polyfillEffects"
-import { Duration, duration } from "../../../Models/Duration"
+import { Duration, duration, fromDuration } from "../../../Models/Duration"
 import { System } from "../../../Interfaces/System"
 import { matchManifest, Manifest, Procedure } from "./matchManifest"
 import * as childProcess from "node:child_process"
@@ -31,6 +31,16 @@ import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { JsonPath, unNestPath } from "../../../Models/JsonPath"
 import { RpcResult, matchRpcResult } from "../../RpcListener"
 import { CT } from "@start9labs/start-sdk"
+import {
+  AddSslOptions,
+  BindOptions,
+} from "@start9labs/start-sdk/cjs/lib/osBindings"
+import {
+  BindOptionsByProtocol,
+  Host,
+  MultiHost,
+} from "@start9labs/start-sdk/cjs/lib/interfaces/Host"
+import { ServiceInterfaceBuilder } from "@start9labs/start-sdk/cjs/lib/interfaces/ServiceInterfaceBuilder"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
@@ -39,7 +49,7 @@ function todo(): never {
 const execFile = promisify(childProcess.execFile)
 
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
-const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
+export const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
 const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig"
 
 const matchSetResult = object(
@@ -189,11 +199,14 @@ export class SystemForEmbassy implements System {
   async execute(
     effects: HostSystemStartOs,
     options: {
+      id: string
       procedure: JsonPath
       input: unknown
       timeout?: number | undefined
     },
   ): Promise<RpcResult> {
+    effects = Object.create(effects)
+    effects.procedureId = options.id
     return this._execute(effects, options)
       .then((x) =>
         matches(x)
@@ -335,6 +348,85 @@ export class SystemForEmbassy implements System {
       await this.migration(effects, previousVersion, timeoutMs)
     await effects.setMainStatus({ status: "stopped" })
     await this.exportActions(effects)
+    await this.exportNetwork(effects)
+  }
+  async exportNetwork(effects: HostSystemStartOs) {
+    for (const [id, interfaceValue] of Object.entries(
+      this.manifest.interfaces,
+    )) {
+      const host = new MultiHost({ effects, id })
+      const internalPorts = new Set(
+        Object.values(interfaceValue["tor-config"]?.["port-mapping"] ?? {})
+          .map(Number.parseInt)
+          .concat(
+            ...Object.values(interfaceValue["lan-config"] ?? {}).map(
+              (c) => c.internal,
+            ),
+          )
+          .filter(Boolean),
+      )
+      const bindings = Array.from(internalPorts).map<
+        [number, BindOptionsByProtocol]
+      >((port) => {
+        const lanPort = Object.entries(interfaceValue["lan-config"] ?? {}).find(
+          ([external, internal]) => internal.internal === port,
+        )?.[0]
+        const torPort = Object.entries(
+          interfaceValue["tor-config"]?.["port-mapping"] ?? {},
+        ).find(
+          ([external, internal]) => Number.parseInt(internal) === port,
+        )?.[0]
+        let addSsl: AddSslOptions | null = null
+        if (lanPort) {
+          const lanPortNum = Number.parseInt(lanPort)
+          if (lanPortNum === 443) {
+            return [port, { protocol: "http", preferredExternalPort: 80 }]
+          }
+          addSsl = {
+            preferredExternalPort: lanPortNum,
+            alpn: { specified: [] },
+          }
+        }
+        return [
+          port,
+          {
+            secure: null,
+            preferredExternalPort: Number.parseInt(
+              torPort || lanPort || String(port),
+            ),
+            addSsl,
+          },
+        ]
+      })
+
+      await Promise.all(
+        bindings.map(async ([internal, options]) => {
+          if (internal == null) {
+            return
+          }
+          if (options?.preferredExternalPort == null) {
+            return
+          }
+          const origin = await host.bindPort(internal, options)
+          await origin.export([
+            new ServiceInterfaceBuilder({
+              effects,
+              name: interfaceValue.name,
+              id: `${id}-${internal}`,
+              description: interfaceValue.description,
+              hasPrimary: false,
+              disabled: false,
+              type: "api",
+              masked: false,
+              path: "",
+              schemeOverride: null,
+              search: {},
+              username: null,
+            }),
+          ])
+        }),
+      )
+    }
   }
   async exportActions(effects: HostSystemStartOs) {
     const manifest = this.manifest
@@ -389,10 +481,13 @@ export class SystemForEmbassy implements System {
     delete this.currentRunning
     if (currentRunning) {
       await currentRunning.clean({
-        timeout: this.manifest.main["sigterm-timeout"],
+        timeout: fromDuration(this.manifest.main["sigterm-timeout"]),
       })
     }
-    const durationValue = duration(this.manifest.main["sigterm-timeout"], "s")
+    const durationValue = duration(
+      fromDuration(this.manifest.main["sigterm-timeout"]),
+      "s",
+    )
     return durationValue
   }
   private async createBackup(
@@ -486,6 +581,7 @@ export class SystemForEmbassy implements System {
     const newConfig = structuredClone(newConfigWithoutPointers)
     await updateConfig(
       effects,
+      this.manifest,
       await this.getConfigUncleaned(effects, timeoutMs).then((x) => x.spec),
       newConfig,
     )
@@ -631,7 +727,7 @@ export class SystemForEmbassy implements System {
   private async properties(
     effects: HostSystemStartOs,
     timeoutMs: number | null,
-  ): Promise<ReturnType<T.ExpectedExports.Properties>> {
+  ): Promise<ReturnType<T.ExpectedExports.properties>> {
     // TODO BLU-J set the properties ever so often
     const setConfigValue = this.manifest.properties
     if (!setConfigValue) throw new Error("There is no properties")
@@ -866,6 +962,7 @@ function cleanConfigFromPointers<C, S>(
 
 async function updateConfig(
   effects: HostSystemStartOs,
+  manifest: Manifest,
   spec: unknown,
   mutConfigValue: unknown,
 ) {
@@ -876,8 +973,13 @@ async function updateConfig(
 
     const newConfigValue = mutConfigValue[key]
     if (matchSpec.test(specValue)) {
-      const updateObject = { spec: null }
-      await updateConfig(effects, { spec: specValue.spec }, updateObject)
+      const updateObject = { spec: newConfigValue }
+      await updateConfig(
+        effects,
+        manifest,
+        { spec: specValue.spec },
+        updateObject,
+      )
       mutConfigValue[key] = updateObject.spec
     }
     if (
@@ -899,20 +1001,60 @@ async function updateConfig(
     if (matchPointerPackage.test(specValue)) {
       if (specValue.target === "tor-key")
         throw new Error("This service uses an unsupported target TorKey")
+
+      const specInterface = specValue.interface
+      const serviceInterfaceId = extractServiceInterfaceId(
+        manifest,
+        specInterface,
+      )
+      if (!serviceInterfaceId) {
+        mutConfigValue[key] = ""
+        return
+      }
       const filled = await utils
         .getServiceInterface(effects, {
           packageId: specValue["package-id"],
-          id: specValue.interface,
+          id: serviceInterfaceId,
         })
         .once()
-        .catch(() => null)
-
-      mutConfigValue[key] =
+        .catch((x) => {
+          console.error("Could not get the service interface", x)
+          return null
+        })
+      const catchFn = <X>(fn: () => X) => {
+        try {
+          return fn()
+        } catch (e) {
+          return undefined
+        }
+      }
+      const url: string =
         filled === null
           ? ""
-          : specValue.target === "lan-address"
-            ? filled.addressInfo.localHostnames[0]
-            : filled.addressInfo.onionHostnames[0]
+          : catchFn(() =>
+              utils.hostnameInfoToAddress(
+                specValue.target === "lan-address"
+                  ? filled.addressInfo.localHostnames[0] ||
+                      filled.addressInfo.onionHostnames[0]
+                  : filled.addressInfo.onionHostnames[0] ||
+                      filled.addressInfo.localHostnames[0],
+              ),
+            ) || ""
+      mutConfigValue[key] = url
     }
   }
+}
+function extractServiceInterfaceId(manifest: Manifest, specInterface: string) {
+  const internalPort =
+    Object.entries(
+      manifest.interfaces[specInterface]?.["lan-config"] || {},
+    )[0]?.[1]?.internal ||
+    Object.entries(
+      manifest.interfaces[specInterface]?.["tor-config"]?.["port-mapping"] ||
+        {},
+    )?.[0]?.[1]
+
+  if (!internalPort) return null
+  const serviceInterfaceId = `${specInterface}-${internalPort}`
+  return serviceInterfaceId
 }

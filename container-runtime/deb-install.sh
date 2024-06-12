@@ -6,7 +6,7 @@ mkdir -p /run/systemd/resolve
 echo "nameserver 8.8.8.8" > /run/systemd/resolve/stub-resolv.conf
 
 apt-get update
-apt-get install -y curl rsync
+apt-get install -y curl rsync qemu-user-static
 
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 source ~/.bashrc

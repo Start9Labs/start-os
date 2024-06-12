@@ -6,8 +6,8 @@ use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
 use sha2::Sha256;
 
-use crate::disk::mount::filesystem::{FileSystem, ReadOnly, ReadWrite};
-use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
+use crate::disk::mount::filesystem::{FileSystem, ReadWrite};
+use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
 use crate::prelude::*;
 use crate::util::io::TmpDir;
 
@@ -94,17 +94,13 @@ impl<
 }
 
 #[derive(Debug)]
-pub struct OverlayGuard {
-    lower: Option<TmpMountGuard>,
+pub struct OverlayGuard<G: GenericMountGuard> {
+    lower: Option<G>,
     upper: Option<TmpDir>,
     inner_guard: MountGuard,
 }
-impl OverlayGuard {
-    pub async fn mount(
-        base: &impl FileSystem,
-        mountpoint: impl AsRef<Path>,
-    ) -> Result<Self, Error> {
-        let lower = TmpMountGuard::mount(base, ReadOnly).await?;
+impl<G: GenericMountGuard> OverlayGuard<G> {
+    pub async fn mount(lower: G, mountpoint: impl AsRef<Path>) -> Result<Self, Error> {
         let upper = TmpDir::new().await?;
         let inner_guard = MountGuard::mount(
             &OverlayFs::new(
@@ -140,16 +136,15 @@ impl OverlayGuard {
         }
     }
 }
-#[async_trait::async_trait]
-impl GenericMountGuard for OverlayGuard {
+impl<G: GenericMountGuard> GenericMountGuard for OverlayGuard<G> {
     fn path(&self) -> &Path {
         self.inner_guard.path()
     }
-    async fn unmount(mut self) -> Result<(), Error> {
+    async fn unmount(self) -> Result<(), Error> {
         self.unmount(false).await
     }
 }
-impl Drop for OverlayGuard {
+impl<G: GenericMountGuard> Drop for OverlayGuard<G> {
     fn drop(&mut self) {
         let lower = self.lower.take();
         let upper = self.upper.take();

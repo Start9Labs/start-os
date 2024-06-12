@@ -8,12 +8,13 @@ import { defaultTrigger } from "../trigger/defaultTrigger"
 import { once } from "../util/once"
 import { Overlay } from "../util/Overlay"
 import { object, unknown } from "ts-matches"
+import { T } from ".."
 
 export type HealthCheckParams<Manifest extends SDKManifest> = {
   effects: Effects
   name: string
   image: {
-    id: Manifest["images"][number]
+    id: keyof Manifest["images"] & T.ImageId
     sharedRun?: boolean
   }
   trigger?: Trigger

@@ -58,6 +58,7 @@ const runType = object({
   method: literal("execute"),
   params: object(
     {
+      id: string,
       procedure: string,
       input: any,
       timeout: number,
@@ -70,6 +71,7 @@ const sandboxRunType = object({
   method: literal("sandbox"),
   params: object(
     {
+      id: string,
       procedure: string,
       input: any,
       timeout: number,
@@ -195,6 +197,7 @@ export class RpcListener {
         const procedure = jsonPath.unsafeCast(params.procedure)
         return system
           .execute(this.effects, {
+            id: params.id,
             procedure,
             input: params.input,
             timeout: params.timeout,

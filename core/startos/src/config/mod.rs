@@ -16,6 +16,7 @@ use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
+use crate::rpc_continuations::Guid;
 use crate::util::serde::{HandlerExtSerde, StdinDeserializable};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -156,7 +157,7 @@ pub async fn get(ctx: RpcContext, _: Empty, id: PackageId) -> Result<ConfigRes, 
         .await
         .as_ref()
         .or_not_found(lazy_format!("Manager for {id}"))?
-        .get_config()
+        .get_config(Guid::new())
         .await
 }
 
@@ -218,7 +219,7 @@ pub async fn set_impl(
                 ErrorKind::Unknown,
             )
         })?
-        .configure(configure_context)
+        .configure(Guid::new(), configure_context)
         .await?;
     Ok(())
 }

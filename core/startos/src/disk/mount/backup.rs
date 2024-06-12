@@ -178,7 +178,6 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
         Ok(())
     }
 }
-#[async_trait::async_trait]
 impl<G: GenericMountGuard> GenericMountGuard for BackupMountGuard<G> {
     fn path(&self) -> &Path {
         if let Some(guard) = &self.encrypted_guard {

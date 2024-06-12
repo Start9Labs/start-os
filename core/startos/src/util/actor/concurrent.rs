@@ -8,6 +8,7 @@ use helpers::NonDetachingJoinHandle;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::prelude::*;
+use crate::rpc_continuations::Guid;
 use crate::util::actor::background::{BackgroundJobQueue, BackgroundJobRunner};
 use crate::util::actor::{Actor, ConflictFn, Handler, PendingMessageStrategy, Request};
 
@@ -18,6 +19,7 @@ struct ConcurrentRunner<A> {
     waiting: Vec<Request<A>>,
     recv: mpsc::UnboundedReceiver<Request<A>>,
     handlers: Vec<(
+        Guid,
         Arc<ConflictFn<A>>,
         oneshot::Sender<Box<dyn Any + Send>>,
         BoxFuture<'static, Box<dyn Any + Send>>,
@@ -41,16 +43,21 @@ impl<A: Actor + Clone> Future for ConcurrentRunner<A> {
             }
         });
         if this.shutdown.is_some() {
-            while let std::task::Poll::Ready(Some((msg, reply))) = this.recv.poll_recv(cx) {
-                if this.handlers.iter().any(|(f, _, _)| f(&*msg)) {
-                    this.waiting.push((msg, reply));
+            while let std::task::Poll::Ready(Some((id, msg, reply))) = this.recv.poll_recv(cx) {
+                if this
+                    .handlers
+                    .iter()
+                    .any(|(hid, f, _, _)| &id != hid && f(&*msg))
+                {
+                    this.waiting.push((id, msg, reply));
                 } else {
                     let mut actor = this.actor.clone();
                     let queue = this.queue.clone();
                     this.handlers.push((
+                        id.clone(),
                         msg.conflicts_with(),
                         reply,
-                        async move { msg.handle_with(&mut actor, &queue).await }.boxed(),
+                        async move { msg.handle_with(id, &mut actor, &queue).await }.boxed(),
                     ))
                 }
             }
@@ -62,29 +69,34 @@ impl<A: Actor + Clone> Future for ConcurrentRunner<A> {
                 .handlers
                 .iter_mut()
                 .enumerate()
-                .filter_map(|(i, (_, _, f))| match f.poll_unpin(cx) {
+                .filter_map(|(i, (_, _, _, f))| match f.poll_unpin(cx) {
                     std::task::Poll::Pending => None,
                     std::task::Poll::Ready(res) => Some((i, res)),
                 })
                 .collect::<Vec<_>>();
             for (idx, res) in complete.into_iter().rev() {
                 #[allow(clippy::let_underscore_future)]
-                let (f, reply, _) = this.handlers.swap_remove(idx);
+                let (_, f, reply, _) = this.handlers.swap_remove(idx);
                 let _ = reply.send(res);
                 // TODO: replace with Vec::extract_if once stable
                 if this.shutdown.is_some() {
                     let mut i = 0;
                     while i < this.waiting.len() {
-                        if f(&*this.waiting[i].0)
-                            && !this.handlers.iter().any(|(f, _, _)| f(&*this.waiting[i].0))
+                        if f(&*this.waiting[i].1)
+                            && !this
+                                .handlers
+                                .iter()
+                                .any(|(_, f, _, _)| f(&*this.waiting[i].1))
                         {
-                            let (msg, reply) = this.waiting.remove(i);
+                            let (id, msg, reply) = this.waiting.remove(i);
                             let mut actor = this.actor.clone();
                             let queue = this.queue.clone();
                             this.handlers.push((
+                                id.clone(),
                                 msg.conflicts_with(),
                                 reply,
-                                async move { msg.handle_with(&mut actor, &queue).await }.boxed(),
+                                async move { msg.handle_with(id, &mut actor, &queue).await }
+                                    .boxed(),
                             ));
                             cont = true;
                         } else {
@@ -137,6 +149,7 @@ impl<A: Actor + Clone> ConcurrentActor<A> {
     /// Message is guaranteed to be queued immediately
     pub fn queue<M: Send + 'static>(
         &self,
+        id: Guid,
         message: M,
     ) -> impl Future<Output = Result<A::Response, Error>>
     where
@@ -150,7 +163,7 @@ impl<A: Actor + Clone> ConcurrentActor<A> {
         }
         let (reply_send, reply_recv) = oneshot::channel();
         self.messenger
-            .send((Box::new(message), reply_send))
+            .send((id, Box::new(message), reply_send))
             .unwrap();
         futures::future::Either::Right(
             reply_recv
@@ -170,11 +183,11 @@ impl<A: Actor + Clone> ConcurrentActor<A> {
         )
     }
 
-    pub async fn send<M: Send + 'static>(&self, message: M) -> Result<A::Response, Error>
+    pub async fn send<M: Send + 'static>(&self, id: Guid, message: M) -> Result<A::Response, Error>
     where
         A: Handler<M>,
     {
-        self.queue(message).await
+        self.queue(id, message).await
     }
 
     pub async fn shutdown(self, strategy: PendingMessageStrategy) {

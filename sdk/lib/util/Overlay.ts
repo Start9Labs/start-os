@@ -8,16 +8,18 @@ const WORKDIR = (imageId: string) => `/media/startos/images/${imageId}/`
 export class Overlay {
   private constructor(
     readonly effects: T.Effects,
-    readonly imageId: string,
+    readonly imageId: T.ImageId,
     readonly rootfs: string,
-    readonly guid: string,
+    readonly guid: T.Guid,
   ) {}
   static async of(
     effects: T.Effects,
-    image: { id: string; sharedRun?: boolean },
+    image: { id: T.ImageId; sharedRun?: boolean },
   ) {
-    const { id: imageId, sharedRun } = image
-    const [rootfs, guid] = await effects.createOverlayedImage({ imageId })
+    const { id, sharedRun } = image
+    const [rootfs, guid] = await effects.createOverlayedImage({
+      imageId: id as string,
+    })
 
     const shared = ["dev", "sys", "proc"]
     if (!!sharedRun) {
@@ -33,7 +35,7 @@ export class Overlay {
       ])
     }
 
-    return new Overlay(effects, imageId, rootfs, guid)
+    return new Overlay(effects, id, rootfs, guid)
   }
 
   async mount(options: MountOptions, path: string): Promise<Overlay> {
@@ -97,7 +99,7 @@ export class Overlay {
     stdout: string | Buffer
     stderr: string | Buffer
   }> {
-    const imageMeta: any = await fs
+    const imageMeta: T.ImageMetadata = await fs
       .readFile(`/media/startos/images/${this.imageId}.json`, {
         encoding: "utf8",
       })

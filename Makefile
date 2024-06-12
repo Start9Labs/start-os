@@ -7,7 +7,7 @@ PLATFORM := $(shell if [ -f ./PLATFORM.txt ]; then cat ./PLATFORM.txt; else echo
 ARCH := $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo aarch64; else echo $(PLATFORM) | sed 's/-nonfree$$//g'; fi)
 IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo iso; fi)
 BINS := core/target/$(ARCH)-unknown-linux-musl/release/startbox core/target/$(ARCH)-unknown-linux-musl/release/containerbox
-WEB_UIS := web/dist/raw/ui web/dist/raw/setup-wizard web/dist/raw/diagnostic-ui web/dist/raw/install-wizard
+WEB_UIS := web/dist/raw/ui web/dist/raw/setup-wizard web/dist/raw/install-wizard
 FIRMWARE_ROMS := ./firmware/$(PLATFORM) $(shell jq --raw-output '.[] | select(.platform[] | contains("$(PLATFORM)")) | "./firmware/$(PLATFORM)/" + .id + ".rom.gz"' build/lib/firmware.json)
 BUILD_SRC := $(shell git ls-files build) build/lib/depends build/lib/conflicts $(FIRMWARE_ROMS)
 DEBIAN_SRC := $(shell git ls-files debian/)
@@ -20,7 +20,6 @@ CORE_SRC := $(shell git ls-files core) $(shell git ls-files --recurse-submodules
 WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules/.package-lock.json web/config.json patch-db/client/dist web/patchdb-ui-seed.json
 WEB_UI_SRC := $(shell git ls-files web/projects/ui)
 WEB_SETUP_WIZARD_SRC := $(shell git ls-files web/projects/setup-wizard)
-WEB_DIAGNOSTIC_UI_SRC := $(shell git ls-files web/projects/diagnostic-ui)
 WEB_INSTALL_WIZARD_SRC := $(shell git ls-files web/projects/install-wizard)
 PATCH_DB_CLIENT_SRC := $(shell git ls-files --recurse-submodules patch-db/client)
 GZIP_BIN := $(shell which pigz || which gzip)
@@ -160,6 +159,10 @@ wormhole-deb: results/$(BASENAME).deb
 	@echo "Paste the following command into the shell of your start-os server:"
 	@wormhole send results/$(BASENAME).deb 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/startos/scripts/chroot-and-upgrade '"'"'cd $$(mktemp -d) && wormhole receive --accept-file %s && apt-get install -y --reinstall ./$(BASENAME).deb'"'"'\n", $$3 }'
 
+wormhole-cli: core/target/$(ARCH)-unknown-linux-musl/release/start-cli
+	@echo "Paste the following command into the shell of your start-os server:"
+	@wormhole send results/$(BASENAME).deb 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/startos/scripts/chroot-and-upgrade '"'"'cd $$(mktemp -d) && wormhole receive --accept-file %s && apt-get install -y --reinstall ./$(BASENAME).deb'"'"'\n", $$3 }'
+
 update: $(ALL_TARGETS)
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	$(call ssh,'sudo /usr/lib/startos/scripts/chroot-and-upgrade --create')
@@ -239,10 +242,6 @@ web/dist/raw/ui: $(WEB_UI_SRC) $(WEB_SHARED_SRC)
 web/dist/raw/setup-wizard: $(WEB_SETUP_WIZARD_SRC) $(WEB_SHARED_SRC)
 	npm --prefix web run build:setup
 	touch web/dist/raw/setup-wizard
-
-web/dist/raw/diagnostic-ui: $(WEB_DIAGNOSTIC_UI_SRC) $(WEB_SHARED_SRC)
-	npm --prefix web run build:dui
-	touch web/dist/raw/diagnostic-ui
 
 web/dist/raw/install-wizard: $(WEB_INSTALL_WIZARD_SRC) $(WEB_SHARED_SRC)
 	npm --prefix web run build:install-wiz

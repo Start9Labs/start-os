@@ -29,7 +29,7 @@ use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
-use crate::disk::mount::filesystem::{MountType, ReadWrite};
+use crate::disk::mount::filesystem::{MountType, ReadOnly, ReadWrite};
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::disk::mount::util::unmount;
 use crate::prelude::*;
@@ -153,7 +153,7 @@ impl LxcManager {
 
 pub struct LxcContainer {
     manager: Weak<LxcManager>,
-    rootfs: OverlayGuard,
+    rootfs: OverlayGuard<TmpMountGuard>,
     pub guid: Arc<ContainerId>,
     rpc_bind: TmpMountGuard,
     log_mount: Option<MountGuard>,
@@ -184,12 +184,16 @@ impl LxcContainer {
             .invoke(ErrorKind::Filesystem)
             .await?;
         let rootfs = OverlayGuard::mount(
-            &IdMapped::new(
-                BlockDev::new("/usr/lib/startos/container-runtime/rootfs.squashfs"),
-                0,
-                100000,
-                65536,
-            ),
+            TmpMountGuard::mount(
+                &IdMapped::new(
+                    BlockDev::new("/usr/lib/startos/container-runtime/rootfs.squashfs"),
+                    0,
+                    100000,
+                    65536,
+                ),
+                ReadOnly,
+            )
+            .await?,
             &rootfs_dir,
         )
         .await?;

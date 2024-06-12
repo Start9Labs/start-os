@@ -157,7 +157,6 @@ async fn restore_packages(
                 S9pk::open(
                     backup_dir.path().join(&id).with_extension("s9pk"),
                     Some(&id),
-                    true,
                 )
                 .await?,
                 Some(backup_dir),

@@ -8,7 +8,6 @@ export type BindParams = {
   kind: HostKind
   id: HostId
   internalPort: number
-  scheme: string | null
   preferredExternalPort: number
   addSsl: AddSslOptions | null
   secure: Security | null

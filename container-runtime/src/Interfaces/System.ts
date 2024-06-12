@@ -14,6 +14,7 @@ export interface System {
   execute(
     effects: T.Effects,
     options: {
+      id: string
       procedure: JsonPath
       input: unknown
       timeout?: number

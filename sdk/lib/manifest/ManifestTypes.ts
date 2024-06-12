@@ -1,5 +1,5 @@
 import { ValidEmVer } from "../emverLite/mod"
-import { ActionMetadata } from "../types"
+import { ActionMetadata, ImageConfig, ImageId } from "../types"
 
 export interface Container {
   /** This should be pointing to a docker container name */
@@ -28,8 +28,6 @@ export type SDKManifest = {
   readonly releaseNotes: string
   /** The type of license for the project. Include the LICENSE in the root of the project directory. A license is required for a Start9 package.*/
   readonly license: string // name of license
-  /** A list of normie (hosted, SaaS, custodial, etc) services this services intends to replace */
-  readonly replaces: Readonly<string[]>
   /** The Start9 wrapper repository URL for the package. This repo contains the manifest file (this),
    * any scripts necessary for configuration, backups, actions, or health checks (more below). This key
    * must exist. But could be embedded into the source repository
@@ -52,7 +50,7 @@ export type SDKManifest = {
   }
 
   /** Defines the os images needed to run the container processes */
-  readonly images: string[]
+  readonly images: Record<ImageId, ImageConfig>
   /** This denotes readonly asset directories that should be available to mount to the container.
    * Assuming that there will be three files with names along the lines:
    * icon.* : the icon that will be this packages icon on the ui

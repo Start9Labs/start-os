@@ -59,7 +59,7 @@ import {
 } from "./interfaces/setupInterfaces"
 import { successFailure } from "./trigger/successFailure"
 import { HealthReceipt } from "./health/HealthReceipt"
-import { MultiHost, Scheme, SingleHost, StaticHost } from "./interfaces/Host"
+import { MultiHost, Scheme } from "./interfaces/Host"
 import { ServiceInterfaceBuilder } from "./interfaces/ServiceInterfaceBuilder"
 import { GetSystemSmtp } from "./util/GetSystemSmtp"
 import nullIfEmpty from "./util/nullIfEmpty"
@@ -178,16 +178,19 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
       },
 
       host: {
-        static: (effects: Effects, id: string) =>
-          new StaticHost({ id, effects }),
-        single: (effects: Effects, id: string) =>
-          new SingleHost({ id, effects }),
+        // static: (effects: Effects, id: string) =>
+        //   new StaticHost({ id, effects }),
+        // single: (effects: Effects, id: string) =>
+        //   new SingleHost({ id, effects }),
         multi: (effects: Effects, id: string) => new MultiHost({ id, effects }),
       },
       nullIfEmpty,
       runCommand: async <A extends string>(
         effects: Effects,
-        image: { id: Manifest["images"][number]; sharedRun?: boolean },
+        image: {
+          id: keyof Manifest["images"] & T.ImageId
+          sharedRun?: boolean
+        },
         command: ValidIfNoStupidEscape<A> | [string, ...string[]],
         options: CommandOptions & {
           mounts?: { path: string; options: MountOptions }[]
@@ -396,7 +399,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
       setupProperties:
         (
           fn: (options: { effects: Effects }) => Promise<T.SdkPropertiesReturn>,
-        ): T.ExpectedExports.Properties =>
+        ): T.ExpectedExports.properties =>
         (options) =>
           fn(options).then(nullifyProperties),
       setupUninstall: (fn: UninstallFn<Manifest, Store>) =>
@@ -743,7 +746,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
 
 export async function runCommand<Manifest extends SDKManifest>(
   effects: Effects,
-  image: { id: Manifest["images"][number]; sharedRun?: boolean },
+  image: { id: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },
   command: string | [string, ...string[]],
   options: CommandOptions & {
     mounts?: { path: string; options: MountOptions }[]

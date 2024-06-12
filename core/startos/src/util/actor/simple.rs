@@ -7,6 +7,7 @@ use tokio::sync::oneshot::error::TryRecvError;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::prelude::*;
+use crate::rpc_continuations::Guid;
 use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::actor::{Actor, Handler, PendingMessageStrategy, Request};
 
@@ -26,9 +27,9 @@ impl<A: Actor> SimpleActor<A> {
                 tokio::select! {
                     _ = &mut runner => (),
                     msg = messenger_recv.recv() => match msg {
-                        Some((msg, reply)) if shutdown_recv.try_recv() == Err(TryRecvError::Empty) => {
+                        Some((id, msg, reply)) if shutdown_recv.try_recv() == Err(TryRecvError::Empty) => {
                             tokio::select! {
-                                res = msg.handle_with(&mut actor, &queue) => { let _ = reply.send(res); },
+                                res = msg.handle_with(id, &mut actor, &queue) => { let _ = reply.send(res); },
                                 _ = &mut runner => (),
                             }
                         }
@@ -60,7 +61,7 @@ impl<A: Actor> SimpleActor<A> {
         }
         let (reply_send, reply_recv) = oneshot::channel();
         self.messenger
-            .send((Box::new(message), reply_send))
+            .send((Guid::new(), Box::new(message), reply_send))
             .unwrap();
         futures::future::Either::Right(
             reply_recv

@@ -153,7 +153,6 @@ pub async fn install(
             .await?,
         ),
         None, // TODO
-        true,
     )
     .await?;
 
@@ -273,7 +272,6 @@ pub async fn sideload(
         if let Err(e) = async {
             let s9pk = S9pk::deserialize(
                 &file, None, // TODO
-                true,
             )
             .await?;
             let _ = id_send.send(s9pk.as_manifest().id.clone());
