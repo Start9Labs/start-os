@@ -4,14 +4,14 @@ import { Volume } from "../../../Models/Volume"
 import * as child_process from "child_process"
 import { promisify } from "util"
 import { daemons, startSdk, T } from "@start9labs/start-sdk"
-import { HostSystemStartOs } from "../../HostSystemStartOs"
 import "isomorphic-fetch"
 import { Manifest } from "./matchManifest"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import * as cp from "child_process"
+import { Effects } from "../../../Models/Effects"
 export const execFile = promisify(cp.execFile)
-const polyfillEffects = (
-  effects: HostSystemStartOs,
+export const polyfillEffects = (
+  effects: Effects,
   manifest: Manifest,
 ): oet.Effects => {
   const self = {

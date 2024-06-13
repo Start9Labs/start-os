@@ -4,4 +4,6 @@ import { CallbackHolder } from "../Models/CallbackHolder"
 import { Effects } from "../Models/Effects"
 
 export type HostSystem = Effects
-export type GetHostSystem = (callbackHolder: CallbackHolder) => HostSystem
+export type GetHostSystem = (
+  callbackHolder: CallbackHolder,
+) => (procedureId: string) => Effects

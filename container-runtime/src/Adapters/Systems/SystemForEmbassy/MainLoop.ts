@@ -66,7 +66,7 @@ export class MainLoop {
     }
   }
 
-  private async setupInterfaces(effects: HostSystemStartOs) {
+  private async setupInterfaces(effects: T.Effects) {
     for (const interfaceId in this.system.manifest.interfaces) {
       const iface = this.system.manifest.interfaces[interfaceId]
       const internalPorts = new Set<number>()

@@ -266,7 +266,7 @@ export class SystemForEmbassy implements System {
     delete this.currentRunning
   }
   async _execute(
-    effectCreator: ReturnType<typeof hostSystemStartOs>,
+    effects: Effects,
     options: {
       procedure: JsonPath
       input: unknown
@@ -503,9 +503,7 @@ export class SystemForEmbassy implements System {
       await container.execFail([backup.entrypoint, ...backup.args], timeoutMs)
     } else {
       const moduleCode = await this.moduleCode
-      await moduleCode.createBackup?.(
-        polyfillEffects(effects, this.manifest),
-      )
+      await moduleCode.createBackup?.(polyfillEffects(effects, this.manifest))
     }
   }
   private async restoreBackup(
@@ -528,9 +526,7 @@ export class SystemForEmbassy implements System {
       )
     } else {
       const moduleCode = await this.moduleCode
-      await moduleCode.restoreBackup?.(
-        polyfillEffects(effects, this.manifest),
-      )
+      await moduleCode.restoreBackup?.(polyfillEffects(effects, this.manifest))
     }
   }
   private async getConfig(
