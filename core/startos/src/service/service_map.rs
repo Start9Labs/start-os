@@ -18,10 +18,7 @@ use crate::disk::mount::guard::GenericMountGuard;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
-use crate::progress::{
-    FullProgressTracker, FullProgressTrackerHandle, PhaseProgressTrackerHandle,
-    ProgressTrackerWriter,
-};
+use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle, ProgressTrackerWriter};
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
@@ -34,7 +31,7 @@ pub type InstallFuture = BoxFuture<'static, Result<(), Error>>;
 
 pub struct InstallProgressHandles {
     pub finalization_progress: PhaseProgressTrackerHandle,
-    pub progress_handle: FullProgressTrackerHandle,
+    pub progress: FullProgressTracker,
 }
 
 /// This is the structure to contain all the services
@@ -121,17 +118,16 @@ impl ServiceMap {
         };
 
         let size = s9pk.size();
-        let mut progress = FullProgressTracker::new();
+        let progress = FullProgressTracker::new();
         let download_progress_contribution = size.unwrap_or(60);
-        let progress_handle = progress.handle();
-        let mut download_progress = progress_handle.add_phase(
+        let mut download_progress = progress.add_phase(
             InternedString::intern("Download"),
             Some(download_progress_contribution),
         );
         if let Some(size) = size {
             download_progress.set_total(size);
         }
-        let mut finalization_progress = progress_handle.add_phase(
+        let mut finalization_progress = progress.add_phase(
             InternedString::intern(op_name),
             Some(download_progress_contribution / 2),
         );
@@ -203,7 +199,7 @@ impl ServiceMap {
 
                     let deref_id = id.clone();
                     let sync_progress_task =
-                        NonDetachingJoinHandle::from(tokio::spawn(progress.sync_to_db(
+                        NonDetachingJoinHandle::from(tokio::spawn(progress.clone().sync_to_db(
                             ctx.db.clone(),
                             move |v| {
                                 v.as_public_mut()
@@ -257,7 +253,7 @@ impl ServiceMap {
                         service
                             .uninstall(Some(s9pk.as_manifest().version.clone()))
                             .await?;
-                        progress_handle.complete();
+                        progress.complete();
                         Some(version)
                     } else {
                         None
@@ -270,7 +266,7 @@ impl ServiceMap {
                                 recovery_source,
                                 Some(InstallProgressHandles {
                                     finalization_progress,
-                                    progress_handle,
+                                    progress,
                                 }),
                             )
                             .await?
@@ -284,7 +280,7 @@ impl ServiceMap {
                                 prev,
                                 Some(InstallProgressHandles {
                                     finalization_progress,
-                                    progress_handle,
+                                    progress,
                                 }),
                             )
                             .await?

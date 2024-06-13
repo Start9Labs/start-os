@@ -27,7 +27,7 @@ use crate::net::net_controller::NetController;
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
 use crate::net::wifi::WpaCli;
 use crate::prelude::*;
-use crate::progress::{FullProgressTrackerHandle, PhaseProgressTrackerHandle};
+use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle};
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
 use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
@@ -76,7 +76,7 @@ pub struct InitRpcContextPhases {
     cleanup_init: CleanupInitPhases,
 }
 impl InitRpcContextPhases {
-    pub fn new(handle: &FullProgressTrackerHandle) -> Self {
+    pub fn new(handle: &FullProgressTracker) -> Self {
         Self {
             load_db: handle.add_phase("Loading database".into(), Some(5)),
             init_net_ctrl: handle.add_phase("Initializing network".into(), Some(1)),
@@ -91,7 +91,7 @@ pub struct CleanupInitPhases {
     check_dependencies: PhaseProgressTrackerHandle,
 }
 impl CleanupInitPhases {
-    pub fn new(handle: &FullProgressTrackerHandle) -> Self {
+    pub fn new(handle: &FullProgressTracker) -> Self {
         Self {
             init_services: handle.add_phase("Initializing services".into(), Some(10)),
             check_dependencies: handle.add_phase("Checking dependencies".into(), Some(1)),

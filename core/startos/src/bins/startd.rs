@@ -38,7 +38,7 @@ async fn inner_main(
         ctx
     } else {
         let init_ctx = InitContext::init(config).await?;
-        let handle = init_ctx.progress.handle();
+        let handle = init_ctx.progress.clone();
         let rpc_ctx_phases = InitRpcContextPhases::new(&handle);
         server.serve_init(init_ctx);
 

@@ -135,26 +135,28 @@ async fn cli_get_os_asset(
             .await
             .with_kind(ErrorKind::Filesystem)?;
 
-        let mut progress = FullProgressTracker::new();
-        let progress_handle = progress.handle();
+        let progress = FullProgressTracker::new();
         let mut download_phase =
-            progress_handle.add_phase(InternedString::intern("Downloading File"), Some(100));
+            progress.add_phase(InternedString::intern("Downloading File"), Some(100));
         download_phase.set_total(res.commitment.size);
         let reverify_phase = if reverify {
-            Some(progress_handle.add_phase(InternedString::intern("Reverifying File"), Some(10)))
+            Some(progress.add_phase(InternedString::intern("Reverifying File"), Some(10)))
         } else {
             None
         };
 
-        let progress_task: NonDetachingJoinHandle<()> = tokio::spawn(async move {
-            let mut bar = PhasedProgressBar::new("Downloading...");
-            loop {
-                let snap = progress.snapshot();
-                bar.update(&snap);
-                if snap.overall.is_complete() {
-                    break;
+        let progress_task: NonDetachingJoinHandle<()> = tokio::spawn({
+            let progress = progress.clone();
+            async move {
+                let mut bar = PhasedProgressBar::new("Downloading...");
+                loop {
+                    let snap = progress.snapshot();
+                    bar.update(&snap);
+                    if snap.overall.is_complete() {
+                        break;
+                    }
+                    progress.changed().await
                 }
-                progress.changed().await
             }
         })
         .into();
@@ -177,7 +179,7 @@ async fn cli_get_os_asset(
             reverify_phase.complete();
         }
 
-        progress_handle.complete();
+        progress.complete();
 
         progress_task.await.with_kind(ErrorKind::Unknown)?;
     }

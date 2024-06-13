@@ -135,7 +135,7 @@ impl SetupContext {
                             }
                         })
                         .await;
-                    local_ctx.progress.handle().complete();
+                    local_ctx.progress.complete();
                 })
                 .into(),
             )
@@ -156,7 +156,7 @@ impl SetupContext {
         use axum::extract::ws;
 
         let guid = Guid::new();
-        let mut progress_tracker = self.progress.clone();
+        let progress_tracker = self.progress.clone();
         let progress = progress_tracker.snapshot();
         self.rpc_continuations
             .add(

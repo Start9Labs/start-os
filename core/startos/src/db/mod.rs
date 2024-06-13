@@ -132,32 +132,34 @@ pub async fn subscribe(
         .dump_and_sub(pointer.unwrap_or_else(|| PUBLIC.clone()))
         .await;
     let guid = Guid::new();
-    ctx.rpc_continuations.add(
-        guid.clone(),
-        RpcContinuation::ws_authed(
-            &ctx,
-            session,
-            |mut ws| async move {
-                if let Err(e) = async {
-                    while let Some(rev) = sub.recv().await {
-                        ws.send(ws::Message::Text(
-                            serde_json::to_string(&rev).with_kind(ErrorKind::Serialization)?,
-                        ))
-                        .await
-                        .with_kind(ErrorKind::Network)?;
+    ctx.rpc_continuations
+        .add(
+            guid.clone(),
+            RpcContinuation::ws_authed(
+                &ctx,
+                session,
+                |mut ws| async move {
+                    if let Err(e) = async {
+                        while let Some(rev) = sub.recv().await {
+                            ws.send(ws::Message::Text(
+                                serde_json::to_string(&rev).with_kind(ErrorKind::Serialization)?,
+                            ))
+                            .await
+                            .with_kind(ErrorKind::Network)?;
+                        }
+                        ws.close().await.with_kind(ErrorKind::Network)?;
+                        Ok::<_, Error>(())
                     }
-                    ws.close().await.with_kind(ErrorKind::Network)?;
-                    Ok::<_, Error>(())
-                }
-                .await
-                {
-                    tracing::error!("Error in db websocket: {e}");
-                    tracing::debug!("{e:?}");
-                }
-            },
-            Duration::from_secs(30),
-        ),
-    );
+                    .await
+                    {
+                        tracing::error!("Error in db websocket: {e}");
+                        tracing::debug!("{e:?}");
+                    }
+                },
+                Duration::from_secs(30),
+            ),
+        )
+        .await;
 
     Ok(SubscribeRes { dump, guid })
 }

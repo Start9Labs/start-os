@@ -2,7 +2,7 @@ use std::panic::UnwindSafe;
 use std::sync::Arc;
 use std::time::Duration;
 
-use futures::Future;
+use futures::{Future, FutureExt};
 use imbl_value::{InOMap, InternedString};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use itertools::Itertools;
@@ -171,37 +171,23 @@ impl FullProgress {
 #[derive(Clone)]
 pub struct FullProgressTracker {
     overall: Arc<watch::Sender<Progress>>,
-    overall_recv: watch::Receiver<Progress>,
-    phases: InOMap<InternedString, watch::Receiver<Progress>>,
-    new_phase: (
-        barrage::Sender<(InternedString, watch::Receiver<Progress>)>,
-        barrage::Receiver<(InternedString, watch::Receiver<Progress>)>,
-    ),
+    phases: Arc<watch::Sender<InOMap<InternedString, watch::Receiver<Progress>>>>,
 }
 impl FullProgressTracker {
     pub fn new() -> Self {
-        let (overall, overall_recv) = watch::channel(Progress::new());
+        let (overall, _) = watch::channel(Progress::new());
+        let (phases, _) = watch::channel(InOMap::new());
         Self {
             overall: Arc::new(overall),
-            overall_recv,
-            phases: InOMap::new(),
-            new_phase: barrage::unbounded(),
+            phases: Arc::new(phases),
         }
     }
-    fn fill_phases(&mut self) -> bool {
-        let mut changed = false;
-        while let Ok(Some((name, phase))) = self.new_phase.1.try_recv() {
-            self.phases.insert(name, phase);
-            changed = true;
-        }
-        changed
-    }
-    pub fn snapshot(&mut self) -> FullProgress {
-        self.fill_phases();
+    pub fn snapshot(&self) -> FullProgress {
         FullProgress {
             overall: *self.overall.borrow(),
             phases: self
                 .phases
+                .borrow()
                 .iter()
                 .map(|(name, progress)| NamedProgress {
                     name: name.clone(),
@@ -210,28 +196,25 @@ impl FullProgressTracker {
                 .collect(),
         }
     }
-    pub async fn changed(&mut self) {
-        if self.fill_phases() {
-            return;
-        }
-        let phases = self
-            .phases
-            .iter_mut()
-            .map(|(_, p)| Box::pin(p.changed()))
-            .collect_vec();
-        tokio::select! {
-            _ = self.overall_recv.changed() => (),
-            _ = futures::future::select_all(phases) => (),
-        }
-    }
-    pub fn handle(&self) -> FullProgressTrackerHandle {
-        FullProgressTrackerHandle {
-            overall: self.overall.clone(),
-            new_phase: self.new_phase.0.clone(),
+    pub fn changed(&self) -> impl Future<Output = ()> {
+        let mut overall_recv = self.overall.subscribe();
+        let mut phases_recv = self.phases.subscribe();
+        async move {
+            let mut changed = phases_recv
+                .borrow()
+                .iter()
+                .map(|(_, p)| {
+                    let mut p = p.clone();
+                    async move { p.changed().await }.boxed()
+                })
+                .collect_vec();
+            changed.push(overall_recv.changed().boxed());
+            changed.push(phases_recv.changed().boxed());
+            futures::future::select_all(changed).map(|_| ()).await
         }
     }
     pub fn sync_to_db<DerefFn>(
-        mut self,
+        self,
         db: TypedPatchDb<Database>,
         deref: DerefFn,
         min_interval: Option<Duration>,
@@ -267,14 +250,6 @@ impl FullProgressTracker {
             Ok(())
         }
     }
-}
-
-#[derive(Clone)]
-pub struct FullProgressTrackerHandle {
-    overall: Arc<watch::Sender<Progress>>,
-    new_phase: barrage::Sender<(InternedString, watch::Receiver<Progress>)>,
-}
-impl FullProgressTrackerHandle {
     pub fn add_phase(
         &self,
         name: InternedString,
@@ -285,7 +260,9 @@ impl FullProgressTrackerHandle {
                 .send_modify(|o| o.add_total(overall_contribution));
         }
         let (send, recv) = watch::channel(Progress::new());
-        let _ = self.new_phase.send((name, recv));
+        self.phases.send_modify(|p| {
+            p.insert(name, recv);
+        });
         PhaseProgressTrackerHandle {
             overall: self.overall.clone(),
             overall_contribution,

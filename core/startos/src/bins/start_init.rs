@@ -15,7 +15,7 @@ use crate::firmware::{check_for_firmware_update, update_firmware};
 use crate::init::{InitPhases, STANDBY_MODE_PATH};
 use crate::net::web_server::WebServer;
 use crate::prelude::*;
-use crate::progress::{FullProgressTrackerHandle, PhaseProgressTrackerHandle};
+use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle};
 use crate::shutdown::Shutdown;
 use crate::util::io::IOHook;
 use crate::util::Invoke;
@@ -25,7 +25,7 @@ use crate::PLATFORM;
 async fn setup_or_init(
     server: &mut WebServer,
     config: &ServerConfig,
-) -> Result<Result<(RpcContext, FullProgressTrackerHandle), Shutdown>, Error> {
+) -> Result<Result<(RpcContext, FullProgressTracker), Shutdown>, Error> {
     if let Some(firmware) = check_for_firmware_update()
         .await
         .map_err(|e| {
@@ -36,7 +36,7 @@ async fn setup_or_init(
         .and_then(|a| a)
     {
         let init_ctx = InitContext::init(config).await?;
-        let handle = init_ctx.progress.handle();
+        let handle = &init_ctx.progress;
         let mut update_phase = handle.add_phase("Updating Firmware".into(), Some(10));
         let mut reboot_phase = handle.add_phase("Rebooting".into(), Some(1));
 
@@ -132,7 +132,7 @@ async fn setup_or_init(
         }
 
         Ok(Ok(match ctx.result.get() {
-            Some(Ok((_, rpc_ctx))) => (rpc_ctx.clone(), ctx.progress.handle()),
+            Some(Ok((_, rpc_ctx))) => (rpc_ctx.clone(), ctx.progress.clone()),
             Some(Err(e)) => return Err(e.clone_output()),
             None => {
                 return Err(Error::new(
@@ -143,26 +143,10 @@ async fn setup_or_init(
         }))
     } else {
         let init_ctx = InitContext::init(config).await?;
-        let handle = init_ctx.progress.handle();
+        let handle = init_ctx.progress.clone();
 
         let mut disk_phase = handle.add_phase("Opening data drive".into(), Some(10));
-        let preinit_phase = if tokio::fs::metadata("/media/startos/config/preinit.sh")
-            .await
-            .is_ok()
-        {
-            Some(handle.add_phase("Running preinit.sh".into(), Some(5)))
-        } else {
-            None
-        };
         let init_phases = InitPhases::new(&handle);
-        let postinit_phase = if tokio::fs::metadata("/media/startos/config/postinit.sh")
-            .await
-            .is_ok()
-        {
-            Some(handle.add_phase("Running postinit.sh".into(), Some(5)))
-        } else {
-            None
-        };
         let rpc_ctx_phases = InitRpcContextPhases::new(&handle);
 
         server.serve_init(init_ctx);
@@ -215,7 +199,7 @@ async fn setup_or_init(
 pub async fn main(
     server: &mut WebServer,
     config: &ServerConfig,
-) -> Result<Result<(RpcContext, FullProgressTrackerHandle), Shutdown>, Error> {
+) -> Result<Result<(RpcContext, FullProgressTracker), Shutdown>, Error> {
     if &*PLATFORM == "raspberrypi" && tokio::fs::metadata(STANDBY_MODE_PATH).await.is_ok() {
         tokio::fs::remove_file(STANDBY_MODE_PATH).await?;
         Command::new("sync").invoke(ErrorKind::Filesystem).await?;

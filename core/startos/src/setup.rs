@@ -115,10 +115,10 @@ pub async fn attach(
 ) -> Result<SetupProgress, Error> {
     let setup_ctx = ctx.clone();
     ctx.run_setup(|| async move {
-            let progress_handle = setup_ctx.progress.handle();
-            let mut disk_phase = progress_handle.add_phase("Opening data drive".into(), Some(10));
-            let init_phases = InitPhases::new(&progress_handle);
-            let rpc_ctx_phases = InitRpcContextPhases::new(&progress_handle);
+            let progress = &setup_ctx.progress;
+            let mut disk_phase = progress.add_phase("Opening data drive".into(), Some(10));
+            let init_phases = InitPhases::new(&progress);
+            let rpc_ctx_phases = InitRpcContextPhases::new(&progress);
 
             let password: Option<String> = match password {
                 Some(a) => match a.decrypt(&setup_ctx) {
@@ -350,19 +350,19 @@ pub async fn execute_inner(
     recovery_source: Option<RecoverySource>,
     recovery_password: Option<String>,
 ) -> Result<(SetupResult, RpcContext), Error> {
-    let progress_handle = ctx.progress.handle();
-    let mut disk_phase = progress_handle.add_phase("Formatting data drive".into(), Some(10));
+    let progress = &ctx.progress;
+    let mut disk_phase = progress.add_phase("Formatting data drive".into(), Some(10));
     let restore_phase = match &recovery_source {
         Some(RecoverySource::Backup { .. }) => {
-            Some(progress_handle.add_phase("Restoring backup".into(), Some(100)))
+            Some(progress.add_phase("Restoring backup".into(), Some(100)))
         }
         Some(RecoverySource::Migrate { .. }) => {
-            Some(progress_handle.add_phase("Transferring data".into(), Some(100)))
+            Some(progress.add_phase("Transferring data".into(), Some(100)))
         }
         None => None,
     };
-    let init_phases = InitPhases::new(&progress_handle);
-    let rpc_ctx_phases = InitRpcContextPhases::new(&progress_handle);
+    let init_phases = InitPhases::new(&progress);
+    let rpc_ctx_phases = InitRpcContextPhases::new(&progress);
 
     disk_phase.start();
     let encryption_password = if ctx.disable_encryption {

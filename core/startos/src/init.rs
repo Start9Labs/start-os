@@ -25,7 +25,7 @@ use crate::disk::mount::util::unmount;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
 use crate::progress::{
-    FullProgress, FullProgressTrackerHandle, PhaseProgressTrackerHandle, PhasedProgressBar,
+    FullProgress, FullProgressTracker, PhaseProgressTrackerHandle, PhasedProgressBar,
 };
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::ssh::SSH_AUTHORIZED_KEYS_FILE;
@@ -214,7 +214,7 @@ pub struct InitPhases {
     postinit: Option<PhaseProgressTrackerHandle>,
 }
 impl InitPhases {
-    pub fn new(handle: &FullProgressTrackerHandle) -> Self {
+    pub fn new(handle: &FullProgressTracker) -> Self {
         Self {
             preinit: if Path::new("/media/startos/config/preinit.sh").exists() {
                 Some(handle.add_phase("Running preinit.sh".into(), Some(5)))

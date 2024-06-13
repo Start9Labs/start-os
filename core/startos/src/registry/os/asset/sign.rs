@@ -169,24 +169,26 @@ pub async fn cli_sign_asset(
 
     let file = MultiCursorFile::from(tokio::fs::File::open(&path).await?);
 
-    let mut progress = FullProgressTracker::new();
-    let progress_handle = progress.handle();
-    let mut sign_phase =
-        progress_handle.add_phase(InternedString::intern("Signing File"), Some(10));
-    let mut index_phase = progress_handle.add_phase(
+    let progress = FullProgressTracker::new();
+    let mut sign_phase = progress.add_phase(InternedString::intern("Signing File"), Some(10));
+    let mut index_phase = progress.add_phase(
         InternedString::intern("Adding Signature to Registry Index"),
         Some(1),
     );
 
-    let progress_task: NonDetachingJoinHandle<()> = tokio::spawn(async move {
-        let mut bar = PhasedProgressBar::new(&format!("Adding {} to registry...", path.display()));
-        loop {
-            let snap = progress.snapshot();
-            bar.update(&snap);
-            if snap.overall.is_complete() {
-                break;
+    let progress_task: NonDetachingJoinHandle<()> = tokio::spawn({
+        let progress = progress.clone();
+        async move {
+            let mut bar =
+                PhasedProgressBar::new(&format!("Adding {} to registry...", path.display()));
+            loop {
+                let snap = progress.snapshot();
+                bar.update(&snap);
+                if snap.overall.is_complete() {
+                    break;
+                }
+                progress.changed().await
             }
-            progress.changed().await
         }
     })
     .into();
@@ -220,7 +222,7 @@ pub async fn cli_sign_asset(
     .await?;
     index_phase.complete();
 
-    progress_handle.complete();
+    progress.complete();
 
     progress_task.await.with_kind(ErrorKind::Unknown)?;
 

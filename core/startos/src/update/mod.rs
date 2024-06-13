@@ -20,9 +20,7 @@ use ts_rs::TS;
 use crate::context::{CliContext, RpcContext};
 use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
-use crate::progress::{
-    FullProgressTracker, FullProgressTrackerHandle, PhaseProgressTrackerHandle, PhasedProgressBar,
-};
+use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle, PhasedProgressBar};
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
 use crate::registry::os::index::OsVersionInfo;
@@ -247,13 +245,12 @@ async fn maybe_do_update(
 
     asset.validate(SIG_CONTEXT, asset.all_signers())?;
 
-    let mut progress = FullProgressTracker::new();
-    let progress_handle = progress.handle();
-    let mut download_phase = progress_handle.add_phase("Downloading File".into(), Some(100));
+    let progress = FullProgressTracker::new();
+    let mut download_phase = progress.add_phase("Downloading File".into(), Some(100));
     download_phase.set_total(asset.commitment.size);
-    let reverify_phase = progress_handle.add_phase("Reverifying File".into(), Some(10));
-    let sync_boot_phase = progress_handle.add_phase("Syncing Boot Files".into(), Some(1));
-    let finalize_phase = progress_handle.add_phase("Finalizing Update".into(), Some(1));
+    let reverify_phase = progress.add_phase("Reverifying File".into(), Some(10));
+    let sync_boot_phase = progress.add_phase("Syncing Boot Files".into(), Some(1));
+    let finalize_phase = progress.add_phase("Finalizing Update".into(), Some(1));
 
     let start_progress = progress.snapshot();
 
@@ -284,7 +281,7 @@ async fn maybe_do_update(
         ));
     }
 
-    let progress_task = NonDetachingJoinHandle::from(tokio::spawn(progress.sync_to_db(
+    let progress_task = NonDetachingJoinHandle::from(tokio::spawn(progress.clone().sync_to_db(
         ctx.db.clone(),
         |db| {
             db.as_public_mut()
@@ -301,7 +298,7 @@ async fn maybe_do_update(
             ctx.clone(),
             asset,
             UpdateProgressHandles {
-                progress_handle,
+                progress,
                 download_phase,
                 reverify_phase,
                 sync_boot_phase,
@@ -370,7 +367,7 @@ async fn maybe_do_update(
 }
 
 struct UpdateProgressHandles {
-    progress_handle: FullProgressTrackerHandle,
+    progress: FullProgressTracker,
     download_phase: PhaseProgressTrackerHandle,
     reverify_phase: PhaseProgressTrackerHandle,
     sync_boot_phase: PhaseProgressTrackerHandle,
@@ -382,7 +379,7 @@ async fn do_update(
     ctx: RpcContext,
     asset: RegistryAsset<Blake3Commitment>,
     UpdateProgressHandles {
-        progress_handle,
+        progress,
         mut download_phase,
         mut reverify_phase,
         mut sync_boot_phase,
@@ -433,7 +430,7 @@ async fn do_update(
         .await?;
     finalize_phase.complete();
 
-    progress_handle.complete();
+    progress.complete();
 
     Ok(())
 }
