@@ -1,12 +1,12 @@
 import { RpcListener } from "./Adapters/RpcListener"
 import { SystemForEmbassy } from "./Adapters/Systems/SystemForEmbassy"
-import { HostSystemStartOs } from "./Adapters/HostSystemStartOs"
+import {  hostSystemStartOs } from "./Adapters/HostSystemStartOs"
 import { AllGetDependencies } from "./Interfaces/AllGetDependencies"
 import { getSystem } from "./Adapters/Systems"
 
 const getDependencies: AllGetDependencies = {
   system: getSystem,
-  hostSystem: () => HostSystemStartOs.of,
+  hostSystem: () => hostSystemStartOs,
 }
 
 new RpcListener(getDependencies)

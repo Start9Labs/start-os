@@ -1,7 +1,7 @@
 import { ExecuteResult, System } from "../../Interfaces/System"
 import { unNestPath } from "../../Models/JsonPath"
 import matches, { any, number, object, string, tuple } from "ts-matches"
-import { HostSystemStartOs } from "../HostSystemStartOs"
+import { hostSystemStartOs } from "../HostSystemStartOs"
 import { Effects } from "../../Models/Effects"
 import { RpcResult, matchRpcResult } from "../RpcListener"
 import { duration } from "../../Models/Duration"
@@ -15,7 +15,7 @@ export class SystemForStartOs implements System {
   }
   constructor(readonly abi: T.ABI) {}
   async execute(
-    effects: HostSystemStartOs,
+    effectCreator: ReturnType<typeof hostSystemStartOs>,
     options: {
       id: string
       procedure:
@@ -36,8 +36,7 @@ export class SystemForStartOs implements System {
       timeout?: number | undefined
     },
   ): Promise<RpcResult> {
-    effects = Object.create(effects)
-    effects.procedureId = options.id
+    const effects = effectCreator(options.id)
     return this._execute(effects, options)
       .then((x) =>
         matches(x)

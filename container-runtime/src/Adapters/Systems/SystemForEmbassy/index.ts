@@ -1,7 +1,7 @@
 import { types as T, utils, EmVer } from "@start9labs/start-sdk"
 import * as fs from "fs/promises"
 
-import { PolyfillEffects } from "./polyfillEffects"
+import { polyfillEffects } from "./polyfillEffects"
 import { Duration, duration, fromDuration } from "../../../Models/Duration"
 import { System } from "../../../Interfaces/System"
 import { matchManifest, Manifest, Procedure } from "./matchManifest"
@@ -27,7 +27,7 @@ import {
   Parser,
   array,
 } from "ts-matches"
-import { HostSystemStartOs } from "../../HostSystemStartOs"
+import { hostSystemStartOs } from "../../HostSystemStartOs"
 import { JsonPath, unNestPath } from "../../../Models/JsonPath"
 import { RpcResult, matchRpcResult } from "../../RpcListener"
 import { CT } from "@start9labs/start-sdk"
@@ -41,6 +41,7 @@ import {
   MultiHost,
 } from "@start9labs/start-sdk/cjs/lib/interfaces/Host"
 import { ServiceInterfaceBuilder } from "@start9labs/start-sdk/cjs/lib/interfaces/ServiceInterfaceBuilder"
+import { Effects } from "../../../Models/Effects"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
@@ -197,7 +198,7 @@ export class SystemForEmbassy implements System {
     readonly moduleCode: Partial<U.ExpectedExports>,
   ) {}
   async execute(
-    effects: HostSystemStartOs,
+    effectCreator: ReturnType<typeof hostSystemStartOs>,
     options: {
       id: string
       procedure: JsonPath
@@ -205,8 +206,7 @@ export class SystemForEmbassy implements System {
       timeout?: number | undefined
     },
   ): Promise<RpcResult> {
-    effects = Object.create(effects)
-    effects.procedureId = options.id
+    const effects = effectCreator(options.id)
     return this._execute(effects, options)
       .then((x) =>
         matches(x)
@@ -261,12 +261,12 @@ export class SystemForEmbassy implements System {
         }
       })
   }
-  async exit(effects: HostSystemStartOs): Promise<void> {
+  async exit(): Promise<void> {
     if (this.currentRunning) await this.currentRunning.clean()
     delete this.currentRunning
   }
   async _execute(
-    effects: HostSystemStartOs,
+    effectCreator: ReturnType<typeof hostSystemStartOs>,
     options: {
       procedure: JsonPath
       input: unknown
@@ -340,7 +340,7 @@ export class SystemForEmbassy implements System {
     throw new Error(`Could not find the path for ${options.procedure}`)
   }
   private async init(
-    effects: HostSystemStartOs,
+    effects: Effects,
     previousVersion: Optional<string>,
     timeoutMs: number | null,
   ): Promise<void> {
@@ -350,7 +350,7 @@ export class SystemForEmbassy implements System {
     await this.exportActions(effects)
     await this.exportNetwork(effects)
   }
-  async exportNetwork(effects: HostSystemStartOs) {
+  async exportNetwork(effects: Effects) {
     for (const [id, interfaceValue] of Object.entries(
       this.manifest.interfaces,
     )) {
@@ -428,7 +428,7 @@ export class SystemForEmbassy implements System {
       )
     }
   }
-  async exportActions(effects: HostSystemStartOs) {
+  async exportActions(effects: Effects) {
     const manifest = this.manifest
     if (!manifest.actions) return
     for (const [actionId, action] of Object.entries(manifest.actions)) {
@@ -457,7 +457,7 @@ export class SystemForEmbassy implements System {
     }
   }
   private async uninit(
-    effects: HostSystemStartOs,
+    effects: Effects,
     nextVersion: Optional<string>,
     timeoutMs: number | null,
   ): Promise<void> {
@@ -465,7 +465,7 @@ export class SystemForEmbassy implements System {
     await effects.setMainStatus({ status: "stopped" })
   }
   private async mainStart(
-    effects: HostSystemStartOs,
+    effects: Effects,
     timeoutMs: number | null,
   ): Promise<void> {
     if (!!this.currentRunning) return
@@ -473,7 +473,7 @@ export class SystemForEmbassy implements System {
     this.currentRunning = new MainLoop(this, effects)
   }
   private async mainStop(
-    effects: HostSystemStartOs,
+    effects: Effects,
     timeoutMs: number | null,
   ): Promise<Duration> {
     const { currentRunning } = this
@@ -491,7 +491,7 @@ export class SystemForEmbassy implements System {
     return durationValue
   }
   private async createBackup(
-    effects: HostSystemStartOs,
+    effects: Effects,
     timeoutMs: number | null,
   ): Promise<void> {
     const backup = this.manifest.backup.create
@@ -504,12 +504,12 @@ export class SystemForEmbassy implements System {
     } else {
       const moduleCode = await this.moduleCode
       await moduleCode.createBackup?.(
-        new PolyfillEffects(effects, this.manifest),
+        polyfillEffects(effects, this.manifest),
       )
     }
   }
   private async restoreBackup(
-    effects: HostSystemStartOs,
+    effects: Effects,
     timeoutMs: number | null,
   ): Promise<void> {
     const restoreBackup = this.manifest.backup.restore
@@ -529,18 +529,18 @@ export class SystemForEmbassy implements System {
     } else {
       const moduleCode = await this.moduleCode
       await moduleCode.restoreBackup?.(
-        new PolyfillEffects(effects, this.manifest),
+        polyfillEffects(effects, this.manifest),
       )
     }
   }
   private async getConfig(
-    effects: HostSystemStartOs,
+    effects: Effects,
     timeoutMs: number | null,
   ): Promise<T.ConfigRes> {
     return this.getConfigUncleaned(effects, timeoutMs).then(removePointers)
   }
   private async getConfigUncleaned(
-    effects: HostSystemStartOs,
+    effects: Effects,
     timeoutMs: number | null,
   ): Promise<T.ConfigRes> {
     const config = this.manifest.config?.get
@@ -564,7 +564,7 @@ export class SystemForEmbassy implements System {
       const moduleCode = await this.moduleCode
       const method = moduleCode.getConfig
       if (!method) throw new Error("Expecting that the method getConfig exists")
-      return (await method(new PolyfillEffects(effects, this.manifest)).then(
+      return (await method(polyfillEffects(effects, this.manifest)).then(
         (x) => {
           if ("result" in x) return x.result
           if ("error" in x) throw new Error("Error getting config: " + x.error)
@@ -574,7 +574,7 @@ export class SystemForEmbassy implements System {
     }
   }
   private async setConfig(
-    effects: HostSystemStartOs,
+    effects: Effects,
     newConfigWithoutPointers: unknown,
     timeoutMs: number | null,
   ): Promise<void> {
@@ -617,7 +617,7 @@ export class SystemForEmbassy implements System {
 
       const answer = matchSetResult.unsafeCast(
         await method(
-          new PolyfillEffects(effects, this.manifest),
+          polyfillEffects(effects, this.manifest),
           newConfig as U.Config,
         ).then((x): T.SetResult => {
           if ("result" in x)
@@ -636,7 +636,7 @@ export class SystemForEmbassy implements System {
     }
   }
   private async setConfigSetConfig(
-    effects: HostSystemStartOs,
+    effects: Effects,
     dependsOn: { [x: string]: readonly string[] },
   ) {
     await effects.setDependencies({
@@ -660,7 +660,7 @@ export class SystemForEmbassy implements System {
   }
 
   private async migration(
-    effects: HostSystemStartOs,
+    effects: Effects,
     fromVersion: string,
     timeoutMs: number | null,
   ): Promise<T.MigrationRes> {
@@ -713,7 +713,7 @@ export class SystemForEmbassy implements System {
         if (!method)
           throw new Error("Expecting that the method migration exists")
         return (await method(
-          new PolyfillEffects(effects, this.manifest),
+          polyfillEffects(effects, this.manifest),
           fromVersion as string,
         ).then((x) => {
           if ("result" in x) return x.result
@@ -725,7 +725,7 @@ export class SystemForEmbassy implements System {
     return { configured: true }
   }
   private async properties(
-    effects: HostSystemStartOs,
+    effects: Effects,
     timeoutMs: number | null,
   ): Promise<ReturnType<T.ExpectedExports.properties>> {
     // TODO BLU-J set the properties ever so often
@@ -754,7 +754,7 @@ export class SystemForEmbassy implements System {
       if (!method)
         throw new Error("Expecting that the method properties exists")
       const properties = matchProperties.unsafeCast(
-        await method(new PolyfillEffects(effects, this.manifest)).then((x) => {
+        await method(polyfillEffects(effects, this.manifest)).then((x) => {
           if ("result" in x) return x.result
           if ("error" in x) throw new Error("Error getting config: " + x.error)
           throw new Error("Error getting config: " + x["error-code"][1])
@@ -765,7 +765,7 @@ export class SystemForEmbassy implements System {
     throw new Error(`Unknown type in the fetch properties: ${setConfigValue}`)
   }
   private async action(
-    effects: HostSystemStartOs,
+    effects: Effects,
     actionId: string,
     formData: unknown,
     timeoutMs: number | null,
@@ -795,7 +795,7 @@ export class SystemForEmbassy implements System {
       const method = moduleCode.action?.[actionId]
       if (!method) throw new Error("Expecting that the method action exists")
       return (await method(
-        new PolyfillEffects(effects, this.manifest),
+        polyfillEffects(effects, this.manifest),
         formData as any,
       ).then((x) => {
         if ("result" in x) return x.result
@@ -805,7 +805,7 @@ export class SystemForEmbassy implements System {
     }
   }
   private async dependenciesCheck(
-    effects: HostSystemStartOs,
+    effects: Effects,
     id: string,
     oldConfig: unknown,
     timeoutMs: number | null,
@@ -838,7 +838,7 @@ export class SystemForEmbassy implements System {
           `Expecting that the method dependency check ${id} exists`,
         )
       return (await method(
-        new PolyfillEffects(effects, this.manifest),
+        polyfillEffects(effects, this.manifest),
         oldConfig as any,
       ).then((x) => {
         if ("result" in x) return x.result
@@ -850,7 +850,7 @@ export class SystemForEmbassy implements System {
     }
   }
   private async dependenciesAutoconfig(
-    effects: HostSystemStartOs,
+    effects: Effects,
     id: string,
     oldConfig: unknown,
     timeoutMs: number | null,
@@ -863,7 +863,7 @@ export class SystemForEmbassy implements System {
         `Expecting that the method dependency autoConfigure ${id} exists`,
       )
     return (await method(
-      new PolyfillEffects(effects, this.manifest),
+      polyfillEffects(effects, this.manifest),
       oldConfig as any,
     ).then((x) => {
       if ("result" in x) return x.result
@@ -961,7 +961,7 @@ function cleanConfigFromPointers<C, S>(
 }
 
 async function updateConfig(
-  effects: HostSystemStartOs,
+  effects: Effects,
   manifest: Manifest,
   spec: unknown,
   mutConfigValue: unknown,
