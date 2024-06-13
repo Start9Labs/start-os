@@ -311,7 +311,7 @@ pub fn diagnostic_api() -> ParentHandler<DiagnosticContext> {
         )
         .subcommand(
             "state",
-            from_fn(|_: RpcContext| Ok::<_, Error>(ApiState::Error))
+            from_fn(|_: DiagnosticContext| Ok::<_, Error>(ApiState::Error))
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_call_remote::<CliContext>(),
         )
@@ -330,7 +330,7 @@ pub fn init_api() -> ParentHandler<InitContext> {
         )
         .subcommand(
             "state",
-            from_fn(|_: RpcContext| Ok::<_, Error>(ApiState::Initializing))
+            from_fn(|_: InitContext| Ok::<_, Error>(ApiState::Initializing))
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_call_remote::<CliContext>(),
         )
