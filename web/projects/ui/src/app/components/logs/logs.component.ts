@@ -71,7 +71,7 @@ export class LogsComponent {
     private readonly api: ApiService,
     private readonly loadingCtrl: LoadingController,
     private readonly downloadHtml: DownloadHTMLService,
-    private readonly connectionService: ConnectionService,
+    private readonly connection$: ConnectionService,
   ) {}
 
   async ngOnInit() {
@@ -172,7 +172,7 @@ export class LogsComponent {
         }),
         catchError(() => {
           this.recordConnectionChange(false)
-          return this.connectionService.connected$.pipe(
+          return this.connection$.pipe(
             tap(
               connected =>
                 (this.websocketStatus = connected

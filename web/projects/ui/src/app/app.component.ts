@@ -1,4 +1,5 @@
 import { Component, inject, OnDestroy } from '@angular/core'
+import { Router } from '@angular/router'
 import { combineLatest, map, merge, startWith } from 'rxjs'
 import { AuthService } from './services/auth.service'
 import { SplitPaneTracker } from './services/split-pane.service'
@@ -28,7 +29,7 @@ export class AppComponent implements OnDestroy {
   readonly theme$ = inject(THEME)
   readonly offline$ = combineLatest([
     this.authService.isVerified$,
-    this.connection.connected$,
+    this.connection$,
     this.patch
       .watch$('serverInfo', 'statusInfo')
       .pipe(startWith({ restarting: false, shuttingDown: false })),
@@ -46,8 +47,9 @@ export class AppComponent implements OnDestroy {
     private readonly splitPane: SplitPaneTracker,
     private readonly patch: PatchDB<DataModel>,
     private readonly storage: StorageService,
+    private readonly router: Router,
     readonly authService: AuthService,
-    readonly connection: ConnectionService,
+    readonly connection$: ConnectionService,
     readonly clientStorageService: ClientStorageService,
     readonly themeSwitcher: ThemeSwitcherService,
   ) {}
@@ -58,6 +60,13 @@ export class AppComponent implements OnDestroy {
     this.patch
       .watch$('ui', 'name')
       .subscribe(name => this.titleService.setTitle(name || 'StartOS'))
+  }
+
+  get withoutMenu(): boolean {
+    return (
+      this.router.isActive('initializing', false) ||
+      this.router.isActive('diagnostic', false)
+    )
   }
 
   splitPaneVisible({ detail }: any) {

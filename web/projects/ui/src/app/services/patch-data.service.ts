@@ -18,7 +18,7 @@ import { LocalStorageBootstrap } from './patch-db/local-storage-bootstrap'
   providedIn: 'root',
 })
 export class PatchDataService extends Observable<void> {
-  private readonly stream$ = this.connectionService.connected$.pipe(
+  private readonly stream$ = this.connection$.pipe(
     filter(Boolean),
     switchMap(() => this.patch.watch$()),
     map((cache, index) => {
@@ -42,7 +42,7 @@ export class PatchDataService extends Observable<void> {
     private readonly embassyApi: ApiService,
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
-    private readonly connectionService: ConnectionService,
+    private readonly connection$: ConnectionService,
     private readonly bootstrapper: LocalStorageBootstrap,
   ) {
     super(subscriber => this.stream$.subscribe(subscriber))

@@ -1,4 +1,6 @@
 import { InjectionToken, Injector } from '@angular/core'
+import { Revision, Update } from 'patch-db-client'
+import { defer, EMPTY, from, Observable } from 'rxjs'
 import {
   bufferTime,
   catchError,
@@ -8,13 +10,10 @@ import {
   take,
   tap,
 } from 'rxjs/operators'
-import { Revision, Update } from 'patch-db-client'
-import { DataModel } from './data-model'
-import { defer, EMPTY, from, interval, Observable } from 'rxjs'
-import { AuthService } from '../auth.service'
-import { ConnectionService } from '../connection.service'
+import { StateService } from 'src/app/services/state.service'
 import { ApiService } from '../api/embassy-api.service'
-import { ConfigService } from '../config.service'
+import { AuthService } from '../auth.service'
+import { DataModel } from './data-model'
 import { LocalStorageBootstrap } from './local-storage-bootstrap'
 
 export const PATCH_SOURCE = new InjectionToken<Observable<Update<DataModel>[]>>(
@@ -27,36 +26,28 @@ export function sourceFactory(
   // defer() needed to avoid circular dependency with ApiService, since PatchDB is needed there
   return defer(() => {
     const api = injector.get(ApiService)
-    const authService = injector.get(AuthService)
-    const connectionService = injector.get(ConnectionService)
-    const configService = injector.get(ConfigService)
+    const auth = injector.get(AuthService)
+    const state = injector.get(StateService)
     const bootstrapper = injector.get(LocalStorageBootstrap)
-    const isTor = configService.isTor()
-    const timeout = isTor ? 16000 : 4000
 
-    return from(api.subscribeToPatchDB({})).pipe(
-      switchMap(({ dump, guid }) => {
-        const websocket$ = api.openWebsocket$<Revision>(guid, {}).pipe(
+    return auth.isVerified$.pipe(
+      switchMap(verified =>
+        verified ? defer(() => from(api.subscribeToPatchDB({}))) : EMPTY,
+      ),
+      switchMap(({ dump, guid }) =>
+        api.openWebsocket$<Revision>(guid, {}).pipe(
           bufferTime(250),
           filter(revisions => !!revisions.length),
-          // @TODO catch error should defer back to the global poll for state
-          catchError((_, watch$) => {
-            connectionService.websocketConnected$.next(false)
-
-            return interval(timeout).pipe(
-              switchMap(() =>
-                from(api.getState()).pipe(catchError(() => EMPTY)),
-              ),
-              take(1),
-              switchMap(() => watch$),
-            )
-          }),
-          tap(() => connectionService.websocketConnected$.next(true)),
           startWith([dump]),
-        )
+        ),
+      ),
+      catchError((_, original$) => {
+        state.retrigger()
 
-        return authService.isVerified$.pipe(
-          switchMap(verified => (verified ? websocket$ : EMPTY)),
+        return state.pipe(
+          filter(current => current === 'running'),
+          take(1),
+          switchMap(() => original$),
         )
       }),
       startWith([bootstrapper.init()]),

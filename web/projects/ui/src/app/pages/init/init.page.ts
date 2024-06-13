@@ -1,5 +1,5 @@
-import { Component } from '@angular/core'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { Component, inject } from '@angular/core'
+import { InitService } from 'src/app/pages/init/init.service'
 
 @Component({
   selector: 'init-page',
@@ -7,5 +7,5 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
   styleUrls: ['init.page.scss'],
 })
 export class InitPage {
-  constructor(private readonly api: ApiService) {}
+  readonly progress$ = inject(InitService)
 }
