@@ -120,6 +120,7 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
       Id,
     options: DaemonsParams<Manifest, Ids, Command, Id>,
   ) {
+    console.log("BLUJ Daemons.addDaemon", id)
     const daemonIndex = this.daemons.length
     const daemon = Daemon.of()(this.effects, options.image, options.command, {
       ...options,
@@ -150,11 +151,12 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
   }
 
   async build() {
+    console.log("BLUJ Daemons.build")
     this.updateMainHealth()
     this.healthDaemons.forEach((x) =>
       x.addWatcher(() => this.updateMainHealth()),
     )
-    return {
+    const built = {
       term: async (options?: { signal?: Signals; timeout?: number }) => {
         try {
           await Promise.all(this.healthDaemons.map((x) => x.term(options)))
@@ -163,9 +165,12 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
         }
       },
     }
+    this.started(() => built.term())
+    return built
   }
 
   private updateMainHealth() {
+    console.log("BLUJ Daemons.updateMainHealth")
     if (this.healthDaemons.every((x) => x.health.status === "success")) {
       this.effects.setMainStatus({ status: "running" })
     } else {

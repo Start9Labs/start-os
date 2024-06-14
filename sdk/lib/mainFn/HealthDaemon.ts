@@ -42,6 +42,7 @@ export class HealthDaemon {
     signal?: NodeJS.Signals | undefined
     timeout?: number | undefined
   }) {
+    console.log("BLUJ HealthDaemon.term", termOptions)
     this.#healthWatchers = []
     this.#running = false
     this.#healthCheckCleanup?.()
@@ -51,14 +52,17 @@ export class HealthDaemon {
 
   /** Want to add another notifier that the health might have changed */
   addWatcher(watcher: () => unknown) {
+    console.log("BLUJ HealthDaemon.addWatcher")
     this.#healthWatchers.push(watcher)
   }
 
   get health() {
+    console.log("BLUJ HealthDaemon.health", this.#health)
     return Object.freeze(this.#health)
   }
 
   private async changeRunning(newStatus: boolean) {
+    console.log("BLUJ HealthDaemon.changeRunning", newStatus)
     if (this.#running === newStatus) return
 
     this.#running = newStatus
@@ -76,9 +80,11 @@ export class HealthDaemon {
 
   #healthCheckCleanup: (() => void) | null = null
   private turnOffHealthCheck() {
+    console.log("BLUJ HealthDaemon.turnOffHealthCheck")
     this.#healthCheckCleanup?.()
   }
   private async setupHealthCheck() {
+    console.log("BLUJ HealthDaemon.setupHealthCheck")
     if (this.#healthCheckCleanup) return
     const trigger = (this.ready.trigger ?? defaultTrigger)(() => ({
       hadSuccess: this.#hadSuccess,
@@ -117,6 +123,7 @@ export class HealthDaemon {
   }
 
   private setHealth(health: CheckResult) {
+    console.log("BLUJ HealthDaemon.setHealth", health)
     this.#health = health
     this.#healthWatchers.forEach((watcher) => watcher())
     const display = this.ready.display
@@ -132,20 +139,21 @@ export class HealthDaemon {
       this.effects.setHealth({
         result: status,
         message: health.message,
-        id: display,
+        id: this.id,
         name: display,
       })
     } else {
       this.effects.setHealth({
         result: health.status,
         message: health.message || "",
-        id: display,
+        id: this.id,
         name: display,
       })
     }
   }
 
   private async updateStatus() {
+    console.log("BLUJ HealthDaemon.updateStatus")
     const healths = this.dependencies.map((d) => d.#health)
     this.changeRunning(healths.every((x) => x.status === "success"))
   }

@@ -455,16 +455,18 @@ impl ServiceActorSeed {
     /// Used to indicate that we have finished the task of starting the service
     pub fn started(&self) {
         self.persistent_container.state.send_modify(|state| {
-            state.running_status =
-                Some(
-                    state
-                        .running_status
-                        .take()
-                        .unwrap_or_else(|| RunningStatus {
-                            health: Default::default(),
-                            started: Utc::now(),
-                        }),
-                );
+            if state.running_status.is_none() {
+                state.running_status =
+                    Some(
+                        state
+                            .running_status
+                            .take()
+                            .unwrap_or_else(|| RunningStatus {
+                                health: Default::default(),
+                                started: Utc::now(),
+                            }),
+                    );
+            }
         });
     }
     /// Used to indicate that we have finished the task of stopping the service
@@ -485,7 +487,7 @@ impl Actor for ServiceActor {
             let mut current = seed.persistent_container.state.subscribe();
 
             loop {
-                let kinds = dbg!(current.borrow().kinds());
+                let kinds = current.borrow().kinds();
 
                 if let Err(e) = async {
                     let main_status = match (
