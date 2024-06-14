@@ -203,7 +203,7 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
                                 eyre!("Could not get id to watch progress"),
                                 ErrorKind::Cancelled,
                             )
-                        })?;
+                        })??;
                         tokio::select! {
                             res = async {
                                 while let Some(_) = sub.recv().await {
@@ -259,17 +259,25 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
     .await;
     tokio::spawn(async move {
         if let Err(e) = async {
-            let s9pk = S9pk::deserialize(
+            match S9pk::deserialize(
                 &file, None, // TODO
             )
-            .await?;
-            let _ = id_send.send(s9pk.as_manifest().id.clone());
-            ctx.services
-                .install(ctx.clone(), s9pk, None::<Never>)
-                .await?
-                .await?
-                .await?;
-            file.delete().await
+            .await
+            {
+                Ok(s9pk) => {
+                    let _ = id_send.send(Ok(s9pk.as_manifest().id.clone()));
+                    ctx.services
+                        .install(ctx.clone(), s9pk, None::<Never>)
+                        .await?
+                        .await?
+                        .await?;
+                    file.delete().await
+                }
+                Err(e) => {
+                    let _ = id_send.send(Err(e.clone_output()));
+                    return Err(e);
+                }
+            }
         }
         .await
         {
