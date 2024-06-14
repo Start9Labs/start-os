@@ -198,12 +198,22 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
                 use axum::extract::ws::Message;
                 async move {
                     if let Err(e) = async {
-                        let id = id_recv.await.map_err(|_| {
+                        let id = match id_recv.await.map_err(|_| {
                             Error::new(
                                 eyre!("Could not get id to watch progress"),
                                 ErrorKind::Cancelled,
                             )
-                        })??;
+                        }).and_then(|a|a) {
+                            Ok(a) => a,
+                            Err(e) =>{ ws.send(Message::Text(
+                                serde_json::to_string(&Err::<(), _>(RpcError::from(e.clone_output())))
+                                .with_kind(ErrorKind::Serialization)?,
+                            ))
+                            .await
+                            .with_kind(ErrorKind::Network)?;
+                            return Err(e);
+                        }
+                        };
                         tokio::select! {
                             res = async {
                                 while let Some(_) = sub.recv().await {
