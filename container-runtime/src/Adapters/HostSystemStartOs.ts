@@ -34,7 +34,7 @@ const MAIN = "/main" as const
 let hostSystemId = 0
 export const hostSystemStartOs =
   (callbackHolder: CallbackHolder) =>
-  (procedureId: string): Effects => {
+  (procedureId: null | string): Effects => {
     const rpcRound = <K extends keyof Effects | "getStore" | "setStore">(
       method: K,
       params: Record<string, unknown>,
