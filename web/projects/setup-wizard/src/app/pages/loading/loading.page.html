@@ -1,32 +1,17 @@
-<ion-content>
-  <ion-grid>
-    <ion-row class="ion-align-items-center">
-      <ion-col class="ion-text-center">
-        <ion-card color="dark" *ngIf="fullProgress$ | async as fullProgress">
-          <ion-card-header>
-            <ion-card-title>Initializing StartOS</ion-card-title>
-            <div class="center-wrapper">
-              <ion-card-subtitle>Setting up your server</ion-card-subtitle>
-            </div>
-          </ion-card-header>
+<section *ngIf="progress$ | async as progress">
+  <h1 [style.font-size.rem]="2.5" [style.margin.rem]="1">
+    Setting up your server
+  </h1>
+  <div class="center-wrapper" *ngIf="progress.total">
+    Progress: {{ (progress.total * 100).toFixed(0) }}%
+  </div>
 
-          <ion-card-content
-            class="ion-margin"
-            *ngIf="fullProgress | toDetails as details"
-          >
-            <ion-progress-bar
-              color="tertiary"
-              style="max-width: 700px; margin: auto; margin-bottom: 36px"
-              [type]="fullProgress.overall === false ? 'indeterminate' : 'determinate'"
-              [value]="details.overallDecimal"
-            ></ion-progress-bar>
-            <p>
-              {{details.currentPhase.name }}: {{ (details.currentPhase.decimal *
-              100).toFixed() }}%
-            </p>
-          </ion-card-content>
-        </ion-card>
-      </ion-col>
-    </ion-row>
-  </ion-grid>
-</ion-content>
+  <progress
+    tuiProgressBar
+    class="progress"
+    [style.max-width.rem]="40"
+    [style.margin]="'1rem auto'"
+    [attr.value]="progress.total"
+  ></progress>
+  <p>{{ progress.message }}</p>
+</section>

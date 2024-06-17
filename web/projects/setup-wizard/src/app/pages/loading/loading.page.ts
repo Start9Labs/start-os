@@ -8,6 +8,7 @@ import {
   filter,
   from,
   interval,
+  map,
   of,
   startWith,
   switchMap,
@@ -24,7 +25,7 @@ import { T } from '@start9labs/start-sdk'
   styleUrls: ['loading.page.scss'],
 })
 export class LoadingPage {
-  readonly fullProgress$ = this.getRunningStatus$().pipe(
+  readonly progress$ = this.getRunningStatus$().pipe(
     switchMap(res =>
       this.api.openProgressWebsocket$(res.guid).pipe(
         startWith(res.progress),
@@ -44,6 +45,25 @@ export class LoadingPage {
         }),
       ),
     ),
+    map(({ phases, overall }) => {
+      return {
+        total: getDecimal(overall),
+        message: phases
+          .filter(
+            (
+              p,
+            ): p is {
+              name: string
+              progress: {
+                done: number
+                total: number | null
+              }
+            } => p.progress !== true && p.progress !== null,
+          )
+          .map(p => `${p.name}: (${getPhaseBytes(p.progress)})`)
+          .join(','),
+      }
+    }),
   )
 
   constructor(
@@ -84,32 +104,25 @@ export class LoadingPage {
   }
 }
 
-@Pipe({
-  name: 'toDetails',
-})
-export class ToDetailsPipe implements PipeTransform {
-  transform({ overall, phases }: T.FullProgress) {
-    const currentPhase = phases.find(p => p.progress !== true) || {
-      name: 'Total',
-      progress: overall,
-    }
-
-    return {
-      overallDecimal: getDecimal(overall),
-      currentPhase: {
-        name: currentPhase.name,
-        decimal: getDecimal(currentPhase.progress),
-      },
-    }
-  }
-}
-
 function getDecimal(progress: T.Progress): number {
   if (progress === true) {
     return 1
   } else if (!progress || !progress.total) {
     return 0
   } else {
-    return progress.done / progress.total
+    return progress.total && progress.done / progress.total
   }
+}
+
+function getPhaseBytes(
+  progress:
+    | false
+    | {
+        done: number
+        total: number | null
+      },
+): string {
+  return progress === false
+    ? 'unknown'
+    : `${progress.done} of ${progress.total}`
 }

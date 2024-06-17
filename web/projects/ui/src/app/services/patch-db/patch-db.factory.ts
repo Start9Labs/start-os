@@ -32,7 +32,7 @@ export function sourceFactory(
 
     return auth.isVerified$.pipe(
       switchMap(verified =>
-        verified ? defer(() => from(api.subscribeToPatchDB({}))) : EMPTY,
+        verified ? from(api.subscribeToPatchDB({})) : EMPTY,
       ),
       switchMap(({ dump, guid }) =>
         api.openWebsocket$<Revision>(guid, {}).pipe(

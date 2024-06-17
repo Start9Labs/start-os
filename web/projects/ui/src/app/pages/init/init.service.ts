@@ -15,14 +15,13 @@ import {
 } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
-interface Progress {
+interface MappedProgress {
   readonly total: number | null
-  readonly current: number | null
   readonly message: string
 }
 
 @Injectable({ providedIn: 'root' })
-export class InitService extends Observable<Progress> {
+export class InitService extends Observable<MappedProgress> {
   private readonly router = inject(Router)
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorToastService)
@@ -35,13 +34,22 @@ export class InitService extends Observable<Progress> {
         .pipe(startWith(progress)),
     ),
     map(({ phases, overall }) => {
-      const { name = 'Total', progress = overall } =
-        phases.find(p => p.progress !== true) || {}
-
       return {
-        total: getProgress(overall),
-        current: getProgress(progress),
-        message: name,
+        total: getOverallDecimal(overall),
+        message: phases
+          .filter(
+            (
+              p,
+            ): p is {
+              name: string
+              progress: {
+                done: number
+                total: number | null
+              }
+            } => p.progress !== true && p.progress !== null,
+          )
+          .map(p => `${p.name}: (${getPhaseBytes(p.progress)})`)
+          .join(','),
       }
     }),
     tap(({ total }) => {
@@ -59,12 +67,25 @@ export class InitService extends Observable<Progress> {
   }
 }
 
-function getProgress(progress: T.Progress): number | null {
+function getOverallDecimal(progress: T.Progress): number {
   if (progress === true) {
     return 1
-  } else if (!progress || progress.total) {
+  } else if (!progress || !progress.total) {
     return 0
   } else {
     return progress.total && progress.done / progress.total
   }
+}
+
+function getPhaseBytes(
+  progress:
+    | false
+    | {
+        done: number
+        total: number | null
+      },
+): string {
+  return progress === false
+    ? 'unknown'
+    : `${progress.done} of ${progress.total}`
 }
