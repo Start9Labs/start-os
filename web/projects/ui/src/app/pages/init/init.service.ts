@@ -48,7 +48,7 @@ export class InitService extends Observable<MappedProgress> {
               }
             } => p.progress !== true && p.progress !== null,
           )
-          .map(p => `${p.name}: (${getPhaseBytes(p.progress)})`)
+          .map(p => `${p.name}${getPhaseBytes(p.progress)}`)
           .join(','),
       }
     }),
@@ -85,7 +85,5 @@ function getPhaseBytes(
         total: number | null
       },
 ): string {
-  return progress === false
-    ? 'unknown'
-    : `${progress.done} of ${progress.total}`
+  return progress === false ? '' : `: (${progress.done}/${progress.total})`
 }
