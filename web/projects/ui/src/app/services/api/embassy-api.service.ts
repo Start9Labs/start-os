@@ -8,9 +8,6 @@ import { T } from '@start9labs/start-sdk'
 export abstract class ApiService {
   // http
 
-  // for getting static files: ex icons, instructions, licenses
-  abstract getStatic(url: string): Promise<string>
-
   // for sideloading packages
   abstract uploadPackage(guid: string, body: Blob): Promise<string>
 
@@ -135,7 +132,21 @@ export abstract class ApiService {
   abstract getRegistryPackages<T extends RR.GetRegistryPackagesReq>(
     registryUrl: string,
     params: T,
-  ): Promise<RR.GetRegistryPackagesRes<T>>
+  ): Promise<RR.GetRegistryMultiPackagesRes<T>>
+
+  abstract getRegistryPackage<T extends RR.GetRegistryPackagesReq>(
+    registryUrl: string,
+    params: T,
+  ): Promise<RR.GetRegistrySinglePackageRes<T>>
+
+  // TODO confirm type with BE
+  // for getting static files: ex icons, instructions, licenses
+  abstract getStatic(
+    url: string,
+    type: string,
+    id: T.PackageId,
+    version: string,
+  ): Promise<string>
 
   // notification
 

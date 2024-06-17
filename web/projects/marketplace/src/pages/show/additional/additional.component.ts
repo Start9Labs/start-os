@@ -16,7 +16,7 @@ import {
   Emver,
   MarkdownComponent,
 } from '@start9labs/shared'
-import { MarketplacePkg } from '../../../types'
+import { MarketplacePkg, StandardStoreData } from '../../../types'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
 import { ActivatedRoute } from '@angular/router'
 
@@ -27,12 +27,12 @@ import { ActivatedRoute } from '@angular/router'
 })
 export class AdditionalComponent {
   @Input()
-  pkg!: MarketplacePkg
+  pkg!: MarketplacePkg<StandardStoreData>
 
   @Output()
   version = new EventEmitter<string>()
 
-  readonly url = this.route.snapshot.queryParamMap.get('url') || undefined
+  readonly url = this.route.snapshot.queryParamMap.get('url') || null
 
   constructor(
     private readonly alertCtrl: AlertController,
@@ -60,14 +60,14 @@ export class AdditionalComponent {
   async presentAlertVersions() {
     const alert = await this.alertCtrl.create({
       header: 'Versions',
-      inputs: this.pkg.versions
+      inputs: this.getVersions()
         .sort((a, b) => -1 * (this.emver.compare(a, b) || 0))
         .map(v => ({
           name: v, // for CSS
           type: 'radio',
           label: displayEmver(v), // appearance on screen
           value: v, // literal SEM version value
-          checked: this.pkg.manifest.version === v,
+          checked: this.pkg.version === v,
         })),
       buttons: [
         {
@@ -84,10 +84,20 @@ export class AdditionalComponent {
     await alert.present()
   }
 
+  getVersions(): string[] {
+    if (this.pkg['alt-version']) {
+      // TODO filter otherVersions with emver helper to determine if version has prefix
+      return Object.keys(this.pkg.otherVersions).filter(v => ({}))
+    } else {
+      return Object.keys(this.pkg.otherVersions)
+    }
+  }
+
   async presentModalMd(title: string) {
     const content = this.marketplaceService.fetchStatic$(
-      this.pkg.manifest.id,
+      this.pkg.id,
       title,
+      this.pkg.version,
       this.url,
     )
 

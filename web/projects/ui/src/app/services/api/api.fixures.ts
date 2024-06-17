@@ -227,6 +227,7 @@ export module Mock {
     icon: BTC_ICON,
     optional: false,
     hidden: true,
+    description: 'Needed to run',
   }
 
   export const ProxyDep: DependencyMetadata = {
@@ -234,6 +235,7 @@ export module Mock {
     icon: PROXY_ICON,
     optional: true,
     hidden: false,
+    description: 'Needed to run',
   }
 
   export const RegistryPackages: {

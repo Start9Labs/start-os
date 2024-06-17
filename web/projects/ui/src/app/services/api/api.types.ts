@@ -1,11 +1,14 @@
-import { Dump } from 'patch-db-client'
-import { MarketplacePkg, StoreInfo } from '@start9labs/marketplace'
+import { Dump, Revision } from 'patch-db-client'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
+import {
+  GetPackageResponseFullInterim,
+  GetPackageResponseInterim,
+} from '@start9labs/marketplace'
 
 export module RR {
   // websocket
@@ -286,32 +289,37 @@ export module RR {
 
   export type GetRegistryPackagesReq = T.GetPackageParams
   export type GetRegistryPackagesRes<T extends GetRegistryPackagesReq> =
+    | GetRegistrySinglePackageRes<T>
+    | GetRegistryMultiPackagesRes<T>
+  export type GetRegistryMultiPackagesRes<T extends GetRegistryPackagesReq> =
     T extends {
       id: null
       otherVersions: null
     }
-      ? { [id: T.PackageId]: Omit<T.GetPackageResponse, 'otherVersions'> }
+      ? { [id: T.PackageId]: Omit<GetPackageResponseInterim, 'otherVersions'> }
       : T extends { id: null; otherVersions: 'short' }
       ? {
-          [id: T.PackageId]: T.GetPackageResponse & {
+          [id: T.PackageId]: GetPackageResponseInterim & {
             otherVersions: { [version: string]: T.PackageInfoShort }
           }
         }
       : T extends { id: null; otherVersions: 'full' }
       ? {
-          [id: T.PackageId]: T.GetPackageResponseFull
+          [id: T.PackageId]: GetPackageResponseFullInterim
         }
-      : T extends {
-          id: T.PackageId
-          otherVersions: null
-        }
-      ? Omit<T.GetPackageResponse, 'otherVersions'>
+      : never
+  export type GetRegistrySinglePackageRes<T extends GetRegistryPackagesReq> =
+    T extends {
+      id: T.PackageId
+      otherVersions: null
+    }
+      ? Omit<GetPackageResponseInterim, 'otherVersions'>
       : T extends { id: T.PackageId; otherVersions: 'short' }
-      ? T.GetPackageResponse & {
+      ? GetPackageResponseInterim & {
           otherVersions: { [version: string]: T.PackageInfoShort }
         }
       : T extends { id: T.PackageId; otherVersions: 'full' }
-      ? T.GetPackageResponseFull
+      ? GetPackageResponseFullInterim
       : never
 }
 

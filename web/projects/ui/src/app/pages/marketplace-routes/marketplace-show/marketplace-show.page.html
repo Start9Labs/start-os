@@ -32,7 +32,7 @@
       <ion-item-group>
         <marketplace-about [pkg]="pkg"></marketplace-about>
         <marketplace-dependencies
-          *ngIf="!(pkg.manifest.dependencies | empty)"
+          *ngIf="!(pkg.dependencyMetadata | empty)"
           [pkg]="pkg"
         ></marketplace-dependencies>
       </ion-item-group>

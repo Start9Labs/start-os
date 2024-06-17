@@ -34,16 +34,6 @@ export class LiveApiService extends ApiService {
     ; (window as any).rpcClient = this
   }
 
-  // for getting static files: ex icons, instructions, licenses
-
-  async getStatic(url: string): Promise<string> {
-    return this.httpRequest({
-      method: Method.GET,
-      url,
-      responseType: 'text',
-    })
-  }
-
   // for sideloading packages
 
   async uploadPackage(guid: string, body: Blob): Promise<string> {
@@ -259,14 +249,6 @@ export class LiveApiService extends ApiService {
     })
   }
 
-<<<<<<< HEAD
-  async checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes> {
-    return this.marketplaceProxy(
-      '/eos/v0/latest',
-      qp,
-      this.config.marketplace.start9,
-    )
-=======
   async getOsUpdate(): Promise<RR.GetRegistryOsUpdateRes> {
     const { version } = await getServerInfo(this.patch)
     const params: T.GetOsVersionParams = {
@@ -290,12 +272,29 @@ export class LiveApiService extends ApiService {
   async getRegistryPackages<T extends T.GetPackageParams>(
     registryUrl: string,
     params: T,
-  ): Promise<RR.GetRegistryPackagesRes<T>> {
+  ): Promise<RR.GetRegistryMultiPackagesRes<T>> {
     return this.registryRequest(registryUrl, {
       method: 'package.get',
       params,
     })
->>>>>>> 3b83482c5 (update fe types)
+  }
+
+  async getRegistryPackage<T extends T.GetPackageParams>(
+    registryUrl: string,
+    params: T,
+  ): Promise<RR.GetRegistrySinglePackageRes<T>> {
+    return this.registryRequest(registryUrl, {
+      method: 'package.get',
+      params,
+    })
+  }
+
+  // for getting static files: ex icons, instructions, licenses
+  async getStatic(url: string, type: string, id: T.PackageId): Promise<string> {
+    return this.registryRequest(url, {
+      method: 'static.get', // TODO placeholder as not yet implemented on BE
+      params: { type, id },
+    })
   }
 
   // notification

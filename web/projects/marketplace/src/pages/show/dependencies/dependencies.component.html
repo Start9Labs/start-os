@@ -2,7 +2,7 @@
 <ion-grid>
   <ion-row>
     <ion-col
-      *ngFor="let dep of pkg.manifest.dependencies | keyvalue"
+      *ngFor="let dep of pkg.dependencyMetadata | keyvalue"
       responsiveCol
       sizeSm="12"
       sizeMd="6"

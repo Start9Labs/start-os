@@ -30,7 +30,7 @@ import {
 } from 'rxjs'
 import { mockPatchData } from './mock-patch'
 import { AuthService } from '../auth.service'
-import { StoreInfo } from '@start9labs/marketplace'
+import { ConnectionService } from '../connection.service'
 import { T } from '@start9labs/start-sdk'
 
 const PROGRESS: T.FullProgress = {
@@ -457,11 +457,8 @@ export class MockApiService extends ApiService {
     return Error('do not call directly')
   }
 
-<<<<<<< HEAD
   async checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes> {
-=======
-  async getOsUpdate(): Promise<RR.GetRegistryOsUpdateRes> {
->>>>>>> 3b83482c5 (update fe types)
+  // async getOsUpdate(): Promise<RR.GetRegistryOsUpdateRes> {
     await pauseFor(2000)
     return Mock.RegistryOsUpdate
   }
@@ -474,13 +471,19 @@ export class MockApiService extends ApiService {
   async getRegistryPackages<T extends T.GetPackageParams>(
     registryUrl: string,
     params: T,
-  ): Promise<RR.GetRegistryPackagesRes<T>> {
+  ): Promise<RR.GetRegistryMultiPackagesRes<T>> {
     await pauseFor(2000)
-    if (params.id) {
-      return Mock.RegistryPackages[params.id] as RR.GetRegistryPackagesRes<T>
-    } else {
-      return Mock.RegistryPackages as RR.GetRegistryPackagesRes<T>
-    }
+    return Mock.RegistryPackages as RR.GetRegistryMultiPackagesRes<T>
+  }
+
+  async getRegistryPackage<T extends T.GetPackageParams>(
+    registryUrl: string,
+    params: T,
+  ): Promise<RR.GetRegistrySinglePackageRes<T>> {
+    await pauseFor(2000)
+    return Mock.RegistryPackages[
+      params.id!
+    ] as RR.GetRegistrySinglePackageRes<T>
   }
 
   // notification

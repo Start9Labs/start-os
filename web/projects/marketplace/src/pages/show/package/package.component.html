@@ -1,8 +1,8 @@
 <div class="header montserrat">
   <img class="logo" alt="" [src]="pkg.icon | trustUrl" />
   <div class="text">
-    <h1 ticker class="title">{{ pkg.manifest.title }}</h1>
-    <p class="version">{{ pkg.manifest.version | displayEmver }}</p>
+    <h1 ticker class="title">{{ pkg.title }}</h1>
+    <p class="version">{{ pkg.version | displayEmver }}</p>
     <p class="published">Released: {{ pkg.publishedAt | date: 'medium' }}</p>
     <ng-content></ng-content>
   </div>

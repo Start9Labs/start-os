@@ -25,7 +25,15 @@ export class MarketplaceShowPage {
 
   readonly pkg$ = this.loadVersion$.pipe(
     switchMap(version =>
-      this.marketplaceService.getPackage$(this.pkgId, version, this.url),
+      this.marketplaceService.getPackage$(
+        {
+          id: this.pkgId,
+          version,
+          otherVersions: 'short',
+          sourceVersion: null,
+        },
+        this.url,
+      ),
     ),
   )
 

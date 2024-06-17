@@ -99,7 +99,7 @@ export class MenuComponent {
   ]).pipe(
     map(([marketplace, local]) =>
       Object.entries(marketplace).reduce((list, [_, store]) => {
-        store?.packages.forEach(({ manifest: { id, version } }) => {
+        store?.packages.forEach(({ id, version }) => {
           if (
             local[id] &&
             this.emver.compare(

@@ -4,7 +4,7 @@ import {
   Inject,
   Input,
 } from '@angular/core'
-import { MarketplacePkg } from '@start9labs/marketplace'
+import { MarketplacePkg, StandardStoreData } from '@start9labs/marketplace'
 import { DOCUMENT } from '@angular/common'
 import { DependentInfo } from 'src/app/types/dependent-info'
 
@@ -16,7 +16,7 @@ import { DependentInfo } from 'src/app/types/dependent-info'
 })
 export class MarketplaceShowDependentComponent {
   @Input()
-  pkg!: MarketplacePkg
+  pkg!: MarketplacePkg<StandardStoreData>
 
   readonly dependentInfo?: DependentInfo =
     this.document.defaultView?.history.state?.dependentInfo
@@ -24,10 +24,10 @@ export class MarketplaceShowDependentComponent {
   constructor(@Inject(DOCUMENT) private readonly document: Document) {}
 
   get title(): string {
-    return this.pkg.manifest.title
+    return this.pkg.title
   }
 
   get version(): string {
-    return this.pkg.manifest.version
+    return this.pkg.version
   }
 }

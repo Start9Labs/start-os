@@ -1,4 +1,4 @@
-import { Pipe, PipeTransform } from '@angular/core'
+import { Inject, Pipe, PipeTransform } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ModalController, NavController } from '@ionic/angular'
 import { MarkdownComponent } from '@start9labs/shared'
@@ -9,9 +9,10 @@ import {
 } from 'src/app/services/patch-db/data-model'
 import { ModalService } from 'src/app/services/modal.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { from, map, Observable } from 'rxjs'
+import { map, Observable } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
-import { T } from '@start9labs/start-sdk'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
+import { AbstractMarketplaceService } from '@start9labs/marketplace'
 
 export interface Button {
   title: string
@@ -32,6 +33,8 @@ export class ToButtonsPipe implements PipeTransform {
     private readonly modalCtrl: ModalController,
     private readonly modalService: ModalService,
     private readonly apiService: ApiService,
+    @Inject(AbstractMarketplaceService)
+    private readonly marketplaceService: MarketplaceService,
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
@@ -41,7 +44,7 @@ export class ToButtonsPipe implements PipeTransform {
     return [
       // instructions
       {
-        action: () => this.presentModalInstructions(manifest),
+        action: () => this.presentModalInstructions(pkg),
         title: 'Instructions',
         description: `Understand how to use ${manifest.title}`,
         icon: 'list-outline',
@@ -99,18 +102,24 @@ export class ToButtonsPipe implements PipeTransform {
     ]
   }
 
-  private async presentModalInstructions(manifest: T.Manifest) {
+  private async presentModalInstructions(
+    pkg: PackageDataEntry<InstalledState>,
+  ) {
     this.apiService
-      .setDbValue<boolean>(['ack-instructions', manifest.id], true)
+      .setDbValue<boolean>(
+        ['ack-instructions', pkg.stateInfo.manifest.id],
+        true,
+      )
       .catch(e => console.error('Failed to mark instructions as seen', e))
 
     const modal = await this.modalCtrl.create({
       componentProps: {
         title: 'Instructions',
-        content: from(
-          this.apiService.getStatic(
-            `/public/package-data/${manifest.id}/${manifest.version}/INSTRUCTIONS.md`,
-          ),
+        content: this.marketplaceService.fetchStatic$(
+          pkg.stateInfo.manifest.id,
+          'instructions',
+          pkg.stateInfo.manifest.version,
+          pkg.registry,
         ),
       },
       component: MarkdownComponent,

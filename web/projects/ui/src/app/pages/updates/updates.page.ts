@@ -11,6 +11,7 @@ import {
   AbstractMarketplaceService,
   Marketplace,
   MarketplacePkg,
+  StandardStoreData,
   StoreIdentity,
 } from '@start9labs/marketplace'
 import { Emver, isEmptyObject } from '@start9labs/shared'
@@ -28,7 +29,7 @@ import { T } from '@start9labs/start-sdk'
 
 interface UpdatesData {
   hosts: StoreIdentity[]
-  marketplace: Marketplace
+  marketplace: Marketplace<StandardStoreData>
   localPkgs: Record<string, PackageDataEntry<InstalledState | UpdatingState>>
   errors: string[]
 }
@@ -70,27 +71,34 @@ export class UpdatesPage {
     })
   }
 
-  async tryUpdate(manifest: T.Manifest, url: string, e: Event): Promise<void> {
+  async tryUpdate(
+    pkg: MarketplacePkg<StandardStoreData>,
+    url: string,
+    e: Event,
+  ): Promise<void> {
     e.stopPropagation()
 
-    const { id, version } = manifest
+    const { id, version } = pkg
 
     delete this.marketplaceService.updateErrors[id]
     this.marketplaceService.updateQueue[id] = true
 
-    // manifest.id OK because same as local id for update
-    if (hasCurrentDeps(manifest.id, await getAllPackages(this.patch))) {
-      this.dryInstall(manifest, url)
+    // id OK because same as local id for update
+    if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
+      this.dryInstall(pkg, url)
     } else {
       this.install(id, version, url)
     }
   }
 
-  private async dryInstall(manifest: T.Manifest, url: string) {
-    const { id, version, title } = manifest
+  private async dryInstall(
+    pkg: MarketplacePkg<StandardStoreData>,
+    url: string,
+  ) {
+    const { id, version, title } = pkg
 
     const breakages = dryUpdate(
-      manifest,
+      pkg,
       await getAllPackages(this.patch),
       this.emver,
     )
@@ -162,15 +170,16 @@ export class FilterUpdatesPipe implements PipeTransform {
   constructor(private readonly emver: Emver) {}
 
   transform(
-    pkgs: MarketplacePkg[],
+    pkgs: MarketplacePkg<StandardStoreData>[],
     local: Record<string, PackageDataEntry<InstalledState | UpdatingState>>,
-  ): MarketplacePkg[] {
-    return pkgs.filter(({ manifest }) => {
-      const localPkg = local[manifest.id]
+  ): MarketplacePkg<StandardStoreData>[] {
+    return pkgs.filter(({ id, version }) => {
+      const localPkg = local[id]
       return (
         localPkg &&
         this.emver.compare(
-          manifest.version,
+          version,
+          // TODO need version on PackageDataEntry
           localPkg.stateInfo.manifest.version,
         ) === 1
       )

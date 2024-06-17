@@ -1,12 +1,12 @@
-<ion-item class="service-card" [routerLink]="['/marketplace', pkg.manifest.id]">
+<ion-item class="service-card" [routerLink]="['/marketplace', pkg.id]">
   <ion-thumbnail slot="start">
     <img alt="" [src]="pkg.icon | trustUrl" />
   </ion-thumbnail>
   <ion-label>
     <h2 class="montserrat">
-      <strong>{{ pkg.manifest.title }}</strong>
+      <strong>{{ pkg.title }}</strong>
     </h2>
-    <h3>{{ pkg.manifest.description.short }}</h3>
+    <h3>{{ pkg.description.short }}</h3>
     <ng-content></ng-content>
   </ion-label>
 </ion-item>

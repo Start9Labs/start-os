@@ -20,12 +20,15 @@ export class MarketplaceListPage {
 
   readonly store$ = this.marketplaceService.getSelectedStore$().pipe(
     map(({ info, packages }) => {
-      const categories = new Set<string>()
-      if (info.categories.includes('featured')) categories.add('featured')
-      info.categories.forEach(c => categories.add(c))
-      categories.add('all')
+      info.categories['all'] = {
+        name: 'All',
+        description: {
+          short: 'All registry packages',
+          long: 'An unfiltered list of all packages available on this registry.',
+        },
+      }
 
-      return { categories: Array.from(categories), packages }
+      return { categories: info.categories, packages }
     }),
   )
 

@@ -5,6 +5,7 @@ import {
   Input,
   Output,
 } from '@angular/core'
+import { T } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'marketplace-categories',
@@ -17,7 +18,7 @@ import {
 })
 export class CategoriesComponent {
   @Input()
-  categories: readonly string[] = []
+  categories!: { [key: string]: T.Category }
 
   @Input()
   category = ''
