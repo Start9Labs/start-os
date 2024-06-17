@@ -209,7 +209,9 @@ impl S9pk<Section<MultiCursorFile>> {
                 .invoke(ErrorKind::Filesystem)
                 .await?;
             archive.insert_path(
-                Path::new("assets").join(&asset_id),
+                Path::new("assets")
+                    .join(&asset_id)
+                    .with_extension("squashfs"),
                 Entry::file(PackSource::File(sqfs_path)),
             )?;
         }
