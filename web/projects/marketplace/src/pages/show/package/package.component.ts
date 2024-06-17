@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { MarketplacePkg, StandardStoreData } from '../../../types'
+import { MarketplacePkg } from '../../../types'
 
 @Component({
   selector: 'marketplace-package',
@@ -9,5 +9,5 @@ import { MarketplacePkg, StandardStoreData } from '../../../types'
 })
 export class PackageComponent {
   @Input()
-  pkg!: MarketplacePkg<StandardStoreData>
+  pkg!: MarketplacePkg
 }

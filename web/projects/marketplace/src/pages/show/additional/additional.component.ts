@@ -16,7 +16,7 @@ import {
   Emver,
   MarkdownComponent,
 } from '@start9labs/shared'
-import { MarketplacePkg, StandardStoreData } from '../../../types'
+import { MarketplacePkg } from '../../../types'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
 import { ActivatedRoute } from '@angular/router'
 
@@ -27,7 +27,7 @@ import { ActivatedRoute } from '@angular/router'
 })
 export class AdditionalComponent {
   @Input()
-  pkg!: MarketplacePkg<StandardStoreData>
+  pkg!: MarketplacePkg
 
   @Output()
   version = new EventEmitter<string>()

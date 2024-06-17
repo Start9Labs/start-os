@@ -1,5 +1,5 @@
 import { NgModule, Pipe, PipeTransform } from '@angular/core'
-import { MarketplacePkg, StandardStoreData } from '../types'
+import { MarketplacePkg } from '../types'
 import Fuse from 'fuse.js'
 
 @Pipe({
@@ -7,13 +7,13 @@ import Fuse from 'fuse.js'
 })
 export class FilterPackagesPipe implements PipeTransform {
   transform(
-    packages: MarketplacePkg<StandardStoreData>[],
+    packages: MarketplacePkg[],
     query: string,
     category: string,
-  ): MarketplacePkg<StandardStoreData>[] {
+  ): MarketplacePkg[] {
     // query
     if (query) {
-      let options: Fuse.IFuseOptions<MarketplacePkg<StandardStoreData>> = {
+      let options: Fuse.IFuseOptions<MarketplacePkg> = {
         includeScore: true,
         includeMatches: true,
       }

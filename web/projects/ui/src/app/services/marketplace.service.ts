@@ -6,7 +6,6 @@ import {
   StoreIdentity,
   MarketplacePkg,
   MarketplaceSinglePkg,
-  StandardStoreData,
 } from '@start9labs/marketplace'
 import {
   BehaviorSubject,
@@ -98,21 +97,21 @@ export class MarketplaceService implements AbstractMarketplaceService {
         version: null,
         sourceVersion: null,
         otherVersions: 'short',
-      } as StandardStoreData).pipe(
+      }).pipe(
         tap(data => {
           if (data?.info.name) this.updateStoreName(url, name, data.info.name)
         }),
         map<
-          StoreData<StandardStoreData> | null,
-          [string, StoreData<StandardStoreData> | null]
+          StoreData<T.GetPackageParams> | null,
+          [string, StoreData<T.GetPackageParams> | null]
         >(data => {
           return [url, data]
         }),
-        startWith<[string, StoreData<StandardStoreData> | null]>([url, null]),
+        startWith<[string, StoreData<T.GetPackageParams> | null]>([url, null]),
       ),
     ),
     scan<
-      [string, StoreData<StandardStoreData> | null],
+      [string, StoreData<T.GetPackageParams> | null],
       Record<string, StoreData<T.GetPackageParams> | null>
     >((requests, [url, store]) => {
       requests[url] = store

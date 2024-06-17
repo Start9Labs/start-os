@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { MarketplacePkg, StandardStoreData } from '../../../types'
+import { MarketplacePkg } from '../../../types'
 
 @Component({
   selector: 'marketplace-dependencies',
@@ -8,7 +8,7 @@ import { MarketplacePkg, StandardStoreData } from '../../../types'
 })
 export class DependenciesComponent {
   @Input()
-  pkg!: MarketplacePkg<StandardStoreData>
+  pkg!: MarketplacePkg
 
   getImg(key: string): string {
     return this.pkg.dependencyMetadata[key].icon

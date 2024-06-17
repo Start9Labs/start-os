@@ -11,7 +11,6 @@ import {
   AbstractMarketplaceService,
   Marketplace,
   MarketplacePkg,
-  StandardStoreData,
   StoreIdentity,
 } from '@start9labs/marketplace'
 import { Emver, isEmptyObject } from '@start9labs/shared'
@@ -29,7 +28,7 @@ import { T } from '@start9labs/start-sdk'
 
 interface UpdatesData {
   hosts: StoreIdentity[]
-  marketplace: Marketplace<StandardStoreData>
+  marketplace: Marketplace
   localPkgs: Record<string, PackageDataEntry<InstalledState | UpdatingState>>
   errors: string[]
 }
@@ -71,11 +70,7 @@ export class UpdatesPage {
     })
   }
 
-  async tryUpdate(
-    pkg: MarketplacePkg<StandardStoreData>,
-    url: string,
-    e: Event,
-  ): Promise<void> {
+  async tryUpdate(pkg: MarketplacePkg, url: string, e: Event): Promise<void> {
     e.stopPropagation()
 
     const { id, version } = pkg
@@ -91,10 +86,7 @@ export class UpdatesPage {
     }
   }
 
-  private async dryInstall(
-    pkg: MarketplacePkg<StandardStoreData>,
-    url: string,
-  ) {
+  private async dryInstall(pkg: MarketplacePkg, url: string) {
     const { id, version, title } = pkg
 
     const breakages = dryUpdate(
@@ -170,9 +162,9 @@ export class FilterUpdatesPipe implements PipeTransform {
   constructor(private readonly emver: Emver) {}
 
   transform(
-    pkgs: MarketplacePkg<StandardStoreData>[],
+    pkgs: MarketplacePkg[],
     local: Record<string, PackageDataEntry<InstalledState | UpdatingState>>,
-  ): MarketplacePkg<StandardStoreData>[] {
+  ): MarketplacePkg[] {
     return pkgs.filter(({ id, version }) => {
       const localPkg = local[id]
       return (

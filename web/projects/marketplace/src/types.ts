@@ -8,10 +8,9 @@ export interface StoreIdentity {
   url: StoreURL
   name?: StoreName
 }
-export type Marketplace<T extends T.GetPackageParams> = Record<
-  StoreURL,
-  StoreData<T> | null
->
+export type Marketplace<
+  T extends T.GetPackageParams = DefaultGetPackageParams,
+> = Record<StoreURL, StoreData<T> | null>
 
 export interface StoreData<T extends T.GetPackageParams> {
   info: T.RegistryInfo
@@ -19,7 +18,7 @@ export interface StoreData<T extends T.GetPackageParams> {
 }
 
 // TODO decide if otherVersions should be short or full
-export interface StandardStoreData {
+export interface DefaultGetPackageParams extends T.GetPackageParams {
   id: null
   version: null
   sourceVersion: null
@@ -29,9 +28,9 @@ export interface StandardStoreData {
 export type StoreIdentityWithData<T extends T.GetPackageParams> = StoreData<T> &
   StoreIdentity
 
-export type MarketplacePkg<T extends T.GetPackageParams> =
-  | MarketplaceMultiPkg<T>
-  | MarketplaceSinglePkg<T>
+export type MarketplacePkg<
+  T extends T.GetPackageParams = DefaultGetPackageParams,
+> = MarketplaceMultiPkg<T> | MarketplaceSinglePkg<T>
 
 export type MarketplaceMultiPkg<T extends T.GetPackageParams> = T extends {
   id: null

@@ -8,7 +8,6 @@ import { AlertController, LoadingController } from '@ionic/angular'
 import {
   AbstractMarketplaceService,
   MarketplacePkg,
-  StandardStoreData,
 } from '@start9labs/marketplace'
 import {
   Emver,
@@ -39,7 +38,7 @@ export class MarketplaceShowControlsComponent {
   url?: string
 
   @Input()
-  pkg!: MarketplacePkg<StandardStoreData>
+  pkg!: MarketplacePkg
 
   @Input()
   localPkg!: PackageDataEntry | null

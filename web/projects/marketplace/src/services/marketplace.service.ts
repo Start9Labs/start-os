@@ -1,5 +1,11 @@
 import { Observable } from 'rxjs'
-import { MarketplacePkg, Marketplace, StoreData, StoreIdentity } from '../types'
+import {
+  MarketplacePkg,
+  Marketplace,
+  StoreData,
+  StoreIdentity,
+  DefaultGetPackageParams,
+} from '../types'
 import { T } from '@start9labs/start-sdk'
 
 export abstract class AbstractMarketplaceService {
@@ -8,7 +14,7 @@ export abstract class AbstractMarketplaceService {
   abstract getSelectedHost$(): Observable<StoreIdentity>
 
   abstract getMarketplace$<T extends T.GetPackageParams>(): Observable<
-    Marketplace<T>
+    Marketplace<DefaultGetPackageParams>
   >
 
   abstract getSelectedStore$<T extends T.GetPackageParams>(): Observable<
