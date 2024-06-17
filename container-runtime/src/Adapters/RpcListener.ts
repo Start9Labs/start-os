@@ -247,7 +247,7 @@ export class RpcListener {
           })),
       )
       .when(exitType, async ({ id }) => {
-        if (this._system) await this._system.exit(this.effects)
+        if (this._system) await this._system.exit(this.effects(null))
         delete this._system
         delete this._effects
 
