@@ -455,18 +455,16 @@ impl ServiceActorSeed {
     /// Used to indicate that we have finished the task of starting the service
     pub fn started(&self) {
         self.persistent_container.state.send_modify(|state| {
-            if state.running_status.is_none() {
-                state.running_status =
-                    Some(
-                        state
-                            .running_status
-                            .take()
-                            .unwrap_or_else(|| RunningStatus {
-                                health: Default::default(),
-                                started: Utc::now(),
-                            }),
-                    );
-            }
+            state.running_status =
+                Some(
+                    state
+                        .running_status
+                        .take()
+                        .unwrap_or_else(|| RunningStatus {
+                            health: Default::default(),
+                            started: Utc::now(),
+                        }),
+                );
         });
     }
     /// Used to indicate that we have finished the task of stopping the service
@@ -525,6 +523,30 @@ impl Actor for ServiceActor {
                         .mutate(|d| {
                             if let Some(i) = d.as_public_mut().as_package_data_mut().as_idx_mut(&id)
                             {
+                                let previous = i.as_status().as_main().de()?;
+                                let previous_health = previous.health();
+                                let previous_started = previous.started();
+                                let mut main_status = main_status;
+                                match &mut main_status {
+                                    &mut MainStatus::Running { ref mut health, .. }
+                                    | &mut MainStatus::BackingUp { ref mut health, .. } => {
+                                        *health = previous_health.unwrap_or(health).clone();
+                                    }
+                                    _ => (),
+                                };
+                                match &mut main_status {
+                                    MainStatus::Running {
+                                        ref mut started, ..
+                                    } => {
+                                        *started = previous_started.unwrap_or(*started);
+                                    }
+                                    MainStatus::BackingUp {
+                                        ref mut started, ..
+                                    } => {
+                                        *started = previous_started.map(Some).unwrap_or(*started);
+                                    }
+                                    _ => (),
+                                };
                                 i.as_status_mut().as_main_mut().ser(&main_status)?;
                             }
                             Ok(())

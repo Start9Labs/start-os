@@ -120,7 +120,6 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
       Id,
     options: DaemonsParams<Manifest, Ids, Command, Id>,
   ) {
-    console.log("BLUJ Daemons.addDaemon", id)
     const daemonIndex = this.daemons.length
     const daemon = Daemon.of()(this.effects, options.image, options.command, {
       ...options,
@@ -151,7 +150,6 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
   }
 
   async build() {
-    console.log("BLUJ Daemons.build")
     this.updateMainHealth()
     this.healthDaemons.forEach((x) =>
       x.addWatcher(() => this.updateMainHealth()),
@@ -170,7 +168,6 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
   }
 
   private updateMainHealth() {
-    console.log("BLUJ Daemons.updateMainHealth")
     if (this.healthDaemons.every((x) => x.health.status === "success")) {
       this.effects.setMainStatus({ status: "running" })
     } else {

@@ -125,7 +125,6 @@ export class SystemForStartOs implements System {
       case "/main/start": {
         if (this.onTerm) await this.onTerm()
         const started = async (onTerm: () => Promise<void>) => {
-          console.log("BLUJ: Should be setMainStatus(running)")
           await effects.setMainStatus({ status: "running" })
           this.onTerm = onTerm
         }

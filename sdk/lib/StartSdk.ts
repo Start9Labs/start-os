@@ -756,7 +756,6 @@ export async function runCommand<Manifest extends SDKManifest>(
   const overlay = await Overlay.of(effects, image)
   try {
     for (let mount of options.mounts || []) {
-      console.log("BLUJ StartSDK.runCommand", mount)
       await overlay.mount(mount.options, mount.path)
     }
     return await overlay.exec(commands)

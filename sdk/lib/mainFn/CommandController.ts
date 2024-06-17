@@ -33,11 +33,9 @@ export class CommandController {
         onStderr?: (x: Buffer) => void
       },
     ) => {
-      console.log("BLUJ CommandController.of", { imageId, command })
       const commands = splitCommand(command)
       const overlay = options.overlay || (await Overlay.of(effects, imageId))
       for (let mount of options.mounts || []) {
-        console.log("BLUJ CommandController.of -> mount", mount)
         await overlay.mount(mount.options, mount.path)
       }
       const childProcess = await overlay.spawn(commands, {
@@ -48,7 +46,6 @@ export class CommandController {
           "data",
           options.onStdout ??
             ((data: any) => {
-              console.log("BLUJ CommandController.cp_stdout.data", { data })
               console.log(data.toString())
             }),
         )
@@ -56,13 +53,11 @@ export class CommandController {
           "data",
           options.onStderr ??
             ((data: any) => {
-              console.log("BLUJ CommandController.cp_stderr.data", { data })
               console.error(data.toString())
             }),
         )
 
         childProcess.on("exit", (code: any) => {
-          console.log("BLUJ CommandController.cp_exit", { code })
           if (code === 0) {
             return resolve(null)
           }
@@ -76,7 +71,6 @@ export class CommandController {
     }
   }
   async wait() {
-    console.log("BLUJ CommandController.wait")
     try {
       return await this.runningAnswer
     } finally {
@@ -89,7 +83,6 @@ export class CommandController {
     }
   }
   async term({ signal = SIGTERM, timeout = NO_TIMEOUT } = {}) {
-    console.log("BLUJ CommandController.term")
     if (this.pid === undefined) return
     try {
       await cpExecFile("pkill", [

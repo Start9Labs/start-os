@@ -36,7 +36,6 @@ export class Daemon {
         onStderr?: (x: Buffer) => void
       },
     ) => {
-      console.log("BLUJ Daemon.of", { imageId, command })
       const startCommand = () =>
         CommandController.of<Manifest>()(effects, imageId, command, options)
       return new Daemon(startCommand)
@@ -44,7 +43,6 @@ export class Daemon {
   }
 
   async start() {
-    console.log("BLUJ Daemon.start")
     if (this.commandController) {
       return
     }
@@ -66,14 +64,12 @@ export class Daemon {
     signal?: NodeJS.Signals | undefined
     timeout?: number | undefined
   }) {
-    console.log("BLUJ Daemon.term", termOptions)
     return this.stop(termOptions)
   }
   async stop(termOptions?: {
     signal?: NodeJS.Signals | undefined
     timeout?: number | undefined
   }) {
-    console.log("BLUJ Daemon.stop", termOptions)
     this.shouldBeRunning = false
     await this.commandController
       ?.term(termOptions)

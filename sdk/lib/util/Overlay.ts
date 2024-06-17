@@ -49,7 +49,6 @@ export class Overlay {
         : "/"
       const from = `/media/startos/volumes/${options.id}${subpath}`
 
-      console.log("BLUJ Overlay.mount__volume", { from, path })
       await fs.mkdir(from, { recursive: true })
       await fs.mkdir(path, { recursive: true })
       await await execFile("mount", ["--bind", from, path])
@@ -60,7 +59,7 @@ export class Overlay {
           : `/${options.subpath}`
         : "/"
       const from = `/media/startos/assets/${options.id}${subpath}`
-      console.log("BLUJ Overlay.mount__assets", { from, path })
+
       await fs.mkdir(from, { recursive: true })
       await fs.mkdir(path, { recursive: true })
       await execFile("mount", ["--bind", from, path])
@@ -73,7 +72,7 @@ export class Overlay {
           : `/${options.subpath}`
         : "/"
       const from = `/media/startos/backup${subpath}`
-      console.log("BLUJ Overlay.mount__backup", { from, path })
+
       await fs.mkdir(from, { recursive: true })
       await fs.mkdir(path, { recursive: true })
       await execFile("mount", ["--bind", from, path])
