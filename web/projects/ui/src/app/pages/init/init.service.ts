@@ -1,5 +1,4 @@
 import { inject, Injectable } from '@angular/core'
-import { Router } from '@angular/router'
 import { ErrorToastService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import {
@@ -14,6 +13,7 @@ import {
   tap,
 } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { StateService } from 'src/app/services/state.service'
 
 interface MappedProgress {
   readonly total: number | null
@@ -22,7 +22,7 @@ interface MappedProgress {
 
 @Injectable({ providedIn: 'root' })
 export class InitService extends Observable<MappedProgress> {
-  private readonly router = inject(Router)
+  private readonly state = inject(StateService)
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorToastService)
   private readonly progress$ = defer(() =>
@@ -48,12 +48,14 @@ export class InitService extends Observable<MappedProgress> {
               }
             } => p.progress !== true && p.progress !== null,
           )
-          .map(p => `${p.name}${getPhaseBytes(p.progress)}`)
-          .join(','),
+          .map(p => `<b>${p.name}</b>${getPhaseBytes(p.progress)}`)
+          .join(', '),
       }
     }),
     tap(({ total }) => {
-      if (total === 1) this.router.navigate([''])
+      if (total === 1) {
+        this.state.syncState()
+      }
     }),
     catchError(e => {
       this.errorService.present(e)

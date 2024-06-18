@@ -10,6 +10,7 @@ import { AuthService } from './services/auth.service'
 import { ClientStorageService } from './services/client-storage.service'
 import { FilterPackagesPipe } from '../../../marketplace/src/pipes/filter-packages.pipe'
 import { ThemeSwitcherService } from './services/theme-switcher.service'
+import { StorageService } from './services/storage.service'
 
 const {
   useMocks,
@@ -30,7 +31,7 @@ export const APP_PROVIDERS: Provider[] = [
   },
   {
     provide: APP_INITIALIZER,
-    deps: [AuthService, ClientStorageService, Router],
+    deps: [StorageService, AuthService, ClientStorageService, Router],
     useFactory: appInitializer,
     multi: true,
   },
@@ -45,13 +46,15 @@ export const APP_PROVIDERS: Provider[] = [
 ]
 
 export function appInitializer(
+  storage: StorageService,
   auth: AuthService,
   localStorage: ClientStorageService,
   router: Router,
 ): () => void {
   return () => {
+    storage.migrate036()
     auth.init()
-    localStorage.init()
+    localStorage.init() // @TODO pretty sure we can navigate before this step
     router.initialNavigation()
   }
 }

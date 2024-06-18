@@ -12,6 +12,7 @@ import {
   Observable,
   retry,
   startWith,
+  Subject,
 } from 'rxjs'
 import {
   filter,
@@ -41,30 +42,35 @@ export class StateService extends Observable<RR.ServerState | null> {
   private readonly api = inject(ApiService)
   private readonly router = inject(Router)
   private readonly network$ = inject(NetworkService)
+
+  private readonly single$ = new Subject<RR.ServerState>()
+
   private readonly trigger$ = new BehaviorSubject<void>(undefined)
-  private readonly stream$ = this.trigger$.pipe(
-    switchMap(() =>
-      from(this.api.getState()).pipe(retry({ delay: 2000 }), startWith(null)),
-    ),
+  private readonly poll$ = this.trigger$.pipe(
+    switchMap(() => from(this.api.getState()).pipe(retry({ delay: 2000 }))),
+  )
+
+  private readonly stream$ = merge(this.single$, this.poll$).pipe(
     tap(state => {
       switch (state) {
         case 'initializing':
-          this.router.navigate(['initializing'])
+          this.router.navigate(['initializing'], { replaceUrl: true })
           break
         case 'error':
-          this.router.navigate(['diagnostic'])
+          this.router.navigate(['diagnostic'], { replaceUrl: true })
           break
         case 'running':
           if (
             this.router.isActive('initializing', OPTIONS) ||
             this.router.isActive('diagnostic', OPTIONS)
           ) {
-            this.router.navigate([''])
+            this.router.navigate([''], { replaceUrl: true })
           }
 
           break
       }
     }),
+    startWith(null),
     shareReplay(1),
   )
 
@@ -103,6 +109,11 @@ export class StateService extends Observable<RR.ServerState | null> {
 
   retrigger() {
     this.trigger$.next()
+  }
+
+  async syncState() {
+    const state = await this.api.getState()
+    this.single$.next(state)
   }
 }
 

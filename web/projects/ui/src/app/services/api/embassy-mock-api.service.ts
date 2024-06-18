@@ -120,9 +120,13 @@ export class MockApiService extends ApiService {
 
   // server state
 
+  private stateIndex = 0
   async getState(): Promise<RR.ServerState> {
     await pauseFor(1000)
-    return 'running'
+
+    this.stateIndex++
+
+    return this.stateIndex === 1 ? 'initializing' : 'running'
   }
 
   // db
