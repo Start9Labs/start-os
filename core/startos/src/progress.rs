@@ -1,8 +1,9 @@
 use std::panic::UnwindSafe;
 use std::time::Duration;
 
+use futures::future::pending;
 use futures::stream::BoxStream;
-use futures::{Future, FutureExt, StreamExt};
+use futures::{Future, FutureExt, StreamExt, TryFutureExt};
 use helpers::NonDetachingJoinHandle;
 use imbl_value::{InOMap, InternedString};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
@@ -218,7 +219,7 @@ impl FullProgressTracker {
                   }| async move {
                 let changed = phases
                     .iter_mut()
-                    .map(|(_, p)| async move { p.changed().await }.boxed())
+                    .map(|(_, p)| async move { p.changed().or_else(|_| pending()).await }.boxed())
                     .chain([overall.changed().boxed()])
                     .chain([phases_recv.changed().boxed()])
                     .map(|fut| fut.map(|r| r.unwrap_or_default()))
@@ -232,7 +233,11 @@ impl FullProgressTracker {
                     futures::future::select_all(changed).await;
                 }
 
-                phases = phases_recv.borrow_and_update().clone();
+                for (name, phase) in &*phases_recv.borrow_and_update() {
+                    if !phases.contains_key(name) {
+                        phases.insert(name.clone(), phase.clone());
+                    }
+                }
 
                 let o = *overall.borrow_and_update();
 
