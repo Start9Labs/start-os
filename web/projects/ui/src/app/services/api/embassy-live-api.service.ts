@@ -24,7 +24,8 @@ export class LiveApiService extends ApiService {
     @Inject(DOCUMENT) private readonly document: Document,
     private readonly http: HttpService,
     private readonly config: ConfigService,
-    private readonly auth: AuthService, // private readonly patch: PatchDB<DataModel>,
+    private readonly auth: AuthService,
+    private readonly patch: PatchDB<DataModel>,
   ) {
     super()
     ; (window as any).rpcClient = this
@@ -478,11 +479,11 @@ export class LiveApiService extends ApiService {
       throw new RpcError(body.error)
     }
 
-    // const patchSequence = res.headers.get('x-patch-sequence')
-    // if (patchSequence)
-    //   await firstValueFrom(
-    //     this.patch.cache$.pipe(filter(({ id }) => id >= Number(patchSequence))),
-    //   )
+    const patchSequence = res.headers.get('x-patch-sequence')
+    if (patchSequence)
+      await firstValueFrom(
+        this.patch.cache$.pipe(filter(({ id }) => id >= Number(patchSequence))),
+      )
 
     return body.result
   }
