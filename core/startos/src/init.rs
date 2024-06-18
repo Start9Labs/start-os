@@ -1,12 +1,13 @@
 use std::fs::Permissions;
 use std::io::Cursor;
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::time::{Duration, SystemTime};
 
 use axum::extract::ws;
 use color_eyre::eyre::eyre;
-use futures::TryStreamExt;
+use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
 use models::ResultExt;
 use rand::random;
@@ -23,6 +24,7 @@ use crate::db::model::public::ServerStatus;
 use crate::db::model::Database;
 use crate::disk::mount::util::unmount;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
+use crate::net::net_controller::PreInitNetController;
 use crate::prelude::*;
 use crate::progress::{
     FullProgress, FullProgressTracker, PhaseProgressTrackerHandle, PhasedProgressBar,
@@ -192,7 +194,7 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
 }
 
 pub struct InitResult {
-    pub db: TypedPatchDb<Database>,
+    pub net_ctrl: PreInitNetController,
 }
 
 pub struct InitPhases {
@@ -200,6 +202,7 @@ pub struct InitPhases {
     local_auth: PhaseProgressTrackerHandle,
     load_database: PhaseProgressTrackerHandle,
     load_ssh_keys: PhaseProgressTrackerHandle,
+    start_net: PhaseProgressTrackerHandle,
     mount_logs: PhaseProgressTrackerHandle,
     load_ca_cert: PhaseProgressTrackerHandle,
     load_wifi: PhaseProgressTrackerHandle,
@@ -224,6 +227,7 @@ impl InitPhases {
             local_auth: handle.add_phase("Enabling local authentication".into(), Some(1)),
             load_database: handle.add_phase("Loading database".into(), Some(5)),
             load_ssh_keys: handle.add_phase("Loading SSH Keys".into(), Some(1)),
+            start_net: handle.add_phase("Starting network controller".into(), Some(1)),
             mount_logs: handle.add_phase("Switching logs to write to data drive".into(), Some(1)),
             load_ca_cert: handle.add_phase("Loading CA certificate".into(), Some(1)),
             load_wifi: handle.add_phase("Loading WiFi configuration".into(), Some(1)),
@@ -275,6 +279,7 @@ pub async fn init(
         mut local_auth,
         mut load_database,
         mut load_ssh_keys,
+        mut start_net,
         mut mount_logs,
         mut load_ca_cert,
         mut load_wifi,
@@ -333,6 +338,23 @@ pub async fn init(
     load_ssh_keys.complete();
     tracing::info!("Synced SSH Keys");
 
+    let account = AccountInfo::load(&peek)?;
+
+    start_net.start();
+    let net_ctrl = PreInitNetController::init(
+        db.clone(),
+        cfg.tor_control
+            .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
+        cfg.tor_socks.unwrap_or(SocketAddr::V4(SocketAddrV4::new(
+            Ipv4Addr::new(127, 0, 0, 1),
+            9050,
+        ))),
+        &account.hostname,
+        account.tor_key,
+    )
+    .await?;
+    start_net.complete();
+
     mount_logs.start();
     let log_dir = cfg.datadir().join("main/logs");
     if tokio::fs::metadata(&log_dir).await.is_err() {
@@ -364,8 +386,6 @@ pub async fn init(
         .await?;
     mount_logs.complete();
     tracing::info!("Mounted Logs");
-
-    let account = AccountInfo::load(&peek)?;
 
     let mut server_info = peek.as_public().as_server_info().de()?;
 
@@ -501,7 +521,7 @@ pub async fn init(
 
     tracing::info!("System initialized.");
 
-    Ok(InitResult { db })
+    Ok(InitResult { net_ctrl })
 }
 
 pub fn init_api<C: Context>() -> ParentHandler<C> {
@@ -529,7 +549,7 @@ pub struct InitProgressRes {
 }
 
 pub async fn init_progress(ctx: InitContext) -> Result<InitProgressRes, Error> {
-    let mut progress_tracker = ctx.progress.clone();
+    let progress_tracker = ctx.progress.clone();
     let progress = progress_tracker.snapshot();
     let guid = Guid::new();
     ctx.rpc_continuations
@@ -538,26 +558,18 @@ pub async fn init_progress(ctx: InitContext) -> Result<InitProgressRes, Error> {
             RpcContinuation::ws(
                 |mut ws| async move {
                     if let Err(e) = async {
-                        let mut progress = progress_tracker.snapshot();
-                        while !progress.overall.is_complete() {
+                        let mut stream = progress_tracker.stream(Some(Duration::from_millis(100)));
+                        while let Some(progress) = stream.next().await {
                             ws.send(ws::Message::Text(
                                 serde_json::to_string(&progress)
                                     .with_kind(ErrorKind::Serialization)?,
                             ))
                             .await
                             .with_kind(ErrorKind::Network)?;
-                            tokio::join!(
-                                progress_tracker.changed(),
-                                tokio::time::sleep(Duration::from_millis(100)),
-                            );
-                            progress = progress_tracker.snapshot();
+                            if progress.overall.is_complete() {
+                                break;
+                            }
                         }
-
-                        ws.send(ws::Message::Text(
-                            serde_json::to_string(&progress).with_kind(ErrorKind::Serialization)?,
-                        ))
-                        .await
-                        .with_kind(ErrorKind::Network)?;
 
                         Ok::<_, Error>(())
                     }

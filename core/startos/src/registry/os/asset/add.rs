@@ -194,22 +194,8 @@ pub async fn cli_add_asset(
         Some(1),
     );
 
-    let progress_task: NonDetachingJoinHandle<()> = tokio::spawn({
-        let progress = progress.clone();
-        async move {
-            let mut bar =
-                PhasedProgressBar::new(&format!("Adding {} to registry...", path.display()));
-            loop {
-                let snap = progress.snapshot();
-                bar.update(&snap);
-                if snap.overall.is_complete() {
-                    break;
-                }
-                progress.changed().await
-            }
-        }
-    })
-    .into();
+    let progress_task =
+        progress.progress_bar_task(&format!("Adding {} to registry...", path.display()));
 
     sign_phase.start();
     let blake3 = file.blake3_mmap().await?;

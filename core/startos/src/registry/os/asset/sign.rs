@@ -3,7 +3,6 @@ use std::panic::UnwindSafe;
 use std::path::PathBuf;
 
 use clap::Parser;
-use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
@@ -12,7 +11,7 @@ use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::prelude::*;
-use crate::progress::{FullProgressTracker, PhasedProgressBar};
+use crate::progress::FullProgressTracker;
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
 use crate::registry::os::index::OsVersionInfo;
@@ -176,22 +175,8 @@ pub async fn cli_sign_asset(
         Some(1),
     );
 
-    let progress_task: NonDetachingJoinHandle<()> = tokio::spawn({
-        let progress = progress.clone();
-        async move {
-            let mut bar =
-                PhasedProgressBar::new(&format!("Adding {} to registry...", path.display()));
-            loop {
-                let snap = progress.snapshot();
-                bar.update(&snap);
-                if snap.overall.is_complete() {
-                    break;
-                }
-                progress.changed().await
-            }
-        }
-    })
-    .into();
+    let progress_task =
+        progress.progress_bar_task(&format!("Adding {} to registry...", path.display()));
 
     sign_phase.start();
     let blake3 = file.blake3_mmap().await?;

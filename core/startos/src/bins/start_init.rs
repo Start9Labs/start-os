@@ -1,5 +1,3 @@
-use std::io::Cursor;
-use std::path::Path;
 use std::sync::Arc;
 
 use tokio::process::Command;
@@ -12,12 +10,11 @@ use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::REPAIR_DISK_PATH;
 use crate::firmware::{check_for_firmware_update, update_firmware};
-use crate::init::{InitPhases, STANDBY_MODE_PATH};
+use crate::init::{InitPhases, InitResult, STANDBY_MODE_PATH};
 use crate::net::web_server::WebServer;
 use crate::prelude::*;
-use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle};
+use crate::progress::FullProgressTracker;
 use crate::shutdown::Shutdown;
-use crate::util::io::IOHook;
 use crate::util::Invoke;
 use crate::PLATFORM;
 
@@ -187,9 +184,9 @@ async fn setup_or_init(
             }));
         }
 
-        crate::init::init(config, init_phases).await?;
+        let InitResult { net_ctrl } = crate::init::init(config, init_phases).await?;
 
-        let rpc_ctx = RpcContext::init(config, disk_guid, rpc_ctx_phases).await?;
+        let rpc_ctx = RpcContext::init(config, disk_guid, Some(net_ctrl), rpc_ctx_phases).await?;
 
         Ok(Ok((rpc_ctx, handle)))
     }

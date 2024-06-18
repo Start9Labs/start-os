@@ -1,8 +1,9 @@
 use std::panic::UnwindSafe;
-use std::sync::Arc;
 use std::time::Duration;
 
-use futures::{Future, FutureExt};
+use futures::stream::BoxStream;
+use futures::{Future, FutureExt, StreamExt};
+use helpers::NonDetachingJoinHandle;
 use imbl_value::{InOMap, InternedString};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use itertools::Itertools;
@@ -170,17 +171,14 @@ impl FullProgress {
 
 #[derive(Clone)]
 pub struct FullProgressTracker {
-    overall: Arc<watch::Sender<Progress>>,
-    phases: Arc<watch::Sender<InOMap<InternedString, watch::Receiver<Progress>>>>,
+    overall: watch::Sender<Progress>,
+    phases: watch::Sender<InOMap<InternedString, watch::Receiver<Progress>>>,
 }
 impl FullProgressTracker {
     pub fn new() -> Self {
         let (overall, _) = watch::channel(Progress::new());
         let (phases, _) = watch::channel(InOMap::new());
-        Self {
-            overall: Arc::new(overall),
-            phases: Arc::new(phases),
-        }
+        Self { overall, phases }
     }
     pub fn snapshot(&self) -> FullProgress {
         FullProgress {
@@ -196,25 +194,71 @@ impl FullProgressTracker {
                 .collect(),
         }
     }
-    pub fn changed(&self) -> impl Future<Output = ()> {
-        let mut overall_recv = self.overall.subscribe();
-        let mut phases_recv = self.phases.subscribe();
-        async move {
-            let mut changed = phases_recv
-                .borrow()
-                .iter()
-                .map(|(_, p)| {
-                    let mut p = p.clone();
-                    async move { p.changed().await }.boxed()
-                })
-                .collect_vec();
-            changed.push(overall_recv.changed().boxed());
-            changed.push(phases_recv.changed().boxed());
-            futures::future::select_all(changed).map(|_| ()).await
+    pub fn stream(&self, min_interval: Option<Duration>) -> BoxStream<'static, FullProgress> {
+        struct StreamState {
+            overall: watch::Receiver<Progress>,
+            phases_recv: watch::Receiver<InOMap<InternedString, watch::Receiver<Progress>>>,
+            phases: InOMap<InternedString, watch::Receiver<Progress>>,
         }
+        let mut overall = self.overall.subscribe();
+        overall.mark_changed(); // make sure stream starts with a value
+        let phases_recv = self.phases.subscribe();
+        let phases = phases_recv.borrow().clone();
+        let state = StreamState {
+            overall,
+            phases_recv,
+            phases,
+        };
+        futures::stream::unfold(
+            state,
+            move |StreamState {
+                      mut overall,
+                      mut phases_recv,
+                      mut phases,
+                  }| async move {
+                let changed = phases
+                    .iter_mut()
+                    .map(|(_, p)| async move { p.changed().await }.boxed())
+                    .chain([overall.changed().boxed()])
+                    .chain([phases_recv.changed().boxed()])
+                    .map(|fut| fut.map(|r| r.unwrap_or_default()))
+                    .collect_vec();
+                if let Some(min_interval) = min_interval {
+                    tokio::join!(
+                        tokio::time::sleep(min_interval),
+                        futures::future::select_all(changed),
+                    );
+                } else {
+                    futures::future::select_all(changed).await;
+                }
+
+                phases = phases_recv.borrow_and_update().clone();
+
+                let o = *overall.borrow_and_update();
+
+                Some((
+                    FullProgress {
+                        overall: o,
+                        phases: phases
+                            .iter_mut()
+                            .map(|(name, progress)| NamedProgress {
+                                name: name.clone(),
+                                progress: *progress.borrow_and_update(),
+                            })
+                            .collect(),
+                    },
+                    StreamState {
+                        overall,
+                        phases_recv,
+                        phases,
+                    },
+                ))
+            },
+        )
+        .boxed()
     }
     pub fn sync_to_db<DerefFn>(
-        self,
+        &self,
         db: TypedPatchDb<Database>,
         deref: DerefFn,
         min_interval: Option<Duration>,
@@ -223,9 +267,9 @@ impl FullProgressTracker {
         DerefFn: Fn(&mut DatabaseModel) -> Option<&mut Model<FullProgress>> + 'static,
         for<'a> &'a DerefFn: UnwindSafe + Send,
     {
+        let mut stream = self.stream(min_interval);
         async move {
-            loop {
-                let progress = self.snapshot();
+            while let Some(progress) = stream.next().await {
                 if db
                     .mutate(|v| {
                         if let Some(p) = deref(v) {
@@ -239,16 +283,22 @@ impl FullProgressTracker {
                 {
                     break;
                 }
-                tokio::join!(self.changed(), async {
-                    if let Some(interval) = min_interval {
-                        tokio::time::sleep(interval).await
-                    } else {
-                        futures::future::ready(()).await
-                    }
-                });
             }
             Ok(())
         }
+    }
+    pub fn progress_bar_task(&self, name: &str) -> NonDetachingJoinHandle<()> {
+        let mut stream = self.stream(None);
+        let mut bar = PhasedProgressBar::new(name);
+        tokio::spawn(async move {
+            while let Some(progress) = stream.next().await {
+                bar.update(&progress);
+                if progress.overall.is_complete() {
+                    break;
+                }
+            }
+        })
+        .into()
     }
     pub fn add_phase(
         &self,
@@ -276,7 +326,7 @@ impl FullProgressTracker {
 }
 
 pub struct PhaseProgressTrackerHandle {
-    overall: Arc<watch::Sender<Progress>>,
+    overall: watch::Sender<Progress>,
     overall_contribution: Option<u64>,
     contributed: u64,
     progress: watch::Sender<Progress>,

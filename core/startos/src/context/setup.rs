@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use futures::Future;
+use futures::{Future, StreamExt};
 use helpers::NonDetachingJoinHandle;
 use josekit::jwk::Jwk;
 use patch_db::PatchDb;
@@ -164,27 +164,19 @@ impl SetupContext {
                 RpcContinuation::ws(
                     |mut ws| async move {
                         if let Err(e) = async {
-                            let mut progress = progress_tracker.snapshot();
-                            while !progress.overall.is_complete() {
+                            let mut stream =
+                                progress_tracker.stream(Some(Duration::from_millis(100)));
+                            while let Some(progress) = stream.next().await {
                                 ws.send(ws::Message::Text(
                                     serde_json::to_string(&progress)
                                         .with_kind(ErrorKind::Serialization)?,
                                 ))
                                 .await
                                 .with_kind(ErrorKind::Network)?;
-                                tokio::join!(
-                                    progress_tracker.changed(),
-                                    tokio::time::sleep(Duration::from_millis(100)),
-                                );
-                                progress = progress_tracker.snapshot();
+                                if progress.overall.is_complete() {
+                                    break;
+                                }
                             }
-
-                            ws.send(ws::Message::Text(
-                                serde_json::to_string(&progress)
-                                    .with_kind(ErrorKind::Serialization)?,
-                            ))
-                            .await
-                            .with_kind(ErrorKind::Network)?;
 
                             Ok::<_, Error>(())
                         }

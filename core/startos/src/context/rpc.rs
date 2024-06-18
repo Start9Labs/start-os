@@ -23,7 +23,7 @@ use crate::dependencies::compute_dependency_config_errs;
 use crate::disk::OsPartitionInfo;
 use crate::init::check_time_is_synchronized;
 use crate::lxc::{ContainerId, LxcContainer, LxcManager};
-use crate::net::net_controller::NetController;
+use crate::net::net_controller::{NetController, PreInitNetController};
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
 use crate::net::wifi::WpaCli;
 use crate::prelude::*;
@@ -106,6 +106,7 @@ impl RpcContext {
     pub async fn init(
         config: &ServerConfig,
         disk_guid: Arc<String>,
+        net_ctrl: Option<PreInitNetController>,
         InitRpcContextPhases {
             mut load_db,
             mut init_net_ctrl,
@@ -120,7 +121,11 @@ impl RpcContext {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
 
         load_db.start();
-        let db = TypedPatchDb::<Database>::load(config.db().await?).await?;
+        let db = if let Some(net_ctrl) = &net_ctrl {
+            net_ctrl.db.clone()
+        } else {
+            TypedPatchDb::<Database>::load(config.db().await?).await?
+        };
         let peek = db.peek().await;
         let account = AccountInfo::load(&peek)?;
         load_db.complete();
@@ -129,17 +134,24 @@ impl RpcContext {
         init_net_ctrl.start();
         let net_controller = Arc::new(
             NetController::init(
-                db.clone(),
-                config
-                    .tor_control
-                    .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
-                tor_proxy,
+                if let Some(net_ctrl) = net_ctrl {
+                    net_ctrl
+                } else {
+                    PreInitNetController::init(
+                        db.clone(),
+                        config
+                            .tor_control
+                            .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
+                        tor_proxy,
+                        &account.hostname,
+                        account.tor_key.clone(),
+                    )
+                    .await?
+                },
                 config
                     .dns_bind
                     .as_deref()
                     .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
-                &account.hostname,
-                account.tor_key.clone(),
             )
             .await?,
         );

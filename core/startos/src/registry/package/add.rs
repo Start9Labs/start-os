@@ -2,7 +2,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::Parser;
-use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use rpc_toolkit::HandlerArgs;
@@ -12,7 +11,7 @@ use url::Url;
 
 use crate::context::CliContext;
 use crate::prelude::*;
-use crate::progress::{FullProgressTracker, PhasedProgressBar};
+use crate::progress::FullProgressTracker;
 use crate::registry::context::RegistryContext;
 use crate::registry::package::index::PackageVersionInfo;
 use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment;
@@ -118,22 +117,8 @@ pub async fn cli_add_package(
         Some(1),
     );
 
-    let progress_task: NonDetachingJoinHandle<()> = tokio::spawn({
-        let progress = progress.clone();
-        async move {
-            let mut bar =
-                PhasedProgressBar::new(&format!("Adding {} to registry...", file.display()));
-            loop {
-                let snap = progress.snapshot();
-                bar.update(&snap);
-                if snap.overall.is_complete() {
-                    break;
-                }
-                progress.changed().await
-            }
-        }
-    })
-    .into();
+    let progress_task =
+        progress.progress_bar_task(&format!("Adding {} to registry...", file.display()));
 
     sign_phase.start();
     let commitment = s9pk.as_archive().commitment().await?;

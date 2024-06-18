@@ -29,6 +29,7 @@ use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::disk::util::{pvscan, recovery_info, DiskInfo, EmbassyOsRecoveryInfo};
 use crate::disk::REPAIR_DISK_PATH;
 use crate::init::{init, InitPhases, InitResult};
+use crate::net::net_controller::PreInitNetController;
 use crate::net::ssl::root_ca_start_time;
 use crate::prelude::*;
 use crate::progress::{FullProgress, PhaseProgressTrackerHandle};
@@ -76,10 +77,11 @@ async fn setup_init(
     ctx: &SetupContext,
     password: Option<String>,
     init_phases: InitPhases,
-) -> Result<AccountInfo, Error> {
-    let InitResult { db } = init(&ctx.config, init_phases).await?;
+) -> Result<(AccountInfo, PreInitNetController), Error> {
+    let InitResult { net_ctrl } = init(&ctx.config, init_phases).await?;
 
-    let account = db
+    let account = net_ctrl
+        .db
         .mutate(|m| {
             let mut account = AccountInfo::load(m)?;
             if let Some(password) = password {
@@ -94,7 +96,7 @@ async fn setup_init(
         })
         .await?;
 
-    Ok(account)
+    Ok((account, net_ctrl))
 }
 
 #[derive(Deserialize, Serialize, TS)]
@@ -161,9 +163,9 @@ pub async fn attach(
             }
             disk_phase.complete();
 
-            let account = setup_init(&setup_ctx, password, init_phases).await?;
+            let (account, net_ctrl) = setup_init(&setup_ctx, password, init_phases).await?;
 
-            let rpc_ctx = RpcContext::init(&setup_ctx.config, disk_guid, rpc_ctx_phases).await?;
+            let rpc_ctx = RpcContext::init(&setup_ctx.config, disk_guid, Some(net_ctrl), rpc_ctx_phases).await?;
 
             Ok(((&account).try_into()?, rpc_ctx))
         })?;
@@ -434,9 +436,9 @@ async fn fresh_setup(
     db.put(&ROOT, &Database::init(&account)?).await?;
     drop(db);
 
-    init(&ctx.config, init_phases).await?;
+    let InitResult { net_ctrl } = init(&ctx.config, init_phases).await?;
 
-    let rpc_ctx = RpcContext::init(&ctx.config, guid, rpc_ctx_phases).await?;
+    let rpc_ctx = RpcContext::init(&ctx.config, guid, Some(net_ctrl), rpc_ctx_phases).await?;
 
     Ok(((&account).try_into()?, rpc_ctx))
 }
@@ -545,9 +547,9 @@ async fn migrate(
     crate::disk::main::export(&old_guid, "/media/startos/migrate").await?;
     restore_phase.complete();
 
-    let account = setup_init(&ctx, Some(start_os_password), init_phases).await?;
+    let (account, net_ctrl) = setup_init(&ctx, Some(start_os_password), init_phases).await?;
 
-    let rpc_ctx = RpcContext::init(&ctx.config, guid, rpc_ctx_phases).await?;
+    let rpc_ctx = RpcContext::init(&ctx.config, guid, Some(net_ctrl), rpc_ctx_phases).await?;
 
     Ok(((&account).try_into()?, rpc_ctx))
 }

@@ -18,7 +18,7 @@ use crate::db::model::Database;
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
-use crate::init::init;
+use crate::init::{init, InitResult};
 use crate::prelude::*;
 use crate::s9pk::S9pk;
 use crate::service::service_map::DownloadInstallFuture;
@@ -106,9 +106,15 @@ pub async fn recover_full_embassy(
     db.put(&ROOT, &Database::init(&os_backup.account)?).await?;
     drop(db);
 
-    init(&ctx.config, init_phases).await?;
+    let InitResult { net_ctrl } = init(&ctx.config, init_phases).await?;
 
-    let rpc_ctx = RpcContext::init(&ctx.config, disk_guid.clone(), rpc_ctx_phases).await?;
+    let rpc_ctx = RpcContext::init(
+        &ctx.config,
+        disk_guid.clone(),
+        Some(net_ctrl),
+        rpc_ctx_phases,
+    )
+    .await?;
 
     restore_phase.start();
     let ids: Vec<_> = backup_guard
