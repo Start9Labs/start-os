@@ -3,8 +3,11 @@ import {
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import { Metric, NotificationLevel, RR, ServerNotifications } from './api.types'
-import { BTC_ICON, LND_ICON, PROXY_ICON, REGISTRY_ICON } from './api-icons'
-import { DependencyMetadata, MarketplacePkg } from '@start9labs/marketplace'
+import { BTC_ICON, PROXY_ICON, REGISTRY_ICON } from './api-icons'
+import {
+  DependencyMetadata,
+  GetPackageResponseFullInterim,
+} from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 
@@ -239,7 +242,7 @@ export module Mock {
   }
 
   export const RegistryPackages: {
-    [id: T.PackageId]: T.GetPackageResponseFull
+    [id: T.PackageId]: GetPackageResponseFullInterim
   } = {
     bitcoind: {
       best: {
@@ -257,6 +260,8 @@ export module Mock {
           gitHash: 'fakehash',
           icon: BTC_ICON,
           sourceVersion: null,
+          publishedAt: Date.now(),
+          alerts: {},
           s9pk: {
             url: 'https://github.com/Start9Labs/bitcoind-startos/releases/download/v27.0.0/bitcoind.s9pk',
             commitment: mockMerkleArchiveCommitment,
@@ -277,6 +282,8 @@ export module Mock {
           gitHash: 'fakehash',
           icon: BTC_ICON,
           sourceVersion: null,
+          publishedAt: Date.now(),
+          alerts: {},
           s9pk: {
             url: 'https://github.com/Start9Labs/bitcoinknots-startos/releases/download/v26.1.20240513/bitcoind.s9pk',
             commitment: mockMerkleArchiveCommitment,

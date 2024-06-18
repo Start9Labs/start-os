@@ -63,18 +63,18 @@ export type MarketplaceSinglePkg<T extends T.GetPackageParams> = T extends {
 export interface MarketplacePkgInfo extends PackageVersionInfoInterim {
   id: T.PackageId
   version: T.Version
-  'alt-version': T.Version | null
+  altVersion: T.Version | null
 }
 
 export interface PackageVersionInfoInterim extends T.PackageVersionInfo {
-  dependencyMetadata: {
+  dependencyMetadata?: {
     [id: string]: DependencyMetadata
   }
-  publishedAt: string
+  publishedAt: number
   alerts: {
-    install: string
-    update: string
-    uninstall: string
+    install?: string
+    update?: string
+    uninstall?: string
   }
 }
 type UnionOverrideKeys<T, U> = Omit<T, keyof U> & U

@@ -16,6 +16,8 @@ import { ClientStorageService } from './services/client-storage.service'
 import { FilterPackagesPipe } from '../../../marketplace/src/pipes/filter-packages.pipe'
 import { ThemeSwitcherService } from './services/theme-switcher.service'
 import { StorageService } from './services/storage.service'
+import { PkgImplementationService } from './services/pkg-implementation.service'
+import { AbstractPkgImplementationService } from '@start9labs/marketplace'
 
 const {
   useMocks,
@@ -52,6 +54,10 @@ export const APP_PROVIDERS: Provider[] = [
   {
     provide: THEME,
     useExisting: ThemeSwitcherService,
+  },
+  {
+    provide: AbstractPkgImplementationService,
+    useClass: PkgImplementationService,
   },
 ]
 

@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core'
+import { Inject, Injectable } from '@angular/core'
 import {
   AbstractMarketplaceService,
   StoreData,
@@ -6,6 +6,7 @@ import {
   StoreIdentity,
   MarketplacePkg,
   MarketplaceSinglePkg,
+  AbstractPkgImplementationService,
 } from '@start9labs/marketplace'
 import {
   BehaviorSubject,
@@ -40,6 +41,7 @@ import { ConfigService } from './config.service'
 import { sameUrl } from '@start9labs/shared'
 import { ClientStorageService } from './client-storage.service'
 import { T } from '@start9labs/start-sdk'
+import { PkgImplementationService } from './pkg-implementation.service'
 
 @Injectable()
 export class MarketplaceService implements AbstractMarketplaceService {
@@ -157,6 +159,8 @@ export class MarketplaceService implements AbstractMarketplaceService {
     private readonly patch: PatchDB<DataModel>,
     private readonly config: ConfigService,
     private readonly clientStorageService: ClientStorageService,
+    @Inject(AbstractPkgImplementationService)
+    private readonly pkgImplService: PkgImplementationService,
   ) {}
 
   getKnownHosts$(filtered = false): Observable<StoreIdentity[]> {
@@ -296,8 +300,11 @@ export class MarketplaceService implements AbstractMarketplaceService {
     url: string,
     params: T,
   ): Observable<MarketplacePkg<T>[]> {
-    return from(this.api.getRegistryPackages(url, params)).pipe(
-      map(packages => {
+    return combineLatest([
+      this.pkgImplService.getAltStatus$(),
+      from(this.api.getRegistryPackages(url, params)),
+    ]).pipe(
+      map(([active, packages]) => {
         const packageList = Object.keys(packages).map(p => {
           // TODO use emver helper to determine if alt implementation exists
           const versions = Object.keys(packages[p].best).sort()
@@ -305,7 +312,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
           return {
             id: p,
             version: versions[0],
-            'alt-version': versions[1] || null,
+            altVersion: !active ? versions[1] || null : versions[0],
             ...packages[p].best[versions[0]],
             ...packages[p],
           } as MarketplacePkg<T>
@@ -319,15 +326,19 @@ export class MarketplaceService implements AbstractMarketplaceService {
     url: string,
     params: T,
   ): Observable<MarketplacePkg<T>> {
-    return from(this.api.getRegistryPackage(url, params)).pipe(
-      map(pkg => {
+    return combineLatest([
+      this.pkgImplService.getAltStatus$(),
+      from(this.api.getRegistryPackage(url, params)),
+    ]).pipe(
+      tap(a => console.log(a)),
+      map(([active, pkg]) => {
         // TODO use emver helper to determine if alt implementation exists
         const versions = Object.keys(pkg.best).sort()
         // expand data for filter accessability
         return {
           id: params.id,
           version: params.version,
-          'alt-version': versions[1] || null,
+          altVersion: !active ? versions[1] || null : versions[0],
           ...pkg.best[versions[0]],
           ...pkg,
         } as MarketplacePkg<T>

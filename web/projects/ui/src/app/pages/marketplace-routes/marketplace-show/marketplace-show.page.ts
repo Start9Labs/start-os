@@ -23,9 +23,10 @@ export class MarketplaceShowPage {
     .watch$('packageData', this.pkgId)
     .pipe(filter(Boolean), shareReplay({ bufferSize: 1, refCount: true }))
 
+  // TODO don't load new package, use otherVersion data
   readonly pkg$ = this.loadVersion$.pipe(
-    switchMap(version =>
-      this.marketplaceService.getPackage$(
+    switchMap(async version => {
+      return this.marketplaceService.getPackage$(
         {
           id: this.pkgId,
           version,
@@ -33,8 +34,8 @@ export class MarketplaceShowPage {
           sourceVersion: null,
         },
         this.url,
-      ),
-    ),
+      )
+    }),
   )
 
   constructor(

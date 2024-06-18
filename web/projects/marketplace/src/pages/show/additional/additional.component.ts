@@ -18,6 +18,7 @@ import {
 } from '@start9labs/shared'
 import { MarketplacePkg } from '../../../types'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
+import { AbstractPkgImplementationService } from '../../../services/pkg-implementation.service'
 import { ActivatedRoute } from '@angular/router'
 
 @Component({
@@ -33,15 +34,32 @@ export class AdditionalComponent {
   version = new EventEmitter<string>()
 
   readonly url = this.route.snapshot.queryParamMap.get('url') || null
+  versions!: string[]
 
   constructor(
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
     private readonly emver: Emver,
     private readonly marketplaceService: AbstractMarketplaceService,
+    private readonly pkgImplService: AbstractPkgImplementationService,
     private readonly toastCtrl: ToastController,
     private readonly route: ActivatedRoute,
   ) {}
+
+  ngOnInit() {
+    this.pkgImplService.getAltStatus$().subscribe(active => {
+      if (active) {
+        // TODO replace with emver helper to determine if version has prefix
+        this.versions = Object.keys(this.pkg.otherVersions).filter(
+          v => v.split('-').length > 1,
+        )
+      } else {
+        this.versions = Object.keys(this.pkg.otherVersions).filter(
+          v => v.split('-').length === 1,
+        )
+      }
+    })
+  }
 
   async copy(address: string): Promise<void> {
     const success = await copyToClipboard(address)
@@ -60,7 +78,7 @@ export class AdditionalComponent {
   async presentAlertVersions() {
     const alert = await this.alertCtrl.create({
       header: 'Versions',
-      inputs: this.getVersions()
+      inputs: this.versions
         .sort((a, b) => -1 * (this.emver.compare(a, b) || 0))
         .map(v => ({
           name: v, // for CSS
@@ -82,15 +100,6 @@ export class AdditionalComponent {
     })
 
     await alert.present()
-  }
-
-  getVersions(): string[] {
-    if (this.pkg['alt-version']) {
-      // TODO filter otherVersions with emver helper to determine if version has prefix
-      return Object.keys(this.pkg.otherVersions).filter(v => ({}))
-    } else {
-      return Object.keys(this.pkg.otherVersions)
-    }
   }
 
   async presentModalMd(title: string) {

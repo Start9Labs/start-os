@@ -20,7 +20,10 @@
     </ng-container>
 
     <ng-template #show>
-      <marketplace-package [pkg]="pkg"></marketplace-package>
+      <marketplace-package
+        [pkg]="pkg"
+        (version)="loadVersion$.next($event)"
+      ></marketplace-package>
       <marketplace-show-controls
         [url]="url"
         [pkg]="pkg"
