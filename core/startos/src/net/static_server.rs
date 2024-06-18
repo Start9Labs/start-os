@@ -408,11 +408,12 @@ impl FileData {
             builder = builder.header(http::header::CONNECTION, "keep-alive");
         }
 
-        if req
-            .headers
-            .get("if-none-match")
-            .and_then(|h| h.to_str().ok())
-            == self.e_tag.as_deref()
+        if self.e_tag.is_some()
+            && req
+                .headers
+                .get("if-none-match")
+                .and_then(|h| h.to_str().ok())
+                == self.e_tag.as_deref()
         {
             builder = builder.status(StatusCode::NOT_MODIFIED);
             builder.body(Body::empty())
