@@ -277,8 +277,8 @@ export module RR {
   export type GetMarketplaceInfoReq = { serverId: string }
   export type GetMarketplaceInfoRes = StoreInfo
 
-  export type GetMarketplaceEosReq = { serverId: string }
-  export type GetMarketplaceEosRes = MarketplaceEOS
+  export type CheckOSUpdateReq = { serverId: string }
+  export type CheckOSUpdateRes = OSUpdate
 
   export type GetMarketplacePackagesReq = {
     ids?: { id: string; version: string }[]
@@ -294,7 +294,7 @@ export module RR {
   export type GetReleaseNotesRes = { [version: string]: string }
 }
 
-export interface MarketplaceEOS {
+export interface OSUpdate {
   version: string
   headline: string
   releaseNotes: { [version: string]: string }

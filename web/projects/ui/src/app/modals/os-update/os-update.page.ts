@@ -20,9 +20,8 @@ export class OSUpdatePage {
     private readonly embassyApi: ApiService,
     private readonly eosService: EOSService,
   ) {}
-
   ngOnInit() {
-    const releaseNotes = this.eosService.eos?.releaseNotes!
+    const releaseNotes = this.eosService.osUpdate?.releaseNotes!
 
     this.versions = Object.keys(releaseNotes)
       .sort()

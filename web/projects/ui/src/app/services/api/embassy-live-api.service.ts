@@ -17,7 +17,6 @@ import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
 import { PatchDB, pathFromArray } from 'patch-db-client'
-import { getServerInfo } from 'src/app/util/get-server-info'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -25,8 +24,7 @@ export class LiveApiService extends ApiService {
     @Inject(DOCUMENT) private readonly document: Document,
     private readonly http: HttpService,
     private readonly config: ConfigService,
-    private readonly auth: AuthService,
-    private readonly patch: PatchDB<DataModel>,
+    private readonly auth: AuthService, // private readonly patch: PatchDB<DataModel>,
   ) {
     super()
     ; (window as any).rpcClient = this
@@ -254,10 +252,7 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async getEos(): Promise<RR.GetMarketplaceEosRes> {
-    const { id } = await getServerInfo(this.patch)
-    const qp: RR.GetMarketplaceEosReq = { serverId: id }
-
+  async checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes> {
     return this.marketplaceProxy(
       '/eos/v0/latest',
       qp,
@@ -483,11 +478,11 @@ export class LiveApiService extends ApiService {
       throw new RpcError(body.error)
     }
 
-    const patchSequence = res.headers.get('x-patch-sequence')
-    if (patchSequence)
-      await firstValueFrom(
-        this.patch.cache$.pipe(filter(({ id }) => id >= Number(patchSequence))),
-      )
+    // const patchSequence = res.headers.get('x-patch-sequence')
+    // if (patchSequence)
+    //   await firstValueFrom(
+    //     this.patch.cache$.pipe(filter(({ id }) => id >= Number(patchSequence))),
+    //   )
 
     return body.result
   }

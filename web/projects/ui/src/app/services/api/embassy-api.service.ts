@@ -122,7 +122,7 @@ export abstract class ApiService {
     url: string,
   ): Promise<T>
 
-  abstract getEos(): Promise<RR.GetMarketplaceEosRes>
+  abstract checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes>
 
   // notification
 

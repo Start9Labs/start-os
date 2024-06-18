@@ -16,7 +16,7 @@ export module Mock {
     restarting: false,
     shuttingDown: false,
   }
-  export const MarketplaceEos: RR.GetMarketplaceEosRes = {
+  export const MarketplaceEos: RR.CheckOSUpdateRes = {
     version: '0.3.5.2',
     headline: 'Our biggest release ever.',
     releaseNotes: {

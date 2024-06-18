@@ -468,7 +468,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async getEos(): Promise<RR.GetMarketplaceEosRes> {
+  async checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes> {
     await pauseFor(2000)
     return Mock.MarketplaceEos
   }
