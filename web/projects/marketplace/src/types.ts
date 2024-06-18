@@ -65,6 +65,7 @@ export interface MarketplacePkgInfo extends PackageVersionInfoInterim {
   version: T.Version
   altVersion: T.Version | null
 }
+
 // TODO remove when BE types fully support
 export interface PackageVersionInfoInterim extends T.PackageVersionInfo {
   dependencyMetadata?: {
@@ -77,8 +78,8 @@ export interface PackageVersionInfoInterim extends T.PackageVersionInfo {
     uninstall?: string
   }
 }
-type UnionOverrideKeys<T, U> = Omit<T, keyof U> & U
 
+type UnionOverrideKeys<T, U> = Omit<T, keyof U> & U
 // TODO remove when BE types fully support
 export interface GetPackageResponseFullInterim
   extends UnionOverrideKeys<
@@ -87,7 +88,6 @@ export interface GetPackageResponseFullInterim
   > {}
 
 // TODO remove when BE types fully support
-
 export interface GetPackageResponseInterim
   extends UnionOverrideKeys<
     T.GetPackageResponseFull,

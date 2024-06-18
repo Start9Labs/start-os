@@ -1,9 +1,12 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
-import { AbstractMarketplaceService } from '@start9labs/marketplace'
+import {
+  AbstractMarketplaceService,
+  MarketplacePkg,
+} from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'
-import { BehaviorSubject } from 'rxjs'
+import { BehaviorSubject, Observable } from 'rxjs'
 import { filter, shareReplay, switchMap } from 'rxjs/operators'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
@@ -24,18 +27,18 @@ export class MarketplaceShowPage {
     .pipe(filter(Boolean), shareReplay({ bufferSize: 1, refCount: true }))
 
   // TODO don't load new package, use otherVersion data
-  readonly pkg$ = this.loadVersion$.pipe(
-    switchMap(async version => {
-      return this.marketplaceService.getPackage$(
+  readonly pkg$: Observable<MarketplacePkg> = this.loadVersion$.pipe(
+    switchMap(version =>
+      this.marketplaceService.getPackage$(
         {
           id: this.pkgId,
           version,
-          otherVersions: 'short',
+          otherVersions: 'full',
           sourceVersion: null,
         },
         this.url,
-      )
-    }),
+      ),
+    ),
   )
 
   constructor(

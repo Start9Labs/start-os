@@ -204,7 +204,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
           map(
             (store: StoreData<T>) =>
               store.packages.find(p => p.id === params.id) ||
-              ({} as MarketplaceSinglePkg<T>),
+              ({} as MarketplacePkg<T>),
           ),
         )
       }),
@@ -330,7 +330,6 @@ export class MarketplaceService implements AbstractMarketplaceService {
       this.pkgImplService.getAltStatus$(),
       from(this.api.getRegistryPackage(url, params)),
     ]).pipe(
-      tap(a => console.log(a)),
       map(([active, pkg]) => {
         // TODO use emver helper to determine if alt implementation exists
         const versions = Object.keys(pkg.best).sort()
