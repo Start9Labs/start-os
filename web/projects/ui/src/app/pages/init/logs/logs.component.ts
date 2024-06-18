@@ -5,6 +5,13 @@ import { LogsService } from 'src/app/pages/init/logs/logs.service'
 @Component({
   selector: 'logs-window',
   templateUrl: 'logs.template.html',
+  styles: [
+    `
+      pre {
+        margin: 0;
+      }
+    `,
+  ],
   providers: [
     {
       provide: INTERSECTION_ROOT,

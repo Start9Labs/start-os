@@ -1,6 +1,14 @@
 import { inject, Injectable } from '@angular/core'
-import { toLocalIsoString } from '@start9labs/shared'
-import { bufferTime, defer, map, Observable, scan, switchMap } from 'rxjs'
+import { Log, toLocalIsoString } from '@start9labs/shared'
+import {
+  bufferTime,
+  defer,
+  filter,
+  map,
+  Observable,
+  scan,
+  switchMap,
+} from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 var Convert = require('ansi-to-html')
@@ -28,8 +36,9 @@ function convertAnsi(entries: readonly any[]): string {
 export class LogsService extends Observable<readonly string[]> {
   private readonly api = inject(ApiService)
   private readonly log$ = defer(() => this.api.initFollowLogs({})).pipe(
-    switchMap(({ guid }) => this.api.openWebsocket$(guid, {})),
+    switchMap(({ guid }) => this.api.openWebsocket$<Log>(guid, {})),
     bufferTime(250),
+    filter(logs => !!logs.length),
     map(convertAnsi),
     scan((logs: readonly string[], log) => [...logs, log], []),
   )

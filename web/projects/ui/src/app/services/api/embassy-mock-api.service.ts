@@ -19,22 +19,17 @@ import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './api.fixures'
 import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
 import {
-  EMPTY,
   from,
-  iif,
   interval,
   map,
   Observable,
   shareReplay,
   startWith,
   Subject,
-  switchMap,
   tap,
-  timer,
 } from 'rxjs'
 import { mockPatchData } from './mock-patch'
 import { AuthService } from '../auth.service'
-import { ConnectionService } from '../connection.service'
 import { StoreInfo } from '@start9labs/marketplace'
 import { T } from '@start9labs/start-sdk'
 
