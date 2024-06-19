@@ -30,6 +30,7 @@ use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::S9pk;
 use crate::upload::upload;
 use crate::util::clap::FromStrParser;
+use crate::util::net::WebSocketExt;
 use crate::util::Never;
 
 pub const PKG_ARCHIVE_DIR: &str = "package-data/archive";
@@ -263,7 +264,7 @@ pub async fn sideload(
                             }
                         }
 
-                        ws.close().await.with_kind(ErrorKind::Network)?;
+                        ws.normal_close("complete").await?;
 
                         Ok::<_, Error>(())
                     }

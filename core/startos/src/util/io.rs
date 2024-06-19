@@ -843,7 +843,7 @@ fn poll_flush_prefix<W: AsyncWrite>(
     flush_writer: bool,
 ) -> Poll<Result<(), std::io::Error>> {
     while let Some(mut cur) = prefix.pop_front() {
-        let buf = cur.remaining_slice();
+        let buf = CursorExt::remaining_slice(&cur);
         if !buf.is_empty() {
             match writer.as_mut().poll_write(cx, buf)? {
                 Poll::Ready(n) if n == buf.len() => (),

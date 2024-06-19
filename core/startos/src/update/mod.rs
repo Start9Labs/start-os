@@ -32,6 +32,7 @@ use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::sound::{
     CIRCLE_OF_5THS_SHORT, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4,
 };
+use crate::util::net::WebSocketExt;
 use crate::util::Invoke;
 use crate::PLATFORM;
 
@@ -120,7 +121,7 @@ pub async fn update_system(
                                 sub.recv().await;
                             }
 
-                            ws.close().await.with_kind(ErrorKind::Network)?;
+                            ws.normal_close("complete").await?;
 
                             Ok::<_, Error>(())
                         }

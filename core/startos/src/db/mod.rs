@@ -20,6 +20,7 @@ use ts_rs::TS;
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation};
+use crate::util::net::WebSocketExt;
 use crate::util::serde::{apply_expr, HandlerExtSerde};
 
 lazy_static::lazy_static! {
@@ -147,7 +148,9 @@ pub async fn subscribe(
                             .await
                             .with_kind(ErrorKind::Network)?;
                         }
-                        ws.close().await.with_kind(ErrorKind::Network)?;
+
+                        ws.normal_close("complete").await?;
+
                         Ok::<_, Error>(())
                     }
                     .await

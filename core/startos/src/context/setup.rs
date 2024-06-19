@@ -25,6 +25,7 @@ use crate::prelude::*;
 use crate::progress::FullProgressTracker;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 use crate::setup::SetupProgress;
+use crate::util::net::WebSocketExt;
 
 lazy_static::lazy_static! {
     pub static ref CURRENT_SECRET: Jwk = Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).unwrap_or_else(|e| {
@@ -177,6 +178,8 @@ impl SetupContext {
                                     break;
                                 }
                             }
+
+                            ws.normal_close("complete").await?;
 
                             Ok::<_, Error>(())
                         }

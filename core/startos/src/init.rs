@@ -5,7 +5,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::time::{Duration, SystemTime};
 
-use axum::extract::ws;
+use axum::extract::ws::{self, CloseFrame};
 use color_eyre::eyre::eyre;
 use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
@@ -32,6 +32,7 @@ use crate::progress::{
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::ssh::SSH_AUTHORIZED_KEYS_FILE;
 use crate::util::io::IOHook;
+use crate::util::net::WebSocketExt;
 use crate::util::{cpupower, Invoke};
 use crate::Error;
 
@@ -570,6 +571,8 @@ pub async fn init_progress(ctx: InitContext) -> Result<InitProgressRes, Error> {
                                 break;
                             }
                         }
+
+                        ws.normal_close("complete").await?;
 
                         Ok::<_, Error>(())
                     }

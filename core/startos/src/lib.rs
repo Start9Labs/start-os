@@ -1,8 +1,5 @@
 pub const DEFAULT_MARKETPLACE: &str = "https://registry.start9.com";
 // pub const COMMUNITY_MARKETPLACE: &str = "https://community-registry.start9.com";
-pub const CAP_1_KiB: usize = 1024;
-pub const CAP_1_MiB: usize = CAP_1_KiB * CAP_1_KiB;
-pub const CAP_10_MiB: usize = 10 * CAP_1_MiB;
 pub const HOST_IP: [u8; 4] = [172, 18, 0, 1];
 pub use std::env::consts::ARCH;
 lazy_static::lazy_static! {
@@ -17,6 +14,15 @@ lazy_static::lazy_static! {
         std::fs::metadata(std::env::current_exe().unwrap()).unwrap().modified().unwrap()
     };
 }
+
+mod cap {
+    #![allow(non_upper_case_globals)]
+
+    pub const CAP_1_KiB: usize = 1024;
+    pub const CAP_1_MiB: usize = CAP_1_KiB * CAP_1_KiB;
+    pub const CAP_10_MiB: usize = 10 * CAP_1_MiB;
+}
+pub use cap::*;
 
 pub mod account;
 pub mod action;
