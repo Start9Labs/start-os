@@ -493,6 +493,14 @@ impl Actor for ServiceActor {
                         kinds.desired_state,
                         kinds.running_status,
                     ) {
+                        (Some(TransitionKind::Restarting), StartStop::Stop, Some(_)) => {
+                            seed.persistent_container.stop().await?;
+                            MainStatus::Restarting
+                        }
+                        (Some(TransitionKind::Restarting), StartStop::Start, _) => {
+                            seed.persistent_container.start().await?;
+                            MainStatus::Restarting
+                        }
                         (Some(TransitionKind::Restarting), _, _) => MainStatus::Restarting,
                         (Some(TransitionKind::Restoring), _, _) => MainStatus::Restoring,
                         (Some(TransitionKind::BackingUp), _, Some(status)) => {
