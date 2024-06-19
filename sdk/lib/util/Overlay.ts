@@ -27,12 +27,11 @@ export class Overlay {
     }
 
     for (const dirPart of shared) {
-      await fs.mkdir(`${rootfs}/${dirPart}`, { recursive: true })
-      await execFile("mount", [
-        "--rbind",
-        `/${dirPart}`,
-        `${rootfs}/${dirPart}`,
-      ])
+      const from = `/${dirPart}`
+      const to = `${rootfs}/${dirPart}`
+      await fs.mkdir(from, { recursive: true })
+      await fs.mkdir(to, { recursive: true })
+      await execFile("mount", ["--rbind", from, to])
     }
 
     return new Overlay(effects, id, rootfs, guid)
@@ -48,22 +47,22 @@ export class Overlay {
           ? options.subpath
           : `/${options.subpath}`
         : "/"
-      await execFile("mount", [
-        "--bind",
-        `/media/startos/volumes/${options.id}${subpath}`,
-        path,
-      ])
+      const from = `/media/startos/volumes/${options.id}${subpath}`
+
+      await fs.mkdir(from, { recursive: true })
+      await fs.mkdir(path, { recursive: true })
+      await await execFile("mount", ["--bind", from, path])
     } else if (options.type === "assets") {
       const subpath = options.subpath
         ? options.subpath.startsWith("/")
           ? options.subpath
           : `/${options.subpath}`
         : "/"
-      await execFile("mount", [
-        "--bind",
-        `/media/startos/assets/${options.id}${subpath}`,
-        path,
-      ])
+      const from = `/media/startos/assets/${options.id}${subpath}`
+
+      await fs.mkdir(from, { recursive: true })
+      await fs.mkdir(path, { recursive: true })
+      await execFile("mount", ["--bind", from, path])
     } else if (options.type === "pointer") {
       await this.effects.mount({ location: path, target: options })
     } else if (options.type === "backup") {
@@ -72,11 +71,11 @@ export class Overlay {
           ? options.subpath
           : `/${options.subpath}`
         : "/"
-      await execFile("mount", [
-        "--bind",
-        `/media/startos/backup${subpath}`,
-        path,
-      ])
+      const from = `/media/startos/backup${subpath}`
+
+      await fs.mkdir(from, { recursive: true })
+      await fs.mkdir(path, { recursive: true })
+      await execFile("mount", ["--bind", from, path])
     } else {
       throw new Error(`unknown type ${(options as any).type}`)
     }

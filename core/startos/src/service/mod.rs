@@ -485,7 +485,7 @@ impl Actor for ServiceActor {
             let mut current = seed.persistent_container.state.subscribe();
 
             loop {
-                let kinds = dbg!(current.borrow().kinds());
+                let kinds = current.borrow().kinds();
 
                 if let Err(e) = async {
                     let main_status = match (
@@ -493,6 +493,14 @@ impl Actor for ServiceActor {
                         kinds.desired_state,
                         kinds.running_status,
                     ) {
+                        (Some(TransitionKind::Restarting), StartStop::Stop, Some(_)) => {
+                            seed.persistent_container.stop().await?;
+                            MainStatus::Restarting
+                        }
+                        (Some(TransitionKind::Restarting), StartStop::Start, _) => {
+                            seed.persistent_container.start().await?;
+                            MainStatus::Restarting
+                        }
                         (Some(TransitionKind::Restarting), _, _) => MainStatus::Restarting,
                         (Some(TransitionKind::Restoring), _, _) => MainStatus::Restoring,
                         (Some(TransitionKind::BackingUp), _, Some(status)) => {
@@ -523,6 +531,30 @@ impl Actor for ServiceActor {
                         .mutate(|d| {
                             if let Some(i) = d.as_public_mut().as_package_data_mut().as_idx_mut(&id)
                             {
+                                let previous = i.as_status().as_main().de()?;
+                                let previous_health = previous.health();
+                                let previous_started = previous.started();
+                                let mut main_status = main_status;
+                                match &mut main_status {
+                                    &mut MainStatus::Running { ref mut health, .. }
+                                    | &mut MainStatus::BackingUp { ref mut health, .. } => {
+                                        *health = previous_health.unwrap_or(health).clone();
+                                    }
+                                    _ => (),
+                                };
+                                match &mut main_status {
+                                    MainStatus::Running {
+                                        ref mut started, ..
+                                    } => {
+                                        *started = previous_started.unwrap_or(*started);
+                                    }
+                                    MainStatus::BackingUp {
+                                        ref mut started, ..
+                                    } => {
+                                        *started = previous_started.map(Some).unwrap_or(*started);
+                                    }
+                                    _ => (),
+                                };
                                 i.as_status_mut().as_main_mut().ser(&main_status)?;
                             }
                             Ok(())

@@ -154,7 +154,7 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
     this.healthDaemons.forEach((x) =>
       x.addWatcher(() => this.updateMainHealth()),
     )
-    return {
+    const built = {
       term: async (options?: { signal?: Signals; timeout?: number }) => {
         try {
           await Promise.all(this.healthDaemons.map((x) => x.term(options)))
@@ -163,6 +163,8 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
         }
       },
     }
+    this.started(() => built.term())
+    return built
   }
 
   private updateMainHealth() {

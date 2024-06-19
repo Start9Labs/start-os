@@ -132,14 +132,14 @@ export class HealthDaemon {
       this.effects.setHealth({
         result: status,
         message: health.message,
-        id: display,
+        id: this.id,
         name: display,
       })
     } else {
       this.effects.setHealth({
         result: health.status,
         message: health.message || "",
-        id: display,
+        id: this.id,
         name: display,
       })
     }

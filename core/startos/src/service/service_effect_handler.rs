@@ -936,7 +936,6 @@ async fn stopped(context: EffectContext, params: ParamsMaybePackageId) -> Result
     Ok(json!(matches!(package, MainStatus::Stopped)))
 }
 async fn running(context: EffectContext, params: ParamsPackageId) -> Result<Value, Error> {
-    dbg!("Starting the running {params:?}");
     let context = context.deref()?;
     let peeked = context.seed.ctx.db.peek().await;
     let package_id = params.package_id;
@@ -956,9 +955,7 @@ async fn restart(
     WithProcedureId { procedure_id, .. }: WithProcedureId<Empty>,
 ) -> Result<(), Error> {
     let context = context.deref()?;
-    dbg!("here");
     context.restart(procedure_id).await?;
-    dbg!("here");
     Ok(())
 }
 
@@ -1032,12 +1029,11 @@ struct SetMainStatus {
     status: SetMainStatusStatus,
 }
 async fn set_main_status(context: EffectContext, params: SetMainStatus) -> Result<Value, Error> {
-    dbg!(format!("Status for main will be is {params:?}"));
     let context = context.deref()?;
     match params.status {
         SetMainStatusStatus::Running => context.seed.started(),
         SetMainStatusStatus::Stopped => context.seed.stopped(),
-        SetMainStatusStatus::Starting => context.seed.stopped(),
+        SetMainStatusStatus::Starting => context.seed.started(),
     }
     Ok(Value::Null)
 }

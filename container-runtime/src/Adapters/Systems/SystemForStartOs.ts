@@ -123,9 +123,9 @@ export class SystemForStartOs implements System {
         return this.abi.uninit({ effects, nextVersion })
       }
       case "/main/start": {
+        if (this.onTerm) await this.onTerm()
         const started = async (onTerm: () => Promise<void>) => {
           await effects.setMainStatus({ status: "running" })
-          if (this.onTerm) await this.onTerm()
           this.onTerm = onTerm
         }
         const daemons = await (
@@ -135,10 +135,11 @@ export class SystemForStartOs implements System {
           })
         ).build()
         this.onTerm = daemons.term
+        return
       }
       case "/main/stop": {
-        await effects.setMainStatus({ status: "stopped" })
         if (this.onTerm) await this.onTerm()
+        await effects.setMainStatus({ status: "stopped" })
         delete this.onTerm
         return duration(30, "s")
       }
@@ -183,6 +184,7 @@ export class SystemForStartOs implements System {
             return dependencyConfig.update(options.input as any) // TODO
           }
         }
+        return
     }
     throw new Error(`Method ${options.procedure} not implemented.`)
   }
