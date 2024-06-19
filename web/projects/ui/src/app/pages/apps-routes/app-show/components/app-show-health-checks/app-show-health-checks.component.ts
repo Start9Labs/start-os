@@ -12,9 +12,7 @@ export class AppShowHealthChecksComponent {
   @Input()
   healthChecks!: Record<string, T.HealthCheckResult>
 
-  readonly connected$ = this.connectionService.connected$
-
-  constructor(private readonly connectionService: ConnectionService) {}
+  constructor(readonly connection$: ConnectionService) {}
 
   isLoading(result: T.HealthCheckResult['result']): boolean {
     return result === 'starting' || result === 'loading'

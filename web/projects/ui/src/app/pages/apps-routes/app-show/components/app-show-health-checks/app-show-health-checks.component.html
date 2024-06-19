@@ -1,7 +1,7 @@
 <ng-container *ngIf="!(healthChecks | empty)">
   <ion-item-divider>Health Checks</ion-item-divider>
   <!-- connected -->
-  <ng-container *ngIf="connected$ | async; else disconnected">
+  <ng-container *ngIf="connection$ | async; else disconnected">
     <ion-item *ngFor="let check of healthChecks | keyvalue">
       <!-- result -->
       <ng-container *ngIf="check.value.result as result; else noResult">

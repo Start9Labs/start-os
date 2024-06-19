@@ -23,22 +23,18 @@ use crate::prelude::*;
 use crate::util::serde::MaybeUtf8String;
 use crate::HOST_IP;
 
-pub struct NetController {
-    db: TypedPatchDb<Database>,
-    pub(super) tor: TorController,
-    pub(super) vhost: VHostController,
-    pub(super) dns: DnsController,
-    pub(super) forward: LanPortForwardController,
-    pub(super) os_bindings: Vec<Arc<()>>,
+pub struct PreInitNetController {
+    pub db: TypedPatchDb<Database>,
+    tor: TorController,
+    vhost: VHostController,
+    os_bindings: Vec<Arc<()>>,
 }
-
-impl NetController {
+impl PreInitNetController {
     #[instrument(skip_all)]
     pub async fn init(
         db: TypedPatchDb<Database>,
         tor_control: SocketAddr,
         tor_socks: SocketAddr,
-        dns_bind: &[SocketAddr],
         hostname: &Hostname,
         os_tor_key: TorSecretKeyV3,
     ) -> Result<Self, Error> {
@@ -46,8 +42,6 @@ impl NetController {
             db: db.clone(),
             tor: TorController::new(tor_control, tor_socks),
             vhost: VHostController::new(db),
-            dns: DnsController::init(dns_bind).await?,
-            forward: LanPortForwardController::new(),
             os_bindings: Vec::new(),
         };
         res.add_os_bindings(hostname, os_tor_key).await?;
@@ -73,8 +67,6 @@ impl NetController {
                 alpn.clone(),
             )
             .await?;
-        self.os_bindings
-            .push(self.dns.add(None, HOST_IP.into()).await?);
 
         // LAN IP
         self.os_bindings.push(
@@ -141,6 +133,39 @@ impl NetController {
         );
 
         Ok(())
+    }
+}
+
+pub struct NetController {
+    db: TypedPatchDb<Database>,
+    pub(super) tor: TorController,
+    pub(super) vhost: VHostController,
+    pub(super) dns: DnsController,
+    pub(super) forward: LanPortForwardController,
+    pub(super) os_bindings: Vec<Arc<()>>,
+}
+
+impl NetController {
+    pub async fn init(
+        PreInitNetController {
+            db,
+            tor,
+            vhost,
+            os_bindings,
+        }: PreInitNetController,
+        dns_bind: &[SocketAddr],
+    ) -> Result<Self, Error> {
+        let mut res = Self {
+            db,
+            tor,
+            vhost,
+            dns: DnsController::init(dns_bind).await?,
+            forward: LanPortForwardController::new(),
+            os_bindings,
+        };
+        res.os_bindings
+            .push(res.dns.add(None, HOST_IP.into()).await?);
+        Ok(res)
     }
 
     #[instrument(skip_all)]

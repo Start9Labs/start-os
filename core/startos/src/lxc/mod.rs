@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use clap::builder::ValueParserFactory;
 use clap::Parser;
-use futures::{AsyncWriteExt, FutureExt, StreamExt};
+use futures::{AsyncWriteExt, StreamExt};
 use imbl_value::{InOMap, InternedString};
 use models::InvalidId;
 use rpc_toolkit::yajrc::{RpcError, RpcResponse};
@@ -456,51 +456,49 @@ pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Guid,
         .add(
             guid.clone(),
             RpcContinuation::ws(
-                Box::new(|mut ws| {
-                    async move {
-                        if let Err(e) = async {
-                            loop {
-                                match ws.next().await {
-                                    None => break,
-                                    Some(Ok(Message::Text(txt))) => {
-                                        let mut id = None;
-                                        let result = async {
-                                            let req: RpcRequest = serde_json::from_str(&txt)
-                                                .map_err(|e| RpcError {
-                                                    data: Some(serde_json::Value::String(
-                                                        e.to_string(),
-                                                    )),
-                                                    ..rpc_toolkit::yajrc::PARSE_ERROR
-                                                })?;
-                                            id = req.id;
-                                            rpc.request(req.method, req.params).await
-                                        }
-                                        .await;
-                                        ws.send(Message::Text(
-                                            serde_json::to_string(
-                                                &RpcResponse::<GenericRpcMethod> { id, result },
-                                            )
-                                            .with_kind(ErrorKind::Serialization)?,
-                                        ))
-                                        .await
-                                        .with_kind(ErrorKind::Network)?;
+                |mut ws| async move {
+                    if let Err(e) = async {
+                        loop {
+                            match ws.next().await {
+                                None => break,
+                                Some(Ok(Message::Text(txt))) => {
+                                    let mut id = None;
+                                    let result = async {
+                                        let req: RpcRequest =
+                                            serde_json::from_str(&txt).map_err(|e| RpcError {
+                                                data: Some(serde_json::Value::String(
+                                                    e.to_string(),
+                                                )),
+                                                ..rpc_toolkit::yajrc::PARSE_ERROR
+                                            })?;
+                                        id = req.id;
+                                        rpc.request(req.method, req.params).await
                                     }
-                                    Some(Ok(_)) => (),
-                                    Some(Err(e)) => {
-                                        return Err(Error::new(e, ErrorKind::Network));
-                                    }
+                                    .await;
+                                    ws.send(Message::Text(
+                                        serde_json::to_string(&RpcResponse::<GenericRpcMethod> {
+                                            id,
+                                            result,
+                                        })
+                                        .with_kind(ErrorKind::Serialization)?,
+                                    ))
+                                    .await
+                                    .with_kind(ErrorKind::Network)?;
+                                }
+                                Some(Ok(_)) => (),
+                                Some(Err(e)) => {
+                                    return Err(Error::new(e, ErrorKind::Network));
                                 }
                             }
-                            Ok::<_, Error>(())
                         }
-                        .await
-                        {
-                            tracing::error!("{e}");
-                            tracing::debug!("{e:?}");
-                        }
+                        Ok::<_, Error>(())
                     }
-                    .boxed()
-                }),
+                    .await
+                    {
+                        tracing::error!("{e}");
+                        tracing::debug!("{e:?}");
+                    }
+                },
                 Duration::from_secs(30),
             ),
         )

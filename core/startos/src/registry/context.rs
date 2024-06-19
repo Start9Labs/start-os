@@ -169,7 +169,8 @@ impl CallRemote<RegistryContext> for CliContext {
                     &AnySigningKey::Ed25519(self.developer_key()?.clone()),
                     &body,
                     &host,
-                )?.to_header(),
+                )?
+                .to_header(),
             )
             .body(body)
             .send()

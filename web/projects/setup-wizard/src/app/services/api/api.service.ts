@@ -1,16 +1,21 @@
 import * as jose from 'node-jose'
 import { DiskListResponse, StartOSDiskInfo } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
+import { WebSocketSubjectConfig } from 'rxjs/webSocket'
+import { Observable } from 'rxjs'
+
 export abstract class ApiService {
   pubkey?: jose.JWK.Key
 
-  abstract getStatus(): Promise<StatusRes> // setup.status
+  abstract getStatus(): Promise<T.SetupStatusRes | null> // setup.status
   abstract getPubKey(): Promise<void> // setup.get-pubkey
   abstract getDrives(): Promise<DiskListResponse> // setup.disk.list
-  abstract verifyCifs(cifs: CifsRecoverySource): Promise<StartOSDiskInfo> // setup.cifs.verify
-  abstract attach(importInfo: AttachReq): Promise<void> // setup.attach
-  abstract execute(setupInfo: ExecuteReq): Promise<void> // setup.execute
-  abstract complete(): Promise<CompleteRes> // setup.complete
+  abstract verifyCifs(cifs: T.VerifyCifsParams): Promise<StartOSDiskInfo> // setup.cifs.verify
+  abstract attach(importInfo: T.AttachParams): Promise<T.SetupProgress> // setup.attach
+  abstract execute(setupInfo: T.SetupExecuteParams): Promise<T.SetupProgress> // setup.execute
+  abstract complete(): Promise<T.SetupResult> // setup.complete
   abstract exit(): Promise<void> // setup.exit
+  abstract openProgressWebsocket$(guid: string): Observable<T.FullProgress>
 
   async encrypt(toEncrypt: string): Promise<Encrypted> {
     if (!this.pubkey) throw new Error('No pubkey found!')
@@ -27,29 +32,7 @@ type Encrypted = {
   encrypted: string
 }
 
-export type StatusRes = {
-  bytesTransferred: number
-  totalBytes: number | null
-  complete: boolean
-} | null
-
-export type AttachReq = {
-  guid: string
-  startOsPassword: Encrypted
-}
-
-export type ExecuteReq = {
-  startOsLogicalname: string
-  startOsPassword: Encrypted
-  recoverySource: RecoverySource | null
-  recoveryPassword: Encrypted | null
-}
-
-export type CompleteRes = {
-  torAddress: string
-  lanAddress: string
-  rootCa: string
-}
+export type WebsocketConfig<T> = Omit<WebSocketSubjectConfig<T>, 'url'>
 
 export type DiskBackupTarget = {
   vendor: string | null
@@ -67,28 +50,4 @@ export type CifsBackupTarget = {
   username: string
   mountable: boolean
   startOs: StartOSDiskInfo | null
-}
-
-export type DiskRecoverySource = {
-  type: 'disk'
-  logicalname: string // partition logicalname
-}
-
-export type BackupRecoverySource = {
-  type: 'backup'
-  target: CifsRecoverySource | DiskRecoverySource
-}
-export type RecoverySource = BackupRecoverySource | DiskMigrateSource
-
-export type DiskMigrateSource = {
-  type: 'migrate'
-  guid: string
-}
-
-export type CifsRecoverySource = {
-  type: 'cifs'
-  hostname: string
-  path: string
-  username: string
-  password: Encrypted | null
 }

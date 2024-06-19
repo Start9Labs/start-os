@@ -1,39 +1,17 @@
-<ion-content>
-  <ion-grid>
-    <ion-row class="ion-align-items-center">
-      <ion-col class="ion-text-center">
-        <ion-card *ngIf="progress$ | async as progress" color="dark">
-          <ion-card-header>
-            <ion-card-title>Initializing StartOS</ion-card-title>
-            <div class="center-wrapper">
-              <ion-card-subtitle>
-                {{ progress.transferred | toMessage }}
-              </ion-card-subtitle>
-            </div>
-          </ion-card-header>
+<section *ngIf="progress$ | async as progress">
+  <h1 [style.font-size.rem]="2.5" [style.margin.rem]="1">
+    Setting up your server
+  </h1>
+  <div class="center-wrapper" *ngIf="progress.total">
+    Progress: {{ (progress.total * 100).toFixed(0) }}%
+  </div>
 
-          <ion-card-content class="ion-margin">
-            <ion-progress-bar
-              color="tertiary"
-              style="max-width: 700px; margin: auto; margin-bottom: 36px"
-              [type]="progress.transferred && progress.transferred < 1 ? 'determinate' : 'indeterminate'"
-              [value]="progress.transferred || 0"
-            ></ion-progress-bar>
-            <p>
-              <ng-container *ngIf="progress.totalBytes as total">
-                <ng-container
-                  *ngIf="progress.transferred as transferred; else calculating"
-                >
-                  Progress: {{ (transferred * 100).toFixed() }}%
-                </ng-container>
-                <ng-template #calculating>
-                  {{ (progress.totalBytes / 1073741824).toFixed(2) }} GB
-                </ng-template>
-              </ng-container>
-            </p>
-          </ion-card-content>
-        </ion-card>
-      </ion-col>
-    </ion-row>
-  </ion-grid>
-</ion-content>
+  <progress
+    tuiProgressBar
+    class="progress"
+    [style.max-width.rem]="40"
+    [style.margin]="'1rem auto'"
+    [attr.value]="progress.total"
+  ></progress>
+  <p>{{ progress.message }}</p>
+</section>

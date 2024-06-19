@@ -70,7 +70,7 @@ pub fn registry_api<C: Context>() -> ParentHandler<C> {
         .subcommand("db", db::db_api::<C>())
 }
 
-pub fn registry_server_router(ctx: RegistryContext) -> Router {
+pub fn registry_router(ctx: RegistryContext) -> Router {
     use axum::extract as x;
     use axum::routing::{any, get, post};
     Router::new()
@@ -128,7 +128,7 @@ pub fn registry_server_router(ctx: RegistryContext) -> Router {
 }
 
 impl WebServer {
-    pub fn registry(bind: SocketAddr, ctx: RegistryContext) -> Self {
-        Self::new(bind, registry_server_router(ctx))
+    pub fn serve_registry(&mut self, ctx: RegistryContext) {
+        self.serve_router(registry_router(ctx))
     }
 }

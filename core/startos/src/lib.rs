@@ -1,8 +1,5 @@
 pub const DEFAULT_MARKETPLACE: &str = "https://registry.start9.com";
 // pub const COMMUNITY_MARKETPLACE: &str = "https://community-registry.start9.com";
-pub const CAP_1_KiB: usize = 1024;
-pub const CAP_1_MiB: usize = CAP_1_KiB * CAP_1_KiB;
-pub const CAP_10_MiB: usize = 10 * CAP_1_MiB;
 pub const HOST_IP: [u8; 4] = [172, 18, 0, 1];
 pub use std::env::consts::ARCH;
 lazy_static::lazy_static! {
@@ -17,6 +14,15 @@ lazy_static::lazy_static! {
         std::fs::metadata(std::env::current_exe().unwrap()).unwrap().modified().unwrap()
     };
 }
+
+mod cap {
+    #![allow(non_upper_case_globals)]
+
+    pub const CAP_1_KiB: usize = 1024;
+    pub const CAP_1_MiB: usize = CAP_1_KiB * CAP_1_KiB;
+    pub const CAP_10_MiB: usize = 10 * CAP_1_MiB;
+}
+pub use cap::*;
 
 pub mod account;
 pub mod action;
@@ -75,13 +81,17 @@ use rpc_toolkit::{
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::context::{CliContext, DiagnosticContext, InstallContext, RpcContext, SetupContext};
+use crate::context::{
+    CliContext, DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext,
+};
+use crate::disk::fsck::RequiresReboot;
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
 use crate::util::serde::HandlerExtSerde;
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct EchoParams {
     message: String,
 }
@@ -90,12 +100,32 @@ pub fn echo<C: Context>(_: C, EchoParams { message }: EchoParams) -> Result<Stri
     Ok(message)
 }
 
+#[derive(Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum ApiState {
+    Error,
+    Initializing,
+    Running,
+}
+impl std::fmt::Display for ApiState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(&self, f)
+    }
+}
+
 pub fn main_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand::<C, _>("git-info", from_fn(version::git_info))
         .subcommand(
             "echo",
             from_fn(echo::<RpcContext>)
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "state",
+            from_fn(|_: RpcContext| Ok::<_, Error>(ApiState::Running))
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_call_remote::<CliContext>(),
         )
@@ -179,11 +209,18 @@ pub fn server<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "update-firmware",
-            from_fn_async(|_: RpcContext| firmware::update_firmware())
-                .with_custom_display_fn(|_handle, result| {
-                    Ok(firmware::display_firmware_update_result(result))
-                })
-                .with_call_remote::<CliContext>(),
+            from_fn_async(|_: RpcContext| async {
+                if let Some(firmware) = firmware::check_for_firmware_update().await? {
+                    firmware::update_firmware(firmware).await?;
+                    Ok::<_, Error>(RequiresReboot(true))
+                } else {
+                    Ok(RequiresReboot(false))
+                }
+            })
+            .with_custom_display_fn(|_handle, result| {
+                Ok(firmware::display_firmware_update_result(result))
+            })
+            .with_call_remote::<CliContext>(),
         )
 }
 
@@ -204,7 +241,12 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_cli(),
         )
-        .subcommand("sideload", from_fn_async(install::sideload).no_cli())
+        .subcommand(
+            "sideload",
+            from_fn_async(install::sideload)
+                .with_metadata("get_session", Value::Bool(true))
+                .no_cli(),
+        )
         .subcommand("install", from_fn_async(install::cli_install).no_display())
         .subcommand(
             "uninstall",
@@ -273,7 +315,32 @@ pub fn diagnostic_api() -> ParentHandler<DiagnosticContext> {
             "echo",
             from_fn(echo::<DiagnosticContext>).with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "state",
+            from_fn(|_: DiagnosticContext| Ok::<_, Error>(ApiState::Error))
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_call_remote::<CliContext>(),
+        )
         .subcommand("diagnostic", diagnostic::diagnostic::<DiagnosticContext>())
+}
+
+pub fn init_api() -> ParentHandler<InitContext> {
+    ParentHandler::new()
+        .subcommand::<InitContext, _>(
+            "git-info",
+            from_fn(version::git_info).with_metadata("authenticated", Value::Bool(false)),
+        )
+        .subcommand(
+            "echo",
+            from_fn(echo::<InitContext>).with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "state",
+            from_fn(|_: InitContext| Ok::<_, Error>(ApiState::Initializing))
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand("init", init::init_api::<InitContext>())
 }
 
 pub fn setup_api() -> ParentHandler<SetupContext> {
