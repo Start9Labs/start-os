@@ -319,30 +319,6 @@ export class ServerShowPage {
     await alert.present()
   }
 
-  async presentAlertSystemRebuild() {
-    const localPkgs = await getAllPackages(this.patch)
-    const minutes = Object.keys(localPkgs).length * 2
-    const alert = await this.alertCtrl.create({
-      header: 'Warning',
-      message: `This action will tear down all service containers and rebuild them from scratch. No data will be deleted. This action is useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues. It may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your server.`,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Rebuild',
-          handler: () => {
-            this.systemRebuild()
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-      cssClass: 'alert-warning-message',
-    })
-    await alert.present()
-  }
-
   async presentAlertRepairDisk() {
     const alert = await this.alertCtrl.create({
       header: 'Warning',
@@ -430,23 +406,6 @@ export class ServerShowPage {
 
     try {
       await this.embassyApi.shutdownServer({})
-    } catch (e: any) {
-      this.errToast.present(e)
-    } finally {
-      loader.dismiss()
-    }
-  }
-
-  private async systemRebuild() {
-    const action = 'System Rebuild'
-
-    const loader = await this.loadingCtrl.create({
-      message: `Beginning ${action}...`,
-    })
-    await loader.present()
-
-    try {
-      await this.embassyApi.systemRebuild({})
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
@@ -715,14 +674,6 @@ export class ServerShowPage {
         description: '',
         icon: 'power',
         action: () => this.presentAlertShutdown(),
-        detail: false,
-        disabled$: of(false),
-      },
-      {
-        title: 'System Rebuild',
-        description: '',
-        icon: 'construct-outline',
-        action: () => this.presentAlertSystemRebuild(),
         detail: false,
         disabled$: of(false),
       },

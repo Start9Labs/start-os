@@ -1,4 +1,5 @@
 import { Component, inject, OnDestroy } from '@angular/core'
+import { IsActiveMatchOptions, Router } from '@angular/router'
 import { combineLatest, map, merge, startWith } from 'rxjs'
 import { AuthService } from './services/auth.service'
 import { SplitPaneTracker } from './services/split-pane.service'
@@ -15,6 +16,13 @@ import { THEME } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from './services/patch-db/data-model'
 
+const OPTIONS: IsActiveMatchOptions = {
+  paths: 'subset',
+  queryParams: 'exact',
+  fragment: 'ignored',
+  matrixParams: 'ignored',
+}
+
 @Component({
   selector: 'app-root',
   templateUrl: 'app.component.html',
@@ -27,7 +35,7 @@ export class AppComponent implements OnDestroy {
   readonly theme$ = inject(THEME)
   readonly offline$ = combineLatest([
     this.authService.isVerified$,
-    this.connection.connected$,
+    this.connection$,
     this.patch
       .watch$('serverInfo', 'statusInfo')
       .pipe(startWith({ restarting: false, shuttingDown: false })),
@@ -44,8 +52,9 @@ export class AppComponent implements OnDestroy {
     private readonly patchMonitor: PatchMonitorService,
     private readonly splitPane: SplitPaneTracker,
     private readonly patch: PatchDB<DataModel>,
+    private readonly router: Router,
     readonly authService: AuthService,
-    readonly connection: ConnectionService,
+    readonly connection$: ConnectionService,
     readonly clientStorageService: ClientStorageService,
     readonly themeSwitcher: ThemeSwitcherService,
   ) {}
@@ -54,6 +63,13 @@ export class AppComponent implements OnDestroy {
     this.patch
       .watch$('ui', 'name')
       .subscribe(name => this.titleService.setTitle(name || 'StartOS'))
+  }
+
+  get withoutMenu(): boolean {
+    return (
+      this.router.isActive('initializing', OPTIONS) ||
+      this.router.isActive('diagnostic', OPTIONS)
+    )
   }
 
   splitPaneVisible({ detail }: any) {

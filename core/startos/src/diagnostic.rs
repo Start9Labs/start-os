@@ -28,10 +28,6 @@ pub fn diagnostic<C: Context>() -> ParentHandler<C> {
             from_fn_async(crate::logs::cli_logs::<DiagnosticContext, Empty>).no_display(),
         )
         .subcommand(
-            "exit",
-            from_fn(exit).no_display().with_call_remote::<CliContext>(),
-        )
-        .subcommand(
             "restart",
             from_fn(restart)
                 .no_display()
@@ -51,20 +47,15 @@ pub fn error(ctx: DiagnosticContext) -> Result<Arc<RpcError>, Error> {
     Ok(ctx.error.clone())
 }
 
-pub fn exit(ctx: DiagnosticContext) -> Result<(), Error> {
-    ctx.shutdown.send(None).expect("receiver dropped");
-    Ok(())
-}
-
 pub fn restart(ctx: DiagnosticContext) -> Result<(), Error> {
     ctx.shutdown
-        .send(Some(Shutdown {
+        .send(Shutdown {
             export_args: ctx
                 .disk_guid
                 .clone()
                 .map(|guid| (guid, ctx.datadir.clone())),
             restart: true,
-        }))
+        })
         .expect("receiver dropped");
     Ok(())
 }

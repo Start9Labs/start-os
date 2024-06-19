@@ -16,7 +16,7 @@ export module Mock {
     restarting: false,
     shuttingDown: false,
   }
-  export const MarketplaceEos: RR.GetMarketplaceEosRes = {
+  export const MarketplaceEos: RR.CheckOSUpdateRes = {
     version: '0.3.5.2',
     headline: 'Our biggest release ever.',
     releaseNotes: {
@@ -493,30 +493,23 @@ export module Mock {
     {
       timestamp: '2022-07-28T03:52:54.808769Z',
       message: '****** START *****',
+      bootId: 'hsjnfdklasndhjasvbjamsksajbndjn',
     },
     {
       timestamp: '2019-12-26T14:21:30.872Z',
       message:
         '\u001b[34mPOST \u001b[0;32;49m200\u001b[0m photoview.startos/api/graphql \u001b[0;36;49m1.169406ms\u001b',
+      bootId: 'hsjnfdklasndhjasvbjamsksajbndjn',
     },
     {
       timestamp: '2019-12-26T14:22:30.872Z',
       message: '****** FINISH *****',
-    },
-  ]
-
-  export const PackageLogs: Log[] = [
-    {
-      timestamp: '2022-07-28T03:52:54.808769Z',
-      message: '****** START *****',
+      bootId: 'gvbwfiuasokdasjndasnjdmfvbahjdmdkfm',
     },
     {
-      timestamp: '2019-12-26T14:21:30.872Z',
-      message: 'PackageLogs PackageLogs PackageLogs PackageLogs PackageLogs',
-    },
-    {
-      timestamp: '2019-12-26T14:22:30.872Z',
-      message: '****** FINISH *****',
+      timestamp: '2019-12-26T15:22:30.872Z',
+      message: '****** AGAIN *****',
+      bootId: 'gvbwfiuasokdasjndasnjdmfvbahjdmdkfm',
     },
   ]
 

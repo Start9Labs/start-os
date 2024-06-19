@@ -186,29 +186,16 @@ pub async fn cli_add_asset(
 
     let file = MultiCursorFile::from(tokio::fs::File::open(&path).await?);
 
-    let mut progress = FullProgressTracker::new();
-    let progress_handle = progress.handle();
-    let mut sign_phase =
-        progress_handle.add_phase(InternedString::intern("Signing File"), Some(10));
-    let mut verify_phase =
-        progress_handle.add_phase(InternedString::intern("Verifying URL"), Some(100));
-    let mut index_phase = progress_handle.add_phase(
+    let progress = FullProgressTracker::new();
+    let mut sign_phase = progress.add_phase(InternedString::intern("Signing File"), Some(10));
+    let mut verify_phase = progress.add_phase(InternedString::intern("Verifying URL"), Some(100));
+    let mut index_phase = progress.add_phase(
         InternedString::intern("Adding File to Registry Index"),
         Some(1),
     );
 
-    let progress_task: NonDetachingJoinHandle<()> = tokio::spawn(async move {
-        let mut bar = PhasedProgressBar::new(&format!("Adding {} to registry...", path.display()));
-        loop {
-            let snap = progress.snapshot();
-            bar.update(&snap);
-            if snap.overall.is_complete() {
-                break;
-            }
-            progress.changed().await
-        }
-    })
-    .into();
+    let progress_task =
+        progress.progress_bar_task(&format!("Adding {} to registry...", path.display()));
 
     sign_phase.start();
     let blake3 = file.blake3_mmap().await?;
@@ -252,7 +239,7 @@ pub async fn cli_add_asset(
     .await?;
     index_phase.complete();
 
-    progress_handle.complete();
+    progress.complete();
 
     progress_task.await.with_kind(ErrorKind::Unknown)?;
 

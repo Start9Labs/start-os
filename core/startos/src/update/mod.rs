@@ -20,9 +20,7 @@ use ts_rs::TS;
 use crate::context::{CliContext, RpcContext};
 use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
-use crate::progress::{
-    FullProgressTracker, FullProgressTrackerHandle, PhaseProgressTrackerHandle, PhasedProgressBar,
-};
+use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle, PhasedProgressBar};
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
 use crate::registry::os::index::OsVersionInfo;
@@ -34,6 +32,7 @@ use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::sound::{
     CIRCLE_OF_5THS_SHORT, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4,
 };
+use crate::util::net::WebSocketExt;
 use crate::util::Invoke;
 use crate::PLATFORM;
 
@@ -91,50 +90,47 @@ pub async fn update_system(
             .add(
                 guid.clone(),
                 RpcContinuation::ws(
-                    Box::new(|mut ws| {
-                        async move {
-                            if let Err(e) = async {
-                                let mut sub = ctx
+                    |mut ws| async move {
+                        if let Err(e) = async {
+                            let mut sub = ctx
+                                .db
+                                .subscribe(
+                                    "/public/serverInfo/statusInfo/updateProgress"
+                                        .parse::<JsonPointer>()
+                                        .with_kind(ErrorKind::Database)?,
+                                )
+                                .await;
+                            while {
+                                let progress = ctx
                                     .db
-                                    .subscribe(
-                                        "/public/serverInfo/statusInfo/updateProgress"
-                                            .parse::<JsonPointer>()
-                                            .with_kind(ErrorKind::Database)?,
-                                    )
-                                    .await;
-                                while {
-                                    let progress = ctx
-                                        .db
-                                        .peek()
-                                        .await
-                                        .into_public()
-                                        .into_server_info()
-                                        .into_status_info()
-                                        .into_update_progress()
-                                        .de()?;
-                                    ws.send(axum::extract::ws::Message::Text(
-                                        serde_json::to_string(&progress)
-                                            .with_kind(ErrorKind::Serialization)?,
-                                    ))
+                                    .peek()
                                     .await
-                                    .with_kind(ErrorKind::Network)?;
-                                    progress.is_some()
-                                } {
-                                    sub.recv().await;
-                                }
-
-                                ws.close().await.with_kind(ErrorKind::Network)?;
-
-                                Ok::<_, Error>(())
+                                    .into_public()
+                                    .into_server_info()
+                                    .into_status_info()
+                                    .into_update_progress()
+                                    .de()?;
+                                ws.send(axum::extract::ws::Message::Text(
+                                    serde_json::to_string(&progress)
+                                        .with_kind(ErrorKind::Serialization)?,
+                                ))
+                                .await
+                                .with_kind(ErrorKind::Network)?;
+                                progress.is_some()
+                            } {
+                                sub.recv().await;
                             }
-                            .await
-                            {
-                                tracing::error!("Error returning progress of update: {e}");
-                                tracing::debug!("{e:?}")
-                            }
+
+                            ws.normal_close("complete").await?;
+
+                            Ok::<_, Error>(())
                         }
-                        .boxed()
-                    }),
+                        .await
+                        {
+                            tracing::error!("Error returning progress of update: {e}");
+                            tracing::debug!("{e:?}")
+                        }
+                    },
                     Duration::from_secs(30),
                 ),
             )
@@ -250,13 +246,12 @@ async fn maybe_do_update(
 
     asset.validate(SIG_CONTEXT, asset.all_signers())?;
 
-    let mut progress = FullProgressTracker::new();
-    let progress_handle = progress.handle();
-    let mut download_phase = progress_handle.add_phase("Downloading File".into(), Some(100));
+    let progress = FullProgressTracker::new();
+    let mut download_phase = progress.add_phase("Downloading File".into(), Some(100));
     download_phase.set_total(asset.commitment.size);
-    let reverify_phase = progress_handle.add_phase("Reverifying File".into(), Some(10));
-    let sync_boot_phase = progress_handle.add_phase("Syncing Boot Files".into(), Some(1));
-    let finalize_phase = progress_handle.add_phase("Finalizing Update".into(), Some(1));
+    let reverify_phase = progress.add_phase("Reverifying File".into(), Some(10));
+    let sync_boot_phase = progress.add_phase("Syncing Boot Files".into(), Some(1));
+    let finalize_phase = progress.add_phase("Finalizing Update".into(), Some(1));
 
     let start_progress = progress.snapshot();
 
@@ -287,7 +282,7 @@ async fn maybe_do_update(
         ));
     }
 
-    let progress_task = NonDetachingJoinHandle::from(tokio::spawn(progress.sync_to_db(
+    let progress_task = NonDetachingJoinHandle::from(tokio::spawn(progress.clone().sync_to_db(
         ctx.db.clone(),
         |db| {
             db.as_public_mut()
@@ -304,7 +299,7 @@ async fn maybe_do_update(
             ctx.clone(),
             asset,
             UpdateProgressHandles {
-                progress_handle,
+                progress,
                 download_phase,
                 reverify_phase,
                 sync_boot_phase,
@@ -373,7 +368,7 @@ async fn maybe_do_update(
 }
 
 struct UpdateProgressHandles {
-    progress_handle: FullProgressTrackerHandle,
+    progress: FullProgressTracker,
     download_phase: PhaseProgressTrackerHandle,
     reverify_phase: PhaseProgressTrackerHandle,
     sync_boot_phase: PhaseProgressTrackerHandle,
@@ -385,7 +380,7 @@ async fn do_update(
     ctx: RpcContext,
     asset: RegistryAsset<Blake3Commitment>,
     UpdateProgressHandles {
-        progress_handle,
+        progress,
         mut download_phase,
         mut reverify_phase,
         mut sync_boot_phase,
@@ -436,7 +431,7 @@ async fn do_update(
         .await?;
     finalize_phase.complete();
 
-    progress_handle.complete();
+    progress.complete();
 
     Ok(())
 }

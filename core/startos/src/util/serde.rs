@@ -22,8 +22,8 @@ use ts_rs::TS;
 
 use super::IntoDoubleEndedIterator;
 use crate::prelude::*;
-use crate::util::Apply;
 use crate::util::clap::FromStrParser;
+use crate::util::Apply;
 
 pub fn deserialize_from_str<
     'de,
@@ -1040,15 +1040,19 @@ impl<T: AsRef<[u8]>> std::fmt::Display for Base64<T> {
         f.write_str(&base64::encode(self.0.as_ref()))
     }
 }
-impl<T: TryFrom<Vec<u8>>> FromStr for Base64<T>
-{
+impl<T: TryFrom<Vec<u8>>> FromStr for Base64<T> {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         base64::decode(&s)
             .with_kind(ErrorKind::Deserialization)?
             .apply(TryFrom::try_from)
             .map(Self)
-            .map_err(|_| Error::new(eyre!("failed to create from buffer"), ErrorKind::Deserialization))
+            .map_err(|_| {
+                Error::new(
+                    eyre!("failed to create from buffer"),
+                    ErrorKind::Deserialization,
+                )
+            })
     }
 }
 impl<'de, T: TryFrom<Vec<u8>>> Deserialize<'de> for Base64<T> {

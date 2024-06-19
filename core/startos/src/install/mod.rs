@@ -6,7 +6,8 @@ use clap::builder::ValueParserFactory;
 use clap::{value_parser, CommandFactory, FromArgMatches, Parser};
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
-use futures::{FutureExt, StreamExt};
+use futures::StreamExt;
+use imbl_value::InternedString;
 use itertools::Itertools;
 use patch_db::json_ptr::JsonPointer;
 use reqwest::header::{HeaderMap, CONTENT_LENGTH};
@@ -29,6 +30,7 @@ use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::S9pk;
 use crate::upload::upload;
 use crate::util::clap::FromStrParser;
+use crate::util::net::WebSocketExt;
 use crate::util::Never;
 
 pub const PKG_ARCHIVE_DIR: &str = "package-data/archive";
@@ -170,7 +172,15 @@ pub async fn install(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SideloadParams {
+    #[ts(skip)]
+    #[serde(rename = "__auth_session")]
+    session: InternedString,
+}
+
+#[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SideloadResponse {
     pub upload: Guid,
@@ -178,8 +188,11 @@ pub struct SideloadResponse {
 }
 
 #[instrument(skip_all)]
-pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
-    let (upload, file) = upload(&ctx).await?;
+pub async fn sideload(
+    ctx: RpcContext,
+    SideloadParams { session }: SideloadParams,
+) -> Result<SideloadResponse, Error> {
+    let (upload, file) = upload(&ctx, session.clone()).await?;
     let (id_send, id_recv) = oneshot::channel();
     let (err_send, err_recv) = oneshot::channel();
     let progress = Guid::new();
@@ -193,17 +206,27 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
         .await;
     ctx.rpc_continuations.add(
         progress.clone(),
-        RpcContinuation::ws(
-            Box::new(|mut ws| {
+        RpcContinuation::ws_authed(&ctx, session,
+            |mut ws| {
                 use axum::extract::ws::Message;
                 async move {
                     if let Err(e) = async {
-                        let id = id_recv.await.map_err(|_| {
+                        let id = match id_recv.await.map_err(|_| {
                             Error::new(
                                 eyre!("Could not get id to watch progress"),
                                 ErrorKind::Cancelled,
                             )
-                        })?;
+                        }).and_then(|a|a) {
+                            Ok(a) => a,
+                            Err(e) =>{ ws.send(Message::Text(
+                                serde_json::to_string(&Err::<(), _>(RpcError::from(e.clone_output())))
+                                .with_kind(ErrorKind::Serialization)?,
+                            ))
+                            .await
+                            .with_kind(ErrorKind::Network)?;
+                            return Err(e);
+                        }
+                        };
                         tokio::select! {
                             res = async {
                                 while let Some(_) = sub.recv().await {
@@ -241,7 +264,7 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
                             }
                         }
 
-                        ws.close().await.with_kind(ErrorKind::Network)?;
+                        ws.normal_close("complete").await?;
 
                         Ok::<_, Error>(())
                     }
@@ -251,25 +274,32 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
                         tracing::debug!("{e:?}");
                     }
                 }
-                .boxed()
-            }),
+            },
             Duration::from_secs(600),
         ),
     )
     .await;
     tokio::spawn(async move {
         if let Err(e) = async {
-            let s9pk = S9pk::deserialize(
+            match S9pk::deserialize(
                 &file, None, // TODO
             )
-            .await?;
-            let _ = id_send.send(s9pk.as_manifest().id.clone());
-            ctx.services
-                .install(ctx.clone(), s9pk, None::<Never>)
-                .await?
-                .await?
-                .await?;
-            file.delete().await
+            .await
+            {
+                Ok(s9pk) => {
+                    let _ = id_send.send(Ok(s9pk.as_manifest().id.clone()));
+                    ctx.services
+                        .install(ctx.clone(), s9pk, None::<Never>)
+                        .await?
+                        .await?
+                        .await?;
+                    file.delete().await
+                }
+                Err(e) => {
+                    let _ = id_send.send(Err(e.clone_output()));
+                    return Err(e);
+                }
+            }
         }
         .await
         {

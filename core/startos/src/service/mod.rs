@@ -354,7 +354,7 @@ impl Service {
             .with_kind(ErrorKind::MigrationFailed)?; // TODO: handle cancellation
         if let Some(mut progress) = progress {
             progress.finalization_progress.complete();
-            progress.progress_handle.complete();
+            progress.progress.complete();
             tokio::task::yield_now().await;
         }
         ctx.db

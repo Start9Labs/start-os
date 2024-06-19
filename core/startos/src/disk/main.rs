@@ -13,7 +13,7 @@ use crate::disk::mount::util::unmount;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
-pub const PASSWORD_PATH: &'static str = "/run/embassy/password";
+pub const PASSWORD_PATH: &'static str = "/run/startos/password";
 pub const DEFAULT_PASSWORD: &'static str = "password";
 pub const MAIN_FS_SIZE: FsSize = FsSize::Gigabytes(8);
 

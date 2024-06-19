@@ -5,12 +5,7 @@ import {
   ModalController,
   NavController,
 } from '@ionic/angular'
-import {
-  ApiService,
-  BackupRecoverySource,
-  DiskRecoverySource,
-  DiskMigrateSource,
-} from 'src/app/services/api/api.service'
+import { ApiService } from 'src/app/services/api/api.service'
 import { DiskInfo, ErrorToastService, GuidPipe } from '@start9labs/shared'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../../modals/password/password.page'
@@ -58,18 +53,17 @@ export class EmbassyPage {
       } else if (this.stateService.setupType === 'restore') {
         this.storageDrives = disks.filter(
           d =>
+            this.stateService.recoverySource?.type === 'backup' &&
+            this.stateService.recoverySource.target?.type === 'disk' &&
             !d.partitions
               .map(p => p.logicalname)
-              .includes(
-                (
-                  (this.stateService.recoverySource as BackupRecoverySource)
-                    ?.target as DiskRecoverySource
-                )?.logicalname,
-              ),
+              .includes(this.stateService.recoverySource.target.logicalname),
         )
-      } else if (this.stateService.setupType === 'transfer') {
-        const guid = (this.stateService.recoverySource as DiskMigrateSource)
-          .guid
+      } else if (
+        this.stateService.setupType === 'transfer' &&
+        this.stateService.recoverySource?.type === 'migrate'
+      ) {
+        const guid = this.stateService.recoverySource.guid
         this.storageDrives = disks.filter(d => {
           return (
             d.guid !== guid && !d.partitions.map(p => p.guid).includes(guid)

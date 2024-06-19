@@ -1,19 +1,19 @@
 import { InjectionToken, Injector } from '@angular/core'
+import { Revision, Update } from 'patch-db-client'
+import { defer, EMPTY, from, Observable } from 'rxjs'
 import {
   bufferTime,
   catchError,
   filter,
+  startWith,
   switchMap,
   take,
-  tap,
 } from 'rxjs/operators'
-import { Update } from 'patch-db-client'
-import { DataModel } from './data-model'
-import { defer, EMPTY, from, interval, Observable } from 'rxjs'
-import { AuthService } from '../auth.service'
-import { ConnectionService } from '../connection.service'
+import { StateService } from 'src/app/services/state.service'
 import { ApiService } from '../api/embassy-api.service'
-import { ConfigService } from '../config.service'
+import { AuthService } from '../auth.service'
+import { DataModel } from './data-model'
+import { LocalStorageBootstrap } from './local-storage-bootstrap'
 
 export const PATCH_SOURCE = new InjectionToken<Observable<Update<DataModel>[]>>(
   '',
@@ -25,33 +25,31 @@ export function sourceFactory(
   // defer() needed to avoid circular dependency with ApiService, since PatchDB is needed there
   return defer(() => {
     const api = injector.get(ApiService)
-    const authService = injector.get(AuthService)
-    const connectionService = injector.get(ConnectionService)
-    const configService = injector.get(ConfigService)
-    const isTor = configService.isTor()
-    const timeout = isTor ? 16000 : 4000
+    const auth = injector.get(AuthService)
+    const state = injector.get(StateService)
+    const bootstrapper = injector.get(LocalStorageBootstrap)
 
-    const websocket$ = api.openPatchWebsocket$().pipe(
-      bufferTime(250),
-      filter(updates => !!updates.length),
-      catchError((_, watch$) => {
-        connectionService.websocketConnected$.next(false)
+    return auth.isVerified$.pipe(
+      switchMap(verified =>
+        verified ? from(api.subscribeToPatchDB({})) : EMPTY,
+      ),
+      switchMap(({ dump, guid }) =>
+        api.openWebsocket$<Revision>(guid, {}).pipe(
+          bufferTime(250),
+          filter(revisions => !!revisions.length),
+          startWith([dump]),
+        ),
+      ),
+      catchError((_, original$) => {
+        state.retrigger()
 
-        return interval(timeout).pipe(
-          switchMap(() =>
-            from(api.echo({ message: 'ping', timeout })).pipe(
-              catchError(() => EMPTY),
-            ),
-          ),
+        return state.pipe(
+          filter(current => current === 'running'),
           take(1),
-          switchMap(() => watch$),
+          switchMap(() => original$),
         )
       }),
-      tap(() => connectionService.websocketConnected$.next(true)),
-    )
-
-    return authService.isVerified$.pipe(
-      switchMap(verified => (verified ? websocket$ : EMPTY)),
+      startWith([bootstrapper.init()]),
     )
   })
 }

@@ -70,7 +70,7 @@ export class MenuComponent {
 
   readonly showEOSUpdate$ = this.eosService.showUpdate$
 
-  private readonly local$ = this.connectionService.connected$.pipe(
+  private readonly local$ = this.connection$.pipe(
     filter(Boolean),
     switchMap(() => this.patch.watch$('packageData').pipe(first())),
     switchMap(outer =>
@@ -126,6 +126,6 @@ export class MenuComponent {
     private readonly marketplaceService: MarketplaceService,
     private readonly splitPane: SplitPaneTracker,
     private readonly emver: Emver,
-    private readonly connectionService: ConnectionService,
+    private readonly connection$: ConnectionService,
   ) {}
 }

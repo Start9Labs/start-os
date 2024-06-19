@@ -97,6 +97,7 @@ impl ArchiveSource for MultiCursorFile {
             .ok()
             .map(|m| m.len())
     }
+    #[allow(refining_impl_trait)]
     async fn fetch_all(&self) -> Result<impl AsyncRead + Unpin + Send + 'static, Error> {
         use tokio::io::AsyncSeekExt;
 

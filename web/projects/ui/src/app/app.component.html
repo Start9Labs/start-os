@@ -15,6 +15,7 @@
           type="overlay"
           side="start"
           class="left-menu"
+          [class.left-menu_hidden]="withoutMenu"
         >
           <ion-content color="light" scrollY="false" class="menu">
             <app-menu *ngIf="authService.isVerified$ | async"></app-menu>
