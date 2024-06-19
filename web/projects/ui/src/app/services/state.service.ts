@@ -6,20 +6,23 @@ import {
   BehaviorSubject,
   combineLatest,
   concat,
+  EMPTY,
   exhaustMap,
   from,
   merge,
   Observable,
-  retry,
   startWith,
   Subject,
+  timer,
 } from 'rxjs'
 import {
+  catchError,
   filter,
   map,
   shareReplay,
   skip,
   switchMap,
+  take,
   takeUntil,
   tap,
 } from 'rxjs/operators'
@@ -47,7 +50,14 @@ export class StateService extends Observable<RR.ServerState | null> {
 
   private readonly trigger$ = new BehaviorSubject<void>(undefined)
   private readonly poll$ = this.trigger$.pipe(
-    switchMap(() => from(this.api.getState()).pipe(retry({ delay: 2000 }))),
+    switchMap(() =>
+      timer(0, 2000).pipe(
+        switchMap(() =>
+          from(this.api.getState()).pipe(catchError(() => EMPTY)),
+        ),
+        take(1),
+      ),
+    ),
   )
 
   private readonly stream$ = merge(this.single$, this.poll$).pipe(
@@ -101,7 +111,7 @@ export class StateService extends Observable<RR.ServerState | null> {
         ),
       ),
     )
-    .subscribe()
+    .subscribe() // @TODO shouldn't this be subscribed in app component with the others? Do we ever need to unsubscribe?
 
   constructor() {
     super(subscriber => this.stream$.subscribe(subscriber))

@@ -687,13 +687,13 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     let entries
     if (Math.random() < 0.2) {
-      entries = Mock.PackageLogs
+      entries = Mock.ServerLogs
     } else {
       const arrLength = params.limit
-        ? Math.ceil(params.limit / Mock.PackageLogs.length)
+        ? Math.ceil(params.limit / Mock.ServerLogs.length)
         : 10
       entries = new Array(arrLength)
-        .fill(Mock.PackageLogs)
+        .fill(Mock.ServerLogs)
         .reduce((acc, val) => acc.concat(val), [])
     }
     return {
