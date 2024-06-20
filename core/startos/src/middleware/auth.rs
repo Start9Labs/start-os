@@ -1,33 +1,38 @@
 use std::borrow::Borrow;
+use std::collections::BTreeSet;
+use std::ops::Deref;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use axum::extract::Request;
+use axum::response::Response;
 use basic_cookies::Cookie;
+use chrono::Utc;
 use color_eyre::eyre::eyre;
 use digest::Digest;
-use futures::future::BoxFuture;
-use futures::FutureExt;
-use http::StatusCode;
-use rpc_toolkit::command_helpers::prelude::RequestParts;
-use rpc_toolkit::hyper::header::COOKIE;
-use rpc_toolkit::hyper::http::Error as HttpError;
-use rpc_toolkit::hyper::{Body, Request, Response};
-use rpc_toolkit::rpc_server_helpers::{
-    noop4, to_response, DynMiddleware, DynMiddlewareStage2, DynMiddlewareStage3,
-};
-use rpc_toolkit::yajrc::RpcMethod;
-use rpc_toolkit::Metadata;
+use helpers::const_true;
+use http::header::{COOKIE, USER_AGENT};
+use http::HeaderValue;
+use imbl_value::InternedString;
+use rpc_toolkit::yajrc::INTERNAL_ERROR;
+use rpc_toolkit::{Middleware, RpcRequest, RpcResponse};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use tokio::sync::Mutex;
 
 use crate::context::RpcContext;
-use crate::{Error, ResultExt};
+use crate::prelude::*;
 
-pub const LOCAL_AUTH_COOKIE_PATH: &str = "/run/embassy/rpc.authcookie";
+pub const LOCAL_AUTH_COOKIE_PATH: &str = "/run/startos/rpc.authcookie";
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LoginRes {
+    pub session: InternedString,
+}
 
 pub trait AsLogoutSessionId {
-    fn as_logout_session_id(self) -> String;
+    fn as_logout_session_id(self) -> InternedString;
 }
 
 /// Will need to know when we have logged out from a route
@@ -36,37 +41,46 @@ pub struct HasLoggedOutSessions(());
 
 impl HasLoggedOutSessions {
     pub async fn new(
-        logged_out_sessions: impl IntoIterator<Item = impl AsLogoutSessionId>,
+        sessions: impl IntoIterator<Item = impl AsLogoutSessionId>,
         ctx: &RpcContext,
     ) -> Result<Self, Error> {
-        let mut open_authed_websockets = ctx.open_authed_websockets.lock().await;
-        let mut sqlx_conn = ctx.secret_store.acquire().await?;
-        for session in logged_out_sessions {
-            let session = session.as_logout_session_id();
-            sqlx::query!(
-                "UPDATE session SET logged_out = CURRENT_TIMESTAMP WHERE id = $1",
-                session
-            )
-            .execute(sqlx_conn.as_mut())
-            .await?;
-            for socket in open_authed_websockets.remove(&session).unwrap_or_default() {
-                let _ = socket.send(());
-            }
+        let to_log_out: BTreeSet<_> = sessions
+            .into_iter()
+            .map(|s| s.as_logout_session_id())
+            .collect();
+        for sid in &to_log_out {
+            ctx.open_authed_continuations.kill(sid)
         }
+        ctx.db
+            .mutate(|db| {
+                let sessions = db.as_private_mut().as_sessions_mut();
+                for sid in &to_log_out {
+                    sessions.remove(sid)?;
+                }
+
+                Ok(())
+            })
+            .await?;
         Ok(HasLoggedOutSessions(()))
     }
 }
 
 /// Used when we need to know that we have logged in with a valid user
-#[derive(Clone, Copy)]
-pub struct HasValidSession(());
+#[derive(Clone)]
+pub struct HasValidSession(SessionType);
+
+#[derive(Clone)]
+enum SessionType {
+    Local,
+    Session(HashSessionToken),
+}
 
 impl HasValidSession {
-    pub async fn from_request_parts(
-        request_parts: &RequestParts,
+    pub async fn from_header(
+        header: Option<&HeaderValue>,
         ctx: &RpcContext,
     ) -> Result<Self, Error> {
-        if let Some(cookie_header) = request_parts.headers.get(COOKIE) {
+        if let Some(cookie_header) = header {
             let cookies = Cookie::parse(
                 cookie_header
                     .to_str()
@@ -79,7 +93,7 @@ impl HasValidSession {
                 }
             }
             if let Some(cookie) = cookies.iter().find(|c| c.get_name() == "session") {
-                if let Ok(s) = Self::from_session(&HashSessionToken::from_cookie(cookie), ctx).await
+                if let Ok(s) = Self::from_session(HashSessionToken::from_cookie(cookie), ctx).await
                 {
                     return Ok(s);
                 }
@@ -91,24 +105,32 @@ impl HasValidSession {
         ))
     }
 
-    pub async fn from_session(session: &HashSessionToken, ctx: &RpcContext) -> Result<Self, Error> {
-        let session_hash = session.hashed();
-        let session = sqlx::query!("UPDATE session SET last_active = CURRENT_TIMESTAMP WHERE id = $1 AND logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP", session_hash)
-            .execute(ctx.secret_store.acquire().await?.as_mut())
+    pub async fn from_session(
+        session_token: HashSessionToken,
+        ctx: &RpcContext,
+    ) -> Result<Self, Error> {
+        let session_hash = session_token.hashed();
+        ctx.db
+            .mutate(|db| {
+                db.as_private_mut()
+                    .as_sessions_mut()
+                    .as_idx_mut(session_hash)
+                    .ok_or_else(|| {
+                        Error::new(eyre!("UNAUTHORIZED"), crate::ErrorKind::Authorization)
+                    })?
+                    .mutate(|s| {
+                        s.last_active = Utc::now();
+                        Ok(())
+                    })
+            })
             .await?;
-        if session.rows_affected() == 0 {
-            return Err(Error::new(
-                eyre!("UNAUTHORIZED"),
-                crate::ErrorKind::Authorization,
-            ));
-        }
-        Ok(Self(()))
+        Ok(Self(SessionType::Session(session_token)))
     }
 
     pub async fn from_local(local: &Cookie<'_>) -> Result<Self, Error> {
         let token = tokio::fs::read_to_string(LOCAL_AUTH_COOKIE_PATH).await?;
         if local.get_value() == &*token {
-            Ok(Self(()))
+            Ok(Self(SessionType::Local))
         } else {
             Err(Error::new(
                 eyre!("UNAUTHORIZED"),
@@ -122,27 +144,31 @@ impl HasValidSession {
 /// Or when we are using internal valid authenticated service.
 #[derive(Debug, Clone)]
 pub struct HashSessionToken {
-    hashed: String,
-    token: String,
+    hashed: InternedString,
+    token: InternedString,
 }
 impl HashSessionToken {
     pub fn new() -> Self {
-        let token = base32::encode(
-            base32::Alphabet::RFC4648 { padding: false },
-            &rand::random::<[u8; 16]>(),
-        )
-        .to_lowercase();
-        let hashed = Self::hash(&token);
-        Self { hashed, token }
+        Self::from_token(InternedString::intern(
+            base32::encode(
+                base32::Alphabet::RFC4648 { padding: false },
+                &rand::random::<[u8; 16]>(),
+            )
+            .to_lowercase(),
+        ))
     }
-    pub fn from_cookie(cookie: &Cookie) -> Self {
-        let token = cookie.get_value().to_owned();
-        let hashed = Self::hash(&token);
+
+    pub fn from_token(token: InternedString) -> Self {
+        let hashed = Self::hash(&*token);
         Self { hashed, token }
     }
 
-    pub fn from_request_parts(request_parts: &RequestParts) -> Result<Self, Error> {
-        if let Some(cookie_header) = request_parts.headers.get(COOKIE) {
+    pub fn from_cookie(cookie: &Cookie) -> Self {
+        Self::from_token(InternedString::intern(cookie.get_value()))
+    }
+
+    pub fn from_header(header: Option<&HeaderValue>) -> Result<Self, Error> {
+        if let Some(cookie_header) = header {
             let cookies = Cookie::parse(
                 cookie_header
                     .to_str()
@@ -159,33 +185,30 @@ impl HashSessionToken {
         ))
     }
 
-    pub fn header_value(&self) -> Result<http::HeaderValue, Error> {
-        http::HeaderValue::from_str(&format!(
-            "session={}; Path=/; SameSite=Lax; Expires=Fri, 31 Dec 9999 23:59:59 GMT;",
-            self.token
-        ))
-        .with_kind(crate::ErrorKind::Unknown)
+    pub fn to_login_res(&self) -> LoginRes {
+        LoginRes {
+            session: self.token.clone(),
+        }
     }
 
-    pub fn hashed(&self) -> &str {
-        self.hashed.as_str()
+    pub fn hashed(&self) -> &InternedString {
+        &self.hashed
     }
 
-    pub fn as_hash(self) -> String {
-        self.hashed
-    }
-    fn hash(token: &str) -> String {
+    fn hash(token: &str) -> InternedString {
         let mut hasher = Sha256::new();
         hasher.update(token.as_bytes());
-        base32::encode(
-            base32::Alphabet::RFC4648 { padding: false },
-            hasher.finalize().as_slice(),
+        InternedString::intern(
+            base32::encode(
+                base32::Alphabet::RFC4648 { padding: false },
+                hasher.finalize().as_slice(),
+            )
+            .to_lowercase(),
         )
-        .to_lowercase()
     }
 }
 impl AsLogoutSessionId for HashSessionToken {
-    fn as_logout_session_id(self) -> String {
+    fn as_logout_session_id(self) -> InternedString {
         self.hashed
     }
 }
@@ -205,80 +228,126 @@ impl Ord for HashSessionToken {
         self.hashed.cmp(&other.hashed)
     }
 }
-impl Borrow<String> for HashSessionToken {
-    fn borrow(&self) -> &String {
-        &self.hashed
+impl Borrow<str> for HashSessionToken {
+    fn borrow(&self) -> &str {
+        &*self.hashed
     }
 }
 
-pub fn auth<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
-    let rate_limiter = Arc::new(Mutex::new((0_usize, Instant::now())));
-    Box::new(
-        move |req: &mut Request<Body>,
-              metadata: M|
-              -> BoxFuture<Result<Result<DynMiddlewareStage2, Response<Body>>, HttpError>> {
-            let ctx = ctx.clone();
-            let rate_limiter = rate_limiter.clone();
-            async move {
-                let mut header_stub = Request::new(Body::empty());
-                *header_stub.headers_mut() = req.headers().clone();
-                let m2: DynMiddlewareStage2 = Box::new(move |req, rpc_req| {
-                    async move {
-                        if let Err(e) = HasValidSession::from_request_parts(req, &ctx).await {
-                            if metadata
-                                .get(rpc_req.method.as_str(), "authenticated")
-                                .unwrap_or(true)
-                            {
-                                let (res_parts, _) = Response::new(()).into_parts();
-                                return Ok(Err(to_response(
-                                    &req.headers,
-                                    res_parts,
-                                    Err(e.into()),
-                                    |_| StatusCode::OK,
-                                )?));
-                            } else if rpc_req.method.as_str() == "auth.login" {
-                                let guard = rate_limiter.lock().await;
-                                if guard.1.elapsed() < Duration::from_secs(20) {
-                                    if guard.0 >= 3 {
-                                        let (res_parts, _) = Response::new(()).into_parts();
-                                        return Ok(Err(to_response(
-                                            &req.headers,
-                                            res_parts,
-                                            Err(Error::new(
-                                                eyre!(
-                                                "Please limit login attempts to 3 per 20 seconds."
-                                            ),
-                                                crate::ErrorKind::RateLimited,
-                                            )
-                                            .into()),
-                                            |_| StatusCode::OK,
-                                        )?));
-                                    }
-                                }
-                            }
-                        }
-                        let m3: DynMiddlewareStage3 = Box::new(move |_, res| {
-                            async move {
-                                let mut guard = rate_limiter.lock().await;
-                                if guard.1.elapsed() < Duration::from_secs(20) {
-                                    if res.is_err() {
-                                        guard.0 += 1;
-                                    }
-                                } else {
-                                    guard.0 = 0;
-                                }
-                                guard.1 = Instant::now();
-                                Ok(Ok(noop4()))
-                            }
-                            .boxed()
-                        });
-                        Ok(Ok(m3))
-                    }
-                    .boxed()
+#[derive(Deserialize)]
+pub struct Metadata {
+    #[serde(default = "const_true")]
+    authenticated: bool,
+    #[serde(default)]
+    login: bool,
+    #[serde(default)]
+    get_session: bool,
+}
+
+#[derive(Clone)]
+pub struct Auth {
+    rate_limiter: Arc<Mutex<(usize, Instant)>>,
+    cookie: Option<HeaderValue>,
+    is_login: bool,
+    set_cookie: Option<HeaderValue>,
+    user_agent: Option<HeaderValue>,
+}
+impl Auth {
+    pub fn new() -> Self {
+        Self {
+            rate_limiter: Arc::new(Mutex::new((0, Instant::now()))),
+            cookie: None,
+            is_login: false,
+            set_cookie: None,
+            user_agent: None,
+        }
+    }
+}
+impl Middleware<RpcContext> for Auth {
+    type Metadata = Metadata;
+    async fn process_http_request(
+        &mut self,
+        _: &RpcContext,
+        request: &mut Request,
+    ) -> Result<(), Response> {
+        self.cookie = request.headers_mut().remove(COOKIE);
+        self.user_agent = request.headers_mut().remove(USER_AGENT);
+        Ok(())
+    }
+    async fn process_rpc_request(
+        &mut self,
+        context: &RpcContext,
+        metadata: Self::Metadata,
+        request: &mut RpcRequest,
+    ) -> Result<(), RpcResponse> {
+        if metadata.login {
+            self.is_login = true;
+            let guard = self.rate_limiter.lock().await;
+            if guard.1.elapsed() < Duration::from_secs(20) && guard.0 >= 3 {
+                return Err(RpcResponse {
+                    id: request.id.take(),
+                    result: Err(Error::new(
+                        eyre!("Please limit login attempts to 3 per 20 seconds."),
+                        crate::ErrorKind::RateLimited,
+                    )
+                    .into()),
                 });
-                Ok(Ok(m2))
             }
-            .boxed()
-        },
-    )
+            if let Some(user_agent) = self.user_agent.as_ref().and_then(|h| h.to_str().ok()) {
+                request.params["__auth_userAgent"] = Value::String(Arc::new(user_agent.to_owned()))
+                // TODO: will this panic?
+            }
+        } else if metadata.authenticated {
+            match HasValidSession::from_header(self.cookie.as_ref(), &context).await {
+                Err(e) => {
+                    return Err(RpcResponse {
+                        id: request.id.take(),
+                        result: Err(e.into()),
+                    })
+                }
+                Ok(HasValidSession(SessionType::Session(s))) if metadata.get_session => {
+                    request.params["__auth_session"] =
+                        Value::String(Arc::new(s.hashed().deref().to_owned()));
+                    // TODO: will this panic?
+                }
+                _ => (),
+            }
+        }
+        Ok(())
+    }
+    async fn process_rpc_response(&mut self, _: &RpcContext, response: &mut RpcResponse) {
+        if self.is_login {
+            let mut guard = self.rate_limiter.lock().await;
+            if guard.1.elapsed() < Duration::from_secs(20) {
+                if response.result.is_err() {
+                    guard.0 += 1;
+                }
+            } else {
+                guard.0 = 0;
+            }
+            guard.1 = Instant::now();
+            if response.result.is_ok() {
+                let res = std::mem::replace(&mut response.result, Err(INTERNAL_ERROR));
+                response.result = async {
+                    let res = res?;
+                    let login_res = from_value::<LoginRes>(res.clone())?;
+                    self.set_cookie = Some(
+                        HeaderValue::from_str(&format!(
+                        "session={}; Path=/; SameSite=Lax; Expires=Fri, 31 Dec 9999 23:59:59 GMT;",
+                        login_res.session
+                    ))
+                        .with_kind(crate::ErrorKind::Network)?,
+                    );
+
+                    Ok(res)
+                }
+                .await;
+            }
+        }
+    }
+    async fn process_http_response(&mut self, _: &RpcContext, response: &mut Response) {
+        if let Some(set_cookie) = self.set_cookie.take() {
+            response.headers_mut().insert("set-cookie", set_cookie);
+        }
+    }
 }

@@ -7,13 +7,13 @@ use tracing::instrument;
 
 use super::fsck::{RepairStrategy, RequiresReboot};
 use super::util::pvscan;
-use crate::disk::mount::filesystem::block_dev::mount;
-use crate::disk::mount::filesystem::ReadWrite;
+use crate::disk::mount::filesystem::block_dev::BlockDev;
+use crate::disk::mount::filesystem::{FileSystem, ReadWrite};
 use crate::disk::mount::util::unmount;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
-pub const PASSWORD_PATH: &'static str = "/run/embassy/password";
+pub const PASSWORD_PATH: &'static str = "/run/startos/password";
 pub const DEFAULT_PASSWORD: &'static str = "password";
 pub const MAIN_FS_SIZE: FsSize = FsSize::Gigabytes(8);
 
@@ -64,10 +64,10 @@ where
             .await?;
     }
     let mut guid = format!(
-        "EMBASSY_{}",
+        "STARTOS_{}",
         base32::encode(
             base32::Alphabet::RFC4648 { padding: false },
-            &rand::random::<[u8; 32]>(),
+            &rand::random::<[u8; 20]>(),
         )
     );
     if !encrypted {
@@ -142,7 +142,9 @@ pub async fn create_fs<P: AsRef<Path>>(
         .arg(&blockdev_path)
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
-    mount(&blockdev_path, datadir.as_ref().join(name), ReadWrite).await?;
+    BlockDev::new(&blockdev_path)
+        .mount(datadir.as_ref().join(name), ReadWrite)
+        .await?;
     Ok(())
 }
 
@@ -217,7 +219,7 @@ pub async fn import<P: AsRef<Path>>(
     if scan
         .values()
         .filter_map(|a| a.as_ref())
-        .filter(|a| a.starts_with("EMBASSY_"))
+        .filter(|a| a.starts_with("STARTOS_") || a.starts_with("EMBASSY_"))
         .next()
         .is_none()
     {
@@ -300,7 +302,7 @@ pub async fn mount_fs<P: AsRef<Path>>(
 
     if !guid.ends_with("_UNENC") {
         // Backup LUKS header if e2fsck succeeded
-        let luks_folder = Path::new("/media/embassy/config/luks");
+        let luks_folder = Path::new("/media/startos/config/luks");
         tokio::fs::create_dir_all(luks_folder).await?;
         let tmp_luks_bak = luks_folder.join(format!(".{full_name}.luks.bak.tmp"));
         if tokio::fs::metadata(&tmp_luks_bak).await.is_ok() {
@@ -318,7 +320,9 @@ pub async fn mount_fs<P: AsRef<Path>>(
         tokio::fs::rename(&tmp_luks_bak, &luks_bak).await?;
     }
 
-    mount(&blockdev_path, datadir.as_ref().join(name), ReadWrite).await?;
+    BlockDev::new(&blockdev_path)
+        .mount(datadir.as_ref().join(name), ReadWrite)
+        .await?;
 
     Ok(reboot)
 }

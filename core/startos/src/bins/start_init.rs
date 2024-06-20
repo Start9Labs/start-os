@@ -1,47 +1,56 @@
-use std::net::{Ipv6Addr, SocketAddr};
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
 
-use helpers::NonDetachingJoinHandle;
 use tokio::process::Command;
 use tracing::instrument;
 
-use crate::context::rpc::RpcContextConfig;
-use crate::context::{DiagnosticContext, InstallContext, SetupContext};
-use crate::disk::fsck::{RepairStrategy, RequiresReboot};
+use crate::context::config::ServerConfig;
+use crate::context::rpc::InitRpcContextPhases;
+use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
+use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::REPAIR_DISK_PATH;
-use crate::firmware::update_firmware;
-use crate::init::STANDBY_MODE_PATH;
+use crate::firmware::{check_for_firmware_update, update_firmware};
+use crate::init::{InitPhases, InitResult, STANDBY_MODE_PATH};
 use crate::net::web_server::WebServer;
+use crate::prelude::*;
+use crate::progress::FullProgressTracker;
 use crate::shutdown::Shutdown;
-use crate::sound::{BEP, CHIME};
 use crate::util::Invoke;
-use crate::{Error, ErrorKind, ResultExt, PLATFORM};
+use crate::PLATFORM;
 
 #[instrument(skip_all)]
-async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
-    let song = NonDetachingJoinHandle::from(tokio::spawn(async {
-        loop {
-            BEP.play().await.unwrap();
-            BEP.play().await.unwrap();
-            tokio::time::sleep(Duration::from_secs(30)).await;
-        }
-    }));
+async fn setup_or_init(
+    server: &mut WebServer,
+    config: &ServerConfig,
+) -> Result<Result<(RpcContext, FullProgressTracker), Shutdown>, Error> {
+    if let Some(firmware) = check_for_firmware_update()
+        .await
+        .map_err(|e| {
+            tracing::warn!("Error checking for firmware update: {e}");
+            tracing::debug!("{e:?}");
+        })
+        .ok()
+        .and_then(|a| a)
+    {
+        let init_ctx = InitContext::init(config).await?;
+        let handle = &init_ctx.progress;
+        let mut update_phase = handle.add_phase("Updating Firmware".into(), Some(10));
+        let mut reboot_phase = handle.add_phase("Rebooting".into(), Some(1));
 
-    match update_firmware().await {
-        Ok(RequiresReboot(true)) => {
-            return Ok(Some(Shutdown {
-                export_args: None,
-                restart: true,
-            }))
-        }
-        Err(e) => {
+        server.serve_init(init_ctx);
+
+        update_phase.start();
+        if let Err(e) = update_firmware(firmware).await {
             tracing::warn!("Error performing firmware update: {e}");
             tracing::debug!("{e:?}");
+        } else {
+            update_phase.complete();
+            reboot_phase.start();
+            return Ok(Err(Shutdown {
+                export_args: None,
+                restart: true,
+            }));
         }
-        _ => (),
     }
 
     Command::new("ln")
@@ -82,17 +91,9 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Er
             .invoke(crate::ErrorKind::OpenSsh)
             .await?;
 
-        let ctx = InstallContext::init(cfg_path).await?;
+        let ctx = InstallContext::init().await?;
 
-        let server = WebServer::install(
-            SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
-            ctx.clone(),
-        )
-        .await?;
-
-        drop(song);
-        tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
-        CHIME.play().await?;
+        server.serve_install(ctx.clone());
 
         ctx.shutdown
             .subscribe()
@@ -100,34 +101,22 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Er
             .await
             .expect("context dropped");
 
-        server.shutdown().await;
+        return Ok(Err(Shutdown {
+            export_args: None,
+            restart: true,
+        }));
+    }
 
-        Command::new("reboot")
-            .invoke(crate::ErrorKind::Unknown)
-            .await?;
-    } else if tokio::fs::metadata("/media/embassy/config/disk.guid")
+    if tokio::fs::metadata("/media/startos/config/disk.guid")
         .await
         .is_err()
     {
-        let ctx = SetupContext::init(cfg_path).await?;
+        let ctx = SetupContext::init(config)?;
 
-        let server = WebServer::setup(
-            SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
-            ctx.clone(),
-        )
-        .await?;
+        server.serve_setup(ctx.clone());
 
-        drop(song);
-        tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
-        CHIME.play().await?;
-
-        ctx.shutdown
-            .subscribe()
-            .recv()
-            .await
-            .expect("context dropped");
-
-        server.shutdown().await;
+        let mut shutdown = ctx.shutdown.subscribe();
+        shutdown.recv().await.expect("context dropped");
 
         tokio::task::yield_now().await;
         if let Err(e) = Command::new("killall")
@@ -138,20 +127,40 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Er
             tracing::error!("Failed to kill kiosk: {}", e);
             tracing::debug!("{:?}", e);
         }
+
+        Ok(Ok(match ctx.result.get() {
+            Some(Ok((_, rpc_ctx))) => (rpc_ctx.clone(), ctx.progress.clone()),
+            Some(Err(e)) => return Err(e.clone_output()),
+            None => {
+                return Err(Error::new(
+                    eyre!("Setup mode exited before setup completed"),
+                    ErrorKind::Unknown,
+                ))
+            }
+        }))
     } else {
-        let cfg = RpcContextConfig::load(cfg_path).await?;
-        let guid_string = tokio::fs::read_to_string("/media/embassy/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
+        let init_ctx = InitContext::init(config).await?;
+        let handle = init_ctx.progress.clone();
+
+        let mut disk_phase = handle.add_phase("Opening data drive".into(), Some(10));
+        let init_phases = InitPhases::new(&handle);
+        let rpc_ctx_phases = InitRpcContextPhases::new(&handle);
+
+        server.serve_init(init_ctx);
+
+        disk_phase.start();
+        let guid_string = tokio::fs::read_to_string("/media/startos/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
             .await?;
-        let guid = guid_string.trim();
+        let disk_guid = Arc::new(String::from(guid_string.trim()));
         let requires_reboot = crate::disk::main::import(
-            guid,
-            cfg.datadir(),
+            &**disk_guid,
+            config.datadir(),
             if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
                 RepairStrategy::Aggressive
             } else {
                 RepairStrategy::Preen
             },
-            if guid.ends_with("_UNENC") {
+            if disk_guid.ends_with("_UNENC") {
                 None
             } else {
                 Some(DEFAULT_PASSWORD)
@@ -163,40 +172,31 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Er
                 .await
                 .with_ctx(|_| (crate::ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
         }
-        if requires_reboot.0 {
-            crate::disk::main::export(guid, cfg.datadir()).await?;
-            Command::new("reboot")
-                .invoke(crate::ErrorKind::Unknown)
-                .await?;
-        }
+        disk_phase.complete();
         tracing::info!("Loaded Disk");
-        crate::init::init(&cfg).await?;
-        drop(song);
-    }
 
-    Ok(None)
-}
-
-async fn run_script_if_exists<P: AsRef<Path>>(path: P) {
-    let script = path.as_ref();
-    if script.exists() {
-        match Command::new("/bin/bash").arg(script).spawn() {
-            Ok(mut c) => {
-                if let Err(e) = c.wait().await {
-                    tracing::error!("Error Running {}: {}", script.display(), e);
-                    tracing::debug!("{:?}", e);
-                }
-            }
-            Err(e) => {
-                tracing::error!("Error Running {}: {}", script.display(), e);
-                tracing::debug!("{:?}", e);
-            }
+        if requires_reboot.0 {
+            let mut reboot_phase = handle.add_phase("Rebooting".into(), Some(1));
+            reboot_phase.start();
+            return Ok(Err(Shutdown {
+                export_args: Some((disk_guid, config.datadir().to_owned())),
+                restart: true,
+            }));
         }
+
+        let InitResult { net_ctrl } = crate::init::init(config, init_phases).await?;
+
+        let rpc_ctx = RpcContext::init(config, disk_guid, Some(net_ctrl), rpc_ctx_phases).await?;
+
+        Ok(Ok((rpc_ctx, handle)))
     }
 }
 
 #[instrument(skip_all)]
-async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
+pub async fn main(
+    server: &mut WebServer,
+    config: &ServerConfig,
+) -> Result<Result<(RpcContext, FullProgressTracker), Shutdown>, Error> {
     if &*PLATFORM == "raspberrypi" && tokio::fs::metadata(STANDBY_MODE_PATH).await.is_ok() {
         tokio::fs::remove_file(STANDBY_MODE_PATH).await?;
         Command::new("sync").invoke(ErrorKind::Filesystem).await?;
@@ -204,25 +204,20 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
         futures::future::pending::<()>().await;
     }
 
-    crate::sound::BEP.play().await?;
-
-    run_script_if_exists("/media/embassy/config/preinit.sh").await;
-
-    let res = match setup_or_init(cfg_path.clone()).await {
+    let res = match setup_or_init(server, config).await {
         Err(e) => {
             async move {
-                tracing::error!("{}", e.source);
-                tracing::debug!("{}", e.source);
-                crate::sound::BEETHOVEN.play().await?;
+                tracing::error!("{e}");
+                tracing::debug!("{e:?}");
 
                 let ctx = DiagnosticContext::init(
-                    cfg_path,
-                    if tokio::fs::metadata("/media/embassy/config/disk.guid")
+                    config,
+                    if tokio::fs::metadata("/media/startos/config/disk.guid")
                         .await
                         .is_ok()
                     {
                         Some(Arc::new(
-                            tokio::fs::read_to_string("/media/embassy/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
+                            tokio::fs::read_to_string("/media/startos/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
                                 .await?
                                 .trim()
                                 .to_owned(),
@@ -231,58 +226,18 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
                         None
                     },
                     e,
-                )
-                .await?;
+                )?;
 
-                let server = WebServer::diagnostic(
-                    SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
-                    ctx.clone(),
-                )
-                .await?;
+                server.serve_diagnostic(ctx.clone());
 
                 let shutdown = ctx.shutdown.subscribe().recv().await.unwrap();
 
-                server.shutdown().await;
-
-                Ok(shutdown)
+                Ok(Err(shutdown))
             }
             .await
         }
         Ok(s) => Ok(s),
     };
 
-    run_script_if_exists("/media/embassy/config/postinit.sh").await;
-
     res
-}
-
-pub fn main() {
-    let matches = clap::App::new("start-init")
-        .arg(
-            clap::Arg::with_name("config")
-                .short('c')
-                .long("config")
-                .takes_value(true),
-        )
-        .get_matches();
-
-    let cfg_path = matches.value_of("config").map(|p| Path::new(p).to_owned());
-    let res = {
-        let rt = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .expect("failed to initialize runtime");
-        rt.block_on(inner_main(cfg_path))
-    };
-
-    match res {
-        Ok(Some(shutdown)) => shutdown.execute(),
-        Ok(None) => (),
-        Err(e) => {
-            eprintln!("{}", e.source);
-            tracing::debug!("{:?}", e.source);
-            drop(e.source);
-            std::process::exit(e.kind as i32)
-        }
-    }
 }

@@ -29,7 +29,7 @@ export class NotificationsPage {
   needInfinite = false
   fromToast = !!this.route.snapshot.queryParamMap.get('toast')
   readonly perPage = 40
-  readonly packageData$ = this.patch.watch$('package-data').pipe(first())
+  readonly packageData$ = this.patch.watch$('packageData').pipe(first())
 
   constructor(
     private readonly embassyApi: ApiService,
@@ -116,7 +116,7 @@ export class NotificationsPage {
       component: BackupReportPage,
       componentProps: {
         report: notification.data,
-        timestamp: notification['created-at'],
+        timestamp: notification.createdAt,
       },
     })
     await modal.present()

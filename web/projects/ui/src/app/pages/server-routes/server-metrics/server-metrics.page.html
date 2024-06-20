@@ -74,7 +74,7 @@
       <ion-item-divider>Memory</ion-item-divider>
       <ion-item>
         <ion-label>Percentage Used</ion-label>
-        <ion-note slot="end">{{ memory['percentage-used'].value }} %</ion-note>
+        <ion-note slot="end">{{ memory.percentageUsed.value }} %</ion-note>
       </ion-item>
       <ion-item>
         <ion-label>Total</ion-label>
@@ -94,15 +94,15 @@
       </ion-item>
       <ion-item>
         <ion-label>zram Used</ion-label>
-        <ion-note slot="end">{{ memory['zram-used'].value }} MiB</ion-note>
+        <ion-note slot="end">{{ memory.zramUsed.value }} MiB</ion-note>
       </ion-item>
       <ion-item>
         <ion-label>zram Total</ion-label>
-        <ion-note slot="end">{{ memory['zram-total'].value }} MiB</ion-note>
+        <ion-note slot="end">{{ memory.zramTotal.value }} MiB</ion-note>
       </ion-item>
       <ion-item>
         <ion-label>zram Available</ion-label>
-        <ion-note slot="end">{{ memory['zram-available'].value }} MiB</ion-note>
+        <ion-note slot="end">{{ memory.available.value }} MiB</ion-note>
       </ion-item>
     </ion-item-group>
 
@@ -110,18 +110,18 @@
       <ion-item-divider>CPU</ion-item-divider>
       <ion-item>
         <ion-label>Percentage Used</ion-label>
-        <ion-note slot="end">{{ cpu['percentage-used'].value }} %</ion-note>
+        <ion-note slot="end">{{ cpu.percentageUsed.value }} %</ion-note>
       </ion-item>
       <ion-item>
         <ion-label>User Space</ion-label>
         <ion-note slot="end">
-          <ion-text>{{ cpu['user-space'].value }} %</ion-text>
+          <ion-text>{{ cpu.userSpace.value }} %</ion-text>
         </ion-note>
       </ion-item>
       <ion-item>
         <ion-label>Kernel Space</ion-label>
         <ion-note slot="end">
-          <ion-text>{{ cpu['kernel-space'].value }} %</ion-text>
+          <ion-text>{{ cpu.kernelSpace.value }} %</ion-text>
         </ion-note>
       </ion-item>
       <ion-item>
@@ -138,7 +138,7 @@
       <ion-item-divider>Disk</ion-item-divider>
       <ion-item>
         <ion-label>Percentage Used</ion-label>
-        <ion-note slot="end">{{ disk['percentage-used'].value }} %</ion-note>
+        <ion-note slot="end">{{ disk.percentageUsed.value }} %</ion-note>
       </ion-item>
       <ion-item>
         <ion-label>Capacity</ion-label>

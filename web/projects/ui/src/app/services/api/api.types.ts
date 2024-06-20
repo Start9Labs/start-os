@@ -1,20 +1,28 @@
-import { Dump, Revision } from 'patch-db-client'
+import { Dump } from 'patch-db-client'
 import { MarketplacePkg, StoreInfo } from '@start9labs/marketplace'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
-import {
-  DataModel,
-  HealthCheckResult,
-  Manifest,
-} from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
+import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
 export module RR {
+  // websocket
+
+  export type WebsocketConfig<T> = Omit<WebSocketSubjectConfig<T>, 'url'>
+
+  // server state
+
+  export type ServerState = 'initializing' | 'error' | 'running'
+
   // DB
 
-  export type GetRevisionsRes = Revision[] | Dump<DataModel>
-
-  export type GetDumpRes = Dump<DataModel>
+  export type SubscribePatchReq = {}
+  export type SubscribePatchRes = {
+    dump: Dump<DataModel>
+    guid: string
+  }
 
   export type SetDBValueReq<T> = { pointer: string; value: T } // db.put.ui
   export type SetDBValueRes = null
@@ -31,15 +39,27 @@ export module RR {
   export type LogoutRes = null
 
   export type ResetPasswordReq = {
-    'old-password': string
-    'new-password': string
+    oldPassword: string
+    newPassword: string
   } // auth.reset-password
   export type ResetPasswordRes = null
 
-  // server
+  // diagnostic
 
-  export type EchoReq = { message: string; timeout?: number } // server.echo
-  export type EchoRes = string
+  export type DiagnosticErrorRes = {
+    code: number
+    message: string
+    data: { details: string }
+  }
+
+  // init
+
+  export type InitGetProgressRes = {
+    progress: T.FullProgress
+    guid: string
+  }
+
+  // server
 
   export type GetSystemTimeReq = {} // server.time
   export type GetSystemTimeRes = {
@@ -52,14 +72,14 @@ export module RR {
 
   export type FollowServerLogsReq = { limit?: number } // server.logs.follow & server.kernel-logs.follow
   export type FollowServerLogsRes = {
-    'start-cursor': string
+    startCursor: string
     guid: string
   }
 
   export type GetServerMetricsReq = {} // server.metrics
   export type GetServerMetricsRes = Metrics
 
-  export type UpdateServerReq = { 'marketplace-url': string } // server.update
+  export type UpdateServerReq = { registry: string } // server.update
   export type UpdateServerRes = 'updating' | 'no-updates'
 
   export type RestartServerReq = {} // server.restart
@@ -68,19 +88,14 @@ export module RR {
   export type ShutdownServerReq = {} // server.shutdown
   export type ShutdownServerRes = null
 
-  export type SystemRebuildReq = {} // server.rebuild
-  export type SystemRebuildRes = null
+  export type DiskRepairReq = {} // server.disk.repair
+  export type DiskRepairRes = null
 
   export type ResetTorReq = {
-    'wipe-state': boolean
+    wipeState: boolean
     reason: string
   } // net.tor.reset
   export type ResetTorRes = null
-
-  export type ToggleZramReq = {
-    enable: boolean
-  } // server.experimental.zram
-  export type ToggleZramRes = null
 
   // sessions
 
@@ -120,7 +135,7 @@ export module RR {
     connected: string | null
     country: string | null
     ethernet: boolean
-    'available-wifi': AvailableWifi[]
+    availableWifi: AvailableWifi[]
   }
 
   export type AddWifiReq = {
@@ -169,14 +184,14 @@ export module RR {
   export type RemoveBackupTargetReq = { id: string } // backup.target.cifs.remove
   export type RemoveBackupTargetRes = null
 
-  export type GetBackupInfoReq = { 'target-id': string; password: string } // backup.target.info
+  export type GetBackupInfoReq = { targetId: string; password: string } // backup.target.info
   export type GetBackupInfoRes = BackupInfo
 
   export type CreateBackupReq = {
     // backup.create
-    'target-id': string
-    'package-ids': string[]
-    'old-password': string | null
+    targetId: string
+    packageIds: string[]
+    oldPassword: string | null
     password: string
   }
   export type CreateBackupRes = null
@@ -198,9 +213,9 @@ export module RR {
 
   export type InstallPackageReq = {
     id: string
-    'version-spec'?: string
-    'version-priority'?: 'min' | 'max'
-    'marketplace-url': string
+    versionSpec?: string
+    versionPriority?: 'min' | 'max'
+    registry: string
   } // package.install
   export type InstallPackageRes = null
 
@@ -216,15 +231,15 @@ export module RR {
   export type RestorePackagesReq = {
     // package.backup.restore
     ids: string[]
-    'target-id': string
-    'old-password': string | null
+    targetId: string
+    oldPassword: string | null
     password: string
   }
   export type RestorePackagesRes = null
 
   export type ExecutePackageActionReq = {
     id: string
-    'action-id': string
+    actionId: string
     input?: object
   } // package.action
   export type ExecutePackageActionRes = ActionResponse
@@ -242,28 +257,28 @@ export module RR {
   export type UninstallPackageRes = null
 
   export type DryConfigureDependencyReq = {
-    'dependency-id': string
-    'dependent-id': string
+    dependencyId: string
+    dependentId: string
   } // package.dependency.configure.dry
   export type DryConfigureDependencyRes = {
-    'old-config': object
-    'new-config': object
+    oldConfig: object
+    newConfig: object
     spec: ConfigSpec
   }
 
   export type SideloadPackageReq = {
-    manifest: Manifest
+    manifest: T.Manifest
     icon: string // base64
   }
   export type SideloadPacakgeRes = string //guid
 
   // marketplace
 
-  export type GetMarketplaceInfoReq = { 'server-id': string }
+  export type GetMarketplaceInfoReq = { serverId: string }
   export type GetMarketplaceInfoRes = StoreInfo
 
-  export type GetMarketplaceEosReq = { 'server-id': string }
-  export type GetMarketplaceEosRes = MarketplaceEOS
+  export type CheckOSUpdateReq = { serverId: string }
+  export type CheckOSUpdateRes = OSUpdate
 
   export type GetMarketplacePackagesReq = {
     ids?: { id: string; version: string }[]
@@ -271,7 +286,7 @@ export module RR {
     category?: string
     query?: string
     page?: number
-    'per-page'?: number
+    perPage?: number
   }
   export type GetMarketplacePackagesRes = MarketplacePkg[]
 
@@ -279,10 +294,10 @@ export module RR {
   export type GetReleaseNotesRes = { [version: string]: string }
 }
 
-export interface MarketplaceEOS {
+export interface OSUpdate {
   version: string
   headline: string
-  'release-notes': { [version: string]: string }
+  releaseNotes: { [version: string]: string }
 }
 
 export interface Breakages {
@@ -312,23 +327,23 @@ export interface Metrics {
   }
   memory: {
     total: MetricData
-    'percentage-used': MetricData
+    percentageUsed: MetricData
     used: MetricData
     available: MetricData
-    'zram-total': MetricData
-    'zram-used': MetricData
-    'zram-available': MetricData
+    zramTotal: MetricData
+    zramUsed: MetricData
+    zramAvailable: MetricData
   }
   cpu: {
-    'percentage-used': MetricData
+    percentageUsed: MetricData
     idle: MetricData
-    'user-space': MetricData
-    'kernel-space': MetricData
+    userSpace: MetricData
+    kernelSpace: MetricData
     wait: MetricData
   }
   disk: {
     capacity: MetricData
-    'percentage-used': MetricData
+    percentageUsed: MetricData
     used: MetricData
     available: MetricData
   }
@@ -342,8 +357,8 @@ export interface Metric {
 }
 
 export interface Session {
-  'last-active': string
-  'user-agent': string
+  lastActive: string
+  userAgent: string
   metadata: SessionMetadata
 }
 
@@ -378,7 +393,7 @@ export interface DiskBackupTarget {
   label: string | null
   capacity: number
   used: number | null
-  'embassy-os': StartOSDiskInfo | null
+  startOs: StartOSDiskInfo | null
 }
 
 export interface CifsBackupTarget {
@@ -387,7 +402,7 @@ export interface CifsBackupTarget {
   path: string
   username: string
   mountable: boolean
-  'embassy-os': StartOSDiskInfo | null
+  startOs: StartOSDiskInfo | null
 }
 
 export type RecoverySource = DiskRecoverySource | CifsRecoverySource
@@ -408,7 +423,7 @@ export interface CifsRecoverySource {
 export interface BackupInfo {
   version: string
   timestamp: string
-  'package-backups': {
+  packageBackups: {
     [id: string]: PackageBackupInfo
   }
 }
@@ -416,7 +431,7 @@ export interface BackupInfo {
 export interface PackageBackupInfo {
   title: string
   version: string
-  'os-version': string
+  osVersion: string
   timestamp: string
 }
 
@@ -425,7 +440,7 @@ export interface ServerSpecs {
 }
 
 export interface SSHKey {
-  'created-at': string
+  createdAt: string
   alg: string
   hostname: string
   fingerprint: string
@@ -435,8 +450,8 @@ export type ServerNotifications = ServerNotification<any>[]
 
 export interface ServerNotification<T extends number> {
   id: number
-  'package-id': string | null
-  'created-at': string
+  packageId: string | null
+  createdAt: string
   code: T
   level: NotificationLevel
   title: string
@@ -502,40 +517,29 @@ export type DependencyError =
   | DependencyErrorHealthChecksFailed
   | DependencyErrorTransitive
 
-export enum DependencyErrorType {
-  NotInstalled = 'not-installed',
-  NotRunning = 'not-running',
-  IncorrectVersion = 'incorrect-version',
-  ConfigUnsatisfied = 'config-unsatisfied',
-  HealthChecksFailed = 'health-checks-failed',
-  InterfaceHealthChecksFailed = 'interface-health-checks-failed',
-  Transitive = 'transitive',
-}
-
 export interface DependencyErrorNotInstalled {
-  type: DependencyErrorType.NotInstalled
+  type: 'notInstalled'
 }
 
 export interface DependencyErrorNotRunning {
-  type: DependencyErrorType.NotRunning
+  type: 'notRunning'
 }
 
 export interface DependencyErrorIncorrectVersion {
-  type: DependencyErrorType.IncorrectVersion
+  type: 'incorrectVersion'
   expected: string // version range
   received: string // version
 }
 
 export interface DependencyErrorConfigUnsatisfied {
-  type: DependencyErrorType.ConfigUnsatisfied
-  error: string
+  type: 'configUnsatisfied'
 }
 
 export interface DependencyErrorHealthChecksFailed {
-  type: DependencyErrorType.HealthChecksFailed
-  check: HealthCheckResult
+  type: 'healthChecksFailed'
+  check: T.HealthCheckResult
 }
 
 export interface DependencyErrorTransitive {
-  type: DependencyErrorType.Transitive
+  type: 'transitive'
 }

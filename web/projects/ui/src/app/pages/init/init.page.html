@@ -1,0 +1,18 @@
+<section *ngIf="progress$ | async as progress">
+  <h1 [style.font-size.rem]="2.5" [style.margin.rem]="1">
+    Initializing StartOS
+  </h1>
+  <div class="center-wrapper" *ngIf="progress.total">
+    Progress: {{ (progress.total * 100).toFixed(0) }}%
+  </div>
+
+  <progress
+    tuiProgressBar
+    class="progress"
+    [style.max-width.rem]="40"
+    [style.margin]="'1rem auto'"
+    [attr.value]="progress.total"
+  ></progress>
+  <p [innerHTML]="progress.message"></p>
+</section>
+<logs-window></logs-window>

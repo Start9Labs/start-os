@@ -2,28 +2,34 @@ import { Component, Inject } from '@angular/core'
 import { PatchDB } from 'patch-db-client'
 import {
   DataModel,
+  InstalledState,
   PackageDataEntry,
+  UpdatingState,
 } from 'src/app/services/patch-db/data-model'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   AbstractMarketplaceService,
   Marketplace,
-  MarketplaceManifest,
   MarketplacePkg,
   StoreIdentity,
 } from '@start9labs/marketplace'
 import { Emver, isEmptyObject } from '@start9labs/shared'
 import { Pipe, PipeTransform } from '@angular/core'
-import { combineLatest, Observable } from 'rxjs'
+import { combineLatest, map, Observable } from 'rxjs'
 import { AlertController, NavController } from '@ionic/angular'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
-import { getAllPackages } from 'src/app/util/get-package-data'
+import {
+  getAllPackages,
+  isInstalled,
+  isUpdating,
+} from 'src/app/util/get-package-data'
 import { dryUpdate } from 'src/app/util/dry-update'
+import { T } from '@start9labs/start-sdk'
 
 interface UpdatesData {
   hosts: StoreIdentity[]
   marketplace: Marketplace
-  localPkgs: Record<string, PackageDataEntry>
+  localPkgs: Record<string, PackageDataEntry<InstalledState | UpdatingState>>
   errors: string[]
 }
 
@@ -36,7 +42,14 @@ export class UpdatesPage {
   readonly data$: Observable<UpdatesData> = combineLatest({
     hosts: this.marketplaceService.getKnownHosts$(true),
     marketplace: this.marketplaceService.getMarketplace$(),
-    localPkgs: this.patch.watch$('package-data'),
+    localPkgs: this.patch.watch$('packageData').pipe(
+      map(pkgs =>
+        Object.entries(pkgs).reduce((acc, [id, val]) => {
+          if (isInstalled(val) || isUpdating(val)) return { ...acc, [id]: val }
+          return acc
+        }, {} as Record<string, PackageDataEntry<InstalledState | UpdatingState>>),
+      ),
+    ),
     errors: this.marketplaceService.getRequestErrors$(),
   })
 
@@ -57,12 +70,7 @@ export class UpdatesPage {
     })
   }
 
-  async tryUpdate(
-    manifest: MarketplaceManifest,
-    url: string,
-    local: PackageDataEntry,
-    e: Event,
-  ): Promise<void> {
+  async tryUpdate(manifest: T.Manifest, url: string, e: Event): Promise<void> {
     e.stopPropagation()
 
     const { id, version } = manifest
@@ -70,14 +78,15 @@ export class UpdatesPage {
     delete this.marketplaceService.updateErrors[id]
     this.marketplaceService.updateQueue[id] = true
 
-    if (hasCurrentDeps(local)) {
+    // manifest.id OK because same as local id for update
+    if (hasCurrentDeps(manifest.id, await getAllPackages(this.patch))) {
       this.dryInstall(manifest, url)
     } else {
       this.install(id, version, url)
     }
   }
 
-  private async dryInstall(manifest: MarketplaceManifest, url: string) {
+  private async dryInstall(manifest: T.Manifest, url: string) {
     const { id, version, title } = manifest
 
     const breakages = dryUpdate(
@@ -154,14 +163,17 @@ export class FilterUpdatesPipe implements PipeTransform {
 
   transform(
     pkgs: MarketplacePkg[],
-    local: Record<string, PackageDataEntry | undefined>,
+    local: Record<string, PackageDataEntry<InstalledState | UpdatingState>>,
   ): MarketplacePkg[] {
-    return pkgs.filter(
-      ({ manifest }) =>
+    return pkgs.filter(({ manifest }) => {
+      const localPkg = local[manifest.id]
+      return (
+        localPkg &&
         this.emver.compare(
           manifest.version,
-          local[manifest.id]?.installed?.manifest.version || '',
-        ) === 1,
-    )
+          localPkg.stateInfo.manifest.version,
+        ) === 1
+      )
+    })
   }
 }

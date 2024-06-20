@@ -1,8 +1,5 @@
 [Unit]
 Description=StartOS Daemon
-After=network-online.target
-Requires=network-online.target
-Wants=avahi-daemon.service
 
 [Service]
 Type=simple

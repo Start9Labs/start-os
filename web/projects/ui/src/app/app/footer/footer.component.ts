@@ -13,7 +13,7 @@ import { DataModel } from '../../services/patch-db/data-model'
 })
 export class FooterComponent {
   readonly progress$ = this.patch
-    .watch$('server-info', 'status-info', 'update-progress')
+    .watch$('serverInfo', 'statusInfo', 'updateProgress')
     .pipe(map(a => a && { ...a }))
 
   readonly animation = {

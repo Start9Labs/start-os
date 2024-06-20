@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map, Observable, startWith } from 'rxjs'
-import { ConnectionService } from 'src/app/services/connection.service'
+import { NetworkService } from 'src/app/services/network.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { StateService } from 'src/app/services/state.service'
 
 @Component({
   selector: 'connection-bar',
@@ -11,19 +12,17 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ConnectionBarComponent {
-  private readonly websocket$ = this.connectionService.websocketConnected$
-
   readonly connection$: Observable<{
     message: string
     color: string
     icon: string
     dots: boolean
   }> = combineLatest([
-    this.connectionService.networkConnected$,
-    this.websocket$.pipe(startWith(false)),
+    this.network$,
+    this.state$.pipe(map(Boolean)),
     this.patch
-      .watch$('server-info', 'status-info')
-      .pipe(startWith({ restarting: false, 'shutting-down': false })),
+      .watch$('serverInfo', 'statusInfo')
+      .pipe(startWith({ restarting: false, shuttingDown: false })),
   ]).pipe(
     map(([network, websocket, status]) => {
       if (!network)
@@ -40,7 +39,7 @@ export class ConnectionBarComponent {
           icon: 'cloud-offline-outline',
           dots: true,
         }
-      if (status['shutting-down'])
+      if (status.shuttingDown)
         return {
           message: 'Shutting Down',
           color: 'dark',
@@ -65,7 +64,8 @@ export class ConnectionBarComponent {
   )
 
   constructor(
-    private readonly connectionService: ConnectionService,
+    private readonly network$: NetworkService,
+    private readonly state$: StateService,
     private readonly patch: PatchDB<DataModel>,
   ) {}
 }

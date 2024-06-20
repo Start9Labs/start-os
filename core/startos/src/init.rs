@@ -1,33 +1,43 @@
 use std::fs::Permissions;
+use std::io::Cursor;
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::time::{Duration, SystemTime};
 
+use axum::extract::ws::{self, CloseFrame};
 use color_eyre::eyre::eyre;
-
+use futures::{StreamExt, TryStreamExt};
+use itertools::Itertools;
 use models::ResultExt;
 use rand::random;
-use sqlx::{Pool, Postgres};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerArgs, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::account::AccountInfo;
-use crate::context::rpc::RpcContextConfig;
-use crate::db::model::ServerStatus;
+use crate::context::config::ServerConfig;
+use crate::context::{CliContext, InitContext};
+use crate::db::model::public::ServerStatus;
+use crate::db::model::Database;
 use crate::disk::mount::util::unmount;
-use crate::install::PKG_ARCHIVE_DIR;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
+use crate::net::net_controller::PreInitNetController;
 use crate::prelude::*;
-
-use crate::util::cpupower::{
-    get_available_governors, get_preferred_governor, set_governor,
+use crate::progress::{
+    FullProgress, FullProgressTracker, PhaseProgressTrackerHandle, PhasedProgressBar,
 };
-use crate::util::docker::{create_bridge_network, CONTAINER_DATADIR, CONTAINER_TOOL};
-use crate::util::Invoke;
-use crate::{Error, ARCH};
+use crate::rpc_continuations::{Guid, RpcContinuation};
+use crate::ssh::SSH_AUTHORIZED_KEYS_FILE;
+use crate::util::io::IOHook;
+use crate::util::net::WebSocketExt;
+use crate::util::{cpupower, Invoke};
+use crate::Error;
 
-pub const SYSTEM_REBUILD_PATH: &str = "/media/embassy/config/system-rebuild";
-pub const STANDBY_MODE_PATH: &str = "/media/embassy/config/standby";
+pub const SYSTEM_REBUILD_PATH: &str = "/media/startos/config/system-rebuild";
+pub const STANDBY_MODE_PATH: &str = "/media/startos/config/standby";
 
 pub async fn check_time_is_synchronized() -> Result<bool, Error> {
     Ok(String::from_utf8(
@@ -185,15 +195,114 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
 }
 
 pub struct InitResult {
-    pub secret_store: Pool<Postgres>,
-    pub db: patch_db::PatchDb,
+    pub net_ctrl: PreInitNetController,
+}
+
+pub struct InitPhases {
+    preinit: Option<PhaseProgressTrackerHandle>,
+    local_auth: PhaseProgressTrackerHandle,
+    load_database: PhaseProgressTrackerHandle,
+    load_ssh_keys: PhaseProgressTrackerHandle,
+    start_net: PhaseProgressTrackerHandle,
+    mount_logs: PhaseProgressTrackerHandle,
+    load_ca_cert: PhaseProgressTrackerHandle,
+    load_wifi: PhaseProgressTrackerHandle,
+    init_tmp: PhaseProgressTrackerHandle,
+    set_governor: PhaseProgressTrackerHandle,
+    sync_clock: PhaseProgressTrackerHandle,
+    enable_zram: PhaseProgressTrackerHandle,
+    update_server_info: PhaseProgressTrackerHandle,
+    launch_service_network: PhaseProgressTrackerHandle,
+    run_migrations: PhaseProgressTrackerHandle,
+    validate_db: PhaseProgressTrackerHandle,
+    postinit: Option<PhaseProgressTrackerHandle>,
+}
+impl InitPhases {
+    pub fn new(handle: &FullProgressTracker) -> Self {
+        Self {
+            preinit: if Path::new("/media/startos/config/preinit.sh").exists() {
+                Some(handle.add_phase("Running preinit.sh".into(), Some(5)))
+            } else {
+                None
+            },
+            local_auth: handle.add_phase("Enabling local authentication".into(), Some(1)),
+            load_database: handle.add_phase("Loading database".into(), Some(5)),
+            load_ssh_keys: handle.add_phase("Loading SSH Keys".into(), Some(1)),
+            start_net: handle.add_phase("Starting network controller".into(), Some(1)),
+            mount_logs: handle.add_phase("Switching logs to write to data drive".into(), Some(1)),
+            load_ca_cert: handle.add_phase("Loading CA certificate".into(), Some(1)),
+            load_wifi: handle.add_phase("Loading WiFi configuration".into(), Some(1)),
+            init_tmp: handle.add_phase("Initializing temporary files".into(), Some(1)),
+            set_governor: handle.add_phase("Setting CPU performance profile".into(), Some(1)),
+            sync_clock: handle.add_phase("Synchronizing system clock".into(), Some(10)),
+            enable_zram: handle.add_phase("Enabling ZRAM".into(), Some(1)),
+            update_server_info: handle.add_phase("Updating server info".into(), Some(1)),
+            launch_service_network: handle.add_phase("Launching service intranet".into(), Some(10)),
+            run_migrations: handle.add_phase("Running migrations".into(), Some(10)),
+            validate_db: handle.add_phase("Validating database".into(), Some(1)),
+            postinit: if Path::new("/media/startos/config/postinit.sh").exists() {
+                Some(handle.add_phase("Running postinit.sh".into(), Some(5)))
+            } else {
+                None
+            },
+        }
+    }
+}
+
+pub async fn run_script<P: AsRef<Path>>(path: P, mut progress: PhaseProgressTrackerHandle) {
+    let script = path.as_ref();
+    progress.start();
+    if let Err(e) = async {
+        let script = tokio::fs::read_to_string(script).await?;
+        progress.set_total(script.as_bytes().iter().filter(|b| **b == b'\n').count() as u64);
+        let mut reader = IOHook::new(Cursor::new(script.as_bytes()));
+        reader.post_read(|buf| progress += buf.iter().filter(|b| **b == b'\n').count() as u64);
+        Command::new("/bin/bash")
+            .input(Some(&mut reader))
+            .invoke(ErrorKind::Unknown)
+            .await?;
+
+        Ok::<_, Error>(())
+    }
+    .await
+    {
+        tracing::error!("Error Running {}: {}", script.display(), e);
+        tracing::debug!("{:?}", e);
+    }
+    progress.complete();
 }
 
 #[instrument(skip_all)]
-pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
-    tokio::fs::create_dir_all("/run/embassy")
+pub async fn init(
+    cfg: &ServerConfig,
+    InitPhases {
+        preinit,
+        mut local_auth,
+        mut load_database,
+        mut load_ssh_keys,
+        mut start_net,
+        mut mount_logs,
+        mut load_ca_cert,
+        mut load_wifi,
+        mut init_tmp,
+        mut set_governor,
+        mut sync_clock,
+        mut enable_zram,
+        mut update_server_info,
+        mut launch_service_network,
+        run_migrations,
+        mut validate_db,
+        postinit,
+    }: InitPhases,
+) -> Result<InitResult, Error> {
+    if let Some(progress) = preinit {
+        run_script("/media/startos/config/preinit.sh", progress).await;
+    }
+
+    local_auth.start();
+    tokio::fs::create_dir_all("/run/startos")
         .await
-        .with_ctx(|_| (crate::ErrorKind::Filesystem, "mkdir -p /run/embassy"))?;
+        .with_ctx(|_| (crate::ErrorKind::Filesystem, "mkdir -p /run/startos"))?;
     if tokio::fs::metadata(LOCAL_AUTH_COOKIE_PATH).await.is_err() {
         tokio::fs::write(
             LOCAL_AUTH_COOKIE_PATH,
@@ -213,43 +322,41 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             .invoke(crate::ErrorKind::Filesystem)
             .await?;
     }
+    local_auth.complete();
 
-    let secret_store = cfg.secret_store().await?;
-    tracing::info!("Opened Postgres");
-
-    crate::ssh::sync_keys_from_db(&secret_store, "/home/start9/.ssh/authorized_keys").await?;
-    tracing::info!("Synced SSH Keys");
-
-    let account = AccountInfo::load(&secret_store).await?;
-    let db = cfg.db(&account).await?;
-    tracing::info!("Opened PatchDB");
+    load_database.start();
+    let db = TypedPatchDb::<Database>::load_unchecked(cfg.db().await?);
     let peek = db.peek().await;
-    let mut server_info = peek.as_server_info().de()?;
+    load_database.complete();
+    tracing::info!("Opened PatchDB");
 
-    // write to ca cert store
-    tokio::fs::write(
-        "/usr/local/share/ca-certificates/startos-root-ca.crt",
-        account.root_ca_cert.to_pem()?,
+    load_ssh_keys.start();
+    crate::ssh::sync_keys(
+        &peek.as_private().as_ssh_pubkeys().de()?,
+        SSH_AUTHORIZED_KEYS_FILE,
     )
     .await?;
-    Command::new("update-ca-certificates")
-        .invoke(crate::ErrorKind::OpenSsl)
-        .await?;
+    load_ssh_keys.complete();
+    tracing::info!("Synced SSH Keys");
 
-    if let Some(wifi_interface) = &cfg.wifi_interface {
-        crate::net::wifi::synchronize_wpa_supplicant_conf(
-            &cfg.datadir().join("main"),
-            wifi_interface,
-            &server_info.last_wifi_region,
-        )
-        .await?;
-        tracing::info!("Synchronized WiFi");
-    }
+    let account = AccountInfo::load(&peek)?;
 
-    let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok()
-        || &*server_info.version < &emver::Version::new(0, 3, 2, 0)
-        || (*ARCH == "x86_64" && &*server_info.version < &emver::Version::new(0, 3, 4, 0));
+    start_net.start();
+    let net_ctrl = PreInitNetController::init(
+        db.clone(),
+        cfg.tor_control
+            .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
+        cfg.tor_socks.unwrap_or(SocketAddr::V4(SocketAddrV4::new(
+            Ipv4Addr::new(127, 0, 0, 1),
+            9050,
+        ))),
+        &account.hostname,
+        account.tor_key,
+    )
+    .await?;
+    start_net.complete();
 
+    mount_logs.start();
     let log_dir = cfg.datadir().join("main/logs");
     if tokio::fs::metadata(&log_dir).await.is_err() {
         tokio::fs::create_dir_all(&log_dir).await?;
@@ -278,10 +385,35 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .arg("systemd-journald")
         .invoke(crate::ErrorKind::Journald)
         .await?;
+    mount_logs.complete();
     tracing::info!("Mounted Logs");
 
+    let mut server_info = peek.as_public().as_server_info().de()?;
+
+    load_ca_cert.start();
+    // write to ca cert store
+    tokio::fs::write(
+        "/usr/local/share/ca-certificates/startos-root-ca.crt",
+        account.root_ca_cert.to_pem()?,
+    )
+    .await?;
+    Command::new("update-ca-certificates")
+        .invoke(crate::ErrorKind::OpenSsl)
+        .await?;
+    load_ca_cert.complete();
+
+    load_wifi.start();
+    crate::net::wifi::synchronize_wpa_supplicant_conf(
+        &cfg.datadir().join("main"),
+        &mut server_info.wifi,
+    )
+    .await?;
+    load_wifi.complete();
+    tracing::info!("Synchronized WiFi");
+
+    init_tmp.start();
     let tmp_dir = cfg.datadir().join("package-data/tmp");
-    if should_rebuild && tokio::fs::metadata(&tmp_dir).await.is_ok() {
+    if tokio::fs::metadata(&tmp_dir).await.is_ok() {
         tokio::fs::remove_dir_all(&tmp_dir).await?;
     }
     if tokio::fs::metadata(&tmp_dir).await.is_err() {
@@ -292,94 +424,30 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         tokio::fs::remove_dir_all(&tmp_var).await?;
     }
     crate::disk::mount::util::bind(&tmp_var, "/var/tmp", false).await?;
-    let tmp_docker = cfg
-        .datadir()
-        .join(format!("package-data/tmp/{CONTAINER_TOOL}"));
-    let tmp_docker_exists = tokio::fs::metadata(&tmp_docker).await.is_ok();
-    if CONTAINER_TOOL == "docker" {
-        Command::new("systemctl")
-            .arg("stop")
-            .arg("docker")
-            .invoke(crate::ErrorKind::Docker)
-            .await?;
-    }
-    crate::disk::mount::util::bind(&tmp_docker, CONTAINER_DATADIR, false).await?;
+    init_tmp.complete();
 
-    if CONTAINER_TOOL == "docker" {
-        Command::new("systemctl")
-            .arg("reset-failed")
-            .arg("docker")
-            .invoke(crate::ErrorKind::Docker)
-            .await?;
-        Command::new("systemctl")
-            .arg("start")
-            .arg("docker")
-            .invoke(crate::ErrorKind::Docker)
-            .await?;
-    }
-    tracing::info!("Mounted Docker Data");
-
-    if should_rebuild || !tmp_docker_exists {
-        if CONTAINER_TOOL == "docker" {
-            tracing::info!("Creating Docker Network");
-            create_bridge_network("start9", "172.18.0.1/24", "br-start9").await?;
-            tracing::info!("Created Docker Network");
-        }
-
-        let datadir = cfg.datadir();
-        tracing::info!("Loading System Docker Images");
-        crate::install::rebuild_from("/usr/lib/startos/system-images", &datadir).await?;
-        tracing::info!("Loaded System Docker Images");
-
-        tracing::info!("Loading Package Docker Images");
-        crate::install::rebuild_from(datadir.join(PKG_ARCHIVE_DIR), &datadir).await?;
-        tracing::info!("Loaded Package Docker Images");
-    }
-
-    if CONTAINER_TOOL == "podman" {
-        crate::util::docker::remove_container("netdummy", true).await?;
-        Command::new("podman")
-            .arg("run")
-            .arg("-d")
-            .arg("--rm")
-            .arg("--init")
-            .arg("--network=start9")
-            .arg("--name=netdummy")
-            .arg("start9/x_system/utils:latest")
-            .arg("sleep")
-            .arg("infinity")
-            .invoke(crate::ErrorKind::Docker)
-            .await?;
-    }
-
-    tracing::info!("Enabling Docker QEMU Emulation");
-    Command::new(CONTAINER_TOOL)
-        .arg("run")
-        .arg("--privileged")
-        .arg("--rm")
-        .arg("start9/x_system/binfmt")
-        .arg("--install")
-        .arg("all")
-        .invoke(crate::ErrorKind::Docker)
-        .await?;
-    tracing::info!("Enabled Docker QEMU Emulation");
-
+    set_governor.start();
     let governor = if let Some(governor) = &server_info.governor {
-        if get_available_governors().await?.contains(governor) {
+        if cpupower::get_available_governors()
+            .await?
+            .contains(governor)
+        {
             Some(governor)
         } else {
             tracing::warn!("CPU Governor \"{governor}\" Not Available");
             None
         }
     } else {
-        get_preferred_governor().await?
+        cpupower::get_preferred_governor().await?
     };
     if let Some(governor) = governor {
         tracing::info!("Setting CPU Governor to \"{governor}\"");
-        set_governor(governor).await?;
+        cpupower::set_governor(governor).await?;
         tracing::info!("Set CPU Governor");
     }
+    set_governor.complete();
 
+    sync_clock.start();
     server_info.ntp_synced = false;
     let mut not_made_progress = 0u32;
     for _ in 0..1800 {
@@ -406,10 +474,15 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     } else {
         tracing::info!("Syncronized system clock");
     }
+    sync_clock.complete();
 
+    enable_zram.start();
     if server_info.zram {
         crate::system::enable_zram().await?
     }
+    enable_zram.complete();
+
+    update_server_info.start();
     server_info.ip_info = crate::net::dhcp::init_ips().await?;
     server_info.status_info = ServerStatus {
         updated: false,
@@ -418,30 +491,129 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         shutting_down: false,
         restarting: false,
     };
-
     db.mutate(|v| {
-        v.as_server_info_mut().ser(&server_info)?;
+        v.as_public_mut().as_server_info_mut().ser(&server_info)?;
         Ok(())
     })
     .await?;
+    update_server_info.complete();
 
-    crate::version::init(&db, &secret_store).await?;
+    launch_service_network.start();
+    Command::new("systemctl")
+        .arg("start")
+        .arg("lxc-net.service")
+        .invoke(ErrorKind::Lxc)
+        .await?;
+    launch_service_network.complete();
 
+    crate::version::init(&db, run_migrations).await?;
+
+    validate_db.start();
     db.mutate(|d| {
         let model = d.de()?;
         d.ser(&model)
     })
     .await?;
+    validate_db.complete();
 
-    if should_rebuild {
-        match tokio::fs::remove_file(SYSTEM_REBUILD_PATH).await {
-            Ok(()) => Ok(()),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(e),
-        }?;
+    if let Some(progress) = postinit {
+        run_script("/media/startos/config/postinit.sh", progress).await;
     }
 
     tracing::info!("System initialized.");
 
-    Ok(InitResult { secret_store, db })
+    Ok(InitResult { net_ctrl })
+}
+
+pub fn init_api<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand("logs", crate::system::logs::<InitContext>())
+        .subcommand(
+            "logs",
+            from_fn_async(crate::logs::cli_logs::<InitContext, Empty>).no_display(),
+        )
+        .subcommand("kernel-logs", crate::system::kernel_logs::<InitContext>())
+        .subcommand(
+            "kernel-logs",
+            from_fn_async(crate::logs::cli_logs::<InitContext, Empty>).no_display(),
+        )
+        .subcommand("subscribe", from_fn_async(init_progress).no_cli())
+        .subcommand("subscribe", from_fn_async(cli_init_progress).no_display())
+}
+
+#[derive(Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct InitProgressRes {
+    pub progress: FullProgress,
+    pub guid: Guid,
+}
+
+pub async fn init_progress(ctx: InitContext) -> Result<InitProgressRes, Error> {
+    let progress_tracker = ctx.progress.clone();
+    let progress = progress_tracker.snapshot();
+    let guid = Guid::new();
+    ctx.rpc_continuations
+        .add(
+            guid.clone(),
+            RpcContinuation::ws(
+                |mut ws| async move {
+                    if let Err(e) = async {
+                        let mut stream = progress_tracker.stream(Some(Duration::from_millis(100)));
+                        while let Some(progress) = stream.next().await {
+                            ws.send(ws::Message::Text(
+                                serde_json::to_string(&progress)
+                                    .with_kind(ErrorKind::Serialization)?,
+                            ))
+                            .await
+                            .with_kind(ErrorKind::Network)?;
+                            if progress.overall.is_complete() {
+                                break;
+                            }
+                        }
+
+                        ws.normal_close("complete").await?;
+
+                        Ok::<_, Error>(())
+                    }
+                    .await
+                    {
+                        tracing::error!("error in init progress websocket: {e}");
+                        tracing::debug!("{e:?}");
+                    }
+                },
+                Duration::from_secs(30),
+            ),
+        )
+        .await;
+    Ok(InitProgressRes { progress, guid })
+}
+
+pub async fn cli_init_progress(
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        raw_params,
+        ..
+    }: HandlerArgs<CliContext>,
+) -> Result<(), Error> {
+    let res: InitProgressRes = from_value(
+        ctx.call_remote::<InitContext>(
+            &parent_method
+                .into_iter()
+                .chain(method.into_iter())
+                .join("."),
+            raw_params,
+        )
+        .await?,
+    )?;
+    let mut ws = ctx.ws_continuation(res.guid).await?;
+    let mut bar = PhasedProgressBar::new("Initializing...");
+    while let Some(msg) = ws.try_next().await.with_kind(ErrorKind::Network)? {
+        if let tokio_tungstenite::tungstenite::Message::Text(msg) = msg {
+            bar.update(&serde_json::from_str(&msg).with_kind(ErrorKind::Deserialization)?);
+        }
+    }
+    Ok(())
 }

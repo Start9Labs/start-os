@@ -2,8 +2,6 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use async_compression::tokio::bufread::GzipDecoder;
-use clap::ArgMatches;
-use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::io::BufReader;
@@ -11,12 +9,13 @@ use tokio::process::Command;
 
 use crate::disk::fsck::RequiresReboot;
 use crate::prelude::*;
+use crate::progress::PhaseProgressTrackerHandle;
 use crate::util::Invoke;
 use crate::PLATFORM;
 
 /// Part of the Firmware, look there for more about
 #[derive(Clone, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct VersionMatcher {
     /// Strip this prefix on the version matcher
     semver_prefix: Option<String>,
@@ -30,7 +29,7 @@ pub struct VersionMatcher {
 /// wanted a structure that could help decide what to do
 /// for each of the firmware versions
 #[derive(Clone, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct Firmware {
     id: String,
     /// This is the platform(s) the firmware was built for
@@ -43,20 +42,15 @@ pub struct Firmware {
     shasum: String,
 }
 
-fn display_firmware_update_result(arg: RequiresReboot, _: &ArgMatches) {
-    if arg.0 {
+pub fn display_firmware_update_result(result: RequiresReboot) {
+    if result.0 {
         println!("Firmware successfully updated! Reboot to apply changes.");
     } else {
         println!("No firmware update available.");
     }
 }
 
-/// We wanted to make sure during every init
-/// that the firmware was the correct and updated for
-/// systems like the Pure System that a new firmware
-/// was released and the updates where pushed through the pure os.
-#[command(rename = "update-firmware", display(display_firmware_update_result))]
-pub async fn update_firmware() -> Result<RequiresReboot, Error> {
+pub async fn check_for_firmware_update() -> Result<Option<Firmware>, Error> {
     let system_product_name = String::from_utf8(
         Command::new("dmidecode")
             .arg("-s")
@@ -76,22 +70,21 @@ pub async fn update_firmware() -> Result<RequiresReboot, Error> {
     .trim()
     .to_owned();
     if system_product_name.is_empty() || bios_version.is_empty() {
-        return Ok(RequiresReboot(false));
+        return Ok(None);
     }
-
-    let firmware_dir = Path::new("/usr/lib/startos/firmware");
 
     for firmware in serde_json::from_str::<Vec<Firmware>>(
         &tokio::fs::read_to_string("/usr/lib/startos/firmware.json").await?,
     )
     .with_kind(ErrorKind::Deserialization)?
     {
-        let id = firmware.id;
         let matches_product_name = firmware
             .system_product_name
-            .map_or(true, |spn| spn == system_product_name);
+            .as_ref()
+            .map_or(true, |spn| spn == &system_product_name);
         let matches_bios_version = firmware
             .bios_version
+            .as_ref()
             .map_or(Some(true), |bv| {
                 let mut semver_str = bios_version.as_str();
                 if let Some(prefix) = &bv.semver_prefix {
@@ -115,35 +108,45 @@ pub async fn update_firmware() -> Result<RequiresReboot, Error> {
             })
             .unwrap_or(false);
         if firmware.platform.contains(&*PLATFORM) && matches_product_name && matches_bios_version {
-            let filename = format!("{id}.rom.gz");
-            let firmware_path = firmware_dir.join(&filename);
-            Command::new("sha256sum")
-                .arg("-c")
-                .input(Some(&mut std::io::Cursor::new(format!(
-                    "{} {}",
-                    firmware.shasum,
-                    firmware_path.display()
-                ))))
-                .invoke(ErrorKind::Filesystem)
-                .await?;
-            let mut rdr = if tokio::fs::metadata(&firmware_path).await.is_ok() {
-                GzipDecoder::new(BufReader::new(File::open(&firmware_path).await?))
-            } else {
-                return Err(Error::new(
-                    eyre!("Firmware {id}.rom.gz not found in {firmware_dir:?}"),
-                    ErrorKind::NotFound,
-                ));
-            };
-            Command::new("flashrom")
-                .arg("-p")
-                .arg("internal")
-                .arg("-w-")
-                .input(Some(&mut rdr))
-                .invoke(ErrorKind::Firmware)
-                .await?;
-            return Ok(RequiresReboot(true));
+            return Ok(Some(firmware));
         }
     }
 
-    Ok(RequiresReboot(false))
+    Ok(None)
+}
+
+/// We wanted to make sure during every init
+/// that the firmware was the correct and updated for
+/// systems like the Pure System that a new firmware
+/// was released and the updates where pushed through the pure os.
+pub async fn update_firmware(firmware: Firmware) -> Result<(), Error> {
+    let id = &firmware.id;
+    let firmware_dir = Path::new("/usr/lib/startos/firmware");
+    let filename = format!("{id}.rom.gz");
+    let firmware_path = firmware_dir.join(&filename);
+    Command::new("sha256sum")
+        .arg("-c")
+        .input(Some(&mut std::io::Cursor::new(format!(
+            "{} {}",
+            firmware.shasum,
+            firmware_path.display()
+        ))))
+        .invoke(ErrorKind::Filesystem)
+        .await?;
+    let mut rdr = if tokio::fs::metadata(&firmware_path).await.is_ok() {
+        GzipDecoder::new(BufReader::new(File::open(&firmware_path).await?))
+    } else {
+        return Err(Error::new(
+            eyre!("Firmware {id}.rom.gz not found in {firmware_dir:?}"),
+            ErrorKind::NotFound,
+        ));
+    };
+    Command::new("flashrom")
+        .arg("-p")
+        .arg("internal")
+        .arg("-w-")
+        .input(Some(&mut rdr))
+        .invoke(ErrorKind::Firmware)
+        .await?;
+    Ok(())
 }

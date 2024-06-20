@@ -1,47 +1,61 @@
 use std::path::{Path, PathBuf};
 
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use models::Error;
-use rpc_toolkit::command;
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
+use ts_rs::TS;
 
-use crate::context::InstallContext;
+use crate::context::config::ServerConfig;
+use crate::context::{CliContext, InstallContext};
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::efivarfs::EfiVarFs;
+use crate::disk::mount::filesystem::overlayfs::OverlayFs;
 use crate::disk::mount::filesystem::{MountType, ReadWrite};
-use crate::disk::mount::guard::{MountGuard, TmpMountGuard};
+use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::disk::util::{DiskInfo, PartitionTable};
 use crate::disk::OsPartitionInfo;
-use crate::net::utils::{find_eth_iface, find_wifi_iface};
+use crate::net::utils::find_eth_iface;
+use crate::prelude::*;
+use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
+use crate::util::io::TmpDir;
 use crate::util::serde::IoFormat;
-use crate::util::{display_none, Invoke};
+use crate::util::Invoke;
 use crate::ARCH;
 
 mod gpt;
 mod mbr;
 
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct PostInstallConfig {
-    os_partitions: OsPartitionInfo,
-    ethernet_interface: String,
-    wifi_interface: Option<String>,
+pub fn install<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand("disk", disk::<C>())
+        .subcommand(
+            "execute",
+            from_fn_async(execute::<InstallContext>)
+                .no_display()
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "reboot",
+            from_fn_async(reboot)
+                .no_display()
+                .with_call_remote::<CliContext>(),
+        )
 }
 
-#[command(subcommands(disk, execute, reboot))]
-pub fn install() -> Result<(), Error> {
-    Ok(())
+pub fn disk<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new().subcommand(
+        "list",
+        from_fn_async(list)
+            .no_display()
+            .with_call_remote::<CliContext>(),
+    )
 }
 
-#[command(subcommands(list))]
-pub fn disk() -> Result<(), Error> {
-    Ok(())
-}
-
-#[command(display(display_none))]
-pub async fn list() -> Result<Vec<DiskInfo>, Error> {
+pub async fn list(_: InstallContext) -> Result<Vec<DiskInfo>, Error> {
     let skip = match async {
         Ok::<_, Error>(
             Path::new(
@@ -103,10 +117,21 @@ async fn partition(disk: &mut DiskInfo, overwrite: bool) -> Result<OsPartitionIn
     }
 }
 
-#[command(display(display_none))]
-pub async fn execute(
-    #[arg] logicalname: PathBuf,
-    #[arg(short = 'o')] mut overwrite: bool,
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct ExecuteParams {
+    logicalname: PathBuf,
+    #[arg(short = 'o')]
+    overwrite: bool,
+}
+
+pub async fn execute<C: Context>(
+    _: C,
+    ExecuteParams {
+        logicalname,
+        mut overwrite,
+    }: ExecuteParams,
 ) -> Result<(), Error> {
     let mut disk = crate::disk::util::list(&Default::default())
         .await?
@@ -119,7 +144,6 @@ pub async fn execute(
             )
         })?;
     let eth_iface = find_eth_iface().await?;
-    let wifi_iface = find_wifi_iface().await?;
 
     overwrite |= disk.guid.is_none() && disk.partitions.iter().all(|p| p.guid.is_none());
 
@@ -153,21 +177,21 @@ pub async fn execute(
         {
             if let Err(e) = async {
                 // cp -r ${guard}/config /tmp/config
-                if tokio::fs::metadata(guard.as_ref().join("config/upgrade"))
+                if tokio::fs::metadata(guard.path().join("config/upgrade"))
                     .await
                     .is_ok()
                 {
-                    tokio::fs::remove_file(guard.as_ref().join("config/upgrade")).await?;
+                    tokio::fs::remove_file(guard.path().join("config/upgrade")).await?;
                 }
-                if tokio::fs::metadata(guard.as_ref().join("config/disk.guid"))
+                if tokio::fs::metadata(guard.path().join("config/disk.guid"))
                     .await
                     .is_ok()
                 {
-                    tokio::fs::remove_file(guard.as_ref().join("config/disk.guid")).await?;
+                    tokio::fs::remove_file(guard.path().join("config/disk.guid")).await?;
                 }
                 Command::new("cp")
                     .arg("-r")
-                    .arg(guard.as_ref().join("config"))
+                    .arg(guard.path().join("config"))
                     .arg("/tmp/config.bak")
                     .invoke(crate::ErrorKind::Filesystem)
                     .await?;
@@ -195,57 +219,122 @@ pub async fn execute(
         .arg("rootfs")
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
-
     let rootfs = TmpMountGuard::mount(&BlockDev::new(&part_info.root), ReadWrite).await?;
+
+    let config_path = rootfs.path().join("config");
+
     if tokio::fs::metadata("/tmp/config.bak").await.is_ok() {
+        if tokio::fs::metadata(&config_path).await.is_ok() {
+            tokio::fs::remove_dir_all(&config_path).await?;
+        }
         Command::new("cp")
             .arg("-r")
             .arg("/tmp/config.bak")
-            .arg(rootfs.as_ref().join("config"))
+            .arg(&config_path)
             .invoke(crate::ErrorKind::Filesystem)
             .await?;
     } else {
-        tokio::fs::create_dir(rootfs.as_ref().join("config")).await?;
+        tokio::fs::create_dir_all(&config_path).await?;
     }
-    tokio::fs::create_dir(rootfs.as_ref().join("next")).await?;
-    let current = rootfs.as_ref().join("current");
-    tokio::fs::create_dir(&current).await?;
 
-    tokio::fs::create_dir(current.join("boot")).await?;
-    let boot = MountGuard::mount(
+    let images_path = rootfs.path().join("images");
+    tokio::fs::create_dir_all(&images_path).await?;
+    let image_path = images_path
+        .join(hex::encode(
+            &MultiCursorFile::from(
+                tokio::fs::File::open("/run/live/medium/live/filesystem.squashfs").await?,
+            )
+            .blake3_mmap()
+            .await?
+            .as_bytes()[..16],
+        ))
+        .with_extension("rootfs");
+    tokio::fs::copy("/run/live/medium/live/filesystem.squashfs", &image_path).await?;
+    // TODO: check hash of fs
+    let unsquash_target = TmpDir::new().await?;
+    let bootfs = MountGuard::mount(
         &BlockDev::new(&part_info.boot),
-        current.join("boot"),
+        unsquash_target.join("boot"),
         ReadWrite,
     )
     .await?;
-
-    let efi = if let Some(efi) = &part_info.efi {
-        Some(MountGuard::mount(&BlockDev::new(efi), current.join("boot/efi"), ReadWrite).await?)
-    } else {
-        None
-    };
-
     Command::new("unsquashfs")
         .arg("-n")
         .arg("-f")
         .arg("-d")
-        .arg(&current)
+        .arg(&*unsquash_target)
         .arg("/run/live/medium/live/filesystem.squashfs")
+        .arg("boot")
         .invoke(crate::ErrorKind::Filesystem)
+        .await?;
+    bootfs.unmount(true).await?;
+    unsquash_target.delete().await?;
+    Command::new("ln")
+        .arg("-rsf")
+        .arg(&image_path)
+        .arg(config_path.join("current.rootfs"))
+        .invoke(ErrorKind::DiskManagement)
         .await?;
 
     tokio::fs::write(
-        rootfs.as_ref().join("config/config.yaml"),
-        IoFormat::Yaml.to_vec(&PostInstallConfig {
-            os_partitions: part_info.clone(),
-            ethernet_interface: eth_iface,
-            wifi_interface: wifi_iface,
+        rootfs.path().join("config/config.yaml"),
+        IoFormat::Yaml.to_vec(&ServerConfig {
+            os_partitions: Some(part_info.clone()),
+            ethernet_interface: Some(eth_iface),
+            ..Default::default()
         })?,
     )
     .await?;
 
+    let lower = TmpMountGuard::mount(&BlockDev::new(&image_path), MountType::ReadOnly).await?;
+    let work = config_path.join("work");
+    let upper = config_path.join("overlay");
+    let overlay =
+        TmpMountGuard::mount(&OverlayFs::new(&lower.path(), &upper, &work), ReadWrite).await?;
+
+    let boot = MountGuard::mount(
+        &BlockDev::new(&part_info.boot),
+        overlay.path().join("boot"),
+        ReadWrite,
+    )
+    .await?;
+    let efi = if let Some(efi) = &part_info.efi {
+        Some(
+            MountGuard::mount(
+                &BlockDev::new(efi),
+                overlay.path().join("boot/efi"),
+                ReadWrite,
+            )
+            .await?,
+        )
+    } else {
+        None
+    };
+    let start_os_fs = MountGuard::mount(
+        &Bind::new(rootfs.path()),
+        overlay.path().join("media/startos/root"),
+        MountType::ReadOnly,
+    )
+    .await?;
+    let dev = MountGuard::mount(&Bind::new("/dev"), overlay.path().join("dev"), ReadWrite).await?;
+    let proc =
+        MountGuard::mount(&Bind::new("/proc"), overlay.path().join("proc"), ReadWrite).await?;
+    let sys = MountGuard::mount(&Bind::new("/sys"), overlay.path().join("sys"), ReadWrite).await?;
+    let efivarfs = if tokio::fs::metadata("/sys/firmware/efi").await.is_ok() {
+        Some(
+            MountGuard::mount(
+                &EfiVarFs,
+                overlay.path().join("sys/firmware/efi/efivars"),
+                ReadWrite,
+            )
+            .await?,
+        )
+    } else {
+        None
+    };
+
     tokio::fs::write(
-        current.join("etc/fstab"),
+        overlay.path().join("etc/fstab"),
         format!(
             include_str!("fstab.template"),
             boot = part_info.boot.display(),
@@ -260,46 +349,24 @@ pub async fn execute(
     .await?;
 
     Command::new("chroot")
-        .arg(&current)
+        .arg(overlay.path())
         .arg("systemd-machine-id-setup")
         .invoke(crate::ErrorKind::Systemd)
         .await?;
 
     Command::new("chroot")
-        .arg(&current)
+        .arg(overlay.path())
         .arg("ssh-keygen")
         .arg("-A")
         .invoke(crate::ErrorKind::OpenSsh)
         .await?;
 
-    let embassy_fs = MountGuard::mount(
-        &Bind::new(rootfs.as_ref()),
-        current.join("media/embassy/embassyfs"),
-        MountType::ReadOnly,
-    )
-    .await?;
-    let dev = MountGuard::mount(&Bind::new("/dev"), current.join("dev"), ReadWrite).await?;
-    let proc = MountGuard::mount(&Bind::new("/proc"), current.join("proc"), ReadWrite).await?;
-    let sys = MountGuard::mount(&Bind::new("/sys"), current.join("sys"), ReadWrite).await?;
-    let efivarfs = if tokio::fs::metadata("/sys/firmware/efi").await.is_ok() {
-        Some(
-            MountGuard::mount(
-                &EfiVarFs,
-                current.join("sys/firmware/efi/efivars"),
-                ReadWrite,
-            )
-            .await?,
-        )
-    } else {
-        None
-    };
-
     let mut install = Command::new("chroot");
-    install.arg(&current).arg("grub-install");
+    install.arg(overlay.path()).arg("grub-install");
     if tokio::fs::metadata("/sys/firmware/efi").await.is_err() {
         install.arg("--target=i386-pc");
     } else {
-        match *ARCH {
+        match ARCH {
             "x86_64" => install.arg("--target=x86_64-efi"),
             "aarch64" => install.arg("--target=arm64-efi"),
             _ => &mut install,
@@ -311,7 +378,7 @@ pub async fn execute(
         .await?;
 
     Command::new("chroot")
-        .arg(&current)
+        .arg(overlay.path())
         .arg("update-grub2")
         .invoke(crate::ErrorKind::Grub)
         .await?;
@@ -321,17 +388,22 @@ pub async fn execute(
     }
     sys.unmount(false).await?;
     proc.unmount(false).await?;
-    embassy_fs.unmount(false).await?;
+    start_os_fs.unmount(false).await?;
     if let Some(efi) = efi {
         efi.unmount(false).await?;
     }
     boot.unmount(false).await?;
+
+    overlay.unmount().await?;
+    tokio::fs::remove_dir_all(&work).await?;
+    lower.unmount().await?;
+
     rootfs.unmount().await?;
+
     Ok(())
 }
 
-#[command(display(display_none))]
-pub async fn reboot(#[context] ctx: InstallContext) -> Result<(), Error> {
+pub async fn reboot(ctx: InstallContext) -> Result<(), Error> {
     Command::new("sync")
         .invoke(crate::ErrorKind::Filesystem)
         .await?;

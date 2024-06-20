@@ -6,11 +6,9 @@ import {
 } from '@angular/core'
 import { PatchDB } from 'patch-db-client'
 import { take } from 'rxjs/operators'
-import {
-  DataModel,
-  PackageMainStatus,
-} from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Observable } from 'rxjs'
+import { T } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'backing-up',
@@ -18,14 +16,12 @@ import { Observable } from 'rxjs'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BackingUpComponent {
-  readonly pkgs$ = this.patch.watch$('package-data').pipe(take(1))
+  readonly pkgs$ = this.patch.watch$('packageData').pipe(take(1))
   readonly backupProgress$ = this.patch.watch$(
-    'server-info',
-    'status-info',
-    'backup-progress',
+    'serverInfo',
+    'statusInfo',
+    'backupProgress',
   )
-
-  PackageMainStatus = PackageMainStatus
 
   constructor(private readonly patch: PatchDB<DataModel>) {}
 }
@@ -34,15 +30,8 @@ export class BackingUpComponent {
   name: 'pkgMainStatus',
 })
 export class PkgMainStatusPipe implements PipeTransform {
-  transform(pkgId: string): Observable<PackageMainStatus> {
-    return this.patch.watch$(
-      'package-data',
-      pkgId,
-      'installed',
-      'status',
-      'main',
-      'status',
-    )
+  transform(pkgId: string): Observable<T.MainStatus['status']> {
+    return this.patch.watch$('packageData', pkgId, 'status', 'main', 'status')
   }
 
   constructor(private readonly patch: PatchDB<DataModel>) {}

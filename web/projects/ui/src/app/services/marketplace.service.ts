@@ -19,7 +19,11 @@ import {
 } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
+import {
+  DataModel,
+  UIMarketplaceData,
+  UIStore,
+} from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import {
   catchError,
@@ -39,9 +43,9 @@ import { ClientStorageService } from './client-storage.service'
 @Injectable()
 export class MarketplaceService implements AbstractMarketplaceService {
   private readonly knownHosts$: Observable<StoreIdentity[]> = this.patch
-    .watch$('ui', 'marketplace', 'known-hosts')
+    .watch$('ui', 'marketplace', 'knownHosts')
     .pipe(
-      map(hosts => {
+      map((hosts: UIMarketplaceData['knownHosts']) => {
         const { start9, community } = this.config.marketplace
         let arr = [
           toStoreIdentity(start9, hosts[start9]),
@@ -73,8 +77,8 @@ export class MarketplaceService implements AbstractMarketplaceService {
   private readonly selectedHost$: Observable<StoreIdentity> = this.patch
     .watch$('ui', 'marketplace')
     .pipe(
-      distinctUntilKeyChanged('selected-url'),
-      map(({ 'selected-url': url, 'known-hosts': hosts }) =>
+      distinctUntilKeyChanged('selectedUrl'),
+      map(({ selectedUrl: url, knownHosts: hosts }) =>
         toStoreIdentity(url, hosts[url]),
       ),
       shareReplay({ bufferSize: 1, refCount: true }),
@@ -171,9 +175,9 @@ export class MarketplaceService implements AbstractMarketplaceService {
   ): Observable<MarketplacePkg> {
     return this.patch.watch$('ui', 'marketplace').pipe(
       switchMap(uiMarketplace => {
-        const url = optionalUrl || uiMarketplace['selected-url']
+        const url = optionalUrl || uiMarketplace.selectedUrl
 
-        if (version !== '*' || !uiMarketplace['known-hosts'][url]) {
+        if (version !== '*' || !uiMarketplace.knownHosts[url]) {
           return this.fetchPackage$(id, version, url)
         }
 
@@ -206,18 +210,18 @@ export class MarketplaceService implements AbstractMarketplaceService {
   ): Promise<void> {
     const params: RR.InstallPackageReq = {
       id,
-      'version-spec': `=${version}`,
-      'marketplace-url': url,
+      versionSpec: `=${version}`,
+      registry: url,
     }
 
     await this.api.installPackage(params)
   }
 
   fetchInfo$(url: string): Observable<StoreInfo> {
-    return this.patch.watch$('server-info').pipe(
+    return this.patch.watch$('serverInfo').pipe(
       take(1),
       switchMap(serverInfo => {
-        const qp: RR.GetMarketplaceInfoReq = { 'server-id': serverInfo.id }
+        const qp: RR.GetMarketplaceInfoReq = { serverId: serverInfo.id }
         return this.api.marketplaceProxy<RR.GetMarketplaceInfoRes>(
           '/package/v0/info',
           qp,
@@ -276,7 +280,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
     const qp: RR.GetMarketplacePackagesReq = {
       ...params,
       page: 1,
-      'per-page': 100,
+      perPage: 100,
     }
     if (qp.ids) qp.ids = JSON.stringify(qp.ids)
 
@@ -306,7 +310,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
   ): Promise<void> {
     if (oldName !== newName) {
       this.api.setDbValue<string>(
-        ['marketplace', 'known-hosts', url, 'name'],
+        ['marketplace', 'knownHosts', url, 'name'],
         newName,
       )
     }

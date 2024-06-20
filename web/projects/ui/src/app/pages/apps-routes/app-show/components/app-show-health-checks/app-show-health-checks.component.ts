@@ -1,9 +1,6 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { T } from '@start9labs/start-sdk'
 import { ConnectionService } from 'src/app/services/connection.service'
-import {
-  HealthResult,
-  PackageDataEntry,
-} from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'app-show-health-checks',
@@ -13,20 +10,16 @@ import {
 })
 export class AppShowHealthChecksComponent {
   @Input()
-  pkg!: PackageDataEntry
+  healthChecks!: Record<string, T.HealthCheckResult>
 
-  HealthResult = HealthResult
+  constructor(readonly connection$: ConnectionService) {}
 
-  readonly connected$ = this.connectionService.connected$
-
-  constructor(private readonly connectionService: ConnectionService) {}
-
-  isLoading(result: HealthResult): boolean {
-    return result === HealthResult.Starting || result === HealthResult.Loading
+  isLoading(result: T.HealthCheckResult['result']): boolean {
+    return result === 'starting' || result === 'loading'
   }
 
-  isReady(result: HealthResult): boolean {
-    return result !== HealthResult.Failure && result !== HealthResult.Loading
+  isReady(result: T.HealthCheckResult['result']): boolean {
+    return result !== 'failure' && result !== 'loading'
   }
 
   asIsOrder() {

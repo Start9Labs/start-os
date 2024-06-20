@@ -17,20 +17,21 @@ use tracing::instrument;
 use super::mount::filesystem::block_dev::BlockDev;
 use super::mount::filesystem::ReadOnly;
 use super::mount::guard::TmpMountGuard;
+use crate::disk::mount::guard::GenericMountGuard;
 use crate::disk::OsPartitionInfo;
 use crate::util::serde::IoFormat;
-use crate::util::{Invoke, Version};
+use crate::util::{Invoke, VersionString};
 use crate::{Error, ResultExt as _};
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum PartitionTable {
     Mbr,
     Gpt,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct DiskInfo {
     pub logicalname: PathBuf,
     pub partition_table: Option<PartitionTable>,
@@ -42,20 +43,20 @@ pub struct DiskInfo {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct PartitionInfo {
     pub logicalname: PathBuf,
     pub label: Option<String>,
     pub capacity: u64,
     pub used: Option<u64>,
-    pub embassy_os: Option<EmbassyOsRecoveryInfo>,
+    pub start_os: Option<EmbassyOsRecoveryInfo>,
     pub guid: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct EmbassyOsRecoveryInfo {
-    pub version: Version,
+    pub version: VersionString,
     pub full: bool,
     pub password_hash: Option<String>,
     pub wrapped_key: Option<String>,
@@ -389,7 +390,7 @@ async fn disk_info(disk: PathBuf) -> DiskInfo {
 }
 
 async fn part_info(part: PathBuf) -> PartitionInfo {
-    let mut embassy_os = None;
+    let mut start_os = None;
     let label = get_label(&part)
         .await
         .map_err(|e| tracing::warn!("Could not get label of {}: {}", part.display(), e.source))
@@ -403,20 +404,20 @@ async fn part_info(part: PathBuf) -> PartitionInfo {
     match TmpMountGuard::mount(&BlockDev::new(&part), ReadOnly).await {
         Err(e) => tracing::warn!("Could not collect usage information: {}", e.source),
         Ok(mount_guard) => {
-            used = get_used(&mount_guard)
+            used = get_used(mount_guard.path())
                 .await
                 .map_err(|e| {
                     tracing::warn!("Could not get usage of {}: {}", part.display(), e.source)
                 })
                 .ok();
-            if let Some(recovery_info) = match recovery_info(&mount_guard).await {
+            if let Some(recovery_info) = match recovery_info(mount_guard.path()).await {
                 Ok(a) => a,
                 Err(e) => {
                     tracing::error!("Error fetching unencrypted backup metadata: {}", e);
                     None
                 }
             } {
-                embassy_os = Some(recovery_info)
+                start_os = Some(recovery_info)
             }
             if let Err(e) = mount_guard.unmount().await {
                 tracing::error!("Error unmounting partition {}: {}", part.display(), e);
@@ -429,7 +430,7 @@ async fn part_info(part: PathBuf) -> PartitionInfo {
         label,
         capacity,
         used,
-        embassy_os,
+        start_os,
         guid: None,
     }
 }

@@ -1,0 +1,55 @@
+{
+  "name": "@start9labs/start-sdk",
+  "version": "0.3.6-alpha5",
+  "description": "Software development kit to facilitate packaging services for StartOS",
+  "main": "./cjs/lib/index.js",
+  "types": "./cjs/lib/index.d.ts",
+  "module": "./mjs/lib/index.js",
+  "browser": "./mjs/lib/index.browser.js",
+  "sideEffects": true,
+  "typesVersion": {
+    ">=3.1": {
+      "*": [
+        "cjs/lib/*"
+      ]
+    }
+  },
+  "scripts": {
+    "test": "jest -c ./jest.config.js --coverage",
+    "buildOutput": "ts-node --project ./tsconfig-cjs.json  ./lib/test/makeOutput.ts && npx prettier --write '**/*.ts'",
+    "check": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Start9Labs/start-sdk.git"
+  },
+  "author": "Start9 Labs",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Start9Labs/start-sdk/issues"
+  },
+  "homepage": "https://github.com/Start9Labs/start-sdk#readme",
+  "dependencies": {
+    "isomorphic-fetch": "^3.0.0",
+    "lodash": "^4.17.21",
+    "ts-matches": "^5.4.1",
+    "yaml": "^2.2.2",
+    "@iarna/toml": "^2.2.5"
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "tabWidth": 2,
+    "semi": false,
+    "singleQuote": false
+  },
+  "devDependencies": {
+    "@types/jest": "^29.4.0",
+    "@types/lodash": "^4.17.5",
+    "jest": "^29.4.3",
+    "prettier": "^3.2.5",
+    "ts-jest": "^29.0.5",
+    "ts-node": "^10.9.1",
+    "tsx": "^4.7.1",
+    "typescript": "^5.0.4"
+  }
+}

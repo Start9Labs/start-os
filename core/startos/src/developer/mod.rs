@@ -5,16 +5,14 @@ use std::path::Path;
 use ed25519::pkcs8::EncodePrivateKey;
 use ed25519::PublicKeyBytes;
 use ed25519_dalek::{SigningKey, VerifyingKey};
-use rpc_toolkit::command;
 use tracing::instrument;
 
-use crate::context::SdkContext;
-use crate::util::display_none;
+use crate::context::CliContext;
+use crate::util::serde::Pem;
 use crate::{Error, ResultExt};
 
-#[command(cli_only, blocking, display(display_none))]
 #[instrument(skip_all)]
-pub fn init(#[context] ctx: SdkContext) -> Result<(), Error> {
+pub fn init(ctx: CliContext) -> Result<(), Error> {
     if !ctx.developer_key_path.exists() {
         let parent = ctx.developer_key_path.parent().unwrap_or(Path::new("/"));
         if !parent.exists() {
@@ -49,7 +47,6 @@ pub fn init(#[context] ctx: SdkContext) -> Result<(), Error> {
     Ok(())
 }
 
-#[command(subcommands(crate::s9pk::verify, crate::config::verify_spec))]
-pub fn verify() -> Result<(), Error> {
-    Ok(())
+pub fn pubkey(ctx: CliContext) -> Result<Pem<ed25519_dalek::VerifyingKey>, Error> {
+    Ok(Pem(ctx.developer_key()?.verifying_key()))
 }

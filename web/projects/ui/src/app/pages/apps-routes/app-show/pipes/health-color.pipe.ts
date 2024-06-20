@@ -1,20 +1,20 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { HealthResult } from 'src/app/services/patch-db/data-model'
+import { T } from '@start9labs/start-sdk'
 
 @Pipe({
   name: 'healthColor',
 })
 export class HealthColorPipe implements PipeTransform {
-  transform(val: HealthResult): string {
+  transform(val: T.HealthCheckResult['result']): string {
     switch (val) {
-      case HealthResult.Success:
+      case 'success':
         return 'success'
-      case HealthResult.Failure:
+      case 'failure':
         return 'warning'
-      case HealthResult.Disabled:
+      case 'disabled':
         return 'dark'
-      case HealthResult.Starting:
-      case HealthResult.Loading:
+      case 'starting':
+      case 'loading':
         return 'primary'
     }
   }

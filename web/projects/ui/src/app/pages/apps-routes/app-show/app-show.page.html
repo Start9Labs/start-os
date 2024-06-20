@@ -7,9 +7,8 @@
     <!-- ** installing, updating, restoring ** -->
     <ng-container *ngIf="showProgress(pkg); else installed">
       <app-show-progress
-        *ngIf="pkg | progressData as progressData"
-        [pkg]="pkg"
-        [progressData]="progressData"
+        *ngIf="pkg.stateInfo.installingInfo as installingInfo"
+        [phases]="installingInfo.progress.phases"
       ></app-show-progress>
     </ng-container>
 
@@ -18,12 +17,14 @@
       <ion-item-group *ngIf="pkgPlus.status as status">
         <!-- ** status ** -->
         <app-show-status [pkg]="pkg" [status]="status"></app-show-status>
-        <!-- ** installed && !backing-up ** -->
-        <ng-container *ngIf="isInstalled(pkg) && !isBackingUp(status)">
+        <!-- ** installed && !backingUp ** -->
+        <ng-container
+          *ngIf="isInstalled(pkg) && status.primary !== 'backingUp'"
+        >
           <!-- ** health checks ** -->
           <app-show-health-checks
-            *ngIf="isRunning(status)"
-            [pkg]="pkg"
+            *ngIf="pkg.status.main.status === 'running'"
+            [healthChecks]="pkg.status.main.health"
           ></app-show-health-checks>
           <!-- ** dependencies ** -->
           <app-show-dependencies
@@ -33,7 +34,9 @@
           <!-- ** menu ** -->
           <app-show-menu [buttons]="pkg | toButtons"></app-show-menu>
           <!-- ** additional ** -->
-          <app-show-additional [pkg]="pkg"></app-show-additional>
+          <app-show-additional
+            [manifest]="pkg.stateInfo.manifest"
+          ></app-show-additional>
         </ng-container>
       </ion-item-group>
     </ng-template>

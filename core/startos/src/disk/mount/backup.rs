@@ -1,24 +1,24 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
+use models::PackageId;
 use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
 use super::filesystem::ecryptfs::EcryptFS;
 use super::guard::{GenericMountGuard, TmpMountGuard};
-use super::util::{bind, unmount};
 use crate::auth::check_password;
 use crate::backup::target::BackupInfo;
 use crate::disk::mount::filesystem::ReadWrite;
+use crate::disk::mount::guard::SubPath;
 use crate::disk::util::EmbassyOsRecoveryInfo;
-use crate::middleware::encrypt::{decrypt_slice, encrypt_slice};
-use crate::s9pk::manifest::PackageId;
+use crate::util::crypto::{decrypt_slice, encrypt_slice};
 use crate::util::serde::IoFormat;
-use crate::util::FileLock;
-use crate::volume::BACKUP_DIR;
 use crate::{Error, ErrorKind, ResultExt};
 
+#[derive(Clone, Debug)]
 pub struct BackupMountGuard<G: GenericMountGuard> {
     backup_disk_mount_guard: Option<G>,
     encrypted_guard: Option<TmpMountGuard>,
@@ -29,7 +29,7 @@ pub struct BackupMountGuard<G: GenericMountGuard> {
 impl<G: GenericMountGuard> BackupMountGuard<G> {
     fn backup_disk_path(&self) -> &Path {
         if let Some(guard) = &self.backup_disk_mount_guard {
-            guard.as_ref()
+            guard.path()
         } else {
             unreachable!()
         }
@@ -37,7 +37,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
 
     #[instrument(skip_all)]
     pub async fn mount(backup_disk_mount_guard: G, password: &str) -> Result<Self, Error> {
-        let backup_disk_path = backup_disk_mount_guard.as_ref();
+        let backup_disk_path = backup_disk_mount_guard.path();
         let unencrypted_metadata_path =
             backup_disk_path.join("EmbassyBackups/unencrypted-metadata.cbor");
         let mut unencrypted_metadata: EmbassyOsRecoveryInfo =
@@ -108,7 +108,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
         let encrypted_guard =
             TmpMountGuard::mount(&EcryptFS::new(&crypt_path, &enc_key), ReadWrite).await?;
 
-        let metadata_path = encrypted_guard.as_ref().join("metadata.cbor");
+        let metadata_path = encrypted_guard.path().join("metadata.cbor");
         let metadata: BackupInfo = if tokio::fs::metadata(&metadata_path).await.is_ok() {
             IoFormat::Cbor.from_slice(&tokio::fs::read(&metadata_path).await.with_ctx(|_| {
                 (
@@ -146,22 +146,13 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
     }
 
     #[instrument(skip_all)]
-    pub async fn mount_package_backup(
-        &self,
-        id: &PackageId,
-    ) -> Result<PackageBackupMountGuard, Error> {
-        let lock = FileLock::new(Path::new(BACKUP_DIR).join(format!("{}.lock", id)), false).await?;
-        let mountpoint = Path::new(BACKUP_DIR).join(id);
-        bind(self.as_ref().join(id), &mountpoint, false).await?;
-        Ok(PackageBackupMountGuard {
-            mountpoint: Some(mountpoint),
-            lock: Some(lock),
-        })
+    pub fn package_backup(self: &Arc<Self>, id: &PackageId) -> SubPath<Arc<Self>> {
+        SubPath::new(self.clone(), id)
     }
 
     #[instrument(skip_all)]
     pub async fn save(&self) -> Result<(), Error> {
-        let metadata_path = self.as_ref().join("metadata.cbor");
+        let metadata_path = self.path().join("metadata.cbor");
         let backup_disk_path = self.backup_disk_path();
         let mut file = AtomicFile::new(&metadata_path, None::<PathBuf>)
             .await
@@ -181,7 +172,21 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
     }
 
     #[instrument(skip_all)]
-    pub async fn unmount(mut self) -> Result<(), Error> {
+    pub async fn save_and_unmount(self) -> Result<(), Error> {
+        self.save().await?;
+        self.unmount().await?;
+        Ok(())
+    }
+}
+impl<G: GenericMountGuard> GenericMountGuard for BackupMountGuard<G> {
+    fn path(&self) -> &Path {
+        if let Some(guard) = &self.encrypted_guard {
+            guard.path()
+        } else {
+            unreachable!()
+        }
+    }
+    async fn unmount(mut self) -> Result<(), Error> {
         if let Some(guard) = self.encrypted_guard.take() {
             guard.unmount().await?;
         }
@@ -189,22 +194,6 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
             guard.unmount().await?;
         }
         Ok(())
-    }
-
-    #[instrument(skip_all)]
-    pub async fn save_and_unmount(self) -> Result<(), Error> {
-        self.save().await?;
-        self.unmount().await?;
-        Ok(())
-    }
-}
-impl<G: GenericMountGuard> AsRef<Path> for BackupMountGuard<G> {
-    fn as_ref(&self) -> &Path {
-        if let Some(guard) = &self.encrypted_guard {
-            guard.as_ref()
-        } else {
-            unreachable!()
-        }
     }
 }
 impl<G: GenericMountGuard> Drop for BackupMountGuard<G> {
@@ -217,45 +206,6 @@ impl<G: GenericMountGuard> Drop for BackupMountGuard<G> {
             }
             if let Some(guard) = second {
                 guard.unmount().await.unwrap();
-            }
-        });
-    }
-}
-
-pub struct PackageBackupMountGuard {
-    mountpoint: Option<PathBuf>,
-    lock: Option<FileLock>,
-}
-impl PackageBackupMountGuard {
-    pub async fn unmount(mut self) -> Result<(), Error> {
-        if let Some(mountpoint) = self.mountpoint.take() {
-            unmount(&mountpoint).await?;
-        }
-        if let Some(lock) = self.lock.take() {
-            lock.unlock().await?;
-        }
-        Ok(())
-    }
-}
-impl AsRef<Path> for PackageBackupMountGuard {
-    fn as_ref(&self) -> &Path {
-        if let Some(mountpoint) = &self.mountpoint {
-            mountpoint
-        } else {
-            unreachable!()
-        }
-    }
-}
-impl Drop for PackageBackupMountGuard {
-    fn drop(&mut self) {
-        let mountpoint = self.mountpoint.take();
-        let lock = self.lock.take();
-        tokio::spawn(async move {
-            if let Some(mountpoint) = mountpoint {
-                unmount(&mountpoint).await.unwrap();
-            }
-            if let Some(lock) = lock {
-                lock.unlock().await.unwrap();
             }
         });
     }

@@ -18,13 +18,12 @@ import {
 import {
   DataModel,
   PackageDataEntry,
-  PackageState,
 } from 'src/app/services/patch-db/data-model'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { PatchDB } from 'patch-db-client'
-import { getAllPackages } from 'src/app/util/get-package-data'
+import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
 import { firstValueFrom } from 'rxjs'
 import { dryUpdate } from 'src/app/util/dry-update'
 
@@ -46,8 +45,6 @@ export class MarketplaceShowControlsComponent {
 
   readonly showDevTools$ = this.ClientStorageService.showDevTools$
 
-  readonly PackageState = PackageState
-
   constructor(
     private readonly alertCtrl: AlertController,
     private readonly ClientStorageService: ClientStorageService,
@@ -59,10 +56,6 @@ export class MarketplaceShowControlsComponent {
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
-  get localVersion(): string {
-    return this.localPkg?.manifest.version || ''
-  }
-
   async tryInstall() {
     const currentMarketplace = await firstValueFrom(
       this.marketplaceService.getSelectedHost$(),
@@ -72,7 +65,7 @@ export class MarketplaceShowControlsComponent {
     if (!this.localPkg) {
       this.alertInstall(url)
     } else {
-      const originalUrl = this.localPkg.installed?.['marketplace-url']
+      const originalUrl = this.localPkg.registry
 
       if (!sameUrl(url, originalUrl)) {
         const proceed = await this.presentAlertDifferentMarketplace(
@@ -82,10 +75,12 @@ export class MarketplaceShowControlsComponent {
         if (!proceed) return
       }
 
+      const localManifest = getManifest(this.localPkg)
+
       if (
-        this.emver.compare(this.localVersion, this.pkg.manifest.version) !==
+        this.emver.compare(localManifest.version, this.pkg.manifest.version) !==
           0 &&
-        hasCurrentDeps(this.localPkg)
+        hasCurrentDeps(localManifest.id, await getAllPackages(this.patch))
       ) {
         this.dryInstall(url)
       } else {
@@ -102,12 +97,11 @@ export class MarketplaceShowControlsComponent {
       this.patch.watch$('ui', 'marketplace'),
     )
 
-    const name: string = marketplaces['known-hosts'][url]?.name || url
+    const name: string = marketplaces.knownHosts[url]?.name || url
 
     let originalName: string | undefined
     if (originalUrl) {
-      originalName =
-        marketplaces['known-hosts'][originalUrl]?.name || originalUrl
+      originalName = marketplaces.knownHosts[originalUrl]?.name || originalUrl
     }
 
     return new Promise(async resolve => {

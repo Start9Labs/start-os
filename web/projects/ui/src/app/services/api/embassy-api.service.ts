@@ -1,9 +1,5 @@
 import { Observable } from 'rxjs'
-import { Update } from 'patch-db-client'
 import { RR } from './api.types'
-import { DataModel } from 'src/app/services/patch-db/data-model'
-import { Log } from '@start9labs/shared'
-import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
 export abstract class ApiService {
   // http
@@ -14,7 +10,22 @@ export abstract class ApiService {
   // for sideloading packages
   abstract uploadPackage(guid: string, body: Blob): Promise<string>
 
+  // websocket
+
+  abstract openWebsocket$<T>(
+    guid: string,
+    config: RR.WebsocketConfig<T>,
+  ): Observable<T>
+
+  // server state
+
+  abstract getState(): Promise<RR.ServerState>
+
   // db
+
+  abstract subscribeToPatchDB(
+    params: RR.SubscribePatchReq,
+  ): Promise<RR.SubscribePatchRes>
 
   abstract setDbValue<T>(
     pathArr: Array<string | number>,
@@ -35,15 +46,25 @@ export abstract class ApiService {
     params: RR.ResetPasswordReq,
   ): Promise<RR.ResetPasswordRes>
 
+  // diagnostic
+
+  abstract diagnosticGetError(): Promise<RR.DiagnosticErrorRes>
+  abstract diagnosticRestart(): Promise<void>
+  abstract diagnosticForgetDrive(): Promise<void>
+  abstract diagnosticRepairDisk(): Promise<void>
+  abstract diagnosticGetLogs(
+    params: RR.GetServerLogsReq,
+  ): Promise<RR.GetServerLogsRes>
+
+  // init
+
+  abstract initGetProgress(): Promise<RR.InitGetProgressRes>
+
+  abstract initFollowLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes>
+
   // server
-
-  abstract echo(params: RR.EchoReq, urlOverride?: string): Promise<RR.EchoRes>
-
-  abstract openPatchWebsocket$(): Observable<Update<DataModel>>
-
-  abstract openLogsWebsocket$(
-    config: WebSocketSubjectConfig<Log>,
-  ): Observable<Log>
 
   abstract getSystemTime(
     params: RR.GetSystemTimeReq,
@@ -89,15 +110,9 @@ export abstract class ApiService {
     params: RR.ShutdownServerReq,
   ): Promise<RR.ShutdownServerRes>
 
-  abstract systemRebuild(
-    params: RR.SystemRebuildReq,
-  ): Promise<RR.SystemRebuildRes>
-
-  abstract repairDisk(params: RR.SystemRebuildReq): Promise<RR.SystemRebuildRes>
+  abstract repairDisk(params: RR.DiskRepairReq): Promise<RR.DiskRepairRes>
 
   abstract resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes>
-
-  abstract toggleZram(params: RR.ToggleZramReq): Promise<RR.ToggleZramRes>
 
   // marketplace URLs
 
@@ -107,7 +122,7 @@ export abstract class ApiService {
     url: string,
   ): Promise<T>
 
-  abstract getEos(): Promise<RR.GetMarketplaceEosRes>
+  abstract checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes>
 
   // notification
 

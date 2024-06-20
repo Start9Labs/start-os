@@ -1,5 +1,5 @@
-<ng-container *ngIf="localPkg" [ngSwitch]="localPkg.state">
-  <div *ngSwitchCase="PackageState.Installed">
+<ng-container *ngIf="localPkg">
+  <div *ngIf="isInstalled(localPkg)">
     <ion-text
       *ngIf="(version | compareEmver: localVersion) !== 1"
       color="primary"
@@ -13,15 +13,24 @@
       Update Available
     </ion-text>
   </div>
-  <div *ngSwitchCase="PackageState.Removing">
+
+  <div *ngIf="isRemoving(localPkg)">
     <ion-text color="danger">
       Removing
       <span class="loading-dots"></span>
     </ion-text>
   </div>
-  <div *ngSwitchDefault>
+
+  <div
+    *ngIf="
+      isInstalling(localPkg) || isUpdating(localPkg) || isRestoring(localPkg)
+    "
+  >
     <ion-text
-      *ngIf="localPkg['install-progress'] | installProgressDisplay as progress"
+      *ngIf="
+        localPkg.stateInfo.installingInfo.progress.overall
+          | installingProgressString as progress
+      "
       color="primary"
     >
       Installing

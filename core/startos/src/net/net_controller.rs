@@ -1,82 +1,77 @@
-use std::collections::BTreeMap;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::collections::{BTreeMap, BTreeSet};
+use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
-use models::InterfaceId;
-use sqlx::PgExecutor;
+use imbl::OrdMap;
+use models::{HostId, OptionExt, PackageId};
+use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 
+use crate::db::model::Database;
 use crate::error::ErrorCollection;
 use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
-use crate::net::keys::Key;
-use crate::net::mdns::MdnsController;
-use crate::net::ssl::{export_cert, export_key, SslManager};
+use crate::net::forward::LanPortForwardController;
+use crate::net::host::address::HostAddress;
+use crate::net::host::binding::{AddSslOptions, BindOptions, LanInfo};
+use crate::net::host::{host_for, Host, HostKind};
+use crate::net::service_interface::{HostnameInfo, IpHostname, OnionHostname};
 use crate::net::tor::TorController;
 use crate::net::vhost::{AlpnInfo, VHostController};
-use crate::s9pk::manifest::PackageId;
-use crate::volume::cert_dir;
-use crate::{Error, HOST_IP};
+use crate::prelude::*;
+use crate::util::serde::MaybeUtf8String;
+use crate::HOST_IP;
 
-pub struct NetController {
-    pub(super) tor: TorController,
-    pub(super) mdns: MdnsController,
-    pub(super) vhost: VHostController,
-    pub(super) dns: DnsController,
-    pub(super) ssl: Arc<SslManager>,
-    pub(super) os_bindings: Vec<Arc<()>>,
+pub struct PreInitNetController {
+    pub db: TypedPatchDb<Database>,
+    tor: TorController,
+    vhost: VHostController,
+    os_bindings: Vec<Arc<()>>,
 }
-
-impl NetController {
+impl PreInitNetController {
     #[instrument(skip_all)]
     pub async fn init(
+        db: TypedPatchDb<Database>,
         tor_control: SocketAddr,
         tor_socks: SocketAddr,
-        dns_bind: &[SocketAddr],
-        ssl: SslManager,
         hostname: &Hostname,
-        os_key: &Key,
+        os_tor_key: TorSecretKeyV3,
     ) -> Result<Self, Error> {
-        let ssl = Arc::new(ssl);
         let mut res = Self {
+            db: db.clone(),
             tor: TorController::new(tor_control, tor_socks),
-            mdns: MdnsController::init().await?,
-            vhost: VHostController::new(ssl.clone()),
-            dns: DnsController::init(dns_bind).await?,
-            ssl,
+            vhost: VHostController::new(db),
             os_bindings: Vec::new(),
         };
-        res.add_os_bindings(hostname, os_key).await?;
+        res.add_os_bindings(hostname, os_tor_key).await?;
         Ok(res)
     }
 
-    async fn add_os_bindings(&mut self, hostname: &Hostname, key: &Key) -> Result<(), Error> {
-        let alpn = Err(AlpnInfo::Specified(vec!["http/1.1".into(), "h2".into()]));
+    async fn add_os_bindings(
+        &mut self,
+        hostname: &Hostname,
+        tor_key: TorSecretKeyV3,
+    ) -> Result<(), Error> {
+        let alpn = Err(AlpnInfo::Specified(vec![
+            MaybeUtf8String("http/1.1".into()),
+            MaybeUtf8String("h2".into()),
+        ]));
 
         // Internal DNS
         self.vhost
             .add(
-                key.clone(),
                 Some("embassy".into()),
                 443,
                 ([127, 0, 0, 1], 80).into(),
                 alpn.clone(),
             )
             .await?;
-        self.os_bindings
-            .push(self.dns.add(None, HOST_IP.into()).await?);
 
         // LAN IP
         self.os_bindings.push(
             self.vhost
-                .add(
-                    key.clone(),
-                    None,
-                    443,
-                    ([127, 0, 0, 1], 80).into(),
-                    alpn.clone(),
-                )
+                .add(None, 443, ([127, 0, 0, 1], 80).into(), alpn.clone())
                 .await?,
         );
 
@@ -84,7 +79,6 @@ impl NetController {
         self.os_bindings.push(
             self.vhost
                 .add(
-                    key.clone(),
                     Some("localhost".into()),
                     443,
                     ([127, 0, 0, 1], 80).into(),
@@ -95,7 +89,6 @@ impl NetController {
         self.os_bindings.push(
             self.vhost
                 .add(
-                    key.clone(),
                     Some(hostname.no_dot_host_name()),
                     443,
                     ([127, 0, 0, 1], 80).into(),
@@ -108,7 +101,6 @@ impl NetController {
         self.os_bindings.push(
             self.vhost
                 .add(
-                    key.clone(),
                     Some(hostname.local_domain_name()),
                     443,
                     ([127, 0, 0, 1], 80).into(),
@@ -117,32 +109,63 @@ impl NetController {
                 .await?,
         );
 
-        // Tor (http)
-        self.os_bindings.push(
-            self.tor
-                .add(key.tor_key(), 80, ([127, 0, 0, 1], 80).into())
-                .await?,
-        );
-
-        // Tor (https)
+        // Tor
         self.os_bindings.push(
             self.vhost
                 .add(
-                    key.clone(),
-                    Some(key.tor_address().to_string()),
+                    Some(tor_key.public().get_onion_address().to_string()),
                     443,
                     ([127, 0, 0, 1], 80).into(),
                     alpn.clone(),
                 )
                 .await?,
         );
-        self.os_bindings.push(
+        self.os_bindings.extend(
             self.tor
-                .add(key.tor_key(), 443, ([127, 0, 0, 1], 443).into())
+                .add(
+                    tor_key,
+                    vec![
+                        (80, ([127, 0, 0, 1], 80).into()),   // http
+                        (443, ([127, 0, 0, 1], 443).into()), // https
+                    ],
+                )
                 .await?,
         );
 
         Ok(())
+    }
+}
+
+pub struct NetController {
+    db: TypedPatchDb<Database>,
+    pub(super) tor: TorController,
+    pub(super) vhost: VHostController,
+    pub(super) dns: DnsController,
+    pub(super) forward: LanPortForwardController,
+    pub(super) os_bindings: Vec<Arc<()>>,
+}
+
+impl NetController {
+    pub async fn init(
+        PreInitNetController {
+            db,
+            tor,
+            vhost,
+            os_bindings,
+        }: PreInitNetController,
+        dns_bind: &[SocketAddr],
+    ) -> Result<Self, Error> {
+        let mut res = Self {
+            db,
+            tor,
+            vhost,
+            dns: DnsController::init(dns_bind).await?,
+            forward: LanPortForwardController::new(),
+            os_bindings,
+        };
+        res.os_bindings
+            .push(res.dns.add(None, HOST_IP.into()).await?);
+        Ok(res)
     }
 
     #[instrument(skip_all)]
@@ -159,55 +182,15 @@ impl NetController {
             ip,
             dns,
             controller: Arc::downgrade(self),
-            tor: BTreeMap::new(),
-            lan: BTreeMap::new(),
+            binds: BTreeMap::new(),
         })
     }
+}
 
-    async fn add_tor(
-        &self,
-        key: &Key,
-        external: u16,
-        target: SocketAddr,
-    ) -> Result<Vec<Arc<()>>, Error> {
-        let mut rcs = Vec::with_capacity(1);
-        rcs.push(self.tor.add(key.tor_key(), external, target).await?);
-        Ok(rcs)
-    }
-
-    async fn remove_tor(&self, key: &Key, external: u16, rcs: Vec<Arc<()>>) -> Result<(), Error> {
-        drop(rcs);
-        self.tor.gc(Some(key.tor_key()), Some(external)).await
-    }
-
-    async fn add_lan(
-        &self,
-        key: Key,
-        external: u16,
-        target: SocketAddr,
-        connect_ssl: Result<(), AlpnInfo>,
-    ) -> Result<Vec<Arc<()>>, Error> {
-        let mut rcs = Vec::with_capacity(2);
-        rcs.push(
-            self.vhost
-                .add(
-                    key.clone(),
-                    Some(key.local_address()),
-                    external,
-                    target.into(),
-                    connect_ssl,
-                )
-                .await?,
-        );
-        rcs.push(self.mdns.add(key.base_address()).await?);
-        Ok(rcs)
-    }
-
-    async fn remove_lan(&self, key: &Key, external: u16, rcs: Vec<Arc<()>>) -> Result<(), Error> {
-        drop(rcs);
-        self.mdns.gc(key.base_address()).await?;
-        self.vhost.gc(Some(key.local_address()), external).await
-    }
+#[derive(Default, Debug)]
+struct HostBinds {
+    lan: BTreeMap<u16, (LanInfo, Option<AddSslOptions>, Vec<Arc<()>>)>,
+    tor: BTreeMap<OnionAddressV3, (OrdMap<u16, SocketAddr>, Vec<Arc<()>>)>,
 }
 
 pub struct NetService {
@@ -216,8 +199,7 @@ pub struct NetService {
     ip: Ipv4Addr,
     dns: Arc<()>,
     controller: Weak<NetController>,
-    tor: BTreeMap<(InterfaceId, u16), (Key, Vec<Arc<()>>)>,
-    lan: BTreeMap<(InterfaceId, u16), (Key, Vec<Arc<()>>)>,
+    binds: BTreeMap<HostId, HostBinds>,
 }
 impl NetService {
     fn net_controller(&self) -> Result<Arc<NetController>, Error> {
@@ -228,111 +210,274 @@ impl NetService {
             )
         })
     }
-    pub async fn add_tor<Ex>(
+
+    pub async fn bind(
         &mut self,
-        secrets: &mut Ex,
-        id: InterfaceId,
-        external: u16,
-        internal: u16,
-    ) -> Result<(), Error>
-    where
-        for<'a> &'a mut Ex: PgExecutor<'a>,
-    {
-        let key = Key::for_interface(secrets, Some((self.id.clone(), id.clone()))).await?;
-        let ctrl = self.net_controller()?;
-        let tor_idx = (id, external);
-        let mut tor = self
-            .tor
-            .remove(&tor_idx)
-            .unwrap_or_else(|| (key.clone(), Vec::new()));
-        tor.1.append(
-            &mut ctrl
-                .add_tor(&key, external, SocketAddr::new(self.ip.into(), internal))
-                .await?,
-        );
-        self.tor.insert(tor_idx, tor);
+        kind: HostKind,
+        id: HostId,
+        internal_port: u16,
+        options: BindOptions,
+    ) -> Result<(), Error> {
+        dbg!("bind", &kind, &id, internal_port, &options);
+        let pkg_id = &self.id;
+        let host = self
+            .net_controller()?
+            .db
+            .mutate(|db| {
+                let mut ports = db.as_private().as_available_ports().de()?;
+                let host = host_for(db, pkg_id, &id, kind)?;
+                host.add_binding(&mut ports, internal_port, options)?;
+                let host = host.de()?;
+                db.as_private_mut().as_available_ports_mut().ser(&ports)?;
+                Ok(host)
+            })
+            .await?;
+        self.update(id, host).await
+    }
+    pub async fn clear_bindings(&mut self) -> Result<(), Error> {
+        // TODO BLUJ
         Ok(())
     }
-    pub async fn remove_tor(&mut self, id: InterfaceId, external: u16) -> Result<(), Error> {
+
+    async fn update(&mut self, id: HostId, host: Host) -> Result<(), Error> {
         let ctrl = self.net_controller()?;
-        if let Some((key, rcs)) = self.tor.remove(&(id, external)) {
-            ctrl.remove_tor(&key, external, rcs).await?;
+        let mut hostname_info = BTreeMap::new();
+        let binds = {
+            if !self.binds.contains_key(&id) {
+                self.binds.insert(id.clone(), Default::default());
+            }
+            self.binds.get_mut(&id).unwrap()
+        };
+        let peek = ctrl.db.peek().await;
+
+        // LAN
+        let server_info = peek.as_public().as_server_info();
+        let ip_info = server_info.as_ip_info().de()?;
+        let hostname = server_info.as_hostname().de()?;
+        for (port, bind) in &host.bindings {
+            let old_lan_bind = binds.lan.remove(port);
+            let old_lan_port = old_lan_bind.as_ref().map(|(external, _, _)| *external);
+            let lan_bind = old_lan_bind
+                .filter(|(external, ssl, _)| ssl == &bind.options.add_ssl && bind.lan == *external); // only keep existing binding if relevant details match
+            if bind.lan.assigned_port.is_some() || bind.lan.assigned_ssl_port.is_some() {
+                let new_lan_bind = if let Some(b) = lan_bind {
+                    b
+                } else {
+                    let mut rcs = Vec::with_capacity(2);
+                    if let Some(ssl) = &bind.options.add_ssl {
+                        let external = bind
+                            .lan
+                            .assigned_ssl_port
+                            .or_not_found("assigned ssl port")?;
+                        rcs.push(
+                            ctrl.vhost
+                                .add(
+                                    None,
+                                    external,
+                                    (self.ip, *port).into(),
+                                    if let Some(alpn) = ssl.alpn.clone() {
+                                        Err(alpn)
+                                    } else {
+                                        if bind.options.secure.as_ref().map_or(false, |s| s.ssl) {
+                                            Ok(())
+                                        } else {
+                                            Err(AlpnInfo::Reflect)
+                                        }
+                                    },
+                                )
+                                .await?,
+                        );
+                    }
+                    if let Some(security) = bind.options.secure {
+                        if bind.options.add_ssl.is_some() && security.ssl {
+                            // doesn't make sense to have 2 listening ports, both with ssl
+                        } else {
+                            let external =
+                                bind.lan.assigned_port.or_not_found("assigned lan port")?;
+                            rcs.push(ctrl.forward.add(external, (self.ip, *port).into()).await?);
+                        }
+                    }
+                    (bind.lan, bind.options.add_ssl.clone(), rcs)
+                };
+                let mut bind_hostname_info: Vec<HostnameInfo> =
+                    hostname_info.remove(port).unwrap_or_default();
+                for (interface, ip_info) in &ip_info {
+                    bind_hostname_info.push(HostnameInfo::Ip {
+                        network_interface_id: interface.clone(),
+                        public: false,
+                        hostname: IpHostname::Local {
+                            value: format!("{hostname}.local"),
+                            port: new_lan_bind.0.assigned_port,
+                            ssl_port: new_lan_bind.0.assigned_ssl_port,
+                        },
+                    });
+                    if let Some(ipv4) = ip_info.ipv4 {
+                        bind_hostname_info.push(HostnameInfo::Ip {
+                            network_interface_id: interface.clone(),
+                            public: false,
+                            hostname: IpHostname::Ipv4 {
+                                value: ipv4,
+                                port: new_lan_bind.0.assigned_port,
+                                ssl_port: new_lan_bind.0.assigned_ssl_port,
+                            },
+                        });
+                    }
+                    if let Some(ipv6) = ip_info.ipv6 {
+                        bind_hostname_info.push(HostnameInfo::Ip {
+                            network_interface_id: interface.clone(),
+                            public: false,
+                            hostname: IpHostname::Ipv6 {
+                                value: ipv6,
+                                port: new_lan_bind.0.assigned_port,
+                                ssl_port: new_lan_bind.0.assigned_ssl_port,
+                            },
+                        });
+                    }
+                }
+                hostname_info.insert(*port, bind_hostname_info);
+                binds.lan.insert(*port, new_lan_bind);
+            }
+            if let Some(lan) = old_lan_port {
+                if let Some(external) = lan.assigned_ssl_port {
+                    ctrl.vhost.gc(None, external).await?;
+                }
+                if let Some(external) = lan.assigned_port {
+                    ctrl.forward.gc(external).await?;
+                }
+            }
         }
-        Ok(())
-    }
-    pub async fn add_lan<Ex>(
-        &mut self,
-        secrets: &mut Ex,
-        id: InterfaceId,
-        external: u16,
-        internal: u16,
-        connect_ssl: Result<(), AlpnInfo>,
-    ) -> Result<(), Error>
-    where
-        for<'a> &'a mut Ex: PgExecutor<'a>,
-    {
-        let key = Key::for_interface(secrets, Some((self.id.clone(), id.clone()))).await?;
-        let ctrl = self.net_controller()?;
-        let lan_idx = (id, external);
-        let mut lan = self
-            .lan
-            .remove(&lan_idx)
-            .unwrap_or_else(|| (key.clone(), Vec::new()));
-        lan.1.append(
-            &mut ctrl
-                .add_lan(
-                    key,
-                    external,
-                    SocketAddr::new(self.ip.into(), internal),
-                    connect_ssl,
-                )
-                .await?,
-        );
-        self.lan.insert(lan_idx, lan);
-        Ok(())
-    }
-    pub async fn remove_lan(&mut self, id: InterfaceId, external: u16) -> Result<(), Error> {
-        let ctrl = self.net_controller()?;
-        if let Some((key, rcs)) = self.lan.remove(&(id, external)) {
-            ctrl.remove_lan(&key, external, rcs).await?;
+        let mut removed = BTreeSet::new();
+        binds.lan.retain(|internal, (external, _, _)| {
+            if host.bindings.contains_key(internal) {
+                true
+            } else {
+                removed.insert(*external);
+
+                false
+            }
+        });
+        for lan in removed {
+            if let Some(external) = lan.assigned_ssl_port {
+                ctrl.vhost.gc(None, external).await?;
+            }
+            if let Some(external) = lan.assigned_port {
+                ctrl.forward.gc(external).await?;
+            }
         }
+
+        struct TorHostnamePorts {
+            non_ssl: Option<u16>,
+            ssl: Option<u16>,
+        }
+        let mut tor_hostname_ports = BTreeMap::<u16, TorHostnamePorts>::new();
+        let mut tor_binds = OrdMap::<u16, SocketAddr>::new();
+        for (internal, info) in &host.bindings {
+            tor_binds.insert(
+                info.options.preferred_external_port,
+                SocketAddr::from((self.ip, *internal)),
+            );
+            if let (Some(ssl), Some(ssl_internal)) =
+                (&info.options.add_ssl, info.lan.assigned_ssl_port)
+            {
+                tor_binds.insert(
+                    ssl.preferred_external_port,
+                    SocketAddr::from(([127, 0, 0, 1], ssl_internal)),
+                );
+                tor_hostname_ports.insert(
+                    *internal,
+                    TorHostnamePorts {
+                        non_ssl: Some(info.options.preferred_external_port)
+                            .filter(|p| *p != ssl.preferred_external_port),
+                        ssl: Some(ssl.preferred_external_port),
+                    },
+                );
+            } else {
+                tor_hostname_ports.insert(
+                    *internal,
+                    TorHostnamePorts {
+                        non_ssl: Some(info.options.preferred_external_port),
+                        ssl: None,
+                    },
+                );
+            }
+        }
+        let mut keep_tor_addrs = BTreeSet::new();
+        for addr in match host.kind {
+            HostKind::Multi => {
+                // itertools::Either::Left(
+                host.addresses.iter()
+                // )
+            } // HostKind::Single | HostKind::Static => itertools::Either::Right(&host.primary),
+        } {
+            match addr {
+                HostAddress::Onion { address } => {
+                    keep_tor_addrs.insert(address);
+                    let old_tor_bind = binds.tor.remove(address);
+                    let tor_bind = old_tor_bind.filter(|(ports, _)| ports == &tor_binds);
+                    let new_tor_bind = if let Some(tor_bind) = tor_bind {
+                        tor_bind
+                    } else {
+                        let key = peek
+                            .as_private()
+                            .as_key_store()
+                            .as_onion()
+                            .get_key(address)?;
+                        let rcs = ctrl
+                            .tor
+                            .add(key, tor_binds.clone().into_iter().collect())
+                            .await?;
+                        (tor_binds.clone(), rcs)
+                    };
+                    for (internal, ports) in &tor_hostname_ports {
+                        let mut bind_hostname_info =
+                            hostname_info.remove(internal).unwrap_or_default();
+                        bind_hostname_info.push(HostnameInfo::Onion {
+                            hostname: OnionHostname {
+                                value: address.to_string(),
+                                port: ports.non_ssl,
+                                ssl_port: ports.ssl,
+                            },
+                        });
+                        hostname_info.insert(*internal, bind_hostname_info);
+                    }
+                    binds.tor.insert(address.clone(), new_tor_bind);
+                }
+            }
+        }
+        for addr in binds.tor.keys() {
+            if !keep_tor_addrs.contains(addr) {
+                ctrl.tor.gc(Some(addr.clone()), None).await?;
+            }
+        }
+        self.net_controller()?
+            .db
+            .mutate(|db| {
+                host_for(db, &self.id, &id, host.kind)?
+                    .as_hostname_info_mut()
+                    .ser(&hostname_info)
+            })
+            .await?;
         Ok(())
     }
-    pub async fn export_cert<Ex>(
-        &self,
-        secrets: &mut Ex,
-        id: &InterfaceId,
-        ip: IpAddr,
-    ) -> Result<(), Error>
-    where
-        for<'a> &'a mut Ex: PgExecutor<'a>,
-    {
-        let key = Key::for_interface(secrets, Some((self.id.clone(), id.clone()))).await?;
-        let ctrl = self.net_controller()?;
-        let cert = ctrl.ssl.with_certs(key, ip).await?;
-        let cert_dir = cert_dir(&self.id, id);
-        tokio::fs::create_dir_all(&cert_dir).await?;
-        export_key(
-            &cert.key().openssl_key_nistp256(),
-            &cert_dir.join(format!("{id}.key.pem")),
-        )
-        .await?;
-        export_cert(
-            &cert.fullchain_nistp256(),
-            &cert_dir.join(format!("{id}.cert.pem")),
-        )
-        .await?; // TODO: can upgrade to ed25519?
-        Ok(())
-    }
+
     pub async fn remove_all(mut self) -> Result<(), Error> {
         self.shutdown = true;
         let mut errors = ErrorCollection::new();
         if let Some(ctrl) = Weak::upgrade(&self.controller) {
-            for ((_, external), (key, rcs)) in std::mem::take(&mut self.lan) {
-                errors.handle(ctrl.remove_lan(&key, external, rcs).await);
-            }
-            for ((_, external), (key, rcs)) in std::mem::take(&mut self.tor) {
-                errors.handle(ctrl.remove_tor(&key, external, rcs).await);
+            for (_, binds) in std::mem::take(&mut self.binds) {
+                for (_, (lan, _, rc)) in binds.lan {
+                    drop(rc);
+                    if let Some(external) = lan.assigned_ssl_port {
+                        ctrl.vhost.gc(None, external).await?;
+                    }
+                    if let Some(external) = lan.assigned_port {
+                        ctrl.forward.gc(external).await?;
+                    }
+                }
+                for (addr, (_, rcs)) in binds.tor {
+                    drop(rcs);
+                    errors.handle(ctrl.tor.gc(Some(addr), None).await);
+                }
             }
             std::mem::take(&mut self.dns);
             errors.handle(ctrl.dns.gc(Some(self.id.clone()), self.ip).await);
@@ -343,6 +488,33 @@ impl NetService {
                 eyre!("NetController is shutdown"),
                 crate::ErrorKind::Network,
             ))
+        }
+    }
+
+    pub fn get_ip(&self) -> Ipv4Addr {
+        self.ip
+    }
+
+    pub fn get_ext_port(&self, host_id: HostId, internal_port: u16) -> Result<LanInfo, Error> {
+        let host_id_binds = self.binds.get_key_value(&host_id);
+        match host_id_binds {
+            Some((_, binds)) => {
+                if let Some((lan, _, _)) = binds.lan.get(&internal_port) {
+                    Ok(*lan)
+                } else {
+                    Err(Error::new(
+                        eyre!(
+                            "Internal Port {} not found in NetService binds",
+                            internal_port
+                        ),
+                        crate::ErrorKind::NotFound,
+                    ))
+                }
+            }
+            None => Err(Error::new(
+                eyre!("HostID {} not found in NetService binds", host_id),
+                crate::ErrorKind::NotFound,
+            )),
         }
     }
 }
@@ -359,8 +531,7 @@ impl Drop for NetService {
                     ip: Ipv4Addr::new(0, 0, 0, 0),
                     dns: Default::default(),
                     controller: Default::default(),
-                    tor: Default::default(),
-                    lan: Default::default(),
+                    binds: BTreeMap::new(),
                 },
             );
             tokio::spawn(async move { svc.remove_all().await.unwrap() });

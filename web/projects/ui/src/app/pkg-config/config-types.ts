@@ -24,8 +24,6 @@ export type ValueSpecOf<T extends ValueType> = T extends 'string'
   ? ValueSpecList
   : T extends 'object'
   ? ValueSpecObject
-  : T extends 'pointer'
-  ? ValueSpecPointer
   : T extends 'union'
   ? ValueSpecUnion
   : never
@@ -58,16 +56,6 @@ export interface ValueSpecUnion {
   tag: UnionTagSpec
   variants: { [key: string]: ConfigSpec }
   default: string
-}
-
-export interface ValueSpecPointer extends WithStandalone {
-  type: 'pointer'
-  subtype: 'package' | 'system'
-  'package-id': string
-  target: 'lan-address' | 'tor-address' | 'config' | 'tor-key'
-  interface: string // will only exist if target = tor-key || tor-address || lan-address
-  selector?: string // will only exist if target = config
-  multi?: boolean // will only exist if target = config
 }
 
 export interface ValueSpecObject extends WithStandalone {

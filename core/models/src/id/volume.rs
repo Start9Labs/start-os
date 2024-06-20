@@ -2,10 +2,12 @@ use std::borrow::Borrow;
 use std::path::Path;
 
 use serde::{Deserialize, Deserializer, Serialize};
+use ts_rs::TS;
 
 use crate::Id;
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TS)]
+#[ts(type = "string")]
 pub enum VolumeId {
     Backup,
     Custom(Id),

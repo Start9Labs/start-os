@@ -1,20 +1,18 @@
-<p>Downloading: {{ progressData.downloadProgress }}%</p>
-<ion-progress-bar
-  [color]="getColor('download-complete')"
-  [value]="progressData.downloadProgress / 100"
-  [buffer]="!progressData.downloadProgress ? 0 : 1"
-></ion-progress-bar>
-
-<p>Validating: {{ progressData.validateProgress }}%</p>
-<ion-progress-bar
-  [color]="getColor('validation-complete')"
-  [value]="progressData.validateProgress / 100"
-  [buffer]="validationBuffer"
-></ion-progress-bar>
-
-<p>Unpacking: {{ progressData.unpackProgress }}%</p>
-<ion-progress-bar
-  [color]="getColor('unpack-complete')"
-  [value]="progressData.unpackProgress / 100"
-  [buffer]="unpackingBuffer"
-></ion-progress-bar>
+<ng-container *ngFor="let phase of phases">
+  <p>
+    {{ phase.name }}
+    <span *ngIf="phase.progress | installingProgress as progress">
+      : {{ progress * 100 }}%
+    </span>
+  </p>
+  <ion-progress-bar
+    [type]="
+      phase.progress === true ||
+      (phase.progress !== false && phase.progress!== null && phase.progress.total)
+        ? 'determinate'
+        : 'indeterminate'
+    "
+    [color]="phase.progress === true ? 'success' : 'secondary'"
+    [value]="phase.progress | installingProgress"
+  ></ion-progress-bar>
+</ng-container>

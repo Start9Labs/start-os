@@ -1,214 +1,253 @@
+use std::collections::BTreeMap;
 use std::path::PathBuf;
-use std::time::Duration;
 
-use color_eyre::eyre::eyre;
-use console::style;
-use futures::StreamExt;
-use indicatif::{ProgressBar, ProgressStyle};
-use reqwest::{header, Body, Client, Url};
-use rpc_toolkit::command;
+use clap::Parser;
+use itertools::Itertools;
+use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-use crate::s9pk::reader::S9pkReader;
-use crate::util::display_none;
-use crate::{Error, ErrorKind};
+use crate::context::CliContext;
+use crate::prelude::*;
+use crate::registry::context::RegistryContext;
+use crate::registry::signer::sign::AnyVerifyingKey;
+use crate::registry::signer::{ContactInfo, SignerInfo};
+use crate::registry::RegistryDatabase;
+use crate::rpc_continuations::Guid;
+use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 
-async fn registry_user_pass(location: &str) -> Result<(Url, String, String), Error> {
-    let mut url = Url::parse(location)?;
-    let user = url.username().to_string();
-    let pass = url.password().map(str::to_string);
-    if user.is_empty() || url.path() != "/" {
-        return Err(Error::new(
-            eyre!("{location:?} is not like \"https://user@registry.example.com/\""),
-            ErrorKind::ParseUrl,
-        ));
+pub fn admin_api<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand("signer", signers_api::<C>())
+        .subcommand("add", from_fn_async(add_admin).no_cli())
+        .subcommand("add", from_fn_async(cli_add_admin).no_display())
+        .subcommand(
+            "list",
+            from_fn_async(list_admins)
+                .with_display_serializable()
+                .with_custom_display_fn(|handle, result| Ok(display_signers(handle.params, result)))
+                .with_call_remote::<CliContext>(),
+        )
+}
+
+fn signers_api<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand(
+            "list",
+            from_fn_async(list_signers)
+                .with_metadata("admin", Value::Bool(true))
+                .with_display_serializable()
+                .with_custom_display_fn(|handle, result| Ok(display_signers(handle.params, result)))
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "add",
+            from_fn_async(add_signer)
+                .with_metadata("admin", Value::Bool(true))
+                .no_cli(),
+        )
+        .subcommand("add", from_fn_async(cli_add_signer).no_display())
+}
+
+impl Model<BTreeMap<Guid, SignerInfo>> {
+    pub fn get_signer(&self, key: &AnyVerifyingKey) -> Result<Guid, Error> {
+        self.as_entries()?
+            .into_iter()
+            .map(|(guid, s)| Ok::<_, Error>((guid, s.as_keys().de()?)))
+            .filter_ok(|(_, s)| s.contains(key))
+            .next()
+            .transpose()?
+            .map(|(a, _)| a)
+            .ok_or_else(|| Error::new(eyre!("unknown signer"), ErrorKind::Authorization))
     }
-    let _ = url.set_username("");
-    let _ = url.set_password(None);
 
-    let pass = match pass {
-        Some(p) => p,
-        None => {
-            let pass_prompt = format!("{} Password for {user}: ", style("?").yellow());
-            tokio::task::spawn_blocking(move || rpassword::prompt_password(pass_prompt))
-                .await
-                .unwrap()?
+    pub fn get_signer_info(&self, key: &AnyVerifyingKey) -> Result<(Guid, SignerInfo), Error> {
+        self.as_entries()?
+            .into_iter()
+            .map(|(guid, s)| Ok::<_, Error>((guid, s.de()?)))
+            .filter_ok(|(_, s)| s.keys.contains(key))
+            .next()
+            .transpose()?
+            .ok_or_else(|| Error::new(eyre!("unknown signer"), ErrorKind::Authorization))
+    }
+
+    pub fn add_signer(&mut self, signer: &SignerInfo) -> Result<(), Error> {
+        if let Some((guid, s)) = self
+            .as_entries()?
+            .into_iter()
+            .map(|(guid, s)| Ok::<_, Error>((guid, s.de()?)))
+            .filter_ok(|(_, s)| !s.keys.is_disjoint(&signer.keys))
+            .next()
+            .transpose()?
+        {
+            return Err(Error::new(
+                eyre!(
+                    "A signer {} ({}) already exists with a matching key",
+                    guid,
+                    s.name
+                ),
+                ErrorKind::InvalidRequest,
+            ));
         }
-    };
-    Ok((url, user.to_string(), pass.to_string()))
-}
-
-#[derive(serde::Serialize, Debug)]
-struct Package {
-    id: String,
-    version: String,
-    arches: Option<Vec<String>>,
-}
-
-async fn do_index(
-    httpc: &Client,
-    mut url: Url,
-    user: &str,
-    pass: &str,
-    pkg: &Package,
-) -> Result<(), Error> {
-    url.set_path("/admin/v0/index");
-    let req = httpc
-        .post(url)
-        .header(header::ACCEPT, "text/plain")
-        .basic_auth(user, Some(pass))
-        .json(pkg)
-        .build()?;
-    let res = httpc.execute(req).await?;
-    if !res.status().is_success() {
-        let info = res.text().await?;
-        return Err(Error::new(eyre!("{}", info), ErrorKind::Registry));
+        self.insert(&Guid::new(), signer)
     }
-    Ok(())
 }
 
-async fn do_upload(
-    httpc: &Client,
-    mut url: Url,
-    user: &str,
-    pass: &str,
-    pkg_id: &str,
-    body: Body,
-) -> Result<(), Error> {
-    url.set_path("/admin/v0/upload");
-    let req = httpc
-        .post(url)
-        .header(header::ACCEPT, "text/plain")
-        .query(&[("id", pkg_id)])
-        .basic_auth(user, Some(pass))
-        .body(body)
-        .build()?;
-    let res = httpc.execute(req).await?;
-    if !res.status().is_success() {
-        let info = res.text().await?;
-        return Err(Error::new(eyre!("{}", info), ErrorKind::Registry));
-    }
-    Ok(())
+pub async fn list_signers(ctx: RegistryContext) -> Result<BTreeMap<Guid, SignerInfo>, Error> {
+    ctx.db.peek().await.into_index().into_signers().de()
 }
 
-#[command(cli_only, display(display_none))]
-pub async fn publish(
-    #[arg] location: String,
-    #[arg] path: PathBuf,
-    #[arg(rename = "no-verify", long = "no-verify")] no_verify: bool,
-    #[arg(rename = "no-upload", long = "no-upload")] no_upload: bool,
-    #[arg(rename = "no-index", long = "no-index")] no_index: bool,
-) -> Result<(), Error> {
-    // Prepare for progress bars.
-    let bytes_bar_style =
-        ProgressStyle::with_template("{percent}% {wide_bar} [{bytes}/{total_bytes}] [{eta}]")
-            .unwrap();
-    let plain_line_style =
-        ProgressStyle::with_template("{prefix:.bold.dim} {wide_msg}...").unwrap();
-    let spinner_line_style =
-        ProgressStyle::with_template("{prefix:.bold.dim} {spinner} {wide_msg}...").unwrap();
+pub fn display_signers<T>(params: WithIoFormat<T>, signers: BTreeMap<Guid, SignerInfo>) {
+    use prettytable::*;
 
-    // Read the file to get manifest information and check validity..
-    // Open file right away so it can not change out from under us.
-    let file = tokio::fs::File::open(&path).await?;
-
-    let manifest = if no_verify {
-        let pb = ProgressBar::new(1)
-            .with_style(spinner_line_style.clone())
-            .with_prefix("[1/3]")
-            .with_message("Querying s9pk");
-        pb.enable_steady_tick(Duration::from_millis(200));
-        let mut s9pk = S9pkReader::open(&path, false).await?;
-        let m = s9pk.manifest().await?.clone();
-        pb.set_style(plain_line_style.clone());
-        pb.abandon();
-        m
-    } else {
-        let pb = ProgressBar::new(1)
-            .with_style(spinner_line_style.clone())
-            .with_prefix("[1/3]")
-            .with_message("Verifying s9pk");
-        pb.enable_steady_tick(Duration::from_millis(200));
-        let mut s9pk = S9pkReader::open(&path, true).await?;
-        s9pk.validate().await?;
-        let m = s9pk.manifest().await?.clone();
-        pb.set_style(plain_line_style.clone());
-        pb.abandon();
-        m
-    };
-    let pkg = Package {
-        id: manifest.id.to_string(),
-        version: manifest.version.to_string(),
-        arches: manifest.hardware_requirements.arch.clone(),
-    };
-    println!("{} id = {}", style(">").green(), pkg.id);
-    println!("{} version = {}", style(">").green(), pkg.version);
-    if let Some(arches) = &pkg.arches {
-        println!("{} arches = {:?}", style(">").green(), arches);
-    } else {
-        println!(
-            "{} No architecture listed in hardware_requirements",
-            style(">").red()
-        );
+    if let Some(format) = params.format {
+        return display_serializable(format, signers);
     }
 
-    // Process the url and get the user's password.
-    let (registry, user, pass) = registry_user_pass(&location).await?;
+    let mut table = Table::new();
+    table.add_row(row![bc =>
+        "ID",
+        "NAME",
+        "CONTACT",
+        "KEYS",
+    ]);
+    for (id, info) in signers {
+        table.add_row(row![
+            id.as_ref(),
+            &info.name,
+            &info.contact.into_iter().join("\n"),
+            &info.keys.into_iter().join("\n"),
+        ]);
+    }
+    table.print_tty(false).unwrap();
+}
 
-    // Now prepare a stream of the file which will show a progress bar as it is consumed.
-    let file_size = file.metadata().await?.len();
-    let file_stream = tokio_util::io::ReaderStream::new(file);
-    ProgressBar::new(0)
-        .with_style(plain_line_style.clone())
-        .with_prefix("[2/3]")
-        .with_message("Uploading s9pk")
-        .abandon();
-    let pb = ProgressBar::new(file_size).with_style(bytes_bar_style.clone());
-    let stream_pb = pb.clone();
-    let file_stream = file_stream.inspect(move |bytes| {
-        if let Ok(bytes) = bytes {
-            stream_pb.inc(bytes.len() as u64);
-        }
-    });
+pub async fn add_signer(ctx: RegistryContext, signer: SignerInfo) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| db.as_index_mut().as_signers_mut().add_signer(&signer))
+        .await
+}
 
-    let httpc = Client::builder().build().unwrap();
-    // And upload!
-    if no_upload {
-        println!("{} Skipping upload", style(">").yellow());
+#[derive(Debug, Deserialize, Serialize, Parser)]
+#[command(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
+pub struct CliAddSignerParams {
+    #[arg(long = "name", short = 'n')]
+    pub name: String,
+    #[arg(long = "contact", short = 'c')]
+    pub contact: Vec<ContactInfo>,
+    #[arg(long = "key")]
+    pub keys: Vec<AnyVerifyingKey>,
+    pub database: Option<PathBuf>,
+}
+
+pub async fn cli_add_signer(
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        params:
+            CliAddSignerParams {
+                name,
+                contact,
+                keys,
+                database,
+            },
+        ..
+    }: HandlerArgs<CliContext, CliAddSignerParams>,
+) -> Result<(), Error> {
+    let signer = SignerInfo {
+        name,
+        contact,
+        keys: keys.into_iter().collect(),
+    };
+    if let Some(database) = database {
+        TypedPatchDb::<RegistryDatabase>::load(PatchDb::open(database).await?)
+            .await?
+            .mutate(|db| db.as_index_mut().as_signers_mut().add_signer(&signer))
+            .await?;
     } else {
-        do_upload(
-            &httpc,
-            registry.clone(),
-            &user,
-            &pass,
-            &pkg.id,
-            Body::wrap_stream(file_stream),
+        ctx.call_remote::<RegistryContext>(
+            &parent_method.into_iter().chain(method).join("."),
+            to_value(&signer)?,
         )
         .await?;
     }
-    pb.finish_and_clear();
+    Ok(())
+}
 
-    // Also index, so it will show up in the registry.
-    let pb = ProgressBar::new(0)
-        .with_style(spinner_line_style.clone())
-        .with_prefix("[3/3]")
-        .with_message("Indexing registry");
-    pb.enable_steady_tick(Duration::from_millis(200));
-    if no_index {
-        println!("{} Skipping index", style(">").yellow());
+#[derive(Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct AddAdminParams {
+    pub signer: Guid,
+}
+
+pub async fn add_admin(
+    ctx: RegistryContext,
+    AddAdminParams { signer }: AddAdminParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            ensure_code!(
+                db.as_index().as_signers().contains_key(&signer)?,
+                ErrorKind::InvalidRequest,
+                "unknown signer {signer}"
+            );
+            db.as_admins_mut().mutate(|a| Ok(a.insert(signer)))?;
+            Ok(())
+        })
+        .await
+}
+
+#[derive(Debug, Deserialize, Serialize, Parser)]
+#[command(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
+pub struct CliAddAdminParams {
+    pub signer: Guid,
+    pub database: Option<PathBuf>,
+}
+
+pub async fn cli_add_admin(
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        params: CliAddAdminParams { signer, database },
+        ..
+    }: HandlerArgs<CliContext, CliAddAdminParams>,
+) -> Result<(), Error> {
+    if let Some(database) = database {
+        TypedPatchDb::<RegistryDatabase>::load(PatchDb::open(database).await?)
+            .await?
+            .mutate(|db| {
+                ensure_code!(
+                    db.as_index().as_signers().contains_key(&signer)?,
+                    ErrorKind::InvalidRequest,
+                    "unknown signer {signer}"
+                );
+                db.as_admins_mut().mutate(|a| Ok(a.insert(signer)))?;
+                Ok(())
+            })
+            .await?;
     } else {
-        do_index(&httpc, registry.clone(), &user, &pass, &pkg).await?;
-    }
-    pb.set_style(plain_line_style.clone());
-    pb.abandon();
-
-    // All done
-    if !no_index {
-        println!(
-            "{} Package {} is now published to {}",
-            style(">").green(),
-            pkg.id,
-            registry
-        );
+        ctx.call_remote::<RegistryContext>(
+            &parent_method.into_iter().chain(method).join("."),
+            to_value(&AddAdminParams { signer })?,
+        )
+        .await?;
     }
     Ok(())
+}
+
+pub async fn list_admins(ctx: RegistryContext) -> Result<BTreeMap<Guid, SignerInfo>, Error> {
+    let db = ctx.db.peek().await;
+    let admins = db.as_admins().de()?;
+    Ok(db
+        .into_index()
+        .into_signers()
+        .de()?
+        .into_iter()
+        .filter(|(id, _)| admins.contains(id))
+        .collect())
 }

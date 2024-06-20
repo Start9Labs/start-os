@@ -16,6 +16,7 @@ import { DependentInfo } from 'src/app/types/dependent-info'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import {
   DataModel,
+  InstalledState,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
@@ -26,7 +27,12 @@ import {
 } from 'src/app/services/form.service'
 import { compare, Operation, getValueByPointer } from 'fast-json-patch'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
-import { getAllPackages, getPackage } from 'src/app/util/get-package-data'
+import {
+  getAllPackages,
+  getManifest,
+  getPackage,
+  isInstalled,
+} from 'src/app/util/get-package-data'
 import { Breakages } from 'src/app/services/api/api.types'
 
 @Component({
@@ -39,7 +45,7 @@ export class AppConfigPage {
 
   @Input() dependentInfo?: DependentInfo
 
-  pkg!: PackageDataEntry
+  pkg!: PackageDataEntry<InstalledState>
   loadingText = ''
 
   configSpec?: ConfigSpec
@@ -53,8 +59,6 @@ export class AppConfigPage {
   saving = false
   loadingError: string | IonicSafeString = ''
 
-  hasOptions = false
-
   constructor(
     private readonly embassyApi: ApiService,
     private readonly errToast: ErrorToastService,
@@ -65,13 +69,18 @@ export class AppConfigPage {
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
+  get hasConfig() {
+    return this.pkg.stateInfo.manifest.hasConfig
+  }
+
   async ngOnInit() {
     try {
       const pkg = await getPackage(this.patch, this.pkgId)
-      if (!pkg) return
+      if (!pkg || !isInstalled(pkg)) return
+
       this.pkg = pkg
 
-      if (!this.pkg.manifest.config) return
+      if (!this.hasConfig) return
 
       let newConfig: object | undefined
       let patch: Operation[] | undefined
@@ -79,12 +88,12 @@ export class AppConfigPage {
       if (this.dependentInfo) {
         this.loadingText = `Setting properties to accommodate ${this.dependentInfo.title}`
         const {
-          'old-config': oc,
-          'new-config': nc,
+          oldConfig: oc,
+          newConfig: nc,
           spec: s,
         } = await this.embassyApi.dryConfigureDependency({
-          'dependency-id': this.pkgId,
-          'dependent-id': this.dependentInfo.id,
+          dependencyId: this.pkgId,
+          dependentId: this.dependentInfo.id,
         })
         this.original = oc
         newConfig = nc
@@ -102,10 +111,6 @@ export class AppConfigPage {
       this.configForm = this.formService.createForm(
         this.configSpec,
         newConfig || this.original,
-      )
-
-      this.hasOptions = !!Object.values(this.configSpec).find(
-        valSpec => valSpec.type !== 'pointer',
       )
 
       if (patch) {
@@ -145,7 +150,7 @@ export class AppConfigPage {
 
     this.saving = true
 
-    if (hasCurrentDeps(this.pkg)) {
+    if (hasCurrentDeps(this.pkgId, await getAllPackages(this.patch))) {
       this.dryConfigure()
     } else {
       this.configure()
@@ -210,7 +215,7 @@ export class AppConfigPage {
       'As a result of this change, the following services will no longer work properly and may crash:<ul>'
     const localPkgs = await getAllPackages(this.patch)
     const bullets = Object.keys(breakages).map(id => {
-      const title = localPkgs[id].manifest.title
+      const title = getManifest(localPkgs[id]).title
       return `<li><b>${title}</b></li>`
     })
     message = `${message}${bullets}</ul>`
