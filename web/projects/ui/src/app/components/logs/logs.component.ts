@@ -62,7 +62,7 @@ export class LogsComponent {
     | 'connected'
     | 'reconnecting'
     | 'disconnected' = 'connecting'
-  limit = 400
+  limit = 200
   count = 0
 
   constructor(

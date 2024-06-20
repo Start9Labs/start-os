@@ -160,8 +160,10 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'init.subscribe', params: {} })
   }
 
-  async initFollowLogs(): Promise<RR.FollowServerLogsRes> {
-    return this.rpcRequest({ method: 'init.logs.follow', params: {} })
+  async initFollowLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes> {
+    return this.rpcRequest({ method: 'init.logs.follow', params })
   }
 
   // server
@@ -379,8 +381,8 @@ export class LiveApiService extends ApiService {
   }
 
   async followPackageLogs(
-    params: RR.FollowServerLogsReq,
-  ): Promise<RR.FollowServerLogsRes> {
+    params: RR.FollowPackageLogsReq,
+  ): Promise<RR.FollowPackageLogsRes> {
     return this.rpcRequest({ method: 'package.logs.follow', params })
   }
 
