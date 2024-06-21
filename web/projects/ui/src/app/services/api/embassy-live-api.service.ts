@@ -7,6 +7,7 @@ import {
   RpcError,
   RPCOptions,
 } from '@start9labs/shared'
+import { PATCH_CACHE } from 'src/app/services/patch-db/patch-db-source'
 import { ApiService } from './embassy-api.service'
 import { RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
@@ -16,7 +17,7 @@ import { Observable, filter, firstValueFrom } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
-import { PatchDB, pathFromArray } from 'patch-db-client'
+import { Dump, pathFromArray } from 'patch-db-client'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -25,7 +26,7 @@ export class LiveApiService extends ApiService {
     private readonly http: HttpService,
     private readonly config: ConfigService,
     private readonly auth: AuthService,
-    private readonly patch: PatchDB<DataModel>,
+    @Inject(PATCH_CACHE) private readonly cache$: Observable<Dump<DataModel>>,
   ) {
     super()
     ; (window as any).rpcClient = this
@@ -482,7 +483,7 @@ export class LiveApiService extends ApiService {
     const patchSequence = res.headers.get('x-patch-sequence')
     if (patchSequence)
       await firstValueFrom(
-        this.patch.cache$.pipe(filter(({ id }) => id >= Number(patchSequence))),
+        this.cache$.pipe(filter(({ id }) => id >= Number(patchSequence))),
       )
 
     return body.result
