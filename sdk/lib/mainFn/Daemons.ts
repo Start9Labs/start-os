@@ -168,10 +168,6 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
   }
 
   private updateMainHealth() {
-    if (this.healthDaemons.every((x) => x.health.status === "success")) {
-      this.effects.setMainStatus({ status: "running" })
-    } else {
-      this.effects.setMainStatus({ status: "starting" })
-    }
+    this.effects.setMainStatus({ status: "running" })
   }
 }
