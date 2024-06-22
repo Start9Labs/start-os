@@ -3,6 +3,11 @@ import { UntypedFormBuilder } from '@angular/forms'
 import { Router, RouteReuseStrategy } from '@angular/router'
 import { IonicRouteStrategy, IonNav } from '@ionic/angular'
 import { RELATIVE_URL, THEME, WorkspaceConfig } from '@start9labs/shared'
+import { PatchDB } from 'patch-db-client'
+import {
+  PATCH_CACHE,
+  PatchDbSource,
+} from 'src/app/services/patch-db/patch-db-source'
 import { ApiService } from './services/api/embassy-api.service'
 import { MockApiService } from './services/api/embassy-mock-api.service'
 import { LiveApiService } from './services/api/embassy-live-api.service'
@@ -28,6 +33,11 @@ export const APP_PROVIDERS: Provider[] = [
   {
     provide: ApiService,
     useClass: useMocks ? MockApiService : LiveApiService,
+  },
+  {
+    provide: PatchDB,
+    deps: [PatchDbSource, PATCH_CACHE],
+    useClass: PatchDB,
   },
   {
     provide: APP_INITIALIZER,
