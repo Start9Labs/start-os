@@ -145,10 +145,10 @@ pub async fn get_version(
         arch,
     }: GetVersionParams,
 ) -> Result<BTreeMap<VersionString, OsVersionInfo>, Error> {
-    if let (Some(pool), Some(server_id), Some(arch)) = (ctx.pool, server_id, arch) {
-        let created_at = Utc::now().to_rfc3339();
+    if let (Some(pool), Some(server_id), Some(arch)) = (&ctx.pool, server_id, arch) {
+        let created_at = Utc::now();
 
-        query!("INSERT INTO user_activity (created_at, server_id, os_version, arch) VALUES ($1, $2, $3, $4)",
+        query!("INSERT INTO user_activity (created_at, server_id, arch) VALUES ($1, $2, $3)",
         created_at,
         server_id,
         arch
