@@ -127,7 +127,7 @@ export const mockPatchData: DataModel = {
           },
         },
       },
-      actions: {}, // @TODO
+      actions: {},
       serviceInterfaces: {
         ui: {
           id: 'ui',

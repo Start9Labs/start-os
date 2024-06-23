@@ -714,7 +714,7 @@ export module Mock {
         value: 'https://guessagain.com',
       },
     },
-  } as any // @TODO why is this necessary?
+  }
 
   export const ConfigSpec: RR.GetPackageConfigRes['spec'] = {
     bitcoin: {
@@ -1419,7 +1419,7 @@ export module Mock {
         health: {},
       },
     },
-    actions: {}, // @TODO need mocks
+    actions: {},
     serviceInterfaces: {
       ui: {
         id: 'ui',
@@ -1618,7 +1618,7 @@ export module Mock {
         icon: 'assets/img/service-icons/btc-rpc-proxy.png',
         kind: 'exists',
         registryUrl: 'https://community-registry.start9.com',
-        versionSpec: '>2.0.0', // @TODO
+        versionSpec: '>2.0.0',
         configSatisfied: false,
       },
     },

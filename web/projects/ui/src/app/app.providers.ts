@@ -64,7 +64,7 @@ export function appInitializer(
   return () => {
     storage.migrate036()
     auth.init()
-    localStorage.init() // @TODO pretty sure we can navigate before this step
+    localStorage.init()
     router.initialNavigation()
   }
 }
