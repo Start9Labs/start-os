@@ -4881,6 +4881,7 @@ dependencies = [
  "hmac",
  "http 1.1.0",
  "http-body-util",
+ "hyper-util",
  "id-pool",
  "imbl",
  "imbl-value",
