@@ -125,13 +125,15 @@ export class MarketplaceDepItemComponent {
 
   getImage(key: string, marketplace: StoreIdentity | null) {
     const icon = this.pkg.dependencyMetadata[key]?.icon
+    const camelToSnakeCase = (str: string) =>
+      str.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)
 
     if (icon) {
       try {
         const iconUrl = new URL(icon)
         return iconUrl.href
       } catch (e) {
-        return `${marketplace?.url}package/v0/icon/${key}`
+        return `${marketplace?.url}package/v0/icon/${camelToSnakeCase(key)}`
       }
     } else {
       return key.substring(0, 2)
