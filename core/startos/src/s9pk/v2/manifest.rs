@@ -146,7 +146,7 @@ impl Manifest {
 #[ts(export)]
 pub struct HardwareRequirements {
     #[serde(default)]
-    #[ts(type = "{ [key: string]: string }")]
+    #[ts(type = "{ [key: string]: string }")] // TODO more specific key
     pub device: BTreeMap<String, Regex>,
     #[ts(type = "number | null")]
     pub ram: Option<u64>,
