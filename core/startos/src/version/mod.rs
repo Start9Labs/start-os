@@ -7,6 +7,7 @@ use imbl_value::InternedString;
 
 use crate::db::model::Database;
 use crate::prelude::*;
+use crate::progress::PhaseProgressTrackerHandle;
 use crate::Error;
 
 mod v0_3_5;
@@ -85,11 +86,12 @@ where
         &self,
         version: &V,
         db: &TypedPatchDb<Database>,
+        progress: &mut PhaseProgressTrackerHandle,
     ) -> impl Future<Output = Result<(), Error>> + Send {
         async {
             match self.semver().cmp(&version.semver()) {
-                Ordering::Greater => self.rollback_to_unchecked(version, db).await,
-                Ordering::Less => version.migrate_from_unchecked(self, db).await,
+                Ordering::Greater => self.rollback_to_unchecked(version, db, progress).await,
+                Ordering::Less => version.migrate_from_unchecked(self, db, progress).await,
                 Ordering::Equal => Ok(()),
             }
         }
@@ -98,11 +100,15 @@ where
         &'a self,
         version: &'a V,
         db: &'a TypedPatchDb<Database>,
+        progress: &'a mut PhaseProgressTrackerHandle,
     ) -> BoxFuture<'a, Result<(), Error>> {
+        progress.add_total(1);
         async {
             let previous = Self::Previous::new();
             if version.semver() < previous.semver() {
-                previous.migrate_from_unchecked(version, db).await?;
+                previous
+                    .migrate_from_unchecked(version, db, progress)
+                    .await?;
             } else if version.semver() > previous.semver() {
                 return Err(Error::new(
                     eyre!(
@@ -115,6 +121,7 @@ where
             tracing::info!("{} -> {}", previous.semver(), self.semver(),);
             self.up(db).await?;
             self.commit(db).await?;
+            *progress += 1;
             Ok(())
         }
         .boxed()
@@ -123,14 +130,18 @@ where
         &'a self,
         version: &'a V,
         db: &'a TypedPatchDb<Database>,
+        progress: &'a mut PhaseProgressTrackerHandle,
     ) -> BoxFuture<'a, Result<(), Error>> {
         async {
             let previous = Self::Previous::new();
             tracing::info!("{} -> {}", self.semver(), previous.semver(),);
             self.down(db).await?;
             previous.commit(db).await?;
+            *progress += 1;
             if version.semver() < previous.semver() {
-                previous.rollback_to_unchecked(version, db).await?;
+                previous
+                    .rollback_to_unchecked(version, db, progress)
+                    .await?;
             } else if version.semver() > previous.semver() {
                 return Err(Error::new(
                     eyre!(
@@ -196,7 +207,11 @@ where
     }
 }
 
-pub async fn init(db: &TypedPatchDb<Database>) -> Result<(), Error> {
+pub async fn init(
+    db: &TypedPatchDb<Database>,
+    mut progress: PhaseProgressTrackerHandle,
+) -> Result<(), Error> {
+    progress.start();
     let version = Version::from_util_version(
         db.peek()
             .await
@@ -213,10 +228,10 @@ pub async fn init(db: &TypedPatchDb<Database>) -> Result<(), Error> {
                 ErrorKind::MigrationFailed,
             ));
         }
-        Version::V0_3_5(v) => v.0.migrate_to(&Current::new(), &db).await?,
-        Version::V0_3_5_1(v) => v.0.migrate_to(&Current::new(), &db).await?,
-        Version::V0_3_5_2(v) => v.0.migrate_to(&Current::new(), &db).await?,
-        Version::V0_3_6(v) => v.0.migrate_to(&Current::new(), &db).await?,
+        Version::V0_3_5(v) => v.0.migrate_to(&Current::new(), &db, &mut progress).await?,
+        Version::V0_3_5_1(v) => v.0.migrate_to(&Current::new(), &db, &mut progress).await?,
+        Version::V0_3_5_2(v) => v.0.migrate_to(&Current::new(), &db, &mut progress).await?,
+        Version::V0_3_6(v) => v.0.migrate_to(&Current::new(), &db, &mut progress).await?,
         Version::Other(_) => {
             return Err(Error::new(
                 eyre!("Cannot downgrade"),
@@ -224,6 +239,7 @@ pub async fn init(db: &TypedPatchDb<Database>) -> Result<(), Error> {
             ))
         }
     }
+    progress.complete();
     Ok(())
 }
 

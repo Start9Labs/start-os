@@ -1,10 +1,15 @@
 use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
+use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
+use axum::body::Body;
+use axum::extract::Request;
+use axum::response::Response;
 use color_eyre::eyre::eyre;
 use helpers::NonDetachingJoinHandle;
+use http::Uri;
 use imbl_value::InternedString;
 use models::ResultExt;
 use serde::{Deserialize, Serialize};
@@ -20,8 +25,9 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::db::model::Database;
+use crate::net::static_server::server_error;
 use crate::prelude::*;
-use crate::util::io::{BackTrackingReader, TimeoutStream};
+use crate::util::io::BackTrackingReader;
 use crate::util::serde::MaybeUtf8String;
 
 // not allowed: <=1024, >=32768, 5355, 5432, 9050, 6010, 9051, 5353
@@ -113,8 +119,16 @@ impl VHostServer {
                 loop {
                     match listener.accept().await {
                         Ok((stream, _)) => {
-                            let stream =
-                                Box::pin(TimeoutStream::new(stream, Duration::from_secs(300)));
+                            if let Err(e) = socket2::SockRef::from(&stream).set_tcp_keepalive(
+                                &socket2::TcpKeepalive::new()
+                                    .with_time(Duration::from_secs(900))
+                                    .with_interval(Duration::from_secs(60))
+                                    .with_retries(5),
+                            ) {
+                                tracing::error!("Failed to set tcp keepalive: {e}");
+                                tracing::debug!("{e:?}");
+                            }
+
                             let mut stream = BackTrackingReader::new(stream);
                             stream.start_buffering();
                             let mapping = mapping.clone();
@@ -129,38 +143,39 @@ impl VHostServer {
                                     {
                                         Ok(a) => a,
                                         Err(_) => {
-                                            // stream.rewind();
-                                            // return hyper::server::Server::builder(
-                                            //     SingleAccept::new(stream),
-                                            // )
-                                            // .serve(make_service_fn(|_| async {
-                                            //     Ok::<_, Infallible>(service_fn(|req| async move {
-                                            //         let host = req
-                                            //             .headers()
-                                            //             .get(http::header::HOST)
-                                            //             .and_then(|host| host.to_str().ok());
-                                            //         let uri = Uri::from_parts({
-                                            //             let mut parts =
-                                            //                 req.uri().to_owned().into_parts();
-                                            //             parts.authority = host
-                                            //                 .map(FromStr::from_str)
-                                            //                 .transpose()?;
-                                            //             parts
-                                            //         })?;
-                                            //         Response::builder()
-                                            //             .status(
-                                            //                 http::StatusCode::TEMPORARY_REDIRECT,
-                                            //             )
-                                            //             .header(
-                                            //                 http::header::LOCATION,
-                                            //                 uri.to_string(),
-                                            //             )
-                                            //             .body(Body::default())
-                                            //     }))
-                                            // }))
-                                            // .await
-                                            // .with_kind(crate::ErrorKind::Network);
-                                            todo!()
+                                            stream.rewind();
+                                            return hyper_util::server::conn::auto::Builder::new(hyper_util::rt::TokioExecutor::new())
+                                                .serve_connection(
+                                                    hyper_util::rt::TokioIo::new(stream),
+                                                    hyper_util::service::TowerToHyperService::new(axum::Router::new().fallback(
+                                                        axum::routing::method_routing::any(move |req: Request| async move {
+                                                            match async move {
+                                                                let host = req
+                                                                    .headers()
+                                                                    .get(http::header::HOST)
+                                                                    .and_then(|host| host.to_str().ok());
+                                                                let uri = Uri::from_parts({
+                                                                    let mut parts = req.uri().to_owned().into_parts();
+                                                                    parts.authority = host.map(FromStr::from_str).transpose()?;
+                                                                    parts
+                                                                })?;
+                                                                Response::builder()
+                                                                    .status(http::StatusCode::TEMPORARY_REDIRECT)
+                                                                    .header(http::header::LOCATION, uri.to_string())
+                                                                    .body(Body::default())
+                                                            }.await {
+                                                                Ok(a) => a,
+                                                                Err(e) => {
+                                                                    tracing::warn!("Error redirecting http request on ssl port: {e}");
+                                                                    tracing::error!("{e:?}");
+                                                                    server_error(Error::new(e, ErrorKind::Network))
+                                                                }
+                                                            }
+                                                        }),
+                                                    )),
+                                                )
+                                                .await
+                                                .map_err(|e| Error::new(color_eyre::eyre::Report::msg(e), ErrorKind::Network));
                                         }
                                     };
                                     let target_name =
@@ -205,7 +220,7 @@ impl VHostServer {
                                                     .into_entries()?
                                                     .into_iter()
                                                     .flat_map(|(_, ips)| [
-                                                        ips.as_ipv4().de().map(|ip| ip.map(IpAddr::V4)), 
+                                                        ips.as_ipv4().de().map(|ip| ip.map(IpAddr::V4)),
                                                         ips.as_ipv6().de().map(|ip| ip.map(IpAddr::V6))
                                                     ])
                                                     .filter_map(|a| a.transpose())

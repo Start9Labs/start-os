@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::VecDeque;
 use std::future::Future;
 use std::io::Cursor;
 use std::os::unix::prelude::MetadataExt;
@@ -272,6 +272,81 @@ pub fn response_to_reader(response: reqwest::Response) -> impl AsyncRead + Unpin
             e,
         )
     }))
+}
+
+#[pin_project::pin_project]
+pub struct IOHook<'a, T> {
+    #[pin]
+    pub io: T,
+    pre_write: Option<Box<dyn FnMut(&[u8]) -> Result<(), std::io::Error> + Send + 'a>>,
+    post_write: Option<Box<dyn FnMut(&[u8]) + Send + 'a>>,
+    post_read: Option<Box<dyn FnMut(&[u8]) + Send + 'a>>,
+}
+impl<'a, T> IOHook<'a, T> {
+    pub fn new(io: T) -> Self {
+        Self {
+            io,
+            pre_write: None,
+            post_write: None,
+            post_read: None,
+        }
+    }
+    pub fn into_inner(self) -> T {
+        self.io
+    }
+    pub fn pre_write<F: FnMut(&[u8]) -> Result<(), std::io::Error> + Send + 'a>(&mut self, f: F) {
+        self.pre_write = Some(Box::new(f))
+    }
+    pub fn post_write<F: FnMut(&[u8]) + Send + 'a>(&mut self, f: F) {
+        self.post_write = Some(Box::new(f))
+    }
+    pub fn post_read<F: FnMut(&[u8]) + Send + 'a>(&mut self, f: F) {
+        self.post_read = Some(Box::new(f))
+    }
+}
+impl<'a, T: AsyncWrite> AsyncWrite for IOHook<'a, T> {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        let this = self.project();
+        if let Some(pre_write) = this.pre_write {
+            pre_write(buf)?;
+        }
+        let written = futures::ready!(this.io.poll_write(cx, buf)?);
+        if let Some(post_write) = this.post_write {
+            post_write(&buf[..written]);
+        }
+        Poll::Ready(Ok(written))
+    }
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        self.project().io.poll_flush(cx)
+    }
+    fn poll_shutdown(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        self.project().io.poll_shutdown(cx)
+    }
+}
+impl<'a, T: AsyncRead> AsyncRead for IOHook<'a, T> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        let this = self.project();
+        let start = buf.filled().len();
+        futures::ready!(this.io.poll_read(cx, buf)?);
+        if let Some(post_read) = this.post_read {
+            post_read(&buf.filled()[start..]);
+        }
+        Poll::Ready(Ok(()))
+    }
 }
 
 #[pin_project::pin_project]
@@ -631,15 +706,15 @@ impl<S: AsyncRead + AsyncWrite> AsyncRead for TimeoutStream<S> {
         buf: &mut tokio::io::ReadBuf<'_>,
     ) -> std::task::Poll<std::io::Result<()>> {
         let mut this = self.project();
-        if let std::task::Poll::Ready(_) = this.sleep.as_mut().poll(cx) {
+        let timeout = this.sleep.as_mut().poll(cx);
+        let res = this.stream.poll_read(cx, buf);
+        if res.is_ready() {
+            this.sleep.reset(Instant::now() + *this.timeout);
+        } else if timeout.is_ready() {
             return std::task::Poll::Ready(Err(std::io::Error::new(
                 std::io::ErrorKind::TimedOut,
                 "timed out",
             )));
-        }
-        let res = this.stream.poll_read(cx, buf);
-        if res.is_ready() {
-            this.sleep.reset(Instant::now() + *this.timeout);
         }
         res
     }
@@ -650,10 +725,16 @@ impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
         cx: &mut std::task::Context<'_>,
         buf: &[u8],
     ) -> std::task::Poll<Result<usize, std::io::Error>> {
-        let this = self.project();
+        let mut this = self.project();
+        let timeout = this.sleep.as_mut().poll(cx);
         let res = this.stream.poll_write(cx, buf);
         if res.is_ready() {
             this.sleep.reset(Instant::now() + *this.timeout);
+        } else if timeout.is_ready() {
+            return std::task::Poll::Ready(Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "timed out",
+            )));
         }
         res
     }
@@ -661,10 +742,16 @@ impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), std::io::Error>> {
-        let this = self.project();
+        let mut this = self.project();
+        let timeout = this.sleep.as_mut().poll(cx);
         let res = this.stream.poll_flush(cx);
         if res.is_ready() {
             this.sleep.reset(Instant::now() + *this.timeout);
+        } else if timeout.is_ready() {
+            return std::task::Poll::Ready(Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "timed out",
+            )));
         }
         res
     }
@@ -672,16 +759,20 @@ impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), std::io::Error>> {
-        let this = self.project();
+        let mut this = self.project();
+        let timeout = this.sleep.as_mut().poll(cx);
         let res = this.stream.poll_shutdown(cx);
         if res.is_ready() {
             this.sleep.reset(Instant::now() + *this.timeout);
+        } else if timeout.is_ready() {
+            return std::task::Poll::Ready(Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "timed out",
+            )));
         }
         res
     }
 }
-
-pub struct TmpFile {}
 
 #[derive(Debug)]
 pub struct TmpDir {
@@ -706,6 +797,14 @@ impl TmpDir {
     pub async fn delete(self) -> Result<(), Error> {
         tokio::fs::remove_dir_all(&self.path).await?;
         Ok(())
+    }
+
+    pub async fn gc(self: Arc<Self>) -> Result<(), Error> {
+        if let Ok(dir) = Arc::try_unwrap(self) {
+            dir.delete().await
+        } else {
+            Ok(())
+        }
     }
 }
 impl std::ops::Deref for TmpDir {
@@ -762,7 +861,7 @@ fn poll_flush_prefix<W: AsyncWrite>(
     flush_writer: bool,
 ) -> Poll<Result<(), std::io::Error>> {
     while let Some(mut cur) = prefix.pop_front() {
-        let buf = cur.remaining_slice();
+        let buf = CursorExt::remaining_slice(&cur);
         if !buf.is_empty() {
             match writer.as_mut().poll_write(cx, buf)? {
                 Poll::Ready(n) if n == buf.len() => (),

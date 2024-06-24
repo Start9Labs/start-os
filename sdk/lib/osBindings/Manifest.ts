@@ -3,6 +3,7 @@ import type { Alerts } from "./Alerts"
 import type { Dependencies } from "./Dependencies"
 import type { Description } from "./Description"
 import type { HardwareRequirements } from "./HardwareRequirements"
+import type { ImageConfig } from "./ImageConfig"
 import type { ImageId } from "./ImageId"
 import type { PackageId } from "./PackageId"
 import type { Version } from "./Version"
@@ -20,7 +21,7 @@ export type Manifest = {
   marketingSite: string
   donationUrl: string | null
   description: Description
-  images: Array<ImageId>
+  images: { [key: ImageId]: ImageConfig }
   assets: Array<VolumeId>
   volumes: Array<VolumeId>
   alerts: Alerts

@@ -1,6 +1,6 @@
 import { NO_TIMEOUT, SIGKILL, SIGTERM } from "../StartSdk"
 import { SDKManifest } from "../manifest/ManifestTypes"
-import { Effects, ValidIfNoStupidEscape } from "../types"
+import { Effects, ImageId, ValidIfNoStupidEscape } from "../types"
 import { MountOptions, Overlay } from "../util/Overlay"
 import { splitCommand } from "../util/splitCommand"
 import { cpExecFile, cpExec } from "./Daemons"
@@ -15,7 +15,7 @@ export class CommandController {
     return async <A extends string>(
       effects: Effects,
       imageId: {
-        id: Manifest["images"][number]
+        id: keyof Manifest["images"] & ImageId
         sharedRun?: boolean
       },
       command: ValidIfNoStupidEscape<A> | [string, ...string[]],

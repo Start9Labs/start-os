@@ -1,5 +1,8 @@
 use std::collections::BTreeMap;
+use std::pin::Pin;
 use std::str::FromStr;
+use std::sync::Mutex as SyncMutex;
+use std::task::{Context, Poll};
 use std::time::Duration;
 
 use axum::extract::ws::WebSocket;
@@ -7,9 +10,10 @@ use axum::extract::Request;
 use axum::response::Response;
 use clap::builder::ValueParserFactory;
 use futures::future::BoxFuture;
+use futures::{Future, FutureExt};
 use helpers::TimedResource;
 use imbl_value::InternedString;
-use tokio::sync::Mutex;
+use tokio::sync::{broadcast, Mutex as AsyncMutex};
 use ts_rs::TS;
 
 #[allow(unused_imports)]
@@ -37,6 +41,11 @@ impl Guid {
             }
         }
         Some(Guid(InternedString::intern(r)))
+    }
+}
+impl Default for Guid {
+    fn default() -> Self {
+        Self::new()
     }
 }
 impl AsRef<str> for Guid {
@@ -68,21 +77,103 @@ impl std::fmt::Display for Guid {
     }
 }
 
-pub type RestHandler =
-    Box<dyn FnOnce(Request) -> BoxFuture<'static, Result<Response, crate::Error>> + Send>;
+pub struct RestFuture {
+    kill: Option<broadcast::Receiver<()>>,
+    fut: BoxFuture<'static, Result<Response, Error>>,
+}
+impl Future for RestFuture {
+    type Output = Result<Response, Error>;
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if self.kill.as_ref().map_or(false, |k| !k.is_empty()) {
+            Poll::Ready(Err(Error::new(
+                eyre!("session killed"),
+                ErrorKind::Authorization,
+            )))
+        } else {
+            self.fut.poll_unpin(cx)
+        }
+    }
+}
+pub type RestHandler = Box<dyn FnOnce(Request) -> RestFuture + Send>;
 
-pub type WebSocketHandler = Box<dyn FnOnce(WebSocket) -> BoxFuture<'static, ()> + Send>;
+pub struct WebSocketFuture {
+    kill: Option<broadcast::Receiver<()>>,
+    fut: BoxFuture<'static, ()>,
+}
+impl Future for WebSocketFuture {
+    type Output = ();
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if self.kill.as_ref().map_or(false, |k| !k.is_empty()) {
+            Poll::Ready(())
+        } else {
+            self.fut.poll_unpin(cx)
+        }
+    }
+}
+pub type WebSocketHandler = Box<dyn FnOnce(WebSocket) -> WebSocketFuture + Send>;
 
 pub enum RpcContinuation {
     Rest(TimedResource<RestHandler>),
     WebSocket(TimedResource<WebSocketHandler>),
 }
 impl RpcContinuation {
-    pub fn rest(handler: RestHandler, timeout: Duration) -> Self {
-        RpcContinuation::Rest(TimedResource::new(handler, timeout))
+    pub fn rest<F, Fut>(handler: F, timeout: Duration) -> Self
+    where
+        F: FnOnce(Request) -> Fut + Send + 'static,
+        Fut: Future<Output = Result<Response, Error>> + Send + 'static,
+    {
+        RpcContinuation::Rest(TimedResource::new(
+            Box::new(|req| RestFuture {
+                kill: None,
+                fut: handler(req).boxed(),
+            }),
+            timeout,
+        ))
     }
-    pub fn ws(handler: WebSocketHandler, timeout: Duration) -> Self {
-        RpcContinuation::WebSocket(TimedResource::new(handler, timeout))
+    pub fn ws<F, Fut>(handler: F, timeout: Duration) -> Self
+    where
+        F: FnOnce(WebSocket) -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send + 'static,
+    {
+        RpcContinuation::WebSocket(TimedResource::new(
+            Box::new(|ws| WebSocketFuture {
+                kill: None,
+                fut: handler(ws).boxed(),
+            }),
+            timeout,
+        ))
+    }
+    pub fn rest_authed<Ctx, T, F, Fut>(ctx: Ctx, session: T, handler: F, timeout: Duration) -> Self
+    where
+        Ctx: AsRef<OpenAuthedContinuations<T>>,
+        T: Eq + Ord,
+        F: FnOnce(Request) -> Fut + Send + 'static,
+        Fut: Future<Output = Result<Response, Error>> + Send + 'static,
+    {
+        let kill = Some(ctx.as_ref().subscribe_to_kill(session));
+        RpcContinuation::Rest(TimedResource::new(
+            Box::new(|req| RestFuture {
+                kill,
+                fut: handler(req).boxed(),
+            }),
+            timeout,
+        ))
+    }
+    pub fn ws_authed<Ctx, T, F, Fut>(ctx: Ctx, session: T, handler: F, timeout: Duration) -> Self
+    where
+        Ctx: AsRef<OpenAuthedContinuations<T>>,
+        T: Eq + Ord,
+        F: FnOnce(WebSocket) -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send + 'static,
+    {
+        let kill = Some(ctx.as_ref().subscribe_to_kill(session));
+        RpcContinuation::WebSocket(TimedResource::new(
+            Box::new(|ws| WebSocketFuture {
+                kill,
+                fut: handler(ws).boxed(),
+            }),
+            timeout,
+        ))
     }
     pub fn is_timed_out(&self) -> bool {
         match self {
@@ -92,10 +183,10 @@ impl RpcContinuation {
     }
 }
 
-pub struct RpcContinuations(Mutex<BTreeMap<Guid, RpcContinuation>>);
+pub struct RpcContinuations(AsyncMutex<BTreeMap<Guid, RpcContinuation>>);
 impl RpcContinuations {
     pub fn new() -> Self {
-        RpcContinuations(Mutex::new(BTreeMap::new()))
+        RpcContinuations(AsyncMutex::new(BTreeMap::new()))
     }
 
     #[instrument(skip_all)]
@@ -139,5 +230,30 @@ impl RpcContinuations {
             return None;
         };
         x.get().await
+    }
+}
+
+pub struct OpenAuthedContinuations<Key: Eq + Ord>(SyncMutex<BTreeMap<Key, broadcast::Sender<()>>>);
+impl<T> OpenAuthedContinuations<T>
+where
+    T: Eq + Ord,
+{
+    pub fn new() -> Self {
+        Self(SyncMutex::new(BTreeMap::new()))
+    }
+    pub fn kill(&self, session: &T) {
+        if let Some(channel) = self.0.lock().unwrap().remove(session) {
+            channel.send(()).ok();
+        }
+    }
+    fn subscribe_to_kill(&self, session: T) -> broadcast::Receiver<()> {
+        let mut map = self.0.lock().unwrap();
+        if let Some(send) = map.get(&session) {
+            send.subscribe()
+        } else {
+            let (send, recv) = broadcast::channel(1);
+            map.insert(session, send);
+            recv
+        }
     }
 }

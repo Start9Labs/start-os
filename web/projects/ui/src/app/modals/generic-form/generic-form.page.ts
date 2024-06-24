@@ -54,7 +54,6 @@ export class GenericFormPage {
       return
     }
 
-    // @TODO make this more like generic input component dismissal
     const success = await handler(this.formGroup.value)
     if (success !== false) this.modalCtrl.dismiss()
   }

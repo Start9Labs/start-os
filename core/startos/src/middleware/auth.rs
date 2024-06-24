@@ -23,7 +23,7 @@ use tokio::sync::Mutex;
 use crate::context::RpcContext;
 use crate::prelude::*;
 
-pub const LOCAL_AUTH_COOKIE_PATH: &str = "/run/embassy/rpc.authcookie";
+pub const LOCAL_AUTH_COOKIE_PATH: &str = "/run/startos/rpc.authcookie";
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -48,19 +48,9 @@ impl HasLoggedOutSessions {
             .into_iter()
             .map(|s| s.as_logout_session_id())
             .collect();
-        ctx.open_authed_websockets
-            .lock()
-            .await
-            .retain(|session, sockets| {
-                if to_log_out.contains(session.hashed()) {
-                    for socket in std::mem::take(sockets) {
-                        let _ = socket.send(());
-                    }
-                    false
-                } else {
-                    true
-                }
-            });
+        for sid in &to_log_out {
+            ctx.open_authed_continuations.kill(sid)
+        }
         ctx.db
             .mutate(|db| {
                 let sessions = db.as_private_mut().as_sessions_mut();

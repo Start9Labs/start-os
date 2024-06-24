@@ -1,9 +1,10 @@
-import { PolyfillEffects } from "./polyfillEffects"
+import { polyfillEffects } from "./polyfillEffects"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import { SystemForEmbassy } from "."
-import { HostSystemStartOs } from "../../HostSystemStartOs"
+import { hostSystemStartOs } from "../../HostSystemStartOs"
 import { Daemons, T, daemons } from "@start9labs/start-sdk"
 import { Daemon } from "@start9labs/start-sdk/cjs/lib/mainFn/Daemon"
+import { Effects } from "../../../Models/Effects"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
 const EMBASSY_PROPERTIES_LOOP = 30 * 1000
@@ -27,7 +28,7 @@ export class MainLoop {
     | undefined
   constructor(
     readonly system: SystemForEmbassy,
-    readonly effects: HostSystemStartOs,
+    readonly effects: Effects,
   ) {
     this.healthLoops = this.constructHealthLoops()
     this.mainEvent = this.constructMainEvent()
@@ -65,7 +66,7 @@ export class MainLoop {
     }
   }
 
-  private async setupInterfaces(effects: HostSystemStartOs) {
+  private async setupInterfaces(effects: T.Effects) {
     for (const interfaceId in this.system.manifest.interfaces) {
       const iface = this.system.manifest.interfaces[interfaceId]
       const internalPorts = new Set<number>()
@@ -97,11 +98,9 @@ export class MainLoop {
           id: interfaceId,
           internalPort,
           preferredExternalPort: torConf?.external || internalPort,
-          scheme: "http",
           secure: null,
           addSsl: lanConf?.ssl
             ? {
-                scheme: "https",
                 preferredExternalPort: lanConf.external,
                 alpn: { specified: ["http/1.1"] },
               }
@@ -213,7 +212,7 @@ export class MainLoop {
             }
 
             const result = await method(
-              new PolyfillEffects(effects, this.system.manifest),
+              polyfillEffects(effects, this.system.manifest),
               timeChanged,
             )
 

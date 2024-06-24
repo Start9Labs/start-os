@@ -44,12 +44,7 @@ export class AppActionsPage {
     status: T.Status,
     action: { key: string; value: T.ActionMetadata },
   ) {
-    if (
-      status &&
-      action.value.allowedStatuses.includes(
-        status.main.status, // @TODO
-      )
-    ) {
+    if (status && action.value.allowedStatuses.includes(status.main.status)) {
       if (!isEmptyObject(action.value.input || {})) {
         const modal = await this.modalCtrl.create({
           component: GenericFormPage,
@@ -91,7 +86,7 @@ export class AppActionsPage {
         await alert.present()
       }
     } else {
-      const statuses = [...action.value.allowedStatuses] // @TODO
+      const statuses = [...action.value.allowedStatuses]
       const last = statuses.pop()
       let statusesStr = statuses.join(', ')
       let error = ''

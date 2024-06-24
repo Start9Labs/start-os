@@ -8,6 +8,7 @@ import { PatchDB } from 'patch-db-client'
 import { QRComponent } from 'src/app/components/qr/qr.component'
 import { map } from 'rxjs'
 import { T } from '@start9labs/start-sdk'
+import { addressHostToUrl } from '@start9labs/start-sdk/cjs/lib/util/getServiceInterface'
 
 type MappedInterface = T.ServiceInterface & {
   addresses: MappedAddress[]
@@ -33,10 +34,14 @@ export class AppInterfacesPage {
           .sort(iface =>
             iface.name.toLowerCase() > iface.name.toLowerCase() ? -1 : 1,
           )
-          .map(iface => ({
-            ...iface,
-            addresses: getAddresses(iface),
-          }))
+          .map(iface => {
+            // TODO @Matt
+            const host = {} as any
+            return {
+              ...iface,
+              addresses: getAddresses(iface, host),
+            }
+          })
 
         return {
           ui: sorted.filter(val => val.type === 'ui'),
@@ -99,66 +104,40 @@ export class AppInterfacesItemComponent {
 }
 
 function getAddresses(
-  serviceInterface: T.ServiceInterfaceWithHostInfo,
+  serviceInterface: T.ServiceInterface,
+  host: T.Host,
 ): MappedAddress[] {
-  const host = serviceInterface.hostInfo
   const addressInfo = serviceInterface.addressInfo
   const username = addressInfo.username ? addressInfo.username + '@' : ''
   const suffix = addressInfo.suffix || ''
 
-  const hostnames = host.kind === 'multi' ? host.hostnames : [] // TODO: non-multi
+  const hostnames =
+    host.kind === 'multi' ? host.hostnameInfo[addressInfo.internalPort] : [] // TODO: non-multi
   /* host.hostname
       ? [host.hostname]
       : [] */
 
-  const addresses: MappedAddress[] = []
-
-  hostnames.forEach(h => {
+  return hostnames.flatMap(h => {
     let name = ''
-    let hostname = ''
 
     if (h.kind === 'onion') {
       name = 'Tor'
-      hostname = h.hostname.value
     } else {
       const hostnameKind = h.hostname.kind
 
       if (hostnameKind === 'domain') {
         name = 'Domain'
-        hostname = `${h.hostname.subdomain}.${h.hostname.domain}`
       } else {
         name =
           hostnameKind === 'local'
             ? 'Local'
             : `${h.networkInterfaceId} (${hostnameKind})`
-        hostname = h.hostname.value
       }
     }
 
-    if (h.hostname.sslPort) {
-      const port = h.hostname.sslPort === 443 ? '' : `:${h.hostname.sslPort}`
-      const scheme = addressInfo.bindOptions.addSsl?.scheme
-        ? `${addressInfo.bindOptions.addSsl.scheme}://`
-        : ''
-
-      addresses.push({
-        name: name === 'Tor' ? 'Tor (HTTPS)' : name,
-        url: `${scheme}${username}${hostname}${port}${suffix}`,
-      })
-    }
-
-    if (h.hostname.port) {
-      const port = h.hostname.port === 80 ? '' : `:${h.hostname.port}`
-      const scheme = addressInfo.bindOptions.scheme
-        ? `${addressInfo.bindOptions.scheme}://`
-        : ''
-
-      addresses.push({
-        name: name === 'Tor' ? 'Tor (HTTP)' : name,
-        url: `${scheme}${username}${hostname}${port}${suffix}`,
-      })
-    }
+    return addressHostToUrl(addressInfo, h).map(url => ({
+      name,
+      url,
+    }))
   })
-
-  return addresses
 }

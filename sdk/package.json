@@ -1,6 +1,6 @@
 {
   "name": "@start9labs/start-sdk",
-  "version": "0.3.6-alpha1",
+  "version": "0.3.6-alpha5",
   "description": "Software development kit to facilitate packaging services for StartOS",
   "main": "./cjs/lib/index.js",
   "types": "./cjs/lib/index.d.ts",
@@ -31,7 +31,10 @@
   "homepage": "https://github.com/Start9Labs/start-sdk#readme",
   "dependencies": {
     "isomorphic-fetch": "^3.0.0",
-    "ts-matches": "^5.4.1"
+    "lodash": "^4.17.21",
+    "ts-matches": "^5.4.1",
+    "yaml": "^2.2.2",
+    "@iarna/toml": "^2.2.5"
   },
   "prettier": {
     "trailingComma": "all",
@@ -40,9 +43,8 @@
     "singleQuote": false
   },
   "devDependencies": {
-    "@iarna/toml": "^2.2.5",
-    "yaml": "^2.2.2",
     "@types/jest": "^29.4.0",
+    "@types/lodash": "^4.17.5",
     "jest": "^29.4.3",
     "prettier": "^3.2.5",
     "ts-jest": "^29.0.5",

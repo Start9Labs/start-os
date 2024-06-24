@@ -1,4 +1,5 @@
 import {
+  TuiAlertModule,
   TuiDialogModule,
   TuiModeModule,
   TuiRootModule,
@@ -27,7 +28,6 @@ import { PreloaderModule } from './app/preloader/preloader.module'
 import { FooterModule } from './app/footer/footer.module'
 import { MenuModule } from './app/menu/menu.module'
 import { APP_PROVIDERS } from './app.providers'
-import { PatchDbModule } from './services/patch-db/patch-db.module'
 import { ToastContainerModule } from './components/toast-container/toast-container.module'
 import { ConnectionBarComponentModule } from './components/connection-bar/connection-bar.component.module'
 import { WidgetsPageModule } from './pages/widgets/widgets.module'
@@ -53,11 +53,11 @@ import { environment } from '../environments/environment'
     MonacoEditorModule,
     SharedPipesModule,
     MarketplaceModule,
-    PatchDbModule,
     ToastContainerModule,
     ConnectionBarComponentModule,
     TuiRootModule,
     TuiDialogModule,
+    TuiAlertModule,
     TuiModeModule,
     TuiThemeNightModule,
     WidgetsPageModule,

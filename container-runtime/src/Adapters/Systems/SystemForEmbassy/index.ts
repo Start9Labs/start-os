@@ -1,8 +1,8 @@
 import { types as T, utils, EmVer } from "@start9labs/start-sdk"
 import * as fs from "fs/promises"
 
-import { PolyfillEffects } from "./polyfillEffects"
-import { Duration, duration } from "../../../Models/Duration"
+import { polyfillEffects } from "./polyfillEffects"
+import { Duration, duration, fromDuration } from "../../../Models/Duration"
 import { System } from "../../../Interfaces/System"
 import { matchManifest, Manifest, Procedure } from "./matchManifest"
 import * as childProcess from "node:child_process"
@@ -27,10 +27,21 @@ import {
   Parser,
   array,
 } from "ts-matches"
-import { HostSystemStartOs } from "../../HostSystemStartOs"
+import { hostSystemStartOs } from "../../HostSystemStartOs"
 import { JsonPath, unNestPath } from "../../../Models/JsonPath"
 import { RpcResult, matchRpcResult } from "../../RpcListener"
 import { CT } from "@start9labs/start-sdk"
+import {
+  AddSslOptions,
+  BindOptions,
+} from "@start9labs/start-sdk/cjs/lib/osBindings"
+import {
+  BindOptionsByProtocol,
+  Host,
+  MultiHost,
+} from "@start9labs/start-sdk/cjs/lib/interfaces/Host"
+import { ServiceInterfaceBuilder } from "@start9labs/start-sdk/cjs/lib/interfaces/ServiceInterfaceBuilder"
+import { Effects } from "../../../Models/Effects"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
@@ -39,7 +50,7 @@ function todo(): never {
 const execFile = promisify(childProcess.execFile)
 
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
-const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
+export const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
 const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig"
 
 const matchSetResult = object(
@@ -187,13 +198,15 @@ export class SystemForEmbassy implements System {
     readonly moduleCode: Partial<U.ExpectedExports>,
   ) {}
   async execute(
-    effects: HostSystemStartOs,
+    effectCreator: ReturnType<typeof hostSystemStartOs>,
     options: {
+      id: string
       procedure: JsonPath
       input: unknown
       timeout?: number | undefined
     },
   ): Promise<RpcResult> {
+    const effects = effectCreator(options.id)
     return this._execute(effects, options)
       .then((x) =>
         matches(x)
@@ -248,12 +261,12 @@ export class SystemForEmbassy implements System {
         }
       })
   }
-  async exit(effects: HostSystemStartOs): Promise<void> {
+  async exit(): Promise<void> {
     if (this.currentRunning) await this.currentRunning.clean()
     delete this.currentRunning
   }
   async _execute(
-    effects: HostSystemStartOs,
+    effects: Effects,
     options: {
       procedure: JsonPath
       input: unknown
@@ -327,7 +340,7 @@ export class SystemForEmbassy implements System {
     throw new Error(`Could not find the path for ${options.procedure}`)
   }
   private async init(
-    effects: HostSystemStartOs,
+    effects: Effects,
     previousVersion: Optional<string>,
     timeoutMs: number | null,
   ): Promise<void> {
@@ -335,8 +348,87 @@ export class SystemForEmbassy implements System {
       await this.migration(effects, previousVersion, timeoutMs)
     await effects.setMainStatus({ status: "stopped" })
     await this.exportActions(effects)
+    await this.exportNetwork(effects)
   }
-  async exportActions(effects: HostSystemStartOs) {
+  async exportNetwork(effects: Effects) {
+    for (const [id, interfaceValue] of Object.entries(
+      this.manifest.interfaces,
+    )) {
+      const host = new MultiHost({ effects, id })
+      const internalPorts = new Set(
+        Object.values(interfaceValue["tor-config"]?.["port-mapping"] ?? {})
+          .map(Number.parseInt)
+          .concat(
+            ...Object.values(interfaceValue["lan-config"] ?? {}).map(
+              (c) => c.internal,
+            ),
+          )
+          .filter(Boolean),
+      )
+      const bindings = Array.from(internalPorts).map<
+        [number, BindOptionsByProtocol]
+      >((port) => {
+        const lanPort = Object.entries(interfaceValue["lan-config"] ?? {}).find(
+          ([external, internal]) => internal.internal === port,
+        )?.[0]
+        const torPort = Object.entries(
+          interfaceValue["tor-config"]?.["port-mapping"] ?? {},
+        ).find(
+          ([external, internal]) => Number.parseInt(internal) === port,
+        )?.[0]
+        let addSsl: AddSslOptions | null = null
+        if (lanPort) {
+          const lanPortNum = Number.parseInt(lanPort)
+          if (lanPortNum === 443) {
+            return [port, { protocol: "http", preferredExternalPort: 80 }]
+          }
+          addSsl = {
+            preferredExternalPort: lanPortNum,
+            alpn: { specified: [] },
+          }
+        }
+        return [
+          port,
+          {
+            secure: null,
+            preferredExternalPort: Number.parseInt(
+              torPort || lanPort || String(port),
+            ),
+            addSsl,
+          },
+        ]
+      })
+
+      await Promise.all(
+        bindings.map(async ([internal, options]) => {
+          if (internal == null) {
+            return
+          }
+          if (options?.preferredExternalPort == null) {
+            return
+          }
+          const origin = await host.bindPort(internal, options)
+          await origin.export([
+            new ServiceInterfaceBuilder({
+              effects,
+              name: interfaceValue.name,
+              id: `${id}-${internal}`,
+              description: interfaceValue.description,
+              hasPrimary: false,
+              disabled: false,
+              type: "api",
+              masked: false,
+              path: "",
+              schemeOverride: null,
+              search: {},
+              username: null,
+            }),
+          ])
+        }),
+      )
+    }
+  }
+  async exportActions(effects: Effects) {
     const manifest = this.manifest
     if (!manifest.actions) return
     for (const [actionId, action] of Object.entries(manifest.actions)) {
@@ -365,7 +457,7 @@ export class SystemForEmbassy implements System {
     }
   }
   private async uninit(
-    effects: HostSystemStartOs,
+    effects: Effects,
     nextVersion: Optional<string>,
     timeoutMs: number | null,
   ): Promise<void> {
@@ -373,7 +465,7 @@ export class SystemForEmbassy implements System {
     await effects.setMainStatus({ status: "stopped" })
   }
   private async mainStart(
-    effects: HostSystemStartOs,
+    effects: Effects,
     timeoutMs: number | null,
   ): Promise<void> {
     if (!!this.currentRunning) return
@@ -381,7 +473,7 @@ export class SystemForEmbassy implements System {
     this.currentRunning = new MainLoop(this, effects)
   }
   private async mainStop(
-    effects: HostSystemStartOs,
+    effects: Effects,
     timeoutMs: number | null,
   ): Promise<Duration> {
     const { currentRunning } = this
@@ -389,14 +481,17 @@ export class SystemForEmbassy implements System {
     delete this.currentRunning
     if (currentRunning) {
       await currentRunning.clean({
-        timeout: this.manifest.main["sigterm-timeout"],
+        timeout: fromDuration(this.manifest.main["sigterm-timeout"]),
       })
     }
-    const durationValue = duration(this.manifest.main["sigterm-timeout"], "s")
+    const durationValue = duration(
+      fromDuration(this.manifest.main["sigterm-timeout"]),
+      "s",
+    )
     return durationValue
   }
   private async createBackup(
-    effects: HostSystemStartOs,
+    effects: Effects,
     timeoutMs: number | null,
   ): Promise<void> {
     const backup = this.manifest.backup.create
@@ -408,13 +503,11 @@ export class SystemForEmbassy implements System {
       await container.execFail([backup.entrypoint, ...backup.args], timeoutMs)
     } else {
       const moduleCode = await this.moduleCode
-      await moduleCode.createBackup?.(
-        new PolyfillEffects(effects, this.manifest),
-      )
+      await moduleCode.createBackup?.(polyfillEffects(effects, this.manifest))
     }
   }
   private async restoreBackup(
-    effects: HostSystemStartOs,
+    effects: Effects,
     timeoutMs: number | null,
   ): Promise<void> {
     const restoreBackup = this.manifest.backup.restore
@@ -433,19 +526,17 @@ export class SystemForEmbassy implements System {
       )
     } else {
       const moduleCode = await this.moduleCode
-      await moduleCode.restoreBackup?.(
-        new PolyfillEffects(effects, this.manifest),
-      )
+      await moduleCode.restoreBackup?.(polyfillEffects(effects, this.manifest))
     }
   }
   private async getConfig(
-    effects: HostSystemStartOs,
+    effects: Effects,
     timeoutMs: number | null,
   ): Promise<T.ConfigRes> {
     return this.getConfigUncleaned(effects, timeoutMs).then(removePointers)
   }
   private async getConfigUncleaned(
-    effects: HostSystemStartOs,
+    effects: Effects,
     timeoutMs: number | null,
   ): Promise<T.ConfigRes> {
     const config = this.manifest.config?.get
@@ -469,7 +560,7 @@ export class SystemForEmbassy implements System {
       const moduleCode = await this.moduleCode
       const method = moduleCode.getConfig
       if (!method) throw new Error("Expecting that the method getConfig exists")
-      return (await method(new PolyfillEffects(effects, this.manifest)).then(
+      return (await method(polyfillEffects(effects, this.manifest)).then(
         (x) => {
           if ("result" in x) return x.result
           if ("error" in x) throw new Error("Error getting config: " + x.error)
@@ -479,13 +570,14 @@ export class SystemForEmbassy implements System {
     }
   }
   private async setConfig(
-    effects: HostSystemStartOs,
+    effects: Effects,
     newConfigWithoutPointers: unknown,
     timeoutMs: number | null,
   ): Promise<void> {
     const newConfig = structuredClone(newConfigWithoutPointers)
     await updateConfig(
       effects,
+      this.manifest,
       await this.getConfigUncleaned(effects, timeoutMs).then((x) => x.spec),
       newConfig,
     )
@@ -521,7 +613,7 @@ export class SystemForEmbassy implements System {
 
       const answer = matchSetResult.unsafeCast(
         await method(
-          new PolyfillEffects(effects, this.manifest),
+          polyfillEffects(effects, this.manifest),
           newConfig as U.Config,
         ).then((x): T.SetResult => {
           if ("result" in x)
@@ -540,7 +632,7 @@ export class SystemForEmbassy implements System {
     }
   }
   private async setConfigSetConfig(
-    effects: HostSystemStartOs,
+    effects: Effects,
     dependsOn: { [x: string]: readonly string[] },
   ) {
     await effects.setDependencies({
@@ -564,7 +656,7 @@ export class SystemForEmbassy implements System {
   }
 
   private async migration(
-    effects: HostSystemStartOs,
+    effects: Effects,
     fromVersion: string,
     timeoutMs: number | null,
   ): Promise<T.MigrationRes> {
@@ -617,7 +709,7 @@ export class SystemForEmbassy implements System {
         if (!method)
           throw new Error("Expecting that the method migration exists")
         return (await method(
-          new PolyfillEffects(effects, this.manifest),
+          polyfillEffects(effects, this.manifest),
           fromVersion as string,
         ).then((x) => {
           if ("result" in x) return x.result
@@ -629,9 +721,9 @@ export class SystemForEmbassy implements System {
     return { configured: true }
   }
   private async properties(
-    effects: HostSystemStartOs,
+    effects: Effects,
     timeoutMs: number | null,
-  ): Promise<ReturnType<T.ExpectedExports.Properties>> {
+  ): Promise<ReturnType<T.ExpectedExports.properties>> {
     // TODO BLU-J set the properties ever so often
     const setConfigValue = this.manifest.properties
     if (!setConfigValue) throw new Error("There is no properties")
@@ -658,7 +750,7 @@ export class SystemForEmbassy implements System {
       if (!method)
         throw new Error("Expecting that the method properties exists")
       const properties = matchProperties.unsafeCast(
-        await method(new PolyfillEffects(effects, this.manifest)).then((x) => {
+        await method(polyfillEffects(effects, this.manifest)).then((x) => {
           if ("result" in x) return x.result
           if ("error" in x) throw new Error("Error getting config: " + x.error)
           throw new Error("Error getting config: " + x["error-code"][1])
@@ -669,7 +761,7 @@ export class SystemForEmbassy implements System {
     throw new Error(`Unknown type in the fetch properties: ${setConfigValue}`)
   }
   private async action(
-    effects: HostSystemStartOs,
+    effects: Effects,
     actionId: string,
     formData: unknown,
     timeoutMs: number | null,
@@ -699,7 +791,7 @@ export class SystemForEmbassy implements System {
       const method = moduleCode.action?.[actionId]
       if (!method) throw new Error("Expecting that the method action exists")
       return (await method(
-        new PolyfillEffects(effects, this.manifest),
+        polyfillEffects(effects, this.manifest),
         formData as any,
       ).then((x) => {
         if ("result" in x) return x.result
@@ -709,7 +801,7 @@ export class SystemForEmbassy implements System {
     }
   }
   private async dependenciesCheck(
-    effects: HostSystemStartOs,
+    effects: Effects,
     id: string,
     oldConfig: unknown,
     timeoutMs: number | null,
@@ -742,7 +834,7 @@ export class SystemForEmbassy implements System {
           `Expecting that the method dependency check ${id} exists`,
         )
       return (await method(
-        new PolyfillEffects(effects, this.manifest),
+        polyfillEffects(effects, this.manifest),
         oldConfig as any,
       ).then((x) => {
         if ("result" in x) return x.result
@@ -754,7 +846,7 @@ export class SystemForEmbassy implements System {
     }
   }
   private async dependenciesAutoconfig(
-    effects: HostSystemStartOs,
+    effects: Effects,
     id: string,
     oldConfig: unknown,
     timeoutMs: number | null,
@@ -767,7 +859,7 @@ export class SystemForEmbassy implements System {
         `Expecting that the method dependency autoConfigure ${id} exists`,
       )
     return (await method(
-      new PolyfillEffects(effects, this.manifest),
+      polyfillEffects(effects, this.manifest),
       oldConfig as any,
     ).then((x) => {
       if ("result" in x) return x.result
@@ -865,7 +957,8 @@ function cleanConfigFromPointers<C, S>(
 }
 
 async function updateConfig(
-  effects: HostSystemStartOs,
+  effects: Effects,
+  manifest: Manifest,
   spec: unknown,
   mutConfigValue: unknown,
 ) {
@@ -876,8 +969,13 @@ async function updateConfig(
 
     const newConfigValue = mutConfigValue[key]
     if (matchSpec.test(specValue)) {
-      const updateObject = { spec: null }
-      await updateConfig(effects, { spec: specValue.spec }, updateObject)
+      const updateObject = { spec: newConfigValue }
+      await updateConfig(
+        effects,
+        manifest,
+        { spec: specValue.spec },
+        updateObject,
+      )
       mutConfigValue[key] = updateObject.spec
     }
     if (
@@ -899,20 +997,60 @@ async function updateConfig(
     if (matchPointerPackage.test(specValue)) {
       if (specValue.target === "tor-key")
         throw new Error("This service uses an unsupported target TorKey")
+
+      const specInterface = specValue.interface
+      const serviceInterfaceId = extractServiceInterfaceId(
+        manifest,
+        specInterface,
+      )
+      if (!serviceInterfaceId) {
+        mutConfigValue[key] = ""
+        return
+      }
       const filled = await utils
         .getServiceInterface(effects, {
           packageId: specValue["package-id"],
-          id: specValue.interface,
+          id: serviceInterfaceId,
         })
         .once()
-        .catch(() => null)
-
-      mutConfigValue[key] =
+        .catch((x) => {
+          console.error("Could not get the service interface", x)
+          return null
+        })
+      const catchFn = <X>(fn: () => X) => {
+        try {
+          return fn()
+        } catch (e) {
+          return undefined
+        }
+      }
+      const url: string =
         filled === null
           ? ""
-          : specValue.target === "lan-address"
-            ? filled.addressInfo.localHostnames[0]
-            : filled.addressInfo.onionHostnames[0]
+          : catchFn(() =>
+              utils.hostnameInfoToAddress(
+                specValue.target === "lan-address"
+                  ? filled.addressInfo.localHostnames[0] ||
+                      filled.addressInfo.onionHostnames[0]
+                  : filled.addressInfo.onionHostnames[0] ||
+                      filled.addressInfo.localHostnames[0],
+              ),
+            ) || ""
+      mutConfigValue[key] = url
     }
   }
+}
+function extractServiceInterfaceId(manifest: Manifest, specInterface: string) {
+  const internalPort =
+    Object.entries(
+      manifest.interfaces[specInterface]?.["lan-config"] || {},
+    )[0]?.[1]?.internal ||
+    Object.entries(
+      manifest.interfaces[specInterface]?.["tor-config"]?.["port-mapping"] ||
+        {},
+    )?.[0]?.[1]
+
+  if (!internalPort) return null
+  const serviceInterfaceId = `${specInterface}-${internalPort}`
+  return serviceInterfaceId
 }

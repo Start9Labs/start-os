@@ -9,6 +9,7 @@ use tokio::sync::oneshot;
 
 #[allow(unused_imports)]
 use crate::prelude::*;
+use crate::rpc_continuations::Guid;
 use crate::util::actor::background::BackgroundJobQueue;
 
 pub mod background;
@@ -28,6 +29,7 @@ pub trait Handler<M: Any + Send>: Actor {
     }
     fn handle(
         &mut self,
+        id: Guid,
         msg: M,
         jobs: &BackgroundJobQueue,
     ) -> impl Future<Output = Self::Response> + Send;
@@ -39,6 +41,7 @@ trait Message<A>: Send + Any {
     fn conflicts_with(&self) -> Arc<ConflictFn<A>>;
     fn handle_with<'a>(
         self: Box<Self>,
+        id: Guid,
         actor: &'a mut A,
         jobs: &'a BackgroundJobQueue,
     ) -> BoxFuture<'a, Box<dyn Any + Send>>;
@@ -52,10 +55,11 @@ where
     }
     fn handle_with<'a>(
         self: Box<Self>,
+        id: Guid,
         actor: &'a mut A,
         jobs: &'a BackgroundJobQueue,
     ) -> BoxFuture<'a, Box<dyn Any + Send>> {
-        async move { Box::new(actor.handle(*self, jobs).await) as Box<dyn Any + Send> }.boxed()
+        async move { Box::new(actor.handle(id, *self, jobs).await) as Box<dyn Any + Send> }.boxed()
     }
 }
 impl<A: Actor> dyn Message<A> {
@@ -80,7 +84,11 @@ impl<A: Actor> dyn Message<A> {
     }
 }
 
-type Request<A> = (Box<dyn Message<A>>, oneshot::Sender<Box<dyn Any + Send>>);
+type Request<A> = (
+    Guid,
+    Box<dyn Message<A>>,
+    oneshot::Sender<Box<dyn Any + Send>>,
+);
 
 pub enum PendingMessageStrategy {
     CancelAll,

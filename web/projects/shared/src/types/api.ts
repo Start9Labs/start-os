@@ -13,6 +13,7 @@ export type LogsRes = {
 export interface Log {
   timestamp: string
   message: string
+  bootId: string
 }
 
 export type DiskListResponse = DiskInfo[]

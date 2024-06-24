@@ -7,10 +7,9 @@ use std::str::FromStr;
 use std::sync::{Arc, Weak};
 
 use clap::builder::ValueParserFactory;
-use clap::Parser;
+use clap::{CommandFactory, FromArgMatches, Parser};
 use emver::VersionRange;
-use imbl::OrdMap;
-use imbl_value::{json, InternedString};
+use imbl_value::json;
 use itertools::Itertools;
 use models::{
     ActionId, DataUrl, HealthCheckId, HostId, ImageId, PackageId, ServiceInterfaceId, VolumeId,
@@ -26,38 +25,34 @@ use crate::db::model::package::{
     ActionMetadata, CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind,
     ManifestPreference,
 };
-use crate::disk::mount::filesystem::idmapped::IdMapped;
-use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
+use crate::echo;
 use crate::net::host::address::HostAddress;
-use crate::net::host::binding::BindOptions;
-use crate::net::host::{self, HostKind};
-use crate::net::service_interface::{
-    AddressInfo, ExportedHostInfo, ExportedHostnameInfo, ServiceInterface, ServiceInterfaceType,
-    ServiceInterfaceWithHostInfo,
-};
+use crate::net::host::binding::{BindOptions, LanInfo};
+use crate::net::host::{Host, HostKind};
+use crate::net::service_interface::{AddressInfo, ServiceInterface, ServiceInterfaceType};
 use crate::prelude::*;
+use crate::rpc_continuations::Guid;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::rpc::SKIP_ENV;
 use crate::s9pk::S9pk;
 use crate::service::cli::ContainerCliContext;
-use crate::service::ServiceActorSeed;
+use crate::service::Service;
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::clap::FromStrParser;
-use crate::util::{new_guid, Invoke};
-use crate::{echo, ARCH};
+use crate::util::Invoke;
 
 #[derive(Clone)]
-pub(super) struct EffectContext(Weak<ServiceActorSeed>);
+pub(super) struct EffectContext(Weak<Service>);
 impl EffectContext {
-    pub fn new(seed: Weak<ServiceActorSeed>) -> Self {
-        Self(seed)
+    pub fn new(service: Weak<Service>) -> Self {
+        Self(service)
     }
 }
 impl Context for EffectContext {}
 impl EffectContext {
-    fn deref(&self) -> Result<Arc<ServiceActorSeed>, Error> {
+    fn deref(&self) -> Result<Arc<Service>, Error> {
         if let Some(seed) = Weak::upgrade(&self.0) {
             Ok(seed)
         } else {
@@ -69,12 +64,6 @@ impl EffectContext {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct RpcData {
-    id: i64,
-    method: String,
-    params: Value,
-}
 pub fn service_effect_handler<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("gitInfo", from_fn(|_: C| crate::version::git_info()))
@@ -193,7 +182,6 @@ pub fn service_effect_handler<C: Context>() -> ParentHandler<C> {
         .subcommand("removeAddress", from_fn_async(remove_address).no_cli())
         .subcommand("exportAction", from_fn_async(export_action).no_cli())
         .subcommand("removeAction", from_fn_async(remove_action).no_cli())
-        .subcommand("reverseProxy", from_fn_async(reverse_proxy).no_cli())
         .subcommand("mount", from_fn_async(mount).no_cli())
 
     // TODO Callbacks
@@ -233,8 +221,6 @@ struct ExportServiceInterfaceParams {
     masked: bool,
     address_info: AddressInfo,
     r#type: ServiceInterfaceType,
-    host_kind: HostKind,
-    hostnames: Vec<ExportedHostnameInfo>,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
@@ -242,9 +228,8 @@ struct ExportServiceInterfaceParams {
 struct GetPrimaryUrlParams {
     #[ts(type = "string | null")]
     package_id: Option<PackageId>,
-    service_interface_id: String,
+    service_interface_id: ServiceInterfaceId,
     callback: Callback,
-    host_id: HostId,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
@@ -276,37 +261,7 @@ struct RemoveActionParams {
     #[ts(type = "string")]
     id: ActionId,
 }
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-struct ReverseProxyBind {
-    ip: Option<String>,
-    port: u32,
-    ssl: bool,
-}
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-struct ReverseProxyDestination {
-    ip: Option<String>,
-    port: u32,
-    ssl: bool,
-}
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-struct ReverseProxyHttp {
-    #[ts(type = "null | {[key: string]: string}")]
-    headers: Option<OrdMap<String, String>>,
-}
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-struct ReverseProxyParams {
-    bind: ReverseProxyBind,
-    dst: ReverseProxyDestination,
-    http: ReverseProxyHttp,
-}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
@@ -328,6 +283,7 @@ struct MountParams {
 async fn set_system_smtp(context: EffectContext, data: SetSystemSmtpParams) -> Result<(), Error> {
     let context = context.deref()?;
     context
+        .seed
         .ctx
         .db
         .mutate(|db| {
@@ -342,6 +298,7 @@ async fn get_system_smtp(
 ) -> Result<String, Error> {
     let context = context.deref()?;
     let res = context
+        .seed
         .ctx
         .db
         .peek()
@@ -361,24 +318,25 @@ async fn get_system_smtp(
 }
 async fn get_container_ip(context: EffectContext, _: Empty) -> Result<Ipv4Addr, Error> {
     let context = context.deref()?;
-    let net_service = context.persistent_container.net_service.lock().await;
+    let net_service = context.seed.persistent_container.net_service.lock().await;
     Ok(net_service.get_ip())
 }
 async fn get_service_port_forward(
     context: EffectContext,
     data: GetServicePortForwardParams,
-) -> Result<u16, Error> {
+) -> Result<LanInfo, Error> {
     let internal_port = data.internal_port as u16;
 
     let context = context.deref()?;
-    let net_service = context.persistent_container.net_service.lock().await;
+    let net_service = context.seed.persistent_container.net_service.lock().await;
     net_service.get_ext_port(data.host_id, internal_port)
 }
 async fn clear_network_interfaces(context: EffectContext, _: Empty) -> Result<(), Error> {
     let context = context.deref()?;
-    let package_id = context.id.clone();
+    let package_id = context.seed.id.clone();
 
     context
+        .seed
         .ctx
         .db
         .mutate(|db| {
@@ -404,13 +362,10 @@ async fn export_service_interface(
         masked,
         address_info,
         r#type,
-        host_kind,
-        hostnames,
     }: ExportServiceInterfaceParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
-    let package_id = context.id.clone();
-    let host_id = address_info.host_id.clone();
+    let package_id = context.seed.id.clone();
 
     let service_interface = ServiceInterface {
         id: id.clone(),
@@ -422,17 +377,10 @@ async fn export_service_interface(
         address_info,
         interface_type: r#type,
     };
-    let host_info = ExportedHostInfo {
-        id: host_id,
-        kind: host_kind,
-        hostnames,
-    };
-    let svc_interface_with_host_info = ServiceInterfaceWithHostInfo {
-        service_interface,
-        host_info,
-    };
+    let svc_interface_with_host_info = service_interface;
 
     context
+        .seed
         .ctx
         .db
         .mutate(|db| {
@@ -449,37 +397,29 @@ async fn export_service_interface(
 }
 async fn get_primary_url(
     context: EffectContext,
-    data: GetPrimaryUrlParams,
-) -> Result<HostAddress, Error> {
+    GetPrimaryUrlParams {
+        package_id,
+        service_interface_id,
+        callback,
+    }: GetPrimaryUrlParams,
+) -> Result<Option<HostAddress>, Error> {
     let context = context.deref()?;
-    let package_id = context.id.clone();
+    let package_id = package_id.unwrap_or_else(|| context.seed.id.clone());
 
-    let db_model = context.ctx.db.peek().await;
-
-    let pkg_data_model = db_model
-        .as_public()
-        .as_package_data()
-        .as_idx(&package_id)
-        .or_not_found(&package_id)?;
-
-    let host = pkg_data_model.de()?.hosts.get_host_primary(&data.host_id);
-
-    match host {
-        Some(host_address) => Ok(host_address),
-        None => Err(Error::new(
-            eyre!("Primary Url not found for {}", data.host_id),
-            crate::ErrorKind::NotFound,
-        )),
-    }
+    Ok(None) // TODO
 }
 async fn list_service_interfaces(
     context: EffectContext,
-    data: ListServiceInterfacesParams,
-) -> Result<BTreeMap<ServiceInterfaceId, ServiceInterfaceWithHostInfo>, Error> {
+    ListServiceInterfacesParams {
+        package_id,
+        callback,
+    }: ListServiceInterfacesParams,
+) -> Result<BTreeMap<ServiceInterfaceId, ServiceInterface>, Error> {
     let context = context.deref()?;
-    let package_id = context.id.clone();
+    let package_id = package_id.unwrap_or_else(|| context.seed.id.clone());
 
     context
+        .seed
         .ctx
         .db
         .peek()
@@ -493,9 +433,10 @@ async fn list_service_interfaces(
 }
 async fn remove_address(context: EffectContext, data: RemoveAddressParams) -> Result<(), Error> {
     let context = context.deref()?;
-    let package_id = context.id.clone();
+    let package_id = context.seed.id.clone();
 
     context
+        .seed
         .ctx
         .db
         .mutate(|db| {
@@ -512,8 +453,9 @@ async fn remove_address(context: EffectContext, data: RemoveAddressParams) -> Re
 }
 async fn export_action(context: EffectContext, data: ExportActionParams) -> Result<(), Error> {
     let context = context.deref()?;
-    let package_id = context.id.clone();
+    let package_id = context.seed.id.clone();
     context
+        .seed
         .ctx
         .db
         .mutate(|db| {
@@ -535,8 +477,9 @@ async fn export_action(context: EffectContext, data: ExportActionParams) -> Resu
 }
 async fn remove_action(context: EffectContext, data: RemoveActionParams) -> Result<(), Error> {
     let context = context.deref()?;
-    let package_id = context.id.clone();
+    let package_id = context.seed.id.clone();
     context
+        .seed
         .ctx
         .db
         .mutate(|db| {
@@ -553,10 +496,8 @@ async fn remove_action(context: EffectContext, data: RemoveActionParams) -> Resu
         .await?;
     Ok(())
 }
-async fn reverse_proxy(context: EffectContext, data: ReverseProxyParams) -> Result<Value, Error> {
-    todo!()
-}
 async fn mount(context: EffectContext, data: MountParams) -> Result<Value, Error> {
+    // TODO
     todo!()
 }
 
@@ -567,46 +508,39 @@ struct Callback(#[ts(type = "() => void")] i64);
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-enum GetHostInfoParamsKind {
-    Multi,
-}
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
 struct GetHostInfoParams {
-    kind: Option<GetHostInfoParamsKind>,
-    service_interface_id: String,
+    host_id: HostId,
     #[ts(type = "string | null")]
     package_id: Option<PackageId>,
     callback: Callback,
 }
 async fn get_host_info(
-    ctx: EffectContext,
-    GetHostInfoParams { .. }: GetHostInfoParams,
-) -> Result<Value, Error> {
-    let ctx = ctx.deref()?;
-    Ok(json!({
-        "id": "fakeId1",
-        "kind": "multi",
-        "hostnames": [{
-            "kind": "ip",
-            "networkInterfaceId": "fakeNetworkInterfaceId1",
-            "public": true,
-            "hostname":{
-                  "kind": "domain",
-                  "domain": format!("{}", ctx.id),
-                  "subdomain": (),
-                  "port": (),
-                  "sslPort": ()
-                }
-          }
+    context: EffectContext,
+    GetHostInfoParams {
+        callback,
+        package_id,
+        host_id,
+    }: GetHostInfoParams,
+) -> Result<Host, Error> {
+    let context = context.deref()?;
+    let db = context.seed.ctx.db.peek().await;
+    let package_id = package_id.unwrap_or_else(|| context.seed.id.clone());
 
-        ]
-    }))
+    db.as_public()
+        .as_package_data()
+        .as_idx(&package_id)
+        .or_not_found(&package_id)?
+        .as_hosts()
+        .as_idx(&host_id)
+        .or_not_found(&host_id)?
+        .de()
 }
 
-async fn clear_bindings(context: EffectContext, _: Empty) -> Result<Value, Error> {
-    todo!()
+async fn clear_bindings(context: EffectContext, _: Empty) -> Result<(), Error> {
+    let context = context.deref()?;
+    let mut svc = context.seed.persistent_container.net_service.lock().await;
+    svc.clear_bindings().await?;
+    Ok(())
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
@@ -619,17 +553,15 @@ struct BindParams {
     #[serde(flatten)]
     options: BindOptions,
 }
-async fn bind(
-    context: EffectContext,
-    BindParams {
+async fn bind(context: EffectContext, bind_params: Value) -> Result<(), Error> {
+    let BindParams {
         kind,
         id,
         internal_port,
         options,
-    }: BindParams,
-) -> Result<(), Error> {
-    let ctx = context.deref()?;
-    let mut svc = ctx.persistent_container.net_service.lock().await;
+    } = from_value(bind_params)?;
+    let context = context.deref()?;
+    let mut svc = context.seed.persistent_container.net_service.lock().await;
     svc.bind(kind, id, internal_port, options).await
 }
 
@@ -639,39 +571,32 @@ async fn bind(
 struct GetServiceInterfaceParams {
     #[ts(type = "string | null")]
     package_id: Option<PackageId>,
-    service_interface_id: String,
+    service_interface_id: ServiceInterfaceId,
     callback: Callback,
 }
+
 async fn get_service_interface(
-    _: EffectContext,
+    context: EffectContext,
     GetServiceInterfaceParams {
         callback,
         package_id,
         service_interface_id,
     }: GetServiceInterfaceParams,
-) -> Result<Value, Error> {
-    // TODO @Dr_Bonez
-    Ok(json!({
-        "id": service_interface_id,
-        "name": service_interface_id,
-        "description": "This is a fake",
-        "hasPrimary": true,
-        "disabled": false,
-        "masked": false,
-        "addressInfo": json!({
-            "username": Value::Null,
-            "hostId": "HostId?",
-            "options": json!({
-                "scheme": Value::Null,
-                "preferredExternalPort": 80,
-                "addSsl":Value::Null,
-                "secure": false,
-                "ssl": false
-            }),
-            "suffix": "http"
-        }),
-        "type": "api"
-    }))
+) -> Result<ServiceInterface, Error> {
+    let context = context.deref()?;
+    let package_id = package_id.unwrap_or_else(|| context.seed.id.clone());
+    let db = context.seed.ctx.db.peek().await;
+
+    let interface = db
+        .as_public()
+        .as_package_data()
+        .as_idx(&package_id)
+        .or_not_found(&package_id)?
+        .as_service_interfaces()
+        .as_idx(&service_interface_id)
+        .or_not_found(&service_interface_id)?
+        .de()?;
+    Ok(interface)
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
@@ -764,6 +689,7 @@ async fn get_ssl_certificate(
         host_id,
     }: GetSslCertificateParams,
 ) -> Result<Value, Error> {
+    // TODO
     let fake = include_str!("./fake.cert.pem");
     Ok(json!([fake, fake, fake]))
 }
@@ -785,6 +711,7 @@ async fn get_ssl_key(
         algorithm,
     }: GetSslKeyParams,
 ) -> Result<Value, Error> {
+    // TODO
     let fake = include_str!("./fake.cert.key");
     Ok(json!(fake))
 }
@@ -803,8 +730,8 @@ async fn get_store(
     GetStoreParams { package_id, path }: GetStoreParams,
 ) -> Result<Value, Error> {
     let context = context.deref()?;
-    let peeked = context.ctx.db.peek().await;
-    let package_id = package_id.unwrap_or(context.id.clone());
+    let peeked = context.seed.ctx.db.peek().await;
+    let package_id = package_id.unwrap_or(context.seed.id.clone());
     let value = peeked
         .as_private()
         .as_package_stores()
@@ -832,8 +759,9 @@ async fn set_store(
     SetStoreParams { value, path }: SetStoreParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
-    let package_id = context.id.clone();
+    let package_id = context.seed.id.clone();
     context
+        .seed
         .ctx
         .db
         .mutate(|db| {
@@ -886,7 +814,7 @@ struct ParamsMaybePackageId {
 
 async fn exists(context: EffectContext, params: ParamsPackageId) -> Result<Value, Error> {
     let context = context.deref()?;
-    let peeked = context.ctx.db.peek().await;
+    let peeked = context.seed.ctx.db.peek().await;
     let package = peeked
         .as_public()
         .as_package_data()
@@ -899,6 +827,8 @@ async fn exists(context: EffectContext, params: ParamsPackageId) -> Result<Value
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 struct ExecuteAction {
+    #[serde(default)]
+    procedure_id: Guid,
     #[ts(type = "string | null")]
     service_id: Option<PackageId>,
     #[ts(type = "string")]
@@ -909,30 +839,26 @@ struct ExecuteAction {
 async fn execute_action(
     context: EffectContext,
     ExecuteAction {
+        procedure_id,
+        service_id,
         action_id,
         input,
-        service_id,
     }: ExecuteAction,
 ) -> Result<Value, Error> {
     let context = context.deref()?;
-    let package_id = service_id.clone().unwrap_or_else(|| context.id.clone());
-    let service = context.ctx.services.get(&package_id).await;
-    let service = service.as_ref().ok_or_else(|| {
-        Error::new(
-            eyre!("Could not find package {package_id}"),
-            ErrorKind::Unknown,
-        )
-    })?;
+    let package_id = service_id
+        .clone()
+        .unwrap_or_else(|| context.seed.id.clone());
 
-    Ok(json!(service.action(action_id, input).await?))
+    Ok(json!(context.action(procedure_id, action_id, input).await?))
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct FromService {}
 async fn get_configured(context: EffectContext, _: Empty) -> Result<Value, Error> {
     let context = context.deref()?;
-    let peeked = context.ctx.db.peek().await;
-    let package_id = &context.id;
+    let peeked = context.seed.ctx.db.peek().await;
+    let package_id = &context.seed.id;
     let package = peeked
         .as_public()
         .as_package_data()
@@ -946,8 +872,8 @@ async fn get_configured(context: EffectContext, _: Empty) -> Result<Value, Error
 
 async fn stopped(context: EffectContext, params: ParamsMaybePackageId) -> Result<Value, Error> {
     let context = context.deref()?;
-    let peeked = context.ctx.db.peek().await;
-    let package_id = params.package_id.unwrap_or_else(|| context.id.clone());
+    let peeked = context.seed.ctx.db.peek().await;
+    let package_id = params.package_id.unwrap_or_else(|| context.seed.id.clone());
     let package = peeked
         .as_public()
         .as_package_data()
@@ -959,9 +885,8 @@ async fn stopped(context: EffectContext, params: ParamsMaybePackageId) -> Result
     Ok(json!(matches!(package, MainStatus::Stopped)))
 }
 async fn running(context: EffectContext, params: ParamsPackageId) -> Result<Value, Error> {
-    dbg!("Starting the running {params:?}");
     let context = context.deref()?;
-    let peeked = context.ctx.db.peek().await;
+    let peeked = context.seed.ctx.db.peek().await;
     let package_id = params.package_id;
     let package = peeked
         .as_public()
@@ -974,30 +899,66 @@ async fn running(context: EffectContext, params: ParamsPackageId) -> Result<Valu
     Ok(json!(matches!(package, MainStatus::Running { .. })))
 }
 
-async fn restart(context: EffectContext, _: Empty) -> Result<Value, Error> {
-    let context = context.deref()?;
-    let service = context.ctx.services.get(&context.id).await;
-    let service = service.as_ref().ok_or_else(|| {
-        Error::new(
-            eyre!("Could not find package {}", context.id),
-            ErrorKind::Unknown,
-        )
-    })?;
-    service.restart().await?;
-    Ok(json!(()))
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+struct ProcedureId {
+    #[serde(default)]
+    procedure_id: Guid,
 }
 
-async fn shutdown(context: EffectContext, _: Empty) -> Result<Value, Error> {
-    let context = context.deref()?;
-    let service = context.ctx.services.get(&context.id).await;
-    let service = service.as_ref().ok_or_else(|| {
-        Error::new(
-            eyre!("Could not find package {}", context.id),
-            ErrorKind::Unknown,
+impl FromArgMatches for ProcedureId {
+    fn from_arg_matches(matches: &clap::ArgMatches) -> Result<Self, clap::Error> {
+        Ok(Self {
+            procedure_id: matches.get_one("procedure-id").cloned().unwrap_or_default(),
+        })
+    }
+    fn from_arg_matches_mut(matches: &mut clap::ArgMatches) -> Result<Self, clap::Error> {
+        Ok(Self {
+            procedure_id: matches.get_one("procedure-id").cloned().unwrap_or_default(),
+        })
+    }
+    fn update_from_arg_matches(&mut self, matches: &clap::ArgMatches) -> Result<(), clap::Error> {
+        self.procedure_id = matches.get_one("procedure-id").cloned().unwrap_or_default();
+        Ok(())
+    }
+    fn update_from_arg_matches_mut(
+        &mut self,
+        matches: &mut clap::ArgMatches,
+    ) -> Result<(), clap::Error> {
+        self.procedure_id = matches.get_one("procedure-id").cloned().unwrap_or_default();
+        Ok(())
+    }
+}
+impl CommandFactory for ProcedureId {
+    fn command() -> clap::Command {
+        Self::command_for_update().arg(
+            clap::Arg::new("procedure-id")
+                .action(clap::ArgAction::Set)
+                .value_parser(clap::value_parser!(Guid)),
         )
-    })?;
-    service.stop().await?;
-    Ok(json!(()))
+    }
+    fn command_for_update() -> clap::Command {
+        Self::command()
+    }
+}
+
+async fn restart(
+    context: EffectContext,
+    ProcedureId { procedure_id }: ProcedureId,
+) -> Result<(), Error> {
+    let context = context.deref()?;
+    context.restart(procedure_id).await?;
+    Ok(())
+}
+
+async fn shutdown(
+    context: EffectContext,
+    ProcedureId { procedure_id }: ProcedureId,
+) -> Result<(), Error> {
+    let context = context.deref()?;
+    context.stop(procedure_id).await?;
+    Ok(())
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
@@ -1009,8 +970,9 @@ struct SetConfigured {
 }
 async fn set_configured(context: EffectContext, params: SetConfigured) -> Result<Value, Error> {
     let context = context.deref()?;
-    let package_id = &context.id;
+    let package_id = &context.seed.id;
     context
+        .seed
         .ctx
         .db
         .mutate(|db| {
@@ -1032,7 +994,6 @@ async fn set_configured(context: EffectContext, params: SetConfigured) -> Result
 enum SetMainStatusStatus {
     Running,
     Stopped,
-    Starting,
 }
 impl FromStr for SetMainStatusStatus {
     type Err = color_eyre::eyre::Report;
@@ -1040,7 +1001,6 @@ impl FromStr for SetMainStatusStatus {
         match s {
             "running" => Ok(Self::Running),
             "stopped" => Ok(Self::Stopped),
-            "starting" => Ok(Self::Starting),
             _ => Err(eyre!("unknown status {s}")),
         }
     }
@@ -1060,12 +1020,10 @@ struct SetMainStatus {
     status: SetMainStatusStatus,
 }
 async fn set_main_status(context: EffectContext, params: SetMainStatus) -> Result<Value, Error> {
-    dbg!(format!("Status for main will be is {params:?}"));
     let context = context.deref()?;
     match params.status {
-        SetMainStatusStatus::Running => context.started(),
-        SetMainStatusStatus::Stopped => context.stopped(),
-        SetMainStatusStatus::Starting => context.stopped(),
+        SetMainStatusStatus::Running => context.seed.started(),
+        SetMainStatusStatus::Stopped => context.seed.stopped(),
     }
     Ok(Value::Null)
 }
@@ -1085,8 +1043,9 @@ async fn set_health(
 ) -> Result<Value, Error> {
     let context = context.deref()?;
 
-    let package_id = &context.id;
+    let package_id = &context.seed.id;
     context
+        .seed
         .ctx
         .db
         .mutate(move |db| {
@@ -1115,17 +1074,17 @@ async fn set_health(
 #[command(rename_all = "camelCase")]
 #[ts(export)]
 pub struct DestroyOverlayedImageParams {
-    #[ts(type = "string")]
-    guid: InternedString,
+    guid: Guid,
 }
 
 #[instrument(skip_all)]
 pub async fn destroy_overlayed_image(
-    ctx: EffectContext,
+    context: EffectContext,
     DestroyOverlayedImageParams { guid }: DestroyOverlayedImageParams,
 ) -> Result<(), Error> {
-    let ctx = ctx.deref()?;
-    if ctx
+    let context = context.deref()?;
+    if context
+        .seed
         .persistent_container
         .overlays
         .lock()
@@ -1142,30 +1101,25 @@ pub async fn destroy_overlayed_image(
 #[command(rename_all = "camelCase")]
 #[ts(export)]
 pub struct CreateOverlayedImageParams {
-    #[ts(type = "string")]
     image_id: ImageId,
 }
 
 #[instrument(skip_all)]
 pub async fn create_overlayed_image(
-    ctx: EffectContext,
+    context: EffectContext,
     CreateOverlayedImageParams { image_id }: CreateOverlayedImageParams,
-) -> Result<(PathBuf, InternedString), Error> {
-    let ctx = ctx.deref()?;
-    let path = Path::new("images")
-        .join(*ARCH)
-        .join(&image_id)
-        .with_extension("squashfs");
-    if let Some(image) = ctx
+) -> Result<(PathBuf, Guid), Error> {
+    let context = context.deref()?;
+    if let Some(image) = context
+        .seed
         .persistent_container
-        .s9pk
-        .as_archive()
-        .contents()
-        .get_path(&path)
-        .and_then(|e| e.as_file())
+        .images
+        .get(&image_id)
+        .cloned()
     {
-        let guid = new_guid();
-        let rootfs_dir = ctx
+        let guid = Guid::new();
+        let rootfs_dir = context
+            .seed
             .persistent_container
             .lxc_container
             .get()
@@ -1176,7 +1130,9 @@ pub async fn create_overlayed_image(
                 )
             })?
             .rootfs_dir();
-        let mountpoint = rootfs_dir.join("media/startos/overlays").join(&*guid);
+        let mountpoint = rootfs_dir
+            .join("media/startos/overlays")
+            .join(guid.as_ref());
         tokio::fs::create_dir_all(&mountpoint).await?;
         let container_mountpoint = Path::new("/").join(
             mountpoint
@@ -1184,18 +1140,16 @@ pub async fn create_overlayed_image(
                 .with_kind(ErrorKind::Incoherent)?,
         );
         tracing::info!("Mounting overlay {guid} for {image_id}");
-        let guard = OverlayGuard::mount(
-            &IdMapped::new(LoopDev::from(&**image), 0, 100000, 65536),
-            &mountpoint,
-        )
-        .await?;
+        let guard = OverlayGuard::mount(image, &mountpoint).await?;
         Command::new("chown")
             .arg("100000:100000")
             .arg(&mountpoint)
             .invoke(ErrorKind::Filesystem)
             .await?;
         tracing::info!("Mounted overlay {guid} for {image_id}");
-        ctx.persistent_container
+        context
+            .seed
+            .persistent_container
             .overlays
             .lock()
             .await
@@ -1298,17 +1252,21 @@ impl ValueParserFactory for DependencyRequirement {
 #[command(rename_all = "camelCase")]
 #[ts(export)]
 struct SetDependenciesParams {
+    #[serde(default)]
+    procedure_id: Guid,
     dependencies: Vec<DependencyRequirement>,
 }
 
 async fn set_dependencies(
-    ctx: EffectContext,
-    SetDependenciesParams { dependencies }: SetDependenciesParams,
+    context: EffectContext,
+    SetDependenciesParams {
+        procedure_id,
+        dependencies,
+    }: SetDependenciesParams,
 ) -> Result<(), Error> {
-    let ctx = ctx.deref()?;
-    let id = &ctx.id;
-    let service_guard = ctx.ctx.services.get(id).await;
-    let service = service_guard.as_ref().or_not_found(id)?;
+    let context = context.deref()?;
+    let id = &context.seed.id;
+
     let mut deps = BTreeMap::new();
     for dependency in dependencies {
         let (dep_id, kind, registry_url, version_spec) = match dependency {
@@ -1338,14 +1296,13 @@ async fn set_dependencies(
             let remote_s9pk = S9pk::deserialize(
                 &Arc::new(
                     HttpSource::new(
-                        ctx.ctx.client.clone(),
+                        context.seed.ctx.client.clone(),
                         registry_url
                             .join(&format!("package/v2/{}.s9pk?spec={}", dep_id, version_spec))?,
                     )
                     .await?,
                 ),
                 None, // TODO
-                true,
             )
             .await?;
 
@@ -1365,14 +1322,19 @@ async fn set_dependencies(
                 )
             }
         };
-        let config_satisfied = if let Some(dep_service) = &*ctx.ctx.services.get(&dep_id).await {
-            service
-                .dependency_config(dep_id.clone(), dep_service.get_config().await?.config)
-                .await?
-                .is_none()
-        } else {
-            true
-        };
+        let config_satisfied =
+            if let Some(dep_service) = &*context.seed.ctx.services.get(&dep_id).await {
+                context
+                    .dependency_config(
+                        procedure_id.clone(),
+                        dep_id.clone(),
+                        dep_service.get_config(procedure_id.clone()).await?.config,
+                    )
+                    .await?
+                    .is_none()
+            } else {
+                true
+            };
         deps.insert(
             dep_id,
             CurrentDependencyInfo {
@@ -1385,7 +1347,9 @@ async fn set_dependencies(
             },
         );
     }
-    ctx.ctx
+    context
+        .seed
+        .ctx
         .db
         .mutate(|db| {
             db.as_public_mut()
@@ -1398,10 +1362,10 @@ async fn set_dependencies(
         .await
 }
 
-async fn get_dependencies(ctx: EffectContext) -> Result<Vec<DependencyRequirement>, Error> {
-    let ctx = ctx.deref()?;
-    let id = &ctx.id;
-    let db = ctx.ctx.db.peek().await;
+async fn get_dependencies(context: EffectContext) -> Result<Vec<DependencyRequirement>, Error> {
+    let context = context.deref()?;
+    let id = &context.seed.id;
+    let db = context.seed.ctx.db.peek().await;
     let data = db
         .as_public()
         .as_package_data()
@@ -1458,16 +1422,16 @@ struct CheckDependenciesResult {
 }
 
 async fn check_dependencies(
-    ctx: EffectContext,
+    context: EffectContext,
     CheckDependenciesParam { package_ids }: CheckDependenciesParam,
 ) -> Result<Vec<CheckDependenciesResult>, Error> {
-    let ctx = ctx.deref()?;
-    let db = ctx.ctx.db.peek().await;
+    let context = context.deref()?;
+    let db = context.seed.ctx.db.peek().await;
     let current_dependencies = db
         .as_public()
         .as_package_data()
-        .as_idx(&ctx.id)
-        .or_not_found(&ctx.id)?
+        .as_idx(&context.seed.id)
+        .or_not_found(&context.seed.id)?
         .as_current_dependencies()
         .de()?;
     let package_ids: Vec<_> = package_ids

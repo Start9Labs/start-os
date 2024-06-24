@@ -18,41 +18,27 @@ const makeManyInterfaceFilled = async ({
     packageId,
     callback,
   })
-  const hostIdsRecord = Object.fromEntries(
-    await Promise.all(
-      Array.from(new Set(serviceInterfaceValues.map((x) => x.id))).map(
-        async (id) =>
-          [
-            id,
-            await effects.getHostInfo({
-              kind: null,
-              packageId,
-              serviceInterfaceId: id,
-              callback,
-            }),
-          ] as const,
-      ),
-    ),
-  )
 
   const serviceInterfacesFilled: ServiceInterfaceFilled[] = await Promise.all(
-    serviceInterfaceValues.map(async (serviceInterfaceValue) => {
-      const hostInfo = await effects.getHostInfo({
-        kind: null,
+    Object.values(serviceInterfaceValues).map(async (serviceInterfaceValue) => {
+      const hostId = serviceInterfaceValue.addressInfo.hostId
+      const host = await effects.getHostInfo({
         packageId,
-        serviceInterfaceId: serviceInterfaceValue.id,
+        hostId,
         callback,
       })
-      const primaryUrl = await effects.getPrimaryUrl({
-        serviceInterfaceId: serviceInterfaceValue.id,
-        packageId,
-        callback,
-      })
+      const primaryUrl = await effects
+        .getPrimaryUrl({
+          serviceInterfaceId: serviceInterfaceValue.id,
+          packageId,
+          callback,
+        })
+        .catch(() => null)
       return {
         ...serviceInterfaceValue,
         primaryUrl: primaryUrl,
-        hostInfo,
-        addressInfo: filledAddress(hostInfo, serviceInterfaceValue.addressInfo),
+        host,
+        addressInfo: filledAddress(host, serviceInterfaceValue.addressInfo),
         get primaryHostname() {
           if (primaryUrl == null) return null
           return getHostname(primaryUrl)

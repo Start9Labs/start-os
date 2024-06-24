@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 use std::future::Future;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
@@ -11,6 +11,8 @@ use std::time::Duration;
 use async_trait::async_trait;
 use color_eyre::eyre::{self, eyre};
 use fd_lock_rs::FdLock;
+use futures::future::BoxFuture;
+use futures::FutureExt;
 use helpers::canonicalize;
 pub use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
@@ -19,7 +21,8 @@ pub use models::VersionString;
 use pin_project::pin_project;
 use sha2::Digest;
 use tokio::fs::File;
-use tokio::sync::{Mutex, OwnedMutexGuard, RwLock};
+use tokio::io::{AsyncRead, AsyncReadExt, BufReader};
+use tokio::sync::{oneshot, Mutex, OwnedMutexGuard, RwLock};
 use tracing::instrument;
 
 use crate::shutdown::Shutdown;
@@ -33,6 +36,7 @@ pub mod http_reader;
 pub mod io;
 pub mod logger;
 pub mod lshw;
+pub mod net;
 pub mod rpc;
 pub mod rpc_client;
 pub mod serde;
@@ -62,11 +66,16 @@ pub trait Invoke<'a> {
     where
         Self: 'ext,
         'ext: 'a;
+    fn pipe<'ext: 'a>(
+        &'ext mut self,
+        next: &'ext mut tokio::process::Command,
+    ) -> Self::Extended<'ext>;
     fn timeout<'ext: 'a>(&'ext mut self, timeout: Option<Duration>) -> Self::Extended<'ext>;
     fn input<'ext: 'a, Input: tokio::io::AsyncRead + Unpin + Send>(
         &'ext mut self,
         input: Option<&'ext mut Input>,
     ) -> Self::Extended<'ext>;
+    fn capture<'ext: 'a>(&'ext mut self, capture: bool) -> Self::Extended<'ext>;
     fn invoke(
         &mut self,
         error_kind: crate::ErrorKind,
@@ -76,7 +85,20 @@ pub trait Invoke<'a> {
 pub struct ExtendedCommand<'a> {
     cmd: &'a mut tokio::process::Command,
     timeout: Option<Duration>,
-    input: Option<&'a mut (dyn tokio::io::AsyncRead + Unpin + Send)>,
+    input: Option<&'a mut (dyn AsyncRead + Unpin + Send)>,
+    pipe: VecDeque<&'a mut tokio::process::Command>,
+    capture: bool,
+}
+impl<'a> From<&'a mut tokio::process::Command> for ExtendedCommand<'a> {
+    fn from(value: &'a mut tokio::process::Command) -> Self {
+        ExtendedCommand {
+            cmd: value,
+            timeout: None,
+            input: None,
+            pipe: VecDeque::new(),
+            capture: true,
+        }
+    }
 }
 impl<'a> std::ops::Deref for ExtendedCommand<'a> {
     type Target = tokio::process::Command;
@@ -95,35 +117,38 @@ impl<'a> Invoke<'a> for tokio::process::Command {
     where
         Self: 'ext,
         'ext: 'a;
-    fn timeout<'ext: 'a>(&'ext mut self, timeout: Option<Duration>) -> Self::Extended<'ext> {
-        ExtendedCommand {
-            cmd: self,
-            timeout,
-            input: None,
-        }
+    fn pipe<'ext: 'a>(
+        &'ext mut self,
+        next: &'ext mut tokio::process::Command,
+    ) -> Self::Extended<'ext> {
+        let mut cmd = ExtendedCommand::from(self);
+        cmd.pipe.push_back(next);
+        cmd
     }
-    fn input<'ext: 'a, Input: tokio::io::AsyncRead + Unpin + Send>(
+    fn timeout<'ext: 'a>(&'ext mut self, timeout: Option<Duration>) -> Self::Extended<'ext> {
+        let mut cmd = ExtendedCommand::from(self);
+        cmd.timeout = timeout;
+        cmd
+    }
+    fn input<'ext: 'a, Input: AsyncRead + Unpin + Send>(
         &'ext mut self,
         input: Option<&'ext mut Input>,
     ) -> Self::Extended<'ext> {
-        ExtendedCommand {
-            cmd: self,
-            timeout: None,
-            input: if let Some(input) = input {
-                Some(&mut *input)
-            } else {
-                None
-            },
-        }
+        let mut cmd = ExtendedCommand::from(self);
+        cmd.input = if let Some(input) = input {
+            Some(&mut *input)
+        } else {
+            None
+        };
+        cmd
+    }
+    fn capture<'ext: 'a>(&'ext mut self, capture: bool) -> Self::Extended<'ext> {
+        let mut cmd = ExtendedCommand::from(self);
+        cmd.capture = capture;
+        cmd
     }
     async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error> {
-        ExtendedCommand {
-            cmd: self,
-            timeout: None,
-            input: None,
-        }
-        .invoke(error_kind)
-        .await
+        ExtendedCommand::from(self).invoke(error_kind).await
     }
 }
 
@@ -132,6 +157,13 @@ impl<'a> Invoke<'a> for ExtendedCommand<'a> {
     where
         Self: 'ext,
         'ext: 'a;
+    fn pipe<'ext: 'a>(
+        &'ext mut self,
+        next: &'ext mut tokio::process::Command,
+    ) -> Self::Extended<'ext> {
+        self.pipe.push_back(next.kill_on_drop(true));
+        self
+    }
     fn timeout<'ext: 'a>(&'ext mut self, timeout: Option<Duration>) -> Self::Extended<'ext> {
         self.timeout = timeout;
         self
@@ -147,39 +179,150 @@ impl<'a> Invoke<'a> for ExtendedCommand<'a> {
         };
         self
     }
+    fn capture<'ext: 'a>(&'ext mut self, capture: bool) -> Self::Extended<'ext> {
+        self.capture = capture;
+        self
+    }
+    #[instrument(skip_all)]
     async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error> {
+        let cmd_str = self
+            .cmd
+            .as_std()
+            .get_program()
+            .to_string_lossy()
+            .into_owned();
         self.cmd.kill_on_drop(true);
         if self.input.is_some() {
             self.cmd.stdin(Stdio::piped());
         }
-        self.cmd.stdout(Stdio::piped());
-        self.cmd.stderr(Stdio::piped());
-        let mut child = self.cmd.spawn().with_kind(error_kind)?;
-        if let (Some(mut stdin), Some(input)) = (child.stdin.take(), self.input.take()) {
-            use tokio::io::AsyncWriteExt;
-            tokio::io::copy(input, &mut stdin).await?;
-            stdin.flush().await?;
-            stdin.shutdown().await?;
-            drop(stdin);
+        if self.pipe.is_empty() {
+            if self.capture {
+                self.cmd.stdout(Stdio::piped());
+                self.cmd.stderr(Stdio::piped());
+            }
+            let mut child = self.cmd.spawn().with_ctx(|_| (error_kind, &cmd_str))?;
+            if let (Some(mut stdin), Some(input)) = (child.stdin.take(), self.input.take()) {
+                use tokio::io::AsyncWriteExt;
+                tokio::io::copy(input, &mut stdin).await?;
+                stdin.flush().await?;
+                stdin.shutdown().await?;
+                drop(stdin);
+            }
+            let res = match self.timeout {
+                None => child
+                    .wait_with_output()
+                    .await
+                    .with_ctx(|_| (error_kind, &cmd_str))?,
+                Some(t) => tokio::time::timeout(t, child.wait_with_output())
+                    .await
+                    .with_kind(ErrorKind::Timeout)?
+                    .with_ctx(|_| (error_kind, &cmd_str))?,
+            };
+            crate::ensure_code!(
+                res.status.success(),
+                error_kind,
+                "{}",
+                Some(&res.stderr)
+                    .filter(|a| !a.is_empty())
+                    .or(Some(&res.stdout))
+                    .filter(|a| !a.is_empty())
+                    .and_then(|a| std::str::from_utf8(a).ok())
+                    .unwrap_or(&format!(
+                        "{} exited with code {}",
+                        self.cmd.as_std().get_program().to_string_lossy(),
+                        res.status
+                    ))
+            );
+            Ok(res.stdout)
+        } else {
+            let mut futures = Vec::<BoxFuture<'_, Result<(), Error>>>::new(); // todo: predict capacity
+
+            let mut cmds = std::mem::take(&mut self.pipe);
+            cmds.push_front(&mut *self.cmd);
+            let len = cmds.len();
+
+            let timeout = self.timeout;
+
+            let mut prev = self
+                .input
+                .take()
+                .map(|i| Box::new(i) as Box<dyn AsyncRead + Unpin + Send>);
+            for (idx, cmd) in IntoIterator::into_iter(cmds).enumerate() {
+                let last = idx == len - 1;
+                if self.capture || !last {
+                    cmd.stdout(Stdio::piped());
+                }
+                if self.capture {
+                    cmd.stderr(Stdio::piped());
+                }
+                if prev.is_some() {
+                    cmd.stdin(Stdio::piped());
+                }
+                let mut child = cmd.spawn().with_kind(error_kind)?;
+                let input = std::mem::replace(
+                    &mut prev,
+                    child
+                        .stdout
+                        .take()
+                        .map(|i| Box::new(BufReader::new(i)) as Box<dyn AsyncRead + Unpin + Send>),
+                );
+                futures.push(
+                    async move {
+                        if let (Some(mut stdin), Some(mut input)) = (child.stdin.take(), input) {
+                            use tokio::io::AsyncWriteExt;
+                            tokio::io::copy(&mut input, &mut stdin).await?;
+                            stdin.flush().await?;
+                            stdin.shutdown().await?;
+                            drop(stdin);
+                        }
+                        let res = match timeout {
+                            None => child.wait_with_output().await?,
+                            Some(t) => tokio::time::timeout(t, child.wait_with_output())
+                                .await
+                                .with_kind(ErrorKind::Timeout)??,
+                        };
+                        crate::ensure_code!(
+                            res.status.success(),
+                            error_kind,
+                            "{}",
+                            Some(&res.stderr)
+                                .filter(|a| !a.is_empty())
+                                .or(Some(&res.stdout))
+                                .filter(|a| !a.is_empty())
+                                .and_then(|a| std::str::from_utf8(a).ok())
+                                .unwrap_or(&format!(
+                                    "{} exited with code {}",
+                                    cmd.as_std().get_program().to_string_lossy(),
+                                    res.status
+                                ))
+                        );
+
+                        Ok(())
+                    }
+                    .boxed(),
+                );
+            }
+
+            let (send, recv) = oneshot::channel();
+            futures.push(
+                async move {
+                    if let Some(mut prev) = prev {
+                        let mut res = Vec::new();
+                        prev.read_to_end(&mut res).await?;
+                        send.send(res).unwrap();
+                    } else {
+                        send.send(Vec::new()).unwrap();
+                    }
+
+                    Ok(())
+                }
+                .boxed(),
+            );
+
+            futures::future::try_join_all(futures).await?;
+
+            Ok(recv.await.unwrap())
         }
-        let res = match self.timeout {
-            None => child.wait_with_output().await?,
-            Some(t) => tokio::time::timeout(t, child.wait_with_output())
-                .await
-                .with_kind(ErrorKind::Timeout)??,
-        };
-        crate::ensure_code!(
-            res.status.success(),
-            error_kind,
-            "{}",
-            Some(&res.stderr)
-                .filter(|a| !a.is_empty())
-                .or(Some(&res.stdout))
-                .filter(|a| !a.is_empty())
-                .and_then(|a| std::str::from_utf8(a).ok())
-                .unwrap_or(&format!("Unknown Error ({})", res.status))
-        );
-        Ok(res.stdout)
     }
 }
 

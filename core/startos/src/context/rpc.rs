@@ -6,11 +6,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use imbl_value::InternedString;
 use josekit::jwk::Jwk;
 use reqwest::{Client, Proxy};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty};
-use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
+use tokio::sync::{broadcast, Mutex, RwLock};
 use tokio::time::Instant;
 use tracing::instrument;
 use url::Url;
@@ -23,12 +24,12 @@ use crate::dependencies::compute_dependency_config_errs;
 use crate::disk::OsPartitionInfo;
 use crate::init::check_time_is_synchronized;
 use crate::lxc::{ContainerId, LxcContainer, LxcManager};
-use crate::middleware::auth::HashSessionToken;
-use crate::net::net_controller::NetController;
+use crate::net::net_controller::{NetController, PreInitNetController};
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
 use crate::net::wifi::WpaCli;
 use crate::prelude::*;
-use crate::rpc_continuations::RpcContinuations;
+use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle};
+use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
 use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
 use crate::system::get_mem_info;
@@ -44,12 +45,13 @@ pub struct RpcContextSeed {
     pub db: TypedPatchDb<Database>,
     pub account: RwLock<AccountInfo>,
     pub net_controller: Arc<NetController>,
+    pub s9pk_arch: Option<&'static str>,
     pub services: ServiceMap,
     pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
     pub shutdown: broadcast::Sender<Option<Shutdown>>,
     pub tor_socks: SocketAddr,
     pub lxc_manager: Arc<LxcManager>,
-    pub open_authed_websockets: Mutex<BTreeMap<HashSessionToken, Vec<oneshot::Sender<()>>>>,
+    pub open_authed_continuations: OpenAuthedContinuations<InternedString>,
     pub rpc_continuations: RpcContinuations,
     pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
     pub current_secret: Arc<Jwk>,
@@ -69,45 +71,103 @@ pub struct Hardware {
     pub ram: u64,
 }
 
+pub struct InitRpcContextPhases {
+    load_db: PhaseProgressTrackerHandle,
+    init_net_ctrl: PhaseProgressTrackerHandle,
+    read_device_info: PhaseProgressTrackerHandle,
+    cleanup_init: CleanupInitPhases,
+}
+impl InitRpcContextPhases {
+    pub fn new(handle: &FullProgressTracker) -> Self {
+        Self {
+            load_db: handle.add_phase("Loading database".into(), Some(5)),
+            init_net_ctrl: handle.add_phase("Initializing network".into(), Some(1)),
+            read_device_info: handle.add_phase("Reading device information".into(), Some(1)),
+            cleanup_init: CleanupInitPhases::new(handle),
+        }
+    }
+}
+
+pub struct CleanupInitPhases {
+    init_services: PhaseProgressTrackerHandle,
+    check_dependencies: PhaseProgressTrackerHandle,
+}
+impl CleanupInitPhases {
+    pub fn new(handle: &FullProgressTracker) -> Self {
+        Self {
+            init_services: handle.add_phase("Initializing services".into(), Some(10)),
+            check_dependencies: handle.add_phase("Checking dependencies".into(), Some(1)),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
     #[instrument(skip_all)]
-    pub async fn init(config: &ServerConfig, disk_guid: Arc<String>) -> Result<Self, Error> {
-        tracing::info!("Loaded Config");
+    pub async fn init(
+        config: &ServerConfig,
+        disk_guid: Arc<String>,
+        net_ctrl: Option<PreInitNetController>,
+        InitRpcContextPhases {
+            mut load_db,
+            mut init_net_ctrl,
+            mut read_device_info,
+            cleanup_init,
+        }: InitRpcContextPhases,
+    ) -> Result<Self, Error> {
         let tor_proxy = config.tor_socks.unwrap_or(SocketAddr::V4(SocketAddrV4::new(
             Ipv4Addr::new(127, 0, 0, 1),
             9050,
         )));
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
 
-        let db = TypedPatchDb::<Database>::load(config.db().await?).await?;
+        load_db.start();
+        let db = if let Some(net_ctrl) = &net_ctrl {
+            net_ctrl.db.clone()
+        } else {
+            TypedPatchDb::<Database>::load(config.db().await?).await?
+        };
         let peek = db.peek().await;
         let account = AccountInfo::load(&peek)?;
+        load_db.complete();
         tracing::info!("Opened PatchDB");
+
+        init_net_ctrl.start();
         let net_controller = Arc::new(
             NetController::init(
-                db.clone(),
-                config
-                    .tor_control
-                    .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
-                tor_proxy,
+                if let Some(net_ctrl) = net_ctrl {
+                    net_ctrl
+                } else {
+                    PreInitNetController::init(
+                        db.clone(),
+                        config
+                            .tor_control
+                            .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
+                        tor_proxy,
+                        &account.hostname,
+                        account.tor_key.clone(),
+                    )
+                    .await?
+                },
                 config
                     .dns_bind
                     .as_deref()
                     .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
-                &account.hostname,
-                account.tor_key.clone(),
             )
             .await?,
         );
+        init_net_ctrl.complete();
         tracing::info!("Initialized Net Controller");
+
         let services = ServiceMap::default();
         let metrics_cache = RwLock::<Option<crate::system::Metrics>>::new(None);
-        tracing::info!("Initialized Notification Manager");
         let tor_proxy_url = format!("socks5h://{tor_proxy}");
+
+        read_device_info.start();
         let devices = lshw().await?;
         let ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
+        read_device_info.complete();
 
         if !db
             .peek()
@@ -154,12 +214,17 @@ impl RpcContext {
             db,
             account: RwLock::new(account),
             net_controller,
+            s9pk_arch: if config.multi_arch_s9pks.unwrap_or(false) {
+                None
+            } else {
+                Some(crate::ARCH)
+            },
             services,
             metrics_cache,
             shutdown,
             tor_socks: tor_proxy,
             lxc_manager: Arc::new(LxcManager::new()),
-            open_authed_websockets: Mutex::new(BTreeMap::new()),
+            open_authed_continuations: OpenAuthedContinuations::new(),
             rpc_continuations: RpcContinuations::new(),
             wifi_manager: wifi_interface
                 .clone()
@@ -193,7 +258,7 @@ impl RpcContext {
         });
 
         let res = Self(seed.clone());
-        res.cleanup_and_initialize().await?;
+        res.cleanup_and_initialize(cleanup_init).await?;
         tracing::info!("Cleaned up transient states");
         Ok(res)
     }
@@ -207,11 +272,18 @@ impl RpcContext {
         Ok(())
     }
 
-    #[instrument(skip(self))]
-    pub async fn cleanup_and_initialize(&self) -> Result<(), Error> {
-        self.services.init(&self).await?;
+    #[instrument(skip_all)]
+    pub async fn cleanup_and_initialize(
+        &self,
+        CleanupInitPhases {
+            init_services,
+            mut check_dependencies,
+        }: CleanupInitPhases,
+    ) -> Result<(), Error> {
+        self.services.init(&self, init_services).await?;
         tracing::info!("Initialized Package Managers");
 
+        check_dependencies.start();
         let mut updated_current_dependents = BTreeMap::new();
         let peek = self.db.peek().await;
         for (package_id, package) in peek.as_public().as_package_data().as_entries()?.into_iter() {
@@ -235,6 +307,7 @@ impl RpcContext {
                 Ok(())
             })
             .await?;
+        check_dependencies.complete();
 
         Ok(())
     }
@@ -269,6 +342,11 @@ impl AsRef<Jwk> for RpcContext {
 impl AsRef<RpcContinuations> for RpcContext {
     fn as_ref(&self) -> &RpcContinuations {
         &self.rpc_continuations
+    }
+}
+impl AsRef<OpenAuthedContinuations<InternedString>> for RpcContext {
+    fn as_ref(&self) -> &OpenAuthedContinuations<InternedString> {
+        &self.open_authed_continuations
     }
 }
 impl Context for RpcContext {}

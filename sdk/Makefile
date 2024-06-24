@@ -25,7 +25,7 @@ dist: $(TS_FILES) package.json node_modules README.md LICENSE
 	cp LICENSE dist/LICENSE
 	touch dist
 
-full-bundle: clean bundle
+full-bundle: bundle
 
 check:
 	npm run check
@@ -36,7 +36,7 @@ fmt: node_modules
 node_modules: package.json
 	npm ci
 
-publish: clean bundle package.json README.md LICENSE
+publish: bundle package.json README.md LICENSE
 	cd dist && npm publish --access=public
 
 link: bundle

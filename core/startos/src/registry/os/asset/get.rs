@@ -3,7 +3,7 @@ use std::panic::UnwindSafe;
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
-use helpers::{AtomicFile, NonDetachingJoinHandle};
+use helpers::AtomicFile;
 use imbl_value::{json, InternedString};
 use itertools::Itertools;
 use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
@@ -12,7 +12,7 @@ use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::prelude::*;
-use crate::progress::{FullProgressTracker, PhasedProgressBar};
+use crate::progress::FullProgressTracker;
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
 use crate::registry::os::index::OsVersionInfo;
@@ -135,29 +135,17 @@ async fn cli_get_os_asset(
             .await
             .with_kind(ErrorKind::Filesystem)?;
 
-        let mut progress = FullProgressTracker::new();
-        let progress_handle = progress.handle();
+        let progress = FullProgressTracker::new();
         let mut download_phase =
-            progress_handle.add_phase(InternedString::intern("Downloading File"), Some(100));
+            progress.add_phase(InternedString::intern("Downloading File"), Some(100));
         download_phase.set_total(res.commitment.size);
         let reverify_phase = if reverify {
-            Some(progress_handle.add_phase(InternedString::intern("Reverifying File"), Some(10)))
+            Some(progress.add_phase(InternedString::intern("Reverifying File"), Some(10)))
         } else {
             None
         };
 
-        let progress_task: NonDetachingJoinHandle<()> = tokio::spawn(async move {
-            let mut bar = PhasedProgressBar::new("Downloading...");
-            loop {
-                let snap = progress.snapshot();
-                bar.update(&snap);
-                if snap.overall.is_complete() {
-                    break;
-                }
-                progress.changed().await
-            }
-        })
-        .into();
+        let progress_task = progress.progress_bar_task("Downloading...");
 
         download_phase.start();
         let mut download_writer = download_phase.writer(&mut *file);
@@ -177,7 +165,7 @@ async fn cli_get_os_asset(
             reverify_phase.complete();
         }
 
-        progress_handle.complete();
+        progress.complete();
 
         progress_task.await.with_kind(ErrorKind::Unknown)?;
     }

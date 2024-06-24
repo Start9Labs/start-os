@@ -1,17 +1,28 @@
-import { Dump, Revision } from 'patch-db-client'
+import { Dump } from 'patch-db-client'
 import { MarketplacePkg, StoreInfo } from '@start9labs/marketplace'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
+import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
 export module RR {
+  // websocket
+
+  export type WebsocketConfig<T> = Omit<WebSocketSubjectConfig<T>, 'url'>
+
+  // server state
+
+  export type ServerState = 'initializing' | 'error' | 'running'
+
   // DB
 
-  export type GetRevisionsRes = Revision[] | Dump<DataModel>
-
-  export type GetDumpRes = Dump<DataModel>
+  export type SubscribePatchReq = {}
+  export type SubscribePatchRes = {
+    dump: Dump<DataModel>
+    guid: string
+  }
 
   export type SetDBValueReq<T> = { pointer: string; value: T } // db.put.ui
   export type SetDBValueRes = null
@@ -33,10 +44,22 @@ export module RR {
   } // auth.reset-password
   export type ResetPasswordRes = null
 
-  // server
+  // diagnostic
 
-  export type EchoReq = { message: string; timeout?: number } // server.echo
-  export type EchoRes = string
+  export type DiagnosticErrorRes = {
+    code: number
+    message: string
+    data: { details: string }
+  }
+
+  // init
+
+  export type InitGetProgressRes = {
+    progress: T.FullProgress
+    guid: string
+  }
+
+  // server
 
   export type GetSystemTimeReq = {} // server.time
   export type GetSystemTimeRes = {
@@ -65,8 +88,8 @@ export module RR {
   export type ShutdownServerReq = {} // server.shutdown
   export type ShutdownServerRes = null
 
-  export type SystemRebuildReq = {} // server.rebuild
-  export type SystemRebuildRes = null
+  export type DiskRepairReq = {} // server.disk.repair
+  export type DiskRepairRes = null
 
   export type ResetTorReq = {
     wipeState: boolean
@@ -254,8 +277,8 @@ export module RR {
   export type GetMarketplaceInfoReq = { serverId: string }
   export type GetMarketplaceInfoRes = StoreInfo
 
-  export type GetMarketplaceEosReq = { serverId: string }
-  export type GetMarketplaceEosRes = MarketplaceEOS
+  export type CheckOSUpdateReq = { serverId: string }
+  export type CheckOSUpdateRes = OSUpdate
 
   export type GetMarketplacePackagesReq = {
     ids?: { id: string; version: string }[]
@@ -271,7 +294,7 @@ export module RR {
   export type GetReleaseNotesRes = { [version: string]: string }
 }
 
-export interface MarketplaceEOS {
+export interface OSUpdate {
   version: string
   headline: string
   releaseNotes: { [version: string]: string }

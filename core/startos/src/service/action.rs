@@ -4,6 +4,7 @@ use models::{ActionId, ProcedureName};
 
 use crate::action::ActionResult;
 use crate::prelude::*;
+use crate::rpc_continuations::Guid;
 use crate::service::config::GetConfig;
 use crate::service::dependencies::DependencyConfig;
 use crate::service::{Service, ServiceActor};
@@ -23,13 +24,18 @@ impl Handler<Action> for ServiceActor {
     }
     async fn handle(
         &mut self,
-        Action { id, input }: Action,
+        id: Guid,
+        Action {
+            id: action_id,
+            input,
+        }: Action,
         _: &BackgroundJobQueue,
     ) -> Self::Response {
         let container = &self.0.persistent_container;
         container
             .execute::<ActionResult>(
-                ProcedureName::RunAction(id),
+                id,
+                ProcedureName::RunAction(action_id),
                 input,
                 Some(Duration::from_secs(30)),
             )
@@ -39,7 +45,20 @@ impl Handler<Action> for ServiceActor {
 }
 
 impl Service {
-    pub async fn action(&self, id: ActionId, input: Value) -> Result<ActionResult, Error> {
-        self.actor.send(Action { id, input }).await?
+    pub async fn action(
+        &self,
+        id: Guid,
+        action_id: ActionId,
+        input: Value,
+    ) -> Result<ActionResult, Error> {
+        self.actor
+            .send(
+                id,
+                Action {
+                    id: action_id,
+                    input,
+                },
+            )
+            .await?
     }
 }
