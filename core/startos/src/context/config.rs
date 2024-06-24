@@ -113,8 +113,6 @@ pub struct ServerConfig {
     pub datadir: Option<PathBuf>,
     #[arg(long = "disable-encryption")]
     pub disable_encryption: Option<bool>,
-    #[arg(short = 'a', long = "analytics-url")]
-    pub analytics_url: Option<Url>,
 }
 impl ContextConfig for ServerConfig {
     fn next(&mut self) -> Option<PathBuf> {
@@ -133,7 +131,6 @@ impl ContextConfig for ServerConfig {
             .or(other.revision_cache_size);
         self.datadir = self.datadir.take().or(other.datadir);
         self.disable_encryption = self.disable_encryption.take().or(other.disable_encryption);
-        self.analytics_url = self.analytics_url.take().or(other.analytics_url);
     }
 }
 

@@ -281,10 +281,6 @@ pub async fn execute<C: Context>(
         IoFormat::Yaml.to_vec(&ServerConfig {
             os_partitions: Some(part_info.clone()),
             ethernet_interface: Some(eth_iface),
-            #[cfg(feature = "dev")]
-            analytics_url: None,
-            #[cfg(not(feature = "dev"))]
-            analytics_url: Some("https://analytics.start9.com".parse()?), // TODO: FullMetal
             ..Default::default()
         })?,
     )

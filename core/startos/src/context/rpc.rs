@@ -58,7 +58,6 @@ pub struct RpcContextSeed {
     pub start_time: Instant,
     #[cfg(feature = "dev")]
     pub dev: Dev,
-    pub analytics_url: Option<Url>,
 }
 
 pub struct Dev {
@@ -191,7 +190,6 @@ impl RpcContext {
             dev: Dev {
                 lxc: Mutex::new(BTreeMap::new()),
             },
-            analytics_url: config.analytics_url.clone(),
         });
 
         let res = Self(seed.clone());

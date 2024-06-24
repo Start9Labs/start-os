@@ -37,16 +37,11 @@ path = "src/main.rs"
 name = "registrybox"
 path = "src/main.rs"
 
-[[bin]]
-name = "analyticsd"
-path = "src/main.rs"
-
 [features]
 cli = []
 container-runtime = []
 daemon = []
 registry = []
-analyticsd = []
 default = ["cli", "daemon"]
 dev = []
 unstable = ["console-subscriber", "tokio/tracing"]

@@ -24,7 +24,6 @@ lazy_static::lazy_static! {
 
 pub mod account;
 pub mod action;
-pub mod analytics;
 pub mod auth;
 pub mod backup;
 pub mod bins;
