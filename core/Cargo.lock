@@ -4937,6 +4937,7 @@ dependencies = [
  "sha2 0.10.8",
  "shell-words",
  "simple-logging",
+ "socket2",
  "sqlx",
  "sscanf",
  "ssh-key",

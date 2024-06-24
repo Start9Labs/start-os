@@ -683,66 +683,6 @@ pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + S
 }
 
 #[pin_project::pin_project]
-pub struct WakingStream<S: AsyncRead + AsyncWrite = TcpStream> {
-    wake_interval: Duration,
-    #[pin]
-    sleep: Sleep,
-    #[pin]
-    stream: S,
-}
-impl<S: AsyncRead + AsyncWrite> WakingStream<S> {
-    pub fn new(stream: S, wake_interval: Duration) -> Self {
-        Self {
-            wake_interval,
-            sleep: tokio::time::sleep(wake_interval),
-            stream,
-        }
-    }
-}
-impl<S: AsyncRead + AsyncWrite> AsyncRead for WakingStream<S> {
-    fn poll_read(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-        buf: &mut tokio::io::ReadBuf<'_>,
-    ) -> std::task::Poll<std::io::Result<()>> {
-        let mut this = self.project();
-        let _ = this.sleep.as_mut().poll(cx);
-        this.sleep.reset(Instant::now() + *this.wake_interval);
-        this.stream.poll_read(cx, buf)
-    }
-}
-impl<S: AsyncRead + AsyncWrite> AsyncWrite for WakingStream<S> {
-    fn poll_write(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-        buf: &[u8],
-    ) -> std::task::Poll<Result<usize, std::io::Error>> {
-        let mut this = self.project();
-        let _ = this.sleep.as_mut().poll(cx);
-        this.sleep.reset(Instant::now() + *this.wake_interval);
-        this.stream.poll_write(cx, buf)
-    }
-    fn poll_flush(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Result<(), std::io::Error>> {
-        let mut this = self.project();
-        let _ = this.sleep.as_mut().poll(cx);
-        this.sleep.reset(Instant::now() + *this.wake_interval);
-        this.stream.poll_flush(cx)
-    }
-    fn poll_shutdown(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Result<(), std::io::Error>> {
-        let mut this = self.project();
-        let _ = this.sleep.as_mut().poll(cx);
-        this.sleep.reset(Instant::now() + *this.wake_interval);
-        this.stream.poll_shutdown(cx)
-    }
-}
-
-#[pin_project::pin_project]
 pub struct TimeoutStream<S: AsyncRead + AsyncWrite = TcpStream> {
     timeout: Duration,
     #[pin]

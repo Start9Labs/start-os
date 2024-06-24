@@ -27,7 +27,7 @@ use ts_rs::TS;
 use crate::db::model::Database;
 use crate::net::static_server::server_error;
 use crate::prelude::*;
-use crate::util::io::{BackTrackingReader, WakingStream};
+use crate::util::io::BackTrackingReader;
 use crate::util::serde::MaybeUtf8String;
 
 // not allowed: <=1024, >=32768, 5355, 5432, 9050, 6010, 9051, 5353
@@ -119,8 +119,16 @@ impl VHostServer {
                 loop {
                     match listener.accept().await {
                         Ok((stream, _)) => {
-                            let stream =
-                                Box::pin(WakingStream::new(stream, Duration::from_secs(300)));
+                            if let Err(e) = socket2::SockRef::from(&stream).set_tcp_keepalive(
+                                &socket2::TcpKeepalive::new()
+                                    .with_time(Duration::from_secs(900))
+                                    .with_interval(Duration::from_secs(60))
+                                    .with_retries(5),
+                            ) {
+                                tracing::error!("Failed to set tcp keepalive: {e}");
+                                tracing::debug!("{e:?}");
+                            }
+
                             let mut stream = BackTrackingReader::new(stream);
                             stream.start_buffering();
                             let mapping = mapping.clone();
