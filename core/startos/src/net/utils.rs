@@ -112,24 +112,6 @@ pub async fn find_eth_iface() -> Result<String, Error> {
     ))
 }
 
-#[pin_project::pin_project]
-pub struct SingleAccept<T>(Option<T>);
-impl<T> SingleAccept<T> {
-    pub fn new(conn: T) -> Self {
-        Self(Some(conn))
-    }
-}
-// impl<T> axum_server::accept::Accept for SingleAccept<T> {
-//     type Conn = T;
-//     type Error = Infallible;
-//     fn poll_accept(
-//         self: std::pin::Pin<&mut Self>,
-//         _cx: &mut std::task::Context<'_>,
-//     ) -> std::task::Poll<Option<Result<Self::Conn, Self::Error>>> {
-//         std::task::Poll::Ready(self.project().0.take().map(Ok))
-//     }
-// }
-
 pub struct TcpListeners {
     listeners: Vec<TcpListener>,
 }
