@@ -71,6 +71,10 @@ export class LiveApiService extends ApiService {
 
   // state
 
+  async echo(params: RR.EchoReq, url: string): Promise<RR.EchoRes> {
+    return this.rpcRequest({ method: 'echo', params }, url)
+  }
+
   async getState(): Promise<RR.ServerState> {
     return this.rpcRequest({ method: 'state', params: {} })
   }
