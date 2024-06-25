@@ -228,7 +228,7 @@ system-images/binfmt/docker-images/$(ARCH).tar: $(BINFMT_SRC)
 	cd system-images/binfmt && make docker-images/$(ARCH).tar && touch docker-images/$(ARCH).tar
 
 $(BINS): $(CORE_SRC) $(ENVIRONMENT_FILE)
-	cd core && ARCH=$(ARCH) ./build-prod.sh
+	cd core && ARCH=$(ARCH) ./build-startos-bins.sh
 	touch $(BINS)
 
 web/node_modules/.package-lock.json: web/package.json sdk/dist

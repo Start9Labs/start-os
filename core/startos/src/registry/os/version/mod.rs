@@ -1,10 +1,12 @@
 use std::collections::BTreeMap;
 
+use chrono::Utc;
 use clap::Parser;
 use emver::VersionRange;
 use itertools::Itertools;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
+use sqlx::query;
 use ts_rs::TS;
 
 use crate::context::CliContext;
@@ -126,12 +128,34 @@ pub struct GetVersionParams {
     #[ts(type = "string | null")]
     #[arg(long = "target")]
     pub target: Option<VersionRange>,
+    #[ts(type = "string | null")]
+    #[arg(long = "id")]
+    server_id: Option<String>,
+    #[ts(type = "string | null")]
+    #[arg(long = "arch")]
+    arch: Option<String>,
 }
 
 pub async fn get_version(
     ctx: RegistryContext,
-    GetVersionParams { source, target }: GetVersionParams,
+    GetVersionParams {
+        source,
+        target,
+        server_id,
+        arch,
+    }: GetVersionParams,
 ) -> Result<BTreeMap<VersionString, OsVersionInfo>, Error> {
+    if let (Some(pool), Some(server_id), Some(arch)) = (&ctx.pool, server_id, arch) {
+        let created_at = Utc::now();
+
+        query!("INSERT INTO user_activity (created_at, server_id, arch) VALUES ($1, $2, $3)",
+        created_at,
+        server_id,
+        arch
+        )
+        .execute(pool)
+        .await?;
+    }
     let target = target.unwrap_or(VersionRange::Any);
     ctx.db
         .peek()

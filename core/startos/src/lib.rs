@@ -115,7 +115,7 @@ impl std::fmt::Display for ApiState {
 }
 
 pub fn main_api<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new()
+    let api = ParentHandler::new()
         .subcommand::<C, _>("git-info", from_fn(version::git_info))
         .subcommand(
             "echo",
@@ -146,9 +146,11 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
             )
             .no_cli(),
         )
-        .subcommand("lxc", lxc::lxc::<C>())
         .subcommand("s9pk", s9pk::rpc::s9pk())
-        .subcommand("util", util::rpc::util::<C>())
+        .subcommand("util", util::rpc::util::<C>());
+    #[cfg(feature = "dev")]
+    let api = api.subcommand("lxc", lxc::dev::lxc::<C>());
+    api
 }
 
 pub fn server<C: Context>() -> ParentHandler<C> {
