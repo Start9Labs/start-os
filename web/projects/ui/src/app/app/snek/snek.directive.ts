@@ -39,7 +39,7 @@ export class SnekDirective {
 
       try {
         await this.embassyApi.setDbValue<number>(
-          ['gaming', 'snake', 'high-score'],
+          ['gaming', 'snake', 'highScore'],
           data.highScore,
         )
       } catch (e: any) {

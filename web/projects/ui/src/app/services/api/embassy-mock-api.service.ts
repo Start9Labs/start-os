@@ -118,7 +118,17 @@ export class MockApiService extends ApiService {
     }
   }
 
-  // server state
+  // state
+
+  async echo(params: RR.EchoReq, url: string): Promise<RR.EchoRes> {
+    if (url) {
+      const num = Math.floor(Math.random() * 10) + 1
+      if (num > 8) return params.message
+      throw new Error()
+    }
+    await pauseFor(2000)
+    return params.message
+  }
 
   private stateIndex = 0
   async getState(): Promise<RR.ServerState> {

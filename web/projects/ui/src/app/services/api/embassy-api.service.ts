@@ -17,7 +17,9 @@ export abstract class ApiService {
     config: RR.WebsocketConfig<T>,
   ): Observable<T>
 
-  // server state
+  // state
+
+  abstract echo(params: RR.EchoReq, url: string): Promise<RR.EchoRes>
 
   abstract getState(): Promise<RR.ServerState>
 

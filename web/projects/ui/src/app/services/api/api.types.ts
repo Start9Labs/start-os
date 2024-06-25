@@ -12,7 +12,10 @@ export module RR {
 
   export type WebsocketConfig<T> = Omit<WebSocketSubjectConfig<T>, 'url'>
 
-  // server state
+  // state
+
+  export type EchoReq = { message: string } // server.echo
+  export type EchoRes = string
 
   export type ServerState = 'initializing' | 'error' | 'running'
 
