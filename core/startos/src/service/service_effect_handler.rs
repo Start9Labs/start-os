@@ -899,48 +899,13 @@ async fn running(context: EffectContext, params: ParamsPackageId) -> Result<Valu
     Ok(json!(matches!(package, MainStatus::Running { .. })))
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 struct ProcedureId {
     #[serde(default)]
+    #[arg(default_value_t, long)]
     procedure_id: Guid,
-}
-
-impl FromArgMatches for ProcedureId {
-    fn from_arg_matches(matches: &clap::ArgMatches) -> Result<Self, clap::Error> {
-        Ok(Self {
-            procedure_id: matches.get_one("procedure-id").cloned().unwrap_or_default(),
-        })
-    }
-    fn from_arg_matches_mut(matches: &mut clap::ArgMatches) -> Result<Self, clap::Error> {
-        Ok(Self {
-            procedure_id: matches.get_one("procedure-id").cloned().unwrap_or_default(),
-        })
-    }
-    fn update_from_arg_matches(&mut self, matches: &clap::ArgMatches) -> Result<(), clap::Error> {
-        self.procedure_id = matches.get_one("procedure-id").cloned().unwrap_or_default();
-        Ok(())
-    }
-    fn update_from_arg_matches_mut(
-        &mut self,
-        matches: &mut clap::ArgMatches,
-    ) -> Result<(), clap::Error> {
-        self.procedure_id = matches.get_one("procedure-id").cloned().unwrap_or_default();
-        Ok(())
-    }
-}
-impl CommandFactory for ProcedureId {
-    fn command() -> clap::Command {
-        Self::command_for_update().arg(
-            clap::Arg::new("procedure-id")
-                .action(clap::ArgAction::Set)
-                .value_parser(clap::value_parser!(Guid)),
-        )
-    }
-    fn command_for_update() -> clap::Command {
-        Self::command()
-    }
 }
 
 async fn restart(

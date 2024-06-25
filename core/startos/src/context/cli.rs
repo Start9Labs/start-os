@@ -25,7 +25,7 @@ use crate::rpc_continuations::Guid;
 
 #[derive(Debug)]
 pub struct CliContextSeed {
-    pub runtime: OnceCell<Runtime>,
+    pub runtime: OnceCell<Arc<Runtime>>,
     pub base_url: Url,
     pub rpc_url: Url,
     pub registry_url: Option<Url>,
@@ -249,16 +249,19 @@ impl std::ops::Deref for CliContext {
     }
 }
 impl Context for CliContext {
-    fn runtime(&self) -> tokio::runtime::Handle {
-        self.runtime
-            .get_or_init(|| {
-                tokio::runtime::Builder::new_multi_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap()
-            })
-            .handle()
-            .clone()
+    fn runtime(&self) -> Option<Arc<Runtime>> {
+        Some(
+            self.runtime
+                .get_or_init(|| {
+                    Arc::new(
+                        tokio::runtime::Builder::new_current_thread()
+                            .enable_all()
+                            .build()
+                            .unwrap(),
+                    )
+                })
+                .clone(),
+        )
     }
 }
 impl CallRemote<RpcContext> for CliContext {
@@ -290,7 +293,7 @@ impl CallRemote<InstallContext> for CliContext {
 #[test]
 fn test() {
     let ctx = CliContext::init(ClientConfig::default()).unwrap();
-    ctx.runtime().block_on(async {
+    ctx.runtime().unwrap().block_on(async {
         reqwest::Client::new()
             .get("http://example.com")
             .send()
