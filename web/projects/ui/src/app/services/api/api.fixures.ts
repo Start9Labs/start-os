@@ -35,38 +35,22 @@ export module Mock {
     shuttingDown: false,
   }
 
-  export const RegistryOsUpdate: RR.GetRegistryOsUpdateRes = {
-    '0.3.5.2': {
-      headline: 'Our second biggest release ever.',
-      releaseNotes: 'Some **Markdown** release _notes_ for 0.3.5.2',
-      authorized: [],
-      img: {},
-      iso: {},
-      sourceVersion: '>=0.3.4 <=0.3.5.2',
-      squashfs: {
-        x86_64: {
-          url: 'https://github.com/Start9Labs/start-os/releases/download/v0.3.5.2/startos-0.3.5.2-unknown_x86_64.squashfs',
-          commitment: mockBlake3Commitment,
-          signatures: {},
-        },
-        // TODO: other arches
-      },
-    },
-    '0.3.6': {
-      headline: 'Our biggest release ever.',
-      releaseNotes: 'Some **Markdown** release _notes_ for 0.3.6',
-      authorized: [],
-      img: {},
-      iso: {},
-      sourceVersion: '>=0.3.5 <=0.3.6',
-      squashfs: {
-        x86_64: {
-          url: 'https://github.com/Start9Labs/start-os/releases/download/v0.3.6/startos-0.3.6-unknown_x86_64.squashfs',
-          commitment: mockBlake3Commitment,
-          signatures: {},
-        },
-        // TODO: other arches
-      },
+  export const RegistryOsUpdate: RR.CheckOSUpdateRes = {
+    version: '0.3.5.2',
+    headline: 'Our biggest release ever.',
+    releaseNotes: {
+      '0.3.5.2': 'Some **Markdown** release _notes_ for 0.3.5.2',
+      '0.3.5.1': 'Some **Markdown** release _notes_ for 0.3.5.1',
+      '0.3.4.4': 'Some **Markdown** release _notes_ for 0.3.4.4',
+      '0.3.4.3': 'Some **Markdown** release _notes_ for 0.3.4.3',
+      '0.3.4.2': 'Some **Markdown** release _notes_ for 0.3.4.2',
+      '0.3.4.1': 'Some **Markdown** release _notes_ for 0.3.4.1',
+      '0.3.4': 'Some **Markdown** release _notes_ for 0.3.4',
+      '0.3.3': 'Some **Markdown** release _notes_ for 0.3.3',
+      '0.3.2.1': 'Some **Markdown** release _notes_ for 0.3.2.1',
+      '0.3.2': 'Some **Markdown** release _notes_ for 0.3.2',
+      '0.3.1': 'Some **Markdown** release _notes_ for 0.3.1',
+      '0.3.0': 'Some **Markdown** release _notes_ from a prior version',
     },
   }
 

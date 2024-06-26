@@ -458,7 +458,6 @@ export class MockApiService extends ApiService {
   }
 
   async checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes> {
-  // async getOsUpdate(): Promise<RR.GetRegistryOsUpdateRes> {
     await pauseFor(2000)
     return Mock.RegistryOsUpdate
   }
