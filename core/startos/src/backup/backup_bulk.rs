@@ -255,7 +255,7 @@ async fn perform_backup(
     for id in package_ids {
         if let Some(service) = &*ctx.services.get(id).await {
             let backup_result = service
-                .backup(backup_guard.package_backup(id))
+                .backup(backup_guard.package_backup(id).await?)
                 .await
                 .err()
                 .map(|e| e.to_string());

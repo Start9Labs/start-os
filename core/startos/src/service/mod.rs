@@ -503,13 +503,21 @@ impl Actor for ServiceActor {
                         }
                         (Some(TransitionKind::Restarting), _, _) => MainStatus::Restarting,
                         (Some(TransitionKind::Restoring), _, _) => MainStatus::Restoring,
-                        (Some(TransitionKind::BackingUp), _, Some(status)) => {
+                        (Some(TransitionKind::BackingUp), StartStop::Stop, Some(status)) => {
+                            seed.persistent_container.stop().await?;
                             MainStatus::BackingUp {
                                 started: Some(status.started),
                                 health: status.health.clone(),
                             }
                         }
-                        (Some(TransitionKind::BackingUp), _, None) => MainStatus::BackingUp {
+                        (Some(TransitionKind::BackingUp), StartStop::Start, _) => {
+                            seed.persistent_container.start().await?;
+                            MainStatus::BackingUp {
+                                started: None,
+                                health: OrdMap::new(),
+                            }
+                        }
+                        (Some(TransitionKind::BackingUp), _, _) => MainStatus::BackingUp {
                             started: None,
                             health: OrdMap::new(),
                         },
