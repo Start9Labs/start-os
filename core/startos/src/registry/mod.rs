@@ -3,6 +3,7 @@ use std::net::SocketAddr;
 
 use axum::Router;
 use futures::future::ready;
+use imbl_value::InternedString;
 use models::DataUrl;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler, Server};
 use serde::{Deserialize, Serialize};
@@ -17,7 +18,7 @@ use crate::registry::auth::Auth;
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfoMiddleware;
 use crate::registry::os::index::OsIndex;
-use crate::registry::package::index::PackageIndex;
+use crate::registry::package::index::{Category, PackageIndex};
 use crate::registry::signer::SignerInfo;
 use crate::rpc_continuations::Guid;
 use crate::util::serde::HandlerExtSerde;
@@ -46,6 +47,7 @@ impl RegistryDatabase {}
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct FullIndex {
+    pub name: Option<String>,
     pub icon: Option<DataUrl<'static>>,
     pub package: PackageIndex,
     pub os: OsIndex,
@@ -56,11 +58,36 @@ pub async fn get_full_index(ctx: RegistryContext) -> Result<FullIndex, Error> {
     ctx.db.peek().await.into_index().de()
 }
 
+#[derive(Debug, Default, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct RegistryInfo {
+    pub name: Option<String>,
+    pub icon: Option<DataUrl<'static>>,
+    #[ts(as = "BTreeMap::<String, Category>")]
+    pub categories: BTreeMap<InternedString, Category>,
+}
+
+pub async fn get_info(ctx: RegistryContext) -> Result<RegistryInfo, Error> {
+    let peek = ctx.db.peek().await.into_index();
+    Ok(RegistryInfo {
+        name: peek.as_name().de()?,
+        icon: peek.as_icon().de()?,
+        categories: peek.as_package().as_categories().de()?,
+    })
+}
+
 pub fn registry_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "index",
             from_fn_async(get_full_index)
+                .with_display_serializable()
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "info",
+            from_fn_async(get_info)
                 .with_display_serializable()
                 .with_call_remote::<CliContext>(),
         )

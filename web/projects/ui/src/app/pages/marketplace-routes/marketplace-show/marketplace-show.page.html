@@ -20,7 +20,10 @@
     </ng-container>
 
     <ng-template #show>
-      <marketplace-package [pkg]="pkg"></marketplace-package>
+      <marketplace-package
+        [pkg]="pkg"
+        (version)="loadVersion$.next($event)"
+      ></marketplace-package>
       <marketplace-show-controls
         [url]="url"
         [pkg]="pkg"
@@ -32,7 +35,7 @@
       <ion-item-group>
         <marketplace-about [pkg]="pkg"></marketplace-about>
         <marketplace-dependencies
-          *ngIf="!(pkg.manifest.dependencies | empty)"
+          *ngIf="!(pkg.dependencyMetadata | empty)"
           [pkg]="pkg"
         ></marketplace-dependencies>
       </ion-item-group>

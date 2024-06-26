@@ -1,10 +1,8 @@
 <!-- release notes -->
-<ion-item-divider>
-  New in {{ pkg.manifest.version | displayEmver }}
-</ion-item-divider>
+<ion-item-divider>New in {{ pkg.version | displayEmver }}</ion-item-divider>
 <ion-item lines="none" color="transparent">
   <ion-label>
-    <div [innerHTML]="pkg.manifest.releaseNotes | markdown"></div>
+    <div [innerHTML]="pkg.releaseNotes | markdown"></div>
   </ion-label>
 </ion-item>
 <ion-button routerLink="notes" fill="clear" strong>
@@ -15,10 +13,10 @@
 <ion-item-divider>Description</ion-item-divider>
 <ion-item lines="none" color="transparent">
   <ion-label>
-    <h2>{{ pkg.manifest.description.long }}</h2>
+    <h2>{{ pkg.description.long }}</h2>
   </ion-label>
 </ion-item>
-<div *ngIf="pkg.manifest.marketingSite as url" style="padding: 4px 0 10px 14px">
+<div *ngIf="pkg.marketingSite as url" style="padding: 4px 0 10px 14px">
   <ion-button [href]="url" target="_blank" rel="noreferrer" color="tertiary">
     View website
     <ion-icon slot="end" name="open-outline"></ion-icon>

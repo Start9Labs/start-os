@@ -18,6 +18,7 @@ import {
 } from '@start9labs/shared'
 import { MarketplacePkg } from '../../../types'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
+import { AbstractPkgImplementationService } from '../../../services/pkg-implementation.service'
 import { ActivatedRoute } from '@angular/router'
 
 @Component({
@@ -32,16 +33,33 @@ export class AdditionalComponent {
   @Output()
   version = new EventEmitter<string>()
 
-  readonly url = this.route.snapshot.queryParamMap.get('url') || undefined
+  readonly url = this.route.snapshot.queryParamMap.get('url') || null
+  versions!: string[]
 
   constructor(
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
     private readonly emver: Emver,
     private readonly marketplaceService: AbstractMarketplaceService,
+    private readonly pkgImplService: AbstractPkgImplementationService,
     private readonly toastCtrl: ToastController,
     private readonly route: ActivatedRoute,
   ) {}
+
+  ngOnInit() {
+    this.pkgImplService.getAltStatus$().subscribe(active => {
+      if (active) {
+        // TODO replace with emver helper to determine if version has prefix
+        this.versions = Object.keys(this.pkg.otherVersions).filter(
+          v => v.split('-').length > 1,
+        )
+      } else {
+        this.versions = Object.keys(this.pkg.otherVersions).filter(
+          v => v.split('-').length === 1,
+        )
+      }
+    })
+  }
 
   async copy(address: string): Promise<void> {
     const success = await copyToClipboard(address)
@@ -60,14 +78,14 @@ export class AdditionalComponent {
   async presentAlertVersions() {
     const alert = await this.alertCtrl.create({
       header: 'Versions',
-      inputs: this.pkg.versions
+      inputs: this.versions
         .sort((a, b) => -1 * (this.emver.compare(a, b) || 0))
         .map(v => ({
           name: v, // for CSS
           type: 'radio',
           label: displayEmver(v), // appearance on screen
           value: v, // literal SEM version value
-          checked: this.pkg.manifest.version === v,
+          checked: this.pkg.version === v,
         })),
       buttons: [
         {
@@ -86,8 +104,9 @@ export class AdditionalComponent {
 
   async presentModalMd(title: string) {
     const content = this.marketplaceService.fetchStatic$(
-      this.pkg.manifest.id,
+      this.pkg.id,
       title,
+      this.pkg.version,
       this.url,
     )
 

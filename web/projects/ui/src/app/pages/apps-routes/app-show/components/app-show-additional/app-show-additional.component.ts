@@ -1,9 +1,17 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Inject,
+  Input,
+} from '@angular/core'
 import { ModalController, ToastController } from '@ionic/angular'
+import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { copyToClipboard, MarkdownComponent } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
-import { from } from 'rxjs'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
+import {
+  InstalledState,
+  PackageDataEntry,
+} from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'app-show-additional',
@@ -12,12 +20,13 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 })
 export class AppShowAdditionalComponent {
   @Input()
-  manifest!: T.Manifest
+  pkg!: PackageDataEntry<InstalledState>
 
   constructor(
     private readonly modalCtrl: ModalController,
     private readonly toastCtrl: ToastController,
-    private readonly api: ApiService,
+    @Inject(AbstractMarketplaceService)
+    private readonly marketplaceService: MarketplaceService,
   ) {}
 
   async copy(address: string): Promise<void> {
@@ -35,15 +44,16 @@ export class AppShowAdditionalComponent {
   }
 
   async presentModalLicense() {
-    const { id, version } = this.manifest
+    const { id, version } = this.pkg.stateInfo.manifest
 
     const modal = await this.modalCtrl.create({
       componentProps: {
         title: 'License',
-        content: from(
-          this.api.getStatic(
-            `/public/package-data/${id}/${version}/LICENSE.md`,
-          ),
+        content: this.marketplaceService.fetchStatic$(
+          id,
+          'license',
+          version,
+          this.pkg.registry,
         ),
       },
       component: MarkdownComponent,

@@ -17,7 +17,9 @@ import { Observable, filter, firstValueFrom } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
-import { Dump, pathFromArray } from 'patch-db-client'
+import { Dump, PatchDB, pathFromArray, Update } from 'patch-db-client'
+import { getServerInfo } from 'src/app/util/get-server-info'
+import { T } from '@start9labs/start-sdk'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -30,16 +32,6 @@ export class LiveApiService extends ApiService {
   ) {
     super()
     ; (window as any).rpcClient = this
-  }
-
-  // for getting static files: ex icons, instructions, licenses
-
-  async getStatic(url: string): Promise<string> {
-    return this.httpRequest({
-      method: Method.GET,
-      url,
-      responseType: 'text',
-    })
   }
 
   // for sideloading packages
@@ -246,24 +238,65 @@ export class LiveApiService extends ApiService {
 
   // marketplace URLs
 
-  async marketplaceProxy<T>(
-    path: string,
-    qp: Record<string, string>,
-    baseUrl: string,
+  async registryRequest<T>(
+    registryUrl: string,
+    options: RPCOptions,
   ): Promise<T> {
-    const fullUrl = `${baseUrl}${path}?${new URLSearchParams(qp).toString()}`
     return this.rpcRequest({
-      method: 'marketplace.get',
-      params: { url: fullUrl },
+      ...options,
+      method: `registry.${options.method}`,
+      params: { registry: registryUrl, ...options.params },
     })
   }
 
   async checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes> {
-    return this.marketplaceProxy(
-      '/eos/v0/latest',
-      qp,
-      this.config.marketplace.start9,
-    )
+    // const { version } = await getServerInfo(this.patch)
+    const params: T.GetOsVersionParams = {
+      source: null, // TODO is this needed?
+      target: null,
+      serverId: qp.serverId,
+      arch: null, // TODO @lucy backend should get this automatically
+    }
+
+    return this.registryRequest(this.config.marketplace.start9, {
+      method: 'os.version.get',
+      params,
+    })
+  }
+
+  async getRegistryInfo(registryUrl: string): Promise<RR.GetRegistryInfoRes> {
+    return this.registryRequest(registryUrl, {
+      method: 'info',
+      params: {},
+    })
+  }
+
+  async getRegistryPackages<T extends T.GetPackageParams>(
+    registryUrl: string,
+    params: T,
+  ): Promise<RR.GetRegistryMultiPackagesRes<T>> {
+    return this.registryRequest(registryUrl, {
+      method: 'package.get',
+      params,
+    })
+  }
+
+  async getRegistryPackage<T extends T.GetPackageParams>(
+    registryUrl: string,
+    params: T,
+  ): Promise<RR.GetRegistrySinglePackageRes<T>> {
+    return this.registryRequest(registryUrl, {
+      method: 'package.get',
+      params,
+    })
+  }
+
+  // for getting static files: ex icons, instructions, licenses
+  async getStatic(url: string, type: string, id: T.PackageId): Promise<string> {
+    return this.registryRequest(url, {
+      method: 'static.get', // TODO placeholder as not yet implemented on BE
+      params: { type, id },
+    })
   }
 
   // notification
@@ -462,7 +495,7 @@ export class LiveApiService extends ApiService {
 
   async sideloadPackage(
     params: RR.SideloadPackageReq,
-  ): Promise<RR.SideloadPacakgeRes> {
+  ): Promise<RR.SideloadPackageRes> {
     return this.rpcRequest({
       method: 'package.sideload',
       params,

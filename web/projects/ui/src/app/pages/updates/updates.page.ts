@@ -70,27 +70,27 @@ export class UpdatesPage {
     })
   }
 
-  async tryUpdate(manifest: T.Manifest, url: string, e: Event): Promise<void> {
+  async tryUpdate(pkg: MarketplacePkg, url: string, e: Event): Promise<void> {
     e.stopPropagation()
 
-    const { id, version } = manifest
+    const { id, version } = pkg
 
     delete this.marketplaceService.updateErrors[id]
     this.marketplaceService.updateQueue[id] = true
 
-    // manifest.id OK because same as local id for update
-    if (hasCurrentDeps(manifest.id, await getAllPackages(this.patch))) {
-      this.dryInstall(manifest, url)
+    // id OK because same as local id for update
+    if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
+      this.dryInstall(pkg, url)
     } else {
       this.install(id, version, url)
     }
   }
 
-  private async dryInstall(manifest: T.Manifest, url: string) {
-    const { id, version, title } = manifest
+  private async dryInstall(pkg: MarketplacePkg, url: string) {
+    const { id, version, title } = pkg
 
     const breakages = dryUpdate(
-      manifest,
+      pkg,
       await getAllPackages(this.patch),
       this.emver,
     )
@@ -165,14 +165,11 @@ export class FilterUpdatesPipe implements PipeTransform {
     pkgs: MarketplacePkg[],
     local: Record<string, PackageDataEntry<InstalledState | UpdatingState>>,
   ): MarketplacePkg[] {
-    return pkgs.filter(({ manifest }) => {
-      const localPkg = local[manifest.id]
+    return pkgs.filter(({ id, version }) => {
+      const localPkg = local[id]
       return (
         localPkg &&
-        this.emver.compare(
-          manifest.version,
-          localPkg.stateInfo.manifest.version,
-        ) === 1
+        this.emver.compare(version, localPkg.stateInfo.manifest.version) === 1
       )
     })
   }

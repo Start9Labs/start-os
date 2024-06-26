@@ -78,8 +78,7 @@ export class MarketplaceShowControlsComponent {
       const localManifest = getManifest(this.localPkg)
 
       if (
-        this.emver.compare(localManifest.version, this.pkg.manifest.version) !==
-          0 &&
+        this.emver.compare(localManifest.version, this.pkg.version) !== 0 &&
         hasCurrentDeps(localManifest.id, await getAllPackages(this.patch))
       ) {
         this.dryInstall(url)
@@ -135,7 +134,7 @@ export class MarketplaceShowControlsComponent {
 
   private async dryInstall(url: string) {
     const breakages = dryUpdate(
-      this.pkg.manifest,
+      this.pkg,
       await getAllPackages(this.patch),
       this.emver,
     )
@@ -151,7 +150,7 @@ export class MarketplaceShowControlsComponent {
   }
 
   private async alertInstall(url: string) {
-    const installAlert = this.pkg.manifest.alerts.install
+    const installAlert = this.pkg.alerts.install
 
     if (!installAlert) return this.install(url)
 
@@ -181,7 +180,7 @@ export class MarketplaceShowControlsComponent {
     })
     await loader.present()
 
-    const { id, version } = this.pkg.manifest
+    const { id, version } = this.pkg
 
     try {
       await this.marketplaceService.installPackage(id, version, url)

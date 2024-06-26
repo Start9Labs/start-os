@@ -1,11 +1,12 @@
 import { Observable } from 'rxjs'
 import { RR } from './api.types'
+import { DataModel } from 'src/app/services/patch-db/data-model'
+import { Log, RPCOptions } from '@start9labs/shared'
+import { WebSocketSubjectConfig } from 'rxjs/webSocket'
+import { T } from '@start9labs/start-sdk'
 
 export abstract class ApiService {
   // http
-
-  // for getting static files: ex icons, instructions, licenses
-  abstract getStatic(url: string): Promise<string>
 
   // for sideloading packages
   abstract uploadPackage(guid: string, body: Blob): Promise<string>
@@ -118,13 +119,33 @@ export abstract class ApiService {
 
   // marketplace URLs
 
-  abstract marketplaceProxy<T>(
-    path: string,
-    params: Record<string, unknown>,
-    url: string,
+  abstract registryRequest<T>(
+    registryUrl: string,
+    options: RPCOptions,
   ): Promise<T>
 
   abstract checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes>
+
+  abstract getRegistryInfo(registryUrl: string): Promise<RR.GetRegistryInfoRes>
+
+  abstract getRegistryPackages<T extends RR.GetRegistryPackagesReq>(
+    registryUrl: string,
+    params: T,
+  ): Promise<RR.GetRegistryMultiPackagesRes<T>>
+
+  abstract getRegistryPackage<T extends RR.GetRegistryPackagesReq>(
+    registryUrl: string,
+    params: T,
+  ): Promise<RR.GetRegistrySinglePackageRes<T>>
+
+  // TODO confirm type with BE
+  // for getting static files: ex icons, instructions, licenses
+  abstract getStatic(
+    url: string,
+    type: string,
+    id: T.PackageId,
+    version: string,
+  ): Promise<string>
 
   // notification
 
@@ -245,5 +266,5 @@ export abstract class ApiService {
 
   abstract sideloadPackage(
     params: RR.SideloadPackageReq,
-  ): Promise<RR.SideloadPacakgeRes>
+  ): Promise<RR.SideloadPackageRes>
 }

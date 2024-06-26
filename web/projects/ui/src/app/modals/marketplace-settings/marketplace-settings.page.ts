@@ -216,10 +216,12 @@ export class MarketplaceSettingsPage {
     // Save
     loader.message = 'Saving...'
 
-    await this.api.setDbValue<{ name: string }>(
-      ['marketplace', 'knownHosts', url],
-      { name },
-    )
+    if (name) {
+      await this.api.setDbValue<{ name: string }>(
+        ['marketplace', 'knownHosts', url],
+        { name },
+      )
+    }
   }
 
   private async delete(url: string): Promise<void> {

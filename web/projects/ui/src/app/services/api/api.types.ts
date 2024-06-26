@@ -1,11 +1,14 @@
-import { Dump } from 'patch-db-client'
-import { MarketplacePkg, StoreInfo } from '@start9labs/marketplace'
+import { Dump, Revision } from 'patch-db-client'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
+import {
+  GetPackageResponseFullInterim,
+  GetPackageResponseInterim,
+} from '@start9labs/marketplace'
 
 export module RR {
   // websocket
@@ -273,28 +276,51 @@ export module RR {
     manifest: T.Manifest
     icon: string // base64
   }
-  export type SideloadPacakgeRes = string //guid
+  export type SideloadPackageRes = string //guid
 
-  // marketplace
+  // registry
 
-  export type GetMarketplaceInfoReq = { serverId: string }
-  export type GetMarketplaceInfoRes = StoreInfo
+  /** these are returned in ASCENDING order. the newest available version will be the LAST in the object */
+  export type GetRegistryOsUpdateRes = { [version: string]: T.OsVersionInfo }
 
   export type CheckOSUpdateReq = { serverId: string }
   export type CheckOSUpdateRes = OSUpdate
+  export type GetRegistryInfoRes = T.RegistryInfo
 
-  export type GetMarketplacePackagesReq = {
-    ids?: { id: string; version: string }[]
-    // iff !ids
-    category?: string
-    query?: string
-    page?: number
-    perPage?: number
-  }
-  export type GetMarketplacePackagesRes = MarketplacePkg[]
-
-  export type GetReleaseNotesReq = { id: string }
-  export type GetReleaseNotesRes = { [version: string]: string }
+  export type GetRegistryPackagesReq = T.GetPackageParams
+  export type GetRegistryPackagesRes<T extends GetRegistryPackagesReq> =
+    | GetRegistrySinglePackageRes<T>
+    | GetRegistryMultiPackagesRes<T>
+  export type GetRegistryMultiPackagesRes<T extends GetRegistryPackagesReq> =
+    T extends {
+      id: null
+      otherVersions: null
+    }
+      ? { [id: T.PackageId]: Omit<GetPackageResponseInterim, 'otherVersions'> }
+      : T extends { id: null; otherVersions: 'short' }
+      ? {
+          [id: T.PackageId]: GetPackageResponseInterim & {
+            otherVersions: { [version: string]: T.PackageInfoShort }
+          }
+        }
+      : T extends { id: null; otherVersions: 'full' }
+      ? {
+          [id: T.PackageId]: GetPackageResponseFullInterim
+        }
+      : never
+  export type GetRegistrySinglePackageRes<T extends GetRegistryPackagesReq> =
+    T extends {
+      id: T.PackageId
+      otherVersions: null
+    }
+      ? Omit<GetPackageResponseInterim, 'otherVersions'>
+      : T extends { id: T.PackageId; otherVersions: 'short' }
+      ? GetPackageResponseInterim & {
+          otherVersions: { [version: string]: T.PackageInfoShort }
+        }
+      : T extends { id: T.PackageId; otherVersions: 'full' }
+      ? GetPackageResponseFullInterim
+      : never
 }
 
 export interface OSUpdate {

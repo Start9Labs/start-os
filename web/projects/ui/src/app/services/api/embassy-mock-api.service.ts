@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { Log, RPCErrorDetails, pauseFor } from '@start9labs/shared'
+import { Log, RPCErrorDetails, RPCOptions, pauseFor } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import {
   Operation,
@@ -30,7 +30,7 @@ import {
 } from 'rxjs'
 import { mockPatchData } from './mock-patch'
 import { AuthService } from '../auth.service'
-import { StoreInfo } from '@start9labs/marketplace'
+import { ConnectionService } from '../connection.service'
 import { T } from '@start9labs/start-sdk'
 
 const PROGRESS: T.FullProgress = {
@@ -448,39 +448,41 @@ export class MockApiService extends ApiService {
 
   // marketplace URLs
 
-  async marketplaceProxy(
-    path: string,
-    params: Record<string, string>,
-    url: string,
+  async registryRequest(
+    registryUrl: string,
+    options: RPCOptions,
   ): Promise<any> {
     await pauseFor(2000)
 
-    if (path === '/package/v0/info') {
-      const info: StoreInfo = {
-        name: 'Start9 Registry',
-        categories: [
-          'bitcoin',
-          'lightning',
-          'data',
-          'featured',
-          'messaging',
-          'social',
-          'alt coin',
-        ],
-      }
-      return info
-    } else if (path === '/package/v0/index') {
-      return Mock.MarketplacePkgsList
-    } else if (path.startsWith('/package/v0/release-notes')) {
-      return Mock.ReleaseNotes
-    } else if (path.includes('instructions') || path.includes('license')) {
-      return markdown
-    }
+    return Error('do not call directly')
   }
 
   async checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes> {
     await pauseFor(2000)
-    return Mock.MarketplaceEos
+    return Mock.RegistryOsUpdate
+  }
+
+  async getRegistryInfo(registryUrl: string): Promise<RR.GetRegistryInfoRes> {
+    await pauseFor(2000)
+    return Mock.RegistryInfo
+  }
+
+  async getRegistryPackages<T extends T.GetPackageParams>(
+    registryUrl: string,
+    params: T,
+  ): Promise<RR.GetRegistryMultiPackagesRes<T>> {
+    await pauseFor(2000)
+    return Mock.RegistryPackages as RR.GetRegistryMultiPackagesRes<T>
+  }
+
+  async getRegistryPackage<T extends T.GetPackageParams>(
+    registryUrl: string,
+    params: T,
+  ): Promise<RR.GetRegistrySinglePackageRes<T>> {
+    await pauseFor(2000)
+    return Mock.RegistryPackages[
+      params.id!
+    ] as RR.GetRegistrySinglePackageRes<T>
   }
 
   // notification
@@ -1064,7 +1066,7 @@ export class MockApiService extends ApiService {
 
   async sideloadPackage(
     params: RR.SideloadPackageReq,
-  ): Promise<RR.SideloadPacakgeRes> {
+  ): Promise<RR.SideloadPackageRes> {
     await pauseFor(2000)
     return '4120e092-05ab-4de2-9fbd-c3f1f4b1df9e' // no significance, randomly generated
   }

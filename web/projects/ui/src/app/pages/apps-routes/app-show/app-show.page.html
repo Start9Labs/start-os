@@ -34,9 +34,7 @@
           <!-- ** menu ** -->
           <app-show-menu [buttons]="pkg | toButtons"></app-show-menu>
           <!-- ** additional ** -->
-          <app-show-additional
-            [manifest]="pkg.stateInfo.manifest"
-          ></app-show-additional>
+          <app-show-additional [pkg]="pkg"></app-show-additional>
         </ng-container>
       </ion-item-group>
     </ng-template>
