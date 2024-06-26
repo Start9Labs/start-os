@@ -152,22 +152,49 @@ update-overlay: $(ALL_TARGETS)
 	$(call ssh,"sudo systemctl start startd")
 
 wormhole: core/target/$(ARCH)-unknown-linux-musl/release/startbox
-	@echo "Paste the following command into the shell of your start-os server:"
+	@echo "Paste the following command into the shell of your StartOS server:"
+	@echo
 	@wormhole send core/target/$(ARCH)-unknown-linux-musl/release/startbox 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/startos/scripts/chroot-and-upgrade \"cd /usr/bin && rm startbox && wormhole receive --accept-file %s && chmod +x startbox\"\n", $$3 }'
 
 wormhole-deb: results/$(BASENAME).deb
-	@echo "Paste the following command into the shell of your start-os server:"
+	@echo "Paste the following command into the shell of your StartOS server:"
+	@echo
 	@wormhole send results/$(BASENAME).deb 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/startos/scripts/chroot-and-upgrade '"'"'cd $$(mktemp -d) && wormhole receive --accept-file %s && apt-get install -y --reinstall ./$(BASENAME).deb'"'"'\n", $$3 }'
 
-wormhole-cli: core/target/$(ARCH)-unknown-linux-musl/release/start-cli
-	@echo "Paste the following command into the shell of your start-os server:"
-	@wormhole send results/$(BASENAME).deb 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/startos/scripts/chroot-and-upgrade '"'"'cd $$(mktemp -d) && wormhole receive --accept-file %s && apt-get install -y --reinstall ./$(BASENAME).deb'"'"'\n", $$3 }'
+wormhole-squashfs: results/$(BASENAME).squashfs
+	$(eval SQFS_SUM := $(shell b3sum results/$(BASENAME).squashfs | head -c 32))
+	$(eval SQFS_SIZE := $(shell du -s --bytes results/$(BASENAME).squashfs | awk '{print $$1}'))
+	@echo "Paste the following command into the shell of your StartOS server:"
+	@echo
+	@wormhole send results/$(BASENAME).squashfs 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo sh -c '"'"'/usr/lib/startos/scripts/prune-images $(SQFS_SIZE) && cd /media/startos/images && wormhole receive --accept-file %s && mv $(BASENAME).squashfs $(SQFS_SUM).rootfs && ln -rsf ./$(SQFS_SUM).rootfs ../config/current.rootfs && sync && reboot'"'"'\n", $$3 }'
 
 update: $(ALL_TARGETS)
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	$(call ssh,'sudo /usr/lib/startos/scripts/chroot-and-upgrade --create')
 	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/startos/next PLATFORM=$(PLATFORM)
 	$(call ssh,'sudo /media/startos/next/usr/lib/startos/scripts/chroot-and-upgrade --no-sync "apt-get install -y $(shell cat ./build/lib/depends)"')
+
+update-startbox: core/target/$(ARCH)-unknown-linux-musl/release/startbox # only update binary (faster than full update)
+	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
+	$(call ssh,'sudo /usr/lib/startos/scripts/chroot-and-upgrade --create')
+	$(call cp,core/target/$(ARCH)-unknown-linux-musl/release/startbox,/media/startos/next/usr/bin/startbox)
+	$(call ssh,'sudo /media/startos/next/usr/lib/startos/scripts/chroot-and-upgrade --no-sync true')
+
+update-deb: results/$(BASENAME).deb # better than update, but only available from debian
+	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
+	$(call ssh,'sudo /usr/lib/startos/scripts/chroot-and-upgrade --create')
+	$(call mkdir,/media/startos/next/tmp/startos-deb)
+	$(call cp,results/$(BASENAME).deb,/media/startos/next/tmp/startos-deb/$(BASENAME).deb)
+	$(call ssh,'sudo /media/startos/next/usr/lib/startos/scripts/chroot-and-upgrade --no-sync "apt-get install -y --reinstall /tmp/startos-deb/$(BASENAME).deb"')
+
+update-squashfs: results/$(BASENAME).squashfs
+	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
+	$(eval SQFS_SUM := $(shell b3sum results/$(BASENAME).squashfs))
+	$(eval SQFS_SIZE := $(shell du -s --bytes results/$(BASENAME).squashfs | awk '{print $$1}'))
+	$(call ssh,'/usr/lib/startos/scripts/prune-images $(SQFS_SIZE)')
+	$(call cp,results/$(BASENAME).squashfs,/media/startos/images/$(SQFS_SUM).rootfs)
+	$(call ssh,'sudo ln -rsf /media/startos/images/$(SQFS_SUM).rootfs /media/startos/config/current.rootfs')
+	$(call ssh,'sudo reboot')
 
 emulate-reflash: $(ALL_TARGETS)
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
