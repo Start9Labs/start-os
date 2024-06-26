@@ -35,7 +35,9 @@ function convertAnsi(entries: readonly any[]): string {
 @Injectable({ providedIn: 'root' })
 export class LogsService extends Observable<readonly string[]> {
   private readonly api = inject(ApiService)
-  private readonly log$ = defer(() => this.api.initFollowLogs({})).pipe(
+  private readonly log$ = defer(() =>
+    this.api.initFollowLogs({ boot: 0 }),
+  ).pipe(
     switchMap(({ guid }) => this.api.openWebsocket$<Log>(guid, {})),
     bufferTime(250),
     filter(logs => !!logs.length),
