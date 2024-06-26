@@ -15,33 +15,35 @@ export type ValueType =
 export type ValueSpec = ValueSpecOf<ValueType>
 /** core spec types. These types provide the metadata for performing validations */
 // prettier-ignore
-export type ValueSpecOf<T extends ValueType> = T extends "text"
-  ? ValueSpecText
-  : T extends "textarea"
-    ? ValueSpecTextarea
-    : T extends "number"
-      ? ValueSpecNumber
-      : T extends "color"
-        ? ValueSpecColor
-        : T extends "datetime"
-          ? ValueSpecDatetime
-          : T extends "toggle"
-            ? ValueSpecToggle
-            : T extends "select"
-              ? ValueSpecSelect
-              : T extends "multiselect"
-                ? ValueSpecMultiselect
-                : T extends "list"
-                  ? ValueSpecList
-                  : T extends "object"
-                    ? ValueSpecObject
-                    : T extends "file"
-                      ? ValueSpecFile
-                      : T extends "union"
-                        ? ValueSpecUnion
-                        : never
+export type ValueSpecOf<T extends ValueType> = 
+  T extends "text" ? ValueSpecText : 
+  T extends "textarea" ? ValueSpecTextarea : 
+  T extends "number" ? ValueSpecNumber : 
+  T extends "color" ? ValueSpecColor : 
+  T extends "datetime" ? ValueSpecDatetime : 
+  T extends "toggle" ? ValueSpecToggle : 
+  T extends "select" ? ValueSpecSelect : 
+  T extends "multiselect" ? ValueSpecMultiselect : 
+  T extends "list" ? ValueSpecList : 
+  T extends "object" ? ValueSpecObject : 
+  T extends "file" ? ValueSpecFile : 
+  T extends "union" ? ValueSpecUnion : 
+  never
 
-export interface ValueSpecText extends ListValueSpecText, WithStandalone {
+export type ValueSpecText = {
+  name: string
+  description: string | null
+  warning: string | null
+
+  type: "text"
+  patterns: Pattern[]
+  minLength: number | null
+  maxLength: number | null
+  masked: boolean
+
+  inputmode: "text" | "email" | "tel" | "url"
+  placeholder: string | null
+
   required: boolean
   default: DefaultString | null
   disabled: false | string
@@ -49,7 +51,11 @@ export interface ValueSpecText extends ListValueSpecText, WithStandalone {
   /** Immutable means it can only be configed at the first config then never again */
   immutable: boolean
 }
-export interface ValueSpecTextarea extends WithStandalone {
+export type ValueSpecTextarea = {
+  name: string
+  description: string | null
+  warning: string | null
+
   type: "textarea"
   placeholder: string | null
   minLength: number | null
@@ -63,14 +69,28 @@ export interface ValueSpecTextarea extends WithStandalone {
 export type FilePath = {
   filePath: string
 }
-export interface ValueSpecNumber extends ListValueSpecNumber, WithStandalone {
+export type ValueSpecNumber = {
+  type: "number"
+  min: number | null
+  max: number | null
+  integer: boolean
+  step: number | null
+  units: string | null
+  placeholder: string | null
+  name: string
+  description: string | null
+  warning: string | null
   required: boolean
   default: number | null
   disabled: false | string
   /** Immutable means it can only be configed at the first config then never again */
   immutable: boolean
 }
-export interface ValueSpecColor extends WithStandalone {
+export type ValueSpecColor = {
+  name: string
+  description: string | null
+  warning: string | null
+
   type: "color"
   required: boolean
   default: string | null
@@ -78,7 +98,10 @@ export interface ValueSpecColor extends WithStandalone {
   /** Immutable means it can only be configed at the first config then never again */
   immutable: boolean
 }
-export interface ValueSpecDatetime extends WithStandalone {
+export type ValueSpecDatetime = {
+  name: string
+  description: string | null
+  warning: string | null
   type: "datetime"
   required: boolean
   inputmode: "date" | "time" | "datetime-local"
@@ -89,7 +112,11 @@ export interface ValueSpecDatetime extends WithStandalone {
   /** Immutable means it can only be configed at the first config then never again */
   immutable: boolean
 }
-export interface ValueSpecSelect extends SelectBase, WithStandalone {
+export type ValueSpecSelect = {
+  values: Record<string, string>
+  name: string
+  description: string | null
+  warning: string | null
   type: "select"
   required: boolean
   default: string | null
@@ -102,7 +129,13 @@ export interface ValueSpecSelect extends SelectBase, WithStandalone {
   /** Immutable means it can only be configed at the first config then never again */
   immutable: boolean
 }
-export interface ValueSpecMultiselect extends SelectBase, WithStandalone {
+export type ValueSpecMultiselect = {
+  values: Record<string, string>
+
+  name: string
+  description: string | null
+  warning: string | null
+
   type: "multiselect"
   minLength: number | null
   maxLength: number | null
@@ -116,14 +149,22 @@ export interface ValueSpecMultiselect extends SelectBase, WithStandalone {
   /** Immutable means it can only be configed at the first config then never again */
   immutable: boolean
 }
-export interface ValueSpecToggle extends WithStandalone {
+export type ValueSpecToggle = {
+  name: string
+  description: string | null
+  warning: string | null
+
   type: "toggle"
   default: boolean | null
   disabled: false | string
   /** Immutable means it can only be configed at the first config then never again */
   immutable: boolean
 }
-export interface ValueSpecUnion extends WithStandalone {
+export type ValueSpecUnion = {
+  name: string
+  description: string | null
+  warning: string | null
+
   type: "union"
   variants: Record<
     string,
@@ -143,36 +184,35 @@ export interface ValueSpecUnion extends WithStandalone {
   /** Immutable means it can only be configed at the first config then never again */
   immutable: boolean
 }
-export interface ValueSpecFile extends WithStandalone {
+export type ValueSpecFile = {
+  name: string
+  description: string | null
+  warning: string | null
   type: "file"
   extensions: string[]
   required: boolean
 }
-export interface ValueSpecObject extends WithStandalone {
-  type: "object"
-  spec: InputSpec
-}
-export interface WithStandalone {
+export type ValueSpecObject = {
   name: string
   description: string | null
   warning: string | null
-}
-export interface SelectBase {
-  values: Record<string, string>
+  type: "object"
+  spec: InputSpec
 }
 export type ListValueSpecType = "text" | "number" | "object"
 /** represents a spec for the values of a list */
-export type ListValueSpecOf<T extends ListValueSpecType> = T extends "text"
-  ? ListValueSpecText
-  : T extends "number"
-    ? ListValueSpecNumber
-    : T extends "object"
-      ? ListValueSpecObject
-      : never
+// prettier-ignore
+export type ListValueSpecOf<T extends ListValueSpecType> = 
+  T extends "text" ? ListValueSpecText :
+  T extends "number" ? ListValueSpecNumber :
+  T extends "object" ? ListValueSpecObject :
+  never
 /** represents a spec for a list */
 export type ValueSpecList = ValueSpecListOf<ListValueSpecType>
-export interface ValueSpecListOf<T extends ListValueSpecType>
-  extends WithStandalone {
+export type ValueSpecListOf<T extends ListValueSpecType> = {
+  name: string
+  description: string | null
+  warning: string | null
   type: "list"
   spec: ListValueSpecOf<T>
   minLength: number | null
@@ -188,11 +228,11 @@ export interface ValueSpecListOf<T extends ListValueSpecType>
     | readonly DefaultString[]
     | readonly Record<string, unknown>[]
 }
-export interface Pattern {
+export type Pattern = {
   regex: string
   description: string
 }
-export interface ListValueSpecText {
+export type ListValueSpecText = {
   type: "text"
   patterns: Pattern[]
   minLength: number | null
@@ -203,7 +243,7 @@ export interface ListValueSpecText {
   inputmode: "text" | "email" | "tel" | "url"
   placeholder: string | null
 }
-export interface ListValueSpecNumber {
+export type ListValueSpecNumber = {
   type: "number"
   min: number | null
   max: number | null
@@ -212,7 +252,7 @@ export interface ListValueSpecNumber {
   units: string | null
   placeholder: string | null
 }
-export interface ListValueSpecObject {
+export type ListValueSpecObject = {
   type: "object"
   /** this is a mapped type of the config object at this level, replacing the object's values with specs on those values */
   spec: InputSpec
