@@ -2,7 +2,7 @@
   <h1 [style.font-size.rem]="2.5" [style.margin.rem]="1">
     Initializing StartOS
   </h1>
-  <div class="center-wrapper" *ngIf="progress.total">
+  <div *ngIf="progress.total">
     Progress: {{ (progress.total * 100).toFixed(0) }}%
   </div>
 
