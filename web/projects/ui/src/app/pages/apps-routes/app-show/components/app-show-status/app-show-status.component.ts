@@ -11,7 +11,6 @@ import {
 import { ErrorToastService } from '@start9labs/shared'
 import { AlertController, LoadingController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ModalService } from 'src/app/services/modal.service'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { ConnectionService } from 'src/app/services/connection.service'
 import {
@@ -21,6 +20,8 @@ import {
 } from 'src/app/util/get-package-data'
 import { PatchDB } from 'patch-db-client'
 import { T } from '@start9labs/start-sdk'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { ConfigModal, PackageConfigData } from 'src/app/modals/config.component'
 
 @Component({
   selector: 'app-show-status',
@@ -45,7 +46,7 @@ export class AppShowStatusComponent {
     private readonly loadingCtrl: LoadingController,
     private readonly embassyApi: ApiService,
     private readonly launcherService: UiLauncherService,
-    private readonly modalService: ModalService,
+    private readonly formDialog: FormDialogService,
     readonly connection$: ConnectionService,
     private readonly patch: PatchDB<DataModel>,
   ) {}
@@ -85,8 +86,8 @@ export class AppShowStatusComponent {
   }
 
   async presentModalConfig(): Promise<void> {
-    return this.modalService.presentModalConfig({
-      pkgId: this.manifest.id,
+    return this.formDialog.open<PackageConfigData>(ConfigModal, {
+      data: { pkgId: this.manifest.id },
     })
   }
 

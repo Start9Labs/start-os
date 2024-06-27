@@ -12,12 +12,13 @@ import {
   DataModel,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { isEmptyObject, ErrorToastService, getPkgId } from '@start9labs/shared'
 import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
 import { T } from '@start9labs/start-sdk'
+import { FormComponent } from 'src/app/components/form.component'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
 
 @Component({
   selector: 'app-actions',
@@ -38,6 +39,7 @@ export class AppActionsPage {
     private readonly loadingCtrl: LoadingController,
     private readonly navCtrl: NavController,
     private readonly patch: PatchDB<DataModel>,
+    private readonly formDialog: FormDialogService,
   ) {}
 
   async handleAction(
@@ -46,23 +48,19 @@ export class AppActionsPage {
   ) {
     if (status && action.value.allowedStatuses.includes(status.main.status)) {
       if (!isEmptyObject(action.value.input || {})) {
-        const modal = await this.modalCtrl.create({
-          component: GenericFormPage,
-          componentProps: {
-            title: action.value.name,
+        this.formDialog.open(FormComponent, {
+          label: action.value.name,
+          data: {
             spec: action.value.input,
             buttons: [
               {
                 text: 'Execute',
-                handler: (value: any) => {
-                  return this.executeAction(action.key, value)
-                },
-                isSubmit: true,
+                handler: async (value: any) =>
+                  this.executeAction(action.key, value),
               },
             ],
           },
         })
-        await modal.present()
       } else {
         const alert = await this.alertCtrl.create({
           header: 'Confirm',
