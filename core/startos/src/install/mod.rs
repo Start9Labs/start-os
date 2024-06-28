@@ -323,6 +323,35 @@ impl FromArgMatches for CliInstallParams {
     }
 }
 
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
+pub struct InstalledVersionParams {
+    id: PackageId,
+}
+
+pub async fn installed_version(
+    ctx: RpcContext,
+    InstalledVersionParams { id }: InstalledVersionParams,
+) -> Result<Option<VersionString>, Error> {
+    if let Some(pde) = ctx
+        .db
+        .peek()
+        .await
+        .into_public()
+        .into_package_data()
+        .into_idx(&id)
+    {
+        Ok(Some(
+            pde.into_state_info()
+                .as_manifest(ManifestPreference::Old)
+                .as_version()
+                .de()?,
+        ))
+    } else {
+        Ok(None)
+    }
+}
+
 #[instrument(skip_all)]
 pub async fn cli_install(
     HandlerArgs {

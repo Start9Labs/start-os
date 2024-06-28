@@ -263,6 +263,12 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                 .with_display_serializable()
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "installed-version",
+            from_fn_async(install::installed_version)
+                .with_display_serializable()
+                .with_call_remote::<CliContext>(),
+        )
         .subcommand("config", config::config::<C>())
         .subcommand(
             "start",

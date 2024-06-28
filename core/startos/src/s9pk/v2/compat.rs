@@ -29,6 +29,16 @@ impl S9pk<TmpSource<PackSource>> {
         tmp_dir: Arc<TmpDir>,
         signer: ed25519_dalek::SigningKey,
     ) -> Result<Self, Error> {
+        Command::new(CONTAINER_TOOL)
+            .arg("run")
+            .arg("--rm")
+            .arg("--privileged")
+            .arg("tonistiigi/binfmt")
+            .arg("--install")
+            .arg("all")
+            .invoke(ErrorKind::Docker)
+            .await?;
+
         let mut archive = DirectoryContents::<TmpSource<PackSource>>::new();
 
         // manifest.json
