@@ -4,8 +4,6 @@ import { FileContents } from "./fileContents"
 import { ed25519ctx } from "@noble/curves/ed25519"
 import { VarIntProcessor } from "./varint"
 
-const subtleCrypto = new globalThis.Crypto().subtle
-
 const maxVarstringLen = 1024 * 1024
 
 export type Signer = {
