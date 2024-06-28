@@ -1,7 +1,7 @@
 import * as matches from "ts-matches"
 import * as YAML from "yaml"
 import * as TOML from "@iarna/toml"
-import _ from "lodash"
+import merge from "lodash.merge"
 import * as T from "../types"
 import * as fs from "node:fs/promises"
 
@@ -82,7 +82,7 @@ export class FileHelper<A> {
 
   async merge(data: A, effects: T.Effects) {
     const fileData = (await this.read(effects).catch(() => ({}))) || {}
-    const mergeData = _.merge({}, fileData, data)
+    const mergeData = merge({}, fileData, data)
     return await this.write(mergeData, effects)
   }
   /**

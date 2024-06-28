@@ -2,9 +2,9 @@ import * as matches from "ts-matches"
 
 const starSub = /((\d+\.)*\d+)\.\*/
 // prettier-ignore
-export type ValidEmVer = `${number}${`.${number}` | ""}${`.${number}` | ""}${`-${string}` | ""}`;
+export type ValidEmVer = string;
 // prettier-ignore
-export type ValidEmVerRange = `${'>=' | '<='| '<' | '>' | ''}${'^' | '~' | ''}${number | '*'}${`.${number | '*'}` | ""}${`.${number | '*'}` | ""}${`-${string}` | ""}`;
+export type ValidEmVerRange = string;
 
 function incrementLastNumber(list: number[]) {
   const newList = [...list]

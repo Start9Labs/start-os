@@ -242,8 +242,8 @@ impl From<std::string::FromUtf8Error> for Error {
         Error::new(e, ErrorKind::Utf8)
     }
 }
-impl From<emver::ParseError> for Error {
-    fn from(e: emver::ParseError) -> Self {
+impl From<exver::ParseError> for Error {
+    fn from(e: exver::ParseError) -> Self {
         Error::new(e, ErrorKind::ParseVersion)
     }
 }

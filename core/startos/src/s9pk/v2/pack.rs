@@ -10,7 +10,6 @@ use futures::{FutureExt, TryStreamExt};
 use imbl_value::InternedString;
 use models::{ImageId, PackageId, VersionString};
 use serde::{Deserialize, Serialize};
-use tokio::fs::File;
 use tokio::io::AsyncRead;
 use tokio::process::Command;
 use tokio::sync::OnceCell;
@@ -23,12 +22,12 @@ use crate::rpc_continuations::Guid;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::{
-    into_dyn_read, ArchiveSource, DynFileSource, FileSource,
+    into_dyn_read, ArchiveSource, DynFileSource, FileSource, TmpSource,
 };
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
 use crate::s9pk::v2::SIG_CONTEXT;
 use crate::s9pk::S9pk;
-use crate::util::io::TmpDir;
+use crate::util::io::{create_file, open_file, TmpDir};
 use crate::util::Invoke;
 
 #[cfg(not(feature = "docker"))]
@@ -64,7 +63,7 @@ impl SqfsDir {
                     .invoke(ErrorKind::Filesystem)
                     .await?;
                 Ok(MultiCursorFile::from(
-                    File::open(&path)
+                    open_file(&path)
                         .await
                         .with_ctx(|_| (ErrorKind::Filesystem, path.display()))?,
                 ))
@@ -100,11 +99,7 @@ impl FileSource for PackSource {
     async fn reader(&self) -> Result<Self::Reader, Error> {
         match self {
             Self::Buffered(a) => Ok(into_dyn_read(Cursor::new(a.clone()))),
-            Self::File(f) => Ok(into_dyn_read(
-                File::open(f)
-                    .await
-                    .with_ctx(|_| (ErrorKind::Filesystem, f.display()))?,
-            )),
+            Self::File(f) => Ok(into_dyn_read(open_file(f).await?)),
             Self::Squashfs(dir) => dir.file().await?.fetch_all().await.map(into_dyn_read),
         }
     }
@@ -284,9 +279,9 @@ pub enum ImageSource {
 }
 impl ImageSource {
     #[instrument(skip_all)]
-    pub fn load<'a, S: From<PackSource> + FileSource + Clone>(
+    pub fn load<'a, S: From<TmpSource<PackSource>> + FileSource + Clone>(
         &'a self,
-        tmpdir: &'a TmpDir,
+        tmp_dir: Arc<TmpDir>,
         id: &'a PackageId,
         version: &'a VersionString,
         image_id: &'a ImageId,
@@ -331,12 +326,13 @@ impl ImageSource {
                         .arg(&tag)
                         .arg(&docker_platform)
                         .arg("-o")
-                        .arg("type=image")
+                        .arg("type=docker,dest=-")
                         .capture(false)
+                        .pipe(Command::new(CONTAINER_TOOL).arg("load"))
                         .invoke(ErrorKind::Docker)
                         .await?;
                     ImageSource::DockerTag(tag.clone())
-                        .load(tmpdir, id, version, image_id, arch, into)
+                        .load(tmp_dir, id, version, image_id, arch, into)
                         .await?;
                     Command::new(CONTAINER_TOOL)
                         .arg("rmi")
@@ -390,21 +386,24 @@ impl ImageSource {
                     into.insert_path(
                         base_path.with_extension("json"),
                         Entry::file(
-                            PackSource::Buffered(
-                                serde_json::to_vec(&ImageMetadata {
-                                    workdir: if config.working_dir == Path::new("") {
-                                        "/".into()
-                                    } else {
-                                        config.working_dir
-                                    },
-                                    user: if config.user.is_empty() {
-                                        "root".into()
-                                    } else {
-                                        config.user.into()
-                                    },
-                                })
-                                .with_kind(ErrorKind::Serialization)?
-                                .into(),
+                            TmpSource::new(
+                                tmp_dir.clone(),
+                                PackSource::Buffered(
+                                    serde_json::to_vec(&ImageMetadata {
+                                        workdir: if config.working_dir == Path::new("") {
+                                            "/".into()
+                                        } else {
+                                            config.working_dir
+                                        },
+                                        user: if config.user.is_empty() {
+                                            "root".into()
+                                        } else {
+                                            config.user.into()
+                                        },
+                                    })
+                                    .with_kind(ErrorKind::Serialization)?
+                                    .into(),
+                                ),
                             )
                             .into(),
                         ),
@@ -412,10 +411,16 @@ impl ImageSource {
                     into.insert_path(
                         base_path.with_extension("env"),
                         Entry::file(
-                            PackSource::Buffered(config.env.join("\n").into_bytes().into()).into(),
+                            TmpSource::new(
+                                tmp_dir.clone(),
+                                PackSource::Buffered(config.env.join("\n").into_bytes().into()),
+                            )
+                            .into(),
                         ),
                     )?;
-                    let dest = tmpdir.join(Guid::new().as_ref()).with_extension("squashfs");
+                    let dest = tmp_dir
+                        .join(Guid::new().as_ref())
+                        .with_extension("squashfs");
                     let container = String::from_utf8(
                         Command::new(CONTAINER_TOOL)
                             .arg("create")
@@ -438,7 +443,7 @@ impl ImageSource {
                         .await?;
                     into.insert_path(
                         base_path.with_extension("squashfs"),
-                        Entry::file(PackSource::File(dest).into()),
+                        Entry::file(TmpSource::new(tmp_dir.clone(), PackSource::File(dest)).into()),
                     )?;
 
                     Ok(())
@@ -460,8 +465,8 @@ pub struct ImageMetadata {
 
 #[instrument(skip_all)]
 pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
-    let tmpdir = Arc::new(TmpDir::new().await?);
-    let mut files = DirectoryContents::<PackSource>::new();
+    let tmp_dir = Arc::new(TmpDir::new().await?);
+    let mut files = DirectoryContents::<TmpSource<PackSource>>::new();
     let js_dir = params.javascript();
     let manifest: Arc<[u8]> = Command::new("node")
         .arg("-e")
@@ -474,7 +479,10 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
         .into();
     files.insert(
         "manifest.json".into(),
-        Entry::file(PackSource::Buffered(manifest.clone())),
+        Entry::file(TmpSource::new(
+            tmp_dir.clone(),
+            PackSource::Buffered(manifest.clone()),
+        )),
     );
     let icon = params.icon().await?;
     let icon_ext = icon
@@ -483,22 +491,28 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
         .to_string_lossy();
     files.insert(
         InternedString::from_display(&lazy_format!("icon.{}", icon_ext)),
-        Entry::file(PackSource::File(icon)),
+        Entry::file(TmpSource::new(tmp_dir.clone(), PackSource::File(icon))),
     );
     files.insert(
         "LICENSE.md".into(),
-        Entry::file(PackSource::File(params.license())),
+        Entry::file(TmpSource::new(
+            tmp_dir.clone(),
+            PackSource::File(params.license()),
+        )),
     );
     files.insert(
         "instructions.md".into(),
-        Entry::file(PackSource::File(params.instructions())),
+        Entry::file(TmpSource::new(
+            tmp_dir.clone(),
+            PackSource::File(params.instructions()),
+        )),
     );
     files.insert(
         "javascript.squashfs".into(),
-        Entry::file(PackSource::Squashfs(Arc::new(SqfsDir::new(
-            js_dir,
-            tmpdir.clone(),
-        )))),
+        Entry::file(TmpSource::new(
+            tmp_dir.clone(),
+            PackSource::Squashfs(Arc::new(SqfsDir::new(js_dir, tmp_dir.clone()))),
+        )),
     );
 
     let mut s9pk = S9pk::new(
@@ -511,26 +525,29 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
     for assets in s9pk.as_manifest().assets.clone() {
         s9pk.as_archive_mut().contents_mut().insert_path(
             Path::new("assets").join(&assets).with_extension("squashfs"),
-            Entry::file(PackSource::Squashfs(Arc::new(SqfsDir::new(
-                assets_dir.join(&assets),
-                tmpdir.clone(),
-            )))),
+            Entry::file(TmpSource::new(
+                tmp_dir.clone(),
+                PackSource::Squashfs(Arc::new(SqfsDir::new(
+                    assets_dir.join(&assets),
+                    tmp_dir.clone(),
+                ))),
+            )),
         )?;
     }
 
-    s9pk.load_images(&*tmpdir).await?;
+    s9pk.load_images(tmp_dir.clone()).await?;
 
     s9pk.validate_and_filter(None)?;
 
     s9pk.serialize(
-        &mut File::create(params.output(&s9pk.as_manifest().id)).await?,
+        &mut create_file(params.output(&s9pk.as_manifest().id)).await?,
         false,
     )
     .await?;
 
     drop(s9pk);
 
-    tmpdir.gc().await?;
+    tmp_dir.gc().await?;
 
     Ok(())
 }

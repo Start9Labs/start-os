@@ -40,6 +40,7 @@ impl Database {
                 notifications: Notifications::new(),
                 cifs: CifsTargets::new(),
                 package_stores: BTreeMap::new(),
+                compat_s9pk_key: Pem(account.compat_s9pk_key.clone()),
             }, // TODO
         })
     }

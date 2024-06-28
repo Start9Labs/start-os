@@ -1062,11 +1062,12 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async sideloadPackage(
-    params: RR.SideloadPackageReq,
-  ): Promise<RR.SideloadPacakgeRes> {
+  async sideloadPackage(): Promise<RR.SideloadPackageRes> {
     await pauseFor(2000)
-    return '4120e092-05ab-4de2-9fbd-c3f1f4b1df9e' // no significance, randomly generated
+    return {
+      upload: '4120e092-05ab-4de2-9fbd-c3f1f4b1df9e', // no significance, randomly generated
+      progress: '5120e092-05ab-4de2-9fbd-c3f1f4b1df9e', // no significance, randomly generated
+    }
   }
 
   private async initProgress(): Promise<T.FullProgress> {

@@ -8,14 +8,14 @@ use ts_rs::TS;
 #[derive(Debug, Clone, TS)]
 #[ts(type = "string", rename = "Version")]
 pub struct VersionString {
-    version: emver::Version,
+    version: exver::ExtendedVersion,
     string: String,
 }
 impl VersionString {
     pub fn as_str(&self) -> &str {
         self.string.as_str()
     }
-    pub fn into_version(self) -> emver::Version {
+    pub fn into_version(self) -> exver::ExtendedVersion {
         self.version
     }
 }
@@ -25,7 +25,7 @@ impl std::fmt::Display for VersionString {
     }
 }
 impl std::str::FromStr for VersionString {
-    type Err = <emver::Version as FromStr>::Err;
+    type Err = <exver::ExtendedVersion as FromStr>::Err;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(VersionString {
             string: s.to_owned(),
@@ -33,32 +33,32 @@ impl std::str::FromStr for VersionString {
         })
     }
 }
-impl From<emver::Version> for VersionString {
-    fn from(v: emver::Version) -> Self {
+impl From<exver::ExtendedVersion> for VersionString {
+    fn from(v: exver::ExtendedVersion) -> Self {
         VersionString {
             string: v.to_string(),
             version: v,
         }
     }
 }
-impl From<VersionString> for emver::Version {
+impl From<VersionString> for exver::ExtendedVersion {
     fn from(v: VersionString) -> Self {
         v.version
     }
 }
 impl Default for VersionString {
     fn default() -> Self {
-        Self::from(emver::Version::default())
+        Self::from(exver::ExtendedVersion::default())
     }
 }
 impl Deref for VersionString {
-    type Target = emver::Version;
+    type Target = exver::ExtendedVersion;
     fn deref(&self) -> &Self::Target {
         &self.version
     }
 }
-impl AsRef<emver::Version> for VersionString {
-    fn as_ref(&self) -> &emver::Version {
+impl AsRef<exver::ExtendedVersion> for VersionString {
+    fn as_ref(&self) -> &exver::ExtendedVersion {
         &self.version
     }
 }
@@ -80,7 +80,13 @@ impl PartialOrd for VersionString {
 }
 impl Ord for VersionString {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.version.cmp(&other.version)
+        self.version.partial_cmp(&other.version).unwrap_or_else(|| {
+            match (self.version.flavor(), other.version.flavor()) {
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (a, b) => a.cmp(&b),
+            }
+        })
     }
 }
 impl Hash for VersionString {
@@ -94,7 +100,8 @@ impl<'de> Deserialize<'de> for VersionString {
         D: Deserializer<'de>,
     {
         let string = String::deserialize(deserializer)?;
-        let version = emver::Version::from_str(&string).map_err(::serde::de::Error::custom)?;
+        let version =
+            exver::ExtendedVersion::from_str(&string).map_err(::serde::de::Error::custom)?;
         Ok(Self { string, version })
     }
 }

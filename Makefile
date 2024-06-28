@@ -17,7 +17,7 @@ COMPAT_SRC := $(shell git ls-files system-images/compat/)
 UTILS_SRC := $(shell git ls-files system-images/utils/)
 BINFMT_SRC := $(shell git ls-files system-images/binfmt/)
 CORE_SRC := $(shell git ls-files core) $(shell git ls-files --recurse-submodules patch-db) web/dist/static web/patchdb-ui-seed.json $(GIT_HASH_FILE)
-WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules/.package-lock.json web/config.json patch-db/client/dist web/patchdb-ui-seed.json
+WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules/.package-lock.json web/config.json patch-db/client/dist web/patchdb-ui-seed.json sdk/dist
 WEB_UI_SRC := $(shell git ls-files web/projects/ui)
 WEB_SETUP_WIZARD_SRC := $(shell git ls-files web/projects/setup-wizard)
 WEB_INSTALL_WIZARD_SRC := $(shell git ls-files web/projects/install-wizard)
@@ -262,15 +262,19 @@ web/node_modules/.package-lock.json: web/package.json sdk/dist
 	npm --prefix web ci
 	touch web/node_modules/.package-lock.json
 
-web/dist/raw/ui: $(WEB_UI_SRC) $(WEB_SHARED_SRC)
+web/.angular: patch-db/client/dist sdk/dist web/node_modules/.package-lock.json
+	rm -rf web/.angular
+	mkdir -p web/.angular
+
+web/dist/raw/ui: $(WEB_UI_SRC) $(WEB_SHARED_SRC) web/.angular
 	npm --prefix web run build:ui
 	touch web/dist/raw/ui
 
-web/dist/raw/setup-wizard: $(WEB_SETUP_WIZARD_SRC) $(WEB_SHARED_SRC)
+web/dist/raw/setup-wizard: $(WEB_SETUP_WIZARD_SRC) $(WEB_SHARED_SRC) web/.angular
 	npm --prefix web run build:setup
 	touch web/dist/raw/setup-wizard
 
-web/dist/raw/install-wizard: $(WEB_INSTALL_WIZARD_SRC) $(WEB_SHARED_SRC)
+web/dist/raw/install-wizard: $(WEB_INSTALL_WIZARD_SRC) $(WEB_SHARED_SRC) web/.angular
 	npm --prefix web run build:install-wiz
 	touch web/dist/raw/install-wizard
 

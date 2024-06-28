@@ -28,6 +28,7 @@ pub struct AccountInfo {
     pub root_ca_key: PKey<Private>,
     pub root_ca_cert: X509,
     pub ssh_key: ssh_key::PrivateKey,
+    pub compat_s9pk_key: ed25519_dalek::SigningKey,
 }
 impl AccountInfo {
     pub fn new(password: &str, start_time: SystemTime) -> Result<Self, Error> {
@@ -39,6 +40,7 @@ impl AccountInfo {
         let ssh_key = ssh_key::PrivateKey::from(ssh_key::private::Ed25519Keypair::random(
             &mut rand::thread_rng(),
         ));
+        let compat_s9pk_key = ed25519_dalek::SigningKey::generate(&mut rand::thread_rng());
         Ok(Self {
             server_id,
             hostname,
@@ -47,6 +49,7 @@ impl AccountInfo {
             root_ca_key,
             root_ca_cert,
             ssh_key,
+            compat_s9pk_key,
         })
     }
 
@@ -61,6 +64,7 @@ impl AccountInfo {
         let root_ca_key = cert_store.as_root_key().de()?.0;
         let root_ca_cert = cert_store.as_root_cert().de()?.0;
         let ssh_key = db.as_private().as_ssh_privkey().de()?.0;
+        let compat_s9pk_key = db.as_private().as_compat_s9pk_key().de()?.0;
 
         Ok(Self {
             server_id,
@@ -70,6 +74,7 @@ impl AccountInfo {
             root_ca_key,
             root_ca_cert,
             ssh_key,
+            compat_s9pk_key,
         })
     }
 
@@ -92,6 +97,9 @@ impl AccountInfo {
         db.as_private_mut()
             .as_ssh_privkey_mut()
             .ser(Pem::new_ref(&self.ssh_key))?;
+        db.as_private_mut()
+            .as_compat_s9pk_key_mut()
+            .ser(Pem::new_ref(&self.compat_s9pk_key))?;
         let key_store = db.as_private_mut().as_key_store_mut();
         key_store.as_onion_mut().insert_key(&self.tor_key)?;
         let cert_store = key_store.as_local_certs_mut();

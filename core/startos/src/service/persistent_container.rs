@@ -9,14 +9,12 @@ use helpers::NonDetachingJoinHandle;
 use models::{ImageId, ProcedureName, VolumeId};
 use rpc_toolkit::{Empty, Server, ShutdownHandle};
 use serde::de::DeserializeOwned;
-use tokio::fs::File;
 use tokio::process::Command;
 use tokio::sync::{oneshot, watch, Mutex, OnceCell};
 use tracing::instrument;
 
 use super::service_effect_handler::{service_effect_handler, EffectContext};
 use super::transition::{TransitionKind, TransitionState};
-use super::ServiceActorSeed;
 use crate::context::RpcContext;
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
@@ -32,6 +30,7 @@ use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
 use crate::service::start_stop::StartStop;
 use crate::service::{rpc, RunningStatus, Service};
+use crate::util::io::create_file;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::Invoke;
 use crate::volume::{asset_dir, data_dir};
@@ -237,7 +236,7 @@ impl PersistentContainer {
                 .get_path(Path::new("images").join(arch).join(&env_filename))
                 .and_then(|e| e.as_file())
             {
-                env.copy(&mut File::create(image_path.join(&env_filename)).await?)
+                env.copy(&mut create_file(image_path.join(&env_filename)).await?)
                     .await?;
             }
             let json_filename = Path::new(image.as_ref()).with_extension("json");
@@ -247,7 +246,7 @@ impl PersistentContainer {
                 .get_path(Path::new("images").join(arch).join(&json_filename))
                 .and_then(|e| e.as_file())
             {
-                json.copy(&mut File::create(image_path.join(&json_filename)).await?)
+                json.copy(&mut create_file(image_path.join(&json_filename)).await?)
                     .await?;
             }
         }

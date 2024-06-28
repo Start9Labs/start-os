@@ -6,6 +6,7 @@ export { setupManifest } from "./manifest/setupManifest"
 export { FileHelper } from "./util/fileHelper"
 export { setupExposeStore } from "./store/setupExposeStore"
 export { pathBuilder } from "./store/PathBuilder"
+export { S9pk } from "./s9pk"
 
 export * as actions from "./actions"
 export * as backup from "./backup"
