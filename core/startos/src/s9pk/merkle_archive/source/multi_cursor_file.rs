@@ -12,6 +12,7 @@ use tokio::sync::{Mutex, OwnedMutexGuard};
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, Section};
+use crate::util::io::open_file;
 
 fn path_from_fd(fd: RawFd) -> Result<PathBuf, Error> {
     #[cfg(target_os = "linux")]
@@ -42,7 +43,7 @@ impl MultiCursorFile {
         path_from_fd(self.fd)
     }
     pub async fn open(fd: &impl AsRawFd) -> Result<Self, Error> {
-        let f = File::open(path_from_fd(fd.as_raw_fd())?).await?;
+        let f = open_file(path_from_fd(fd.as_raw_fd())?).await?;
         Ok(Self::from(f))
     }
     pub async fn cursor(&self) -> Result<FileCursor, Error> {
@@ -50,7 +51,7 @@ impl MultiCursorFile {
             if let Ok(file) = self.file.clone().try_lock_owned() {
                 file
             } else {
-                Arc::new(Mutex::new(File::open(self.path()?).await?))
+                Arc::new(Mutex::new(open_file(self.path()?).await?))
                     .try_lock_owned()
                     .expect("freshly created")
             },

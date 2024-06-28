@@ -21,11 +21,9 @@ use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle, ProgressTrackerWriter};
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
-use crate::s9pk::rpc::s9pk;
 use crate::s9pk::S9pk;
 use crate::service::{LoadDisposition, Service, ServiceRef};
 use crate::status::{MainStatus, Status};
-use crate::upload::UploadingFile;
 use crate::util::serde::Pem;
 
 pub type DownloadInstallFuture = BoxFuture<'static, Result<InstallFuture, Error>>;

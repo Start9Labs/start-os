@@ -7,7 +7,7 @@ use std::str::FromStr;
 use std::sync::{Arc, Weak};
 
 use clap::builder::ValueParserFactory;
-use clap::{CommandFactory, FromArgMatches, Parser};
+use clap::Parser;
 use exver::VersionRange;
 use imbl_value::json;
 use itertools::Itertools;

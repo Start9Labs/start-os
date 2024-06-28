@@ -3,9 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use exver::ExtendedVersion;
-use itertools::Itertools;
 use models::ImageId;
-use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWriteExt};
 use tokio::process::Command;
 
@@ -15,12 +13,11 @@ use crate::s9pk::manifest::Manifest;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::source::TmpSource;
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
-use crate::s9pk::rpc::SKIP_ENV;
 use crate::s9pk::v1::manifest::{Manifest as ManifestV1, PackageProcedure};
 use crate::s9pk::v1::reader::S9pkReader;
-use crate::s9pk::v2::pack::{PackSource, CONTAINER_TOOL};
+use crate::s9pk::v2::pack::{ImageSource, PackSource, CONTAINER_TOOL};
 use crate::s9pk::v2::{S9pk, SIG_CONTEXT};
-use crate::util::io::TmpDir;
+use crate::util::io::{create_file, TmpDir};
 use crate::util::Invoke;
 
 pub const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x01];
@@ -83,13 +80,6 @@ impl S9pk<TmpSource<PackSource>> {
         // images
         for arch in reader.docker_arches().await? {
             let images_dir = tmp_dir.join("images").join(&arch);
-            let docker_platform = if arch == "x86_64" {
-                "--platform=linux/amd64".to_owned()
-            } else if arch == "aarch64" {
-                "--platform=linux/arm64".to_owned()
-            } else {
-                format!("--platform=linux/{arch}")
-            };
             tokio::fs::create_dir_all(&images_dir).await?;
             Command::new(CONTAINER_TOOL)
                 .arg("load")
@@ -100,103 +90,24 @@ impl S9pk<TmpSource<PackSource>> {
                 let mut image_config = new_manifest.images.remove(image).unwrap_or_default();
                 image_config.arch.insert(arch.as_str().into());
                 new_manifest.images.insert(image.clone(), image_config);
-                let sqfs_path = images_dir.join(image).with_extension("squashfs");
                 let image_name = if *system {
                     format!("start9/{}:latest", image)
                 } else {
                     format!("start9/{}/{}:{}", manifest.id, image, manifest.version)
                 };
-                let id = String::from_utf8(
-                    Command::new(CONTAINER_TOOL)
-                        .arg("create")
-                        .arg(&docker_platform)
-                        .arg(&image_name)
-                        .invoke(ErrorKind::Docker)
-                        .await?,
-                )?;
-                let env = String::from_utf8(
-                    Command::new(CONTAINER_TOOL)
-                        .arg("run")
-                        .arg("--rm")
-                        .arg(&docker_platform)
-                        .arg("--entrypoint")
-                        .arg("env")
-                        .arg(&image_name)
-                        .invoke(ErrorKind::Docker)
-                        .await?,
-                )?
-                .lines()
-                .filter(|l| {
-                    l.trim()
-                        .split_once("=")
-                        .map_or(false, |(v, _)| !SKIP_ENV.contains(&v))
-                })
-                .join("\n")
-                    + "\n";
-                let workdir = Path::new(
-                    String::from_utf8(
-                        Command::new(CONTAINER_TOOL)
-                            .arg("run")
-                            .arg("--rm")
-                            .arg(&docker_platform)
-                            .arg("--entrypoint")
-                            .arg("pwd")
-                            .arg(&image_name)
-                            .invoke(ErrorKind::Docker)
-                            .await?,
-                    )?
-                    .trim(),
-                )
-                .to_owned();
-                Command::new("bash")
-                    .arg("-c")
-                    .arg(format!(
-                        "{CONTAINER_TOOL} export {id} | mksquashfs - {sqfs} -tar",
-                        id = id.trim(),
-                        sqfs = sqfs_path.display()
-                    ))
-                    .invoke(ErrorKind::Docker)
-                    .await?;
-                Command::new(CONTAINER_TOOL)
-                    .arg("rm")
-                    .arg(id.trim())
-                    .invoke(ErrorKind::Docker)
-                    .await?;
-                archive.insert_path(
-                    Path::new("images")
-                        .join(&arch)
-                        .join(&image)
-                        .with_extension("squashfs"),
-                    Entry::file(TmpSource::new(tmp_dir.clone(), PackSource::File(sqfs_path))),
-                )?;
-                archive.insert_path(
-                    Path::new("images")
-                        .join(&arch)
-                        .join(&image)
-                        .with_extension("env"),
-                    Entry::file(TmpSource::new(
+                ImageSource::DockerTag(image_name.clone())
+                    .load(
                         tmp_dir.clone(),
-                        PackSource::Buffered(Vec::from(env).into()),
-                    )),
-                )?;
-                archive.insert_path(
-                    Path::new("images")
-                        .join(&arch)
-                        .join(&image)
-                        .with_extension("json"),
-                    Entry::file(TmpSource::new(
-                        tmp_dir.clone(),
-                        PackSource::Buffered(
-                            serde_json::to_vec(&serde_json::json!({
-                                "workdir": workdir
-                            }))
-                            .with_kind(ErrorKind::Serialization)?
-                            .into(),
-                        ),
-                    )),
-                )?;
+                        &new_manifest.id,
+                        &new_manifest.version,
+                        image,
+                        &arch,
+                        &mut archive,
+                    )
+                    .await?;
                 Command::new(CONTAINER_TOOL)
                     .arg("rmi")
+                    .arg("-f")
                     .arg(&image_name)
                     .invoke(ErrorKind::Docker)
                     .await?;
@@ -234,12 +145,12 @@ impl S9pk<TmpSource<PackSource>> {
         let sqfs_path = js_dir.with_extension("squashfs");
         tokio::fs::create_dir_all(&js_dir).await?;
         if let Some(mut scripts) = reader.scripts().await? {
-            let mut js_file = File::create(js_dir.join("embassy.js")).await?;
+            let mut js_file = create_file(js_dir.join("embassy.js")).await?;
             tokio::io::copy(&mut scripts, &mut js_file).await?;
             js_file.sync_all().await?;
         }
         {
-            let mut js_file = File::create(js_dir.join("embassyManifest.json")).await?;
+            let mut js_file = create_file(js_dir.join("embassyManifest.json")).await?;
             js_file
                 .write_all(&serde_json::to_vec(&manifest_raw).with_kind(ErrorKind::Serialization)?)
                 .await?;
@@ -267,7 +178,9 @@ impl S9pk<TmpSource<PackSource>> {
             )),
         )?;
 
-        S9pk::new(MerkleArchive::new(archive, signer, SIG_CONTEXT), None).await
+        let mut res = S9pk::new(MerkleArchive::new(archive, signer, SIG_CONTEXT), None).await?;
+        res.as_archive_mut().update_hashes(true).await?;
+        Ok(res)
     }
 }
 

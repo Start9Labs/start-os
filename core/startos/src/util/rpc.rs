@@ -3,7 +3,6 @@ use std::path::Path;
 use clap::Parser;
 use rpc_toolkit::{from_fn_async, Context, ParentHandler};
 use serde::{Deserialize, Serialize};
-use tokio::fs::File;
 use url::Url;
 
 use crate::context::CliContext;
@@ -11,7 +10,7 @@ use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::ArchiveSource;
-use crate::util::io::ParallelBlake3Writer;
+use crate::util::io::{open_file, ParallelBlake3Writer};
 use crate::util::serde::Base16;
 use crate::util::Apply;
 use crate::CAP_10_MiB;
@@ -40,7 +39,7 @@ pub async fn b3sum(
         path: impl AsRef<Path>,
         allow_mmap: bool,
     ) -> Result<Base16<[u8; 32]>, Error> {
-        let file = MultiCursorFile::from(File::open(path).await?);
+        let file = MultiCursorFile::from(open_file(path).await?);
         if allow_mmap {
             return file.blake3_mmap().await.map(|h| *h.as_bytes()).map(Base16);
         }

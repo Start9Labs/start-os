@@ -262,15 +262,19 @@ web/node_modules/.package-lock.json: web/package.json sdk/dist
 	npm --prefix web ci
 	touch web/node_modules/.package-lock.json
 
-web/dist/raw/ui: $(WEB_UI_SRC) $(WEB_SHARED_SRC)
+web/.angular: patch-db/client/dist sdk/dist web/node_modules/.package-lock.json
+	rm -rf web/.angular
+	mkdir -p web/.angular
+
+web/dist/raw/ui: $(WEB_UI_SRC) $(WEB_SHARED_SRC) web/.angular
 	npm --prefix web run build:ui
 	touch web/dist/raw/ui
 
-web/dist/raw/setup-wizard: $(WEB_SETUP_WIZARD_SRC) $(WEB_SHARED_SRC)
+web/dist/raw/setup-wizard: $(WEB_SETUP_WIZARD_SRC) $(WEB_SHARED_SRC) web/.angular
 	npm --prefix web run build:setup
 	touch web/dist/raw/setup-wizard
 
-web/dist/raw/install-wizard: $(WEB_INSTALL_WIZARD_SRC) $(WEB_SHARED_SRC)
+web/dist/raw/install-wizard: $(WEB_INSTALL_WIZARD_SRC) $(WEB_SHARED_SRC) web/.angular
 	npm --prefix web run build:install-wiz
 	touch web/dist/raw/install-wizard
 

@@ -14,7 +14,6 @@ use rpc_toolkit::{CallRemote, Context, Empty};
 use tokio::sync::{broadcast, Mutex, RwLock};
 use tokio::time::Instant;
 use tracing::instrument;
-use url::Url;
 
 use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;

@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::task::Poll;
 
 use bytes::Bytes;
-use futures::{Stream, StreamExt, TryStreamExt};
+use futures::{Stream, TryStreamExt};
 use reqwest::header::{ACCEPT_RANGES, CONTENT_LENGTH, RANGE};
 use reqwest::{Client, Url};
 use tokio::io::{AsyncRead, AsyncReadExt, ReadBuf, Take};

@@ -267,7 +267,7 @@ pub async fn sideload(
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-struct QueryPackageParams {
+pub struct QueryPackageParams {
     id: PackageId,
     version: Option<VersionRange>,
 }

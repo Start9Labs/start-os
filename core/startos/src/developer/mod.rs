@@ -8,8 +8,8 @@ use ed25519_dalek::{SigningKey, VerifyingKey};
 use tracing::instrument;
 
 use crate::context::CliContext;
+use crate::prelude::*;
 use crate::util::serde::Pem;
-use crate::{Error, ResultExt};
 
 #[instrument(skip_all)]
 pub fn init(ctx: CliContext) -> Result<(), Error> {
@@ -26,7 +26,8 @@ pub fn init(ctx: CliContext) -> Result<(), Error> {
             secret_key: secret.to_bytes(),
             public_key: Some(PublicKeyBytes(VerifyingKey::from(&secret).to_bytes())),
         };
-        let mut dev_key_file = File::create(&ctx.developer_key_path)?;
+        let mut dev_key_file = File::create(&ctx.developer_key_path)
+            .with_ctx(|_| (ErrorKind::Filesystem, ctx.developer_key_path.display()))?;
         dev_key_file.write_all(
             keypair_bytes
                 .to_pkcs8_pem(base64ct::LineEnding::default())

@@ -19,7 +19,7 @@ use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::merkle_archive::source::multi_cursor_file::{FileCursor, MultiCursorFile};
 use crate::s9pk::merkle_archive::source::ArchiveSource;
-use crate::util::io::TmpDir;
+use crate::util::io::{create_file, TmpDir};
 
 pub async fn upload(
     ctx: &RpcContext,
@@ -216,7 +216,7 @@ impl UploadingFile {
     pub async fn new() -> Result<(UploadHandle, Self), Error> {
         let progress = watch::channel(Progress::default());
         let tmp_dir = Arc::new(TmpDir::new().await?);
-        let file = File::create(tmp_dir.join("upload.tmp")).await?;
+        let file = create_file(tmp_dir.join("upload.tmp")).await?;
         let uploading = Self {
             tmp_dir: tmp_dir.clone(),
             file: MultiCursorFile::open(&file).await?,

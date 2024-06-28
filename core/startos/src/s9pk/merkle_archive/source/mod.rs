@@ -10,7 +10,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::hash::VerifyingWriter;
-use crate::util::io::TmpDir;
+use crate::util::io::{open_file, TmpDir};
 
 pub mod http;
 pub mod multi_cursor_file;
@@ -160,7 +160,7 @@ impl FileSource for PathBuf {
         Ok(tokio::fs::metadata(self).await?.len())
     }
     async fn reader(&self) -> Result<Self::Reader, Error> {
-        Ok(File::open(self).await?)
+        Ok(open_file(self).await?)
     }
 }
 
@@ -332,6 +332,11 @@ impl<S: ArchiveSource> ArchiveSource for TmpSource<S> {
         w: &mut W,
     ) -> Result<(), Error> {
         self.source.copy_to(position, size, w).await
+    }
+}
+impl<S: FileSource> From<TmpSource<S>> for DynFileSource {
+    fn from(value: TmpSource<S>) -> Self {
+        DynFileSource::new(value)
     }
 }
 

@@ -12,10 +12,12 @@ use crate::s9pk::manifest::Manifest;
 use crate::s9pk::merkle_archive::file_contents::FileContents;
 use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
-use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
+use crate::s9pk::merkle_archive::source::{
+    ArchiveSource, DynFileSource, FileSource, Section, TmpSource,
+};
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
 use crate::s9pk::v2::pack::{ImageSource, PackSource};
-use crate::util::io::TmpDir;
+use crate::util::io::{open_file, TmpDir};
 
 const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x02];
 
@@ -165,8 +167,8 @@ impl<S: FileSource + Clone> S9pk<S> {
     }
 }
 
-impl<S: From<PackSource> + FileSource + Clone> S9pk<S> {
-    pub async fn load_images(&mut self, tmpdir: &TmpDir) -> Result<(), Error> {
+impl<S: From<TmpSource<PackSource>> + FileSource + Clone> S9pk<S> {
+    pub async fn load_images(&mut self, tmp_dir: Arc<TmpDir>) -> Result<(), Error> {
         let id = &self.manifest.id;
         let version = &self.manifest.version;
         for (image_id, image_config) in &mut self.manifest.images {
@@ -175,7 +177,7 @@ impl<S: From<PackSource> + FileSource + Clone> S9pk<S> {
                 image_config
                     .source
                     .load(
-                        tmpdir,
+                        tmp_dir.clone(),
                         id,
                         version,
                         image_id,
@@ -232,7 +234,7 @@ impl S9pk {
         Self::deserialize(&MultiCursorFile::from(file), None).await
     }
     pub async fn open(path: impl AsRef<Path>, id: Option<&PackageId>) -> Result<Self, Error> {
-        let res = Self::from_file(tokio::fs::File::open(path).await?).await?;
+        let res = Self::from_file(open_file(path).await?).await?;
         if let Some(id) = id {
             ensure_code!(
                 &res.as_manifest().id == id,
