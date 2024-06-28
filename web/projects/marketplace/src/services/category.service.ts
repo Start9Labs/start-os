@@ -13,4 +13,6 @@ export abstract class AbstractCategoryService {
   abstract getQuery$(): Observable<string>
 
   abstract resetQuery(): void
+
+  abstract handleNavigation(): void
 }

@@ -1,14 +1,20 @@
-<div class="item-container box-shadow-lg">
+<div
+  class="item-container box-shadow-lg"
+  *tuiLet="marketplace$ | async as marketplace"
+>
   <!-- color background -->
   <div class="background">
-    <img [src]="pkg.icon" alt="{{ pkg.manifest.title }} Icon" />
+    <img
+      [src]="determineIcon(marketplace)"
+      alt="{{ pkg.manifest.title }} Icon"
+    />
   </div>
   <!-- darkening overlay -->
   <div class="overlay"></div>
   <!-- icon -->
   <img
-    [src]="pkg.icon"
-    class="icon box-shadow-lg"
+    [src]="determineIcon(marketplace)"
+    class="icon"
     alt="{{ pkg.manifest.title }} Icon"
   />
   <div class="detail">

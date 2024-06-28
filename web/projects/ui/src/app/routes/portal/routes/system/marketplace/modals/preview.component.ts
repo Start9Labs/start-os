@@ -152,6 +152,10 @@ import { Router } from '@angular/router'
         height: 100%;
         place-self: center;
       }
+
+      marketplace-additional {
+        padding-bottom: 2rem;
+      }
     `,
   ],
   standalone: true,

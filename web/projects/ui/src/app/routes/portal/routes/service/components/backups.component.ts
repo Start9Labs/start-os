@@ -59,7 +59,9 @@ export class ServiceBackupsComponent {
   )
 
   readonly next = computed(() =>
-    daysBetween(new Date(), new Date(this.pkg().nextBackup || new Date())),
+    // TODO @lucy add this back in when types fixed for PackageDataEntry ie. when next/minor merge resolved
+    // daysBetween(new Date(), new Date(this.pkg().nextBackup || new Date())),
+    daysBetween(new Date(), new Date(new Date())),
   )
 
   readonly ago = {
