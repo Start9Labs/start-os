@@ -7,6 +7,7 @@ import { RpcResult, matchRpcResult } from "../RpcListener"
 import { duration } from "../../Models/Duration"
 import { T } from "@start9labs/start-sdk"
 import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
+import { Volume } from "../../Models/Volume"
 export const STARTOS_JS_LOCATION = "/usr/lib/startos/package/index.js"
 export class SystemForStartOs implements System {
   private onTerm: (() => Promise<void>) | undefined
@@ -151,8 +152,17 @@ export class SystemForStartOs implements System {
         return this.abi.getConfig({ effects })
       }
       case "/backup/create":
+        return this.abi.createBackup({
+          effects,
+          pathMaker: ((options) =>
+            new Volume(options.volume, options.path).path) as T.PathMaker,
+        })
       case "/backup/restore":
-        throw new Error("this should be called with the init/unit")
+        return this.abi.restoreBackup({
+          effects,
+          pathMaker: ((options) =>
+            new Volume(options.volume, options.path).path) as T.PathMaker,
+        })
       case "/actions/metadata": {
         return this.abi.actionsMetadata({ effects })
       }

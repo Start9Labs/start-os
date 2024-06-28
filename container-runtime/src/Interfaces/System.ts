@@ -5,7 +5,7 @@ import { hostSystemStartOs } from "../Adapters/HostSystemStartOs"
 export type ExecuteResult =
   | { ok: unknown }
   | { err: { code: number; message: string } }
-export interface System {
+export type System = {
   // init(effects: Effects): Promise<void>
   // exit(effects: Effects): Promise<void>
   // start(effects: Effects): Promise<void>

@@ -1,7 +1,7 @@
 import { ValidEmVer } from "../emverLite/mod"
 import { ActionMetadata, ImageConfig, ImageId } from "../types"
 
-export interface Container {
+export type Container = {
   /** This should be pointing to a docker container name */
   image: string
   /** These should match the manifest data volumes */
@@ -72,7 +72,7 @@ export type SDKManifest = {
   readonly dependencies: Readonly<Record<string, ManifestDependency>>
 }
 
-export interface ManifestDependency {
+export type ManifestDependency = {
   /**
    * A human readable explanation on what the dependency is used for
    */

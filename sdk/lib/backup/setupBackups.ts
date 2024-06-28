@@ -1,6 +1,6 @@
 import { Backups } from "./Backups"
 import { SDKManifest } from "../manifest/ManifestTypes"
-import { ExpectedExports } from "../types"
+import { ExpectedExports, PathMaker } from "../types"
 import { _ } from "../util"
 
 export type SetupBackupsParams<M extends SDKManifest> = Array<
@@ -27,14 +27,14 @@ export function setupBackups<M extends SDKManifest>(
     get createBackup() {
       return (async (options) => {
         for (const backup of backups) {
-          await backup.build().createBackup(options)
+          await backup.build(options.pathMaker).createBackup(options)
         }
       }) as ExpectedExports.createBackup
     },
     get restoreBackup() {
       return (async (options) => {
         for (const backup of backups) {
-          await backup.build().restoreBackup(options)
+          await backup.build(options.pathMaker).restoreBackup(options)
         }
       }) as ExpectedExports.restoreBackup
     },
