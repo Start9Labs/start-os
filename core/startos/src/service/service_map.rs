@@ -21,9 +21,11 @@ use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle, ProgressTrackerWriter};
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
+use crate::s9pk::rpc::s9pk;
 use crate::s9pk::S9pk;
 use crate::service::{LoadDisposition, Service, ServiceRef};
 use crate::status::{MainStatus, Status};
+use crate::upload::UploadingFile;
 use crate::util::serde::Pem;
 
 pub type DownloadInstallFuture = BoxFuture<'static, Result<InstallFuture, Error>>;
@@ -94,12 +96,19 @@ impl ServiceMap {
     }
 
     #[instrument(skip_all)]
-    pub async fn install<S: FileSource + Clone>(
+    pub async fn install<F, Fut, S: FileSource + Clone>(
         &self,
         ctx: RpcContext,
-        mut s9pk: S9pk<S>,
+        s9pk: F,
         recovery_source: Option<impl GenericMountGuard>,
-    ) -> Result<DownloadInstallFuture, Error> {
+        progress: Option<FullProgressTracker>,
+    ) -> Result<DownloadInstallFuture, Error>
+    where
+        F: FnOnce() -> Fut,
+        Fut: Future<Output = Result<S9pk<S>, Error>>,
+        S: FileSource + Clone,
+    {
+        let mut s9pk = s9pk().await?;
         s9pk.validate_and_filter(ctx.s9pk_arch)?;
         let manifest = s9pk.as_manifest().clone();
         let id = manifest.id.clone();
@@ -118,7 +127,7 @@ impl ServiceMap {
         };
 
         let size = s9pk.size();
-        let progress = FullProgressTracker::new();
+        let progress = progress.unwrap_or_else(|| FullProgressTracker::new());
         let download_progress_contribution = size.unwrap_or(60);
         let mut download_progress = progress.add_phase(
             InternedString::intern("Download"),

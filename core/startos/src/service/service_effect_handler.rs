@@ -8,7 +8,7 @@ use std::sync::{Arc, Weak};
 
 use clap::builder::ValueParserFactory;
 use clap::{CommandFactory, FromArgMatches, Parser};
-use emver::VersionRange;
+use exver::VersionRange;
 use imbl_value::json;
 use itertools::Itertools;
 use models::{
@@ -1383,7 +1383,7 @@ struct CheckDependenciesResult {
     is_running: bool,
     health_checks: Vec<HealthCheckResult>,
     #[ts(type = "string | null")]
-    version: Option<emver::Version>,
+    version: Option<exver::ExtendedVersion>,
 }
 
 async fn check_dependencies(

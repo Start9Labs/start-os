@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::task::Poll;
 
 use tokio::fs::File;
-use tokio::io::{AsyncRead, AsyncReadExt, ReadBuf, Take};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, ReadBuf, Take};
 use tokio::sync::{Mutex, OwnedMutexGuard};
 
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
@@ -88,24 +88,48 @@ impl AsyncRead for FileCursor {
         Pin::new(&mut (&mut **this.0.get_mut())).poll_read(cx, buf)
     }
 }
+impl AsyncSeek for FileCursor {
+    fn start_seek(self: Pin<&mut Self>, position: SeekFrom) -> std::io::Result<()> {
+        let this = self.project();
+        Pin::new(&mut (&mut **this.0.get_mut())).start_seek(position)
+    }
+    fn poll_complete(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<std::io::Result<u64>> {
+        let this = self.project();
+        Pin::new(&mut (&mut **this.0.get_mut())).poll_complete(cx)
+    }
+}
+impl std::ops::Deref for FileCursor {
+    type Target = File;
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+impl std::ops::DerefMut for FileCursor {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut *self.0
+    }
+}
 
 impl ArchiveSource for MultiCursorFile {
-    type Reader = Take<FileCursor>;
+    type FetchReader = Take<FileCursor>;
+    type FetchAllReader = FileCursor;
     async fn size(&self) -> Option<u64> {
         tokio::fs::metadata(self.path().ok()?)
             .await
             .ok()
             .map(|m| m.len())
     }
-    #[allow(refining_impl_trait)]
-    async fn fetch_all(&self) -> Result<impl AsyncRead + Unpin + Send + 'static, Error> {
+    async fn fetch_all(&self) -> Result<Self::FetchAllReader, Error> {
         use tokio::io::AsyncSeekExt;
 
         let mut file = self.cursor().await?;
         file.0.seek(SeekFrom::Start(0)).await?;
         Ok(file)
     }
-    async fn fetch(&self, position: u64, size: u64) -> Result<Self::Reader, Error> {
+    async fn fetch(&self, position: u64, size: u64) -> Result<Self::FetchReader, Error> {
         use tokio::io::AsyncSeekExt;
 
         let mut file = self.cursor().await?;

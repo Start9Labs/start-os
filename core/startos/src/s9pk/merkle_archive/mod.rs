@@ -121,14 +121,14 @@ impl<S: ArchiveSource + Clone> MerkleArchive<Section<S>> {
             }
             if max_size > *root_maxsize {
                 return Err(Error::new(
-                    eyre!("merkle root directory max size too large"),
+                    eyre!("root directory max size too large"),
                     ErrorKind::InvalidSignature,
                 ));
             }
         } else {
             if max_size > CAP_1_MiB as u64 {
                 return Err(Error::new(
-                    eyre!("merkle root directory max size over 1MiB, cancelling download in case of DOS attack"),
+                    eyre!("root directory max size over 1MiB, cancelling download in case of DOS attack"),
                     ErrorKind::InvalidSignature,
                 ));
             }
@@ -376,6 +376,9 @@ impl<S> EntryContents<S> {
     }
     pub fn is_dir(&self) -> bool {
         matches!(self, &EntryContents::Directory(_))
+    }
+    pub fn is_missing(&self) -> bool {
+        matches!(self, &EntryContents::Missing)
     }
 }
 impl<S: ArchiveSource + Clone> EntryContents<Section<S>> {

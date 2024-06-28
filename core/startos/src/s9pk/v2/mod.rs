@@ -206,7 +206,7 @@ impl<S: ArchiveSource + Clone> S9pk<Section<S>> {
             )
             .await?;
 
-        let mut magic_version = [0u8; 3];
+        let mut magic_version = [0u8; MAGIC_AND_VERSION.len()];
         header.read_exact(&mut magic_version).await?;
         ensure_code!(
             &magic_version == MAGIC_AND_VERSION,

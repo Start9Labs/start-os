@@ -1,4 +1,4 @@
-pub const DEFAULT_MARKETPLACE: &str = "https://registry.start9.com";
+pub const DEFAULT_REGISTRY: &str = "https://registry.start9.com";
 // pub const COMMUNITY_MARKETPLACE: &str = "https://community-registry.start9.com";
 pub const HOST_IP: [u8; 4] = [172, 18, 0, 1];
 pub use std::env::consts::ARCH;

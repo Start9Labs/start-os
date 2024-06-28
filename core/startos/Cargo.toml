@@ -86,7 +86,7 @@ ed25519-dalek = { version = "2.1.1", features = [
   "pkcs8",
 ] }
 ed25519-dalek-v1 = { package = "ed25519-dalek", version = "1" }
-emver = { version = "0.1.7", git = "https://github.com/Start9Labs/emver-rs.git", features = [
+exver = { version = "0.2.0", git = "https://github.com/Start9Labs/exver-rs.git", features = [
   "serde",
 ] }
 fd-lock-rs = "0.1.4"

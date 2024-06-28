@@ -10,6 +10,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::hash::VerifyingWriter;
+use crate::util::io::TmpDir;
 
 pub mod http;
 pub mod multi_cursor_file;
@@ -180,18 +181,17 @@ impl FileSource for Arc<[u8]> {
 }
 
 pub trait ArchiveSource: Send + Sync + Sized + 'static {
-    type Reader: AsyncRead + Unpin + Send;
+    type FetchReader: AsyncRead + Unpin + Send;
+    type FetchAllReader: AsyncRead + Unpin + Send;
     fn size(&self) -> impl Future<Output = Option<u64>> + Send {
         async { None }
     }
-    fn fetch_all(
-        &self,
-    ) -> impl Future<Output = Result<impl AsyncRead + Unpin + Send, Error>> + Send;
+    fn fetch_all(&self) -> impl Future<Output = Result<Self::FetchAllReader, Error>> + Send;
     fn fetch(
         &self,
         position: u64,
         size: u64,
-    ) -> impl Future<Output = Result<Self::Reader, Error>> + Send;
+    ) -> impl Future<Output = Result<Self::FetchReader, Error>> + Send;
     fn copy_all_to<W: AsyncWrite + Unpin + Send + ?Sized>(
         &self,
         w: &mut W,
@@ -222,14 +222,15 @@ pub trait ArchiveSource: Send + Sync + Sized + 'static {
 }
 
 impl<T: ArchiveSource> ArchiveSource for Arc<T> {
-    type Reader = T::Reader;
+    type FetchReader = T::FetchReader;
+    type FetchAllReader = T::FetchAllReader;
     async fn size(&self) -> Option<u64> {
         self.deref().size().await
     }
-    async fn fetch_all(&self) -> Result<impl AsyncRead + Unpin + Send, Error> {
+    async fn fetch_all(&self) -> Result<Self::FetchAllReader, Error> {
         self.deref().fetch_all().await
     }
-    async fn fetch(&self, position: u64, size: u64) -> Result<Self::Reader, Error> {
+    async fn fetch(&self, position: u64, size: u64) -> Result<Self::FetchReader, Error> {
         self.deref().fetch(position, size).await
     }
     async fn copy_all_to<W: AsyncWrite + Unpin + Send + ?Sized>(
@@ -249,11 +250,12 @@ impl<T: ArchiveSource> ArchiveSource for Arc<T> {
 }
 
 impl ArchiveSource for Arc<[u8]> {
-    type Reader = tokio::io::Take<std::io::Cursor<Self>>;
-    async fn fetch_all(&self) -> Result<impl AsyncRead + Unpin + Send, Error> {
+    type FetchReader = tokio::io::Take<std::io::Cursor<Self>>;
+    type FetchAllReader = std::io::Cursor<Self>;
+    async fn fetch_all(&self) -> Result<Self::FetchAllReader, Error> {
         Ok(std::io::Cursor::new(self.clone()))
     }
-    async fn fetch(&self, position: u64, size: u64) -> Result<Self::Reader, Error> {
+    async fn fetch(&self, position: u64, size: u64) -> Result<Self::FetchReader, Error> {
         use tokio::io::AsyncReadExt;
 
         let mut cur = std::io::Cursor::new(self.clone());
@@ -269,7 +271,7 @@ pub struct Section<S> {
     size: u64,
 }
 impl<S: ArchiveSource> FileSource for Section<S> {
-    type Reader = S::Reader;
+    type Reader = S::FetchReader;
     async fn size(&self) -> Result<u64, Error> {
         Ok(self.size)
     }
@@ -284,4 +286,77 @@ impl<S: ArchiveSource> FileSource for Section<S> {
 pub type DynRead = Box<dyn AsyncRead + Unpin + Send + Sync + 'static>;
 pub fn into_dyn_read<R: AsyncRead + Unpin + Send + Sync + 'static>(r: R) -> DynRead {
     Box::new(r)
+}
+
+#[derive(Clone)]
+pub struct TmpSource<S> {
+    tmp_dir: Arc<TmpDir>,
+    source: S,
+}
+impl<S> TmpSource<S> {
+    pub fn new(tmp_dir: Arc<TmpDir>, source: S) -> Self {
+        Self { tmp_dir, source }
+    }
+    pub async fn gc(self) -> Result<(), Error> {
+        self.tmp_dir.gc().await
+    }
+}
+impl<S> std::ops::Deref for TmpSource<S> {
+    type Target = S;
+    fn deref(&self) -> &Self::Target {
+        &self.source
+    }
+}
+impl<S: ArchiveSource> ArchiveSource for TmpSource<S> {
+    type FetchReader = <S as ArchiveSource>::FetchReader;
+    type FetchAllReader = <S as ArchiveSource>::FetchAllReader;
+    async fn size(&self) -> Option<u64> {
+        self.source.size().await
+    }
+    async fn fetch_all(&self) -> Result<Self::FetchAllReader, Error> {
+        self.source.fetch_all().await
+    }
+    async fn fetch(&self, position: u64, size: u64) -> Result<Self::FetchReader, Error> {
+        self.source.fetch(position, size).await
+    }
+    async fn copy_all_to<W: AsyncWrite + Unpin + Send + ?Sized>(
+        &self,
+        w: &mut W,
+    ) -> Result<(), Error> {
+        self.source.copy_all_to(w).await
+    }
+    async fn copy_to<W: AsyncWrite + Unpin + Send + ?Sized>(
+        &self,
+        position: u64,
+        size: u64,
+        w: &mut W,
+    ) -> Result<(), Error> {
+        self.source.copy_to(position, size, w).await
+    }
+}
+
+impl<S: FileSource> FileSource for TmpSource<S> {
+    type Reader = <S as FileSource>::Reader;
+    async fn size(&self) -> Result<u64, Error> {
+        self.source.size().await
+    }
+    async fn reader(&self) -> Result<Self::Reader, Error> {
+        self.source.reader().await
+    }
+    async fn copy<W: AsyncWrite + Unpin + Send + ?Sized>(
+        &self,
+        mut w: &mut W,
+    ) -> Result<(), Error> {
+        self.source.copy(&mut w).await
+    }
+    async fn copy_verify<W: AsyncWrite + Unpin + Send + ?Sized>(
+        &self,
+        mut w: &mut W,
+        verify: Option<(Hash, u64)>,
+    ) -> Result<(), Error> {
+        self.source.copy_verify(&mut w, verify).await
+    }
+    async fn to_vec(&self, verify: Option<(Hash, u64)>) -> Result<Vec<u8>, Error> {
+        self.source.to_vec(verify).await
+    }
 }

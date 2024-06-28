@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use emver::VersionRange;
+use exver::VersionRange;
 use imbl_value::InternedString;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use chrono::Utc;
 use clap::Parser;
-use emver::VersionRange;
+use exver::VersionRange;
 use itertools::Itertools;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
@@ -148,10 +148,11 @@ pub async fn get_version(
     if let (Some(pool), Some(server_id), Some(arch)) = (&ctx.pool, server_id, arch) {
         let created_at = Utc::now();
 
-        query!("INSERT INTO user_activity (created_at, server_id, arch) VALUES ($1, $2, $3)",
-        created_at,
-        server_id,
-        arch
+        query!(
+            "INSERT INTO user_activity (created_at, server_id, arch) VALUES ($1, $2, $3)",
+            created_at,
+            server_id,
+            arch
         )
         .execute(pool)
         .await?;

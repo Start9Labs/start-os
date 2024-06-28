@@ -829,6 +829,13 @@ impl Drop for TmpDir {
     }
 }
 
+pub async fn open_file(path: impl AsRef<Path>) -> Result<File, Error> {
+    let path = path.as_ref();
+    File::open(path)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("open {path:?}")))
+}
+
 pub async fn create_file(path: impl AsRef<Path>) -> Result<File, Error> {
     let path = path.as_ref();
     if let Some(parent) = path.parent() {

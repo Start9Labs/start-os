@@ -243,7 +243,5 @@ export abstract class ApiService {
     params: RR.DryConfigureDependencyReq,
   ): Promise<RR.DryConfigureDependencyRes>
 
-  abstract sideloadPackage(
-    params: RR.SideloadPackageReq,
-  ): Promise<RR.SideloadPacakgeRes>
+  abstract sideloadPackage(): Promise<RR.SideloadPackageRes>
 }

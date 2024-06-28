@@ -1,4 +1,3 @@
-use std::any::TypeId;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
 use std::ops::Deref;
@@ -9,10 +8,9 @@ use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use color_eyre::eyre::eyre;
 use imbl::OrdMap;
 use openssl::pkey::{PKey, Private};
-use openssl::x509::{X509Ref, X509};
+use openssl::x509::X509;
 use rpc_toolkit::{
-    CliBindings, Context, Handler, HandlerArgs, HandlerArgsFor, HandlerFor, HandlerTypes,
-    PrintCliResult,
+    CliBindings, Context, HandlerArgs, HandlerArgsFor, HandlerFor, HandlerTypes, PrintCliResult,
 };
 use serde::de::DeserializeOwned;
 use serde::ser::{SerializeMap, SerializeSeq};
@@ -1188,7 +1186,7 @@ pub trait PemEncoding: Sized {
 
 impl PemEncoding for X509 {
     fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
-        X509::from_pem(pem.as_bytes()).map_err(E::custom)
+        Self::from_pem(pem.as_bytes()).map_err(E::custom)
     }
     fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
         String::from_utf8((&**self).to_pem().map_err(E::custom)?).map_err(E::custom)
@@ -1197,7 +1195,7 @@ impl PemEncoding for X509 {
 
 impl PemEncoding for PKey<Private> {
     fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
-        PKey::<Private>::private_key_from_pem(pem.as_bytes()).map_err(E::custom)
+        Self::private_key_from_pem(pem.as_bytes()).map_err(E::custom)
     }
     fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
         String::from_utf8((&**self).private_key_to_pem_pkcs8().map_err(E::custom)?)
@@ -1207,7 +1205,7 @@ impl PemEncoding for PKey<Private> {
 
 impl PemEncoding for ssh_key::PrivateKey {
     fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
-        ssh_key::PrivateKey::from_openssh(pem.as_bytes()).map_err(E::custom)
+        Self::from_openssh(pem.as_bytes()).map_err(E::custom)
     }
     fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
         self.to_openssh(ssh_key::LineEnding::LF)
@@ -1219,12 +1217,25 @@ impl PemEncoding for ssh_key::PrivateKey {
 impl PemEncoding for ed25519_dalek::VerifyingKey {
     fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
         use ed25519_dalek::pkcs8::DecodePublicKey;
-        ed25519_dalek::VerifyingKey::from_public_key_pem(pem).map_err(E::custom)
+        Self::from_public_key_pem(pem).map_err(E::custom)
     }
     fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
         use ed25519_dalek::pkcs8::EncodePublicKey;
         self.to_public_key_pem(pkcs8::LineEnding::LF)
             .map_err(E::custom)
+    }
+}
+
+impl PemEncoding for ed25519_dalek::SigningKey {
+    fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
+        use ed25519_dalek::pkcs8::DecodePrivateKey;
+        Self::from_pkcs8_pem(pem).map_err(E::custom)
+    }
+    fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
+        use ed25519_dalek::pkcs8::EncodePrivateKey;
+        self.to_pkcs8_pem(pkcs8::LineEnding::LF)
+            .map_err(E::custom)
+            .map(|s| s.as_str().to_owned())
     }
 }
 

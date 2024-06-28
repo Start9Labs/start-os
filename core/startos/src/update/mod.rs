@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use clap::{ArgAction, Parser};
 use color_eyre::eyre::{eyre, Result};
-use emver::{Version, VersionRange};
+use exver::{Version, VersionRange};
 use futures::{FutureExt, TryStreamExt};
 use helpers::{AtomicFile, NonDetachingJoinHandle};
 use imbl_value::json;

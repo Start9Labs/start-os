@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use clap::{Parser, ValueEnum};
-use emver::{Version, VersionRange};
+use exver::{ExtendedVersion, VersionRange};
 use imbl_value::InternedString;
 use itertools::Itertools;
 use models::PackageId;
@@ -45,8 +45,7 @@ pub struct GetPackageParams {
     pub id: Option<PackageId>,
     #[ts(type = "string | null")]
     pub version: Option<VersionRange>,
-    #[ts(type = "string | null")]
-    pub source_version: Option<Version>,
+    pub source_version: Option<VersionString>,
     #[ts(skip)]
     #[arg(skip)]
     #[serde(rename = "__device_info")]
@@ -132,7 +131,7 @@ fn get_matching_models<'a>(
         device_info,
         ..
     }: &GetPackageParams,
-) -> Result<Vec<(PackageId, Version, &'a Model<PackageVersionInfo>)>, Error> {
+) -> Result<Vec<(PackageId, ExtendedVersion, &'a Model<PackageVersionInfo>)>, Error> {
     if let Some(id) = id {
         if let Some(pkg) = db.as_packages().as_idx(id) {
             vec![(id.clone(), pkg)]
@@ -166,7 +165,7 @@ fn get_matching_models<'a>(
                             .as_ref()
                             .map_or(Ok(true), |device_info| info.works_for_device(device_info))?
                     {
-                        Some((k.clone(), Version::from(v), info))
+                        Some((k.clone(), ExtendedVersion::from(v), info))
                     } else {
                         None
                     },

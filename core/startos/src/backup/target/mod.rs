@@ -7,6 +7,7 @@ use clap::Parser;
 use color_eyre::eyre::eyre;
 use digest::generic_array::GenericArray;
 use digest::OutputSizeUser;
+use exver::Version;
 use models::PackageId;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
@@ -194,7 +195,7 @@ pub async fn list(ctx: RpcContext) -> Result<BTreeMap<BackupTargetId, BackupTarg
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BackupInfo {
-    pub version: VersionString,
+    pub version: Version,
     pub timestamp: Option<DateTime<Utc>>,
     pub package_backups: BTreeMap<PackageId, PackageBackupInfo>,
 }
@@ -204,7 +205,7 @@ pub struct BackupInfo {
 pub struct PackageBackupInfo {
     pub title: String,
     pub version: VersionString,
-    pub os_version: VersionString,
+    pub os_version: Version,
     pub timestamp: DateTime<Utc>,
 }
 
@@ -223,9 +224,9 @@ fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) {
         "TIMESTAMP",
     ]);
     table.add_row(row![
-        "EMBASSY OS",
-        info.version.as_str(),
-        info.version.as_str(),
+        "StartOS",
+        &info.version.to_string(),
+        &info.version.to_string(),
         &if let Some(ts) = &info.timestamp {
             ts.to_string()
         } else {
@@ -236,7 +237,7 @@ fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) {
         let row = row![
             &*id,
             info.version.as_str(),
-            info.os_version.as_str(),
+            &info.os_version.to_string(),
             &info.timestamp.to_string(),
         ];
         table.add_row(row);
