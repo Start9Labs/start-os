@@ -38,6 +38,7 @@ export class VarIntProcessor {
     if (success) {
       return result
     } else {
+      console.error(this.buf)
       return null
     }
   }

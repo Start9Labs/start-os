@@ -1,5 +1,6 @@
 import { blake3 } from "@noble/hashes/blake3"
 import { ArrayBufferReader } from "."
+import { compare } from ".."
 
 export class FileContents {
   private constructor(readonly contents: Blob) {}
@@ -13,9 +14,9 @@ export class FileContents {
       source.slice(Number(position), Number(position + size)),
     )
   }
-  async verified(hash: ArrayBuffer): Promise<ArrayBuffer> {
+  async verified(hash: Uint8Array): Promise<ArrayBuffer> {
     const res = await this.contents.arrayBuffer()
-    if (hash !== blake3(new Uint8Array(res))) {
+    if (!compare(hash, blake3(new Uint8Array(res)))) {
       throw new Error("hash sum mismatch")
     }
     return res

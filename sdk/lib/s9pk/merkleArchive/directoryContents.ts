@@ -2,6 +2,7 @@ import { ArrayBufferReader, Entry } from "."
 import { blake3 } from "@noble/hashes/blake3"
 import { serializeVarint } from "./varint"
 import { FileContents } from "./fileContents"
+import { compare } from ".."
 
 export class DirectoryContents {
   static readonly headerSize =
@@ -11,7 +12,7 @@ export class DirectoryContents {
   static async deserialize(
     source: Blob,
     header: ArrayBufferReader,
-    sighash: ArrayBuffer,
+    sighash: Uint8Array,
     maxSize: bigint,
   ): Promise<DirectoryContents> {
     const position = header.nextU64()
@@ -35,13 +36,13 @@ export class DirectoryContents {
 
     const res = new DirectoryContents(entries)
 
-    if (res.sighash() !== sighash) {
+    if (!compare(res.sighash(), sighash)) {
       throw new Error("hash sum does not match")
     }
 
     return res
   }
-  sighash(): ArrayBuffer {
+  sighash(): Uint8Array {
     const hasher = blake3.create({})
     const names = Object.keys(this.contents).sort()
     hasher.update(new Uint8Array(serializeVarint(names.length)))
@@ -57,7 +58,7 @@ export class DirectoryContents {
       hasher.update(new Uint8Array([0]))
     }
 
-    return hasher.digest().buffer
+    return hasher.digest()
   }
   getPath(path: string[]): Entry | null {
     if (path.length === 0) {

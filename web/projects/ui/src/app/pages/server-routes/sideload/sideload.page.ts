@@ -12,7 +12,7 @@ interface Positions {
 
 const MAGIC = new Uint8Array([59, 59])
 const VERSION_1 = new Uint8Array([1])
-const VERSION_2 = new Uint8Array([1])
+const VERSION_2 = new Uint8Array([2])
 
 @Component({
   selector: 'sideload',
@@ -80,12 +80,14 @@ export class SideloadPage {
             message: 'A valid package file has been detected!',
           }
         } else {
+          console.error(version)
           return {
             invalid: true,
             message: 'Invalid package file',
           }
         }
       } catch (e) {
+        console.error(e)
         return {
           invalid: true,
           message:
@@ -252,6 +254,7 @@ async function readBlobToArrayBuffer(
 }
 
 function compare(a: Uint8Array, b: Uint8Array) {
+  if (a.length !== b.length) return false
   for (let i = 0; i < a.length; i++) {
     if (a[i] !== b[i]) return false
   }

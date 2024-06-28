@@ -4,6 +4,14 @@ import mime from "mime"
 
 const magicAndVersion = new Uint8Array([59, 59, 2])
 
+export function compare(a: Uint8Array, b: Uint8Array) {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
+}
+
 export class S9pk {
   private constructor(
     readonly manifest: Manifest,
@@ -19,8 +27,8 @@ export class S9pk {
         .slice(0, magicAndVersion.length + MerkleArchive.headerSize)
         .arrayBuffer(),
     )
-    const magicVersion = header.next(magicAndVersion.length)
-    if (magicVersion !== magicAndVersion) {
+    const magicVersion = new Uint8Array(header.next(magicAndVersion.length))
+    if (!compare(magicVersion, magicAndVersion)) {
       throw new Error("Invalid Magic or Unexpected Version")
     }
 

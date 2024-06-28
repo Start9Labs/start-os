@@ -1,8 +1,10 @@
 import { MerkleArchiveCommitment } from "../../osBindings"
 import { DirectoryContents } from "./directoryContents"
 import { FileContents } from "./fileContents"
-import { ed25519ctx } from "@noble/curves/ed25519"
+import { ed25519ph } from "@noble/curves/ed25519"
+import { sha512 } from "@noble/hashes/sha2"
 import { VarIntProcessor } from "./varint"
+import { compare } from ".."
 
 const maxVarstringLen = 1024 * 1024
 
@@ -25,7 +27,7 @@ export class ArrayBufferReader {
   }
   nextVarint(): number {
     const p = new VarIntProcessor()
-    while (!p.finished) {
+    while (!p.finished()) {
       p.push(new Uint8Array(this.buffer.slice(0, 1))[0])
       this.buffer = this.buffer.slice(1)
     }
@@ -45,8 +47,8 @@ export class MerkleArchive {
   static readonly headerSize =
     32 + // pubkey
     64 + // signature
-    32 + //sighash
-    8 + //size
+    32 + // sighash
+    8 + // size
     DirectoryContents.headerSize
   private constructor(
     readonly signer: Signer,
@@ -60,12 +62,12 @@ export class MerkleArchive {
   ): Promise<MerkleArchive> {
     const pubkey = new Uint8Array(header.next(32))
     const signature = new Uint8Array(header.next(64))
-    const sighash = header.next(32)
+    const sighash = new Uint8Array(header.next(32))
     const rootMaxSizeBytes = header.next(8)
-    const maxSize = header.nextU64()
+    const maxSize = new DataView(rootMaxSizeBytes).getBigUint64(0)
 
     if (
-      !ed25519ctx.verify(
+      !ed25519ph.verify(
         signature,
         new Uint8Array(
           await new Blob([sighash, rootMaxSizeBytes]).arrayBuffer(),
@@ -81,7 +83,12 @@ export class MerkleArchive {
     }
 
     if (commitment) {
-      if (sighash !== Buffer.from(commitment.rootSighash, "base64").buffer) {
+      if (
+        !compare(
+          sighash,
+          new Uint8Array(Buffer.from(commitment.rootSighash, "base64").buffer),
+        )
+      ) {
         throw new Error("merkle root mismatch")
       }
       if (maxSize > commitment.rootMaxsize) {
@@ -114,7 +121,7 @@ export class MerkleArchive {
 
 export class Entry {
   private constructor(
-    readonly hash: ArrayBuffer,
+    readonly hash: Uint8Array,
     readonly size: bigint,
     readonly contents: EntryContents,
   ) {}
@@ -122,11 +129,11 @@ export class Entry {
     source: Blob,
     header: ArrayBufferReader,
   ): Promise<Entry> {
-    const hash = header.next(32)
+    const hash = new Uint8Array(header.next(32))
     const size = header.nextU64()
     const contents = await deserializeEntryContents(source, header, hash, size)
 
-    return new Entry(hash, size, contents)
+    return new Entry(new Uint8Array(hash), size, contents)
   }
   async verifiedFileContents(): Promise<ArrayBuffer> {
     if (!this.contents) {
@@ -143,7 +150,7 @@ export type EntryContents = null | FileContents | DirectoryContents
 async function deserializeEntryContents(
   source: Blob,
   header: ArrayBufferReader,
-  hash: ArrayBuffer,
+  hash: Uint8Array,
   size: bigint,
 ): Promise<EntryContents> {
   const typeId = new Uint8Array(header.next(1))[0]
