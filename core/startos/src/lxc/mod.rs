@@ -12,7 +12,6 @@ use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{GenericRpcMethod, RpcRequest, RpcResponse};
 use rustyline_async::{ReadlineEvent, SharedWriter};
 use serde::{Deserialize, Serialize};
-use tokio::fs::File;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::Mutex;
@@ -30,6 +29,7 @@ use crate::disk::mount::util::unmount;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::util::clap::FromStrParser;
+use crate::util::io::open_file;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::{new_guid, Invoke};
 
@@ -342,7 +342,7 @@ impl Drop for LxcContainer {
                     if let Err(e) = async {
                         let err_path = rootfs.path().join("var/log/containerRuntime.err");
                         if tokio::fs::metadata(&err_path).await.is_ok() {
-                            let mut lines = BufReader::new(File::open(&err_path).await?).lines();
+                            let mut lines = BufReader::new(open_file(&err_path).await?).lines();
                             while let Some(line) = lines.next_line().await? {
                                 let container = &**guid;
                                 tracing::error!(container, "{}", line);

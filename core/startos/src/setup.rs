@@ -8,7 +8,6 @@ use patch_db::json_ptr::ROOT;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
-use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tokio::try_join;
 use tracing::instrument;
@@ -35,7 +34,7 @@ use crate::prelude::*;
 use crate::progress::{FullProgress, PhaseProgressTrackerHandle};
 use crate::rpc_continuations::Guid;
 use crate::util::crypto::EncryptedWire;
-use crate::util::io::{dir_copy, dir_size, Counter};
+use crate::util::io::{create_file, dir_copy, dir_size, Counter};
 use crate::{Error, ErrorKind, ResultExt};
 
 pub fn setup<C: Context>() -> ParentHandler<C> {
@@ -324,7 +323,7 @@ pub async fn execute(
 pub async fn complete(ctx: SetupContext) -> Result<SetupResult, Error> {
     match ctx.result.get() {
         Some(Ok((res, ctx))) => {
-            let mut guid_file = File::create("/media/startos/config/disk.guid").await?;
+            let mut guid_file = create_file("/media/startos/config/disk.guid").await?;
             guid_file.write_all(ctx.disk_guid.as_bytes()).await?;
             guid_file.sync_all().await?;
             Ok(res.clone())

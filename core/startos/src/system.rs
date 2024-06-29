@@ -20,6 +20,7 @@ use crate::prelude::*;
 use crate::rpc_continuations::RpcContinuations;
 use crate::shutdown::Shutdown;
 use crate::util::cpupower::{get_available_governors, set_governor, Governor};
+use crate::util::io::open_file;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;
 
@@ -657,7 +658,7 @@ impl ProcStat {
 async fn get_proc_stat() -> Result<ProcStat, Error> {
     use tokio::io::AsyncBufReadExt;
     let mut cpu_line = String::new();
-    let _n = tokio::io::BufReader::new(tokio::fs::File::open("/proc/stat").await?)
+    let _n = tokio::io::BufReader::new(open_file("/proc/stat").await?)
         .read_line(&mut cpu_line)
         .await?;
     let stats: Vec<u64> = cpu_line

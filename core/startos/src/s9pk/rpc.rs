@@ -1,19 +1,19 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use clap::Parser;
 use models::ImageId;
 use rpc_toolkit::{from_fn_async, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
-use tokio::fs::File;
 use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
+use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::v2::pack::ImageConfig;
 use crate::s9pk::v2::SIG_CONTEXT;
-use crate::s9pk::S9pk;
-use crate::util::io::TmpDir;
+use crate::util::io::{create_file, open_file, TmpDir};
 use crate::util::serde::{apply_expr, HandlerExtSerde};
 
 pub const SKIP_ENV: &[&str] = &["TERM", "container", "HOME", "HOSTNAME"];
@@ -79,18 +79,24 @@ async fn add_image(
     AddImageParams { id, config }: AddImageParams,
     S9pkPath { s9pk: s9pk_path }: S9pkPath,
 ) -> Result<(), Error> {
-    let mut s9pk = S9pk::from_file(super::load(&ctx, &s9pk_path).await?)
-        .await?
-        .into_dyn();
+    let mut s9pk = super::load(
+        MultiCursorFile::from(open_file(&s9pk_path).await?),
+        || ctx.developer_key().cloned(),
+        None,
+    )
+    .await?;
     s9pk.as_manifest_mut().images.insert(id, config);
-    let tmpdir = TmpDir::new().await?;
-    s9pk.load_images(&tmpdir).await?;
+    let tmp_dir = Arc::new(TmpDir::new().await?);
+    s9pk.load_images(tmp_dir.clone()).await?;
     s9pk.validate_and_filter(None)?;
     let tmp_path = s9pk_path.with_extension("s9pk.tmp");
-    let mut tmp_file = File::create(&tmp_path).await?;
+    let mut tmp_file = create_file(&tmp_path).await?;
     s9pk.serialize(&mut tmp_file, true).await?;
+    drop(s9pk);
     tmp_file.sync_all().await?;
     tokio::fs::rename(&tmp_path, &s9pk_path).await?;
+
+    tmp_dir.gc().await?;
 
     Ok(())
 }
@@ -104,13 +110,18 @@ async fn edit_manifest(
     EditManifestParams { expression }: EditManifestParams,
     S9pkPath { s9pk: s9pk_path }: S9pkPath,
 ) -> Result<Manifest, Error> {
-    let mut s9pk = S9pk::from_file(super::load(&ctx, &s9pk_path).await?).await?;
+    let mut s9pk = super::load(
+        MultiCursorFile::from(open_file(&s9pk_path).await?),
+        || ctx.developer_key().cloned(),
+        None,
+    )
+    .await?;
     let old = serde_json::to_value(s9pk.as_manifest()).with_kind(ErrorKind::Serialization)?;
     *s9pk.as_manifest_mut() = serde_json::from_value(apply_expr(old.into(), &expression)?.into())
         .with_kind(ErrorKind::Serialization)?;
     let manifest = s9pk.as_manifest().clone();
     let tmp_path = s9pk_path.with_extension("s9pk.tmp");
-    let mut tmp_file = File::create(&tmp_path).await?;
+    let mut tmp_file = create_file(&tmp_path).await?;
     s9pk.as_archive_mut()
         .set_signer(ctx.developer_key()?.clone(), SIG_CONTEXT);
     s9pk.serialize(&mut tmp_file, true).await?;
@@ -123,9 +134,14 @@ async fn edit_manifest(
 async fn file_tree(
     ctx: CliContext,
     _: Empty,
-    S9pkPath { s9pk }: S9pkPath,
+    S9pkPath { s9pk: s9pk_path }: S9pkPath,
 ) -> Result<Vec<PathBuf>, Error> {
-    let s9pk = S9pk::from_file(super::load(&ctx, &s9pk).await?).await?;
+    let s9pk = super::load(
+        MultiCursorFile::from(open_file(&s9pk_path).await?),
+        || ctx.developer_key().cloned(),
+        None,
+    )
+    .await?;
     Ok(s9pk.as_archive().contents().file_paths(""))
 }
 
@@ -138,11 +154,16 @@ struct CatParams {
 async fn cat(
     ctx: CliContext,
     CatParams { file_path }: CatParams,
-    S9pkPath { s9pk }: S9pkPath,
+    S9pkPath { s9pk: s9pk_path }: S9pkPath,
 ) -> Result<(), Error> {
     use crate::s9pk::merkle_archive::source::FileSource;
 
-    let s9pk = S9pk::from_file(super::load(&ctx, &s9pk).await?).await?;
+    let s9pk = super::load(
+        MultiCursorFile::from(open_file(&s9pk_path).await?),
+        || ctx.developer_key().cloned(),
+        None,
+    )
+    .await?;
     tokio::io::copy(
         &mut s9pk
             .as_archive()
@@ -162,8 +183,13 @@ async fn cat(
 async fn inspect_manifest(
     ctx: CliContext,
     _: Empty,
-    S9pkPath { s9pk }: S9pkPath,
+    S9pkPath { s9pk: s9pk_path }: S9pkPath,
 ) -> Result<Manifest, Error> {
-    let s9pk = S9pk::from_file(super::load(&ctx, &s9pk).await?).await?;
+    let s9pk = super::load(
+        MultiCursorFile::from(open_file(&s9pk_path).await?),
+        || ctx.developer_key().cloned(),
+        None,
+    )
+    .await?;
     Ok(s9pk.as_manifest().clone())
 }

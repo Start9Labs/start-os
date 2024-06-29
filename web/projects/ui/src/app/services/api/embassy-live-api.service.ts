@@ -29,7 +29,7 @@ export class LiveApiService extends ApiService {
     @Inject(PATCH_CACHE) private readonly cache$: Observable<Dump<DataModel>>,
   ) {
     super()
-    ; (window as any).rpcClient = this
+    ;(window as any).rpcClient = this
   }
 
   // for getting static files: ex icons, instructions, licenses
@@ -460,12 +460,10 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async sideloadPackage(
-    params: RR.SideloadPackageReq,
-  ): Promise<RR.SideloadPacakgeRes> {
+  async sideloadPackage(): Promise<RR.SideloadPackageRes> {
     return this.rpcRequest({
       method: 'package.sideload',
-      params,
+      params: {},
     })
   }
 

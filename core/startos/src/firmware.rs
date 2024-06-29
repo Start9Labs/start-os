@@ -3,13 +3,12 @@ use std::path::Path;
 
 use async_compression::tokio::bufread::GzipDecoder;
 use serde::{Deserialize, Serialize};
-use tokio::fs::File;
 use tokio::io::BufReader;
 use tokio::process::Command;
 
 use crate::disk::fsck::RequiresReboot;
 use crate::prelude::*;
-use crate::progress::PhaseProgressTrackerHandle;
+use crate::util::io::open_file;
 use crate::util::Invoke;
 use crate::PLATFORM;
 
@@ -134,7 +133,7 @@ pub async fn update_firmware(firmware: Firmware) -> Result<(), Error> {
         .invoke(ErrorKind::Filesystem)
         .await?;
     let mut rdr = if tokio::fs::metadata(&firmware_path).await.is_ok() {
-        GzipDecoder::new(BufReader::new(File::open(&firmware_path).await?))
+        GzipDecoder::new(BufReader::new(open_file(&firmware_path).await?))
     } else {
         return Err(Error::new(
             eyre!("Firmware {id}.rom.gz not found in {firmware_dir:?}"),

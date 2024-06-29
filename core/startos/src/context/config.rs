@@ -37,7 +37,10 @@ pub trait ContextConfig: DeserializeOwned + Default {
             .map(|f| f.parse())
             .transpose()?
             .unwrap_or_default();
-        format.from_reader(File::open(path)?)
+        format.from_reader(
+            File::open(path.as_ref())
+                .with_ctx(|_| (ErrorKind::Filesystem, path.as_ref().display()))?,
+        )
     }
     fn load_path_rec(&mut self, path: Option<impl AsRef<Path>>) -> Result<(), Error> {
         if let Some(path) = path.filter(|p| p.as_ref().exists()) {

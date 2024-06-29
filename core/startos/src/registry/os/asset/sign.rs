@@ -21,6 +21,7 @@ use crate::registry::signer::sign::ed25519::Ed25519;
 use crate::registry::signer::sign::{AnySignature, AnyVerifyingKey, SignatureScheme};
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::ArchiveSource;
+use crate::util::io::open_file;
 use crate::util::serde::Base64;
 use crate::util::VersionString;
 
@@ -166,7 +167,7 @@ pub async fn cli_sign_asset(
         }
     };
 
-    let file = MultiCursorFile::from(tokio::fs::File::open(&path).await?);
+    let file = MultiCursorFile::from(open_file(&path).await?);
 
     let progress = FullProgressTracker::new();
     let mut sign_phase = progress.add_phase(InternedString::intern("Signing File"), Some(10));

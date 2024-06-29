@@ -272,7 +272,10 @@ export module RR {
     manifest: T.Manifest
     icon: string // base64
   }
-  export type SideloadPacakgeRes = string //guid
+  export type SideloadPackageRes = {
+    upload: string // guid
+    progress: string // guid
+  }
 
   // marketplace
 

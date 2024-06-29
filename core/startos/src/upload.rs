@@ -1,3 +1,4 @@
+use std::io::SeekFrom;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
@@ -5,20 +6,20 @@ use std::time::Duration;
 
 use axum::body::Body;
 use axum::response::Response;
-use futures::StreamExt;
+use futures::{ready, FutureExt, StreamExt};
 use http::header::CONTENT_LENGTH;
 use http::StatusCode;
 use imbl_value::InternedString;
 use tokio::fs::File;
-use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
 use tokio::sync::watch;
 
 use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation};
-use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
+use crate::s9pk::merkle_archive::source::multi_cursor_file::{FileCursor, MultiCursorFile};
 use crate::s9pk::merkle_archive::source::ArchiveSource;
-use crate::util::io::TmpDir;
+use crate::util::io::{create_file, TmpDir};
 
 pub async fn upload(
     ctx: &RpcContext,
@@ -215,14 +216,15 @@ impl UploadingFile {
     pub async fn new() -> Result<(UploadHandle, Self), Error> {
         let progress = watch::channel(Progress::default());
         let tmp_dir = Arc::new(TmpDir::new().await?);
-        let file = File::create(tmp_dir.join("upload.tmp")).await?;
+        let file = create_file(tmp_dir.join("upload.tmp")).await?;
         let uploading = Self {
-            tmp_dir,
+            tmp_dir: tmp_dir.clone(),
             file: MultiCursorFile::open(&file).await?,
             progress: progress.1,
         };
         Ok((
             UploadHandle {
+                tmp_dir,
                 file,
                 progress: progress.0,
             },
@@ -237,22 +239,127 @@ impl UploadingFile {
     }
 }
 impl ArchiveSource for UploadingFile {
-    type Reader = <MultiCursorFile as ArchiveSource>::Reader;
+    type FetchReader = <MultiCursorFile as ArchiveSource>::FetchReader;
+    type FetchAllReader = UploadingFileReader;
     async fn size(&self) -> Option<u64> {
         Progress::expected_size(&mut self.progress.clone()).await
     }
-    async fn fetch_all(&self) -> Result<impl AsyncRead + Unpin + Send, Error> {
-        Progress::ready(&mut self.progress.clone()).await?;
-        self.file.fetch_all().await
+    async fn fetch_all(&self) -> Result<Self::FetchAllReader, Error> {
+        let mut file = self.file.cursor().await?;
+        file.seek(SeekFrom::Start(0)).await?;
+        Ok(UploadingFileReader {
+            tmp_dir: self.tmp_dir.clone(),
+            file,
+            position: 0,
+            to_seek: None,
+            progress: self.progress.clone(),
+        })
     }
-    async fn fetch(&self, position: u64, size: u64) -> Result<Self::Reader, Error> {
+    async fn fetch(&self, position: u64, size: u64) -> Result<Self::FetchReader, Error> {
         Progress::ready_for(&mut self.progress.clone(), position + size).await?;
         self.file.fetch(position, size).await
     }
 }
 
+#[pin_project::pin_project(project = UploadingFileReaderProjection)]
+pub struct UploadingFileReader {
+    tmp_dir: Arc<TmpDir>,
+    position: u64,
+    to_seek: Option<SeekFrom>,
+    #[pin]
+    file: FileCursor,
+    progress: watch::Receiver<Progress>,
+}
+impl<'a> UploadingFileReaderProjection<'a> {
+    fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> Result<bool, std::io::Error> {
+        let ready = Progress::ready(&mut *self.progress);
+        tokio::pin!(ready);
+        Ok(ready
+            .poll_unpin(cx)
+            .map_err(|e| std::io::Error::other(e.source))?
+            .is_ready())
+    }
+    fn poll_ready_for(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+        size: u64,
+    ) -> Result<bool, std::io::Error> {
+        let ready = Progress::ready_for(&mut *self.progress, size);
+        tokio::pin!(ready);
+        Ok(ready
+            .poll_unpin(cx)
+            .map_err(|e| std::io::Error::other(e.source))?
+            .is_ready())
+    }
+}
+impl AsyncRead for UploadingFileReader {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        let mut this = self.project();
+
+        let position = *this.position;
+        if this.poll_ready(cx)? || this.poll_ready_for(cx, position + buf.remaining() as u64)? {
+            let start = buf.filled().len();
+            let res = this.file.poll_read(cx, buf);
+            *this.position += (buf.filled().len() - start) as u64;
+            res
+        } else {
+            Poll::Pending
+        }
+    }
+}
+impl AsyncSeek for UploadingFileReader {
+    fn start_seek(self: Pin<&mut Self>, position: SeekFrom) -> std::io::Result<()> {
+        let this = self.project();
+        *this.to_seek = Some(position);
+        Ok(())
+    }
+    fn poll_complete(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<std::io::Result<u64>> {
+        let mut this = self.project();
+        if let Some(to_seek) = *this.to_seek {
+            let size = match to_seek {
+                SeekFrom::Current(n) => (*this.position as i64 + n) as u64,
+                SeekFrom::Start(n) => n,
+                SeekFrom::End(n) => {
+                    let expected_size = this.progress.borrow().expected_size;
+                    match expected_size {
+                        Some(end) => (end as i64 + n) as u64,
+                        None => {
+                            if !this.poll_ready(cx)? {
+                                return Poll::Pending;
+                            }
+                            (this.progress.borrow().expected_size.ok_or_else(|| {
+                                std::io::Error::new(
+                                    std::io::ErrorKind::Other,
+                                    eyre!("upload maked complete without expected size"),
+                                )
+                            })? as i64
+                                + n) as u64
+                        }
+                    }
+                }
+            };
+            if !this.poll_ready_for(cx, size)? {
+                return Poll::Pending;
+            }
+        }
+        if let Some(seek) = this.to_seek.take() {
+            this.file.as_mut().start_seek(seek)?;
+        }
+        *this.position = ready!(this.file.as_mut().poll_complete(cx)?);
+        Poll::Ready(Ok(*this.position))
+    }
+}
+
 #[pin_project::pin_project(PinnedDrop)]
 pub struct UploadHandle {
+    tmp_dir: Arc<TmpDir>,
     #[pin]
     file: File,
     progress: watch::Sender<Progress>,

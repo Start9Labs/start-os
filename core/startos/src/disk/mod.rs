@@ -102,10 +102,10 @@ fn display_disk_info(params: WithIoFormat<Empty>, args: Vec<DiskInfo>) {
                 } else {
                     "N/A"
                 },
-                if let Some(eos) = part.start_os.as_ref() {
-                    eos.version.as_str()
+                &if let Some(eos) = part.start_os.as_ref() {
+                    eos.version.to_string()
                 } else {
-                    "N/A"
+                    "N/A".to_owned()
                 },
             ];
             table.add_row(row);
