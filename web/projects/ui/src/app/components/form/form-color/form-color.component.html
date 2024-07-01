@@ -1,0 +1,32 @@
+<tui-input
+  [maskito]="mask"
+  [tuiTextfieldCustomContent]="color"
+  [tuiTextfieldCleaner]="false"
+  [tuiHintContent]="spec | hint"
+  [readOnly]="readOnly"
+  [disabled]="!!spec.disabled"
+  [pseudoInvalid]="invalid"
+  [(ngModel)]="value"
+  (focusedChange)="onFocus($event)"
+>
+  {{ spec.name }}
+  <span *ngIf="spec.required">*</span>
+</tui-input>
+<ng-template #color>
+  <div class="wrapper" [style.color]="value">
+    <input
+      *ngIf="!readOnly && !spec.disabled"
+      type="color"
+      class="color"
+      tabindex="-1"
+      [(ngModel)]="value"
+      (click.stop)="(0)"
+    />
+    <tui-svg
+      src="tuiIconPaintLarge"
+      tuiWrapper
+      appearance="icon"
+      class="icon"
+    ></tui-svg>
+  </div>
+</ng-template>

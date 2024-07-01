@@ -11,11 +11,11 @@ import {
   LoadingController,
   ModalController,
 } from '@ionic/angular'
-import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
-import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from '@start9labs/shared'
 import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { FormComponent } from '../form.component'
 
 type BackupType = 'create' | 'restore'
 
@@ -39,6 +39,7 @@ export class BackupDrivesComponent {
     private readonly embassyApi: ApiService,
     private readonly errToast: ErrorToastService,
     private readonly backupService: BackupService,
+    private readonly formDialog: FormDialogService,
   ) {}
 
   get loading() {
@@ -87,23 +88,19 @@ export class BackupDrivesComponent {
   }
 
   async presentModalAddCifs(): Promise<void> {
-    const modal = await this.modalCtrl.create({
-      component: GenericFormPage,
-      componentProps: {
-        title: 'New Network Folder',
+    this.formDialog.open(FormComponent, {
+      label: 'New Network Folder',
+      data: {
         spec: CifsSpec,
         buttons: [
           {
-            text: 'Connect',
-            handler: (value: RR.AddBackupTargetReq) => {
-              return this.addCifs(value)
-            },
-            isSubmit: true,
+            text: 'Execute',
+            handler: async (value: RR.AddBackupTargetReq) =>
+              this.addCifs(value),
           },
         ],
       },
     })
-    await modal.present()
   }
 
   async presentActionCifs(
@@ -180,28 +177,24 @@ export class BackupDrivesComponent {
   ): Promise<void> {
     const { hostname, path, username } = entry
 
-    const modal = await this.modalCtrl.create({
-      component: GenericFormPage,
-      componentProps: {
-        title: 'Update Shared Folder',
+    this.formDialog.open(FormComponent, {
+      label: 'Update Network Folder',
+      data: {
         spec: CifsSpec,
         buttons: [
           {
-            text: 'Save',
-            handler: (value: RR.AddBackupTargetReq) => {
-              return this.editCifs({ id, ...value }, index)
-            },
-            isSubmit: true,
+            text: 'Execute',
+            handler: async (value: RR.AddBackupTargetReq) =>
+              this.editCifs({ id, ...value }, index),
           },
         ],
-        initialValue: {
+        value: {
           hostname,
           path,
           username,
         },
       },
     })
-    await modal.present()
   }
 
   private async editCifs(

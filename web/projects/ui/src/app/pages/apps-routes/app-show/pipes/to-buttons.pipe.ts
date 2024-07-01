@@ -7,11 +7,12 @@ import {
   InstalledState,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { ModalService } from 'src/app/services/modal.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { from, map, Observable } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
 import { T } from '@start9labs/start-sdk'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { ConfigModal, PackageConfigData } from 'src/app/modals/config.component'
 
 export interface Button {
   title: string
@@ -30,9 +31,9 @@ export class ToButtonsPipe implements PipeTransform {
     private readonly route: ActivatedRoute,
     private readonly navCtrl: NavController,
     private readonly modalCtrl: ModalController,
-    private readonly modalService: ModalService,
     private readonly apiService: ApiService,
     private readonly patch: PatchDB<DataModel>,
+    private readonly formDialog: FormDialogService,
   ) {}
 
   transform(pkg: PackageDataEntry<InstalledState>): Button[] {
@@ -52,7 +53,10 @@ export class ToButtonsPipe implements PipeTransform {
       // config
       {
         action: async () =>
-          this.modalService.presentModalConfig({ pkgId: manifest.id }),
+          this.formDialog.open<PackageConfigData>(ConfigModal, {
+            label: `${manifest.title} configuration`,
+            data: { pkgId: manifest.id },
+          }),
         title: 'Config',
         description: `Customize ${manifest.title}`,
         icon: 'options-outline',

@@ -1,0 +1,50 @@
+@import '@taiga-ui/core/styles/taiga-ui-local';
+
+:host {
+  display: block;
+  margin: 2rem 0;
+}
+
+.label {
+  display: flex;
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.add {
+  font-size: 1rem;
+  padding: 0 1rem;
+  margin-left: auto;
+}
+
+.object {
+  display: block;
+  position: relative;
+
+  &_open::after,
+  &:last-child::after {
+    opacity: 0;
+  }
+
+  &:after {
+    @include transition(opacity);
+
+    content: '';
+    position: absolute;
+    bottom: -0.5rem;
+    height: 1px;
+    left: 3rem;
+    right: 1rem;
+    background: var(--tui-clear);
+  }
+}
+
+.remove {
+  margin-left: auto;
+  pointer-events: auto;
+}
+
+.control {
+  display: block;
+  margin: 0.5rem 0;
+}

@@ -1,0 +1,41 @@
+@import '@taiga-ui/core/styles/taiga-ui-local';
+
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.title {
+  position: relative;
+  height: var(--tui-height-l);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font: var(--tui-font-text-l);
+  font-weight: bold;
+  margin: 0 0 -0.75rem;
+}
+
+.button {
+  @include transition(transform);
+
+  margin-right: 1rem;
+
+  &_open {
+    transform: rotate(180deg);
+  }
+}
+
+.expand {
+  align-self: stretch;
+}
+
+.g-form-group {
+  padding-top: 0.75rem;
+
+  &_invalid::before,
+  &_invalid::after {
+    background: var(--tui-error-bg);
+  }
+}
