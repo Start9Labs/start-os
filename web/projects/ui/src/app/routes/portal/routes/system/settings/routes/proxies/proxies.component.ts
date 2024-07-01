@@ -24,7 +24,7 @@ import { wireguardSpec, WireguardSpec } from './constants'
         Add Proxy
       </button>
     </h3>
-    <table class="g-table" [proxies]="(proxies$ | async) || []"></table>
+    <table class="g-table" [proxies]="proxies$ | async"></table>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,

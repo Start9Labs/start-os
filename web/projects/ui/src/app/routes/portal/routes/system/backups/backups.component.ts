@@ -1,44 +1,34 @@
-import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { TuiDialogService, TuiSvgModule } from '@taiga-ui/core'
-import { TuiFadeModule } from '@taiga-ui/experimental'
-import { BackupsCreateService } from './services/create.service'
-import { BackupsRestoreService } from './services/restore.service'
+import { TuiDialogService } from '@taiga-ui/core'
+import { TuiIconModule } from '@taiga-ui/experimental'
 import { BackupsUpcomingComponent } from './components/upcoming.component'
-import { TARGETS } from './modals/targets.component'
 import { HISTORY } from './modals/history.component'
 import { JOBS } from './modals/jobs.component'
+import { TARGETS } from './modals/targets.component'
+import { BackupsCreateService } from './services/create.service'
+import { BackupsRestoreService } from './services/restore.service'
 
 @Component({
   template: `
     <section>
       <h3 class="g-title">Options</h3>
-      <button
-        *ngFor="let option of options"
-        class="g-action"
-        (click)="option.action()"
-      >
-        <tui-svg [src]="option.icon"></tui-svg>
-        <div>
-          <strong>{{ option.name }}</strong>
-          <div>{{ option.description }}</div>
-        </div>
-      </button>
+      @for (option of options; track $index) {
+        <button class="g-action" (click)="option.action()">
+          <tui-icon [icon]="option.icon" />
+          <div>
+            <strong>{{ option.name }}</strong>
+            <div>{{ option.description }}</div>
+          </div>
+        </button>
+      }
     </section>
     <h3 class="g-title">Upcoming Jobs</h3>
-    <div tuiFade class="g-hidden-scrollbar">
-      <table backupsUpcoming class="g-table"></table>
-    </div>
+    <table backupsUpcoming class="g-table"></table>
   `,
   host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [
-    CommonModule,
-    TuiSvgModule,
-    TuiFadeModule,
-    BackupsUpcomingComponent,
-  ],
+  imports: [BackupsUpcomingComponent, TuiIconModule],
 })
 export default class BackupsComponent {
   private readonly dialogs = inject(TuiDialogService)

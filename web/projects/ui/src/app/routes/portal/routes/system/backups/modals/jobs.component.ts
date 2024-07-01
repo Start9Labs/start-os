@@ -1,22 +1,19 @@
-import { CommonModule } from '@angular/common'
 import { Component, inject, OnInit } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiForModule } from '@taiga-ui/cdk'
 import {
   TuiDialogOptions,
   TuiDialogService,
   TuiNotificationModule,
-  TuiSvgModule,
 } from '@taiga-ui/core'
-import { TuiButtonModule, TuiFadeModule } from '@taiga-ui/experimental'
+import { TuiButtonModule, TuiIconModule } from '@taiga-ui/experimental'
 import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { BehaviorSubject, filter } from 'rxjs'
 import { BackupJob } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { BackupJobBuilder } from '../utils/job-builder'
-import { ToHumanCronPipe } from '../pipes/to-human-cron.pipe'
 import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
+import { ToHumanCronPipe } from '../pipes/to-human-cron.pipe'
+import { BackupJobBuilder } from '../utils/job-builder'
 import { EDIT } from './edit.component'
 
 @Component({
@@ -39,27 +36,27 @@ import { EDIT } from './edit.component'
         Create New Job
       </button>
     </h3>
-    <div class="g-hidden-scrollbar" tuiFade>
-      <table class="g-table">
-        <thead>
+    <table class="g-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Target</th>
+          <th>Packages</th>
+          <th>Schedule</th>
+          <th [style.width.rem]="3.5"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (job of jobs; track $index) {
           <tr>
-            <th>Name</th>
-            <th>Target</th>
-            <th>Packages</th>
-            <th>Schedule</th>
-            <th [style.width.rem]="3.5"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let job of jobs || null; else: loading; empty: blank">
-            <td>{{ job.name }}</td>
-            <td>
-              <tui-svg [src]="job.target.type | getBackupIcon"></tui-svg>
+            <td class="title">{{ job.name }}</td>
+            <td class="target">
+              <tui-icon [icon]="job.target.type | getBackupIcon" />
               {{ job.target.name }}
             </td>
-            <td>Packages: {{ job.packageIds.length }}</td>
-            <td>{{ (job.cron | toHumanCron).message }}</td>
-            <td>
+            <td class="packages">Packages: {{ job.packageIds.length }}</td>
+            <td class="schedule">{{ (job.cron | toHumanCron).message }}</td>
+            <td class="actions">
               <button
                 tuiIconButton
                 appearance="icon"
@@ -76,26 +73,68 @@ import { EDIT } from './edit.component'
               ></button>
             </td>
           </tr>
-          <ng-template #loading>
-            <tr *ngFor="let i of ['', '']">
-              <td colspan="5"><div class="tui-skeleton">Loading</div></td>
-            </tr>
-          </ng-template>
-          <ng-template #blank>
+        } @empty {
+          @if (jobs) {
             <tr><td colspan="5">No jobs found.</td></tr>
-          </ng-template>
-        </tbody>
-      </table>
-    </div>
+          } @else {
+            @for (i of ['', '']; track $index) {
+              <tr>
+                <td colspan="5"><div class="tui-skeleton">Loading</div></td>
+              </tr>
+            }
+          }
+        }
+      </tbody>
+    </table>
+  `,
+  styles: `
+    tui-icon {
+      font-size: 1rem;
+      vertical-align: sub;
+      margin-inline-end: 0.25rem;
+    }
+
+    :host-context(tui-root._mobile) {
+      tr {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      td:only-child {
+        grid-column: span 2;
+      }
+
+      .title {
+        order: 1;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+
+      .actions {
+        order: 2;
+        padding: 0;
+        text-align: right;
+      }
+
+      .target {
+        order: 3;
+      }
+
+      .packages {
+        order: 4;
+        text-align: right;
+      }
+
+      .schedule {
+        order: 5;
+        color: var(--tui-text-02);
+      }
+    }
   `,
   standalone: true,
   imports: [
-    CommonModule,
-    TuiForModule,
     TuiNotificationModule,
     TuiButtonModule,
-    TuiSvgModule,
-    TuiFadeModule,
+    TuiIconModule,
     ToHumanCronPipe,
     GetBackupIconPipe,
   ],

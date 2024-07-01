@@ -25,51 +25,94 @@ import { UnknownDisk } from 'src/app/services/api/api.types'
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let disk of backupsPhysical; else: loading; empty: blank">
-        <td>
-          {{ disk.vendor || 'unknown make' }},
-          {{ disk.model || 'unknown model' }}
-        </td>
-        <td>{{ disk.label }}</td>
-        <td>{{ disk.capacity | convertBytes }}</td>
-        <td>{{ disk.used ? (disk.used | convertBytes) : 'Unknown' }}</td>
-        <td>
-          <button
-            tuiButton
-            size="xs"
-            icon="tuiIconPlus"
-            (click)="add.emit(disk)"
-          >
-            Save
-          </button>
-        </td>
-      </tr>
-      <ng-template #loading>
+      @for (disk of backupsPhysical; track $index) {
         <tr>
-          <td colspan="5">
-            <div class="tui-skeleton">Loading</div>
+          <td class="model">
+            {{ disk.vendor || 'unknown make' }},
+            {{ disk.model || 'unknown model' }}
+          </td>
+          <td class="title">{{ disk.label }}</td>
+          <td class="capacity">{{ disk.capacity | convertBytes }}</td>
+          <td class="used">
+            {{ disk.used ? (disk.used | convertBytes) : 'Unknown' }}
+          </td>
+          <td class="actions">
+            <button
+              tuiButton
+              size="xs"
+              iconLeft="tuiIconPlus"
+              (click)="add.emit(disk)"
+            >
+              Save
+            </button>
           </td>
         </tr>
-      </ng-template>
-      <ng-template #blank>
-        <tr>
-          <td colspan="5">
-            To add a new physical backup target, connect the drive and click
-            refresh.
-          </td>
-        </tr>
-      </ng-template>
+      } @empty {
+        @if (backupsPhysical) {
+          <tr>
+            <td colspan="5">
+              To add a new physical backup target, connect the drive and click
+              refresh.
+            </td>
+          </tr>
+        } @else {
+          <tr>
+            <td colspan="5"><div class="tui-skeleton">Loading</div></td>
+          </tr>
+        }
+      }
     </tbody>
+  `,
+  styles: `
+    :host-context(tui-root._mobile) {
+      tr {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      td:only-child {
+        grid-column: span 2;
+      }
+
+      .model {
+        order: 1;
+        white-space: nowrap;
+        color: var(--tui-text-02);
+      }
+
+      .actions {
+        order: 2;
+        padding: 0;
+        text-align: right;
+      }
+
+      .title {
+        order: 3;
+        grid-column: span 2;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+
+      .capacity {
+        order: 4;
+
+        &::before {
+          content: 'Capacity: ';
+        }
+      }
+
+      .used {
+        order: 5;
+        text-align: right;
+
+        &::before {
+          content: 'Used: ';
+        }
+      }
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [
-    CommonModule,
-    TuiForModule,
-    TuiSvgModule,
-    TuiButtonModule,
-    UnitConversionPipesModule,
-  ],
+  imports: [TuiButtonModule, UnitConversionPipesModule],
 })
 export class BackupsPhysicalComponent {
   @Input()
