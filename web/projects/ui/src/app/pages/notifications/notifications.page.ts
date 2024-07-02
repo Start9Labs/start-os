@@ -1,21 +1,17 @@
 import { Component } from '@angular/core'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ActivatedRoute } from '@angular/router'
+import { AlertController, ModalController } from '@ionic/angular'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { PatchDB } from 'patch-db-client'
+import { first } from 'rxjs'
+import { BackupReportPage } from 'src/app/modals/backup-report/backup-report.page'
 import {
-  ServerNotifications,
   NotificationLevel,
   ServerNotification,
+  ServerNotifications,
 } from 'src/app/services/api/api.types'
-import {
-  AlertController,
-  LoadingController,
-  ModalController,
-} from '@ionic/angular'
-import { ActivatedRoute } from '@angular/router'
-import { ErrorToastService } from '@start9labs/shared'
-import { BackupReportPage } from 'src/app/modals/backup-report/backup-report.page'
-import { PatchDB } from 'patch-db-client'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { first } from 'rxjs'
 
 @Component({
   selector: 'notifications',
@@ -34,9 +30,9 @@ export class NotificationsPage {
   constructor(
     private readonly embassyApi: ApiService,
     private readonly alertCtrl: AlertController,
-    private readonly loadingCtrl: LoadingController,
+    private readonly loader: LoadingService,
     private readonly modalCtrl: ModalController,
-    private readonly errToast: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly route: ActivatedRoute,
     private readonly patch: PatchDB<DataModel>,
   ) {}
@@ -66,26 +62,23 @@ export class NotificationsPage {
 
       return notifications
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     }
 
     return []
   }
 
   async delete(id: number, index: number): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Deleting...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Deleting...').subscribe()
 
     try {
       await this.embassyApi.deleteNotification({ id })
       this.notifications.splice(index, 1)
       this.beforeCursor = this.notifications[this.notifications.length - 1]?.id
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
@@ -160,10 +153,7 @@ export class NotificationsPage {
   }
 
   private async deleteAll(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Deleting...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Deleting...').subscribe()
 
     try {
       await this.embassyApi.deleteAllNotifications({
@@ -172,9 +162,9 @@ export class NotificationsPage {
       this.notifications = []
       this.beforeCursor = undefined
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 }

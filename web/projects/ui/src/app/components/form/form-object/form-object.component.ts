@@ -16,7 +16,7 @@ import { CT } from '@start9labs/start-sdk'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FormObjectComponent {
-  @Input({ required: true })
+  @Input()
   spec!: CT.ValueSpecObject
 
   @Input()

@@ -1,21 +1,18 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core'
-import { BackupService } from './backup.service'
+import { ActionSheetController, AlertController } from '@ionic/angular'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { CB } from '@start9labs/start-sdk'
 import {
   CifsBackupTarget,
   DiskBackupTarget,
   RR,
 } from 'src/app/services/api/api.types'
-import {
-  ActionSheetController,
-  AlertController,
-  LoadingController,
-  ModalController,
-} from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ErrorToastService } from '@start9labs/shared'
-import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
+import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { FormComponent } from '../form.component'
+import { BackupService } from './backup.service'
 
 type BackupType = 'create' | 'restore'
 
@@ -32,12 +29,11 @@ export class BackupDrivesComponent {
   loadingText = ''
 
   constructor(
-    private readonly loadingCtrl: LoadingController,
+    private readonly loader: LoadingService,
     private readonly actionCtrl: ActionSheetController,
     private readonly alertCtrl: AlertController,
-    private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
-    private readonly errToast: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly backupService: BackupService,
     private readonly formDialog: FormDialogService,
   ) {}
@@ -91,7 +87,7 @@ export class BackupDrivesComponent {
     this.formDialog.open(FormComponent, {
       label: 'New Network Folder',
       data: {
-        spec: CifsSpec,
+        spec: await configBuilderToSpec(cifsSpec),
         buttons: [
           {
             text: 'Execute',
@@ -148,10 +144,9 @@ export class BackupDrivesComponent {
   }
 
   private async addCifs(value: RR.AddBackupTargetReq): Promise<boolean> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Testing connectivity to shared folder...',
-    })
-    await loader.present()
+    const loader = this.loader
+      .open('Testing connectivity to shared folder...')
+      .subscribe()
 
     try {
       const res = await this.embassyApi.addBackupTarget(value)
@@ -163,10 +158,10 @@ export class BackupDrivesComponent {
       })
       return true
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
       return false
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
@@ -180,7 +175,7 @@ export class BackupDrivesComponent {
     this.formDialog.open(FormComponent, {
       label: 'Update Network Folder',
       data: {
-        spec: CifsSpec,
+        spec: await configBuilderToSpec(cifsSpec),
         buttons: [
           {
             text: 'Execute',
@@ -200,35 +195,34 @@ export class BackupDrivesComponent {
   private async editCifs(
     value: RR.UpdateBackupTargetReq,
     index: number,
-  ): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Testing connectivity to shared folder...',
-    })
-    await loader.present()
+  ): Promise<boolean> {
+    const loader = this.loader
+      .open('Testing connectivity to shared folder...')
+      .subscribe()
 
     try {
       const res = await this.embassyApi.updateBackupTarget(value)
       this.backupService.cifs[index].entry = Object.values(res)[0]
+
+      return true
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
+      return false
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async deleteCifs(id: string, index: number): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Removing...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Removing...').subscribe()
 
     try {
       await this.embassyApi.removeBackupTarget({ id })
       this.backupService.cifs.splice(index, 1)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
@@ -267,40 +261,33 @@ export class BackupDrivesStatusComponent {
   @Input() hasValidBackup!: boolean
 }
 
-const CifsSpec: ConfigSpec = {
-  hostname: {
-    type: 'string',
-    name: 'Hostname/IP',
+const cifsSpec = CB.Config.of({
+  hostname: CB.Value.text({
+    name: 'Hostname',
     description:
-      'The hostname or IP address of the target device on your Local Area Network.',
-    placeholder: `e.g. 'MyComputer.local' OR '192.168.1.4'`,
-    nullable: false,
-    masked: false,
-    copyable: false,
-  },
-  path: {
-    type: 'string',
+      'The hostname of your target device on the Local Area Network.',
+    warning: null,
+    placeholder: `e.g. 'My Computer' OR 'my-computer.local'`,
+    required: { default: null },
+    patterns: [],
+  }),
+  path: CB.Value.text({
     name: 'Path',
     description: `On Windows, this is the fully qualified path to the shared folder, (e.g. /Desktop/my-folder).\n\n On Linux and Mac, this is the literal name of the shared folder (e.g. my-shared-folder).`,
     placeholder: 'e.g. my-shared-folder or /Desktop/my-folder',
-    nullable: false,
-    masked: false,
-    copyable: false,
-  },
-  username: {
-    type: 'string',
+    required: { default: null },
+  }),
+  username: CB.Value.text({
     name: 'Username',
     description: `On Linux, this is the samba username you created when sharing the folder.\n\n On Mac and Windows, this is the username of the user who is sharing the folder.`,
-    nullable: false,
-    masked: false,
-    copyable: false,
-  },
-  password: {
-    type: 'string',
+    required: { default: null },
+    placeholder: 'My Network Folder',
+  }),
+  password: CB.Value.text({
     name: 'Password',
     description: `On Linux, this is the samba password you created when sharing the folder.\n\n On Mac and Windows, this is the password of the user who is sharing the folder.`,
-    nullable: true,
+    required: false,
     masked: true,
-    copyable: false,
-  },
-}
+    placeholder: 'My Network Folder',
+  }),
+})

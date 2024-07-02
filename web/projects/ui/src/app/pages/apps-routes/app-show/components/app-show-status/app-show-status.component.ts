@@ -1,27 +1,27 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { UiLauncherService } from 'src/app/services/ui-launcher.service'
-import {
-  PackageStatus,
-  PrimaryRendering,
-} from 'src/app/services/pkg-status-rendering.service'
+import { AlertController } from '@ionic/angular'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
+import { PatchDB } from 'patch-db-client'
+import { ConfigModal, PackageConfigData } from 'src/app/modals/config.component'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ConnectionService } from 'src/app/services/connection.service'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
 import {
   DataModel,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { ErrorToastService } from '@start9labs/shared'
-import { AlertController, LoadingController } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { hasCurrentDeps } from 'src/app/util/has-deps'
-import { ConnectionService } from 'src/app/services/connection.service'
 import {
-  isInstalled,
-  getManifest,
+  PackageStatus,
+  PrimaryRendering,
+} from 'src/app/services/pkg-status-rendering.service'
+import { UiLauncherService } from 'src/app/services/ui-launcher.service'
+import {
   getAllPackages,
+  getManifest,
+  isInstalled,
 } from 'src/app/util/get-package-data'
-import { PatchDB } from 'patch-db-client'
-import { T } from '@start9labs/start-sdk'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { ConfigModal, PackageConfigData } from 'src/app/modals/config.component'
+import { hasCurrentDeps } from 'src/app/util/has-deps'
 
 @Component({
   selector: 'app-show-status',
@@ -42,8 +42,8 @@ export class AppShowStatusComponent {
 
   constructor(
     private readonly alertCtrl: AlertController,
-    private readonly errToast: ErrorToastService,
-    private readonly loadingCtrl: LoadingController,
+    private readonly errorService: ErrorService,
+    private readonly loader: LoadingService,
     private readonly embassyApi: ApiService,
     private readonly launcherService: UiLauncherService,
     private readonly formDialog: FormDialogService,
@@ -173,47 +173,38 @@ export class AppShowStatusComponent {
   }
 
   private async start(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: `Starting...`,
-    })
-    await loader.present()
+    const loader = this.loader.open(`Starting...`).subscribe()
 
     try {
       await this.embassyApi.startPackage({ id: this.manifest.id })
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async stop(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Stopping...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Stopping...').subscribe()
 
     try {
       await this.embassyApi.stopPackage({ id: this.manifest.id })
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async restart(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: `Restarting...`,
-    })
-    await loader.present()
+    const loader = this.loader.open(`Restarting...`).subscribe()
 
     try {
       await this.embassyApi.restartPackage({ id: this.manifest.id })
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
   private async presentAlertStart(message: string): Promise<boolean> {

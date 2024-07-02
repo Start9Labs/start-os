@@ -24,7 +24,7 @@
 
     <ion-item-divider>Saved Keys</ion-item-divider>
 
-    <ion-item button detail="false" (click)="presentModalAdd()">
+    <ion-item button detail="false" (click)="add()">
       <ion-icon slot="start" name="add" color="dark"></ion-icon>
       <ion-label>
         <b>Add New Key</b>
@@ -62,7 +62,7 @@
 
     <!-- not loading -->
     <ng-container *ngIf="!loading">
-      <ion-item *ngFor="let ssh of sshKeys; let i = index">
+      <ion-item *ngFor="let ssh of sshKeys">
         <ion-icon slot="start" name="key-outline" size="large"></ion-icon>
         <ion-label>
           <h1>{{ ssh.hostname }}</h1>
@@ -73,7 +73,7 @@
           slot="end"
           fill="clear"
           color="danger"
-          (click)="presentAlertDelete(i)"
+          (click)="delete(ssh)"
         >
           <ion-icon slot="start" name="close"></ion-icon>
           Remove

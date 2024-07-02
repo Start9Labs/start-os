@@ -5,8 +5,8 @@ import {
   ModalController,
   NavController,
 } from '@ionic/angular'
+import { DiskInfo, ErrorService, GuidPipe } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/api.service'
-import { DiskInfo, ErrorToastService, GuidPipe } from '@start9labs/shared'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../../modals/password/password.page'
 
@@ -27,7 +27,7 @@ export class EmbassyPage {
     private readonly alertCtrl: AlertController,
     private readonly stateService: StateService,
     private readonly loadingCtrl: LoadingController,
-    private readonly errorToastService: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly guidPipe: GuidPipe,
   ) {}
 
@@ -71,7 +71,7 @@ export class EmbassyPage {
         })
       }
     } catch (e: any) {
-      this.errorToastService.present(e)
+      this.errorService.handleError(e)
     } finally {
       this.loading = false
     }
@@ -148,7 +148,7 @@ export class EmbassyPage {
       await this.stateService.setupEmbassy(logicalname, password)
       await this.navCtrl.navigateForward(`/loading`)
     } catch (e: any) {
-      this.errorToastService.present(e)
+      this.errorService.handleError(e)
     } finally {
       loader.dismiss()
     }

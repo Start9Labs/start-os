@@ -1,6 +1,6 @@
 import { Component, HostBinding, inject, Input } from '@angular/core'
 import { AbstractControl, FormArrayName } from '@angular/forms'
-import { TUI_PARENT_STOP, TuiDestroyService } from '@taiga-ui/cdk'
+import { TUI_PARENT_ANIMATION, TuiDestroyService } from '@taiga-ui/cdk'
 import {
   TUI_ANIMATION_OPTIONS,
   TuiDialogService,
@@ -17,14 +17,14 @@ import { ERRORS } from '../form-group/form-group.component'
   selector: 'form-array',
   templateUrl: './form-array.component.html',
   styleUrls: ['./form-array.component.scss'],
-  animations: [tuiFadeIn, tuiHeightCollapse, TUI_PARENT_STOP],
+  animations: [tuiFadeIn, tuiHeightCollapse, TUI_PARENT_ANIMATION],
   providers: [TuiDestroyService],
 })
 export class FormArrayComponent {
-  @Input({ required: true })
+  @Input()
   spec!: CT.ValueSpecList
 
-  @HostBinding('@tuiParentStop')
+  @HostBinding('@tuiParentAnimation')
   readonly animation = { value: '', ...inject(TUI_ANIMATION_OPTIONS) }
   readonly order = ERRORS
   readonly array = inject(FormArrayName)

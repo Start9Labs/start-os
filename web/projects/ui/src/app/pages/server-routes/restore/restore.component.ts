@@ -1,14 +1,10 @@
 import { Component } from '@angular/core'
-import {
-  LoadingController,
-  ModalController,
-  NavController,
-} from '@ionic/angular'
+import { ModalController, NavController } from '@ionic/angular'
+import { LoadingService } from '@start9labs/shared'
+import { TuiDialogService } from '@taiga-ui/core'
+import { take } from 'rxjs/operators'
+import { PROMPT, PromptOptions } from 'src/app/modals/prompt.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import {
-  GenericInputComponent,
-  GenericInputOptions,
-} from 'src/app/modals/generic-input/generic-input.component'
 import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
 import {
   BackupInfo,
@@ -26,37 +22,35 @@ import * as argon2 from '@start9labs/argon2'
 export class RestorePage {
   constructor(
     private readonly modalCtrl: ModalController,
+    private readonly dialogs: TuiDialogService,
     private readonly navCtrl: NavController,
     private readonly embassyApi: ApiService,
-    private readonly loadingCtrl: LoadingController,
+    private readonly loader: LoadingService,
   ) {}
 
   async presentModalPassword(
     target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
   ): Promise<void> {
-    const options: GenericInputOptions = {
-      title: 'Password Required',
+    const options: PromptOptions = {
       message:
         'Enter the master password that was used to encrypt this backup. On the next screen, you will select the individual services you want to restore.',
       label: 'Master Password',
       placeholder: 'Enter master password',
       useMask: true,
       buttonText: 'Next',
-      submitFn: async (password: string) => {
+    }
+
+    this.dialogs
+      .open<string>(PROMPT, {
+        label: 'Password Required',
+        data: options,
+      })
+      .pipe(take(1))
+      .subscribe(async (password: string) => {
         const passwordHash = target.entry.startOs?.passwordHash || ''
         argon2.verify(passwordHash, password)
         await this.restoreFromBackup(target, password)
-      },
-    }
-
-    const modal = await this.modalCtrl.create({
-      componentProps: { options },
-      cssClass: 'alertlike-modal',
-      presentingElement: await this.modalCtrl.getTop(),
-      component: GenericInputComponent,
-    })
-
-    await modal.present()
+      })
   }
 
   private async restoreFromBackup(
@@ -64,10 +58,7 @@ export class RestorePage {
     password: string,
     oldPassword?: string,
   ): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Decrypting drive...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Decrypting drive...').subscribe()
 
     try {
       const backupInfo = await this.embassyApi.getBackupInfo({
@@ -76,7 +67,7 @@ export class RestorePage {
       })
       this.presentModalSelect(target.id, backupInfo, password, oldPassword)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 

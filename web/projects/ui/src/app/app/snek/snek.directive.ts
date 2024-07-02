@@ -1,6 +1,6 @@
 import { Directive, HostListener, Input } from '@angular/core'
-import { LoadingController, ModalController } from '@ionic/angular'
-import { ErrorToastService } from '@start9labs/shared'
+import { ModalController } from '@ionic/angular'
+import { ErrorService, LoadingService } from '@start9labs/shared'
 import { SnakePage } from '../../modals/snake/snake.page'
 import { ApiService } from '../../services/api/embassy-api.service'
 
@@ -13,8 +13,8 @@ export class SnekDirective {
 
   constructor(
     private readonly modalCtrl: ModalController,
-    private readonly loadingCtrl: LoadingController,
-    private readonly errToast: ErrorToastService,
+    private readonly loader: LoadingService,
+    private readonly errorService: ErrorService,
     private readonly embassyApi: ApiService,
   ) {}
 
@@ -30,12 +30,7 @@ export class SnekDirective {
     modal.onDidDismiss().then(async ({ data }) => {
       if (data?.highScore <= (this.appSnekHighScore || 0)) return
 
-      const loader = await this.loadingCtrl.create({
-        message: 'Saving high score...',
-        backdropDismiss: true,
-      })
-
-      await loader.present()
+      const loader = this.loader.open('Saving high score...').subscribe()
 
       try {
         await this.embassyApi.setDbValue<number>(
@@ -43,9 +38,9 @@ export class SnekDirective {
           data.highScore,
         )
       } catch (e: any) {
-        this.errToast.present(e)
+        this.errorService.handleError(e)
       } finally {
-        this.loadingCtrl.dismiss()
+        this.loader.subscribe()
       }
     })
 

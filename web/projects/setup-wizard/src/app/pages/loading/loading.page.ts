@@ -1,14 +1,15 @@
 import { Component } from '@angular/core'
 import { NavController } from '@ionic/angular'
-import { Pipe, PipeTransform } from '@angular/core'
+import { ErrorService } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import {
-  EMPTY,
-  Observable,
   catchError,
+  EMPTY,
   filter,
   from,
   interval,
   map,
+  Observable,
   of,
   startWith,
   switchMap,
@@ -16,8 +17,6 @@ import {
   tap,
 } from 'rxjs'
 import { ApiService } from 'src/app/services/api/api.service'
-import { ErrorToastService } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'app-loading',
@@ -69,7 +68,7 @@ export class LoadingPage {
   constructor(
     private readonly navCtrl: NavController,
     private readonly api: ApiService,
-    private readonly errorToastService: ErrorToastService,
+    private readonly errorService: ErrorService,
   ) {}
 
   private async getStatus(): Promise<{
@@ -96,7 +95,7 @@ export class LoadingPage {
     return from(this.getStatus()).pipe(
       filter(Boolean),
       catchError(e => {
-        this.errorToastService.present(e)
+        this.errorService.handleError(e)
         return of(e)
       }),
       take(1),

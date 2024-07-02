@@ -29,7 +29,7 @@ export class LiveApiService extends ApiService {
     @Inject(PATCH_CACHE) private readonly cache$: Observable<Dump<DataModel>>,
   ) {
     super()
-    ;(window as any).rpcClient = this
+    ; (window as any).rpcClient = this
   }
 
   // for getting static files: ex icons, instructions, licenses
@@ -49,6 +49,15 @@ export class LiveApiService extends ApiService {
       method: Method.POST,
       body,
       url: `/rest/rpc/${guid}`,
+      responseType: 'text',
+    })
+  }
+
+  async uploadFile(body: Blob): Promise<string> {
+    return this.httpRequest({
+      method: Method.POST,
+      body,
+      url: `/rest/upload`,
       responseType: 'text',
     })
   }

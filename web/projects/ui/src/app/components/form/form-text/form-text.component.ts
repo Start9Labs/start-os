@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { CT } from '@start9labs/start-sdk'
+import { getDefaultString } from 'src/app/util/config-utilities'
 import { Control } from '../control'
-import { getDefaultString } from 'src/app/utils/config-utilities'
 
 @Component({
   selector: 'form-text',
