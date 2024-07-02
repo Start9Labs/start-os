@@ -1,7 +1,9 @@
+import { recursive } from "ts-matches"
 import { SDKManifest } from "../manifest/ManifestTypes"
 import * as T from "../types"
 
 import * as child_process from "child_process"
+import { promises as fsPromises } from "fs"
 
 export type BACKUP = "BACKUP"
 export const DEFAULT_OPTIONS: T.BackupOptions = {
@@ -98,7 +100,7 @@ export class Backups<M extends SDKManifest> {
       effects,
     }) => {
       for (const item of this.backupSet) {
-        await runRsync(
+        const rsyncResults = await runRsync(
           {
             dstPath: item.dstPath,
             dstVolume: item.dstVolume,
@@ -108,6 +110,7 @@ export class Backups<M extends SDKManifest> {
           },
           pathMaker,
         )
+        await rsyncResults.wait()
       }
       return
     }
@@ -115,16 +118,17 @@ export class Backups<M extends SDKManifest> {
       effects,
     }) => {
       for (const item of this.backupSet) {
-        await runRsync(
+        const rsyncResults = await runRsync(
           {
-            srcPath: item.dstPath,
-            srcVolume: item.dstVolume,
+            dstPath: item.dstPath,
+            dstVolume: item.dstVolume,
             options: { ...this.options, ...item.options },
-            dstPath: item.srcPath,
-            dstVolume: item.srcVolume,
+            srcPath: item.srcPath,
+            srcVolume: item.srcVolume,
           },
           pathMaker,
         )
+        await rsyncResults.wait()
       }
       return
     }
@@ -134,7 +138,7 @@ export class Backups<M extends SDKManifest> {
 function notEmptyPath(file: string) {
   return ["", ".", "./"].indexOf(file) === -1
 }
-function runRsync(
+async function runRsync(
   rsyncOptions: {
     srcVolume: string
     dstVolume: string
@@ -143,12 +147,13 @@ function runRsync(
     options: T.BackupOptions
   },
   pathMaker: T.PathMaker,
-): {
+): Promise<{
   id: () => Promise<string>
   wait: () => Promise<null>
   progress: () => Promise<number>
-} {
+}> {
   const { srcVolume, dstVolume, srcPath, dstPath, options } = rsyncOptions
+
   const command = "rsync"
   const args: string[] = []
   if (options.delete) {
