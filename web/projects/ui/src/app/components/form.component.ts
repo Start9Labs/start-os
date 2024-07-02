@@ -46,9 +46,9 @@ export interface FormContext<T> {
       (reset.capture.prevent.stop)="onReset()"
       (tuiValueChanges)="markAsDirty()"
     >
-      <form-group [spec]="spec" />
+      <form-group [spec]="spec"></form-group>
       <footer tuiMode="onDark">
-        <ng-content />
+        <ng-content></ng-content>
         <ng-container *ngFor="let button of buttons; let last = last">
           <button
             *ngIf="button.handler; else link"

@@ -1,10 +1,10 @@
 import { Component } from '@angular/core'
-import { isPlatform, LoadingController, NavController } from '@ionic/angular'
+import { isPlatform, NavController } from '@ionic/angular'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { S9pk, T } from '@start9labs/start-sdk'
+import cbor from 'cbor'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
-import cbor from 'cbor'
-import { ErrorToastService } from '@start9labs/shared'
-import { S9pk, T } from '@start9labs/start-sdk'
 
 interface Positions {
   [key: string]: [bigint, bigint] // [position, length]
@@ -37,10 +37,10 @@ export class SideloadPage {
   }
 
   constructor(
-    private readonly loadingCtrl: LoadingController,
+    private readonly loader: LoadingService,
     private readonly api: ApiService,
     private readonly navCtrl: NavController,
-    private readonly errToast: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly config: ConfigService,
   ) {}
 
@@ -111,11 +111,8 @@ export class SideloadPage {
   }
 
   async handleUpload() {
-    const loader = await this.loadingCtrl.create({
-      message: 'Uploading package',
-      cssClass: 'loader',
-    })
-    await loader.present()
+    const loader = this.loader.open('Uploading package').subscribe()
+
     try {
       const res = await this.api.sideloadPackage()
       this.api
@@ -124,9 +121,9 @@ export class SideloadPage {
 
       this.navCtrl.navigateRoot('/services')
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
       this.clearToUpload()
     }
   }

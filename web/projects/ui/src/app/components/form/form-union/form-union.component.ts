@@ -23,7 +23,7 @@ import { tuiPure } from '@taiga-ui/cdk'
   ],
 })
 export class FormUnionComponent implements OnChanges {
-  @Input({ required: true })
+  @Input()
   spec!: CT.ValueSpecUnion
 
   selectSpec!: CT.ValueSpecSelect

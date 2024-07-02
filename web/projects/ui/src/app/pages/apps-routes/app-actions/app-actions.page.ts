@@ -1,24 +1,24 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { AlertController, ModalController, NavController } from '@ionic/angular'
 import {
-  AlertController,
-  LoadingController,
-  ModalController,
-  NavController,
-} from '@ionic/angular'
+  ErrorService,
+  getPkgId,
+  isEmptyObject,
+  LoadingService,
+} from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
+import { FormComponent } from 'src/app/components/form.component'
+import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
 import {
   DataModel,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { isEmptyObject, ErrorToastService, getPkgId } from '@start9labs/shared'
-import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
-import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
-import { T } from '@start9labs/start-sdk'
-import { FormComponent } from 'src/app/components/form.component'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { hasCurrentDeps } from 'src/app/util/has-deps'
 
 @Component({
   selector: 'app-actions',
@@ -35,8 +35,8 @@ export class AppActionsPage {
     private readonly embassyApi: ApiService,
     private readonly modalCtrl: ModalController,
     private readonly alertCtrl: AlertController,
-    private readonly errToast: ErrorToastService,
-    private readonly loadingCtrl: LoadingController,
+    private readonly errorService: ErrorService,
+    private readonly loader: LoadingService,
     private readonly navCtrl: NavController,
     private readonly patch: PatchDB<DataModel>,
     private readonly formDialog: FormDialogService,
@@ -145,10 +145,7 @@ export class AppActionsPage {
   }
 
   private async uninstall() {
-    const loader = await this.loadingCtrl.create({
-      message: `Beginning uninstall...`,
-    })
-    await loader.present()
+    const loader = this.loader.open(`Beginning uninstall...`).subscribe()
 
     try {
       await this.embassyApi.uninstallPackage({ id: this.pkgId })
@@ -157,9 +154,9 @@ export class AppActionsPage {
         .catch(e => console.error('Failed to mark instructions as unseen', e))
       this.navCtrl.navigateRoot('/services')
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
@@ -167,10 +164,7 @@ export class AppActionsPage {
     actionId: string,
     input?: object,
   ): Promise<boolean> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Executing action...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Executing action...').subscribe()
 
     try {
       const res = await this.embassyApi.executePackageAction({
@@ -189,10 +183,10 @@ export class AppActionsPage {
       setTimeout(() => successModal.present(), 500)
       return true // needed to dismiss original modal/alert
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
       return false // don't dismiss original modal/alert
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
