@@ -348,3 +348,14 @@ p {
 svg:not(:root) {
   overflow: auto;
 }
+
+tui-dialog {
+  transform: translate3d(0, 0, 0);
+}
+
+.g-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 24px;
+}

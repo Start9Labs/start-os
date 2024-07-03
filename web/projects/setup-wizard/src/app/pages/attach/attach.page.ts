@@ -4,10 +4,10 @@ import {
   ModalController,
   NavController,
 } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/api.service'
-import { DiskInfo, ErrorToastService } from '@start9labs/shared'
-import { StateService } from 'src/app/services/state.service'
+import { DiskInfo, ErrorService } from '@start9labs/shared'
 import { PasswordPage } from 'src/app/modals/password/password.page'
+import { ApiService } from 'src/app/services/api/api.service'
+import { StateService } from 'src/app/services/state.service'
 
 @Component({
   selector: 'app-attach',
@@ -21,7 +21,7 @@ export class AttachPage {
   constructor(
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
-    private readonly errToastService: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly stateService: StateService,
     private readonly modalCtrl: ModalController,
     private readonly loadingCtrl: LoadingController,
@@ -41,7 +41,7 @@ export class AttachPage {
     try {
       this.drives = await this.apiService.getDrives()
     } catch (e: any) {
-      this.errToastService.present(e)
+      this.errorService.handleError(e)
     } finally {
       this.loading = false
     }
@@ -70,7 +70,7 @@ export class AttachPage {
       await this.stateService.importDrive(guid, password)
       await this.navCtrl.navigateForward(`/loading`)
     } catch (e: any) {
-      this.errToastService.present(e)
+      this.errorService.handleError(e)
     } finally {
       loader.dismiss()
     }

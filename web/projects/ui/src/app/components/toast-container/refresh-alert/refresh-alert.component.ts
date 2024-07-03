@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
+import { SwUpdate } from '@angular/service-worker'
+import { LoadingService } from '@start9labs/shared'
 import { merge, Observable, Subject } from 'rxjs'
 
 import { RefreshAlertService } from './refresh-alert.service'
-import { SwUpdate } from '@angular/service-worker'
-import { LoadingController } from '@ionic/angular'
 
 @Component({
   selector: 'refresh-alert',
@@ -18,7 +18,7 @@ export class RefreshAlertComponent {
   constructor(
     @Inject(RefreshAlertService) private readonly refresh$: Observable<boolean>,
     private readonly updates: SwUpdate,
-    private readonly loadingCtrl: LoadingController,
+    private readonly loader: LoadingService,
   ) {}
 
   ngOnInit() {
@@ -26,17 +26,14 @@ export class RefreshAlertComponent {
   }
 
   async pwaReload() {
-    const loader = await this.loadingCtrl.create({
-      message: 'Reloading PWA...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Reloading PWA...').subscribe()
     try {
       // attempt to update to the latest client version available
       await this.updates.activateUpdate()
     } catch (e) {
       console.error('Error activating update from service worker: ', e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
       // always reload, as this resolves most out of sync cases
       window.location.reload()
     }

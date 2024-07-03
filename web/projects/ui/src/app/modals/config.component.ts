@@ -20,26 +20,23 @@ import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
 import { compare, Operation } from 'fast-json-patch'
 import { PatchDB } from 'patch-db-client'
 import { endWith, firstValueFrom, Subscription } from 'rxjs'
-import { ConfigDepComponent } from 'src/app/routes/portal/modals/config-dep.component'
+import { ActionButton, FormComponent } from 'src/app/components/form.component'
+import { InvalidService } from 'src/app/components/form/invalid.service'
+import { ConfigDepComponent } from 'src/app/modals/config-dep.component'
+import { UiPipeModule } from 'src/app/pipes/ui/ui.module'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   DataModel,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { hasCurrentDeps } from 'src/app/utils/has-deps'
 import {
   getAllPackages,
   getManifest,
   getPackage,
-} from 'src/app/utils/get-package-data'
+} from 'src/app/util/get-package-data'
+import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { Breakages } from 'src/app/services/api/api.types'
-import { InvalidService } from 'src/app/routes/portal/components/form/invalid.service'
-import {
-  ActionButton,
-  FormComponent,
-} from 'src/app/routes/portal/components/form.component'
 import { DependentInfo } from 'src/app/types/dependent-info'
-import { ToManifestPipe } from '../pipes/to-manifest'
 
 export interface PackageConfigData {
   readonly pkgId: string
@@ -48,7 +45,11 @@ export interface PackageConfigData {
 
 @Component({
   template: `
-    <tui-loader *ngIf="loadingText" size="l" [textContent]="loadingText" />
+    <tui-loader
+      *ngIf="loadingText"
+      size="l"
+      [textContent]="loadingText"
+    ></tui-loader>
 
     <tui-notification
       *ngIf="!loadingText && (loadingError || !pkg)"
@@ -73,7 +74,7 @@ export interface PackageConfigData {
         [dep]="dependentInfo.title"
         [original]="original"
         [value]="value"
-      />
+      ></config-dep>
 
       <tui-notification *ngIf="!manifest.hasConfig" status="warning">
         No config options for {{ manifest.title }} {{ manifest.version }}.
@@ -114,7 +115,7 @@ export interface PackageConfigData {
     TuiButtonModule,
     TuiModeModule,
     ConfigDepComponent,
-    ToManifestPipe,
+    UiPipeModule,
   ],
   providers: [InvalidService],
 })
@@ -192,7 +193,7 @@ export class ConfigModal {
         this.spec = spec
       }
     } catch (e: any) {
-      this.loadingError = getErrorMessage(e)
+      this.loadingError = String(getErrorMessage(e))
     } finally {
       this.loadingText = ''
     }

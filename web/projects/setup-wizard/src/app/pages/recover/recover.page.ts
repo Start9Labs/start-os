@@ -1,8 +1,8 @@
 import { Component, Input } from '@angular/core'
 import { ModalController, NavController } from '@ionic/angular'
+import { ErrorService } from '@start9labs/shared'
 import { CifsModal } from 'src/app/modals/cifs-modal/cifs-modal.page'
 import { ApiService, DiskBackupTarget } from 'src/app/services/api/api.service'
-import { ErrorToastService } from '@start9labs/shared'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../../modals/password/password.page'
 
@@ -20,7 +20,7 @@ export class RecoverPage {
     private readonly navCtrl: NavController,
     private readonly modalCtrl: ModalController,
     private readonly modalController: ModalController,
-    private readonly errToastService: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly stateService: StateService,
   ) {}
 
@@ -62,7 +62,7 @@ export class RecoverPage {
           })
         })
     } catch (e: any) {
-      this.errToastService.present(e)
+      this.errorService.handleError(e)
     } finally {
       this.loading = false
     }
