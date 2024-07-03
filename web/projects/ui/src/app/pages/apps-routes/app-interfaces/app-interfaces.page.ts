@@ -6,9 +6,8 @@ import { copyToClipboard, getPkgId } from '@start9labs/shared'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import { QRComponent } from 'src/app/components/qr/qr.component'
-import { map } from 'rxjs'
-import { T } from '@start9labs/start-sdk'
-import { addressHostToUrl } from '@start9labs/start-sdk/cjs/lib/util/getServiceInterface'
+import { combineLatest, map } from 'rxjs'
+import { T, addressHostToUrl } from '@start9labs/start-sdk'
 
 type MappedInterface = T.ServiceInterface & {
   addresses: MappedAddress[]
@@ -26,30 +25,43 @@ type MappedAddress = {
 export class AppInterfacesPage {
   readonly pkgId = getPkgId(this.route)
 
-  readonly serviceInterfaces$ = this.patch
-    .watch$('packageData', this.pkgId, 'serviceInterfaces')
-    .pipe(
-      map(interfaces => {
-        const sorted = Object.values(interfaces)
-          .sort(iface =>
-            iface.name.toLowerCase() > iface.name.toLowerCase() ? -1 : 1,
-          )
-          .map(iface => {
-            // TODO @Matt
-            const host = {} as any
-            return {
-              ...iface,
-              addresses: getAddresses(iface, host),
-            }
-          })
+  private readonly serviceInterfaces$ = this.patch.watch$(
+    'packageData',
+    this.pkgId,
+    'serviceInterfaces',
+  )
+  private readonly hosts$ = this.patch.watch$(
+    'packageData',
+    this.pkgId,
+    'hosts',
+  )
 
-        return {
-          ui: sorted.filter(val => val.type === 'ui'),
-          api: sorted.filter(val => val.type === 'api'),
-          p2p: sorted.filter(val => val.type === 'p2p'),
-        }
-      }),
-    )
+  readonly serviceInterfacesWithHostInfo$ = combineLatest([
+    this.serviceInterfaces$,
+    this.hosts$,
+  ]).pipe(
+    map(([interfaces, hosts]) => {
+      const sorted = Object.values(interfaces)
+        .sort(iface =>
+          iface.name.toLowerCase() > iface.name.toLowerCase() ? -1 : 1,
+        )
+        .map(iface => {
+          return {
+            ...iface,
+            addresses: getAddresses(
+              iface,
+              hosts[iface.addressInfo.hostId] || {},
+            ),
+          }
+        })
+
+      return {
+        ui: sorted.filter(val => val.type === 'ui'),
+        api: sorted.filter(val => val.type === 'api'),
+        p2p: sorted.filter(val => val.type === 'p2p'),
+      }
+    }),
+  )
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -108,20 +120,15 @@ function getAddresses(
   host: T.Host,
 ): MappedAddress[] {
   const addressInfo = serviceInterface.addressInfo
-  const username = addressInfo.username ? addressInfo.username + '@' : ''
-  const suffix = addressInfo.suffix || ''
 
   const hostnames =
-    host.kind === 'multi' ? host.hostnameInfo[addressInfo.internalPort] : [] // TODO: non-multi
-  /* host.hostname
-      ? [host.hostname]
-      : [] */
+    host.kind === 'multi' ? host.hostnameInfo[addressInfo.internalPort] : []
 
-  return hostnames.flatMap(h => {
+  const addressesWithNames = hostnames.flatMap(h => {
     let name = ''
 
     if (h.kind === 'onion') {
-      name = 'Tor'
+      name = `Tor`
     } else {
       const hostnameKind = h.hostname.kind
 
@@ -135,9 +142,23 @@ function getAddresses(
       }
     }
 
-    return addressHostToUrl(addressInfo, h).map(url => ({
-      name,
-      url,
-    }))
+    const addresses = addressHostToUrl(addressInfo, h)
+    if (addresses.length > 1) {
+      return addressHostToUrl(addressInfo, h).map(url => ({
+        name: `${name} (${new URL(url).protocol
+          .replace(':', '')
+          .toUpperCase()})`,
+        url,
+      }))
+    } else {
+      return addressHostToUrl(addressInfo, h).map(url => ({
+        name,
+        url,
+      }))
+    }
   })
+
+  return addressesWithNames.filter(
+    (value, index, self) => index === self.findIndex(t => t.url === value.url),
+  )
 }
