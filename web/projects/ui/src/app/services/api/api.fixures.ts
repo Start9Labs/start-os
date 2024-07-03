@@ -766,6 +766,19 @@ export module Mock {
             ),
           }),
         ),
+        color: CB.Value.color({
+          name: 'Color',
+          required: false,
+        }),
+        datetime: CB.Value.datetime({
+          name: 'Datetime',
+          required: false,
+        }),
+        file: CB.Value.file({
+          name: 'File',
+          required: false,
+          extensions: ['png', 'pdf'],
+        }),
         users: CB.Value.multiselect({
           name: 'Users',
           default: [],
@@ -1417,8 +1430,8 @@ export module Mock {
               kind: 'onion',
               hostname: {
                 value: 'bitcoin-p2p.onion',
-                port: 2345,
-                sslPort: 1234,
+                port: 80,
+                sslPort: 443,
               },
             },
           ],

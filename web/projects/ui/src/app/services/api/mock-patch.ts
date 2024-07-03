@@ -262,8 +262,8 @@ export const mockPatchData: DataModel = {
                 kind: 'onion',
                 hostname: {
                   value: 'bitcoin-p2p.onion',
-                  port: 2345,
-                  sslPort: 1234,
+                  port: 80,
+                  sslPort: 443,
                 },
               },
             ],
