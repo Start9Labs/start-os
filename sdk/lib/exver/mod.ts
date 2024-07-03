@@ -1,15 +1,13 @@
-export type ValidExtendedVersion = {
+export interface ValidExtendedVersion {
   flavor: string | null,
   upstream: Version,
   downstream: Version,
 }
 
-export type Version = {
+export interface Version {
   number: number[],
-  prerelease: PreReleaseSegment[],
+  prerelease: (string | number)[],
 }
-
-export type PreReleaseSegment = number | string;
 
 export class ExtendedVersion {
   to_string(exver: ValidExtendedVersion): string {
