@@ -480,7 +480,6 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
       },
       List: {
         text: List.text,
-        number: List.number,
         obj: <Type extends Record<string, any>>(
           a: {
             name: string
@@ -523,29 +522,6 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
             }
           >,
         ) => List.dynamicText<Store>(getA),
-        dynamicNumber: (
-          getA: LazyBuild<
-            Store,
-            {
-              name: string
-              description?: string | null
-              warning?: string | null
-              /** Default = [] */
-              default?: string[]
-              minLength?: number | null
-              maxLength?: number | null
-              disabled?: false | string
-              spec: {
-                integer: boolean
-                min?: number | null
-                max?: number | null
-                step?: number | null
-                units?: string | null
-                placeholder?: string | null
-              }
-            }
-          >,
-        ) => List.dynamicNumber<Store>(getA),
       },
       Migration: {
         of: <Version extends ManifestVersion>(options: {

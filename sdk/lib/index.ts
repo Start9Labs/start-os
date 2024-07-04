@@ -7,7 +7,6 @@ export { FileHelper } from "./util/fileHelper"
 export { setupExposeStore } from "./store/setupExposeStore"
 export { pathBuilder } from "./store/PathBuilder"
 export { S9pk } from "./s9pk"
-export { addressHostToUrl } from "./util/getServiceInterface"
 
 export * as actions from "./actions"
 export * as backup from "./backup"

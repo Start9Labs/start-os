@@ -1,7 +1,6 @@
 export { EmVer } from "./emverLite/mod"
 export { setupManifest } from "./manifest/setupManifest"
 export { setupExposeStore } from "./store/setupExposeStore"
-export { addressHostToUrl } from "./util/getServiceInterface"
 export { S9pk } from "./s9pk"
 export * as config from "./config"
 export * as CB from "./config/builder"

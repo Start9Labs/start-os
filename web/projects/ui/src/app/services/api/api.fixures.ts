@@ -1000,21 +1000,6 @@ export module Mock {
             integer: false,
             units: 'BTC',
           }),
-        'unlucky-numbers': CB.Value.list(
-          CB.List.number(
-            {
-              name: 'Unlucky Numbers',
-              minLength: 0,
-              maxLength: 10,
-              // default: [2, 3],
-              description:
-                'Numbers that you like but are not your top favorite.',
-            },
-            {
-              integer: false,
-            },
-          ),
-        ),
         rpcsettings: CB.Value.object(
           {
             name: 'RPC Settings',

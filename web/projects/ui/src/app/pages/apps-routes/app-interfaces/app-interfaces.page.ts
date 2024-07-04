@@ -7,7 +7,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import { QRComponent } from 'src/app/components/qr/qr.component'
 import { combineLatest, map } from 'rxjs'
-import { T, addressHostToUrl } from '@start9labs/start-sdk'
+import { T, utils } from '@start9labs/start-sdk'
 
 type MappedInterface = T.ServiceInterface & {
   addresses: MappedAddress[]
@@ -142,16 +142,16 @@ function getAddresses(
       }
     }
 
-    const addresses = addressHostToUrl(addressInfo, h)
+    const addresses = utils.addressHostToUrl(addressInfo, h)
     if (addresses.length > 1) {
-      return addressHostToUrl(addressInfo, h).map(url => ({
+      return utils.addressHostToUrl(addressInfo, h).map(url => ({
         name: `${name} (${new URL(url).protocol
           .replace(':', '')
           .toUpperCase()})`,
         url,
       }))
     } else {
-      return addressHostToUrl(addressInfo, h).map(url => ({
+      return utils.addressHostToUrl(addressInfo, h).map(url => ({
         name,
         url,
       }))
