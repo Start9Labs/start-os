@@ -380,35 +380,4 @@ export class Range {
     r.max = maxStr === "*)" ? undefined : Number(maxStr.slice(0, -1))
     return r
   }
-
-  checkIncludes(n: number) {
-    if (
-      this.hasMin() &&
-      (this.min > n || (!this.minInclusive && this.min == n))
-    ) {
-      throw new Error(this.minMessage())
-    }
-    if (
-      this.hasMax() &&
-      (this.max < n || (!this.maxInclusive && this.max == n))
-    ) {
-      throw new Error(this.maxMessage())
-    }
-  }
-
-  private hasMin(): this is Range & { min: number } {
-    return this.min !== undefined
-  }
-
-  private hasMax(): this is Range & { max: number } {
-    return this.max !== undefined
-  }
-
-  private minMessage(): string {
-    return `greater than${this.minInclusive ? " or equal to" : ""} ${this.min}`
-  }
-
-  private maxMessage(): string {
-    return `less than${this.maxInclusive ? " or equal to" : ""} ${this.max}`
-  }
 }
