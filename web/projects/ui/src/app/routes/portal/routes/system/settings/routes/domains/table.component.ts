@@ -28,7 +28,7 @@ import { Domain } from 'src/app/services/patch-db/data-model'
       @for (domain of domains; track $index) {
         <tr *ngFor="let domain of domains">
           <td class="title">{{ domain.value }}</td>
-          <td class="date">{{ domain.createdAt | date: 'short' }}</td>
+          <td class="date">{{ domain.createdAt | date: 'medium' }}</td>
           <td class="provider">{{ domain.provider }}</td>
           <td class="strategy">{{ getStrategy(domain) }}</td>
           <td class="used">

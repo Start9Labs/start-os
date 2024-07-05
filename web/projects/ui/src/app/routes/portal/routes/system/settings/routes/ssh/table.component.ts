@@ -81,18 +81,19 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
         text-align: right;
       }
 
-      .date {
+      .fingerprint {
         order: 3;
+        grid-column: span 2;
+      }
+
+      .date {
+        order: 4;
+        color: var(--tui-text-02);
       }
 
       .algorithm {
-        order: 4;
-        text-align: right;
-      }
-
-      .fingerprint {
         order: 5;
-        grid-column: span 2;
+        text-align: right;
         color: var(--tui-text-02);
       }
     }

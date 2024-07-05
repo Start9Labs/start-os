@@ -77,6 +77,8 @@ import { PlatformInfoPipe } from './platform-info.pipe'
   `,
   styles: [
     `
+      @import '@taiga-ui/core/styles/taiga-ui-local';
+
       input {
         position: absolute;
         top: 50%;
@@ -85,6 +87,17 @@ import { PlatformInfoPipe } from './platform-info.pipe'
       }
 
       :host-context(tui-root._mobile) {
+        input {
+          @include fullsize();
+          z-index: 1;
+          opacity: 0;
+          transform: none;
+        }
+
+        td:first-child {
+          padding: 0 0.25rem !important;
+        }
+
         .agent {
           white-space: nowrap;
           display: block;

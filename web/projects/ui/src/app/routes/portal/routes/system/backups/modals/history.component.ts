@@ -9,10 +9,12 @@ import { FormsModule } from '@angular/forms'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { ALWAYS_FALSE_HANDLER, ALWAYS_TRUE_HANDLER } from '@taiga-ui/cdk'
 import { TuiDialogService, TuiLinkModule } from '@taiga-ui/core'
-import { TuiButtonModule, TuiIconModule } from '@taiga-ui/experimental'
-import { TuiCheckboxModule } from '@taiga-ui/kit'
+import {
+  TuiButtonModule,
+  TuiCheckboxModule,
+  TuiIconModule,
+} from '@taiga-ui/experimental'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
-import { BehaviorSubject } from 'rxjs'
 import { REPORT } from 'src/app/components/report.component'
 import { BackupRun } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -37,7 +39,10 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
       <thead>
         <tr>
           <th>
-            <tui-checkbox
+            <input
+              type="checkbox"
+              size="s"
+              tuiCheckbox
               [disabled]="!selected.length"
               [ngModel]="all"
               (ngModelChange)="toggle()"
@@ -52,9 +57,16 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
       </thead>
       <tbody>
         @for (run of runs(); track $index) {
-          <tr [style.background]="selected[$index] ? 'var(--tui-clear)' : ''">
-            <td><tui-checkbox [(ngModel)]="selected[$index]" /></td>
-            <td>{{ run.startedAt | date: 'medium' }}</td>
+          <tr>
+            <td class="checkbox">
+              <input
+                type="checkbox"
+                tuiCheckbox
+                size="s"
+                [(ngModel)]="selected[$index]"
+              />
+            </td>
+            <td class="date">{{ run.startedAt | date: 'medium' }}</td>
             <td class="duration">
               {{ run.startedAt | duration: run.completedAt }} minutes
             </td>
@@ -67,7 +79,7 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
               }
               <button tuiLink (click)="showReport(run)">Report</button>
             </td>
-            <td [style.grid-column]="'span 3'">
+            <td [style.grid-column]="'span 2'">
               <tui-icon [icon]="run.job.target.type | getBackupIcon" />
               {{ run.job.target.name }}
             </td>
@@ -87,25 +99,48 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
     </table>
   `,
   styles: `
+    @import '@taiga-ui/core/styles/taiga-ui-local';
+
     tui-icon {
       font-size: 1rem;
       vertical-align: sub;
       margin-inline-end: 0.25rem;
     }
 
+    button {
+      position: relative;
+    }
+
+    [tuiCheckbox] {
+      display: block;
+    }
+
     :host-context(tui-root._mobile) {
       tr {
-        grid-template-columns: 1.75rem 1fr 7rem;
+        grid-template-columns: 1fr 7rem;
       }
 
       td:only-child {
-        grid-column: span 3;
+        grid-column: span 2;
+      }
+
+      .checkbox {
+        @include fullsize();
+
+        [tuiCheckbox] {
+          @include fullsize();
+          opacity: 0;
+        }
       }
 
       .title {
-        grid-column: span 2;
         font-weight: bold;
         text-transform: uppercase;
+      }
+
+      .date,
+      .duration {
+        color: var(--tui-text-02);
       }
 
       .duration,
@@ -120,12 +155,12 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
     CommonModule,
     FormsModule,
     TuiButtonModule,
-    TuiCheckboxModule,
     TuiIconModule,
     TuiLinkModule,
     DurationPipe,
     HasErrorPipe,
     GetBackupIconPipe,
+    TuiCheckboxModule,
   ],
 })
 export class BackupsHistoryModal {

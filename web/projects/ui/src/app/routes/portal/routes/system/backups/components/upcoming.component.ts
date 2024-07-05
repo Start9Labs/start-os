@@ -28,7 +28,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
               @if (current.id === job.id) {
                 <span [style.color]="'var(--tui-positive)'">Running</span>
               } @else {
-                {{ job.next | date: 'MMM d, y, h:mm a' }}
+                {{ job.next | date: 'medium' }}
               }
             </td>
             <td class="name">{{ job.name }}</td>
@@ -59,7 +59,11 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
       grid-template-columns: 1fr 1fr;
     }
 
-    .date,
+    .date {
+      order: 1;
+      grid-column: span 2;
+    }
+
     .name {
       grid-column: span 2;
     }

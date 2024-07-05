@@ -44,7 +44,7 @@ import { Proxy } from 'src/app/services/patch-db/data-model'
       @for (proxy of proxies; track $index) {
         <tr>
           <td class="title">{{ proxy.name }}</td>
-          <td class="date">{{ proxy.createdAt | date: 'short' }}</td>
+          <td class="date">{{ proxy.createdAt | date: 'medium' }}</td>
           <td class="type">{{ proxy.type }}</td>
           <td class="used">
             @if (getLength(proxy); as length) {
@@ -110,17 +110,17 @@ import { Proxy } from 'src/app/services/patch-db/data-model'
       }
 
       .date {
-        order: 3;
+        order: 5;
         grid-column: span 2;
         color: var(--tui-text-02);
       }
 
       .type {
-        order: 4;
+        order: 3;
       }
 
       .used {
-        order: 5;
+        order: 4;
         text-align: right;
 
         &:not(:has(button)) {

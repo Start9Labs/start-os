@@ -23,7 +23,7 @@ import { toRouterLink } from 'src/app/utils/to-router-link'
   template: `
     <td class="checkbox"><ng-content /></td>
     <td class="date">
-      {{ notificationItem.createdAt | date: 'MMM d, y, h:mm a' }}
+      {{ notificationItem.createdAt | date: 'medium' }}
     </td>
     <td class="title" [style.color]="color">
       <tui-icon [icon]="icon" [style.font-size.rem]="1" />
@@ -64,28 +64,36 @@ import { toRouterLink } from 'src/app/utils/to-router-link'
     '[class._new]': '!notificationItem.read',
   },
   styles: `
+    @import '@taiga-ui/core/styles/taiga-ui-local';
+
     :host {
-      grid-template-columns: 1.75rem 1fr;
+      grid-template-columns: 1fr;
 
       &._new {
         background: var(--tui-clear) !important;
       }
     }
 
+    button {
+      position: relative;
+    }
+
     td {
-      grid-column: span 2;
       padding: 0.25rem;
       vertical-align: top;
     }
 
     .checkbox {
-      grid-column: span 1;
       padding-top: 0.4rem;
     }
 
     :host-context(tui-root._mobile) {
+      .checkbox {
+        @include fullsize();
+      }
+
       .date {
-        grid-column: span 1;
+        order: 1;
         color: var(--tui-text-02);
       }
 
