@@ -63,8 +63,9 @@ export class ExtendedVersion implements ValidExtendedVersion {
   downstream: Version;
 
   constructor(
-    exver: ValidExtendedVersion
+    exverString: string
   ) {
+    const exver = exverParser.parse(exverString)
     this.flavor = exver.flavor;
     this.upstream = exver.upstream;
     this.downstream = exver.downstream;
