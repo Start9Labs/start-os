@@ -125,6 +125,77 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
   }, {} as CT.InputSpec)
 }
 
+export function transformOldConfigToNew(
+  spec: OldConfigSpec,
+  config: Record<string, any>,
+): Record<string, any> {
+  return Object.entries(spec).reduce((obj, [key, val]) => {
+    let newVal = config[key]
+
+    if (isObject(val)) {
+      newVal = transformOldConfigToNew(val.spec, config[key])
+    }
+
+    if (isUnion(val)) {
+      const selection = config[key][val.tag.id]
+      delete config[key][val.tag.id]
+
+      newVal = {
+        unionSelectKey: selection,
+        unionValueKey: transformOldConfigToNew(
+          val.variants[selection],
+          config[key],
+        ),
+      }
+    }
+
+    if (isList(val) && isObjectList(val)) {
+      newVal = (config[key] as object[]).map((obj) =>
+        transformOldConfigToNew(val.spec.spec, obj),
+      )
+    }
+
+    return {
+      ...obj,
+      [key]: newVal,
+    }
+  }, {})
+}
+
+export function transformNewConfigToOld(
+  spec: OldConfigSpec,
+  config: Record<string, any>,
+): Record<string, any> {
+  return Object.entries(spec).reduce((obj, [key, val]) => {
+    let newVal = config[key]
+
+    if (isObject(val)) {
+      newVal = transformNewConfigToOld(val.spec, config[key])
+    }
+
+    if (isUnion(val)) {
+      newVal = {
+        [val.tag.id]: config[key].unionSelectKey,
+        ...transformNewConfigToOld(
+          val.variants[config[key].unionSelectKey],
+          config[key].unionSelectValue,
+        ),
+      }
+    }
+
+    if (isList(val) && isObjectList(val)) {
+      newVal = (config[key] as object[]).map((obj) =>
+        transformNewConfigToOld(val.spec.spec, obj),
+      )
+    }
+
+    return {
+      ...obj,
+      [key]: newVal,
+    }
+  }, {})
+}
+
 function getListSpec(
   oldVal: OldValueSpecList,
 ): CT.ValueSpecMultiselect | CT.ValueSpecList {
@@ -202,6 +273,18 @@ function getListSpec(
   }
 }
 
+function isObject(val: OldValueSpec): val is OldValueSpecObject {
+  return val.type === "object"
+}
+
+function isUnion(val: OldValueSpec): val is OldValueSpecUnion {
+  return val.type === "union"
+}
+
+function isList(val: OldValueSpec): val is OldValueSpecList {
+  return val.type === "list"
+}
+
 function isEnumList(val: OldValueSpecList): val is OldValueSpecListOf<"enum"> {
   return val.subtype === "enum"
 }
@@ -215,6 +298,9 @@ function isStringList(
 function isObjectList(
   val: OldValueSpecList,
 ): val is OldValueSpecListOf<"object"> {
+  if (["number", "union"].includes(val.subtype)) {
+    throw new Error("Invalid list subtype. enum, string, and object permitted.")
+  }
   return val.subtype === "object"
 }
 
@@ -303,7 +389,7 @@ interface OldValueSpecObject {
 }
 
 // no lists of booleans, lists, pointers
-type OldListValueSpecType = "string" | "enum" | "object"
+type OldListValueSpecType = "string" | "enum" | "object" | "union" | "number"
 
 // represents a spec for the values of a list
 type OldListValueSpecOf<T extends OldListValueSpecType> = T extends "string"
