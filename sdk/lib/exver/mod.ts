@@ -12,10 +12,17 @@ export interface Version {
 }
 
 export class VersionRange  {
+  negator: boolean;
   operator: string;
   anchor: ExtendedVersion;
 
   constructor(range: string) {
+    if (range.startsWith("!")) {
+      this.negator = true
+      range = range.replace("!", "")
+    } else {
+      this.negator = false
+    }
     const operator = (() => {
       switch (range.substring(0, 2)) {
         case ">=": return ">="
@@ -35,21 +42,41 @@ export class VersionRange  {
   }
 
   public satisfiedBy(thisVersion: ExtendedVersion): boolean {
-    switch (this.operator) {
-      case ">=": {
-        return thisVersion.greaterThan(this.anchor) || thisVersion.equals(this.anchor)
+    if (this.negator) {
+      switch (this.operator) {
+        case ">=": {
+          return !(thisVersion.greaterThan(this.anchor) || thisVersion.equals(this.anchor))
+        }
+        case "<=": {
+          return !(thisVersion.lessThan(this.anchor) || thisVersion.equals(this.anchor))
+        }
+        case ">": {
+          return !thisVersion.greaterThan(this.anchor)
+        }
+        case "<": {
+          return !thisVersion.lessThan(this.anchor)
+        }
+        case "=": {
+          return !thisVersion.equals(this.anchor)
+        }
       }
-      case "<=": {
-        return thisVersion.lessThan(this.anchor) || thisVersion.equals(this.anchor)
-      }
-      case ">": {
-        return thisVersion.greaterThan(this.anchor)
-      }
-      case "<": {
-        return thisVersion.lessThan(this.anchor)
-      }
-      case "=": {
-        return thisVersion.equals(this.anchor)
+    } else {
+      switch (this.operator) {
+        case ">=": {
+          return thisVersion.greaterThan(this.anchor) || thisVersion.equals(this.anchor)
+        }
+        case "<=": {
+          return thisVersion.lessThan(this.anchor) || thisVersion.equals(this.anchor)
+        }
+        case ">": {
+          return thisVersion.greaterThan(this.anchor)
+        }
+        case "<": {
+          return thisVersion.lessThan(this.anchor)
+        }
+        case "=": {
+          return thisVersion.equals(this.anchor)
+        }
       }
     }
     throw new Error("Error parsing range" + this.operator + this.anchor)
@@ -157,4 +184,29 @@ function append_version(version: Version, str: string): string {
   }
 
   return str;
+}
+
+export function satisfiedByMany(range: string, thisVersion: ExtendedVersion): boolean {
+  if (range.includes("&&")) {
+    const ranges = range.split("&&");
+    for (const x of ranges) {
+      console.log(x.trim())
+      const versionRange = new VersionRange(x.trim())
+      if (!versionRange.satisfiedBy(thisVersion)) {
+        return false
+      }
+    }
+    return true
+  }
+  if (range.includes("||")) {
+    const ranges = range.split("||");
+    for (const x of ranges) {
+      const versionRange = new VersionRange(x.trim())
+      if (versionRange.satisfiedBy(thisVersion)) {
+        return true
+      }
+    }
+    return false
+  }
+  throw new Error("Couldn't parse range: " + range)
 }
