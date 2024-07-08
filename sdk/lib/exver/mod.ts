@@ -43,6 +43,7 @@ export class VersionRange  {
 
   public satisfiedBy(thisVersion: ExtendedVersion): boolean {
     if (this.negator) {
+      if (this.anchor.flavor !== thisVersion.flavor) return true
       switch (this.operator) {
         case ">=": {
           return !(thisVersion.greaterThan(this.anchor) || thisVersion.equals(this.anchor))
@@ -61,6 +62,7 @@ export class VersionRange  {
         }
       }
     } else {
+      if (this.anchor.flavor !== thisVersion.flavor) return false
       switch (this.operator) {
         case ">=": {
           return thisVersion.greaterThan(this.anchor) || thisVersion.equals(this.anchor)
