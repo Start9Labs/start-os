@@ -141,11 +141,8 @@ export function transformOldConfigToNew(
       delete config[key][val.tag.id]
 
       newVal = {
-        unionSelectKey: selection,
-        unionValueKey: transformOldConfigToNew(
-          val.variants[selection],
-          config[key],
-        ),
+        selection,
+        value: transformOldConfigToNew(val.variants[selection], config[key]),
       }
     }
 
@@ -175,9 +172,9 @@ export function transformNewConfigToOld(
 
     if (isUnion(val)) {
       newVal = {
-        [val.tag.id]: config[key].unionSelectKey,
+        [val.tag.id]: config[key].selection,
         ...transformNewConfigToOld(
-          val.variants[config[key].unionSelectKey],
+          val.variants[config[key].selection],
           config[key].unionSelectValue,
         ),
       }

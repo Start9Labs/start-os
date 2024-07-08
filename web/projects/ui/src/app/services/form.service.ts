@@ -39,15 +39,15 @@ export class FormService {
 
   getUnionObject(
     spec: CT.ValueSpecUnion,
-    selection: string | null,
+    selected: string | null,
   ): UntypedFormGroup {
     const group = this.getFormGroup({
-      [CT.unionSelectKey]: this.getUnionSelectSpec(spec, selection),
+      selection: this.getUnionSelectSpec(spec, selected),
     })
 
     group.setControl(
-      CT.unionValueKey,
-      this.getFormGroup(selection ? spec.variants[selection].spec : {}),
+      'value',
+      this.getFormGroup(selected ? spec.variants[selected].spec : {}),
     )
 
     return group
@@ -128,7 +128,7 @@ export class FormService {
           fileValidators(spec),
         )
       case 'union':
-        const currentSelection = currentValue?.[CT.unionSelectKey]
+        const currentSelection = currentValue?.selection
         const isValid = !!spec.variants[currentSelection]
 
         return this.getUnionObject(
@@ -519,12 +519,12 @@ function unionEquals(
   val1: any,
   val2: any,
 ): boolean {
-  const variantSpec = spec.variants[val1[CT.unionSelectKey]].spec
+  const variantSpec = spec.variants[val1.selection].spec
   if (!uniqueBy) {
     return false
   } else if (typeof uniqueBy === 'string') {
-    if (uniqueBy === CT.unionSelectKey) {
-      return val1[CT.unionSelectKey] === val2[CT.unionSelectKey]
+    if (uniqueBy === 'selection') {
+      return val1.selection === val2.selection
     } else {
       return itemEquals(variantSpec[uniqueBy], val1[uniqueBy], val2[uniqueBy])
     }
@@ -614,8 +614,7 @@ export function convertValuesRecursive(
       convertValuesRecursive(valueSpec.spec, group.get(key) as UntypedFormGroup)
     } else if (valueSpec.type === 'union') {
       const formGr = group.get(key) as UntypedFormGroup
-      const spec =
-        valueSpec.variants[formGr.controls[CT.unionSelectKey].value].spec
+      const spec = valueSpec.variants[formGr.controls['selection'].value].spec
       convertValuesRecursive(spec, formGr)
     } else if (valueSpec.type === 'list') {
       const formArr = group.get(key) as UntypedFormArray

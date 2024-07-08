@@ -271,8 +271,3 @@ export function isValueSpecListOf<S extends ListValueSpecType>(
 ): t is ValueSpecListOf<S> & { spec: ListValueSpecOf<S> } {
   return "spec" in t && t.spec.type === s
 }
-export const unionSelectKey = "unionSelectKey" as const
-export type UnionSelectKey = typeof unionSelectKey
-
-export const unionValueKey = "unionValueKey" as const
-export type UnionValueKey = typeof unionValueKey

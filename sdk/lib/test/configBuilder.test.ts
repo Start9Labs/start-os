@@ -268,11 +268,9 @@ describe("values", () => {
       }),
     )
     const validator = value.validator
-    validator.unsafeCast({ unionSelectKey: "a", unionValueKey: { b: false } })
+    validator.unsafeCast({ selection: "a", value: { b: false } })
     type Test = typeof validator._TYPE
-    testOutput<Test, { unionSelectKey: "a"; unionValueKey: { b: boolean } }>()(
-      null,
-    )
+    testOutput<Test, { selection: "a"; value: { b: boolean } }>()(null)
   })
 
   describe("dynamic", () => {
@@ -562,12 +560,12 @@ describe("values", () => {
         }),
       )
       const validator = value.validator
-      validator.unsafeCast({ unionSelectKey: "a", unionValueKey: { b: false } })
+      validator.unsafeCast({ selection: "a", value: { b: false } })
       type Test = typeof validator._TYPE
       testOutput<
         Test,
-        | { unionSelectKey: "a"; unionValueKey: { b: boolean } }
-        | { unionSelectKey: "b"; unionValueKey: { b: boolean } }
+        | { selection: "a"; value: { b: boolean } }
+        | { selection: "b"; value: { b: boolean } }
       >()(null)
 
       const built = await value.build({} as any)
@@ -629,12 +627,12 @@ describe("values", () => {
       }),
     )
     const validator = value.validator
-    validator.unsafeCast({ unionSelectKey: "a", unionValueKey: { b: false } })
+    validator.unsafeCast({ selection: "a", value: { b: false } })
     type Test = typeof validator._TYPE
     testOutput<
       Test,
-      | { unionSelectKey: "a"; unionValueKey: { b: boolean } }
-      | { unionSelectKey: "b"; unionValueKey: { b: boolean } }
+      | { selection: "a"; value: { b: boolean } }
+      | { selection: "b"; value: { b: boolean } }
       | null
       | undefined
     >()(null)
