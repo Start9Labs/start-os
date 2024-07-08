@@ -28,20 +28,17 @@ export class FormUnionComponent implements OnChanges {
 
   selectSpec!: CT.ValueSpecSelect
 
-  readonly select = CT.unionSelectKey
-  readonly value = CT.unionValueKey
-
   private readonly form = inject(FormGroupName)
   private readonly formService = inject(FormService)
 
   get union(): string {
-    return this.form.value[CT.unionSelectKey]
+    return this.form.value.selection
   }
 
   @tuiPure
   onUnion(union: string) {
     this.form.control.setControl(
-      CT.unionValueKey,
+      'value',
       this.formService.getFormGroup(
         union ? this.spec.variants[union].spec : {},
       ),

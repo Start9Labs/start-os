@@ -1,9 +1,9 @@
 <form-control
   [spec]="selectSpec"
-  [formControlName]="select"
+  formControlName="selection"
   (tuiValueChanges)="onUnion($event)"
 ></form-control>
-<tui-elastic-container class="g-form-group" [formGroupName]="value">
+<tui-elastic-container class="g-form-group" formGroupName="value">
   <form-group
     class="group"
     [spec]="(union && spec.variants[union].spec) || {}"

@@ -7,7 +7,7 @@ import { BTC_ICON, LND_ICON, PROXY_ICON } from './api-icons'
 import { DependencyMetadata, MarketplacePkg } from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
-import { CT, T, CB } from '@start9labs/start-sdk'
+import { T, CB } from '@start9labs/start-sdk'
 
 export module Mock {
   export const ServerUpdated: T.ServerStatus = {
@@ -1000,21 +1000,6 @@ export module Mock {
             integer: false,
             units: 'BTC',
           }),
-        'unlucky-numbers': CB.Value.list(
-          CB.List.number(
-            {
-              name: 'Unlucky Numbers',
-              minLength: 0,
-              maxLength: 10,
-              // default: [2, 3],
-              description:
-                'Numbers that you like but are not your top favorite.',
-            },
-            {
-              integer: false,
-            },
-          ),
-        ),
         rpcsettings: CB.Value.object(
           {
             name: 'RPC Settings',
@@ -1270,7 +1255,7 @@ export module Mock {
       rulemakers: [],
     },
     'bitcoin-node': {
-      [CT.unionSelectKey]: 'internal',
+      selection: 'internal',
     },
     port: 20,
     rpcallowip: undefined,

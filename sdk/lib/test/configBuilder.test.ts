@@ -268,26 +268,9 @@ describe("values", () => {
       }),
     )
     const validator = value.validator
-    validator.unsafeCast({ unionSelectKey: "a", unionValueKey: { b: false } })
+    validator.unsafeCast({ selection: "a", value: { b: false } })
     type Test = typeof validator._TYPE
-    testOutput<Test, { unionSelectKey: "a"; unionValueKey: { b: boolean } }>()(
-      null,
-    )
-  })
-  test("list", async () => {
-    const value = Value.list(
-      List.number(
-        {
-          name: "test",
-        },
-        {
-          integer: false,
-        },
-      ),
-    )
-    const validator = value.validator
-    validator.unsafeCast([1, 2, 3])
-    testOutput<typeof validator._TYPE, number[]>()(null)
+    testOutput<Test, { selection: "a"; value: { b: boolean } }>()(null)
   })
 
   describe("dynamic", () => {
@@ -577,12 +560,12 @@ describe("values", () => {
         }),
       )
       const validator = value.validator
-      validator.unsafeCast({ unionSelectKey: "a", unionValueKey: { b: false } })
+      validator.unsafeCast({ selection: "a", value: { b: false } })
       type Test = typeof validator._TYPE
       testOutput<
         Test,
-        | { unionSelectKey: "a"; unionValueKey: { b: boolean } }
-        | { unionSelectKey: "b"; unionValueKey: { b: boolean } }
+        | { selection: "a"; value: { b: boolean } }
+        | { selection: "b"; value: { b: boolean } }
       >()(null)
 
       const built = await value.build({} as any)
@@ -644,12 +627,12 @@ describe("values", () => {
       }),
     )
     const validator = value.validator
-    validator.unsafeCast({ unionSelectKey: "a", unionValueKey: { b: false } })
+    validator.unsafeCast({ selection: "a", value: { b: false } })
     type Test = typeof validator._TYPE
     testOutput<
       Test,
-      | { unionSelectKey: "a"; unionValueKey: { b: boolean } }
-      | { unionSelectKey: "b"; unionValueKey: { b: boolean } }
+      | { selection: "a"; value: { b: boolean } }
+      | { selection: "b"; value: { b: boolean } }
       | null
       | undefined
     >()(null)
@@ -734,24 +717,6 @@ describe("Builder List", () => {
         name: "test",
         spec: { patterns: [] },
       })
-    })
-  })
-  test("number", async () => {
-    const value = Value.list(
-      List.dynamicNumber(() => ({
-        name: "test",
-        spec: { integer: true },
-      })),
-    )
-    const validator = value.validator
-    expect(() => validator.unsafeCast(["test", "text"])).toThrowError()
-    validator.unsafeCast([4, 2])
-    expect(() => validator.unsafeCast(null)).toThrowError()
-    validator.unsafeCast([])
-    testOutput<typeof validator._TYPE, number[]>()(null)
-    expect(await value.build({} as any)).toMatchObject({
-      name: "test",
-      spec: { integer: true },
     })
   })
 })
