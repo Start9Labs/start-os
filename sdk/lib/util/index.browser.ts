@@ -2,6 +2,8 @@ import * as T from "../types"
 
 export { GetServiceInterface, getServiceInterface } from "./getServiceInterface"
 export { getServiceInterfaces } from "./getServiceInterfaces"
+export { addressHostToUrl } from "./getServiceInterface"
+export { getDefaultString } from "./getDefaultString"
 // prettier-ignore
 export type FlattenIntersection<T> = 
 T extends ArrayLike<any> ? T :
