@@ -6,5 +6,6 @@ export type SetupExecuteParams = {
   startOsLogicalname: string
   startOsPassword: EncryptedWire
   recoverySource: RecoverySource | null
+  serverId: string | null
   recoveryPassword: EncryptedWire | null
 }
