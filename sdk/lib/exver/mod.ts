@@ -127,6 +127,19 @@ export class ExtendedVersion implements ValidExtendedVersion {
   public lessThan(other: ExtendedVersion): boolean {
     return !this.greaterThan(other)
   }
+
+  /**
+   * Compare with `other` ExtendedVersion for sort
+   */
+  public compare(other: ExtendedVersion) {
+    if (this.equals(other)) {
+      return 0 as const
+    } else if (this.greaterThan(other)) {
+      return 1 as const
+    } else {
+      return -1 as const
+    }
+  }
 }
 
 function greaterThan(thisVersion: ExtendedVersion, otherVersion: ExtendedVersion): boolean {
