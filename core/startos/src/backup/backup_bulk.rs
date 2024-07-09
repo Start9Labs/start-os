@@ -330,13 +330,13 @@ async fn perform_backup(
         dir_copy(luks_folder, &luks_folder_bak, None).await?;
     }
 
-    let timestamp = Some(Utc::now());
+    let timestamp = Utc::now();
 
     backup_guard.unencrypted_metadata.version = crate::version::Current::new().semver().into();
-    backup_guard.unencrypted_metadata.full = true;
     backup_guard.unencrypted_metadata.hostname = ctx.account.read().await.hostname.clone();
+    backup_guard.unencrypted_metadata.timestamp = timestamp.clone();
     backup_guard.metadata.version = crate::version::Current::new().semver().into();
-    backup_guard.metadata.timestamp = timestamp;
+    backup_guard.metadata.timestamp = Some(timestamp);
     backup_guard.metadata.package_backups = package_backups;
 
     backup_guard.save_and_unmount().await?;
@@ -346,7 +346,7 @@ async fn perform_backup(
             v.as_public_mut()
                 .as_server_info_mut()
                 .as_last_backup_mut()
-                .ser(&timestamp)
+                .ser(&Some(timestamp))
         })
         .await?;
 

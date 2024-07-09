@@ -264,9 +264,15 @@ pub async fn verify_cifs(
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(tag = "type")]
 #[serde(rename_all = "camelCase")]
-pub enum RecoverySource {
-    Migrate { guid: String },
-    Backup { target: BackupTargetFS },
+pub enum RecoverySource<Password> {
+    Migrate {
+        guid: String,
+    },
+    Backup {
+        target: BackupTargetFS,
+        password: Password,
+        server_id: String,
+    },
 }
 
 #[derive(Deserialize, Serialize, TS)]
@@ -275,9 +281,7 @@ pub enum RecoverySource {
 pub struct SetupExecuteParams {
     start_os_logicalname: PathBuf,
     start_os_password: EncryptedWire,
-    recovery_source: Option<RecoverySource>,
-    server_id: Option<String>,
-    recovery_password: Option<EncryptedWire>,
+    recovery_source: Option<RecoverySource<EncryptedWire>>,
 }
 
 // #[command(rpc_only)]
@@ -287,8 +291,6 @@ pub async fn execute(
         start_os_logicalname,
         start_os_password,
         recovery_source,
-        server_id,
-        recovery_password,
     }: SetupExecuteParams,
 ) -> Result<SetupProgress, Error> {
     let start_os_password = match start_os_password.decrypt(&ctx) {
@@ -300,30 +302,27 @@ pub async fn execute(
             ))
         }
     };
-    let recovery_password: Option<String> = match recovery_password {
-        Some(a) => match a.decrypt(&ctx) {
-            Some(a) => Some(a),
-            None => {
-                return Err(Error::new(
+    let recovery = match recovery_source {
+        Some(RecoverySource::Backup {
+            target,
+            password,
+            server_id,
+        }) => Some(RecoverySource::Backup {
+            target,
+            password: password.decrypt(&ctx).ok_or_else(|| {
+                Error::new(
                     color_eyre::eyre::eyre!("Couldn't decode recoveryPassword"),
                     crate::ErrorKind::Unknown,
-                ))
-            }
-        },
+                )
+            })?,
+            server_id,
+        }),
+        Some(RecoverySource::Migrate { guid }) => Some(RecoverySource::Migrate { guid }),
         None => None,
     };
 
     let setup_ctx = ctx.clone();
-    ctx.run_setup(|| {
-        execute_inner(
-            setup_ctx,
-            start_os_logicalname,
-            start_os_password,
-            recovery_source,
-            server_id,
-            recovery_password,
-        )
-    })?;
+    ctx.run_setup(|| execute_inner(setup_ctx, start_os_logicalname, start_os_password, recovery))?;
 
     Ok(ctx.progress().await)
 }
@@ -358,13 +357,11 @@ pub async fn execute_inner(
     ctx: SetupContext,
     start_os_logicalname: PathBuf,
     start_os_password: String,
-    recovery_source: Option<RecoverySource>,
-    server_id: Option<String>,
-    recovery_password: Option<String>,
+    recovery_source: Option<RecoverySource<String>>,
 ) -> Result<(SetupResult, RpcContext), Error> {
     let progress = &ctx.progress;
     let mut disk_phase = progress.add_phase("Formatting data drive".into(), Some(10));
-    let restore_phase = match &recovery_source {
+    let restore_phase = match recovery_source.as_ref() {
         Some(RecoverySource::Backup { .. }) => {
             Some(progress.add_phase("Restoring backup".into(), Some(100)))
         }
@@ -407,21 +404,18 @@ pub async fn execute_inner(
     };
 
     match recovery_source {
-        Some(RecoverySource::Backup { target }) => {
+        Some(RecoverySource::Backup {
+            target,
+            password,
+            server_id,
+        }) => {
             recover(
                 &ctx,
                 guid,
                 start_os_password,
                 target,
-                server_id.ok_or_else(|| {
-                    Error::new(eyre!("`serverId` is required"), ErrorKind::InvalidRequest)
-                })?,
-                recovery_password.ok_or_else(|| {
-                    Error::new(
-                        eyre!("`recoveryPassword` is required"),
-                        ErrorKind::InvalidRequest,
-                    )
-                })?,
+                server_id,
+                password,
                 progress,
             )
             .await

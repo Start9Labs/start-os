@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+use chrono::{DateTime, Utc};
 use color_eyre::eyre::{self, eyre};
 use futures::TryStreamExt;
 use nom::bytes::complete::{tag, take_till1};
@@ -59,7 +60,7 @@ pub struct PartitionInfo {
 pub struct StartOsRecoveryInfo {
     pub hostname: Hostname,
     pub version: exver::Version,
-    pub full: bool,
+    pub timestamp: DateTime<Utc>,
     pub password_hash: Option<String>,
     pub wrapped_key: Option<String>,
 }
