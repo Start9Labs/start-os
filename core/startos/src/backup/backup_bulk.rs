@@ -164,7 +164,7 @@ pub async fn backup_all(
         .decrypt(&ctx)?;
     let password = password.decrypt(&ctx)?;
 
-    let ((fs, package_ids), status_guard) = (
+    let ((fs, package_ids, server_id), status_guard) = (
         ctx.db
             .mutate(|db| {
                 check_password_against_db(db, &password)?;
@@ -181,7 +181,11 @@ pub async fn backup_all(
                         .collect()
                 };
                 assure_backing_up(db, &package_ids)?;
-                Ok((fs, package_ids))
+                Ok((
+                    fs,
+                    package_ids,
+                    db.as_public().as_server_info().as_id().de()?,
+                ))
             })
             .await?,
         BackupStatusGuard::new(ctx.db.clone()),
@@ -189,6 +193,7 @@ pub async fn backup_all(
 
     let mut backup_guard = BackupMountGuard::mount(
         TmpMountGuard::mount(&fs, ReadWrite).await?,
+        &server_id,
         &old_password_decrypted,
     )
     .await?;
@@ -329,11 +334,12 @@ async fn perform_backup(
 
     backup_guard.unencrypted_metadata.version = crate::version::Current::new().semver().into();
     backup_guard.unencrypted_metadata.full = true;
+    backup_guard.unencrypted_metadata.hostname = ctx.account.read().await.hostname.clone();
     backup_guard.metadata.version = crate::version::Current::new().semver().into();
     backup_guard.metadata.timestamp = timestamp;
     backup_guard.metadata.package_backups = package_backups;
 
-    backup_guard.save().await?;
+    backup_guard.save_and_unmount().await?;
 
     ctx.db
         .mutate(|v| {

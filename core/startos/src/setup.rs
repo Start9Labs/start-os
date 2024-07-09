@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
@@ -25,7 +26,7 @@ use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
-use crate::disk::util::{pvscan, recovery_info, DiskInfo, EmbassyOsRecoveryInfo};
+use crate::disk::util::{pvscan, recovery_info, DiskInfo, StartOsRecoveryInfo};
 use crate::disk::REPAIR_DISK_PATH;
 use crate::init::{init, InitPhases, InitResult};
 use crate::net::net_controller::PreInitNetController;
@@ -237,7 +238,7 @@ pub async fn verify_cifs(
         username,
         password,
     }: VerifyCifsParams,
-) -> Result<EmbassyOsRecoveryInfo, Error> {
+) -> Result<BTreeMap<String, StartOsRecoveryInfo>, Error> {
     let password: Option<String> = password.map(|x| x.decrypt(&ctx)).flatten();
     let guard = TmpMountGuard::mount(
         &Cifs {
@@ -251,7 +252,13 @@ pub async fn verify_cifs(
     .await?;
     let start_os = recovery_info(guard.path()).await?;
     guard.unmount().await?;
-    start_os.ok_or_else(|| Error::new(eyre!("No Backup Found"), crate::ErrorKind::NotFound))
+    if start_os.is_empty() {
+        return Err(Error::new(
+            eyre!("No Backup Found"),
+            crate::ErrorKind::NotFound,
+        ));
+    }
+    Ok(start_os)
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]
@@ -269,6 +276,7 @@ pub struct SetupExecuteParams {
     start_os_logicalname: PathBuf,
     start_os_password: EncryptedWire,
     recovery_source: Option<RecoverySource>,
+    server_id: Option<String>,
     recovery_password: Option<EncryptedWire>,
 }
 
@@ -279,6 +287,7 @@ pub async fn execute(
         start_os_logicalname,
         start_os_password,
         recovery_source,
+        server_id,
         recovery_password,
     }: SetupExecuteParams,
 ) -> Result<SetupProgress, Error> {
@@ -311,6 +320,7 @@ pub async fn execute(
             start_os_logicalname,
             start_os_password,
             recovery_source,
+            server_id,
             recovery_password,
         )
     })?;
@@ -349,6 +359,7 @@ pub async fn execute_inner(
     start_os_logicalname: PathBuf,
     start_os_password: String,
     recovery_source: Option<RecoverySource>,
+    server_id: Option<String>,
     recovery_password: Option<String>,
 ) -> Result<(SetupResult, RpcContext), Error> {
     let progress = &ctx.progress;
@@ -402,7 +413,15 @@ pub async fn execute_inner(
                 guid,
                 start_os_password,
                 target,
-                recovery_password,
+                server_id.ok_or_else(|| {
+                    Error::new(eyre!("`serverId` is required"), ErrorKind::InvalidRequest)
+                })?,
+                recovery_password.ok_or_else(|| {
+                    Error::new(
+                        eyre!("`recoveryPassword` is required"),
+                        ErrorKind::InvalidRequest,
+                    )
+                })?,
                 progress,
             )
             .await
@@ -448,7 +467,8 @@ async fn recover(
     guid: Arc<String>,
     start_os_password: String,
     recovery_source: BackupTargetFS,
-    recovery_password: Option<String>,
+    server_id: String,
+    recovery_password: String,
     progress: SetupExecuteProgress,
 ) -> Result<(SetupResult, RpcContext), Error> {
     let recovery_source = TmpMountGuard::mount(&recovery_source, ReadWrite).await?;
@@ -457,7 +477,8 @@ async fn recover(
         guid.clone(),
         start_os_password,
         recovery_source,
-        recovery_password,
+        &server_id,
+        &recovery_password,
         progress,
     )
     .await

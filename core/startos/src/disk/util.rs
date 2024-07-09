@@ -19,6 +19,7 @@ use super::mount::filesystem::ReadOnly;
 use super::mount::guard::TmpMountGuard;
 use crate::disk::mount::guard::GenericMountGuard;
 use crate::disk::OsPartitionInfo;
+use crate::hostname::Hostname;
 use crate::util::serde::IoFormat;
 use crate::util::Invoke;
 use crate::{Error, ResultExt as _};
@@ -49,13 +50,14 @@ pub struct PartitionInfo {
     pub label: Option<String>,
     pub capacity: u64,
     pub used: Option<u64>,
-    pub start_os: Option<EmbassyOsRecoveryInfo>,
+    pub start_os: BTreeMap<String, StartOsRecoveryInfo>,
     pub guid: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct EmbassyOsRecoveryInfo {
+pub struct StartOsRecoveryInfo {
+    pub hostname: Hostname,
     pub version: exver::Version,
     pub full: bool,
     pub password_hash: Option<String>,
@@ -223,29 +225,38 @@ pub async fn pvscan() -> Result<BTreeMap<PathBuf, Option<String>>, Error> {
 
 pub async fn recovery_info(
     mountpoint: impl AsRef<Path>,
-) -> Result<Option<EmbassyOsRecoveryInfo>, Error> {
-    let backup_unencrypted_metadata_path = mountpoint
-        .as_ref()
-        .join("EmbassyBackups/unencrypted-metadata.cbor");
-    if tokio::fs::metadata(&backup_unencrypted_metadata_path)
-        .await
-        .is_ok()
-    {
-        return Ok(Some(
-            IoFormat::Cbor.from_slice(
-                &tokio::fs::read(&backup_unencrypted_metadata_path)
-                    .await
-                    .with_ctx(|_| {
-                        (
-                            crate::ErrorKind::Filesystem,
-                            backup_unencrypted_metadata_path.display().to_string(),
-                        )
-                    })?,
-            )?,
-        ));
+) -> Result<BTreeMap<String, StartOsRecoveryInfo>, Error> {
+    let backup_root = mountpoint.as_ref().join("StartOSBackups");
+    let mut res = BTreeMap::new();
+    if tokio::fs::metadata(&backup_root).await.is_ok() {
+        let mut dir = tokio::fs::read_dir(&backup_root).await?;
+        while let Some(entry) = dir.next_entry().await? {
+            let server_id = entry.file_name().to_string_lossy().into_owned();
+            let backup_unencrypted_metadata_path = backup_root
+                .join(&server_id)
+                .join("unencrypted-metadata.cbor");
+            if tokio::fs::metadata(&backup_unencrypted_metadata_path)
+                .await
+                .is_ok()
+            {
+                res.insert(
+                    server_id,
+                    IoFormat::Cbor.from_slice(
+                        &tokio::fs::read(&backup_unencrypted_metadata_path)
+                            .await
+                            .with_ctx(|_| {
+                                (
+                                    crate::ErrorKind::Filesystem,
+                                    backup_unencrypted_metadata_path.display().to_string(),
+                                )
+                            })?,
+                    )?,
+                );
+            }
+        }
     }
 
-    Ok(None)
+    Ok(res)
 }
 
 #[instrument(skip_all)]
@@ -390,7 +401,7 @@ async fn disk_info(disk: PathBuf) -> DiskInfo {
 }
 
 async fn part_info(part: PathBuf) -> PartitionInfo {
-    let mut start_os = None;
+    let mut start_os = BTreeMap::new();
     let label = get_label(&part)
         .await
         .map_err(|e| tracing::warn!("Could not get label of {}: {}", part.display(), e.source))
@@ -410,14 +421,13 @@ async fn part_info(part: PathBuf) -> PartitionInfo {
                     tracing::warn!("Could not get usage of {}: {}", part.display(), e.source)
                 })
                 .ok();
-            if let Some(recovery_info) = match recovery_info(mount_guard.path()).await {
-                Ok(a) => a,
+            match recovery_info(mount_guard.path()).await {
+                Ok(a) => {
+                    start_os = a;
+                }
                 Err(e) => {
                     tracing::error!("Error fetching unencrypted backup metadata: {}", e);
-                    None
                 }
-            } {
-                start_os = Some(recovery_info)
             }
             if let Err(e) = mount_guard.unmount().await {
                 tracing::error!("Error unmounting partition {}: {}", part.display(), e);

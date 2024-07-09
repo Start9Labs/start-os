@@ -11,6 +11,7 @@ use tokio::process::Command;
 use crate::prelude::*;
 use crate::util::Invoke;
 
+pub mod backupfs;
 pub mod bind;
 pub mod block_dev;
 pub mod cifs;

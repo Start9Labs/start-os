@@ -4,7 +4,7 @@ use tracing::instrument;
 
 use crate::util::Invoke;
 use crate::{Error, ErrorKind};
-#[derive(Clone, serde::Deserialize, serde::Serialize, Debug)]
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct Hostname(pub String);
 
 lazy_static::lazy_static! {
