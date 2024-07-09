@@ -100,7 +100,7 @@ export class ExtendedVersion implements ValidExtendedVersion {
     this.downstream = exver.downstream;
   }
   
-  to_string(exver: ValidExtendedVersion): string {
+  public toString(exver: ValidExtendedVersion): string {
     let exver_str = ""
 
     if (exver.flavor) {
@@ -109,9 +109,9 @@ export class ExtendedVersion implements ValidExtendedVersion {
       exver_str += ':';
     }
 
-    exver_str = append_version(exver.upstream, exver_str);
+    exver_str = appendVersion(exver.upstream, exver_str);
     exver_str += ':';
-    exver_str = append_version(exver.downstream, exver_str);
+    exver_str = appendVersion(exver.downstream, exver_str);
 
     return exver_str;
   }
@@ -196,7 +196,7 @@ function equals(thisVersion: Version, otherVersion: Version): boolean {
   return true
 }
 
-function append_version(version: Version, str: string): string {
+function appendVersion(version: Version, str: string): string {
   version.number.forEach((n, i) => {
     str += n;
     if (i < version.number.length) {
