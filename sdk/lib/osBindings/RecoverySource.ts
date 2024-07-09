@@ -7,5 +7,5 @@ export type RecoverySource<Password> =
       type: "backup"
       target: BackupTargetFS
       password: Password
-      server_id: string
+      serverId: string
     }

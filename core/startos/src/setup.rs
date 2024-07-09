@@ -264,6 +264,7 @@ pub async fn verify_cifs(
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(tag = "type")]
 #[serde(rename_all = "camelCase")]
+#[serde(rename_all_fields = "camelCase")]
 pub enum RecoverySource<Password> {
     Migrate {
         guid: String,
