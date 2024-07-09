@@ -132,7 +132,9 @@ export class ExtendedVersion implements ValidExtendedVersion {
    * Compare with `other` ExtendedVersion for sort
    */
   public compare(other: ExtendedVersion) {
-    if (this.equals(other)) {
+    if (this.flavor !== other.flavor) {
+      return null
+    } else if (this.equals(other)) {
       return 0 as const
     } else if (this.greaterThan(other)) {
       return 1 as const
