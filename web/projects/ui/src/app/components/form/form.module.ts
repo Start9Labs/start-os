@@ -9,12 +9,14 @@ import {
   TuiHintModule,
   TuiLinkModule,
   TuiModeModule,
-  TuiSvgModule,
   TuiTextfieldControllerModule,
   TuiTooltipModule,
-  TuiWrapperModule,
 } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
+import {
+  TuiAppearanceModule,
+  TuiButtonModule,
+  TuiIconModule,
+} from '@taiga-ui/experimental'
 import {
   TuiElasticContainerModule,
   TuiFieldErrorPipeModule,
@@ -76,8 +78,8 @@ import { HintPipe } from './hint.pipe'
     TuiValueChangesModule,
     TuiElasticContainerModule,
     MaskitoModule,
-    TuiSvgModule,
-    TuiWrapperModule,
+    TuiIconModule,
+    TuiAppearanceModule,
     TuiInputDateModule,
     TuiInputTimeModule,
     TuiInputDateTimeModule,
