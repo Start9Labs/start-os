@@ -62,7 +62,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
   styles: `
     :host-context(tui-root._mobile) {
       tr {
-        grid-template-columns: 2fr 1fr;
+        grid-template-columns: 3fr 2fr;
       }
 
       td:only-child {
@@ -94,7 +94,11 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
       .algorithm {
         order: 5;
         text-align: right;
-        color: var(--tui-text-02);
+
+        &::before {
+          content: 'Algorithm: ';
+          color: var(--tui-text-02);
+        }
       }
     }
   `,

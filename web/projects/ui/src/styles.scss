@@ -42,6 +42,7 @@ hr {
   tui-root._mobile & {
     // For tui-tab-bar
     height: calc(100vh - 3.875rem - var(--tui-height-l));
+    padding: 1rem;
   }
 }
 

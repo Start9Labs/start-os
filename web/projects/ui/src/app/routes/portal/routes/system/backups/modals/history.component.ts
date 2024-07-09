@@ -140,6 +140,7 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
 
       .date,
       .duration {
+        order: 1;
         color: var(--tui-text-02);
       }
 
