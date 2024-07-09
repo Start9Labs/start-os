@@ -1,0 +1,30 @@
+<ng-container
+  *ngFor="let entry of spec | keyvalue : asIsOrder"
+  tuiMode="onDark"
+  [ngSwitch]="entry.value.type"
+  [tuiTextfieldCleaner]="true"
+>
+  <form-object
+    *ngSwitchCase="'object'"
+    class="g-form-control"
+    [formGroupName]="entry.key"
+    [spec]="$any(entry.value)"
+  ></form-object>
+  <form-union
+    *ngSwitchCase="'union'"
+    class="g-form-control"
+    [formGroupName]="entry.key"
+    [spec]="$any(entry.value)"
+  ></form-union>
+  <form-array
+    *ngSwitchCase="'list'"
+    [formArrayName]="entry.key"
+    [spec]="$any(entry.value)"
+  ></form-array>
+  <form-control
+    *ngSwitchDefault
+    class="g-form-control"
+    [formControlName]="entry.key"
+    [spec]="entry.value"
+  ></form-control>
+</ng-container>

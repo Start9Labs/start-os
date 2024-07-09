@@ -11,7 +11,6 @@ import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { map, tap } from 'rxjs/operators'
 import { ActivatedRoute, NavigationExtras } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
-import { ModalService } from 'src/app/services/modal.service'
 import { DependentInfo } from 'src/app/types/dependent-info'
 import {
   DepErrorService,
@@ -26,6 +25,8 @@ import {
   isUpdating,
 } from 'src/app/util/get-package-data'
 import { T } from '@start9labs/start-sdk'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { ConfigModal, PackageConfigData } from 'src/app/modals/config.component'
 
 export interface DependencyInfo {
   id: string
@@ -68,8 +69,8 @@ export class AppShowPage {
     private readonly route: ActivatedRoute,
     private readonly navCtrl: NavController,
     private readonly patch: PatchDB<DataModel>,
-    private readonly modalService: ModalService,
     private readonly depErrorService: DepErrorService,
+    private readonly formDialog: FormDialogService,
   ) {}
 
   showProgress(
@@ -171,7 +172,13 @@ export class AppShowPage {
       case 'update':
         return this.installDep(pkg, pkgManifest, id)
       case 'configure':
-        return this.configureDep(pkgManifest, id)
+        return this.formDialog.open<PackageConfigData>(ConfigModal, {
+          label: `${pkgManifest.title} config`,
+          data: {
+            pkgId: id,
+            dependentInfo: pkgManifest,
+          },
+        })
     }
   }
 
@@ -193,20 +200,5 @@ export class AppShowPage {
       `/marketplace/${depId}`,
       navigationExtras,
     )
-  }
-
-  private async configureDep(
-    pkgManifest: T.Manifest,
-    dependencyId: string,
-  ): Promise<void> {
-    const dependentInfo: DependentInfo = {
-      id: pkgManifest.id,
-      title: pkgManifest.title,
-    }
-
-    await this.modalService.presentModalConfig({
-      pkgId: dependencyId,
-      dependentInfo,
-    })
   }
 }
