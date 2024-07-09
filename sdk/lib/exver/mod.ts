@@ -116,7 +116,6 @@ export class ExtendedVersion implements ValidExtendedVersion {
     return exver_str;
   }
 
-  // TODO: Address prerelease
   public greaterThan(other: ExtendedVersion): boolean {
     return greaterThan(this, other)
   }
@@ -142,6 +141,13 @@ function greaterThan(thisVersion: ExtendedVersion, otherVersion: ExtendedVersion
       return false
     }
   }
+  for (const i in thisVersion.upstream.prerelease) {
+    if (thisVersion.upstream.prerelease[i] > otherVersion.upstream.prerelease[i]) {
+      return true
+    } else if (thisVersion.upstream.prerelease[i] < otherVersion.upstream.prerelease[i]) {
+      return false
+    }
+  }
   for (const i in thisVersion.downstream.number) {
     if (otherVersion.downstream.number[i] == null) {
       return true
@@ -153,12 +159,24 @@ function greaterThan(thisVersion: ExtendedVersion, otherVersion: ExtendedVersion
       return false
     }
   }
+  for (const i in thisVersion.upstream.prerelease) {
+    if (thisVersion.upstream.prerelease[i] > otherVersion.upstream.prerelease[i]) {
+      return true
+    } else if (thisVersion.upstream.prerelease[i] < otherVersion.upstream.prerelease[i]) {
+      return false
+    }
+  }
   return false
 }
 
 function equals(thisVersion: Version, otherVersion: Version): boolean {
   for (const i in thisVersion.number) {
     if (thisVersion.number[i] !== otherVersion.number[i]) {
+      return false
+    }
+  }
+  for (const i in thisVersion.prerelease) {
+    if (thisVersion.prerelease[i] !== otherVersion.prerelease[i]) {
       return false
     }
   }
