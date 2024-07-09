@@ -100,18 +100,18 @@ export class ExtendedVersion implements ValidExtendedVersion {
     this.downstream = exver.downstream;
   }
   
-  public toString(exver: ValidExtendedVersion): string {
+  toString(): string {
     let exver_str = ""
 
-    if (exver.flavor) {
+    if (this.flavor) {
       exver_str += '#';
-      exver_str += exver.flavor;
+      exver_str += this.flavor;
       exver_str += ':';
     }
 
-    exver_str = appendVersion(exver.upstream, exver_str);
+    exver_str = appendVersion(this.upstream, exver_str);
     exver_str += ':';
-    exver_str = appendVersion(exver.downstream, exver_str);
+    exver_str = appendVersion(this.downstream, exver_str);
 
     return exver_str;
   }
@@ -143,43 +143,36 @@ export class ExtendedVersion implements ValidExtendedVersion {
 }
 
 function greaterThan(thisVersion: ExtendedVersion, otherVersion: ExtendedVersion): boolean {
-  for (const i in thisVersion.upstream.number) {
-    if (otherVersion.upstream.number[i] == null) {
-      return true
-    }
-    if (thisVersion.upstream.number[i] > otherVersion.upstream.number[i]) {
-      return true
-    }
-    if (thisVersion.upstream.number[i] < otherVersion.upstream.number[i]) {
-      return false
-    }
+  const upstreamGtResult = versionGt(thisVersion.upstream, otherVersion.upstream)
+  if (typeof upstreamGtResult === 'boolean') {
+    return upstreamGtResult
   }
-  for (const i in thisVersion.upstream.prerelease) {
-    if (thisVersion.upstream.prerelease[i] > otherVersion.upstream.prerelease[i]) {
-      return true
-    } else if (thisVersion.upstream.prerelease[i] < otherVersion.upstream.prerelease[i]) {
-      return false
-    }
-  }
-  for (const i in thisVersion.downstream.number) {
-    if (otherVersion.downstream.number[i] == null) {
-      return true
-    }
-    if (thisVersion.downstream.number[i] > otherVersion.downstream.number[i]) {
-      return true
-    }
-    if (thisVersion.downstream.number[i] < otherVersion.downstream.number[i]) {
-      return false
-    }
-  }
-  for (const i in thisVersion.upstream.prerelease) {
-    if (thisVersion.upstream.prerelease[i] > otherVersion.upstream.prerelease[i]) {
-      return true
-    } else if (thisVersion.upstream.prerelease[i] < otherVersion.upstream.prerelease[i]) {
-      return false
-    }
+  const downstreamGtResult = versionGt(thisVersion.downstream, otherVersion.downstream)
+  if (typeof downstreamGtResult === 'boolean') {
+    return downstreamGtResult
   }
   return false
+}
+
+function versionGt(thisVersion: Version, otherVersion: Version): boolean | undefined {
+  for (const i in thisVersion.number) {
+    if (otherVersion.number[i] == null) {
+      return true
+    }
+    if (thisVersion.number[i] > otherVersion.number[i]) {
+      return true
+    }
+    if (thisVersion.number[i] < otherVersion.number[i]) {
+      return false
+    }
+  }
+  for (const i in thisVersion.prerelease) {
+    if (thisVersion.prerelease[i] > otherVersion.prerelease[i]) {
+      return true
+    } else if (thisVersion.prerelease[i] < otherVersion.prerelease[i]) {
+      return false
+    }
+  }
 }
 
 function equals(thisVersion: Version, otherVersion: Version): boolean {
@@ -199,18 +192,16 @@ function equals(thisVersion: Version, otherVersion: Version): boolean {
 function appendVersion(version: Version, str: string): string {
   version.number.forEach((n, i) => {
     str += n;
-    if (i < version.number.length) {
+    if (i < version.number.length -1 ) {
       str += '.';
     }
   });
 
   if (version.prerelease.length > 0) {
+    str += '-';
     version.prerelease.forEach((n, i) => {
-      if (typeof n === 'string') {
-        str += '-';
-      }
       str += n;
-      if (i < version.prerelease.length) {
+      if (i < version.prerelease.length -1) {
         str += '.';
       }
     })
