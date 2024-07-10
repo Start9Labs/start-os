@@ -374,10 +374,6 @@ impl Map for CurrentDependencies {
 pub struct CurrentDependencyInfo {
     #[serde(flatten)]
     pub kind: CurrentDependencyKind,
-    pub title: String,
-    pub icon: DataUrl<'static>,
-    #[ts(type = "string")]
-    pub registry_url: Url,
     #[ts(type = "string")]
     pub version_spec: VersionRange,
     pub config_satisfied: bool,

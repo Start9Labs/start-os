@@ -1148,8 +1148,6 @@ enum DependencyRequirement {
         health_checks: BTreeSet<HealthCheckId>,
         #[ts(type = "string")]
         version_spec: VersionRange,
-        #[ts(type = "string")]
-        registry_url: Url,
     },
     #[serde(rename_all = "camelCase")]
     Exists {
@@ -1157,8 +1155,6 @@ enum DependencyRequirement {
         id: PackageId,
         #[ts(type = "string")]
         version_spec: VersionRange,
-        #[ts(type = "string")]
-        registry_url: Url,
     },
 }
 // filebrowser:exists,bitcoind:running:foo+bar+baz
@@ -1168,7 +1164,6 @@ impl FromStr for DependencyRequirement {
         match s.split_once(':') {
             Some((id, "e")) | Some((id, "exists")) => Ok(Self::Exists {
                 id: id.parse()?,
-                registry_url: "".parse()?,  // TODO
                 version_spec: "*".parse()?, // TODO
             }),
             Some((id, rest)) => {
@@ -1192,14 +1187,12 @@ impl FromStr for DependencyRequirement {
                 Ok(Self::Running {
                     id: id.parse()?,
                     health_checks,
-                    registry_url: "".parse()?,  // TODO
                     version_spec: "*".parse()?, // TODO
                 })
             }
             None => Ok(Self::Running {
                 id: s.parse()?,
                 health_checks: BTreeSet::new(),
-                registry_url: "".parse()?,  // TODO
                 version_spec: "*".parse()?, // TODO
             }),
         }
@@ -1234,58 +1227,19 @@ async fn set_dependencies(
 
     let mut deps = BTreeMap::new();
     for dependency in dependencies {
-        let (dep_id, kind, registry_url, version_spec) = match dependency {
-            DependencyRequirement::Exists {
-                id,
-                registry_url,
-                version_spec,
-            } => (
-                id,
-                CurrentDependencyKind::Exists,
-                registry_url,
-                version_spec,
-            ),
+        let (dep_id, kind, version_spec) = match dependency {
+            DependencyRequirement::Exists { id, version_spec } => {
+                (id, CurrentDependencyKind::Exists, version_spec)
+            }
             DependencyRequirement::Running {
                 id,
                 health_checks,
-                registry_url,
                 version_spec,
             } => (
                 id,
                 CurrentDependencyKind::Running { health_checks },
-                registry_url,
                 version_spec,
             ),
-        };
-        let (icon, title) = match async {
-            let remote_s9pk = S9pk::deserialize(
-                &Arc::new(
-                    HttpSource::new(
-                        context.seed.ctx.client.clone(),
-                        registry_url
-                            .join(&format!("package/v2/{}.s9pk?spec={}", dep_id, version_spec))?,
-                    )
-                    .await?,
-                ),
-                None, // TODO
-            )
-            .await?;
-
-            let icon = remote_s9pk.icon_data_url().await?;
-
-            Ok::<_, Error>((icon, remote_s9pk.as_manifest().title.clone()))
-        }
-        .await
-        {
-            Ok(a) => a,
-            Err(e) => {
-                tracing::error!("Error fetching remote s9pk: {e}");
-                tracing::debug!("{e:?}");
-                (
-                    DataUrl::from_slice("image/png", include_bytes!("../install/package-icon.png")),
-                    dep_id.to_string(),
-                )
-            }
         };
         let config_satisfied =
             if let Some(dep_service) = &*context.seed.ctx.services.get(&dep_id).await {
@@ -1304,10 +1258,7 @@ async fn set_dependencies(
             dep_id,
             CurrentDependencyInfo {
                 kind,
-                registry_url,
                 version_spec,
-                icon,
-                title,
                 config_satisfied,
             },
         );
@@ -1343,23 +1294,15 @@ async fn get_dependencies(context: EffectContext) -> Result<Vec<DependencyRequir
         .into_iter()
         .map(|(id, current_dependency_info)| {
             let CurrentDependencyInfo {
-                registry_url,
-                version_spec,
-                kind,
-                ..
+                version_spec, kind, ..
             } = current_dependency_info;
             Ok::<_, Error>(match kind {
-                CurrentDependencyKind::Exists => DependencyRequirement::Exists {
-                    id,
-                    registry_url,
-                    version_spec,
-                },
+                CurrentDependencyKind::Exists => DependencyRequirement::Exists { id, version_spec },
                 CurrentDependencyKind::Running { health_checks } => {
                     DependencyRequirement::Running {
                         id,
                         health_checks,
                         version_spec,
-                        registry_url,
                     }
                 }
             })

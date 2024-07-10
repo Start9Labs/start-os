@@ -1,10 +1,21 @@
 import * as matches from "ts-matches"
 
 const starSub = /((\d+\.)*\d+)\.\*/
+
+type Decrement = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+type MaybeRepeat<S extends string, N extends number> = N extends 0
+  ? ""
+  : `${S}${MaybeRepeat<S, Decrement[N]>}` | `${MaybeRepeat<S, Decrement[N]>}`
+
+export type ValidVersion =
+  | `${bigint}${MaybeRepeat<`.${bigint}`, 10>}`
+  | `${bigint}${MaybeRepeat<`.${bigint}`, 10>}-${string}`
+
 // prettier-ignore
-export type ValidEmVer = string;
+export type ValidExVer = `${ValidVersion}:${ValidVersion}` | `#${string}:${ValidVersion}:${ValidVersion}`;
+
 // prettier-ignore
-export type ValidEmVerRange = string;
+export type ValidExVerRange = string;
 
 function incrementLastNumber(list: number[]) {
   const newList = [...list]
@@ -163,7 +174,7 @@ export class EmVer {
   }
 
   toString() {
-    return `${this.values.join(".")}${this.extra ? `-${this.extra}` : ""}` as ValidEmVer
+    return `${this.values.join(".")}${this.extra ? `-${this.extra}` : ""}` as ValidExVer
   }
 }
 
@@ -262,12 +273,12 @@ export class Checker {
      * Check is the function that will be given a emver or unparsed emver and should give if it follows
      * a pattern
      */
-    public readonly check: (value: ValidEmVer | EmVer) => boolean,
+    public readonly check: (value: ValidExVer | EmVer) => boolean,
     private readonly _range: string,
   ) {}
 
   get range() {
-    return this._range as ValidEmVerRange
+    return this._range as ValidExVerRange
   }
 
   /**

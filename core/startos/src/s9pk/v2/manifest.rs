@@ -33,6 +33,7 @@ pub struct Manifest {
     pub id: PackageId,
     pub title: String,
     pub version: VersionString,
+    pub satisfies: BTreeSet<VersionString>,
     pub release_notes: String,
     #[ts(type = "string")]
     pub license: InternedString, // type of license

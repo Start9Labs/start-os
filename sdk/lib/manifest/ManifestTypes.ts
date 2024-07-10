@@ -1,4 +1,4 @@
-import { ValidEmVer } from "../emverLite/mod"
+import { ValidExVer } from "../emverLite/mod"
 import { ActionMetadata, ImageConfig, ImageId } from "../types"
 
 export interface Container {
@@ -12,7 +12,7 @@ export interface Container {
   sigtermTimeout?: `${number}${"s" | "m" | "h"}`
 }
 
-export type ManifestVersion = ValidEmVer
+export type ManifestVersion = ValidExVer
 
 export type SDKManifest = {
   /**  The package identifier used by the OS. This must be unique amongst all other known packages */
@@ -24,6 +24,7 @@ export type SDKManifest = {
    * the service
    */
   readonly version: ManifestVersion
+  readonly satisfies: ManifestVersion[]
   /** Release notes for the update - can be a string, paragraph or URL */
   readonly releaseNotes: string
   /** The type of license for the project. Include the LICENSE in the root of the project directory. A license is required for a Start9 package.*/
@@ -82,4 +83,8 @@ export interface ManifestDependency {
    * such as being able to toggle other services or to use a different service for the same purpose.
    */
   optional: boolean
+  /**
+   * Url to a registry where an s9pk for this package can be found
+   */
+  registryUrl: string
 }

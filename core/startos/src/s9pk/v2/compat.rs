@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -201,6 +201,7 @@ impl From<ManifestV1> for Manifest {
             id: value.id,
             title: value.title,
             version: ExtendedVersion::from(value.version).into(),
+            satisfies: BTreeSet::new(),
             release_notes: value.release_notes,
             license: value.license.into(),
             wrapper_repo: value.wrapper_repo,
