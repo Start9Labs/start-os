@@ -21,10 +21,36 @@
     />
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#ff5b71" />
+    <style>
+      html {
+        height: 100%;
+      }
+
+      html:not(.hydrated):not(.hydrated) body {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        text-align: center;
+        color: white;
+        background: #222428;
+        font-family: sans-serif;
+        margin: 0;
+      }
+    </style>
   </head>
 
   <body>
-    <app-root></app-root>
+    <app-root>
+      <img
+        src="assets/img/icon.png"
+        style="width: 8rem; height: 8rem"
+        alt="Start OS "
+      />
+      <h1>Loading</h1>
+      <progress></progress>
+    </app-root>
     <noscript>
       Please enable JavaScript to continue using this application.
     </noscript>

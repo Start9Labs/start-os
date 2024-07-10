@@ -115,6 +115,7 @@ results/$(BASENAME).$(IMAGE_TYPE) results/$(BASENAME).squashfs: $(IMAGE_RECIPE_S
 # For creating os images. DO NOT USE
 install: $(ALL_TARGETS) 
 	$(call mkdir,$(DESTDIR)/usr/bin)
+	$(call mkdir,$(DESTDIR)/usr/sbin)
 	$(call cp,core/target/$(ARCH)-unknown-linux-musl/release/startbox,$(DESTDIR)/usr/bin/startbox)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/startd)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/start-cli)

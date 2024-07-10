@@ -28,7 +28,7 @@
     [open]="!!open.get(item)"
     (openChange)="open.set(item, $event)"
   >
-    {{ item.value | mustache : $any(spec.spec).displayAs }}
+    {{ item.value | mustache: $any(spec.spec).displayAs }}
     <ng-container *ngTemplateOutlet="remove"></ng-container>
   </form-object>
   <ng-template #control>

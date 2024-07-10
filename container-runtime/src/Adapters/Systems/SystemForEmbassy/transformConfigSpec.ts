@@ -1,4 +1,18 @@
 import { CT } from "@start9labs/start-sdk"
+import {
+  dictionary,
+  object,
+  anyOf,
+  string,
+  literals,
+  array,
+  number,
+  boolean,
+  Parser,
+  deferred,
+  every,
+  nill,
+} from "ts-matches"
 
 export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
   return Object.entries(oldSpec).reduce((inputSpec, [key, oldVal]) => {
@@ -67,7 +81,7 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
         name: oldVal.name,
         description: oldVal.description || null,
         warning: oldVal.warning || null,
-        spec: transformConfigSpec(oldVal.spec),
+        spec: transformConfigSpec(matchOldConfigSpec.unsafeCast(oldVal.spec)),
       }
     } else if (oldVal.type === "string") {
       newVal = {
@@ -106,7 +120,7 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
             ...obj,
             [id]: {
               name: oldVal.tag["variant-names"][id],
-              spec: transformConfigSpec(spec),
+              spec: transformConfigSpec(matchOldConfigSpec.unsafeCast(spec)),
             },
           }),
           {} as Record<string, { name: string; spec: CT.InputSpec }>,
@@ -133,7 +147,10 @@ export function transformOldConfigToNew(
     let newVal = config[key]
 
     if (isObject(val)) {
-      newVal = transformOldConfigToNew(val.spec, config[key])
+      newVal = transformOldConfigToNew(
+        matchOldConfigSpec.unsafeCast(val.spec),
+        config[key],
+      )
     }
 
     if (isUnion(val)) {
@@ -142,13 +159,19 @@ export function transformOldConfigToNew(
 
       newVal = {
         selection,
-        value: transformOldConfigToNew(val.variants[selection], config[key]),
+        value: transformOldConfigToNew(
+          matchOldConfigSpec.unsafeCast(val.variants[selection]),
+          config[key],
+        ),
       }
     }
 
     if (isList(val) && isObjectList(val)) {
       newVal = (config[key] as object[]).map((obj) =>
-        transformOldConfigToNew(val.spec.spec, obj),
+        transformOldConfigToNew(
+          matchOldConfigSpec.unsafeCast(val.spec.spec),
+          obj,
+        ),
       )
     }
 
@@ -167,14 +190,17 @@ export function transformNewConfigToOld(
     let newVal = config[key]
 
     if (isObject(val)) {
-      newVal = transformNewConfigToOld(val.spec, config[key])
+      newVal = transformNewConfigToOld(
+        matchOldConfigSpec.unsafeCast(val.spec),
+        config[key],
+      )
     }
 
     if (isUnion(val)) {
       newVal = {
         [val.tag.id]: config[key].selection,
         ...transformNewConfigToOld(
-          val.variants[config[key].selection],
+          matchOldConfigSpec.unsafeCast(val.variants[config[key].selection]),
           config[key].unionSelectValue,
         ),
       }
@@ -182,7 +208,10 @@ export function transformNewConfigToOld(
 
     if (isList(val) && isObjectList(val)) {
       newVal = (config[key] as object[]).map((obj) =>
-        transformNewConfigToOld(val.spec.spec, obj),
+        transformNewConfigToOld(
+          matchOldConfigSpec.unsafeCast(val.spec.spec),
+          obj,
+        ),
       )
     }
 
@@ -260,7 +289,9 @@ function getListSpec(
       default: oldVal.default as Record<string, unknown>[],
       spec: {
         type: "object",
-        spec: transformConfigSpec(oldVal.spec.spec),
+        spec: transformConfigSpec(
+          matchOldConfigSpec.unsafeCast(oldVal.spec.spec),
+        ),
         uniqueBy: oldVal.spec["unique-by"],
         displayAs: oldVal.spec["display-as"] || null,
       },
@@ -282,171 +313,224 @@ function isList(val: OldValueSpec): val is OldValueSpecList {
   return val.type === "list"
 }
 
-function isEnumList(val: OldValueSpecList): val is OldValueSpecListOf<"enum"> {
+function isEnumList(
+  val: OldValueSpecList,
+): val is OldValueSpecList & { subtype: "enum" } {
   return val.subtype === "enum"
 }
 
 function isStringList(
   val: OldValueSpecList,
-): val is OldValueSpecListOf<"string"> {
+): val is OldValueSpecList & { subtype: "string" } {
   return val.subtype === "string"
 }
 
 function isObjectList(
   val: OldValueSpecList,
-): val is OldValueSpecListOf<"object"> {
+): val is OldValueSpecList & { subtype: "object" } {
   if (["number", "union"].includes(val.subtype)) {
     throw new Error("Invalid list subtype. enum, string, and object permitted.")
   }
   return val.subtype === "object"
 }
+export type OldConfigSpec = Record<string, OldValueSpec>
+const [_matchOldConfigSpec, setMatchOldConfigSpec] = deferred<unknown>()
+export const matchOldConfigSpec = _matchOldConfigSpec as Parser<
+  unknown,
+  OldConfigSpec
+>
+export const matchOldDefaultString = anyOf(
+  string,
+  object({ charset: string, len: number }),
+)
+type OldDefaultString = typeof matchOldDefaultString._TYPE
 
-type OldConfigSpec = Record<string, OldValueSpec>
+export const matchOldValueSpecString = object(
+  {
+    masked: boolean,
+    copyable: boolean,
+    type: literals("string"),
+    nullable: boolean,
+    name: string,
+    placeholder: string,
+    pattern: string,
+    "pattern-description": string,
+    default: matchOldDefaultString,
+    textarea: boolean,
+    description: string,
+    warning: string,
+  },
+  [
+    "placeholder",
+    "pattern",
+    "pattern-description",
+    "default",
+    "textarea",
+    "description",
+    "warning",
+  ],
+)
 
-type OldValueType =
-  | "string"
-  | "number"
-  | "boolean"
-  | "enum"
-  | "list"
-  | "object"
-  | "pointer"
-  | "union"
-type OldValueSpec = OldValueSpecOf<OldValueType>
+export const matchOldValueSpecNumber = object(
+  {
+    type: literals("number"),
+    nullable: boolean,
+    name: string,
+    range: string,
+    integral: boolean,
+    default: number,
+    description: string,
+    warning: string,
+    units: string,
+    placeholder: string,
+  },
+  ["default", "description", "warning", "units", "placeholder"],
+)
+type OldValueSpecNumber = typeof matchOldValueSpecNumber._TYPE
 
-// core spec types. These types provide the metadata for performing validations
-type OldValueSpecOf<T extends OldValueType> = T extends "string"
-  ? OldValueSpecString
-  : T extends "number"
-    ? OldValueSpecNumber
-    : T extends "boolean"
-      ? OldValueSpecBoolean
-      : T extends "enum"
-        ? OldValueSpecEnum
-        : T extends "list"
-          ? OldValueSpecList
-          : T extends "object"
-            ? OldValueSpecObject
-            : T extends "union"
-              ? OldValueSpecUnion
-              : never
+export const matchOldValueSpecBoolean = object(
+  {
+    type: literals("boolean"),
+    default: boolean,
+    name: string,
+    description: string,
+    warning: string,
+  },
+  ["description", "warning"],
+)
+type OldValueSpecBoolean = typeof matchOldValueSpecBoolean._TYPE
 
-interface OldValueSpecString extends OldListValueSpecString {
-  type: "string"
-  default?: OldDefaultString
-  nullable: boolean
-  textarea?: boolean
-  name: string
-  description?: string
-  warning?: string
-}
+const matchOldValueSpecObject = object(
+  {
+    type: literals("object"),
+    spec: _matchOldConfigSpec,
+    name: string,
+    description: string,
+    warning: string,
+  },
+  ["description", "warning"],
+)
+type OldValueSpecObject = typeof matchOldValueSpecObject._TYPE
 
-interface OldValueSpecNumber {
-  type: "number"
-  nullable: boolean
-  default?: number
-  name: string
-  description?: string
-  warning?: string
-  range: string
-  integral: boolean
-  units?: string
-  placeholder?: string
-}
+const matchOldValueSpecEnum = object(
+  {
+    values: array(string),
+    "value-names": dictionary([string, string]),
+    type: literals("enum"),
+    default: string,
+    name: string,
+    description: string,
+    warning: string,
+  },
+  ["description", "warning"],
+)
+type OldValueSpecEnum = typeof matchOldValueSpecEnum._TYPE
 
-interface OldValueSpecEnum extends OldListValueSpecEnum {
-  type: "enum"
-  default: string
-  name: string
-  description?: string
-  warning?: string
-}
+const matchOldUnionTagSpec = object(
+  {
+    id: string, // The name of the field containing one of the union variants
+    "variant-names": dictionary([string, string]), // The name of each variant
+    name: string,
+    description: string,
+    warning: string,
+  },
+  ["description", "warning"],
+)
+const matchOldValueSpecUnion = object({
+  type: literals("union"),
+  tag: matchOldUnionTagSpec,
+  variants: dictionary([string, _matchOldConfigSpec]),
+  default: string,
+})
+type OldValueSpecUnion = typeof matchOldValueSpecUnion._TYPE
 
-interface OldValueSpecBoolean {
-  type: "boolean"
-  default: boolean
-  name: string
-  description?: string
-  warning?: string
-}
-
-interface OldValueSpecUnion {
-  type: "union"
-  tag: OldUnionTagSpec
-  variants: { [key: string]: OldConfigSpec }
-  default: string
-}
-
-interface OldValueSpecObject {
-  type: "object"
-  spec: OldConfigSpec
-  name: string
-  description?: string
-  warning?: string
-}
-
-// no lists of booleans, lists, pointers
-type OldListValueSpecType = "string" | "enum" | "object" | "union" | "number"
-
-// represents a spec for the values of a list
-type OldListValueSpecOf<T extends OldListValueSpecType> = T extends "string"
-  ? OldListValueSpecString
-  : T extends "enum"
-    ? OldListValueSpecEnum
-    : T extends "object"
-      ? OldListValueSpecObject
-      : never
-
-// represents a spec for a list
-type OldValueSpecList = OldValueSpecListOf<OldListValueSpecType>
-interface OldValueSpecListOf<T extends OldListValueSpecType> {
-  type: "list"
-  subtype: T
-  spec: OldListValueSpecOf<T>
-  range: string // '[0,1]' (inclusive) OR '[0,*)' (right unbounded), normal math rules
-  default: string[] | number[] | OldDefaultString[] | object[]
-  name: string
-  description?: string
-  warning?: string
-}
-
-interface OldListValueSpecString {
-  pattern?: string
-  "pattern-description"?: string
-  masked: boolean
-  copyable: boolean
-  placeholder?: string
-}
-
-interface OldListValueSpecEnum {
-  values: string[]
-  "value-names": { [value: string]: string }
-}
-
-interface OldListValueSpecObject {
-  spec: OldConfigSpec // this is a mapped type of the config object at this level, replacing the object's values with specs on those values
-  "unique-by": OldUniqueBy // indicates whether duplicates can be permitted in the list
-  "display-as"?: string // this should be a handlebars template which can make use of the entire config which corresponds to 'spec'
-}
-
+const [matchOldUniqueBy, setOldUniqueBy] = deferred<OldUniqueBy>()
 type OldUniqueBy =
   | null
   | string
   | { any: OldUniqueBy[] }
   | { all: OldUniqueBy[] }
 
-interface OldUnionTagSpec {
-  id: string // The name of the field containing one of the union variants
-  "variant-names": {
-    // the name of each variant
-    [variant: string]: string
-  }
-  name: string
-  description?: string
-  warning?: string
-}
+setOldUniqueBy(
+  anyOf(
+    nill,
+    string,
+    object({ any: array(matchOldUniqueBy) }),
+    object({ all: array(matchOldUniqueBy) }),
+  ),
+)
 
-type OldDefaultString = string | { charset: string; len: number }
+const matchOldListValueSpecObject = object(
+  {
+    spec: _matchOldConfigSpec, // this is a mapped type of the config object at this level, replacing the object's values with specs on those values
+    "unique-by": matchOldUniqueBy, // indicates whether duplicates can be permitted in the list
+    "display-as": string, // this should be a handlebars template which can make use of the entire config which corresponds to 'spec'
+  },
+  ["display-as"],
+)
+const matchOldListValueSpecString = object(
+  {
+    masked: boolean,
+    copyable: boolean,
+    pattern: string,
+    "pattern-description": string,
+    placeholder: string,
+  },
+  ["pattern", "pattern-description", "placeholder"],
+)
+
+const matchOldListValueSpecEnum = object({
+  values: array(string),
+  "value-names": dictionary([string, string]),
+})
+
+// represents a spec for a list
+const matchOldValueSpecList = every(
+  object(
+    {
+      type: literals("list"),
+      range: string, // '[0,1]' (inclusive) OR '[0,*)' (right unbounded), normal math rules
+      default: anyOf(
+        array(string),
+        array(number),
+        array(matchOldDefaultString),
+        array(object),
+      ),
+      name: string,
+      description: string,
+      warning: string,
+    },
+    ["description", "warning"],
+  ),
+  anyOf(
+    object({
+      subtype: literals("string"),
+      spec: matchOldListValueSpecString,
+    }),
+    object({
+      subtype: literals("enum"),
+      spec: matchOldListValueSpecEnum,
+    }),
+    object({
+      subtype: literals("object"),
+      spec: matchOldListValueSpecObject,
+    }),
+  ),
+)
+type OldValueSpecList = typeof matchOldValueSpecList._TYPE
+
+export const matchOldValueSpec = anyOf(
+  matchOldValueSpecString,
+  matchOldValueSpecNumber,
+  matchOldValueSpecBoolean,
+  matchOldValueSpecObject,
+  matchOldValueSpecEnum,
+  matchOldValueSpecList,
+  matchOldValueSpecUnion,
+)
+type OldValueSpec = typeof matchOldValueSpec._TYPE
+
+setMatchOldConfigSpec(dictionary([string, matchOldValueSpec]))
 
 export class Range {
   min?: number
