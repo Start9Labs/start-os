@@ -26,7 +26,7 @@
     opacity: 0;
   }
 
-  &:after {
+  &::after {
     @include transition(opacity);
 
     content: '';

@@ -17,7 +17,6 @@ import { Domain } from 'src/app/services/patch-db/data-model'
     <thead>
       <tr>
         <th>Domain</th>
-        <th>Added</th>
         <th>DDNS Provider</th>
         <th>Network Strategy</th>
         <th>Used By</th>
@@ -28,13 +27,12 @@ import { Domain } from 'src/app/services/patch-db/data-model'
       @for (domain of domains; track $index) {
         <tr *ngFor="let domain of domains">
           <td class="title">{{ domain.value }}</td>
-          <td class="date">{{ domain.createdAt | date: 'medium' }}</td>
           <td class="provider">{{ domain.provider }}</td>
           <td class="strategy">{{ getStrategy(domain) }}</td>
           <td class="used">
-            @if (domain.usedBy.length; as qty) {
+            @if (domain.usedBy.length + 1; as qty) {
               <button tuiLink (click)="onUsedBy(domain)">
-                Interfaces: {{ qty }}
+                Used by: {{ qty }}
               </button>
             } @else {
               N/A
@@ -60,7 +58,7 @@ import { Domain } from 'src/app/services/patch-db/data-model'
   styles: `
     :host-context(tui-root._mobile) {
       tr {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 2fr 1fr;
       }
 
       td:only-child {
@@ -78,22 +76,27 @@ import { Domain } from 'src/app/services/patch-db/data-model'
         text-align: right;
       }
 
-      .provider {
-        order: 3;
-      }
-
       .strategy {
-        order: 4;
-        text-align: right;
+        order: 3;
+        grid-column: span 2;
+
+        &::before {
+          content: 'Strategy: ';
+          color: var(--tui-text-02);
+        }
       }
 
-      .date {
-        order: 5;
-        color: var(--tui-text-03);
+      .provider {
+        order: 4;
+
+        &::before {
+          content: 'DDNS: ';
+          color: var(--tui-text-02);
+        }
       }
 
       .used {
-        order: 6;
+        order: 5;
         text-align: right;
 
         &:not(:has(button)) {

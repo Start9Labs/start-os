@@ -52,7 +52,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
     }
   `,
   styles: `
-    :host-context(tui-root._mobile) *:before {
+    :host-context(tui-root._mobile) *::before {
       font-size: 1.5rem !important;
     }
   `,

@@ -214,7 +214,7 @@ body {
   user-select: text;
 }
 
-.loading-dots:after {
+.loading-dots::after {
   content: '...';
   overflow: hidden;
   display: inline-block;

@@ -34,7 +34,6 @@ import { Proxy } from 'src/app/services/patch-db/data-model'
     <thead>
       <tr>
         <th>Name</th>
-        <th>Created</th>
         <th>Type</th>
         <th>Used By</th>
         <th [style.width.rem]="3.5"></th>
@@ -44,12 +43,11 @@ import { Proxy } from 'src/app/services/patch-db/data-model'
       @for (proxy of proxies; track $index) {
         <tr>
           <td class="title">{{ proxy.name }}</td>
-          <td class="date">{{ proxy.createdAt | date: 'medium' }}</td>
           <td class="type">{{ proxy.type }}</td>
           <td class="used">
             @if (getLength(proxy); as length) {
               <button tuiLink (click)="onUsedBy(proxy)">
-                Connections: {{ length }}
+                Used by: {{ length }}
               </button>
             } @else {
               N/A
@@ -107,12 +105,6 @@ import { Proxy } from 'src/app/services/patch-db/data-model'
         order: 2;
         padding: 0;
         text-align: right;
-      }
-
-      .date {
-        order: 5;
-        grid-column: span 2;
-        color: var(--tui-text-02);
       }
 
       .type {

@@ -140,7 +140,7 @@
     background: transparent !important;
   }
 
-  tui-root._mobile &:after {
+  tui-root._mobile &::after {
     display: none;
   }
 }
@@ -149,7 +149,7 @@ tui-dialog {
   transform: translate3d(0, 0, 0);
 }
 
-tui-opt-group[data-label^='⚠️']:before {
+tui-opt-group[data-label^='⚠️']::before {
   color: var(--tui-warning-fill);
 }
 

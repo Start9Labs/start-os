@@ -90,35 +90,39 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
         grid-column: span 3;
       }
 
-      .title {
+      .type {
+        order: 1;
+        text-transform: capitalize;
+        color: var(--tui-text-02);
+        grid-column: span 3;
+
+        tui-icon {
+          display: none;
+        }
+      }
+
+      .available {
         order: 2;
+      }
+
+      .title {
+        order: 3;
         font-weight: bold;
         text-transform: uppercase;
       }
 
-      .available {
-        order: 1;
-      }
-
       .actions {
-        order: 3;
+        order: 4;
         padding: 0;
         text-align: right;
       }
 
       .path {
-        order: 4;
+        order: 5;
         color: var(--tui-text-03);
         grid-column: span 2;
         overflow: hidden;
         text-overflow: ellipsis;
-      }
-
-      .type {
-        order: 5;
-        text-align: right;
-        text-transform: capitalize;
-        color: var(--tui-text-02);
       }
     }
   `,

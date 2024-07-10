@@ -45,7 +45,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
       top: 50%;
       left: 50%;
 
-      &:before {
+      &::before {
         content: '';
         position: absolute;
         inset: -0.5rem;
@@ -53,7 +53,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
         border-radius: 100%;
       }
 
-      &:after {
+      &::after {
         content: '';
         position: absolute;
         width: 0.25rem;
