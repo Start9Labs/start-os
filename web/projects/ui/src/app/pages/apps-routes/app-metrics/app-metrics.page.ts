@@ -1,8 +1,8 @@
 import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
+import { ErrorService, getPkgId, pauseFor } from '@start9labs/shared'
 import { Metric } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { pauseFor, ErrorToastService, getPkgId } from '@start9labs/shared'
 
 @Component({
   selector: 'app-metrics',
@@ -17,7 +17,7 @@ export class AppMetricsPage {
 
   constructor(
     private readonly route: ActivatedRoute,
-    private readonly errToast: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly embassyApi: ApiService,
   ) {}
 
@@ -46,7 +46,7 @@ export class AppMetricsPage {
     try {
       this.metrics = await this.embassyApi.getPkgMetrics({ id: this.pkgId })
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
       this.stopDaemon()
     } finally {
       this.loading = false

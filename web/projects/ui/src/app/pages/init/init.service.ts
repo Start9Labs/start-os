@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core'
-import { ErrorToastService } from '@start9labs/shared'
+import { ErrorService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import {
   catchError,
@@ -24,7 +24,7 @@ interface MappedProgress {
 export class InitService extends Observable<MappedProgress> {
   private readonly state = inject(StateService)
   private readonly api = inject(ApiService)
-  private readonly errorService = inject(ErrorToastService)
+  private readonly errorService = inject(ErrorService)
   private readonly progress$ = defer(() =>
     from(this.api.initGetProgress()),
   ).pipe(
@@ -58,7 +58,8 @@ export class InitService extends Observable<MappedProgress> {
       }
     }),
     catchError(e => {
-      this.errorService.present(e)
+      // @TODO this toast is presenting when we navigate away from init page. It seems other websockets exhibit the same behavior, but we never noticed because the error were not being caught and presented in this manner
+      this.errorService.handleError(e)
 
       return EMPTY
     }),

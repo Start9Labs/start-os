@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use emver::{Version, VersionRange};
+use exver::{Version, VersionRange};
 use imbl_value::InternedString;
 use models::{DataUrl, PackageId, VersionString};
 use serde::{Deserialize, Serialize};
@@ -70,7 +70,8 @@ pub struct PackageVersionInfo {
     pub support_site: Url,
     #[ts(type = "string")]
     pub marketing_site: Url,
-    pub os_version: VersionString,
+    #[ts(type = "string")]
+    pub os_version: Version,
     pub hardware_requirements: HardwareRequirements,
     #[ts(type = "string | null")]
     pub source_version: Option<VersionRange>,

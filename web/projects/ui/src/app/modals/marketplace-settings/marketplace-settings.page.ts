@@ -1,276 +1,230 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  Inject,
-  ViewChild,
-} from '@angular/core'
-import {
-  ActionSheetController,
-  AlertController,
-  LoadingController,
-  ModalController,
-} from '@ionic/angular'
-import { ActionSheetButton } from '@ionic/core'
-import { ErrorToastService, sameUrl, toUrl } from '@start9labs/shared'
+import { CommonModule } from '@angular/common'
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ValueSpecObject } from 'src/app/pkg-config/config-types'
-import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
+import {
+  ErrorService,
+  LoadingService,
+  sameUrl,
+  toUrl,
+} from '@start9labs/shared'
+import { CT } from '@start9labs/start-sdk'
+import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
+import {
+  TuiButtonModule,
+  TuiCellModule,
+  TuiIconModule,
+  TuiTitleModule,
+} from '@taiga-ui/experimental'
+import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { PatchDB } from 'patch-db-client'
-import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
-import { MarketplaceService } from 'src/app/services/marketplace.service'
+import { combineLatest, filter, firstValueFrom, Subscription } from 'rxjs'
 import { map } from 'rxjs/operators'
-import { combineLatest, firstValueFrom } from 'rxjs'
+import { FormComponent } from 'src/app/components/form.component'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
+import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
+
+import { MarketplaceRegistryComponent } from './registry.component'
 
 @Component({
+  standalone: true,
+  imports: [
+    CommonModule,
+    TuiCellModule,
+    TuiIconModule,
+    TuiTitleModule,
+    TuiButtonModule,
+    MarketplaceRegistryComponent,
+  ],
   selector: 'marketplace-settings',
   templateUrl: 'marketplace-settings.page.html',
   styleUrls: ['marketplace-settings.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplaceSettingsPage {
-  stores$ = combineLatest([
-    this.marketplaceService.getKnownHosts$(),
-    this.marketplaceService.getSelectedHost$(),
-  ]).pipe(
-    map(([stores, selected]) => {
-      const toSlice = stores.map(s => ({
-        ...s,
-        selected: sameUrl(s.url, selected.url),
-      }))
-      // 0 and 1 are prod and community
-      const standard = toSlice.slice(0, 2)
-      // 2 and beyond are alts
-      const alt = toSlice.slice(2)
-
-      return { standard, alt }
-    }),
+  private readonly api = inject(ApiService)
+  private readonly loader = inject(LoadingService)
+  private readonly errorService = inject(ErrorService)
+  private readonly formDialog = inject(FormDialogService)
+  private readonly dialogs = inject(TuiDialogService)
+  private readonly marketplace = inject(
+    AbstractMarketplaceService,
+  ) as MarketplaceService
+  private readonly hosts$ = inject(PatchDB<DataModel>).watch$(
+    'ui',
+    'marketplace',
+    'knownHosts',
   )
 
-  constructor(
-    private readonly api: ApiService,
-    private readonly loadingCtrl: LoadingController,
-    private readonly modalCtrl: ModalController,
-    private readonly errToast: ErrorToastService,
-    private readonly actionCtrl: ActionSheetController,
-    @Inject(AbstractMarketplaceService)
-    private readonly marketplaceService: MarketplaceService,
-    private readonly patch: PatchDB<DataModel>,
-    private readonly alertCtrl: AlertController,
-  ) {}
+  readonly stores$ = combineLatest([
+    this.marketplace.getKnownHosts$(),
+    this.marketplace.getSelectedHost$(),
+  ]).pipe(
+    map(([stores, selected]) =>
+      stores.map(s => ({
+        ...s,
+        selected: sameUrl(s.url, selected.url),
+      })),
+    ),
+    // 0 and 1 are prod and community, 2 and beyond are alts
+    map(stores => ({ standard: stores.slice(0, 2), alt: stores.slice(2) })),
+  )
 
-  async dismiss() {
-    this.modalCtrl.dismiss()
-  }
-
-  async presentModalAdd() {
+  async add() {
     const { name, spec } = getMarketplaceValueSpec()
-    const modal = await this.modalCtrl.create({
-      component: GenericFormPage,
-      componentProps: {
-        title: name,
+
+    this.formDialog.open(FormComponent, {
+      label: name,
+      data: {
         spec,
         buttons: [
           {
             text: 'Save for Later',
-            handler: (value: { url: string }) => {
-              this.saveOnly(value.url)
-            },
+            handler: async ({ url }: { url: string }) => this.save(url),
           },
           {
             text: 'Save and Connect',
-            handler: (value: { url: string }) => {
-              this.saveAndConnect(value.url)
-            },
+            handler: async ({ url }: { url: string }) => this.save(url, true),
             isSubmit: true,
           },
         ],
       },
-      cssClass: 'alertlike-modal',
     })
-
-    await modal.present()
   }
+  delete(url: string, name: string = '') {
+    this.dialogs
+      .open(TUI_PROMPT, getPromptOptions(name))
+      .pipe(filter(Boolean))
+      .subscribe(async () => {
+        const loader = this.loader.open('Deleting...').subscribe()
+        const hosts = await firstValueFrom(this.hosts$)
+        const filtered: { [url: string]: UIStore } = Object.keys(hosts)
+          .filter(key => !sameUrl(key, url))
+          .reduce(
+            (prev, curr) => ({
+              ...prev,
+              [curr]: hosts[curr],
+            }),
+            {},
+          )
 
-  async presentAction(
-    { url, name }: { url: string; name?: string },
-    canDelete = false,
-  ) {
-    const buttons: ActionSheetButton[] = [
-      {
-        text: 'Connect',
-        handler: () => {
-          this.connect(url)
-        },
-      },
-    ]
-
-    if (canDelete) {
-      buttons.unshift({
-        text: 'Delete',
-        role: 'destructive',
-        handler: () => {
-          this.presentAlertDelete(url, name!)
-        },
+        try {
+          await this.api.setDbValue(['marketplace', 'knownHosts'], filtered)
+        } catch (e: any) {
+          this.errorService.handleError(e)
+        } finally {
+          loader.unsubscribe()
+        }
       })
-    }
-
-    const action = await this.actionCtrl.create({
-      header: name,
-      mode: 'ios',
-      buttons,
-    })
-
-    await action.present()
   }
 
-  private async presentAlertDelete(url: string, name: string) {
-    const alert = await this.alertCtrl.create({
-      header: 'Confirm',
-      message: `Are you sure you want to delete ${name}?`,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Delete',
-          handler: () => this.delete(url),
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-
-    await alert.present()
-  }
-
-  private async connect(
+  async connect(
     url: string,
-    loader?: HTMLIonLoadingElement,
+    loader: Subscription = new Subscription(),
   ): Promise<void> {
-    const message = 'Changing Registry...'
-    if (!loader) {
-      loader = await this.loadingCtrl.create({ message })
-      await loader.present()
-    } else {
-      loader.message = message
-    }
+    loader.unsubscribe()
+    loader.closed = false
+    loader.add(this.loader.open('Changing Registry...').subscribe())
 
     try {
-      await this.api.setDbValue<string>(['marketplace', 'selected-url'], url)
+      await this.api.setDbValue<string>(['marketplace', 'selectedUrl'], url)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
-      this.dismiss()
+      loader.unsubscribe()
     }
   }
 
-  private async saveOnly(rawUrl: string): Promise<void> {
-    const loader = await this.loadingCtrl.create()
+  private async save(rawUrl: string, connect = false): Promise<boolean> {
+    const loader = this.loader.open('Loading').subscribe()
+    const url = new URL(rawUrl).toString()
 
     try {
-      const url = new URL(rawUrl).toString()
       await this.validateAndSave(url, loader)
+      if (connect) await this.connect(url, loader)
+      return true
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
+      return false
     } finally {
-      loader.dismiss()
-    }
-  }
-
-  private async saveAndConnect(rawUrl: string): Promise<void> {
-    const loader = await this.loadingCtrl.create()
-
-    try {
-      const url = new URL(rawUrl).toString()
-      await this.validateAndSave(url, loader)
-      await this.connect(url, loader)
-    } catch (e: any) {
-      this.errToast.present(e)
-    } finally {
-      loader.dismiss()
-      this.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async validateAndSave(
     url: string,
-    loader: HTMLIonLoadingElement,
+    loader: Subscription,
   ): Promise<void> {
     // Error on duplicates
-    const hosts = await firstValueFrom(
-      this.patch.watch$('ui', 'marketplace', 'knownHosts'),
-    )
+    const hosts = await firstValueFrom(this.hosts$)
     const currentUrls = Object.keys(hosts).map(toUrl)
-    if (currentUrls.includes(url)) throw new Error('marketplace already added')
+    if (currentUrls.includes(url)) throw new Error('Marketplace already added')
 
     // Validate
-    loader.message = 'Validating marketplace...'
-    await loader.present()
+    loader.unsubscribe()
+    loader.closed = false
+    loader.add(this.loader.open('Validating marketplace...').subscribe())
 
-    const { name } = await firstValueFrom(
-      this.marketplaceService.fetchInfo$(url),
-    )
+    const { name } = await firstValueFrom(this.marketplace.fetchInfo$(url))
 
     // Save
-    loader.message = 'Saving...'
+    loader.unsubscribe()
+    loader.closed = false
+    loader.add(this.loader.open('Saving...').subscribe())
 
-    await this.api.setDbValue<{ name: string }>(
-      ['marketplace', 'knownHosts', url],
-      { name },
-    )
-  }
-
-  private async delete(url: string): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Deleting...',
-    })
-    await loader.present()
-
-    const hosts = await firstValueFrom(
-      this.patch.watch$('ui', 'marketplace', 'knownHosts'),
-    )
-
-    const filtered: { [url: string]: UIStore } = Object.keys(hosts)
-      .filter(key => !sameUrl(key, url))
-      .reduce((prev, curr) => {
-        const name = hosts[curr]
-        return {
-          ...prev,
-          [curr]: name,
-        }
-      }, {})
-
-    try {
-      await this.api.setDbValue<{ [url: string]: UIStore }>(
-        ['marketplace', 'knownHosts'],
-        filtered,
-      )
-    } catch (e: any) {
-      this.errToast.present(e)
-    } finally {
-      loader.dismiss()
-    }
+    await this.api.setDbValue(['marketplace', 'knownHosts', url], { name })
   }
 }
 
-function getMarketplaceValueSpec(): ValueSpecObject {
+export const MARKETPLACE_REGISTRY = new PolymorpheusComponent(
+  MarketplaceSettingsPage,
+)
+
+function getMarketplaceValueSpec(): CT.ValueSpecObject {
   return {
     type: 'object',
     name: 'Add Custom Registry',
+    description: null,
+    warning: null,
     spec: {
       url: {
-        type: 'string',
+        type: 'text',
         name: 'URL',
         description: 'A fully-qualified URL of the custom registry',
-        nullable: false,
+        inputmode: 'url',
+        required: true,
         masked: false,
-        copyable: false,
-        pattern: `https?:\/\/[a-zA-Z0-9][a-zA-Z0-9-\.]+[a-zA-Z0-9]\.[^\s]{2,}`,
-        'pattern-description': 'Must be a valid URL',
+        minLength: null,
+        maxLength: null,
+        patterns: [
+          {
+            regex: `https?:\/\/[a-zA-Z0-9][a-zA-Z0-9-\.]+[a-zA-Z0-9]\.[^\s]{2,}`,
+            description: 'Must be a valid URL',
+          },
+        ],
         placeholder: 'e.g. https://example.org',
+        default: null,
+        warning: null,
+        disabled: false,
+        immutable: false,
+        generate: null,
       },
+    },
+  }
+}
+
+function getPromptOptions(
+  name: string,
+): Partial<TuiDialogOptions<TuiPromptData>> {
+  return {
+    label: 'Confirm',
+    size: 's',
+    data: {
+      content: `Are you sure you want to delete ${name}?`,
+      yes: 'Delete',
+      no: 'Cancel',
     },
   }
 }

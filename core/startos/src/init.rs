@@ -5,7 +5,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::time::{Duration, SystemTime};
 
-use axum::extract::ws::{self, CloseFrame};
+use axum::extract::ws::{self};
 use color_eyre::eyre::eyre;
 use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
@@ -31,7 +31,7 @@ use crate::progress::{
 };
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::ssh::SSH_AUTHORIZED_KEYS_FILE;
-use crate::util::io::IOHook;
+use crate::util::io::{create_file, IOHook};
 use crate::util::net::WebSocketExt;
 use crate::util::{cpupower, Invoke};
 use crate::Error;
@@ -138,10 +138,7 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
                 old_version -= 1;
                 let old_datadir = db_dir.join(old_version.to_string());
                 if tokio::fs::metadata(&old_datadir).await.is_ok() {
-                    tokio::fs::File::create(&incomplete_path)
-                        .await?
-                        .sync_all()
-                        .await?;
+                    create_file(&incomplete_path).await?.sync_all().await?;
                     Command::new("pg_upgradecluster")
                         .arg(old_version.to_string())
                         .arg("main")

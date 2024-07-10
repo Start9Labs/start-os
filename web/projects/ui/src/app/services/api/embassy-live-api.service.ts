@@ -7,6 +7,7 @@ import {
   RpcError,
   RPCOptions,
 } from '@start9labs/shared'
+import { PATCH_CACHE } from 'src/app/services/patch-db/patch-db-source'
 import { ApiService } from './embassy-api.service'
 import { RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
@@ -16,7 +17,7 @@ import { Observable, filter, firstValueFrom } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
-import { PatchDB, pathFromArray } from 'patch-db-client'
+import { Dump, pathFromArray } from 'patch-db-client'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -25,7 +26,7 @@ export class LiveApiService extends ApiService {
     private readonly http: HttpService,
     private readonly config: ConfigService,
     private readonly auth: AuthService,
-    private readonly patch: PatchDB<DataModel>,
+    @Inject(PATCH_CACHE) private readonly cache$: Observable<Dump<DataModel>>,
   ) {
     super()
     ; (window as any).rpcClient = this
@@ -52,6 +53,15 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  async uploadFile(body: Blob): Promise<string> {
+    return this.httpRequest({
+      method: Method.POST,
+      body,
+      url: `/rest/upload`,
+      responseType: 'text',
+    })
+  }
+
   // websocket
 
   openWebsocket$<T>(
@@ -69,6 +79,10 @@ export class LiveApiService extends ApiService {
   }
 
   // state
+
+  async echo(params: RR.EchoReq, url: string): Promise<RR.EchoRes> {
+    return this.rpcRequest({ method: 'echo', params }, url)
+  }
 
   async getState(): Promise<RR.ServerState> {
     return this.rpcRequest({ method: 'state', params: {} })
@@ -457,12 +471,10 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async sideloadPackage(
-    params: RR.SideloadPackageReq,
-  ): Promise<RR.SideloadPacakgeRes> {
+  async sideloadPackage(): Promise<RR.SideloadPackageRes> {
     return this.rpcRequest({
       method: 'package.sideload',
-      params,
+      params: {},
     })
   }
 
@@ -484,7 +496,7 @@ export class LiveApiService extends ApiService {
     const patchSequence = res.headers.get('x-patch-sequence')
     if (patchSequence)
       await firstValueFrom(
-        this.patch.cache$.pipe(filter(({ id }) => id >= Number(patchSequence))),
+        this.cache$.pipe(filter(({ id }) => id >= Number(patchSequence))),
       )
 
     return body.result

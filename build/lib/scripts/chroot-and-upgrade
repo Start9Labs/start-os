@@ -1,5 +1,7 @@
 #!/bin/bash
 
+SOURCE_DIR="$(dirname "${BASH_SOURCE[0]}")"
+
 if [ "$UID" -ne 0 ]; then
     >&2 echo 'Must be run as root'
     exit 1
@@ -77,20 +79,7 @@ umount /media/startos/next/boot
 if [ "$CHROOT_RES" -eq 0 ]; then
 
     if [ -h /media/startos/config/current.rootfs ] && [ -e /media/startos/config/current.rootfs ]; then
-        echo 'Pruning...'
-        current="$(readlink -f /media/startos/config/current.rootfs)"
-        needed=$(du -s --bytes /media/startos/next | awk '{print $1}')
-        while [[ "$(df -B1 --output=avail --sync /media/startos/images | tail -n1)" -lt "$needed" ]]; do
-            to_prune="$(ls -t1 /media/startos/images/*.rootfs | grep -v "$current" | tail -n1)"
-            if [ -e "$to_prune" ]; then
-                echo "  Pruning $to_prune"
-                rm -rf "$to_prune"
-            else
-                >&2 echo "Not enough space and nothing to prune!"
-                exit 1
-            fi
-        done
-        echo 'done.'
+        ${SOURCE_DIR}/prune-images $(du -s --bytes /media/startos/next | awk '{print $1}')
     fi
 
     echo 'Upgrading...'

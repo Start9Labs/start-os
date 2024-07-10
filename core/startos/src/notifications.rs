@@ -74,6 +74,7 @@ pub async fn list(
                         .as_notifications()
                         .as_entries()?
                         .into_iter()
+                        .rev()
                         .take(limit);
                     let notifs = records
                         .into_iter()
@@ -97,6 +98,7 @@ pub async fn list(
                         .as_entries()?
                         .into_iter()
                         .filter(|(id, _)| *id < before)
+                        .rev()
                         .take(limit);
                     records
                         .into_iter()

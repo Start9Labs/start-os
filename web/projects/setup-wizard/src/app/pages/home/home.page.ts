@@ -1,9 +1,9 @@
 import { Component } from '@angular/core'
 import { IonicSlides } from '@ionic/angular'
+import { ErrorService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/api.service'
-import SwiperCore, { Swiper } from 'swiper'
-import { ErrorToastService } from '@start9labs/shared'
 import { StateService } from 'src/app/services/state.service'
+import SwiperCore, { Swiper } from 'swiper'
 
 SwiperCore.use([IonicSlides])
 
@@ -19,7 +19,7 @@ export class HomePage {
 
   constructor(
     private readonly api: ApiService,
-    private readonly errToastService: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly stateService: StateService,
   ) {}
 
@@ -33,7 +33,7 @@ export class HomePage {
       await this.api.getPubKey()
     } catch (e: any) {
       this.error = true
-      this.errToastService.present(e)
+      this.errorService.handleError(e)
     } finally {
       this.loading = false
     }

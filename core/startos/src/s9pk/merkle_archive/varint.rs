@@ -3,7 +3,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::prelude::*;
 
-/// Most-significant byte, == 0x80
+/// Most-significant bit, == 0x80
 pub const MSB: u8 = 0b1000_0000;
 
 const MAX_STR_LEN: u64 = 1024 * 1024; // 1 MiB
@@ -39,22 +39,20 @@ pub async fn serialize_varstring<W: AsyncWrite + Unpin + Send>(
     Ok(())
 }
 
+const MAX_SIZE: usize = (std::mem::size_of::<u64>() * 8 + 7) / 7;
+
 #[derive(Default)]
 struct VarIntProcessor {
-    buf: [u8; 10],
-    maxsize: usize,
+    buf: [u8; MAX_SIZE],
     i: usize,
 }
 
 impl VarIntProcessor {
     fn new() -> VarIntProcessor {
-        VarIntProcessor {
-            maxsize: (std::mem::size_of::<u64>() * 8 + 7) / 7,
-            ..VarIntProcessor::default()
-        }
+        Self::default()
     }
     fn push(&mut self, b: u8) -> Result<(), Error> {
-        if self.i >= self.maxsize {
+        if self.i >= MAX_SIZE {
             return Err(Error::new(
                 eyre!("Unterminated varint"),
                 ErrorKind::ParseS9pk,

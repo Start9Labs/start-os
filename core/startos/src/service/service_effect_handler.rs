@@ -7,8 +7,8 @@ use std::str::FromStr;
 use std::sync::{Arc, Weak};
 
 use clap::builder::ValueParserFactory;
-use clap::{CommandFactory, FromArgMatches, Parser};
-use emver::VersionRange;
+use clap::Parser;
+use exver::VersionRange;
 use imbl_value::json;
 use itertools::Itertools;
 use models::{
@@ -61,56 +61,6 @@ impl EffectContext {
                 ErrorKind::InvalidRequest,
             ))
         }
-    }
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WithProcedureId<T> {
-    #[serde(default)]
-    procedure_id: Guid,
-    #[serde(flatten)]
-    rest: T,
-}
-impl<T: FromArgMatches> FromArgMatches for WithProcedureId<T> {
-    fn from_arg_matches(matches: &clap::ArgMatches) -> Result<Self, clap::Error> {
-        let rest = T::from_arg_matches(matches)?;
-        Ok(Self {
-            procedure_id: matches.get_one("procedure-id").cloned().unwrap_or_default(),
-            rest,
-        })
-    }
-    fn from_arg_matches_mut(matches: &mut clap::ArgMatches) -> Result<Self, clap::Error> {
-        let rest = T::from_arg_matches_mut(matches)?;
-        Ok(Self {
-            procedure_id: matches.get_one("procedure-id").cloned().unwrap_or_default(),
-            rest,
-        })
-    }
-    fn update_from_arg_matches(&mut self, matches: &clap::ArgMatches) -> Result<(), clap::Error> {
-        self.rest.update_from_arg_matches(matches)?;
-        self.procedure_id = matches.get_one("procedure-id").cloned().unwrap_or_default();
-        Ok(())
-    }
-    fn update_from_arg_matches_mut(
-        &mut self,
-        matches: &mut clap::ArgMatches,
-    ) -> Result<(), clap::Error> {
-        self.rest.update_from_arg_matches_mut(matches)?;
-        self.procedure_id = matches.get_one("procedure-id").cloned().unwrap_or_default();
-        Ok(())
-    }
-}
-impl<T: CommandFactory> CommandFactory for WithProcedureId<T> {
-    fn command() -> clap::Command {
-        T::command_for_update().arg(
-            clap::Arg::new("procedure-id")
-                .action(clap::ArgAction::Set)
-                .value_parser(clap::value_parser!(Guid)),
-        )
-    }
-    fn command_for_update() -> clap::Command {
-        Self::command()
     }
 }
 
@@ -877,6 +827,8 @@ async fn exists(context: EffectContext, params: ParamsPackageId) -> Result<Value
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 struct ExecuteAction {
+    #[serde(default)]
+    procedure_id: Guid,
     #[ts(type = "string | null")]
     service_id: Option<PackageId>,
     #[ts(type = "string")]
@@ -886,15 +838,12 @@ struct ExecuteAction {
 }
 async fn execute_action(
     context: EffectContext,
-    WithProcedureId {
+    ExecuteAction {
         procedure_id,
-        rest:
-            ExecuteAction {
-                service_id,
-                action_id,
-                input,
-            },
-    }: WithProcedureId<ExecuteAction>,
+        service_id,
+        action_id,
+        input,
+    }: ExecuteAction,
 ) -> Result<Value, Error> {
     let context = context.deref()?;
     let package_id = service_id
@@ -950,9 +899,18 @@ async fn running(context: EffectContext, params: ParamsPackageId) -> Result<Valu
     Ok(json!(matches!(package, MainStatus::Running { .. })))
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+struct ProcedureId {
+    #[serde(default)]
+    #[arg(default_value_t, long)]
+    procedure_id: Guid,
+}
+
 async fn restart(
     context: EffectContext,
-    WithProcedureId { procedure_id, .. }: WithProcedureId<Empty>,
+    ProcedureId { procedure_id }: ProcedureId,
 ) -> Result<(), Error> {
     let context = context.deref()?;
     context.restart(procedure_id).await?;
@@ -961,7 +919,7 @@ async fn restart(
 
 async fn shutdown(
     context: EffectContext,
-    WithProcedureId { procedure_id, .. }: WithProcedureId<Empty>,
+    ProcedureId { procedure_id }: ProcedureId,
 ) -> Result<(), Error> {
     let context = context.deref()?;
     context.stop(procedure_id).await?;
@@ -1001,7 +959,6 @@ async fn set_configured(context: EffectContext, params: SetConfigured) -> Result
 enum SetMainStatusStatus {
     Running,
     Stopped,
-    Starting,
 }
 impl FromStr for SetMainStatusStatus {
     type Err = color_eyre::eyre::Report;
@@ -1009,7 +966,6 @@ impl FromStr for SetMainStatusStatus {
         match s {
             "running" => Ok(Self::Running),
             "stopped" => Ok(Self::Stopped),
-            "starting" => Ok(Self::Starting),
             _ => Err(eyre!("unknown status {s}")),
         }
     }
@@ -1033,7 +989,6 @@ async fn set_main_status(context: EffectContext, params: SetMainStatus) -> Resul
     match params.status {
         SetMainStatusStatus::Running => context.seed.started(),
         SetMainStatusStatus::Stopped => context.seed.stopped(),
-        SetMainStatusStatus::Starting => context.seed.started(),
     }
     Ok(Value::Null)
 }
@@ -1262,15 +1217,17 @@ impl ValueParserFactory for DependencyRequirement {
 #[command(rename_all = "camelCase")]
 #[ts(export)]
 struct SetDependenciesParams {
+    #[serde(default)]
+    procedure_id: Guid,
     dependencies: Vec<DependencyRequirement>,
 }
 
 async fn set_dependencies(
     context: EffectContext,
-    WithProcedureId {
+    SetDependenciesParams {
         procedure_id,
-        rest: SetDependenciesParams { dependencies },
-    }: WithProcedureId<SetDependenciesParams>,
+        dependencies,
+    }: SetDependenciesParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
     let id = &context.seed.id;
@@ -1426,7 +1383,7 @@ struct CheckDependenciesResult {
     is_running: bool,
     health_checks: Vec<HealthCheckResult>,
     #[ts(type = "string | null")]
-    version: Option<emver::Version>,
+    version: Option<exver::ExtendedVersion>,
 }
 
 async fn check_dependencies(

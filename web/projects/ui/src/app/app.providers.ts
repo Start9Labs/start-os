@@ -3,6 +3,12 @@ import { UntypedFormBuilder } from '@angular/forms'
 import { Router, RouteReuseStrategy } from '@angular/router'
 import { IonicRouteStrategy, IonNav } from '@ionic/angular'
 import { RELATIVE_URL, THEME, WorkspaceConfig } from '@start9labs/shared'
+import { TUI_ICONS_PATH } from '@taiga-ui/core'
+import { PatchDB } from 'patch-db-client'
+import {
+  PATCH_CACHE,
+  PatchDbSource,
+} from 'src/app/services/patch-db/patch-db-source'
 import { ApiService } from './services/api/embassy-api.service'
 import { MockApiService } from './services/api/embassy-mock-api.service'
 import { LiveApiService } from './services/api/embassy-live-api.service'
@@ -30,6 +36,11 @@ export const APP_PROVIDERS: Provider[] = [
     useClass: useMocks ? MockApiService : LiveApiService,
   },
   {
+    provide: PatchDB,
+    deps: [PatchDbSource, PATCH_CACHE],
+    useClass: PatchDB,
+  },
+  {
     provide: APP_INITIALIZER,
     deps: [StorageService, AuthService, ClientStorageService, Router],
     useFactory: appInitializer,
@@ -43,6 +54,10 @@ export const APP_PROVIDERS: Provider[] = [
     provide: THEME,
     useExisting: ThemeSwitcherService,
   },
+  {
+    provide: TUI_ICONS_PATH,
+    useValue: (name: string) => `/assets/taiga-ui/icons/${name}.svg#${name}`,
+  },
 ]
 
 export function appInitializer(
@@ -54,7 +69,7 @@ export function appInitializer(
   return () => {
     storage.migrate036()
     auth.init()
-    localStorage.init() // @TODO pretty sure we can navigate before this step
+    localStorage.init()
     router.initialNavigation()
   }
 }

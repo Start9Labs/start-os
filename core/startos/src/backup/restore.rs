@@ -156,16 +156,14 @@ async fn restore_packages(
     let mut tasks = BTreeMap::new();
     for id in ids {
         let backup_dir = backup_guard.clone().package_backup(&id);
+        let s9pk_path = backup_dir.path().join(&id).with_extension("s9pk");
         let task = ctx
             .services
             .install(
                 ctx.clone(),
-                S9pk::open(
-                    backup_dir.path().join(&id).with_extension("s9pk"),
-                    Some(&id),
-                )
-                .await?,
+                || S9pk::open(s9pk_path, Some(&id)),
                 Some(backup_dir),
+                None,
             )
             .await?;
         tasks.insert(id, task);

@@ -20,6 +20,7 @@ use super::header::{FileSection, Header, TableOfContents};
 use super::SIG_CONTEXT;
 use crate::prelude::*;
 use crate::s9pk::v1::docker::DockerReader;
+use crate::util::io::open_file;
 use crate::util::VersionString;
 
 #[pin_project::pin_project]
@@ -150,9 +151,7 @@ pub struct S9pkReader<R: AsyncRead + AsyncSeek + Unpin + Send + Sync = BufReader
 impl S9pkReader {
     pub async fn open<P: AsRef<Path>>(path: P, check_sig: bool) -> Result<Self, Error> {
         let p = path.as_ref();
-        let rdr = File::open(p)
-            .await
-            .with_ctx(|_| (crate::error::ErrorKind::Filesystem, p.display().to_string()))?;
+        let rdr = open_file(p).await?;
 
         Self::from_reader(BufReader::new(rdr), check_sig).await
     }

@@ -1,8 +1,8 @@
 import { Component } from '@angular/core'
-import { AlertController, LoadingController } from '@ionic/angular'
-import { ErrorToastService } from '@start9labs/shared'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { AlertController } from '@ionic/angular'
+import { ErrorService, LoadingService } from '@start9labs/shared'
 import { PlatformType, Session } from 'src/app/services/api/api.types'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
   selector: 'sessions',
@@ -15,8 +15,8 @@ export class SessionsPage {
   otherSessions: SessionWithId[] = []
 
   constructor(
-    private readonly loadingCtrl: LoadingController,
-    private readonly errToast: ErrorToastService,
+    private readonly loader: LoadingService,
+    private readonly errorService: ErrorService,
     private readonly alertCtrl: AlertController,
     private readonly embassyApi: ApiService,
   ) {}
@@ -39,7 +39,7 @@ export class SessionsPage {
           )
         })
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
       this.loading = false
     }
@@ -67,18 +67,17 @@ export class SessionsPage {
   }
 
   async kill(ids: string[]): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: `Terminating session${ids.length > 1 ? 's' : ''}...`,
-    })
-    await loader.present()
+    const loader = this.loader
+      .open(`Terminating session${ids.length > 1 ? 's' : ''}...`)
+      .subscribe()
 
     try {
       await this.embassyApi.killSessions({ ids })
       this.otherSessions = this.otherSessions.filter(s => !ids.includes(s.id))
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 

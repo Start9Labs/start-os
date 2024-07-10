@@ -10,6 +10,8 @@ export abstract class ApiService {
   // for sideloading packages
   abstract uploadPackage(guid: string, body: Blob): Promise<string>
 
+  abstract uploadFile(body: Blob): Promise<string>
+
   // websocket
 
   abstract openWebsocket$<T>(
@@ -17,7 +19,9 @@ export abstract class ApiService {
     config: RR.WebsocketConfig<T>,
   ): Observable<T>
 
-  // server state
+  // state
+
+  abstract echo(params: RR.EchoReq, url: string): Promise<RR.EchoRes>
 
   abstract getState(): Promise<RR.ServerState>
 
@@ -241,7 +245,5 @@ export abstract class ApiService {
     params: RR.DryConfigureDependencyReq,
   ): Promise<RR.DryConfigureDependencyRes>
 
-  abstract sideloadPackage(
-    params: RR.SideloadPackageReq,
-  ): Promise<RR.SideloadPacakgeRes>
+  abstract sideloadPackage(): Promise<RR.SideloadPackageRes>
 }

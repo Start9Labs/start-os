@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use color_eyre::eyre::eyre;
+use exver::Version;
 use helpers::const_true;
 use imbl_value::InternedString;
 pub use models::PackageId;
@@ -20,8 +21,8 @@ use crate::util::serde::Regex;
 use crate::util::VersionString;
 use crate::version::{Current, VersionT};
 
-fn current_version() -> VersionString {
-    Current::new().semver().into()
+fn current_version() -> Version {
+    Current::new().semver()
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
@@ -59,7 +60,8 @@ pub struct Manifest {
     #[ts(type = "string | null")]
     pub git_hash: Option<GitHash>,
     #[serde(default = "current_version")]
-    pub os_version: VersionString,
+    #[ts(type = "string")]
+    pub os_version: Version,
     #[serde(default = "const_true")]
     pub has_config: bool,
 }
@@ -146,7 +148,7 @@ impl Manifest {
 #[ts(export)]
 pub struct HardwareRequirements {
     #[serde(default)]
-    #[ts(type = "{ [key: string]: string }")]
+    #[ts(type = "{ [key: string]: string }")] // TODO more specific key
     pub device: BTreeMap<String, Regex>,
     #[ts(type = "number | null")]
     pub ram: Option<u64>,

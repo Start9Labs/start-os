@@ -25,20 +25,20 @@ enum Version {
     V0_3_5_1(Wrapper<v0_3_5_1::Version>),
     V0_3_5_2(Wrapper<v0_3_5_2::Version>),
     V0_3_6(Wrapper<v0_3_6::Version>),
-    Other(emver::Version),
+    Other(exver::Version),
 }
 
 impl Version {
-    fn from_util_version(version: crate::util::VersionString) -> Self {
+    fn from_exver_version(version: exver::Version) -> Self {
         serde_json::to_value(version.clone())
             .and_then(serde_json::from_value)
             .unwrap_or_else(|_e| {
                 tracing::warn!("Can't deserialize: {:?} and falling back to other", version);
-                Version::Other(version.into_version())
+                Version::Other(version)
             })
     }
     #[cfg(test)]
-    fn as_sem_ver(&self) -> emver::Version {
+    fn as_exver(&self) -> exver::Version {
         match self {
             Version::LT0_3_5(LTWrapper(_, x)) => x.clone(),
             Version::V0_3_5(Wrapper(x)) => x.semver(),
@@ -56,8 +56,8 @@ where
 {
     type Previous: VersionT;
     fn new() -> Self;
-    fn semver(&self) -> emver::Version;
-    fn compat(&self) -> &'static emver::VersionRange;
+    fn semver(&self) -> exver::Version;
+    fn compat(&self) -> &'static exver::VersionRange;
     fn up(&self, db: &TypedPatchDb<Database>) -> impl Future<Output = Result<(), Error>> + Send;
     fn down(&self, db: &TypedPatchDb<Database>) -> impl Future<Output = Result<(), Error>> + Send;
     fn commit(
@@ -158,7 +158,7 @@ where
 }
 
 #[derive(Debug, Clone)]
-struct LTWrapper<T>(T, emver::Version);
+struct LTWrapper<T>(T, exver::Version);
 impl<T> serde::Serialize for LTWrapper<T>
 where
     T: VersionT,
@@ -172,10 +172,10 @@ where
     T: VersionT,
 {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let v = crate::util::VersionString::deserialize(deserializer)?;
+        let v = exver::Version::deserialize(deserializer)?;
         let version = T::new();
-        if *v < version.semver() {
-            Ok(Self(version, v.into_version()))
+        if v < version.semver() {
+            Ok(Self(version, v))
         } else {
             Err(serde::de::Error::custom("Mismatched Version"))
         }
@@ -197,9 +197,9 @@ where
     T: VersionT,
 {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let v = crate::util::VersionString::deserialize(deserializer)?;
+        let v = exver::Version::deserialize(deserializer)?;
         let version = T::new();
-        if *v == version.semver() {
+        if v == version.semver() {
             Ok(Wrapper(version))
         } else {
             Err(serde::de::Error::custom("Mismatched Version"))
@@ -212,7 +212,7 @@ pub async fn init(
     mut progress: PhaseProgressTrackerHandle,
 ) -> Result<(), Error> {
     progress.start();
-    let version = Version::from_util_version(
+    let version = Version::from_exver_version(
         db.peek()
             .await
             .as_public()
@@ -256,9 +256,18 @@ mod tests {
 
     use super::*;
 
-    fn em_version() -> impl Strategy<Value = emver::Version> {
-        any::<(usize, usize, usize, usize)>().prop_map(|(major, minor, patch, super_minor)| {
-            emver::Version::new(major, minor, patch, super_minor)
+    fn em_version() -> impl Strategy<Value = exver::Version> {
+        any::<(usize, usize, usize, bool)>().prop_map(|(major, minor, patch, alpha)| {
+            if alpha {
+                exver::Version::new(
+                    [0, major, minor]
+                        .into_iter()
+                        .chain(Some(patch).filter(|n| *n != 0)),
+                    [],
+                )
+            } else {
+                exver::Version::new([major, minor, patch], [])
+            }
         })
     }
 
@@ -273,15 +282,15 @@ mod tests {
 
     proptest! {
         #[test]
-        fn emversion_isomorphic_version(original in em_version()) {
-            let version = Version::from_util_version(original.clone().into());
-            let back = version.as_sem_ver();
+        fn exversion_isomorphic_version(original in em_version()) {
+            let version = Version::from_exver_version(original.clone().into());
+            let back = version.as_exver();
             prop_assert_eq!(original, back, "All versions should round trip");
         }
         #[test]
         fn version_isomorphic_em_version(version in versions()) {
-            let sem_ver = version.as_sem_ver();
-            let back = Version::from_util_version(sem_ver.into());
+            let sem_ver = version.as_exver();
+            let back = Version::from_exver_version(sem_ver.into());
             prop_assert_eq!(format!("{:?}",version), format!("{:?}", back), "All versions should round trip");
         }
     }

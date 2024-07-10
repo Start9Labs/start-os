@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use chrono::{DateTime, Utc};
-use emver::VersionRange;
+use exver::{Version, VersionRange};
 use imbl_value::InternedString;
 use ipnet::{Ipv4Net, Ipv6Net};
 use isocountry::CountryCode;
@@ -21,7 +21,6 @@ use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::util::cpupower::Governor;
-use crate::util::VersionString;
 use crate::version::{Current, VersionT};
 use crate::{ARCH, PLATFORM};
 
@@ -43,7 +42,7 @@ impl Public {
                 arch: get_arch(),
                 platform: get_platform(),
                 id: account.server_id.clone(),
-                version: Current::new().semver().into(),
+                version: Current::new().semver(),
                 hostname: account.hostname.no_dot_host_name(),
                 last_backup: None,
                 eos_version_compat: Current::new().compat().clone(),
@@ -109,7 +108,8 @@ pub struct ServerInfo {
     pub platform: InternedString,
     pub id: String,
     pub hostname: String,
-    pub version: VersionString,
+    #[ts(type = "string")]
+    pub version: Version,
     #[ts(type = "string | null")]
     pub last_backup: Option<DateTime<Utc>>,
     #[ts(type = "string")]

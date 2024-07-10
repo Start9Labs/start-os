@@ -4,7 +4,7 @@ use std::ops::Deref;
 
 use axum::extract::Request;
 use axum::response::Response;
-use emver::{Version, VersionRange};
+use exver::{Version, VersionRange};
 use http::HeaderValue;
 use imbl_value::InternedString;
 use rpc_toolkit::{Middleware, RpcRequest, RpcResponse};

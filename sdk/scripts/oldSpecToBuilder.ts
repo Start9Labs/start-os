@@ -285,26 +285,26 @@ const {Config, List, Value, Variants} = sdk
           maxLength: null,
         })})`
       }
-      case "number": {
-        return `${rangeToTodoComment(value?.range)}List.number(${JSON.stringify(
-          {
-            name: value.name || null,
-            minLength: null,
-            maxLength: null,
-            default: value.default || null,
-            description: value.description || null,
-            warning: value.warning || null,
-          },
-          null,
-          2,
-        )}, ${JSON.stringify({
-          integer: value?.spec?.integral || false,
-          min: null,
-          max: null,
-          units: value?.spec?.units || null,
-          placeholder: value?.spec?.placeholder || null,
-        })})`
-      }
+      // case "number": {
+      //   return `${rangeToTodoComment(value?.range)}List.number(${JSON.stringify(
+      //     {
+      //       name: value.name || null,
+      //       minLength: null,
+      //       maxLength: null,
+      //       default: value.default || null,
+      //       description: value.description || null,
+      //       warning: value.warning || null,
+      //     },
+      //     null,
+      //     2,
+      //   )}, ${JSON.stringify({
+      //     integer: value?.spec?.integral || false,
+      //     min: null,
+      //     max: null,
+      //     units: value?.spec?.units || null,
+      //     placeholder: value?.spec?.placeholder || null,
+      //   })})`
+      // }
       case "enum": {
         return "/* error!! list.enum */"
       }

@@ -10,7 +10,6 @@ import {
   UnitConversionPipesModule,
   TextSpinnerComponentModule,
 } from '@start9labs/shared'
-import { GenericFormPageModule } from 'src/app/modals/generic-form/generic-form.module'
 
 @NgModule({
   declarations: [
@@ -23,7 +22,6 @@ import { GenericFormPageModule } from 'src/app/modals/generic-form/generic-form.
     IonicModule,
     UnitConversionPipesModule,
     TextSpinnerComponentModule,
-    GenericFormPageModule,
   ],
   exports: [
     BackupDrivesComponent,

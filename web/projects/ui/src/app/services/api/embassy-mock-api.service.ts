@@ -118,7 +118,17 @@ export class MockApiService extends ApiService {
     }
   }
 
-  // server state
+  // state
+
+  async echo(params: RR.EchoReq, url: string): Promise<RR.EchoRes> {
+    if (url) {
+      const num = Math.floor(Math.random() * 10) + 1
+      if (num > 8) return params.message
+      throw new Error()
+    }
+    await pauseFor(2000)
+    return params.message
+  }
 
   private stateIndex = 0
   async getState(): Promise<RR.ServerState> {
@@ -758,7 +768,7 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     return {
       config: Mock.MockConfig,
-      spec: Mock.ConfigSpec,
+      spec: await Mock.getInputSpec(),
     }
   }
 
@@ -1048,15 +1058,21 @@ export class MockApiService extends ApiService {
     return {
       oldConfig: Mock.MockConfig,
       newConfig: Mock.MockDependencyConfig,
-      spec: Mock.ConfigSpec,
+      spec: await Mock.getInputSpec(),
     }
   }
 
-  async sideloadPackage(
-    params: RR.SideloadPackageReq,
-  ): Promise<RR.SideloadPacakgeRes> {
+  async sideloadPackage(): Promise<RR.SideloadPackageRes> {
     await pauseFor(2000)
-    return '4120e092-05ab-4de2-9fbd-c3f1f4b1df9e' // no significance, randomly generated
+    return {
+      upload: '4120e092-05ab-4de2-9fbd-c3f1f4b1df9e', // no significance, randomly generated
+      progress: '5120e092-05ab-4de2-9fbd-c3f1f4b1df9e', // no significance, randomly generated
+    }
+  }
+
+  async uploadFile(body: Blob): Promise<string> {
+    await pauseFor(2000)
+    return 'returnedhash'
   }
 
   private async initProgress(): Promise<T.FullProgress> {

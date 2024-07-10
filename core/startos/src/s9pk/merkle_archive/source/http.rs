@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::task::Poll;
 
 use bytes::Bytes;
-use futures::{Stream, StreamExt, TryStreamExt};
+use futures::{Stream, TryStreamExt};
 use reqwest::header::{ACCEPT_RANGES, CONTENT_LENGTH, RANGE};
 use reqwest::{Client, Url};
 use tokio::io::{AsyncRead, AsyncReadExt, ReadBuf, Take};
@@ -54,11 +54,12 @@ impl HttpSource {
     }
 }
 impl ArchiveSource for HttpSource {
-    type Reader = HttpReader;
+    type FetchReader = HttpReader;
+    type FetchAllReader = StreamReader<BoxStream<'static, Result<Bytes, std::io::Error>>, Bytes>;
     async fn size(&self) -> Option<u64> {
         self.size
     }
-    async fn fetch_all(&self) -> Result<impl AsyncRead + Unpin + Send, Error> {
+    async fn fetch_all(&self) -> Result<Self::FetchAllReader, Error> {
         Ok(StreamReader::new(
             self.client
                 .get(self.url.clone())
@@ -72,7 +73,7 @@ impl ArchiveSource for HttpSource {
                 .apply(boxed),
         ))
     }
-    async fn fetch(&self, position: u64, size: u64) -> Result<Self::Reader, Error> {
+    async fn fetch(&self, position: u64, size: u64) -> Result<Self::FetchReader, Error> {
         match &self.range_support {
             Ok(_) => Ok(HttpReader::Range(
                 StreamReader::new(if size > 0 {

@@ -1,4 +1,4 @@
-pub const DEFAULT_MARKETPLACE: &str = "https://registry.start9.com";
+pub const DEFAULT_REGISTRY: &str = "https://registry.start9.com";
 // pub const COMMUNITY_MARKETPLACE: &str = "https://community-registry.start9.com";
 pub const HOST_IP: [u8; 4] = [172, 18, 0, 1];
 pub use std::env::consts::ARCH;
@@ -115,7 +115,7 @@ impl std::fmt::Display for ApiState {
 }
 
 pub fn main_api<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new()
+    let api = ParentHandler::new()
         .subcommand::<C, _>("git-info", from_fn(version::git_info))
         .subcommand(
             "echo",
@@ -146,9 +146,11 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
             )
             .no_cli(),
         )
-        .subcommand("lxc", lxc::lxc::<C>())
         .subcommand("s9pk", s9pk::rpc::s9pk())
-        .subcommand("util", util::rpc::util::<C>())
+        .subcommand("util", util::rpc::util::<C>());
+    #[cfg(feature = "dev")]
+    let api = api.subcommand("lxc", lxc::dev::lxc::<C>());
+    api
 }
 
 pub fn server<C: Context>() -> ParentHandler<C> {
@@ -258,6 +260,12 @@ pub fn package<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "list",
             from_fn_async(install::list)
+                .with_display_serializable()
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "installed-version",
+            from_fn_async(install::installed_version)
                 .with_display_serializable()
                 .with_call_remote::<CliContext>(),
         )

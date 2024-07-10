@@ -1,10 +1,9 @@
 import { Dump } from 'patch-db-client'
 import { MarketplacePkg, StoreInfo } from '@start9labs/marketplace'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
-import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { CT, T } from '@start9labs/start-sdk'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
 export module RR {
@@ -12,7 +11,10 @@ export module RR {
 
   export type WebsocketConfig<T> = Omit<WebSocketSubjectConfig<T>, 'url'>
 
-  // server state
+  // state
+
+  export type EchoReq = { message: string } // server.echo
+  export type EchoRes = string
 
   export type ServerState = 'initializing' | 'error' | 'running'
 
@@ -225,7 +227,7 @@ export module RR {
   export type InstallPackageRes = null
 
   export type GetPackageConfigReq = { id: string } // package.config.get
-  export type GetPackageConfigRes = { spec: ConfigSpec; config: object }
+  export type GetPackageConfigRes = { spec: CT.InputSpec; config: object }
 
   export type DrySetPackageConfigReq = { id: string; config: object } // package.config.set.dry
   export type DrySetPackageConfigRes = Breakages
@@ -268,14 +270,17 @@ export module RR {
   export type DryConfigureDependencyRes = {
     oldConfig: object
     newConfig: object
-    spec: ConfigSpec
+    spec: CT.InputSpec
   }
 
   export type SideloadPackageReq = {
     manifest: T.Manifest
     icon: string // base64
   }
-  export type SideloadPacakgeRes = string //guid
+  export type SideloadPackageRes = {
+    upload: string // guid
+    progress: string // guid
+  }
 
   // marketplace
 

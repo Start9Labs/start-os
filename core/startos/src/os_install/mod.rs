@@ -21,7 +21,7 @@ use crate::disk::OsPartitionInfo;
 use crate::net::utils::find_eth_iface;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
-use crate::util::io::TmpDir;
+use crate::util::io::{open_file, TmpDir};
 use crate::util::serde::IoFormat;
 use crate::util::Invoke;
 use crate::ARCH;
@@ -241,12 +241,10 @@ pub async fn execute<C: Context>(
     tokio::fs::create_dir_all(&images_path).await?;
     let image_path = images_path
         .join(hex::encode(
-            &MultiCursorFile::from(
-                tokio::fs::File::open("/run/live/medium/live/filesystem.squashfs").await?,
-            )
-            .blake3_mmap()
-            .await?
-            .as_bytes()[..16],
+            &MultiCursorFile::from(open_file("/run/live/medium/live/filesystem.squashfs").await?)
+                .blake3_mmap()
+                .await?
+                .as_bytes()[..16],
         ))
         .with_extension("rootfs");
     tokio::fs::copy("/run/live/medium/live/filesystem.squashfs", &image_path).await?;

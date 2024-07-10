@@ -26,6 +26,7 @@ use tokio::sync::{oneshot, Mutex, OwnedMutexGuard, RwLock};
 use tracing::instrument;
 
 use crate::shutdown::Shutdown;
+use crate::util::io::create_file;
 use crate::{Error, ErrorKind, ResultExt as _};
 pub mod actor;
 pub mod clap;
@@ -385,16 +386,16 @@ impl<T> SOption<T> for SNone<T> {}
 
 #[async_trait]
 pub trait AsyncFileExt: Sized {
-    async fn maybe_open<P: AsRef<Path> + Send + Sync>(path: P) -> std::io::Result<Option<Self>>;
+    async fn maybe_open<P: AsRef<Path> + Send + Sync>(path: P) -> Result<Option<Self>, Error>;
     async fn delete<P: AsRef<Path> + Send + Sync>(path: P) -> std::io::Result<()>;
 }
 #[async_trait]
 impl AsyncFileExt for File {
-    async fn maybe_open<P: AsRef<Path> + Send + Sync>(path: P) -> std::io::Result<Option<Self>> {
-        match File::open(path).await {
+    async fn maybe_open<P: AsRef<Path> + Send + Sync>(path: P) -> Result<Option<Self>, Error> {
+        match File::open(path.as_ref()).await {
             Ok(f) => Ok(Some(f)),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(e),
+            Err(e) => Err(e).with_ctx(|_| (ErrorKind::Filesystem, path.as_ref().display())),
         }
     }
     async fn delete<P: AsRef<Path> + Send + Sync>(path: P) -> std::io::Result<()> {
@@ -590,9 +591,7 @@ impl FileLock {
                 .await
                 .with_ctx(|_| (crate::ErrorKind::Filesystem, parent.display().to_string()))?;
         }
-        let f = File::create(&path)
-            .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, path.display().to_string()))?;
+        let f = create_file(&path).await?;
         let file_guard = tokio::task::spawn_blocking(move || {
             fd_lock_rs::FdLock::lock(f, fd_lock_rs::LockType::Exclusive, blocking)
         })

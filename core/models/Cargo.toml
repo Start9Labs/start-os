@@ -12,7 +12,7 @@ color-eyre = "0.6.2"
 ed25519-dalek = { version = "2.0.0", features = ["serde"] }
 lazy_static = "1.4"
 mbrman = "0.5.2"
-emver = { version = "0.1", git = "https://github.com/Start9Labs/emver-rs.git", features = [
+exver = { version = "0.2.0", git = "https://github.com/Start9Labs/exver-rs.git", features = [
   "serde",
 ] }
 ipnet = "2.8.0"

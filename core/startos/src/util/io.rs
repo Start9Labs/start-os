@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::VecDeque;
 use std::future::Future;
 use std::io::Cursor;
 use std::os::unix::prelude::MetadataExt;
@@ -610,13 +610,13 @@ pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + S
                 let src_path = e.path();
                 let dst_path = dst_path.join(e.file_name());
                 if m.is_file() {
-                    let mut dst_file = tokio::fs::File::create(&dst_path).await.with_ctx(|_| {
+                    let mut dst_file = create_file(&dst_path).await.with_ctx(|_| {
                         (
                             crate::ErrorKind::Filesystem,
                             format!("create {}", dst_path.display()),
                         )
                     })?;
-                    let mut rdr = tokio::fs::File::open(&src_path).await.with_ctx(|_| {
+                    let mut rdr = open_file(&src_path).await.with_ctx(|_| {
                         (
                             crate::ErrorKind::Filesystem,
                             format!("open {}", src_path.display()),
@@ -706,15 +706,15 @@ impl<S: AsyncRead + AsyncWrite> AsyncRead for TimeoutStream<S> {
         buf: &mut tokio::io::ReadBuf<'_>,
     ) -> std::task::Poll<std::io::Result<()>> {
         let mut this = self.project();
-        if let std::task::Poll::Ready(_) = this.sleep.as_mut().poll(cx) {
+        let timeout = this.sleep.as_mut().poll(cx);
+        let res = this.stream.poll_read(cx, buf);
+        if res.is_ready() {
+            this.sleep.reset(Instant::now() + *this.timeout);
+        } else if timeout.is_ready() {
             return std::task::Poll::Ready(Err(std::io::Error::new(
                 std::io::ErrorKind::TimedOut,
                 "timed out",
             )));
-        }
-        let res = this.stream.poll_read(cx, buf);
-        if res.is_ready() {
-            this.sleep.reset(Instant::now() + *this.timeout);
         }
         res
     }
@@ -725,10 +725,16 @@ impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
         cx: &mut std::task::Context<'_>,
         buf: &[u8],
     ) -> std::task::Poll<Result<usize, std::io::Error>> {
-        let this = self.project();
+        let mut this = self.project();
+        let timeout = this.sleep.as_mut().poll(cx);
         let res = this.stream.poll_write(cx, buf);
         if res.is_ready() {
             this.sleep.reset(Instant::now() + *this.timeout);
+        } else if timeout.is_ready() {
+            return std::task::Poll::Ready(Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "timed out",
+            )));
         }
         res
     }
@@ -736,10 +742,16 @@ impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), std::io::Error>> {
-        let this = self.project();
+        let mut this = self.project();
+        let timeout = this.sleep.as_mut().poll(cx);
         let res = this.stream.poll_flush(cx);
         if res.is_ready() {
             this.sleep.reset(Instant::now() + *this.timeout);
+        } else if timeout.is_ready() {
+            return std::task::Poll::Ready(Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "timed out",
+            )));
         }
         res
     }
@@ -747,10 +759,16 @@ impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), std::io::Error>> {
-        let this = self.project();
+        let mut this = self.project();
+        let timeout = this.sleep.as_mut().poll(cx);
         let res = this.stream.poll_shutdown(cx);
         if res.is_ready() {
             this.sleep.reset(Instant::now() + *this.timeout);
+        } else if timeout.is_ready() {
+            return std::task::Poll::Ready(Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "timed out",
+            )));
         }
         res
     }
@@ -809,6 +827,13 @@ impl Drop for TmpDir {
             });
         }
     }
+}
+
+pub async fn open_file(path: impl AsRef<Path>) -> Result<File, Error> {
+    let path = path.as_ref();
+    File::open(path)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("open {path:?}")))
 }
 
 pub async fn create_file(path: impl AsRef<Path>) -> Result<File, Error> {
