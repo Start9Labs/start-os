@@ -3,6 +3,7 @@ import { UntypedFormBuilder } from '@angular/forms'
 import { Router, RouteReuseStrategy } from '@angular/router'
 import { IonicRouteStrategy, IonNav } from '@ionic/angular'
 import { RELATIVE_URL, THEME, WorkspaceConfig } from '@start9labs/shared'
+import { TUI_ICONS_PATH } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import {
   PATCH_CACHE,
@@ -52,6 +53,10 @@ export const APP_PROVIDERS: Provider[] = [
   {
     provide: THEME,
     useExisting: ThemeSwitcherService,
+  },
+  {
+    provide: TUI_ICONS_PATH,
+    useValue: (name: string) => `/assets/taiga-ui/icons/${name}.svg#${name}`,
   },
 ]
 

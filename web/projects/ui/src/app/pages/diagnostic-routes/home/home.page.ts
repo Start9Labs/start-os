@@ -1,5 +1,6 @@
 import { Component } from '@angular/core'
-import { AlertController, LoadingController } from '@ionic/angular'
+import { AlertController } from '@ionic/angular'
+import { LoadingService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
@@ -18,7 +19,7 @@ export class HomePage {
   restarted = false
 
   constructor(
-    private readonly loadingCtrl: LoadingController,
+    private readonly loader: LoadingService,
     private readonly api: ApiService,
     private readonly alertCtrl: AlertController,
   ) {}
@@ -86,10 +87,7 @@ export class HomePage {
   }
 
   async restart(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      cssClass: 'loader',
-    })
-    await loader.present()
+    const loader = this.loader.open('Loading...').subscribe()
 
     try {
       await this.api.diagnosticRestart()
@@ -97,15 +95,12 @@ export class HomePage {
     } catch (e) {
       console.error(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   async forgetDrive(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      cssClass: 'loader',
-    })
-    await loader.present()
+    const loader = this.loader.open('Loading...').subscribe()
 
     try {
       await this.api.diagnosticForgetDrive()
@@ -114,7 +109,7 @@ export class HomePage {
     } catch (e) {
       console.error(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
@@ -149,10 +144,7 @@ export class HomePage {
   }
 
   private async repairDisk(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      cssClass: 'loader',
-    })
-    await loader.present()
+    const loader = this.loader.open('Loading...').subscribe()
 
     try {
       await this.api.diagnosticRepairDisk()
@@ -161,7 +153,7 @@ export class HomePage {
     } catch (e) {
       console.error(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 }

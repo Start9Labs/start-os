@@ -1,7 +1,7 @@
 import { Component, ViewChild } from '@angular/core'
 import { IonContent } from '@ionic/angular'
+import { ErrorService, toLocalIsoString } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ErrorToastService, toLocalIsoString } from '@start9labs/shared'
 
 var Convert = require('ansi-to-html')
 var convert = new Convert({
@@ -23,7 +23,7 @@ export class LogsPage {
 
   constructor(
     private readonly api: ApiService,
-    private readonly errToast: ErrorToastService,
+    private readonly errorService: ErrorService,
   ) {}
 
   async ngOnInit() {
@@ -89,7 +89,7 @@ export class LogsPage {
         this.needInfinite = false
       }
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     }
   }
 }
