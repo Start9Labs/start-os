@@ -600,12 +600,15 @@ export module Mock {
       username: 'TestUser',
       mountable: false,
       startOs: {
-        version: '0.3.0',
-        full: true,
-        passwordHash:
-          // password is asdfasdf
-          '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-        wrappedKey: '',
+        '1234-5678-9876-5432': {
+          hostname: 'adjective-noun',
+          timestamp: new Date().toISOString(),
+          version: '0.3.6',
+          passwordHash:
+            // password is asdfasdf
+            '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+          wrappedKey: '',
+        },
       },
     },
     // 'ftcvewdnkemfksdm': {
@@ -616,7 +619,7 @@ export module Mock {
     //   used: 0,
     //   model: 'Evo SATA 2.5',
     //   vendor: 'Samsung',
-    //   startOs: null,
+    //   startOs: {},
     // },
     csgashbdjkasnd: {
       type: 'cifs',
@@ -624,7 +627,7 @@ export module Mock {
       path: '/Desktop/startos-backups-2',
       username: 'TestUser',
       mountable: true,
-      startOs: null,
+      startOs: {},
     },
     powjefhjbnwhdva: {
       type: 'disk',
@@ -635,30 +638,33 @@ export module Mock {
       model: null,
       vendor: 'SSK',
       startOs: {
-        version: '0.3.0',
-        full: true,
-        // password is asdfasdf
-        passwordHash:
-          '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-        wrappedKey: '',
+        '1234-5678-9876-5432': {
+          hostname: 'adjective-noun',
+          timestamp: new Date().toISOString(),
+          version: '0.3.6',
+          passwordHash:
+            // password is asdfasdf
+            '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+          wrappedKey: '',
+        },
       },
     },
   }
 
   export const BackupInfo: RR.GetBackupInfoRes = {
-    version: '0.3.0',
+    version: '0.3.6',
     timestamp: new Date().toISOString(),
     packageBackups: {
       bitcoind: {
         title: 'Bitcoin Core',
         version: '0.21.0',
-        osVersion: '0.3.0',
+        osVersion: '0.3.6',
         timestamp: new Date().toISOString(),
       },
       'btc-rpc-proxy': {
         title: 'Bitcoin Proxy',
         version: '0.2.2',
-        osVersion: '0.3.0',
+        osVersion: '0.3.6',
         timestamp: new Date().toISOString(),
       },
     },

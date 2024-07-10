@@ -252,7 +252,7 @@ export class MockApiService extends ApiService {
     return {
       '9876-5432-1234-5678': {
         hostname: 'adjective-noun',
-        version: '0.3.0',
+        version: '0.3.6',
         timestamp: new Date().toISOString(),
         passwordHash:
           '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',

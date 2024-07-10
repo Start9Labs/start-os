@@ -18,8 +18,8 @@
         <ion-label>
           <h2>{{ option.title }}</h2>
           <p>Version {{ option.version }}</p>
-          <p>Backup made: {{ option.timestamp | date : 'medium' }}</p>
-          <p *ngIf="!option.installed && !option['newer-eos']">
+          <p>Created: {{ option.timestamp | date : 'medium' }}</p>
+          <p *ngIf="!option.installed && !option.newerOS">
             <ion-text color="success">Ready to restore</ion-text>
           </p>
           <p *ngIf="option.installed">
@@ -27,7 +27,7 @@
               Unavailable. {{ option.title }} is already installed.
             </ion-text>
           </p>
-          <p *ngIf="option['newer-eos']">
+          <p *ngIf="option.newerOS">
             <ion-text color="danger">
               Unavailable. Backup was made on a newer version of StartOS.
             </ion-text>
@@ -36,7 +36,7 @@
         <ion-checkbox
           slot="end"
           [(ngModel)]="option.checked"
-          [disabled]="option.installed || option['newer-eos']"
+          [disabled]="option.installed || option.newerOS"
           (ionChange)="handleChange(options)"
         ></ion-checkbox>
       </ion-item>

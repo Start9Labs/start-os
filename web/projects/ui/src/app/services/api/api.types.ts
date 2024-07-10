@@ -186,7 +186,12 @@ export module RR {
   export type RemoveBackupTargetReq = { id: string } // backup.target.cifs.remove
   export type RemoveBackupTargetRes = null
 
-  export type GetBackupInfoReq = { targetId: string; password: string } // backup.target.info
+  export type GetBackupInfoReq = {
+    // backup.target.info
+    targetId: string
+    serverId: string
+    password: string
+  }
   export type GetBackupInfoRes = BackupInfo
 
   export type CreateBackupReq = {
@@ -234,7 +239,7 @@ export module RR {
     // package.backup.restore
     ids: string[]
     targetId: string
-    oldPassword: string | null
+    serverId: string
     password: string
   }
   export type RestorePackagesRes = null
@@ -398,7 +403,7 @@ export interface DiskBackupTarget {
   label: string | null
   capacity: number
   used: number | null
-  startOs: StartOSDiskInfo | null
+  startOs: Record<string, StartOSDiskInfo>
 }
 
 export interface CifsBackupTarget {
@@ -407,7 +412,7 @@ export interface CifsBackupTarget {
   path: string
   username: string
   mountable: boolean
-  startOs: StartOSDiskInfo | null
+  startOs: Record<string, StartOSDiskInfo>
 }
 
 export type RecoverySource = DiskRecoverySource | CifsRecoverySource

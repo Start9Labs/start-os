@@ -14,10 +14,10 @@ import { AppRecoverOption } from './to-options.pipe'
   styleUrls: ['./app-recover-select.page.scss'],
 })
 export class AppRecoverSelectPage {
-  @Input() id!: string
+  @Input() targetId!: string
+  @Input() serverId!: string
   @Input() backupInfo!: BackupInfo
   @Input() password!: string
-  @Input() oldPassword?: string
 
   readonly packageData$ = this.patch.watch$('packageData').pipe(take(1))
 
@@ -46,8 +46,8 @@ export class AppRecoverSelectPage {
     try {
       await this.embassyApi.restorePackages({
         ids,
-        targetId: this.id,
-        oldPassword: this.oldPassword || null,
+        targetId: this.targetId,
+        serverId: this.serverId,
         password: this.password,
       })
       this.modalCtrl.dismiss(undefined, 'success')

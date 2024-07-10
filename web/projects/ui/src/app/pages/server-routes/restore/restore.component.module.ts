@@ -5,7 +5,7 @@ import { IonicModule } from '@ionic/angular'
 import { RestorePage } from './restore.component'
 import { SharedPipesModule } from '@start9labs/shared'
 import { BackupDrivesComponentModule } from 'src/app/components/backup-drives/backup-drives.component.module'
-import { AppRecoverSelectPageModule } from 'src/app/modals/app-recover-select/app-recover-select.module'
+import { BackupServerSelectModule } from 'src/app/modals/backup-server-select/backup-server-select.module'
 
 const routes: Routes = [
   {
@@ -21,7 +21,7 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     SharedPipesModule,
     BackupDrivesComponentModule,
-    AppRecoverSelectPageModule,
+    BackupServerSelectModule,
   ],
   declarations: [RestorePage],
 })

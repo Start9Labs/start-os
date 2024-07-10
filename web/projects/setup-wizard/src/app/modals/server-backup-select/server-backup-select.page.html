@@ -5,12 +5,7 @@
 </ion-header>
 
 <ion-content class="ion-padding">
-  <ion-item
-    *ngFor="let server of servers"
-    button
-    (click)="select(server)"
-    lines="none"
-  >
+  <ion-item *ngFor="let server of servers" button (click)="select(server)">
     <ion-label>
       <h2>
         <b>Local Hostname</b>
