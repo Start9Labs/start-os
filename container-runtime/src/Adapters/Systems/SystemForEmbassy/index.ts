@@ -42,6 +42,12 @@ import {
 } from "@start9labs/start-sdk/cjs/lib/interfaces/Host"
 import { ServiceInterfaceBuilder } from "@start9labs/start-sdk/cjs/lib/interfaces/ServiceInterfaceBuilder"
 import { Effects } from "../../../Models/Effects"
+import {
+  OldConfigSpec,
+  matchOldConfigSpec,
+  transformConfigSpec,
+  transformOldConfigToNew,
+} from "./transformConfigSpec"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
@@ -533,7 +539,9 @@ export class SystemForEmbassy implements System {
     effects: Effects,
     timeoutMs: number | null,
   ): Promise<T.ConfigRes> {
-    return this.getConfigUncleaned(effects, timeoutMs).then(removePointers)
+    return this.getConfigUncleaned(effects, timeoutMs)
+      .then(removePointers)
+      .then(convertToNewConfig)
   }
   private async getConfigUncleaned(
     effects: Effects,
@@ -1053,4 +1061,11 @@ function extractServiceInterfaceId(manifest: Manifest, specInterface: string) {
   if (!internalPort) return null
   const serviceInterfaceId = `${specInterface}-${internalPort}`
   return serviceInterfaceId
+}
+async function convertToNewConfig(value: T.ConfigRes): Promise<T.ConfigRes> {
+  const valueSpec: OldConfigSpec = matchOldConfigSpec.unsafeCast(value.spec)
+  const spec = transformConfigSpec(valueSpec)
+  if (!value.config) return { spec, config: null }
+  const config = transformOldConfigToNew(valueSpec, value.config)
+  return { spec, config }
 }
