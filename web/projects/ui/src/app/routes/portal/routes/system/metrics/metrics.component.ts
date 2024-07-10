@@ -131,7 +131,7 @@ import { TimeService } from 'src/app/services/time.service'
         color: var(--tui-text-01);
         padding-top: 0.4rem;
 
-        &:after {
+        &::after {
           content: attr(data-unit);
           font-size: 0.5rem;
           font-weight: normal;

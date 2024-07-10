@@ -1,21 +1,11 @@
 import { CommonModule } from '@angular/common'
-import { Component, inject, OnInit } from '@angular/core'
+import { Component, inject, OnInit, signal } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { CT } from '@start9labs/start-sdk'
 import { TuiNotificationModule } from '@taiga-ui/core'
-import { TuiButtonModule, TuiFadeModule } from '@taiga-ui/experimental'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
-import { BehaviorSubject } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
-import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
-import {
-  cifsSpec,
-  diskBackupTargetSpec,
-  dropboxSpec,
-  googleDriveSpec,
-  remoteBackupTargetSpec,
-} from '../types/target'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
 import {
   BackupTarget,
   BackupTargetType,
@@ -23,13 +13,21 @@ import {
   UnknownDisk,
 } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { BackupConfig } from '../types/backup-config'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { BackupsPhysicalComponent } from '../components/physical.component'
 import { BackupsTargetsComponent } from '../components/targets.component'
+import { BackupConfig } from '../types/backup-config'
+import {
+  cifsSpec,
+  diskBackupTargetSpec,
+  dropboxSpec,
+  googleDriveSpec,
+  remoteBackupTargetSpec,
+} from '../types/target'
 
 @Component({
   template: `
-    <ng-container *ngIf="loading$ | async"></ng-container>
     <tui-notification>
       Backup targets are physical or virtual locations for storing encrypted
       backups. They can be physical drives plugged into your server, shared
@@ -45,31 +43,32 @@ import { BackupsTargetsComponent } from '../components/targets.component'
     </tui-notification>
     <h3 class="g-title">
       Unknown Physical Drives
-      <button tuiButton size="s" icon="tuiIconRefreshCw" (click)="refresh()">
+      <button
+        tuiButton
+        size="s"
+        iconLeft="tuiIconRefreshCw"
+        (click)="refresh()"
+      >
         Refresh
       </button>
     </h3>
-    <div class="g-hidden-scrollbar" tuiFade>
-      <table
-        class="g-table"
-        [backupsPhysical]="targets?.unknownDisks || null"
-        (add)="addPhysical($event)"
-      ></table>
-    </div>
+    <table
+      class="g-table"
+      [backupsPhysical]="targets()?.unknownDisks || null"
+      (add)="addPhysical($event)"
+    ></table>
     <h3 class="g-title">
       Saved Targets
-      <button tuiButton size="s" icon="tuiIconPlus" (click)="addRemote()">
+      <button tuiButton size="s" iconLeft="tuiIconPlus" (click)="addRemote()">
         Add Target
       </button>
     </h3>
-    <div class="g-hidden-scrollbar" tuiFade>
-      <table
-        class="g-table"
-        [backupsTargets]="targets?.saved || null"
-        (delete)="onDelete($event)"
-        (update)="onUpdate($event)"
-      ></table>
-    </div>
+    <table
+      class="g-table"
+      [backupsTargets]="targets()?.saved || null"
+      (delete)="onDelete($event)"
+      (update)="onUpdate($event)"
+    ></table>
   `,
   standalone: true,
   imports: [
@@ -78,7 +77,6 @@ import { BackupsTargetsComponent } from '../components/targets.component'
     TuiButtonModule,
     BackupsPhysicalComponent,
     BackupsTargetsComponent,
-    TuiFadeModule,
   ],
 })
 export class BackupsTargetsModal implements OnInit {
@@ -87,25 +85,20 @@ export class BackupsTargetsModal implements OnInit {
   private readonly formDialog = inject(FormDialogService)
   private readonly loader = inject(LoadingService)
 
-  readonly loading$ = new BehaviorSubject(true)
-
-  targets?: RR.GetBackupTargetsRes
+  targets = signal<RR.GetBackupTargetsRes | null>(null)
 
   ngOnInit() {
     this.refresh()
   }
 
   async refresh() {
-    this.loading$.next(true)
-    this.targets = undefined
+    this.targets.set(null)
 
     try {
-      this.targets = await this.api.getBackupTargets({})
+      this.targets.set(await this.api.getBackupTargets({}))
     } catch (e: any) {
       this.errorService.handleError(e)
-      this.targets = { unknownDisks: [], saved: [] }
-    } finally {
-      this.loading$.next(false)
+      this.targets.set({ unknownDisks: [], saved: [] })
     }
   }
 
@@ -114,7 +107,7 @@ export class BackupsTargetsModal implements OnInit {
 
     try {
       await this.api.removeBackupTarget({ id })
-      this.setTargets(this.targets?.saved.filter(a => a.id !== id))
+      this.setTargets(this.targets()?.saved.filter(a => a.id !== id))
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -158,8 +151,8 @@ export class BackupsTargetsModal implements OnInit {
                 ...value,
               }).then(response => {
                 this.setTargets(
-                  this.targets?.saved.concat(response),
-                  this.targets?.unknownDisks.filter(a => a !== disk),
+                  this.targets()?.saved.concat(response),
+                  this.targets()?.unknownDisks.filter(a => a !== disk),
                 )
                 return true
               }),
@@ -221,10 +214,10 @@ export class BackupsTargetsModal implements OnInit {
   }
 
   private setTargets(
-    saved: BackupTarget[] = this.targets?.saved || [],
-    unknownDisks: UnknownDisk[] = this.targets?.unknownDisks || [],
+    saved: BackupTarget[] = this.targets()?.saved || [],
+    unknownDisks: UnknownDisk[] = this.targets()?.unknownDisks || [],
   ) {
-    this.targets = { unknownDisks, saved }
+    this.targets.set({ unknownDisks, saved })
   }
 
   private async getSpec(target: BackupTarget) {

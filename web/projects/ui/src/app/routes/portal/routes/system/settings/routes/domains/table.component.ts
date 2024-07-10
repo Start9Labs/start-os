@@ -17,7 +17,6 @@ import { Domain } from 'src/app/services/patch-db/data-model'
     <thead>
       <tr>
         <th>Domain</th>
-        <th>Added</th>
         <th>DDNS Provider</th>
         <th>Network Strategy</th>
         <th>Used By</th>
@@ -25,35 +24,86 @@ import { Domain } from 'src/app/services/patch-db/data-model'
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let domain of domains">
-        <td>{{ domain.value }}</td>
-        <td>{{ domain.createdAt | date: 'short' }}</td>
-        <td>{{ domain.provider }}</td>
-        <td>{{ getStrategy(domain) }}</td>
-        <td>
-          <button
-            *ngIf="domain.usedBy.length as qty; else unused"
-            tuiLink
-            (click)="onUsedBy(domain)"
-          >
-            Interfaces: {{ qty }}
-          </button>
-          <ng-template #unused>N/A</ng-template>
-        </td>
-        <td>
-          <button
-            tuiIconButton
-            size="xs"
-            appearance="icon"
-            iconLeft="tuiIconTrash2"
-            [style.display]="'flex'"
-            (click)="delete.emit(domain)"
-          >
-            Delete
-          </button>
-        </td>
-      </tr>
+      @for (domain of domains; track $index) {
+        <tr *ngFor="let domain of domains">
+          <td class="title">{{ domain.value }}</td>
+          <td class="provider">{{ domain.provider }}</td>
+          <td class="strategy">{{ getStrategy(domain) }}</td>
+          <td class="used">
+            @if (domain.usedBy.length; as qty) {
+              <button tuiLink (click)="onUsedBy(domain)">
+                Used by: {{ qty }}
+              </button>
+            } @else {
+              N/A
+            }
+          </td>
+          <td class="actions">
+            <button
+              tuiIconButton
+              size="xs"
+              appearance="icon"
+              iconLeft="tuiIconTrash2"
+              (click)="delete.emit(domain)"
+            >
+              Delete
+            </button>
+          </td>
+        </tr>
+      } @empty {
+        <tr><td colspan="6">No domains</td></tr>
+      }
     </tbody>
+  `,
+  styles: `
+    :host-context(tui-root._mobile) {
+      tr {
+        grid-template-columns: 2fr 1fr;
+      }
+
+      td:only-child {
+        grid-column: span 2;
+      }
+
+      .title {
+        order: 1;
+        font-weight: bold;
+      }
+
+      .actions {
+        order: 2;
+        padding: 0;
+        text-align: right;
+      }
+
+      .strategy {
+        order: 3;
+        grid-column: span 2;
+
+        &::before {
+          content: 'Strategy: ';
+          color: var(--tui-text-02);
+        }
+      }
+
+      .provider {
+        order: 4;
+
+        &::before {
+          content: 'DDNS: ';
+          color: var(--tui-text-02);
+        }
+      }
+
+      .used {
+        order: 5;
+        text-align: right;
+
+        &:not(:has(button)) {
+          display: none;
+        }
+      }
+    }
   `,
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,

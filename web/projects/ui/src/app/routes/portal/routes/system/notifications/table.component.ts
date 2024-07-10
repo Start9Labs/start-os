@@ -66,6 +66,14 @@ import { NotificationItemComponent } from './item.component'
       }
     </tbody>
   `,
+  styles: `
+    @import '@taiga-ui/core/styles/taiga-ui-local';
+
+    :host-context(tui-root._mobile) input {
+      @include fullsize();
+      opacity: 0;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [

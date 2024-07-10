@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -7,13 +6,8 @@ import {
   Input,
   Output,
 } from '@angular/core'
-import { TuiForModule } from '@taiga-ui/cdk'
-import { TuiButtonModule } from '@taiga-ui/experimental'
-import {
-  TuiDialogOptions,
-  TuiDialogService,
-  TuiSvgModule,
-} from '@taiga-ui/core'
+import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
+import { TuiButtonModule, TuiIconModule } from '@taiga-ui/experimental'
 import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
 import { filter, map, Subject, switchMap } from 'rxjs'
 import { BackupTarget } from 'src/app/services/api/api.types'
@@ -32,69 +26,114 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let target of backupsTargets; else: loading; empty: blank">
-        <td>{{ target.name }}</td>
-        <td>
-          <tui-svg [src]="target.type | getBackupIcon"></tui-svg>
-          {{ target.type | titlecase }}
-        </td>
-        <td>
-          <tui-svg
-            [src]="target.mountable ? 'tuiIconCheck' : 'tuiIconClose'"
-            [style.color]="
-              target.mountable ? 'var(--tui-positive)' : 'var(--tui-negative)'
-            "
-          ></tui-svg>
-        </td>
-        <td>{{ target.path }}</td>
-        <td>
-          <button
-            tuiIconButton
-            size="xs"
-            appearance="icon"
-            iconLeft="tuiIconEdit2"
-            (click)="update.emit(target)"
-          >
-            Update
-          </button>
-          <button
-            tuiIconButton
-            size="xs"
-            appearance="icon"
-            iconLeft="tuiIconTrash2"
-            (click)="delete$.next(target.id)"
-          >
-            Delete
-          </button>
-        </td>
-      </tr>
-      <ng-template #loading>
-        <tr *ngFor="let i of ['', '']">
-          <td colspan="5">
-            <div class="tui-skeleton">Loading</div>
+      @for (target of backupsTargets; track $index) {
+        <tr>
+          <td class="title">{{ target.name }}</td>
+          <td class="type">
+            <tui-icon [icon]="target.type | getBackupIcon" />
+            {{ target.type }}
+          </td>
+          <td class="available">
+            <tui-icon
+              [icon]="target.mountable ? 'tuiIconCheck' : 'tuiIconClose'"
+              [class]="target.mountable ? 'g-success' : 'g-error'"
+            />
+          </td>
+          <td class="path">{{ target.path }}</td>
+          <td class="actions">
+            <button
+              tuiIconButton
+              size="xs"
+              appearance="icon"
+              iconLeft="tuiIconEdit2"
+              (click)="update.emit(target)"
+            >
+              Update
+            </button>
+            <button
+              tuiIconButton
+              size="xs"
+              appearance="icon"
+              iconLeft="tuiIconTrash2"
+              (click)="delete$.next(target.id)"
+            >
+              Delete
+            </button>
           </td>
         </tr>
-      </ng-template>
-      <ng-template #blank>
-        <tr><td colspan="5">No saved backup targets.</td></tr>
-      </ng-template>
+      } @empty {
+        @if (backupsTargets) {
+          <tr><td colspan="5">No saved backup targets.</td></tr>
+        } @else {
+          @for (i of ['', '']; track $index) {
+            <tr>
+              <td colspan="5"><div class="tui-skeleton">Loading</div></td>
+            </tr>
+          }
+        }
+      }
     </tbody>
+  `,
+  styles: `
+    tui-icon {
+      font-size: 1rem;
+      vertical-align: sub;
+      margin-inline-end: 0.25rem;
+    }
+
+    :host-context(tui-root._mobile) {
+      tr {
+        grid-template-columns: 1.5rem 2fr 1fr;
+      }
+
+      td:only-child {
+        grid-column: span 3;
+      }
+
+      .type {
+        order: 1;
+        text-transform: capitalize;
+        color: var(--tui-text-02);
+        grid-column: span 3;
+
+        tui-icon {
+          display: none;
+        }
+      }
+
+      .available {
+        order: 2;
+      }
+
+      .title {
+        order: 3;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+
+      .actions {
+        order: 4;
+        padding: 0;
+        text-align: right;
+      }
+
+      .path {
+        order: 5;
+        color: var(--tui-text-03);
+        grid-column: span 2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [
-    CommonModule,
-    TuiForModule,
-    TuiSvgModule,
-    TuiButtonModule,
-    GetBackupIconPipe,
-  ],
+  imports: [TuiButtonModule, GetBackupIconPipe, TuiIconModule],
 })
 export class BackupsTargetsComponent {
   private readonly dialogs = inject(TuiDialogService)
 
   readonly delete$ = new Subject<string>()
-  readonly update$ = new Subject<BackupTarget>()
 
   @Input()
   backupsTargets: readonly BackupTarget[] | null = null

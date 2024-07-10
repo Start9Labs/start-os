@@ -5,17 +5,17 @@ import {
   Input,
   OnChanges,
 } from '@angular/core'
+import { FormsModule } from '@angular/forms'
 import { TuiLinkModule } from '@taiga-ui/core'
 import {
   TuiButtonModule,
   TuiCheckboxModule,
+  TuiFadeModule,
   TuiIconModule,
 } from '@taiga-ui/experimental'
 import { BehaviorSubject } from 'rxjs'
-import { TuiForModule } from '@taiga-ui/cdk'
 import { Session } from 'src/app/services/api/api.types'
 import { PlatformInfoPipe } from './platform-info.pipe'
-import { FormsModule } from '@angular/forms'
 
 @Component({
   selector: 'table[sessions]',
@@ -23,15 +23,16 @@ import { FormsModule } from '@angular/forms'
     <thead>
       <tr>
         <th [style.width.%]="50" [style.padding-left.rem]="single ? null : 2">
-          <input
-            *ngIf="!single"
-            tuiCheckbox
-            size="s"
-            type="checkbox"
-            [disabled]="!sessions?.length"
-            [ngModel]="all"
-            (ngModelChange)="onAll($event)"
-          />
+          @if (!single) {
+            <input
+              tuiCheckbox
+              size="s"
+              type="checkbox"
+              [disabled]="!sessions?.length"
+              [ngModel]="all"
+              (ngModelChange)="onAll($event)"
+            />
+          }
           User Agent
         </th>
         <th [style.width.%]="25">Platform</th>
@@ -39,40 +40,80 @@ import { FormsModule } from '@angular/forms'
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let session of sessions; else: loading">
-        <td [style.padding-left.rem]="single ? null : 2">
-          <input
-            *ngIf="!single"
-            tuiCheckbox
-            size="s"
-            type="checkbox"
-            [ngModel]="selected$.value.includes(session)"
-            (ngModelChange)="onToggle(session)"
-          />
-          {{ session.userAgent }}
-        </td>
-        <td *ngIf="session.metadata.platforms | platformInfo as info">
-          <tui-icon [icon]="info.icon"></tui-icon>
-          {{ info.name }}
-        </td>
-        <td>{{ session.lastActive }}</td>
-      </tr>
-      <ng-template #loading>
-        <tr *ngFor="let _ of single ? [''] : ['', '']">
-          <td colspan="5">
-            <div class="tui-skeleton">Loading</div>
+      @for (session of sessions; track $index) {
+        <tr>
+          <td [style.padding-left.rem]="single ? null : 2">
+            @if (!single) {
+              <input
+                tuiCheckbox
+                size="s"
+                type="checkbox"
+                [ngModel]="selected$.value.includes(session)"
+                (ngModelChange)="onToggle(session)"
+              />
+            }
+            <span tuiFade class="agent">{{ session.userAgent }}</span>
           </td>
+          @if (session.metadata.platforms | platformInfo; as info) {
+            <td class="platform">
+              <tui-icon [icon]="info.icon" />
+              {{ info.name }}
+            </td>
+          }
+          <td class="date">{{ session.lastActive | date: 'medium' }}</td>
         </tr>
-      </ng-template>
+      } @empty {
+        @if (sessions) {
+          <tr><td colspan="5">No sessions</td></tr>
+        } @else {
+          @for (item of single ? [''] : ['', '']; track $index) {
+            <tr>
+              <td colspan="5"><div class="tui-skeleton">Loading</div></td>
+            </tr>
+          }
+        }
+      }
     </tbody>
   `,
   styles: [
     `
+      @import '@taiga-ui/core/styles/taiga-ui-local';
+
       input {
         position: absolute;
         top: 50%;
-        left: 0.5rem;
+        left: 0.25rem;
         transform: translateY(-50%);
+      }
+
+      :host-context(tui-root._mobile) {
+        input {
+          @include fullsize();
+          z-index: 1;
+          opacity: 0;
+          transform: none;
+        }
+
+        td:first-child {
+          padding: 0 0.25rem !important;
+        }
+
+        .agent {
+          white-space: nowrap;
+          display: block;
+        }
+
+        .platform {
+          font-weight: bold;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0;
+        }
+
+        .date {
+          color: var(--tui-text-02);
+        }
       }
     `,
   ],
@@ -80,13 +121,13 @@ import { FormsModule } from '@angular/forms'
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
-    TuiForModule,
+    FormsModule,
+    PlatformInfoPipe,
     TuiButtonModule,
     TuiLinkModule,
-    PlatformInfoPipe,
     TuiIconModule,
     TuiCheckboxModule,
-    FormsModule,
+    TuiFadeModule,
   ],
 })
 export class SSHTableComponent<T extends Session> implements OnChanges {
