@@ -17,8 +17,15 @@ if [ -z "$ARCH" ]; then
 	ARCH=$(uname -m)
 fi
 
+DOCKER_PLATFORM="linux/${ARCH}"
+if [ "$ARCH" = aarch64 ]; then
+	DOCKER_PLATFORM="linux/arm64"
+elif [ "$ARCH" = x86_64 ]; then
+	DOCKER_PLATFORM="linux/amd64"
+fi
+
 mkdir -p cargo-deps
-alias 'rust-musl-builder'='docker run $USE_TTY --rm -e "RUSTFLAGS=$RUSTFLAGS" -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)"/cargo-deps:/home/rust/src -w /home/rust/src -P rust:alpine'
+alias 'rust-musl-builder'='docker run $USE_TTY --platform=${DOCKER_PLATFORM} --rm -e "RUSTFLAGS=$RUSTFLAGS" -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)"/cargo-deps:/home/rust/src -w /home/rust/src -P rust:alpine'
 
 PREINSTALL=${PREINSTALL:-true}
 
