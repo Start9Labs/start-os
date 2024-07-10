@@ -305,7 +305,15 @@ async fn torctl(
             .invoke(ErrorKind::Tor)
             .await?;
 
-        let logs = journalctl(LogSource::Unit(SYSTEMD_UNIT), 0, None, false, true).await?;
+        let logs = journalctl(
+            LogSource::Unit(SYSTEMD_UNIT),
+            0,
+            None,
+            Some("0"),
+            false,
+            true,
+        )
+        .await?;
 
         let mut tcp_stream = None;
         for _ in 0..60 {
