@@ -18,7 +18,7 @@ export class LogsPage {
   loading = true
   needInfinite = true
   startCursor?: string
-  limit = 200
+  limit = 400
   isOnBottom = true
 
   constructor(

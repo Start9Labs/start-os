@@ -72,7 +72,12 @@ export module RR {
   export type GetServerLogsReq = ServerLogsReq // server.logs & server.kernel-logs
   export type GetServerLogsRes = LogsRes
 
-  export type FollowServerLogsReq = { limit?: number } // server.logs.follow & server.kernel-logs.follow
+  // @param limit: BE default is 50
+  // @param boot: number is offset (0: current, -1 prev, +1 first), string is a specific boot id, and null is all
+  export type FollowServerLogsReq = {
+    limit?: number
+    boot?: number | string | null
+  } // server.logs.follow & server.kernel-logs.follow
   export type FollowServerLogsRes = {
     startCursor: string
     guid: string
