@@ -30,7 +30,7 @@ import { Domain } from 'src/app/services/patch-db/data-model'
           <td class="provider">{{ domain.provider }}</td>
           <td class="strategy">{{ getStrategy(domain) }}</td>
           <td class="used">
-            @if (domain.usedBy.length + 1; as qty) {
+            @if (domain.usedBy.length; as qty) {
               <button tuiLink (click)="onUsedBy(domain)">
                 Used by: {{ qty }}
               </button>
