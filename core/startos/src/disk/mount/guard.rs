@@ -111,7 +111,7 @@ impl GenericMountGuard for MountGuard {
 
 async fn tmp_mountpoint(source: &impl FileSystem) -> Result<PathBuf, Error> {
     Ok(Path::new(TMP_MOUNTPOINT).join(base32::encode(
-        base32::Alphabet::RFC4648 { padding: false },
+        base32::Alphabet::Rfc4648 { padding: false },
         &source.source_hash().await?[0..20],
     )))
 }

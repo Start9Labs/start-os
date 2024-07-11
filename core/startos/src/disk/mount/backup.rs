@@ -65,7 +65,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
             unencrypted_metadata.wrapped_key.as_ref(),
         ) {
             let wrapped_key =
-                base32::decode(base32::Alphabet::RFC4648 { padding: true }, wrapped_key)
+                base32::decode(base32::Alphabet::Rfc4648 { padding: true }, wrapped_key)
                     .ok_or_else(|| {
                         Error::new(
                             eyre!("failed to decode wrapped key"),
@@ -76,7 +76,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
             String::from_utf8(decrypt_slice(wrapped_key, password))?
         } else {
             base32::encode(
-                base32::Alphabet::RFC4648 { padding: false },
+                base32::Alphabet::Rfc4648 { padding: false },
                 &rand::random::<[u8; 32]>()[..],
             )
         };
@@ -93,7 +93,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
         }
         if unencrypted_metadata.wrapped_key.is_none() {
             unencrypted_metadata.wrapped_key = Some(base32::encode(
-                base32::Alphabet::RFC4648 { padding: true },
+                base32::Alphabet::Rfc4648 { padding: true },
                 &encrypt_slice(&enc_key, password),
             ));
         }
@@ -141,7 +141,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
             .with_kind(crate::ErrorKind::PasswordHashGeneration)?,
         );
         self.unencrypted_metadata.wrapped_key = Some(base32::encode(
-            base32::Alphabet::RFC4648 { padding: false },
+            base32::Alphabet::Rfc4648 { padding: false },
             &encrypt_slice(&self.enc_key, new_password),
         ));
         Ok(())

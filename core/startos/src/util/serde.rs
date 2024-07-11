@@ -958,7 +958,7 @@ impl<T: AsRef<[u8]>> std::fmt::Display for Base16<T> {
 pub struct Base32<T>(pub T);
 impl<T: AsRef<[u8]>> std::fmt::Display for Base32<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        base32::encode(base32::Alphabet::RFC4648 { padding: true }, self.0.as_ref()).fmt(f)
+        base32::encode(base32::Alphabet::Rfc4648 { padding: true }, self.0.as_ref()).fmt(f)
     }
 }
 impl<'de, T: TryFrom<Vec<u8>>> Deserialize<'de> for Base32<T> {
@@ -967,7 +967,7 @@ impl<'de, T: TryFrom<Vec<u8>>> Deserialize<'de> for Base32<T> {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        base32::decode(base32::Alphabet::RFC4648 { padding: true }, &s)
+        base32::decode(base32::Alphabet::Rfc4648 { padding: true }, &s)
             .ok_or_else(|| {
                 serde::de::Error::invalid_value(
                     serde::de::Unexpected::Str(&s),

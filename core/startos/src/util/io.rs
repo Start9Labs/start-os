@@ -781,7 +781,7 @@ pub struct TmpDir {
 impl TmpDir {
     pub async fn new() -> Result<Self, Error> {
         let path = Path::new("/var/tmp/startos").join(base32::encode(
-            base32::Alphabet::RFC4648 { padding: false },
+            base32::Alphabet::Rfc4648 { padding: false },
             &rand::random::<[u8; 8]>(),
         ));
         if tokio::fs::metadata(&path).await.is_ok() {

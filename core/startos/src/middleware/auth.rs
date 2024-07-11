@@ -151,7 +151,7 @@ impl HashSessionToken {
     pub fn new() -> Self {
         Self::from_token(InternedString::intern(
             base32::encode(
-                base32::Alphabet::RFC4648 { padding: false },
+                base32::Alphabet::Rfc4648 { padding: false },
                 &rand::random::<[u8; 16]>(),
             )
             .to_lowercase(),
@@ -200,7 +200,7 @@ impl HashSessionToken {
         hasher.update(token.as_bytes());
         InternedString::intern(
             base32::encode(
-                base32::Alphabet::RFC4648 { padding: false },
+                base32::Alphabet::Rfc4648 { padding: false },
                 hasher.finalize().as_slice(),
             )
             .to_lowercase(),

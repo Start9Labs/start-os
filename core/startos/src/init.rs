@@ -30,6 +30,7 @@ use crate::progress::{
     FullProgress, FullProgressTracker, PhaseProgressTrackerHandle, PhasedProgressBar,
 };
 use crate::rpc_continuations::{Guid, RpcContinuation};
+use crate::s9pk::v2::pack::{CONTAINER_DATADIR, CONTAINER_TOOL};
 use crate::ssh::SSH_AUTHORIZED_KEYS_FILE;
 use crate::util::io::{create_file, IOHook};
 use crate::util::net::WebSocketExt;
@@ -421,6 +422,10 @@ pub async fn init(
         tokio::fs::remove_dir_all(&tmp_var).await?;
     }
     crate::disk::mount::util::bind(&tmp_var, "/var/tmp", false).await?;
+    let tmp_docker = cfg
+        .datadir()
+        .join(format!("package-data/tmp/{CONTAINER_TOOL}"));
+    crate::disk::mount::util::bind(&tmp_docker, CONTAINER_DATADIR, false).await?;
     init_tmp.complete();
 
     set_governor.start();

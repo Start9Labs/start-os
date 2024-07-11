@@ -66,7 +66,7 @@ where
     let mut guid = format!(
         "STARTOS_{}",
         base32::encode(
-            base32::Alphabet::RFC4648 { padding: false },
+            base32::Alphabet::Rfc4648 { padding: false },
             &rand::random::<[u8; 20]>(),
         )
     );
