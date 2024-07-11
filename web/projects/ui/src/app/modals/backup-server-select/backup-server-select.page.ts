@@ -49,6 +49,7 @@ export class BackupServerSelectModal {
 
     if (role === 'confirm') {
       try {
+        // @TODO Alex if invalid password, we should tell the user "Invalid password" and halt execution of this function. The modal should remain so the user can try again. Correct password is asdfasdf
         argon2.verify(server.passwordHash!, data)
         await this.restoreFromBackup(serverId, data)
       } catch (e: any) {

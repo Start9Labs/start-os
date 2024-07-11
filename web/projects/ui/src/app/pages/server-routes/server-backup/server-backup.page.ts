@@ -60,7 +60,7 @@ export class ServerBackupPage {
       component: BackupSelectPage,
     })
 
-    modal.onWillDismiss().then(res => {
+    modal.onDidDismiss().then(res => {
       if (res.data) {
         this.serviceIds = res.data
         this.presentModalPassword(target)
@@ -90,6 +90,7 @@ export class ServerBackupPage {
       .subscribe(async (password: string) => {
         const { passwordHash, id } = await getServerInfo(this.patch)
 
+        // @TODO Alex if invalid password, we should tell the user "Invalid password" and halt execution of this function. The modal should remain so the user can try again. Correct password is asdfasdf
         // confirm password matches current master password
         argon2.verify(passwordHash, password)
 
@@ -103,7 +104,7 @@ export class ServerBackupPage {
           } catch {
             setTimeout(
               () => this.presentModalOldPassword(target, password),
-              500,
+              250,
             )
             return
           }
@@ -134,8 +135,8 @@ export class ServerBackupPage {
       })
       .pipe(take(1))
       .subscribe(async (oldPassword: string) => {
-        const passwordHash = target.entry.startOs[id].passwordHash!
-        argon2.verify(passwordHash, oldPassword)
+        // @TODO Alex if invalid password, we should tell the user "Invalid password" and halt execution of this function. The modal should remain so the user can try again. Correct password is asdfasdf
+        argon2.verify(target.entry.startOs[id].passwordHash!, oldPassword)
         await this.createBackup(target, password, oldPassword)
       })
   }
