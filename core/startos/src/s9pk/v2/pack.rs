@@ -32,9 +32,13 @@ use crate::util::Invoke;
 
 #[cfg(not(feature = "docker"))]
 pub const CONTAINER_TOOL: &str = "podman";
-
 #[cfg(feature = "docker")]
 pub const CONTAINER_TOOL: &str = "docker";
+
+#[cfg(feature = "docker")]
+pub const CONTAINER_DATADIR: &str = "/var/lib/docker";
+#[cfg(not(feature = "docker"))]
+pub const CONTAINER_DATADIR: &str = "/var/lib/containers";
 
 pub struct SqfsDir {
     path: PathBuf,

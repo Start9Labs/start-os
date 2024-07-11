@@ -279,7 +279,7 @@ impl FullProgressTracker {
                     .mutate(|v| {
                         if let Some(p) = deref(v) {
                             p.ser(&progress)?;
-                            Ok(false)
+                            Ok(progress.overall.is_complete())
                         } else {
                             Ok(true)
                         }

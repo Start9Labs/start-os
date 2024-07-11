@@ -206,7 +206,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
             (
                 Some(hash),
                 Some(base32::encode(
-                    base32::Alphabet::RFC4648 { padding: false },
+                    base32::Alphabet::Rfc4648 { padding: false },
                     hash.as_slice(),
                 )),
             )

@@ -33,7 +33,7 @@ if [ -h /media/startos/config/current.rootfs ] && [ -e /media/startos/config/cur
     echo 'Pruning...'
     current="$(readlink -f /media/startos/config/current.rootfs)"
     while [[ "$(df -B1 --output=avail --sync /media/startos/images | tail -n1)" -lt "$needed" ]]; do
-        to_prune="$(ls -t1 /media/startos/images/*.rootfs | grep -v "$current" | tail -n1)"
+        to_prune="$(ls -t1 /media/startos/images/*.rootfs /media/startos/images/*.squashfs | grep -v "$current" | tail -n1)"
         if [ -e "$to_prune" ]; then
             echo "  Pruning $to_prune"
             rm -rf "$to_prune"
