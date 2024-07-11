@@ -582,7 +582,7 @@ export class MockApiService extends ApiService {
         path: path.replace(/\\/g, '/'),
         username,
         mountable: true,
-        startOs: null,
+        startOs: {},
       },
     }
   }

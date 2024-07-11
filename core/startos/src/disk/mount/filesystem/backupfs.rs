@@ -1,0 +1,55 @@
+use std::fmt::{self, Display};
+use std::os::unix::ffi::OsStrExt;
+use std::path::Path;
+
+use digest::generic_array::GenericArray;
+use digest::{Digest, OutputSizeUser};
+use sha2::Sha256;
+
+use super::FileSystem;
+use crate::prelude::*;
+
+pub struct BackupFS<DataDir: AsRef<Path>, Password: fmt::Display> {
+    data_dir: DataDir,
+    password: Password,
+}
+impl<DataDir: AsRef<Path>, Password: fmt::Display> BackupFS<DataDir, Password> {
+    pub fn new(data_dir: DataDir, password: Password) -> Self {
+        BackupFS { data_dir, password }
+    }
+}
+impl<DataDir: AsRef<Path> + Send + Sync, Password: fmt::Display + Send + Sync> FileSystem
+    for BackupFS<DataDir, Password>
+{
+    fn mount_type(&self) -> Option<impl AsRef<str>> {
+        Some("backup-fs")
+    }
+    fn mount_options(&self) -> impl IntoIterator<Item = impl Display> {
+        [
+            format!("password={}", self.password),
+            format!("file-size-padding=0.05"),
+        ]
+    }
+    async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
+        Ok(Some(&self.data_dir))
+    }
+    async fn source_hash(
+        &self,
+    ) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error> {
+        let mut sha = Sha256::new();
+        sha.update("BackupFS");
+        sha.update(
+            tokio::fs::canonicalize(self.data_dir.as_ref())
+                .await
+                .with_ctx(|_| {
+                    (
+                        crate::ErrorKind::Filesystem,
+                        self.data_dir.as_ref().display().to_string(),
+                    )
+                })?
+                .as_os_str()
+                .as_bytes(),
+        );
+        Ok(sha.finalize())
+    }
+}

@@ -72,10 +72,10 @@ export class BackupDrivesComponent {
       return
     }
 
-    if (this.type === 'restore' && !target.hasValidBackup) {
+    if (this.type === 'restore' && !target.hasAnyBackup) {
       const message = `${
         target.entry.type === 'cifs' ? 'Network Folder' : 'Drive partition'
-      } does not contain a valid Start9 Server backup.`
+      } does not contain a valid backup.`
       this.presentAlertError(message)
       return
     }
@@ -153,7 +153,7 @@ export class BackupDrivesComponent {
       const [id, entry] = Object.entries(res)[0]
       this.backupService.cifs.unshift({
         id,
-        hasValidBackup: this.backupService.hasValidBackup(entry),
+        hasAnyBackup: this.backupService.hasAnyBackup(entry),
         entry,
       })
       return true
@@ -258,7 +258,7 @@ export class BackupDrivesHeaderComponent {
 })
 export class BackupDrivesStatusComponent {
   @Input() type!: BackupType
-  @Input() hasValidBackup!: boolean
+  @Input() hasAnyBackup!: boolean
 }
 
 const cifsSpec = CB.Config.of({

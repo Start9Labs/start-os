@@ -11,9 +11,10 @@ use super::filesystem::ecryptfs::EcryptFS;
 use super::guard::{GenericMountGuard, TmpMountGuard};
 use crate::auth::check_password;
 use crate::backup::target::BackupInfo;
+use crate::disk::mount::filesystem::backupfs::BackupFS;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::SubPath;
-use crate::disk::util::EmbassyOsRecoveryInfo;
+use crate::disk::util::StartOsRecoveryInfo;
 use crate::util::crypto::{decrypt_slice, encrypt_slice};
 use crate::util::serde::IoFormat;
 use crate::{Error, ErrorKind, ResultExt};
@@ -23,29 +24,27 @@ pub struct BackupMountGuard<G: GenericMountGuard> {
     backup_disk_mount_guard: Option<G>,
     encrypted_guard: Option<TmpMountGuard>,
     enc_key: String,
-    pub unencrypted_metadata: EmbassyOsRecoveryInfo,
+    unencrypted_metadata_path: PathBuf,
+    pub unencrypted_metadata: StartOsRecoveryInfo,
     pub metadata: BackupInfo,
 }
 impl<G: GenericMountGuard> BackupMountGuard<G> {
-    fn backup_disk_path(&self) -> &Path {
-        if let Some(guard) = &self.backup_disk_mount_guard {
-            guard.path()
-        } else {
-            unreachable!()
-        }
-    }
-
     #[instrument(skip_all)]
-    pub async fn mount(backup_disk_mount_guard: G, password: &str) -> Result<Self, Error> {
+    pub async fn mount(
+        backup_disk_mount_guard: G,
+        server_id: &str,
+        password: &str,
+    ) -> Result<Self, Error> {
         let backup_disk_path = backup_disk_mount_guard.path();
-        let unencrypted_metadata_path =
-            backup_disk_path.join("EmbassyBackups/unencrypted-metadata.cbor");
-        let mut unencrypted_metadata: EmbassyOsRecoveryInfo =
+        let backup_dir = backup_disk_path.join("StartOSBackups").join(server_id);
+        let unencrypted_metadata_path = backup_dir.join("unencrypted-metadata.json");
+        let crypt_path = backup_dir.join("crypt");
+        let mut unencrypted_metadata: StartOsRecoveryInfo =
             if tokio::fs::metadata(&unencrypted_metadata_path)
                 .await
                 .is_ok()
             {
-                IoFormat::Cbor.from_slice(
+                IoFormat::Json.from_slice(
                     &tokio::fs::read(&unencrypted_metadata_path)
                         .await
                         .with_ctx(|_| {
@@ -56,6 +55,9 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
                         })?,
                 )?
             } else {
+                if tokio::fs::metadata(&crypt_path).await.is_ok() {
+                    tokio::fs::remove_dir_all(&crypt_path).await?;
+                }
                 Default::default()
             };
         let enc_key = if let (Some(hash), Some(wrapped_key)) = (
@@ -96,7 +98,6 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
             ));
         }
 
-        let crypt_path = backup_disk_path.join("EmbassyBackups/crypt");
         if tokio::fs::metadata(&crypt_path).await.is_err() {
             tokio::fs::create_dir_all(&crypt_path).await.with_ctx(|_| {
                 (
@@ -106,11 +107,11 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
             })?;
         }
         let encrypted_guard =
-            TmpMountGuard::mount(&EcryptFS::new(&crypt_path, &enc_key), ReadWrite).await?;
+            TmpMountGuard::mount(&BackupFS::new(&crypt_path, &enc_key), ReadWrite).await?;
 
-        let metadata_path = encrypted_guard.path().join("metadata.cbor");
+        let metadata_path = encrypted_guard.path().join("metadata.json");
         let metadata: BackupInfo = if tokio::fs::metadata(&metadata_path).await.is_ok() {
-            IoFormat::Cbor.from_slice(&tokio::fs::read(&metadata_path).await.with_ctx(|_| {
+            IoFormat::Json.from_slice(&tokio::fs::read(&metadata_path).await.with_ctx(|_| {
                 (
                     crate::ErrorKind::Filesystem,
                     metadata_path.display().to_string(),
@@ -124,6 +125,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
             backup_disk_mount_guard: Some(backup_disk_mount_guard),
             encrypted_guard: Some(encrypted_guard),
             enc_key,
+            unencrypted_metadata_path,
             unencrypted_metadata,
             metadata,
         })
@@ -152,20 +154,17 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
 
     #[instrument(skip_all)]
     pub async fn save(&self) -> Result<(), Error> {
-        let metadata_path = self.path().join("metadata.cbor");
-        let backup_disk_path = self.backup_disk_path();
+        let metadata_path = self.path().join("metadata.json");
         let mut file = AtomicFile::new(&metadata_path, None::<PathBuf>)
             .await
             .with_kind(ErrorKind::Filesystem)?;
-        file.write_all(&IoFormat::Cbor.to_vec(&self.metadata)?)
+        file.write_all(&IoFormat::Json.to_vec(&self.metadata)?)
             .await?;
         file.save().await.with_kind(ErrorKind::Filesystem)?;
-        let unencrypted_metadata_path =
-            backup_disk_path.join("EmbassyBackups/unencrypted-metadata.cbor");
-        let mut file = AtomicFile::new(&unencrypted_metadata_path, None::<PathBuf>)
+        let mut file = AtomicFile::new(&self.unencrypted_metadata_path, None::<PathBuf>)
             .await
             .with_kind(ErrorKind::Filesystem)?;
-        file.write_all(&IoFormat::Cbor.to_vec(&self.unencrypted_metadata)?)
+        file.write_all(&IoFormat::Json.to_vec(&self.unencrypted_metadata)?)
             .await?;
         file.save().await.with_kind(ErrorKind::Filesystem)?;
         Ok(())

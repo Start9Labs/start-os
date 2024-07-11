@@ -44,9 +44,14 @@ pub async fn restore_packages_rpc(
         password,
     }: RestorePackageParams,
 ) -> Result<(), Error> {
-    let fs = target_id.load(&ctx.db.peek().await)?;
-    let backup_guard =
-        BackupMountGuard::mount(TmpMountGuard::mount(&fs, ReadWrite).await?, &password).await?;
+    let peek = ctx.db.peek().await;
+    let fs = target_id.load(&peek)?;
+    let backup_guard = BackupMountGuard::mount(
+        TmpMountGuard::mount(&fs, ReadWrite).await?,
+        &peek.as_public().as_server_info().as_id().de()?,
+        &password,
+    )
+    .await?;
 
     let tasks = restore_packages(&ctx, backup_guard, ids).await?;
 
@@ -73,7 +78,8 @@ pub async fn recover_full_embassy(
     disk_guid: Arc<String>,
     start_os_password: String,
     recovery_source: TmpMountGuard,
-    recovery_password: Option<String>,
+    server_id: &str,
+    recovery_password: &str,
     SetupExecuteProgress {
         init_phases,
         restore_phase,
@@ -82,14 +88,11 @@ pub async fn recover_full_embassy(
 ) -> Result<(SetupResult, RpcContext), Error> {
     let mut restore_phase = restore_phase.or_not_found("restore progress")?;
 
-    let backup_guard = BackupMountGuard::mount(
-        recovery_source,
-        recovery_password.as_deref().unwrap_or_default(),
-    )
-    .await?;
+    let backup_guard =
+        BackupMountGuard::mount(recovery_source, server_id, recovery_password).await?;
 
-    let os_backup_path = backup_guard.path().join("os-backup.cbor");
-    let mut os_backup: OsBackup = IoFormat::Cbor.from_slice(
+    let os_backup_path = backup_guard.path().join("os-backup.json");
+    let mut os_backup: OsBackup = IoFormat::Json.from_slice(
         &tokio::fs::read(&os_backup_path)
             .await
             .with_ctx(|_| (ErrorKind::Filesystem, os_backup_path.display().to_string()))?,

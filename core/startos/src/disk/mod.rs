@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use itertools::Itertools;
+use lazy_format::lazy_format;
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 
@@ -102,10 +104,18 @@ fn display_disk_info(params: WithIoFormat<Empty>, args: Vec<DiskInfo>) {
                 } else {
                     "N/A"
                 },
-                &if let Some(eos) = part.start_os.as_ref() {
-                    eos.version.to_string()
-                } else {
+                &if part.start_os.is_empty() {
                     "N/A".to_owned()
+                } else if part.start_os.len() == 1 {
+                    part.start_os
+                        .first_key_value()
+                        .map(|(_, info)| info.version.to_string())
+                        .unwrap()
+                } else {
+                    part.start_os
+                        .iter()
+                        .map(|(id, info)| lazy_format!("{} ({})", info.version, id))
+                        .join(", ")
                 },
             ];
             table.add_row(row);

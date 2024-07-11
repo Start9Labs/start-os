@@ -3,7 +3,7 @@
   <ion-icon *ngFor="let icon of icons" [name]="icon"></ion-icon>
 
   <!-- 3rd party components -->
-  <qr-code value="hello"></qr-code>
+  <qr-code control="hello"></qr-code>
 
   <!-- Ionic components -->
   <ion-accordion></ion-accordion>
@@ -58,21 +58,21 @@
   <img *ngFor="let icon of taiga" src="assets/taiga-ui/icons/{{ icon }}.svg" />
 
   <!-- Taiga UI components -->
-  <tui-input></tui-input>
-  <tui-input-time></tui-input-time>
-  <tui-input-date></tui-input-date>
-  <tui-input-date-time></tui-input-date-time>
-  <tui-input-files></tui-input-files>
-  <tui-input-number></tui-input-number>
-  <tui-text-area></tui-text-area>
-  <tui-select></tui-select>
-  <tui-multi-select></tui-multi-select>
+  <tui-input [formControl]="control"></tui-input>
+  <tui-input-time [formControl]="control"></tui-input-time>
+  <tui-input-date [formControl]="control"></tui-input-date>
+  <tui-input-date-time [formControl]="control"></tui-input-date-time>
+  <tui-input-files [formControl]="control"></tui-input-files>
+  <tui-input-number [formControl]="control"></tui-input-number>
+  <tui-textarea [formControl]="control"></tui-textarea>
+  <tui-select [formControl]="control"></tui-select>
+  <tui-multi-select [formControl]="control"></tui-multi-select>
+  <tui-toggle [formControl]="control"></tui-toggle>
+  <tui-radio-list [formControl]="control"></tui-radio-list>
   <tui-tooltip></tui-tooltip>
-  <tui-toggle></tui-toggle>
-  <tui-radio-list></tui-radio-list>
   <tui-error></tui-error>
-  <tui-svg></tui-svg>
-  <tui-icon></tui-icon>
+  <tui-svg src="tuiIconTrash"></tui-svg>
+  <tui-icon icon="tuiIconTrash"></tui-icon>
   <tui-expand></tui-expand>
   <tui-elastic-container></tui-elastic-container>
   <tui-scrollbar></tui-scrollbar>

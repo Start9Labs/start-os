@@ -17,6 +17,7 @@ import { BackupSelectPage } from 'src/app/modals/backup-select/backup-select.pag
 import { EOSService } from 'src/app/services/eos.service'
 import { getServerInfo } from 'src/app/util/get-server-info'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { BackupService } from 'src/app/components/backup-drives/backup.service'
 
 @Component({
   selector: 'server-backup',
@@ -38,6 +39,7 @@ export class ServerBackupPage {
     private readonly destroy$: TuiDestroyService,
     private readonly eosService: EOSService,
     private readonly patch: PatchDB<DataModel>,
+    private readonly backupService: BackupService,
   ) {}
 
   ngOnInit() {
@@ -86,19 +88,18 @@ export class ServerBackupPage {
       })
       .pipe(take(1))
       .subscribe(async (password: string) => {
+        const { passwordHash, id } = await getServerInfo(this.patch)
+
         // confirm password matches current master password
-        const { passwordHash } = await getServerInfo(this.patch)
         argon2.verify(passwordHash, password)
 
         // first time backup
-        if (!target.hasValidBackup) {
+        if (!this.backupService.hasThisBackup(target.entry, id)) {
           await this.createBackup(target, password)
           // existing backup
         } else {
           try {
-            const passwordHash = target.entry.startOs?.passwordHash || ''
-
-            argon2.verify(passwordHash, password)
+            argon2.verify(target.entry.startOs[id].passwordHash!, password)
           } catch {
             setTimeout(
               () => this.presentModalOldPassword(target, password),
@@ -124,6 +125,8 @@ export class ServerBackupPage {
       buttonText: 'Create Backup',
     }
 
+    const { id } = await getServerInfo(this.patch)
+
     this.dialogs
       .open<string>(PROMPT, {
         label: 'Original Password Needed',
@@ -131,8 +134,7 @@ export class ServerBackupPage {
       })
       .pipe(take(1))
       .subscribe(async (oldPassword: string) => {
-        const passwordHash = target.entry.startOs?.passwordHash || ''
-
+        const passwordHash = target.entry.startOs[id].passwordHash!
         argon2.verify(passwordHash, oldPassword)
         await this.createBackup(target, password, oldPassword)
       })

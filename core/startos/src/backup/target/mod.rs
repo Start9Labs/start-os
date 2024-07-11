@@ -157,6 +157,16 @@ pub fn target<C: Context>() -> ParentHandler<C> {
                 })
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "mount",
+            from_fn_async(mount).with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "umount",
+            from_fn_async(umount)
+                .no_display()
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 // #[command(display(display_serializable))]
@@ -250,6 +260,7 @@ fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) {
 #[command(rename_all = "kebab-case")]
 pub struct InfoParams {
     target_id: BackupTargetId,
+    server_id: String,
     password: String,
 }
 
@@ -258,11 +269,13 @@ pub async fn info(
     ctx: RpcContext,
     InfoParams {
         target_id,
+        server_id,
         password,
     }: InfoParams,
 ) -> Result<BackupInfo, Error> {
     let guard = BackupMountGuard::mount(
         TmpMountGuard::mount(&target_id.load(&ctx.db.peek().await)?, ReadWrite).await?,
+        &server_id,
         &password,
     )
     .await?;
@@ -284,6 +297,7 @@ lazy_static::lazy_static! {
 #[command(rename_all = "kebab-case")]
 pub struct MountParams {
     target_id: BackupTargetId,
+    server_id: String,
     password: String,
 }
 
@@ -292,6 +306,7 @@ pub async fn mount(
     ctx: RpcContext,
     MountParams {
         target_id,
+        server_id,
         password,
     }: MountParams,
 ) -> Result<String, Error> {
@@ -303,6 +318,7 @@ pub async fn mount(
 
     let guard = BackupMountGuard::mount(
         TmpMountGuard::mount(&target_id.clone().load(&ctx.db.peek().await)?, ReadWrite).await?,
+        &server_id,
         &password,
     )
     .await?;

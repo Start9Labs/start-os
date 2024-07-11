@@ -34,7 +34,7 @@ export class BackupService {
         .map(([id, cifs]) => {
           return {
             id,
-            hasValidBackup: this.hasValidBackup(cifs),
+            hasAnyBackup: this.hasAnyBackup(cifs),
             entry: cifs as CifsBackupTarget,
           }
         })
@@ -44,7 +44,7 @@ export class BackupService {
         .map(([id, drive]) => {
           return {
             id,
-            hasValidBackup: this.hasValidBackup(drive),
+            hasAnyBackup: this.hasAnyBackup(drive),
             entry: drive as DiskBackupTarget,
           }
         })
@@ -55,8 +55,16 @@ export class BackupService {
     }
   }
 
-  hasValidBackup(target: BackupTarget): boolean {
-    const backup = target.startOs
-    return !!backup && this.emver.compare(backup.version, '0.3.0') !== -1
+  hasAnyBackup(target: BackupTarget): boolean {
+    return Object.values(target.startOs).some(
+      s => this.emver.compare(s.version, '0.3.6') !== -1,
+    )
+  }
+
+  async hasThisBackup(target: BackupTarget, id: string): Promise<boolean> {
+    return (
+      target.startOs[id] &&
+      this.emver.compare(target.startOs[id].version, '0.3.6') !== -1
+    )
   }
 }

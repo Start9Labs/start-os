@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { FormControl } from '@angular/forms'
 import {
   ActionSheetController,
   AlertController,
@@ -122,6 +123,7 @@ const TAIGA = [
 export class PreloaderComponent {
   readonly icons = ICONS
   readonly taiga = TAIGA
+  readonly control = new FormControl()
 
   constructor(
     _modals: ModalController,

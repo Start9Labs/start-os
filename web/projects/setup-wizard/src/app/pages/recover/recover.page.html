@@ -54,29 +54,21 @@
                 </b>
               </div>
 
-              <ng-container *ngFor="let mapped of mappedDrives">
-                <ion-item
-                  button
-                  *ngIf="mapped.drive as drive"
-                  [disabled]="!driveClickable(mapped)"
-                  (click)="select(drive)"
-                  lines="none"
-                >
-                  <ion-icon
-                    slot="start"
-                    name="save-outline"
-                    size="large"
-                  ></ion-icon>
+              <ng-container *ngFor="let server of servers">
+                <ion-item button (click)="select(server)" lines="none">
                   <ion-label>
-                    <h1>{{ drive.label || drive.logicalname }}</h1>
-                    <drive-status
-                      [hasValidBackup]="mapped.hasValidBackup"
-                    ></drive-status>
-                    <p>
-                      {{ drive.vendor || 'Unknown Vendor' }} - {{ drive.model ||
-                      'Unknown Model' }}
-                    </p>
-                    <p>Capacity: {{ drive.capacity | convertBytes }}</p>
+                    <h2>
+                      <b>Local Hostname</b>
+                      : {{ server.hostname }}.local
+                    </h2>
+                    <h2>
+                      <b>StartOS Version</b>
+                      : {{ server.version }}
+                    </h2>
+                    <h2>
+                      <b>Created</b>
+                      : {{ server.timestamp | date : 'medium' }}
+                    </h2>
                   </ion-label>
                 </ion-item>
               </ng-container>
