@@ -31,26 +31,5 @@
         </h2>
       </ion-label>
     </ion-item>
-    <ion-item
-      *ngFor="let server of target.entry.startOs | keyvalue"
-      button
-      (click)="presentModalPassword(server.key, server.value)"
-      lines="none"
-    >
-      <ion-label>
-        <h2>
-          <b>Local Hostname</b>
-          : {{ server.value.hostname }}.local
-        </h2>
-        <h2>
-          <b>StartOS Version</b>
-          : {{ server.value.version }}
-        </h2>
-        <h2>
-          <b>Created</b>
-          : {{ server.value.timestamp | date : 'medium' }}
-        </h2>
-      </ion-label>
-    </ion-item>
   </ion-item-group>
 </ion-content>
