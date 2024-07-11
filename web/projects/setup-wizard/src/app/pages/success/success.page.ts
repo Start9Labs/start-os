@@ -8,7 +8,6 @@ import { StateService } from 'src/app/services/state.service'
   selector: 'success',
   templateUrl: 'success.page.html',
   styleUrls: ['success.page.scss'],
-  providers: [DownloadHTMLService],
 })
 export class SuccessPage {
   @ViewChild('canvas', { static: true })
