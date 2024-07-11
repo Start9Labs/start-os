@@ -1,18 +1,20 @@
 import { Component, Input } from '@angular/core'
 import { ModalController, NavController } from '@ionic/angular'
+import * as argon2 from '@start9labs/argon2'
+import {
+  ErrorService,
+  LoadingService,
+  StartOSDiskInfo,
+} from '@start9labs/shared'
 import {
   BackupInfo,
   CifsBackupTarget,
   DiskBackupTarget,
 } from 'src/app/services/api/api.types'
-import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
-import { PROMPT, PromptOptions } from '../prompt.component'
-import { take } from 'rxjs'
-import { TuiDialogService } from '@taiga-ui/core'
-import { LoadingService, StartOSDiskInfo } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
 import { AppRecoverSelectPage } from '../app-recover-select/app-recover-select.page'
-import * as argon2 from '@start9labs/argon2'
+import { PasswordPromptModal } from './password-prompt.modal'
 
 @Component({
   selector: 'backup-server-select',
@@ -24,10 +26,10 @@ export class BackupServerSelectModal {
 
   constructor(
     private readonly modalCtrl: ModalController,
-    private readonly dialogs: TuiDialogService,
     private readonly loader: LoadingService,
     private readonly api: ApiService,
     private readonly navCtrl: NavController,
+    private readonly errorService: ErrorService,
   ) {}
 
   dismiss() {
@@ -38,25 +40,21 @@ export class BackupServerSelectModal {
     serverId: string,
     server: StartOSDiskInfo,
   ): Promise<void> {
-    const options: PromptOptions = {
-      message:
-        'Enter the password that was used to encrypt this backup. On the next screen, you will select the individual services you want to restore.',
-      label: 'Decrypt Backup',
-      placeholder: 'Enter password',
-      useMask: true,
-      buttonText: 'Next',
-    }
+    const modal = await this.modalCtrl.create({
+      component: PasswordPromptModal,
+    })
+    modal.present()
 
-    this.dialogs
-      .open<string>(PROMPT, {
-        label: 'Password Required',
-        data: options,
-      })
-      .pipe(take(1))
-      .subscribe(async (password: string) => {
-        argon2.verify(server.passwordHash!, password)
-        await this.restoreFromBackup(serverId, password)
-      })
+    const { data, role } = await modal.onWillDismiss()
+
+    if (role === 'confirm') {
+      try {
+        argon2.verify(server.passwordHash!, data)
+        await this.restoreFromBackup(serverId, data)
+      } catch (e: any) {
+        this.errorService.handleError(e)
+      }
+    }
   }
 
   private async restoreFromBackup(

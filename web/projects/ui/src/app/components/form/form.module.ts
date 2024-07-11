@@ -30,7 +30,7 @@ import {
   TuiPromptModule,
   TuiSelectModule,
   TuiTagModule,
-  TuiTextAreaModule,
+  TuiTextareaModule,
   TuiToggleModule,
 } from '@taiga-ui/kit'
 
@@ -60,7 +60,7 @@ import { HintPipe } from './hint.pipe'
     TuiInputModule,
     TuiInputNumberModule,
     TuiInputFilesModule,
-    TuiTextAreaModule,
+    TuiTextareaModule,
     TuiSelectModule,
     TuiMultiSelectModule,
     TuiToggleModule,

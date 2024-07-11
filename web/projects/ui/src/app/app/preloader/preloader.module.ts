@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common'
 import { CUSTOM_ELEMENTS_SCHEMA, NgModule } from '@angular/core'
+import { ReactiveFormsModule } from '@angular/forms'
 import { IonicModule } from '@ionic/angular'
 import {
   TuiErrorModule,
@@ -26,7 +27,7 @@ import {
   TuiProgressModule,
   TuiRadioListModule,
   TuiSelectModule,
-  TuiTextAreaModule,
+  TuiTextareaModule,
   TuiToggleModule,
 } from '@taiga-ui/kit'
 import { QrCodeModule } from 'ng-qrcode'
@@ -35,6 +36,7 @@ import { PreloaderComponent } from './preloader.component'
 @NgModule({
   imports: [
     CommonModule,
+    ReactiveFormsModule,
     IonicModule,
     QrCodeModule,
     TuiTooltipModule,
@@ -52,7 +54,7 @@ import { PreloaderComponent } from './preloader.component'
     TuiInputNumberModule,
     TuiExpandModule,
     TuiSelectModule,
-    TuiTextAreaModule,
+    TuiTextareaModule,
     TuiToggleModule,
     TuiElasticContainerModule,
     TuiCellModule,
