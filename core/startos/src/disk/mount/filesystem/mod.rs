@@ -1,6 +1,7 @@
 use std::ffi::OsStr;
 use std::fmt::{Display, Write};
 use std::path::Path;
+use std::time::Duration;
 
 use digest::generic_array::GenericArray;
 use digest::OutputSizeUser;
@@ -72,6 +73,7 @@ pub(self) async fn default_mount_impl(
     fs.pre_mount().await?;
     tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
     Command::from(default_mount_command(fs, mountpoint, mount_type).await?)
+        .capture(false)
         .invoke(ErrorKind::Filesystem)
         .await?;
 

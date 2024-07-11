@@ -303,11 +303,11 @@ async fn perform_backup(
     let ui = ctx.db.peek().await.into_public().into_ui().de()?;
 
     let mut os_backup_file =
-        AtomicFile::new(backup_guard.path().join("os-backup.cbor"), None::<PathBuf>)
+        AtomicFile::new(backup_guard.path().join("os-backup.json"), None::<PathBuf>)
             .await
             .with_kind(ErrorKind::Filesystem)?;
     os_backup_file
-        .write_all(&IoFormat::Cbor.to_vec(&OsBackup {
+        .write_all(&IoFormat::Json.to_vec(&OsBackup {
             account: ctx.account.read().await.clone(),
             ui,
         })?)

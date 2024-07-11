@@ -157,6 +157,16 @@ pub fn target<C: Context>() -> ParentHandler<C> {
                 })
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "mount",
+            from_fn_async(mount).with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "umount",
+            from_fn_async(umount)
+                .no_display()
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 // #[command(display(display_serializable))]

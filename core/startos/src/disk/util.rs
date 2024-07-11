@@ -235,14 +235,14 @@ pub async fn recovery_info(
             let server_id = entry.file_name().to_string_lossy().into_owned();
             let backup_unencrypted_metadata_path = backup_root
                 .join(&server_id)
-                .join("unencrypted-metadata.cbor");
+                .join("unencrypted-metadata.json");
             if tokio::fs::metadata(&backup_unencrypted_metadata_path)
                 .await
                 .is_ok()
             {
                 res.insert(
                     server_id,
-                    IoFormat::Cbor.from_slice(
+                    IoFormat::Json.from_slice(
                         &tokio::fs::read(&backup_unencrypted_metadata_path)
                             .await
                             .with_ctx(|_| {
