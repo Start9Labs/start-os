@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { LoadingController, ModalController } from '@ionic/angular'
-import { ApiService } from '../../services/api/embassy-api.service'
-import { ErrorToastService } from '@start9labs/shared'
+import { ModalController } from '@ionic/angular'
+import { ErrorService, LoadingService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
+import { ApiService } from '../../services/api/embassy-api.service'
 
 @Component({
   selector: 'os-update',
@@ -15,8 +15,8 @@ export class OSUpdatePage {
 
   constructor(
     private readonly modalCtrl: ModalController,
-    private readonly loadingCtrl: LoadingController,
-    private readonly errToast: ErrorToastService,
+    private readonly loader: LoadingService,
+    private readonly errorService: ErrorService,
     private readonly embassyApi: ApiService,
     private readonly eosService: EOSService,
   ) {}
@@ -39,18 +39,15 @@ export class OSUpdatePage {
   }
 
   async updateEOS() {
-    const loader = await this.loadingCtrl.create({
-      message: 'Beginning update...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Beginning update...').subscribe()
 
     try {
       await this.embassyApi.updateServer()
       this.dismiss()
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 

@@ -94,12 +94,19 @@ impl ServiceMap {
     }
 
     #[instrument(skip_all)]
-    pub async fn install<S: FileSource + Clone>(
+    pub async fn install<F, Fut, S: FileSource + Clone>(
         &self,
         ctx: RpcContext,
-        mut s9pk: S9pk<S>,
+        s9pk: F,
         recovery_source: Option<impl GenericMountGuard>,
-    ) -> Result<DownloadInstallFuture, Error> {
+        progress: Option<FullProgressTracker>,
+    ) -> Result<DownloadInstallFuture, Error>
+    where
+        F: FnOnce() -> Fut,
+        Fut: Future<Output = Result<S9pk<S>, Error>>,
+        S: FileSource + Clone,
+    {
+        let mut s9pk = s9pk().await?;
         s9pk.validate_and_filter(ctx.s9pk_arch)?;
         let manifest = s9pk.as_manifest().clone();
         let id = manifest.id.clone();
@@ -118,7 +125,7 @@ impl ServiceMap {
         };
 
         let size = s9pk.size();
-        let progress = FullProgressTracker::new();
+        let progress = progress.unwrap_or_else(|| FullProgressTracker::new());
         let download_progress_contribution = size.unwrap_or(60);
         let mut download_progress = progress.add_phase(
             InternedString::intern("Download"),
@@ -287,9 +294,12 @@ impl ServiceMap {
                             .into(),
                         );
                     }
+                    drop(service);
+
                     sync_progress_task.await.map_err(|_| {
                         Error::new(eyre!("progress sync task panicked"), ErrorKind::Unknown)
                     })??;
+
                     Ok(())
                 })
                 .boxed())

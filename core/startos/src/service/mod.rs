@@ -11,7 +11,6 @@ use persistent_container::PersistentContainer;
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerFor};
 use serde::{Deserialize, Serialize};
 use start_stop::StartStop;
-use tokio::fs::File;
 use tokio::sync::Notify;
 use ts_rs::TS;
 
@@ -33,6 +32,7 @@ use crate::status::MainStatus;
 use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::actor::concurrent::ConcurrentActor;
 use crate::util::actor::Actor;
+use crate::util::io::create_file;
 use crate::util::serde::Pem;
 use crate::volume::data_dir;
 
@@ -374,9 +374,11 @@ impl Service {
                 entry.as_icon_mut().ser(&icon)?;
                 // TODO: marketplace url
                 // TODO: dependency info
+
                 Ok(())
             })
             .await?;
+
         Ok(service)
     }
 
@@ -403,7 +405,7 @@ impl Service {
     #[instrument(skip_all)]
     pub async fn backup(&self, guard: impl GenericMountGuard) -> Result<(), Error> {
         let id = &self.seed.id;
-        let mut file = File::create(guard.path().join(id).with_extension("s9pk")).await?;
+        let mut file = create_file(guard.path().join(id).with_extension("s9pk")).await?;
         self.seed
             .persistent_container
             .s9pk

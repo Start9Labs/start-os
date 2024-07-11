@@ -2,7 +2,7 @@ import { NgModule } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { RouteReuseStrategy } from '@angular/router'
 import { HttpClientModule } from '@angular/common/http'
-import { TuiRootModule } from '@taiga-ui/core'
+import { TuiAlertModule, TuiRootModule } from '@taiga-ui/core'
 import { ApiService } from './services/api/api.service'
 import { MockApiService } from './services/api/mock-api.service'
 import { LiveApiService } from './services/api/live-api.service'
@@ -41,6 +41,7 @@ const {
     RecoverPageModule,
     TransferPageModule,
     TuiRootModule,
+    TuiAlertModule,
   ],
   providers: [
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },

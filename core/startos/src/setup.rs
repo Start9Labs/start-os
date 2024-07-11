@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
@@ -8,7 +9,6 @@ use patch_db::json_ptr::ROOT;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
-use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tokio::try_join;
 use tracing::instrument;
@@ -26,7 +26,7 @@ use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
-use crate::disk::util::{pvscan, recovery_info, DiskInfo, EmbassyOsRecoveryInfo};
+use crate::disk::util::{pvscan, recovery_info, DiskInfo, StartOsRecoveryInfo};
 use crate::disk::REPAIR_DISK_PATH;
 use crate::init::{init, InitPhases, InitResult};
 use crate::net::net_controller::PreInitNetController;
@@ -35,7 +35,7 @@ use crate::prelude::*;
 use crate::progress::{FullProgress, PhaseProgressTrackerHandle};
 use crate::rpc_continuations::Guid;
 use crate::util::crypto::EncryptedWire;
-use crate::util::io::{dir_copy, dir_size, Counter};
+use crate::util::io::{create_file, dir_copy, dir_size, Counter};
 use crate::{Error, ErrorKind, ResultExt};
 
 pub fn setup<C: Context>() -> ParentHandler<C> {
@@ -238,7 +238,7 @@ pub async fn verify_cifs(
         username,
         password,
     }: VerifyCifsParams,
-) -> Result<EmbassyOsRecoveryInfo, Error> {
+) -> Result<BTreeMap<String, StartOsRecoveryInfo>, Error> {
     let password: Option<String> = password.map(|x| x.decrypt(&ctx)).flatten();
     let guard = TmpMountGuard::mount(
         &Cifs {
@@ -252,15 +252,28 @@ pub async fn verify_cifs(
     .await?;
     let start_os = recovery_info(guard.path()).await?;
     guard.unmount().await?;
-    start_os.ok_or_else(|| Error::new(eyre!("No Backup Found"), crate::ErrorKind::NotFound))
+    if start_os.is_empty() {
+        return Err(Error::new(
+            eyre!("No Backup Found"),
+            crate::ErrorKind::NotFound,
+        ));
+    }
+    Ok(start_os)
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(tag = "type")]
 #[serde(rename_all = "camelCase")]
-pub enum RecoverySource {
-    Migrate { guid: String },
-    Backup { target: BackupTargetFS },
+#[serde(rename_all_fields = "camelCase")]
+pub enum RecoverySource<Password> {
+    Migrate {
+        guid: String,
+    },
+    Backup {
+        target: BackupTargetFS,
+        password: Password,
+        server_id: String,
+    },
 }
 
 #[derive(Deserialize, Serialize, TS)]
@@ -269,8 +282,7 @@ pub enum RecoverySource {
 pub struct SetupExecuteParams {
     start_os_logicalname: PathBuf,
     start_os_password: EncryptedWire,
-    recovery_source: Option<RecoverySource>,
-    recovery_password: Option<EncryptedWire>,
+    recovery_source: Option<RecoverySource<EncryptedWire>>,
 }
 
 // #[command(rpc_only)]
@@ -280,7 +292,6 @@ pub async fn execute(
         start_os_logicalname,
         start_os_password,
         recovery_source,
-        recovery_password,
     }: SetupExecuteParams,
 ) -> Result<SetupProgress, Error> {
     let start_os_password = match start_os_password.decrypt(&ctx) {
@@ -292,29 +303,27 @@ pub async fn execute(
             ))
         }
     };
-    let recovery_password: Option<String> = match recovery_password {
-        Some(a) => match a.decrypt(&ctx) {
-            Some(a) => Some(a),
-            None => {
-                return Err(Error::new(
+    let recovery = match recovery_source {
+        Some(RecoverySource::Backup {
+            target,
+            password,
+            server_id,
+        }) => Some(RecoverySource::Backup {
+            target,
+            password: password.decrypt(&ctx).ok_or_else(|| {
+                Error::new(
                     color_eyre::eyre::eyre!("Couldn't decode recoveryPassword"),
                     crate::ErrorKind::Unknown,
-                ))
-            }
-        },
+                )
+            })?,
+            server_id,
+        }),
+        Some(RecoverySource::Migrate { guid }) => Some(RecoverySource::Migrate { guid }),
         None => None,
     };
 
     let setup_ctx = ctx.clone();
-    ctx.run_setup(|| {
-        execute_inner(
-            setup_ctx,
-            start_os_logicalname,
-            start_os_password,
-            recovery_source,
-            recovery_password,
-        )
-    })?;
+    ctx.run_setup(|| execute_inner(setup_ctx, start_os_logicalname, start_os_password, recovery))?;
 
     Ok(ctx.progress().await)
 }
@@ -324,7 +333,7 @@ pub async fn execute(
 pub async fn complete(ctx: SetupContext) -> Result<SetupResult, Error> {
     match ctx.result.get() {
         Some(Ok((res, ctx))) => {
-            let mut guid_file = File::create("/media/startos/config/disk.guid").await?;
+            let mut guid_file = create_file("/media/startos/config/disk.guid").await?;
             guid_file.write_all(ctx.disk_guid.as_bytes()).await?;
             guid_file.sync_all().await?;
             Ok(res.clone())
@@ -349,12 +358,11 @@ pub async fn execute_inner(
     ctx: SetupContext,
     start_os_logicalname: PathBuf,
     start_os_password: String,
-    recovery_source: Option<RecoverySource>,
-    recovery_password: Option<String>,
+    recovery_source: Option<RecoverySource<String>>,
 ) -> Result<(SetupResult, RpcContext), Error> {
     let progress = &ctx.progress;
     let mut disk_phase = progress.add_phase("Formatting data drive".into(), Some(10));
-    let restore_phase = match &recovery_source {
+    let restore_phase = match recovery_source.as_ref() {
         Some(RecoverySource::Backup { .. }) => {
             Some(progress.add_phase("Restoring backup".into(), Some(100)))
         }
@@ -397,13 +405,18 @@ pub async fn execute_inner(
     };
 
     match recovery_source {
-        Some(RecoverySource::Backup { target }) => {
+        Some(RecoverySource::Backup {
+            target,
+            password,
+            server_id,
+        }) => {
             recover(
                 &ctx,
                 guid,
                 start_os_password,
                 target,
-                recovery_password,
+                server_id,
+                password,
                 progress,
             )
             .await
@@ -449,7 +462,8 @@ async fn recover(
     guid: Arc<String>,
     start_os_password: String,
     recovery_source: BackupTargetFS,
-    recovery_password: Option<String>,
+    server_id: String,
+    recovery_password: String,
     progress: SetupExecuteProgress,
 ) -> Result<(SetupResult, RpcContext), Error> {
     let recovery_source = TmpMountGuard::mount(&recovery_source, ReadWrite).await?;
@@ -458,7 +472,8 @@ async fn recover(
         guid.clone(),
         start_os_password,
         recovery_source,
-        recovery_password,
+        &server_id,
+        &recovery_password,
         progress,
     )
     .await

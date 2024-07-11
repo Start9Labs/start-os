@@ -48,7 +48,7 @@ export type ValueSpecText = {
   default: DefaultString | null
   disabled: false | string
   generate: null | RandomString
-  /** Immutable means it can only be configed at the first config then never again */
+  /** Immutable means it can only be configured at the first config then never again */
   immutable: boolean
 }
 export type ValueSpecTextarea = {
@@ -62,7 +62,7 @@ export type ValueSpecTextarea = {
   maxLength: number | null
   required: boolean
   disabled: false | string
-  /** Immutable means it can only be configed at the first config then never again */
+  /** Immutable means it can only be configured at the first config then never again */
   immutable: boolean
 }
 
@@ -83,7 +83,7 @@ export type ValueSpecNumber = {
   required: boolean
   default: number | null
   disabled: false | string
-  /** Immutable means it can only be configed at the first config then never again */
+  /** Immutable means it can only be configured at the first config then never again */
   immutable: boolean
 }
 export type ValueSpecColor = {
@@ -95,7 +95,7 @@ export type ValueSpecColor = {
   required: boolean
   default: string | null
   disabled: false | string
-  /** Immutable means it can only be configed at the first config then never again */
+  /** Immutable means it can only be configured at the first config then never again */
   immutable: boolean
 }
 export type ValueSpecDatetime = {
@@ -109,7 +109,7 @@ export type ValueSpecDatetime = {
   max: string | null
   default: string | null
   disabled: false | string
-  /** Immutable means it can only be configed at the first config then never again */
+  /** Immutable means it can only be configured at the first config then never again */
   immutable: boolean
 }
 export type ValueSpecSelect = {
@@ -126,7 +126,7 @@ export type ValueSpecSelect = {
    *           string[] means that the options are disabled
    */
   disabled: false | string | string[]
-  /** Immutable means it can only be configed at the first config then never again */
+  /** Immutable means it can only be configured at the first config then never again */
   immutable: boolean
 }
 export type ValueSpecMultiselect = {
@@ -146,7 +146,7 @@ export type ValueSpecMultiselect = {
    */
   disabled: false | string | string[]
   default: string[]
-  /** Immutable means it can only be configed at the first config then never again */
+  /** Immutable means it can only be configured at the first config then never again */
   immutable: boolean
 }
 export type ValueSpecToggle = {
@@ -157,7 +157,7 @@ export type ValueSpecToggle = {
   type: "toggle"
   default: boolean | null
   disabled: false | string
-  /** Immutable means it can only be configed at the first config then never again */
+  /** Immutable means it can only be configured at the first config then never again */
   immutable: boolean
 }
 export type ValueSpecUnion = {
@@ -181,7 +181,7 @@ export type ValueSpecUnion = {
   disabled: false | string | string[]
   required: boolean
   default: string | null
-  /** Immutable means it can only be configed at the first config then never again */
+  /** Immutable means it can only be configured at the first config then never again */
   immutable: boolean
 }
 export type ValueSpecFile = {
@@ -199,12 +199,11 @@ export type ValueSpecObject = {
   type: "object"
   spec: InputSpec
 }
-export type ListValueSpecType = "text" | "number" | "object"
+export type ListValueSpecType = "text" | "object"
 /** represents a spec for the values of a list */
 // prettier-ignore
 export type ListValueSpecOf<T extends ListValueSpecType> = 
   T extends "text" ? ListValueSpecText :
-  T extends "number" ? ListValueSpecNumber :
   T extends "object" ? ListValueSpecObject :
   never
 /** represents a spec for a list */
@@ -220,11 +219,9 @@ export type ValueSpecListOf<T extends ListValueSpecType> = {
   disabled: false | string
   default:
     | string[]
-    | number[]
     | DefaultString[]
     | Record<string, unknown>[]
     | readonly string[]
-    | readonly number[]
     | readonly DefaultString[]
     | readonly Record<string, unknown>[]
 }
@@ -241,15 +238,6 @@ export type ListValueSpecText = {
 
   generate: null | RandomString
   inputmode: "text" | "email" | "tel" | "url"
-  placeholder: string | null
-}
-export type ListValueSpecNumber = {
-  type: "number"
-  min: number | null
-  max: number | null
-  integer: boolean
-  step: number | null
-  units: string | null
   placeholder: string | null
 }
 export type ListValueSpecObject = {
@@ -282,8 +270,3 @@ export function isValueSpecListOf<S extends ListValueSpecType>(
 ): t is ValueSpecListOf<S> & { spec: ListValueSpecOf<S> } {
   return "spec" in t && t.spec.type === s
 }
-export const unionSelectKey = "unionSelectKey" as const
-export type UnionSelectKey = typeof unionSelectKey
-
-export const unionValueKey = "unionValueKey" as const
-export type UnionValueKey = typeof unionValueKey

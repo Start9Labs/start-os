@@ -1,10 +1,9 @@
 import { Dump } from 'patch-db-client'
 import { MarketplacePkg, StoreInfo } from '@start9labs/marketplace'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
-import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { CT, T } from '@start9labs/start-sdk'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
 export module RR {
@@ -73,7 +72,12 @@ export module RR {
   export type GetServerLogsReq = ServerLogsReq // server.logs & server.kernel-logs
   export type GetServerLogsRes = LogsRes
 
-  export type FollowServerLogsReq = { limit?: number } // server.logs.follow & server.kernel-logs.follow
+  // @param limit: BE default is 50
+  // @param boot: number is offset (0: current, -1 prev, +1 first), string is a specific boot id, and null is all
+  export type FollowServerLogsReq = {
+    limit?: number
+    boot?: number | string | null
+  } // server.logs.follow & server.kernel-logs.follow
   export type FollowServerLogsRes = {
     startCursor: string
     guid: string
@@ -187,7 +191,12 @@ export module RR {
   export type RemoveBackupTargetReq = { id: string } // backup.target.cifs.remove
   export type RemoveBackupTargetRes = null
 
-  export type GetBackupInfoReq = { targetId: string; password: string } // backup.target.info
+  export type GetBackupInfoReq = {
+    // backup.target.info
+    targetId: string
+    serverId: string
+    password: string
+  }
   export type GetBackupInfoRes = BackupInfo
 
   export type CreateBackupReq = {
@@ -223,7 +232,7 @@ export module RR {
   export type InstallPackageRes = null
 
   export type GetPackageConfigReq = { id: string } // package.config.get
-  export type GetPackageConfigRes = { spec: ConfigSpec; config: object }
+  export type GetPackageConfigRes = { spec: CT.InputSpec; config: object }
 
   export type DrySetPackageConfigReq = { id: string; config: object } // package.config.set.dry
   export type DrySetPackageConfigRes = Breakages
@@ -235,7 +244,7 @@ export module RR {
     // package.backup.restore
     ids: string[]
     targetId: string
-    oldPassword: string | null
+    serverId: string
     password: string
   }
   export type RestorePackagesRes = null
@@ -266,14 +275,17 @@ export module RR {
   export type DryConfigureDependencyRes = {
     oldConfig: object
     newConfig: object
-    spec: ConfigSpec
+    spec: CT.InputSpec
   }
 
   export type SideloadPackageReq = {
     manifest: T.Manifest
     icon: string // base64
   }
-  export type SideloadPacakgeRes = string //guid
+  export type SideloadPackageRes = {
+    upload: string // guid
+    progress: string // guid
+  }
 
   // marketplace
 
@@ -396,7 +408,7 @@ export interface DiskBackupTarget {
   label: string | null
   capacity: number
   used: number | null
-  startOs: StartOSDiskInfo | null
+  startOs: Record<string, StartOSDiskInfo>
 }
 
 export interface CifsBackupTarget {
@@ -405,7 +417,7 @@ export interface CifsBackupTarget {
   path: string
   username: string
   mountable: boolean
-  startOs: StartOSDiskInfo | null
+  startOs: Record<string, StartOSDiskInfo>
 }
 
 export type RecoverySource = DiskRecoverySource | CifsRecoverySource

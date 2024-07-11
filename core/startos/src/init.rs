@@ -5,7 +5,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::time::{Duration, SystemTime};
 
-use axum::extract::ws::{self, CloseFrame};
+use axum::extract::ws::{self};
 use color_eyre::eyre::eyre;
 use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
@@ -30,8 +30,9 @@ use crate::progress::{
     FullProgress, FullProgressTracker, PhaseProgressTrackerHandle, PhasedProgressBar,
 };
 use crate::rpc_continuations::{Guid, RpcContinuation};
+use crate::s9pk::v2::pack::{CONTAINER_DATADIR, CONTAINER_TOOL};
 use crate::ssh::SSH_AUTHORIZED_KEYS_FILE;
-use crate::util::io::IOHook;
+use crate::util::io::{create_file, IOHook};
 use crate::util::net::WebSocketExt;
 use crate::util::{cpupower, Invoke};
 use crate::Error;
@@ -138,10 +139,7 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
                 old_version -= 1;
                 let old_datadir = db_dir.join(old_version.to_string());
                 if tokio::fs::metadata(&old_datadir).await.is_ok() {
-                    tokio::fs::File::create(&incomplete_path)
-                        .await?
-                        .sync_all()
-                        .await?;
+                    create_file(&incomplete_path).await?.sync_all().await?;
                     Command::new("pg_upgradecluster")
                         .arg(old_version.to_string())
                         .arg("main")
@@ -424,6 +422,10 @@ pub async fn init(
         tokio::fs::remove_dir_all(&tmp_var).await?;
     }
     crate::disk::mount::util::bind(&tmp_var, "/var/tmp", false).await?;
+    let tmp_docker = cfg
+        .datadir()
+        .join(format!("package-data/tmp/{CONTAINER_TOOL}"));
+    crate::disk::mount::util::bind(&tmp_docker, CONTAINER_DATADIR, false).await?;
     init_tmp.complete();
 
     set_governor.start();

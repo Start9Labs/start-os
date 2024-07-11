@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -7,10 +8,13 @@ use ts_rs::TS;
 use url::Url;
 
 use crate::prelude::*;
+use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::registry::signer::commitment::{Commitment, Digestable};
 use crate::registry::signer::sign::{AnySignature, AnyVerifyingKey};
 use crate::registry::signer::AcceptSigners;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
+use crate::s9pk::merkle_archive::source::Section;
+use crate::s9pk::S9pk;
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -50,5 +54,17 @@ impl<C: for<'a> Commitment<&'a HttpSource>> RegistryAsset<C> {
         self.commitment
             .copy_to(&HttpSource::new(client, self.url.clone()).await?, dst)
             .await
+    }
+}
+impl RegistryAsset<MerkleArchiveCommitment> {
+    pub async fn deserialize_s9pk(
+        &self,
+        client: Client,
+    ) -> Result<S9pk<Section<Arc<HttpSource>>>, Error> {
+        S9pk::deserialize(
+            &Arc::new(HttpSource::new(client, self.url.clone()).await?),
+            Some(&self.commitment),
+        )
+        .await
     }
 }

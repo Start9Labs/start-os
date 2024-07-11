@@ -1,9 +1,9 @@
 import { Component } from '@angular/core'
+import { ErrorService, pauseFor } from '@start9labs/shared'
+import { Subject } from 'rxjs'
 import { Metrics } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { TimeService } from 'src/app/services/time-service'
-import { pauseFor, ErrorToastService } from '@start9labs/shared'
-import { Subject } from 'rxjs'
 
 @Component({
   selector: 'server-metrics',
@@ -18,7 +18,7 @@ export class ServerMetricsPage {
   readonly uptime$ = this.timeService.uptime$
 
   constructor(
-    private readonly errToast: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly embassyApi: ApiService,
     private readonly timeService: TimeService,
   ) {}
@@ -50,7 +50,7 @@ export class ServerMetricsPage {
       const metrics = await this.embassyApi.getServerMetrics({})
       this.metrics$.next(metrics)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
       this.stopDaemon()
     }
   }

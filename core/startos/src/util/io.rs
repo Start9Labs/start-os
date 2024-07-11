@@ -610,13 +610,13 @@ pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + S
                 let src_path = e.path();
                 let dst_path = dst_path.join(e.file_name());
                 if m.is_file() {
-                    let mut dst_file = tokio::fs::File::create(&dst_path).await.with_ctx(|_| {
+                    let mut dst_file = create_file(&dst_path).await.with_ctx(|_| {
                         (
                             crate::ErrorKind::Filesystem,
                             format!("create {}", dst_path.display()),
                         )
                     })?;
-                    let mut rdr = tokio::fs::File::open(&src_path).await.with_ctx(|_| {
+                    let mut rdr = open_file(&src_path).await.with_ctx(|_| {
                         (
                             crate::ErrorKind::Filesystem,
                             format!("open {}", src_path.display()),
@@ -781,7 +781,7 @@ pub struct TmpDir {
 impl TmpDir {
     pub async fn new() -> Result<Self, Error> {
         let path = Path::new("/var/tmp/startos").join(base32::encode(
-            base32::Alphabet::RFC4648 { padding: false },
+            base32::Alphabet::Rfc4648 { padding: false },
             &rand::random::<[u8; 8]>(),
         ));
         if tokio::fs::metadata(&path).await.is_ok() {
@@ -827,6 +827,13 @@ impl Drop for TmpDir {
             });
         }
     }
+}
+
+pub async fn open_file(path: impl AsRef<Path>) -> Result<File, Error> {
+    let path = path.as_ref();
+    File::open(path)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("open {path:?}")))
 }
 
 pub async fn create_file(path: impl AsRef<Path>) -> Result<File, Error> {

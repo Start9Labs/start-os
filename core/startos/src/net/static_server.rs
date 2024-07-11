@@ -19,7 +19,6 @@ use new_mime_guess::MimeGuess;
 use openssl::hash::MessageDigest;
 use openssl::x509::X509;
 use rpc_toolkit::{Context, HttpServer, Server};
-use tokio::fs::File;
 use tokio::io::BufReader;
 use tokio_util::io::ReaderStream;
 
@@ -29,6 +28,7 @@ use crate::middleware::auth::{Auth, HasValidSession};
 use crate::middleware::cors::Cors;
 use crate::middleware::db::SyncDb;
 use crate::rpc_continuations::{Guid, RpcContinuations};
+use crate::util::io::open_file;
 use crate::{
     diagnostic_api, init_api, install_api, main_api, setup_api, Error, ErrorKind, ResultExt,
 };
@@ -43,8 +43,6 @@ const EMBEDDED_UIS: Dir<'_> =
     include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static");
 #[cfg(not(all(feature = "daemon", not(feature = "test"))))]
 const EMBEDDED_UIS: Dir<'_> = Dir::new("", &[]);
-
-const PROXY_STRIP_HEADERS: &[&str] = &["cookie", "host", "origin", "referer", "user-agent"];
 
 #[derive(Clone)]
 pub enum UiMode {
@@ -255,7 +253,7 @@ fn cert_send(cert: &X509, hostname: &Hostname) -> Result<Response, Error> {
         .header(
             http::header::ETAG,
             base32::encode(
-                base32::Alphabet::RFC4648 { padding: false },
+                base32::Alphabet::Rfc4648 { padding: false },
                 &*cert.digest(MessageDigest::sha256())?,
             )
             .to_lowercase(),
@@ -340,9 +338,7 @@ impl FileData {
             .any(|e| e == "gzip")
             .then_some("gzip");
 
-        let file = File::open(path)
-            .await
-            .with_ctx(|_| (ErrorKind::Filesystem, path.display().to_string()))?;
+        let file = open_file(path).await?;
         let metadata = file
             .metadata()
             .await
@@ -442,6 +438,6 @@ fn e_tag(path: &Path, modified: impl AsRef<[u8]>) -> String {
     let res = hasher.finalize();
     format!(
         "\"{}\"",
-        base32::encode(base32::Alphabet::RFC4648 { padding: false }, res.as_slice()).to_lowercase()
+        base32::encode(base32::Alphabet::Rfc4648 { padding: false }, res.as_slice()).to_lowercase()
     )
 }

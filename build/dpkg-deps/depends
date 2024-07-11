@@ -1,5 +1,6 @@
 avahi-daemon
 avahi-utils
+b3sum
 bash-completion
 beep
 bmon
@@ -14,6 +15,7 @@ e2fsprogs
 ecryptfs-utils
 exfatprogs
 flashrom
+fuse3
 grub-common
 htop
 httpdirfs

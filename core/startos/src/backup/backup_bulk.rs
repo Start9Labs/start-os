@@ -164,7 +164,7 @@ pub async fn backup_all(
         .decrypt(&ctx)?;
     let password = password.decrypt(&ctx)?;
 
-    let ((fs, package_ids), status_guard) = (
+    let ((fs, package_ids, server_id), status_guard) = (
         ctx.db
             .mutate(|db| {
                 check_password_against_db(db, &password)?;
@@ -181,7 +181,11 @@ pub async fn backup_all(
                         .collect()
                 };
                 assure_backing_up(db, &package_ids)?;
-                Ok((fs, package_ids))
+                Ok((
+                    fs,
+                    package_ids,
+                    db.as_public().as_server_info().as_id().de()?,
+                ))
             })
             .await?,
         BackupStatusGuard::new(ctx.db.clone()),
@@ -189,6 +193,7 @@ pub async fn backup_all(
 
     let mut backup_guard = BackupMountGuard::mount(
         TmpMountGuard::mount(&fs, ReadWrite).await?,
+        &server_id,
         &old_password_decrypted,
     )
     .await?;
@@ -298,11 +303,11 @@ async fn perform_backup(
     let ui = ctx.db.peek().await.into_public().into_ui().de()?;
 
     let mut os_backup_file =
-        AtomicFile::new(backup_guard.path().join("os-backup.cbor"), None::<PathBuf>)
+        AtomicFile::new(backup_guard.path().join("os-backup.json"), None::<PathBuf>)
             .await
             .with_kind(ErrorKind::Filesystem)?;
     os_backup_file
-        .write_all(&IoFormat::Cbor.to_vec(&OsBackup {
+        .write_all(&IoFormat::Json.to_vec(&OsBackup {
             account: ctx.account.read().await.clone(),
             ui,
         })?)
@@ -325,22 +330,23 @@ async fn perform_backup(
         dir_copy(luks_folder, &luks_folder_bak, None).await?;
     }
 
-    let timestamp = Some(Utc::now());
+    let timestamp = Utc::now();
 
     backup_guard.unencrypted_metadata.version = crate::version::Current::new().semver().into();
-    backup_guard.unencrypted_metadata.full = true;
+    backup_guard.unencrypted_metadata.hostname = ctx.account.read().await.hostname.clone();
+    backup_guard.unencrypted_metadata.timestamp = timestamp.clone();
     backup_guard.metadata.version = crate::version::Current::new().semver().into();
-    backup_guard.metadata.timestamp = timestamp;
+    backup_guard.metadata.timestamp = Some(timestamp);
     backup_guard.metadata.package_backups = package_backups;
 
-    backup_guard.save().await?;
+    backup_guard.save_and_unmount().await?;
 
     ctx.db
         .mutate(|v| {
             v.as_public_mut()
                 .as_server_info_mut()
                 .as_last_backup_mut()
-                .ser(&timestamp)
+                .ser(&Some(timestamp))
         })
         .await?;
 

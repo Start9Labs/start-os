@@ -1,6 +1,5 @@
 import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   AlertController,
   IonBackButtonDelegate,
@@ -8,18 +7,15 @@ import {
   NavController,
   ToastController,
 } from '@ionic/angular'
-import { PackageProperties } from 'src/app/util/properties.util'
-import { QRComponent } from 'src/app/components/qr/qr.component'
-import { PatchDB } from 'patch-db-client'
-import { DataModel } from 'src/app/services/patch-db/data-model'
-import {
-  ErrorToastService,
-  getPkgId,
-  copyToClipboard,
-} from '@start9labs/shared'
+import { copyToClipboard, ErrorService, getPkgId } from '@start9labs/shared'
 import { TuiDestroyService } from '@taiga-ui/cdk'
 import { getValueByPointer } from 'fast-json-patch'
+import { PatchDB } from 'patch-db-client'
 import { map, takeUntil } from 'rxjs/operators'
+import { QRComponent } from 'src/app/components/qr/qr.component'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
+import { PackageProperties } from 'src/app/util/properties.util'
 
 @Component({
   selector: 'app-properties',
@@ -47,7 +43,7 @@ export class AppPropertiesPage {
   constructor(
     private readonly route: ActivatedRoute,
     private readonly embassyApi: ApiService,
-    private readonly errToast: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly alertCtrl: AlertController,
     private readonly toastCtrl: ToastController,
     private readonly modalCtrl: ModalController,
@@ -139,7 +135,7 @@ export class AppPropertiesPage {
       })
       this.node = getValueByPointer(this.properties, this.pointer)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
       this.loading = false
     }

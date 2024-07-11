@@ -1,0 +1,35 @@
+form-group .g-form-control:not(:first-child) {
+  margin-top: 1rem;
+}
+
+form-group .g-form-group {
+  position: relative;
+  padding-left: var(--tui-height-m);
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    background: var(--tui-clear);
+  }
+
+  &::before {
+    top: 0;
+    left: calc(1rem - 1px);
+    bottom: 0.5rem;
+    width: 2px;
+  }
+
+  &::after {
+    left: 0.75rem;
+    bottom: 0;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 100%;
+  }
+}
+
+form-group tui-tooltip {
+  z-index: 1;
+  margin-left: 0.25rem;
+}
