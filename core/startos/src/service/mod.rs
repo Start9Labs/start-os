@@ -374,9 +374,11 @@ impl Service {
                 entry.as_icon_mut().ser(&icon)?;
                 // TODO: marketplace url
                 // TODO: dependency info
+
                 Ok(())
             })
             .await?;
+
         Ok(service)
     }
 

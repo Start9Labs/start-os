@@ -253,7 +253,7 @@ fn cert_send(cert: &X509, hostname: &Hostname) -> Result<Response, Error> {
         .header(
             http::header::ETAG,
             base32::encode(
-                base32::Alphabet::RFC4648 { padding: false },
+                base32::Alphabet::Rfc4648 { padding: false },
                 &*cert.digest(MessageDigest::sha256())?,
             )
             .to_lowercase(),
@@ -338,8 +338,7 @@ impl FileData {
             .any(|e| e == "gzip")
             .then_some("gzip");
 
-        let file = open_file(path)
-            .await?;
+        let file = open_file(path).await?;
         let metadata = file
             .metadata()
             .await
@@ -439,6 +438,6 @@ fn e_tag(path: &Path, modified: impl AsRef<[u8]>) -> String {
     let res = hasher.finalize();
     format!(
         "\"{}\"",
-        base32::encode(base32::Alphabet::RFC4648 { padding: false }, res.as_slice()).to_lowercase()
+        base32::encode(base32::Alphabet::Rfc4648 { padding: false }, res.as_slice()).to_lowercase()
     )
 }

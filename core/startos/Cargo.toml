@@ -61,8 +61,8 @@ axum = { version = "0.7.3", features = ["ws"] }
 axum-server = "0.6.0"
 barrage = "0.2.3"
 backhand = "0.18.0"
-base32 = "0.4.0"
-base64 = "0.21.4"
+base32 = "0.5.0"
+base64 = "0.22.1"
 base64ct = "1.6.0"
 basic-cookies = "0.1.4"
 blake3 = { version = "1.5.0", features = ["mmap", "rayon"] }
@@ -71,9 +71,9 @@ chrono = { version = "0.4.31", features = ["serde"] }
 clap = "4.4.12"
 color-eyre = "0.6.2"
 console = "0.15.7"
-console-subscriber = { version = "0.2", optional = true }
+console-subscriber = { version = "0.3.0", optional = true }
 cookie = "0.18.0"
-cookie_store = "0.20.0"
+cookie_store = "0.21.0"
 der = { version = "0.7.9", features = ["derive", "pem"] }
 digest = "0.10.7"
 divrem = "1.0.0"
@@ -102,7 +102,7 @@ id-pool = { version = "0.2.2", default-features = false, features = [
   "serde",
   "u16",
 ] }
-imbl = "2.0.2"
+imbl = "2.0.3"
 imbl-value = { git = "https://github.com/Start9Labs/imbl-value.git" }
 include_dir = { version = "0.7.3", features = ["metadata"] }
 indexmap = { version = "2.0.2", features = ["serde"] }
@@ -111,7 +111,7 @@ integer-encoding = { version = "4.0.0", features = ["tokio_async"] }
 ipnet = { version = "2.8.0", features = ["serde"] }
 iprange = { version = "0.6.7", features = ["serde"] }
 isocountry = "0.3.2"
-itertools = "0.12.0"
+itertools = "0.13.0"
 jaq-core = "0.10.1"
 jaq-std = "0.10.0"
 josekit = "0.8.4"
@@ -124,7 +124,7 @@ log = "0.4.20"
 mbrman = "0.5.2"
 models = { version = "*", path = "../models" }
 new_mime_guess = "4"
-nix = { version = "0.27.1", features = ["user", "process", "signal", "fs"] }
+nix = { version = "0.29.0", features = ["user", "process", "signal", "fs"] }
 nom = "7.1.3"
 num = "0.4.1"
 num_enum = "0.7.0"
@@ -140,11 +140,11 @@ pin-project = "1.1.3"
 pkcs8 = { version = "0.10.2", features = ["std"] }
 prettytable-rs = "0.10.0"
 proptest = "1.3.1"
-proptest-derive = "0.4.0"
+proptest-derive = "0.5.0"
 rand = { version = "0.8.5", features = ["std"] }
 regex = "1.10.2"
 reqwest = { version = "0.12.4", features = ["stream", "json", "socks"] }
-reqwest_cookie_store = "0.7.0"
+reqwest_cookie_store = "0.8.0"
 rpassword = "7.2.0"
 rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", branch = "refactor/no-dyn-ctx" }
 rust-argon2 = "2.0.0"
@@ -168,15 +168,14 @@ sqlx = { version = "0.7.2", features = [
 ] }
 sscanf = "0.4.1"
 ssh-key = { version = "0.6.2", features = ["ed25519"] }
-stderrlog = "0.5.4"
 tar = "0.4.40"
 thiserror = "1.0.49"
-tokio = { version = "1.37", features = ["full"] }
-tokio-rustls = "0.25.0"
+tokio = { version = "=1.37", features = ["full"] }
+tokio-rustls = "0.26.0"
 tokio-socks = "0.5.1"
 tokio-stream = { version = "0.1.14", features = ["io-util", "sync", "net"] }
 tokio-tar = { git = "https://github.com/dr-bonez/tokio-tar.git" }
-tokio-tungstenite = { version = "0.21.0", features = ["native-tls"] }
+tokio-tungstenite = { version = "0.23.1", features = ["native-tls", "url"] }
 tokio-util = { version = "0.7.9", features = ["io"] }
 torut = { git = "https://github.com/Start9Labs/torut.git", branch = "update/dependencies", features = [
   "serialize",

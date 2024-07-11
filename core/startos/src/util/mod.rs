@@ -644,7 +644,7 @@ pub fn new_guid() -> InternedString {
     let mut buf = [0; 20];
     rand::thread_rng().fill_bytes(&mut buf);
     InternedString::intern(base32::encode(
-        base32::Alphabet::RFC4648 { padding: false },
+        base32::Alphabet::Rfc4648 { padding: false },
         &buf,
     ))
 }
