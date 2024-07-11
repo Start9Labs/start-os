@@ -8,7 +8,9 @@
 </ion-header>
 
 <ion-content class="ion-padding-top with-widgets">
-  <ion-item-group *ngIf="serviceInterfaces$ | async as serviceInterfaces">
+  <ion-item-group
+    *ngIf="serviceInterfacesWithHostInfo$ | async as serviceInterfaces"
+  >
     <ng-container *ngIf="serviceInterfaces.ui.length">
       <ion-item-divider>User Interfaces</ion-item-divider>
       <app-interfaces-item

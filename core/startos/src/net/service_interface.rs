@@ -5,8 +5,6 @@ use models::{HostId, ServiceInterfaceId};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::net::host::address::HostAddress;
-
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]

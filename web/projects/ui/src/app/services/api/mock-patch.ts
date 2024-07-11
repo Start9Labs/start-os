@@ -37,7 +37,7 @@ export const mockPatchData: DataModel = {
     arch: 'x86_64',
     onionAddress: 'myveryownspecialtoraddress',
     id: 'abcdefgh',
-    version: '0.3.5.2',
+    version: '0.3.6',
     lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
     lanAddress: 'https://adjective-noun.local',
     torAddress: 'https://myveryownspecialtoraddress.onion',
@@ -59,7 +59,7 @@ export const mockPatchData: DataModel = {
     // password is asdfasdf
     passwordHash:
       '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-    eosVersionCompat: '>=0.3.0 <=0.3.0.1',
+    eosVersionCompat: '>=0.3.0 <=0.3.6',
     statusInfo: {
       backupProgress: null,
       updated: false,
@@ -185,7 +185,107 @@ export const mockPatchData: DataModel = {
         },
       },
       currentDependencies: {},
-      hosts: {},
+      hosts: {
+        abcdefg: {
+          kind: 'multi',
+          bindings: [],
+          addresses: [],
+          hostnameInfo: {
+            80: [
+              {
+                kind: 'ip',
+                networkInterfaceId: 'eth0',
+                public: false,
+                hostname: {
+                  kind: 'local',
+                  value: 'adjective-noun.local',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'wlan0',
+                public: false,
+                hostname: {
+                  kind: 'local',
+                  value: 'adjective-noun.local',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'eth0',
+                public: false,
+                hostname: {
+                  kind: 'ipv4',
+                  value: '10.0.0.1',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'wlan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv4',
+                  value: '10.0.0.2',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'eth0',
+                public: false,
+                hostname: {
+                  kind: 'ipv6',
+                  value: '[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'wlan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv6',
+                  value: '[FE80:CD00:0000:0CDE:1257:0000:211E:1234]',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'onion',
+                hostname: {
+                  value: 'bitcoin-p2p.onion',
+                  port: 80,
+                  sslPort: 443,
+                },
+              },
+            ],
+          },
+        },
+        bcdefgh: {
+          kind: 'multi',
+          bindings: [],
+          addresses: [],
+          hostnameInfo: {
+            8332: [],
+          },
+        },
+        cdefghi: {
+          kind: 'multi',
+          bindings: [],
+          addresses: [],
+          hostnameInfo: {
+            8333: [],
+          },
+        },
+      },
       storeExposedDependents: [],
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',

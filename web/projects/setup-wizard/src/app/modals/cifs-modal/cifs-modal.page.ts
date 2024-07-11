@@ -4,9 +4,9 @@ import {
   LoadingController,
   ModalController,
 } from '@ionic/angular'
-import { ApiService, CifsBackupTarget } from 'src/app/services/api/api.service'
+import { ApiService } from 'src/app/services/api/api.service'
 import { StartOSDiskInfo } from '@start9labs/shared'
-import { PasswordPage } from '../password/password.page'
+import { ServerBackupSelectModal } from '../server-backup-select/server-backup-select.page'
 
 @Component({
   selector: 'cifs-modal',
@@ -50,30 +50,29 @@ export class CifsModal {
 
       await loader.dismiss()
 
-      this.presentModalPassword(diskInfo)
+      this.presentModalSelectServer(diskInfo)
     } catch (e) {
       await loader.dismiss()
       this.presentAlertFailed()
     }
   }
 
-  private async presentModalPassword(diskInfo: StartOSDiskInfo): Promise<void> {
-    const target: CifsBackupTarget = {
-      ...this.cifs,
-      mountable: true,
-      startOs: diskInfo,
-    }
-
+  private async presentModalSelectServer(
+    servers: Record<string, StartOSDiskInfo>,
+  ): Promise<void> {
     const modal = await this.modalController.create({
-      component: PasswordPage,
-      componentProps: { target },
+      component: ServerBackupSelectModal,
+      componentProps: {
+        servers: Object.keys(servers).map(id => ({ id, ...servers[id] })),
+      },
     })
     modal.onDidDismiss().then(res => {
       if (res.role === 'success') {
         this.modalController.dismiss(
           {
             cifs: this.cifs,
-            recoveryPassword: res.data.password,
+            serverId: res.data.serverId,
+            recoveryPassword: res.data.recoveryPassword,
           },
           'success',
         )

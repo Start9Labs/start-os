@@ -9,7 +9,8 @@ import {
   GetPackageResponseFullInterim,
 } from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
+import { T, CB } from '@start9labs/start-sdk'
 
 const mockBlake3Commitment: T.Blake3Commitment = {
   hash: 'fakehash',
@@ -34,12 +35,11 @@ export module Mock {
     restarting: false,
     shuttingDown: false,
   }
-
-  export const RegistryOsUpdate: RR.CheckOSUpdateRes = {
-    version: '0.3.5.2',
+  export const MarketplaceEos: RR.CheckOSUpdateRes = {
+    version: '0.3.6',
     headline: 'Our biggest release ever.',
     releaseNotes: {
-      '0.3.5.2': 'Some **Markdown** release _notes_ for 0.3.5.2',
+      '0.3.6': 'Some **Markdown** release _notes_ for 0.3.6',
       '0.3.5.1': 'Some **Markdown** release _notes_ for 0.3.5.1',
       '0.3.4.4': 'Some **Markdown** release _notes_ for 0.3.4.4',
       '0.3.4.3': 'Some **Markdown** release _notes_ for 0.3.4.3',
@@ -591,12 +591,15 @@ export module Mock {
       username: 'TestUser',
       mountable: false,
       startOs: {
-        version: '0.3.0',
-        full: true,
-        passwordHash:
-          // password is asdfasdf
-          '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-        wrappedKey: '',
+        '1234-5678-9876-5432': {
+          hostname: 'adjective-noun',
+          timestamp: new Date().toISOString(),
+          version: '0.3.6',
+          passwordHash:
+            // password is asdfasdf
+            '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+          wrappedKey: '',
+        },
       },
     },
     // 'ftcvewdnkemfksdm': {
@@ -607,7 +610,7 @@ export module Mock {
     //   used: 0,
     //   model: 'Evo SATA 2.5',
     //   vendor: 'Samsung',
-    //   startOs: null,
+    //   startOs: {},
     // },
     csgashbdjkasnd: {
       type: 'cifs',
@@ -615,7 +618,7 @@ export module Mock {
       path: '/Desktop/startos-backups-2',
       username: 'TestUser',
       mountable: true,
-      startOs: null,
+      startOs: {},
     },
     powjefhjbnwhdva: {
       type: 'disk',
@@ -626,30 +629,33 @@ export module Mock {
       model: null,
       vendor: 'SSK',
       startOs: {
-        version: '0.3.0',
-        full: true,
-        // password is asdfasdf
-        passwordHash:
-          '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-        wrappedKey: '',
+        '1234-5678-9876-5432': {
+          hostname: 'adjective-noun',
+          timestamp: new Date().toISOString(),
+          version: '0.3.6',
+          passwordHash:
+            // password is asdfasdf
+            '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+          wrappedKey: '',
+        },
       },
     },
   }
 
   export const BackupInfo: RR.GetBackupInfoRes = {
-    version: '0.3.0',
+    version: '0.3.6',
     timestamp: new Date().toISOString(),
     packageBackups: {
       bitcoind: {
         title: 'Bitcoin Core',
         version: '0.21.0',
-        osVersion: '0.3.0',
+        osVersion: '0.3.6',
         timestamp: new Date().toISOString(),
       },
       'btc-rpc-proxy': {
         title: 'Bitcoin Proxy',
         version: '0.2.2',
-        osVersion: '0.3.0',
+        osVersion: '0.3.6',
         timestamp: new Date().toISOString(),
       },
     },
@@ -708,651 +714,512 @@ export module Mock {
     },
   }
 
-  export const ConfigSpec: RR.GetPackageConfigRes['spec'] = {
-    bitcoin: {
-      type: 'object',
-      name: 'Bitcoin Settings',
-      description:
-        'RPC and P2P interface configuration options for Bitcoin Core',
-      spec: {
-        'bitcoind-p2p': {
-          type: 'union',
-          tag: {
-            id: 'type',
-            name: 'Bitcoin Core P2P',
+  export const getInputSpec = async (): Promise<
+    RR.GetPackageConfigRes['spec']
+  > =>
+    configBuilderToSpec(
+      CB.Config.of({
+        bitcoin: CB.Value.object(
+          {
+            name: 'Bitcoin Settings',
             description:
-              '<p>The Bitcoin Core node to connect to over the peer-to-peer (P2P) interface:</p><ul><li><strong>Bitcoin Core</strong>: The Bitcoin Core service installed on this device</li><li><strong>External Node</strong>: A Bitcoin node running on a different device</li></ul>',
-            'variant-names': {
-              internal: 'Bitcoin Core',
-              external: 'External Node',
-            },
+              'RPC and P2P interface configuration options for Bitcoin Core',
           },
-          default: 'internal',
-          variants: {
-            internal: {},
-            external: {
-              'p2p-host': {
-                type: 'string',
-                name: 'Public Address',
-                description: 'The public address of your Bitcoin Core server',
-                nullable: false,
-                masked: false,
-                copyable: false,
-              },
-              'p2p-port': {
-                type: 'number',
-                name: 'P2P Port',
+          CB.Config.of({
+            'bitcoind-p2p': CB.Value.union(
+              {
+                name: 'P2P Settings',
                 description:
-                  'The port that your Bitcoin Core P2P server is bound to',
-                nullable: false,
-                range: '[0,65535]',
-                integral: true,
-                default: 8333,
+                  '<p>The Bitcoin Core node to connect to over the peer-to-peer (P2P) interface:</p><ul><li><strong>Bitcoin Core</strong>: The Bitcoin Core service installed on this device</li><li><strong>External Node</strong>: A Bitcoin node running on a different device</li></ul>',
+                required: { default: 'internal' },
               },
-            },
-          },
-        },
-      },
-    },
-    advanced: {
-      name: 'Advanced',
-      type: 'object',
-      description: 'Advanced settings',
-      spec: {
-        rpcsettings: {
-          name: 'RPC Settings',
-          type: 'object',
-          description: 'rpc username and password',
-          warning:
-            'Adding RPC users gives them special permissions on your node.',
-          spec: {
-            rpcuser2: {
-              name: 'RPC Username',
-              type: 'string',
-              description: 'rpc username',
-              nullable: false,
-              default: 'defaultrpcusername',
-              pattern: '^[a-zA-Z]+$',
-              'pattern-description': 'must contain only letters.',
-              masked: false,
-              copyable: true,
-            },
-            rpcuser: {
-              name: 'RPC Username',
-              type: 'string',
-              description: 'rpc username',
-              nullable: false,
-              default: 'defaultrpcusername',
-              pattern: '^[a-zA-Z]+$',
-              'pattern-description': 'must contain only letters.',
-              masked: false,
-              copyable: true,
-            },
-            rpcpass: {
-              name: 'RPC User Password',
-              type: 'string',
-              description: 'rpc password',
-              nullable: false,
-              default: {
-                charset: 'a-z,A-Z,2-9',
-                len: 20,
-              },
-              masked: true,
-              copyable: true,
-            },
-            rpcpass2: {
-              name: 'RPC User Password',
-              type: 'string',
-              description: 'rpc password',
-              nullable: false,
-              default: {
-                charset: 'a-z,A-Z,2-9',
-                len: 20,
-              },
-              masked: true,
-              copyable: true,
-            },
-          },
-        },
-      },
-    },
-    testnet: {
-      name: 'Testnet',
-      type: 'boolean',
-      description:
-        '<ul><li>determines whether your node is running on testnet or mainnet</li></ul><script src="fake"></script>',
-      warning: 'Chain will have to resync!',
-      default: true,
-    },
-    'object-list': {
-      name: 'Object List',
-      type: 'list',
-      subtype: 'object',
-      description: 'This is a list of objects, like users or something',
-      range: '[0,4]',
-      default: [
-        {
-          'first-name': 'Admin',
-          'last-name': 'User',
-          age: 40,
-        },
-        {
-          'first-name': 'Admin2',
-          'last-name': 'User',
-          age: 40,
-        },
-      ],
-      // the outer spec here, at the list level, says that what's inside (the inner spec) pertains to its inner elements.
-      // it just so happens that ValueSpecObject's have the field { spec: ConfigSpec }
-      // see 'union-list' below for a different example.
-      spec: {
-        'unique-by': 'last-name',
-        'display-as': `I'm {{last-name}}, {{first-name}} {{last-name}}`,
-        spec: {
-          'first-name': {
-            name: 'First Name',
-            type: 'string',
-            description: 'User first name',
-            nullable: true,
-            masked: false,
-            copyable: false,
-          },
-          'last-name': {
-            name: 'Last Name',
-            type: 'string',
-            description: 'User first name',
-            nullable: true,
-            default: {
-              charset: 'a-g,2-9',
-              len: 12,
-            },
-            pattern: '^[a-zA-Z]+$',
-            'pattern-description': 'must contain only letters.',
-            masked: false,
-            copyable: true,
-          },
-          age: {
-            name: 'Age',
-            type: 'number',
-            description: 'The age of the user',
-            nullable: true,
-            integral: false,
-            warning: 'User must be at least 18.',
-            range: '[18,*)',
-          },
-        },
-      },
-    },
-    'union-list': {
-      name: 'Union List',
-      type: 'list',
-      subtype: 'union',
-      description: 'This is a sample list of unions',
-      warning: 'If you change this, things may work.',
-      // a list of union selections. e.g. 'summer', 'winter',...
-      default: ['summer'],
-      range: '[0, 2]',
-      spec: {
-        tag: {
-          id: 'preference',
-          'variant-names': {
-            summer: 'Summer',
-            winter: 'Winter',
-            other: 'Other',
-          },
-          name: 'Preference',
-        },
-        // this default is used to make a union selection when a new list element is first created
-        default: 'summer',
-        variants: {
-          summer: {
-            'favorite-tree': {
-              name: 'Favorite Tree',
-              type: 'string',
-              nullable: false,
-              description: 'What is your favorite tree?',
-              default: 'Maple',
-              masked: false,
-              copyable: false,
-            },
-            'favorite-flower': {
-              name: 'Favorite Flower',
-              type: 'enum',
-              description: 'Select your favorite flower',
-              'value-names': {
-                none: 'Hate Flowers',
-                red: 'Red',
-                blue: 'Blue',
-                purple: 'Purple',
-              },
-              values: ['none', 'red', 'blue', 'purple'],
-              default: 'none',
-            },
-          },
-          winter: {
-            'like-snow': {
-              name: 'Like Snow?',
-              type: 'boolean',
-              description: 'Do you like snow or not?',
-              default: true,
-            },
-          },
-        },
-        'unique-by': 'preference',
-      },
-    },
-    'random-enum': {
-      name: 'Random Enum',
-      type: 'enum',
-      'value-names': {
-        null: 'Null',
-        option1: 'One 1',
-        option2: 'Two 2',
-        option3: 'Three 3',
-      },
-      default: 'null',
-      description: 'This is not even real.',
-      warning: 'Be careful changing this!',
-      values: ['null', 'option1', 'option2', 'option3'],
-    },
-    'favorite-number': {
-      name: 'Favorite Number',
-      type: 'number',
-      integral: false,
-      description: 'Your favorite number of all time',
-      warning:
-        'Once you set this number, it can never be changed without severe consequences.',
-      nullable: true,
-      default: 7,
-      range: '(-100,100]',
-      units: 'BTC',
-    },
-    'unlucky-numbers': {
-      name: 'Unlucky Numbers',
-      type: 'list',
-      subtype: 'number',
-      description: 'Numbers that you like but are not your top favorite.',
-      spec: {
-        integral: false,
-        range: '[-100,200)',
-      },
-      range: '[0,10]',
-      default: [2, 3],
-    },
-    rpcsettings: {
-      name: 'RPC Settings',
-      type: 'object',
-      description: 'rpc username and password',
-      warning: 'Adding RPC users gives them special permissions on your node.',
-      spec: {
-        laws: {
-          name: 'Laws',
-          type: 'object',
-          description: 'the law of the realm',
-          spec: {
-            law1: {
-              name: 'First Law',
-              type: 'string',
-              description: 'the first law',
-              nullable: true,
-              masked: false,
-              copyable: true,
-            },
-            law2: {
-              name: 'Second Law',
-              type: 'string',
-              description: 'the second law',
-              nullable: true,
-              masked: false,
-              copyable: true,
-            },
-          },
-        },
-        rulemakers: {
-          name: 'Rule Makers',
-          type: 'list',
-          subtype: 'object',
-          description: 'the people who make the rules',
-          range: '[0,2]',
+              CB.Variants.of({
+                internal: { name: 'Bitcoin Core', spec: CB.Config.of({}) },
+                external: {
+                  name: 'External Node',
+                  spec: CB.Config.of({
+                    'p2p-host': CB.Value.text({
+                      name: 'Public Address',
+                      required: {
+                        default: null,
+                      },
+                      description:
+                        'The public address of your Bitcoin Core server',
+                    }),
+                    'p2p-port': CB.Value.number({
+                      name: 'P2P Port',
+                      description:
+                        'The port that your Bitcoin Core P2P server is bound to',
+                      required: {
+                        default: 8333,
+                      },
+                      min: 0,
+                      max: 65535,
+                      integer: true,
+                    }),
+                  }),
+                },
+              }),
+            ),
+          }),
+        ),
+        color: CB.Value.color({
+          name: 'Color',
+          required: false,
+        }),
+        datetime: CB.Value.datetime({
+          name: 'Datetime',
+          required: false,
+        }),
+        file: CB.Value.file({
+          name: 'File',
+          required: false,
+          extensions: ['png', 'pdf'],
+        }),
+        users: CB.Value.multiselect({
+          name: 'Users',
           default: [],
-          spec: {
-            'unique-by': null,
-            spec: {
-              rulemakername: {
-                name: 'Rulemaker Name',
-                type: 'string',
-                description: 'the name of the rule maker',
-                nullable: false,
-                default: {
-                  charset: 'a-g,2-9',
-                  len: 12,
-                },
-                masked: false,
-                copyable: false,
+          maxLength: 2,
+          disabled: ['matt'],
+          values: {
+            matt: 'Matt Hill',
+            alex: 'Alex Inkin',
+            blue: 'Blue J',
+            lucy: 'Lucy',
+          },
+        }),
+        advanced: CB.Value.object(
+          {
+            name: 'Advanced',
+            description: 'Advanced settings',
+          },
+          CB.Config.of({
+            rpcsettings: CB.Value.object(
+              {
+                name: 'RPC Settings',
+                description: 'rpc username and password',
+                warning:
+                  'Adding RPC users gives them special permissions on your node.',
               },
-              rulemakerip: {
-                name: 'Rulemaker IP',
-                type: 'string',
-                description: 'the ip of the rule maker',
-                nullable: false,
-                default: '192.168.1.0',
-                pattern:
-                  '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$',
-                'pattern-description': 'may only contain numbers and periods',
-                masked: false,
-                copyable: true,
-              },
-            },
-          },
-        },
-        rpcuser: {
-          name: 'RPC Username',
-          type: 'string',
-          description: 'rpc username',
-          nullable: false,
-          default: 'defaultrpcusername',
-          pattern: '^[a-zA-Z]+$',
-          'pattern-description': 'must contain only letters.',
-          masked: false,
-          copyable: true,
-        },
-        rpcpass: {
-          name: 'RPC User Password',
-          type: 'string',
-          description: 'rpc password',
-          nullable: false,
-          default: {
-            charset: 'a-z,A-Z,2-9',
-            len: 20,
-          },
-          masked: true,
-          copyable: true,
-        },
-      },
-    },
-    'bitcoin-node': {
-      type: 'union',
-      default: 'internal',
-      tag: {
-        id: 'type',
-        'variant-names': {
-          internal: 'Internal',
-          external: 'External',
-        },
-        name: 'Bitcoin Node Settings',
-        description: 'Options<ul><li>Item 1</li><li>Item 2</li></ul>',
-        warning: 'Careful changing this',
-      },
-      variants: {
-        internal: {},
-        external: {
-          'emergency-contact': {
-            name: 'Emergency Contact',
-            type: 'object',
-            description: 'The person to contact in case of emergency.',
-            spec: {
-              name: {
-                type: 'string',
-                name: 'Name',
-                nullable: false,
-                masked: false,
-                copyable: false,
-                pattern: '^[a-zA-Z]+$',
-                'pattern-description': 'Must contain only letters.',
-              },
-              email: {
-                type: 'string',
-                name: 'Email',
-                nullable: false,
-                masked: false,
-                copyable: true,
-              },
-            },
-          },
-          'public-domain': {
-            name: 'Public Domain',
-            type: 'string',
-            description: 'the public address of the node',
-            nullable: false,
-            default: 'bitcoinnode.com',
-            pattern: '.*',
-            'pattern-description': 'anything',
-            masked: false,
-            copyable: true,
-          },
-          'private-domain': {
-            name: 'Private Domain',
-            type: 'string',
-            description: 'the private address of the node',
-            nullable: false,
-            masked: true,
-            copyable: true,
-          },
-        },
-      },
-    },
-    port: {
-      name: 'Port',
-      type: 'number',
-      integral: true,
-      description:
-        'the default port for your Bitcoin node. default: 8333, testnet: 18333, regtest: 18444',
-      nullable: false,
-      default: 8333,
-      range: '(0, 9998]',
-    },
-    'favorite-slogan': {
-      name: 'Favorite Slogan',
-      type: 'string',
-      description:
-        'You most favorite slogan in the whole world, used for paying you.',
-      nullable: true,
-      masked: true,
-      copyable: true,
-    },
-    rpcallowip: {
-      name: 'RPC Allowed IPs',
-      type: 'list',
-      subtype: 'string',
-      description:
-        'external ip addresses that are authorized to access your Bitcoin node',
-      warning:
-        'Any IP you allow here will have RPC access to your Bitcoin node.',
-      range: '[1,10]',
-      default: ['192.168.1.1'],
-      spec: {
-        masked: false,
-        copyable: false,
-        pattern:
-          '((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|((^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$)|(^[a-z2-7]{16}\\.onion$)|(^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$))',
-        'pattern-description': 'must be a valid ipv4, ipv6, or domain name',
-      },
-    },
-    rpcauth: {
-      name: 'RPC Auth',
-      type: 'list',
-      subtype: 'string',
-      description: 'api keys that are authorized to access your Bitcoin node.',
-      range: '[0,*)',
-      default: [],
-      spec: {
-        masked: false,
-        copyable: false,
-      },
-    },
-    'more-advanced': {
-      name: 'More Advanced',
-      type: 'object',
-      description: 'Advanced settings',
-      spec: {
-        notifications: {
-          name: 'Notification Preferences',
-          type: 'list',
-          subtype: 'enum',
-          description: 'how you want to be notified',
-          range: '[1,3]',
-          default: ['email'],
-          spec: {
-            'value-names': {
-              email: 'EEEEmail',
-              text: 'Texxxt',
-              call: 'Ccccall',
-              push: 'PuuuusH',
-              webhook: 'WebHooookkeee',
-            },
-            values: ['email', 'text', 'call', 'push', 'webhook'],
-          },
-        },
-        rpcsettings: {
-          name: 'RPC Settings',
-          type: 'object',
-          description: 'rpc username and password',
-          warning:
-            'Adding RPC users gives them special permissions on your node.',
-          spec: {
-            laws: {
-              name: 'Laws',
-              type: 'object',
-              description: 'the law of the realm',
-              spec: {
-                law1: {
-                  name: 'First Law',
-                  type: 'string',
-                  description: 'the first law',
-                  nullable: true,
-                  masked: false,
-                  copyable: true,
-                },
-                law2: {
-                  name: 'Second Law',
-                  type: 'string',
-                  description: 'the second law',
-                  nullable: true,
-                  masked: false,
-                  copyable: true,
-                },
-                law4: {
-                  name: 'Fourth Law',
-                  type: 'string',
-                  description: 'the fourth law',
-                  nullable: true,
-                  masked: false,
-                  copyable: true,
-                },
-                law3: {
-                  name: 'Third Law',
-                  type: 'list',
-                  subtype: 'object',
-                  description: 'the third law',
-                  range: '[0,2]',
-                  default: [],
-                  spec: {
-                    'unique-by': null,
-                    spec: {
-                      lawname: {
-                        name: 'Law Name',
-                        type: 'string',
-                        description: 'the name of the law maker',
-                        nullable: false,
-                        default: {
-                          charset: 'a-g,2-9',
-                          len: 12,
-                        },
-                        masked: false,
-                        copyable: false,
-                      },
-                      lawagency: {
-                        name: 'Law agency',
-                        type: 'string',
-                        description: 'the ip of the law maker',
-                        nullable: false,
-                        default: '192.168.1.0',
-                        pattern:
-                          '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$',
-                        'pattern-description':
-                          'may only contain numbers and periods',
-                        masked: false,
-                        copyable: true,
-                      },
+              CB.Config.of({
+                rpcuser2: CB.Value.text({
+                  name: 'RPC Username',
+                  required: {
+                    default: 'defaultrpcusername',
+                  },
+                  description: 'rpc username',
+                  patterns: [
+                    {
+                      regex: '^[a-zA-Z]+$',
+                      description: 'must contain only letters.',
+                    },
+                  ],
+                }),
+                rpcuser: CB.Value.text({
+                  name: 'RPC Username',
+                  required: {
+                    default: 'defaultrpcusername',
+                  },
+                  description: 'rpc username',
+                  patterns: [
+                    {
+                      regex: '^[a-zA-Z]+$',
+                      description: 'must contain only letters.',
+                    },
+                  ],
+                }),
+                rpcpass: CB.Value.text({
+                  name: 'RPC User Password',
+                  required: {
+                    default: {
+                      charset: 'a-z,A-Z,2-9',
+                      len: 20,
                     },
                   },
-                },
-                law5: {
-                  name: 'Fifth Law',
-                  type: 'string',
-                  description: 'the fifth law',
-                  nullable: true,
-                  masked: false,
-                  copyable: true,
-                },
-              },
+                  description: 'rpc password',
+                }),
+                rpcpass2: CB.Value.text({
+                  name: 'RPC User Password',
+                  required: {
+                    default: {
+                      charset: 'a-z,A-Z,2-9',
+                      len: 20,
+                    },
+                  },
+                  description: 'rpc password',
+                }),
+              }),
+            ),
+          }),
+        ),
+        testnet: CB.Value.toggle({
+          name: 'Testnet',
+          default: true,
+          description:
+            '<ul><li>determines whether your node is running on testnet or mainnet</li></ul><script src="fake"></script>',
+          warning: 'Chain will have to resync!',
+        }),
+        'object-list': CB.Value.list(
+          CB.List.obj(
+            {
+              name: 'Object List',
+              minLength: 0,
+              maxLength: 4,
+              default: [
+                // { 'first-name': 'Admin', 'last-name': 'User', age: 40 },
+                // { 'first-name': 'Admin2', 'last-name': 'User', age: 40 },
+              ],
+              description: 'This is a list of objects, like users or something',
             },
-            rulemakers: {
-              name: 'Rule Makers',
-              type: 'list',
-              subtype: 'object',
-              description: 'the people who make the rules',
-              range: '[0,2]',
-              default: [],
-              spec: {
-                'unique-by': null,
-                spec: {
-                  rulemakername: {
-                    name: 'Rulemaker Name',
-                    type: 'string',
-                    description: 'the name of the rule maker',
-                    nullable: false,
+            {
+              spec: CB.Config.of({
+                'first-name': CB.Value.text({
+                  name: 'First Name',
+                  required: false,
+                  description: 'User first name',
+                }),
+                'last-name': CB.Value.text({
+                  name: 'Last Name',
+                  required: {
                     default: {
                       charset: 'a-g,2-9',
                       len: 12,
                     },
-                    masked: false,
-                    copyable: false,
                   },
-                  rulemakerip: {
-                    name: 'Rulemaker IP',
-                    type: 'string',
-                    description: 'the ip of the rule maker',
-                    nullable: false,
-                    default: '192.168.1.0',
-                    pattern:
-                      '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$',
-                    'pattern-description':
-                      'may only contain numbers and periods',
-                    masked: false,
-                    copyable: true,
+                  description: 'User first name',
+                  patterns: [
+                    {
+                      regex: '^[a-zA-Z]+$',
+                      description: 'must contain only letters.',
+                    },
+                  ],
+                }),
+                age: CB.Value.number({
+                  name: 'Age',
+                  description: 'The age of the user',
+                  warning: 'User must be at least 18.',
+                  required: false,
+                  min: 18,
+                  integer: false,
+                }),
+              }),
+              displayAs: `I'm {{last-name}}, {{first-name}} {{last-name}}`,
+              uniqueBy: 'last-name',
+            },
+          ),
+        ),
+        'union-list': CB.Value.list(
+          CB.List.obj(
+            {
+              name: 'Union List',
+              minLength: 0,
+              maxLength: 2,
+              default: [],
+              description: 'This is a sample list of unions',
+              warning: 'If you change this, things may work.',
+            },
+            {
+              spec: CB.Config.of({
+                /* TODO: Convert range for this value ([0, 2])*/
+                union: CB.Value.union(
+                  {
+                    name: 'Preference',
+                    description: null,
+                    warning: null,
+                    required: { default: 'summer' },
                   },
+                  CB.Variants.of({
+                    summer: {
+                      name: 'summer',
+                      spec: CB.Config.of({
+                        'favorite-tree': CB.Value.text({
+                          name: 'Favorite Tree',
+                          required: {
+                            default: 'Maple',
+                          },
+                          description: 'What is your favorite tree?',
+                        }),
+                        'favorite-flower': CB.Value.select({
+                          name: 'Favorite Flower',
+                          description: 'Select your favorite flower',
+                          required: {
+                            default: 'none',
+                          },
+                          values: {
+                            none: 'none',
+                            red: 'red',
+                            blue: 'blue',
+                            purple: 'purple',
+                          },
+                        }),
+                      }),
+                    },
+                    winter: {
+                      name: 'winter',
+                      spec: CB.Config.of({
+                        'like-snow': CB.Value.toggle({
+                          name: 'Like Snow?',
+                          default: true,
+                          description: 'Do you like snow or not?',
+                        }),
+                      }),
+                    },
+                  }),
+                ),
+              }),
+              uniqueBy: 'preference',
+            },
+          ),
+        ),
+        'random-select': CB.Value.select({
+          name: 'Random select',
+          description: 'This is not even real.',
+          warning: 'Be careful changing this!',
+          required: {
+            default: null,
+          },
+          values: {
+            option1: 'option1',
+            option2: 'option2',
+            option3: 'option3',
+          },
+          disabled: ['option2'],
+        }),
+        'favorite-number':
+          /* TODO: Convert range for this value ((-100,100])*/ CB.Value.number({
+            name: 'Favorite Number',
+            description: 'Your favorite number of all time',
+            warning:
+              'Once you set this number, it can never be changed without severe consequences.',
+            required: {
+              default: 7,
+            },
+            integer: false,
+            units: 'BTC',
+          }),
+        rpcsettings: CB.Value.object(
+          {
+            name: 'RPC Settings',
+            description: 'rpc username and password',
+            warning:
+              'Adding RPC users gives them special permissions on your node.',
+          },
+          CB.Config.of({
+            laws: CB.Value.object(
+              {
+                name: 'Laws',
+                description: 'the law of the realm',
+              },
+              CB.Config.of({
+                law1: CB.Value.text({
+                  name: 'First Law',
+                  required: false,
+                  description: 'the first law',
+                }),
+                law2: CB.Value.text({
+                  name: 'Second Law',
+                  required: false,
+                  description: 'the second law',
+                }),
+              }),
+            ),
+            rulemakers: CB.Value.list(
+              CB.List.obj(
+                {
+                  name: 'Rule Makers',
+                  minLength: 0,
+                  maxLength: 2,
+                  description: 'the people who make the rules',
+                },
+                {
+                  spec: CB.Config.of({
+                    rulemakername: CB.Value.text({
+                      name: 'Rulemaker Name',
+                      required: {
+                        default: {
+                          charset: 'a-g,2-9',
+                          len: 12,
+                        },
+                      },
+                      description: 'the name of the rule maker',
+                    }),
+                    rulemakerip: CB.Value.text({
+                      name: 'Rulemaker IP',
+                      required: {
+                        default: '192.168.1.0',
+                      },
+                      description: 'the ip of the rule maker',
+                      patterns: [
+                        {
+                          regex:
+                            '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$',
+                          description: 'may only contain numbers and periods',
+                        },
+                      ],
+                    }),
+                  }),
+                },
+              ),
+            ),
+            rpcuser: CB.Value.text({
+              name: 'RPC Username',
+              required: {
+                default: 'defaultrpcusername',
+              },
+              description: 'rpc username',
+              patterns: [
+                {
+                  regex: '^[a-zA-Z]+$',
+                  description: 'must contain only letters.',
+                },
+              ],
+            }),
+            rpcpass: CB.Value.text({
+              name: 'RPC User Password',
+              required: {
+                default: {
+                  charset: 'a-z,A-Z,2-9',
+                  len: 20,
                 },
               },
-            },
-            rpcuser: {
-              name: 'RPC Username',
-              type: 'string',
-              description: 'rpc username',
-              nullable: false,
-              default: 'defaultrpcusername',
-              pattern: '^[a-zA-Z]+$',
-              'pattern-description': 'must contain only letters.',
-              masked: false,
-              copyable: true,
-            },
-            rpcpass: {
-              name: 'RPC User Password',
-              type: 'string',
               description: 'rpc password',
-              nullable: false,
-              default: {
-                charset: 'a-z,A-Z,2-9',
-                len: 20,
-              },
               masked: true,
-              copyable: true,
-            },
+            }),
+          }),
+        ),
+        'bitcoin-node': CB.Value.union(
+          {
+            name: 'Bitcoin Node',
+            description: 'Options<ul><li>Item 1</li><li>Item 2</li></ul>',
+            warning: 'Careful changing this',
+            required: { default: 'internal' },
+            disabled: ['fake'],
           },
-        },
-      },
-    },
-  }
+          CB.Variants.of({
+            fake: {
+              name: 'Fake',
+              spec: CB.Config.of({}),
+            },
+            internal: {
+              name: 'Internal',
+              spec: CB.Config.of({}),
+            },
+            external: {
+              name: 'External',
+              spec: CB.Config.of({
+                'emergency-contact': CB.Value.object(
+                  {
+                    name: 'Emergency Contact',
+                    description: 'The person to contact in case of emergency.',
+                  },
+                  CB.Config.of({
+                    name: CB.Value.text({
+                      name: 'Name',
+                      required: {
+                        default: null,
+                      },
+                      patterns: [
+                        {
+                          regex: '^[a-zA-Z]+$',
+                          description: 'Must contain only letters.',
+                        },
+                      ],
+                    }),
+                    email: CB.Value.text({
+                      name: 'Email',
+                      inputmode: 'email',
+                      required: {
+                        default: null,
+                      },
+                    }),
+                  }),
+                ),
+                'public-domain': CB.Value.text({
+                  name: 'Public Domain',
+                  required: {
+                    default: 'bitcoinnode.com',
+                  },
+                  description: 'the public address of the node',
+                  patterns: [
+                    {
+                      regex: '.*',
+                      description: 'anything',
+                    },
+                  ],
+                }),
+                'private-domain': CB.Value.text({
+                  name: 'Private Domain',
+                  required: {
+                    default: null,
+                  },
+                  description: 'the private address of the node',
+                  masked: true,
+                  inputmode: 'url',
+                }),
+              }),
+            },
+          }),
+        ),
+        port: CB.Value.number({
+          name: 'Port',
+          description:
+            'the default port for your Bitcoin node. default: 8333, testnet: 18333, regtest: 18444',
+          required: {
+            default: 8333,
+          },
+          min: 1,
+          max: 9998,
+          step: 1,
+          integer: true,
+        }),
+        'favorite-slogan': CB.Value.text({
+          name: 'Favorite Slogan',
+          generate: {
+            charset: 'a-z,A-Z,2-9',
+            len: 20,
+          },
+          required: false,
+          description:
+            'You most favorite slogan in the whole world, used for paying you.',
+          masked: true,
+        }),
+        rpcallowip: CB.Value.list(
+          CB.List.text(
+            {
+              name: 'RPC Allowed IPs',
+              minLength: 1,
+              maxLength: 10,
+              default: ['192.168.1.1'],
+              description:
+                'external ip addresses that are authorized to access your Bitcoin node',
+              warning:
+                'Any IP you allow here will have RPC access to your Bitcoin node.',
+            },
+            {
+              patterns: [
+                {
+                  regex:
+                    '((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|((^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$)|(^[a-z2-7]{16}\\.onion$)|(^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$))',
+                  description: 'must be a valid ipv4, ipv6, or domain name',
+                },
+              ],
+            },
+          ),
+        ),
+        rpcauth: CB.Value.list(
+          CB.List.text(
+            {
+              name: 'RPC Auth',
+              description:
+                'api keys that are authorized to access your Bitcoin node.',
+            },
+            {
+              patterns: [],
+            },
+          ),
+        ),
+      }),
+    )
 
   export const MockConfig = {
     testnet: undefined,
@@ -1373,8 +1240,7 @@ export module Mock {
         age: 60,
       },
     ],
-    'union-list': undefined,
-    'random-enum': 'option2',
+    'random-select': ['goodbye'],
     'favorite-number': 0,
     rpcsettings: {
       laws: {
@@ -1386,7 +1252,7 @@ export module Mock {
       rulemakers: [],
     },
     'bitcoin-node': {
-      type: 'internal',
+      selection: 'internal',
     },
     port: 20,
     rpcallowip: undefined,
@@ -1469,7 +1335,107 @@ export module Mock {
       },
     },
     currentDependencies: {},
-    hosts: {},
+    hosts: {
+      abcdefg: {
+        kind: 'multi',
+        bindings: [],
+        addresses: [],
+        hostnameInfo: {
+          80: [
+            {
+              kind: 'ip',
+              networkInterfaceId: 'eth0',
+              public: false,
+              hostname: {
+                kind: 'local',
+                value: 'adjective-noun.local',
+                port: null,
+                sslPort: 1234,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'wlan0',
+              public: false,
+              hostname: {
+                kind: 'local',
+                value: 'adjective-noun.local',
+                port: null,
+                sslPort: 1234,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'eth0',
+              public: false,
+              hostname: {
+                kind: 'ipv4',
+                value: '192.168.10.11',
+                port: null,
+                sslPort: 1234,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'wlan0',
+              public: false,
+              hostname: {
+                kind: 'ipv4',
+                value: '10.0.0.2',
+                port: null,
+                sslPort: 1234,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'eth0',
+              public: false,
+              hostname: {
+                kind: 'ipv6',
+                value: '[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]',
+                port: null,
+                sslPort: 1234,
+              },
+            },
+            {
+              kind: 'ip',
+              networkInterfaceId: 'wlan0',
+              public: false,
+              hostname: {
+                kind: 'ipv6',
+                value: '[FE80:CD00:0000:0CDE:1257:0000:211E:1234]',
+                port: null,
+                sslPort: 1234,
+              },
+            },
+            {
+              kind: 'onion',
+              hostname: {
+                value: 'bitcoin-p2p.onion',
+                port: 80,
+                sslPort: 443,
+              },
+            },
+          ],
+        },
+      },
+      bcdefgh: {
+        kind: 'multi',
+        bindings: [],
+        addresses: [],
+        hostnameInfo: {
+          8332: [],
+        },
+      },
+      cdefghi: {
+        kind: 'multi',
+        bindings: [],
+        addresses: [],
+        hostnameInfo: {
+          8333: [],
+        },
+      },
+    },
     storeExposedDependents: [],
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',

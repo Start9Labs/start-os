@@ -43,7 +43,9 @@ impl Drop for CliContextSeed {
             std::fs::create_dir_all(&parent_dir).unwrap();
         }
         let mut writer = fd_lock_rs::FdLock::lock(
-            File::create(&tmp).unwrap(),
+            File::create(&tmp)
+                .with_ctx(|_| (ErrorKind::Filesystem, &tmp))
+                .unwrap(),
             fd_lock_rs::LockType::Exclusive,
             true,
         )
@@ -80,9 +82,12 @@ impl CliContext {
         });
         let cookie_store = Arc::new(CookieStoreMutex::new({
             let mut store = if cookie_path.exists() {
-                CookieStore::load_json(BufReader::new(File::open(&cookie_path)?))
-                    .map_err(|e| eyre!("{}", e))
-                    .with_kind(crate::ErrorKind::Deserialization)?
+                CookieStore::load_json(BufReader::new(
+                    File::open(&cookie_path)
+                        .with_ctx(|_| (ErrorKind::Filesystem, cookie_path.display()))?,
+                ))
+                .map_err(|e| eyre!("{}", e))
+                .with_kind(crate::ErrorKind::Deserialization)?
             } else {
                 CookieStore::default()
             };

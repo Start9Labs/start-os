@@ -45,6 +45,15 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  async uploadFile(body: Blob): Promise<string> {
+    return this.httpRequest({
+      method: Method.POST,
+      body,
+      url: `/rest/upload`,
+      responseType: 'text',
+    })
+  }
+
   // websocket
 
   openWebsocket$<T>(
@@ -157,8 +166,10 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'init.subscribe', params: {} })
   }
 
-  async initFollowLogs(): Promise<RR.FollowServerLogsRes> {
-    return this.rpcRequest({ method: 'init.logs.follow', params: {} })
+  async initFollowLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes> {
+    return this.rpcRequest({ method: 'init.logs.follow', params })
   }
 
   // server
@@ -417,8 +428,8 @@ export class LiveApiService extends ApiService {
   }
 
   async followPackageLogs(
-    params: RR.FollowServerLogsReq,
-  ): Promise<RR.FollowServerLogsRes> {
+    params: RR.FollowPackageLogsReq,
+  ): Promise<RR.FollowPackageLogsRes> {
     return this.rpcRequest({ method: 'package.logs.follow', params })
   }
 
@@ -493,12 +504,10 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async sideloadPackage(
-    params: RR.SideloadPackageReq,
-  ): Promise<RR.SideloadPackageRes> {
+  async sideloadPackage(): Promise<RR.SideloadPackageRes> {
     return this.rpcRequest({
       method: 'package.sideload',
-      params,
+      params: {},
     })
   }
 

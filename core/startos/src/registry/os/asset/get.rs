@@ -20,6 +20,7 @@ use crate::registry::os::SIG_CONTEXT;
 use crate::registry::signer::commitment::blake3::Blake3Commitment;
 use crate::registry::signer::commitment::Commitment;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
+use crate::util::io::open_file;
 use crate::util::VersionString;
 
 pub fn get_api<C: Context>() -> ParentHandler<C> {
@@ -158,9 +159,7 @@ async fn cli_get_os_asset(
         if let Some(mut reverify_phase) = reverify_phase {
             reverify_phase.start();
             res.commitment
-                .check(&MultiCursorFile::from(
-                    tokio::fs::File::open(download).await?,
-                ))
+                .check(&MultiCursorFile::from(open_file(download).await?))
                 .await?;
             reverify_phase.complete();
         }

@@ -1,10 +1,11 @@
+import { DOCUMENT } from '@angular/common'
 import { Component, Inject } from '@angular/core'
-import { getPlatforms, LoadingController } from '@ionic/angular'
+import { Router } from '@angular/router'
+import { getPlatforms } from '@ionic/angular'
+import { LoadingService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
-import { Router } from '@angular/router'
 import { ConfigService } from 'src/app/services/config.service'
-import { DOCUMENT } from '@angular/common'
 
 @Component({
   selector: 'login',
@@ -19,7 +20,7 @@ export class LoginPage {
   constructor(
     private readonly router: Router,
     private readonly authService: AuthService,
-    private readonly loadingCtrl: LoadingController,
+    private readonly loader: LoadingService,
     private readonly api: ApiService,
     public readonly config: ConfigService,
     @Inject(DOCUMENT) public readonly document: Document,
@@ -28,10 +29,7 @@ export class LoginPage {
   async submit() {
     this.error = ''
 
-    const loader = await this.loadingCtrl.create({
-      message: 'Logging in...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Logging in...').subscribe()
 
     try {
       document.cookie = ''
@@ -51,7 +49,7 @@ export class LoginPage {
       // code 7 is for incorrect password
       this.error = e.code === 7 ? 'Invalid Password' : e.message
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 }

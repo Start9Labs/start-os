@@ -10,7 +10,7 @@ export interface AppRecoverOption extends PackageBackupInfo {
   id: string
   checked: boolean
   installed: boolean
-  'newer-eos': boolean
+  newerOS: boolean
 }
 
 @Pipe({
@@ -34,7 +34,7 @@ export class ToOptionsPipe implements PipeTransform {
             id,
             installed: !!packageData[id],
             checked: false,
-            'newer-eos': this.compare(packageBackups[id].osVersion),
+            newerOS: this.compare(packageBackups[id].osVersion),
           }))
           .sort((a, b) =>
             b.title.toLowerCase() > a.title.toLowerCase() ? -1 : 1,

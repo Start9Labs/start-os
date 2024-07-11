@@ -1,4 +1,3 @@
-use std::any::TypeId;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
 use std::ops::Deref;
@@ -9,10 +8,9 @@ use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use color_eyre::eyre::eyre;
 use imbl::OrdMap;
 use openssl::pkey::{PKey, Private};
-use openssl::x509::{X509Ref, X509};
+use openssl::x509::X509;
 use rpc_toolkit::{
-    CliBindings, Context, Handler, HandlerArgs, HandlerArgsFor, HandlerFor, HandlerTypes,
-    PrintCliResult,
+    CliBindings, Context, HandlerArgs, HandlerArgsFor, HandlerFor, HandlerTypes, PrintCliResult,
 };
 use serde::de::DeserializeOwned;
 use serde::ser::{SerializeMap, SerializeSeq};
@@ -109,64 +107,22 @@ pub fn serialize_display_opt<T: std::fmt::Display, S: Serializer>(
     Option::<String>::serialize(&t.as_ref().map(|t| t.to_string()), serializer)
 }
 
-pub mod ed25519_pubkey {
-    use ed25519_dalek::VerifyingKey;
-    use serde::de::{Error, Unexpected, Visitor};
-    use serde::{Deserializer, Serializer};
-
-    pub fn serialize<S: Serializer>(
-        pubkey: &VerifyingKey,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&base32::encode(
-            base32::Alphabet::RFC4648 { padding: true },
-            pubkey.as_bytes(),
-        ))
-    }
-    pub fn deserialize<'de, D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<VerifyingKey, D::Error> {
-        struct PubkeyVisitor;
-        impl<'de> Visitor<'de> for PubkeyVisitor {
-            type Value = ed25519_dalek::VerifyingKey;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(formatter, "an RFC4648 encoded string")
-            }
-            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-            where
-                E: Error,
-            {
-                VerifyingKey::from_bytes(
-                    &<[u8; 32]>::try_from(
-                        base32::decode(base32::Alphabet::RFC4648 { padding: true }, v).ok_or(
-                            Error::invalid_value(Unexpected::Str(v), &"an RFC4648 encoded string"),
-                        )?,
-                    )
-                    .map_err(|e| Error::invalid_length(e.len(), &"32 bytes"))?,
-                )
-                .map_err(Error::custom)
-            }
-        }
-        deserializer.deserialize_str(PubkeyVisitor)
-    }
-}
-
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
-pub enum ValuePrimative {
+pub enum ValuePrimitive {
     Null,
     Boolean(bool),
     String(String),
     Number(serde_json::Number),
 }
-impl<'de> serde::de::Deserialize<'de> for ValuePrimative {
+impl<'de> serde::de::Deserialize<'de> for ValuePrimitive {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::de::Deserializer<'de>,
     {
         struct Visitor;
         impl<'de> serde::de::Visitor<'de> for Visitor {
-            type Value = ValuePrimative;
+            type Value = ValuePrimitive;
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 write!(formatter, "a JSON primative value")
             }
@@ -174,37 +130,37 @@ impl<'de> serde::de::Deserialize<'de> for ValuePrimative {
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Null)
+                Ok(ValuePrimitive::Null)
             }
             fn visit_none<E>(self) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Null)
+                Ok(ValuePrimitive::Null)
             }
             fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Boolean(v))
+                Ok(ValuePrimitive::Boolean(v))
             }
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::String(v.to_owned()))
+                Ok(ValuePrimitive::String(v.to_owned()))
             }
             fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::String(v))
+                Ok(ValuePrimitive::String(v))
             }
             fn visit_f32<E>(self, v: f32) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(
+                Ok(ValuePrimitive::Number(
                     serde_json::Number::from_f64(v as f64).ok_or_else(|| {
                         serde::de::Error::invalid_value(
                             serde::de::Unexpected::Float(v as f64),
@@ -217,7 +173,7 @@ impl<'de> serde::de::Deserialize<'de> for ValuePrimative {
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(
+                Ok(ValuePrimitive::Number(
                     serde_json::Number::from_f64(v).ok_or_else(|| {
                         serde::de::Error::invalid_value(
                             serde::de::Unexpected::Float(v),
@@ -230,49 +186,49 @@ impl<'de> serde::de::Deserialize<'de> for ValuePrimative {
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(v.into()))
+                Ok(ValuePrimitive::Number(v.into()))
             }
             fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(v.into()))
+                Ok(ValuePrimitive::Number(v.into()))
             }
             fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(v.into()))
+                Ok(ValuePrimitive::Number(v.into()))
             }
             fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(v.into()))
+                Ok(ValuePrimitive::Number(v.into()))
             }
             fn visit_i8<E>(self, v: i8) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(v.into()))
+                Ok(ValuePrimitive::Number(v.into()))
             }
             fn visit_i16<E>(self, v: i16) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(v.into()))
+                Ok(ValuePrimitive::Number(v.into()))
             }
             fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(v.into()))
+                Ok(ValuePrimitive::Number(v.into()))
             }
             fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(v.into()))
+                Ok(ValuePrimitive::Number(v.into()))
             }
         }
         deserializer.deserialize_any(Visitor)
@@ -1188,7 +1144,7 @@ pub trait PemEncoding: Sized {
 
 impl PemEncoding for X509 {
     fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
-        X509::from_pem(pem.as_bytes()).map_err(E::custom)
+        Self::from_pem(pem.as_bytes()).map_err(E::custom)
     }
     fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
         String::from_utf8((&**self).to_pem().map_err(E::custom)?).map_err(E::custom)
@@ -1197,7 +1153,7 @@ impl PemEncoding for X509 {
 
 impl PemEncoding for PKey<Private> {
     fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
-        PKey::<Private>::private_key_from_pem(pem.as_bytes()).map_err(E::custom)
+        Self::private_key_from_pem(pem.as_bytes()).map_err(E::custom)
     }
     fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
         String::from_utf8((&**self).private_key_to_pem_pkcs8().map_err(E::custom)?)
@@ -1207,7 +1163,7 @@ impl PemEncoding for PKey<Private> {
 
 impl PemEncoding for ssh_key::PrivateKey {
     fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
-        ssh_key::PrivateKey::from_openssh(pem.as_bytes()).map_err(E::custom)
+        Self::from_openssh(pem.as_bytes()).map_err(E::custom)
     }
     fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
         self.to_openssh(ssh_key::LineEnding::LF)
@@ -1219,12 +1175,25 @@ impl PemEncoding for ssh_key::PrivateKey {
 impl PemEncoding for ed25519_dalek::VerifyingKey {
     fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
         use ed25519_dalek::pkcs8::DecodePublicKey;
-        ed25519_dalek::VerifyingKey::from_public_key_pem(pem).map_err(E::custom)
+        Self::from_public_key_pem(pem).map_err(E::custom)
     }
     fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
         use ed25519_dalek::pkcs8::EncodePublicKey;
         self.to_public_key_pem(pkcs8::LineEnding::LF)
             .map_err(E::custom)
+    }
+}
+
+impl PemEncoding for ed25519_dalek::SigningKey {
+    fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
+        use ed25519_dalek::pkcs8::DecodePrivateKey;
+        Self::from_pkcs8_pem(pem).map_err(E::custom)
+    }
+    fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
+        use ed25519_dalek::pkcs8::EncodePrivateKey;
+        self.to_pkcs8_pem(pkcs8::LineEnding::LF)
+            .map_err(E::custom)
+            .map(|s| s.as_str().to_owned())
     }
 }
 

@@ -9,7 +9,7 @@ import {
   RPCOptions,
 } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import { ApiService, WebsocketConfig } from './api.service'
+import { ApiService } from './api.service'
 import * as jose from 'node-jose'
 import { Observable } from 'rxjs'
 import { DOCUMENT } from '@angular/common'
@@ -65,9 +65,11 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async verifyCifs(source: T.VerifyCifsParams): Promise<StartOSDiskInfo> {
+  async verifyCifs(
+    source: T.VerifyCifsParams,
+  ): Promise<Record<string, StartOSDiskInfo>> {
     source.path = source.path.replace('/\\/g', '/')
-    return this.rpcRequest<StartOSDiskInfo>({
+    return this.rpcRequest<Record<string, StartOSDiskInfo>>({
       method: 'setup.cifs.verify',
       params: source,
     })

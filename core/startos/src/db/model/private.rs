@@ -19,6 +19,8 @@ use crate::util::serde::Pem;
 pub struct Private {
     pub key_store: KeyStore,
     pub password: String, // argon2 hash
+    #[serde(default = "generate_compat_key")]
+    pub compat_s9pk_key: Pem<ed25519_dalek::SigningKey>,
     pub ssh_privkey: Pem<ssh_key::PrivateKey>,
     pub ssh_pubkeys: SshKeys,
     pub available_ports: AvailablePorts,
@@ -27,4 +29,8 @@ pub struct Private {
     pub cifs: CifsTargets,
     #[serde(default)]
     pub package_stores: BTreeMap<PackageId, Value>,
+}
+
+fn generate_compat_key() -> Pem<ed25519_dalek::SigningKey> {
+    Pem(ed25519_dalek::SigningKey::generate(&mut rand::thread_rng()))
 }

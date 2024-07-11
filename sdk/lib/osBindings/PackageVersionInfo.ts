@@ -4,7 +4,6 @@ import type { Description } from "./Description"
 import type { HardwareRequirements } from "./HardwareRequirements"
 import type { MerkleArchiveCommitment } from "./MerkleArchiveCommitment"
 import type { RegistryAsset } from "./RegistryAsset"
-import type { Version } from "./Version"
 
 export type PackageVersionInfo = {
   title: string
@@ -17,7 +16,7 @@ export type PackageVersionInfo = {
   upstreamRepo: string
   supportSite: string
   marketingSite: string
-  osVersion: Version
+  osVersion: string
   hardwareRequirements: HardwareRequirements
   sourceVersion: string | null
   s9pk: RegistryAsset<MerkleArchiveCommitment>

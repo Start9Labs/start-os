@@ -4,28 +4,29 @@ import {
   Inject,
   Input,
 } from '@angular/core'
-import { AlertController, LoadingController } from '@ionic/angular'
+import { AlertController } from '@ionic/angular'
 import {
   AbstractMarketplaceService,
   MarketplacePkg,
 } from '@start9labs/marketplace'
 import {
   Emver,
-  ErrorToastService,
+  ErrorService,
   isEmptyObject,
+  LoadingService,
   sameUrl,
 } from '@start9labs/shared'
+import { PatchDB } from 'patch-db-client'
+import { firstValueFrom } from 'rxjs'
+import { ClientStorageService } from 'src/app/services/client-storage.service'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   DataModel,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { ClientStorageService } from 'src/app/services/client-storage.service'
-import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { hasCurrentDeps } from 'src/app/util/has-deps'
-import { PatchDB } from 'patch-db-client'
-import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
-import { firstValueFrom } from 'rxjs'
 import { dryUpdate } from 'src/app/util/dry-update'
+import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
+import { hasCurrentDeps } from 'src/app/util/has-deps'
 
 @Component({
   selector: 'marketplace-show-controls',
@@ -50,9 +51,9 @@ export class MarketplaceShowControlsComponent {
     private readonly ClientStorageService: ClientStorageService,
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
-    private readonly loadingCtrl: LoadingController,
+    private readonly loader: LoadingService,
     private readonly emver: Emver,
-    private readonly errToast: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
@@ -175,19 +176,16 @@ export class MarketplaceShowControlsComponent {
   }
 
   private async install(url: string) {
-    const loader = await this.loadingCtrl.create({
-      message: 'Beginning Install...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Beginning Install...').subscribe()
 
     const { id, version } = this.pkg
 
     try {
       await this.marketplaceService.installPackage(id, version, url)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 

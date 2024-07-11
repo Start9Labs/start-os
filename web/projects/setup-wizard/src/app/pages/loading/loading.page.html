@@ -1,17 +1,23 @@
-<section *ngIf="progress$ | async as progress">
-  <h1 [style.font-size.rem]="2.5" [style.margin.rem]="1">
-    Setting up your server
-  </h1>
-  <div class="center-wrapper" *ngIf="progress.total">
-    Progress: {{ (progress.total * 100).toFixed(0) }}%
-  </div>
-
-  <progress
-    tuiProgressBar
-    class="progress"
-    [style.max-width.rem]="40"
-    [style.margin]="'1rem auto'"
-    [attr.value]="progress.total"
-  ></progress>
-  <p>{{ progress.message }}</p>
-</section>
+<ion-content>
+  <ion-grid>
+    <ion-row class="ion-align-items-center">
+      <ion-col>
+        <section *ngIf="progress$ | async as progress">
+          <h1 [style.font-size.rem]="2" [style.margin-bottom.rem]="2">
+            Setting up your server
+          </h1>
+          <div *ngIf="progress.total">
+            Progress: {{ (progress.total * 100).toFixed(0) }}%
+          </div>
+          <progress
+            tuiProgressBar
+            [style.max-width.rem]="40"
+            [style.margin]="'1rem auto'"
+            [attr.value]="progress.total"
+          ></progress>
+          <p>{{ progress.message }}</p>
+        </section>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+</ion-content>

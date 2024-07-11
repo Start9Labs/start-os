@@ -1,5 +1,15 @@
 import { Component, Input, ViewChild } from '@angular/core'
-import { IonContent, LoadingController } from '@ionic/angular'
+import { IonContent } from '@ionic/angular'
+import {
+  DownloadHTMLService,
+  ErrorService,
+  LoadingService,
+  Log,
+  LogsRes,
+  ServerLogsReq,
+  toLocalIsoString,
+} from '@start9labs/shared'
+import { TuiDestroyService } from '@taiga-ui/cdk'
 import {
   bufferTime,
   catchError,
@@ -11,15 +21,6 @@ import {
   takeUntil,
   tap,
 } from 'rxjs'
-import {
-  LogsRes,
-  ServerLogsReq,
-  ErrorToastService,
-  toLocalIsoString,
-  Log,
-  DownloadHTMLService,
-} from '@start9labs/shared'
-import { TuiDestroyService } from '@taiga-ui/cdk'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConnectionService } from 'src/app/services/connection.service'
@@ -38,7 +39,7 @@ var convert = new Convert({
   selector: 'logs',
   templateUrl: './logs.component.html',
   styleUrls: ['./logs.component.scss'],
-  providers: [TuiDestroyService, DownloadHTMLService],
+  providers: [TuiDestroyService],
 })
 export class LogsComponent {
   @ViewChild(IonContent)
@@ -62,14 +63,14 @@ export class LogsComponent {
     | 'connected'
     | 'reconnecting'
     | 'disconnected' = 'connecting'
-  limit = 400
+  limit = 200
   count = 0
 
   constructor(
-    private readonly errToast: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly destroy$: TuiDestroyService,
     private readonly api: ApiService,
-    private readonly loadingCtrl: LoadingController,
+    private readonly loader: LoadingService,
     private readonly downloadHtml: DownloadHTMLService,
     private readonly connection$: ConnectionService,
   ) {}
@@ -97,7 +98,7 @@ export class LogsComponent {
 
       this.processRes(res)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
       e.target.complete()
     }
@@ -119,10 +120,7 @@ export class LogsComponent {
   }
 
   async download() {
-    const loader = await this.loadingCtrl.create({
-      message: 'Processing 10,000 logs...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Processing 10,000 logs...').subscribe()
 
     try {
       const { entries } = await this.fetchLogs({
@@ -139,9 +137,9 @@ export class LogsComponent {
 
       this.downloadHtml.download(`${this.context}-logs.html`, html, styles)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 

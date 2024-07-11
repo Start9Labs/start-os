@@ -1,9 +1,3 @@
-import {
-  UnionSelectKey,
-  unionSelectKey,
-  UnionValueKey,
-  unionValueKey,
-} from "../config/configTypes"
 import { ConfigSpec, matchConfigSpec } from "./output"
 import * as _I from "../index"
 import { camelCase } from "../../scripts/oldSpecToBuilder"
@@ -30,13 +24,10 @@ testOutput<
   ConfigSpec["advanced"]["peers"]["addnode"][0]["hostname"],
   string | null | undefined
 >()(null)
-testOutput<
-  ConfigSpec["testListUnion"][0]["union"][UnionValueKey]["name"],
-  string
->()(null)
-testOutput<ConfigSpec["testListUnion"][0]["union"][UnionSelectKey], "lnd">()(
+testOutput<ConfigSpec["testListUnion"][0]["union"]["value"]["name"], string>()(
   null,
 )
+testOutput<ConfigSpec["testListUnion"][0]["union"]["selection"], "lnd">()(null)
 testOutput<ConfigSpec["mediasources"], Array<"filebrowser" | "nextcloud">>()(
   null,
 )
@@ -45,7 +36,7 @@ testOutput<ConfigSpec["mediasources"], Array<"filebrowser" | "nextcloud">>()(
 testOutput<ConfigSpec["rpc"]["enable"], string>()(null)
 // prettier-ignore
 // @ts-expect-error Expect that the string is the one above
-testOutput<ConfigSpec["testListUnion"][0][UnionSelectKey][UnionSelectKey], "unionSelectKey">()(null);
+testOutput<ConfigSpec["testListUnion"][0]['selection']['selection'], "selection">()(null);
 
 /// Here we test the output of the matchConfigSpec function
 describe("Inputs", () => {
@@ -53,7 +44,7 @@ describe("Inputs", () => {
     mediasources: ["filebrowser"],
     testListUnion: [
       {
-        union: { [unionSelectKey]: "lnd", [unionValueKey]: { name: "string" } },
+        union: { selection: "lnd", value: { name: "string" } },
       },
     ],
     rpc: {
@@ -92,8 +83,8 @@ describe("Inputs", () => {
       },
       dbcache: 5,
       pruning: {
-        unionSelectKey: "disabled",
-        unionValueKey: {},
+        selection: "disabled",
+        value: {},
       },
       blockfilters: {
         blockfilterindex: false,

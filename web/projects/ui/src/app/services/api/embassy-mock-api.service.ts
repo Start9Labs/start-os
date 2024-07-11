@@ -459,7 +459,7 @@ export class MockApiService extends ApiService {
 
   async checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes> {
     await pauseFor(2000)
-    return Mock.RegistryOsUpdate
+    return Mock.MarketplaceEos
   }
 
   async getRegistryInfo(registryUrl: string): Promise<RR.GetRegistryInfoRes> {
@@ -584,7 +584,7 @@ export class MockApiService extends ApiService {
         path: path.replace(/\\/g, '/'),
         username,
         mountable: true,
-        startOs: null,
+        startOs: {},
       },
     }
   }
@@ -770,7 +770,7 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     return {
       config: Mock.MockConfig,
-      spec: Mock.ConfigSpec,
+      spec: await Mock.getInputSpec(),
     }
   }
 
@@ -1060,15 +1060,21 @@ export class MockApiService extends ApiService {
     return {
       oldConfig: Mock.MockConfig,
       newConfig: Mock.MockDependencyConfig,
-      spec: Mock.ConfigSpec,
+      spec: await Mock.getInputSpec(),
     }
   }
 
-  async sideloadPackage(
-    params: RR.SideloadPackageReq,
-  ): Promise<RR.SideloadPackageRes> {
+  async sideloadPackage(): Promise<RR.SideloadPackageRes> {
     await pauseFor(2000)
-    return '4120e092-05ab-4de2-9fbd-c3f1f4b1df9e' // no significance, randomly generated
+    return {
+      upload: '4120e092-05ab-4de2-9fbd-c3f1f4b1df9e', // no significance, randomly generated
+      progress: '5120e092-05ab-4de2-9fbd-c3f1f4b1df9e', // no significance, randomly generated
+    }
+  }
+
+  async uploadFile(body: Blob): Promise<string> {
+    await pauseFor(2000)
+    return 'returnedhash'
   }
 
   private async initProgress(): Promise<T.FullProgress> {

@@ -80,7 +80,7 @@ export const addressHostToUrl = (
 ): UrlString[] => {
   const res = []
   const fmt = (scheme: string | null, host: HostnameInfo, port: number) => {
-    const includePort =
+    const excludePort =
       scheme &&
       scheme in knownProtocols &&
       port === knownProtocols[scheme as keyof typeof knownProtocols].defaultPort
@@ -96,7 +96,7 @@ export const addressHostToUrl = (
     }
     return `${scheme ? `${scheme}://` : ""}${
       username ? `${username}@` : ""
-    }${hostname}${includePort ? `:${port}` : ""}${suffix}`
+    }${hostname}${excludePort ? "" : `:${port}`}${suffix}`
   }
   if (host.hostname.sslPort !== null) {
     res.push(fmt(sslScheme, host, host.hostname.sslPort))

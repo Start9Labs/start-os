@@ -68,7 +68,7 @@
   </ng-container>
   <!-- disconnected -->
   <ng-template #disconnected>
-    <ion-item *ngFor="let health; in: checks">
+    <ion-item *ngFor="let health of healthChecks | keyvalue">
       <ion-avatar slot="start">
         <ion-skeleton-text class="avatar"></ion-skeleton-text>
       </ion-avatar>

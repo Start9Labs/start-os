@@ -7,8 +7,7 @@ import { T } from '@start9labs/start-sdk'
 })
 export class StateService {
   setupType?: 'fresh' | 'restore' | 'attach' | 'transfer'
-  recoverySource?: T.RecoverySource
-  recoveryPassword?: string
+  recoverySource?: T.RecoverySource<string>
 
   constructor(private readonly api: ApiService) {}
 
@@ -26,9 +25,13 @@ export class StateService {
     await this.api.execute({
       startOsLogicalname: storageLogicalname,
       startOsPassword: await this.api.encrypt(password),
-      recoverySource: this.recoverySource || null,
-      recoveryPassword: this.recoveryPassword
-        ? await this.api.encrypt(this.recoveryPassword)
+      recoverySource: this.recoverySource
+        ? this.recoverySource.type === 'migrate'
+          ? this.recoverySource
+          : {
+              ...this.recoverySource,
+              password: await this.api.encrypt(this.recoverySource.password),
+            }
         : null,
     })
   }

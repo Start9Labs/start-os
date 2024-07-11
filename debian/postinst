@@ -78,6 +78,7 @@ sed -i '/\(^\|#\)Compress=/c\Compress=yes' /etc/systemd/journald.conf
 sed -i '/\(^\|#\)SystemMaxUse=/c\SystemMaxUse=1G' /etc/systemd/journald.conf
 sed -i '/\(^\|#\)ForwardToSyslog=/c\ForwardToSyslog=no' /etc/systemd/journald.conf
 sed -i '/^\s*#\?\s*issue_discards\s*=\s*/c\issue_discards = 1' /etc/lvm/lvm.conf
+sed -i '/\(^\|#\)\s*unqualified-search-registries\s*=\s*/c\unqualified-search-registries = ["docker.io"]' /etc/containers/registries.conf
 
 mkdir -p /etc/nginx/ssl
 
