@@ -1,4 +1,3 @@
-
 use std::ffi::OsStr;
 use std::path::Path;
 
@@ -7,16 +6,16 @@ use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::merkle_archive::Entry;
 
-/// An object for tracking the files expected to be in an s9pk 
+/// An object for tracking the files expected to be in an s9pk
 pub struct Expected<'a, T> {
     keep: DirectoryContents<()>,
     dir: &'a DirectoryContents<T>,
 }
 impl<'a, T> Expected<'a, T> {
-    pub fn new(dir: &'a DirectoryContents<T>,) -> Self {
+    pub fn new(dir: &'a DirectoryContents<T>) -> Self {
         Self {
             keep: DirectoryContents::new(),
-            dir
+            dir,
         }
     }
 }
@@ -42,22 +41,23 @@ impl<'a, T: Clone> Expected<'a, T> {
         path: impl AsRef<Path>,
         mut valid_extension: impl FnMut(Option<&OsStr>) -> bool,
     ) -> Result<(), Error> {
-        let (dir, stem) = if let Some(parent) = path.as_ref().parent().filter(|p| *p != Path::new("")) {
-            (
-                self.dir
-                    .get_path(parent)
-                    .and_then(|e| e.as_directory())
-                    .ok_or_else(|| {
-                        Error::new(
-                            eyre!("directory {} missing from archive", parent.display()),
-                            ErrorKind::ParseS9pk,
-                        )
-                    })?,
-                path.as_ref().strip_prefix(parent).unwrap(),
-            )
-        } else {
-            (self.dir, path.as_ref())
-        };
+        let (dir, stem) =
+            if let Some(parent) = path.as_ref().parent().filter(|p| *p != Path::new("")) {
+                (
+                    self.dir
+                        .get_path(parent)
+                        .and_then(|e| e.as_directory())
+                        .ok_or_else(|| {
+                            Error::new(
+                                eyre!("directory {} missing from archive", parent.display()),
+                                ErrorKind::ParseS9pk,
+                            )
+                        })?,
+                    path.as_ref().strip_prefix(parent).unwrap(),
+                )
+            } else {
+                (self.dir, path.as_ref())
+            };
         let name = dir
             .with_stem(&stem.as_os_str().to_string_lossy())
             .filter(|(_, e)| e.as_file().is_some())
@@ -96,8 +96,10 @@ impl<'a, T: Clone> Expected<'a, T> {
 
 pub struct Filter(DirectoryContents<()>);
 impl Filter {
-    pub fn keep_checked<T: FileSource + Clone>(&self, dir: &mut DirectoryContents<T>) -> Result<(), Error> {
+    pub fn keep_checked<T: FileSource + Clone>(
+        &self,
+        dir: &mut DirectoryContents<T>,
+    ) -> Result<(), Error> {
         dir.filter(|path| self.0.get_path(path).is_some())
     }
 }
-

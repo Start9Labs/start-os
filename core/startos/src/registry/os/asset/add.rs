@@ -12,7 +12,7 @@ use url::Url;
 
 use crate::context::CliContext;
 use crate::prelude::*;
-use crate::progress::{FullProgressTracker};
+use crate::progress::FullProgressTracker;
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
 use crate::registry::os::index::OsVersionInfo;

@@ -338,8 +338,7 @@ impl FileData {
             .any(|e| e == "gzip")
             .then_some("gzip");
 
-        let file = open_file(path)
-            .await?;
+        let file = open_file(path).await?;
         let metadata = file
             .metadata()
             .await

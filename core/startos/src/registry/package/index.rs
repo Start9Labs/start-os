@@ -15,7 +15,7 @@ use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment
 use crate::registry::signer::sign::{AnySignature, AnyVerifyingKey};
 use crate::rpc_continuations::Guid;
 use crate::s9pk::git_hash::GitHash;
-use crate::s9pk::manifest::{Description, HardwareRequirements};
+use crate::s9pk::manifest::{Alerts, Description, HardwareRequirements};
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
 
@@ -54,7 +54,8 @@ pub struct Category {
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct PackageVersionInfo {
-    pub title: String,
+    #[ts(type = "string")]
+    pub title: InternedString,
     pub icon: DataUrl<'static>,
     pub description: Description,
     pub release_notes: String,
@@ -70,6 +71,9 @@ pub struct PackageVersionInfo {
     pub support_site: Url,
     #[ts(type = "string")]
     pub marketing_site: Url,
+    #[ts(type = "string | null")]
+    pub donation_url: Option<Url>,
+    pub alerts: Alerts,
     #[ts(type = "string")]
     pub os_version: Version,
     pub hardware_requirements: HardwareRequirements,
@@ -91,6 +95,8 @@ impl PackageVersionInfo {
             upstream_repo: manifest.upstream_repo.clone(),
             support_site: manifest.support_site.clone(),
             marketing_site: manifest.marketing_site.clone(),
+            donation_url: manifest.donation_url.clone(),
+            alerts: manifest.alerts.clone(),
             os_version: manifest.os_version.clone(),
             hardware_requirements: manifest.hardware_requirements.clone(),
             source_version: None, // TODO

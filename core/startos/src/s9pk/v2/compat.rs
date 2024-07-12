@@ -199,7 +199,7 @@ impl From<ManifestV1> for Manifest {
         let default_url = value.upstream_repo.clone();
         Self {
             id: value.id,
-            title: value.title,
+            title: value.title.into(),
             version: ExtendedVersion::from(value.version).into(),
             satisfies: BTreeSet::new(),
             release_notes: value.release_notes,
@@ -234,6 +234,7 @@ impl From<ManifestV1> for Manifest {
                             DepInfo {
                                 description: value.description,
                                 optional: !value.requirement.required(),
+                                s9pk: None,
                             },
                         )
                     })

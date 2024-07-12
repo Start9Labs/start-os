@@ -15,12 +15,33 @@ use crate::s9pk::v2::pack::ImageConfig;
 use crate::s9pk::v2::SIG_CONTEXT;
 use crate::util::io::{create_file, open_file, TmpDir};
 use crate::util::serde::{apply_expr, HandlerExtSerde};
+use crate::util::Apply;
 
 pub const SKIP_ENV: &[&str] = &["TERM", "container", "HOME", "HOSTNAME"];
 
 pub fn s9pk() -> ParentHandler<CliContext> {
     ParentHandler::new()
         .subcommand("pack", from_fn_async(super::v2::pack::pack).no_display())
+        .subcommand(
+            "list-ingredients",
+            from_fn_async(super::v2::pack::list_ingredients).with_custom_display_fn(
+                |_, ingredients| {
+                    ingredients
+                        .into_iter()
+                        .map(Some)
+                        .apply(|i| itertools::intersperse(i, None))
+                        .for_each(|i| {
+                            if let Some(p) = i {
+                                print!("{}", p.display())
+                            } else {
+                                print!(" ")
+                            }
+                        });
+                    println!();
+                    Ok(())
+                },
+            ),
+        )
         .subcommand("edit", edit())
         .subcommand("inspect", inspect())
 }

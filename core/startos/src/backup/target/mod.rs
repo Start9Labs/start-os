@@ -8,6 +8,7 @@ use color_eyre::eyre::eyre;
 use digest::generic_array::GenericArray;
 use digest::OutputSizeUser;
 use exver::Version;
+use imbl_value::InternedString;
 use models::PackageId;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
@@ -203,7 +204,7 @@ pub struct BackupInfo {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageBackupInfo {
-    pub title: String,
+    pub title: InternedString,
     pub version: VersionString,
     pub os_version: Version,
     pub timestamp: DateTime<Utc>,
