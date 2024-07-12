@@ -1,11 +1,13 @@
 import { Component } from '@angular/core'
 import { ModalController, NavController } from '@ionic/angular'
-import { LoadingService } from '@start9labs/shared'
-import { TuiDialogService } from '@taiga-ui/core'
-import { PROMPT, PromptOptions } from 'src/app/modals/prompt.component'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import {
+  PasswordPromptComponent,
+  PromptOptions,
+} from 'src/app/modals/password-prompt.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchDB } from 'patch-db-client'
-import { skip, take, takeUntil } from 'rxjs/operators'
+import { skip, takeUntil } from 'rxjs/operators'
 import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
 import * as argon2 from '@start9labs/argon2'
 import { TuiDestroyService } from '@taiga-ui/cdk'
@@ -22,7 +24,6 @@ import { BackupService } from 'src/app/components/backup-drives/backup.service'
 @Component({
   selector: 'server-backup',
   templateUrl: './server-backup.page.html',
-  styleUrls: ['./server-backup.page.scss'],
   providers: [TuiDestroyService],
 })
 export class ServerBackupPage {
@@ -31,8 +32,8 @@ export class ServerBackupPage {
   readonly backingUp$ = this.eosService.backingUp$
 
   constructor(
+    private readonly errorService: ErrorService,
     private readonly loader: LoadingService,
-    private readonly dialogs: TuiDialogService,
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
     private readonly navCtrl: NavController,
@@ -60,7 +61,7 @@ export class ServerBackupPage {
       component: BackupSelectPage,
     })
 
-    modal.onWillDismiss().then(res => {
+    modal.onDidDismiss().then(res => {
       if (res.data) {
         this.serviceIds = res.data
         this.presentModalPassword(target)
@@ -74,28 +75,35 @@ export class ServerBackupPage {
     target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
   ): Promise<void> {
     const options: PromptOptions = {
+      title: 'Master Password Needed',
       message: 'Enter your master password to encrypt this backup.',
       label: 'Master Password',
       placeholder: 'Enter master password',
-      useMask: true,
       buttonText: 'Create Backup',
     }
 
-    this.dialogs
-      .open<string>(PROMPT, {
-        label: 'Master Password Needed',
-        data: options,
-      })
-      .pipe(take(1))
-      .subscribe(async (password: string) => {
+    const modal = await this.modalCtrl.create({
+      component: PasswordPromptComponent,
+      componentProps: { options },
+      canDismiss: async password => {
+        if (password === null) {
+          return true
+        }
+
         const { passwordHash, id } = await getServerInfo(this.patch)
 
         // confirm password matches current master password
-        argon2.verify(passwordHash, password)
+        try {
+          argon2.verify(passwordHash, password)
+        } catch (e: any) {
+          this.errorService.handleError(e)
+          return false
+        }
 
         // first time backup
         if (!this.backupService.hasThisBackup(target.entry, id)) {
-          await this.createBackup(target, password)
+          this.createBackup(target, password)
+          return true
           // existing backup
         } else {
           try {
@@ -103,41 +111,51 @@ export class ServerBackupPage {
           } catch {
             setTimeout(
               () => this.presentModalOldPassword(target, password),
-              500,
+              250,
             )
-            return
+            return true
           }
           await this.createBackup(target, password)
+          return true
         }
-      })
+      },
+    })
+    modal.present()
   }
 
   private async presentModalOldPassword(
     target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
     password: string,
   ): Promise<void> {
+    const { id } = await getServerInfo(this.patch)
     const options: PromptOptions = {
+      title: 'Original Password Needed',
       message:
         'This backup was created with a different password. Enter the ORIGINAL password that was used to encrypt this backup.',
       label: 'Original Password',
       placeholder: 'Enter original password',
-      useMask: true,
       buttonText: 'Create Backup',
     }
 
-    const { id } = await getServerInfo(this.patch)
+    const modal = await this.modalCtrl.create({
+      component: PasswordPromptComponent,
+      componentProps: { options },
+      canDismiss: async oldPassword => {
+        if (oldPassword === null) {
+          return true
+        }
 
-    this.dialogs
-      .open<string>(PROMPT, {
-        label: 'Original Password Needed',
-        data: options,
-      })
-      .pipe(take(1))
-      .subscribe(async (oldPassword: string) => {
-        const passwordHash = target.entry.startOs[id].passwordHash!
-        argon2.verify(passwordHash, oldPassword)
-        await this.createBackup(target, password, oldPassword)
-      })
+        try {
+          argon2.verify(target.entry.startOs[id].passwordHash!, oldPassword)
+          await this.createBackup(target, password, oldPassword)
+          return true
+        } catch (e: any) {
+          this.errorService.handleError(e)
+          return false
+        }
+      },
+    })
+    modal.present()
   }
 
   private async createBackup(
