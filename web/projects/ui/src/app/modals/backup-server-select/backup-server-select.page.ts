@@ -7,6 +7,10 @@ import {
   StartOSDiskInfo,
 } from '@start9labs/shared'
 import {
+  PasswordPromptComponent,
+  PromptOptions,
+} from 'src/app/modals/password-prompt.component'
+import {
   BackupInfo,
   CifsBackupTarget,
   DiskBackupTarget,
@@ -14,7 +18,6 @@ import {
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
 import { AppRecoverSelectPage } from '../app-recover-select/app-recover-select.page'
-import { PasswordPromptModal } from './password-prompt.modal'
 
 @Component({
   selector: 'backup-server-select',
@@ -38,24 +41,35 @@ export class BackupServerSelectModal {
 
   async presentModalPassword(
     serverId: string,
-    server: StartOSDiskInfo,
+    { passwordHash }: StartOSDiskInfo,
   ): Promise<void> {
+    const options: PromptOptions = {
+      title: 'Password Required',
+      message:
+        'Enter the password that was used to encrypt this backup. On the next screen, you will select the individual services you want to restore.',
+      label: 'Decrypt Backup',
+      placeholder: 'Enter password',
+      buttonText: 'Next',
+    }
     const modal = await this.modalCtrl.create({
-      component: PasswordPromptModal,
+      component: PasswordPromptComponent,
+      componentProps: { options },
+      canDismiss: async password => {
+        if (password === null) {
+          return true
+        }
+
+        try {
+          argon2.verify(passwordHash!, password)
+          await this.restoreFromBackup(serverId, password)
+          return true
+        } catch (e: any) {
+          this.errorService.handleError(e)
+          return false
+        }
+      },
     })
     modal.present()
-
-    const { data, role } = await modal.onWillDismiss()
-
-    if (role === 'confirm') {
-      try {
-        // @TODO Alex if invalid password, we should tell the user "Invalid password" and halt execution of this function. The modal should remain so the user can try again. Correct password is asdfasdf
-        argon2.verify(server.passwordHash!, data)
-        await this.restoreFromBackup(serverId, data)
-      } catch (e: any) {
-        this.errorService.handleError(e)
-      }
-    }
   }
 
   private async restoreFromBackup(
