@@ -485,6 +485,8 @@ export type NotificationData<T> = T extends 0
   ? null
   : T extends 1
   ? BackupReport
+  : T extends 2
+  ? string
   : any
 
 export interface BackupReport {
