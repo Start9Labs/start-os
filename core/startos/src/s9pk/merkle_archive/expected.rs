@@ -69,7 +69,7 @@ impl<'a, T: Clone> Expected<'a, T> {
                     ),
                     ErrorKind::ParseS9pk,
                 )),
-                |acc, (name, _)| 
+                |acc, (name, _)|
                     if valid_extension(Path::new(&*name).extension()) {
                         match acc {
                             Ok(_) => Err(Error::new(

@@ -1254,14 +1254,25 @@ async fn set_dependencies(
             } else {
                 true
             };
-        deps.insert(
-            dep_id,
-            CurrentDependencyInfo {
-                kind,
-                version_spec,
-                config_satisfied,
-            },
-        );
+        let info = CurrentDependencyInfo {
+            title: context
+                .seed
+                .persistent_container
+                .s9pk
+                .dependency_metadata(&dep_id)
+                .await?
+                .map(|m| m.title),
+            icon: context
+                .seed
+                .persistent_container
+                .s9pk
+                .dependency_icon_data_url(&dep_id)
+                .await?,
+            kind,
+            version_spec,
+            config_satisfied,
+        };
+        deps.insert(dep_id, info);
     }
     context
         .seed

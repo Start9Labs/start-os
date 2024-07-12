@@ -6,6 +6,7 @@ use imbl_value::InternedString;
 use models::{mime, DataUrl, PackageId};
 use tokio::fs::File;
 
+use crate::dependencies::DependencyMetadata;
 use crate::prelude::*;
 use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::s9pk::manifest::Manifest;
@@ -18,6 +19,7 @@ use crate::s9pk::merkle_archive::source::{
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
 use crate::s9pk::v2::pack::{ImageSource, PackSource};
 use crate::util::io::{open_file, TmpDir};
+use crate::util::serde::IoFormat;
 
 const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x02];
 
@@ -185,6 +187,23 @@ impl<S: FileSource + Clone> S9pk<S> {
             mime,
             contents.expect_file()?.to_vec(contents.hash()).await?,
         )))
+    }
+
+    pub async fn dependency_metadata(
+        &self,
+        id: &PackageId,
+    ) -> Result<Option<DependencyMetadata>, Error> {
+        if let Some(entry) = self
+            .archive
+            .contents()
+            .get_path(Path::new("dependencies").join(id).join("metadata.json"))
+        {
+            Ok(Some(IoFormat::Json.from_slice(
+                &entry.expect_file()?.to_vec(entry.hash()).await?,
+            )?))
+        } else {
+            Ok(None)
+        }
     }
 
     pub async fn serialize<W: Sink>(&mut self, w: &mut W, verify: bool) -> Result<(), Error> {
