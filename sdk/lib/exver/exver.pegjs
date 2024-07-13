@@ -36,8 +36,10 @@ Operator
   / "<=" { return "<="; }
   / ">" { return ">"; }
   / "<" { return "<"; }
-  / "==" { return "=="; }
+  / "=" { return "="; }
   / "!=" { return "!="; }
+  / "^" { return "^"; }
+  / "~" { return "~"; }
 
 Flavor
   = "#" flavor:Lowercase ":" { return flavor }

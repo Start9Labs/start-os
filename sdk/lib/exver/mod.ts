@@ -12,168 +12,116 @@ export interface Version {
 }
 
 // !( >=1:1 && <= 2:2)
-type Operator = ">" | "<" | ">=" | "<=" | "!="
+type Operator = ">" | "<" | ">=" | "<=" | "!=" | "^" | "~" | "="
 
-interface Anchor {
+type Anchor = {
   type: "Anchor",
   operator: Operator,
   version: ExtendedVersion,
 }
 
-interface And {
+type And = {
   type: "And",
   left: VersionRange,
   right: VersionRange,
 }
 
-interface Or {
+type Or = {
   type: "Or",
   left: VersionRange,
   right: VersionRange,
 }
 
-interface Not {
+type Not = {
   type: "Not",
   value: VersionRange,
 }
 
-interface Any {
+type Any = {
   type: "Any"
 }
 
-interface None {
+type None = {
   type: "None"
 }
 
-// type VersionRange = Anchor | And | Or | Not | Any | None
-
-abstract class VersionRange {
-  type: string
-  constructor (type: string) {
-    this.type = type
+class VersionRange {
+  atom: Anchor | And | Or | Not | Any | None
+  constructor(atomInput: Anchor | And | Or | Not | Any | None) {
+    this.atom = atomInput
   }
-}
 
-class Anchor extends VersionRange {
-  operator: Operator;
-  version: ExtendedVersion;
-
-  constructor(operator: Operator, version: ExtendedVersion) {
-    super("Anchor")
-    this.operator = operator;
-    this.version = version;
-  }
-}
-
-class And extends VersionRange {
-  right: VersionRange;
-  left: VersionRange;
-
-  constructor(left: VersionRange, right: VersionRange) {
-    super("And")
-    this.left = left;
-    this.right =right;
-  }
-}
-
-class Or extends VersionRange {
-  right: VersionRange;
-  left: VersionRange;
-
-  constructor(left: VersionRange, right: VersionRange) {
-    super("Or")
-    this.left = left;
-    this.right =right;
-  }
-}
-
-class Not extends VersionRange {
-  value: VersionRange;
-
-  constructor(version: VersionRange) {
-    super("Not")
-    this.value = version;
-  }
-}
-
-class Any extends VersionRange {
-  constructor() {
-    super("Any")
-  }
-}
-
-class None extends VersionRange {
-  constructor() {
-    super("None")
+  /**
+   * Returns a boolean indicating whether a given version satisfies the VersionRange
+   * !( >= 1:1 <= 2:2) || <=#bitcoin:1.2.0-alpha:0
+   */
+  public satisfiedBy(version: ExtendedVersion): boolean {
+    switch (this.atom.type) {
+      case "Anchor":
+        const otherVersion = this.atom.version
+        switch (this.atom.operator) {
+          case "=":
+            return version.equals(otherVersion)
+          case ">":
+            return version.greaterThan(otherVersion)
+          case "<":
+            return version.lessThan(otherVersion)
+          case ">=":
+            return version.greaterThan(otherVersion) || version.equals(otherVersion)
+          case "<=":
+            return version.lessThan(otherVersion) || version.equals(otherVersion)
+          case "!=":
+            return !version.equals(otherVersion)
+          case "^":
+          case "~":
+        }
+    }
   }
 }
 
 class VersionRangeConstructor {
-  static parseVersionRange(range: VersionRange): VersionRange {
-    switch (range.type) {
+  static parseRange(range: VersionRange): VersionRange {
+    switch (range.atom.type) {
       case "Anchor":
-        return new Anchor(
-          (range as Anchor).operator,
-          (range as Anchor).version
-        )
-        // return new Anchor(range.operator, range.version);
+        const anchor: Anchor = {
+          type: "Anchor",
+          operator: range.atom.operator,
+          version: range.atom.version,
+        }
+        return new VersionRange(anchor)
       case "And":
-        return new And(
-          this.parseVersionRange((range as And).left),
-          this.parseVersionRange((range as And).right),
-          // this.parseVersionRange(range.left),
-          // this.parseVersionRange(range.right),
-        );
+        const and: And = {
+          type: "And",
+          left: range.atom.left,
+          right: range.atom.right,
+        }
+        return this.parseRange(new VersionRange(and))
       case "Or":
-        return new Or(
-          this.parseVersionRange((range as Or).left),
-          this.parseVersionRange((range as Or).right),
-          // this.parseVersionRange(range.left),
-          // this.parseVersionRange(range.right),
-        );
-      case "Any":
-        return new Any();
-      case "None":
-        return new None();
+        const or: Or = {
+          type: "Or",
+          left: range.atom.left,
+          right: range.atom.right,
+        }
+        return this.parseRange(new VersionRange(or))
       case "Not":
-        return new Not(
-          this.parseVersionRange((range as Not).value)
-          // this.parseVersionRange(range.value)
-        );
-      default:
-        throw new Error(`Unknown type: ${range.type}`)
+        const not: Not = {
+          type: "Not",
+          value: range.atom.value,
+        }
+        return this.parseRange(new VersionRange(not))
+      case "Any":
+        const any: Any = {
+          type: "Any"
+        }
+        return new VersionRange(any)
+      case "None":
+        const none: None = {
+          type: "None"
+        }
+        return new VersionRange(none)
     }
   }
 }
-// export class VersionRange  {
-//   negator: boolean;
-//   operator: string;
-//   anchor: ExtendedVersion;
-
-//   constructor(range: string) {
-//     if (range.startsWith("!")) {
-//       this.negator = true
-//       range = range.replace("!", "")
-//     } else {
-//       this.negator = false
-//     }
-//     const operator = (() => {
-//       switch (range.substring(0, 2)) {
-//         case ">=": return ">="
-//         case "<=": return "<="
-//       }
-//       switch (range.substring(0, 1)) {
-//         case "=": return "="
-//         case "<": return "<"
-//         case ">": return ">"
-//       }
-//       throw new Error("Error parsing range:" + range)
-//     })();
-//     const comparisonOperators = /[><=]/g;
-//     const version = range.replace(comparisonOperators, "");
-//     this.operator = operator
-//     this.anchor = exverParser.parse(version)
-//   }
 
 //   public satisfiedBy(thisVersion: ExtendedVersion): boolean {
 //     if (this.negator) {
@@ -344,50 +292,4 @@ function appendVersion(version: Version, str: string): string {
   }
 
   return str;
-}
-
-// export function satisfiedByMany(range: string, thisVersion: ExtendedVersion): boolean {
-//   if (range.includes("&&")) {
-//     const ranges = range.split("&&");
-//     for (const x of ranges) {
-//       console.log(x.trim())
-//       const versionRange = new VersionRange(x.trim())
-//       if (!versionRange.satisfiedBy(thisVersion)) {
-//         return false
-//       }
-//     }
-//     return true
-//   }
-//   if (range.includes("||")) {
-//     const ranges = range.split("||");
-//     for (const x of ranges) {
-//       const versionRange = new VersionRange(x.trim())
-//       if (versionRange.satisfiedBy(thisVersion)) {
-//         return true
-//       }
-//     }
-//     return false
-//   }
-//   throw new Error("Couldn't parse range: " + range)
-// }
-
-// const ex1 = new VersionRange(">=#bitcoin:1.0.0-alpha:0 && <=#bitcoin:1.2.0-alpha:0")
-// const ex2 = new VersionRange(">=#bitcoin:1.0.0-alpha:0")
-
-const ex1 = exverParser.parse("!( >= 1:1 <= 2:2) || <=#bitcoin:1.2.0-alpha:0") as VersionRange
-const parsedRange = VersionRangeConstructor.parseVersionRange(ex1);
-console.log(parsedRange)
-console.log("ETC")
-if (parsedRange.type === "Not") {
-  console.log(parsedRange.value)
-  if (parsedRange.value.type === "And") {
-    if (parsedRange.value.left.type === "Anchor") {
-      console.log(parsedRange.value.left.version.upstream)
-      console.log(parsedRange.value.left.version.downstream)
-    }
-    if (parsedRange.value.right.type === "Anchor") {
-      console.log(parsedRange.value.right.version.upstream)
-      console.log(parsedRange.value.right.version.downstream)
-    }
-  }
 }
