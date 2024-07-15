@@ -72,7 +72,7 @@ import { splitCommand } from "./util/splitCommand"
 import { Mounts } from "./mainFn/Mounts"
 import { Dependency } from "./Dependency"
 import * as T from "./types"
-import { Checker, EmVer, testTypeVersion, ValidateExVer } from "./emverLite/mod"
+import { testTypeVersion, ValidateExVer } from "./exver"
 import { ExposedStorePaths } from "./store/setupExposeStore"
 import { PathBuilder, extractJsonPath, pathBuilder } from "./store/PathBuilder"
 import { checkAllDependencies } from "./dependencies/dependencies"
@@ -432,9 +432,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           spec: Spec,
         ) => Config.of<Spec, Store>(spec),
       },
-      Checker: {
-        parse: Checker.parse,
-      },
       Daemons: {
         of(config: {
           effects: Effects
@@ -473,10 +470,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             RemoteConfig
           >(dependencyConfig, update)
         },
-      },
-      EmVer: {
-        from: EmVer.from,
-        parse: EmVer.parse,
       },
       List: {
         text: List.text,

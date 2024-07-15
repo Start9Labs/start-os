@@ -1,5 +1,25 @@
 import * as P from "./exver"
 
+// prettier-ignore
+export type ValidateVersion<T extends String> = 
+T extends `-${infer A}` ? never  :
+T extends `${infer A}-${infer B}` ? ValidateVersion<A> & ValidateVersion<B> :
+  T extends `${bigint}` ? unknown :
+  T extends `${bigint}.${infer A}` ? ValidateVersion<A> :
+  never
+
+// prettier-ignore
+export type ValidateExVer<T extends string> = 
+  T extends `#${string}:${infer A}:${infer B}` ? ValidateVersion<A> & ValidateVersion<B> :
+  T extends `${infer A}:${infer B}` ? ValidateVersion<A> & ValidateVersion<B> :  
+  never
+
+// prettier-ignore
+export type ValidateExVers<T> =
+  T extends [] ? unknown :
+  T extends [infer A, ...infer B] ? ValidateExVer<A & string> & ValidateExVers<B> :
+  never
+
 type Anchor = {
   type: "Anchor"
   operator: P.CmpOp
@@ -115,6 +135,30 @@ export class VersionRange {
     return VersionRange.parseRange(
       P.parse(range, { startRule: "VersionRange" }),
     )
+  }
+
+  and(right: VersionRange) {
+    return new VersionRange({ type: "And", left: this, right })
+  }
+
+  or(right: VersionRange) {
+    return new VersionRange({ type: "Or", left: this, right })
+  }
+
+  not() {
+    return new VersionRange({ type: "Not", value: this })
+  }
+
+  static anchor(operator: P.CmpOp, version: ExtendedVersion) {
+    return new VersionRange({ type: "Anchor", operator, version })
+  }
+
+  static any() {
+    return new VersionRange({ type: "Any" })
+  }
+
+  static none() {
+    return new VersionRange({ type: "None" })
   }
 }
 
@@ -269,6 +313,10 @@ export class ExtendedVersion {
     return this.compare(other) === "greater"
   }
 
+  greaterThanOrEqual(other: ExtendedVersion): boolean {
+    return ["greater", "equal"].includes(this.compare(other) as string)
+  }
+
   equals(other: ExtendedVersion): boolean {
     return this.compare(other) === "equal"
   }
@@ -277,7 +325,11 @@ export class ExtendedVersion {
     return this.compare(other) === "less"
   }
 
-  parse(extendedVersion: string): ExtendedVersion {
+  lessThanOrEqual(other: ExtendedVersion): boolean {
+    return ["less", "equal"].includes(this.compare(other) as string)
+  }
+
+  static parse(extendedVersion: string): ExtendedVersion {
     const parsed = P.parse(extendedVersion, { startRule: "ExtendedVersion" })
     return new ExtendedVersion(
       parsed.flavor,
@@ -285,4 +337,40 @@ export class ExtendedVersion {
       new Version(parsed.downstream.number, parsed.downstream.prerelease),
     )
   }
+}
+
+export const testTypeExVer = <T extends string>(t: T & ValidateExVer<T>) => t
+
+export const testTypeVersion = <T extends string>(t: T & ValidateVersion<T>) =>
+  t
+function tests() {
+  testTypeVersion("1.2.3")
+  testTypeVersion("1")
+  testTypeVersion("12.34.56")
+  testTypeVersion("1.2-3")
+  testTypeVersion("1-3")
+  // @ts-expect-error
+  testTypeVersion("-3")
+  // @ts-expect-error
+  testTypeVersion("1.2.3:1")
+  // @ts-expect-error
+  testTypeVersion("#cat:1:1")
+
+  testTypeExVer("1.2.3:1.2.3")
+  testTypeExVer("1.2.3.4.5.6.7.8.9.0:1")
+  testTypeExVer("100:1")
+  testTypeExVer("#cat:1:1")
+  testTypeExVer("1.2.3.4.5.6.7.8.9.11.22.33:1")
+  testTypeExVer("1-0:1")
+  testTypeExVer("1-0:1")
+  // @ts-expect-error
+  testTypeExVer("1.2-3")
+  // @ts-expect-error
+  testTypeExVer("1-3")
+  // @ts-expect-error
+  testTypeExVer("1.2.3.4.5.6.7.8.9.0.10:1" as string)
+  // @ts-expect-error
+  testTypeExVer("1.-2:1")
+  // @ts-expect-error
+  testTypeExVer("1..2.3:3")
 }

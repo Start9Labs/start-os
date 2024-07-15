@@ -1,4 +1,4 @@
-import { EmVer } from "../../emverLite/mod"
+import { ExtendedVersion } from "../../exver"
 
 import * as T from "../../types"
 import { once } from "../../util/once"
@@ -12,11 +12,15 @@ export class Migrations<Manifest extends T.Manifest, Store> {
   private sortedMigrations = once(() => {
     const migrationsAsVersions = (
       this.migrations as Array<Migration<Manifest, Store, any>>
-    ).map((x) => [EmVer.parse(x.options.version), x] as const)
+    )
+      .map((x) => [ExtendedVersion.parse(x.options.version), x] as const)
+      .filter(([v, _]) => v.flavor === this.currentVersion().flavor)
     migrationsAsVersions.sort((a, b) => a[0].compareForSort(b[0]))
     return migrationsAsVersions
   })
-  private currentVersion = once(() => EmVer.parse(this.manifest.version))
+  private currentVersion = once(() =>
+    ExtendedVersion.parse(this.manifest.version),
+  )
   static of<
     Manifest extends T.Manifest,
     Store,
@@ -32,9 +36,9 @@ export class Migrations<Manifest extends T.Manifest, Store> {
     previousVersion,
   }: Parameters<T.ExpectedExports.init>[0]) {
     if (!!previousVersion) {
-      const previousVersionEmVer = EmVer.parse(previousVersion)
+      const previousVersionExVer = ExtendedVersion.parse(previousVersion)
       for (const [_, migration] of this.sortedMigrations()
-        .filter((x) => x[0].greaterThan(previousVersionEmVer))
+        .filter((x) => x[0].greaterThan(previousVersionExVer))
         .filter((x) => x[0].lessThanOrEqual(this.currentVersion()))) {
         await migration.up({ effects })
       }
@@ -45,10 +49,10 @@ export class Migrations<Manifest extends T.Manifest, Store> {
     nextVersion,
   }: Parameters<T.ExpectedExports.uninit>[0]) {
     if (!!nextVersion) {
-      const nextVersionEmVer = EmVer.parse(nextVersion)
+      const nextVersionExVer = ExtendedVersion.parse(nextVersion)
       const reversed = [...this.sortedMigrations()].reverse()
       for (const [_, migration] of reversed
-        .filter((x) => x[0].greaterThan(nextVersionEmVer))
+        .filter((x) => x[0].greaterThan(nextVersionExVer))
         .filter((x) => x[0].lessThanOrEqual(this.currentVersion()))) {
         await migration.down({ effects })
       }

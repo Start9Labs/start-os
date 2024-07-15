@@ -1,4 +1,4 @@
-import { ValidateExVer } from "../../emverLite/mod"
+import { ValidateExVer } from "../../exver"
 import * as T from "../../types"
 
 export class Migration<
