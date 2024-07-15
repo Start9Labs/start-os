@@ -2,36 +2,35 @@
 // !( >=1:1 && <= 2:2)
 
 VersionRange
-  = _ expr:Or _ { return expr }
+  = first:VersionRangeAtom rest:((Or / And)? VersionRangeAtom)*
 
-VersionSpec
-  = flavor:Flavor? upstream:Version ":" downstream:Version {
-    return { flavor: flavor || null, upstream, downstream }
-  }
+Or = "||"
 
-Or
-  = left:And _ "||" _ right:Or { return { type: "Or", left, right} }
-  / And
+And = "&&"
 
-And
-  = left:Not _ "&&" _ right:And { return { type: "And", left, right } }
-  / left:Not _ right:And { return { type: "And", left, right } }
+VersionRangeAtom
+  = Parens
+  / Anchor
   / Not
+  / Any
+  / None
 
-Not
-  = "!" _ value:Primary { return { type: "Not", value } }
-  / Primary
-
-Primary
-  = Anchor
-  / "(" _ expr:Or _ ")" { return expr }
-  / "*" { return { type: "Any" } }
-  / "!" { return { type: "None" } }
+Parens
+  = "(" _ expr:VersionRange _ ")" { return { type: "Parens", expr } }
 
 Anchor
-  = operator:Operator _ version:VersionSpec { return { type: "Anchor", operator, version} }
+  = operator:CmpOp? _ version:VersionSpec { return { type: "Anchor", operator, version } }
 
-Operator
+VersionSpec
+  = flavor:Flavor? upstream:Version ( ":" downstream: Version )? { return { flavor: flavor || null, upstream, downstream: downstream || { number: [0], prerelease: [] } } }
+
+Not = "!" _ value:VersionRangeAtom { return { type: "Not", value: value }}
+
+Any = "*" { return { type: "Any" } }
+
+None = "!" { return { type: "None" } }
+
+CmpOp 
   = ">=" { return ">="; }
   / "<=" { return "<="; }
   / ">" { return ">"; }
@@ -40,6 +39,11 @@ Operator
   / "!=" { return "!="; }
   / "^" { return "^"; }
   / "~" { return "~"; }
+
+ExtendedVersion
+  = flavor:Flavor? upstream:Version ":" downstream:Version {
+    return { flavor: flavor || null, upstream, downstream }
+  }
 
 Flavor
   = "#" flavor:Lowercase ":" { return flavor }

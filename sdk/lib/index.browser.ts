@@ -2,6 +2,8 @@ export { EmVer } from "./emverLite/mod"
 export { setupManifest } from "./manifest/setupManifest"
 export { setupExposeStore } from "./store/setupExposeStore"
 export { S9pk } from "./s9pk"
+export { VersionRange, ExtendedVersion, Version } from "./exver"
+
 export * as config from "./config"
 export * as CB from "./config/builder"
 export * as CT from "./config/configTypes"

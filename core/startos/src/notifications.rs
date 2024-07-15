@@ -282,6 +282,9 @@ impl NotificationType for () {
 impl NotificationType for BackupReport {
     const CODE: u32 = 1;
 }
+impl NotificationType for OsUpdated {
+    const CODE: u32 = 2;
+}
 
 #[instrument(skip(subtype, db))]
 pub fn notify<T: NotificationType>(
