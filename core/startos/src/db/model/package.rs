@@ -372,12 +372,11 @@ impl Map for CurrentDependencies {
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CurrentDependencyInfo {
+    #[ts(type = "string | null")]
+    pub title: Option<InternedString>,
+    pub icon: Option<DataUrl<'static>>,
     #[serde(flatten)]
     pub kind: CurrentDependencyKind,
-    pub title: String,
-    pub icon: DataUrl<'static>,
-    #[ts(type = "string")]
-    pub registry_url: Url,
     #[ts(type = "string")]
     pub version_spec: VersionRange,
     pub config_satisfied: bool,

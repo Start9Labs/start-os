@@ -1,35 +1,35 @@
 import { ManifestVersion, SDKManifest } from "../../manifest/ManifestTypes"
-import { Effects } from "../../types"
+import * as T from "../../types"
 
 export class Migration<
-  Manifest extends SDKManifest,
+  Manifest extends T.Manifest,
   Store,
   Version extends ManifestVersion,
 > {
   constructor(
     readonly options: {
       version: Version
-      up: (opts: { effects: Effects }) => Promise<void>
-      down: (opts: { effects: Effects }) => Promise<void>
+      up: (opts: { effects: T.Effects }) => Promise<void>
+      down: (opts: { effects: T.Effects }) => Promise<void>
     },
   ) {}
   static of<
-    Manifest extends SDKManifest,
+    Manifest extends T.Manifest,
     Store,
     Version extends ManifestVersion,
   >(options: {
     version: Version
-    up: (opts: { effects: Effects }) => Promise<void>
-    down: (opts: { effects: Effects }) => Promise<void>
+    up: (opts: { effects: T.Effects }) => Promise<void>
+    down: (opts: { effects: T.Effects }) => Promise<void>
   }) {
     return new Migration<Manifest, Store, Version>(options)
   }
 
-  async up(opts: { effects: Effects }) {
+  async up(opts: { effects: T.Effects }) {
     this.up(opts)
   }
 
-  async down(opts: { effects: Effects }) {
+  async down(opts: { effects: T.Effects }) {
     this.down(opts)
   }
 }

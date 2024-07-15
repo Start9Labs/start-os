@@ -31,8 +31,10 @@ fn current_version() -> Version {
 #[ts(export)]
 pub struct Manifest {
     pub id: PackageId,
-    pub title: String,
+    #[ts(type = "string")]
+    pub title: InternedString,
     pub version: VersionString,
+    pub satisfies: BTreeSet<VersionString>,
     pub release_notes: String,
     #[ts(type = "string")]
     pub license: InternedString, // type of license
@@ -81,6 +83,15 @@ impl Manifest {
         expected.check_file("LICENSE.md")?;
         expected.check_file("instructions.md")?;
         expected.check_file("javascript.squashfs")?;
+        for (dependency, _) in &self.dependencies.0 {
+            let dep_path = Path::new("dependencies").join(dependency);
+            let _ = expected.check_file(dep_path.join("metadata.json"));
+            let _ = expected.check_stem(dep_path.join("icon"), |ext| {
+                ext.and_then(|e| e.to_str())
+                    .and_then(mime)
+                    .map_or(false, |mime| mime.starts_with("image/"))
+            });
+        }
         for assets in &self.assets {
             expected.check_file(Path::new("assets").join(assets).with_extension("squashfs"))?;
         }
@@ -148,7 +159,7 @@ impl Manifest {
 #[ts(export)]
 pub struct HardwareRequirements {
     #[serde(default)]
-    #[ts(type = "{ [key: string]: string }")] // TODO more specific key
+    #[ts(type = "{ device?: string, processor?: string }")]
     pub device: BTreeMap<String, Regex>,
     #[ts(type = "number | null")]
     pub ram: Option<u64>,

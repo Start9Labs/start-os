@@ -1,25 +1,25 @@
 import { DependenciesReceipt } from "../config/setupConfig"
 import { SetInterfaces } from "../interfaces/setupInterfaces"
-import { SDKManifest } from "../manifest/ManifestTypes"
+
 import { ExposedStorePaths } from "../store/setupExposeStore"
-import { Effects, ExpectedExports } from "../types"
+import * as T from "../types"
 import { Migrations } from "./migrations/setupMigrations"
 import { Install } from "./setupInstall"
 import { Uninstall } from "./setupUninstall"
 
-export function setupInit<Manifest extends SDKManifest, Store>(
+export function setupInit<Manifest extends T.Manifest, Store>(
   migrations: Migrations<Manifest, Store>,
   install: Install<Manifest, Store>,
   uninstall: Uninstall<Manifest, Store>,
   setInterfaces: SetInterfaces<Manifest, Store, any, any>,
   setDependencies: (options: {
-    effects: Effects
+    effects: T.Effects
     input: any
   }) => Promise<DependenciesReceipt>,
   exposedStore: ExposedStorePaths,
 ): {
-  init: ExpectedExports.init
-  uninit: ExpectedExports.uninit
+  init: T.ExpectedExports.init
+  uninit: T.ExpectedExports.uninit
 } {
   return {
     init: async (opts) => {

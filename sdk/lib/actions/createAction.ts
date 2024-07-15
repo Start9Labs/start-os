@@ -1,12 +1,13 @@
+import * as T from "../types"
 import { Config, ExtractConfigType } from "../config/builder/config"
-import { SDKManifest } from "../manifest/ManifestTypes"
+
 import { ActionMetadata, ActionResult, Effects, ExportedAction } from "../types"
 
-export type MaybeFn<Manifest extends SDKManifest, Store, Value> =
+export type MaybeFn<Manifest extends T.Manifest, Store, Value> =
   | Value
   | ((options: { effects: Effects }) => Promise<Value> | Value)
 export class CreatedAction<
-  Manifest extends SDKManifest,
+  Manifest extends T.Manifest,
   Store,
   ConfigType extends
     | Record<string, any>
@@ -30,7 +31,7 @@ export class CreatedAction<
   ) {}
 
   static of<
-    Manifest extends SDKManifest,
+    Manifest extends T.Manifest,
     Store,
     ConfigType extends
       | Record<string, any>

@@ -70,6 +70,7 @@ export module Mock {
     id: 'bitcoind',
     title: 'Bitcoin Core',
     version: '0.21.0',
+    satisfies: [],
     gitHash: 'abcdefgh',
     description: {
       short: 'A Bitcoin full node by Bitcoin Core.',
@@ -113,6 +114,7 @@ export module Mock {
     id: 'lnd',
     title: 'Lightning Network Daemon',
     version: '0.11.1',
+    satisfies: [],
     gitHash: 'abcdefgh',
     description: {
       short: 'A bolt spec compliant client.',
@@ -138,11 +140,13 @@ export module Mock {
       bitcoind: {
         description: 'LND needs bitcoin to live.',
         optional: true,
+        s9pk: '',
       },
       'btc-rpc-proxy': {
         description:
           'As long as Bitcoin is pruned, LND needs Bitcoin Proxy to fetch block over the P2P network.',
         optional: true,
+        s9pk: '',
       },
     },
     hasConfig: true,
@@ -166,6 +170,7 @@ export module Mock {
     id: 'btc-rpc-proxy',
     title: 'Bitcoin Proxy',
     version: '0.2.2',
+    satisfies: [],
     gitHash: 'lmnopqrx',
     description: {
       short: 'A super charger for your Bitcoin node.',
@@ -190,6 +195,7 @@ export module Mock {
       bitcoind: {
         description: 'Bitcoin Proxy requires a Bitcoin node.',
         optional: false,
+        s9pk: '',
       },
     },
     hasConfig: false,
@@ -1479,7 +1485,6 @@ export module Mock {
         title: Mock.MockManifestBitcoind.title,
         icon: 'assets/img/service-icons/bitcoind.svg',
         kind: 'running',
-        registryUrl: '',
         versionSpec: '>=26.0.0',
         healthChecks: [],
         configSatisfied: true,
@@ -1566,7 +1571,6 @@ export module Mock {
         title: Mock.MockManifestBitcoind.title,
         icon: 'assets/img/service-icons/bitcoind.svg',
         kind: 'running',
-        registryUrl: 'https://registry.start9.com',
         versionSpec: '>=26.0.0',
         healthChecks: [],
         configSatisfied: true,
@@ -1575,7 +1579,6 @@ export module Mock {
         title: Mock.MockManifestBitcoinProxy.title,
         icon: 'assets/img/service-icons/btc-rpc-proxy.png',
         kind: 'exists',
-        registryUrl: 'https://community-registry.start9.com',
         versionSpec: '>2.0.0',
         configSatisfied: false,
       },

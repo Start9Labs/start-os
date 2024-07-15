@@ -233,6 +233,10 @@ impl<S> Entry<S> {
             _ => None,
         }
     }
+    pub fn expect_file(&self) -> Result<&FileContents<S>, Error> {
+        self.as_file()
+            .ok_or_else(|| Error::new(eyre!("not a file"), ErrorKind::ParseS9pk))
+    }
     pub fn as_directory(&self) -> Option<&DirectoryContents<S>> {
         match self.as_contents() {
             EntryContents::Directory(d) => Some(d),

@@ -1,12 +1,11 @@
-import { SDKManifest } from "../manifest/ManifestTypes"
-import { Effects, ExpectedExports } from "../types"
+import * as T from "../types"
 
-export type InstallFn<Manifest extends SDKManifest, Store> = (opts: {
-  effects: Effects
+export type InstallFn<Manifest extends T.Manifest, Store> = (opts: {
+  effects: T.Effects
 }) => Promise<void>
-export class Install<Manifest extends SDKManifest, Store> {
+export class Install<Manifest extends T.Manifest, Store> {
   private constructor(readonly fn: InstallFn<Manifest, Store>) {}
-  static of<Manifest extends SDKManifest, Store>(
+  static of<Manifest extends T.Manifest, Store>(
     fn: InstallFn<Manifest, Store>,
   ) {
     return new Install(fn)
@@ -15,7 +14,7 @@ export class Install<Manifest extends SDKManifest, Store> {
   async init({
     effects,
     previousVersion,
-  }: Parameters<ExpectedExports.init>[0]) {
+  }: Parameters<T.ExpectedExports.init>[0]) {
     if (!previousVersion)
       await this.fn({
         effects,
@@ -23,7 +22,7 @@ export class Install<Manifest extends SDKManifest, Store> {
   }
 }
 
-export function setupInstall<Manifest extends SDKManifest, Store>(
+export function setupInstall<Manifest extends T.Manifest, Store>(
   fn: InstallFn<Manifest, Store>,
 ) {
   return Install.of(fn)
