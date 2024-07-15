@@ -1,6 +1,7 @@
 import * as T from "../types"
 import { ImageConfig, ImageId, VolumeId } from "../osBindings"
 import { SDKManifest, ManifestVersion, SDKImageConfig } from "./ManifestTypes"
+import { SDKVersion } from "../StartSdk"
 
 export function setupManifest<
   Id extends string,
@@ -31,7 +32,7 @@ export function setupManifest<
   return {
     ...manifest,
     gitHash: null,
-    osVersion: "TODO",
+    osVersion: SDKVersion,
     satisfies: manifest.satisfies || [],
     images,
     alerts: {
