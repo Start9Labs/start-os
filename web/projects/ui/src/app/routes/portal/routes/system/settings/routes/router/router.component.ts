@@ -1,6 +1,6 @@
+import { TuiTextfieldControllerModule } from '@taiga-ui/legacy'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { TuiTextfieldControllerModule } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { RouterInfoComponent } from './info.component'
@@ -47,11 +47,11 @@ import { RouterPortComponent } from './table.component'
         min-width: 30rem;
         max-width: 40rem;
         table-layout: fixed;
-        background: var(--tui-base-02);
+        background: var(--tui-background-base-alt);
         border-radius: 0.75rem;
         font-size: 1rem;
         margin: 2rem 0;
-        box-shadow: 0 1rem var(--tui-base-02);
+        box-shadow: 0 1rem var(--tui-background-base-alt);
       }
     `,
   ],

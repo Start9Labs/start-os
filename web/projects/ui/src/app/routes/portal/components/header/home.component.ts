@@ -1,5 +1,5 @@
+import { TuiIcon } from '@taiga-ui/core'
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { TuiIconModule } from '@taiga-ui/experimental'
 
 @Component({
   standalone: true,
@@ -41,6 +41,6 @@ import { TuiIconModule } from '@taiga-ui/experimental'
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiIconModule],
+  imports: [TuiIcon],
 })
 export class HeaderHomeComponent {}

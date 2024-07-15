@@ -7,20 +7,25 @@ import {
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiAlertService, TuiDialogService } from '@taiga-ui/core'
-import { TuiIconModule, TuiTitleModule } from '@taiga-ui/experimental'
-import { TUI_PROMPT, TuiCheckboxLabeledModule } from '@taiga-ui/kit'
+import {
+  TuiAlertService,
+  TuiDialogService,
+  TuiIcon,
+  TuiLabel,
+  TuiTitle,
+} from '@taiga-ui/core'
+import { TUI_CONFIRM, TuiCheckbox } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
-import { DataModel } from 'src/app/services/patch-db/data-model'
-import { ConfigService } from 'src/app/services/config.service'
 import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ConfigService } from 'src/app/services/config.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
   template: `
     <ng-container *ngIf="server$ | async as server">
       <button class="g-action" (click)="reset(tor)">
-        <tui-icon icon="tuiIconRotateCw" />
+        <tui-icon icon="@tui.rotate-cw" />
         <div tuiTitle>
           <strong>Reset Tor</strong>
           <div tuiSubtitle>
@@ -30,7 +35,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
         </div>
       </button>
       <button class="g-action" (click)="zram(server.zram)">
-        <tui-icon [icon]="server.zram ? 'tuiIconZapOff' : 'tuiIconZap'" />
+        <tui-icon [icon]="server.zram ? '@tui.zap-off' : '@tui.zap'" />
         <div tuiTitle>
           <strong>{{ server.zram ? 'Disable' : 'Enable' }} zram</strong>
           <div tuiSubtitle>
@@ -51,9 +56,10 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
         Optionally wipe state to forcibly acquire new guard nodes. It is
         recommended to try without wiping state first.
       </p>
-      <tui-checkbox-labeled size="l" [(ngModel)]="wipe">
+      <label tuiLabel>
+        <input type="checkbox" tuiCheckbox [(ngModel)]="wipe" />
         Wipe state
-      </tui-checkbox-labeled>
+      </label>
     </ng-template>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -61,9 +67,10 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
   imports: [
     CommonModule,
     FormsModule,
-    TuiTitleModule,
-    TuiIconModule,
-    TuiCheckboxLabeledModule,
+    TuiTitle,
+    TuiIcon,
+    TuiLabel,
+    TuiCheckbox,
   ],
 })
 export class SettingsExperimentalComponent {
@@ -81,7 +88,7 @@ export class SettingsExperimentalComponent {
   reset(content: TemplateRef<any>) {
     this.wipe = false
     this.dialogs
-      .open(TUI_PROMPT, {
+      .open(TUI_CONFIRM, {
         label: this.isTor ? 'Warning' : 'Confirm',
         data: {
           content,

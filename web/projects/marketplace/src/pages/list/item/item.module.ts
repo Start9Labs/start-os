@@ -2,8 +2,8 @@ import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
 import { RouterModule } from '@angular/router'
 import { SharedPipesModule, TickerModule } from '@start9labs/shared'
+import { TuiLet } from '@taiga-ui/cdk'
 import { ItemComponent } from './item.component'
-import { TuiLetModule } from '@taiga-ui/cdk'
 
 @NgModule({
   declarations: [ItemComponent],
@@ -13,7 +13,7 @@ import { TuiLetModule } from '@taiga-ui/cdk'
     RouterModule,
     SharedPipesModule,
     TickerModule,
-    TuiLetModule,
+    TuiLet,
   ],
 })
 export class ItemModule {}

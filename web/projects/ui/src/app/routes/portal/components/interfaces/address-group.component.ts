@@ -1,3 +1,4 @@
+import { TuiButton } from '@taiga-ui/core'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -5,7 +6,6 @@ import {
   inject,
 } from '@angular/core'
 import { AddressItemComponent } from './address-item.component'
-import { TuiButtonModule } from '@taiga-ui/experimental'
 import { AddressDetails, AddressesService } from './interface.utils'
 
 @Component({
@@ -18,20 +18,20 @@ import { AddressDetails, AddressesService } from './interface.utils'
           class="icon-add-btn"
           tuiIconButton
           appearance="secondary"
-          iconLeft="tuiIconPlus"
+          iconStart="@tui.plus"
           (click)="service.add()"
         >
           Add
         </button>
       }
-      <ng-content></ng-content>
+      <ng-content />
     </div>
     @for (address of addresses; track $index) {
       <app-address-item [label]="address.label" [address]="address.url" />
     } @empty {
       <button
         tuiButton
-        iconLeft="tuiIconPlus"
+        iconStart="@tui.plus"
         [style.align-self]="'flex-start'"
         (click)="service.add()"
       >
@@ -39,7 +39,7 @@ import { AddressDetails, AddressesService } from './interface.utils'
       </button>
     }
   `,
-  imports: [AddressItemComponent, TuiButtonModule],
+  imports: [AddressItemComponent, TuiButton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     .icon-add-btn {

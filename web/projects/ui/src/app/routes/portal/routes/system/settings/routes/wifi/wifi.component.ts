@@ -12,17 +12,15 @@ import {
   pauseFor,
   SharedPipesModule,
 } from '@start9labs/shared'
-import { TuiLetModule } from '@taiga-ui/cdk'
+import { TuiLet } from '@taiga-ui/cdk'
 import {
   TuiAlertService,
+  TuiButton,
   TuiDialogOptions,
-  TuiLoaderModule,
+  TuiLoader,
 } from '@taiga-ui/core'
-import {
-  TuiButtonModule,
-  TuiCardModule,
-  TuiToggleModule,
-} from '@taiga-ui/experimental'
+import { TuiSwitch } from '@taiga-ui/kit'
+import { TuiCardLarge } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { catchError, defer, map, merge, Observable, of, Subject } from 'rxjs'
 import {
@@ -45,7 +43,7 @@ import { wifiSpec } from './wifi.const'
         Wi-Fi
         <input
           type="checkbox"
-          tuiToggle
+          tuiSwitch
           [ngModel]="enabled"
           (ngModelChange)="onToggle($event)"
         />
@@ -81,11 +79,11 @@ import { wifiSpec } from './wifi.const'
   imports: [
     CommonModule,
     FormsModule,
-    TuiButtonModule,
-    TuiToggleModule,
-    TuiLetModule,
-    TuiCardModule,
-    TuiLoaderModule,
+    TuiButton,
+    TuiSwitch,
+    TuiLet,
+    TuiCardLarge,
+    TuiLoader,
     SharedPipesModule,
     WifiInfoComponent,
     WifiTableComponent,

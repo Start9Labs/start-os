@@ -8,13 +8,12 @@ import {
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { CB } from '@start9labs/start-sdk'
 import {
-  TuiDataListModule,
+  TuiButton,
   TuiDialogOptions,
   TuiDialogService,
-  TuiLinkModule,
+  TuiLink,
 } from '@taiga-ui/core'
-import { TuiButtonModule, TuiIconsModule } from '@taiga-ui/experimental'
-import { TUI_PROMPT } from '@taiga-ui/kit'
+import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { filter } from 'rxjs'
 import {
   FormComponent,
@@ -58,7 +57,7 @@ import { Proxy } from 'src/app/services/patch-db/data-model'
               tuiIconButton
               appearance="icon"
               size="xs"
-              iconLeft="tuiIconEdit2"
+              iconStart="@tui.pencil"
               (click)="rename(proxy)"
             >
               Rename
@@ -67,7 +66,7 @@ import { Proxy } from 'src/app/services/patch-db/data-model'
               tuiIconButton
               appearance="icon"
               size="xs"
-              iconLeft="tuiIconTrash2"
+              iconStart="@tui.trash-2"
               (click)="delete(proxy)"
             >
               Delete
@@ -123,7 +122,7 @@ import { Proxy } from 'src/app/services/patch-db/data-model'
   `,
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, TuiLinkModule, TuiIconsModule, TuiButtonModule],
+  imports: [CommonModule, TuiLink, TuiButton],
 })
 export class ProxiesTableComponent {
   private readonly dialogs = inject(TuiDialogService)
@@ -157,7 +156,7 @@ export class ProxiesTableComponent {
 
   delete({ id }: Proxy) {
     this.dialogs
-      .open(TUI_PROMPT, DELETE_OPTIONS)
+      .open(TUI_CONFIRM, DELETE_OPTIONS)
       .pipe(filter(Boolean))
       .subscribe(async () => {
         const loader = this.loader.open('Deleting...').subscribe()

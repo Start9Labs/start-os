@@ -1,4 +1,4 @@
-<tui-text-area
+<tui-textarea
   [tuiHintContent]="spec | hint"
   [disabled]="!!spec.disabled"
   [readOnly]="readOnly"
@@ -11,5 +11,8 @@
 >
   {{ spec.name }}
   <span *ngIf="spec.required">*</span>
-  <textarea tuiTextfield [placeholder]="spec.placeholder || ''"></textarea>
-</tui-text-area>
+  <textarea
+    tuiTextfieldLegacy
+    [placeholder]="spec.placeholder || ''"
+  ></textarea>
+</tui-textarea>

@@ -1,10 +1,10 @@
-import { Component, Inject } from '@angular/core'
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
+import { Component, Inject, DestroyRef, inject } from '@angular/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { Router } from '@angular/router'
 import { ConfigService } from 'src/app/services/config.service'
 import { LoadingService } from '@start9labs/shared'
-import { TuiDestroyService } from '@taiga-ui/cdk'
 import { takeUntil } from 'rxjs'
 import { DOCUMENT } from '@angular/common'
 
@@ -12,14 +12,13 @@ import { DOCUMENT } from '@angular/common'
   selector: 'login',
   templateUrl: './login.page.html',
   styleUrls: ['./login.page.scss'],
-  providers: [TuiDestroyService],
+  providers: [],
 })
 export class LoginPage {
   password = ''
   error = ''
 
   constructor(
-    private readonly destroy$: TuiDestroyService,
     private readonly router: Router,
     private readonly authService: AuthService,
     private readonly loader: LoadingService,
@@ -33,7 +32,7 @@ export class LoginPage {
 
     const loader = this.loader
       .open('Logging in...')
-      .pipe(takeUntil(this.destroy$))
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe()
 
     try {
@@ -58,4 +57,6 @@ export class LoginPage {
       loader.unsubscribe()
     }
   }
+
+  readonly destroyRef = inject(DestroyRef)
 }

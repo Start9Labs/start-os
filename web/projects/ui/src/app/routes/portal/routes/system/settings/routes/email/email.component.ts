@@ -5,19 +5,18 @@ import {
   ReactiveFormsModule,
   UntypedFormGroup,
 } from '@angular/forms'
-import { TuiDialogService } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
-import { TuiInputModule } from '@taiga-ui/kit'
 import { ErrorService, LoadingService } from '@start9labs/shared'
+import { config, CT } from '@start9labs/start-sdk'
+import { TuiButton, TuiDialogService } from '@taiga-ui/core'
+import { TuiInputModule } from '@taiga-ui/legacy'
 import { PatchDB } from 'patch-db-client'
 import { switchMap } from 'rxjs'
 import { FormModule } from 'src/app/routes/portal/components/form/form.module'
-import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
-import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormService } from 'src/app/services/form.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
+import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { EmailInfoComponent } from './info.component'
-import { CT, config } from '@start9labs/start-sdk'
 
 @Component({
   template: `
@@ -45,7 +44,7 @@ import { CT, config } from '@start9labs/start-sdk'
           [ngModelOptions]="{ standalone: true }"
         >
           Firstname Lastname &lt;email&#64;example.com&gt;
-          <input tuiTextfield inputmode="email" />
+          <input tuiTextfieldLegacy inputmode="email" />
         </tui-input>
         <button
           tuiButton
@@ -67,7 +66,7 @@ import { CT, config } from '@start9labs/start-sdk'
     FormsModule,
     ReactiveFormsModule,
     FormModule,
-    TuiButtonModule,
+    TuiButton,
     TuiInputModule,
     EmailInfoComponent,
   ],

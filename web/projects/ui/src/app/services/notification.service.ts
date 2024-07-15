@@ -64,13 +64,13 @@ export class NotificationService {
   getColor(notification: ServerNotification<number>): string {
     switch (notification.level) {
       case NotificationLevel.Info:
-        return 'var(--tui-info-fill)'
+        return 'var(--tui-status-info)'
       case NotificationLevel.Success:
-        return 'var(--tui-success-fill)'
+        return 'var(--tui-status-positive)'
       case NotificationLevel.Warning:
-        return 'var(--tui-warning-fill)'
+        return 'var(--tui-status-warning)'
       case NotificationLevel.Error:
-        return 'var(--tui-error-fill)'
+        return 'var(--tui-status-negative)'
       default:
         return ''
     }
@@ -79,12 +79,12 @@ export class NotificationService {
   getIcon(notification: ServerNotification<number>): string {
     switch (notification.level) {
       case NotificationLevel.Info:
-        return 'tuiIconInfo'
+        return '@tui.info'
       case NotificationLevel.Success:
-        return 'tuiIconCheckCircle'
+        return '@tui.circle-check'
       case NotificationLevel.Warning:
       case NotificationLevel.Error:
-        return 'tuiIconAlertCircle'
+        return '@tui.circle-alert'
       default:
         return ''
     }

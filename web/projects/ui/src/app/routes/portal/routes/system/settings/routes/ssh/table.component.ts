@@ -7,9 +7,8 @@ import {
   Input,
 } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
-import { TuiButtonModule, TuiFadeModule } from '@taiga-ui/experimental'
-import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
+import { TuiDialogOptions, TuiDialogService, TuiButton } from '@taiga-ui/core'
+import { TuiConfirmData, TuiFade, TUI_CONFIRM } from '@taiga-ui/kit'
 import { filter, take } from 'rxjs'
 import { PROMPT } from 'src/app/routes/portal/modals/prompt.component'
 import { SSHKey } from 'src/app/services/api/api.types'
@@ -39,7 +38,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
               tuiIconButton
               size="xs"
               appearance="icon"
-              iconLeft="tuiIconTrash2"
+              iconStart="@tui.trash-2"
               (click)="delete(key)"
             >
               Delete
@@ -88,7 +87,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 
       .date {
         order: 4;
-        color: var(--tui-text-02);
+        color: var(--tui-text-secondary);
       }
 
       .algorithm {
@@ -97,14 +96,14 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 
         &::before {
           content: 'Algorithm: ';
-          color: var(--tui-text-02);
+          color: var(--tui-text-secondary);
         }
       }
     }
   `,
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, TuiButtonModule, TuiFadeModule],
+  imports: [CommonModule, TuiButton, TuiFade],
 })
 export class SSHTableComponent {
   private readonly loader = inject(LoadingService)
@@ -134,7 +133,7 @@ export class SSHTableComponent {
 
   delete(key: SSHKey) {
     this.dialogs
-      .open(TUI_PROMPT, DELETE_OPTIONS)
+      .open(TUI_CONFIRM, DELETE_OPTIONS)
       .pipe(filter(Boolean))
       .subscribe(async () => {
         const loader = this.loader.open('Deleting...').subscribe()
@@ -160,7 +159,7 @@ const ADD_OPTIONS: Partial<TuiDialogOptions<{ message: string }>> = {
   },
 }
 
-const DELETE_OPTIONS: Partial<TuiDialogOptions<TuiPromptData>> = {
+const DELETE_OPTIONS: Partial<TuiDialogOptions<TuiConfirmData>> = {
   label: 'Confirm',
   size: 's',
   data: {

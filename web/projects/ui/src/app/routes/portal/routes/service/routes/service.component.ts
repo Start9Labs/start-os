@@ -128,8 +128,8 @@ import { DependencyInfo } from '../types/dependency-info'
       width: 100%;
       padding: 1rem 1.5rem 0.5rem;
       border-radius: 0.5rem;
-      background: var(--tui-clear);
-      box-shadow: inset 0 7rem 0 -4rem var(--tui-clear);
+      background: var(--tui-background-neutral-1);
+      box-shadow: inset 0 7rem 0 -4rem var(--tui-background-neutral-1);
       clip-path: polygon(0 1.5rem, 1.5rem 0, 100% 0, 100% 100%, 0 100%);
     }
 

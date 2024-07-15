@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { EmverPipesModule } from '@start9labs/shared'
-import { CommonModule } from '@angular/common'
-import { TuiSvgModule } from '@taiga-ui/core'
+import { TuiIcon } from '@taiga-ui/core'
 import { DependencyInfo } from '../types/dependency-info'
 
 @Component({
@@ -10,11 +9,9 @@ import { DependencyInfo } from '../types/dependency-info'
     <img [src]="dep.icon" alt="" />
     <span [style.flex]="1">
       <strong>
-        <tui-svg
-          *ngIf="dep.errorText"
-          src="tuiIconAlertTriangle"
-          [style.color]="color"
-        ></tui-svg>
+        @if (dep.errorText) {
+          <tui-icon icon="@tui.triangle-alert" [style.color]="color" />
+        }
         {{ dep.title }}
       </strong>
       <div>{{ dep.version | displayEmver }}</div>
@@ -22,10 +19,12 @@ import { DependencyInfo } from '../types/dependency-info'
         {{ dep.errorText || 'Satisfied' }}
       </div>
     </span>
-    <div *ngIf="dep.actionText">
-      {{ dep.actionText }}
-      <tui-svg src="tuiIconArrowRight"></tui-svg>
-    </div>
+    @if (dep.actionText) {
+      <div>
+        {{ dep.actionText }}
+        <tui-icon icon="@tui.arrow-right" />
+      </div>
+    }
   `,
   styles: [
     `
@@ -35,15 +34,14 @@ import { DependencyInfo } from '../types/dependency-info'
         border-radius: 100%;
       }
 
-      tui-svg {
-        width: 1rem;
-        height: 1rem;
+      tui-icon {
+        font-size: 1rem;
       }
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [EmverPipesModule, CommonModule, TuiSvgModule],
+  imports: [EmverPipesModule, TuiIcon],
 })
 export class ServiceDependencyComponent {
   @Input({ required: true, alias: 'serviceDependency' })
@@ -51,7 +49,7 @@ export class ServiceDependencyComponent {
 
   get color(): string {
     return this.dep.errorText
-      ? 'var(--tui-warning-fill)'
-      : 'var(--tui-success-fill)'
+      ? 'var(--tui-status-warning)'
+      : 'var(--tui-status-positive)'
   }
 }

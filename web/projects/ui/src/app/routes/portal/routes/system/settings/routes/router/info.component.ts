@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { TuiNotificationModule } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
+import { TuiNotification } from '@taiga-ui/core'
 
 @Component({
   selector: 'router-info',
@@ -45,7 +45,7 @@ import { CommonModule } from '@angular/common'
   styles: ['strong { font-size: 1rem }'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TuiNotificationModule],
+  imports: [CommonModule, TuiNotification],
 })
 export class RouterInfoComponent {
   @Input()

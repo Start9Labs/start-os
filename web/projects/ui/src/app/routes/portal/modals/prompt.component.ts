@@ -1,14 +1,13 @@
+import { TuiTextfieldControllerModule, TuiInputModule } from '@taiga-ui/legacy'
+import { TuiAutoFocus } from '@taiga-ui/cdk'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { TuiAutoFocusModule } from '@taiga-ui/cdk'
-import { TuiDialogContext, TuiTextfieldControllerModule } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
-import { TuiInputModule } from '@taiga-ui/kit'
+import { TuiDialogContext, TuiButton } from '@taiga-ui/core'
 import {
   POLYMORPHEUS_CONTEXT,
   PolymorpheusComponent,
-} from '@tinkoff/ng-polymorpheus'
+} from '@taiga-ui/polymorpheus'
 
 @Component({
   standalone: true,
@@ -26,7 +25,7 @@ import {
         {{ options.label }}
         <span *ngIf="options.required !== false && options.label">*</span>
         <input
-          tuiTextfield
+          tuiTextfieldLegacy
           [class.masked]="options.useMask && masked && value"
           [placeholder]="options.placeholder || ''"
         />
@@ -54,7 +53,7 @@ import {
         title="Toggle masking"
         size="xs"
         class="button"
-        [iconLeft]="masked ? 'tuiIconEye' : 'tuiIconEyeOff'"
+        [iconStart]="masked ? '@tui.eye' : '@tui.eye-off'"
         (click)="masked = !masked"
       ></button>
     </ng-template>
@@ -62,7 +61,7 @@ import {
   styles: [
     `
       .warning {
-        color: var(--tui-warning-fill);
+        color: var(--tui-status-warning);
       }
 
       .button {
@@ -79,9 +78,9 @@ import {
     CommonModule,
     FormsModule,
     TuiInputModule,
-    TuiButtonModule,
+    TuiButton,
     TuiTextfieldControllerModule,
-    TuiAutoFocusModule,
+    TuiAutoFocus,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

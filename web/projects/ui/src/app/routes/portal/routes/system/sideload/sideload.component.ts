@@ -2,17 +2,17 @@ import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { MarketplacePkg } from '@start9labs/marketplace'
-import { TuiLinkModule, TuiWrapperModule } from '@taiga-ui/core'
-import { TuiAvatarModule, TuiButtonModule } from '@taiga-ui/experimental'
+import { TuiButton, TuiLink } from '@taiga-ui/core'
 import {
-  TuiInputFilesModule,
+  TuiAvatar,
+  TuiFiles,
   tuiInputFilesOptionsProvider,
 } from '@taiga-ui/kit'
 import { Subject } from 'rxjs'
 import { ConfigService } from 'src/app/services/config.service'
+import { SideloadPackageComponent } from './package.component'
 
 import { parseS9pk, validateS9pk } from './sideload.utils'
-import { SideloadPackageComponent } from './package.component'
 
 @Component({
   template: `
@@ -25,7 +25,7 @@ import { SideloadPackageComponent } from './package.component'
       <button
         tuiIconButton
         appearance="secondary"
-        iconLeft="tuiIconXLarge"
+        iconStart="@tui.x"
         [style.border-radius.%]="100"
         [style.float]="'right'"
         (click)="clear()"
@@ -35,44 +35,39 @@ import { SideloadPackageComponent } from './package.component'
       </button>
     </sideload-package>
     <ng-template #upload>
-      <tui-input-files
-        [ngModel]="null"
-        (ngModelChange)="onFile($event)"
-        (click)="clear()"
-      >
-        <input tuiInputFiles accept=".s9pk" />
+      <label tuiInputFiles (click)="clear()">
+        <input
+          tuiInputFiles
+          accept=".s9pk"
+          [ngModel]="null"
+          (ngModelChange)="onFile($event)"
+        />
         <ng-template>
           <div *ngIf="invalid; else valid">
-            <tui-avatar
-              tuiWrapper
-              appearance="secondary"
-              src="tuiIconXCircleLarge"
-            ></tui-avatar>
-            <p [style.color]="'var(--tui-negative)'">Invalid package file</p>
+            <tui-avatar appearance="secondary" src="@tui.circle-x" />
+            <p [style.color]="'var(--tui-text-negative)'">
+              Invalid package file
+            </p>
             <button tuiButton>Try again</button>
           </div>
           <ng-template #valid>
             <div>
-              <tui-avatar
-                tuiWrapper
-                appearance="secondary"
-                src="tuiIconUploadCloudLarge"
-              ></tui-avatar>
+              <tui-avatar appearance="secondary" src="@tui.cloud-upload" />
               <p>Upload .s9pk package file</p>
-              <p *ngIf="isTor" [style.color]="'var(--tui-positive)'">
+              <p *ngIf="isTor" [style.color]="'var(--tui-text-positive)'">
                 Tip: switch to LAN for faster uploads
               </p>
               <button tuiButton>Upload</button>
             </div>
           </ng-template>
         </ng-template>
-      </tui-input-files>
+      </label>
     </ng-template>
   `,
   host: { class: 'g-page', '[style.padding-top.rem]': '2' },
   styles: [
     `
-      tui-input-files {
+      label {
         height: 100%;
         max-width: 40rem;
         margin: 0 auto;
@@ -80,10 +75,6 @@ import { SideloadPackageComponent } from './package.component'
 
       button {
         margin-bottom: 2rem;
-
-        @media (min-width: 768px) {
-          margin-bottom: 4rem;
-        }
       }
     `,
   ],
@@ -93,11 +84,10 @@ import { SideloadPackageComponent } from './package.component'
   imports: [
     CommonModule,
     FormsModule,
-    TuiInputFilesModule,
-    TuiLinkModule,
-    TuiAvatarModule,
-    TuiWrapperModule,
-    TuiButtonModule,
+    TuiFiles,
+    TuiLink,
+    TuiAvatar,
+    TuiButton,
     SideloadPackageComponent,
   ],
 })

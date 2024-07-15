@@ -1,8 +1,7 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiDialogOptions } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
+import { TuiDialogOptions, TuiButton } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import {
   FormComponent,
@@ -20,7 +19,7 @@ import { wireguardSpec, WireguardSpec } from './constants'
     <proxies-info />
     <h3 class="g-title">
       Proxies
-      <button tuiButton size="xs" iconLeft="tuiIconPlus" (click)="add()">
+      <button tuiButton size="xs" iconStart="@tui.plus" (click)="add()">
         Add Proxy
       </button>
     </h3>
@@ -30,7 +29,7 @@ import { wireguardSpec, WireguardSpec } from './constants'
   standalone: true,
   imports: [
     CommonModule,
-    TuiButtonModule,
+    TuiButton,
     ProxiesInfoComponent,
     ProxiesTableComponent,
   ],

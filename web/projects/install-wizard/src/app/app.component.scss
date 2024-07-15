@@ -5,7 +5,7 @@
 tui-root {
   height: 100%;
   margin: 0;
-  color: var(--tui-text-01);
+  color: var(--tui-text-primary);
 }
 
 main {
@@ -14,7 +14,7 @@ main {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: var(--tui-base-08);
+  background: var(--tui-background-accent-opposite-hover);
 }
 
 .logo {

@@ -1,3 +1,4 @@
+import { TuiButton } from '@taiga-ui/core'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,10 +7,7 @@ import {
 } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
 import { tuiPure } from '@taiga-ui/cdk'
-import {
-  TuiButtonModule,
-  tuiButtonOptionsProvider,
-} from '@taiga-ui/experimental'
+import { tuiButtonOptionsProvider } from '@taiga-ui/core'
 import { DependencyInfo } from 'src/app/routes/portal/routes/service/types/dependency-info'
 import { ActionsService } from 'src/app/services/actions.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
@@ -22,7 +20,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
       <button
         tuiButton
         appearance="danger-solid"
-        iconLeft="tuiIconSquare"
+        iconStart="@tui.square"
         (click)="actions.stop(manifest)"
       >
         Stop
@@ -30,7 +28,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
 
       <button
         tuiButton
-        iconLeft="tuiIconRotateCw"
+        iconStart="@tui.rotate-cw"
         (click)="actions.restart(manifest)"
       >
         Restart
@@ -40,7 +38,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
     @if (pkg.status.main.status === 'stopped' && isConfigured) {
       <button
         tuiButton
-        iconLeft="tuiIconPlay"
+        iconStart="@tui.play"
         (click)="actions.start(manifest, hasUnmet(dependencies))"
       >
         Start
@@ -51,7 +49,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
       <button
         tuiButton
         appearance="secondary-warning"
-        iconLeft="tuiIconTool"
+        iconStart="@tui.wrench"
         (click)="actions.configure(manifest)"
       >
         Configure
@@ -70,7 +68,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiButtonModule],
+  imports: [TuiButton],
   providers: [tuiButtonOptionsProvider({ size: 's' })],
 })
 export class ServiceActionsComponent {

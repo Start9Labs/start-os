@@ -1,10 +1,6 @@
+import { TuiCell } from '@taiga-ui/layout'
+import { TuiTitle, TuiButton, TuiNotification } from '@taiga-ui/core'
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { TuiNotificationModule } from '@taiga-ui/core'
-import {
-  TuiButtonModule,
-  TuiCellModule,
-  TuiTitleModule,
-} from '@taiga-ui/experimental'
 
 @Component({
   selector: 'settings-sync',
@@ -21,7 +17,7 @@ import {
         <a
           tuiButton
           appearance="glass"
-          iconRight="tuiIconExternalLinkLarge"
+          iconEnd="@tui.external-link"
           href="https://docs.start9.com/0.3.5.x/support/common-issues#clock-sync-failure"
           target="_blank"
           rel="noreferrer"
@@ -33,11 +29,6 @@ import {
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [
-    TuiButtonModule,
-    TuiCellModule,
-    TuiNotificationModule,
-    TuiTitleModule,
-  ],
+  imports: [TuiButton, TuiCell, TuiNotification, TuiTitle],
 })
 export class SettingsSyncComponent {}

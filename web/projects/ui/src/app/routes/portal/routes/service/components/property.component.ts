@@ -5,20 +5,20 @@ import {
   Input,
 } from '@angular/core'
 import { CopyService } from '@start9labs/shared'
+import { TuiButton, TuiLabel, TuiTitle } from '@taiga-ui/core'
 import { mask } from 'src/app/utils/mask'
-import { TuiLabelModule } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
 
 @Component({
   selector: 'service-property',
   template: `
-    <label [style.flex]="1" [tuiLabel]="label">
+    <label [style.flex]="1" tuiTitle>
+      <span tuiSubtitle>{{ label }}</span>
       {{ masked ? mask : value }}
     </label>
     <button
       tuiIconButton
       appearance="flat"
-      [iconLeft]="masked ? 'tuiIconEyeLarge' : 'tuiIconEyeOffLarge'"
+      [iconStart]="masked ? '@tui.eye' : '@tui.eye-off'"
       (click)="masked = !masked"
     >
       Toggle
@@ -26,7 +26,7 @@ import { TuiButtonModule } from '@taiga-ui/experimental'
     <button
       tuiIconButton
       appearance="flat"
-      iconLeft="tuiIconCopyLarge"
+      iconStart="@tui.copy"
       (click)="copyService.copy(value)"
     >
       Copy
@@ -39,14 +39,14 @@ import { TuiButtonModule } from '@taiga-ui/experimental'
         padding: 0.5rem 0;
 
         &:not(:last-of-type) {
-          box-shadow: 0 1px var(--tui-clear);
+          box-shadow: 0 1px var(--tui-background-neutral-1);
         }
       }
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiButtonModule, TuiLabelModule],
+  imports: [TuiButton, TuiLabel, TuiTitle],
 })
 export class ServicePropertyComponent {
   @Input()

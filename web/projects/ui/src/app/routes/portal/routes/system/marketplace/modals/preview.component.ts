@@ -18,17 +18,15 @@ import {
   StoreIdentity,
 } from '@start9labs/marketplace'
 import { displayEmver, Emver, SharedPipesModule } from '@start9labs/shared'
-import { TuiButtonModule, TuiIconModule } from '@taiga-ui/experimental'
 import { BehaviorSubject, filter, switchMap, tap } from 'rxjs'
 import {
   TuiDialogContext,
   TuiDialogService,
-  TuiLoaderModule,
+  TuiLoader,
+  TuiIcon,
+  TuiButton,
 } from '@taiga-ui/core'
-import {
-  TuiRadioListModule,
-  TuiStringifyContentPipeModule,
-} from '@taiga-ui/kit'
+import { TuiRadioList, TuiStringifyContentPipe } from '@taiga-ui/kit'
 import { FormsModule } from '@angular/forms'
 import { Router } from '@angular/router'
 
@@ -58,7 +56,7 @@ import { Router } from '@angular/router'
                 (click)="presentAlertVersions(pkg, version)"
                 data="Click to view all versions"
                 label="All versions"
-                icon="tuiIconChevronRightLarge"
+                icon="@tui.chevron-right"
                 class="versions"
               ></marketplace-additional-item>
               <ng-template
@@ -67,11 +65,10 @@ import { Router } from '@angular/router'
                 let-completeWith="completeWith"
               >
                 <tui-radio-list
-                  size="l"
                   [items]="data.items"
                   [itemContent]="displayEmver | tuiStringifyContent"
                   [(ngModel)]="data.value"
-                ></tui-radio-list>
+                />
                 <footer class="buttons">
                   <button
                     tuiButton
@@ -163,18 +160,18 @@ import { Router } from '@angular/router'
   imports: [
     CommonModule,
     MarketplacePackageHeroComponent,
-    TuiButtonModule,
+    TuiButton,
     MarketplaceDependenciesComponent,
     ReleaseNotesModule,
     AdditionalModule,
     AboutModule,
     SharedPipesModule,
     FormsModule,
-    TuiStringifyContentPipeModule,
+    TuiStringifyContentPipe,
     MarketplaceAdditionalItemComponent,
-    TuiRadioListModule,
-    TuiLoaderModule,
-    TuiIconModule,
+    TuiRadioList,
+    TuiLoader,
+    TuiIcon,
   ],
 })
 export class MarketplacePreviewComponent {

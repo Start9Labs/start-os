@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { TuiDialogService } from '@taiga-ui/core'
-import { TuiIconModule } from '@taiga-ui/experimental'
+import { TuiDialogService, TuiIcon } from '@taiga-ui/core'
 import { BackupsUpcomingComponent } from './components/upcoming.component'
 import { HISTORY } from './modals/history.component'
 import { JOBS } from './modals/jobs.component'
@@ -28,7 +27,7 @@ import { BackupsRestoreService } from './services/restore.service'
   host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [BackupsUpcomingComponent, TuiIconModule],
+  imports: [BackupsUpcomingComponent, TuiIcon],
 })
 export default class BackupsComponent {
   private readonly dialogs = inject(TuiDialogService)
@@ -36,19 +35,19 @@ export default class BackupsComponent {
   readonly options = [
     {
       name: 'Create a Backup',
-      icon: 'tuiIconPlusLarge',
+      icon: '@tui.plus',
       description: 'Create a one-time backup',
       action: inject(BackupsCreateService).handle,
     },
     {
       name: 'Restore from Backup',
-      icon: 'tuiIconShareLarge',
+      icon: '@tui.share',
       description: 'Restore services from a backup',
       action: inject(BackupsRestoreService).handle,
     },
     {
       name: 'Jobs',
-      icon: 'tuiIconToolLarge',
+      icon: '@tui.wrench',
       description: 'Manage backup jobs',
       action: () =>
         this.dialogs
@@ -57,7 +56,7 @@ export default class BackupsComponent {
     },
     {
       name: 'Targets',
-      icon: 'tuiIconDatabaseLarge',
+      icon: '@tui.database',
       description: 'Manage backup targets',
       action: () =>
         this.dialogs
@@ -66,7 +65,7 @@ export default class BackupsComponent {
     },
     {
       name: 'History',
-      icon: 'tuiIconArchiveLarge',
+      icon: '@tui.archive',
       description: 'View your entire backup history',
       action: () =>
         this.dialogs

@@ -1,8 +1,8 @@
 import { CB } from '@start9labs/start-sdk'
 import { TuiDialogOptions } from '@taiga-ui/core'
-import { TuiPromptData } from '@taiga-ui/kit'
+import { TuiConfirmData } from '@taiga-ui/kit'
 
-export const DELETE_OPTIONS: Partial<TuiDialogOptions<TuiPromptData>> = {
+export const DELETE_OPTIONS: Partial<TuiDialogOptions<TuiConfirmData>> = {
   label: 'Confirm',
   size: 's',
   data: {

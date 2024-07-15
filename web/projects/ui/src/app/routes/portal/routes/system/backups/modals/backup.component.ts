@@ -1,19 +1,17 @@
-import { CommonModule } from '@angular/common'
 import { Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { TuiForModule } from '@taiga-ui/cdk'
 import {
+  TuiButton,
   TuiDialogContext,
   TuiDialogOptions,
-  TuiGroupModule,
-  TuiLoaderModule,
+  TuiGroup,
+  TuiLoader,
 } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
-import { TuiCheckboxBlockModule } from '@taiga-ui/kit'
+import { TuiBlock, TuiCheckbox } from '@taiga-ui/kit'
 import {
   POLYMORPHEUS_CONTEXT,
   PolymorpheusComponent,
-} from '@tinkoff/ng-polymorpheus'
+} from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom, map } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -29,27 +27,35 @@ interface Package {
 
 @Component({
   template: `
-    <div tuiGroup orientation="vertical">
-      <tui-checkbox-block
-        *ngFor="let pkg of pkgs; else: loading; empty: blank"
-        [disabled]="pkg.disabled"
-        [(ngModel)]="pkg.checked"
-        (ngModelChange)="handleChange()"
-      >
-        <div class="g-action">
-          <img class="icon" alt="" [src]="pkg.icon" />
-          {{ pkg.title }}
-        </div>
-      </tui-checkbox-block>
-      <ng-template #loading><tui-loader></tui-loader></ng-template>
-      <ng-template #blank>No services installed!</ng-template>
+    <div tuiGroup orientation="vertical" [collapsed]="true">
+      @if (pkgs) {
+        @for (pkg of pkgs; track $index) {
+          <label tuiBlock>
+            <div class="g-action">
+              <img class="icon" alt="" [src]="pkg.icon" />
+              {{ pkg.title }}
+            </div>
+            <input
+              type="checkbox"
+              tuiCheckbox
+              [disabled]="pkg.disabled"
+              [(ngModel)]="pkg.checked"
+              (ngModelChange)="handleChange()"
+            />
+          </label>
+        } @empty {
+          No services installed!
+        }
+      } @else {
+        <tui-loader />
+      }
     </div>
     <footer class="g-buttons">
       <button tuiButton appearance="flat" (click)="toggleSelectAll()">
         Toggle all
       </button>
       <button tuiButton [disabled]="!hasSelection" (click)="done()">
-        {{ context.data.btnText || 'Done' }}
+        {{ context.data?.btnText || 'Done' }}
       </button>
     </footer>
   `,
@@ -68,20 +74,12 @@ interface Package {
     `,
   ],
   standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    TuiForModule,
-    TuiButtonModule,
-    TuiGroupModule,
-    TuiCheckboxBlockModule,
-    TuiLoaderModule,
-  ],
+  imports: [FormsModule, TuiButton, TuiGroup, TuiLoader, TuiBlock, TuiCheckbox],
 })
 export class BackupsBackupModal {
   private readonly patch = inject(PatchDB<DataModel>)
   readonly context =
-    inject<TuiDialogContext<string[], { btnText: string }>>(
+    inject<TuiDialogContext<string[], { btnText: string } | undefined>>(
       POLYMORPHEUS_CONTEXT,
     )
 

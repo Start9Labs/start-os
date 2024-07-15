@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,10 +5,8 @@ import {
   Input,
   Output,
 } from '@angular/core'
-import { TuiForModule } from '@taiga-ui/cdk'
-import { TuiSvgModule } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
 import { UnitConversionPipesModule } from '@start9labs/shared'
+import { TuiButton } from '@taiga-ui/core'
 import { UnknownDisk } from 'src/app/services/api/api.types'
 
 @Component({
@@ -40,7 +37,7 @@ import { UnknownDisk } from 'src/app/services/api/api.types'
             <button
               tuiButton
               size="xs"
-              iconLeft="tuiIconPlus"
+              iconStart="@tui.plus"
               (click)="add.emit(disk)"
             >
               Save
@@ -76,7 +73,7 @@ import { UnknownDisk } from 'src/app/services/api/api.types'
       .model {
         order: 1;
         white-space: nowrap;
-        color: var(--tui-text-02);
+        color: var(--tui-text-secondary);
       }
 
       .actions {
@@ -112,7 +109,7 @@ import { UnknownDisk } from 'src/app/services/api/api.types'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiButtonModule, UnitConversionPipesModule],
+  imports: [TuiButton, UnitConversionPipesModule],
 })
 export class BackupsPhysicalComponent {
   @Input()

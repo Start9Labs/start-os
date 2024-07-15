@@ -6,14 +6,15 @@ import {
   Input,
 } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
-import { TuiCardModule, TuiSurfaceModule } from '@taiga-ui/experimental'
+import { TuiSurface } from '@taiga-ui/core'
+import { TuiCardLarge } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { AddressGroupComponent } from 'src/app/routes/portal/components/interfaces/address-group.component'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { AddressDetails } from './interface.utils'
 import { ClearnetAddressesDirective } from './directives/clearnet.directive'
 import { LocalAddressesDirective } from './directives/local.directive'
 import { TorAddressesDirective } from './directives/tor.directive'
+import { AddressDetails } from './interface.utils'
 
 @Component({
   standalone: true,
@@ -86,8 +87,8 @@ import { TorAddressesDirective } from './directives/tor.directive'
   imports: [
     CommonModule,
     AddressGroupComponent,
-    TuiCardModule,
-    TuiSurfaceModule,
+    TuiCardLarge,
+    TuiSurface,
     ClearnetAddressesDirective,
     TorAddressesDirective,
     LocalAddressesDirective,

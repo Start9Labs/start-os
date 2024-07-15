@@ -9,15 +9,12 @@ import {
   TuiAlertService,
   TuiDialogOptions,
   TuiDialogService,
+  TuiLabel,
 } from '@taiga-ui/core'
 import * as argon2 from '@start9labs/argon2'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import {
-  TUI_PROMPT,
-  TuiCheckboxLabeledModule,
-  TuiPromptData,
-} from '@taiga-ui/kit'
-import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { TuiConfirmData, TUI_CONFIRM, TuiCheckbox } from '@taiga-ui/kit'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { filter, firstValueFrom, from, take } from 'rxjs'
 import { switchMap } from 'rxjs/operators'
@@ -55,13 +52,13 @@ export class SettingsService {
         title: 'Email',
         description:
           'Connect to an external SMTP server to send yourself emails',
-        icon: 'tuiIconMail',
+        icon: '@tui.mail',
         routerLink: 'email',
       },
       {
         title: 'Change Master Password',
         description: `Change your StartOS master password`,
-        icon: 'tuiIconKey',
+        icon: '@tui.key',
         action: () => this.promptNewPassword(),
       },
     ],
@@ -69,31 +66,31 @@ export class SettingsService {
       {
         title: 'Domains',
         description: 'Manage domains for clearnet connectivity',
-        icon: 'tuiIconGlobe',
+        icon: '@tui.globe',
         routerLink: 'domains',
       },
       {
         title: 'Proxies',
         description: 'Manage proxies for inbound and outbound connections',
-        icon: 'tuiIconShuffle',
+        icon: '@tui.shuffle',
         routerLink: 'proxies',
       },
       {
         title: 'Router Config',
         description: 'Connect or configure your router for clearnet',
-        icon: 'tuiIconRadio',
+        icon: '@tui.radio',
         routerLink: 'router',
       },
       {
         title: 'WiFi',
         description: 'Add or remove WiFi networks',
-        icon: 'tuiIconWifi',
+        icon: '@tui.wifi',
         routerLink: 'wifi',
       },
       {
         title: 'Reset Tor',
         description: `May help resolve Tor connectivity issues`,
-        icon: 'tuiIconRefreshCw',
+        icon: '@tui.refresh-cw',
         action: () => this.promptResetTor(),
       },
     ],
@@ -101,30 +98,30 @@ export class SettingsService {
       {
         title: 'Browser Tab Title',
         description: `Customize the display name of your browser tab`,
-        icon: 'tuiIconTag',
+        icon: '@tui.tag',
         action: () => this.setBrowserTab(),
       },
       {
         title: 'Web Addresses',
         description: 'View and manage web addresses for accessing this UI',
-        icon: 'tuiIconMonitor',
+        icon: '@tui.monitor',
         routerLink: 'ui',
       },
       {
         title: 'Restart',
-        icon: 'tuiIconRefreshCw',
+        icon: '@tui.refresh-cw',
         description: 'Restart Start OS server',
         action: () => this.promptPower('Restart'),
       },
       {
         title: 'Shutdown',
-        icon: 'tuiIconPower',
+        icon: '@tui.power',
         description: 'Turn Start OS server off',
         action: () => this.promptPower('Shutdown'),
       },
       {
         title: 'Logout',
-        icon: 'tuiIconLogOut',
+        icon: '@tui.log-out',
         description: 'Log off from Start OS',
         action: () => {
           this.api.logout({}).catch(e => console.error('Failed to log out', e))
@@ -136,20 +133,20 @@ export class SettingsService {
       {
         title: 'Outbound Proxy',
         description: 'Proxy outbound traffic from the StartOS main process',
-        icon: 'tuiIconShield',
+        icon: '@tui.shield',
         action: () => this.setOutboundProxy(),
       },
       {
         title: 'SSH',
         description:
           'Manage your SSH keys to access your server from the command line',
-        icon: 'tuiIconTerminal',
+        icon: '@tui.terminal',
         routerLink: 'ssh',
       },
       {
         title: 'Active Sessions',
         description: 'View and manage device access',
-        icon: 'tuiIconClock',
+        icon: '@tui.clock',
         routerLink: 'sessions',
       },
     ],
@@ -165,7 +162,7 @@ export class SettingsService {
   private promptResetTor() {
     this.wipe = false
     this.dialogs
-      .open(TUI_PROMPT, {
+      .open(TUI_CONFIRM, {
         label: this.isTor ? 'Warning' : 'Confirm',
         data: {
           content: new PolymorpheusComponent(WipeComponent),
@@ -179,7 +176,7 @@ export class SettingsService {
 
   private async promptPower(action: 'Restart' | 'Shutdown') {
     this.dialogs
-      .open(TUI_PROMPT, getOptions(action))
+      .open(TUI_CONFIRM, getOptions(action))
       .pipe(filter(Boolean))
       .subscribe(async () => {
         const loader = this.loader.open(`Beginning ${action}...`).subscribe()
@@ -244,7 +241,7 @@ export class SettingsService {
 
   private promptNewPassword() {
     this.dialogs
-      .open(TUI_PROMPT, {
+      .open(TUI_CONFIRM, {
         label: 'Warning',
         size: 's',
         data: {
@@ -333,12 +330,13 @@ export class SettingsService {
       Optionally wipe state to forcibly acquire new guard nodes. It is
       recommended to try without wiping state first.
     </p>
-    <tui-checkbox-labeled size="l" [(ngModel)]="service.wipe">
+    <label tuiLabel>
+      <input type="checkbox" tuiCheckbox [(ngModel)]="service.wipe" />
       Wipe state
-    </tui-checkbox-labeled>
+    </label>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiCheckboxLabeledModule, FormsModule],
+  imports: [TuiLabel, FormsModule, TuiCheckbox],
 })
 class WipeComponent {
   readonly isTor = inject(ConfigService).isTor()
@@ -347,7 +345,7 @@ class WipeComponent {
 
 function getOptions(
   operation: 'Restart' | 'Shutdown',
-): Partial<TuiDialogOptions<TuiPromptData>> {
+): Partial<TuiDialogOptions<TuiConfirmData>> {
   return operation === 'Restart'
     ? {
         label: 'Restart',

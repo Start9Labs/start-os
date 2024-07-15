@@ -38,7 +38,7 @@ export class ServiceMenuComponent {
 
   get color(): string {
     return this.pkg.outboundProxy
-      ? 'var(--tui-success-fill)'
-      : 'var(--tui-warning-fill)'
+      ? 'var(--tui-status-positive)'
+      : 'var(--tui-status-warning)'
   }
 }

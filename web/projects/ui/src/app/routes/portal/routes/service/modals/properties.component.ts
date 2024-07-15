@@ -1,9 +1,8 @@
+import { TuiLoader, TuiButton } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ErrorService } from '@start9labs/shared'
-import { TuiLoaderModule } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
-import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
+import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus'
 import { BehaviorSubject } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ServicePropertyComponent } from '../components/property.component'
@@ -19,7 +18,7 @@ import { ServicePropertyComponent } from '../components/property.component'
         No properties
       }
     }
-    <button tuiButton iconLeft="tuiIconRefreshCwLarge" (click)="refresh()">
+    <button tuiButton iconStart="@tui.refresh-cw" (click)="refresh()">
       Refresh
     </button>
   `,
@@ -33,12 +32,7 @@ import { ServicePropertyComponent } from '../components/property.component'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [
-    CommonModule,
-    TuiButtonModule,
-    ServicePropertyComponent,
-    TuiLoaderModule,
-  ],
+  imports: [CommonModule, TuiButton, ServicePropertyComponent, TuiLoader],
 })
 export class ServicePropertiesModal {
   private readonly api = inject(ApiService)

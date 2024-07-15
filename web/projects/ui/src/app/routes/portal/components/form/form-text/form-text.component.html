@@ -10,7 +10,7 @@
   {{ spec.name }}
   <span *ngIf="spec.required">*</span>
   <input
-    tuiTextfield
+    tuiTextfieldLegacy
     [class.masked]="spec.masked && masked"
     [placeholder]="spec.placeholder || ''"
     [attr.minLength]="spec.minLength"
@@ -27,7 +27,7 @@
     title="Generate"
     size="xs"
     class="button"
-    iconLeft="tuiIconRefreshCcw"
+    iconStart="@tui.refresh-ccw"
     (click)="generate()"
   ></button>
   <button
@@ -38,7 +38,7 @@
     title="Toggle masking"
     size="xs"
     class="button"
-    [iconLeft]="masked ? 'tuiIconEye' : 'tuiIconEyeOff'"
+    [iconStart]="masked ? '@tui.eye' : '@tui.eye-off'"
     (click)="masked = !masked"
   ></button>
 </ng-template>

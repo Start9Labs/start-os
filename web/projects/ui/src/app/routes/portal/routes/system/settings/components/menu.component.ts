@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { TuiAlertService, TuiLoaderModule } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
+import { TuiAlertService, TuiLoader, TuiButton } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
@@ -28,8 +27,8 @@ import { SettingsUpdateComponent } from './update.component'
               tuiSubtitle
               [style.color]="
                 !server.network.outboundProxy
-                  ? 'var(--tui-warning-fill)'
-                  : 'var(--tui-success-fill)'
+                  ? 'var(--tui-status-warning)'
+                  : 'var(--tui-status-positive)'
               "
             >
               {{ server.network.outboundProxy || 'None' }}
@@ -58,8 +57,8 @@ import { SettingsUpdateComponent } from './update.component'
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
-    TuiLoaderModule,
-    TuiButtonModule,
+    TuiLoader,
+    TuiButton,
     SettingsSyncComponent,
     SettingsButtonComponent,
     SettingsUpdateComponent,

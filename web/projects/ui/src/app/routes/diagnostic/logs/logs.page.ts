@@ -1,7 +1,7 @@
 import { Component, ElementRef, inject, OnInit, ViewChild } from '@angular/core'
 import { INTERSECTION_ROOT } from '@ng-web-apis/intersection-observer'
 import { convertAnsi, ErrorService } from '@start9labs/shared'
-import { TuiScrollbarComponent } from '@taiga-ui/core'
+import { TuiScrollbar } from '@taiga-ui/core'
 import { DiagnosticService } from 'src/app/routes/diagnostic/services/diagnostic.service'
 
 @Component({
@@ -15,7 +15,7 @@ import { DiagnosticService } from 'src/app/routes/diagnostic/services/diagnostic
       justify-content: flex-start;
       padding: 1rem;
       gap: 1rem;
-      background: var(--tui-base-01);
+      background: var(--tui-background-base);
     }
   `,
   providers: [
@@ -26,7 +26,7 @@ import { DiagnosticService } from 'src/app/routes/diagnostic/services/diagnostic
   ],
 })
 export class LogsPage implements OnInit {
-  @ViewChild(TuiScrollbarComponent, { read: ElementRef })
+  @ViewChild(TuiScrollbar, { read: ElementRef })
   private readonly scrollbar?: ElementRef<HTMLElement>
   private readonly api = inject(DiagnosticService)
   private readonly errorService = inject(ErrorService)

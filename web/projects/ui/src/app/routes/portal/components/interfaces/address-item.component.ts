@@ -1,3 +1,5 @@
+import { TuiCell } from '@taiga-ui/layout'
+import { TuiBadge } from '@taiga-ui/kit'
 import { NgIf } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -7,14 +9,8 @@ import {
 } from '@angular/core'
 import { WINDOW } from '@ng-web-apis/common'
 import { CopyService } from '@start9labs/shared'
-import { TuiDialogService } from '@taiga-ui/core'
-import {
-  TuiBadgeModule,
-  TuiButtonModule,
-  TuiCellModule,
-  TuiTitleModule,
-} from '@taiga-ui/experimental'
-import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { TuiDialogService, TuiTitle, TuiButton } from '@taiga-ui/core'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { QRModal } from 'src/app/routes/portal/modals/qr.component'
 import { mask } from 'src/app/utils/mask'
 import { InterfaceComponent } from './interface.component'
@@ -36,7 +32,7 @@ import { AddressesService } from './interface.utils'
       <button
         *ngIf="interface.serviceInterface.type === 'ui'"
         tuiIconButton
-        iconLeft="tuiIconExternalLink"
+        iconStart="@tui.external-link"
         appearance="icon"
         (click)="launch(address)"
       >
@@ -44,7 +40,7 @@ import { AddressesService } from './interface.utils'
       </button>
       <button
         tuiIconButton
-        iconLeft="tuiIconGrid"
+        iconStart="@tui.qr-code"
         appearance="icon"
         (click)="showQR(address)"
       >
@@ -52,7 +48,7 @@ import { AddressesService } from './interface.utils'
       </button>
       <button
         tuiIconButton
-        iconLeft="tuiIconCopy"
+        iconStart="@tui.copy"
         appearance="icon"
         (click)="copyService.copy(address)"
       >
@@ -60,7 +56,7 @@ import { AddressesService } from './interface.utils'
       </button>
       <button
         tuiIconButton
-        iconLeft="tuiIconTrash"
+        iconStart="@tui.trash"
         appearance="icon"
         (click)="service.remove()"
       >
@@ -68,13 +64,7 @@ import { AddressesService } from './interface.utils'
       </button>
     </div>
   `,
-  imports: [
-    NgIf,
-    TuiCellModule,
-    TuiTitleModule,
-    TuiButtonModule,
-    TuiBadgeModule,
-  ],
+  imports: [NgIf, TuiCell, TuiTitle, TuiButton, TuiBadge],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AddressItemComponent {

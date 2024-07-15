@@ -1,14 +1,11 @@
 import { Injectable } from '@angular/core'
-import { AbstractTuiValueTransformer, TuiDay } from '@taiga-ui/cdk'
+import { TuiDay, TuiValueTransformer } from '@taiga-ui/cdk'
 
 type From = TuiDay | null
 type To = string | null
 
 @Injectable()
-export class DateTransformerService extends AbstractTuiValueTransformer<
-  From,
-  To
-> {
+export class DateTransformerService extends TuiValueTransformer<From, To> {
   fromControlValue(controlValue: To): From {
     return controlValue ? TuiDay.jsonParse(controlValue) : null
   }

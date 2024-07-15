@@ -1,9 +1,8 @@
+import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
-import { TUI_PROMPT } from '@taiga-ui/kit'
+import { TuiDialogOptions, TuiDialogService, TuiButton } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { filter, firstValueFrom, map } from 'rxjs'
 import {
@@ -27,7 +26,7 @@ import { DomainsTableComponent } from './table.component'
           *ngIf="!domains.start9To.length"
           tuiButton
           size="xs"
-          iconLeft="tuiIconPlus"
+          iconStart="@tui.plus"
           (click)="claim()"
         >
           Claim
@@ -41,7 +40,7 @@ import { DomainsTableComponent } from './table.component'
 
       <h3 class="g-title">
         Custom Domains
-        <button tuiButton size="xs" iconLeft="tuiIconPlus" (click)="add()">
+        <button tuiButton size="xs" iconStart="@tui.plus" (click)="add()">
           Add Domain
         </button>
       </h3>
@@ -56,7 +55,7 @@ import { DomainsTableComponent } from './table.component'
   standalone: true,
   imports: [
     CommonModule,
-    TuiButtonModule,
+    TuiButton,
     DomainsTableComponent,
     DomainsInfoComponent,
   ],
@@ -88,7 +87,7 @@ export class SettingsDomainsComponent {
 
   delete(hostname?: string) {
     this.dialogs
-      .open(TUI_PROMPT, {
+      .open(TUI_CONFIRM, {
         label: 'Confirm',
         size: 's',
         data: {

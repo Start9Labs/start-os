@@ -1,6 +1,6 @@
+import { TuiIcon } from '@taiga-ui/core'
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { RouterModule } from '@angular/router'
-import { TuiIconModule } from '@taiga-ui/experimental'
 import { SettingsMenuComponent } from './components/menu.component'
 
 @Component({
@@ -39,6 +39,6 @@ import { SettingsMenuComponent } from './components/menu.component'
   host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [RouterModule, TuiIconModule, SettingsMenuComponent],
+  imports: [RouterModule, TuiIcon, SettingsMenuComponent],
 })
 export class SettingsComponent {}

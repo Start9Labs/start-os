@@ -1,6 +1,6 @@
 import { CT } from '@start9labs/start-sdk'
 import { TuiDialogOptions } from '@taiga-ui/core'
-import { TuiPromptData } from '@taiga-ui/kit'
+import { TuiConfirmData } from '@taiga-ui/kit'
 
 export function getMarketplaceValueSpec(): CT.ValueSpecObject {
   return {
@@ -37,7 +37,7 @@ export function getMarketplaceValueSpec(): CT.ValueSpecObject {
 
 export function getPromptOptions(
   name: string,
-): Partial<TuiDialogOptions<TuiPromptData>> {
+): Partial<TuiDialogOptions<TuiConfirmData>> {
   return {
     label: 'Confirm',
     size: 's',

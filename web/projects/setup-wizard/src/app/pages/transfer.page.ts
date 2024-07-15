@@ -7,16 +7,13 @@ import {
   toGuid,
 } from '@start9labs/shared'
 import {
+  TuiButton,
   TuiDialogOptions,
   TuiDialogService,
-  TuiLoaderModule,
+  TuiLoader,
 } from '@taiga-ui/core'
-import {
-  TuiButtonModule,
-  TuiCardModule,
-  TuiCellModule,
-} from '@taiga-ui/experimental'
-import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
+import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit'
+import { TuiCardLarge, TuiCell } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api.service'
 import { StateService } from 'src/app/services/state.service'
@@ -33,18 +30,12 @@ import { StateService } from 'src/app/services/state.service'
       @for (drive of drives; track drive) {
         <button tuiCell [drive]="drive" (click)="select(drive)"></button>
       }
-      <button tuiButton iconLeft="tuiIconRotateCwLarge" (click)="refresh()">
+      <button tuiButton iconStart="@tui.rotate-cw" (click)="refresh()">
         Refresh
       </button>
     </section>
   `,
-  imports: [
-    TuiCardModule,
-    TuiCellModule,
-    TuiButtonModule,
-    TuiLoaderModule,
-    DriveComponent,
-  ],
+  imports: [TuiCardLarge, TuiCell, TuiButton, TuiLoader, DriveComponent],
 })
 export default class TransferPage {
   private readonly apiService = inject(ApiService)
@@ -81,7 +72,7 @@ export default class TransferPage {
 
   select(drive: DiskInfo) {
     this.dialogs
-      .open(TUI_PROMPT, OPTIONS)
+      .open(TUI_CONFIRM, OPTIONS)
       .pipe(filter(Boolean))
       .subscribe(() => {
         this.stateService.recoverySource = {
@@ -93,7 +84,7 @@ export default class TransferPage {
   }
 }
 
-const OPTIONS: Partial<TuiDialogOptions<TuiPromptData>> = {
+const OPTIONS: Partial<TuiDialogOptions<TuiConfirmData>> = {
   label: 'Warning',
   size: 's',
   data: {

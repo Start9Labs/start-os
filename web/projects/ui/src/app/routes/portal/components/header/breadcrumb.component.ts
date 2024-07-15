@@ -5,19 +5,21 @@ import {
   inject,
   Input,
 } from '@angular/core'
-import { Breadcrumb } from 'src/app/services/breadcrumbs.service'
-import { TuiIconModule, TuiTitleModule } from '@taiga-ui/experimental'
 import {
-  TUI_ANIMATION_OPTIONS,
+  TUI_ANIMATIONS_SPEED,
   tuiFadeIn,
+  TuiIcon,
+  TuiTitle,
+  tuiToAnimationOptions,
   tuiWidthCollapse,
 } from '@taiga-ui/core'
+import { Breadcrumb } from 'src/app/services/breadcrumbs.service'
 
 @Component({
   standalone: true,
   selector: 'a[headerBreadcrumb]',
   template: `
-    @if (item.icon?.startsWith('tuiIcon')) {
+    @if (item.icon?.startsWith('@tui.')) {
       <tui-icon [icon]="item.icon || ''" />
     } @else if (item.icon) {
       <img [style.width.rem]="2" [src]="item.icon" [alt]="item.title" />
@@ -78,7 +80,7 @@ import {
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiIconModule, TuiTitleModule],
+  imports: [TuiIcon, TuiTitle],
   animations: [tuiWidthCollapse, tuiFadeIn],
 })
 export class HeaderBreadcrumbComponent {
@@ -87,5 +89,5 @@ export class HeaderBreadcrumbComponent {
 
   @HostBinding('@tuiFadeIn')
   @HostBinding('@tuiWidthCollapse')
-  readonly animation = inject(TUI_ANIMATION_OPTIONS)
+  readonly animation = tuiToAnimationOptions(inject(TUI_ANIMATIONS_SPEED))
 }

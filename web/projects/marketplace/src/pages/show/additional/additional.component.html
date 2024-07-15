@@ -15,14 +15,15 @@
         (click)="copyService.copy(gitHash)"
         [data]="gitHash"
         label="Git Hash"
-        icon="tuiIconCopyLarge"
+        icon="@tui.copy"
         class="item-copy"
-        button
-        detail="false"
       ></marketplace-additional-item>
       <ng-template #noHash>
         <div class="item-padding">
-          <label tuiLabel="Git Hash">Unknown</label>
+          <label tuiTitle>
+            <span tuiSubtitle>Git Hash</span>
+            Unknown
+          </label>
         </div>
       </ng-template>
       <!-- license -->
@@ -30,7 +31,7 @@
         (click)="presentModalMd('License')"
         [data]="pkg.manifest.license"
         label="License"
-        icon="tuiIconChevronRightLarge"
+        icon="@tui.chevron-right"
         class="item-pointer"
       ></marketplace-additional-item>
       <!-- instructions -->
@@ -38,38 +39,38 @@
         (click)="presentModalMd('Instructions')"
         data="Click to view instructions"
         label="Instructions"
-        icon="tuiIconChevronRightLarge"
+        icon="@tui.chevron-right"
         class="item-pointer"
       ></marketplace-additional-item>
       <!-- versions -->
-      <ng-content></ng-content>
+      <ng-content />
       <!-- links -->
       <marketplace-additional-link
         *ngIf="pkg.manifest.marketingSite"
         [url]="pkg.manifest.marketingSite"
         label="Marketing Site"
-        icon="tuiIconExternalLinkLarge"
+        icon="@tui.external-link"
         class="item-pointer"
       ></marketplace-additional-link>
       <marketplace-additional-link
         *ngIf="pkg.manifest.upstreamRepo"
         [url]="pkg.manifest.upstreamRepo"
         label="Source Repository"
-        icon="tuiIconExternalLinkLarge"
+        icon="@tui.external-link"
         class="item-pointer"
       ></marketplace-additional-link>
       <marketplace-additional-link
         *ngIf="pkg.manifest.wrapperRepo"
         [url]="pkg.manifest.wrapperRepo"
         label="Wrapper Repository"
-        icon="tuiIconExternalLinkLarge"
+        icon="@tui.external-link"
         class="item-pointer"
       ></marketplace-additional-link>
       <marketplace-additional-link
         *ngIf="pkg.manifest.supportSite"
         [url]="pkg.manifest.supportSite"
         label="Support Site"
-        icon="tuiIconExternalLinkLarge"
+        icon="@tui.external-link"
         class="item-pointer"
       ></marketplace-additional-link>
     </div>

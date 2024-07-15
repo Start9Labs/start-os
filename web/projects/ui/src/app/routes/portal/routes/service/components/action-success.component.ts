@@ -1,9 +1,8 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { CopyService } from '@start9labs/shared'
-import { TuiDialogContext } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
-import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
+import { TuiDialogContext, TuiButton } from '@taiga-ui/core'
+import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus'
 import { QrCodeModule } from 'ng-qrcode'
 import { ActionResponse } from 'src/app/services/api/api.types'
 
@@ -22,7 +21,7 @@ import { ActionResponse } from 'src/app/services/api/api.types'
           *ngIf="context.data.copyable"
           tuiIconButton
           appearance="flat"
-          iconLeft="tuiIconCopyLarge"
+          iconStart="@tui.copy"
           (click)="copyService.copy(context.data.value)"
         >
           Copy
@@ -48,7 +47,7 @@ import { ActionResponse } from 'src/app/services/api/api.types'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, QrCodeModule, TuiButtonModule],
+  imports: [CommonModule, QrCodeModule, TuiButton],
 })
 export class ServiceActionSuccessComponent {
   readonly copyService = inject(CopyService)

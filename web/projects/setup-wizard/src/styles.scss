@@ -24,7 +24,7 @@ router-outlet + * {
 
   [tuiCardLarge] {
     width: 100%;
-    background: var(--tui-base-02);
+    background: var(--tui-background-base-alt);
     margin: auto;
   }
 }
@@ -43,7 +43,7 @@ header {
 
   p {
     font: var(--tui-font-text-m);
-    color: var(--tui-text-02);
+    color: var(--tui-text-secondary);
   }
 }
 
@@ -53,17 +53,17 @@ h2 {
 }
 
 .g-success {
-  color: var(--tui-success-fill);
+  color: var(--tui-status-positive);
 }
 
 .g-warning {
-  color: var(--tui-warning-fill);
+  color: var(--tui-status-warning);
 }
 
 .g-error {
-  color: var(--tui-error-fill);
+  color: var(--tui-status-negative);
 }
 
 .g-info {
-  color: var(--tui-info-fill);
+  color: var(--tui-status-info);
 }

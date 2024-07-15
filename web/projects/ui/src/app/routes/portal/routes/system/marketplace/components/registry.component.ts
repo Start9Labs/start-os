@@ -1,4 +1,3 @@
-import { NgIf } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,7 +5,7 @@ import {
   Input,
 } from '@angular/core'
 import { StoreIconComponentModule } from '@start9labs/marketplace'
-import { TuiIconModule, TuiTitleModule } from '@taiga-ui/experimental'
+import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
@@ -18,16 +17,15 @@ import { ConfigService } from 'src/app/services/config.service'
       {{ registry.name }}
       <div tuiSubtitle>{{ registry.url }}</div>
     </div>
-    <tui-icon
-      *ngIf="registry.selected; else content"
-      icon="tuiIconCheck"
-      [style.color]="'var(--tui-positive)'"
-    />
-    <ng-template #content><ng-content></ng-content></ng-template>
+    @if (registry.selected) {
+      <tui-icon icon="@tui.check" [style.color]="'var(--tui-text-positive)'" />
+    } @else {
+      <ng-content />
+    }
   `,
   styles: [':host { border-radius: 0.25rem; width: stretch; }'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgIf, StoreIconComponentModule, TuiIconModule, TuiTitleModule],
+  imports: [StoreIconComponentModule, TuiIcon, TuiTitle],
 })
 export class MarketplaceRegistryComponent {
   readonly marketplace = inject(ConfigService).marketplace

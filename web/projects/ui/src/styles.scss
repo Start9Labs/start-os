@@ -16,7 +16,7 @@ ul {
 hr {
   height: 0;
   background: transparent;
-  border-bottom: 1px solid var(--tui-clear);
+  border-bottom: 1px solid var(--tui-background-neutral-1);
 }
 
 :root {
@@ -77,12 +77,12 @@ hr {
     text-align: left;
     height: 2rem;
     padding: 0 0.25rem;
-    box-shadow: inset 0 -1px var(--tui-clear);
+    box-shadow: inset 0 -1px var(--tui-background-neutral-1);
     text-overflow: ellipsis;
   }
 
   th {
-    background: var(--tui-clear);
+    background: var(--tui-background-neutral-1);
     font-weight: bold;
   }
 
@@ -114,7 +114,7 @@ tui-root._mobile .g-table {
   }
 
   tr:has(:checked) {
-    box-shadow: inset 0 0 0 0.125rem var(--tui-primary);
+    box-shadow: inset 0 0 0 0.125rem var(--tui-background-accent-1);
   }
 
   td,
@@ -140,7 +140,7 @@ tui-root._mobile .g-table {
   font-size: 1rem;
   line-height: 1.5rem;
   margin: 2rem 0 1rem;
-  color: var(--tui-text-02);
+  color: var(--tui-text-secondary);
 }
 
 .g-buttons {
@@ -152,7 +152,7 @@ tui-root._mobile .g-table {
 
 .g-action {
   @include transition(background);
-  @include clearbtn();
+  @include button-clear();
 
   display: flex;
   align-items: center;
@@ -164,7 +164,7 @@ tui-root._mobile .g-table {
   margin: 0 -1rem;
   line-height: 1.25rem;
   border-radius: 0.5rem;
-  color: var(--tui-text-01);
+  color: var(--tui-text-primary);
 }
 
 a.g-action,
@@ -177,7 +177,7 @@ button.g-action {
   }
 
   &:hover {
-    background: var(--tui-clear);
+    background: var(--tui-background-neutral-1);
   }
 
   &:not(:last-child) {
@@ -190,12 +190,12 @@ button.g-action {
   display: flex;
   align-items: center;
   padding: 0 1rem;
-  box-shadow: inset 0 0 0 1px var(--tui-base-03);
+  box-shadow: inset 0 0 0 1px var(--tui-background-neutral-1-hover);
   font: var(--tui-font-text-l);
   font-weight: bold;
   border-radius: var(--tui-radius-m);
 
-  tui-toggle {
+  input {
     margin-left: auto;
   }
 }
@@ -206,19 +206,19 @@ button.g-action {
 }
 
 .g-success.g-success {
-  color: var(--tui-success-fill);
+  color: var(--tui-status-positive);
 }
 
 .g-warning.g-warning {
-  color: var(--tui-warning-fill);
+  color: var(--tui-status-warning);
 }
 
 .g-error.g-error {
-  color: var(--tui-error-fill);
+  color: var(--tui-status-negative);
 }
 
 .g-info.g-info {
-  color: var(--tui-info-fill);
+  color: var(--tui-status-info);
 }
 
 ng-component {

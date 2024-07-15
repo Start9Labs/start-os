@@ -1,6 +1,6 @@
 import { CB, CT, T } from '@start9labs/start-sdk'
 import { TuiDialogOptions } from '@taiga-ui/core'
-import { TuiPromptData } from '@taiga-ui/kit'
+import { TuiConfirmData } from '@taiga-ui/kit'
 import { NetworkInfo } from 'src/app/services/patch-db/data-model'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 
@@ -9,7 +9,7 @@ export abstract class AddressesService {
   abstract remove(): Promise<void>
 }
 
-export const REMOVE: Partial<TuiDialogOptions<TuiPromptData>> = {
+export const REMOVE: Partial<TuiDialogOptions<TuiConfirmData>> = {
   label: 'Confirm',
   size: 's',
   data: {

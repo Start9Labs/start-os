@@ -3,19 +3,18 @@ import { NgModule } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import {
   DriveComponent,
-  LoadingModule,
   RELATIVE_URL,
   WorkspaceConfig,
 } from '@start9labs/shared'
-import { TuiDialogModule, TuiRootModule } from '@taiga-ui/core'
 import {
-  TuiButtonModule,
-  TuiCardModule,
-  TuiCellModule,
-  TuiIconModule,
-  TuiSurfaceModule,
-  TuiTitleModule,
-} from '@taiga-ui/experimental'
+  TuiButton,
+  TuiIcon,
+  TuiRoot,
+  TuiSurface,
+  TuiTitle,
+} from '@taiga-ui/core'
+import { NG_EVENT_PLUGINS } from '@taiga-ui/event-plugins'
+import { TuiCardLarge, TuiCell } from '@taiga-ui/layout'
 import { ApiService } from 'src/app/services/api.service'
 import { LiveApiService } from 'src/app/services/live-api.service'
 import { MockApiService } from 'src/app/services/mock-api.service'
@@ -31,18 +30,17 @@ const {
   imports: [
     HttpClientModule,
     BrowserAnimationsModule,
-    TuiRootModule,
-    TuiDialogModule,
-    LoadingModule,
+    TuiRoot,
     DriveComponent,
-    TuiButtonModule,
-    TuiCardModule,
-    TuiCellModule,
-    TuiIconModule,
-    TuiSurfaceModule,
-    TuiTitleModule,
+    TuiButton,
+    TuiCardLarge,
+    TuiCell,
+    TuiIcon,
+    TuiSurface,
+    TuiTitle,
   ],
   providers: [
+    NG_EVENT_PLUGINS,
     {
       provide: ApiService,
       useClass: useMocks ? MockApiService : LiveApiService,

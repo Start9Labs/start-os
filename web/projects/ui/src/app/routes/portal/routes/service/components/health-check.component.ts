@@ -1,23 +1,22 @@
-import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
-import { TuiLoaderModule, TuiSvgModule } from '@taiga-ui/core'
+import { TuiIcon, TuiLoader } from '@taiga-ui/core'
 
 @Component({
   selector: 'service-health-check',
   template: `
-    <tui-loader
-      *ngIf="loading; else svg"
-      [class.tui-skeleton]="!connected"
-      [inheritColor]="!check.result"
-    ></tui-loader>
-    <ng-template #svg>
-      <tui-svg
-        [src]="icon"
+    @if (loading) {
+      <tui-loader
+        [class.tui-skeleton]="!connected"
+        [inheritColor]="!check.result"
+      />
+    } @else {
+      <tui-icon
+        [icon]="icon"
         [class.tui-skeleton]="!connected"
         [style.color]="color"
-      ></tui-svg>
-    </ng-template>
+      />
+    }
     <div>
       <strong [class.tui-skeleton]="!connected">{{ check.name }}</strong>
       <div [class.tui-skeleton]="!connected" [style.color]="color">
@@ -39,7 +38,7 @@ import { TuiLoaderModule, TuiSvgModule } from '@taiga-ui/core'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TuiLoaderModule, TuiSvgModule],
+  imports: [TuiLoader, TuiIcon],
 })
 export class ServiceHealthCheckComponent {
   @Input({ required: true })
@@ -57,26 +56,26 @@ export class ServiceHealthCheckComponent {
   get icon(): string {
     switch (this.check.result) {
       case 'success':
-        return 'tuiIconCheckLarge'
+        return '@tui.check'
       case 'failure':
-        return 'tuiIconAlertTriangleLarge'
+        return '@tui.triangle-alert'
       default:
-        return 'tuiIconMinusLarge'
+        return '@tui.minus'
     }
   }
 
   get color(): string {
     switch (this.check.result) {
       case 'success':
-        return 'var(--tui-success-fill)'
+        return 'var(--tui-status-positive)'
       case 'failure':
-        return 'var(--tui-warning-fill)'
+        return 'var(--tui-status-warning)'
       case 'starting':
       case 'loading':
-        return 'var(--tui-primary)'
+        return 'var(--tui-background-accent-1)'
       // disabled
       default:
-        return 'var(--tui-text-02)'
+        return 'var(--tui-text-secondary)'
     }
   }
 

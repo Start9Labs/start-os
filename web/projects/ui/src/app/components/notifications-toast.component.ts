@@ -1,9 +1,9 @@
 import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { RouterLink } from '@angular/router'
-import { TuiAlertModule } from '@taiga-ui/core'
+import { TuiAlert } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
-import { Observable, Subject, merge, pairwise, map, endWith } from 'rxjs'
+import { endWith, map, merge, Observable, pairwise, Subject } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
@@ -20,7 +20,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     </ng-template>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiAlertModule, RouterLink, AsyncPipe],
+  imports: [TuiAlert, RouterLink, AsyncPipe],
 })
 export class NotificationsToastComponent {
   private readonly dismiss$ = new Subject<boolean>()

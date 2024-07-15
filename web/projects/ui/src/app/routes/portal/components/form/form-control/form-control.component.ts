@@ -6,14 +6,11 @@ import {
   TemplateRef,
   ViewChild,
 } from '@angular/core'
-import { AbstractTuiNullableControl } from '@taiga-ui/cdk'
-import {
-  TuiAlertService,
-  TuiDialogContext,
-  TuiNotification,
-} from '@taiga-ui/core'
-import { filter, takeUntil } from 'rxjs'
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { CT } from '@start9labs/start-sdk'
+import { TuiAlertService, TuiDialogContext } from '@taiga-ui/core'
+import { AbstractTuiNullableControl } from '@taiga-ui/legacy'
+import { filter } from 'rxjs'
 import { ERRORS } from '../form-group/form-group.component'
 import { FORM_CONTROL_PROVIDERS } from './form-control.providers'
 
@@ -55,11 +52,11 @@ export class FormControlComponent<
       this.alerts
         .open<boolean>(this.warning, {
           label: 'Warning',
-          status: TuiNotification.Warning,
-          hasCloseButton: false,
-          autoClose: false,
+          status: 'warning',
+          closeable: false,
+          autoClose: 0,
         })
-        .pipe(filter(Boolean), takeUntil(this.destroy$))
+        .pipe(filter(Boolean), takeUntilDestroyed(this.destroyRef))
         .subscribe(() => {
           this.value = previous
         })

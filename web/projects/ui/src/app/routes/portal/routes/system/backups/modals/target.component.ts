@@ -1,72 +1,66 @@
-import { CommonModule } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { ErrorService } from '@start9labs/shared'
-import { TuiForModule } from '@taiga-ui/cdk'
-import { TuiButtonModule } from '@taiga-ui/experimental'
 import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  signal,
+} from '@angular/core'
+import { ErrorService } from '@start9labs/shared'
+import {
+  TuiButton,
   TuiDialogContext,
   TuiDialogOptions,
   TuiDialogService,
-  TuiLoaderModule,
-  TuiSvgModule,
+  TuiIcon,
+  TuiLoader,
 } from '@taiga-ui/core'
 import {
   POLYMORPHEUS_CONTEXT,
   PolymorpheusComponent,
-} from '@tinkoff/ng-polymorpheus'
-import { BehaviorSubject } from 'rxjs'
+} from '@taiga-ui/polymorpheus'
 import { BackupTarget } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { BackupType } from '../types/backup-type'
 import { BackupsStatusComponent } from '../components/status.component'
 import { GetDisplayInfoPipe } from '../pipes/get-display-info.pipe'
+import { BackupType } from '../types/backup-type'
 import { TARGETS } from './targets.component'
 
 @Component({
   template: `
-    <tui-loader
-      *ngIf="loading$ | async; else loaded"
-      size="l"
-      [textContent]="loading"
-    ></tui-loader>
-    <ng-template #loaded>
+    @if (loading()) {
+      <tui-loader size="l" [textContent]="text" />
+    } @else {
       <h3 class="g-title">Saved Targets</h3>
-      <button
-        *ngFor="let target of targets; empty: blank"
-        class="g-action"
-        [disabled]="isDisabled(target)"
-        (click)="context.completeWith(target)"
-      >
-        <ng-container *ngIf="target | getDisplayInfo as displayInfo">
-          <tui-svg [src]="displayInfo.icon"></tui-svg>
-          <div>
-            <strong>{{ displayInfo.name }}</strong>
-            <backups-status
-              [type]="context.data.type"
-              [target]="target"
-            ></backups-status>
-            <div [style.color]="'var(--tui-text-02'">
-              {{ displayInfo.description }}
-              <br />
-              {{ displayInfo.path }}
+      @for (target of targets; track $index) {
+        <button
+          class="g-action"
+          [disabled]="isDisabled(target)"
+          (click)="context.completeWith(target)"
+        >
+          @if (target | getDisplayInfo; as displayInfo) {
+            <tui-icon [icon]="displayInfo.icon" />
+            <div>
+              <strong>{{ displayInfo.name }}</strong>
+              <backups-status [type]="context.data.type" [target]="target" />
+              <div [style.color]="'var(--tui-text-secondary'">
+                {{ displayInfo.description }}
+                <br />
+                {{ displayInfo.path }}
+              </div>
             </div>
-          </div>
-        </ng-container>
-      </button>
-      <ng-template #blank>
+          }
+        </button>
+      } @empty {
         <p>No saved targets</p>
         <button tuiButton (click)="goToTargets()">Go to Targets</button>
-      </ng-template>
-    </ng-template>
+      }
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [
-    CommonModule,
-    TuiLoaderModule,
-    TuiForModule,
-    TuiButtonModule,
-    TuiSvgModule,
+    TuiLoader,
+    TuiButton,
+    TuiIcon,
     BackupsStatusComponent,
     GetDisplayInfoPipe,
   ],
@@ -81,8 +75,8 @@ export class BackupsTargetModal {
       POLYMORPHEUS_CONTEXT,
     )
 
-  readonly loading$ = new BehaviorSubject(true)
-  readonly loading =
+  readonly loading = signal(true)
+  readonly text =
     this.context.data.type === 'create'
       ? 'Loading Backup Targets'
       : 'Loading Backup Sources'
@@ -95,7 +89,7 @@ export class BackupsTargetModal {
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
-      this.loading$.next(false)
+      this.loading.set(false)
     }
   }
 

@@ -2,44 +2,52 @@ import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiDialogContext, TuiGroupModule } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
-import { TuiCheckboxBlockModule } from '@taiga-ui/kit'
+import { TuiMapperPipe } from '@taiga-ui/cdk'
+import { TuiButton, TuiDialogContext, TuiGroup } from '@taiga-ui/core'
+import { TuiBlock, TuiCheckbox } from '@taiga-ui/kit'
 import {
   POLYMORPHEUS_CONTEXT,
   PolymorpheusComponent,
-} from '@tinkoff/ng-polymorpheus'
+} from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { take } from 'rxjs'
+import { PackageBackupInfo } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { PackageBackupInfo } from 'src/app/services/api/api.types'
 import { ToOptionsPipe } from '../pipes/to-options.pipe'
-import { RecoverOption } from '../types/recover-option'
 import { RecoverData } from '../types/recover-data'
-import { TuiMapperPipeModule } from '@taiga-ui/cdk'
+import { RecoverOption } from '../types/recover-option'
 
 @Component({
   template: `
     <ng-container *ngIf="packageData$ | toOptions: backups | async as options">
-      <div tuiGroup orientation="vertical" [style.width.%]="100">
-        <tui-checkbox-block
-          *ngFor="let option of options"
-          [disabled]="option.installed || option.newerStartOs"
-          [(ngModel)]="option.checked"
-        >
-          <div [style.margin]="'0.75rem 0'">
-            <strong>{{ option.title }}</strong>
-            <div>Version {{ option.version }}</div>
-            <div>Backup made: {{ option.timestamp | date: 'medium' }}</div>
-            <div
-              *ngIf="option | tuiMapper: toMessage as message"
-              [style.color]="message.color"
-            >
-              {{ message.text }}
+      <div
+        tuiGroup
+        orientation="vertical"
+        [collapsed]="true"
+        [style.width.%]="100"
+      >
+        @for (option of options; track $index) {
+          <label tuiBlock>
+            <div [style.flex]="1" [style.margin]="'0.75rem 0'">
+              <strong>{{ option.title }}</strong>
+              <div>Version {{ option.version }}</div>
+              <div>Backup made: {{ option.timestamp | date: 'medium' }}</div>
+              <div
+                *ngIf="option | tuiMapper: toMessage as message"
+                [style.color]="message.color"
+              >
+                {{ message.text }}
+              </div>
             </div>
-          </div>
-        </tui-checkbox-block>
+            <input
+              type="checkbox"
+              tuiCheckbox
+              [disabled]="option.installed || option.newerStartOs"
+              [(ngModel)]="option.checked"
+            />
+          </label>
+        }
       </div>
 
       <footer class="g-buttons">
@@ -59,10 +67,11 @@ import { TuiMapperPipeModule } from '@taiga-ui/cdk'
     CommonModule,
     FormsModule,
     ToOptionsPipe,
-    TuiButtonModule,
-    TuiCheckboxBlockModule,
-    TuiGroupModule,
-    TuiMapperPipeModule,
+    TuiButton,
+    TuiGroup,
+    TuiMapperPipe,
+    TuiCheckbox,
+    TuiBlock,
   ],
 })
 export class BackupsRecoverModal {
@@ -80,20 +89,20 @@ export class BackupsRecoverModal {
     if (option.newerStartOs) {
       return {
         text: `Unavailable. Backup was made on a newer version of StartOS.`,
-        color: 'var(--tui-error-fill)',
+        color: 'var(--tui-status-negative)',
       }
     }
 
     if (option.installed) {
       return {
         text: `Unavailable. ${option.title} is already installed.`,
-        color: 'var(--tui-warning-fill)',
+        color: 'var(--tui-status-warning)',
       }
     }
 
     return {
       text: 'Ready to restore',
-      color: 'var(--tui-success-fill)',
+      color: 'var(--tui-status-positive)',
     }
   }
 

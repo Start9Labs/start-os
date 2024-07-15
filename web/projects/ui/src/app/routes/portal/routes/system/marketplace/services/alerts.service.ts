@@ -1,6 +1,6 @@
+import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { inject, Injectable } from '@angular/core'
 import { MarketplacePkg } from '@start9labs/marketplace'
-import { TUI_PROMPT } from '@taiga-ui/kit'
 import { TuiDialogService } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { defaultIfEmpty, firstValueFrom } from 'rxjs'
@@ -24,7 +24,7 @@ export class MarketplaceAlertsService {
 
     return new Promise(async resolve => {
       this.dialogs
-        .open<boolean>(TUI_PROMPT, {
+        .open<boolean>(TUI_CONFIRM, {
           label: 'Warning',
           size: 's',
           data: {
@@ -46,7 +46,7 @@ export class MarketplaceAlertsService {
 
     return new Promise(async resolve => {
       this.dialogs
-        .open<boolean>(TUI_PROMPT, {
+        .open<boolean>(TUI_CONFIRM, {
           label: 'Warning',
           size: 's',
           data: {
@@ -67,7 +67,7 @@ export class MarketplaceAlertsService {
       !!content &&
       new Promise(resolve => {
         this.dialogs
-          .open<boolean>(TUI_PROMPT, {
+          .open<boolean>(TUI_CONFIRM, {
             label: 'Alert',
             size: 's',
             data: {

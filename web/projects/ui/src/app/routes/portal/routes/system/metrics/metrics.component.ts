@@ -1,7 +1,7 @@
 import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { TuiProgressModule } from '@taiga-ui/kit'
+import { TuiProgress } from '@taiga-ui/kit'
 import { CpuComponent } from 'src/app/routes/portal/routes/system/metrics/cpu.component'
 import { TemperatureComponent } from 'src/app/routes/portal/routes/system/metrics/temperature.component'
 import { MetricComponent } from 'src/app/routes/portal/routes/system/metrics/metric.component'
@@ -89,7 +89,7 @@ import { TimeService } from 'src/app/services/time.service'
     footer {
       display: flex;
       white-space: nowrap;
-      background: var(--tui-clear);
+      background: var(--tui-background-neutral-1);
     }
 
     label {
@@ -121,21 +121,21 @@ import { TimeService } from 'src/app/services/time.service'
       flex: 1;
       text-align: center;
       text-transform: uppercase;
-      color: var(--tui-text-02);
+      color: var(--tui-text-secondary);
       font-size: 0.5rem;
       line-height: 1rem;
 
       span {
         font-size: 0.75rem;
         font-weight: bold;
-        color: var(--tui-text-01);
+        color: var(--tui-text-primary);
         padding-top: 0.4rem;
 
         &::after {
           content: attr(data-unit);
           font-size: 0.5rem;
           font-weight: normal;
-          color: var(--tui-text-02);
+          color: var(--tui-text-secondary);
         }
       }
     }
@@ -164,7 +164,7 @@ import { TimeService } from 'src/app/services/time.service'
   host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    TuiProgressModule,
+    TuiProgress,
     MetricComponent,
     TemperatureComponent,
     CpuComponent,

@@ -2,24 +2,22 @@
   <button
     tuiIconButton
     size="s"
-    iconLeft="tuiIconChevronDown"
+    iconStart="@tui.chevron-down"
     type="button"
     class="button"
     [class.button_open]="open"
     [style.border-radius.%]="100"
     [appearance]="invalid ? 'danger-solid' : 'secondary'"
   ></button>
-  <ng-content></ng-content>
+  <ng-content />
   {{ spec.name }}
-  <tui-tooltip
-    *ngIf="spec.description"
-    [content]="spec.description"
-    (click.stop)="(0)"
-  ></tui-tooltip>
+  @if (spec.description) {
+    <tui-icon [tuiTooltip]="spec.description" (click.stop)="(0)" />
+  }
 </h3>
 
 <tui-expand class="expand" [expanded]="open">
   <div class="g-form-group" [class.g-form-group_invalid]="invalid">
-    <form-group [spec]="spec.spec"></form-group>
+    <form-group [spec]="spec.spec" />
   </div>
 </tui-expand>

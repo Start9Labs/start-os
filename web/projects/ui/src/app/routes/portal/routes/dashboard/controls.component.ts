@@ -6,11 +6,8 @@ import {
   inject,
   input,
 } from '@angular/core'
-import { TuiLetModule } from '@taiga-ui/cdk'
-import {
-  TuiButtonModule,
-  tuiButtonOptionsProvider,
-} from '@taiga-ui/experimental'
+import { TuiLet } from '@taiga-ui/cdk'
+import { TuiButton, tuiButtonOptionsProvider } from '@taiga-ui/core'
 import { map } from 'rxjs'
 import { UILaunchComponent } from 'src/app/routes/portal/routes/dashboard/ui.component'
 import { ActionsService } from 'src/app/services/actions.service'
@@ -25,7 +22,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
     @if (pkg().status.main.status === 'running') {
       <button
         tuiIconButton
-        iconLeft="tuiIconSquare"
+        iconStart="@tui.square"
         (click)="actions.stop(manifest())"
       >
         Stop
@@ -33,7 +30,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
 
       <button
         tuiIconButton
-        iconLeft="tuiIconRotateCw"
+        iconStart="@tui.rotate-cw"
         (click)="actions.restart(manifest())"
       >
         Restart
@@ -42,7 +39,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
       <button
         *tuiLet="hasUnmet() | async as hasUnmet"
         tuiIconButton
-        iconLeft="tuiIconPlay"
+        iconStart="@tui.play"
         [disabled]="!pkg().status.configured"
         (click)="actions.start(manifest(), !!hasUnmet)"
       >
@@ -51,7 +48,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
 
       <button
         tuiIconButton
-        iconLeft="tuiIconTool"
+        iconStart="@tui.wrench"
         (click)="actions.configure(manifest())"
       >
         Configure
@@ -61,7 +58,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
     <app-ui-launch [pkg]="pkg()" />
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButtonModule, UILaunchComponent, TuiLetModule, AsyncPipe],
+  imports: [TuiButton, UILaunchComponent, TuiLet, AsyncPipe],
   providers: [tuiButtonOptionsProvider({ size: 's', appearance: 'none' })],
   styles: `
     :host {

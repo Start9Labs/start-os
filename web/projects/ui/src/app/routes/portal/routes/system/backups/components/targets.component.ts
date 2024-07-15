@@ -6,9 +6,13 @@ import {
   Input,
   Output,
 } from '@angular/core'
-import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
-import { TuiButtonModule, TuiIconModule } from '@taiga-ui/experimental'
-import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
+import {
+  TuiDialogOptions,
+  TuiDialogService,
+  TuiIcon,
+  TuiButton,
+} from '@taiga-ui/core'
+import { TuiConfirmData, TUI_CONFIRM } from '@taiga-ui/kit'
 import { filter, map, Subject, switchMap } from 'rxjs'
 import { BackupTarget } from 'src/app/services/api/api.types'
 import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
@@ -35,7 +39,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
           </td>
           <td class="available">
             <tui-icon
-              [icon]="target.mountable ? 'tuiIconCheck' : 'tuiIconClose'"
+              [icon]="target.mountable ? '@tui.check' : '@tui.x'"
               [class]="target.mountable ? 'g-success' : 'g-error'"
             />
           </td>
@@ -45,7 +49,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
               tuiIconButton
               size="xs"
               appearance="icon"
-              iconLeft="tuiIconEdit2"
+              iconStart="@tui.pencil"
               (click)="update.emit(target)"
             >
               Update
@@ -54,7 +58,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
               tuiIconButton
               size="xs"
               appearance="icon"
-              iconLeft="tuiIconTrash2"
+              iconStart="@tui.trash-2"
               (click)="delete$.next(target.id)"
             >
               Delete
@@ -93,7 +97,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
       .type {
         order: 1;
         text-transform: capitalize;
-        color: var(--tui-text-02);
+        color: var(--tui-text-secondary);
         grid-column: span 3;
 
         tui-icon {
@@ -119,7 +123,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
 
       .path {
         order: 5;
-        color: var(--tui-text-03);
+        color: var(--tui-text-tertiary);
         grid-column: span 2;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -128,7 +132,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiButtonModule, GetBackupIconPipe, TuiIconModule],
+  imports: [TuiButton, GetBackupIconPipe, TuiIcon],
 })
 export class BackupsTargetsComponent {
   private readonly dialogs = inject(TuiDialogService)
@@ -144,7 +148,7 @@ export class BackupsTargetsComponent {
   @Output()
   readonly delete = this.delete$.pipe(
     switchMap(id =>
-      this.dialogs.open(TUI_PROMPT, OPTIONS).pipe(
+      this.dialogs.open(TUI_CONFIRM, OPTIONS).pipe(
         filter(Boolean),
         map(() => id),
       ),
@@ -152,7 +156,7 @@ export class BackupsTargetsComponent {
   )
 }
 
-const OPTIONS: Partial<TuiDialogOptions<TuiPromptData>> = {
+const OPTIONS: Partial<TuiDialogOptions<TuiConfirmData>> = {
   label: 'Confirm',
   size: 's',
   data: {

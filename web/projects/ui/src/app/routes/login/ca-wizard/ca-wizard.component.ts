@@ -1,13 +1,8 @@
 import { CommonModule, DOCUMENT } from '@angular/common'
 import { Component, inject } from '@angular/core'
 import { RELATIVE_URL } from '@start9labs/shared'
-import {
-  TuiAppearanceModule,
-  TuiButtonModule,
-  TuiCardModule,
-  TuiIconModule,
-  TuiSurfaceModule,
-} from '@taiga-ui/experimental'
+import { TuiAppearance, TuiButton, TuiIcon, TuiSurface } from '@taiga-ui/core'
+import { TuiCardLarge } from '@taiga-ui/layout'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 
@@ -18,11 +13,11 @@ import { ConfigService } from 'src/app/services/config.service'
   styleUrls: ['./ca-wizard.component.scss'],
   imports: [
     CommonModule,
-    TuiIconModule,
-    TuiButtonModule,
-    TuiAppearanceModule,
-    TuiCardModule,
-    TuiSurfaceModule,
+    TuiIcon,
+    TuiButton,
+    TuiAppearance,
+    TuiCardLarge,
+    TuiSurface,
   ],
 })
 export class CAWizardComponent {

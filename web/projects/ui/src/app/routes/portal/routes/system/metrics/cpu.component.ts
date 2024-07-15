@@ -16,7 +16,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
       margin: 1rem auto;
       width: 80%;
       aspect-ratio: 1;
-      background: var(--tui-clear);
+      background: var(--tui-background-neutral-1);
       border-radius: 100%;
     }
 
@@ -26,9 +26,9 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
       mask: url(/assets/img/meter.svg);
       background: conic-gradient(
         from 180deg,
-        var(--tui-success-fill) 30%,
-        var(--tui-warning-fill),
-        var(--tui-error-fill) 70%
+        var(--tui-status-positive) 30%,
+        var(--tui-status-warning),
+        var(--tui-status-negative) 70%
       );
     }
 
@@ -49,7 +49,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
         content: '';
         position: absolute;
         inset: -0.5rem;
-        background: var(--tui-base-02);
+        background: var(--tui-background-base-alt);
         border-radius: 100%;
       }
 
@@ -59,7 +59,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
         width: 0.25rem;
         height: 2rem;
         border-radius: 1rem;
-        background: var(--tui-text-01);
+        background: var(--tui-text-primary);
         transform: translate(-0.125rem, -0.125rem);
         clip-path: polygon(0 0, 100% 0, 60% 100%, 40% 100%);
       }

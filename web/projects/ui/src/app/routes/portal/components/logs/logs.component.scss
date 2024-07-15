@@ -27,15 +27,15 @@
   align-items: center;
   justify-content: space-between;
   padding-top: 1rem;
-  border-top: 1px solid var(--tui-clear);
+  border-top: 1px solid var(--tui-background-neutral-1);
 }
 
 [data-status='reconnecting'] {
-  color: var(--tui-success-fill);
+  color: var(--tui-status-positive);
 }
 
 [data-status='disconnected'] {
-  color: var(--tui-warning-fill);
+  color: var(--tui-status-warning);
 }
 
 pre {

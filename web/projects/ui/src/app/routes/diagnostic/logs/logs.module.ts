@@ -1,10 +1,10 @@
-import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import { Routes, RouterModule } from '@angular/router'
-import { IntersectionObserverModule } from '@ng-web-apis/intersection-observer'
-import { MutationObserverModule } from '@ng-web-apis/mutation-observer'
-import { TuiLoaderModule, TuiScrollbarModule } from '@taiga-ui/core'
-import { TuiBadgeModule, TuiButtonModule } from '@taiga-ui/experimental'
+import { NgModule } from '@angular/core'
+import { RouterModule, Routes } from '@angular/router'
+import { WaIntersectionObserver } from '@ng-web-apis/intersection-observer'
+import { WaMutationObserver } from '@ng-web-apis/mutation-observer'
+import { TuiButton, TuiLoader, TuiScrollbar } from '@taiga-ui/core'
+import { TuiBadge } from '@taiga-ui/kit'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 import { LogsPage } from './logs.page'
 
@@ -19,13 +19,13 @@ const ROUTES: Routes = [
   imports: [
     CommonModule,
     RouterModule.forChild(ROUTES),
-    IntersectionObserverModule,
-    MutationObserverModule,
+    ...WaIntersectionObserver,
+    WaMutationObserver,
     NgDompurifyModule,
-    TuiBadgeModule,
-    TuiButtonModule,
-    TuiLoaderModule,
-    TuiScrollbarModule,
+    TuiBadge,
+    TuiButton,
+    TuiLoader,
+    TuiScrollbar,
   ],
   declarations: [LogsPage],
 })

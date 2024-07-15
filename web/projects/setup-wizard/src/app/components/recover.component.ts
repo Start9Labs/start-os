@@ -1,17 +1,14 @@
+import { TuiCell } from '@taiga-ui/layout'
+import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { Component, Input } from '@angular/core'
 import { RouterModule } from '@angular/router'
-import {
-  TuiCellModule,
-  TuiIconModule,
-  TuiTitleModule,
-} from '@taiga-ui/experimental'
 
 @Component({
   standalone: true,
   selector: 'app-recover',
   template: `
     <a tuiCell [routerLink]="disabled ? null : '/attach'">
-      <tui-icon icon="tuiIconBoxLarge" />
+      <tui-icon icon="@tui.box" />
       <span tuiTitle>
         <span class="g-success">Use Existing Drive</span>
         <span tuiSubtitle>
@@ -20,7 +17,7 @@ import {
       </span>
     </a>
     <a tuiCell [routerLink]="disabled ? null : '/transfer'">
-      <tui-icon icon="tuiIconShareLarge" />
+      <tui-icon icon="@tui.share" />
       <span tuiTitle>
         <span class="g-info">Transfer</span>
         <span tuiSubtitle>
@@ -30,14 +27,14 @@ import {
       </span>
     </a>
     <a tuiCell [routerLink]="disabled ? null : '/recover'">
-      <tui-icon icon="tuiIconSave" />
+      <tui-icon icon="@tui.save" />
       <span tuiTitle>
         <span class="g-warning">Restore From Backup (Disaster Recovery)</span>
         <span tuiSubtitle>Restore StartOS data from an encrypted backup</span>
       </span>
     </a>
   `,
-  imports: [RouterModule, TuiIconModule, TuiCellModule, TuiTitleModule],
+  imports: [RouterModule, TuiIcon, TuiCell, TuiTitle],
 })
 export class RecoverComponent {
   @Input() disabled = false

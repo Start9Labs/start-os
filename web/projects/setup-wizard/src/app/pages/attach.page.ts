@@ -7,12 +7,8 @@ import {
   LoadingService,
   toGuid,
 } from '@start9labs/shared'
-import { TuiDialogService, TuiLoaderModule } from '@taiga-ui/core'
-import {
-  TuiButtonModule,
-  TuiCardModule,
-  TuiCellModule,
-} from '@taiga-ui/experimental'
+import { TuiButton, TuiDialogService, TuiLoader } from '@taiga-ui/core'
+import { TuiCardLarge, TuiCell } from '@taiga-ui/layout'
 import { PASSWORD } from 'src/app/components/password.component'
 import { ApiService } from 'src/app/services/api.service'
 import { StateService } from 'src/app/services/state.service'
@@ -34,19 +30,13 @@ import { StateService } from 'src/app/services/state.service'
           valid StartOS data drive (not a backup) and is firmly connected, then
           refresh the page.
         }
-        <button tuiButton iconLeft="tuiIconRotateCwLarge" (click)="refresh()">
+        <button tuiButton iconStart="@tui.rotate-cw" (click)="refresh()">
           Refresh
         </button>
       }
     </section>
   `,
-  imports: [
-    TuiButtonModule,
-    TuiCardModule,
-    TuiCellModule,
-    TuiLoaderModule,
-    DriveComponent,
-  ],
+  imports: [TuiButton, TuiCardLarge, TuiCell, TuiLoader, DriveComponent],
 })
 export default class AttachPage {
   private readonly apiService = inject(ApiService)

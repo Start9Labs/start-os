@@ -10,7 +10,7 @@ form-group .g-form-group {
   &::after {
     content: '';
     position: absolute;
-    background: var(--tui-clear);
+    background: var(--tui-background-neutral-1);
   }
 
   &::before {

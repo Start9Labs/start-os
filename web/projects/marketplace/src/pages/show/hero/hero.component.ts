@@ -2,13 +2,13 @@ import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
-  Input,
   inject,
+  Input,
 } from '@angular/core'
 import { SharedPipesModule, TickerModule } from '@start9labs/shared'
-import { MarketplacePkg, StoreIdentity } from '../../../types'
-import { TuiLetModule } from '@taiga-ui/cdk'
+import { TuiLet } from '@taiga-ui/cdk'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
+import { MarketplacePkg, StoreIdentity } from '../../../types'
 
 @Component({
   selector: 'marketplace-package-hero',
@@ -41,7 +41,7 @@ import { AbstractMarketplaceService } from '../../../services/marketplace.servic
           </p>
         </div>
         <!-- control buttons -->
-        <ng-content></ng-content>
+        <ng-content />
       </div>
     </div>
   `,
@@ -53,7 +53,7 @@ import { AbstractMarketplaceService } from '../../../services/marketplace.servic
         margin-top: 2.5rem;
 
         @media (min-width: 768px) {
-          margin-top: 0px;
+          margin-top: 0;
         }
       }
 
@@ -129,8 +129,8 @@ import { AbstractMarketplaceService } from '../../../services/marketplace.servic
           position: absolute;
           width: 100%;
           height: 100%;
-          top: 0px;
-          left: 0px;
+          top: 0;
+          left: 0;
           z-index: -50;
           border-radius: 1.5rem;
 
@@ -161,7 +161,7 @@ import { AbstractMarketplaceService } from '../../../services/marketplace.servic
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, SharedPipesModule, TickerModule, TuiLetModule],
+  imports: [CommonModule, SharedPipesModule, TickerModule, TuiLet],
 })
 export class MarketplacePackageHeroComponent {
   @Input({ required: true })

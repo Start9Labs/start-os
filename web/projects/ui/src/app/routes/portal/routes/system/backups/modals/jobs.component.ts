@@ -3,11 +3,12 @@ import { ErrorService, LoadingService } from '@start9labs/shared'
 import {
   TuiDialogOptions,
   TuiDialogService,
-  TuiNotificationModule,
+  TuiIcon,
+  TuiButton,
+  TuiNotification,
 } from '@taiga-ui/core'
-import { TuiButtonModule, TuiIconModule } from '@taiga-ui/experimental'
-import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
-import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { TuiConfirmData, TUI_CONFIRM } from '@taiga-ui/kit'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { BehaviorSubject, filter } from 'rxjs'
 import { BackupJob } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -32,7 +33,7 @@ import { EDIT } from './edit.component'
     </tui-notification>
     <h3 class="g-title">
       Saved Jobs
-      <button tuiButton size="s" iconLeft="tuiIconPlus" (click)="create()">
+      <button tuiButton size="s" iconStart="@tui.plus" (click)="create()">
         Create New Job
       </button>
     </h3>
@@ -61,14 +62,14 @@ import { EDIT } from './edit.component'
                 tuiIconButton
                 appearance="icon"
                 size="xs"
-                iconLeft="tuiIconEdit2"
+                iconStart="@tui.pencil"
                 (click)="update(job)"
               ></button>
               <button
                 tuiIconButton
                 appearance="icon"
                 size="xs"
-                iconLeft="tuiIconTrash2"
+                iconStart="@tui.trash-2"
                 (click)="delete(job.id)"
               ></button>
             </td>
@@ -126,15 +127,15 @@ import { EDIT } from './edit.component'
 
       .schedule {
         order: 5;
-        color: var(--tui-text-02);
+        color: var(--tui-text-secondary);
       }
     }
   `,
   standalone: true,
   imports: [
-    TuiNotificationModule,
-    TuiButtonModule,
-    TuiIconModule,
+    TuiNotification,
+    TuiButton,
+    TuiIcon,
     ToHumanCronPipe,
     GetBackupIconPipe,
   ],
@@ -188,7 +189,7 @@ export class BackupsJobsModal implements OnInit {
 
   delete(id: string) {
     this.dialogs
-      .open(TUI_PROMPT, PROMPT_OPTIONS)
+      .open(TUI_CONFIRM, PROMPT_OPTIONS)
       .pipe(filter(Boolean))
       .subscribe(async () => {
         const loader = this.loader.open('Deleting...').subscribe()
@@ -205,7 +206,7 @@ export class BackupsJobsModal implements OnInit {
   }
 }
 
-const PROMPT_OPTIONS: Partial<TuiDialogOptions<TuiPromptData>> = {
+const PROMPT_OPTIONS: Partial<TuiDialogOptions<TuiConfirmData>> = {
   label: 'Confirm',
   size: 's',
   data: {

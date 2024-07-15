@@ -1,7 +1,7 @@
+import { TuiIcon } from '@taiga-ui/core'
 import { DatePipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { TuiIconModule } from '@taiga-ui/experimental'
 import { CronJob } from 'cron'
 import { PatchDB } from 'patch-db-client'
 import { from, map } from 'rxjs'
@@ -26,7 +26,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
           <tr>
             <td class="date">
               @if (current.id === job.id) {
-                <span [style.color]="'var(--tui-positive)'">Running</span>
+                <span [style.color]="'var(--tui-text-positive)'">Running</span>
               } @else {
                 {{ job.next | date: 'medium' }}
               }
@@ -76,7 +76,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
 
     :host-context(tui-root._mobile) {
       .date {
-        color: var(--tui-text-02);
+        color: var(--tui-text-secondary);
       }
 
       .name {
@@ -91,7 +91,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [GetBackupIconPipe, DatePipe, TuiIconModule],
+  imports: [GetBackupIconPipe, DatePipe, TuiIcon],
 })
 export class BackupsUpcomingComponent {
   readonly current = toSignal(

@@ -1,6 +1,5 @@
-import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { TuiSvgModule } from '@taiga-ui/core'
+import { TuiIcon } from '@taiga-ui/core'
 import {
   AdditionalItem,
   FALLBACK_URL,
@@ -13,7 +12,9 @@ import {
       <strong>{{ additionalItem.name }}</strong>
       <div>{{ additionalItem.description }}</div>
     </div>
-    <tui-svg *ngIf="icon" [src]="icon"></tui-svg>
+    @if (icon) {
+      <tui-icon [icon]="icon" />
+    }
   `,
   styles: [
     `
@@ -32,7 +33,7 @@ import {
   },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TuiSvgModule],
+  imports: [TuiIcon],
 })
 export class ServiceAdditionalItemComponent {
   @Input({ required: true })
@@ -44,7 +45,7 @@ export class ServiceAdditionalItemComponent {
 
   get icon(): string | undefined {
     return this.additionalItem.description.startsWith('http')
-      ? 'tuiIconExternalLinkLarge'
+      ? '@tui.external-link'
       : this.additionalItem.icon
   }
 }

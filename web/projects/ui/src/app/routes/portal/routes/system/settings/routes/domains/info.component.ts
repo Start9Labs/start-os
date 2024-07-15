@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { TuiNotificationModule } from '@taiga-ui/core'
+import { TuiNotification } from '@taiga-ui/core'
 
 @Component({
   selector: 'domains-info',
@@ -17,6 +17,6 @@ import { TuiNotificationModule } from '@taiga-ui/core'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiNotificationModule],
+  imports: [TuiNotification],
 })
 export class DomainsInfoComponent {}

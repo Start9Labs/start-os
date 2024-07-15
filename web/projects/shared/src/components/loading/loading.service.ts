@@ -1,10 +1,11 @@
+import { TuiPopoverService } from '@taiga-ui/cdk'
 import { Injectable } from '@angular/core'
-import { AbstractTuiDialogService } from '@taiga-ui/cdk'
-import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { TUI_DIALOGS } from '@taiga-ui/core'
+
 import { LoadingComponent } from './loading.component'
 
-@Injectable({ providedIn: `root` })
-export class LoadingService extends AbstractTuiDialogService<unknown> {
-  protected readonly component = new PolymorpheusComponent(LoadingComponent)
-  protected readonly defaultOptions = {}
-}
+@Injectable({
+  providedIn: `root`,
+  useFactory: () => new LoadingService(TUI_DIALOGS, LoadingComponent),
+})
+export class LoadingService extends TuiPopoverService<unknown> {}

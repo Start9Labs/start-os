@@ -1,3 +1,4 @@
+import { TuiCheckbox, TuiFade } from '@taiga-ui/kit'
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -6,13 +7,7 @@ import {
   OnChanges,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { TuiLinkModule } from '@taiga-ui/core'
-import {
-  TuiButtonModule,
-  TuiCheckboxModule,
-  TuiFadeModule,
-  TuiIconModule,
-} from '@taiga-ui/experimental'
+import { TuiIcon, TuiLink, TuiButton } from '@taiga-ui/core'
 import { BehaviorSubject } from 'rxjs'
 import { Session } from 'src/app/services/api/api.types'
 import { PlatformInfoPipe } from './platform-info.pipe'
@@ -112,7 +107,7 @@ import { PlatformInfoPipe } from './platform-info.pipe'
         }
 
         .date {
-          color: var(--tui-text-02);
+          color: var(--tui-text-secondary);
         }
       }
     `,
@@ -123,11 +118,11 @@ import { PlatformInfoPipe } from './platform-info.pipe'
     CommonModule,
     FormsModule,
     PlatformInfoPipe,
-    TuiButtonModule,
-    TuiLinkModule,
-    TuiIconModule,
-    TuiCheckboxModule,
-    TuiFadeModule,
+    TuiButton,
+    TuiLink,
+    TuiIcon,
+    TuiCheckbox,
+    TuiFade,
   ],
 })
 export class SSHTableComponent<T extends Session> implements OnChanges {

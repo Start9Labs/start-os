@@ -1,17 +1,13 @@
+import { TuiInputPasswordModule } from '@taiga-ui/legacy'
 import { Component, inject } from '@angular/core'
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms'
 import * as argon2 from '@start9labs/argon2'
 import { ErrorService } from '@start9labs/shared'
-import {
-  TuiButtonModule,
-  TuiDialogContext,
-  TuiErrorModule,
-} from '@taiga-ui/core'
-import { TuiInputPasswordModule } from '@taiga-ui/kit'
+import { TuiDialogContext, TuiError, TuiButton } from '@taiga-ui/core'
 import {
   POLYMORPHEUS_CONTEXT,
   PolymorpheusComponent,
-} from '@tinkoff/ng-polymorpheus'
+} from '@taiga-ui/polymorpheus'
 import {
   CifsBackupTarget,
   DiskBackupTarget,
@@ -35,13 +31,13 @@ interface DialogData {
     <form [style.margin-top.rem]="1" (ngSubmit)="submit()">
       <tui-input-password [formControl]="password">
         Enter Password
-        <input tuiTextfield maxlength="64" />
+        <input tuiTextfieldLegacy maxlength="64" />
       </tui-input-password>
       <tui-error [error]="passwordError"></tui-error>
       @if (storageDrive) {
         <tui-input-password [style.margin-top.rem]="1" [formControl]="confirm">
           Retype Password
-          <input tuiTextfield maxlength="64" />
+          <input tuiTextfieldLegacy maxlength="64" />
         </tui-input-password>
         <tui-error [error]="confirmError"></tui-error>
       }
@@ -67,9 +63,9 @@ interface DialogData {
   imports: [
     FormsModule,
     ReactiveFormsModule,
-    TuiButtonModule,
+    TuiButton,
     TuiInputPasswordModule,
-    TuiErrorModule,
+    TuiError,
   ],
 })
 export class PasswordComponent {

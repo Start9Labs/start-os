@@ -1,11 +1,11 @@
 import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
 import { FormsModule } from '@angular/forms'
+import { TuiIcon } from '@taiga-ui/core'
 import { SearchComponent } from './search.component'
-import { TuiSvgModule } from '@taiga-ui/core'
 
 @NgModule({
-  imports: [FormsModule, CommonModule, TuiSvgModule],
+  imports: [FormsModule, CommonModule, TuiIcon],
   declarations: [SearchComponent],
   exports: [SearchComponent],
 })

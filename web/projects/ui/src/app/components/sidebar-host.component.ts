@@ -1,24 +1,19 @@
+import { TuiDropdownService } from '@taiga-ui/core'
 import {
   ChangeDetectionStrategy,
   Component,
   Directive,
   Injectable,
 } from '@angular/core'
-import {
-  AbstractTuiPortalHostComponent,
-  AbstractTuiPortalService,
-  TuiDropdownPortalService,
-} from '@taiga-ui/cdk'
+import { TuiPortals, TuiPortalService } from '@taiga-ui/cdk'
 
 @Injectable({ providedIn: `root` })
-export class SidebarService extends AbstractTuiPortalService {}
+export class SidebarService extends TuiPortalService {}
 
 @Directive({
   selector: '[tuiSidebar]',
   standalone: true,
-  providers: [
-    { provide: TuiDropdownPortalService, useExisting: SidebarService },
-  ],
+  providers: [{ provide: TuiDropdownService, useExisting: SidebarService }],
 })
 export class SidebarDirective {}
 
@@ -28,8 +23,6 @@ export class SidebarDirective {}
   styles: [':host { position: fixed; top: 0; }'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  providers: [
-    { provide: AbstractTuiPortalService, useExisting: SidebarService },
-  ],
+  providers: [{ provide: TuiPortalService, useExisting: SidebarService }],
 })
-export class SidebarHostComponent extends AbstractTuiPortalHostComponent {}
+export class SidebarHostComponent extends TuiPortals {}

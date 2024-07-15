@@ -1,10 +1,10 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { TuiDialogContext, TuiSvgModule } from '@taiga-ui/core'
+import { TuiDialogContext, TuiIcon } from '@taiga-ui/core'
 import {
   POLYMORPHEUS_CONTEXT,
   PolymorpheusComponent,
-} from '@tinkoff/ng-polymorpheus'
+} from '@taiga-ui/polymorpheus'
 import { BackupReport } from 'src/app/services/api/api.types'
 
 @Component({
@@ -15,7 +15,7 @@ import { BackupReport } from 'src/app/services/api/api.types'
         <strong>System data</strong>
         <div [style.color]="system.color">{{ system.result }}</div>
       </div>
-      <tui-svg [src]="system.icon" [style.color]="system.color"></tui-svg>
+      <tui-icon [icon]="system.icon" [style.color]="system.color" />
     </div>
     <div *ngFor="let pkg of report?.packages | keyvalue" class="g-action">
       <div [style.flex]="1">
@@ -24,15 +24,15 @@ import { BackupReport } from 'src/app/services/api/api.types'
           {{ pkg.value.error ? 'Failed: ' + pkg.value.error : 'Succeeded' }}
         </div>
       </div>
-      <tui-svg
-        [src]="getIcon(pkg.value.error)"
+      <tui-icon
+        [icon]="getIcon(pkg.value.error)"
         [style.color]="getColor(pkg.value.error)"
-      ></tui-svg>
+      />
     </div>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TuiSvgModule],
+  imports: [CommonModule, TuiIcon],
 })
 export class BackupsReportModal {
   private readonly context =
@@ -51,34 +51,34 @@ export class BackupsReportModal {
   }
 
   getColor(error: unknown) {
-    return error ? 'var(--tui-negative)' : 'var(--tui-positive)'
+    return error ? 'var(--tui-text-negative)' : 'var(--tui-text-positive)'
   }
 
   getIcon(error: unknown) {
-    return error ? 'tuiIconMinusCircleLarge' : 'tuiIconCheckLarge'
+    return error ? '@tui.circle-minus' : '@tui.check'
   }
 
   private getSystem() {
     if (!this.report.server.attempted) {
       return {
         result: 'Not Attempted',
-        icon: 'tuiIconMinusLarge',
-        color: 'var(--tui-text-02)',
+        icon: '@tui.minus',
+        color: 'var(--tui-text-secondary)',
       }
     }
 
     if (this.report.server.error) {
       return {
         result: `Failed: ${this.report.server.error}`,
-        icon: 'tuiIconMinusCircleLarge',
-        color: 'var(--tui-negative)',
+        icon: '@tui.circle-minus',
+        color: 'var(--tui-text-negative)',
       }
     }
 
     return {
       result: 'Succeeded',
-      icon: 'tuiIconCheckLarge',
-      color: 'var(--tui-positive)',
+      icon: '@tui.check',
+      color: 'var(--tui-text-positive)',
     }
   }
 }

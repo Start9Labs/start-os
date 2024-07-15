@@ -1,3 +1,4 @@
+import { TuiAutoFocus } from '@taiga-ui/cdk'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import {
@@ -9,10 +10,8 @@ import {
 import {
   POLYMORPHEUS_CONTEXT,
   PolymorpheusComponent,
-} from '@tinkoff/ng-polymorpheus'
-import { TuiAutoFocusModule } from '@taiga-ui/cdk'
-import { TuiDialogContext, TuiScrollbarModule } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
+} from '@taiga-ui/polymorpheus'
+import { TuiDialogContext, TuiScrollbar, TuiButton } from '@taiga-ui/core'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { EOSService } from 'src/app/services/eos.service'
@@ -20,7 +19,7 @@ import { EOSService } from 'src/app/services/eos.service'
 @Component({
   template: `
     <h2 style="margin-top: 0">StartOS {{ versions[0].version }}</h2>
-    <h3 style="color: var(--tui-text-02); font-weight: normal">
+    <h3 style="color: var(--tui-text-secondary); font-weight: normal">
       Release Notes
     </h3>
     <tui-scrollbar style="margin-bottom: 24px; max-height: 50vh;">
@@ -42,9 +41,9 @@ import { EOSService } from 'src/app/services/eos.service'
     MarkdownPipeModule,
     NgDompurifyModule,
     SafeLinksDirective,
-    TuiAutoFocusModule,
-    TuiButtonModule,
-    TuiScrollbarModule,
+    TuiAutoFocus,
+    TuiButton,
+    TuiScrollbar,
   ],
 })
 export class SettingsUpdateModal {

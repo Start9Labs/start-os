@@ -1,6 +1,6 @@
+import { TuiIcon } from '@taiga-ui/core'
 import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { TuiIconModule } from '@taiga-ui/experimental'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map, Observable, startWith } from 'rxjs'
 import { ConnectionService } from 'src/app/services/connection.service'
@@ -38,7 +38,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiIconModule, AsyncPipe],
+  imports: [TuiIcon, AsyncPipe],
 })
 export class HeaderConnectionComponent {
   readonly connection$: Observable<{
@@ -57,36 +57,36 @@ export class HeaderConnectionComponent {
       if (!network)
         return {
           message: 'No Internet',
-          color: 'var(--tui-error-fill)',
-          icon: 'tuiIconCloudOff',
+          color: 'var(--tui-status-negative)',
+          icon: '@tui.cloud-off',
           status: 'error',
         }
       if (!websocket)
         return {
           message: 'Connecting',
-          color: 'var(--tui-warning-fill)',
-          icon: 'tuiIconCloudOff',
+          color: 'var(--tui-status-warning)',
+          icon: '@tui.cloud-off',
           status: 'warning',
         }
       if (status.shuttingDown)
         return {
           message: 'Shutting Down',
-          color: 'var(--tui-neutral-fill)',
-          icon: 'tuiIconPower',
+          color: 'var(--tui-status-neutral)',
+          icon: '@tui.power',
           status: 'neutral',
         }
       if (status.restarting)
         return {
           message: 'Restarting',
-          color: 'var(--tui-neutral-fill)',
-          icon: 'tuiIconPower',
+          color: 'var(--tui-status-neutral)',
+          icon: '@tui.power',
           status: 'neutral',
         }
 
       return {
         message: 'Connected',
-        color: 'var(--tui-success-fill)',
-        icon: 'tuiIconCloud',
+        color: 'var(--tui-status-positive)',
+        icon: '@tui.cloud',
         status: 'success',
       }
     }),

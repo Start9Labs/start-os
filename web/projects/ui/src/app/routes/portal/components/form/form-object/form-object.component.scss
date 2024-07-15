@@ -36,6 +36,6 @@
 
   &_invalid::before,
   &_invalid::after {
-    background: var(--tui-error-bg);
+    background: var(--tui-status-negative-pale);
   }
 }

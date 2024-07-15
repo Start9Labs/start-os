@@ -1,3 +1,4 @@
+import { TuiCarousel } from '@taiga-ui/kit'
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -6,14 +7,9 @@ import {
   Input,
 } from '@angular/core'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
-import {
-  TuiButtonModule,
-  TuiDialogContext,
-  TuiDialogService,
-} from '@taiga-ui/core'
-import { TuiCarouselModule } from '@taiga-ui/kit'
+import { TuiDialogContext, TuiDialogService, TuiButton } from '@taiga-ui/core'
 import { MarketplacePkg } from '../../../types'
-import { PolymorpheusContent } from '@tinkoff/ng-polymorpheus'
+import { PolymorpheusContent } from '@taiga-ui/polymorpheus'
 
 @Component({
   selector: 'marketplace-package-screenshots',
@@ -22,7 +18,7 @@ import { PolymorpheusContent } from '@tinkoff/ng-polymorpheus'
       <button
         tuiIconButton
         appearance="flat"
-        icon="tuiIconChevronLeftLarge"
+        icon="@tui.chevron-left"
         title="Previous"
         type="button"
         (click)="carousel.prev()"
@@ -61,7 +57,7 @@ import { PolymorpheusContent } from '@tinkoff/ng-polymorpheus'
         tuiIconButton
         appearance="flat"
         type="button"
-        icon="tuiIconChevronRightLarge"
+        icon="@tui.chevron-right"
         title="Next"
         (click)="carousel.next()"
       ></button>
@@ -125,7 +121,7 @@ import { PolymorpheusContent } from '@tinkoff/ng-polymorpheus'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TuiCarouselModule, TuiButtonModule],
+  imports: [CommonModule, TuiCarousel, TuiButton],
 })
 export class MarketplacePackageScreenshotComponent {
   private readonly dialogs = inject(TuiDialogService)

@@ -1,3 +1,4 @@
+import { TuiIcon } from '@taiga-ui/core'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,7 +7,6 @@ import {
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { WINDOW } from '@ng-web-apis/common'
-import { TuiIconModule } from '@taiga-ui/experimental'
 import { Breadcrumb } from 'src/app/services/breadcrumbs.service'
 
 @Component({
@@ -19,7 +19,7 @@ import { Breadcrumb } from 'src/app/services/breadcrumbs.service'
         [style.padding.rem]="0.75"
         [queryParams]="queryParams"
       >
-        <tui-icon icon="tuiIconArrowLeft" />
+        <tui-icon icon="@tui.arrow-left" />
       </a>
     }
     <span class="title">{{ title }}</span>
@@ -65,7 +65,7 @@ import { Breadcrumb } from 'src/app/services/breadcrumbs.service'
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiIconModule, RouterLink],
+  imports: [TuiIcon, RouterLink],
 })
 export class HeaderMobileComponent {
   private readonly win = inject(WINDOW)

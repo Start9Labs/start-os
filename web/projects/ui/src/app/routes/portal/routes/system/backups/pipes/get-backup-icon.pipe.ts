@@ -9,11 +9,11 @@ export class GetBackupIconPipe implements PipeTransform {
   transform(type: BackupTargetType) {
     switch (type) {
       case 'cifs':
-        return 'tuiIconFolder'
+        return '@tui.folder'
       case 'cloud':
-        return 'tuiIconCloud'
+        return '@tui.cloud'
       case 'disk':
-        return 'tuiIconSave'
+        return '@tui.save'
     }
   }
 }

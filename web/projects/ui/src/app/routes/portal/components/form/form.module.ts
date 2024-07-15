@@ -1,54 +1,55 @@
-import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
+import { NgModule } from '@angular/core'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import { MaskitoModule } from '@maskito/angular'
-import { TuiMapperPipeModule, TuiValueChangesModule } from '@taiga-ui/cdk'
+import { TuiMapperPipe, TuiValueChanges } from '@taiga-ui/cdk'
 import {
-  TuiErrorModule,
-  TuiExpandModule,
-  TuiHintModule,
-  TuiLinkModule,
-  TuiModeModule,
-  TuiSvgModule,
-  TuiTextfieldControllerModule,
-  TuiTooltipModule,
-  TuiWrapperModule,
+  TuiAppearance,
+  TuiButton,
+  TuiError,
+  TuiExpand,
+  TuiHint,
+  TuiIcon,
+  TuiLink,
+  TuiNumberFormat,
 } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
 import {
-  TuiElasticContainerModule,
-  TuiFieldErrorPipeModule,
+  TuiElasticContainer,
+  TuiFieldErrorPipe,
+  TuiFiles,
+  TuiSwitch,
+  TuiTooltip,
+} from '@taiga-ui/kit'
+import {
   TuiInputDateModule,
   TuiInputDateTimeModule,
-  TuiInputFilesModule,
   TuiInputModule,
   TuiInputNumberModule,
   TuiInputTimeModule,
   TuiMultiSelectModule,
-  TuiPromptModule,
   TuiSelectModule,
   TuiTagModule,
-  TuiTextAreaModule,
-  TuiToggleModule,
-} from '@taiga-ui/kit'
+  TuiTextareaModule,
+  TuiTextfieldControllerModule,
+} from '@taiga-ui/legacy'
+import { ControlDirective } from './control.directive'
+import { FormArrayComponent } from './form-array/form-array.component'
+import { FormColorComponent } from './form-color/form-color.component'
+import { FormControlComponent } from './form-control/form-control.component'
+import { FormDatetimeComponent } from './form-datetime/form-datetime.component'
+import { FormFileComponent } from './form-file/form-file.component'
 
 import { FormGroupComponent } from './form-group/form-group.component'
-import { FormTextComponent } from './form-text/form-text.component'
-import { FormToggleComponent } from './form-toggle/form-toggle.component'
-import { FormTextareaComponent } from './form-textarea/form-textarea.component'
-import { FormNumberComponent } from './form-number/form-number.component'
-import { FormSelectComponent } from './form-select/form-select.component'
-import { FormFileComponent } from './form-file/form-file.component'
 import { FormMultiselectComponent } from './form-multiselect/form-multiselect.component'
-import { FormUnionComponent } from './form-union/form-union.component'
+import { FormNumberComponent } from './form-number/form-number.component'
 import { FormObjectComponent } from './form-object/form-object.component'
-import { FormArrayComponent } from './form-array/form-array.component'
-import { FormControlComponent } from './form-control/form-control.component'
-import { MustachePipe } from './mustache.pipe'
-import { ControlDirective } from './control.directive'
-import { FormColorComponent } from './form-color/form-color.component'
-import { FormDatetimeComponent } from './form-datetime/form-datetime.component'
+import { FormSelectComponent } from './form-select/form-select.component'
+import { FormTextComponent } from './form-text/form-text.component'
+import { FormTextareaComponent } from './form-textarea/form-textarea.component'
+import { FormToggleComponent } from './form-toggle/form-toggle.component'
+import { FormUnionComponent } from './form-union/form-union.component'
 import { HintPipe } from './hint.pipe'
+import { MustachePipe } from './mustache.pipe'
 
 @NgModule({
   imports: [
@@ -57,31 +58,30 @@ import { HintPipe } from './hint.pipe'
     ReactiveFormsModule,
     TuiInputModule,
     TuiInputNumberModule,
-    TuiInputFilesModule,
-    TuiTextAreaModule,
+    ...TuiFiles,
+    TuiTextareaModule,
     TuiSelectModule,
     TuiMultiSelectModule,
-    TuiToggleModule,
-    TuiTooltipModule,
-    TuiHintModule,
-    TuiModeModule,
+    TuiSwitch,
+    TuiTooltip,
+    ...TuiHint,
     TuiTagModule,
-    TuiButtonModule,
-    TuiExpandModule,
+    TuiButton,
+    ...TuiExpand,
     TuiTextfieldControllerModule,
-    TuiLinkModule,
-    TuiPromptModule,
-    TuiErrorModule,
-    TuiFieldErrorPipeModule,
-    TuiValueChangesModule,
-    TuiElasticContainerModule,
+    TuiLink,
+    TuiError,
+    TuiFieldErrorPipe,
+    TuiValueChanges,
+    TuiElasticContainer,
     MaskitoModule,
-    TuiSvgModule,
-    TuiWrapperModule,
     TuiInputDateModule,
     TuiInputTimeModule,
     TuiInputDateTimeModule,
-    TuiMapperPipeModule,
+    TuiMapperPipe,
+    TuiAppearance,
+    TuiIcon,
+    TuiNumberFormat,
   ],
   declarations: [
     FormGroupComponent,

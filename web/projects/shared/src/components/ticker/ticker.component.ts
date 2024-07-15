@@ -8,7 +8,7 @@ import {
 
 @Component({
   selector: '[ticker]',
-  template: '<ng-content></ng-content>',
+  template: '<ng-content />',
   styleUrls: ['./ticker.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

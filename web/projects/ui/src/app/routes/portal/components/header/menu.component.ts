@@ -1,19 +1,13 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { RouterLink } from '@angular/router'
-import { TuiActiveZoneModule } from '@taiga-ui/cdk'
 import {
-  TuiDataListModule,
+  TuiButton,
+  TuiDataList,
   TuiDialogService,
-  TuiDropdownModule,
-  TuiHostedDropdownModule,
-  TuiSvgModule,
+  TuiDropdown,
+  TuiIcon,
 } from '@taiga-ui/core'
-import {
-  TuiBadgeNotificationModule,
-  TuiButtonModule,
-  TuiIconModule,
-} from '@taiga-ui/experimental'
-import { TuiDataListDropdownManagerModule } from '@taiga-ui/kit'
+import { TuiBadgeNotification, TuiDataListDropdownManager } from '@taiga-ui/kit'
 import { RESOURCES } from 'src/app/utils/resources'
 import { getMenu } from 'src/app/utils/system-utilities'
 import { ABOUT } from './about.component'
@@ -21,74 +15,75 @@ import { ABOUT } from './about.component'
 @Component({
   selector: 'header-menu',
   template: `
-    <tui-hosted-dropdown
-      [content]="content"
-      [(open)]="open"
+    <button
+      tuiIconButton
+      appearance=""
+      [tuiDropdown]="content"
+      [(tuiDropdownOpen)]="open"
       [tuiDropdownMaxHeight]="9999"
     >
-      <button tuiIconButton appearance="">
-        <img [style.max-width.%]="50" src="assets/img/icon.png" alt="StartOS" />
-      </button>
-      <ng-template #content let-zone>
-        <tui-data-list
-          tuiDataListDropdownManager
-          [tuiActiveZoneParent]="zone"
-          [style.width.rem]="13"
-        >
-          @for (link of utils; track $index) {
-            <a
-              tuiOption
-              class="item"
-              [routerLink]="link.routerLink"
-              (click)="open = false"
-            >
-              <tui-icon [icon]="link.icon" />
-              {{ link.name }}
-              @if (link.badge(); as badge) {
-                <tui-badge-notification>{{ badge }}</tui-badge-notification>
-              }
-            </a>
-            @if (!$index || $index === 3 || $index === 5) {
-              <hr />
-            }
-          }
-          <hr />
-          <button
+      <img [style.max-width.%]="50" src="assets/img/icon.png" alt="StartOS" />
+    </button>
+    <ng-template #content>
+      <tui-data-list tuiDataListDropdownManager [style.width.rem]="13">
+        @for (link of utils; track $index) {
+          <a
             tuiOption
             class="item"
-            tuiDropdownSided
-            [tuiDropdown]="dropdown"
-            [tuiDropdownOffset]="12"
-            [tuiDropdownManual]="false"
+            [iconStart]="link.icon"
+            [routerLink]="link.routerLink"
+            (click)="open = false"
           >
-            <tui-icon icon="tuiIconHelpCircle" />
-            Resources
-            <ng-template #dropdown>
-              <tui-data-list [tuiActiveZoneParent]="zone">
-                <button tuiOption class="item" (click)="about()">
-                  <tui-icon icon="tuiIconInfo" />
-                  About this server
-                </button>
-                <hr />
-                @for (link of links; track $index) {
-                  <a
-                    tuiOption
-                    class="item"
-                    target="_blank"
-                    rel="noreferrer"
-                    [href]="link.href"
-                  >
-                    <tui-icon [icon]="link.icon" />
-                    {{ link.name }}
-                    <tui-icon class="external" icon="tuiIconExternalLink" />
-                  </a>
-                }
-              </tui-data-list>
-            </ng-template>
-          </button>
-        </tui-data-list>
-      </ng-template>
-    </tui-hosted-dropdown>
+            {{ link.name }}
+            @if (link.badge(); as badge) {
+              <tui-badge-notification>{{ badge }}</tui-badge-notification>
+            }
+          </a>
+          @if (!$index || $index === 3 || $index === 5) {
+            <hr />
+          }
+        }
+        <hr />
+        <button
+          tuiOption
+          class="item"
+          tuiDropdownSided
+          iconStart="@tui.circle-help"
+          iconEnd="@tui.chevron-right"
+          [tuiDropdown]="dropdown"
+          [tuiDropdownOffset]="12"
+          [tuiDropdownManual]="false"
+        >
+          Resources
+          <ng-template #dropdown>
+            <tui-data-list>
+              <button
+                tuiOption
+                iconStart="@tui.info"
+                class="item"
+                (click)="about()"
+              >
+                About this server
+              </button>
+              <hr />
+              @for (link of links; track $index) {
+                <a
+                  tuiOption
+                  class="item"
+                  target="_blank"
+                  rel="noreferrer"
+                  iconEnd="@tui.external-link"
+                  [iconStart]="link.icon"
+                  [href]="link.href"
+                >
+                  {{ link.name }}
+                </a>
+              }
+            </tui-data-list>
+          </ng-template>
+        </button>
+      </tui-data-list>
+    </ng-template>
   `,
   styles: [
     `
@@ -108,31 +103,20 @@ import { ABOUT } from './about.component'
       .item {
         justify-content: flex-start;
         gap: 0.75rem;
-
-        ::ng-deep tui-svg {
-          margin-left: auto;
-        }
-      }
-
-      .external {
-        margin-left: auto;
-        padding-left: 0.5rem;
       }
     `,
   ],
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    TuiHostedDropdownModule,
-    TuiDataListModule,
-    TuiSvgModule,
-    TuiButtonModule,
-    TuiIconModule,
+    TuiDropdown,
+    TuiDataList,
+    TuiButton,
+    TuiIcon,
     RouterLink,
-    TuiBadgeNotificationModule,
-    TuiDropdownModule,
-    TuiDataListDropdownManagerModule,
-    TuiActiveZoneModule,
+    TuiBadgeNotification,
+    TuiDropdown,
+    TuiDataListDropdownManager,
   ],
 })
 export class HeaderMenuComponent {

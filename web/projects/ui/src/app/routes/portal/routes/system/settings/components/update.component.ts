@@ -6,8 +6,7 @@ import {
 } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiIconModule, TuiTitleModule } from '@taiga-ui/experimental'
-import { TuiDialogService } from '@taiga-ui/core'
+import { TuiDialogService, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { EOSService } from 'src/app/services/eos.service'
 import { UPDATE } from '../modals/update.component'
 
@@ -19,27 +18,27 @@ import { UPDATE } from '../modals/update.component'
       [disabled]="service.updatingOrBackingUp$ | async"
       (click)="onClick()"
     >
-      <tui-icon icon="tuiIconDownloadCloudLarge"></tui-icon>
+      <tui-icon icon="@tui.cloud-download"></tui-icon>
       <div tuiTitle>
         <strong>Software Update</strong>
         <div tuiSubtitle>Get the latest version of StartOS</div>
         <div
           *ngIf="updated; else notUpdated"
           tuiSubtitle
-          [style.color]="'var(--tui-warning-fill)'"
+          [style.color]="'var(--tui-status-warning)'"
         >
           Update Complete. Restart to apply changes
         </div>
         <ng-template #notUpdated>
           <ng-container *ngIf="service.showUpdate$ | async; else check">
-            <div tuiSubtitle [style.color]="'var(--tui-success-fill)'">
-              <tui-icon class="small" icon="tuiIconZapLarge" />
+            <div tuiSubtitle [style.color]="'var(--tui-status-positive)'">
+              <tui-icon class="small" icon="@tui.zap" />
               Update Available
             </div>
           </ng-container>
           <ng-template #check>
-            <div tuiSubtitle [style.color]="'var(--tui-info-fill)'">
-              <tui-icon class="small" icon="tuiIconRotateCwLarge" />
+            <div tuiSubtitle [style.color]="'var(--tui-status-info)'">
+              <tui-icon class="small" icon="@tui.rotate-cw" />
               Check for updates
             </div>
           </ng-template>
@@ -50,7 +49,7 @@ import { UPDATE } from '../modals/update.component'
   styles: `
     :host {
       display: block;
-      box-shadow: 0 1px var(--tui-clear);
+      box-shadow: 0 1px var(--tui-background-neutral-1);
     }
 
     button {
@@ -63,7 +62,7 @@ import { UPDATE } from '../modals/update.component'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TuiIconModule, TuiTitleModule],
+  imports: [CommonModule, TuiIcon, TuiTitle],
 })
 export class SettingsUpdateComponent {
   private readonly dialogs = inject(TuiDialogService)

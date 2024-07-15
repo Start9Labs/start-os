@@ -1,7 +1,7 @@
+import { TuiButton } from '@taiga-ui/core'
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { RouterModule, Routes } from '@angular/router'
-import { TuiButtonModule } from '@taiga-ui/experimental'
 import { HomePage } from './home.page'
 
 const ROUTES: Routes = [
@@ -12,7 +12,7 @@ const ROUTES: Routes = [
 ]
 
 @NgModule({
-  imports: [CommonModule, TuiButtonModule, RouterModule.forChild(ROUTES)],
+  imports: [CommonModule, TuiButton, RouterModule.forChild(ROUTES)],
   declarations: [HomePage],
 })
 export class HomePageModule {}
