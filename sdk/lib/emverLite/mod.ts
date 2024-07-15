@@ -3,19 +3,29 @@ import * as matches from "ts-matches"
 const starSub = /((\d+\.)*\d+)\.\*/
 
 type Decrement = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-type MaybeRepeat<S extends string, N extends number> = N extends 0
-  ? ""
-  : `${S}${MaybeRepeat<S, Decrement[N]>}` | `${MaybeRepeat<S, Decrement[N]>}`
-
-export type ValidVersion =
-  | `${bigint}${MaybeRepeat<`.${bigint}`, 10>}`
-  | `${bigint}${MaybeRepeat<`.${bigint}`, 10>}-${string}`
+//
+// prettier-ignore
+export type ValidateVersion<T extends String> = 
+T extends `-${infer A}` ? never  :
+T extends `${infer A}-${infer B}` ? ValidateVersion<A> & ValidateVersion<B> :
+  T extends `${bigint}` ? unknown :
+  T extends `${bigint}.${infer A}` ? ValidateVersion<A> :
+  never
 
 // prettier-ignore
-export type ValidExVer = `${ValidVersion}:${ValidVersion}` | `#${string}:${ValidVersion}:${ValidVersion}`;
+export type ValidateExVer<T extends string> = 
+  T extends `#${string}:${infer A}:${infer B}` ? ValidateVersion<A> & ValidateVersion<B> :
+  T extends `${infer A}:${infer B}` ? ValidateVersion<A> & ValidateVersion<B> :  
+  never
 
 // prettier-ignore
-export type ValidExVerRange = string;
+export type ValidateExVers<T> =
+  T extends [] ? unknown :
+  T extends [infer A, ...infer B] ? ValidateExVer<A & string> & ValidateExVers<B> :
+  never
+
+// prettier-ignore
+export type ValidExVerRangeDep = string;
 
 function incrementLastNumber(list: number[]) {
   const newList = [...list]
@@ -94,11 +104,15 @@ export class EmVer {
         throw new Error(`Couldn't parse range: ${range}`)
       }
     }
-    return new EmVer(values, extra)
+    const extraValue = extra ? parseInt(extra) : null
+    if (!!extraValue && isNaN(extraValue)) {
+      throw new Error(`Couldn't parse range: ${extra}`)
+    }
+    return new EmVer(values, extraValue)
   }
   private constructor(
     public readonly values: number[],
-    readonly extra: string | null,
+    readonly extra: number | null,
   ) {}
 
   /**
@@ -174,7 +188,9 @@ export class EmVer {
   }
 
   toString() {
-    return `${this.values.join(".")}${this.extra ? `-${this.extra}` : ""}` as ValidExVer
+    const value =
+      `${this.values.join(".") as `0.0`}${this.extra ? (`-${this.extra}` as const) : ""}` as const
+    return testTypeVersion(value)
   }
 }
 
@@ -273,12 +289,14 @@ export class Checker {
      * Check is the function that will be given a emver or unparsed emver and should give if it follows
      * a pattern
      */
-    public readonly check: (value: ValidExVer | EmVer) => boolean,
+    public readonly check: <A extends string = "">(
+      value: EmVer | (A & ValidateExVer<A>),
+    ) => boolean,
     private readonly _range: string,
   ) {}
 
   get range() {
-    return this._range as ValidExVerRange
+    return this._range as ValidExVerRangeDep
   }
 
   /**
@@ -331,4 +349,40 @@ export class Checker {
     let newRange = `!${this._range}`
     return Checker.parse(newRange)
   }
+}
+export const testTypeEmverLite = <T extends string>(t: T & ValidateExVer<T>) =>
+  t
+
+export const testTypeVersion = <T extends string>(t: T & ValidateVersion<T>) =>
+  t
+function tests() {
+  testTypeVersion("1.2.3")
+  testTypeVersion("1")
+  testTypeVersion("12.34.56")
+  testTypeVersion("1.2-3")
+  testTypeVersion("1-3")
+  // @ts-expect-error
+  testTypeVersion("-3")
+  // @ts-expect-error
+  testTypeVersion("1.2.3:1")
+  // @ts-expect-error
+  testTypeVersion("#cat:1:1")
+
+  testTypeEmverLite("1.2.3:1.2.3")
+  testTypeEmverLite("1.2.3.4.5.6.7.8.9.0:1")
+  testTypeEmverLite("100:1")
+  testTypeEmverLite("#cat:1:1")
+  testTypeEmverLite("1.2.3.4.5.6.7.8.9.11.22.33:1")
+  testTypeEmverLite("1-0:1")
+  testTypeEmverLite("1-0:1")
+  // @ts-expect-error
+  testTypeEmverLite("1.2-3")
+  // @ts-expect-error
+  testTypeEmverLite("1-3")
+  // @ts-expect-error
+  testTypeEmverLite("1.2.3.4.5.6.7.8.9.0.10:1" as string)
+  // @ts-expect-error
+  testTypeEmverLite("1.-2:1")
+  // @ts-expect-error
+  testTypeEmverLite("1..2.3:3")
 }

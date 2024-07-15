@@ -1,4 +1,3 @@
-import { ManifestVersion, SDKManifest } from "./manifest/ManifestTypes"
 import { RequiredDefault, Value } from "./config/builder/value"
 import { Config, ExtractConfigType, LazyBuild } from "./config/builder/config"
 import {
@@ -73,13 +72,13 @@ import { splitCommand } from "./util/splitCommand"
 import { Mounts } from "./mainFn/Mounts"
 import { Dependency } from "./Dependency"
 import * as T from "./types"
-import { Checker, EmVer, ValidVersion } from "./emverLite/mod"
+import { Checker, EmVer, testTypeVersion, ValidateExVer } from "./emverLite/mod"
 import { ExposedStorePaths } from "./store/setupExposeStore"
 import { PathBuilder, extractJsonPath, pathBuilder } from "./store/PathBuilder"
 import { checkAllDependencies } from "./dependencies/dependencies"
 import { health } from "."
 
-export const SDKVersion: ValidVersion = "0.3.6"
+export const SDKVersion = testTypeVersion("0.3.6")
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
@@ -549,8 +548,8 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         ) => List.dynamicNumber<Store>(getA),
       },
       Migration: {
-        of: <Version extends ManifestVersion>(options: {
-          version: Version
+        of: <Version extends string>(options: {
+          version: Version & ValidateExVer<Version>
           up: (opts: { effects: Effects }) => Promise<void>
           down: (opts: { effects: Effects }) => Promise<void>
         }) => Migration.of<Manifest, Store, Version>(options),
