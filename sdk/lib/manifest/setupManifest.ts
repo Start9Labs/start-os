@@ -1,24 +1,25 @@
 import * as T from "../types"
 import { ImageConfig, ImageId, VolumeId } from "../osBindings"
-import { SDKManifest, ManifestVersion, SDKImageConfig } from "./ManifestTypes"
+import { SDKManifest, SDKImageConfig } from "./ManifestTypes"
 import { SDKVersion } from "../StartSdk"
+import { ValidateExVer } from "../emverLite/mod"
 
 export function setupManifest<
   Id extends string,
-  Version extends ManifestVersion,
+  Version extends string,
   Dependencies extends Record<string, unknown>,
   VolumesTypes extends VolumeId,
   AssetTypes extends VolumeId,
   ImagesTypes extends ImageId,
-  Manifest extends SDKManifest & {
+  Manifest extends SDKManifest<Version, Satisfies> & {
     dependencies: Dependencies
     id: Id
-    version: Version
     assets: AssetTypes[]
     images: Record<ImagesTypes, SDKImageConfig>
     volumes: VolumesTypes[]
   },
->(manifest: Manifest): Manifest & T.Manifest {
+  Satisfies extends string[] = [],
+>(manifest: Manifest & { version: Version }): Manifest & T.Manifest {
   const images = Object.entries(manifest.images).reduce(
     (images, [k, v]) => {
       v.arch = v.arch || ["aarch64", "x86_64"]

@@ -1,14 +1,14 @@
-import { ManifestVersion, SDKManifest } from "../../manifest/ManifestTypes"
+import { ValidateExVer } from "../../emverLite/mod"
 import * as T from "../../types"
 
 export class Migration<
   Manifest extends T.Manifest,
   Store,
-  Version extends ManifestVersion,
+  Version extends string,
 > {
   constructor(
     readonly options: {
-      version: Version
+      version: Version & ValidateExVer<Version>
       up: (opts: { effects: T.Effects }) => Promise<void>
       down: (opts: { effects: T.Effects }) => Promise<void>
     },
@@ -16,9 +16,9 @@ export class Migration<
   static of<
     Manifest extends T.Manifest,
     Store,
-    Version extends ManifestVersion,
+    Version extends string,
   >(options: {
-    version: Version
+    version: Version & ValidateExVer<Version>
     up: (opts: { effects: T.Effects }) => Promise<void>
     down: (opts: { effects: T.Effects }) => Promise<void>
   }) {

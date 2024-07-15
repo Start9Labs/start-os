@@ -1,5 +1,4 @@
-import { InterfaceReceipt } from "../interfaces/interfaceReceipt"
-import { Daemon, Effects, SDKManifest } from "../types"
+import { Effects } from "../types"
 import { CheckResult } from "./checkFns/CheckResult"
 import { HealthReceipt } from "./HealthReceipt"
 import { Trigger } from "../trigger"
