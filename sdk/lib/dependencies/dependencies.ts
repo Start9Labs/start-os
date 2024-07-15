@@ -3,20 +3,23 @@ import {
   PackageId,
   DependencyRequirement,
   SetHealth,
-  CheckDependencyResult,
+  CheckDependenciesResult,
 } from "../types"
 
 export type CheckAllDependencies = {
-  notRunning: () => Promise<CheckDependencyResult[]>
-
-  notInstalled: () => Promise<CheckDependencyResult[]>
-
+  notInstalled: () => Promise<CheckDependenciesResult[]>
+  notRunning: () => Promise<CheckDependenciesResult[]>
+  configNotSatisfied: () => Promise<CheckDependenciesResult[]>
   healthErrors: () => Promise<{ [id: string]: SetHealth[] }>
-  throwIfNotRunning: () => Promise<void>
-  throwIfNotValid: () => Promise<undefined>
-  throwIfNotInstalled: () => Promise<void>
-  throwIfError: () => Promise<void>
+
   isValid: () => Promise<boolean>
+
+  throwIfNotRunning: () => Promise<void>
+  throwIfNotInstalled: () => Promise<void>
+  throwIfConfigNotSatisfied: () => Promise<void>
+  throwIfHealthError: () => Promise<void>
+
+  throwIfNotValid: () => Promise<void>
 }
 export function checkAllDependencies(effects: Effects): CheckAllDependencies {
   const dependenciesPromise = effects.getDependencies()
@@ -45,14 +48,16 @@ export function checkAllDependencies(effects: Effects): CheckAllDependencies {
       if (!dependency) continue
       if (dependency.kind !== "running") continue
 
-      const healthChecks = result.healthChecks
-        .filter((x) => dependency.healthChecks.includes(x.id))
+      const healthChecks = Object.entries(result.healthChecks)
+        .map(([id, hc]) => ({ ...hc, id }))
         .filter((x) => !!x.message)
       if (healthChecks.length === 0) continue
       answer[result.packageId] = healthChecks
     }
     return answer
   }
+  const configNotSatisfied = () =>
+    resultsPromise.then((x) => x.filter((x) => !x.configSatisfied))
   const notInstalled = () =>
     resultsPromise.then((x) => x.filter((x) => !x.isInstalled))
   const notRunning = async () => {
@@ -68,7 +73,7 @@ export function checkAllDependencies(effects: Effects): CheckAllDependencies {
   const entries = <B>(x: { [k: string]: B }) => Object.entries(x)
   const first = <A>(x: A[]): A | undefined => x[0]
   const sinkVoid = <A>(x: A) => void 0
-  const throwIfError = () =>
+  const throwIfHealthError = () =>
     healthErrors()
       .then(entries)
       .then(first)
@@ -78,6 +83,14 @@ export function checkAllDependencies(effects: Effects): CheckAllDependencies {
         if (healthChecks.length > 0)
           throw `Package ${id} has the following errors: ${healthChecks.map((x) => x.message).join(", ")}`
       })
+
+  const throwIfConfigNotSatisfied = () =>
+    configNotSatisfied().then((results) => {
+      throw new Error(
+        `Package ${results[0].packageId} does not have a valid configuration`,
+      )
+    })
+
   const throwIfNotRunning = () =>
     notRunning().then((results) => {
       if (results[0])
@@ -93,7 +106,8 @@ export function checkAllDependencies(effects: Effects): CheckAllDependencies {
     Promise.all([
       throwIfNotRunning(),
       throwIfNotInstalled(),
-      throwIfError(),
+      throwIfConfigNotSatisfied(),
+      throwIfHealthError(),
     ]).then(sinkVoid)
 
   const isValid = () =>
@@ -105,11 +119,13 @@ export function checkAllDependencies(effects: Effects): CheckAllDependencies {
   return {
     notRunning,
     notInstalled,
+    configNotSatisfied,
     healthErrors,
     throwIfNotRunning,
+    throwIfConfigNotSatisfied,
     throwIfNotValid,
     throwIfNotInstalled,
-    throwIfError,
+    throwIfHealthError,
     isValid,
   }
 }

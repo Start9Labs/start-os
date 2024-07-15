@@ -12,6 +12,7 @@ import {
   LanInfo,
   BindParams,
   Manifest,
+  CheckDependenciesResult,
 } from "./osBindings"
 
 import { MainEffects, ServiceInterfaceType, Signals } from "./StartSdk"
@@ -455,7 +456,7 @@ export type Effects = {
    */
   checkDependencies(options: {
     packageIds: PackageId[] | null
-  }): Promise<CheckDependencyResult[]>
+  }): Promise<CheckDependenciesResult[]>
   /** Exists could be useful during the runtime to know if some service exists, option dep */
   exists(options: { packageId: PackageId }): Promise<boolean>
   /** Exists could be useful during the runtime to know if some service is running, option dep */
@@ -539,12 +540,3 @@ export type Dependencies = Array<DependencyRequirement>
 export type DeepPartial<T> = T extends {}
   ? { [P in keyof T]?: DeepPartial<T[P]> }
   : T
-
-export type CheckDependencyResult = {
-  packageId: PackageId
-  isInstalled: boolean
-  isRunning: boolean
-  healthChecks: SetHealth[]
-  version: string | null
-}
-export type CheckResults = CheckDependencyResult[]

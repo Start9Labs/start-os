@@ -1335,7 +1335,8 @@ struct CheckDependenciesResult {
     package_id: PackageId,
     is_installed: bool,
     is_running: bool,
-    health_checks: Vec<HealthCheckResult>,
+    config_satisfied: bool,
+    health_checks: BTreeMap<HealthCheckId, HealthCheckResult>,
     #[ts(type = "string | null")]
     version: Option<exver::ExtendedVersion>,
 }
@@ -1369,24 +1370,27 @@ async fn check_dependencies(
                 package_id,
                 is_installed: false,
                 is_running: false,
-                health_checks: vec![],
+                config_satisfied: false,
+                health_checks: Default::default(),
                 version: None,
             });
             continue;
         };
-        let installed_version = package
-            .as_state_info()
-            .as_manifest(ManifestPreference::New)
-            .as_version()
-            .de()?
-            .into_version();
+        let manifest = package.as_state_info().as_manifest(ManifestPreference::New);
+        let installed_version = manifest.as_version().de()?.into_version();
+        let satisfies = manifest.as_satisfies().de()?;
         let version = Some(installed_version.clone());
-        if !installed_version.satisfies(&dependency_info.version_spec) {
+        if ![installed_version]
+            .into_iter()
+            .chain(satisfies.into_iter().map(|v| v.into_version()))
+            .any(|v| v.satisfies(&dependency_info.version_spec))
+        {
             results.push(CheckDependenciesResult {
                 package_id,
                 is_installed: false,
                 is_running: false,
-                health_checks: vec![],
+                config_satisfied: false,
+                health_checks: Default::default(),
                 version,
             });
             continue;
@@ -1398,17 +1402,23 @@ async fn check_dependencies(
         } else {
             false
         };
-        let health_checks = status
-            .health()
-            .cloned()
-            .unwrap_or_default()
-            .into_iter()
-            .map(|(_, val)| val)
-            .collect();
+        let health_checks =
+            if let CurrentDependencyKind::Running { health_checks } = &dependency_info.kind {
+                status
+                    .health()
+                    .cloned()
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter(|(id, _)| health_checks.contains(id))
+                    .collect()
+            } else {
+                Default::default()
+            };
         results.push(CheckDependenciesResult {
             package_id,
             is_installed,
             is_running,
+            config_satisfied: dependency_info.config_satisfied,
             health_checks,
             version,
         });
