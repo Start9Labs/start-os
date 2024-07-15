@@ -1,8 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { MenuModule } from '@start9labs/marketplace'
-import { TuiButtonModule, TuiDialogService } from '@taiga-ui/core'
+import {
+  TuiDialogService,
+  TuiIcon,
+  TuiButton,
+  TuiAppearance,
+} from '@taiga-ui/core'
 import { ConfigService } from 'src/app/services/config.service'
-import { TuiAppearanceModule, TuiIconModule } from '@taiga-ui/experimental'
 import { MARKETPLACE_REGISTRY } from '../modals/registry.component'
 
 @Component({
@@ -15,13 +19,13 @@ import { MARKETPLACE_REGISTRY } from '../modals/registry.component'
         tuiIconButton
         type="button"
         appearance="icon"
-        icon="tuiIconRepeatLarge"
+        icon="@tui.repeat"
         (click)="changeRegistry()"
       >
         Change Registry
       </button>
       <button slot="mobile" class="mobile-button" (click)="changeRegistry()">
-        <tui-icon tuiAppearance="icon" icon="tuiIconRepeatLarge"></tui-icon>
+        <tui-icon tuiAppearance="icon" icon="@tui.repeat"></tui-icon>
         Change Registry
       </button>
     </menu>
@@ -41,7 +45,7 @@ import { MARKETPLACE_REGISTRY } from '../modals/registry.component'
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MenuModule, TuiButtonModule, TuiIconModule, TuiAppearanceModule],
+  imports: [MenuModule, TuiButton, TuiIcon, TuiAppearance],
 })
 export class MarketplaceMenuComponent {
   private readonly dialogs = inject(TuiDialogService)

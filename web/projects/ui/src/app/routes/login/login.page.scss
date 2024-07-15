@@ -1,15 +1,13 @@
 @import '@taiga-ui/core/styles/taiga-ui-local';
 
-:host {
-  background: var(--tui-base-02);
-}
-
 .card {
   @include center-all();
   overflow: visible;
   align-items: center;
   text-align: center;
   width: max(33%, 20rem);
+  background: var(--tui-background-base-alt);
+  box-shadow: var(--tui-shadow-small);
 }
 
 .logo {

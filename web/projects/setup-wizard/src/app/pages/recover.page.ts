@@ -1,15 +1,15 @@
 import { Component, inject } from '@angular/core'
 import { Router } from '@angular/router'
 import { DriveComponent, ErrorService } from '@start9labs/shared'
-import { TuiDialogService, TuiLoaderModule } from '@taiga-ui/core'
 import {
-  TuiButtonModule,
-  TuiCardModule,
-  TuiCellModule,
-  TuiIconModule,
-  TuiTitleModule,
-} from '@taiga-ui/experimental'
-import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+  TuiButton,
+  TuiDialogService,
+  TuiIcon,
+  TuiLoader,
+  TuiTitle,
+} from '@taiga-ui/core'
+import { TuiCardLarge, TuiCell } from '@taiga-ui/layout'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { filter } from 'rxjs'
 import { CifsComponent } from 'src/app/components/cifs.component'
 import { PASSWORD } from 'src/app/components/password.component'
@@ -33,7 +33,7 @@ import { StateService } from 'src/app/services/state.service'
         to the same network as your server.
 
         <button tuiCell (click)="onCifs()">
-          <tui-icon icon="tuiIconFolder" />
+          <tui-icon icon="@tui.folder" />
           <span tuiTitle>Open</span>
         </button>
 
@@ -51,29 +51,29 @@ import { StateService } from 'src/app/services/state.service'
           <button tuiCell [drive]="d" [disabled]="empty(d)" (click)="select(d)">
             <span tuiSubtitle>
               @if (empty(d)) {
-                <tui-icon icon="tuiIconCloudOff" class="g-error" />
+                <tui-icon icon="@tui.cloud-off" class="g-error" />
                 <strong>No StartOS backup</strong>
               } @else {
-                <tui-icon icon="tuiIconCloud" class="g-success" />
+                <tui-icon icon="@tui.cloud" class="g-success" />
                 <strong>StartOS backup detected</strong>
               }
             </span>
           </button>
         }
 
-        <button tuiButton iconLeft="tuiIconRotateCwLarge" (click)="refresh()">
+        <button tuiButton iconStart="@tui.rotate-cw" (click)="refresh()">
           Refresh
         </button>
       }
     </section>
   `,
   imports: [
-    TuiCardModule,
-    TuiLoaderModule,
-    TuiButtonModule,
-    TuiCellModule,
-    TuiIconModule,
-    TuiTitleModule,
+    TuiCardLarge,
+    TuiLoader,
+    TuiButton,
+    TuiCell,
+    TuiIcon,
+    TuiTitle,
     DriveComponent,
   ],
 })

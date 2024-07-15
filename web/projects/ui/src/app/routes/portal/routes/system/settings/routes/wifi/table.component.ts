@@ -7,14 +7,9 @@ import {
   Input,
 } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiDialogOptions } from '@taiga-ui/core'
-import {
-  TuiBadgeModule,
-  TuiButtonModule,
-  TuiCellModule,
-  TuiIconModule,
-  TuiTitleModule,
-} from '@taiga-ui/experimental'
+import { TuiButton, TuiDialogOptions, TuiIcon, TuiTitle } from '@taiga-ui/core'
+import { TuiBadge } from '@taiga-ui/kit'
+import { TuiCell } from '@taiga-ui/layout'
 import {
   FormComponent,
   FormContext,
@@ -32,11 +27,7 @@ import { SettingsWifiComponent } from './wifi.component'
         <div tuiTitle>
           <strong>
             {{ network.ssid }}
-            <tui-badge
-              *ngIf="network.connected"
-              appearance="success"
-              [dot]="true"
-            >
+            <tui-badge *ngIf="network.connected" appearance="success">
               Connected
             </tui-badge>
           </strong>
@@ -55,7 +46,7 @@ import { SettingsWifiComponent } from './wifi.component'
           tuiIconButton
           size="s"
           appearance="icon"
-          iconLeft="tuiIconTrash2"
+          iconStart="@tui.trash-2"
           (click)="forget(network)"
         >
           Forget
@@ -63,7 +54,7 @@ import { SettingsWifiComponent } from './wifi.component'
         <ng-template #strength>
           <tui-icon
             [style.width.rem]="2"
-            [icon]="network.security.length ? 'tuiIconLock' : 'tuiIconUnlock'"
+            [icon]="network.security.length ? '@tui.lock' : '@tui.lock-open'"
           />
         </ng-template>
         <img
@@ -77,14 +68,7 @@ import { SettingsWifiComponent } from './wifi.component'
   host: { style: 'align-items: stretch' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [
-    CommonModule,
-    TuiCellModule,
-    TuiTitleModule,
-    TuiBadgeModule,
-    TuiButtonModule,
-    TuiIconModule,
-  ],
+  imports: [CommonModule, TuiCell, TuiTitle, TuiBadge, TuiButton, TuiIcon],
 })
 export class WifiTableComponent {
   private readonly loader = inject(LoadingService)

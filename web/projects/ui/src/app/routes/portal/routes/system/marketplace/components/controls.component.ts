@@ -1,3 +1,4 @@
+import { TuiButton } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -18,7 +19,6 @@ import {
   sameUrl,
   EmverPipesModule,
 } from '@start9labs/shared'
-import { TuiButtonModule } from '@taiga-ui/experimental'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
 import {
@@ -97,7 +97,7 @@ import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
   `,
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, EmverPipesModule, TuiButtonModule, ToManifestPipe],
+  imports: [CommonModule, EmverPipesModule, TuiButton, ToManifestPipe],
 })
 export class MarketplaceControlsComponent {
   private readonly alerts = inject(MarketplaceAlertsService)

@@ -12,15 +12,15 @@ export class PlatformInfoPipe implements PipeTransform {
   } {
     const info = {
       name: '',
-      icon: 'tuiIconSmartphone',
+      icon: '@tui.smartphone',
     }
 
     if (platforms.includes('cli')) {
       info.name = 'CLI'
-      info.icon = 'tuiIconTerminal'
+      info.icon = '@tui.terminal'
     } else if (platforms.includes('desktop')) {
       info.name = 'Desktop/Laptop'
-      info.icon = 'tuiIconMonitor'
+      info.icon = '@tui.monitor'
     } else if (platforms.includes('android')) {
       info.name = 'Android Device'
     } else if (platforms.includes('iphone')) {

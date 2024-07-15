@@ -1,18 +1,6 @@
 <svg-definitions />
-<!--TODO: Theme-->
-<tui-root tuiTheme="night" tuiMode="onDark" [class.offline]="offline$ | async">
+<tui-root tuiTheme="dark" [class.offline]="offline$ | async">
   <router-outlet />
   <toast-container />
   <sidebar-host ngProjectAs="tuiOverContent" />
 </tui-root>
-
-<!--TODO: Theme-->
-@if (auth.isVerified$ | async) {
-  @switch (theme$ | async) {
-    @case ('Dark') {
-      <tui-theme-night />
-    }
-  }
-} @else {
-  <tui-theme-night />
-}

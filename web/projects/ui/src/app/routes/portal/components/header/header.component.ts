@@ -72,26 +72,26 @@ import { BreadcrumbsService } from 'src/app/services/breadcrumbs.service'
         }
 
         &:has([data-connection='error']) {
-          --status: var(--tui-error-fill);
+          --status: var(--tui-status-negative);
         }
 
         &:has([data-connection='warning']) {
-          --status: var(--tui-warning-fill);
+          --status: var(--tui-status-warning);
         }
 
         &:has([data-connection='neutral']) {
-          --status: var(--tui-neutral-fill);
+          --status: var(--tui-status-neutral);
         }
 
         &:has([data-connection='success']) {
-          --status: var(--tui-success-fill);
+          --status: var(--tui-status-positive);
         }
       }
 
       header-connection .plaque::before {
         box-shadow:
           inset 0 1px rgba(255, 255, 255, 0.25),
-          inset 0 -0.25rem var(--tui-success-fill);
+          inset 0 -0.25rem var(--tui-status-positive);
       }
 
       :host-context(tui-root._mobile) {

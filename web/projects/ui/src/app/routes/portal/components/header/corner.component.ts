@@ -1,18 +1,16 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { RouterLink } from '@angular/router'
-import { TuiSidebarModule } from '@taiga-ui/addon-mobile'
-import { TuiLetModule } from '@taiga-ui/cdk'
+import { TuiSidebar } from '@taiga-ui/addon-mobile'
+import { TuiLet } from '@taiga-ui/cdk'
 import {
-  TUI_ANIMATION_OPTIONS,
+  TUI_ANIMATIONS_SPEED,
+  TuiButton,
   tuiFadeIn,
   tuiScaleIn,
+  tuiToAnimationOptions,
   tuiWidthCollapse,
 } from '@taiga-ui/core'
-import {
-  TuiBadgedContentModule,
-  TuiBadgeNotificationModule,
-  TuiButtonModule,
-} from '@taiga-ui/experimental'
+import { TuiBadgedContent, TuiBadgeNotification } from '@taiga-ui/kit'
 import { SidebarDirective } from 'src/app/components/sidebar-host.component'
 import { getMenu } from 'src/app/utils/system-utilities'
 import { HeaderMenuComponent } from './menu.component'
@@ -37,9 +35,9 @@ import { HeaderMenuComponent } from './menu.component'
             tuiIconButton
             appearance="icon"
             size="s"
-            [iconLeft]="item.icon"
+            [iconStart]="item.icon"
             [routerLink]="item.routerLink"
-            [style.color]="'var(--tui-text-01)'"
+            [style.color]="'var(--tui-text-primary)'"
           >
             {{ item.name }}
           </a>
@@ -68,15 +66,15 @@ import { HeaderMenuComponent } from './menu.component'
   imports: [
     HeaderMenuComponent,
     SidebarDirective,
-    TuiBadgeNotificationModule,
-    TuiBadgedContentModule,
-    TuiButtonModule,
-    TuiLetModule,
-    TuiSidebarModule,
+    TuiBadgeNotification,
+    TuiBadgedContent,
+    TuiButton,
+    TuiLet,
+    TuiSidebar,
     RouterLink,
   ],
 })
 export class HeaderCornerComponent {
-  readonly animation = inject(TUI_ANIMATION_OPTIONS)
+  readonly animation = tuiToAnimationOptions(inject(TUI_ANIMATIONS_SPEED))
   readonly utils = getMenu()
 }

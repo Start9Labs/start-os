@@ -1,3 +1,4 @@
+import { TuiDropdownService, TuiButton } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -7,13 +8,8 @@ import {
 } from '@angular/core'
 import { ActivatedRoute, Router } from '@angular/router'
 import { ItemModule, MarketplacePkg } from '@start9labs/marketplace'
-import { TuiSidebarModule } from '@taiga-ui/addon-mobile'
-import {
-  TuiAutoFocusModule,
-  TuiClickOutsideModule,
-  TuiDropdownPortalService,
-} from '@taiga-ui/cdk'
-import { TuiButtonModule } from '@taiga-ui/experimental'
+import { TuiSidebar } from '@taiga-ui/addon-mobile'
+import { TuiAutoFocus, TuiClickOutside } from '@taiga-ui/cdk'
 import { debounceTime, map } from 'rxjs'
 import { MarketplacePreviewComponent } from '../modals/preview.component'
 import { ToLocalPipe } from '../pipes/to-local.pipe'
@@ -42,7 +38,7 @@ import { MarketplaceControlsComponent } from './controls.component'
           tuiIconButton
           type="button"
           appearance="icon"
-          iconLeft="tuiIconClose"
+          iconStart="@tui.x"
           (click)="toggle(false)"
         ></button>
         <marketplace-controls
@@ -101,7 +97,7 @@ import { MarketplaceControlsComponent } from './controls.component'
   standalone: true,
   providers: [
     {
-      provide: TuiDropdownPortalService,
+      provide: TuiDropdownService,
       useExisting: MarketplaceSidebarService,
     },
   ],
@@ -109,10 +105,10 @@ import { MarketplaceControlsComponent } from './controls.component'
     CommonModule,
     ItemModule,
     ToLocalPipe,
-    TuiAutoFocusModule,
-    TuiClickOutsideModule,
-    TuiSidebarModule,
-    TuiButtonModule,
+    TuiAutoFocus,
+    TuiClickOutside,
+    TuiSidebar,
+    TuiButton,
     MarketplaceControlsComponent,
     MarketplacePreviewComponent,
   ],

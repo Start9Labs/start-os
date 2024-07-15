@@ -7,7 +7,7 @@ import {
   PipeTransform,
 } from '@angular/core'
 import { AbstractMarketplaceService } from '../../services/marketplace.service'
-import { PolymorpheusContent } from '@tinkoff/ng-polymorpheus'
+import { PolymorpheusContent } from '@taiga-ui/polymorpheus'
 import { TuiDialogContext, TuiDialogService } from '@taiga-ui/core'
 import { MarketplacePkg } from '../../types'
 import { Observable } from 'rxjs'

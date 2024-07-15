@@ -1,3 +1,4 @@
+import { TuiLineClamp } from '@taiga-ui/kit'
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -8,9 +9,7 @@ import {
 import { RouterLink } from '@angular/router'
 import { T } from '@start9labs/start-sdk'
 import { tuiPure } from '@taiga-ui/cdk'
-import { TuiLinkModule } from '@taiga-ui/core'
-import { TuiIconModule } from '@taiga-ui/experimental'
-import { TuiLineClampModule } from '@taiga-ui/kit'
+import { TuiIcon, TuiLink } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { first, Observable } from 'rxjs'
 import { ServerNotification } from 'src/app/services/api/api.types'
@@ -70,7 +69,7 @@ import { toRouterLink } from 'src/app/utils/to-router-link'
       grid-template-columns: 1fr;
 
       &._new {
-        background: var(--tui-clear) !important;
+        background: var(--tui-background-neutral-1) !important;
       }
     }
 
@@ -94,7 +93,7 @@ import { toRouterLink } from 'src/app/utils/to-router-link'
 
       .date {
         order: 1;
-        color: var(--tui-text-02);
+        color: var(--tui-text-secondary);
       }
 
       .title {
@@ -110,13 +109,7 @@ import { toRouterLink } from 'src/app/utils/to-router-link'
       }
     }
   `,
-  imports: [
-    CommonModule,
-    RouterLink,
-    TuiLineClampModule,
-    TuiLinkModule,
-    TuiIconModule,
-  ],
+  imports: [CommonModule, RouterLink, TuiLineClamp, TuiLink, TuiIcon],
 })
 export class NotificationItemComponent {
   private readonly patch = inject(PatchDB<DataModel>)

@@ -7,12 +7,9 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink, RouterLinkActive } from '@angular/router'
-import { TuiSheetDialogService, TuiTabBarModule } from '@taiga-ui/addon-mobile'
-import { TuiDialogService } from '@taiga-ui/core'
-import {
-  TuiBadgeNotificationModule,
-  TuiIconModule,
-} from '@taiga-ui/experimental'
+import { TuiSheetDialogService, TuiTabBar } from '@taiga-ui/addon-mobile'
+import { TuiDialogService, TuiIcon } from '@taiga-ui/core'
+import { TuiBadgeNotification } from '@taiga-ui/kit'
 import { ABOUT } from 'src/app/routes/portal/components/header/about.component'
 import { BadgeService } from 'src/app/services/badge.service'
 import { RESOURCES } from 'src/app/utils/resources'
@@ -27,7 +24,7 @@ const FILTER = ['/portal/system/settings', '/portal/system/marketplace']
     <nav tuiTabBar [(activeItemIndex)]="index">
       <a
         tuiTabBarItem
-        icon="tuiIconGrid"
+        icon="@tui.layout-grid"
         routerLink="/portal/dashboard"
         routerLinkActive
         (isActiveChange)="update()"
@@ -36,7 +33,7 @@ const FILTER = ['/portal/system/settings', '/portal/system/marketplace']
       </a>
       <a
         tuiTabBarItem
-        icon="tuiIconShoppingCart"
+        icon="@tui.shopping-cart"
         routerLink="/portal/system/marketplace"
         routerLinkActive
         (isActiveChange)="update()"
@@ -45,7 +42,7 @@ const FILTER = ['/portal/system/settings', '/portal/system/marketplace']
       </a>
       <a
         tuiTabBarItem
-        icon="tuiIconSettings"
+        icon="@tui.settings"
         routerLink="/portal/system/settings"
         routerLinkActive
         [badge]="badge()"
@@ -55,7 +52,7 @@ const FILTER = ['/portal/system/settings', '/portal/system/marketplace']
       </a>
       <button
         tuiTabBarItem
-        icon="tuiIconMoreHorizontal"
+        icon="@tui.ellipsis"
         (click)="more(content)"
         [badge]="all()"
       >
@@ -76,7 +73,7 @@ const FILTER = ['/portal/system/settings', '/portal/system/marketplace']
             </a>
           }
           <button class="item" (click)="about()">
-            <tui-icon icon="tuiIconInfo" />
+            <tui-icon icon="@tui.info" />
             About this server
           </button>
           @for (link of resources; track $index) {
@@ -84,7 +81,7 @@ const FILTER = ['/portal/system/settings', '/portal/system/marketplace']
               <tui-icon [icon]="link.icon" />
               {{ link.name }}
               <tui-icon
-                icon="tuiIconExternalLink"
+                icon="@tui.external-link"
                 [style.margin-inline-start]="'auto'"
               />
             </a>
@@ -100,10 +97,10 @@ const FILTER = ['/portal/system/settings', '/portal/system/marketplace']
       display: none;
       backdrop-filter: blur(1rem);
       // TODO: Theme
-      --tui-elevation-01: #333;
-      --tui-base-01: #fff;
-      --tui-base-04: var(--tui-clear);
-      --tui-error-fill: #f52222;
+      --tui-background-elevation-1: #333;
+      --tui-background-base: #fff;
+      --tui-border-normal: var(--tui-background-neutral-1);
+      --tui-status-negative: #f52222;
     }
 
     [tuiTabBar]::before {
@@ -111,7 +108,7 @@ const FILTER = ['/portal/system/settings', '/portal/system/marketplace']
     }
 
     .item {
-      @include clearbtn();
+      @include button-clear();
 
       display: flex;
       padding: 0.75rem 0.25rem;
@@ -119,7 +116,7 @@ const FILTER = ['/portal/system/settings', '/portal/system/marketplace']
       align-items: center;
 
       &_active {
-        color: var(--tui-link);
+        color: var(--tui-text-action);
       }
     }
 
@@ -130,9 +127,9 @@ const FILTER = ['/portal/system/settings', '/portal/system/marketplace']
   imports: [
     RouterLink,
     RouterLinkActive,
-    TuiTabBarModule,
-    TuiBadgeNotificationModule,
-    TuiIconModule,
+    TuiTabBar,
+    TuiBadgeNotification,
+    TuiIcon,
   ],
 })
 export class TabsComponent {

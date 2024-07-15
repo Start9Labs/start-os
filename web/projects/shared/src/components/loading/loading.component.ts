@@ -1,15 +1,16 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { TuiLoader } from '@taiga-ui/core'
 import {
   POLYMORPHEUS_CONTEXT,
   PolymorpheusContent,
-} from '@tinkoff/ng-polymorpheus'
+} from '@taiga-ui/polymorpheus'
 
 @Component({
-  template: `
-    <tui-loader [textContent]="content"></tui-loader>
-  `,
+  standalone: true,
+  template: '<tui-loader [textContent]="content" />',
   styleUrls: ['./loading.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [TuiLoader],
 })
 export class LoadingComponent {
   readonly content: PolymorpheusContent =

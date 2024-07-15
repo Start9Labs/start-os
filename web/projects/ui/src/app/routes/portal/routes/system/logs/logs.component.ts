@@ -1,7 +1,6 @@
+import { TuiTextfieldControllerModule, TuiSelectModule } from '@taiga-ui/legacy'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { TuiTextfieldControllerModule } from '@taiga-ui/core'
-import { TuiSelectModule } from '@taiga-ui/kit'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { RR } from 'src/app/services/api/api.types'
 import { LogsComponent } from '../../../components/logs/logs.component'

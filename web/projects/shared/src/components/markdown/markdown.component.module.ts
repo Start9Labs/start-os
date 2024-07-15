@@ -1,10 +1,10 @@
-import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import { TuiLoaderModule, TuiNotificationModule } from '@taiga-ui/core'
+import { NgModule } from '@angular/core'
+import { TuiLoader, TuiNotification } from '@taiga-ui/core'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
+import { SafeLinksDirective } from '../../directives/safe-links.directive'
 
 import { MarkdownPipeModule } from '../../pipes/markdown/markdown.module'
-import { SafeLinksDirective } from '../../directives/safe-links.directive'
 import { MarkdownComponent } from './markdown.component'
 
 @NgModule({
@@ -14,8 +14,8 @@ import { MarkdownComponent } from './markdown.component'
     MarkdownPipeModule,
     SafeLinksDirective,
     NgDompurifyModule,
-    TuiLoaderModule,
-    TuiNotificationModule,
+    TuiLoader,
+    TuiNotification,
   ],
   exports: [MarkdownComponent],
 })

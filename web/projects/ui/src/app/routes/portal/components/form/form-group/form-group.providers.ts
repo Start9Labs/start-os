@@ -1,11 +1,8 @@
 import { Provider, SkipSelf } from '@angular/core'
-import {
-  TUI_ARROW_MODE,
-  tuiInputDateOptionsProvider,
-  tuiInputTimeOptionsProvider,
-} from '@taiga-ui/kit'
-import { TUI_DEFAULT_ERROR_MESSAGE } from '@taiga-ui/core'
 import { ControlContainer } from '@angular/forms'
+import { TUI_DEFAULT_ERROR_MESSAGE } from '@taiga-ui/core'
+import { tuiInputDateOptionsProvider } from '@taiga-ui/kit'
+import { TUI_ARROW_MODE, tuiInputTimeOptionsProvider } from '@taiga-ui/legacy'
 import { identity, of } from 'rxjs'
 
 export const FORM_GROUP_PROVIDERS: Provider[] = [

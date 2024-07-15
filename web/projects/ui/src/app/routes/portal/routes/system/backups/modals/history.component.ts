@@ -1,3 +1,4 @@
+import { TuiCheckbox } from '@taiga-ui/kit'
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -7,14 +8,9 @@ import {
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { ALWAYS_FALSE_HANDLER, ALWAYS_TRUE_HANDLER } from '@taiga-ui/cdk'
-import { TuiDialogService, TuiLinkModule } from '@taiga-ui/core'
-import {
-  TuiButtonModule,
-  TuiCheckboxModule,
-  TuiIconModule,
-} from '@taiga-ui/experimental'
-import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { TUI_TRUE_HANDLER, TUI_FALSE_HANDLER } from '@taiga-ui/cdk'
+import { TuiDialogService, TuiIcon, TuiLink, TuiButton } from '@taiga-ui/core'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { REPORT } from 'src/app/components/report.component'
 import { BackupRun } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -73,9 +69,9 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
             <td class="title">{{ run.job.name || 'No job' }}</td>
             <td class="result">
               @if (run.report | hasError) {
-                <tui-icon icon="tuiIconClose" class="g-error" />
+                <tui-icon icon="@tui.x" class="g-error" />
               } @else {
-                <tui-icon icon="tuiIconCheck" class="g-success" />
+                <tui-icon icon="@tui.check" class="g-success" />
               }
               <button tuiLink (click)="showReport(run)">Report</button>
             </td>
@@ -141,7 +137,7 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
       .date,
       .duration {
         order: 1;
-        color: var(--tui-text-02);
+        color: var(--tui-text-secondary);
       }
 
       .duration,
@@ -155,13 +151,13 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
   imports: [
     CommonModule,
     FormsModule,
-    TuiButtonModule,
-    TuiIconModule,
-    TuiLinkModule,
+    TuiButton,
+    TuiIcon,
+    TuiLink,
     DurationPipe,
     HasErrorPipe,
     GetBackupIconPipe,
-    TuiCheckboxModule,
+    TuiCheckbox,
   ],
 })
 export class BackupsHistoryModal {
@@ -194,7 +190,7 @@ export class BackupsHistoryModal {
   async ngOnInit() {
     try {
       this.runs.set(await this.api.getBackupRuns({}))
-      this.selected = this.runs()?.map(ALWAYS_FALSE_HANDLER) || []
+      this.selected = this.runs()?.map(TUI_FALSE_HANDLER) || []
     } catch (e: any) {
       this.runs.set([])
       this.errorService.handleError(e)
@@ -210,7 +206,7 @@ export class BackupsHistoryModal {
     try {
       await this.api.deleteBackupRuns({ ids })
       this.runs.set(this.runs()?.filter(r => !ids.includes(r.id)) || [])
-      this.selected = this.runs()?.map(ALWAYS_FALSE_HANDLER) || []
+      this.selected = this.runs()?.map(TUI_FALSE_HANDLER) || []
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -232,9 +228,9 @@ export class BackupsHistoryModal {
 
   toggle() {
     if (this.all) {
-      this.selected = this.selected.map(ALWAYS_FALSE_HANDLER)
+      this.selected = this.selected.map(TUI_FALSE_HANDLER)
     } else {
-      this.selected = this.selected.map(ALWAYS_TRUE_HANDLER)
+      this.selected = this.selected.map(TUI_TRUE_HANDLER)
     }
   }
 }

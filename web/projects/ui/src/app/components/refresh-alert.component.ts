@@ -2,9 +2,8 @@ import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { SwUpdate } from '@angular/service-worker'
 import { Emver, LoadingService } from '@start9labs/shared'
-import { TuiAutoFocusModule } from '@taiga-ui/cdk'
-import { TuiDialogModule } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
+import { TuiAutoFocus } from '@taiga-ui/cdk'
+import { TuiButton, TuiDialog } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { debounceTime, endWith, map, merge, Subject } from 'rxjs'
 import { ConfigService } from 'src/app/services/config.service'
@@ -43,7 +42,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     <!--    </ng-template>-->
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiDialogModule, AsyncPipe, TuiButtonModule, TuiAutoFocusModule],
+  imports: [TuiDialog, AsyncPipe, TuiButton, TuiAutoFocus],
 })
 export class RefreshAlertComponent {
   private readonly updates = inject(SwUpdate)

@@ -7,13 +7,9 @@ import {
   LoadingService,
   toGuid,
 } from '@start9labs/shared'
-import { TuiDialogService, TuiLoaderModule } from '@taiga-ui/core'
-import {
-  TuiButtonModule,
-  TuiCardModule,
-  TuiCellModule,
-} from '@taiga-ui/experimental'
-import { TUI_PROMPT } from '@taiga-ui/kit'
+import { TuiButton, TuiDialogService, TuiLoader } from '@taiga-ui/core'
+import { TUI_CONFIRM } from '@taiga-ui/kit'
+import { TuiCardLarge, TuiCell } from '@taiga-ui/layout'
 import { filter, of, switchMap } from 'rxjs'
 import { PASSWORD } from 'src/app/components/password.component'
 import {
@@ -48,18 +44,12 @@ import { StateService } from 'src/app/services/state.service'
         </button>
       }
 
-      <button tuiButton iconLeft="tuiIconRotateCwLarge" (click)="getDrives()">
+      <button tuiButton iconStart="@tui.rotate-cw" (click)="getDrives()">
         Refresh
       </button>
     </section>
   `,
-  imports: [
-    TuiCardModule,
-    TuiLoaderModule,
-    TuiCellModule,
-    TuiButtonModule,
-    DriveComponent,
-  ],
+  imports: [TuiCardLarge, TuiLoader, TuiCell, TuiButton, DriveComponent],
 })
 export default class StoragePage {
   private readonly api = inject(ApiService)
@@ -125,7 +115,7 @@ export default class StoragePage {
         switchMap(unused =>
           unused
             ? of(true)
-            : this.dialogs.open(TUI_PROMPT, {
+            : this.dialogs.open(TUI_CONFIRM, {
                 label: 'Warning',
                 size: 's',
                 data: {

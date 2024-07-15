@@ -1,3 +1,5 @@
+import { TuiLet } from '@taiga-ui/cdk'
+import { TuiLoader, TuiIcon, TuiButton } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -5,9 +7,6 @@ import {
   inject,
   Input,
 } from '@angular/core'
-import { TuiLetModule } from '@taiga-ui/cdk'
-import { TuiLoaderModule } from '@taiga-ui/core'
-import { TuiButtonModule, TuiIconModule } from '@taiga-ui/experimental'
 import { map, timer } from 'rxjs'
 import { ConfigService } from 'src/app/services/config.service'
 import { ExtendedInterfaceInfo } from '../pipes/interface-info.pipe'
@@ -21,7 +20,7 @@ import { ExtendedInterfaceInfo } from '../pipes/interface-info.pipe'
       } @else if (check === '') {
         <tui-icon [icon]="info.icon" [style.color]="info.color" />
       } @else {
-        <tui-icon icon="tuiIconXCircle" class="g-error" />
+        <tui-icon icon="@tui.circle-x" class="g-error" />
       }
       <div [style.flex]="1">
         <strong>{{ info.name }}</strong>
@@ -39,7 +38,7 @@ import { ExtendedInterfaceInfo } from '../pipes/interface-info.pipe'
         <a
           tuiIconButton
           appearance="flat"
-          iconLeft="tuiIconExternalLinkLarge"
+          iconStart="@tui.external-link"
           target="_blank"
           rel="noreferrer"
           title="Open"
@@ -52,13 +51,7 @@ import { ExtendedInterfaceInfo } from '../pipes/interface-info.pipe'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [
-    CommonModule,
-    TuiButtonModule,
-    TuiLetModule,
-    TuiLoaderModule,
-    TuiIconModule,
-  ],
+  imports: [CommonModule, TuiButton, TuiLet, TuiLoader, TuiIcon],
 })
 export class ServiceInterfaceListItemComponent {
   private readonly config = inject(ConfigService)

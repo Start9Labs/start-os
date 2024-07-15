@@ -2,16 +2,11 @@ import { CommonModule } from '@angular/common'
 import { Component, ElementRef, Input, ViewChild } from '@angular/core'
 import {
   INTERSECTION_ROOT,
-  IntersectionObserverModule,
+  WaIntersectionObserver,
 } from '@ng-web-apis/intersection-observer'
-import { MutationObserverModule } from '@ng-web-apis/mutation-observer'
+import { WaMutationObserver } from '@ng-web-apis/mutation-observer'
 import { FetchLogsReq, FetchLogsRes } from '@start9labs/shared'
-import {
-  TuiLoaderModule,
-  TuiScrollbarComponent,
-  TuiScrollbarModule,
-} from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
+import { TuiLoader, TuiScrollbar, TuiButton } from '@taiga-ui/core'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 import { RR } from 'src/app/services/api/api.types'
 import { LogsDownloadDirective } from './logs-download.directive'
@@ -26,12 +21,12 @@ import { BehaviorSubject } from 'rxjs'
   styleUrls: ['./logs.component.scss'],
   imports: [
     CommonModule,
-    IntersectionObserverModule,
-    MutationObserverModule,
+    WaIntersectionObserver,
+    WaMutationObserver,
     NgDompurifyModule,
-    TuiButtonModule,
-    TuiLoaderModule,
-    TuiScrollbarModule,
+    TuiButton,
+    TuiLoader,
+    TuiScrollbar,
     LogsDownloadDirective,
     LogsFetchDirective,
     LogsPipe,
@@ -47,7 +42,7 @@ export class LogsComponent {
   @ViewChild('bottom')
   private readonly bottom?: ElementRef<HTMLElement>
 
-  @ViewChild(TuiScrollbarComponent, { read: ElementRef })
+  @ViewChild(TuiScrollbar, { read: ElementRef })
   private readonly scrollbar?: ElementRef<HTMLElement>
 
   @Input({ required: true }) followLogs!: (

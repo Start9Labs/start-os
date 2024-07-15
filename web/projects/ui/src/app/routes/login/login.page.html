@@ -3,12 +3,12 @@
 
 <!-- not Local HTTP -->
 <ng-template #notLanHttp>
-  <div tuiCardLarge tuiSurface="elevated" class="card">
+  <div tuiCardLarge class="card">
     <img alt="StartOS Icon" class="logo" src="assets/img/icon.png" />
     <h1 class="header">Login to StartOS</h1>
     <form (submit)="submit()">
       <tui-input-password
-        tuiTextfieldIconLeft="tuiIconKeyLarge"
+        tuiTextfieldIconLeft="@tui.key"
         [ngModelOptions]="{ standalone: true }"
         [(ngModel)]="password"
         (ngModelChange)="error = ''"

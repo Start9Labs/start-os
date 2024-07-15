@@ -1,12 +1,12 @@
+import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { Component, Input } from '@angular/core'
-import { TuiIconModule, TuiTitleModule } from '@taiga-ui/experimental'
 import { UnitConversionPipesModule } from '../pipes/unit-conversion/unit-conversion.module'
 
 @Component({
   standalone: true,
   selector: 'button[drive]',
   template: `
-    <tui-icon icon="tuiIconSave" />
+    <tui-icon icon="@tui.save" />
     <span tuiTitle>
       <strong>{{ drive.logicalname }}</strong>
       <span tuiSubtitle>
@@ -17,7 +17,7 @@ import { UnitConversionPipesModule } from '../pipes/unit-conversion/unit-convers
       <ng-content />
     </span>
   `,
-  imports: [TuiIconModule, TuiTitleModule, UnitConversionPipesModule],
+  imports: [TuiIcon, TuiTitle, UnitConversionPipesModule],
 })
 export class DriveComponent {
   @Input() drive!: {

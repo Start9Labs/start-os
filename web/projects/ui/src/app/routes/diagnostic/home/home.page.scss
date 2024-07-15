@@ -2,7 +2,7 @@
   display: block;
   padding: 2rem;
   overflow: auto;
-  background: var(--tui-base-01);
+  background: var(--tui-background-base);
 }
 
 .title {
@@ -20,14 +20,14 @@
 
 .code {
   display: block;
-  color: var(--tui-success-fill);
+  color: var(--tui-status-positive);
   background: rgb(69, 69, 69);
   padding: 1px 1rem;
   margin-bottom: 2rem;
 }
 
 .warning {
-  color: var(--tui-warning-fill);
+  color: var(--tui-status-warning);
 }
 
 .buttons {

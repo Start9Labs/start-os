@@ -1,7 +1,7 @@
+import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { RouterLink } from '@angular/router'
-import { TuiIconModule, TuiTitleModule } from '@taiga-ui/experimental'
 import { SettingBtn } from '../settings.types'
 
 @Component({
@@ -24,13 +24,13 @@ import { SettingBtn } from '../settings.types'
         <div tuiSubtitle>{{ button.description }}</div>
         <ng-content />
       </div>
-      <tui-icon *ngIf="button.routerLink" icon="tuiIconChevronRight" />
+      <tui-icon *ngIf="button.routerLink" icon="@tui.chevron-right" />
     </ng-template>
   `,
   styles: `
     :host:not(:last-child) {
       display: block;
-      box-shadow: 0 1px var(--tui-clear);
+      box-shadow: 0 1px var(--tui-background-neutral-1);
     }
 
     button {
@@ -39,7 +39,7 @@ import { SettingBtn } from '../settings.types'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TuiIconModule, TuiTitleModule, RouterLink],
+  imports: [CommonModule, TuiIcon, TuiTitle, RouterLink],
 })
 export class SettingsButtonComponent {
   @Input({ required: true })

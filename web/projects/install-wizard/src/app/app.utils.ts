@@ -1,6 +1,6 @@
 import { DiskInfo } from '@start9labs/shared'
 import { TuiDialogOptions } from '@taiga-ui/core'
-import { TuiPromptData } from '@taiga-ui/kit'
+import { TuiConfirmData } from '@taiga-ui/kit'
 
 export const SUCCESS: Partial<TuiDialogOptions<any>> = {
   label: 'Install Success',
@@ -12,7 +12,7 @@ export const SUCCESS: Partial<TuiDialogOptions<any>> = {
 
 export function toWarning(
   disk: DiskInfo | null,
-): Partial<TuiDialogOptions<TuiPromptData>> {
+): Partial<TuiDialogOptions<TuiConfirmData>> {
   return {
     label: 'Warning',
     size: 's',

@@ -4,8 +4,10 @@
   [readOnly]="readOnly"
   [tuiTextfieldPostfix]="spec.units || ''"
   [pseudoInvalid]="invalid"
-  [precision]="Infinity"
-  [decimal]="spec.integer ? 'never' : 'not-zero'"
+  [tuiNumberFormat]="{
+    precision: spec.integer ? 0 : Infinity,
+    decimalMode: 'not-zero'
+  }"
   [min]="spec.min ?? -Infinity"
   [max]="spec.max ?? Infinity"
   [step]="spec.step || 0"
@@ -14,5 +16,5 @@
 >
   {{ spec.name }}
   <span *ngIf="spec.required">*</span>
-  <input tuiTextfield [placeholder]="spec.placeholder || ''" />
+  <input tuiTextfieldLegacy [placeholder]="spec.placeholder || ''" />
 </tui-input-number>

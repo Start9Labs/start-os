@@ -1,7 +1,6 @@
+import { TuiDataList, TuiIcon } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { TuiDataListModule } from '@taiga-ui/core'
-import { TuiIconModule } from '@taiga-ui/experimental'
 
 export interface Action {
   icon: string
@@ -52,7 +51,7 @@ export interface Action {
   ],
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiDataListModule, CommonModule, TuiIconModule],
+  imports: [TuiDataList, CommonModule, TuiIcon],
 })
 export class ActionsComponent {
   @Input()

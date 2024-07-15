@@ -1,3 +1,4 @@
+import { TuiAccordion } from '@taiga-ui/kit'
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import {
@@ -5,8 +6,7 @@ import {
   MarkdownPipeModule,
   SafeLinksDirective,
 } from '@start9labs/shared'
-import { TuiAccordionModule } from '@taiga-ui/kit'
-import { TuiButtonModule, TuiLoaderModule } from '@taiga-ui/core'
+import { TuiLoader, TuiButton } from '@taiga-ui/core'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 import {
   FilterVersionsPipe,
@@ -20,9 +20,9 @@ import {
     MarkdownPipeModule,
     NgDompurifyModule,
     SafeLinksDirective,
-    TuiButtonModule,
-    TuiAccordionModule,
-    TuiLoaderModule,
+    TuiButton,
+    ...TuiAccordion,
+    TuiLoader,
     FilterVersionsPipe,
   ],
   declarations: [ReleaseNotesComponent],

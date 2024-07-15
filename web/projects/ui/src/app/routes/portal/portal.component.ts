@@ -1,8 +1,8 @@
+import { TuiScrollbar } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router'
-import { TuiScrollbarModule } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { filter } from 'rxjs'
 import { TabsComponent } from 'src/app/routes/portal/components/tabs.component'
@@ -44,7 +44,7 @@ import { HeaderComponent } from './components/header/header.component'
     RouterOutlet,
     HeaderComponent,
     TabsComponent,
-    TuiScrollbarModule,
+    TuiScrollbar,
   ],
 })
 export class PortalComponent {

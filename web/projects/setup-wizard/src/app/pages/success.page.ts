@@ -7,12 +7,8 @@ import {
   ViewChild,
 } from '@angular/core'
 import { DownloadHTMLService, ErrorService } from '@start9labs/shared'
-import {
-  TuiButtonModule,
-  TuiCardModule,
-  TuiIconModule,
-  TuiSurfaceModule,
-} from '@taiga-ui/experimental'
+import { TuiButton, TuiIcon, TuiSurface } from '@taiga-ui/core'
+import { TuiCardLarge } from '@taiga-ui/layout'
 import { DocumentationComponent } from 'src/app/components/documentation.component'
 import { MatrixComponent } from 'src/app/components/matrix.component'
 import { ApiService } from 'src/app/services/api.service'
@@ -25,17 +21,17 @@ import { StateService } from 'src/app/services/state.service'
     @if (isKiosk) {
       <section tuiCardLarge>
         <h1 class="heading">
-          <tui-icon icon="tuiIconCheckSquare" class="g-success" />
+          <tui-icon icon="@tui.check-square" class="g-success" />
           Setup Complete!
         </h1>
-        <button tuiButton (click)="exitKiosk()" iconRight="tuiIconLogInLarge">
+        <button tuiButton (click)="exitKiosk()" iconEnd="@tui.log-in">
           Continue to Login
         </button>
       </section>
     } @else if (lanAddress) {
       <section tuiCardLarge>
         <h1 class="heading">
-          <tui-icon icon="tuiIconCheckSquare" class="g-success" />
+          <tui-icon icon="@tui.check-square" class="g-success" />
           Setup Complete!
         </h1>
         @if (stateService.setupType === 'restore') {
@@ -51,7 +47,7 @@ import { StateService } from 'src/app/services/state.service'
           </span>
           <strong class="caps">
             Download
-            <tui-icon icon="tuiIconDownload" />
+            <tui-icon icon="@tui.download" />
           </strong>
         </button>
 
@@ -68,7 +64,7 @@ import { StateService } from 'src/app/services/state.service'
           </span>
           <strong class="caps">
             Open
-            <tui-icon icon="tuiIconExternalLink" />
+            <tui-icon icon="@tui.external-link" />
           </strong>
         </a>
         <app-documentation hidden [lanAddress]="lanAddress" />
@@ -93,7 +89,7 @@ import { StateService } from 'src/app/services/state.service'
     }
 
     [tuiCardLarge] {
-      color: var(--tui-text-01);
+      color: var(--tui-text-primary);
       text-decoration: none;
       text-align: center;
     }
@@ -104,10 +100,10 @@ import { StateService } from 'src/app/services/state.service'
     }
   `,
   imports: [
-    TuiCardModule,
-    TuiIconModule,
-    TuiButtonModule,
-    TuiSurfaceModule,
+    TuiCardLarge,
+    TuiIcon,
+    TuiButton,
+    TuiSurface,
     MatrixComponent,
     DocumentationComponent,
   ],

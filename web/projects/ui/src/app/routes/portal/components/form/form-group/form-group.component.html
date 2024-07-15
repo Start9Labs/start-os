@@ -1,6 +1,5 @@
 <ng-container
   *ngFor="let entry of spec | keyvalue: asIsOrder"
-  tuiMode="onDark"
   [ngSwitch]="entry.value.type"
   [tuiTextfieldCleaner]="true"
 >

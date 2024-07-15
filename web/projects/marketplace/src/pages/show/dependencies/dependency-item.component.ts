@@ -5,11 +5,11 @@ import {
   Input,
   inject,
 } from '@angular/core'
-import { EmverPipesModule } from '@start9labs/shared'
-import { Dependency, MarketplacePkg, StoreIdentity } from '../../../types'
 import { RouterModule } from '@angular/router'
-import { TuiAvatarModule, TuiLineClampModule } from '@taiga-ui/kit'
-import { TuiLetModule } from '@taiga-ui/cdk'
+import { EmverPipesModule } from '@start9labs/shared'
+import { TuiLet } from '@taiga-ui/cdk'
+import { TuiAvatar, TuiLineClamp } from '@taiga-ui/kit'
+import { Dependency, MarketplacePkg, StoreIdentity } from '../../../types'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
 
 @Component({
@@ -18,15 +18,11 @@ import { AbstractMarketplaceService } from '../../../services/marketplace.servic
     <div class="outer-container" *tuiLet="marketplace$ | async as marketplace">
       <tui-avatar
         class="dep-img"
-        [rounded]="true"
-        [size]="'l'"
-        [avatarUrl]="getImage(dep.key, marketplace)"
-      ></tui-avatar>
+        size="l"
+        [src]="getImage(dep.key, marketplace)"
+      />
       <div>
-        <tui-line-clamp
-          [linesLimit]="2"
-          [content]="titleContent"
-        ></tui-line-clamp>
+        <tui-line-clamp [linesLimit]="2" [content]="titleContent" />
         <ng-template #titleContent>
           <div class="title">
             <span>
@@ -44,7 +40,7 @@ import { AbstractMarketplaceService } from '../../../services/marketplace.servic
           [linesLimit]="2"
           [content]="descContent"
           class="description"
-        ></tui-line-clamp>
+        />
         <ng-template #descContent>
           {{ dep.value.description }}
         </ng-template>
@@ -107,10 +103,10 @@ import { AbstractMarketplaceService } from '../../../services/marketplace.servic
   imports: [
     CommonModule,
     RouterModule,
-    TuiAvatarModule,
+    TuiAvatar,
     EmverPipesModule,
-    TuiLineClampModule,
-    TuiLetModule,
+    TuiLineClamp,
+    TuiLet,
   ],
 })
 export class MarketplaceDepItemComponent {

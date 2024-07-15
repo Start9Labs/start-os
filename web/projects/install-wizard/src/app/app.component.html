@@ -9,7 +9,7 @@
             appearance="flat"
             size="m"
             class="back"
-            iconLeft="tuiIconChevronLeft"
+            iconStart="@tui.chevron-left"
             [style.border-radius.rem]="10"
             (click)="selected = null"
           >
@@ -17,7 +17,7 @@
           </button>
         }
         <h1>{{ selected ? 'Install Type' : 'Select Disk' }}</h1>
-        <div [style.color]="'var(--tui-negative)'">{{ error }}</div>
+        <div [style.color]="'var(--tui-text-negative)'">{{ error }}</div>
       </header>
       <div class="pages">
         <div class="options" [class.options_selected]="selected">
@@ -28,9 +28,9 @@
         <div class="options">
           @if (guid) {
             <button tuiCell (click)="install()">
-              <tui-icon icon="tuiIconLifeBuoyLarge" />
+              <tui-icon icon="@tui.life-buoy" />
               <span tuiTitle>
-                <strong [style.color]="'var(--tui-positive)'">
+                <strong [style.color]="'var(--tui-text-positive)'">
                   Re-Install StartOS
                 </strong>
                 <span tuiSubtitle>Will preserve existing StartOS data</span>
@@ -39,12 +39,14 @@
           }
 
           <button tuiCell [disabled]="!selected" (click)="warn()">
-            <tui-icon icon="tuiIconDownload" />
+            <tui-icon icon="@tui.download" />
             <span tuiTitle>
               @if (guid) {
-                <span [style.color]="'var(--tui-negative)'">Factory Reset</span>
+                <span [style.color]="'var(--tui-text-negative)'">
+                  Factory Reset
+                </span>
               } @else {
-                <span [style.color]="'var(--tui-positive)'">
+                <span [style.color]="'var(--tui-text-positive)'">
                   Install StartOS
                 </span>
               }

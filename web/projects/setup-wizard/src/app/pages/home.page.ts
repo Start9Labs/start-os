@@ -2,14 +2,8 @@ import { CommonModule } from '@angular/common'
 import { Component, inject, OnInit } from '@angular/core'
 import { RouterModule } from '@angular/router'
 import { ErrorService } from '@start9labs/shared'
-import {
-  TuiButtonModule,
-  TuiCardModule,
-  TuiCellModule,
-  TuiIconModule,
-  TuiIconsModule,
-  TuiTitleModule,
-} from '@taiga-ui/experimental'
+import { TuiButton, TuiIcon, TuiTitle } from '@taiga-ui/core'
+import { TuiCardLarge, TuiCell } from '@taiga-ui/layout'
 import { RecoverComponent } from 'src/app/components/recover.component'
 import { ApiService } from 'src/app/services/api.service'
 import { StateService } from 'src/app/services/state.service'
@@ -26,7 +20,7 @@ import { StateService } from 'src/app/services/state.service'
               tuiIconButton
               appearance="flat"
               class="back"
-              iconLeft="tuiIconChevronLeft"
+              iconStart="@tui.chevron-left"
               (click)="recover = false"
             >
               Back
@@ -37,7 +31,7 @@ import { StateService } from 'src/app/services/state.service'
         <div class="pages">
           <div class="options" [class.options_recover]="recover">
             <a tuiCell [routerLink]="error || recover ? null : '/storage'">
-              <tui-icon icon="tuiIconPlus" />
+              <tui-icon icon="@tui.plus" />
               <span tuiTitle>
                 <span class="g-success">Start Fresh</span>
                 <span tuiSubtitle>
@@ -50,7 +44,7 @@ import { StateService } from 'src/app/services/state.service'
               [disabled]="error || recover"
               (click)="recover = true"
             >
-              <tui-icon icon="tuiIconRotateCw" />
+              <tui-icon icon="@tui.rotate-cw" />
               <span tuiTitle>
                 <span class="g-warning">Recover</span>
                 <span tuiSubtitle>
@@ -111,12 +105,11 @@ import { StateService } from 'src/app/services/state.service'
   imports: [
     CommonModule,
     RouterModule,
-    TuiCardModule,
-    TuiButtonModule,
-    TuiIconsModule,
-    TuiCellModule,
-    TuiIconModule,
-    TuiTitleModule,
+    TuiCardLarge,
+    TuiButton,
+    TuiCell,
+    TuiIcon,
+    TuiTitle,
     RecoverComponent,
   ],
 })

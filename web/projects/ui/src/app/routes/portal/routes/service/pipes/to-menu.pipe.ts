@@ -3,7 +3,7 @@ import { Params } from '@angular/router'
 import { MarkdownComponent } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiDialogService } from '@taiga-ui/core'
-import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { from } from 'rxjs'
 import {
   ConfigModal,
@@ -41,19 +41,19 @@ export class ToMenuPipe implements PipeTransform {
 
     return [
       {
-        icon: 'tuiIconList',
+        icon: '@tui.list',
         name: 'Instructions',
         description: `Understand how to use ${manifest.title}`,
         action: () => this.showInstructions(manifest),
       },
       {
-        icon: 'tuiIconSliders',
+        icon: '@tui.sliders-vertical',
         name: 'Config',
         description: `Customize ${manifest.title}`,
         action: () => this.openConfig(manifest),
       },
       {
-        icon: 'tuiIconKey',
+        icon: '@tui.key',
         name: 'Properties',
         description: `Runtime information, credentials, and other values of interest`,
         action: () =>
@@ -65,13 +65,13 @@ export class ToMenuPipe implements PipeTransform {
             .subscribe(),
       },
       {
-        icon: 'tuiIconZap',
+        icon: '@tui.zap',
         name: 'Actions',
         description: `Uninstall and other commands specific to ${manifest.title}`,
         routerLink: `actions`,
       },
       {
-        icon: 'tuiIconShield',
+        icon: '@tui.shield',
         name: 'Outbound Proxy',
         description: `Proxy all outbound traffic from ${manifest.title}`,
         action: () =>
@@ -81,13 +81,13 @@ export class ToMenuPipe implements PipeTransform {
           ),
       },
       {
-        icon: 'tuiIconFileText',
+        icon: '@tui.file-text',
         name: 'Logs',
         description: `Raw, unfiltered logs`,
         routerLink: 'logs',
       },
       {
-        icon: 'tuiIconInfo',
+        icon: '@tui.info',
         name: 'Additional Info',
         description: `View package details`,
         action: () =>
@@ -100,14 +100,14 @@ export class ToMenuPipe implements PipeTransform {
       },
       pkg.marketplaceUrl
         ? {
-            icon: 'tuiIconShoppingBag',
+            icon: '@tui.shopping-bag',
             name: 'Marketplace Listing',
             description: `View ${manifest.title} on the Marketplace`,
             routerLink: `/portal/system/marketplace`,
             params: { url: pkg.marketplaceUrl, id: manifest.id },
           }
         : {
-            icon: 'tuiIconShoppingBag',
+            icon: '@tui.shopping-bag',
             name: 'Marketplace Listing',
             description: `This package was not installed from the marketplace`,
           },

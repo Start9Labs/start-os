@@ -7,17 +7,18 @@ import {
   FilterPackagesPipe,
 } from '@start9labs/marketplace'
 import { RELATIVE_URL, THEME, WorkspaceConfig } from '@start9labs/shared'
-import { TUI_DATE_FORMAT, TUI_DATE_SEPARATOR } from '@taiga-ui/cdk'
 import {
+  TUI_DATE_FORMAT,
+  tuiButtonOptionsProvider,
   tuiDropdownOptionsProvider,
   tuiNumberFormatProvider,
-  tuiTextfieldOptionsProvider,
 } from '@taiga-ui/core'
-import { tuiButtonOptionsProvider } from '@taiga-ui/experimental'
+import { NG_EVENT_PLUGINS } from '@taiga-ui/event-plugins'
 import {
   TUI_DATE_TIME_VALUE_TRANSFORMER,
   TUI_DATE_VALUE_TRANSFORMER,
 } from '@taiga-ui/kit'
+import { tuiTextfieldOptionsProvider } from '@taiga-ui/legacy'
 import { PATCH_DB_PROVIDERS } from 'src/app/services/patch-db/patch-db.providers'
 import { ApiService } from './services/api/embassy-api.service'
 import { LiveApiService } from './services/api/embassy-live-api.service'
@@ -37,6 +38,7 @@ const {
 
 export const APP_PROVIDERS: Provider[] = [
   PATCH_DB_PROVIDERS,
+  NG_EVENT_PLUGINS,
   FilterPackagesPipe,
   UntypedFormBuilder,
   tuiNumberFormatProvider({ decimalSeparator: '.', thousandSeparator: '' }),
@@ -45,11 +47,10 @@ export const APP_PROVIDERS: Provider[] = [
   tuiDropdownOptionsProvider({ appearance: 'start-os' }),
   {
     provide: TUI_DATE_FORMAT,
-    useValue: 'MDY',
-  },
-  {
-    provide: TUI_DATE_SEPARATOR,
-    useValue: '/',
+    useValue: {
+      mode: 'MDY',
+      separator: '/',
+    },
   },
   {
     provide: TUI_DATE_VALUE_TRANSFORMER,

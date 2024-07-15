@@ -1,3 +1,4 @@
+import { TuiConfirmService } from '@taiga-ui/kit'
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -12,12 +13,10 @@ import { CT } from '@start9labs/start-sdk'
 
 import {
   tuiMarkControlAsTouchedAndValidate,
-  TuiValueChangesModule,
+  TuiValueChanges,
 } from '@taiga-ui/cdk'
-import { TuiDialogContext, TuiModeModule } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
-import { TuiDialogFormService } from '@taiga-ui/kit'
-import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
+import { TuiDialogContext, TuiButton } from '@taiga-ui/core'
+import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus'
 import { compare, Operation } from 'fast-json-patch'
 import { FormModule } from 'src/app/routes/portal/components/form/form.module'
 import { InvalidService } from 'src/app/routes/portal/components/form/invalid.service'
@@ -47,7 +46,7 @@ export interface FormContext<T> {
       (tuiValueChanges)="markAsDirty()"
     >
       <form-group [spec]="spec" />
-      <footer tuiMode="onDark">
+      <footer>
         <ng-content />
         <ng-container *ngFor="let button of buttons; let last = last">
           <button
@@ -84,8 +83,8 @@ export interface FormContext<T> {
         padding: 1rem 0;
         margin: 1rem 0 -1rem;
         gap: 1rem;
-        background: var(--tui-elevation-01);
-        border-top: 1px solid var(--tui-base-02);
+        background: var(--tui-background-elevation-1);
+        border-top: 1px solid var(--tui-background-base-alt);
       }
     `,
   ],
@@ -93,16 +92,15 @@ export interface FormContext<T> {
     CommonModule,
     ReactiveFormsModule,
     RouterModule,
-    TuiValueChangesModule,
-    TuiButtonModule,
-    TuiModeModule,
+    TuiValueChanges,
+    TuiButton,
     FormModule,
   ],
   providers: [InvalidService],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FormComponent<T extends Record<string, any>> implements OnInit {
-  private readonly dialogFormService = inject(TuiDialogFormService)
+  private readonly dialogFormService = inject(TuiConfirmService)
   private readonly formService = inject(FormService)
   private readonly invalidService = inject(InvalidService)
   private readonly context = inject<TuiDialogContext<void, FormContext<T>>>(

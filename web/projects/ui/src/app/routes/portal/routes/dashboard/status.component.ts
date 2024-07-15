@@ -1,3 +1,4 @@
+import { TuiLoader, TuiIcon } from '@taiga-ui/core'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -5,8 +6,6 @@ import {
   Input,
 } from '@angular/core'
 import { tuiPure } from '@taiga-ui/cdk'
-import { TuiLoaderModule } from '@taiga-ui/core'
-import { TuiIconModule } from '@taiga-ui/experimental'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { InstallingProgressDisplayPipe } from '../service/pipes/install-progress.pipe'
@@ -19,9 +18,9 @@ import { InstallingProgressDisplayPipe } from '../service/pipes/install-progress
       <tui-loader size="s" />
     } @else {
       @if (healthy) {
-        <tui-icon icon="tuiIconCheck" class="g-success" />
+        <tui-icon icon="@tui.check" class="g-success" />
       } @else {
-        <tui-icon icon="tuiIconAlertTriangle" class="g-warning" />
+        <tui-icon icon="@tui.triangle-alert" class="g-warning" />
       }
     }
     <b [style.color]="color">{{ status }}</b>
@@ -46,7 +45,7 @@ import { InstallingProgressDisplayPipe } from '../service/pipes/install-progress
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiIconModule, TuiLoaderModule],
+  imports: [TuiIcon, TuiLoader],
   providers: [InstallingProgressDisplayPipe],
 })
 export class StatusComponent {
@@ -69,7 +68,7 @@ export class StatusComponent {
   }
 
   get loading(): boolean {
-    return this.color === 'var(--tui-info-fill)'
+    return this.color === 'var(--tui-status-info)'
   }
 
   @tuiPure
@@ -111,9 +110,9 @@ export class StatusComponent {
   get color(): string {
     switch (this.getStatus(this.pkg).primary) {
       case 'running':
-        return 'var(--tui-success-fill)'
+        return 'var(--tui-status-positive)'
       case 'needsConfig':
-        return 'var(--tui-warning-fill)'
+        return 'var(--tui-status-warning)'
       case 'installing':
       case 'updating':
       case 'stopping':
@@ -122,10 +121,10 @@ export class StatusComponent {
       case 'restarting':
       case 'removing':
       case 'restoring':
-        return 'var(--tui-info-fill)'
+        return 'var(--tui-status-info)'
       // stopped
       default:
-        return 'var(--tui-text-02)'
+        return 'var(--tui-text-secondary)'
     }
   }
 }

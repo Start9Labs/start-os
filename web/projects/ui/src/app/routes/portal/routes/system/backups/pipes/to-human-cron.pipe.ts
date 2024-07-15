@@ -9,7 +9,7 @@ export class ToHumanCronPipe implements PipeTransform {
   transform(cron: string): { message: string; color: string } {
     const toReturn = {
       message: '',
-      color: 'var(--tui-positive)',
+      color: 'var(--tui-text-positive)',
     }
 
     try {
@@ -27,7 +27,7 @@ export class ToHumanCronPipe implements PipeTransform {
       toReturn.message = human
     } catch (e) {
       toReturn.message = e as string
-      toReturn.color = 'var(--tui-negative)'
+      toReturn.color = 'var(--tui-text-negative)'
     }
 
     return toReturn

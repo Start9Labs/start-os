@@ -1,5 +1,5 @@
+import { TuiIcon } from '@taiga-ui/core'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { TuiIconModule } from '@taiga-ui/experimental'
 import { ServiceMenu } from '../pipes/to-menu.pipe'
 
 @Component({
@@ -13,11 +13,11 @@ import { ServiceMenu } from '../pipes/to-menu.pipe'
         <ng-content />
       </div>
     </div>
-    <tui-icon icon="tuiIconChevronRight" />
+    <tui-icon icon="@tui.chevron-right" />
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiIconModule],
+  imports: [TuiIcon],
 })
 export class ServiceMenuItemComponent {
   @Input({ required: true, alias: 'serviceMenuItem' })

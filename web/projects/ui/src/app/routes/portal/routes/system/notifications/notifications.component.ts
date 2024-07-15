@@ -1,73 +1,67 @@
-import { CommonModule } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { Subject } from 'rxjs'
-import { RR, ServerNotifications } from 'src/app/services/api/api.types'
-import { NotificationService } from 'src/app/services/notification.service'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  signal,
+} from '@angular/core'
 import { ErrorService } from '@start9labs/shared'
-import { TuiLetModule } from '@taiga-ui/cdk'
-import { TuiButtonModule } from '@taiga-ui/experimental'
-import { TuiDataListModule, TuiHostedDropdownModule } from '@taiga-ui/core'
+import { TuiButton, TuiDataList, TuiDropdown } from '@taiga-ui/core'
+import { RR, ServerNotifications } from 'src/app/services/api/api.types'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { NotificationService } from 'src/app/services/notification.service'
 import { NotificationsTableComponent } from './table.component'
 
 @Component({
   template: `
-    <ng-container *tuiLet="notifications$ | async as notifications">
-      <h3 class="g-title">
-        <tui-hosted-dropdown
-          *ngIf="table.selected$ | async as selected"
-          tuiDropdownAlign="right"
-          [content]="dropdown"
-          [sided]="true"
-          [(open)]="open"
-          [canOpen]="!!selected.length"
-        >
+    <h3 class="g-title">
+      <button
+        appearance="primary"
+        iconEnd="@tui.chevron-down"
+        tuiButton
+        size="xs"
+        type="button"
+        tuiDropdownAlign="right"
+        tuiDropdownSided
+        [disabled]="!table.selected().length"
+        [tuiDropdown]="dropdown"
+        [tuiDropdownEnabled]="!!table.selected().length"
+        [(tuiDropdownOpen)]="open"
+      >
+        Batch Action
+      </button>
+      <ng-template #dropdown>
+        <tui-data-list>
           <button
-            appearance="primary"
-            iconRight="tuiIconChevronDown"
-            tuiButton
-            size="xs"
-            type="button"
-            [disabled]="!selected.length"
+            tuiOption
+            (click)="markSeen(notifications(), table.selected())"
           >
-            Batch Action
+            Mark seen
           </button>
-          <ng-template #dropdown>
-            <tui-data-list>
-              <button tuiOption (click)="markSeen(notifications!, selected)">
-                Mark seen
-              </button>
-              <button tuiOption (click)="markUnseen(notifications!, selected)">
-                Mark unseen
-              </button>
-              <button tuiOption (click)="remove(notifications!, selected)">
-                Delete
-              </button>
-            </tui-data-list>
-          </ng-template>
-        </tui-hosted-dropdown>
-      </h3>
-      <table #table class="g-table" [notifications]="notifications"></table>
-    </ng-container>
+          <button
+            tuiOption
+            (click)="markUnseen(notifications(), table.selected())"
+          >
+            Mark unseen
+          </button>
+          <button tuiOption (click)="remove(notifications(), table.selected())">
+            Delete
+          </button>
+        </tui-data-list>
+      </ng-template>
+    </h3>
+    <table #table class="g-table" [notifications]="notifications()"></table>
   `,
   host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [
-    CommonModule,
-    TuiHostedDropdownModule,
-    TuiButtonModule,
-    TuiDataListModule,
-    NotificationsTableComponent,
-    TuiLetModule,
-  ],
+  imports: [TuiDropdown, TuiButton, TuiDataList, NotificationsTableComponent],
 })
 export default class NotificationsComponent {
   readonly service = inject(NotificationService)
   readonly api = inject(ApiService)
   readonly errorService = inject(ErrorService)
 
-  readonly notifications$ = new Subject<ServerNotifications | null>()
+  readonly notifications = signal<ServerNotifications | undefined>(undefined)
 
   open = false
 
@@ -77,17 +71,20 @@ export default class NotificationsComponent {
 
   async getMore(params: RR.GetNotificationsReq) {
     try {
-      this.notifications$.next(null)
-      this.notifications$.next(await this.api.getNotifications(params))
+      this.notifications.set(undefined)
+      this.notifications.set(await this.api.getNotifications(params))
     } catch (e: any) {
       this.errorService.handleError(e)
     }
   }
 
-  markSeen(current: ServerNotifications, toUpdate: ServerNotifications) {
+  markSeen(
+    current: ServerNotifications = [],
+    toUpdate: ServerNotifications = [],
+  ) {
     this.open = false
 
-    this.notifications$.next(
+    this.notifications.set(
       current.map(c => ({
         ...c,
         read: toUpdate.some(n => n.id === c.id) || c.read,
@@ -97,10 +94,13 @@ export default class NotificationsComponent {
     this.service.markSeen(toUpdate)
   }
 
-  markUnseen(current: ServerNotifications, toUpdate: ServerNotifications) {
+  markUnseen(
+    current: ServerNotifications = [],
+    toUpdate: ServerNotifications = [],
+  ) {
     this.open = false
 
-    this.notifications$.next(
+    this.notifications.set(
       current.map(c => ({
         ...c,
         read: c.read && !toUpdate.some(n => n.id === c.id),
@@ -110,10 +110,13 @@ export default class NotificationsComponent {
     this.service.markUnseen(toUpdate)
   }
 
-  remove(current: ServerNotifications, toDelete: ServerNotifications) {
+  remove(
+    current: ServerNotifications = [],
+    toDelete: ServerNotifications = [],
+  ) {
     this.open = false
 
-    this.notifications$.next(
+    this.notifications.set(
       current.filter(c => !toDelete.some(n => n.id === c.id)),
     )
 

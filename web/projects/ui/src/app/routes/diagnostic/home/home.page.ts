@@ -1,8 +1,8 @@
+import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { Component, Inject } from '@angular/core'
 import { WINDOW } from '@ng-web-apis/common'
 import { LoadingService } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
-import { TUI_PROMPT } from '@taiga-ui/kit'
 import { filter } from 'rxjs'
 import { DiagnosticService } from '../services/diagnostic.service'
 
@@ -118,7 +118,7 @@ export class HomePage {
 
   async presentAlertSystemRebuild() {
     this.dialogs
-      .open(TUI_PROMPT, {
+      .open(TUI_CONFIRM, {
         label: 'Warning',
         size: 's',
         data: {
@@ -140,7 +140,7 @@ export class HomePage {
 
   async presentAlertRepairDisk() {
     this.dialogs
-      .open(TUI_PROMPT, {
+      .open(TUI_CONFIRM, {
         label: 'Warning',
         size: 's',
         data: {

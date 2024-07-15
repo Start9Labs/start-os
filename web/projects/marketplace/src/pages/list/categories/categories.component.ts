@@ -30,30 +30,30 @@ export class CategoriesComponent {
   determineIcon(category: string): string {
     switch (category.toLowerCase()) {
       case 'all':
-        return 'tuiIconGridLarge'
+        return '@tui.layout-grid'
       case 'bitcoin':
-        return 'assets/img/icons/logo-bitcoin.svg'
+        return '@tui.bitcoin'
       case 'messaging':
       case 'communications':
-        return 'tuiIconMessageCircleLarge'
+        return '@tui.message-circle'
       case 'data':
-        return 'tuiIconFileTextLarge'
+        return '@tui.file-text'
       case 'developer tools':
-        return 'tuiIconTableSplitLarge'
+        return '@tui.table-split'
       case 'featured':
-        return 'tuiIconStarLarge'
+        return '@tui.star'
       case 'lightning':
-        return 'tuiIconZapLarge'
+        return '@tui.zap'
       case 'media':
-        return 'tuiIconPlayCircleLarge'
+        return '@tui.circle-play'
       case 'networking':
-        return 'tuiIconGlobeLarge'
+        return '@tui.globe'
       case 'social':
-        return 'tuiIconUsersLarge'
+        return '@tui.users'
       case 'ai':
-        return 'tuiIconCpuLarge'
+        return '@tui.cpu'
       default:
-        return 'tuiIconBoxLarge'
+        return '@tui.box'
     }
   }
 }

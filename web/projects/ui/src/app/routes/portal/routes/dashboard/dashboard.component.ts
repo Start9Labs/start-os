@@ -1,6 +1,6 @@
+import { TuiIcon } from '@taiga-ui/core'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { TuiIconModule } from '@taiga-ui/experimental'
 import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
 import { ServiceComponent } from 'src/app/routes/portal/routes/dashboard/service.component'
 import { ServicesService } from 'src/app/routes/portal/routes/dashboard/services.service'
@@ -10,7 +10,7 @@ import { DepErrorService } from 'src/app/services/dep-error.service'
   standalone: true,
   template: `
     <h2>
-      <tui-icon icon="tuiIconGrid" />
+      <tui-icon icon="@tui.layout-grid" />
       Services
     </h2>
     <div class="g-plaque"></div>
@@ -86,12 +86,12 @@ import { DepErrorService } from 'src/app/services/dep-error.service'
     }
 
     tr:not(:last-child) {
-      box-shadow: inset 0 -1px var(--tui-clear);
+      box-shadow: inset 0 -1px var(--tui-background-neutral-1);
     }
 
     th {
       text-transform: uppercase;
-      color: var(--tui-text-02);
+      color: var(--tui-text-secondary);
       font: var(--tui-font-text-s);
       font-weight: bold;
       text-align: left;
@@ -118,7 +118,7 @@ import { DepErrorService } from 'src/app/services/dep-error.service'
       }
     }
   `,
-  imports: [TuiIconModule, ServiceComponent, ToManifestPipe],
+  imports: [TuiIcon, ServiceComponent, ToManifestPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardComponent {

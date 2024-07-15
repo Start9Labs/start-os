@@ -7,7 +7,7 @@
         size="60px"
         [url]="store?.url || ''"
         [marketplace]="iconConfig"
-      ></store-icon>
+      />
       <h1 [class.tui-skeleton]="!store">
         {{ store?.info?.name || 'Loading store' }}
       </h1>
@@ -21,13 +21,11 @@
         <marketplace-search
           [(query)]="query"
           (queryChange)="onQueryChange($event)"
-        ></marketplace-search>
+        />
         <button
           tuiButton
           type="button"
-          appearance="flat"
-          [pseudoActive]="false"
-          [pseudoHover]="false"
+          appearance="link"
           (click)="toggleMenu(true)"
           (tuiActiveZoneChange)="toggleMenu($event)"
           [style.--tui-padding]="'1.2rem'"
@@ -40,7 +38,7 @@
             [marketplace]="iconConfig"
             [class.tui-skeleton]="!store"
             [class.tui-skeleton_rounded]="!store"
-          ></store-icon>
+          />
           <nav
             *tuiSidebar="open; direction: 'right'; autoWidth: true"
             class="nav-mobile-sidebar divide-bar"
@@ -54,7 +52,7 @@
                 tuiButton
                 type="button"
                 appearance="icon"
-                icon="tuiIconClose"
+                iconStart="@tui.x"
                 (tuiActiveZoneChange)="toggleMenu($event)"
                 (click)="toggleMenu(false)"
               ></button>
@@ -66,20 +64,17 @@
                 [categories]="store?.info?.categories"
                 [category]="query ? '' : category"
                 (categoryChange)="onCategoryChange($event); toggleMenu(false)"
-              ></marketplace-categories>
+              />
               <div>
                 <!-- link to store for brochure -->
-                <ng-content select="[slot=store-mobile]"></ng-content>
+                <ng-content select="[slot=store-mobile]" />
                 <a
                   target="_blank"
                   rel="noreferrer"
                   href="https://docs.start9.com/0.3.5.x/developer-docs/"
                 >
                   <span>Package a service</span>
-                  <tui-icon
-                    tuiAppearance="icon"
-                    icon="tuiIconExternalLinkLarge"
-                  ></tui-icon>
+                  <tui-icon tuiAppearance="icon" icon="@tui.external-link" />
                 </a>
               </div>
             </div>
@@ -93,26 +88,23 @@
       <marketplace-search
         [query]="query"
         (queryChange)="onQueryChange($event)"
-      ></marketplace-search>
+      />
       <div class="nav-desktop-container">
         <marketplace-categories
           [categories]="store?.info?.categories"
           [category]="query ? '' : category"
           (categoryChange)="onCategoryChange($event)"
-        ></marketplace-categories>
+        />
         <div>
           <!-- link to store for brochure -->
-          <ng-content select="[slot=store]"></ng-content>
+          <ng-content select="[slot=store]" />
           <a
             target="_blank"
             rel="noreferrer"
             href="https://docs.start9.com/0.3.5.x/developer-docs/"
           >
             <span>Package a service</span>
-            <tui-icon
-              tuiAppearance="icon"
-              icon="tuiIconExternalLinkLarge"
-            ></tui-icon>
+            <tui-icon tuiAppearance="icon" icon="@tui.external-link" />
           </a>
         </div>
       </div>

@@ -1,8 +1,7 @@
 import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiAlertModule } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
+import { TuiAlert, TuiButton } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import {
   distinctUntilChanged,
@@ -24,7 +23,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       [tuiAlertOptions]="{
         label: 'StartOS download complete!',
         status: 'success',
-        autoClose: false
+        autoClose: 0
       }"
       (tuiAlertChange)="onDismiss()"
     >
@@ -44,7 +43,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     </ng-template>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButtonModule, TuiAlertModule, AsyncPipe],
+  imports: [TuiButton, TuiAlert, AsyncPipe],
 })
 export class UpdateToastComponent {
   private readonly api = inject(ApiService)

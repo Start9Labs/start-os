@@ -1,5 +1,5 @@
 import { Component, inject, Input } from '@angular/core'
-import { TuiNotificationModule } from '@taiga-ui/core'
+import { TuiNotification } from '@taiga-ui/core'
 import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
@@ -59,7 +59,7 @@ import { ConfigService } from 'src/app/services/config.service'
       }
     `,
   ],
-  imports: [TuiNotificationModule],
+  imports: [TuiNotification],
 })
 export class MarketplaceNotificationComponent {
   private readonly marketplace = inject(ConfigService).marketplace

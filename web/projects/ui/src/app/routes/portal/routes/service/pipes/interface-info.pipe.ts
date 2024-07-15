@@ -23,18 +23,18 @@ export class InterfaceInfoPipe implements PipeTransform {
 
       switch (val.type) {
         case 'ui':
-          color = 'var(--tui-primary)'
-          icon = 'tuiIconMonitor'
+          color = 'var(--tui-background-accent-1)'
+          icon = '@tui.monitor'
           typeDetail = 'User Interface (UI)'
           break
         case 'p2p':
-          color = 'var(--tui-info-fill)'
-          icon = 'tuiIconUsers'
+          color = 'var(--tui-status-info)'
+          icon = '@tui.users'
           typeDetail = 'Peer-To-Peer Interface (P2P)'
           break
         case 'api':
-          color = 'var(--tui-support-09)'
-          icon = 'tuiIconTerminal'
+          color = 'var(--tui-chart-categorical-09)'
+          icon = '@tui.terminal'
           typeDetail = 'Application Program Interface (API)'
           break
       }

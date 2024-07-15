@@ -1,40 +1,40 @@
 @import '@taiga-ui/core/styles/taiga-ui-local';
 
 :root {
-  --tui-primary: #3880ff;
-  --tui-primary-hover: #4c8dff;
-  --tui-primary-active: #3171e0;
+  --tui-background-accent-1: #3880ff;
+  --tui-background-accent-1-hover: #4c8dff;
+  --tui-background-accent-1-pressed: #3171e0;
 }
 
 /* stylelint-disable order/order */
 [tuiAppearance][data-appearance='secondary-warning'] {
-  background: var(--tui-warning-bg);
-  color: var(--tui-text-01);
+  background: var(--tui-status-warning-pale);
+  color: var(--tui-text-primary);
 
   @include appearance-hover {
-    background: var(--tui-warning-bg-hover);
+    background: var(--tui-status-warning-pale-hover);
   }
 
   @include appearance-active {
-    background: var(--tui-warning-bg-hover);
+    background: var(--tui-status-warning-pale-hover);
   }
 }
 
 [tuiAppearance][data-appearance='icon-success'] {
-  color: var(--tui-success-fill);
+  color: var(--tui-status-positive);
 }
 
 [tuiAppearance][data-appearance='icon-warning'] {
-  color: var(--tui-warning-fill);
+  color: var(--tui-status-warning);
 }
 
 [tuiAppearance][data-appearance='icon-error'] {
-  color: var(--tui-error-fill);
+  color: var(--tui-status-negative);
 }
 
 [tuiAppearance][data-appearance='flat'],
 [tuiAppearance][data-appearance='outline'] {
-  color: var(--tui-text-01);
+  color: var(--tui-text-primary);
 }
 
 [tuiAppearance][data-appearance='primary'] {
@@ -134,7 +134,7 @@
   }
 }
 
-[tuiWrapper][data-appearance='input-file'] {
+[tuiAppearance][data-appearance='input-file'] {
   &:hover,
   &:active {
     background: transparent !important;
@@ -150,7 +150,7 @@ tui-dialog {
 }
 
 tui-opt-group[data-label^='⚠️']::before {
-  color: var(--tui-warning-fill);
+  color: var(--tui-status-warning);
 }
 
 tui-hint[data-appearance='onDark'] {
@@ -159,10 +159,10 @@ tui-hint[data-appearance='onDark'] {
 }
 
 [tuiLink] {
-  color: var(--tui-link) !important;
+  color: var(--tui-text-action) !important;
 
   &:hover {
-    color: var(--tui-link-hover) !important;
+    color: var(--tui-text-action-hover) !important;
   }
 }
 
@@ -172,7 +172,7 @@ tui-hint[data-appearance='onDark'] {
   border-radius: 10rem;
 
   &._focused::after {
-    color: var(--tui-primary);
+    color: var(--tui-background-accent-1);
   }
 }
 
@@ -182,12 +182,12 @@ tui-dropdown[data-appearance='start-os'][data-appearance='start-os'] {
   backdrop-filter: blur(0.25rem);
   box-shadow: 0 0.25rem 0.25rem rgb(0 0 0 / 25%);
   border-radius: 0.325rem;
-  // TODO: Replace --tui-elevation-02 when Taiga UI is updated
+  // TODO: Replace --tui-background-elevation-2 when Taiga UI is updated
   background: rgb(63 63 63 / 80%);
 
   tui-opt-group {
     &::before {
-      background: var(--tui-clear);
+      background: var(--tui-background-neutral-1);
       height: 1px;
     }
 

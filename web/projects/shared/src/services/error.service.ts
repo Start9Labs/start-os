@@ -1,5 +1,5 @@
 import { ErrorHandler, inject, Injectable } from '@angular/core'
-import { TuiAlertService, TuiNotification } from '@taiga-ui/core'
+import { TuiAlertService } from '@taiga-ui/core'
 import { HttpError } from '../classes/http-error'
 
 // TODO: Enable this as ErrorHandler
@@ -15,8 +15,7 @@ export class ErrorService extends ErrorHandler {
     this.alerts
       .open(getErrorMessage(error, link), {
         label: 'Error',
-        autoClose: false,
-        status: TuiNotification.Error,
+        status: 'error',
       })
       .subscribe()
   }

@@ -1,3 +1,4 @@
+import { TuiLoader, TuiIcon } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -5,8 +6,6 @@ import {
   HostBinding,
   Input,
 } from '@angular/core'
-import { TuiLoaderModule } from '@taiga-ui/core'
-import { TuiIconModule } from '@taiga-ui/experimental'
 import { StatusRendering } from 'src/app/services/pkg-status-rendering.service'
 import { InstallingProgressDisplayPipe } from '../pipes/install-progress.pipe'
 import { InstallingInfo } from 'src/app/services/patch-db/data-model'
@@ -41,7 +40,7 @@ import { UnitConversionPipesModule } from '@start9labs/shared'
         white-space: nowrap;
         margin: auto 0;
         min-height: 2.75rem;
-        color: var(--tui-text-02);
+        color: var(--tui-text-secondary);
       }
 
       tui-loader {
@@ -52,7 +51,7 @@ import { UnitConversionPipesModule } from '@start9labs/shared'
 
       div {
         font-size: 1rem;
-        color: var(--tui-text-02);
+        color: var(--tui-text-secondary);
         margin: 1rem 0;
       }
     `,
@@ -63,8 +62,8 @@ import { UnitConversionPipesModule } from '@start9labs/shared'
     CommonModule,
     InstallingProgressDisplayPipe,
     UnitConversionPipesModule,
-    TuiIconModule,
-    TuiLoaderModule,
+    TuiIcon,
+    TuiLoader,
   ],
 })
 export class ServiceStatusComponent {
@@ -98,19 +97,19 @@ export class ServiceStatusComponent {
   }
 
   get icon(): string {
-    if (!this.connected) return 'tuiIconCircle'
+    if (!this.connected) return '@tui.circle'
 
     switch (this.rendering.color) {
       case 'danger':
-        return 'tuiIconXCircle'
+        return '@tui.circle-x'
       case 'warning':
-        return 'tuiIconAlertCircle'
+        return '@tui.circle-alert'
       case 'success':
-        return 'tuiIconCheckCircle'
+        return '@tui.circle-check'
       case 'primary':
-        return 'tuiIconMinusCircle'
+        return '@tui.circle-minus'
       default:
-        return 'tuiIconCircle'
+        return '@tui.circle'
     }
   }
 }

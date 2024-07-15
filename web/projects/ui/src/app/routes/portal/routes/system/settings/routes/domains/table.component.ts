@@ -7,8 +7,7 @@ import {
   Input,
   Output,
 } from '@angular/core'
-import { TuiDialogService, TuiLinkModule } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
+import { TuiDialogService, TuiLink, TuiButton } from '@taiga-ui/core'
 import { Domain } from 'src/app/services/patch-db/data-model'
 
 @Component({
@@ -43,7 +42,7 @@ import { Domain } from 'src/app/services/patch-db/data-model'
               tuiIconButton
               size="xs"
               appearance="icon"
-              iconLeft="tuiIconTrash2"
+              iconStart="@tui.trash-2"
               (click)="delete.emit(domain)"
             >
               Delete
@@ -82,7 +81,7 @@ import { Domain } from 'src/app/services/patch-db/data-model'
 
         &::before {
           content: 'Strategy: ';
-          color: var(--tui-text-02);
+          color: var(--tui-text-secondary);
         }
       }
 
@@ -91,7 +90,7 @@ import { Domain } from 'src/app/services/patch-db/data-model'
 
         &::before {
           content: 'DDNS: ';
-          color: var(--tui-text-02);
+          color: var(--tui-text-secondary);
         }
       }
 
@@ -107,7 +106,7 @@ import { Domain } from 'src/app/services/patch-db/data-model'
   `,
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, TuiButtonModule, TuiLinkModule],
+  imports: [CommonModule, TuiButton, TuiLink],
 })
 export class DomainsTableComponent {
   private readonly dialogs = inject(TuiDialogService)

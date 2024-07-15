@@ -6,7 +6,7 @@ import {
 } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { TuiDialogService } from '@taiga-ui/core'
-import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { CopyService, MarkdownComponent } from '@start9labs/shared'
 import { MarketplacePkg } from '../../../types'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'

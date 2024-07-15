@@ -80,7 +80,7 @@ export class LogsPipe implements PipeTransform {
 
 function getMessage(success: boolean): string {
   return `<p style="color: ${
-    success ? 'var(--tui-success-fill)' : 'var(--tui-error-fill)'
+    success ? 'var(--tui-status-positive)' : 'var(--tui-status-negative)'
   }; text-align: center;">${
     success ? 'Reconnected' : 'Disconnected'
   } at ${toLocalIsoString(new Date())}</p>`

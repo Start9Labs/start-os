@@ -1,3 +1,4 @@
+import { TuiScrollbar } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import {
@@ -12,7 +13,6 @@ import { MarketplaceTileComponent } from './components/tile.component'
 import { MarketplaceControlsComponent } from './components/controls.component'
 import { MarketplacePreviewComponent } from './modals/preview.component'
 import { MarketplaceSidebarsComponent } from './components/sidebars.component'
-import { TuiScrollbarModule } from '@taiga-ui/core'
 
 @Component({
   standalone: true,
@@ -145,7 +145,7 @@ import { TuiScrollbarModule } from '@taiga-ui/core'
     MarketplaceControlsComponent,
     MarketplacePreviewComponent,
     MarketplaceSidebarsComponent,
-    TuiScrollbarModule,
+    TuiScrollbar,
   ],
 })
 export class MarketplaceComponent {

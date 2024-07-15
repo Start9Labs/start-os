@@ -4,7 +4,7 @@
   tuiSurface="elevated"
   class="card"
 >
-  <tui-icon icon="tuiIconLock" [style.font-size.rem]="4" />
+  <tui-icon icon="@tui.lock" [style.font-size.rem]="4" />
   <h1>Trust Your Root CA</h1>
   <p>
     Download and trust your server's Root Certificate Authority to establish a
@@ -29,7 +29,7 @@
         tuiButton
         size="s"
         appearance="tertiary-solid"
-        iconRight="tuiIconDownload"
+        iconEnd="@tui.download"
         href="/eos/local.crt"
       >
         Download
@@ -47,7 +47,7 @@
         href="https://docs.start9.com/0.3.5.x/user-manual/trust-ca"
         target="_blank"
         rel="noreferrer"
-        iconRight="tuiIconExternalLink"
+        iconEnd="@tui.external-link"
       >
         View Instructions
       </a>
@@ -62,7 +62,7 @@
         size="s"
         class="refresh"
         appearance="success-solid"
-        iconRight="tuiIconRefreshCw"
+        iconEnd="@tui.refresh-cw"
         (click)="refresh()"
       >
         Refresh
@@ -73,7 +73,7 @@
     tuiButton
     size="s"
     appearance="flat"
-    iconRight="tuiIconExternalLink"
+    iconEnd="@tui.external-link"
     (click)="launchHttps()"
     [disabled]="caTrusted"
   >
@@ -85,7 +85,7 @@
 <ng-template #trusted>
   <div tuiCardLarge tuiSurface="elevated" class="card">
     <tui-icon
-      icon="tuiIconShield"
+      icon="@tui.shield"
       tuiAppearance="icon-success"
       [style.font-size.rem]="4"
     />
@@ -97,7 +97,7 @@
     <button
       tuiButton
       appearance="tertiary-solid"
-      iconRight="tuiIconExternalLink"
+      iconEnd="@tui.external-link"
       (click)="launchHttps()"
     >
       Go to login

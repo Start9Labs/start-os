@@ -1,12 +1,12 @@
+import { TuiLet } from '@taiga-ui/cdk'
+import { TuiButton } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiButtonModule } from '@taiga-ui/experimental'
 import { from, map, merge, Observable, Subject } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { Session } from 'src/app/services/api/api.types'
 import { SSHTableComponent } from './table.component'
-import { TuiLetModule } from '@taiga-ui/cdk'
 
 @Component({
   template: `
@@ -36,7 +36,7 @@ import { TuiLetModule } from '@taiga-ui/cdk'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TuiButtonModule, SSHTableComponent, TuiLetModule],
+  imports: [CommonModule, TuiButton, SSHTableComponent, TuiLet],
 })
 export class SettingsSessionsComponent {
   private readonly loader = inject(LoadingService)

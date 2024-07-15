@@ -1,3 +1,4 @@
+import { TuiInputModule, TuiInputPasswordModule } from '@taiga-ui/legacy'
 import { CommonModule } from '@angular/common'
 import { Component, inject, Inject } from '@angular/core'
 import {
@@ -9,18 +10,13 @@ import {
 } from '@angular/forms'
 import { LoadingService, StartOSDiskInfo } from '@start9labs/shared'
 import {
-  TuiButtonModule,
   TuiDialogContext,
   TuiDialogService,
-  TuiErrorModule,
+  TuiError,
+  TuiButton,
 } from '@taiga-ui/core'
-import {
-  TUI_VALIDATION_ERRORS,
-  TuiFieldErrorPipeModule,
-  TuiInputModule,
-  TuiInputPasswordModule,
-} from '@taiga-ui/kit'
-import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
+import { TUI_VALIDATION_ERRORS, TuiFieldErrorPipe } from '@taiga-ui/kit'
+import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus'
 import { PASSWORD } from 'src/app/components/password.component'
 import {
   ApiService,
@@ -40,7 +36,7 @@ interface Context {
       <tui-input formControlName="hostname">
         Hostname
         <input
-          tuiTextfield
+          tuiTextfieldLegacy
           placeholder="'My Computer' OR 'my-computer.local'"
         />
       </tui-input>
@@ -51,7 +47,7 @@ interface Context {
 
       <tui-input formControlName="path" class="input">
         Path
-        <input tuiTextfield placeholder="/Desktop/my-folder'" />
+        <input tuiTextfieldLegacy placeholder="/Desktop/my-folder'" />
       </tui-input>
       <tui-error
         formControlName="path"
@@ -60,7 +56,7 @@ interface Context {
 
       <tui-input formControlName="username" class="input">
         Username
-        <input tuiTextfield placeholder="Enter username" />
+        <input tuiTextfieldLegacy placeholder="Enter username" />
       </tui-input>
       <tui-error
         formControlName="username"
@@ -92,11 +88,11 @@ interface Context {
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    TuiButtonModule,
+    TuiButton,
     TuiInputModule,
     TuiInputPasswordModule,
-    TuiErrorModule,
-    TuiFieldErrorPipeModule,
+    TuiError,
+    TuiFieldErrorPipe,
   ],
   providers: [
     {

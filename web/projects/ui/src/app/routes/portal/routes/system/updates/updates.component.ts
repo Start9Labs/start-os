@@ -4,9 +4,13 @@ import {
   AbstractMarketplaceService,
   StoreIconComponentModule,
 } from '@start9labs/marketplace'
-import { TuiAvatarModule, TuiCellModule } from '@taiga-ui/experimental'
+import { TuiAvatar } from '@taiga-ui/kit'
+import { TuiCell } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
-import { combineLatest, map, scan } from 'rxjs'
+import { combineLatest, map } from 'rxjs'
+import { FilterUpdatesPipe } from 'src/app/routes/portal/routes/system/updates/filter-updates.pipe'
+import { UpdatesItemComponent } from 'src/app/routes/portal/routes/system/updates/item.component'
+import { ConfigService } from 'src/app/services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   DataModel,
@@ -14,9 +18,6 @@ import {
   PackageDataEntry,
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
-import { ConfigService } from 'src/app/services/config.service'
-import { FilterUpdatesPipe } from 'src/app/routes/portal/routes/system/updates/filter-updates.pipe'
-import { UpdatesItemComponent } from 'src/app/routes/portal/routes/system/updates/item.component'
 import { isInstalled, isUpdating } from 'src/app/utils/get-package-data'
 
 @Component({
@@ -59,8 +60,8 @@ import { isInstalled, isUpdating } from 'src/app/utils/get-package-data'
   standalone: true,
   imports: [
     CommonModule,
-    TuiCellModule,
-    TuiAvatarModule,
+    TuiCell,
+    TuiAvatar,
     StoreIconComponentModule,
     FilterUpdatesPipe,
     UpdatesItemComponent,

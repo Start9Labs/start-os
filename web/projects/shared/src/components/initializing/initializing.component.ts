@@ -1,3 +1,4 @@
+import { TuiLet } from '@taiga-ui/cdk'
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -6,8 +7,7 @@ import {
   Input,
   Output,
 } from '@angular/core'
-import { TuiLetModule } from '@taiga-ui/cdk'
-import { TuiProgressModule } from '@taiga-ui/kit'
+import { TuiProgress } from '@taiga-ui/kit'
 import { delay, filter } from 'rxjs'
 import { LogsWindowComponent } from './logs-window.component'
 import { SetupService } from '../../services/setup.service'
@@ -44,7 +44,7 @@ import { SetupService } from '../../services/setup.service'
       /* TODO: Theme */
       background: #e0e0e0;
       color: #333;
-      --tui-clear-inverse: rgba(0, 0, 0, 0.1);
+      --tui-background-neutral-1: rgba(0, 0, 0, 0.1);
     }
 
     logs-window {
@@ -60,7 +60,7 @@ import { SetupService } from '../../services/setup.service'
       background: #181818;
     }
   `,
-  imports: [CommonModule, LogsWindowComponent, TuiLetModule, TuiProgressModule],
+  imports: [CommonModule, LogsWindowComponent, TuiLet, TuiProgress],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InitializingComponent {

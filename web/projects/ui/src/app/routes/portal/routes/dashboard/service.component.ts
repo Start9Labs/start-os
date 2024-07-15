@@ -50,7 +50,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
       cursor: pointer;
 
       &:hover {
-        background: var(--tui-clear);
+        background: var(--tui-background-neutral-1);
       }
     }
 
@@ -66,7 +66,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
     }
 
     a {
-      color: var(--tui-text-01);
+      color: var(--tui-text-primary);
       font-weight: bold;
     }
 

@@ -1,7 +1,7 @@
 import { Directive, HostListener, inject, Input } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
-import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { HeaderSnekComponent } from './snek.component'

@@ -1,3 +1,4 @@
+import { TuiLet } from '@taiga-ui/cdk'
 import { CommonModule } from '@angular/common'
 import { Component, inject, Input } from '@angular/core'
 import { Router, RouterLink } from '@angular/router'
@@ -14,9 +15,7 @@ import {
   LoadingService,
   SharedPipesModule,
 } from '@start9labs/shared'
-import { TuiLetModule } from '@taiga-ui/cdk'
-import { TuiAlertService } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
+import { TuiAlertService, TuiButton } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -82,8 +81,8 @@ import { getManifest } from 'src/app/utils/get-package-data'
     SharedPipesModule,
     AboutModule,
     AdditionalModule,
-    TuiButtonModule,
-    TuiLetModule,
+    TuiButton,
+    TuiLet,
     MarketplacePackageHeroComponent,
     MarketplaceDependenciesComponent,
   ],

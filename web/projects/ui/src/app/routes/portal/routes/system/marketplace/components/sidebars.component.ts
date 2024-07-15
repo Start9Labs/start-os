@@ -1,8 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import {
-  AbstractTuiPortalHostComponent,
-  AbstractTuiPortalService,
-} from '@taiga-ui/cdk'
+import { TuiPortals, TuiPortalService } from '@taiga-ui/cdk'
 import { MarketplaceSidebarService } from '../services/sidebar.service'
 
 @Component({
@@ -21,9 +18,9 @@ import { MarketplaceSidebarService } from '../services/sidebar.service'
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
     {
-      provide: AbstractTuiPortalService,
+      provide: TuiPortalService,
       useExisting: MarketplaceSidebarService,
     },
   ],
 })
-export class MarketplaceSidebarsComponent extends AbstractTuiPortalHostComponent {}
+export class MarketplaceSidebarsComponent extends TuiPortals {}

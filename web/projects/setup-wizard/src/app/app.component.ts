@@ -5,10 +5,7 @@ import { ApiService } from 'src/app/services/api.service'
 
 @Component({
   selector: 'app-root',
-  template: `
-    <tui-theme-night></tui-theme-night>
-    <tui-root tuiMode="onDark"><router-outlet /></tui-root>
-  `,
+  template: '<tui-root tuiTheme="dark"><router-outlet /></tui-root>',
 })
 export class AppComponent {
   private readonly api = inject(ApiService)

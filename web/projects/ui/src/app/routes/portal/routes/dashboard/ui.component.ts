@@ -6,8 +6,7 @@ import {
 } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
 import { tuiPure } from '@taiga-ui/cdk'
-import { TuiDataListModule, TuiHostedDropdownModule } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
+import { TuiDataList, TuiDropdown, TuiButton } from '@taiga-ui/core'
 import { ConfigService } from 'src/app/services/config.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 
@@ -16,38 +15,38 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
   selector: 'app-ui-launch',
   template: `
     @if (interfaces.length > 1) {
-      <tui-hosted-dropdown [content]="content">
-        <button
-          tuiIconButton
-          iconLeft="tuiIconExternalLink"
-          [disabled]="!isRunning"
-        >
-          Launch UI
-        </button>
-        <ng-template #content>
-          <tui-data-list>
-            @for (interface of interfaces; track $index) {
-              <a
-                tuiOption
-                target="_blank"
-                rel="noreferrer"
-                [attr.href]="getHref(interface)"
-              >
-                {{ interface.name }}
-              </a>
-            }
-          </tui-data-list>
-        </ng-template>
-      </tui-hosted-dropdown>
+      <button
+        tuiIconButton
+        iconStart="@tui.external-link"
+        tuiDropdownOpen
+        [disabled]="!isRunning"
+        [tuiDropdown]="content"
+      >
+        Launch UI
+      </button>
+      <ng-template #content>
+        <tui-data-list>
+          @for (interface of interfaces; track $index) {
+            <a
+              tuiOption
+              target="_blank"
+              rel="noreferrer"
+              [attr.href]="getHref(interface)"
+            >
+              {{ interface.name }}
+            </a>
+          }
+        </tui-data-list>
+      </ng-template>
     } @else {
       <a
         tuiIconButton
-        iconLeft="tuiIconExternalLink"
+        iconStart="@tui.external-link"
         target="_blank"
         rel="noreferrer"
-        [attr.href]="getHref(interfaces[0])"
+        [attr.href]="getHref(first)"
       >
-        {{ interfaces[0]?.name }}
+        {{ first?.name }}
       </a>
     }
   `,
@@ -57,7 +56,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButtonModule, TuiHostedDropdownModule, TuiDataListModule],
+  imports: [TuiButton, TuiDropdown, TuiDataList],
 })
 export class UILaunchComponent {
   private readonly config = inject(ConfigService)
@@ -71,6 +70,10 @@ export class UILaunchComponent {
 
   get isRunning(): boolean {
     return this.pkg.status.main.status === 'running'
+  }
+
+  get first(): T.ServiceInterfaceWithHostInfo | undefined {
+    return this.interfaces[0]
   }
 
   @tuiPure

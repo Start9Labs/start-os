@@ -1,3 +1,4 @@
+import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ActivatedRoute, Router } from '@angular/router'
@@ -9,8 +10,7 @@ import {
   getPkgId,
 } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
-import { TUI_PROMPT } from '@taiga-ui/kit'
-import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { filter, switchMap, timer } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
@@ -50,7 +50,7 @@ import { getAllPackages, getManifest } from 'src/app/utils/get-package-data'
             [action]="{
               name: action.name,
               description: action.description,
-              icon: 'tuiIconPlayCircle'
+              icon: '@tui.circle-play'
             }"
             (click)="handleAction(action)"
           ></button>
@@ -75,7 +75,7 @@ export class ServiceActionsRoute {
     .pipe(filter(pkg => pkg.stateInfo.state === 'installed'))
 
   readonly action = {
-    icon: 'tuiIconTrash2',
+    icon: '@tui.trash-2',
     name: 'Uninstall',
     description:
       'This will uninstall the service from StartOS and delete all data permanently.',
@@ -116,7 +116,7 @@ export class ServiceActionsRoute {
         })
       } else {
         this.dialogs
-          .open(TUI_PROMPT, {
+          .open(TUI_CONFIRM, {
             label: 'Confirm',
             size: 's',
             data: {
@@ -145,7 +145,7 @@ export class ServiceActionsRoute {
     }
 
     this.dialogs
-      .open(TUI_PROMPT, {
+      .open(TUI_CONFIRM, {
         label: 'Warning',
         size: 's',
         data: {

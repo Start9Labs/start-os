@@ -1,16 +1,17 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { TuiLabelModule, TuiSvgModule } from '@taiga-ui/core'
-import { TuiLineClampModule } from '@taiga-ui/kit'
+import { TuiIcon, TuiLabel, TuiTitle } from '@taiga-ui/core'
+import { TuiLineClamp } from '@taiga-ui/kit'
 
 @Component({
   selector: 'marketplace-additional-item',
   template: `
     <div class="item-container">
-      <label [tuiLabel]="label">
-        <tui-line-clamp [content]="data" [linesLimit]="1"></tui-line-clamp>
+      <label tuiTitle>
+        <span tuiSubtitle>{{ label }}</span>
+        <tui-line-clamp [content]="data" [linesLimit]="1" />
       </label>
-      <tui-svg [src]="icon"></tui-svg>
+      <tui-icon [icon]="icon" />
     </div>
   `,
   styles: [
@@ -25,7 +26,11 @@ import { TuiLineClampModule } from '@taiga-ui/kit'
           background-color: rgb(113 113 122 / 0.1);
         }
 
-        tui-svg {
+        [tuiSubtitle] {
+          color: var(--tui-text-secondary);
+        }
+
+        tui-icon {
           opacity: 0.7;
         }
       }
@@ -38,7 +43,7 @@ import { TuiLineClampModule } from '@taiga-ui/kit'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TuiSvgModule, TuiLineClampModule, TuiLabelModule],
+  imports: [CommonModule, TuiLineClamp, TuiLabel, TuiIcon, TuiTitle],
 })
 export class MarketplaceAdditionalItemComponent {
   @Input({ required: true })

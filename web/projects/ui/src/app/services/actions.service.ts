@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
-import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
+import { TuiConfirmData, TUI_CONFIRM } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { defaultIfEmpty, filter, firstValueFrom } from 'rxjs'
 import {
@@ -54,7 +54,7 @@ export class ActionsService {
 
     if (content) {
       this.dialogs
-        .open(TUI_PROMPT, getOptions(content, 'Stop'))
+        .open(TUI_CONFIRM, getOptions(content, 'Stop'))
         .pipe(filter(Boolean))
         .subscribe(() => this.doStop(id))
     } else {
@@ -66,7 +66,7 @@ export class ActionsService {
     if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
       this.dialogs
         .open(
-          TUI_PROMPT,
+          TUI_CONFIRM,
           getOptions(
             `Services that depend on ${title} may temporarily experiences issues`,
             'Restart',
@@ -118,7 +118,7 @@ export class ActionsService {
   private alert(content: string): Promise<boolean> {
     return firstValueFrom(
       this.dialogs
-        .open<boolean>(TUI_PROMPT, getOptions(content))
+        .open<boolean>(TUI_CONFIRM, getOptions(content))
         .pipe(defaultIfEmpty(false)),
     )
   }
@@ -127,7 +127,7 @@ export class ActionsService {
 function getOptions(
   content: string,
   yes = 'Continue',
-): Partial<TuiDialogOptions<TuiPromptData>> {
+): Partial<TuiDialogOptions<TuiConfirmData>> {
   return {
     label: 'Warning',
     size: 's',

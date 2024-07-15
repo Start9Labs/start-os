@@ -1,11 +1,11 @@
+import { TuiScrollbar } from '@taiga-ui/core'
 import { AsyncPipe } from '@angular/common'
 import { Component, ElementRef, inject } from '@angular/core'
 import {
-  IntersectionObserverModule,
+  WaIntersectionObserver,
   INTERSECTION_ROOT,
 } from '@ng-web-apis/intersection-observer'
-import { MutationObserverModule } from '@ng-web-apis/mutation-observer'
-import { TuiScrollbarModule } from '@taiga-ui/core'
+import { WaMutationObserver } from '@ng-web-apis/mutation-observer'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 import { SetupLogsService } from '../../services/setup-logs.service'
 
@@ -27,10 +27,10 @@ import { SetupLogsService } from '../../services/setup-logs.service'
   `,
   imports: [
     AsyncPipe,
-    MutationObserverModule,
-    IntersectionObserverModule,
+    WaMutationObserver,
+    WaIntersectionObserver,
     NgDompurifyModule,
-    TuiScrollbarModule,
+    TuiScrollbar,
   ],
   providers: [
     {

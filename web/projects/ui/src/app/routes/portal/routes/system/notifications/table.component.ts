@@ -1,12 +1,12 @@
+import { TuiLineClamp, TuiCheckbox } from '@taiga-ui/kit'
 import {
   ChangeDetectionStrategy,
   Component,
   Input,
   OnChanges,
+  signal,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { TuiCheckboxModule } from '@taiga-ui/experimental'
-import { TuiLineClampModule } from '@taiga-ui/kit'
 import { BehaviorSubject } from 'rxjs'
 import {
   ServerNotification,
@@ -48,7 +48,7 @@ import { NotificationItemComponent } from './item.component'
               size="s"
               type="checkbox"
               [style.display]="'block'"
-              [ngModel]="selected$.value.includes(notification)"
+              [ngModel]="selected().includes(notification)"
               (ngModelChange)="handleToggle(notification)"
             />
           </tr>
@@ -76,45 +76,40 @@ import { NotificationItemComponent } from './item.component'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [
-    FormsModule,
-    TuiCheckboxModule,
-    TuiLineClampModule,
-    NotificationItemComponent,
-  ],
+  imports: [FormsModule, TuiCheckbox, TuiLineClamp, NotificationItemComponent],
 })
 export class NotificationsTableComponent implements OnChanges {
-  @Input() notifications: ServerNotifications | null = null
+  @Input() notifications?: ServerNotifications
 
   get all(): boolean | null {
-    if (!this.notifications?.length || !this.selected$.value.length) {
+    if (!this.notifications?.length || !this.selected().length) {
       return false
     }
 
-    if (this.notifications?.length === this.selected$.value.length) {
+    if (this.notifications?.length === this.selected().length) {
       return true
     }
 
     return null
   }
 
-  readonly selected$ = new BehaviorSubject<ServerNotifications>([])
+  readonly selected = signal<ServerNotifications>([])
 
   ngOnChanges() {
-    this.selected$.next([])
+    this.selected.set([])
   }
 
   onAll(selected: boolean) {
-    this.selected$.next((selected && this.notifications) || [])
+    this.selected.set((selected && this.notifications) || [])
   }
 
   handleToggle(notification: ServerNotification<number>) {
-    const selected = this.selected$.value
+    const selected = this.selected()
 
     if (selected.some(s => s.id === notification.id)) {
-      this.selected$.next(selected.filter(s => s.id !== notification.id))
+      this.selected.set(selected.filter(s => s.id !== notification.id))
     } else {
-      this.selected$.next([...selected, notification])
+      this.selected.set([...selected, notification])
     }
   }
 }

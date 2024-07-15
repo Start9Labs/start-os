@@ -1,22 +1,18 @@
+import {
+  TuiWrapperModule,
+  TuiInputModule,
+  TuiInputNumberModule,
+} from '@taiga-ui/legacy'
 import { CommonModule } from '@angular/common'
 import { Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import {
-  TuiDialogContext,
-  TuiDialogService,
-  TuiWrapperModule,
-} from '@taiga-ui/core'
-import { TuiBadgeModule, TuiButtonModule } from '@taiga-ui/experimental'
-import {
-  TuiInputModule,
-  TuiInputNumberModule,
-  TuiToggleModule,
-} from '@taiga-ui/kit'
+import { TuiDialogContext, TuiDialogService, TuiButton } from '@taiga-ui/core'
+import { TuiBadge, TuiSwitch } from '@taiga-ui/kit'
 import {
   POLYMORPHEUS_CONTEXT,
   PolymorpheusComponent,
-} from '@tinkoff/ng-polymorpheus'
+} from '@taiga-ui/polymorpheus'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { BackupJob, BackupTarget } from 'src/app/services/api/api.types'
 import { TARGET, TARGET_CREATE } from './target.component'
@@ -29,7 +25,7 @@ import { ToHumanCronPipe } from '../pipes/to-human-cron.pipe'
     <form class="form">
       <tui-input name="name" [(ngModel)]="job.name">
         Job Name
-        <input tuiTextfield placeholder="My Backup Job" />
+        <input tuiTextfieldLegacy placeholder="My Backup Job" />
       </tui-input>
       <button
         tuiButton
@@ -59,14 +55,14 @@ import { ToHumanCronPipe } from '../pipes/to-human-cron.pipe'
       </button>
       <tui-input name="cron" [(ngModel)]="job.cron">
         Schedule
-        <input tuiTextfield placeholder="* * * * *" />
+        <input tuiTextfieldLegacy placeholder="* * * * *" />
       </tui-input>
       <div *ngIf="job.cron | toHumanCron as human" [style.color]="human.color">
         {{ human.message }}
       </div>
       <div *ngIf="!job.job.id" class="g-toggle">
         Also Execute Now
-        <tui-toggle size="l" name="now" [(ngModel)]="job.now"></tui-toggle>
+        <input tuiSwitch type="checkbox" name="now" [(ngModel)]="job.now" />
       </div>
       <button
         tuiButton
@@ -100,10 +96,10 @@ import { ToHumanCronPipe } from '../pipes/to-human-cron.pipe'
     FormsModule,
     TuiInputModule,
     TuiInputNumberModule,
-    TuiToggleModule,
+    TuiSwitch,
     TuiWrapperModule,
-    TuiButtonModule,
-    TuiBadgeModule,
+    TuiButton,
+    TuiBadge,
     ToHumanCronPipe,
   ],
 })

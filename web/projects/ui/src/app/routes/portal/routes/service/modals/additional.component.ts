@@ -5,7 +5,7 @@ import {
   Input,
 } from '@angular/core'
 import { TuiDialogOptions } from '@taiga-ui/core'
-import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
+import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { ToAdditionalPipe } from 'src/app/routes/portal/routes/service/pipes/to-additional.pipe'
 import { ServiceAdditionalItemComponent } from './additional-item.component'

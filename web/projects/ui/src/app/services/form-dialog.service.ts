@@ -1,9 +1,9 @@
 import { inject, Injectable, Injector, Type } from '@angular/core'
 import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
-import { TuiDialogFormService, TuiPromptData } from '@taiga-ui/kit'
-import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { TuiConfirmData, TuiConfirmService } from '@taiga-ui/kit'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 
-const PROMPT: Partial<TuiDialogOptions<TuiPromptData>> = {
+const PROMPT: Partial<TuiDialogOptions<TuiConfirmData>> = {
   label: 'Unsaved Changes',
   data: {
     content: 'You have unsaved changes. Are you sure you want to leave?',
@@ -15,13 +15,13 @@ const PROMPT: Partial<TuiDialogOptions<TuiPromptData>> = {
 @Injectable({ providedIn: 'root' })
 export class FormDialogService {
   private readonly dialogs = inject(TuiDialogService)
-  private readonly formService = new TuiDialogFormService(this.dialogs)
-  private readonly prompt = this.formService.withPrompt(PROMPT)
+  private readonly formService = new TuiConfirmService()
+  private readonly prompt = this.formService.withConfirm(PROMPT)
   private readonly injector = Injector.create({
     parent: inject(Injector),
     providers: [
       {
-        provide: TuiDialogFormService,
+        provide: TuiConfirmService,
         useValue: this.formService,
       },
     ],

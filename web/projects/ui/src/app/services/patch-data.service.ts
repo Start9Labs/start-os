@@ -10,7 +10,7 @@ import { ConfigService } from 'src/app/services/config.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 
 // Get data from PatchDb after is starts and act upon it
 @Injectable({

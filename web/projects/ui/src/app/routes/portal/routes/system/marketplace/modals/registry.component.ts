@@ -1,3 +1,5 @@
+import { TUI_CONFIRM } from '@taiga-ui/kit'
+import { TuiCell } from '@taiga-ui/layout'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import {
@@ -10,15 +12,8 @@ import {
   AbstractMarketplaceService,
   StoreIconComponentModule,
 } from '@start9labs/marketplace'
-import { TuiDialogService } from '@taiga-ui/core'
-import {
-  TuiButtonModule,
-  TuiCellModule,
-  TuiIconModule,
-  TuiTitleModule,
-} from '@taiga-ui/experimental'
-import { TUI_PROMPT } from '@taiga-ui/kit'
-import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { TuiDialogService, TuiIcon, TuiTitle, TuiButton } from '@taiga-ui/core'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, filter, firstValueFrom, map, Subscription } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
@@ -44,7 +39,7 @@ import { getMarketplaceValueSpec, getPromptOptions } from '../utils/registry'
       }
       <h3 class="g-title">Custom Registries</h3>
       <button tuiCell (click)="add()" [style.width]="'-webkit-fill-available'">
-        <tui-icon icon="tuiIconPlus" [style.margin-inline.rem]="'0.5'" />
+        <tui-icon icon="@tui.plus" [style.margin-inline.rem]="'0.5'" />
         <div tuiTitle>Add custom registry</div>
       </button>
       @for (registry of stores.alt; track $index) {
@@ -57,7 +52,7 @@ import { getMarketplaceValueSpec, getPromptOptions } from '../utils/registry'
           <button
             tuiIconButton
             appearance="icon"
-            iconLeft="tuiIconTrash2"
+            iconStart="@tui.trash-2"
             (click)="delete(registry.url, registry.name)"
           >
             Delete
@@ -78,10 +73,10 @@ import { getMarketplaceValueSpec, getPromptOptions } from '../utils/registry'
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
-    TuiCellModule,
-    TuiIconModule,
-    TuiTitleModule,
-    TuiButtonModule,
+    TuiCell,
+    TuiIcon,
+    TuiTitle,
+    TuiButton,
     MarketplaceRegistryComponent,
     StoreIconComponentModule,
   ],
@@ -139,7 +134,7 @@ export class MarketplaceRegistryModal {
 
   delete(url: string, name: string = '') {
     this.dialogs
-      .open(TUI_PROMPT, getPromptOptions(name))
+      .open(TUI_CONFIRM, getPromptOptions(name))
       .pipe(filter(Boolean))
       .subscribe(async () => {
         const loader = this.loader.open('Deleting...').subscribe()

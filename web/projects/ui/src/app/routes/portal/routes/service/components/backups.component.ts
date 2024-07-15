@@ -1,3 +1,4 @@
+import { TuiButton } from '@taiga-ui/core'
 import { I18nPluralPipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -7,7 +8,6 @@ import {
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { T } from '@start9labs/start-sdk'
-import { TuiButtonModule } from '@taiga-ui/experimental'
 
 @Component({
   selector: 'service-backups',
@@ -23,7 +23,7 @@ import { TuiButtonModule } from '@taiga-ui/experimental'
     <div [style.min-width.%]="100">
       <a
         tuiButton
-        iconLeft="tuiIconPlusSquare"
+        iconStart="@tui.square-plus"
         routerLink="/portal/system/backups"
         size="s"
         appearance="secondary-warning"
@@ -43,13 +43,13 @@ import { TuiButtonModule } from '@taiga-ui/experimental'
       small {
         display: block;
         text-transform: uppercase;
-        color: var(--tui-text-02);
+        color: var(--tui-text-secondary);
       }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiButtonModule, RouterLink, I18nPluralPipe],
+  imports: [TuiButton, RouterLink, I18nPluralPipe],
 })
 export class ServiceBackupsComponent {
   pkg = input.required<T.PackageDataEntry>()

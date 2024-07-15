@@ -7,16 +7,15 @@ import {
   LoadingService,
 } from '@start9labs/shared'
 import { CT } from '@start9labs/start-sdk'
-import { TuiButtonModule } from '@taiga-ui/experimental'
 import {
   TuiDialogContext,
   TuiDialogService,
-  TuiLoaderModule,
-  TuiModeModule,
-  TuiNotificationModule,
+  TuiLoader,
+  TuiButton,
+  TuiNotification,
 } from '@taiga-ui/core'
-import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
-import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
+import { TuiConfirmData, TUI_CONFIRM } from '@taiga-ui/kit'
+import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus'
 import { compare, Operation } from 'fast-json-patch'
 import { PatchDB } from 'patch-db-client'
 import { endWith, firstValueFrom, Subscription } from 'rxjs'
@@ -80,7 +79,6 @@ export interface PackageConfigData {
       </tui-notification>
 
       <app-form
-        tuiMode="onDark"
         [spec]="spec"
         [value]="value || {}"
         [buttons]="buttons"
@@ -109,10 +107,9 @@ export interface PackageConfigData {
   imports: [
     CommonModule,
     FormComponent,
-    TuiLoaderModule,
-    TuiNotificationModule,
-    TuiButtonModule,
-    TuiModeModule,
+    TuiLoader,
+    TuiNotification,
+    TuiButton,
     ConfigDepComponent,
     ToManifestPipe,
   ],
@@ -271,10 +268,10 @@ export class ConfigModal {
     const content = `${message}${Object.keys(breakages).map(
       id => `<li><b>${getManifest(packages[id]).title}</b></li>`,
     )}</ul>`
-    const data: TuiPromptData = { content, yes: 'Continue', no: 'Cancel' }
+    const data: TuiConfirmData = { content, yes: 'Continue', no: 'Cancel' }
 
     return firstValueFrom(
-      this.dialogs.open<boolean>(TUI_PROMPT, { data }).pipe(endWith(false)),
+      this.dialogs.open<boolean>(TUI_CONFIRM, { data }).pipe(endWith(false)),
     )
   }
 }

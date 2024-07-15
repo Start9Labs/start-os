@@ -4,11 +4,11 @@ import {
   Input,
   OnChanges,
 } from '@angular/core'
+import { TuiNotification } from '@taiga-ui/core'
 import { compare, getValueByPointer, Operation } from 'fast-json-patch'
 import { isObject } from '@start9labs/shared'
 import { tuiIsNumber } from '@taiga-ui/cdk'
 import { CommonModule } from '@angular/common'
-import { TuiNotificationModule } from '@taiga-ui/core'
 
 @Component({
   selector: 'config-dep',
@@ -26,7 +26,7 @@ import { TuiNotificationModule } from '@taiga-ui/core'
     </tui-notification>
   `,
   standalone: true,
-  imports: [CommonModule, TuiNotificationModule],
+  imports: [CommonModule, TuiNotification],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ConfigDepComponent implements OnChanges {

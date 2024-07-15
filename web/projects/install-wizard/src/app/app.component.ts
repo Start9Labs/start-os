@@ -1,7 +1,7 @@
+import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { Component, inject } from '@angular/core'
 import { DiskInfo, LoadingService, toGuid } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
-import { TUI_PROMPT } from '@taiga-ui/kit'
 import { filter, from } from 'rxjs'
 import { SUCCESS, toWarning } from 'src/app/app.utils'
 import { ApiService } from 'src/app/services/api.service'
@@ -40,7 +40,7 @@ export class AppComponent {
 
   warn() {
     this.dialogs
-      .open(TUI_PROMPT, toWarning(this.selected))
+      .open(TUI_CONFIRM, toWarning(this.selected))
       .pipe(filter(Boolean))
       .subscribe(() => {
         this.install(true)

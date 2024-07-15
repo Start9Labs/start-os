@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { TuiSvgModule } from '@taiga-ui/core'
-import { TuiIconModule } from '@taiga-ui/experimental'
+import { TuiIcon } from '@taiga-ui/core'
 
 interface ActionItem {
   readonly icon: string
@@ -19,7 +18,7 @@ interface ActionItem {
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiIconModule],
+  imports: [TuiIcon],
 })
 export class ServiceActionComponent {
   @Input({ required: true })

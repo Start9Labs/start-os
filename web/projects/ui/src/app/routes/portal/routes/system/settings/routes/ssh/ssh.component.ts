@@ -1,7 +1,7 @@
+import { TuiButton } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ErrorService } from '@start9labs/shared'
-import { TuiButtonModule } from '@taiga-ui/experimental'
 import { catchError, defer, of } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { SSHInfoComponent } from './info.component'
@@ -15,7 +15,7 @@ import { SSHTableComponent } from './table.component'
       <button
         tuiButton
         size="xs"
-        iconLeft="tuiIconPlus"
+        iconStart="@tui.plus"
         (click)="table.add.call(table)"
       >
         Add Key
@@ -25,7 +25,7 @@ import { SSHTableComponent } from './table.component'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TuiButtonModule, SSHTableComponent, SSHInfoComponent],
+  imports: [CommonModule, TuiButton, SSHTableComponent, SSHInfoComponent],
 })
 export class SettingsSSHComponent {
   private readonly errorService = inject(ErrorService)

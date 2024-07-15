@@ -12,18 +12,16 @@ import {
 } from '@start9labs/shared'
 import {
   TuiDialogService,
-  TuiLinkModule,
-  TuiLoaderModule,
+  TuiLoader,
+  TuiIcon,
+  TuiLink,
+  TuiButton,
 } from '@taiga-ui/core'
 import {
-  TuiAvatarModule,
-  TuiButtonModule,
-  TuiIconModule,
-} from '@taiga-ui/experimental'
-import {
-  TUI_PROMPT,
-  TuiAccordionModule,
-  TuiProgressModule,
+  TuiProgress,
+  TuiAccordion,
+  TuiAvatar,
+  TUI_CONFIRM,
 } from '@taiga-ui/kit'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 import { PatchDB } from 'patch-db-client'
@@ -50,12 +48,12 @@ import { hasCurrentDeps } from 'src/app/utils/has-deps'
           <strong>{{ marketplacePkg.manifest.title }}</strong>
           <div>
             {{ localPkg.stateInfo.manifest.version | displayEmver }}
-            <tui-icon icon="tuiIconArrowRight" [style.font-size.rem]="1" />
-            <span [style.color]="'var(--tui-positive)'">
+            <tui-icon icon="@tui.arrow-right" [style.font-size.rem]="1" />
+            <span [style.color]="'var(--tui-text-positive)'">
               {{ marketplacePkg.manifest.version | displayEmver }}
             </span>
           </div>
-          <div [style.color]="'var(--tui-negative)'">{{ errors }}</div>
+          <div [style.color]="'var(--tui-text-negative)'">{{ errors }}</div>
         </div>
         @if (localPkg.stateInfo.state === 'updating') {
           <tui-progress-circle
@@ -93,7 +91,7 @@ import { hasCurrentDeps } from 'src/app/utils/has-deps'
         <a
           tuiLink
           iconAlign="right"
-          icon="tuiIconExternalLink"
+          icon="@tui.external-link"
           routerLink="/marketplace"
           [queryParams]="{ url: url, id: marketplacePkg.manifest.id }"
         >
@@ -106,10 +104,10 @@ import { hasCurrentDeps } from 'src/app/utils/has-deps'
     `
       :host {
         display: block;
-        --tui-base-03: transparent;
+        --tui-background-neutral-1-hover: transparent;
 
         &:not(:last-child) {
-          border-bottom: 1px solid var(--tui-clear);
+          border-bottom: 1px solid var(--tui-background-neutral-1);
         }
       }
     `,
@@ -122,13 +120,13 @@ import { hasCurrentDeps } from 'src/app/utils/has-deps'
     NgDompurifyModule,
     SafeLinksDirective,
     SharedPipesModule,
-    TuiProgressModule,
-    TuiAccordionModule,
-    TuiAvatarModule,
-    TuiIconModule,
-    TuiButtonModule,
-    TuiLinkModule,
-    TuiLoaderModule,
+    TuiProgress,
+    TuiAccordion,
+    TuiAvatar,
+    TuiIcon,
+    TuiButton,
+    TuiLink,
+    TuiLoader,
     InstallingProgressPipe,
   ],
 })
@@ -194,7 +192,7 @@ export class UpdatesItemComponent {
   private async alert(): Promise<boolean> {
     return new Promise(async resolve => {
       this.dialogs
-        .open<boolean>(TUI_PROMPT, {
+        .open<boolean>(TUI_CONFIRM, {
           label: 'Warning',
           size: 's',
           data: {

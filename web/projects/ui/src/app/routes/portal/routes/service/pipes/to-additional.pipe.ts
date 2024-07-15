@@ -2,7 +2,7 @@ import { inject, Pipe, PipeTransform } from '@angular/core'
 import { CopyService, MarkdownComponent } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiDialogService } from '@taiga-ui/core'
-import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { from } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
@@ -39,14 +39,14 @@ export class ToAdditionalPipe implements PipeTransform {
       {
         name: 'Git Hash',
         description: manifest.gitHash || 'Unknown',
-        icon: manifest.gitHash ? 'tuiIconCopyLarge' : '',
+        icon: manifest.gitHash ? '@tui.copy' : '',
         action: () =>
           manifest.gitHash && this.copyService.copy(manifest.gitHash),
       },
       {
         name: 'License',
         description: manifest.license,
-        icon: 'tuiIconChevronRightLarge',
+        icon: '@tui.chevron-right',
         action: () => this.showLicense(manifest),
       },
       {

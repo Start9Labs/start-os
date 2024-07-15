@@ -1,7 +1,6 @@
 import { Component, inject, Inject } from '@angular/core'
-import { TuiDialogContext } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
-import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
+import { TuiDialogContext, TuiButton } from '@taiga-ui/core'
+import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus'
 
 @Component({
   standalone: true,
@@ -42,7 +41,7 @@ import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
     </p>
   `,
   styles: 'li { margin-bottom: 0.5rem }',
-  imports: [TuiButtonModule],
+  imports: [TuiButton],
 })
 export class WelcomeComponent {
   readonly context = inject<TuiDialogContext>(POLYMORPHEUS_CONTEXT)

@@ -1,9 +1,9 @@
 <div class="label">
   {{ spec.name }}
-  <tui-tooltip
+  <tui-icon
     *ngIf="spec.description || spec.disabled"
-    [content]="spec | hint"
-  ></tui-tooltip>
+    [tuiTooltip]="spec | hint"
+  />
   <button
     tuiLink
     type="button"
@@ -48,7 +48,7 @@
       tuiIconButton
       type="button"
       class="remove"
-      iconLeft="tuiIconTrash"
+      iconStart="@tui.trash"
       appearance="icon"
       size="m"
       title="Remove"
