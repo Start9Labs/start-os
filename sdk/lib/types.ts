@@ -149,14 +149,6 @@ export type DependencyConfig = {
   }): Promise<unknown>
 }
 
-export type ValidIfNoStupidEscape<A> = A extends
-  | `${string}'"'"'${string}`
-  | `${string}\\"${string}`
-  ? never
-  : "" extends A & ""
-    ? never
-    : A
-
 export type ConfigRes = {
   /** This should be the previous config, that way during set config we start with the previous */
   config?: null | Record<string, unknown>
@@ -183,9 +175,7 @@ export type SmtpValue = {
   password: string | null | undefined
 }
 
-export type CommandType<A extends string> =
-  | ValidIfNoStupidEscape<A>
-  | [string, ...string[]]
+export type CommandType = string | [string, ...string[]]
 
 export type DaemonReturned = {
   wait(): Promise<unknown>

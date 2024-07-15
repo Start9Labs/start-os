@@ -1,10 +1,9 @@
-import { SDKManifest } from "../manifest/ManifestTypes"
-import { Effects } from "../types"
+import * as T from "../types"
 import { MountOptions } from "../util/Overlay"
 
 type MountArray = { path: string; options: MountOptions }[]
 
-export class Mounts<Manifest extends SDKManifest> {
+export class Mounts<Manifest extends T.Manifest> {
   private constructor(
     readonly volumes: {
       id: Manifest["volumes"][number]
@@ -26,7 +25,7 @@ export class Mounts<Manifest extends SDKManifest> {
     }[],
   ) {}
 
-  static of<Manifest extends SDKManifest>() {
+  static of<Manifest extends T.Manifest>() {
     return new Mounts<Manifest>([], [], [])
   }
 
@@ -58,7 +57,7 @@ export class Mounts<Manifest extends SDKManifest> {
     return this
   }
 
-  addDependency<DependencyManifest extends SDKManifest>(
+  addDependency<DependencyManifest extends T.Manifest>(
     dependencyId: keyof Manifest["dependencies"] & string,
     volumeId: DependencyManifest["volumes"][number],
     subpath: string | null,

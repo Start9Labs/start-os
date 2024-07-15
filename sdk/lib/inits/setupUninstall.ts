@@ -1,12 +1,11 @@
-import { SDKManifest } from "../manifest/ManifestTypes"
-import { Effects, ExpectedExports } from "../types"
+import * as T from "../types"
 
-export type UninstallFn<Manifest extends SDKManifest, Store> = (opts: {
-  effects: Effects
+export type UninstallFn<Manifest extends T.Manifest, Store> = (opts: {
+  effects: T.Effects
 }) => Promise<void>
-export class Uninstall<Manifest extends SDKManifest, Store> {
+export class Uninstall<Manifest extends T.Manifest, Store> {
   private constructor(readonly fn: UninstallFn<Manifest, Store>) {}
-  static of<Manifest extends SDKManifest, Store>(
+  static of<Manifest extends T.Manifest, Store>(
     fn: UninstallFn<Manifest, Store>,
   ) {
     return new Uninstall(fn)
@@ -15,7 +14,7 @@ export class Uninstall<Manifest extends SDKManifest, Store> {
   async uninit({
     effects,
     nextVersion,
-  }: Parameters<ExpectedExports.uninit>[0]) {
+  }: Parameters<T.ExpectedExports.uninit>[0]) {
     if (!nextVersion)
       await this.fn({
         effects,
@@ -23,7 +22,7 @@ export class Uninstall<Manifest extends SDKManifest, Store> {
   }
 }
 
-export function setupUninstall<Manifest extends SDKManifest, Store>(
+export function setupUninstall<Manifest extends T.Manifest, Store>(
   fn: UninstallFn<Manifest, Store>,
 ) {
   return Uninstall.of(fn)

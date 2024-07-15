@@ -8,9 +8,9 @@ import { defaultTrigger } from "../trigger/defaultTrigger"
 import { once } from "../util/once"
 import { Overlay } from "../util/Overlay"
 import { object, unknown } from "ts-matches"
-import { T } from ".."
+import * as T from "../types"
 
-export type HealthCheckParams<Manifest extends SDKManifest> = {
+export type HealthCheckParams<Manifest extends T.Manifest> = {
   effects: Effects
   name: string
   image: {
@@ -22,7 +22,7 @@ export type HealthCheckParams<Manifest extends SDKManifest> = {
   onFirstSuccess?: () => unknown | Promise<unknown>
 }
 
-export function healthCheck<Manifest extends SDKManifest>(
+export function healthCheck<Manifest extends T.Manifest>(
   o: HealthCheckParams<Manifest>,
 ) {
   new Promise(async () => {

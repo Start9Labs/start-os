@@ -1,8 +1,8 @@
-import { SDKManifest } from "../manifest/ManifestTypes"
+import * as T from "../types"
 import { Effects, ExpectedExports } from "../types"
 import { CreatedAction } from "./createAction"
 
-export function setupActions<Manifest extends SDKManifest, Store>(
+export function setupActions<Manifest extends T.Manifest, Store>(
   ...createdActions: CreatedAction<Manifest, Store, any>[]
 ) {
   const myActions = async (options: { effects: Effects }) => {

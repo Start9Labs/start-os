@@ -13,6 +13,7 @@ export type Manifest = {
   id: PackageId
   title: string
   version: Version
+  satisfies: Array<Version>
   releaseNotes: string
   license: string
   wrapperRepo: string

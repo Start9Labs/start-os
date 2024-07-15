@@ -1,10 +1,10 @@
-import { ExpectedExports } from "../types"
+import * as T from "../types"
 import { Daemons } from "./Daemons"
 import "../interfaces/ServiceInterfaceBuilder"
 import "../interfaces/Origin"
 
 import "./Daemons"
-import { SDKManifest } from "../manifest/ManifestTypes"
+
 import { MainEffects } from "../StartSdk"
 
 /**
@@ -17,12 +17,12 @@ import { MainEffects } from "../StartSdk"
  * @param fn
  * @returns
  */
-export const setupMain = <Manifest extends SDKManifest, Store>(
+export const setupMain = <Manifest extends T.Manifest, Store>(
   fn: (o: {
     effects: MainEffects
     started(onTerm: () => PromiseLike<void>): PromiseLike<void>
   }) => Promise<Daemons<Manifest, any>>,
-): ExpectedExports.main => {
+): T.ExpectedExports.main => {
   return async (options) => {
     const result = await fn(options)
     return result
