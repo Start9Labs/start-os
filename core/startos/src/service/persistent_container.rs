@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
@@ -277,7 +277,7 @@ impl PersistentContainer {
         backup_path: impl AsRef<Path>,
         mount_type: MountType,
     ) -> Result<MountGuard, Error> {
-        let backup_path: PathBuf = backup_path.as_ref().to_path_buf();
+        let backup_path = backup_path.as_ref();
         let mountpoint = self
             .lxc_container
             .get()
@@ -295,14 +295,14 @@ impl PersistentContainer {
             .arg(mountpoint.as_os_str())
             .invoke(ErrorKind::Filesystem)
             .await?;
-        let bind = Bind::new(&backup_path);
-        let mount_guard = MountGuard::mount(&bind, &mountpoint, mount_type).await;
+        tokio::fs::create_dir_all(backup_path).await?;
         Command::new("chown")
             .arg("100000:100000")
-            .arg(backup_path.as_os_str())
+            .arg(backup_path)
             .invoke(ErrorKind::Filesystem)
             .await?;
-        mount_guard
+        let bind = Bind::new(backup_path);
+        MountGuard::mount(&bind, &mountpoint, mount_type).await
     }
 
     #[instrument(skip_all)]

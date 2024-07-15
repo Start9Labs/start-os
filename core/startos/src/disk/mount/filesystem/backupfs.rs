@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fmt::{self, Display};
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
@@ -26,8 +27,9 @@ impl<DataDir: AsRef<Path> + Send + Sync, Password: fmt::Display + Send + Sync> F
     }
     fn mount_options(&self) -> impl IntoIterator<Item = impl Display> {
         [
-            format!("password={}", self.password),
-            format!("file-size-padding=0.05"),
+            Cow::Owned(format!("password={}", self.password)),
+            Cow::Borrowed("file-size-padding=0.05"),
+            Cow::Borrowed("allow_other"),
         ]
     }
     async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {

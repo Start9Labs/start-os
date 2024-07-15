@@ -417,7 +417,7 @@ impl Service {
             .send(
                 Guid::new(),
                 transition::backup::Backup {
-                    path: guard.path().to_path_buf(),
+                    path: guard.path().join("data"),
                 },
             )
             .await??;
