@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use chrono::Utc;
 use exver::{Version, VersionRange};
 use imbl_value::InternedString;
 use models::{DataUrl, PackageId, VersionString};
@@ -128,6 +129,7 @@ impl PackageVersionInfo {
             hardware_requirements: manifest.hardware_requirements.clone(),
             source_version: None, // TODO
             s9pk: RegistryAsset {
+                published_at: Utc::now(),
                 url,
                 commitment: s9pk.as_archive().commitment().await?,
                 signatures: [(

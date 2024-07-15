@@ -3,6 +3,7 @@ import type { AnySignature } from "./AnySignature"
 import type { AnyVerifyingKey } from "./AnyVerifyingKey"
 
 export type RegistryAsset<Commitment> = {
+  publishedAt: string
   url: string
   commitment: Commitment
   signatures: { [key: AnyVerifyingKey]: AnySignature }

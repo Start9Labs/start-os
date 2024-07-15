@@ -1,40 +1,40 @@
-const exverParser = require('./exver.js');
+const exverParser = require("./exver.js")
 
 export interface ValidExtendedVersion {
-  flavor: string | null,
-  upstream: Version,
-  downstream: Version,
+  flavor: string | null
+  upstream: Version
+  downstream: Version
 }
 
 export interface Version {
-  number: number[],
-  prerelease: (string | number)[],
+  number: number[]
+  prerelease: (string | number)[]
 }
 
 // !( >=1:1 && <= 2:2)
 type Operator = ">" | "<" | ">=" | "<=" | "!=" | "^" | "~" | "="
 
 type Anchor = {
-  type: "Anchor",
-  operator: Operator,
-  version: ExtendedVersion,
+  type: "Anchor"
+  operator: Operator
+  version: ExtendedVersion
 }
 
 type And = {
-  type: "And",
-  left: VersionRange,
-  right: VersionRange,
+  type: "And"
+  left: VersionRange
+  right: VersionRange
 }
 
 type Or = {
-  type: "Or",
-  left: VersionRange,
-  right: VersionRange,
+  type: "Or"
+  left: VersionRange
+  right: VersionRange
 }
 
 type Not = {
-  type: "Not",
-  value: VersionRange,
+  type: "Not"
+  value: VersionRange
 }
 
 type Any = {
@@ -67,9 +67,13 @@ class VersionRange {
           case "<":
             return version.lessThan(otherVersion)
           case ">=":
-            return version.greaterThan(otherVersion) || version.equals(otherVersion)
+            return (
+              version.greaterThan(otherVersion) || version.equals(otherVersion)
+            )
           case "<=":
-            return version.lessThan(otherVersion) || version.equals(otherVersion)
+            return (
+              version.lessThan(otherVersion) || version.equals(otherVersion)
+            )
           case "!=":
             return !version.equals(otherVersion)
           case "^":
@@ -111,12 +115,12 @@ class VersionRangeConstructor {
         return this.parseRange(new VersionRange(not))
       case "Any":
         const any: Any = {
-          type: "Any"
+          type: "Any",
         }
         return new VersionRange(any)
       case "None":
         const none: None = {
-          type: "None"
+          type: "None",
         }
         return new VersionRange(none)
     }
@@ -169,33 +173,31 @@ class VersionRangeConstructor {
 
 // #flavor:0.1.2-beta.1:0
 export class ExtendedVersion implements ValidExtendedVersion {
-  flavor: string | null;
-  upstream: Version;
-  downstream: Version;
+  flavor: string | null
+  upstream: Version
+  downstream: Version
 
-  constructor(
-    exverString: string
-  ) {
+  constructor(exverString: string) {
     const exver = exverParser.parse(exverString)
-    this.flavor = exver.flavor;
-    this.upstream = exver.upstream;
-    this.downstream = exver.downstream;
+    this.flavor = exver.flavor
+    this.upstream = exver.upstream
+    this.downstream = exver.downstream
   }
-  
+
   toString(): string {
     let exver_str = ""
 
     if (this.flavor) {
-      exver_str += '#';
-      exver_str += this.flavor;
-      exver_str += ':';
+      exver_str += "#"
+      exver_str += this.flavor
+      exver_str += ":"
     }
 
-    exver_str = appendVersion(this.upstream, exver_str);
-    exver_str += ':';
-    exver_str = appendVersion(this.downstream, exver_str);
+    exver_str = appendVersion(this.upstream, exver_str)
+    exver_str += ":"
+    exver_str = appendVersion(this.downstream, exver_str)
 
-    return exver_str;
+    return exver_str
   }
 
   public greaterThan(other: ExtendedVersion): boolean {
@@ -203,7 +205,10 @@ export class ExtendedVersion implements ValidExtendedVersion {
   }
 
   public equals(other: ExtendedVersion): boolean {
-    return equals(this.upstream, other.upstream) && equals(this.downstream, other.downstream)
+    return (
+      equals(this.upstream, other.upstream) &&
+      equals(this.downstream, other.downstream)
+    )
   }
 
   public lessThan(other: ExtendedVersion): boolean {
@@ -226,19 +231,31 @@ export class ExtendedVersion implements ValidExtendedVersion {
   }
 }
 
-function greaterThan(thisVersion: ExtendedVersion, otherVersion: ExtendedVersion): boolean {
-  const upstreamGtResult = versionGt(thisVersion.upstream, otherVersion.upstream)
-  if (typeof upstreamGtResult === 'boolean') {
+function greaterThan(
+  thisVersion: ExtendedVersion,
+  otherVersion: ExtendedVersion,
+): boolean {
+  const upstreamGtResult = versionGt(
+    thisVersion.upstream,
+    otherVersion.upstream,
+  )
+  if (typeof upstreamGtResult === "boolean") {
     return upstreamGtResult
   }
-  const downstreamGtResult = versionGt(thisVersion.downstream, otherVersion.downstream)
-  if (typeof downstreamGtResult === 'boolean') {
+  const downstreamGtResult = versionGt(
+    thisVersion.downstream,
+    otherVersion.downstream,
+  )
+  if (typeof downstreamGtResult === "boolean") {
     return downstreamGtResult
   }
   return false
 }
 
-function versionGt(thisVersion: Version, otherVersion: Version): boolean | undefined {
+function versionGt(
+  thisVersion: Version,
+  otherVersion: Version,
+): boolean | undefined {
   for (const i in thisVersion.number) {
     if (otherVersion.number[i] == null) {
       return true
@@ -275,21 +292,21 @@ function equals(thisVersion: Version, otherVersion: Version): boolean {
 
 function appendVersion(version: Version, str: string): string {
   version.number.forEach((n, i) => {
-    str += n;
-    if (i < version.number.length -1 ) {
-      str += '.';
+    str += n
+    if (i < version.number.length - 1) {
+      str += "."
     }
-  });
+  })
 
   if (version.prerelease.length > 0) {
-    str += '-';
+    str += "-"
     version.prerelease.forEach((n, i) => {
-      str += n;
-      if (i < version.prerelease.length -1) {
-        str += '.';
+      str += n
+      if (i < version.prerelease.length - 1) {
+        str += "."
       }
     })
   }
 
-  return str;
+  return str
 }

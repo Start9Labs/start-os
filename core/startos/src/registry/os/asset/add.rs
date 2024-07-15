@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::panic::UnwindSafe;
 use std::path::PathBuf;
 
+use chrono::Utc;
 use clap::Parser;
 use imbl_value::InternedString;
 use itertools::Itertools;
@@ -107,6 +108,7 @@ async fn add_asset(
                 )
                 .upsert(&platform, || {
                     Ok(RegistryAsset {
+                        published_at: Utc::now(),
                         url,
                         commitment: commitment.clone(),
                         signatures: HashMap::new(),

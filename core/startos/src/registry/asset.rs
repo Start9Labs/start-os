@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWrite;
@@ -20,6 +21,8 @@ use crate::s9pk::S9pk;
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct RegistryAsset<Commitment> {
+    #[ts(type = "string")]
+    pub published_at: DateTime<Utc>,
     #[ts(type = "string")]
     pub url: Url,
     pub commitment: Commitment,
