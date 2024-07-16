@@ -2,7 +2,7 @@
 // !( >=1:1 && <= 2:2)
 
 VersionRange
-  = first:VersionRangeAtom rest:((Or / And)? VersionRangeAtom)*
+  = first:VersionRangeAtom rest:(_ ((Or / And) _)? VersionRangeAtom)*
 
 Or = "||"
 
@@ -22,7 +22,7 @@ Anchor
   = operator:CmpOp? _ version:VersionSpec { return { type: "Anchor", operator, version } }
 
 VersionSpec
-  = flavor:Flavor? upstream:Version downstream:( ":" Version )? { return { flavor: flavor || null, upstream, downstream: downstream[1] || { number: [0], prerelease: [] } } }
+  = flavor:Flavor? upstream:Version downstream:( ":" Version )? { return { flavor: flavor || null, upstream, downstream: downstream ? downstream[1] : { number: [0], prerelease: [] } } }
 
 Not = "!" _ value:VersionRangeAtom { return { type: "Not", value: value }}
 

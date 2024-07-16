@@ -1,5 +1,5 @@
 import { VersionRange, ExtendedVersion } from "../exver"
-describe("EmVer", () => {
+describe("ExVer", () => {
   {
     {
       const checker = VersionRange.parse("*")
@@ -42,7 +42,7 @@ describe("EmVer", () => {
         )
       })
 
-      test(`VersionRange.parse(">1.2.3.4") invalid`, () => {
+      test(`VersionRange.parse(">1.2.3:4") invalid`, () => {
         expect(checker.satisfiedBy(ExtendedVersion.parse("1.2.3:4"))).toEqual(
           false,
         )
@@ -71,8 +71,8 @@ describe("EmVer", () => {
       })
     }
     {
-      const checker = VersionRange.parse(">=1.2.3.4")
-      test(`VersionRange.parse(">=1.2.3.4") valid`, () => {
+      const checker = VersionRange.parse(">=1.2.3:4")
+      test(`VersionRange.parse(">=1.2.3:4") valid`, () => {
         expect(checker.satisfiedBy(ExtendedVersion.parse("2:0"))).toEqual(true)
         expect(checker.satisfiedBy(ExtendedVersion.parse("1.2.3:5"))).toEqual(
           true,
@@ -85,7 +85,7 @@ describe("EmVer", () => {
         )
       })
 
-      test(`VersionRange.parse(">=1.2.3.4") invalid`, () => {
+      test(`VersionRange.parse(">=1.2.3:4") invalid`, () => {
         expect(checker.satisfiedBy(ExtendedVersion.parse("1.2.3:0"))).toEqual(
           false,
         )
@@ -93,8 +93,8 @@ describe("EmVer", () => {
       })
     }
     {
-      const checker = VersionRange.parse("<1.2.3.4")
-      test(`VersionRange.parse("<1.2.3.4") invalid`, () => {
+      const checker = VersionRange.parse("<1.2.3:4")
+      test(`VersionRange.parse("<1.2.3:4") invalid`, () => {
         expect(checker.satisfiedBy(ExtendedVersion.parse("2:0"))).toEqual(false)
         expect(checker.satisfiedBy(ExtendedVersion.parse("1.2.3:5"))).toEqual(
           false,
@@ -107,7 +107,7 @@ describe("EmVer", () => {
         )
       })
 
-      test(`VersionRange.parse("<1.2.3.4") valid`, () => {
+      test(`VersionRange.parse("<1.2.3:4") valid`, () => {
         expect(checker.satisfiedBy(ExtendedVersion.parse("1.2.3:0"))).toEqual(
           true,
         )
@@ -115,8 +115,8 @@ describe("EmVer", () => {
       })
     }
     {
-      const checker = VersionRange.parse("<=1.2.3.4")
-      test(`VersionRange.parse("<=1.2.3.4") invalid`, () => {
+      const checker = VersionRange.parse("<=1.2.3:4")
+      test(`VersionRange.parse("<=1.2.3:4") invalid`, () => {
         expect(checker.satisfiedBy(ExtendedVersion.parse("2:0"))).toEqual(false)
         expect(checker.satisfiedBy(ExtendedVersion.parse("1.2.3:5"))).toEqual(
           false,
@@ -126,7 +126,7 @@ describe("EmVer", () => {
         )
       })
 
-      test(`VersionRange.parse("<=1.2.3.4") valid`, () => {
+      test(`VersionRange.parse("<=1.2.3:4") valid`, () => {
         expect(checker.satisfiedBy(ExtendedVersion.parse("1.2.3:0"))).toEqual(
           true,
         )
@@ -268,8 +268,8 @@ describe("EmVer", () => {
       })
     }
     {
-      const checker = VersionRange.parse("!>1.2.3.4")
-      test(`VersionRange.parse("!>1.2.3.4") invalid`, () => {
+      const checker = VersionRange.parse("!>1.2.3:4")
+      test(`VersionRange.parse("!>1.2.3:4") invalid`, () => {
         expect(checker.satisfiedBy(ExtendedVersion.parse("2:0"))).toEqual(false)
         expect(checker.satisfiedBy(ExtendedVersion.parse("1.2.3:5"))).toEqual(
           false,
@@ -279,7 +279,7 @@ describe("EmVer", () => {
         )
       })
 
-      test(`VersionRange.parse("!>1.2.3.4") valid`, () => {
+      test(`VersionRange.parse("!>1.2.3:4") valid`, () => {
         expect(checker.satisfiedBy(ExtendedVersion.parse("1.2.3:4"))).toEqual(
           true,
         )
