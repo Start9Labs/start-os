@@ -62,18 +62,37 @@ export class VersionRange {
           case "<":
             return version.lessThan(otherVersion)
           case ">=":
-            return (
-              version.greaterThan(otherVersion) || version.equals(otherVersion)
-            )
+            return version.greaterThanOrEqual(otherVersion)
           case "<=":
-            return (
-              version.lessThan(otherVersion) || version.equals(otherVersion)
-            )
+            return version.lessThanOrEqual(otherVersion)
           case "!=":
             return !version.equals(otherVersion)
           case "^":
+            const nextMajor = this.atom.version.incrementMajor()
+            if (version.greaterThanOrEqual(otherVersion) && version.lessThan(nextMajor)) {
+              return true
+            } else {
+              return false
+            }
           case "~":
+            case "^":
+              const nextMinor = this.atom.version.incrementMinor()
+              if (version.greaterThanOrEqual(otherVersion) && version.lessThan(nextMinor)) {
+                return true
+              } else {
+                return false
+              }
         }
+      case "And":
+        return this.atom.left.satisfiedBy(version) && this.atom.right.satisfiedBy(version)
+      case "Or":
+        return this.atom.left.satisfiedBy(version) || this.atom.right.satisfiedBy(version)
+      case "Not":
+        return !this.atom.value.satisfiedBy(version)
+      case "Any":
+        return true
+      case "None":
+        return false
     }
   }
 
@@ -161,50 +180,6 @@ export class VersionRange {
     return new VersionRange({ type: "None" })
   }
 }
-
-//   public satisfiedBy(thisVersion: ExtendedVersion): boolean {
-//     if (this.negator) {
-//       if (this.anchor.flavor !== thisVersion.flavor) return true
-//       switch (this.operator) {
-//         case ">=": {
-//           return !(thisVersion.greaterThan(this.anchor) || thisVersion.equals(this.anchor))
-//         }
-//         case "<=": {
-//           return !(thisVersion.lessThan(this.anchor) || thisVersion.equals(this.anchor))
-//         }
-//         case ">": {
-//           return !thisVersion.greaterThan(this.anchor)
-//         }
-//         case "<": {
-//           return !thisVersion.lessThan(this.anchor)
-//         }
-//         case "=": {
-//           return !thisVersion.equals(this.anchor)
-//         }
-//       }
-//     } else {
-//       if (this.anchor.flavor !== thisVersion.flavor) return false
-//       switch (this.operator) {
-//         case ">=": {
-//           return thisVersion.greaterThan(this.anchor) || thisVersion.equals(this.anchor)
-//         }
-//         case "<=": {
-//           return thisVersion.lessThan(this.anchor) || thisVersion.equals(this.anchor)
-//         }
-//         case ">": {
-//           return thisVersion.greaterThan(this.anchor)
-//         }
-//         case "<": {
-//           return thisVersion.lessThan(this.anchor)
-//         }
-//         case "=": {
-//           return thisVersion.equals(this.anchor)
-//         }
-//       }
-//     }
-//     throw new Error("Error parsing range" + this.operator + this.anchor)
-//   }
-// }
 
 export class Version {
   constructor(
@@ -336,6 +311,59 @@ export class ExtendedVersion {
       new Version(parsed.upstream.number, parsed.upstream.prerelease),
       new Version(parsed.downstream.number, parsed.downstream.prerelease),
     )
+  }
+
+    /**
+   * Returns an ExtendedVersion with the Upstream major version version incremented by 1
+   * and sets subsequent digits to zero.
+   * If no non-zero upstream digit can be found the last upstream digit will be incremented.
+   */
+  incrementMajor(): ExtendedVersion {
+    const majorIdx = this.upstream.number.findIndex((num: number) => num !== 0)
+
+    const majorNumber = this.upstream.number.map((num, idx): number => {
+      if (idx > majorIdx) {
+        num = 0
+      } else if (idx === majorIdx) {
+        num++
+      }
+      return num
+    })
+
+    const incrementedUpstream = new Version(majorNumber, [])
+    const updatedDownstream = new Version([0], [])
+    
+    return Object.assign(this, {
+      upstream: incrementedUpstream,
+      downstream: updatedDownstream
+    })
+  }
+
+    /**
+   * Returns an ExtendedVersion with the Upstream minor version version incremented by 1
+   * also sets subsequent digits to zero.
+   * If no non-zero upstream digit can be found the last digit will be incremented.
+   */
+  incrementMinor(): ExtendedVersion {
+    const majorIdx = this.upstream.number.findIndex((num: number) => num !== 0)
+    let minorIdx = majorIdx === -1 ? majorIdx : majorIdx + 1 
+
+    const majorNumber = this.upstream.number.map((num, idx): number => {
+        if (idx > minorIdx) {
+          num = 0
+        } else if (idx === minorIdx) {
+          num++
+        }
+        return num
+      })
+
+    const incrementedUpstream = new Version(majorNumber, [])
+    const updatedDownstream = new Version([0], [])
+
+    return Object.assign(this, {
+      upstream: incrementedUpstream,
+      downstream: updatedDownstream
+    })
   }
 }
 
