@@ -6,7 +6,7 @@ import {
   StoreIdentity,
   MarketplacePkg,
   MarketplaceSinglePkg,
-  AbstractPkgImplementationService,
+  AbstractPkgFlavorService,
 } from '@start9labs/marketplace'
 import {
   BehaviorSubject,
@@ -41,7 +41,7 @@ import { ConfigService } from './config.service'
 import { sameUrl } from '@start9labs/shared'
 import { ClientStorageService } from './client-storage.service'
 import { T } from '@start9labs/start-sdk'
-import { PkgImplementationService } from './pkg-implementation.service'
+import { PkgFlavorService } from './pkg-implementation.service'
 
 @Injectable()
 export class MarketplaceService implements AbstractMarketplaceService {
@@ -159,8 +159,8 @@ export class MarketplaceService implements AbstractMarketplaceService {
     private readonly patch: PatchDB<DataModel>,
     private readonly config: ConfigService,
     private readonly clientStorageService: ClientStorageService,
-    @Inject(AbstractPkgImplementationService)
-    private readonly pkgImplService: PkgImplementationService,
+    @Inject(AbstractPkgFlavorService)
+    private readonly pkgFlavorService: PkgFlavorService,
   ) {}
 
   getKnownHosts$(filtered = false): Observable<StoreIdentity[]> {
@@ -301,7 +301,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
     params: T,
   ): Observable<MarketplacePkg<T>[]> {
     return combineLatest([
-      this.pkgImplService.getAltStatus$(),
+      this.pkgFlavorService.getFlavorStatus$(),
       from(this.api.getRegistryPackages(url, params)),
     ]).pipe(
       map(([active, packages]) => {
@@ -312,7 +312,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
           return {
             id: p,
             version: versions[0],
-            altVersion: !active ? versions[1] || null : versions[0],
+            flavorVersion: !active ? versions[1] || null : versions[0],
             ...packages[p].best[versions[0]],
             ...packages[p],
           } as MarketplacePkg<T>
@@ -327,7 +327,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
     params: T,
   ): Observable<MarketplacePkg<T>> {
     return combineLatest([
-      this.pkgImplService.getAltStatus$(),
+      this.pkgFlavorService.getFlavorStatus$(),
       from(this.api.getRegistryPackage(url, params)),
     ]).pipe(
       map(([active, pkg]) => {
@@ -337,7 +337,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
         return {
           id: params.id,
           version: params.version,
-          altVersion: !active ? versions[1] || null : versions[0],
+          flavorVersion: !active ? versions[1] || null : versions[0],
           ...pkg.best[versions[0]],
           ...pkg,
         } as MarketplacePkg<T>

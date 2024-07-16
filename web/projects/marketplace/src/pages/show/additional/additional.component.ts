@@ -18,7 +18,7 @@ import {
 } from '@start9labs/shared'
 import { MarketplacePkg } from '../../../types'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
-import { AbstractPkgImplementationService } from '../../../services/pkg-implementation.service'
+import { AbstractPkgFlavorService } from '../../../services/pkg-implementation.service'
 import { ActivatedRoute } from '@angular/router'
 
 @Component({
@@ -41,13 +41,13 @@ export class AdditionalComponent {
     private readonly modalCtrl: ModalController,
     private readonly emver: Emver,
     private readonly marketplaceService: AbstractMarketplaceService,
-    private readonly pkgImplService: AbstractPkgImplementationService,
+    private readonly pkgFlavorService: AbstractPkgFlavorService,
     private readonly toastCtrl: ToastController,
     private readonly route: ActivatedRoute,
   ) {}
 
   ngOnInit() {
-    this.pkgImplService.getAltStatus$().subscribe(active => {
+    this.pkgFlavorService.getFlavorStatus$().subscribe(active => {
       if (active) {
         // TODO replace with emver helper to determine if version has prefix
         this.versions = Object.keys(this.pkg.otherVersions).filter(

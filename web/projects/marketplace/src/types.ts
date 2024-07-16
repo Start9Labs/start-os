@@ -61,7 +61,7 @@ export type MarketplaceSinglePkg<T extends T.GetPackageParams> = T extends {
 export interface MarketplacePkgInfo extends T.PackageVersionInfo {
   id: T.PackageId
   version: T.Version
-  altVersion: T.Version | null
+  flavorVersion: T.Version | null
 }
 
 export interface Dependency {
