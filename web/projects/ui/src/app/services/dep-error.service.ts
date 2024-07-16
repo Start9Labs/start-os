@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { Emver } from '@start9labs/shared'
+import { Exver } from '@start9labs/shared'
 import { distinctUntilChanged, map, shareReplay } from 'rxjs/operators'
 import { PatchDB } from 'patch-db-client'
 import {
@@ -10,7 +10,6 @@ import {
 import * as deepEqual from 'fast-deep-equal'
 import { isInstalled } from '../util/get-package-data'
 import { DependencyError } from './api/api.types'
-import { T } from '@start9labs/start-sdk'
 
 export type AllDependencyErrors = Record<string, PkgDependencyErrors>
 export type PkgDependencyErrors = Record<string, DependencyError | null>
@@ -40,7 +39,7 @@ export class DepErrorService {
   )
 
   constructor(
-    private readonly emver: Emver,
+    private readonly exver: Exver,
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
@@ -88,16 +87,18 @@ export class DepErrorService {
     const depManifest = dep.stateInfo.manifest
 
     // incorrect version
-    if (!this.emver.satisfies(depManifest.version, currentDep.versionRange)) {
-      // TODO @lucy add exver check
-      // if() {
-
-      return {
-        type: 'incorrectVersion',
-        expected: currentDep.versionRange,
-        received: depManifest.version,
+    if (!this.exver.satisfies(depManifest.version, currentDep.versionRange)) {
+      if (
+        depManifest.satisfies.some(
+          v => !this.exver.satisfies(v, currentDep.versionRange),
+        )
+      ) {
+        return {
+          type: 'incorrectVersion',
+          expected: currentDep.versionRange,
+          received: depManifest.version,
+        }
       }
-      // }
     }
 
     // invalid config

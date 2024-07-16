@@ -12,8 +12,8 @@ import {
 } from '@ionic/angular'
 import {
   copyToClipboard,
-  displayEmver,
-  Emver,
+  displayExver,
+  Exver,
   MarkdownComponent,
 } from '@start9labs/shared'
 import { MarketplacePkg } from '../../../types'
@@ -39,7 +39,7 @@ export class AdditionalComponent {
   constructor(
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
-    private readonly emver: Emver,
+    private readonly exver: Exver,
     private readonly marketplaceService: AbstractMarketplaceService,
     private readonly pkgFlavorService: AbstractPkgFlavorService,
     private readonly toastCtrl: ToastController,
@@ -79,11 +79,11 @@ export class AdditionalComponent {
     const alert = await this.alertCtrl.create({
       header: 'Versions',
       inputs: this.versions
-        .sort((a, b) => -1 * (this.emver.compare(a, b) || 0))
+        .sort((a, b) => -1 * (this.exver.compare(a, b) || 0))
         .map(v => ({
           name: v, // for CSS
           type: 'radio',
-          label: displayEmver(v), // appearance on screen
+          label: displayExver(v), // appearance on screen
           value: v, // literal SEM version value
           checked: this.pkg.version === v,
         })),

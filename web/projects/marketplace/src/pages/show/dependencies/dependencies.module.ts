@@ -3,7 +3,7 @@ import { NgModule } from '@angular/core'
 import { RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import {
-  EmverPipesModule,
+  ExverPipesModule,
   ResponsiveColModule,
   SharedPipesModule,
 } from '@start9labs/shared'
@@ -16,7 +16,7 @@ import { DependenciesComponent } from './dependencies.component'
     RouterModule,
     IonicModule,
     SharedPipesModule,
-    EmverPipesModule,
+    ExverPipesModule,
     ResponsiveColModule,
   ],
   declarations: [DependenciesComponent],

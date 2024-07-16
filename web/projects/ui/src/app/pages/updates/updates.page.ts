@@ -13,7 +13,7 @@ import {
   MarketplacePkg,
   StoreIdentity,
 } from '@start9labs/marketplace'
-import { Emver, isEmptyObject } from '@start9labs/shared'
+import { Exver, isEmptyObject } from '@start9labs/shared'
 import { Pipe, PipeTransform } from '@angular/core'
 import { combineLatest, map, Observable } from 'rxjs'
 import { AlertController, NavController } from '@ionic/angular'
@@ -59,7 +59,7 @@ export class UpdatesPage {
     private readonly patch: PatchDB<DataModel>,
     private readonly navCtrl: NavController,
     private readonly alertCtrl: AlertController,
-    private readonly emver: Emver,
+    private readonly exver: Exver,
   ) {}
 
   viewInMarketplace(event: Event, url: string, id: string) {
@@ -92,7 +92,7 @@ export class UpdatesPage {
     const breakages = dryUpdate(
       pkg,
       await getAllPackages(this.patch),
-      this.emver,
+      this.exver,
     )
 
     if (isEmptyObject(breakages)) {
@@ -159,7 +159,7 @@ export class UpdatesPage {
   name: 'filterUpdates',
 })
 export class FilterUpdatesPipe implements PipeTransform {
-  constructor(private readonly emver: Emver) {}
+  constructor(private readonly exver: Exver) {}
 
   transform(
     pkgs: MarketplacePkg[],
@@ -169,7 +169,7 @@ export class FilterUpdatesPipe implements PipeTransform {
       const localPkg = local[id]
       return (
         localPkg &&
-        this.emver.compare(version, localPkg.stateInfo.manifest.version) === 1
+        this.exver.compare(version, localPkg.stateInfo.manifest.version) === 1
       )
     })
   }

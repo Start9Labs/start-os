@@ -1,18 +1,18 @@
 import { Injectable } from '@angular/core'
-import * as emver from '@start9labs/emver'
+import { VersionRange, ExtendedVersion } from '@start9labs/start-sdk'
 
 @Injectable({
   providedIn: 'root',
 })
-export class Emver {
+export class Exver {
   constructor() {}
 
   compare(lhs: string, rhs: string): number | null {
     if (!lhs || !rhs) return null
-    return emver.compare(lhs, rhs)
+    return ExtendedVersion.parse(lhs).compareForSort(ExtendedVersion.parse(rhs))
   }
 
   satisfies(version: string, range: string): boolean {
-    return emver.satisfies(version, range)
+    return VersionRange.parse(range).satisfiedBy(ExtendedVersion.parse(version))
   }
 }

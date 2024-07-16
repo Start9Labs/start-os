@@ -4,7 +4,7 @@ import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { AppShowPage } from './app-show.page'
 import {
-  EmverPipesModule,
+  ExverPipesModule,
   ResponsiveColModule,
   SharedPipesModule,
 } from '@start9labs/shared'
@@ -49,7 +49,7 @@ const routes: Routes = [
     InstallingProgressPipeModule,
     IonicModule,
     RouterModule.forChild(routes),
-    EmverPipesModule,
+    ExverPipesModule,
     LaunchablePipeModule,
     UiPipeModule,
     ResponsiveColModule,

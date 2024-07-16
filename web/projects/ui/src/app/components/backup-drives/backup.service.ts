@@ -7,7 +7,8 @@ import {
   DiskBackupTarget,
 } from 'src/app/services/api/api.types'
 import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
-import { getErrorMessage, Emver } from '@start9labs/shared'
+import { getErrorMessage } from '@start9labs/shared'
+import { Version } from '@start9labs/start-sdk'
 
 @Injectable({
   providedIn: 'root',
@@ -18,10 +19,7 @@ export class BackupService {
   loading = true
   loadingError: string | IonicSafeString = ''
 
-  constructor(
-    private readonly embassyApi: ApiService,
-    private readonly emver: Emver,
-  ) {}
+  constructor(private readonly embassyApi: ApiService) {}
 
   async getBackupTargets(): Promise<void> {
     this.loading = true
@@ -57,14 +55,16 @@ export class BackupService {
 
   hasAnyBackup(target: BackupTarget): boolean {
     return Object.values(target.startOs).some(
-      s => this.emver.compare(s.version, '0.3.6') !== -1,
+      s => Version.parse(s.version).compare(Version.parse('0.3.6')) !== 'less',
     )
   }
 
   async hasThisBackup(target: BackupTarget, id: string): Promise<boolean> {
     return (
       target.startOs[id] &&
-      this.emver.compare(target.startOs[id].version, '0.3.6') !== -1
+      Version.parse(target.startOs[id].version).compare(
+        Version.parse('0.3.6'),
+      ) !== 'less'
     )
   }
 }

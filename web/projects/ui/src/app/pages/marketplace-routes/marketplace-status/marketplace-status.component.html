@@ -1,13 +1,13 @@
 <ng-container *ngIf="localPkg">
   <div *ngIf="isInstalled(localPkg)">
     <ion-text
-      *ngIf="(version | compareEmver: localVersion) !== 1"
+      *ngIf="(version | compareExver : localVersion) !== 1"
       color="primary"
     >
       Installed
     </ion-text>
     <ion-text
-      *ngIf="(version | compareEmver: localVersion) === 1"
+      *ngIf="(version | compareExver : localVersion) === 1"
       color="success"
     >
       Update Available
