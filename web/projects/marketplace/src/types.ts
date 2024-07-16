@@ -16,7 +16,6 @@ export interface StoreData<T extends T.GetPackageParams> {
   packages: MarketplacePkg<T>[]
 }
 
-// TODO decide if otherVersions should be short or full
 export interface DefaultGetPackageParams extends T.GetPackageParams {
   id: null
   version: null
@@ -35,28 +34,28 @@ export type MarketplaceMultiPkg<T extends T.GetPackageParams> = T extends {
   id: null
   otherVersions: null
 }
-  ? MarketplacePkgInfo & Omit<GetPackageResponseInterim, 'otherVersions'>
+  ? MarketplacePkgInfo & Omit<T.GetPackageResponse, 'otherVersions'>
   : T extends { id: null; otherVersions: 'short' }
   ? MarketplacePkgInfo &
-      GetPackageResponseInterim & {
+      T.GetPackageResponse & {
         otherVersions: { [version: string]: T.PackageInfoShort }
       }
   : T extends { id: null; otherVersions: 'full' }
-  ? MarketplacePkgInfo & GetPackageResponseFullInterim
+  ? MarketplacePkgInfo & T.GetPackageResponseFull
   : never
 
 export type MarketplaceSinglePkg<T extends T.GetPackageParams> = T extends {
   id: T.PackageId
   otherVersions: null
 }
-  ? MarketplacePkgInfo & Omit<GetPackageResponseInterim, 'otherVersions'>
+  ? MarketplacePkgInfo & Omit<T.GetPackageResponse, 'otherVersions'>
   : T extends { id: T.PackageId; otherVersions: 'short' }
   ? MarketplacePkgInfo &
-      GetPackageResponseInterim & {
+      T.GetPackageResponse & {
         otherVersions: { [version: string]: T.PackageInfoShort }
       }
   : T extends { id: T.PackageId; otherVersions: 'full' }
-  ? MarketplacePkgInfo & GetPackageResponseFullInterim
+  ? MarketplacePkgInfo & T.GetPackageResponseFull
   : never
 
 export interface MarketplacePkgInfo extends T.PackageVersionInfo {
@@ -64,21 +63,6 @@ export interface MarketplacePkgInfo extends T.PackageVersionInfo {
   version: T.Version
   altVersion: T.Version | null
 }
-
-type UnionOverrideKeys<T, U> = Omit<T, keyof U> & U
-// TODO remove when BE types fully support
-export interface GetPackageResponseFullInterim
-  extends UnionOverrideKeys<
-    T.GetPackageResponseFull,
-    { best: { [key: T.Version]: T.PackageVersionInfo } }
-  > {}
-
-// TODO remove when BE types fully support
-export interface GetPackageResponseInterim
-  extends UnionOverrideKeys<
-    T.GetPackageResponseFull,
-    { best: { [key: T.Version]: T.PackageVersionInfo } }
-  > {}
 
 export interface Dependency {
   description: string | null

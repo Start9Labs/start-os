@@ -4,7 +4,6 @@ import {
 } from 'src/app/services/patch-db/data-model'
 import { Metric, NotificationLevel, RR, ServerNotifications } from './api.types'
 import { BTC_ICON, PROXY_ICON, REGISTRY_ICON } from './api-icons'
-import { GetPackageResponseFullInterim } from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { T, CB } from '@start9labs/start-sdk'
@@ -227,7 +226,7 @@ export module Mock {
   }
 
   export const RegistryPackages: {
-    [id: T.PackageId]: GetPackageResponseFullInterim
+    [id: T.PackageId]: T.GetPackageResponseFull
   } = {
     bitcoind: {
       best: {
