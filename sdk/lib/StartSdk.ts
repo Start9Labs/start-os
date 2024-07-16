@@ -335,7 +335,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               ([
                 id,
                 {
-                  data: { versionSpec, ...x },
+                  data: { versionRange, ...x },
                 },
               ]) => ({
                 id,
@@ -348,7 +348,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
                   : {
                       kind: "exists",
                     }),
-                versionSpec: versionSpec.range,
+                versionRange: versionRange.toString(),
               }),
             ),
           })

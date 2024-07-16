@@ -1147,14 +1147,14 @@ enum DependencyRequirement {
         #[ts(type = "string[]")]
         health_checks: BTreeSet<HealthCheckId>,
         #[ts(type = "string")]
-        version_spec: VersionRange,
+        version_range: VersionRange,
     },
     #[serde(rename_all = "camelCase")]
     Exists {
         #[ts(type = "string")]
         id: PackageId,
         #[ts(type = "string")]
-        version_spec: VersionRange,
+        version_range: VersionRange,
     },
 }
 // filebrowser:exists,bitcoind:running:foo+bar+baz
@@ -1164,7 +1164,7 @@ impl FromStr for DependencyRequirement {
         match s.split_once(':') {
             Some((id, "e")) | Some((id, "exists")) => Ok(Self::Exists {
                 id: id.parse()?,
-                version_spec: "*".parse()?, // TODO
+                version_range: "*".parse()?, // TODO
             }),
             Some((id, rest)) => {
                 let health_checks = match rest.split_once(':') {
@@ -1187,13 +1187,13 @@ impl FromStr for DependencyRequirement {
                 Ok(Self::Running {
                     id: id.parse()?,
                     health_checks,
-                    version_spec: "*".parse()?, // TODO
+                    version_range: "*".parse()?, // TODO
                 })
             }
             None => Ok(Self::Running {
                 id: s.parse()?,
                 health_checks: BTreeSet::new(),
-                version_spec: "*".parse()?, // TODO
+                version_range: "*".parse()?, // TODO
             }),
         }
     }
@@ -1227,18 +1227,18 @@ async fn set_dependencies(
 
     let mut deps = BTreeMap::new();
     for dependency in dependencies {
-        let (dep_id, kind, version_spec) = match dependency {
-            DependencyRequirement::Exists { id, version_spec } => {
-                (id, CurrentDependencyKind::Exists, version_spec)
+        let (dep_id, kind, version_range) = match dependency {
+            DependencyRequirement::Exists { id, version_range } => {
+                (id, CurrentDependencyKind::Exists, version_range)
             }
             DependencyRequirement::Running {
                 id,
                 health_checks,
-                version_spec,
+                version_range,
             } => (
                 id,
                 CurrentDependencyKind::Running { health_checks },
-                version_spec,
+                version_range,
             ),
         };
         let config_satisfied =
@@ -1269,7 +1269,7 @@ async fn set_dependencies(
                 .dependency_icon_data_url(&dep_id)
                 .await?,
             kind,
-            version_spec,
+            version_range,
             config_satisfied,
         };
         deps.insert(dep_id, info);
@@ -1305,15 +1305,19 @@ async fn get_dependencies(context: EffectContext) -> Result<Vec<DependencyRequir
         .into_iter()
         .map(|(id, current_dependency_info)| {
             let CurrentDependencyInfo {
-                version_spec, kind, ..
+                version_range,
+                kind,
+                ..
             } = current_dependency_info;
             Ok::<_, Error>(match kind {
-                CurrentDependencyKind::Exists => DependencyRequirement::Exists { id, version_spec },
+                CurrentDependencyKind::Exists => {
+                    DependencyRequirement::Exists { id, version_range }
+                }
                 CurrentDependencyKind::Running { health_checks } => {
                     DependencyRequirement::Running {
                         id,
                         health_checks,
-                        version_spec,
+                        version_range,
                     }
                 }
             })
@@ -1383,7 +1387,7 @@ async fn check_dependencies(
         if ![installed_version]
             .into_iter()
             .chain(satisfies.into_iter().map(|v| v.into_version()))
-            .any(|v| v.satisfies(&dependency_info.version_spec))
+            .any(|v| v.satisfies(&dependency_info.version_range))
         {
             results.push(CheckDependenciesResult {
                 package_id,

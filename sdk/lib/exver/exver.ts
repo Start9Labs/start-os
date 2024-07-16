@@ -12,6 +12,7 @@ const peggyParser: { parse: any; SyntaxError: any; DefaultTracer?: any } = // Ge
     function peg$subclass(child, parent) {
       // @ts-ignore
       function C() {
+        // @ts-ignore
         this.constructor = child
       }
       // @ts-ignore
@@ -428,12 +429,12 @@ const peggyParser: { parse: any; SyntaxError: any; DefaultTracer?: any } = // Ge
         return { type: "Anchor", operator, version }
       } // @ts-ignore
 
-      var peg$f2 = function (flavor, upstream) {
+      var peg$f2 = function (flavor, upstream, downstream) {
         // @ts-ignore
         return {
           flavor: flavor || null,
           upstream,
-          downstream: downstream || { number: [0], prerelease: [] },
+          downstream: downstream[1] || { number: [0], prerelease: [] },
         }
       } // @ts-ignore
 
@@ -1173,7 +1174,7 @@ const peggyParser: { parse: any; SyntaxError: any; DefaultTracer?: any } = // Ge
           // @ts-ignore
           peg$savedPos = s0
           // @ts-ignore
-          s0 = peg$f2(s1, s2)
+          s0 = peg$f2(s1, s2, s3)
           // @ts-ignore
         } else {
           // @ts-ignore

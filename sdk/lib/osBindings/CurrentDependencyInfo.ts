@@ -4,6 +4,6 @@ import type { DataUrl } from "./DataUrl"
 export type CurrentDependencyInfo = {
   title: string | null
   icon: DataUrl | null
-  versionSpec: string
+  versionRange: string
   configSatisfied: boolean
 } & ({ kind: "exists" } | { kind: "running"; healthChecks: string[] })

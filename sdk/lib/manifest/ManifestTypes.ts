@@ -1,4 +1,4 @@
-import { ValidateExVer, ValidateExVers } from "../emverLite/mod"
+import { ValidateExVer, ValidateExVers } from "../exver"
 import {
   ActionMetadata,
   HardwareRequirements,

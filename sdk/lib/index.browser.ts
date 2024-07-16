@@ -1,4 +1,3 @@
-export { EmVer } from "./emverLite/mod"
 export { setupManifest } from "./manifest/setupManifest"
 export { setupExposeStore } from "./store/setupExposeStore"
 export { S9pk } from "./s9pk"

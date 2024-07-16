@@ -378,7 +378,7 @@ pub struct CurrentDependencyInfo {
     #[serde(flatten)]
     pub kind: CurrentDependencyKind,
     #[ts(type = "string")]
-    pub version_spec: VersionRange,
+    pub version_range: VersionRange,
     pub config_satisfied: bool,
 }
 

@@ -2,7 +2,6 @@ import * as T from "../types"
 import { ImageConfig, ImageId, VolumeId } from "../osBindings"
 import { SDKManifest, SDKImageConfig } from "./ManifestTypes"
 import { SDKVersion } from "../StartSdk"
-import { ValidateExVer } from "../emverLite/mod"
 
 export function setupManifest<
   Id extends string,
