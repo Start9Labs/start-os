@@ -1,4 +1,3 @@
-import { Url } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 
 export type StoreURL = string
@@ -60,15 +59,10 @@ export type MarketplaceSinglePkg<T extends T.GetPackageParams> = T extends {
   ? MarketplacePkgInfo & GetPackageResponseFullInterim
   : never
 
-export interface MarketplacePkgInfo extends PackageVersionInfoInterim {
+export interface MarketplacePkgInfo extends T.PackageVersionInfo {
   id: T.PackageId
   version: T.Version
   altVersion: T.Version | null
-}
-
-// TODO remove when BE types fully support
-export interface PackageVersionInfoInterim extends T.PackageVersionInfo {
-  publishedAt: number
 }
 
 type UnionOverrideKeys<T, U> = Omit<T, keyof U> & U
@@ -76,14 +70,14 @@ type UnionOverrideKeys<T, U> = Omit<T, keyof U> & U
 export interface GetPackageResponseFullInterim
   extends UnionOverrideKeys<
     T.GetPackageResponseFull,
-    { best: { [key: T.Version]: PackageVersionInfoInterim } }
+    { best: { [key: T.Version]: T.PackageVersionInfo } }
   > {}
 
 // TODO remove when BE types fully support
 export interface GetPackageResponseInterim
   extends UnionOverrideKeys<
     T.GetPackageResponseFull,
-    { best: { [key: T.Version]: PackageVersionInfoInterim } }
+    { best: { [key: T.Version]: T.PackageVersionInfo } }
   > {}
 
 export interface Dependency {

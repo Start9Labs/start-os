@@ -6,7 +6,6 @@ import {
   DataModel,
   InstallingState,
   PackageDataEntry,
-  StateInfo,
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
 import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
@@ -100,7 +99,7 @@ export class AppShowPage {
     allPkgs: AllPackageData,
     depId: string,
   ) {
-    const { title, icon, versionSpec } = pkg.currentDependencies[depId]
+    const { title, icon, versionRange } = pkg.currentDependencies[depId]
 
     if (
       allPkgs[depId].stateInfo.state === 'installed' ||
@@ -109,13 +108,13 @@ export class AppShowPage {
       return {
         title: allPkgs[depId].stateInfo.manifest!.title,
         icon: allPkgs[depId].icon,
-        versionSpec,
+        versionRange,
       }
     } else {
       return {
         title: title ? title : depId,
         icon: icon ? icon : depId.substring(0, 2),
-        versionSpec,
+        versionRange,
       }
     }
   }
@@ -134,11 +133,15 @@ export class AppShowPage {
       depErrors,
     )
 
-    const { title, icon, versionSpec } = this.getDepDetails(pkg, allPkgs, depId)
+    const { title, icon, versionRange } = this.getDepDetails(
+      pkg,
+      allPkgs,
+      depId,
+    )
 
     return {
       id: depId,
-      version: versionSpec,
+      version: versionRange,
       title,
       icon,
       errorText: errorText
@@ -221,7 +224,7 @@ export class AppShowPage {
     const dependentInfo: DependentInfo = {
       id: pkgManifest.id,
       title: pkgManifest.title,
-      version: pkg.currentDependencies[depId].versionSpec,
+      version: pkg.currentDependencies[depId].versionRange,
     }
     const navigationExtras: NavigationExtras = {
       state: { dependentInfo },

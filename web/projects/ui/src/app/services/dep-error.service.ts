@@ -88,13 +88,13 @@ export class DepErrorService {
     const depManifest = dep.stateInfo.manifest
 
     // incorrect version
-    if (!this.emver.satisfies(depManifest.version, currentDep.versionSpec)) {
+    if (!this.emver.satisfies(depManifest.version, currentDep.versionRange)) {
       // TODO @lucy add exver check
       // if() {
 
       return {
         type: 'incorrectVersion',
-        expected: currentDep.versionSpec,
+        expected: currentDep.versionRange,
         received: depManifest.version,
       }
       // }
