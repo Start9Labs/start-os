@@ -11,6 +11,12 @@ export class DependenciesComponent {
   pkg!: MarketplacePkg
 
   getImg(key: string): string {
-    return this.pkg.dependencyMetadata![key].icon
+    const icon = this.pkg.dependencyMetadata[key]?.icon
+
+    if (icon) {
+      return icon
+    } else {
+      return key.substring(0, 2)
+    }
   }
 }
