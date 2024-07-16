@@ -261,17 +261,11 @@ export class LiveApiService extends ApiService {
   }
 
   async checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes> {
-    // const { version } = await getServerInfo(this.patch)
-    const params: T.GetOsVersionParams = {
-      source: null, // TODO is this needed?
-      target: null,
-      serverId: qp.serverId,
-      arch: null, // TODO @lucy backend should get this automatically
-    }
+    const { serverId } = qp
 
     return this.registryRequest(this.config.marketplace.start9, {
       method: 'os.version.get',
-      params,
+      params: { serverId },
     })
   }
 
