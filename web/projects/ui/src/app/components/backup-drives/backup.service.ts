@@ -59,7 +59,7 @@ export class BackupService {
     )
   }
 
-  async hasThisBackup(target: BackupTarget, id: string): Promise<boolean> {
+  hasThisBackup(target: BackupTarget, id: string): boolean {
     return (
       target.startOs[id] &&
       Version.parse(target.startOs[id].version).compare(

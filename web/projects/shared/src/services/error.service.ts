@@ -15,7 +15,6 @@ export class ErrorService extends ErrorHandler {
     this.alerts
       .open(getErrorMessage(error, link), {
         label: 'Error',
-        autoClose: false,
         status: TuiNotification.Error,
       })
       .subscribe()

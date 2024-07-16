@@ -56,7 +56,7 @@ export class WidgetsPage {
     @Optional()
     @Inject(POLYMORPHEUS_CONTEXT)
     readonly context: TuiDialogContext | null,
-    private readonly dialog: TuiDialogService,
+    private readonly dialogs: TuiDialogService,
     private readonly patch: PatchDB<DataModel>,
     private readonly cdr: ChangeDetectorRef,
     private readonly api: ApiService,
@@ -83,7 +83,7 @@ export class WidgetsPage {
   }
 
   add() {
-    this.dialog.open(ADD_WIDGET, { label: 'Add widget' }).subscribe(widget => {
+    this.dialogs.open(ADD_WIDGET, { label: 'Add widget' }).subscribe(widget => {
       this.addWidget(widget!)
     })
   }

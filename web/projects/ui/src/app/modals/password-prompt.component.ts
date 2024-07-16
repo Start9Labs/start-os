@@ -1,14 +1,29 @@
-import { Component } from '@angular/core'
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  Input,
+  ViewChild,
+} from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { IonicModule, ModalController } from '@ionic/angular'
+import { TuiTextfieldComponent } from '@taiga-ui/core'
 import { TuiInputPasswordModule } from '@taiga-ui/kit'
+
+export interface PromptOptions {
+  title: string
+  message: string
+  label: string
+  placeholder: string
+  buttonText: string
+}
 
 @Component({
   standalone: true,
   template: `
     <ion-header>
       <ion-toolbar>
-        <ion-title>Decrypt Backup</ion-title>
+        <ion-title>{{ options.title }}</ion-title>
         <ion-buttons slot="end">
           <ion-button (click)="cancel()">
             <ion-icon slot="icon-only" name="close"></ion-icon>
@@ -18,13 +33,11 @@ import { TuiInputPasswordModule } from '@taiga-ui/kit'
     </ion-header>
 
     <ion-content class="ion-padding">
+      <p>{{ options.message }}</p>
       <p>
-        Enter the password that was used to encrypt this backup. On the next
-        screen, you will select the individual services you want to restore.
-      </p>
-      <p>
-        <tui-input-password [(ngModel)]="password">
-          Enter password
+        <tui-input-password [(ngModel)]="password" (keydown.enter)="confirm()">
+          {{ options.label }}
+          <input tuiTextfield [placeholder]="options.placeholder" />
         </tui-input-password>
       </p>
     </ion-content>
@@ -47,17 +60,29 @@ import { TuiInputPasswordModule } from '@taiga-ui/kit'
           [disabled]="!password"
           (click)="confirm()"
         >
-          Next
+          {{ options.buttonText }}
         </ion-button>
       </ion-toolbar>
     </ion-footer>
   `,
   imports: [IonicModule, FormsModule, TuiInputPasswordModule],
 })
-export class PasswordPromptModal {
+export class PasswordPromptComponent implements AfterViewInit {
+  @ViewChild(TuiTextfieldComponent, { read: ElementRef })
+  input?: ElementRef<HTMLInputElement>
+
+  @Input()
+  options!: PromptOptions
+
   password = ''
 
   constructor(private modalCtrl: ModalController) {}
+
+  ngAfterViewInit() {
+    setTimeout(() => {
+      this.input?.nativeElement.focus({ preventScroll: true })
+    }, 300)
+  }
 
   cancel() {
     return this.modalCtrl.dismiss(null, 'cancel')
