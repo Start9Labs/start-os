@@ -3,11 +3,13 @@
   <div class="text">
     <h1 ticker class="title">{{ pkg.title }}</h1>
     <p class="version">{{ pkg.version | displayEmver }}</p>
-    <p class="published">Released: {{ pkg.publishedAt | date: 'medium' }}</p>
+    <p class="published">
+      Released: {{ pkg.s9pk.publishedAt | date : 'medium' }}
+    </p>
     <ion-item lines="none" [style.--padding-start]="'0px'">
       <ion-label><b>Switch Implementation</b></ion-label>
       <ion-toggle
-        *ngIf="pkg.altVersion"
+        *ngIf="pkg.flavorVersion"
         [checked]="toggleImplementation"
         color="tertiary"
         (ionChange)="switchImplementation()"

@@ -17,8 +17,8 @@ import { ClientStorageService } from './services/client-storage.service'
 import { FilterPackagesPipe } from '../../../marketplace/src/pipes/filter-packages.pipe'
 import { ThemeSwitcherService } from './services/theme-switcher.service'
 import { StorageService } from './services/storage.service'
-import { PkgImplementationService } from './services/pkg-implementation.service'
-import { AbstractPkgImplementationService } from '@start9labs/marketplace'
+import { PkgFlavorService } from './services/pkg-implementation.service'
+import { AbstractPkgFlavorService } from '@start9labs/marketplace'
 
 const {
   useMocks,
@@ -57,8 +57,8 @@ export const APP_PROVIDERS: Provider[] = [
     useExisting: ThemeSwitcherService,
   },
   {
-    provide: AbstractPkgImplementationService,
-    useClass: PkgImplementationService,
+    provide: AbstractPkgFlavorService,
+    useClass: PkgFlavorService,
   },
   {
     provide: TUI_ICONS_PATH,

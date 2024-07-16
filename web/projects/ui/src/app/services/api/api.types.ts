@@ -1,13 +1,9 @@
-import { Dump, Revision } from 'patch-db-client'
+import { Dump } from 'patch-db-client'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 import { CT, T } from '@start9labs/start-sdk'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
-import {
-  GetPackageResponseFullInterim,
-  GetPackageResponseInterim,
-} from '@start9labs/marketplace'
 
 export module RR {
   // websocket
@@ -308,16 +304,16 @@ export module RR {
       id: null
       otherVersions: null
     }
-      ? { [id: T.PackageId]: Omit<GetPackageResponseInterim, 'otherVersions'> }
+      ? { [id: T.PackageId]: Omit<T.GetPackageResponse, 'otherVersions'> }
       : T extends { id: null; otherVersions: 'short' }
       ? {
-          [id: T.PackageId]: GetPackageResponseInterim & {
+          [id: T.PackageId]: T.GetPackageResponse & {
             otherVersions: { [version: string]: T.PackageInfoShort }
           }
         }
       : T extends { id: null; otherVersions: 'full' }
       ? {
-          [id: T.PackageId]: GetPackageResponseFullInterim
+          [id: T.PackageId]: T.GetPackageResponseFull
         }
       : never
   export type GetRegistrySinglePackageRes<T extends GetRegistryPackagesReq> =
@@ -325,13 +321,13 @@ export module RR {
       id: T.PackageId
       otherVersions: null
     }
-      ? Omit<GetPackageResponseInterim, 'otherVersions'>
+      ? Omit<T.GetPackageResponse, 'otherVersions'>
       : T extends { id: T.PackageId; otherVersions: 'short' }
-      ? GetPackageResponseInterim & {
+      ? T.GetPackageResponse & {
           otherVersions: { [version: string]: T.PackageInfoShort }
         }
       : T extends { id: T.PackageId; otherVersions: 'full' }
-      ? GetPackageResponseFullInterim
+      ? T.GetPackageResponseFull
       : never
 }
 

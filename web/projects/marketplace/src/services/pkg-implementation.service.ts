@@ -1,7 +1,7 @@
 import { BehaviorSubject, Observable } from 'rxjs'
 
-export abstract class AbstractPkgImplementationService {
-  readonly altImplActive$ = new BehaviorSubject<boolean>(false)
-  abstract getAltStatus$(): Observable<boolean>
-  abstract toggleAltStatus(status: boolean): void
+export abstract class AbstractPkgFlavorService {
+  readonly flavorActive = new BehaviorSubject<boolean>(false)
+  abstract getFlavorStatus$(): Observable<boolean>
+  abstract toggleFlavorStatus(status: boolean): void
 }

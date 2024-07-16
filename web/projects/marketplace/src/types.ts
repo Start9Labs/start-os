@@ -1,4 +1,3 @@
-import { Url } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 
 export type StoreURL = string
@@ -17,7 +16,6 @@ export interface StoreData<T extends T.GetPackageParams> {
   packages: MarketplacePkg<T>[]
 }
 
-// TODO decide if otherVersions should be short or full
 export interface DefaultGetPackageParams extends T.GetPackageParams {
   id: null
   version: null
@@ -36,70 +34,34 @@ export type MarketplaceMultiPkg<T extends T.GetPackageParams> = T extends {
   id: null
   otherVersions: null
 }
-  ? MarketplacePkgInfo & Omit<GetPackageResponseInterim, 'otherVersions'>
+  ? MarketplacePkgInfo & Omit<T.GetPackageResponse, 'otherVersions'>
   : T extends { id: null; otherVersions: 'short' }
   ? MarketplacePkgInfo &
-      GetPackageResponseInterim & {
+      T.GetPackageResponse & {
         otherVersions: { [version: string]: T.PackageInfoShort }
       }
   : T extends { id: null; otherVersions: 'full' }
-  ? MarketplacePkgInfo & GetPackageResponseFullInterim
+  ? MarketplacePkgInfo & T.GetPackageResponseFull
   : never
 
 export type MarketplaceSinglePkg<T extends T.GetPackageParams> = T extends {
   id: T.PackageId
   otherVersions: null
 }
-  ? MarketplacePkgInfo & Omit<GetPackageResponseInterim, 'otherVersions'>
+  ? MarketplacePkgInfo & Omit<T.GetPackageResponse, 'otherVersions'>
   : T extends { id: T.PackageId; otherVersions: 'short' }
   ? MarketplacePkgInfo &
-      GetPackageResponseInterim & {
+      T.GetPackageResponse & {
         otherVersions: { [version: string]: T.PackageInfoShort }
       }
   : T extends { id: T.PackageId; otherVersions: 'full' }
-  ? MarketplacePkgInfo & GetPackageResponseFullInterim
+  ? MarketplacePkgInfo & T.GetPackageResponseFull
   : never
 
-export interface MarketplacePkgInfo extends PackageVersionInfoInterim {
+export interface MarketplacePkgInfo extends T.PackageVersionInfo {
   id: T.PackageId
   version: T.Version
-  altVersion: T.Version | null
-}
-
-// TODO remove when BE types fully support
-export interface PackageVersionInfoInterim extends T.PackageVersionInfo {
-  dependencyMetadata?: {
-    [id: string]: DependencyMetadata
-  }
-  publishedAt: number
-  alerts: {
-    install?: string
-    update?: string
-    uninstall?: string
-  }
-}
-
-type UnionOverrideKeys<T, U> = Omit<T, keyof U> & U
-// TODO remove when BE types fully support
-export interface GetPackageResponseFullInterim
-  extends UnionOverrideKeys<
-    T.GetPackageResponseFull,
-    { best: { [key: T.Version]: PackageVersionInfoInterim } }
-  > {}
-
-// TODO remove when BE types fully support
-export interface GetPackageResponseInterim
-  extends UnionOverrideKeys<
-    T.GetPackageResponseFull,
-    { best: { [key: T.Version]: PackageVersionInfoInterim } }
-  > {}
-
-export interface DependencyMetadata {
-  title: string
-  icon: Url
-  optional: boolean
-  hidden: boolean
-  description: string
+  flavorVersion: T.Version | null
 }
 
 export interface Dependency {

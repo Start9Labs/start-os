@@ -4,10 +4,6 @@ import {
 } from 'src/app/services/patch-db/data-model'
 import { Metric, NotificationLevel, RR, ServerNotifications } from './api.types'
 import { BTC_ICON, PROXY_ICON, REGISTRY_ICON } from './api-icons'
-import {
-  DependencyMetadata,
-  GetPackageResponseFullInterim,
-} from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { T, CB } from '@start9labs/start-sdk'
@@ -215,24 +211,22 @@ export module Mock {
     },
   }
 
-  export const BitcoinDep: DependencyMetadata = {
+  export const BitcoinDep: T.DependencyMetadata = {
     title: 'Bitcoin Core',
     icon: BTC_ICON,
     optional: false,
-    hidden: true,
     description: 'Needed to run',
   }
 
-  export const ProxyDep: DependencyMetadata = {
+  export const ProxyDep: T.DependencyMetadata = {
     title: 'Bitcoin Proxy',
     icon: PROXY_ICON,
     optional: true,
-    hidden: false,
     description: 'Needed to run',
   }
 
   export const RegistryPackages: {
-    [id: T.PackageId]: GetPackageResponseFullInterim
+    [id: T.PackageId]: T.GetPackageResponseFull
   } = {
     bitcoind: {
       best: {
@@ -250,12 +244,20 @@ export module Mock {
           gitHash: 'fakehash',
           icon: BTC_ICON,
           sourceVersion: null,
-          publishedAt: Date.now(),
-          alerts: {},
+          dependencyMetadata: {},
+          donationUrl: null,
+          alerts: {
+            install: 'test',
+            uninstall: 'test',
+            start: 'test',
+            stop: 'test',
+            restore: 'test',
+          },
           s9pk: {
             url: 'https://github.com/Start9Labs/bitcoind-startos/releases/download/v27.0.0/bitcoind.s9pk',
             commitment: mockMerkleArchiveCommitment,
             signatures: {},
+            publishedAt: Date.now().toString(),
           },
         },
         'knots-26.1.20240513': {
@@ -272,12 +274,20 @@ export module Mock {
           gitHash: 'fakehash',
           icon: BTC_ICON,
           sourceVersion: null,
-          publishedAt: Date.now(),
-          alerts: {},
+          dependencyMetadata: {},
+          donationUrl: null,
+          alerts: {
+            install: 'test',
+            uninstall: 'test',
+            start: 'test',
+            stop: 'test',
+            restore: 'test',
+          },
           s9pk: {
             url: 'https://github.com/Start9Labs/bitcoinknots-startos/releases/download/v26.1.20240513/bitcoind.s9pk',
             commitment: mockMerkleArchiveCommitment,
             signatures: {},
+            publishedAt: Date.now().toString(),
           },
         },
       },
@@ -297,10 +307,20 @@ export module Mock {
           gitHash: 'fakehash',
           icon: BTC_ICON,
           sourceVersion: null,
+          dependencyMetadata: {},
+          donationUrl: null,
+          alerts: {
+            install: 'test',
+            uninstall: 'test',
+            start: 'test',
+            stop: 'test',
+            restore: 'test',
+          },
           s9pk: {
             url: 'https://github.com/Start9Labs/bitcoind-startos/releases/download/v26.1.0/bitcoind.s9pk',
             commitment: mockMerkleArchiveCommitment,
             signatures: {},
+            publishedAt: Date.now().toString(),
           },
         },
         'knots-26.1.20240325': {
@@ -317,10 +337,20 @@ export module Mock {
           gitHash: 'fakehash',
           icon: BTC_ICON,
           sourceVersion: null,
+          dependencyMetadata: {},
+          donationUrl: null,
+          alerts: {
+            install: 'test',
+            uninstall: 'test',
+            start: 'test',
+            stop: 'test',
+            restore: 'test',
+          },
           s9pk: {
             url: 'https://github.com/Start9Labs/bitcoinknots-startos/releases/download/v26.1.20240325/bitcoind.s9pk',
             commitment: mockMerkleArchiveCommitment,
             signatures: {},
+            publishedAt: Date.now().toString(),
           },
         },
       },
@@ -1485,7 +1515,7 @@ export module Mock {
         title: Mock.MockManifestBitcoind.title,
         icon: 'assets/img/service-icons/bitcoind.svg',
         kind: 'running',
-        versionSpec: '>=26.0.0',
+        versionRange: '>=26.0.0',
         healthChecks: [],
         configSatisfied: true,
       },
@@ -1571,7 +1601,7 @@ export module Mock {
         title: Mock.MockManifestBitcoind.title,
         icon: 'assets/img/service-icons/bitcoind.svg',
         kind: 'running',
-        versionSpec: '>=26.0.0',
+        versionRange: '>=26.0.0',
         healthChecks: [],
         configSatisfied: true,
       },
@@ -1579,7 +1609,7 @@ export module Mock {
         title: Mock.MockManifestBitcoinProxy.title,
         icon: 'assets/img/service-icons/btc-rpc-proxy.png',
         kind: 'exists',
-        versionSpec: '>2.0.0',
+        versionRange: '>2.0.0',
         configSatisfied: false,
       },
     },

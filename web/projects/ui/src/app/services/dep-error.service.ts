@@ -10,6 +10,7 @@ import {
 import * as deepEqual from 'fast-deep-equal'
 import { isInstalled } from '../util/get-package-data'
 import { DependencyError } from './api/api.types'
+import { T } from '@start9labs/start-sdk'
 
 export type AllDependencyErrors = Record<string, PkgDependencyErrors>
 export type PkgDependencyErrors = Record<string, DependencyError | null>
@@ -87,12 +88,16 @@ export class DepErrorService {
     const depManifest = dep.stateInfo.manifest
 
     // incorrect version
-    if (!this.emver.satisfies(depManifest.version, currentDep.versionSpec)) {
+    if (!this.emver.satisfies(depManifest.version, currentDep.versionRange)) {
+      // TODO @lucy add exver check
+      // if() {
+
       return {
         type: 'incorrectVersion',
-        expected: currentDep.versionSpec,
+        expected: currentDep.versionRange,
         received: depManifest.version,
       }
+      // }
     }
 
     // invalid config

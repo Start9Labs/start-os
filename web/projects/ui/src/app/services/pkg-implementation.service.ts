@@ -1,16 +1,16 @@
 import { Injectable } from '@angular/core'
 import { Observable } from 'rxjs'
-import { AbstractPkgImplementationService } from '@start9labs/marketplace'
+import { AbstractPkgFlavorService } from '@start9labs/marketplace'
 
 @Injectable({
   providedIn: 'root',
 })
-export class PkgImplementationService extends AbstractPkgImplementationService {
-  getAltStatus$(): Observable<boolean> {
-    return this.altImplActive$
+export class PkgFlavorService extends AbstractPkgFlavorService {
+  getFlavorStatus$(): Observable<boolean> {
+    return this.flavorActive
   }
 
-  toggleAltStatus(status: boolean) {
-    this.altImplActive$.next(status)
+  toggleFlavorStatus(status: boolean) {
+    this.flavorActive.next(status)
   }
 }
