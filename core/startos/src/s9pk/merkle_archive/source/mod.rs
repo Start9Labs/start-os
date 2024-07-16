@@ -1,3 +1,5 @@
+use std::cmp::min;
+use std::io::SeekFrom;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -6,7 +8,7 @@ use blake3::Hash;
 use futures::future::BoxFuture;
 use futures::{Future, FutureExt};
 use tokio::fs::File;
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt, AsyncWrite, Take};
 
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::hash::VerifyingWriter;
@@ -17,8 +19,14 @@ pub mod multi_cursor_file;
 
 pub trait FileSource: Send + Sync + Sized + 'static {
     type Reader: AsyncRead + Unpin + Send;
+    type SliceReader: AsyncRead + Unpin + Send;
     fn size(&self) -> impl Future<Output = Result<u64, Error>> + Send;
     fn reader(&self) -> impl Future<Output = Result<Self::Reader, Error>> + Send;
+    fn slice(
+        &self,
+        position: u64,
+        size: u64,
+    ) -> impl Future<Output = Result<Self::SliceReader, Error>> + Send;
     fn copy<W: AsyncWrite + Unpin + Send + ?Sized>(
         &self,
         w: &mut W,
@@ -65,11 +73,15 @@ pub trait FileSource: Send + Sync + Sized + 'static {
 
 impl<T: FileSource> FileSource for Arc<T> {
     type Reader = T::Reader;
+    type SliceReader = T::SliceReader;
     async fn size(&self) -> Result<u64, Error> {
         self.deref().size().await
     }
     async fn reader(&self) -> Result<Self::Reader, Error> {
         self.deref().reader().await
+    }
+    async fn slice(&self, position: u64, size: u64) -> Result<Self::SliceReader, Error> {
+        self.deref().slice(position, size).await
     }
     async fn copy<W: AsyncWrite + Unpin + Send + ?Sized>(&self, w: &mut W) -> Result<(), Error> {
         self.deref().copy(w).await
@@ -95,11 +107,15 @@ impl DynFileSource {
 }
 impl FileSource for DynFileSource {
     type Reader = Box<dyn AsyncRead + Unpin + Send>;
+    type SliceReader = Box<dyn AsyncRead + Unpin + Send>;
     async fn size(&self) -> Result<u64, Error> {
         self.0.size().await
     }
     async fn reader(&self) -> Result<Self::Reader, Error> {
         self.0.reader().await
+    }
+    async fn slice(&self, position: u64, size: u64) -> Result<Self::SliceReader, Error> {
+        self.0.slice(position, size).await
     }
     async fn copy<W: AsyncWrite + Unpin + Send + ?Sized>(
         &self,
@@ -123,6 +139,11 @@ impl FileSource for DynFileSource {
 trait DynableFileSource: Send + Sync + 'static {
     async fn size(&self) -> Result<u64, Error>;
     async fn reader(&self) -> Result<Box<dyn AsyncRead + Unpin + Send>, Error>;
+    async fn slice(
+        &self,
+        position: u64,
+        size: u64,
+    ) -> Result<Box<dyn AsyncRead + Unpin + Send>, Error>;
     async fn copy(&self, w: &mut (dyn AsyncWrite + Unpin + Send)) -> Result<(), Error>;
     async fn copy_verify(
         &self,
@@ -138,6 +159,13 @@ impl<T: FileSource> DynableFileSource for T {
     }
     async fn reader(&self) -> Result<Box<dyn AsyncRead + Unpin + Send>, Error> {
         Ok(Box::new(FileSource::reader(self).await?))
+    }
+    async fn slice(
+        &self,
+        position: u64,
+        size: u64,
+    ) -> Result<Box<dyn AsyncRead + Unpin + Send>, Error> {
+        Ok(Box::new(FileSource::slice(self, position, size).await?))
     }
     async fn copy(&self, w: &mut (dyn AsyncWrite + Unpin + Send)) -> Result<(), Error> {
         FileSource::copy(self, w).await
@@ -156,21 +184,33 @@ impl<T: FileSource> DynableFileSource for T {
 
 impl FileSource for PathBuf {
     type Reader = File;
+    type SliceReader = Take<Self::Reader>;
     async fn size(&self) -> Result<u64, Error> {
         Ok(tokio::fs::metadata(self).await?.len())
     }
     async fn reader(&self) -> Result<Self::Reader, Error> {
         Ok(open_file(self).await?)
     }
+    async fn slice(&self, position: u64, size: u64) -> Result<Self::SliceReader, Error> {
+        let mut r = FileSource::reader(self).await?;
+        r.seek(SeekFrom::Start(position)).await?;
+        Ok(r.take(size))
+    }
 }
 
 impl FileSource for Arc<[u8]> {
     type Reader = std::io::Cursor<Self>;
+    type SliceReader = Take<Self::Reader>;
     async fn size(&self) -> Result<u64, Error> {
         Ok(self.len() as u64)
     }
     async fn reader(&self) -> Result<Self::Reader, Error> {
         Ok(std::io::Cursor::new(self.clone()))
+    }
+    async fn slice(&self, position: u64, size: u64) -> Result<Self::SliceReader, Error> {
+        let mut r = FileSource::reader(self).await?;
+        r.seek(SeekFrom::Start(position)).await?;
+        Ok(r.take(size))
     }
     async fn copy<W: AsyncWrite + Unpin + Send + ?Sized>(&self, w: &mut W) -> Result<(), Error> {
         use tokio::io::AsyncWriteExt;
@@ -272,11 +312,17 @@ pub struct Section<S> {
 }
 impl<S: ArchiveSource> FileSource for Section<S> {
     type Reader = S::FetchReader;
+    type SliceReader = S::FetchReader;
     async fn size(&self) -> Result<u64, Error> {
         Ok(self.size)
     }
     async fn reader(&self) -> Result<Self::Reader, Error> {
         self.source.fetch(self.position, self.size).await
+    }
+    async fn slice(&self, position: u64, size: u64) -> Result<Self::SliceReader, Error> {
+        self.source
+            .fetch(self.position + position, min(size, self.size))
+            .await
     }
     async fn copy<W: AsyncWrite + Unpin + Send + ?Sized>(&self, w: &mut W) -> Result<(), Error> {
         self.source.copy_to(self.position, self.size, w).await
@@ -342,11 +388,15 @@ impl<S: FileSource> From<TmpSource<S>> for DynFileSource {
 
 impl<S: FileSource> FileSource for TmpSource<S> {
     type Reader = <S as FileSource>::Reader;
+    type SliceReader = <S as FileSource>::SliceReader;
     async fn size(&self) -> Result<u64, Error> {
         self.source.size().await
     }
     async fn reader(&self) -> Result<Self::Reader, Error> {
         self.source.reader().await
+    }
+    async fn slice(&self, position: u64, size: u64) -> Result<Self::SliceReader, Error> {
+        self.source.slice(position, size).await
     }
     async fn copy<W: AsyncWrite + Unpin + Send + ?Sized>(
         &self,

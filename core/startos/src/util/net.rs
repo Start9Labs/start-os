@@ -1,7 +1,8 @@
 use std::borrow::Cow;
+use std::sync::Mutex;
 
 use axum::extract::ws::{self, CloseFrame};
-use futures::Future;
+use futures::{Future, Stream, StreamExt};
 
 use crate::prelude::*;
 
@@ -20,5 +21,21 @@ impl WebSocketExt for ws::WebSocket {
         })))
         .await
         .with_kind(ErrorKind::Network)
+    }
+}
+
+pub struct SyncBody(Mutex<axum::body::BodyDataStream>);
+impl From<axum::body::Body> for SyncBody {
+    fn from(value: axum::body::Body) -> Self {
+        SyncBody(Mutex::new(value.into_data_stream()))
+    }
+}
+impl Stream for SyncBody {
+    type Item = <axum::body::BodyDataStream as Stream>::Item;
+    fn poll_next(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        self.0.lock().unwrap().poll_next_unpin(cx)
     }
 }

@@ -1,5 +1,4 @@
 use std::collections::BTreeSet;
-use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -9,7 +8,6 @@ use futures::{FutureExt, TryStreamExt};
 use imbl_value::InternedString;
 use models::{ImageId, PackageId, VersionString};
 use serde::{Deserialize, Serialize};
-use tokio::io::AsyncRead;
 use tokio::process::Command;
 use tokio::sync::OnceCell;
 use tokio_stream::wrappers::ReadDirStream;
@@ -25,7 +23,7 @@ use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::{
-    into_dyn_read, ArchiveSource, DynFileSource, FileSource, TmpSource,
+    into_dyn_read, ArchiveSource, DynFileSource, DynRead, FileSource, TmpSource,
 };
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
 use crate::s9pk::v2::SIG_CONTEXT;
@@ -87,7 +85,8 @@ pub enum PackSource {
     Squashfs(Arc<SqfsDir>),
 }
 impl FileSource for PackSource {
-    type Reader = Box<dyn AsyncRead + Unpin + Send + Sync + 'static>;
+    type Reader = DynRead;
+    type SliceReader = DynRead;
     async fn size(&self) -> Result<u64, Error> {
         match self {
             Self::Buffered(a) => Ok(a.len() as u64),
@@ -106,9 +105,21 @@ impl FileSource for PackSource {
     }
     async fn reader(&self) -> Result<Self::Reader, Error> {
         match self {
-            Self::Buffered(a) => Ok(into_dyn_read(Cursor::new(a.clone()))),
-            Self::File(f) => Ok(into_dyn_read(open_file(f).await?)),
+            Self::Buffered(a) => Ok(into_dyn_read(FileSource::reader(a).await?)),
+            Self::File(f) => Ok(into_dyn_read(FileSource::reader(f).await?)),
             Self::Squashfs(dir) => dir.file().await?.fetch_all().await.map(into_dyn_read),
+        }
+    }
+    async fn slice(&self, position: u64, size: u64) -> Result<Self::SliceReader, Error> {
+        match self {
+            Self::Buffered(a) => Ok(into_dyn_read(FileSource::slice(a, position, size).await?)),
+            Self::File(f) => Ok(into_dyn_read(FileSource::slice(f, position, size).await?)),
+            Self::Squashfs(dir) => dir
+                .file()
+                .await?
+                .fetch(position, size)
+                .await
+                .map(into_dyn_read),
         }
     }
 }
