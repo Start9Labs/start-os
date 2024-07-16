@@ -62,14 +62,14 @@ export class VersionRange {
           case "<":
             return version.lessThan(otherVersion)
           case ">=":
-            return version.greaterThan(otherVersion) || version.equals(otherVersion)
+            return version.greaterThanOrEqual(otherVersion)
           case "<=":
-            return version.lessThan(otherVersion) || version.equals(otherVersion)
+            return version.lessThanOrEqual(otherVersion)
           case "!=":
             return !version.equals(otherVersion)
           case "^":
             const nextMajor = this.atom.version.incrementMajor()
-            if ((version.greaterThan(otherVersion) || version.equals(otherVersion)) && (version.lessThan(nextMajor))) {
+            if (version.greaterThanOrEqual(otherVersion) && version.lessThan(nextMajor)) {
               return true
             } else {
               return false
@@ -77,7 +77,7 @@ export class VersionRange {
           case "~":
             case "^":
               const nextMinor = this.atom.version.incrementMinor()
-              if ((version.greaterThan(otherVersion) || version.equals(otherVersion)) && (version.lessThan(nextMinor))) {
+              if (version.greaterThanOrEqual(otherVersion) && version.lessThan(nextMinor)) {
                 return true
               } else {
                 return false
