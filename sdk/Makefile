@@ -34,7 +34,7 @@ check:
 	npm run check
 
 fmt: node_modules
-	npx prettier --write "**/*.ts"
+	npx prettier . "**/*.ts" --write
 
 node_modules: package.json
 	npm ci
