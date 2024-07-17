@@ -26,6 +26,7 @@ export * from "./osBindings"
 export { SDKManifest } from "./manifest/ManifestTypes"
 export { HealthReceipt } from "./health/HealthReceipt"
 
+export type PathMaker = (options: { volume: string; path: string }) => string
 export type ExportedAction = (options: {
   effects: Effects
   input?: Record<string, unknown>
@@ -43,10 +44,14 @@ export namespace ExpectedExports {
   // /** These are how we make sure the our dependency configurations are valid and if not how to fix them. */
   // export type dependencies = Dependencies;
   /** For backing up service data though the startOS UI */
-  export type createBackup = (options: { effects: Effects }) => Promise<unknown>
+  export type createBackup = (options: {
+    effects: Effects
+    pathMaker: PathMaker
+  }) => Promise<unknown>
   /** For restoring service data that was previously backed up using the startOS UI create backup flow. Backup restores are also triggered via the startOS UI, or doing a system restore flow during setup. */
   export type restoreBackup = (options: {
     effects: Effects
+    pathMaker: PathMaker
   }) => Promise<unknown>
 
   // /** Health checks are used to determine if the service is working properly after starting

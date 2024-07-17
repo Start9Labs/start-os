@@ -240,7 +240,6 @@ export type ListValueSpecText = {
   inputmode: "text" | "email" | "tel" | "url"
   placeholder: string | null
 }
-
 export type ListValueSpecObject = {
   type: "object"
   /** this is a mapped type of the config object at this level, replacing the object's values with specs on those values */

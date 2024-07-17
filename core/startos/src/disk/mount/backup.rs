@@ -106,8 +106,11 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
                 )
             })?;
         }
-        let encrypted_guard =
-            TmpMountGuard::mount(&BackupFS::new(&crypt_path, &enc_key), ReadWrite).await?;
+        let encrypted_guard = TmpMountGuard::mount(
+            &BackupFS::new(&crypt_path, &enc_key, vec![(100000, 65536)]),
+            ReadWrite,
+        )
+        .await?;
 
         let metadata_path = encrypted_guard.path().join("metadata.json");
         let metadata: BackupInfo = if tokio::fs::metadata(&metadata_path).await.is_ok() {
@@ -148,8 +151,23 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
     }
 
     #[instrument(skip_all)]
-    pub fn package_backup(self: &Arc<Self>, id: &PackageId) -> SubPath<Arc<Self>> {
-        SubPath::new(self.clone(), id)
+    pub async fn package_backup(
+        self: &Arc<Self>,
+        id: &PackageId,
+    ) -> Result<SubPath<Arc<Self>>, Error> {
+        let package_guard = SubPath::new(self.clone(), id);
+        let package_path = package_guard.path();
+        if tokio::fs::metadata(&package_path).await.is_err() {
+            tokio::fs::create_dir_all(&package_path)
+                .await
+                .with_ctx(|_| {
+                    (
+                        crate::ErrorKind::Filesystem,
+                        package_path.display().to_string(),
+                    )
+                })?;
+        }
+        Ok(package_guard)
     }
 
     #[instrument(skip_all)]
