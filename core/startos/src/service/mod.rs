@@ -34,6 +34,7 @@ use crate::util::actor::concurrent::ConcurrentActor;
 use crate::util::actor::Actor;
 use crate::util::io::create_file;
 use crate::util::serde::Pem;
+use crate::util::Never;
 use crate::volume::data_dir;
 
 mod action;
@@ -220,12 +221,13 @@ impl Service {
                         tracing::error!("Error opening s9pk for install: {e}");
                         tracing::debug!("{e:?}")
                     }) {
-                        if let Ok(service) = Self::install(ctx.clone(), s9pk, None, None)
-                            .await
-                            .map_err(|e| {
-                                tracing::error!("Error installing service: {e}");
-                                tracing::debug!("{e:?}")
-                            })
+                        if let Ok(service) =
+                            Self::install(ctx.clone(), s9pk, None, None::<Never>, None)
+                                .await
+                                .map_err(|e| {
+                                    tracing::error!("Error installing service: {e}");
+                                    tracing::debug!("{e:?}")
+                                })
                         {
                             return Ok(Some(service));
                         }
@@ -257,6 +259,7 @@ impl Service {
                             ctx.clone(),
                             s9pk,
                             Some(s.as_manifest().as_version().de()?),
+                            None::<Never>,
                             None,
                         )
                         .await
@@ -334,13 +337,35 @@ impl Service {
     pub async fn install(
         ctx: RpcContext,
         s9pk: S9pk,
-        src_version: Option<models::VersionString>,
+        mut src_version: Option<models::VersionString>,
+        recovery_source: Option<impl GenericMountGuard>,
         progress: Option<InstallProgressHandles>,
     ) -> Result<ServiceRef, Error> {
         let manifest = s9pk.as_manifest().clone();
         let developer_key = s9pk.as_archive().signer();
         let icon = s9pk.icon_data_url().await?;
         let service = Self::new(ctx.clone(), s9pk, StartStop::Stop).await?;
+        if let Some(recovery_source) = recovery_source {
+            service
+                .actor
+                .send(
+                    Guid::new(),
+                    transition::restore::Restore {
+                        path: recovery_source.path().to_path_buf(),
+                    },
+                )
+                .await??;
+            recovery_source.unmount().await?;
+            src_version = Some(
+                service
+                    .seed
+                    .persistent_container
+                    .s9pk
+                    .as_manifest()
+                    .version
+                    .clone(),
+            );
+        }
         service
             .seed
             .persistent_container
@@ -379,26 +404,6 @@ impl Service {
             })
             .await?;
 
-        Ok(service)
-    }
-
-    pub async fn restore(
-        ctx: RpcContext,
-        s9pk: S9pk,
-        backup_source: impl GenericMountGuard,
-        progress: Option<InstallProgressHandles>,
-    ) -> Result<ServiceRef, Error> {
-        let service = Service::install(ctx.clone(), s9pk, None, progress).await?;
-
-        service
-            .actor
-            .send(
-                Guid::new(),
-                transition::restore::Restore {
-                    path: backup_source.path().to_path_buf(),
-                },
-            )
-            .await??;
         Ok(service)
     }
 
