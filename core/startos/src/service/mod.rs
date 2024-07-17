@@ -420,7 +420,8 @@ impl Service {
                     path: guard.path().join("data"),
                 },
             )
-            .await??;
+            .await??
+            .await?;
         Ok(())
     }
 
