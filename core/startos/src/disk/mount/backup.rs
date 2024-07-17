@@ -106,8 +106,11 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
                 )
             })?;
         }
-        let encrypted_guard =
-            TmpMountGuard::mount(&BackupFS::new(&crypt_path, &enc_key), ReadWrite).await?;
+        let encrypted_guard = TmpMountGuard::mount(
+            &BackupFS::new(&crypt_path, &enc_key, vec![(100000, 65536)]),
+            ReadWrite,
+        )
+        .await?;
 
         let metadata_path = encrypted_guard.path().join("metadata.json");
         let metadata: BackupInfo = if tokio::fs::metadata(&metadata_path).await.is_ok() {
