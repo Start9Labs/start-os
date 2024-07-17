@@ -301,7 +301,7 @@ impl PersistentContainer {
             .arg(backup_path)
             .invoke(ErrorKind::Filesystem)
             .await?;
-        let bind = IdMapped::new(Bind::new(backup_path), 0, 100000, 65536);
+        let bind = Bind::new(backup_path);
         MountGuard::mount(&bind, &mountpoint, mount_type).await
     }
 
