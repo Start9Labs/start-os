@@ -61,7 +61,7 @@ export class BackupService {
     )
   }
 
-  async hasThisBackup(target: BackupTarget, id: string): Promise<boolean> {
+  hasThisBackup(target: BackupTarget, id: string): boolean {
     return (
       target.startOs[id] &&
       this.emver.compare(target.startOs[id].version, '0.3.6') !== -1
