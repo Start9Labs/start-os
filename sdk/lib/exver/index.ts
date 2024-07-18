@@ -341,6 +341,15 @@ export class ExtendedVersion {
     )
   }
 
+  static parseEmver(extendedVersion: string): ExtendedVersion {
+    const parsed = P.parse(extendedVersion, { startRule: "EmVer" })
+    return new ExtendedVersion(
+      parsed.flavor,
+      new Version(parsed.upstream.number, parsed.upstream.prerelease),
+      new Version(parsed.downstream.number, parsed.downstream.prerelease),
+    )
+  }
+
   /**
    * Returns an ExtendedVersion with the Upstream major version version incremented by 1
    * and sets subsequent digits to zero.

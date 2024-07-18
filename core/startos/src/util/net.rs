@@ -1,3 +1,4 @@
+use core::fmt;
 use std::borrow::Cow;
 use std::sync::Mutex;
 
@@ -11,6 +12,10 @@ pub trait WebSocketExt {
         self,
         msg: impl Into<Cow<'static, str>>,
     ) -> impl Future<Output = Result<(), Error>>;
+    async fn close_result(
+        self,
+        result: Result<impl Into<Cow<'static, str>>, impl fmt::Display>,
+    ) -> Result<(), Error>;
 }
 
 impl WebSocketExt for ws::WebSocket {
@@ -21,6 +26,27 @@ impl WebSocketExt for ws::WebSocket {
         })))
         .await
         .with_kind(ErrorKind::Network)
+    }
+    async fn close_result(
+        mut self,
+        result: Result<impl Into<Cow<'static, str>>, impl fmt::Display>,
+    ) -> Result<(), Error> {
+        match result {
+            Ok(msg) => self
+                .send(ws::Message::Close(Some(CloseFrame {
+                    code: 1000,
+                    reason: msg.into(),
+                })))
+                .await
+                .with_kind(ErrorKind::Network),
+            Err(e) => self
+                .send(ws::Message::Close(Some(CloseFrame {
+                    code: 1011,
+                    reason: e.to_string().into(),
+                })))
+                .await
+                .with_kind(ErrorKind::Network),
+        }
     }
 }
 

@@ -30,6 +30,7 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| {
                     get::display_package_info(handle.params, result)
-                }),
+                })
+                .with_call_remote::<CliContext>(),
         )
 }

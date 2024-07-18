@@ -554,33 +554,54 @@ pub struct InitProgressRes {
 pub async fn init_progress(ctx: InitContext) -> Result<InitProgressRes, Error> {
     let progress_tracker = ctx.progress.clone();
     let progress = progress_tracker.snapshot();
+    let mut error = ctx.error.subscribe();
     let guid = Guid::new();
     ctx.rpc_continuations
         .add(
             guid.clone(),
             RpcContinuation::ws(
                 |mut ws| async move {
-                    if let Err(e) = async {
-                        let mut stream = progress_tracker.stream(Some(Duration::from_millis(100)));
-                        while let Some(progress) = stream.next().await {
-                            ws.send(ws::Message::Text(
-                                serde_json::to_string(&progress)
-                                    .with_kind(ErrorKind::Serialization)?,
-                            ))
-                            .await
-                            .with_kind(ErrorKind::Network)?;
-                            if progress.overall.is_complete() {
-                                break;
+                    let res = tokio::try_join!(
+                        async {
+                            let mut stream =
+                                progress_tracker.stream(Some(Duration::from_millis(100)));
+                            while let Some(progress) = stream.next().await {
+                                ws.send(ws::Message::Text(
+                                    serde_json::to_string(&progress)
+                                        .with_kind(ErrorKind::Serialization)?,
+                                ))
+                                .await
+                                .with_kind(ErrorKind::Network)?;
+                                if progress.overall.is_complete() {
+                                    break;
+                                }
+                            }
+
+                            Ok::<_, Error>(())
+                        },
+                        async {
+                            if let Some(e) = error
+                                .wait_for(|e| e.is_some())
+                                .await
+                                .ok()
+                                .and_then(|e| e.as_ref().map(|e| e.clone_output()))
+                            {
+                                Err::<(), _>(e)
+                            } else {
+                                Ok(())
                             }
                         }
+                    );
 
-                        ws.normal_close("complete").await?;
-
-                        Ok::<_, Error>(())
-                    }
-                    .await
+                    if let Err(e) = ws
+                        .close_result(res.map(|_| "complete").map_err(|e| {
+                            tracing::error!("error in init progress websocket: {e}");
+                            tracing::debug!("{e:?}");
+                            e
+                        }))
+                        .await
                     {
-                        tracing::error!("error in init progress websocket: {e}");
+                        tracing::error!("error closing init progress websocket: {e}");
                         tracing::debug!("{e:?}");
                     }
                 },

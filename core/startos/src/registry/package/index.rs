@@ -149,8 +149,11 @@ impl PackageVersionInfo {
         table.add_row(row![bc => &self.title]);
         table.add_row(row![br -> "VERSION", AsRef::<str>::as_ref(version)]);
         table.add_row(row![br -> "RELEASE NOTES", &self.release_notes]);
-        table.add_row(row![br -> "ABOUT", &self.description.short]);
-        table.add_row(row![br -> "DESCRIPTION", &self.description.long]);
+        table.add_row(row![br -> "ABOUT", &textwrap::wrap(&self.description.short, 80).join("\n")]);
+        table.add_row(row![
+            br -> "DESCRIPTION",
+            &textwrap::wrap(&self.description.long, 80).join("\n")
+        ]);
         table.add_row(row![br -> "GIT HASH", AsRef::<str>::as_ref(&self.git_hash)]);
         table.add_row(row![br -> "LICENSE", &self.license]);
         table.add_row(row![br -> "PACKAGE REPO", &self.wrapper_repo.to_string()]);

@@ -45,6 +45,21 @@ ExtendedVersion
     return { flavor: flavor || null, upstream, downstream }
   }
 
+EmVer
+  = major:Digit "." minor:Digit "." patch:Digit ("." revision:Digit)? {
+    return {
+      flavor: null,
+      upstream: {
+        number: [major, minor, patch],
+        prerelease: [],
+      },
+      downstream: {
+        number: [revision || 0],
+        prerelease: [],
+      },
+    }
+  }
+
 Flavor
   = "#" flavor:Lowercase ":" { return flavor }
 
