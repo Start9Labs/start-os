@@ -45,6 +45,8 @@ export class ToOptionsPipe implements PipeTransform {
 
   private compare(version: string): boolean {
     // checks to see if backup was made on a newer version of startOS
-    return this.exver.compare(version, this.config.version) === 1
+    return (
+      this.exver.compareOsVersion(version, this.config.version) === 'greater'
+    )
   }
 }

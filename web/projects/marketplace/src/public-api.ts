@@ -24,6 +24,6 @@ export * from './pages/show/package/package.module'
 export * from './pipes/filter-packages.pipe'
 
 export * from './services/marketplace.service'
-export * from './services/pkg-implementation.service'
+export * from './services/pkg-flavor.service'
 
 export * from './types'

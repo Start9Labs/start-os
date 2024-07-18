@@ -102,7 +102,7 @@ export class MenuComponent {
         store?.packages.forEach(({ id, version }) => {
           if (
             local[id] &&
-            this.exver.compare(
+            this.exver.compareExver(
               version,
               getManifest(local[id]).version || '',
             ) === 1

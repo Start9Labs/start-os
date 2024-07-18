@@ -1,4 +1,4 @@
-import { T } from '@start9labs/start-sdk'
+import { ExtendedVersion, T } from '@start9labs/start-sdk'
 
 export type StoreURL = string
 export type StoreName = string
@@ -60,8 +60,9 @@ export type MarketplaceSinglePkg<T extends T.GetPackageParams> = T extends {
 
 export interface MarketplacePkgInfo extends T.PackageVersionInfo {
   id: T.PackageId
-  version: T.Version
-  flavorVersion: T.Version | null
+  version: T.Version // current active version
+  defaultVersion: T.Version | undefined
+  flavorVersion: T.Version | undefined
 }
 
 export interface Dependency {

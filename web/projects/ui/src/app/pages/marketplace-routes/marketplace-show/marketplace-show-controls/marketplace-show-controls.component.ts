@@ -79,7 +79,8 @@ export class MarketplaceShowControlsComponent {
       const localManifest = getManifest(this.localPkg)
 
       if (
-        this.exver.compare(localManifest.version, this.pkg.version) !== 0 &&
+        this.exver.compareExver(localManifest.version, this.pkg.version) !==
+          0 &&
         hasCurrentDeps(localManifest.id, await getAllPackages(this.patch))
       ) {
         this.dryInstall(url)

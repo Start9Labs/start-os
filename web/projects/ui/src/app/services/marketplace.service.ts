@@ -7,6 +7,7 @@ import {
   MarketplacePkg,
   MarketplaceSinglePkg,
   AbstractPkgFlavorService,
+  DefaultGetPackageParams,
 } from '@start9labs/marketplace'
 import {
   BehaviorSubject,
@@ -40,8 +41,8 @@ import {
 import { ConfigService } from './config.service'
 import { sameUrl } from '@start9labs/shared'
 import { ClientStorageService } from './client-storage.service'
-import { T } from '@start9labs/start-sdk'
-import { PkgFlavorService } from './pkg-implementation.service'
+import { ExtendedVersion, T } from '@start9labs/start-sdk'
+import { PkgFlavorService } from './pkg-flavor.service'
 
 @Injectable()
 export class MarketplaceService implements AbstractMarketplaceService {
@@ -98,7 +99,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
         id: null,
         version: null,
         sourceVersion: null,
-        otherVersions: 'short',
+        otherVersions: 'full',
       }).pipe(
         tap(data => {
           if (data?.info.name) this.updateStoreName(url, name, data.info.name)
@@ -122,6 +123,36 @@ export class MarketplaceService implements AbstractMarketplaceService {
     }, {}),
     shareReplay({ bufferSize: 1, refCount: true }),
   )
+  //   private readonly marketplace$: Observable<Record<string, StoreData<DefaultGetPackageParams>>> = this.knownHosts$.pipe(
+  //   startWith<StoreIdentity[]>([]),
+  //   pairwise(),
+  //   mergeMap(([prev, curr]) =>
+  //     curr.filter(c => !prev.find(p => sameUrl(c.url, p.url))),
+  //   ),
+  //   mergeMap(({ url, name }) =>
+  //     this.fetchStore$(url, {
+  //       id: null,
+  //       version: null,
+  //       sourceVersion: null,
+  //       otherVersions: 'short',
+  //     }).pipe(
+  //       tap((data) => {
+  //         if (data?.info.name) this.updateStoreName(url, name, data.info.name)
+  //       }),
+  //       map(data => {
+  //         return [url, data] as const
+  //       }),
+  //       startWith([url, null] as const),
+  //     ),
+  //   ),
+  //   scan((requests, [url, store]) => {
+  //     return {
+  //       ...requests,
+  //       [url]: store
+  //     }
+  //   }, {}),
+  //   shareReplay({ bufferSize: 1, refCount: true }),
+  // )
 
   private readonly filteredMarketplace$ = combineLatest([
     this.clientStorageService.showDevTools$,
@@ -192,21 +223,42 @@ export class MarketplaceService implements AbstractMarketplaceService {
     return this.patch.watch$('ui', 'marketplace').pipe(
       switchMap(uiMarketplace => {
         const url = optionalUrl || uiMarketplace.selectedUrl
-
-        if (params.version !== '*' || !uiMarketplace.knownHosts[url]) {
+        if (
+          !params.version ||
+          (params.version && params.version === '*') ||
+          !uiMarketplace.knownHosts[url]
+        ) {
           return this.fetchPackage$(url, params)
+        } else {
+          return this.marketplace$.pipe(
+            map(m => m[url]),
+            filter(Boolean),
+            take(1),
+            map((store: StoreData<T>) =>
+              store.packages.find(
+                p =>
+                  p.id === params.id &&
+                  (p.version === params.version ||
+                    p.flavorVersion === params.version),
+              ),
+            ),
+            switchMap(p => (p ? of(p) : this.fetchPackage$(url, params))),
+          )
         }
 
-        return this.marketplace$.pipe(
-          map(m => m[url]),
-          filter(Boolean),
-          take(1),
-          map(
-            (store: StoreData<T>) =>
-              store.packages.find(p => p.id === params.id) ||
-              ({} as MarketplacePkg<T>),
-          ),
-        )
+        // if (params.version !== '*' || !uiMarketplace.knownHosts[url]) {
+        //   return this.fetchPackage$(url, params)
+        // }
+        //             return this.marketplace$.pipe(
+        //       map(m => m[url]),
+        //       filter(Boolean),
+        //       take(1),
+        //       map(
+        //         (store: StoreData<T>) =>
+        //           store.packages.find(p => p.id === params.id) ||
+        //           ({} as MarketplacePkg<T>),
+        //       ),
+        //     )
       }),
     )
   }
@@ -305,21 +357,33 @@ export class MarketplaceService implements AbstractMarketplaceService {
       from(this.api.getRegistryPackages(url, params)),
     ]).pipe(
       map(([active, packages]) => {
-        const packageList = Object.keys(packages).map(p => {
-          // TODO use emver helper to determine if alt implementation exists
-          const versions = Object.keys(packages[p].best).sort()
-          // expand data for filter accessability
-          return {
-            id: p,
-            version: versions[0],
-            flavorVersion: !active ? versions[1] || null : versions[0],
-            ...packages[p].best[versions[0]],
-            ...packages[p],
-          } as MarketplacePkg<T>
-        })
-        return packageList
+        return Object.keys(packages).map(p =>
+          this.expandData(p, packages[p], active),
+        )
       }),
     )
+  }
+
+  // expand data for search filter accessability
+  expandData<T extends RR.GetRegistryPackagesReq>(
+    id: string,
+    pkg: RR.GetRegistryPackageOptions,
+    active: boolean,
+  ) {
+    const { version, flavor } = this.findVersions(pkg.best)
+    const bestVersion = flavor
+      ? active
+        ? flavor.toString()
+        : version
+      : version
+    return {
+      id,
+      version: bestVersion,
+      defaultVersion: version,
+      flavorVersion: flavor ? flavor.toString() : undefined,
+      ...pkg.best[bestVersion],
+      ...pkg,
+    } as MarketplacePkg<T>
   }
 
   private fetchPackage$<T extends RR.GetRegistryPackagesReq>(
@@ -329,20 +393,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
     return combineLatest([
       this.pkgFlavorService.getFlavorStatus$(),
       from(this.api.getRegistryPackage(url, params)),
-    ]).pipe(
-      map(([active, pkg]) => {
-        // TODO use emver helper to determine if alt implementation exists
-        const versions = Object.keys(pkg.best).sort()
-        // expand data for filter accessability
-        return {
-          id: params.id,
-          version: params.version,
-          flavorVersion: !active ? versions[1] || null : versions[0],
-          ...pkg.best[versions[0]],
-          ...pkg,
-        } as MarketplacePkg<T>
-      }),
-    )
+    ]).pipe(map(([active, pkg]) => this.expandData(params.id!, pkg, active)))
   }
 
   private async updateStoreName(
@@ -356,6 +407,18 @@ export class MarketplaceService implements AbstractMarketplaceService {
         newName,
       )
     }
+  }
+
+  private findVersions(pkgBestVersions: {
+    [key: string]: T.PackageVersionInfo
+  }) {
+    // only ever contains 2 items, a default version and a flavor version
+    const parsed = Object.keys(pkgBestVersions).map(v =>
+      ExtendedVersion.parse(v),
+    )
+    const flavor = parsed.find(v => v.flavor)
+    const version = parsed.find(v => !v.flavor)!
+    return { version: version.toString(), flavor }
   }
 }
 

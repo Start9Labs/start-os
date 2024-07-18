@@ -102,8 +102,9 @@ export class AppShowPage {
     const { title, icon, versionRange } = pkg.currentDependencies[depId]
 
     if (
-      allPkgs[depId].stateInfo.state === 'installed' ||
-      allPkgs[depId].stateInfo.state === 'updating'
+      allPkgs[depId] &&
+      (allPkgs[depId].stateInfo.state === 'installed' ||
+        allPkgs[depId].stateInfo.state === 'updating')
     ) {
       return {
         title: allPkgs[depId].stateInfo.manifest!.title,

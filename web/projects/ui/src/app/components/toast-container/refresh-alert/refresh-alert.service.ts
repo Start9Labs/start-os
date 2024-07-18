@@ -9,7 +9,10 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 @Injectable({ providedIn: 'root' })
 export class RefreshAlertService extends Observable<boolean> {
   private readonly stream$ = this.patch.watch$('serverInfo', 'version').pipe(
-    map(version => !!this.exver.compare(this.config.version, version)),
+    map(
+      version =>
+        this.exver.compareOsVersion(this.config.version, version) !== 'equal',
+    ),
     endWith(false),
   )
 

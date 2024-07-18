@@ -1,6 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core'
 import { Exver } from '../../services/exver.service'
-import { ExtendedVersion } from '@start9labs/start-sdk'
+import { ExtendedVersion, VersionRange } from '@start9labs/start-sdk'
 
 @Pipe({
   name: 'satisfiesExver',
@@ -25,7 +25,7 @@ export class ExverComparesPipe implements PipeTransform {
 
   transform(first: string, second: string): SemverResult {
     try {
-      return this.exver.compare(first, second) as SemverResult
+      return this.exver.compareExver(first, second) as SemverResult
     } catch (e) {
       console.error(`exver comparison failed`, e, first, second)
       return 'comparison-impossible'
@@ -47,5 +47,15 @@ export class ExverDisplayPipe implements PipeTransform {
 }
 
 export function displayExver(version: string): string {
-  return ExtendedVersion.parse(version).toString()
+  let res
+  try {
+    res = ExtendedVersion.parse(version)
+  } catch (e) {
+    try {
+      res = VersionRange.parse(version)
+    } catch (e) {
+      throw e
+    }
+  }
+  return res.toString()
 }

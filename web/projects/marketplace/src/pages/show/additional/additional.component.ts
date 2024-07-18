@@ -18,8 +18,9 @@ import {
 } from '@start9labs/shared'
 import { MarketplacePkg } from '../../../types'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
-import { AbstractPkgFlavorService } from '../../../services/pkg-implementation.service'
+import { AbstractPkgFlavorService } from '../../../services/pkg-flavor.service'
 import { ActivatedRoute } from '@angular/router'
+import { ExtendedVersion } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'marketplace-additional',
@@ -46,18 +47,11 @@ export class AdditionalComponent {
     private readonly route: ActivatedRoute,
   ) {}
 
-  ngOnInit() {
+  ngOnChanges() {
     this.pkgFlavorService.getFlavorStatus$().subscribe(active => {
-      if (active) {
-        // TODO replace with emver helper to determine if version has prefix
-        this.versions = Object.keys(this.pkg.otherVersions).filter(
-          v => v.split('-').length > 1,
-        )
-      } else {
-        this.versions = Object.keys(this.pkg.otherVersions).filter(
-          v => v.split('-').length === 1,
-        )
-      }
+      this.versions = Object.keys(this.pkg.otherVersions).filter(
+        v => !!ExtendedVersion.parse(v).flavor === active,
+      )
     })
   }
 
@@ -79,7 +73,7 @@ export class AdditionalComponent {
     const alert = await this.alertCtrl.create({
       header: 'Versions',
       inputs: this.versions
-        .sort((a, b) => -1 * (this.exver.compare(a, b) || 0))
+        .sort((a, b) => -1 * (this.exver.compareExver(a, b) || 0))
         .map(v => ({
           name: v, // for CSS
           type: 'radio',

@@ -17,7 +17,7 @@ import { ClientStorageService } from './services/client-storage.service'
 import { FilterPackagesPipe } from '../../../marketplace/src/pipes/filter-packages.pipe'
 import { ThemeSwitcherService } from './services/theme-switcher.service'
 import { StorageService } from './services/storage.service'
-import { PkgFlavorService } from './services/pkg-implementation.service'
+import { PkgFlavorService } from './services/pkg-flavor.service'
 import { AbstractPkgFlavorService } from '@start9labs/marketplace'
 
 const {

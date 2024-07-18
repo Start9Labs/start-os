@@ -58,14 +58,33 @@ export module Mock {
         name: 'Bitcoin',
         description: mockDescription,
       },
-      // TODO: add more
+      featured: {
+        name: 'Featured',
+        description: mockDescription,
+      },
+      lightning: {
+        name: 'Lightning',
+        description: mockDescription,
+      },
+      communications: {
+        name: 'Communications',
+        description: mockDescription,
+      },
+      data: {
+        name: 'Data',
+        description: mockDescription,
+      },
+      ai: {
+        name: 'AI',
+        description: mockDescription,
+      },
     },
   }
 
   export const MockManifestBitcoind: T.Manifest = {
     id: 'bitcoind',
     title: 'Bitcoin Core',
-    version: '0.21.0',
+    version: '0.21.0:0',
     satisfies: [],
     gitHash: 'abcdefgh',
     description: {
@@ -109,7 +128,7 @@ export module Mock {
   export const MockManifestLnd: T.Manifest = {
     id: 'lnd',
     title: 'Lightning Network Daemon',
-    version: '0.11.1',
+    version: '0.11.1:0',
     satisfies: [],
     gitHash: 'abcdefgh',
     description: {
@@ -165,7 +184,7 @@ export module Mock {
   export const MockManifestBitcoinProxy: T.Manifest = {
     id: 'btc-rpc-proxy',
     title: 'Bitcoin Proxy',
-    version: '0.2.2',
+    version: '0.2.2:0',
     satisfies: [],
     gitHash: 'lmnopqrx',
     description: {
@@ -225,12 +244,287 @@ export module Mock {
     description: 'Needed to run',
   }
 
+  export const OtherPackageVersions: {
+    [id: T.PackageId]: {
+      [key: string]: T.GetPackageResponseFull
+    }
+  } = {
+    bitcoind: {
+      '26.1.0:0.1.0': {
+        best: {
+          '26.1.0:0.1.0': {
+            title: 'Bitcoin Core',
+            description: mockDescription,
+            hardwareRequirements: { arch: null, device: {}, ram: null },
+            license: 'mit',
+            wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
+            upstreamRepo: 'https://github.com/bitcoin/bitcoin',
+            supportSite: 'https://bitcoin.org',
+            marketingSite: 'https://bitcoin.org',
+            releaseNotes: 'Even better support for Bitcoin and wallets!',
+            osVersion: '0.3.6',
+            gitHash: 'fakehash',
+            icon: BTC_ICON,
+            sourceVersion: null,
+            dependencyMetadata: {},
+            donationUrl: null,
+            alerts: {
+              install: 'test',
+              uninstall: 'test',
+              start: 'test',
+              stop: 'test',
+              restore: 'test',
+            },
+            s9pk: {
+              url: 'https://github.com/Start9Labs/bitcoind-startos/releases/download/v26.1.0/bitcoind.s9pk',
+              commitment: mockMerkleArchiveCommitment,
+              signatures: {},
+              publishedAt: Date.now().toString(),
+            },
+          },
+          '#knots:26.1.20240325:0': {
+            title: 'Bitcoin Knots',
+            description: {
+              short: 'An alternate fully verifying implementation of Bitcoin',
+              long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
+            },
+            hardwareRequirements: { arch: null, device: {}, ram: null },
+            license: 'mit',
+            wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
+            upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
+            supportSite: 'https://bitcoinknots.org',
+            marketingSite: 'https://bitcoinknots.org',
+            releaseNotes: 'Even better support for Bitcoin and wallets!',
+            osVersion: '0.3.6',
+            gitHash: 'fakehash',
+            icon: BTC_ICON,
+            sourceVersion: null,
+            dependencyMetadata: {},
+            donationUrl: null,
+            alerts: {
+              install: 'test',
+              uninstall: 'test',
+              start: 'test',
+              stop: 'test',
+              restore: 'test',
+            },
+            s9pk: {
+              url: 'https://github.com/Start9Labs/bitcoinknots-startos/releases/download/v26.1.20240513/bitcoind.s9pk',
+              commitment: mockMerkleArchiveCommitment,
+              signatures: {},
+              publishedAt: Date.now().toString(),
+            },
+          },
+        },
+        categories: ['bitcoin', 'featured'],
+        otherVersions: {
+          '27.0.0:1.0.0': {
+            title: 'Bitcoin Core',
+            description: mockDescription,
+            hardwareRequirements: { arch: null, device: {}, ram: null },
+            license: 'mit',
+            wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
+            upstreamRepo: 'https://github.com/bitcoin/bitcoin',
+            supportSite: 'https://bitcoin.org',
+            marketingSite: 'https://bitcoin.org',
+            releaseNotes: 'Even better support for Bitcoin and wallets!',
+            osVersion: '0.3.6',
+            gitHash: 'fakehash',
+            icon: BTC_ICON,
+            sourceVersion: null,
+            dependencyMetadata: {},
+            donationUrl: null,
+            alerts: {
+              install: 'test',
+              uninstall: 'test',
+              start: 'test',
+              stop: 'test',
+              restore: 'test',
+            },
+            s9pk: {
+              url: 'https://github.com/Start9Labs/bitcoind-startos/releases/download/v27.0.0/bitcoind.s9pk',
+              commitment: mockMerkleArchiveCommitment,
+              signatures: {},
+              publishedAt: Date.now().toString(),
+            },
+          },
+          '#knots:27.1.0:0': {
+            title: 'Bitcoin Knots',
+            description: {
+              short: 'An alternate fully verifying implementation of Bitcoin',
+              long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
+            },
+            hardwareRequirements: { arch: null, device: {}, ram: null },
+            license: 'mit',
+            wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
+            upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
+            supportSite: 'https://bitcoinknots.org',
+            marketingSite: 'https://bitcoinknots.org',
+            releaseNotes: 'Even better support for Bitcoin and wallets!',
+            osVersion: '0.3.6',
+            gitHash: 'fakehash',
+            icon: BTC_ICON,
+            sourceVersion: null,
+            dependencyMetadata: {},
+            donationUrl: null,
+            alerts: {
+              install: 'test',
+              uninstall: 'test',
+              start: 'test',
+              stop: 'test',
+              restore: 'test',
+            },
+            s9pk: {
+              url: 'https://github.com/Start9Labs/bitcoinknots-startos/releases/download/v27.1.0/bitcoind.s9pk',
+              commitment: mockMerkleArchiveCommitment,
+              signatures: {},
+              publishedAt: Date.now().toString(),
+            },
+          },
+        },
+      },
+      '#knots:26.1.20240325:0': {
+        best: {
+          '26.1.0:0.1.0': {
+            title: 'Bitcoin Core',
+            description: mockDescription,
+            hardwareRequirements: { arch: null, device: {}, ram: null },
+            license: 'mit',
+            wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
+            upstreamRepo: 'https://github.com/bitcoin/bitcoin',
+            supportSite: 'https://bitcoin.org',
+            marketingSite: 'https://bitcoin.org',
+            releaseNotes: 'Even better support for Bitcoin and wallets!',
+            osVersion: '0.3.6',
+            gitHash: 'fakehash',
+            icon: BTC_ICON,
+            sourceVersion: null,
+            dependencyMetadata: {},
+            donationUrl: null,
+            alerts: {
+              install: 'test',
+              uninstall: 'test',
+              start: 'test',
+              stop: 'test',
+              restore: 'test',
+            },
+            s9pk: {
+              url: 'https://github.com/Start9Labs/bitcoind-startos/releases/download/v26.1.0/bitcoind.s9pk',
+              commitment: mockMerkleArchiveCommitment,
+              signatures: {},
+              publishedAt: Date.now().toString(),
+            },
+          },
+          '#knots:26.1.20240325:0': {
+            title: 'Bitcoin Knots',
+            description: {
+              short: 'An alternate fully verifying implementation of Bitcoin',
+              long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
+            },
+            hardwareRequirements: { arch: null, device: {}, ram: null },
+            license: 'mit',
+            wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
+            upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
+            supportSite: 'https://bitcoinknots.org',
+            marketingSite: 'https://bitcoinknots.org',
+            releaseNotes: 'Even better support for Bitcoin and wallets!',
+            osVersion: '0.3.6',
+            gitHash: 'fakehash',
+            icon: BTC_ICON,
+            sourceVersion: null,
+            dependencyMetadata: {},
+            donationUrl: null,
+            alerts: {
+              install: 'test',
+              uninstall: 'test',
+              start: 'test',
+              stop: 'test',
+              restore: 'test',
+            },
+            s9pk: {
+              url: 'https://github.com/Start9Labs/bitcoinknots-startos/releases/download/v26.1.20240513/bitcoind.s9pk',
+              commitment: mockMerkleArchiveCommitment,
+              signatures: {},
+              publishedAt: Date.now().toString(),
+            },
+          },
+        },
+        categories: ['bitcoin', 'featured'],
+        otherVersions: {
+          '27.0.0:1.0.0': {
+            title: 'Bitcoin Core',
+            description: mockDescription,
+            hardwareRequirements: { arch: null, device: {}, ram: null },
+            license: 'mit',
+            wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
+            upstreamRepo: 'https://github.com/bitcoin/bitcoin',
+            supportSite: 'https://bitcoin.org',
+            marketingSite: 'https://bitcoin.org',
+            releaseNotes: 'Even better support for Bitcoin and wallets!',
+            osVersion: '0.3.6',
+            gitHash: 'fakehash',
+            icon: BTC_ICON,
+            sourceVersion: null,
+            dependencyMetadata: {},
+            donationUrl: null,
+            alerts: {
+              install: 'test',
+              uninstall: 'test',
+              start: 'test',
+              stop: 'test',
+              restore: 'test',
+            },
+            s9pk: {
+              url: 'https://github.com/Start9Labs/bitcoind-startos/releases/download/v27.0.0/bitcoind.s9pk',
+              commitment: mockMerkleArchiveCommitment,
+              signatures: {},
+              publishedAt: Date.now().toString(),
+            },
+          },
+          '#knots:27.1.0:0': {
+            title: 'Bitcoin Knots',
+            description: {
+              short: 'An alternate fully verifying implementation of Bitcoin',
+              long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
+            },
+            hardwareRequirements: { arch: null, device: {}, ram: null },
+            license: 'mit',
+            wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
+            upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
+            supportSite: 'https://bitcoinknots.org',
+            marketingSite: 'https://bitcoinknots.org',
+            releaseNotes: 'Even better support for Bitcoin and wallets!',
+            osVersion: '0.3.6',
+            gitHash: 'fakehash',
+            icon: BTC_ICON,
+            sourceVersion: null,
+            dependencyMetadata: {},
+            donationUrl: null,
+            alerts: {
+              install: 'test',
+              uninstall: 'test',
+              start: 'test',
+              stop: 'test',
+              restore: 'test',
+            },
+            s9pk: {
+              url: 'https://github.com/Start9Labs/bitcoinknots-startos/releases/download/v27.0.0/bitcoind.s9pk',
+              commitment: mockMerkleArchiveCommitment,
+              signatures: {},
+              publishedAt: Date.now().toString(),
+            },
+          },
+        },
+      },
+    },
+  }
+
   export const RegistryPackages: {
     [id: T.PackageId]: T.GetPackageResponseFull
   } = {
     bitcoind: {
       best: {
-        '27.0.0': {
+        '27.0.0:1.0.0': {
           title: 'Bitcoin Core',
           description: mockDescription,
           hardwareRequirements: { arch: null, device: {}, ram: null },
@@ -260,9 +554,12 @@ export module Mock {
             publishedAt: Date.now().toString(),
           },
         },
-        'knots-26.1.20240513': {
+        '#knots:27.1.0:0': {
           title: 'Bitcoin Knots',
-          description: mockDescription,
+          description: {
+            short: 'An alternate fully verifying implementation of Bitcoin',
+            long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
+          },
           hardwareRequirements: { arch: null, device: {}, ram: null },
           license: 'mit',
           wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
@@ -291,9 +588,9 @@ export module Mock {
           },
         },
       },
-      categories: ['bitcoin'],
+      categories: ['bitcoin', 'featured'],
       otherVersions: {
-        '26.1.0': {
+        '26.1.0:0.1.0': {
           title: 'Bitcoin Core',
           description: mockDescription,
           hardwareRequirements: { arch: null, device: {}, ram: null },
@@ -323,9 +620,12 @@ export module Mock {
             publishedAt: Date.now().toString(),
           },
         },
-        'knots-26.1.20240325': {
+        '#knots:26.1.20240325:0': {
           title: 'Bitcoin Knots',
-          description: mockDescription,
+          description: {
+            short: 'An alternate fully verifying implementation of Bitcoin',
+            long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
+          },
           hardwareRequirements: { arch: null, device: {}, ram: null },
           license: 'mit',
           wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
@@ -684,13 +984,13 @@ export module Mock {
     packageBackups: {
       bitcoind: {
         title: 'Bitcoin Core',
-        version: '0.21.0',
+        version: '0.21.0:0',
         osVersion: '0.3.6',
         timestamp: new Date().toISOString(),
       },
       'btc-rpc-proxy': {
         title: 'Bitcoin Proxy',
-        version: '0.2.2',
+        version: '0.2.2:0',
         osVersion: '0.3.6',
         timestamp: new Date().toISOString(),
       },

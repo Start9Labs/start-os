@@ -169,7 +169,10 @@ export class FilterUpdatesPipe implements PipeTransform {
       const localPkg = local[id]
       return (
         localPkg &&
-        this.exver.compare(version, localPkg.stateInfo.manifest.version) === 1
+        this.exver.compareExver(
+          version,
+          localPkg.stateInfo.manifest.version,
+        ) === 1
       )
     })
   }

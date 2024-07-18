@@ -480,9 +480,15 @@ export class MockApiService extends ApiService {
     params: T,
   ): Promise<RR.GetRegistrySinglePackageRes<T>> {
     await pauseFor(2000)
-    return Mock.RegistryPackages[
-      params.id!
-    ] as RR.GetRegistrySinglePackageRes<T>
+    if (!params.version || (params.version && params.version === '*')) {
+      return Mock.RegistryPackages[
+        params.id!
+      ] as RR.GetRegistrySinglePackageRes<T>
+    } else {
+      return Mock.OtherPackageVersions[params.id!][
+        params.version
+      ] as RR.GetRegistrySinglePackageRes<T>
+    }
   }
 
   // notification

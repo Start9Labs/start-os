@@ -329,6 +329,13 @@ export module RR {
       : T extends { id: T.PackageId; otherVersions: 'full' }
       ? T.GetPackageResponseFull
       : never
+
+  export type GetRegistryPackageOptions =
+    | Omit<T.GetPackageResponse, 'otherVersions'>
+    | (T.GetPackageResponse & {
+        otherVersions: { [version: string]: T.PackageInfoShort }
+      })
+    | T.GetPackageResponseFull
 }
 
 export interface OSUpdate {

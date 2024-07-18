@@ -18,7 +18,7 @@ import { T } from '@start9labs/start-sdk'
 })
 export class CategoriesComponent {
   @Input()
-  categories!: { [key: string]: T.Category }
+  categories!: Map<string, T.Category>
 
   @Input()
   category = ''
@@ -29,5 +29,9 @@ export class CategoriesComponent {
   switchCategory(category: string): void {
     this.category = category
     this.categoryChange.emit(category)
+  }
+
+  originalOrder() {
+    return 0
   }
 }

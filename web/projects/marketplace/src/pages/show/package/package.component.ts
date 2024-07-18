@@ -6,7 +6,7 @@ import {
   Output,
 } from '@angular/core'
 import { MarketplacePkg } from '../../../types'
-import { AbstractPkgFlavorService } from '../../../services/pkg-implementation.service'
+import { AbstractPkgFlavorService } from '../../../services/pkg-flavor.service'
 
 @Component({
   selector: 'marketplace-package',
@@ -21,13 +21,15 @@ export class PackageComponent {
   @Output()
   version = new EventEmitter<string>()
 
-  toggleImplementation: boolean = false
+  toggleFlavor: boolean = false
 
   constructor(private readonly pkgFlavorService: AbstractPkgFlavorService) {}
 
-  switchImplementation() {
-    this.toggleImplementation = !this.toggleImplementation
-    this.pkgFlavorService.toggleFlavorStatus(this.toggleImplementation)
-    this.version.emit(this.pkg.flavorVersion!)
+  async switchFlavor() {
+    this.toggleFlavor = !this.toggleFlavor
+    this.pkgFlavorService.toggleFlavorStatus(this.toggleFlavor)
+    this.version.emit(
+      this.toggleFlavor ? this.pkg.flavorVersion! : this.pkg.defaultVersion!,
+    )
   }
 }
