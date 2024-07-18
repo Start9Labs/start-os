@@ -31,10 +31,5 @@ export abstract class AbstractMarketplaceService {
     url?: string,
   ): Observable<Record<string, T.PackageInfoShort>>
 
-  abstract fetchStatic$(
-    id: string,
-    type: string,
-    version: string,
-    url: string | null,
-  ): Observable<string>
+  abstract fetchStatic$(pkg: MarketplacePkg, type: string): Observable<string>
 }

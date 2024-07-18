@@ -5,9 +5,7 @@ import {
   Marketplace,
   StoreIdentity,
   MarketplacePkg,
-  MarketplaceSinglePkg,
   AbstractPkgFlavorService,
-  DefaultGetPackageParams,
 } from '@start9labs/marketplace'
 import {
   BehaviorSubject,
@@ -123,36 +121,6 @@ export class MarketplaceService implements AbstractMarketplaceService {
     }, {}),
     shareReplay({ bufferSize: 1, refCount: true }),
   )
-  //   private readonly marketplace$: Observable<Record<string, StoreData<DefaultGetPackageParams>>> = this.knownHosts$.pipe(
-  //   startWith<StoreIdentity[]>([]),
-  //   pairwise(),
-  //   mergeMap(([prev, curr]) =>
-  //     curr.filter(c => !prev.find(p => sameUrl(c.url, p.url))),
-  //   ),
-  //   mergeMap(({ url, name }) =>
-  //     this.fetchStore$(url, {
-  //       id: null,
-  //       version: null,
-  //       sourceVersion: null,
-  //       otherVersions: 'short',
-  //     }).pipe(
-  //       tap((data) => {
-  //         if (data?.info.name) this.updateStoreName(url, name, data.info.name)
-  //       }),
-  //       map(data => {
-  //         return [url, data] as const
-  //       }),
-  //       startWith([url, null] as const),
-  //     ),
-  //   ),
-  //   scan((requests, [url, store]) => {
-  //     return {
-  //       ...requests,
-  //       [url]: store
-  //     }
-  //   }, {}),
-  //   shareReplay({ bufferSize: 1, refCount: true }),
-  // )
 
   private readonly filteredMarketplace$ = combineLatest([
     this.clientStorageService.showDevTools$,
@@ -245,20 +213,6 @@ export class MarketplaceService implements AbstractMarketplaceService {
             switchMap(p => (p ? of(p) : this.fetchPackage$(url, params))),
           )
         }
-
-        // if (params.version !== '*' || !uiMarketplace.knownHosts[url]) {
-        //   return this.fetchPackage$(url, params)
-        // }
-        //             return this.marketplace$.pipe(
-        //       map(m => m[url]),
-        //       filter(Boolean),
-        //       take(1),
-        //       map(
-        //         (store: StoreData<T>) =>
-        //           store.packages.find(p => p.id === params.id) ||
-        //           ({} as MarketplacePkg<T>),
-        //       ),
-        //     )
       }),
     )
   }
@@ -318,17 +272,8 @@ export class MarketplaceService implements AbstractMarketplaceService {
     )
   }
 
-  fetchStatic$(
-    id: string,
-    type: string,
-    version: string,
-    url: string | null,
-  ): Observable<string> {
-    return this.selectedHost$.pipe(
-      switchMap(m => {
-        return from(this.api.getStatic(url || m.url, type, id, version))
-      }),
-    )
+  fetchStatic$(pkg: MarketplacePkg, type: string): Observable<string> {
+    return from(this.api.getStaticProxy(pkg, type))
   }
 
   private fetchStore$<T extends RR.GetRegistryPackagesReq>(

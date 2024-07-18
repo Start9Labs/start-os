@@ -1,13 +1,8 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  Inject,
-  Input,
-} from '@angular/core'
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { ModalController, ToastController } from '@ionic/angular'
-import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { copyToClipboard, MarkdownComponent } from '@start9labs/shared'
-import { MarketplaceService } from 'src/app/services/marketplace.service'
+import { from } from 'rxjs'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   InstalledState,
   PackageDataEntry,
@@ -25,8 +20,7 @@ export class AppShowAdditionalComponent {
   constructor(
     private readonly modalCtrl: ModalController,
     private readonly toastCtrl: ToastController,
-    @Inject(AbstractMarketplaceService)
-    private readonly marketplaceService: MarketplaceService,
+    private readonly api: ApiService,
   ) {}
 
   async copy(address: string): Promise<void> {
@@ -44,17 +38,12 @@ export class AppShowAdditionalComponent {
   }
 
   async presentModalLicense() {
-    const { id, version } = this.pkg.stateInfo.manifest
+    const { id } = this.pkg.stateInfo.manifest
 
     const modal = await this.modalCtrl.create({
       componentProps: {
         title: 'License',
-        content: this.marketplaceService.fetchStatic$(
-          id,
-          'license',
-          version,
-          this.pkg.registry,
-        ),
+        content: from(this.api.getStaticInstalled(id, 'license')),
       },
       component: MarkdownComponent,
     })

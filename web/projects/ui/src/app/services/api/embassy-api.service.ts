@@ -1,9 +1,8 @@
 import { Observable } from 'rxjs'
 import { RR } from './api.types'
-import { DataModel } from 'src/app/services/patch-db/data-model'
-import { Log, RPCOptions } from '@start9labs/shared'
-import { WebSocketSubjectConfig } from 'rxjs/webSocket'
+import { RPCOptions } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
+import { MarketplacePkg } from '@start9labs/marketplace'
 
 export abstract class ApiService {
   // http
@@ -12,6 +11,11 @@ export abstract class ApiService {
   abstract uploadPackage(guid: string, body: Blob): Promise<string>
 
   abstract uploadFile(body: Blob): Promise<string>
+
+  // for getting static files: ex icons, instructions, licenses
+  abstract getStaticProxy(pkg: MarketplacePkg, path?: string): Promise<string>
+
+  abstract getStaticInstalled(id: T.PackageId, path?: string): Promise<string>
 
   // websocket
 
@@ -139,15 +143,6 @@ export abstract class ApiService {
     registryUrl: string,
     params: T,
   ): Promise<RR.GetRegistrySinglePackageRes<T>>
-
-  // TODO confirm type with BE
-  // for getting static files: ex icons, instructions, licenses
-  abstract getStatic(
-    url: string,
-    type: string,
-    id: T.PackageId,
-    version: string,
-  ): Promise<string>
 
   // notification
 

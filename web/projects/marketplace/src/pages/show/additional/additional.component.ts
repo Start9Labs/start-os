@@ -97,12 +97,7 @@ export class AdditionalComponent {
   }
 
   async presentModalMd(title: string) {
-    const content = this.marketplaceService.fetchStatic$(
-      this.pkg.id,
-      title,
-      this.pkg.version,
-      this.url,
-    )
+    const content = this.marketplaceService.fetchStatic$(this.pkg, title)
 
     const modal = await this.modalCtrl.create({
       componentProps: { title, content },
