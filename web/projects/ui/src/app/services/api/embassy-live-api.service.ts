@@ -59,16 +59,15 @@ export class LiveApiService extends ApiService {
 
   async getStaticProxy(pkg: MarketplacePkg, path?: string): Promise<string> {
     const encodedUrl = encodeURIComponent(pkg.s9pk.url)
-    // TODO confirm location of rootSighash and rootMaxsize
     const url = path
       ? // returns the file at <path> within the s9pk at encoded url. optionally takes query params to verify the s9pk
         `/s9pk/proxy/${encodedUrl}/${path}.md
-          ?rootSighash=${pkg.s9pk.signatures['rootSighash']}
-          &rootMaxsize=${pkg.s9pk.signatures['rootMaxsize']}`
+          ?rootSighash=${pkg.s9pk.commitment.rootSighash}
+          &rootMaxsize=${pkg.s9pk.commitment.rootMaxsize}`
       : // returns the full s9pk at encoded url. optionally takes query params to verify the s9pk
         `/s9pk/proxy/${encodedUrl}
-          ?rootSighash=${pkg.s9pk.signatures['rootSighash']}
-          &rootMaxsize=${pkg.s9pk.signatures['rootMaxsize']}`
+          ?rootSighash=${pkg.s9pk.commitment.rootSighash}
+          &rootMaxsize=${pkg.s9pk.commitment.rootMaxsize}`
 
     return this.httpRequest({
       method: Method.GET,
