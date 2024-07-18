@@ -35,7 +35,7 @@ export class AdditionalComponent {
   version = new EventEmitter<string>()
 
   readonly url = this.route.snapshot.queryParamMap.get('url') || null
-  versions!: string[]
+  readonly flavorStatus$ = this.pkgFlavorService.getFlavorStatus$()
 
   constructor(
     private readonly alertCtrl: AlertController,
@@ -46,14 +46,6 @@ export class AdditionalComponent {
     private readonly toastCtrl: ToastController,
     private readonly route: ActivatedRoute,
   ) {}
-
-  ngOnChanges() {
-    this.pkgFlavorService.getFlavorStatus$().subscribe(active => {
-      this.versions = Object.keys(this.pkg.otherVersions).filter(
-        v => !!ExtendedVersion.parse(v).flavor === active,
-      )
-    })
-  }
 
   async copy(address: string): Promise<void> {
     const success = await copyToClipboard(address)
@@ -69,10 +61,15 @@ export class AdditionalComponent {
     await toast.present()
   }
 
-  async presentAlertVersions() {
+  async presentAlertVersions(flavorActive: boolean) {
+    const versions = this.pkg.flavorVersion
+      ? Object.keys(this.pkg.otherVersions).filter(
+          v => !!ExtendedVersion.parse(v).flavor === flavorActive,
+        )
+      : Object.keys(this.pkg.otherVersions)
     const alert = await this.alertCtrl.create({
       header: 'Versions',
-      inputs: this.versions
+      inputs: versions
         .sort((a, b) => -1 * (this.exver.compareExver(a, b) || 0))
         .map(v => ({
           name: v, // for CSS

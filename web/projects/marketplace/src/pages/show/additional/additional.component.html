@@ -23,7 +23,12 @@
             </ion-label>
           </ion-item>
         </ng-template>
-        <ion-item button detail="false" (click)="presentAlertVersions()">
+        <ion-item
+          *ngIf="{ active: flavorStatus$ | async } as flavor"
+          button
+          detail="false"
+          (click)="presentAlertVersions(flavor.active!)"
+        >
           <ion-label>
             <h2>Other Versions</h2>
             <p>Click to view other versions</p>
