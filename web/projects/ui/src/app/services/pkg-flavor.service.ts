@@ -7,10 +7,10 @@ import { AbstractPkgFlavorService } from '@start9labs/marketplace'
 })
 export class PkgFlavorService extends AbstractPkgFlavorService {
   getFlavorStatus$(): Observable<boolean> {
-    return this.flavorActive
+    return this.flavorActive$
   }
 
   toggleFlavorStatus(status: boolean) {
-    this.flavorActive.next(status)
+    this.flavorActive$.next(status)
   }
 }

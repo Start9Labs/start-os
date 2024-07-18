@@ -1,6 +1,6 @@
 <ion-content class="with-widgets">
   <ng-container *ngIf="notes$ | async as notes; else loading">
-    <div *ngFor="let note of notes | keyvalue: asIsOrder">
+    <div *ngFor="let note of notes | keyvalue : asIsOrder">
       <ion-button
         expand="full"
         color="light"
@@ -8,7 +8,7 @@
         [class.ion-activated]="isSelected(note.key)"
         (click)="setSelected(note.key)"
       >
-        <p class="version">{{ note.key | displayEmver }}</p>
+        <p class="version">{{ note.key | displayExver }}</p>
       </ion-button>
       <ion-card
         tuiElement

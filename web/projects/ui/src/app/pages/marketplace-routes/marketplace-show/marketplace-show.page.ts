@@ -1,14 +1,17 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { getPkgId } from '@start9labs/shared'
+import { Exver, getPkgId } from '@start9labs/shared'
 import {
   AbstractMarketplaceService,
+  AbstractPkgFlavorService,
   MarketplacePkg,
 } from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'
-import { BehaviorSubject, Observable } from 'rxjs'
-import { filter, shareReplay, switchMap } from 'rxjs/operators'
+import { BehaviorSubject, combineLatest, Observable } from 'rxjs'
+import { filter, map, shareReplay, switchMap } from 'rxjs/operators'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { getManifest } from 'src/app/util/get-package-data'
+import { ExtendedVersion } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'marketplace-show',
@@ -22,18 +25,32 @@ export class MarketplaceShowPage {
 
   readonly loadVersion$ = new BehaviorSubject<string>('*')
 
-  readonly localPkg$ = this.patch
-    .watch$('packageData', this.pkgId)
-    .pipe(filter(Boolean), shareReplay({ bufferSize: 1, refCount: true }))
+  readonly localPkg$ = combineLatest([
+    this.patch.watch$('packageData', this.pkgId).pipe(filter(Boolean)),
+    this.loadVersion$,
+  ]).pipe(
+    map(([pkg, version]) => {
+      if (ExtendedVersion.parse(getManifest(pkg).version).flavor) {
+        this.pkgFlavorService.toggleFlavorStatus(true)
+      }
+      if (
+        version === '*' ||
+        this.exver.greaterThanOrEqual(version, getManifest(pkg).version || '')
+      ) {
+        return pkg
+      }
+      return null
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  )
 
-  // TODO don't load new package, use otherVersion data
   readonly pkg$: Observable<MarketplacePkg> = this.loadVersion$.pipe(
     switchMap(version =>
       this.marketplaceService.getPackage$(
         {
           id: this.pkgId,
           version,
-          otherVersions: 'full',
+          otherVersions: 'short',
           sourceVersion: null,
         },
         this.url,
@@ -45,5 +62,7 @@ export class MarketplaceShowPage {
     private readonly route: ActivatedRoute,
     private readonly patch: PatchDB<DataModel>,
     private readonly marketplaceService: AbstractMarketplaceService,
+    private readonly exver: Exver,
+    private readonly pkgFlavorService: AbstractPkgFlavorService,
   ) {}
 }

@@ -17,9 +17,10 @@ import { Observable, filter, firstValueFrom } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
-import { Dump, PatchDB, pathFromArray, Update } from 'patch-db-client'
-import { getServerInfo } from 'src/app/util/get-server-info'
+import { Dump, pathFromArray } from 'patch-db-client'
 import { T } from '@start9labs/start-sdk'
+import { MarketplacePkg } from '@start9labs/marketplace'
+import { blake3 } from '@noble/hashes/blake3'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -50,6 +51,41 @@ export class LiveApiService extends ApiService {
       method: Method.POST,
       body,
       url: `/rest/upload`,
+      responseType: 'text',
+    })
+  }
+
+  // for getting static files: ex. instructions, licenses
+
+  async getStaticProxy(pkg: MarketplacePkg, path?: string): Promise<string> {
+    const encodedUrl = encodeURIComponent(pkg.s9pk.url)
+    const url = path
+      ? // returns the file at <path> within the s9pk at encoded url. optionally takes query params to verify the s9pk
+        `/s9pk/proxy/${encodedUrl}/${path}.md
+          ?rootSighash=${pkg.s9pk.commitment.rootSighash}
+          &rootMaxsize=${pkg.s9pk.commitment.rootMaxsize}`
+      : // returns the full s9pk at encoded url. optionally takes query params to verify the s9pk
+        `/s9pk/proxy/${encodedUrl}
+          ?rootSighash=${pkg.s9pk.commitment.rootSighash}
+          &rootMaxsize=${pkg.s9pk.commitment.rootMaxsize}`
+
+    return this.httpRequest({
+      method: Method.GET,
+      url,
+      responseType: 'text',
+    })
+  }
+
+  async getStaticInstalled(id: T.PackageId, path?: string): Promise<string> {
+    const url = path
+      ? // returns the file at <path> within the s9pk of an installed package
+        `/s9pk/installed/${id}.s9pk/${path}.md`
+      : // returns the full s9pk of an installed package
+        `/s9pk/installed/${id}.s9pk`
+
+    return this.httpRequest({
+      method: Method.GET,
+      url,
       responseType: 'text',
     })
   }
@@ -296,14 +332,6 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  // for getting static files: ex icons, instructions, licenses
-  async getStatic(url: string, type: string, id: T.PackageId): Promise<string> {
-    return this.registryRequest(url, {
-      method: 'static.get', // TODO placeholder as not yet implemented on BE
-      params: { type, id },
-    })
-  }
-
   // notification
 
   async getNotifications(
@@ -531,6 +559,14 @@ export class LiveApiService extends ApiService {
 
   private async httpRequest<T>(opts: HttpOptions): Promise<T> {
     const res = await this.http.httpRequest<T>(opts)
+    if (res.headers.get('Repr-Digest')) {
+      // verify
+      const digest = res.headers.get('Repr-Digest')!
+      const data = new Uint8Array(res.body as ArrayBuffer)
+      // TODO confirm
+      if (`blake3=:${blake3(data)}:`.toString() === digest) return res.body
+      throw new Error('File digest mismatch.')
+    }
     return res.body
   }
 }

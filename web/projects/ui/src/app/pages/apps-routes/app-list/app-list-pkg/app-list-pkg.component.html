@@ -11,7 +11,7 @@
   </ion-thumbnail>
   <ion-label>
     <h2 ticker>{{ manifest.title }}</h2>
-    <p>{{ manifest.version | displayEmver }}</p>
+    <p>{{ manifest.version | displayExver }}</p>
     <status
       [rendering]="pkg.primaryRendering"
       [installingInfo]="$any(pkg.entry.stateInfo).installingInfo"
@@ -27,7 +27,7 @@
     color="primary"
     (click)="launchUi($event, pkg.entry.serviceInterfaces)"
     [disabled]="
-      !(pkg.entry.stateInfo.state | isLaunchable: pkgMainStatus.status)
+      !(pkg.entry.stateInfo.state | isLaunchable : pkgMainStatus.status)
     "
   >
     <ion-icon slot="icon-only" name="open-outline"></ion-icon>

@@ -30,8 +30,8 @@ import {
 } from 'rxjs'
 import { mockPatchData } from './mock-patch'
 import { AuthService } from '../auth.service'
-import { ConnectionService } from '../connection.service'
 import { T } from '@start9labs/start-sdk'
+import { MarketplacePkg } from '@start9labs/marketplace'
 
 const PROGRESS: T.FullProgress = {
   overall: {
@@ -80,14 +80,19 @@ export class MockApiService extends ApiService {
       .subscribe()
   }
 
-  async getStatic(url: string): Promise<string> {
+  async uploadPackage(guid: string, body: Blob): Promise<string> {
+    await pauseFor(2000)
+    return 'success'
+  }
+
+  async getStaticProxy(pkg: MarketplacePkg, path?: string): Promise<string> {
     await pauseFor(2000)
     return markdown
   }
 
-  async uploadPackage(guid: string, body: Blob): Promise<string> {
+  async getStaticInstalled(id: T.PackageId, path?: string): Promise<string> {
     await pauseFor(2000)
-    return 'success'
+    return markdown
   }
 
   // websocket
@@ -480,9 +485,15 @@ export class MockApiService extends ApiService {
     params: T,
   ): Promise<RR.GetRegistrySinglePackageRes<T>> {
     await pauseFor(2000)
-    return Mock.RegistryPackages[
-      params.id!
-    ] as RR.GetRegistrySinglePackageRes<T>
+    if (!params.version || (params.version && params.version === '*')) {
+      return Mock.RegistryPackages[
+        params.id!
+      ] as RR.GetRegistrySinglePackageRes<T>
+    } else {
+      return Mock.OtherPackageVersions[params.id!][
+        params.version
+      ] as RR.GetRegistrySinglePackageRes<T>
+    }
   }
 
   // notification

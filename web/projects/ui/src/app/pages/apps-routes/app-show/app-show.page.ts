@@ -102,8 +102,9 @@ export class AppShowPage {
     const { title, icon, versionRange } = pkg.currentDependencies[depId]
 
     if (
-      allPkgs[depId].stateInfo.state === 'installed' ||
-      allPkgs[depId].stateInfo.state === 'updating'
+      allPkgs[depId] &&
+      (allPkgs[depId].stateInfo.state === 'installed' ||
+        allPkgs[depId].stateInfo.state === 'updating')
     ) {
       return {
         title: allPkgs[depId].stateInfo.manifest!.title,
@@ -113,7 +114,7 @@ export class AppShowPage {
     } else {
       return {
         title: title ? title : depId,
-        icon: icon ? icon : depId.substring(0, 2),
+        icon: icon ? icon : 'assets/img/service-icons/fallback.png',
         versionRange,
       }
     }

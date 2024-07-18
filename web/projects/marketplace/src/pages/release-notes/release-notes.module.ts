@@ -2,7 +2,7 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import {
-  EmverPipesModule,
+  ExverPipesModule,
   MarkdownPipeModule,
   TextSpinnerComponentModule,
 } from '@start9labs/shared'
@@ -15,7 +15,7 @@ import { ReleaseNotesComponent } from './release-notes.component'
     CommonModule,
     IonicModule,
     TextSpinnerComponentModule,
-    EmverPipesModule,
+    ExverPipesModule,
     MarkdownPipeModule,
     TuiElementModule,
   ],

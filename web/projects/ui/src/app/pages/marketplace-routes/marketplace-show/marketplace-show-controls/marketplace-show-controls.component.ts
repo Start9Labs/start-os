@@ -10,7 +10,7 @@ import {
   MarketplacePkg,
 } from '@start9labs/marketplace'
 import {
-  Emver,
+  Exver,
   ErrorService,
   isEmptyObject,
   LoadingService,
@@ -52,7 +52,7 @@ export class MarketplaceShowControlsComponent {
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
     private readonly loader: LoadingService,
-    private readonly emver: Emver,
+    private readonly exver: Exver,
     private readonly errorService: ErrorService,
     private readonly patch: PatchDB<DataModel>,
   ) {}
@@ -79,7 +79,8 @@ export class MarketplaceShowControlsComponent {
       const localManifest = getManifest(this.localPkg)
 
       if (
-        this.emver.compare(localManifest.version, this.pkg.version) !== 0 &&
+        this.exver.compareExver(localManifest.version, this.pkg.version) !==
+          0 &&
         hasCurrentDeps(localManifest.id, await getAllPackages(this.patch))
       ) {
         this.dryInstall(url)
@@ -137,7 +138,7 @@ export class MarketplaceShowControlsComponent {
     const breakages = dryUpdate(
       this.pkg,
       await getAllPackages(this.patch),
-      this.emver,
+      this.exver,
     )
 
     if (isEmptyObject(breakages)) {

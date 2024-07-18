@@ -262,7 +262,7 @@ export class Version {
     return "equal"
   }
 
-  parse(version: string): Version {
+  static parse(version: string): Version {
     const parsed = P.parse(version, { startRule: "Version" })
     return new Version(parsed.number, parsed.prerelease)
   }

@@ -12,14 +12,15 @@ import {
 } from '@ionic/angular'
 import {
   copyToClipboard,
-  displayEmver,
-  Emver,
+  displayExver,
+  Exver,
   MarkdownComponent,
 } from '@start9labs/shared'
 import { MarketplacePkg } from '../../../types'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
-import { AbstractPkgFlavorService } from '../../../services/pkg-implementation.service'
+import { AbstractPkgFlavorService } from '../../../services/pkg-flavor.service'
 import { ActivatedRoute } from '@angular/router'
+import { ExtendedVersion } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'marketplace-additional',
@@ -34,32 +35,17 @@ export class AdditionalComponent {
   version = new EventEmitter<string>()
 
   readonly url = this.route.snapshot.queryParamMap.get('url') || null
-  versions!: string[]
+  readonly flavorStatus$ = this.pkgFlavorService.getFlavorStatus$()
 
   constructor(
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
-    private readonly emver: Emver,
+    private readonly exver: Exver,
     private readonly marketplaceService: AbstractMarketplaceService,
     private readonly pkgFlavorService: AbstractPkgFlavorService,
     private readonly toastCtrl: ToastController,
     private readonly route: ActivatedRoute,
   ) {}
-
-  ngOnInit() {
-    this.pkgFlavorService.getFlavorStatus$().subscribe(active => {
-      if (active) {
-        // TODO replace with emver helper to determine if version has prefix
-        this.versions = Object.keys(this.pkg.otherVersions).filter(
-          v => v.split('-').length > 1,
-        )
-      } else {
-        this.versions = Object.keys(this.pkg.otherVersions).filter(
-          v => v.split('-').length === 1,
-        )
-      }
-    })
-  }
 
   async copy(address: string): Promise<void> {
     const success = await copyToClipboard(address)
@@ -75,15 +61,20 @@ export class AdditionalComponent {
     await toast.present()
   }
 
-  async presentAlertVersions() {
+  async presentAlertVersions(flavorActive: boolean) {
+    const versions = this.pkg.flavorVersion
+      ? Object.keys(this.pkg.otherVersions).filter(
+          v => !!ExtendedVersion.parse(v).flavor === flavorActive,
+        )
+      : Object.keys(this.pkg.otherVersions)
     const alert = await this.alertCtrl.create({
       header: 'Versions',
-      inputs: this.versions
-        .sort((a, b) => -1 * (this.emver.compare(a, b) || 0))
+      inputs: versions
+        .sort((a, b) => -1 * (this.exver.compareExver(a, b) || 0))
         .map(v => ({
           name: v, // for CSS
           type: 'radio',
-          label: displayEmver(v), // appearance on screen
+          label: displayExver(v), // appearance on screen
           value: v, // literal SEM version value
           checked: this.pkg.version === v,
         })),
@@ -103,12 +94,7 @@ export class AdditionalComponent {
   }
 
   async presentModalMd(title: string) {
-    const content = this.marketplaceService.fetchStatic$(
-      this.pkg.id,
-      title,
-      this.pkg.version,
-      this.url,
-    )
+    const content = this.marketplaceService.fetchStatic$(this.pkg, title)
 
     const modal = await this.modalCtrl.create({
       componentProps: { title, content },

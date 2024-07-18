@@ -1,4 +1,4 @@
-import { Inject, Pipe, PipeTransform } from '@angular/core'
+import { Pipe, PipeTransform } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ModalController, NavController } from '@ionic/angular'
 import { MarkdownComponent } from '@start9labs/shared'
@@ -8,11 +8,8 @@ import {
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { map, Observable } from 'rxjs'
+import { from, map, Observable } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
-import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { AbstractMarketplaceService } from '@start9labs/marketplace'
-import { T } from '@start9labs/start-sdk'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { ConfigModal, PackageConfigData } from 'src/app/modals/config.component'
 
@@ -34,8 +31,7 @@ export class ToButtonsPipe implements PipeTransform {
     private readonly navCtrl: NavController,
     private readonly modalCtrl: ModalController,
     private readonly apiService: ApiService,
-    @Inject(AbstractMarketplaceService)
-    private readonly marketplaceService: MarketplaceService,
+    private readonly api: ApiService,
     private readonly patch: PatchDB<DataModel>,
     private readonly formDialog: FormDialogService,
   ) {}
@@ -120,11 +116,11 @@ export class ToButtonsPipe implements PipeTransform {
     const modal = await this.modalCtrl.create({
       componentProps: {
         title: 'Instructions',
-        content: this.marketplaceService.fetchStatic$(
-          pkg.stateInfo.manifest.id,
-          'instructions',
-          pkg.stateInfo.manifest.version,
-          pkg.registry,
+        content: from(
+          this.api.getStaticInstalled(
+            pkg.stateInfo.manifest.id,
+            'instructions',
+          ),
         ),
       },
       component: MarkdownComponent,
