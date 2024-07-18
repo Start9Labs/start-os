@@ -12,11 +12,6 @@ export class DependenciesComponent {
 
   getImg(key: string): string {
     const icon = this.pkg.dependencyMetadata[key]?.icon
-
-    if (icon) {
-      return icon
-    } else {
-      return key.substring(0, 2)
-    }
+    return icon ? icon : 'assets/img/service-icons/fallback.png'
   }
 }

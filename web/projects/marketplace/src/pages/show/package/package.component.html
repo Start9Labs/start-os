@@ -6,10 +6,13 @@
     <p class="published">
       Released: {{ pkg.s9pk.publishedAt | date : 'medium' }}
     </p>
-    <ion-item lines="none" [style.--padding-start]="'0px'">
+    <ion-item
+      *ngIf="pkg.flavorVersion"
+      lines="none"
+      [style.--padding-start]="'0px'"
+    >
       <ion-label><b>Switch Implementation</b></ion-label>
       <ion-toggle
-        *ngIf="pkg.flavorVersion"
         [checked]="toggleFlavor"
         color="tertiary"
         (ionChange)="switchFlavor()"

@@ -8,7 +8,7 @@ import {
 } from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'
 import { BehaviorSubject, combineLatest, Observable } from 'rxjs'
-import { map, shareReplay, switchMap } from 'rxjs/operators'
+import { filter, map, shareReplay, switchMap } from 'rxjs/operators'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/util/get-package-data'
 import { ExtendedVersion } from '@start9labs/start-sdk'
@@ -26,7 +26,7 @@ export class MarketplaceShowPage {
   readonly loadVersion$ = new BehaviorSubject<string>('*')
 
   readonly localPkg$ = combineLatest([
-    this.patch.watch$('packageData', this.pkgId),
+    this.patch.watch$('packageData', this.pkgId).pipe(filter(Boolean)),
     this.loadVersion$,
   ]).pipe(
     map(([pkg, version]) => {

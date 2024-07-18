@@ -114,7 +114,7 @@ export class AppShowPage {
     } else {
       return {
         title: title ? title : depId,
-        icon: icon ? icon : depId.substring(0, 2),
+        icon: icon ? icon : 'assets/img/service-icons/fallback.png',
         versionRange,
       }
     }
