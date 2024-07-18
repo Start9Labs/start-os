@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
 use std::ops::Deref;
@@ -38,7 +39,11 @@ pub fn deserialize_from_str<
     {
         type Value = T;
         fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(formatter, "a parsable string")
+            write!(
+                formatter,
+                "a string that can be parsed as a {}",
+                std::any::type_name::<T>()
+            )
         }
         fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
         where

@@ -34,19 +34,19 @@ pub fn add_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "iso",
             from_fn_async(add_iso)
-                .with_metadata("getSigner", Value::Bool(true))
+                .with_metadata("get_signer", Value::Bool(true))
                 .no_cli(),
         )
         .subcommand(
             "img",
             from_fn_async(add_img)
-                .with_metadata("getSigner", Value::Bool(true))
+                .with_metadata("get_signer", Value::Bool(true))
                 .no_cli(),
         )
         .subcommand(
             "squashfs",
             from_fn_async(add_squashfs)
-                .with_metadata("getSigner", Value::Bool(true))
+                .with_metadata("get_signer", Value::Bool(true))
                 .no_cli(),
         )
 }

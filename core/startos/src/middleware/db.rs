@@ -7,7 +7,6 @@ use serde::Deserialize;
 use crate::context::RpcContext;
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Metadata {
     #[serde(default)]
     sync_db: bool,

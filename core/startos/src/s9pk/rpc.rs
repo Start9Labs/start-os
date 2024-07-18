@@ -44,6 +44,7 @@ pub fn s9pk() -> ParentHandler<CliContext> {
         )
         .subcommand("edit", edit())
         .subcommand("inspect", inspect())
+        .subcommand("convert", from_fn_async(convert).no_display())
 }
 
 #[derive(Deserialize, Serialize, Parser)]
@@ -213,4 +214,18 @@ async fn inspect_manifest(
     )
     .await?;
     Ok(s9pk.as_manifest().clone())
+}
+
+async fn convert(ctx: CliContext, S9pkPath { s9pk: s9pk_path }: S9pkPath) -> Result<(), Error> {
+    let mut s9pk = super::load(
+        MultiCursorFile::from(open_file(&s9pk_path).await?),
+        || ctx.developer_key().cloned(),
+        None,
+    )
+    .await?;
+    let tmp_path = s9pk_path.with_extension("s9pk.tmp");
+    s9pk.serialize(&mut create_file(&tmp_path).await?, true)
+        .await?;
+    tokio::fs::rename(tmp_path, s9pk_path).await?;
+    Ok(())
 }

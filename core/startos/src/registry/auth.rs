@@ -27,7 +27,6 @@ use crate::util::serde::Base64;
 pub const AUTH_SIG_HEADER: &str = "X-StartOS-Registry-Auth-Sig";
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Metadata {
     #[serde(default)]
     admin: bool,
@@ -75,9 +74,7 @@ pub struct RegistryAdminLogRecord {
     pub key: AnyVerifyingKey,
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct SignatureHeader {
-    #[serde(flatten)]
     pub commitment: RequestCommitment,
     pub signer: AnyVerifyingKey,
     pub signature: AnySignature,

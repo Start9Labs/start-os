@@ -25,7 +25,7 @@ pub fn version_api<C: Context>() -> ParentHandler<C> {
             "add",
             from_fn_async(add_version)
                 .with_metadata("admin", Value::Bool(true))
-                .with_metadata("getSigner", Value::Bool(true))
+                .with_metadata("get_signer", Value::Bool(true))
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )

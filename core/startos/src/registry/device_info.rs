@@ -151,7 +151,6 @@ impl From<&RpcContext> for HardwareInfo {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Metadata {
     #[serde(default)]
     get_device_info: bool,
