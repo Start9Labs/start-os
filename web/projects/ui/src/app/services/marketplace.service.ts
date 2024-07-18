@@ -240,14 +240,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
   }
 
   fetchInfo$(url: string): Observable<T.RegistryInfo> {
-    return this.patch.watch$('serverInfo').pipe(
-      take(1),
-      switchMap(serverInfo => {
-        // TODO hit MAU
-        // const qp: RR.GetMarketplaceInfoReq = { serverId: serverInfo.id }
-        return from(this.api.getRegistryInfo(url))
-      }),
-    )
+    return from(this.api.getRegistryInfo(url))
   }
 
   fetchReleaseNotes$(
