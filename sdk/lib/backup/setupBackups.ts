@@ -27,14 +27,14 @@ export function setupBackups<M extends T.Manifest>(
     get createBackup() {
       return (async (options) => {
         for (const backup of backups) {
-          await backup.build().createBackup(options)
+          await backup.build(options.pathMaker).createBackup(options)
         }
       }) as T.ExpectedExports.createBackup
     },
     get restoreBackup() {
       return (async (options) => {
         for (const backup of backups) {
-          await backup.build().restoreBackup(options)
+          await backup.build(options.pathMaker).restoreBackup(options)
         }
       }) as T.ExpectedExports.restoreBackup
     },

@@ -11,6 +11,7 @@
   <span *ngIf="spec.required">*</span>
   <select
     tuiSelect
+    [placeholder]="spec.name"
     [items]="items"
     [disabledItemHandler]="disabledItemHandler"
   ></select>

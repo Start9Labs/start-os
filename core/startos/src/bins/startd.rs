@@ -1,3 +1,4 @@
+use std::cmp::max;
 use std::ffi::OsString;
 use std::net::{Ipv6Addr, SocketAddr};
 use std::sync::Arc;
@@ -136,6 +137,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
 
     let res = {
         let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(max(4, num_cpus::get()))
             .enable_all()
             .build()
             .expect("failed to initialize runtime");

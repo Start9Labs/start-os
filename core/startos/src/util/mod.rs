@@ -561,7 +561,7 @@ impl<F: FnOnce() -> T, T> Drop for GeneralGuard<F, T> {
     }
 }
 
-pub struct FileLock(OwnedMutexGuard<()>, Option<FdLock<File>>);
+pub struct FileLock(#[allow(unused)] OwnedMutexGuard<()>, Option<FdLock<File>>);
 impl Drop for FileLock {
     fn drop(&mut self) {
         if let Some(fd_lock) = self.1.take() {
