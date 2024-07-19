@@ -7,6 +7,7 @@ import "./Daemons"
 import { SDKManifest } from "../manifest/ManifestTypes"
 import { MainEffects } from "../StartSdk"
 
+export const DEFAULT_SIGTERM_TIMEOUT = 30_000
 /**
  * Used to ensure that the main function is running with the valid proofs.
  * We first do the folowing order of things
