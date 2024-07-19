@@ -22,50 +22,63 @@ import { SettingsWifiComponent } from './wifi.component'
 @Component({
   selector: '[wifi]',
   template: `
-    <ng-container *ngFor="let network of wifi">
-      <div *ngIf="network.ssid" tuiCell [style.padding]="0">
-        <div tuiTitle>
-          <strong>
-            {{ network.ssid }}
-            <tui-badge *ngIf="network.connected" appearance="success">
-              Connected
-            </tui-badge>
-          </strong>
+    @for (network of wifi; track $index) {
+      @if (network.ssid) {
+        <div tuiCell [style.padding]="0">
+          <div tuiTitle>
+            <strong>
+              {{ network.ssid }}
+              @if (network.connected) {
+                <tui-badge appearance="success">Connected</tui-badge>
+              }
+            </strong>
+          </div>
+          @if (!network.connected) {
+            <button
+              tuiButton
+              size="xs"
+              appearance="opposite"
+              (click)="prompt(network)"
+            >
+              Connect
+            </button>
+          }
+          @if (network.connected !== undefined) {
+            <button
+              tuiIconButton
+              size="s"
+              appearance="icon"
+              iconStart="@tui.trash-2"
+              (click)="forget(network)"
+            >
+              Forget
+            </button>
+          } @else {
+            <tui-icon
+              [icon]="network.security.length ? '@tui.lock' : '@tui.lock-open'"
+            />
+          }
+          @if (getSignal(network.strength); as signal) {
+            <tui-icon
+              background="@tui.wifi"
+              [icon]="signal.icon"
+              [style.background]="'var(--tui-background-neutral-2)'"
+              [style.color]="signal.color"
+            />
+          } @else {
+            <tui-icon icon="@tui.wifi-off" />
+          }
         </div>
-        <button
-          *ngIf="!network.connected"
-          tuiButton
-          size="xs"
-          appearance="opposite"
-          (click)="prompt(network)"
-        >
-          Connect
-        </button>
-        <button
-          *ngIf="network.connected !== undefined; else strength"
-          tuiIconButton
-          size="s"
-          appearance="icon"
-          iconStart="@tui.trash-2"
-          (click)="forget(network)"
-        >
-          Forget
-        </button>
-        <ng-template #strength>
-          <tui-icon
-            [style.width.rem]="2"
-            [icon]="network.security.length ? '@tui.lock' : '@tui.lock-open'"
-          />
-        </ng-template>
-        <img
-          [src]="getSignal(network.strength)"
-          [style.width.rem]="2"
-          alt="Signal Strength: {{ network.strength }}"
-        />
-      </div>
-    </ng-container>
+      }
+    }
   `,
   host: { style: 'align-items: stretch' },
+  styles: `
+    tui-icon {
+      width: 2rem;
+      color: var(--tui-text-tertiary);
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [CommonModule, TuiCell, TuiTitle, TuiBadge, TuiButton, TuiIcon],
@@ -81,20 +94,27 @@ export class WifiTableComponent {
   @Input()
   wifi: readonly Wifi[] = []
 
-  getSignal(signal: number): string {
+  getSignal(signal: number) {
     if (signal < 5) {
-      return 'assets/img/icons/wifi-0.png'
+      return null
     }
 
     if (signal >= 5 && signal < 50) {
-      return 'assets/img/icons/wifi-1.png'
+      return {
+        icon: '@tui.wifi-low',
+        color: 'var(--tui-text-negative)',
+      }
     }
 
-    if (signal >= 50 && signal < 90) {
-      return 'assets/img/icons/wifi-2.png'
-    }
-
-    return 'assets/img/icons/wifi-3.png'
+    return signal >= 50 && signal < 90
+      ? {
+          icon: '@tui.wifi-high',
+          color: 'var(--tui-status-warning)',
+        }
+      : {
+          icon: '@tui.wifi',
+          color: 'var(--tui-text-positive)',
+        }
   }
 
   async forget({ ssid }: Wifi): Promise<void> {
