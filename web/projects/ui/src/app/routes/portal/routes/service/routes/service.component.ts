@@ -143,6 +143,10 @@ import { DependencyInfo } from '../types/dependency-info'
       gap: inherit;
       grid-column: span 4;
     }
+
+    :host-context(tui-root._mobile) {
+      margin: 0;
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
