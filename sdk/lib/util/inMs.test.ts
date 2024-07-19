@@ -28,4 +28,7 @@ describe("inMs", () => {
   test("123 as number", () => {
     expect(inMs(123)).toBe(123)
   })
+  test.only("undefined", () => {
+    expect(inMs(undefined)).toBe(undefined)
+  })
 })

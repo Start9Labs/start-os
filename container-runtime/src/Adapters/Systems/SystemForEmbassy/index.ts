@@ -488,7 +488,7 @@ export class SystemForEmbassy implements System {
       delete this.currentRunning
       if (currentRunning) {
         await currentRunning.clean({
-          timeout: fromDuration(this.manifest.main["sigterm-timeout"]),
+          timeout: utils.inMs(this.manifest.main["sigterm-timeout"]),
         })
       }
       return

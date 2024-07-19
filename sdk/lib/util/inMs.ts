@@ -1,3 +1,5 @@
+import { DEFAULT_SIGTERM_TIMEOUT } from "../mainFn"
+
 const matchTimeRegex = /^\s*(\d+)?(\.\d+)?\s*(ms|s|m|h|d)/
 
 const unitMultiplier = (unit?: string) => {
@@ -15,8 +17,9 @@ const digitsMs = (digits: string | null, multiplier: number) => {
   const divideBy = multiplier / Math.pow(10, digits.length - 1)
   return Math.round(value * divideBy)
 }
-export const inMs = (time: string | number) => {
+export const inMs = (time?: string | number) => {
   if (typeof time === "number") return time
+  if (!time) return undefined
   const matches = time.match(matchTimeRegex)
   if (!matches) throw new Error(`Invalid time format: ${time}`)
   const [_, leftHandSide, digits, unit] = matches
