@@ -21,6 +21,7 @@ use crate::util::VersionString;
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub enum PackageDetailLevel {
+    None,
     Short,
     Full,
 }
@@ -50,7 +51,9 @@ pub struct GetPackageParams {
     #[arg(skip)]
     #[serde(rename = "__device_info")]
     pub device_info: Option<DeviceInfo>,
-    pub other_versions: Option<PackageDetailLevel>,
+    #[serde(default)]
+    #[arg(default_value = "none")]
+    pub other_versions: PackageDetailLevel,
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]
@@ -203,7 +206,7 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
             package_best.insert(version.into(), info);
         }
         best.insert(id.clone(), package_best);
-        if params.other_versions.is_some() {
+        if params.other_versions != PackageDetailLevel::None {
             other.insert(id.clone(), package_other);
         }
     }
@@ -224,12 +227,12 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
             .try_collect()?;
         let other = other.remove(&id).unwrap_or_default();
         match params.other_versions {
-            None => to_value(&GetPackageResponse {
+            PackageDetailLevel::None => to_value(&GetPackageResponse {
                 categories,
                 best,
                 other_versions: None,
             }),
-            Some(PackageDetailLevel::Short) => to_value(&GetPackageResponse {
+            PackageDetailLevel::Short => to_value(&GetPackageResponse {
                 categories,
                 best,
                 other_versions: Some(
@@ -239,7 +242,7 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                         .try_collect()?,
                 ),
             }),
-            Some(PackageDetailLevel::Full) => to_value(&GetPackageResponseFull {
+            PackageDetailLevel::Full => to_value(&GetPackageResponseFull {
                 categories,
                 best,
                 other_versions: other
@@ -250,7 +253,7 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
         }
     } else {
         match params.other_versions {
-            None => to_value(
+            PackageDetailLevel::None => to_value(
                 &best
                     .into_iter()
                     .map(|(id, best)| {
@@ -276,7 +279,7 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                     })
                     .try_collect::<_, GetPackagesResponse, _>()?,
             ),
-            Some(PackageDetailLevel::Short) => to_value(
+            PackageDetailLevel::Short => to_value(
                 &best
                     .into_iter()
                     .map(|(id, best)| {
@@ -310,7 +313,7 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
                     })
                     .try_collect::<_, GetPackagesResponse, _>()?,
             ),
-            Some(PackageDetailLevel::Full) => to_value(
+            PackageDetailLevel::Full => to_value(
                 &best
                     .into_iter()
                     .map(|(id, best)| {
@@ -354,7 +357,7 @@ pub fn display_package_info(
     }
 
     if let Some(_) = params.rest.id {
-        if params.rest.other_versions == Some(PackageDetailLevel::Full) {
+        if params.rest.other_versions == PackageDetailLevel::Full {
             for table in from_value::<GetPackageResponseFull>(info)?.tables() {
                 table.print_tty(false)?;
                 println!();
@@ -366,7 +369,7 @@ pub fn display_package_info(
             }
         }
     } else {
-        if params.rest.other_versions == Some(PackageDetailLevel::Full) {
+        if params.rest.other_versions == PackageDetailLevel::Full {
             for (_, package) in from_value::<GetPackagesResponseFull>(info)? {
                 for table in package.tables() {
                     table.print_tty(false)?;
