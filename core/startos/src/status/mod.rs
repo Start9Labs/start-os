@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 
 use chrono::{DateTime, Utc};
 use imbl::OrdMap;
@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use self::health_check::HealthCheckId;
-use crate::prelude::*;
 use crate::status::health_check::HealthCheckResult;
+use crate::{prelude::*, util::GeneralGuard};
 
 pub mod health_check;
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
@@ -26,10 +26,7 @@ pub enum MainStatus {
     Stopped,
     Restarting,
     Restoring,
-    #[serde(rename_all = "camelCase")]
-    Stopping {
-        timeout: crate::util::serde::Duration,
-    },
+    Stopping,
     Starting,
     #[serde(rename_all = "camelCase")]
     Running {

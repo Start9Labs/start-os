@@ -76,9 +76,7 @@ export class AppShowStatusComponent {
   }
 
   get sigtermTimeout(): string | null {
-    return this.pkgStatus?.main.status === 'stopping'
-      ? this.pkgStatus.main.timeout
-      : null
+    return this.pkgStatus?.main.status === 'stopping' ? '30s' : null
   }
 
   launchUi(interfaces: PackageDataEntry['serviceInterfaces']): void {
