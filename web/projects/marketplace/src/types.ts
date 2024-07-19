@@ -32,7 +32,7 @@ export type MarketplacePkg<
 
 export type MarketplaceMultiPkg<T extends T.GetPackageParams> = T extends {
   id: null
-  otherVersions: null
+  otherVersions: 'none'
 }
   ? MarketplacePkgInfo & Omit<T.GetPackageResponse, 'otherVersions'>
   : T extends { id: null; otherVersions: 'short' }
@@ -46,7 +46,7 @@ export type MarketplaceMultiPkg<T extends T.GetPackageParams> = T extends {
 
 export type MarketplaceSinglePkg<T extends T.GetPackageParams> = T extends {
   id: T.PackageId
-  otherVersions: null
+  otherVersions: 'none'
 }
   ? MarketplacePkgInfo & Omit<T.GetPackageResponse, 'otherVersions'>
   : T extends { id: T.PackageId; otherVersions: 'short' }

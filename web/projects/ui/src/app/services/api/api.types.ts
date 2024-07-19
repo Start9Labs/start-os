@@ -302,7 +302,7 @@ export module RR {
   export type GetRegistryMultiPackagesRes<T extends GetRegistryPackagesReq> =
     T extends {
       id: null
-      otherVersions: null
+      otherVersions: 'none'
     }
       ? { [id: T.PackageId]: Omit<T.GetPackageResponse, 'otherVersions'> }
       : T extends { id: null; otherVersions: 'short' }
@@ -319,7 +319,7 @@ export module RR {
   export type GetRegistrySinglePackageRes<T extends GetRegistryPackagesReq> =
     T extends {
       id: T.PackageId
-      otherVersions: null
+      otherVersions: 'none'
     }
       ? Omit<T.GetPackageResponse, 'otherVersions'>
       : T extends { id: T.PackageId; otherVersions: 'short' }
