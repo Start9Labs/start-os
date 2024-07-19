@@ -34,7 +34,6 @@ export class AdditionalComponent {
   @Output()
   version = new EventEmitter<string>()
 
-  readonly url = this.route.snapshot.queryParamMap.get('url') || null
   readonly flavorStatus$ = this.pkgFlavorService.getFlavorStatus$()
 
   constructor(
@@ -44,7 +43,6 @@ export class AdditionalComponent {
     private readonly marketplaceService: AbstractMarketplaceService,
     private readonly pkgFlavorService: AbstractPkgFlavorService,
     private readonly toastCtrl: ToastController,
-    private readonly route: ActivatedRoute,
   ) {}
 
   async copy(address: string): Promise<void> {
