@@ -190,6 +190,7 @@ pub fn service_effect_handler<C: Context>() -> ParentHandler<C> {
     // TODO Callbacks
 }
 
+#[derive(Default)]
 pub struct ServiceCallbacks {
     pub get_service_interface: BTreeMap<(PackageId, ServiceInterfaceId), Vec<CallbackHandler>>,
 }
