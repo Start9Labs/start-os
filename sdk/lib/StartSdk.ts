@@ -88,7 +88,10 @@ type AnyNeverCond<T extends any[], Then, Else> =
     never
 
 export type ServiceInterfaceType = "ui" | "p2p" | "api"
-export type MainEffects = Effects & { _type: "main" }
+export type MainEffects = Effects & {
+  _type: "main"
+  clearCallbacks: () => Promise<void>
+}
 export type Signals = NodeJS.Signals
 export const SIGTERM: Signals = "SIGTERM"
 export const SIGKILL: Signals = "SIGKILL"

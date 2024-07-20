@@ -3,8 +3,8 @@ import * as fs from "fs/promises"
 
 import { polyfillEffects } from "./polyfillEffects"
 import { Duration, duration, fromDuration } from "../../../Models/Duration"
-import { System } from "../../../Interfaces/System"
-import { matchManifest, Manifest, Procedure } from "./matchManifest"
+import { System, Procedure } from "../../../Interfaces/System"
+import { matchManifest, Manifest } from "./matchManifest"
 import * as childProcess from "node:child_process"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import { promisify } from "node:util"
@@ -27,7 +27,6 @@ import {
   Parser,
   array,
 } from "ts-matches"
-import { hostSystemStartOs } from "../../HostSystemStartOs"
 import { JsonPath, unNestPath } from "../../../Models/JsonPath"
 import { RpcResult, matchRpcResult } from "../../RpcListener"
 import { CT } from "@start9labs/start-sdk"
@@ -48,6 +47,7 @@ import {
   transformConfigSpec,
   transformOldConfigToNew,
 } from "./transformConfigSpec"
+import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
@@ -203,16 +203,39 @@ export class SystemForEmbassy implements System {
     readonly manifest: Manifest,
     readonly moduleCode: Partial<U.ExpectedExports>,
   ) {}
+
+  async init(): Promise<void> {}
+
+  async exit(): Promise<void> {
+    if (this.currentRunning) await this.currentRunning.clean()
+    delete this.currentRunning
+  }
+
+  async start(effects: MainEffects): Promise<void> {
+    if (!!this.currentRunning) return
+
+    this.currentRunning = new MainLoop(this, effects)
+  }
+  callCallback(_callback: number, _args: any[]): void {}
+  async stop(): Promise<void> {
+    const { currentRunning } = this
+    this.currentRunning?.clean()
+    delete this.currentRunning
+    if (currentRunning) {
+      await currentRunning.clean({
+        timeout: fromDuration(this.manifest.main["sigterm-timeout"]),
+      })
+    }
+  }
+
   async execute(
-    effectCreator: ReturnType<typeof hostSystemStartOs>,
+    effects: Effects,
     options: {
-      id: string
       procedure: JsonPath
       input: unknown
       timeout?: number | undefined
     },
   ): Promise<RpcResult> {
-    const effects = effectCreator(options.id)
     return this._execute(effects, options)
       .then((x) =>
         matches(x)
@@ -267,10 +290,6 @@ export class SystemForEmbassy implements System {
         }
       })
   }
-  async exit(): Promise<void> {
-    if (this.currentRunning) await this.currentRunning.clean()
-    delete this.currentRunning
-  }
   async _execute(
     effects: Effects,
     options: {
@@ -294,7 +313,7 @@ export class SystemForEmbassy implements System {
       case "/actions/metadata":
         return todo()
       case "/init":
-        return this.init(
+        return this.initProcedure(
           effects,
           string.optional().unsafeCast(input),
           options.timeout || null,
@@ -305,10 +324,6 @@ export class SystemForEmbassy implements System {
           string.optional().unsafeCast(input),
           options.timeout || null,
         )
-      case "/main/start":
-        return this.mainStart(effects, options.timeout || null)
-      case "/main/stop":
-        return this.mainStop(effects, options.timeout || null)
       default:
         const procedures = unNestPath(options.procedure)
         switch (true) {
@@ -345,7 +360,14 @@ export class SystemForEmbassy implements System {
     }
     throw new Error(`Could not find the path for ${options.procedure}`)
   }
-  private async init(
+  async sandbox(
+    effects: Effects,
+    options: { procedure: Procedure; input: unknown; timeout?: number },
+  ): Promise<RpcResult> {
+    return this.execute(effects, options)
+  }
+
+  private async initProcedure(
     effects: Effects,
     previousVersion: Optional<string>,
     timeoutMs: number | null,
@@ -470,32 +492,7 @@ export class SystemForEmbassy implements System {
     // TODO Do a migration down if the version exists
     await effects.setMainStatus({ status: "stopped" })
   }
-  private async mainStart(
-    effects: Effects,
-    timeoutMs: number | null,
-  ): Promise<void> {
-    if (!!this.currentRunning) return
 
-    this.currentRunning = new MainLoop(this, effects)
-  }
-  private async mainStop(
-    effects: Effects,
-    timeoutMs: number | null,
-  ): Promise<Duration> {
-    const { currentRunning } = this
-    this.currentRunning?.clean()
-    delete this.currentRunning
-    if (currentRunning) {
-      await currentRunning.clean({
-        timeout: fromDuration(this.manifest.main["sigterm-timeout"]),
-      })
-    }
-    const durationValue = duration(
-      fromDuration(this.manifest.main["sigterm-timeout"]),
-      "s",
-    )
-    return durationValue
-  }
   private async createBackup(
     effects: Effects,
     timeoutMs: number | null,

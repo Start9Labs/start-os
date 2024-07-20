@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
@@ -6,6 +6,7 @@ use std::time::Duration;
 use futures::future::ready;
 use futures::{Future, FutureExt};
 use helpers::NonDetachingJoinHandle;
+use imbl::Vector;
 use models::{ImageId, ProcedureName, VolumeId};
 use rpc_toolkit::{Empty, Server, ShutdownHandle};
 use serde::de::DeserializeOwned;
@@ -28,6 +29,7 @@ use crate::prelude::*;
 use crate::rpc_continuations::Guid;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
+use crate::service::rpc::{CallbackHandle, CallbackId, CallbackParams};
 use crate::service::start_stop::StartStop;
 use crate::service::{rpc, RunningStatus, Service};
 use crate::util::io::create_file;
@@ -42,6 +44,8 @@ const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 pub struct ServiceState {
     // This contains the start time and health check information for when the service is running. Note: Will be overwritting to the db,
     pub(super) running_status: Option<RunningStatus>,
+    // This tracks references to callbacks registered by the running service:
+    pub(super) callbacks: BTreeSet<Arc<CallbackId>>,
     /// Setting this value causes the service actor to try to bring the service to the specified state. This is done in the background job created in ServiceActor::init
     pub(super) desired_state: StartStop,
     /// Override the current desired state for the service during a transition (this is protected by a guard that sets this value to null on drop)
@@ -61,6 +65,7 @@ impl ServiceState {
     pub fn new(desired_state: StartStop) -> Self {
         Self {
             running_status: Default::default(),
+            callbacks: Default::default(),
             temp_desired_state: Default::default(),
             transition_state: Default::default(),
             desired_state,
@@ -481,6 +486,19 @@ impl PersistentContainer {
     }
 
     #[instrument(skip_all)]
+    pub async fn callback(&self, handle: CallbackHandle, args: Vector<Value>) -> Result<(), Error> {
+        let mut params = None;
+        self.state.send_if_modified(|s| {
+            params = handle.params(&mut s.callbacks, args);
+            params.is_some()
+        });
+        if let Some(params) = params {
+            self._callback(params).await?;
+        }
+        Ok(())
+    }
+
+    #[instrument(skip_all)]
     async fn _execute(
         &self,
         id: Guid,
@@ -522,6 +540,12 @@ impl PersistentContainer {
         } else {
             fut.await?
         })
+    }
+
+    #[instrument(skip_all)]
+    async fn _callback(&self, params: CallbackParams) -> Result<(), Error> {
+        self.rpc_client.notify(rpc::Callback, params).await?;
+        Ok(())
     }
 }
 

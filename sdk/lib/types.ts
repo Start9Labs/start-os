@@ -401,7 +401,11 @@ export type Effects = {
    * The user sets the primary url for a interface
    * @param options
    */
-  getPrimaryUrl(options: GetPrimaryUrlParams): Promise<UrlString | null>
+  getPrimaryUrl(options: {
+    packageId: string | null
+    serviceInterfaceId: ServiceInterfaceId
+    callback: () => void
+  }): Promise<UrlString | null>
 
   /**
    * There are times that we want to see the addresses that where exported

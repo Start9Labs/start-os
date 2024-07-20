@@ -15,15 +15,16 @@ import {
 } from "ts-matches"
 
 import { types as T } from "@start9labs/start-sdk"
-import * as CP from "child_process"
-import * as Mod from "module"
 import * as fs from "fs"
 
 import { CallbackHolder } from "../Models/CallbackHolder"
 import { AllGetDependencies } from "../Interfaces/AllGetDependencies"
-import { HostSystem } from "../Interfaces/HostSystem"
 import { jsonPath } from "../Models/JsonPath"
-import { System } from "../Interfaces/System"
+import { RunningMain, System } from "../Interfaces/System"
+import {
+  MakeMainEffects,
+  MakeProcedureEffects,
+} from "../Interfaces/MakeEffects"
 type MaybePromise<T> = T | Promise<T>
 export const matchRpcResult = anyOf(
   object({ result: any }),
@@ -45,7 +46,7 @@ export const matchRpcResult = anyOf(
   }),
 )
 export type RpcResult = typeof matchRpcResult._TYPE
-type SocketResponse = { jsonrpc: "2.0"; id: IdType } & RpcResult
+type SocketResponse = ({ jsonrpc: "2.0"; id: IdType } & RpcResult) | null
 
 const SOCKET_PARENT = "/media/startos/rpc"
 const SOCKET_PATH = "/media/startos/rpc/service.sock"
@@ -80,7 +81,6 @@ const sandboxRunType = object({
   ),
 })
 const callbackType = object({
-  id: idType,
   method: literal("callback"),
   params: object({
     callback: number,
@@ -90,6 +90,14 @@ const callbackType = object({
 const initType = object({
   id: idType,
   method: literal("init"),
+})
+const startType = object({
+  id: idType,
+  method: literal("start"),
+})
+const stopType = object({
+  id: idType,
+  method: literal("stop"),
 })
 const exitType = object({
   id: idType,
@@ -104,33 +112,40 @@ const evalType = object({
 })
 
 const jsonParse = (x: string) => JSON.parse(x)
-function reduceMethod(
-  methodArgs: object,
-  effects: HostSystem,
-): (previousValue: any, currentValue: string) => any {
-  return (x: any, method: string) =>
-    Promise.resolve(x)
-      .then((x) => x[method])
-      .then((x) =>
-        typeof x !== "function"
-          ? x
-          : x({
-              ...methodArgs,
-              effects,
-            }),
+
+const handleRpc = (id: IdType, result: Promise<RpcResult>) =>
+  result
+    .then((result) => ({
+      jsonrpc,
+      id,
+      ...result,
+    }))
+    .then((x) => {
+      if (
+        ("result" in x && x.result === undefined) ||
+        !("error" in x || "result" in x)
       )
-}
+        (x as any).result = null
+      return x
+    })
+    .catch((error) => ({
+      jsonrpc,
+      id,
+      error: {
+        code: 0,
+        message: typeof error,
+        data: { details: "" + error, debug: error?.stack },
+      },
+    }))
 
 const hasId = object({ id: idType }).test
 export class RpcListener {
   unixSocketServer = net.createServer(async (server) => {})
   private _system: System | undefined
-  private _effects: HostSystem | undefined
+  private _makeProcedureEffects: MakeProcedureEffects | undefined
+  private _makeMainEffects: MakeMainEffects | undefined
 
-  constructor(
-    readonly getDependencies: AllGetDependencies,
-    private callbacks = new CallbackHolder(),
-  ) {
+  constructor(readonly getDependencies: AllGetDependencies) {
     if (!fs.existsSync(SOCKET_PARENT)) {
       fs.mkdirSync(SOCKET_PARENT, { recursive: true })
     }
@@ -165,8 +180,11 @@ export class RpcListener {
           code: 1,
         },
       })
-      const writeDataToSocket = (x: SocketResponse) =>
-        new Promise((resolve) => s.write(JSON.stringify(x) + "\n", resolve))
+      const writeDataToSocket = (x: SocketResponse) => {
+        if (x !== null) {
+          new Promise((resolve) => s.write(JSON.stringify(x) + "\n", resolve))
+        }
+      }
       s.on("data", (a) =>
         Promise.resolve(a)
           .then((b) => b.toString())
@@ -181,107 +199,116 @@ export class RpcListener {
     })
   }
 
-  private get effects() {
-    return this.getDependencies.hostSystem()(this.callbacks)
-  }
-
   private get system() {
     if (!this._system) throw new Error("System not initialized")
     return this._system
   }
 
+  private get makeProcedureEffects() {
+    if (!this._makeProcedureEffects) {
+      this._makeProcedureEffects = this.getDependencies.makeProcedureEffects()
+    }
+    return this._makeProcedureEffects
+  }
+
+  private get makeMainEffects() {
+    if (!this._makeMainEffects) {
+      this._makeMainEffects = this.getDependencies.makeMainEffects()
+    }
+    return this._makeMainEffects
+  }
+
   private dealWithInput(input: unknown): MaybePromise<SocketResponse> {
     return matches(input)
-      .when(some(runType, sandboxRunType), async ({ id, params }) => {
+      .when(runType, async ({ id, params }) => {
         const system = this.system
         const procedure = jsonPath.unsafeCast(params.procedure)
-        return system
-          .execute(this.effects, {
-            id: params.id,
+        const effects = this.getDependencies.makeProcedureEffects()(params.id)
+        return handleRpc(
+          id,
+          system.execute(effects, {
             procedure,
             input: params.input,
             timeout: params.timeout,
-          })
-          .then((result) => ({
-            jsonrpc,
-            id,
-            ...result,
-          }))
-          .then((x) => {
-            if (
-              ("result" in x && x.result === undefined) ||
-              !("error" in x || "result" in x)
-            )
-              (x as any).result = null
-            return x
-          })
-          .catch((error) => ({
-            jsonrpc,
-            id,
-            error: {
-              code: 0,
-              message: typeof error,
-              data: { details: "" + error, debug: error?.stack },
-            },
-          }))
+          }),
+        )
       })
-      .when(callbackType, async ({ id, params: { callback, args } }) =>
-        Promise.resolve(this.callbacks.callCallback(callback, args))
-          .then((result) => ({
-            jsonrpc,
-            id,
-            result,
-          }))
-          .catch((error) => ({
-            jsonrpc,
-            id,
-
-            error: {
-              code: 0,
-              message: typeof error,
-              data: {
-                details: error?.message ?? String(error),
-                debug: error?.stack,
-              },
-            },
-          })),
-      )
-      .when(exitType, async ({ id }) => {
-        if (this._system) await this._system.exit(this.effects(null))
-        delete this._system
-        delete this._effects
-
-        return {
-          jsonrpc,
+      .when(sandboxRunType, async ({ id, params }) => {
+        const system = this.system
+        const procedure = jsonPath.unsafeCast(params.procedure)
+        const effects = this.makeProcedureEffects(params.id)
+        return handleRpc(
           id,
-          result: null,
-        }
+          system.sandbox(effects, {
+            procedure,
+            input: params.input,
+            timeout: params.timeout,
+          }),
+        )
+      })
+      .when(callbackType, async ({ params: { callback, args } }) => {
+        this.system.callCallback(callback, args)
+        return null
+      })
+      .when(startType, async ({ id }) => {
+        return handleRpc(
+          id,
+          this.system
+            .start(this.makeMainEffects())
+            .then((result) => ({ result })),
+        )
+      })
+      .when(stopType, async ({ id }) => {
+        return handleRpc(
+          id,
+          this.system.stop().then((result) => ({ result })),
+        )
+      })
+      .when(exitType, async ({ id }) => {
+        return handleRpc(
+          id,
+          (async () => {
+            if (this._system) await this._system.exit()
+          })().then((result) => ({ result })),
+        )
       })
       .when(initType, async ({ id }) => {
-        this._system = await this.getDependencies.system()
-
-        return {
-          jsonrpc,
+        return handleRpc(
           id,
-          result: null,
-        }
+          (async () => {
+            if (!this._system) {
+              const system = await this.getDependencies.system()
+              await system.init()
+              this._system = system
+            }
+          })().then((result) => ({ result })),
+        )
       })
       .when(evalType, async ({ id, params }) => {
-        const result = await new Function(
-          `return (async () => { return (${params.script}) }).call(this)`,
-        ).call({
-          listener: this,
-          require: require,
-        })
-        return {
-          jsonrpc,
+        return handleRpc(
           id,
-          result: !["string", "number", "boolean", "null", "object"].includes(
-            typeof result,
-          )
-            ? null
-            : result,
-        }
+          (async () => {
+            const result = await new Function(
+              `return (async () => { return (${params.script}) }).call(this)`,
+            ).call({
+              listener: this,
+              require: require,
+            })
+            return {
+              jsonrpc,
+              id,
+              result: ![
+                "string",
+                "number",
+                "boolean",
+                "null",
+                "object",
+              ].includes(typeof result)
+                ? null
+                : result,
+            }
+          })(),
+        )
       })
       .when(shape({ id: idType, method: string }), ({ id, method }) => ({
         jsonrpc,

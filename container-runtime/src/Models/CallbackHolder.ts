@@ -1,6 +1,5 @@
 export class CallbackHolder {
   constructor() {}
-  private root = (Math.random() + 1).toString(36).substring(7)
   private inc = 0
   private callbacks = new Map<number, Function>()
   private newId() {

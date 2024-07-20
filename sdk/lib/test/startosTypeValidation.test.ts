@@ -27,6 +27,9 @@ import { ExportActionParams } from ".././osBindings"
 import { RemoveActionParams } from ".././osBindings"
 import { MountParams } from ".././osBindings"
 function typeEquality<ExpectedType>(_a: ExpectedType) {}
+
+type WithCallback<T> = Omit<T, "callback"> & { callback: () => void }
+
 describe("startosTypeValidation ", () => {
   test(`checking the params match`, () => {
     const testInput: any = {}
@@ -40,7 +43,7 @@ describe("startosTypeValidation ", () => {
       destroyOverlayedImage: {} as DestroyOverlayedImageParams,
       clearBindings: undefined,
       bind: {} as BindParams,
-      getHostInfo: {} as GetHostInfoParams,
+      getHostInfo: {} as WithCallback<GetHostInfoParams>,
       exists: {} as ParamsPackageId,
       getConfigured: undefined,
       stopped: {} as ParamsMaybePackageId,
@@ -52,16 +55,16 @@ describe("startosTypeValidation ", () => {
       exposeForDependents: {} as ExposeForDependentsParams,
       getSslCertificate: {} as GetSslCertificateParams,
       getSslKey: {} as GetSslKeyParams,
-      getServiceInterface: {} as GetServiceInterfaceParams,
+      getServiceInterface: {} as WithCallback<GetServiceInterfaceParams>,
       setDependencies: {} as SetDependenciesParams,
       store: {} as never,
-      getSystemSmtp: {} as GetSystemSmtpParams,
+      getSystemSmtp: {} as WithCallback<GetSystemSmtpParams>,
       getContainerIp: undefined,
       getServicePortForward: {} as GetServicePortForwardParams,
       clearServiceInterfaces: undefined,
       exportServiceInterface: {} as ExportServiceInterfaceParams,
-      getPrimaryUrl: {} as GetPrimaryUrlParams,
-      listServiceInterfaces: {} as ListServiceInterfacesParams,
+      getPrimaryUrl: {} as WithCallback<GetPrimaryUrlParams>,
+      listServiceInterfaces: {} as WithCallback<ListServiceInterfacesParams>,
       removeAddress: {} as RemoveAddressParams,
       exportAction: {} as ExportActionParams,
       removeAction: {} as RemoveActionParams,

@@ -29,6 +29,7 @@ use crate::net::wifi::WpaCli;
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle};
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
+use crate::service::service_effect_handler::ServiceCallbacks;
 use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
 use crate::system::get_mem_info;
@@ -52,6 +53,7 @@ pub struct RpcContextSeed {
     pub lxc_manager: Arc<LxcManager>,
     pub open_authed_continuations: OpenAuthedContinuations<InternedString>,
     pub rpc_continuations: RpcContinuations,
+    pub callbacks: ServiceCallbacks,
     pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
     pub current_secret: Arc<Jwk>,
     pub client: Client,

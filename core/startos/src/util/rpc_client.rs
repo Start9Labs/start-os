@@ -138,6 +138,31 @@ impl RpcClient {
         err.data = Some(json!("RpcClient thread has terminated"));
         Err(err)
     }
+
+    pub async fn notify<T: RpcMethod>(
+        &mut self,
+        method: T,
+        params: T::Params,
+    ) -> Result<(), RpcError>
+    where
+        T: Serialize,
+        T::Params: Serialize,
+    {
+        let request = RpcRequest {
+            id: None,
+            method,
+            params,
+        };
+        self.writer
+            .write_all((dbg!(serde_json::to_string(&request))? + "\n").as_bytes())
+            .await
+            .map_err(|e| {
+                let mut err = rpc_toolkit::yajrc::INTERNAL_ERROR.clone();
+                err.data = Some(json!(e.to_string()));
+                err
+            })?;
+        Ok(())
+    }
 }
 
 #[derive(Clone)]
@@ -206,6 +231,38 @@ impl UnixRpcClient {
                 continue;
             }
             let res = client.request(method.clone(), params.clone()).await;
+            match &res {
+                Err(e) if e.code == rpc_toolkit::yajrc::INTERNAL_ERROR.code => {
+                    let mut e = Error::from(e.clone());
+                    e.kind = ErrorKind::Filesystem;
+                    tracing::error!("{e}");
+                    tracing::debug!("{e:?}");
+                    client.destroy();
+                }
+                _ => break res,
+            }
+            tries += 1;
+            if tries > MAX_TRIES {
+                tracing::warn!("Max Tries exceeded");
+                break res;
+            }
+        };
+        res
+    }
+
+    pub async fn notify<T: RpcMethod>(&self, method: T, params: T::Params) -> Result<(), RpcError>
+    where
+        T: Serialize + Clone,
+        T::Params: Serialize + Clone,
+    {
+        let mut tries = 0;
+        let res = loop {
+            let mut client = self.pool.clone().get().await?;
+            if client.handler.is_finished() {
+                client.destroy();
+                continue;
+            }
+            let res = client.notify(method.clone(), params.clone()).await;
             match &res {
                 Err(e) if e.code == rpc_toolkit::yajrc::INTERNAL_ERROR.code => {
                     let mut e = Error::from(e.clone());

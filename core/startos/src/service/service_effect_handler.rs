@@ -9,6 +9,7 @@ use std::sync::{Arc, Weak};
 use clap::builder::ValueParserFactory;
 use clap::Parser;
 use exver::VersionRange;
+use imbl::Vector;
 use imbl_value::json;
 use itertools::Itertools;
 use models::{
@@ -37,7 +38,8 @@ use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::rpc::SKIP_ENV;
 use crate::s9pk::S9pk;
 use crate::service::cli::ContainerCliContext;
-use crate::service::Service;
+use crate::service::rpc::{CallbackHandle, CallbackId};
+use crate::service::{Service, ServiceActorSeed};
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::util::clap::FromStrParser;
@@ -183,16 +185,37 @@ pub fn service_effect_handler<C: Context>() -> ParentHandler<C> {
         .subcommand("exportAction", from_fn_async(export_action).no_cli())
         .subcommand("removeAction", from_fn_async(remove_action).no_cli())
         .subcommand("mount", from_fn_async(mount).no_cli())
+        .subcommand("clearCallbacks", from_fn(clear_callbacks).no_cli())
 
     // TODO Callbacks
+}
+
+pub struct ServiceCallbacks {
+    pub get_service_interface: BTreeMap<(PackageId, ServiceInterfaceId), Vec<CallbackHandler>>,
+}
+
+pub struct CallbackHandler {
+    handle: CallbackHandle,
+    seed: Weak<ServiceActorSeed>,
+}
+impl CallbackHandler {
+    pub async fn call(self, args: Vector<Value>) -> Result<(), Error> {
+        if let Some(seed) = self.seed.upgrade() {
+            seed.persistent_container
+                .callback(self.handle, args)
+                .await?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 struct GetSystemSmtpParams {
-    callback: Callback,
+    callback: Option<CallbackId>,
 }
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
@@ -229,16 +252,18 @@ struct GetPrimaryUrlParams {
     #[ts(type = "string | null")]
     package_id: Option<PackageId>,
     service_interface_id: ServiceInterfaceId,
-    callback: Callback,
+    callback: Option<CallbackId>,
 }
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 struct ListServiceInterfacesParams {
     #[ts(type = "string | null")]
     package_id: Option<PackageId>,
-    callback: Callback,
+    callback: Option<CallbackId>,
 }
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
@@ -395,6 +420,7 @@ async fn export_service_interface(
         .await?;
     Ok(())
 }
+
 async fn get_primary_url(
     context: EffectContext,
     GetPrimaryUrlParams {
@@ -496,14 +522,11 @@ async fn remove_action(context: EffectContext, data: RemoveActionParams) -> Resu
         .await?;
     Ok(())
 }
+
 async fn mount(context: EffectContext, data: MountParams) -> Result<Value, Error> {
     // TODO
     todo!()
 }
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-struct Callback(#[ts(type = "() => void")] i64);
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -512,14 +535,14 @@ struct GetHostInfoParams {
     host_id: HostId,
     #[ts(type = "string | null")]
     package_id: Option<PackageId>,
-    callback: Callback,
+    callback: Option<CallbackId>,
 }
 async fn get_host_info(
     context: EffectContext,
     GetHostInfoParams {
-        callback,
-        package_id,
         host_id,
+        package_id,
+        callback,
     }: GetHostInfoParams,
 ) -> Result<Host, Error> {
     let context = context.deref()?;
@@ -572,15 +595,15 @@ struct GetServiceInterfaceParams {
     #[ts(type = "string | null")]
     package_id: Option<PackageId>,
     service_interface_id: ServiceInterfaceId,
-    callback: Callback,
+    callback: Option<CallbackId>,
 }
 
 async fn get_service_interface(
     context: EffectContext,
     GetServiceInterfaceParams {
-        callback,
         package_id,
         service_interface_id,
+        callback,
     }: GetServiceInterfaceParams,
 ) -> Result<ServiceInterface, Error> {
     let context = context.deref()?;
@@ -596,6 +619,12 @@ async fn get_service_interface(
         .as_idx(&service_interface_id)
         .or_not_found(&service_interface_id)?
         .de()?;
+
+    if let Some(callback) = callback {
+        let callback = callback.register(&context.seed.persistent_container);
+        // context.seed.ctx.
+    }
+
     Ok(interface)
 }
 
@@ -723,11 +752,16 @@ struct GetStoreParams {
     package_id: Option<PackageId>,
     #[ts(type = "string")]
     path: JsonPointer,
+    callback: Option<CallbackId>,
 }
 
 async fn get_store(
     context: EffectContext,
-    GetStoreParams { package_id, path }: GetStoreParams,
+    GetStoreParams {
+        package_id,
+        path,
+        callback,
+    }: GetStoreParams,
 ) -> Result<Value, Error> {
     let context = context.deref()?;
     let peeked = context.seed.ctx.db.peek().await;
@@ -1460,4 +1494,14 @@ async fn check_dependencies(
         });
     }
     Ok(results)
+}
+
+fn clear_callbacks(context: EffectContext) -> Result<(), Error> {
+    let context = context.deref()?;
+    context
+        .seed
+        .persistent_container
+        .state
+        .send_if_modified(|s| !std::mem::take(&mut s.callbacks).is_empty());
+    Ok(())
 }
