@@ -24,7 +24,7 @@ export class AppListPkgComponent {
   }
 
   get sigtermTimeout(): string | null {
-    return this.pkgMainStatus.status === 'stopping' ? '30s' : null
+    return this.pkgMainStatus.status === 'stopping' ? '30s' : null // @dr-bonez TODO
   }
 
   launchUi(e: Event, interfaces: PackageDataEntry['serviceInterfaces']): void {
