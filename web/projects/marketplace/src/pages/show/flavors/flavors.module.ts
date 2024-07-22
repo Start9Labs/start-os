@@ -3,8 +3,7 @@ import { NgModule } from '@angular/core'
 import { RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { ResponsiveColModule, SharedPipesModule } from '@start9labs/shared'
-
-import { DependenciesComponent } from './dependencies.component'
+import { FlavorsComponent } from './flavors.component'
 
 @NgModule({
   imports: [
@@ -14,7 +13,7 @@ import { DependenciesComponent } from './dependencies.component'
     SharedPipesModule,
     ResponsiveColModule,
   ],
-  declarations: [DependenciesComponent],
-  exports: [DependenciesComponent],
+  declarations: [FlavorsComponent],
+  exports: [FlavorsComponent],
 })
-export class DependenciesModule {}
+export class FlavorsModule {}

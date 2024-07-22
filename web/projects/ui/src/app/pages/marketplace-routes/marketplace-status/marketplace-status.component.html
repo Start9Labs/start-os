@@ -1,4 +1,4 @@
-<ng-container *ngIf="localPkg">
+<ng-container *ngIf="localPkg && sameFlavor">
   <div *ngIf="isInstalled(localPkg)">
     <ion-text
       *ngIf="(version | compareExver : localVersion) !== 1"

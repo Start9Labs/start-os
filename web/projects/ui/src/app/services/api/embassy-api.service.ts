@@ -2,7 +2,11 @@ import { Observable } from 'rxjs'
 import { RR } from './api.types'
 import { RPCOptions } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import { MarketplacePkg } from '@start9labs/marketplace'
+import {
+  GetPackageRes,
+  GetPackagesRes,
+  MarketplacePkg,
+} from '@start9labs/marketplace'
 
 export abstract class ApiService {
   // http
@@ -132,17 +136,15 @@ export abstract class ApiService {
 
   abstract checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes>
 
-  abstract getRegistryInfo(registryUrl: string): Promise<RR.GetRegistryInfoRes>
+  abstract getRegistryInfo(registryUrl: string): Promise<T.RegistryInfo>
 
-  abstract getRegistryPackages<T extends RR.GetRegistryPackagesReq>(
-    registryUrl: string,
-    params: T,
-  ): Promise<RR.GetRegistryMultiPackagesRes<T>>
+  abstract getRegistryPackage(
+    url: string,
+    id: string,
+    versionRange: string | null,
+  ): Promise<GetPackageRes>
 
-  abstract getRegistryPackage<T extends RR.GetRegistryPackagesReq>(
-    registryUrl: string,
-    params: T,
-  ): Promise<RR.GetRegistrySinglePackageRes<T>>
+  abstract getRegistryPackages(registryUrl: string): Promise<GetPackagesRes>
 
   // notification
 

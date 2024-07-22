@@ -18,9 +18,6 @@ import {
 } from '@start9labs/shared'
 import { MarketplacePkg } from '../../../types'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
-import { AbstractPkgFlavorService } from '../../../services/pkg-flavor.service'
-import { ActivatedRoute } from '@angular/router'
-import { ExtendedVersion } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'marketplace-additional',
@@ -34,14 +31,11 @@ export class AdditionalComponent {
   @Output()
   version = new EventEmitter<string>()
 
-  readonly flavorStatus$ = this.pkgFlavorService.getFlavorStatus$()
-
   constructor(
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
     private readonly exver: Exver,
     private readonly marketplaceService: AbstractMarketplaceService,
-    private readonly pkgFlavorService: AbstractPkgFlavorService,
     private readonly toastCtrl: ToastController,
   ) {}
 
@@ -59,12 +53,10 @@ export class AdditionalComponent {
     await toast.present()
   }
 
-  async presentAlertVersions(flavorActive: boolean) {
-    const versions = this.pkg.flavorVersion
-      ? Object.keys(this.pkg.otherVersions).filter(
-          v => !!ExtendedVersion.parse(v).flavor === flavorActive,
-        )
-      : Object.keys(this.pkg.otherVersions)
+  async presentAlertVersions() {
+    const versions = Object.keys(this.pkg.otherVersions).filter(
+      v => this.exver.getFlavor(v) === this.pkg.flavor,
+    )
     const alert = await this.alertCtrl.create({
       header: 'Versions',
       inputs: versions
@@ -91,11 +83,11 @@ export class AdditionalComponent {
     await alert.present()
   }
 
-  async presentModalMd(title: string) {
-    const content = this.marketplaceService.fetchStatic$(this.pkg, title)
+  async presentModalMd(asset: string) {
+    const content = this.marketplaceService.fetchStatic$(this.pkg, asset)
 
     const modal = await this.modalCtrl.create({
-      componentProps: { title, content },
+      componentProps: { title: asset, content },
       component: MarkdownComponent,
     })
 

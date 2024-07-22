@@ -31,7 +31,11 @@ import {
 import { mockPatchData } from './mock-patch'
 import { AuthService } from '../auth.service'
 import { T } from '@start9labs/start-sdk'
-import { MarketplacePkg } from '@start9labs/marketplace'
+import {
+  GetPackageRes,
+  GetPackagesRes,
+  MarketplacePkg,
+} from '@start9labs/marketplace'
 
 const PROGRESS: T.FullProgress = {
   overall: {
@@ -141,7 +145,7 @@ export class MockApiService extends ApiService {
 
     this.stateIndex++
 
-    return this.stateIndex === 1 ? 'initializing' : 'running'
+    return this.stateIndex === 1 ? 'running' : 'running'
   }
 
   // db
@@ -467,33 +471,27 @@ export class MockApiService extends ApiService {
     return Mock.MarketplaceEos
   }
 
-  async getRegistryInfo(registryUrl: string): Promise<RR.GetRegistryInfoRes> {
+  async getRegistryInfo(registryUrl: string): Promise<T.RegistryInfo> {
     await pauseFor(2000)
     return Mock.RegistryInfo
   }
 
-  async getRegistryPackages<T extends T.GetPackageParams>(
-    registryUrl: string,
-    params: T,
-  ): Promise<RR.GetRegistryMultiPackagesRes<T>> {
+  async getRegistryPackage(
+    url: string,
+    id: string,
+    versionRange: string,
+  ): Promise<GetPackageRes> {
     await pauseFor(2000)
-    return Mock.RegistryPackages as RR.GetRegistryMultiPackagesRes<T>
+    if (!versionRange) {
+      return Mock.RegistryPackages[id]
+    } else {
+      return Mock.OtherPackageVersions[id][versionRange]
+    }
   }
 
-  async getRegistryPackage<T extends T.GetPackageParams>(
-    registryUrl: string,
-    params: T,
-  ): Promise<RR.GetRegistrySinglePackageRes<T>> {
+  async getRegistryPackages(registryUrl: string): Promise<GetPackagesRes> {
     await pauseFor(2000)
-    if (!params.version || (params.version && params.version === '*')) {
-      return Mock.RegistryPackages[
-        params.id!
-      ] as RR.GetRegistrySinglePackageRes<T>
-    } else {
-      return Mock.OtherPackageVersions[params.id!][
-        params.version
-      ] as RR.GetRegistrySinglePackageRes<T>
-    }
+    return Mock.RegistryPackages
   }
 
   // notification

@@ -44,6 +44,9 @@ export class MarketplaceShowControlsComponent {
   @Input()
   localPkg!: PackageDataEntry | null
 
+  @Input()
+  localFlavor!: boolean
+
   readonly showDevTools$ = this.ClientStorageService.showDevTools$
 
   constructor(

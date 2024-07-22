@@ -293,49 +293,6 @@ export module RR {
 
   export type CheckOSUpdateReq = { serverId: string }
   export type CheckOSUpdateRes = OSUpdate
-  export type GetRegistryInfoRes = T.RegistryInfo
-
-  export type GetRegistryPackagesReq = T.GetPackageParams
-  export type GetRegistryPackagesRes<T extends GetRegistryPackagesReq> =
-    | GetRegistrySinglePackageRes<T>
-    | GetRegistryMultiPackagesRes<T>
-  export type GetRegistryMultiPackagesRes<T extends GetRegistryPackagesReq> =
-    T extends {
-      id: null
-      otherVersions: 'none'
-    }
-      ? { [id: T.PackageId]: Omit<T.GetPackageResponse, 'otherVersions'> }
-      : T extends { id: null; otherVersions: 'short' }
-      ? {
-          [id: T.PackageId]: T.GetPackageResponse & {
-            otherVersions: { [version: string]: T.PackageInfoShort }
-          }
-        }
-      : T extends { id: null; otherVersions: 'full' }
-      ? {
-          [id: T.PackageId]: T.GetPackageResponseFull
-        }
-      : never
-  export type GetRegistrySinglePackageRes<T extends GetRegistryPackagesReq> =
-    T extends {
-      id: T.PackageId
-      otherVersions: 'none'
-    }
-      ? Omit<T.GetPackageResponse, 'otherVersions'>
-      : T extends { id: T.PackageId; otherVersions: 'short' }
-      ? T.GetPackageResponse & {
-          otherVersions: { [version: string]: T.PackageInfoShort }
-        }
-      : T extends { id: T.PackageId; otherVersions: 'full' }
-      ? T.GetPackageResponseFull
-      : never
-
-  export type GetRegistryPackageOptions =
-    | Omit<T.GetPackageResponse, 'otherVersions'>
-    | (T.GetPackageResponse & {
-        otherVersions: { [version: string]: T.PackageInfoShort }
-      })
-    | T.GetPackageResponseFull
 }
 
 export interface OSUpdate {

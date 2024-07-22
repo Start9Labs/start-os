@@ -24,7 +24,6 @@ import {
   isUpdating,
 } from 'src/app/util/get-package-data'
 import { dryUpdate } from 'src/app/util/dry-update'
-import { T } from '@start9labs/start-sdk'
 
 interface UpdatesData {
   hosts: StoreIdentity[]
@@ -165,10 +164,11 @@ export class FilterUpdatesPipe implements PipeTransform {
     pkgs: MarketplacePkg[],
     local: Record<string, PackageDataEntry<InstalledState | UpdatingState>>,
   ): MarketplacePkg[] {
-    return pkgs.filter(({ id, version }) => {
+    return pkgs.filter(({ id, version, flavor }) => {
       const localPkg = local[id]
       return (
         localPkg &&
+        this.exver.getFlavor(localPkg.stateInfo.manifest.version) === flavor &&
         this.exver.compareExver(
           version,
           localPkg.stateInfo.manifest.version,

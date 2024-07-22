@@ -17,6 +17,7 @@ export class Exver {
       return null
     }
   }
+
   greaterThanOrEqual(lhs: string, rhs: string): boolean | null {
     if (!lhs || !rhs) return null
     try {
@@ -34,5 +35,9 @@ export class Exver {
 
   satisfies(version: string, range: string): boolean {
     return VersionRange.parse(range).satisfiedBy(ExtendedVersion.parse(version))
+  }
+
+  getFlavor(version: string): string | null {
+    return ExtendedVersion.parse(version).flavor
   }
 }

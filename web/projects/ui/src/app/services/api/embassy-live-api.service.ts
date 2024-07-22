@@ -19,7 +19,13 @@ import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
 import { Dump, pathFromArray } from 'patch-db-client'
 import { T } from '@start9labs/start-sdk'
-import { MarketplacePkg } from '@start9labs/marketplace'
+import {
+  GetPackageReq,
+  GetPackageRes,
+  GetPackagesReq,
+  GetPackagesRes,
+  MarketplacePkg,
+} from '@start9labs/marketplace'
 import { blake3 } from '@noble/hashes/blake3'
 
 @Injectable()
@@ -305,28 +311,40 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async getRegistryInfo(registryUrl: string): Promise<RR.GetRegistryInfoRes> {
+  async getRegistryInfo(registryUrl: string): Promise<T.RegistryInfo> {
     return this.registryRequest(registryUrl, {
       method: 'info',
       params: {},
     })
   }
 
-  async getRegistryPackages<T extends T.GetPackageParams>(
+  async getRegistryPackage(
     registryUrl: string,
-    params: T,
-  ): Promise<RR.GetRegistryMultiPackagesRes<T>> {
-    return this.registryRequest(registryUrl, {
+    id: string,
+    versionRange: string | null,
+  ): Promise<GetPackageRes> {
+    const params: GetPackageReq = {
+      id,
+      version: versionRange,
+      sourceVersion: null,
+      otherVersions: 'short',
+    }
+
+    return this.registryRequest<GetPackageRes>(registryUrl, {
       method: 'package.get',
       params,
     })
   }
 
-  async getRegistryPackage<T extends T.GetPackageParams>(
-    registryUrl: string,
-    params: T,
-  ): Promise<RR.GetRegistrySinglePackageRes<T>> {
-    return this.registryRequest(registryUrl, {
+  async getRegistryPackages(registryUrl: string): Promise<GetPackagesRes> {
+    const params: GetPackagesReq = {
+      id: null,
+      version: null,
+      sourceVersion: null,
+      otherVersions: 'short',
+    }
+
+    return this.registryRequest<GetPackagesRes>(registryUrl, {
       method: 'package.get',
       params,
     })

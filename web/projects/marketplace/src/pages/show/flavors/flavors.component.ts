@@ -2,12 +2,11 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { MarketplacePkg } from '../../../types'
 
 @Component({
-  selector: 'marketplace-package',
-  templateUrl: 'package.component.html',
-  styleUrls: ['package.component.scss'],
+  selector: 'marketplace-flavors',
+  templateUrl: 'flavors.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PackageComponent {
+export class FlavorsComponent {
   @Input()
-  pkg!: MarketplacePkg
+  pkgs!: MarketplacePkg[]
 }

@@ -1,11 +1,5 @@
 import { Observable } from 'rxjs'
-import {
-  MarketplacePkg,
-  Marketplace,
-  StoreData,
-  StoreIdentity,
-  DefaultGetPackageParams,
-} from '../types'
+import { MarketplacePkg, Marketplace, StoreData, StoreIdentity } from '../types'
 import { T } from '@start9labs/start-sdk'
 
 export abstract class AbstractMarketplaceService {
@@ -13,22 +7,19 @@ export abstract class AbstractMarketplaceService {
 
   abstract getSelectedHost$(): Observable<StoreIdentity>
 
-  abstract getMarketplace$<T extends T.GetPackageParams>(): Observable<
-    Marketplace<DefaultGetPackageParams>
-  >
+  abstract getMarketplace$(): Observable<Marketplace>
 
-  abstract getSelectedStore$<T extends T.GetPackageParams>(): Observable<
-    StoreData<T>
-  >
+  abstract getSelectedStore$(): Observable<StoreData>
 
-  abstract getPackage$<T extends T.GetPackageParams>(
-    params: T,
-    url?: string,
-  ): Observable<MarketplacePkg<T>> // could be {} so need to check in show page
-
-  abstract fetchReleaseNotes$(
+  abstract getPackage$(
     id: string,
+    version: string | null,
+    flavor: string | null,
     url?: string,
+  ): Observable<MarketplacePkg> // could be {} so need to check in show page
+
+  abstract getReleaseNotes$(
+    id: string,
   ): Observable<Record<string, T.PackageInfoShort>>
 
   abstract fetchStatic$(pkg: MarketplacePkg, type: string): Observable<string>

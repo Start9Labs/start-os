@@ -7,6 +7,7 @@ import { BTC_ICON, LND_ICON, PROXY_ICON, REGISTRY_ICON } from './api-icons'
 import { Log } from '@start9labs/shared'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { T, CB } from '@start9labs/start-sdk'
+import { GetPackagesRes } from '@start9labs/marketplace'
 
 const mockBlake3Commitment: T.Blake3Commitment = {
   hash: 'fakehash',
@@ -51,7 +52,7 @@ export module Mock {
     },
   }
 
-  export const RegistryInfo: RR.GetRegistryInfoRes = {
+  export const RegistryInfo: T.RegistryInfo = {
     name: 'Start9 Registry',
     icon: REGISTRY_ICON,
     categories: {
@@ -246,12 +247,10 @@ export module Mock {
   }
 
   export const OtherPackageVersions: {
-    [id: T.PackageId]: {
-      [key: string]: T.GetPackageResponse
-    }
+    [id: T.PackageId]: GetPackagesRes
   } = {
     bitcoind: {
-      '26.1.0:0.1.0': {
+      '=26.1.0:0.1.0': {
         best: {
           '26.1.0:0.1.0': {
             title: 'Bitcoin Core',
@@ -327,7 +326,7 @@ export module Mock {
           },
         },
       },
-      '#knots:26.1.20240325:0': {
+      '=#knots:26.1.20240325:0': {
         best: {
           '26.1.0:0.1.0': {
             title: 'Bitcoin Core',
@@ -405,7 +404,7 @@ export module Mock {
       },
     },
     lnd: {
-      '0.17.5:0': {
+      '=0.17.5:0': {
         best: {
           '0.17.5:0': {
             title: 'LND',
@@ -461,7 +460,7 @@ export module Mock {
           },
         },
       },
-      '0.17.4-beta:1.0-alpha': {
+      '=0.17.4-beta:1.0-alpha': {
         best: {
           '0.17.4-beta:1.0-alpha': {
             title: 'LND',
@@ -519,7 +518,7 @@ export module Mock {
       },
     },
     'btc-rpc-proxy': {
-      '0.3.2.6:0': {
+      '=0.3.2.6:0': {
         best: {
           '0.3.2.6:0': {
             title: 'Bitcoin Proxy',
@@ -562,9 +561,7 @@ export module Mock {
     },
   }
 
-  export const RegistryPackages: {
-    [id: T.PackageId]: T.GetPackageResponse
-  } = {
+  export const RegistryPackages: GetPackagesRes = {
     bitcoind: {
       best: {
         '27.0.0:1.0.0': {
@@ -637,7 +634,7 @@ export module Mock {
           releaseNotes: 'Even better support for Bitcoin and wallets!',
         },
         '#knots:26.1.20240325:0': {
-          releaseNotes: 'Even better support for Bitcoin and wallets!',
+          releaseNotes: 'Even better Knots support for Bitcoin and wallets!',
         },
       },
     },

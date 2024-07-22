@@ -1,17 +1,15 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { ActivatedRoute } from '@angular/router'
+import { ActivatedRoute, Router } from '@angular/router'
 import { Exver, getPkgId } from '@start9labs/shared'
 import {
   AbstractMarketplaceService,
-  AbstractPkgFlavorService,
   MarketplacePkg,
 } from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'
-import { BehaviorSubject, combineLatest, Observable } from 'rxjs'
-import { filter, map, shareReplay, switchMap } from 'rxjs/operators'
+import { combineLatest, Observable } from 'rxjs'
+import { filter, map, shareReplay, startWith, switchMap } from 'rxjs/operators'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/util/get-package-data'
-import { ExtendedVersion } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'marketplace-show',
@@ -23,46 +21,61 @@ export class MarketplaceShowPage {
   readonly pkgId = getPkgId(this.route)
   readonly url = this.route.snapshot.queryParamMap.get('url') || undefined
 
-  readonly loadVersion$ = new BehaviorSubject<string>('*')
-
   readonly localPkg$ = combineLatest([
     this.patch.watch$('packageData', this.pkgId).pipe(filter(Boolean)),
-    this.loadVersion$,
+    this.route.queryParamMap,
   ]).pipe(
-    map(([pkg, version]) => {
-      if (ExtendedVersion.parse(getManifest(pkg).version).flavor) {
-        this.pkgFlavorService.toggleFlavorStatus(true)
-      }
-      if (
-        version === '*' ||
-        this.exver.greaterThanOrEqual(version, getManifest(pkg).version || '')
-      ) {
-        return pkg
-      }
-      return null
-    }),
+    map(([pkg, paramMap]) =>
+      this.exver.getFlavor(getManifest(pkg).version) === paramMap.get('flavor')
+        ? pkg
+        : null,
+    ),
     shareReplay({ bufferSize: 1, refCount: true }),
   )
 
-  readonly pkg$: Observable<MarketplacePkg> = this.loadVersion$.pipe(
-    switchMap(version =>
+  readonly localFlavor$ = this.localPkg$.pipe(
+    map(pkg => !pkg),
+    startWith(false),
+  )
+
+  readonly pkg$: Observable<MarketplacePkg> = this.route.queryParamMap.pipe(
+    switchMap(paramMap =>
       this.marketplaceService.getPackage$(
-        {
-          id: this.pkgId,
-          version,
-          otherVersions: 'short',
-          sourceVersion: null,
-        },
+        this.pkgId,
+        paramMap.get('version'),
+        paramMap.get('flavor'),
         this.url,
       ),
     ),
   )
 
+  readonly flavors$ = this.route.queryParamMap.pipe(
+    switchMap(paramMap =>
+      this.marketplaceService
+        .getSelectedStore$()
+        .pipe(
+          map(s =>
+            s.packages.filter(
+              p => p.id === this.pkgId && p.flavor !== paramMap.get('flavor'),
+            ),
+          ),
+        ),
+    ),
+  )
+
   constructor(
     private readonly route: ActivatedRoute,
+    private readonly router: Router,
     private readonly patch: PatchDB<DataModel>,
     private readonly marketplaceService: AbstractMarketplaceService,
     private readonly exver: Exver,
-    private readonly pkgFlavorService: AbstractPkgFlavorService,
   ) {}
+
+  updateVersion(version: string) {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { version },
+      queryParamsHandling: 'merge',
+    })
+  }
 }

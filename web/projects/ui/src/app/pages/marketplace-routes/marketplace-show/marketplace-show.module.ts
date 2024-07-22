@@ -13,6 +13,7 @@ import {
   AdditionalModule,
   DependenciesModule,
   PackageModule,
+  FlavorsModule,
 } from '@start9labs/marketplace'
 import { MarketplaceStatusModule } from '../marketplace-status/marketplace-status.module'
 import { MarketplaceShowPage } from './marketplace-show.page'
@@ -42,6 +43,7 @@ const routes: Routes = [
     AboutModule,
     DependenciesModule,
     AdditionalModule,
+    FlavorsModule,
     UiPipeModule,
   ],
   declarations: [
