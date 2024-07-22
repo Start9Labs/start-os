@@ -1,11 +1,15 @@
 <div class="action-buttons">
   <ion-button
-    *ngIf="localPkg"
+    *ngIf="localPkg && localPkg.stateInfo.state !== 'removing'"
     expand="block"
     color="primary"
     [routerLink]="['/services', pkg.id]"
   >
-    View Installed
+    {{
+      localPkg.stateInfo.state === 'installed'
+        ? 'View Installed'
+        : 'View Installing'
+    }}
   </ion-button>
   <ng-container *ngIf="localPkg; else install">
     <ng-container

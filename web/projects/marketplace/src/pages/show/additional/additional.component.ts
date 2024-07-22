@@ -10,12 +10,7 @@ import {
   ModalController,
   ToastController,
 } from '@ionic/angular'
-import {
-  copyToClipboard,
-  displayExver,
-  Exver,
-  MarkdownComponent,
-} from '@start9labs/shared'
+import { copyToClipboard, Exver, MarkdownComponent } from '@start9labs/shared'
 import { MarketplacePkg } from '../../../types'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
 
@@ -64,7 +59,7 @@ export class AdditionalComponent {
         .map(v => ({
           name: v, // for CSS
           type: 'radio',
-          label: displayExver(v), // appearance on screen
+          label: v, // appearance on screen
           value: v, // literal SEM version value
           checked: this.pkg.version === v,
         })),

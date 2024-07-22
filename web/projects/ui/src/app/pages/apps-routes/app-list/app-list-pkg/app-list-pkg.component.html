@@ -11,7 +11,7 @@
   </ion-thumbnail>
   <ion-label>
     <h2 ticker>{{ manifest.title }}</h2>
-    <p>{{ manifest.version | displayExver }}</p>
+    <p>{{ manifest.version }}</p>
     <status
       [rendering]="pkg.primaryRendering"
       [installingInfo]="$any(pkg.entry.stateInfo).installingInfo"

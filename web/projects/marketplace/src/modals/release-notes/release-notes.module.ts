@@ -7,7 +7,6 @@ import {
   TextSpinnerComponentModule,
 } from '@start9labs/shared'
 import { TuiElementModule } from '@taiga-ui/cdk'
-
 import { ReleaseNotesComponent } from './release-notes.component'
 
 @NgModule({
@@ -22,4 +21,4 @@ import { ReleaseNotesComponent } from './release-notes.component'
   declarations: [ReleaseNotesComponent],
   exports: [ReleaseNotesComponent],
 })
-export class ReleaseNotesModule {}
+export class ReleaseNotesComponentModule {}

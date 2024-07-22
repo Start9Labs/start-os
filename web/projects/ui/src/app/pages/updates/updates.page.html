@@ -38,15 +38,11 @@
                   <ion-label>
                     <h1 style="line-height: 1.3">{{ pkg.title }}</h1>
                     <h2 class="inline">
-                      <span>
-                        {{ local.stateInfo.manifest.version | displayExver }}
-                      </span>
+                      <span>{{ local.stateInfo.manifest.version }}</span>
                       &nbsp;
                       <ion-icon name="arrow-forward"></ion-icon>
                       &nbsp;
-                      <ion-text color="success">
-                        {{ pkg.version | displayExver }}
-                      </ion-text>
+                      <ion-text color="success">{{ pkg.version }}</ion-text>
                     </h2>
                     <p *ngIf="marketplaceService.updateErrors[pkg.id] as error">
                       <ion-text color="danger">{{ error }}</ion-text>

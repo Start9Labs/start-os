@@ -16,13 +16,13 @@
           *ngIf="version | satisfiesExver : dependentInfo.version"
           class="text"
         >
-          {{ title }} version {{ version | displayExver }} is compatible.
+          {{ title }} version {{ version }} is compatible.
         </span>
         <span
           *ngIf="!(version | satisfiesExver : dependentInfo.version)"
           class="text text_error"
         >
-          {{ title }} version {{ version | displayExver }} is NOT compatible.
+          {{ title }} version {{ version }} is NOT compatible.
         </span>
       </ion-text>
     </p>

@@ -196,12 +196,6 @@ export class MarketplaceService implements AbstractMarketplaceService {
     )
   }
 
-  getReleaseNotes$(id: string): Observable<Record<string, T.PackageInfoShort>> {
-    return this.selectedStore$.pipe(
-      map(s => s.packages.find(p => p.id === id)!.otherVersions),
-    )
-  }
-
   // UI only
   readonly updateErrors: Record<string, string> = {}
   readonly updateQueue: Record<string, boolean> = {}

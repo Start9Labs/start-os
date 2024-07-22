@@ -1,11 +1,11 @@
 <!-- release notes -->
-<ion-item-divider>New in {{ pkg.version | displayExver }}</ion-item-divider>
+<ion-item-divider>New in {{ pkg.version }}</ion-item-divider>
 <ion-item lines="none" color="transparent">
   <ion-label>
     <div [innerHTML]="pkg.releaseNotes | markdown"></div>
   </ion-label>
 </ion-item>
-<ion-button routerLink="notes" fill="clear" strong>
+<ion-button fill="clear" strong (click)="presentModalNotes()">
   Past Release Notes
   <ion-icon slot="end" name="arrow-forward"></ion-icon>
 </ion-button>
