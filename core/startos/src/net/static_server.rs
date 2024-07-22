@@ -26,6 +26,7 @@ use new_mime_guess::MimeGuess;
 use openssl::hash::MessageDigest;
 use openssl::x509::X509;
 use rpc_toolkit::{Context, HttpServer, Server};
+use sqlx::query;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt, BufReader};
 use tokio_util::io::ReaderStream;
 use url::Url;
@@ -303,14 +304,18 @@ fn s9pk_router(ctx: RpcContext) -> Router {
         .route(
             "/proxy/:url/*path",
             any(
-                |x::Path(url): x::Path<Url>,
-                 x::Path(path): x::Path<PathBuf>,
-                 x::Query(commitment): x::Query<Option<MerkleArchiveCommitment>>,
+                |x::Path((url, path)): x::Path<(Url, PathBuf)>,
+                 x::RawQuery(query): x::RawQuery,
                  request: Request| async move {
                     if_authorized(&ctx, request, |request| async {
                         let s9pk = S9pk::deserialize(
                             &Arc::new(HttpSource::new(ctx.client.clone(), url).await?),
-                            commitment.as_ref(),
+                            query
+                                .as_deref()
+                                .map(MerkleArchiveCommitment::from_query)
+                                .and_then(|a| a.transpose())
+                                .transpose()?
+                                .as_ref(),
                         )
                         .await?;
                         let (parts, _) = request.into_parts();

@@ -38,7 +38,7 @@ export class LiveApiService extends ApiService {
     @Inject(PATCH_CACHE) private readonly cache$: Observable<Dump<DataModel>>,
   ) {
     super()
-    ; (window as any).rpcClient = this
+    ;(window as any).rpcClient = this
   }
 
   // for sideloading packages
@@ -71,7 +71,11 @@ export class LiveApiService extends ApiService {
 
     return this.httpRequest({
       method: Method.GET,
-      url: `/s9pk/proxy/${encodedUrl}/${path}?rootSighash=${pkg.s9pk.commitment.rootSighash}&rootMaxsize=${pkg.s9pk.commitment.rootMaxsize}`,
+      url: `/s9pk/proxy/${encodedUrl}/${path}`,
+      params: {
+        rootSighash: pkg.s9pk.commitment.rootSighash,
+        rootMaxsize: pkg.s9pk.commitment.rootMaxsize,
+      },
       responseType: 'text',
     })
   }
@@ -571,9 +575,24 @@ export class LiveApiService extends ApiService {
     if (res.headers.get('Repr-Digest')) {
       // verify
       const digest = res.headers.get('Repr-Digest')!
-      const data = new Uint8Array(res.body as ArrayBuffer)
-      // TODO confirm
-      if (`blake3=:${blake3(data)}:`.toString() === digest) return res.body
+      let data: Uint8Array
+      if (opts.responseType === 'arrayBuffer') {
+        data = Buffer.from(res.body as ArrayBuffer)
+      } else if (opts.responseType === 'text') {
+        data = Buffer.from(res.body as string)
+      } else if ((opts.responseType as string) === 'blob') {
+        data = Buffer.from(await (res.body as Blob).arrayBuffer())
+      } else {
+        console.warn(
+          `could not verify Repr-Digest for responseType ${
+            opts.responseType || 'json'
+          }`,
+        )
+        return res.body
+      }
+      const computedDigest = Buffer.from(blake3(data)).toString('base64')
+      if (`blake3=:${computedDigest}:` === digest) return res.body
+      console.debug(computedDigest, digest)
       throw new Error('File digest mismatch.')
     }
     return res.body

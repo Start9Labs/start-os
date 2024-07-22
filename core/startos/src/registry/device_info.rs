@@ -54,12 +54,7 @@ impl DeviceInfo {
         HeaderValue::from_str(url.query().unwrap_or_default()).unwrap()
     }
     pub fn from_header_value(header: &HeaderValue) -> Result<Self, Error> {
-        let url: Url = format!(
-            "http://localhost/?{}",
-            header.to_str().with_kind(ErrorKind::ParseUrl)?
-        )
-        .parse()?;
-        let query: BTreeMap<_, _> = url.query_pairs().collect();
+        let query: BTreeMap<_, _> = form_urlencoded::parse(header.as_bytes()).collect();
         Ok(Self {
             os: OsInfo {
                 version: query

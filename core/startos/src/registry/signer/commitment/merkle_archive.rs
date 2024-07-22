@@ -20,6 +20,35 @@ pub struct MerkleArchiveCommitment {
     #[ts(type = "number")]
     pub root_maxsize: u64,
 }
+impl MerkleArchiveCommitment {
+    pub fn from_query(query: &str) -> Result<Option<Self>, Error> {
+        let mut root_sighash = None;
+        let mut root_maxsize = None;
+        for (k, v) in form_urlencoded::parse(dbg!(query).as_bytes()) {
+            match &*k {
+                "rootSighash" => {
+                    root_sighash = Some(dbg!(v).parse()?);
+                }
+                "rootMaxsize" => {
+                    root_maxsize = Some(v.parse()?);
+                }
+                _ => (),
+            }
+        }
+        if root_sighash.is_some() || root_maxsize.is_some() {
+            Ok(Some(Self {
+                root_sighash: root_sighash
+                    .or_not_found("rootSighash required if rootMaxsize specified")
+                    .with_kind(ErrorKind::InvalidRequest)?,
+                root_maxsize: root_maxsize
+                    .or_not_found("rootMaxsize required if rootSighash specified")
+                    .with_kind(ErrorKind::InvalidRequest)?,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+}
 impl Digestable for MerkleArchiveCommitment {
     fn update<D: Update>(&self, digest: &mut D) {
         digest.update(&*self.root_sighash);
