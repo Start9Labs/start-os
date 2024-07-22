@@ -323,7 +323,7 @@ export type Effects = {
   getHostInfo(options: {
     hostId: string
     packageId: string | null
-    callback: (newHost: Host | null) => void
+    callback?: (newHost: Host | null) => void
   }): Promise<Host | null>
 
   // /**
@@ -363,7 +363,7 @@ export type Effects = {
   setMainStatus(o: SetMainStatus): Promise<void>
 
   getSystemSmtp(input: {
-    callback: (newSmtp: SmtpValue | null) => void
+    callback?: (newSmtp: SmtpValue | null) => void
   }): Promise<SmtpValue | null>
 
   /** Get the IP address of the container */
@@ -394,7 +394,7 @@ export type Effects = {
   getServiceInterface(options: {
     packageId: PackageId | null
     serviceInterfaceId: ServiceInterfaceId
-    callback: (newInterface: ServiceInterface | null) => void
+    callback?: (newInterface: ServiceInterface | null) => void
   }): Promise<ServiceInterface | null>
 
   /**
@@ -404,7 +404,7 @@ export type Effects = {
   getPrimaryUrl(options: {
     packageId: string | null
     serviceInterfaceId: ServiceInterfaceId
-    callback: (newUrl: UrlString | null) => void
+    callback?: (newUrl: UrlString | null) => void
   }): Promise<UrlString | null>
 
   /**
@@ -415,7 +415,7 @@ export type Effects = {
    */
   listServiceInterfaces(options: {
     packageId: PackageId | null
-    callback: (
+    callback?: (
       newInterfaces: Record<ServiceInterfaceId, ServiceInterface>,
     ) => void
   }): Promise<Record<ServiceInterfaceId, ServiceInterface>>
@@ -451,6 +451,7 @@ export type Effects = {
     packageId: string | null
     hostId: string
     algorithm: "ecdsa" | "ed25519" | null
+    callback?: (newFullchain: [string, string, string]) => void
   }) => Promise<[string, string, string]>
   /**
    * @returns PEM encoded ssl key (ecdsa)

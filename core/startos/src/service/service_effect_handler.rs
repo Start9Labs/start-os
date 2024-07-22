@@ -18,6 +18,7 @@ use models::{
     ActionId, DataUrl, HealthCheckId, HostId, ImageId, PackageId, ServiceInterfaceId, VolumeId,
 };
 use patch_db::json_ptr::JsonPointer;
+use patch_db::ModelExt;
 use rpc_toolkit::{from_fn, from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
@@ -198,7 +199,9 @@ pub struct ServiceCallbacks(Mutex<ServiceCallbackMap>);
 #[derive(Default)]
 struct ServiceCallbackMap {
     get_service_interface: BTreeMap<(PackageId, ServiceInterfaceId), Vec<CallbackHandler>>,
+    list_service_interfaces: BTreeMap<PackageId, Vec<CallbackHandler>>,
     get_system_smtp: Vec<CallbackHandler>,
+    get_host_info: BTreeMap<(PackageId, HostId), Vec<CallbackHandler>>,
 }
 
 impl ServiceCallbacks {
@@ -208,8 +211,16 @@ impl ServiceCallbacks {
             v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
             !v.is_empty()
         });
+        this.list_service_interfaces.retain(|_, v| {
+            v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
+            !v.is_empty()
+        });
         this.get_system_smtp
             .retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
+        this.get_host_info.retain(|_, v| {
+            v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
+            !v.is_empty()
+        });
     }
 
     fn add_get_service_interface(
@@ -237,6 +248,23 @@ impl ServiceCallbacks {
         .filter(|cb| !cb.0.is_empty())
     }
 
+    fn add_list_service_interfaces(&self, package_id: PackageId, handler: CallbackHandler) {
+        let mut this = self.0.lock().unwrap();
+        this.list_service_interfaces
+            .entry(package_id)
+            .or_default()
+            .push(handler);
+    }
+
+    #[must_use]
+    pub fn list_service_interfaces(&self, id: &PackageId) -> Option<CallbackHandlers> {
+        let mut this = self.0.lock().unwrap();
+        Some(CallbackHandlers(
+            this.list_service_interfaces.remove(id).unwrap_or_default(),
+        ))
+        .filter(|cb| !cb.0.is_empty())
+    }
+
     fn add_get_system_smtp(&self, handler: CallbackHandler) {
         let mut this = self.0.lock().unwrap();
         this.get_system_smtp.push(handler);
@@ -247,6 +275,23 @@ impl ServiceCallbacks {
         let mut this = self.0.lock().unwrap();
         Some(CallbackHandlers(std::mem::take(&mut this.get_system_smtp)))
             .filter(|cb| !cb.0.is_empty())
+    }
+
+    fn add_get_host_info(&self, package_id: PackageId, host_id: HostId, handler: CallbackHandler) {
+        let mut this = self.0.lock().unwrap();
+        this.get_host_info
+            .entry((package_id, host_id))
+            .or_default()
+            .push(handler);
+    }
+
+    #[must_use]
+    pub fn get_host_info(&self, id: &(PackageId, HostId)) -> Option<CallbackHandlers> {
+        let mut this = self.0.lock().unwrap();
+        Some(CallbackHandlers(
+            this.get_host_info.remove(id).unwrap_or_default(),
+        ))
+        .filter(|cb| !cb.0.is_empty())
     }
 }
 
@@ -469,29 +514,38 @@ async fn export_service_interface(
         interface_type: r#type,
     };
 
-    context
+    let map = context
         .seed
         .ctx
         .db
         .mutate(|db| {
-            db.as_public_mut()
+            let map = db
+                .as_public_mut()
                 .as_package_data_mut()
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
-                .as_service_interfaces_mut()
-                .insert(&id, &service_interface)?;
-            Ok(())
+                .as_service_interfaces_mut();
+            map.insert(&id, &service_interface)?;
+            Ok(map.clone())
         })
         .await?;
     if let Some(callbacks) = context
         .seed
         .ctx
         .callbacks
-        .get_service_interface(&(package_id, id))
+        .get_service_interface(&(package_id.clone(), id))
     {
         callbacks
             .call(vector![to_value(&service_interface)?])
             .await?;
+    }
+    if let Some(callbacks) = context
+        .seed
+        .ctx
+        .callbacks
+        .list_service_interfaces(&package_id)
+    {
+        callbacks.call(vector![map.into_value()]).await?;
     }
 
     Ok(())
@@ -520,7 +574,7 @@ async fn list_service_interfaces(
     let context = context.deref()?;
     let package_id = package_id.unwrap_or_else(|| context.seed.id.clone());
 
-    context
+    let res = context
         .seed
         .ctx
         .db
@@ -529,9 +583,20 @@ async fn list_service_interfaces(
         .into_public()
         .into_package_data()
         .into_idx(&package_id)
-        .or_not_found(&package_id)?
-        .into_service_interfaces()
-        .de()
+        .map(|m| m.into_service_interfaces().de())
+        .transpose()?
+        .unwrap_or_default();
+
+    if let Some(callback) = callback {
+        let callback = callback.register(&context.seed.persistent_container);
+        context
+            .seed
+            .ctx
+            .callbacks
+            .add_list_service_interfaces(package_id, CallbackHandler::new(&context, callback));
+    }
+
+    Ok(res)
 }
 async fn remove_address(context: EffectContext, data: RemoveAddressParams) -> Result<(), Error> {
     let context = context.deref()?;
@@ -620,19 +685,29 @@ async fn get_host_info(
         package_id,
         callback,
     }: GetHostInfoParams,
-) -> Result<Host, Error> {
+) -> Result<Option<Host>, Error> {
     let context = context.deref()?;
     let db = context.seed.ctx.db.peek().await;
     let package_id = package_id.unwrap_or_else(|| context.seed.id.clone());
 
-    db.as_public()
+    let res = db
+        .as_public()
         .as_package_data()
         .as_idx(&package_id)
-        .or_not_found(&package_id)?
-        .as_hosts()
-        .as_idx(&host_id)
-        .or_not_found(&host_id)?
-        .de()
+        .and_then(|m| m.as_hosts().as_idx(&host_id))
+        .map(|m| m.de())
+        .transpose()?;
+
+    if let Some(callback) = callback {
+        let callback = callback.register(&context.seed.persistent_container);
+        context.seed.ctx.callbacks.add_get_host_info(
+            package_id,
+            host_id,
+            CallbackHandler::new(&context, callback),
+        );
+    }
+
+    Ok(res)
 }
 
 async fn clear_bindings(context: EffectContext, _: Empty) -> Result<(), Error> {
@@ -681,7 +756,7 @@ async fn get_service_interface(
         service_interface_id,
         callback,
     }: GetServiceInterfaceParams,
-) -> Result<ServiceInterface, Error> {
+) -> Result<Option<ServiceInterface>, Error> {
     let context = context.deref()?;
     let package_id = package_id.unwrap_or_else(|| context.seed.id.clone());
     let db = context.seed.ctx.db.peek().await;
@@ -690,11 +765,9 @@ async fn get_service_interface(
         .as_public()
         .as_package_data()
         .as_idx(&package_id)
-        .or_not_found(&package_id)?
-        .as_service_interfaces()
-        .as_idx(&service_interface_id)
-        .or_not_found(&service_interface_id)?
-        .de()?;
+        .and_then(|m| m.as_service_interfaces().as_idx(&service_interface_id))
+        .map(|m| m.de())
+        .transpose()?;
 
     if let Some(callback) = callback {
         let callback = callback.register(&context.seed.persistent_container);
@@ -788,6 +861,7 @@ struct GetSslCertificateParams {
     package_id: Option<String>,
     host_id: String,
     algorithm: Option<Algorithm>, //"ecdsa" | "ed25519"
+    callback: CallbackId,
 }
 
 async fn get_ssl_certificate(
@@ -796,6 +870,7 @@ async fn get_ssl_certificate(
         package_id,
         algorithm,
         host_id,
+        callback,
     }: GetSslCertificateParams,
 ) -> Result<Value, Error> {
     // TODO
