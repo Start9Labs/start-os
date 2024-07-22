@@ -52,30 +52,40 @@ export class AdditionalComponent {
     const versions = Object.keys(this.pkg.otherVersions).filter(
       v => this.exver.getFlavor(v) === this.pkg.flavor,
     )
-    const alert = await this.alertCtrl.create({
-      header: 'Versions',
-      inputs: versions
-        .sort((a, b) => -1 * (this.exver.compareExver(a, b) || 0))
-        .map(v => ({
-          name: v, // for CSS
-          type: 'radio',
-          label: v, // appearance on screen
-          value: v, // literal SEM version value
-          checked: this.pkg.version === v,
-        })),
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Ok',
-          handler: (version: string) => this.version.emit(version),
-        },
-      ],
-    })
 
-    await alert.present()
+    if (!versions.length) {
+      const alert = await this.alertCtrl.create({
+        header: 'Versions',
+        message: 'No other versions',
+      })
+
+      await alert.present()
+    } else {
+      const alert = await this.alertCtrl.create({
+        header: 'Versions',
+        inputs: versions
+          .sort((a, b) => -1 * (this.exver.compareExver(a, b) || 0))
+          .map(v => ({
+            name: v, // for CSS
+            type: 'radio',
+            label: v, // appearance on screen
+            value: v, // literal SEM version value
+            checked: this.pkg.version === v,
+          })),
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
+          },
+          {
+            text: 'Ok',
+            handler: (version: string) => this.version.emit(version),
+          },
+        ],
+      })
+
+      await alert.present()
+    }
   }
 
   async presentModalMd(asset: 'license' | 'instructions') {
