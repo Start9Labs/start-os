@@ -44,6 +44,7 @@ use crate::service::rpc::{CallbackHandle, CallbackId};
 use crate::service::{Service, ServiceActorSeed};
 use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
+use crate::system::SmtpValue;
 use crate::util::clap::FromStrParser;
 use crate::util::Invoke;
 
@@ -163,7 +164,6 @@ pub fn service_effect_handler<C: Context>() -> ParentHandler<C> {
                 .no_display()
                 .with_call_remote::<ContainerCliContext>(),
         )
-        .subcommand("setSystemSmtp", from_fn_async(set_system_smtp).no_cli())
         .subcommand("getSystemSmtp", from_fn_async(get_system_smtp).no_cli())
         .subcommand("getContainerIp", from_fn_async(get_container_ip).no_cli())
         .subcommand(
@@ -208,6 +208,8 @@ impl ServiceCallbacks {
             v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
             !v.is_empty()
         });
+        this.get_system_smtp
+            .retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
     }
 
     fn add_get_service_interface(
@@ -233,6 +235,18 @@ impl ServiceCallbacks {
             this.get_service_interface.remove(id).unwrap_or_default(),
         ))
         .filter(|cb| !cb.0.is_empty())
+    }
+
+    fn add_get_system_smtp(&self, handler: CallbackHandler) {
+        let mut this = self.0.lock().unwrap();
+        this.get_system_smtp.push(handler);
+    }
+
+    #[must_use]
+    pub fn get_system_smtp(&self) -> Option<CallbackHandlers> {
+        let mut this = self.0.lock().unwrap();
+        Some(CallbackHandlers(std::mem::take(&mut this.get_system_smtp)))
+            .filter(|cb| !cb.0.is_empty())
     }
 }
 
@@ -282,12 +296,6 @@ struct GetSystemSmtpParams {
     callback: Option<CallbackId>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-struct SetSystemSmtpParams {
-    smtp: String,
-}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
@@ -371,22 +379,11 @@ struct MountParams {
     location: String,
     target: MountTarget,
 }
-async fn set_system_smtp(context: EffectContext, data: SetSystemSmtpParams) -> Result<(), Error> {
-    let context = context.deref()?;
-    context
-        .seed
-        .ctx
-        .db
-        .mutate(|db| {
-            let model = db.as_public_mut().as_server_info_mut().as_smtp_mut();
-            model.ser(&mut Some(data.smtp))
-        })
-        .await
-}
+
 async fn get_system_smtp(
     context: EffectContext,
     GetSystemSmtpParams { callback }: GetSystemSmtpParams,
-) -> Result<String, Error> {
+) -> Result<Option<SmtpValue>, Error> {
     let context = context.deref()?;
     let res = context
         .seed
@@ -399,13 +396,16 @@ async fn get_system_smtp(
         .into_smtp()
         .de()?;
 
-    match res {
-        Some(smtp) => Ok(smtp),
-        None => Err(Error::new(
-            eyre!("SMTP not found"),
-            crate::ErrorKind::NotFound,
-        )),
+    if let Some(callback) = callback {
+        let callback = callback.register(&context.seed.persistent_container);
+        context
+            .seed
+            .ctx
+            .callbacks
+            .add_get_system_smtp(CallbackHandler::new(&context, callback));
     }
+
+    Ok(res)
 }
 async fn get_container_ip(context: EffectContext, _: Empty) -> Result<Ipv4Addr, Error> {
     let context = context.deref()?;

@@ -224,6 +224,18 @@ pub fn server<C: Context>() -> ParentHandler<C> {
             })
             .with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "set-smtp",
+            from_fn_async(system::set_system_smtp)
+                .no_display()
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "clear-smtp",
+            from_fn_async(system::clear_system_smtp)
+                .no_display()
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 pub fn package<C: Context>() -> ParentHandler<C> {

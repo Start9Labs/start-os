@@ -20,6 +20,7 @@ use crate::db::model::package::AllPackageData;
 use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::prelude::*;
 use crate::progress::FullProgress;
+use crate::system::SmtpValue;
 use crate::util::cpupower::Governor;
 use crate::version::{Current, VersionT};
 use crate::{ARCH, PLATFORM};
@@ -135,7 +136,7 @@ pub struct ServerInfo {
     #[serde(default)]
     pub zram: bool,
     pub governor: Option<Governor>,
-    pub smtp: Option<String>,
+    pub smtp: Option<SmtpValue>,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
