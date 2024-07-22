@@ -92,9 +92,10 @@ export class DockerProcedureContainer {
           res.exitCode !== null
             ? `code ${res.exitCode}`
             : `signal ${res.exitSignal}`
-        throw new Error(
-          `Process exited with ${codeOrSignal}: ${res.stderr.toString()}`,
-        )
+        throw {
+          error: res.stderr.toString(),
+          code: codeOrSignal,
+        }
       }
       return res
     } finally {

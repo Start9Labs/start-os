@@ -48,6 +48,7 @@ import {
   transformConfigSpec,
   transformOldConfigToNew,
 } from "./transformConfigSpec"
+import { x25519 } from "@noble/curves/ed25519"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
@@ -179,7 +180,38 @@ const matchProperties = object({
   version: literal(2),
   data: matchPackageProperties,
 })
+const matchResult = object({
+  result: any,
+})
+const matchError = object({
+  error: string,
+})
+const matchErrorCode = object<{
+  "error-code": [number, string] | readonly [number, string]
+}>({
+  "error-code": tuple(number, string),
+})
 
+const assertNever = (
+  x: never,
+  message?: "Not expecting to get here",
+): never => {
+  throw new Error("")
+}
+const fromReturnType = <A>(a: U.ResultType<A>): A => {
+  if (matchResult.test(a)) {
+    return a.result
+  }
+  if (matchError.test(a)) {
+    console.info({ passedErrorStack: new Error().stack, error: a.error })
+    throw { error: a.error }
+  }
+  if (matchErrorCode.test(a)) {
+    const [code, message] = a["error-code"]
+    throw { error: message, code }
+  }
+  return assertNever(a)
+}
 const DEFAULT_REGISTRY = "https://registry.start9.com"
 export class SystemForEmbassy implements System {
   currentRunning: MainLoop | undefined
@@ -203,149 +235,122 @@ export class SystemForEmbassy implements System {
     readonly manifest: Manifest,
     readonly moduleCode: Partial<U.ExpectedExports>,
   ) {}
-  async execute(
-    effectCreator: ReturnType<typeof hostSystemStartOs>,
-    options: {
-      id: string
-      procedure: JsonPath
-      input: unknown
-      timeout?: number | undefined
-    },
-  ): Promise<RpcResult> {
-    const effects = effectCreator(options.id)
-    return this._execute(effects, options)
-      .then((x) =>
-        matches(x)
-          .when(
-            object({
-              result: any,
-            }),
-            (x) => x,
-          )
-          .when(
-            object({
-              error: string,
-            }),
-            (x) => ({
-              error: {
-                code: 0,
-                message: x.error,
-              },
-            }),
-          )
-          .when(
-            object({
-              "error-code": tuple(number, string),
-            }),
-            ({ "error-code": [code, message] }) => ({
-              error: {
-                code,
-                message,
-              },
-            }),
-          )
-          .defaultTo({ result: x }),
-      )
-      .catch((error: unknown) => {
-        if (error instanceof Error)
-          return {
-            error: {
-              code: 0,
-              message: error.name,
-              data: {
-                details: error.message,
-                debug: `${error?.cause ?? "[noCause]"}:${error?.stack ?? "[noStack]"}`,
-              },
-            },
-          }
-        if (matchRpcResult.test(error)) return error
-        return {
-          error: {
-            code: 0,
-            message: String(error),
-          },
-        }
-      })
+  dependenciesMetadata(effects: T.Effects): Promise<T.ActionMetadata[]> {
+    throw new Error("Method not implemented.")
   }
+  // async execute(
+  //   effectCreator: ReturnType<typeof hostSystemStartOs>,
+  //   options: {
+  //     id: string
+  //     procedure: JsonPath
+  //     input: unknown
+  //     timeout?: number | undefined
+  //   },
+  // ): Promise<RpcResult> {
+  //   const effects = effectCreator(options.id)
+
+  //   return this._execute(effects, options)
+  //     .then(fromReturnType)
+  //     .catch((error: unknown) => {
+  //       if (error instanceof Error)
+  //         return {
+  //           error: {
+  //             code: 0,
+  //             message: error.name,
+  //             data: {
+  //               details: error.message,
+  //               debug: `${error?.cause ?? "[noCause]"}:${error?.stack ?? "[noStack]"}`,
+  //             },
+  //           },
+  //         }
+  //       if (matchRpcResult.test(error)) return error
+  //       return {
+  //         error: {
+  //           code: 0,
+  //           message: String(error),
+  //         },
+  //       }
+  //     })
+  // }
   async exit(): Promise<void> {
     if (this.currentRunning) await this.currentRunning.clean()
     delete this.currentRunning
   }
-  async _execute(
-    effects: Effects,
-    options: {
-      procedure: JsonPath
-      input: unknown
-      timeout?: number | undefined
-    },
-  ): Promise<unknown> {
-    const input = options.input
-    switch (options.procedure) {
-      case "/backup/create":
-        return this.createBackup(effects, options.timeout || null)
-      case "/backup/restore":
-        return this.restoreBackup(effects, options.timeout || null)
-      case "/config/get":
-        return this.getConfig(effects, options.timeout || null)
-      case "/config/set":
-        return this.setConfig(effects, input, options.timeout || null)
-      case "/properties":
-        return this.properties(effects, options.timeout || null)
-      case "/actions/metadata":
-        return todo()
-      case "/init":
-        return this.init(
-          effects,
-          string.optional().unsafeCast(input),
-          options.timeout || null,
-        )
-      case "/uninit":
-        return this.uninit(
-          effects,
-          string.optional().unsafeCast(input),
-          options.timeout || null,
-        )
-      case "/main/start":
-        return this.mainStart(effects, options.timeout || null)
-      case "/main/stop":
-        return this.mainStop(effects, options.timeout || null)
-      default:
-        const procedures = unNestPath(options.procedure)
-        switch (true) {
-          case procedures[1] === "actions" && procedures[3] === "get":
-            return this.action(
-              effects,
-              procedures[2],
-              input,
-              options.timeout || null,
-            )
-          case procedures[1] === "actions" && procedures[3] === "run":
-            return this.action(
-              effects,
-              procedures[2],
-              input,
-              options.timeout || null,
-            )
-          case procedures[1] === "dependencies" && procedures[3] === "query":
-            return this.dependenciesAutoconfig(
-              effects,
-              procedures[2],
-              input,
-              options.timeout || null,
-            )
+  // async _execute(
+  //   effects: Effects,
+  //   options: {
+  //     procedure: JsonPath
+  //     input: unknown
+  //     timeout?: number | undefined
+  //   },
+  // ): Promise<unknown> {}
+  //   const input = options.input
+  //   switch (options.procedure) {
+  //     case "/backup/create":
+  //       return this.createBackup(effects, options.timeout || null)
+  //     case "/backup/restore":
+  //       return this.restoreBackup(effects, options.timeout || null)
+  //     case "/config/get":
+  //       return this.getConfig(effects, options.timeout || null)
+  //     case "/config/set":
+  //       return this.setConfig(effects, input, options.timeout || null)
+  //     case "/properties":
+  //       return this.properties(effects, options.timeout || null)
+  //     case "/actions/metadata":
+  //       return todo()
+  //     case "/init":
+  //       return this.init(
+  //         effects,
+  //         string.optional().unsafeCast(input),
+  //         options.timeout || null,
+  //       )
+  //     case "/uninit":
+  //       return this.uninit(
+  //         effects,
+  //         string.optional().unsafeCast(input),
+  //         options.timeout || null,
+  //       )
+  //     case "/main/start":
+  //       return this.mainStart(effects, options.timeout || null)
+  //     case "/main/stop":
+  //       return this.mainStop(effects, options.timeout || null)
+  //     default:
+  //       const procedures = unNestPath(options.procedure)
+  //       switch (true) {
+  //         case procedures[1] === "actions" && procedures[3] === "get":
+  //           return this.action(
+  //             effects,
+  //             procedures[2],
+  //             input,
+  //             options.timeout || null,
+  //           )
+  //         case procedures[1] === "actions" && procedures[3] === "run":
+  //           return this.action(
+  //             effects,
+  //             procedures[2],
+  //             input,
+  //             options.timeout || null,
+  //           )
+  //         case procedures[1] === "dependencies" && procedures[3] === "query":
+  //           return this.dependenciesAutoconfig(
+  //             effects,
+  //             procedures[2],
+  //             input,
+  //             options.timeout || null,
+  //           )
 
-          case procedures[1] === "dependencies" && procedures[3] === "update":
-            return this.dependenciesAutoconfig(
-              effects,
-              procedures[2],
-              input,
-              options.timeout || null,
-            )
-        }
-    }
-    throw new Error(`Could not find the path for ${options.procedure}`)
-  }
-  private async init(
+  //         case procedures[1] === "dependencies" && procedures[3] === "update":
+  //           return this.dependenciesAutoconfig(
+  //             effects,
+  //             procedures[2],
+  //             input,
+  //             options.timeout || null,
+  //           )
+  //       }
+  //   }
+  //   throw new Error(`Could not find the path for ${options.procedure}`)
+  // }
+  async init(
     effects: Effects,
     previousVersion: Optional<string>,
     timeoutMs: number | null,
@@ -356,7 +361,7 @@ export class SystemForEmbassy implements System {
     await this.exportActions(effects)
     await this.exportNetwork(effects)
   }
-  async exportNetwork(effects: Effects) {
+  private async exportNetwork(effects: Effects) {
     for (const [id, interfaceValue] of Object.entries(
       this.manifest.interfaces,
     )) {
@@ -434,7 +439,7 @@ export class SystemForEmbassy implements System {
       )
     }
   }
-  async exportActions(effects: Effects) {
+  private async exportActions(effects: Effects) {
     const manifest = this.manifest
     if (!manifest.actions) return
     for (const [actionId, action] of Object.entries(manifest.actions)) {
@@ -462,7 +467,7 @@ export class SystemForEmbassy implements System {
       })
     }
   }
-  private async uninit(
+  async uninit(
     effects: Effects,
     nextVersion: Optional<string>,
     timeoutMs: number | null,
@@ -470,18 +475,12 @@ export class SystemForEmbassy implements System {
     // TODO Do a migration down if the version exists
     await effects.setMainStatus({ status: "stopped" })
   }
-  private async mainStart(
-    effects: Effects,
-    timeoutMs: number | null,
-  ): Promise<void> {
+  async mainStart(effects: Effects, timeoutMs: number | null): Promise<void> {
     if (!!this.currentRunning) return
 
     this.currentRunning = new MainLoop(this, effects)
   }
-  private async mainStop(
-    effects: Effects,
-    timeoutMs: number | null,
-  ): Promise<void> {
+  async mainStop(effects: Effects, timeoutMs: number | null): Promise<void> {
     try {
       const { currentRunning } = this
       this.currentRunning?.clean()
@@ -496,7 +495,7 @@ export class SystemForEmbassy implements System {
       await effects.setMainStatus({ status: "stopped" })
     }
   }
-  private async createBackup(
+  async createBackup(
     effects: Effects,
     timeoutMs: number | null,
   ): Promise<void> {
@@ -512,7 +511,7 @@ export class SystemForEmbassy implements System {
       await moduleCode.createBackup?.(polyfillEffects(effects, this.manifest))
     }
   }
-  private async restoreBackup(
+  async restoreBackup(
     effects: Effects,
     timeoutMs: number | null,
   ): Promise<void> {
@@ -535,7 +534,7 @@ export class SystemForEmbassy implements System {
       await moduleCode.restoreBackup?.(polyfillEffects(effects, this.manifest))
     }
   }
-  private async getConfig(
+  async getConfig(
     effects: Effects,
     timeoutMs: number | null,
   ): Promise<T.ConfigRes> {
@@ -577,7 +576,7 @@ export class SystemForEmbassy implements System {
       )) as any
     }
   }
-  private async setConfig(
+  async setConfig(
     effects: Effects,
     newConfigWithoutPointers: unknown,
     timeoutMs: number | null,
@@ -663,7 +662,7 @@ export class SystemForEmbassy implements System {
     })
   }
 
-  private async migration(
+  async migration(
     effects: Effects,
     fromVersion: string,
     timeoutMs: number | null,
@@ -728,10 +727,10 @@ export class SystemForEmbassy implements System {
     }
     return { configured: true }
   }
-  private async properties(
+  async properties(
     effects: Effects,
     timeoutMs: number | null,
-  ): Promise<ReturnType<T.ExpectedExports.properties>> {
+  ): Promise<T.PropertiesReturn> {
     // TODO BLU-J set the properties ever so often
     const setConfigValue = this.manifest.properties
     if (!setConfigValue) throw new Error("There is no properties")
@@ -757,24 +756,34 @@ export class SystemForEmbassy implements System {
       const method = moduleCode.properties
       if (!method)
         throw new Error("Expecting that the method properties exists")
-      const properties = matchProperties.unsafeCast(
-        await method(polyfillEffects(effects, this.manifest)).then((x) => {
-          if ("result" in x) return x.result
-          if ("error" in x) throw new Error("Error getting config: " + x.error)
-          throw new Error("Error getting config: " + x["error-code"][1])
-        }),
-      )
+      const properties = await method(
+        polyfillEffects(effects, this.manifest),
+      ).then(fromReturnType)
+
       return asProperty(properties.data)
     }
     throw new Error(`Unknown type in the fetch properties: ${setConfigValue}`)
   }
-  private async action(
+  async action(
     effects: Effects,
     actionId: string,
     formData: unknown,
     timeoutMs: number | null,
   ): Promise<T.ActionResult> {
     const actionProcedure = this.manifest.actions?.[actionId]?.implementation
+    const toActionResult = ({
+      message,
+      value = "",
+      copyable,
+      qr,
+    }: U.ActionResult): T.ActionResult => ({
+      message,
+      value: {
+        value,
+        copyable,
+        qr,
+      },
+    })
     if (!actionProcedure) return { message: "Action not found", value: null }
     if (actionProcedure.type === "docker") {
       const container = await DockerProcedureContainer.of(
@@ -782,7 +791,7 @@ export class SystemForEmbassy implements System {
         actionProcedure,
         this.manifest.volumes,
       )
-      return JSON.parse(
+      const actionResult: U.ActionResult = JSON.parse(
         (
           await container.execFail(
             [
@@ -794,26 +803,25 @@ export class SystemForEmbassy implements System {
           )
         ).stdout.toString(),
       )
+      return toActionResult(actionResult)
     } else {
       const moduleCode = await this.moduleCode
       const method = moduleCode.action?.[actionId]
       if (!method) throw new Error("Expecting that the method action exists")
-      return (await method(
+      return await method(
         polyfillEffects(effects, this.manifest),
         formData as any,
-      ).then((x) => {
-        if ("result" in x) return x.result
-        if ("error" in x) throw new Error("Error getting config: " + x.error)
-        throw new Error("Error getting config: " + x["error-code"][1])
-      })) as any
+      )
+        .then(fromReturnType)
+        .then(toActionResult)
     }
   }
-  private async dependenciesCheck(
+  async dependenciesCheck(
     effects: Effects,
     id: string,
     oldConfig: unknown,
     timeoutMs: number | null,
-  ): Promise<object> {
+  ): Promise<any> {
     const actionProcedure = this.manifest.dependencies?.[id]?.config?.check
     if (!actionProcedure) return { message: "Action not found", value: null }
     if (actionProcedure.type === "docker") {
@@ -841,19 +849,15 @@ export class SystemForEmbassy implements System {
         throw new Error(
           `Expecting that the method dependency check ${id} exists`,
         )
-      return (await method(
+      return await method(
         polyfillEffects(effects, this.manifest),
         oldConfig as any,
-      ).then((x) => {
-        if ("result" in x) return x.result
-        if ("error" in x) throw new Error("Error getting config: " + x.error)
-        throw new Error("Error getting config: " + x["error-code"][1])
-      })) as any
+      ).then(fromReturnType)
     } else {
       return {}
     }
   }
-  private async dependenciesAutoconfig(
+  async dependenciesAutoconfig(
     effects: Effects,
     id: string,
     oldConfig: unknown,
