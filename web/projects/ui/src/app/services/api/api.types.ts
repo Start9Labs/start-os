@@ -222,12 +222,7 @@ export module RR {
   export type GetPackageMetricsReq = { id: string } // package.metrics
   export type GetPackageMetricsRes = Metric
 
-  export type InstallPackageReq = {
-    id: string
-    versionSpec?: string
-    versionPriority?: 'min' | 'max'
-    registry: string
-  } // package.install
+  export type InstallPackageReq = T.InstallParams
   export type InstallPackageRes = null
 
   export type GetPackageConfigReq = { id: string } // package.config.get

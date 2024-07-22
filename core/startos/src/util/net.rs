@@ -10,16 +10,16 @@ use crate::prelude::*;
 pub trait WebSocketExt {
     fn normal_close(
         self,
-        msg: impl Into<Cow<'static, str>>,
-    ) -> impl Future<Output = Result<(), Error>>;
-    async fn close_result(
+        msg: impl Into<Cow<'static, str>> + Send,
+    ) -> impl Future<Output = Result<(), Error>> + Send;
+    fn close_result(
         self,
-        result: Result<impl Into<Cow<'static, str>>, impl fmt::Display>,
-    ) -> Result<(), Error>;
+        result: Result<impl Into<Cow<'static, str>> + Send, impl fmt::Display + Send>,
+    ) -> impl Future<Output = Result<(), Error>> + Send;
 }
 
 impl WebSocketExt for ws::WebSocket {
-    async fn normal_close(mut self, msg: impl Into<Cow<'static, str>>) -> Result<(), Error> {
+    async fn normal_close(mut self, msg: impl Into<Cow<'static, str>> + Send) -> Result<(), Error> {
         self.send(ws::Message::Close(Some(CloseFrame {
             code: 1000,
             reason: msg.into(),
@@ -29,7 +29,7 @@ impl WebSocketExt for ws::WebSocket {
     }
     async fn close_result(
         mut self,
-        result: Result<impl Into<Cow<'static, str>>, impl fmt::Display>,
+        result: Result<impl Into<Cow<'static, str>> + Send, impl fmt::Display + Send>,
     ) -> Result<(), Error> {
         match result {
             Ok(msg) => self

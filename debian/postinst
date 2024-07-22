@@ -49,7 +49,6 @@ managed=true
 EOF
 $SYSTEMCTL enable startd.service
 $SYSTEMCTL enable systemd-resolved.service
-$SYSTEMCTL enable systemd-networkd-wait-online.service
 $SYSTEMCTL enable ssh.service
 $SYSTEMCTL disable wpa_supplicant.service
 
