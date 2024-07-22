@@ -129,7 +129,6 @@ fn get_matching_models<'a>(
     db: &'a Model<PackageIndex>,
     GetPackageParams {
         id,
-        version,
         source_version,
         device_info,
         ..
@@ -151,22 +150,18 @@ fn get_matching_models<'a>(
             .into_iter()
             .map(|(v, info)| {
                 Ok::<_, Error>(
-                    if version
+                    if source_version.as_ref().map_or(Ok(true), |source_version| {
+                        Ok::<_, Error>(
+                            source_version.satisfies(
+                                &info
+                                    .as_source_version()
+                                    .de()?
+                                    .unwrap_or(VersionRange::any()),
+                            ),
+                        )
+                    })? && device_info
                         .as_ref()
-                        .map_or(true, |version| v.satisfies(version))
-                        && source_version.as_ref().map_or(Ok(true), |source_version| {
-                            Ok::<_, Error>(
-                                source_version.satisfies(
-                                    &info
-                                        .as_source_version()
-                                        .de()?
-                                        .unwrap_or(VersionRange::any()),
-                                ),
-                            )
-                        })?
-                        && device_info
-                            .as_ref()
-                            .map_or(Ok(true), |device_info| info.works_for_device(device_info))?
+                        .map_or(Ok(true), |device_info| info.works_for_device(device_info))?
                     {
                         Some((k.clone(), ExtendedVersion::from(v), info))
                     } else {
@@ -190,24 +185,27 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
     let mut other: BTreeMap<PackageId, BTreeMap<VersionString, &Model<PackageVersionInfo>>> =
         Default::default();
     for (id, version, info) in get_matching_models(&peek.as_index().as_package(), &params)? {
-        let mut package_best = best.remove(&id).unwrap_or_default();
-        let mut package_other = other.remove(&id).unwrap_or_default();
-        for worse_version in package_best
-            .keys()
-            .filter(|k| ***k < version)
-            .cloned()
-            .collect_vec()
+        let package_best = best.entry(id.clone()).or_default();
+        let package_other = other.entry(id.clone()).or_default();
+        if params
+            .version
+            .as_ref()
+            .map_or(true, |v| version.satisfies(v))
+            && package_best.keys().all(|k| !(**k > version))
         {
-            if let Some(info) = package_best.remove(&worse_version) {
-                package_other.insert(worse_version, info);
+            for worse_version in package_best
+                .keys()
+                .filter(|k| ***k < version)
+                .cloned()
+                .collect_vec()
+            {
+                if let Some(info) = package_best.remove(&worse_version) {
+                    package_other.insert(worse_version, info);
+                }
             }
-        }
-        if package_best.keys().all(|k| !(**k > version)) {
             package_best.insert(version.into(), info);
-        }
-        best.insert(id.clone(), package_best);
-        if params.other_versions != PackageDetailLevel::None {
-            other.insert(id.clone(), package_other);
+        } else {
+            package_other.insert(version.into(), info);
         }
     }
     if let Some(id) = params.id {
