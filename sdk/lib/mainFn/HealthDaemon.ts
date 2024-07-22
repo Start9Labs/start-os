@@ -3,6 +3,7 @@ import { defaultTrigger } from "../trigger/defaultTrigger"
 import { Ready } from "./Daemons"
 import { Daemon } from "./Daemon"
 import { Effects } from "../types"
+import { DEFAULT_SIGTERM_TIMEOUT } from "."
 
 const oncePromise = <T>() => {
   let resolve: (value: T) => void
@@ -32,6 +33,7 @@ export class HealthDaemon {
     readonly ids: string[],
     readonly ready: Ready,
     readonly effects: Effects,
+    readonly sigtermTimeout: number = DEFAULT_SIGTERM_TIMEOUT,
   ) {
     this.updateStatus()
     this.dependencies.forEach((d) => d.addWatcher(() => this.updateStatus()))
@@ -46,7 +48,12 @@ export class HealthDaemon {
     this.#running = false
     this.#healthCheckCleanup?.()
 
-    await this.daemon.then((d) => d.stop(termOptions))
+    await this.daemon.then((d) =>
+      d.stop({
+        timeout: this.sigtermTimeout,
+        ...termOptions,
+      }),
+    )
   }
 
   /** Want to add another notifier that the health might have changed */

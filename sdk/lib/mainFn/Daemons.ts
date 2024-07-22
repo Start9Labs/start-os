@@ -39,6 +39,7 @@ type DaemonsParams<
   env?: Record<string, string>
   ready: Ready
   requires: Exclude<Ids, Id>[]
+  sigtermTimeout?: number
 }
 
 type ErrorDuplicateId<Id extends string> = `The id '${Id}' is already used`
@@ -131,6 +132,7 @@ export class Daemons<Manifest extends T.Manifest, Ids extends string> {
       this.ids,
       options.ready,
       this.effects,
+      options.sigtermTimeout,
     )
     const daemons = this.daemons.concat(daemon)
     const ids = [...this.ids, id] as (Ids | Id)[]

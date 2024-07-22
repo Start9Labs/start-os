@@ -24,10 +24,10 @@ export class LogsComponent {
   scroll = true
 
   scrollTo(bottom: HTMLElement) {
-    if (this.scroll) bottom.scrollIntoView({ behavior: 'smooth' })
+    if (this.scroll) bottom.scrollIntoView()
   }
 
-  onBottom([{ isIntersecting }]: readonly IntersectionObserverEntry[]) {
-    this.scroll = isIntersecting
+  onBottom(entries: readonly IntersectionObserverEntry[]) {
+    this.scroll = entries[entries.length - 1].isIntersecting
   }
 }

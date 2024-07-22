@@ -139,10 +139,13 @@ export class SystemForStartOs implements System {
         return
       }
       case "/main/stop": {
-        if (this.onTerm) await this.onTerm()
-        await effects.setMainStatus({ status: "stopped" })
-        delete this.onTerm
-        return duration(30, "s")
+        try {
+          if (this.onTerm) await this.onTerm()
+          delete this.onTerm
+          return
+        } finally {
+          await effects.setMainStatus({ status: "stopped" })
+        }
       }
       case "/config/set": {
         const input = options.input as any // TODO

@@ -39,7 +39,7 @@ export class LogsService extends Observable<readonly string[]> {
     this.api.initFollowLogs({ boot: 0 }),
   ).pipe(
     switchMap(({ guid }) => this.api.openWebsocket$<Log>(guid, {})),
-    bufferTime(250),
+    bufferTime(500),
     filter(logs => !!logs.length),
     map(convertAnsi),
     scan((logs: readonly string[], log) => [...logs, log], []),
