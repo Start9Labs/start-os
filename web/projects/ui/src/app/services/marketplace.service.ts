@@ -228,7 +228,10 @@ export class MarketplaceService implements AbstractMarketplaceService {
     return from(this.api.getRegistryInfo(url))
   }
 
-  fetchStatic$(pkg: MarketplacePkg, type: string): Observable<string> {
+  fetchStatic$(
+    pkg: MarketplacePkg,
+    type: 'LICENSE.md' | 'instructions.md',
+  ): Observable<string> {
     return from(this.api.getStaticProxy(pkg, type))
   }
 

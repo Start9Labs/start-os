@@ -43,7 +43,7 @@ export class AppShowAdditionalComponent {
     const modal = await this.modalCtrl.create({
       componentProps: {
         title: 'License',
-        content: from(this.api.getStaticInstalled(id, 'license')),
+        content: from(this.api.getStaticInstalled(id, 'LICENSE.md')),
       },
       component: MarkdownComponent,
     })

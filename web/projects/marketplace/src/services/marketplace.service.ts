@@ -22,5 +22,8 @@ export abstract class AbstractMarketplaceService {
     id: string,
   ): Observable<Record<string, T.PackageInfoShort>>
 
-  abstract fetchStatic$(pkg: MarketplacePkg, type: string): Observable<string>
+  abstract fetchStatic$(
+    pkg: MarketplacePkg,
+    type: 'LICENSE.md' | 'instructions.md',
+  ): Observable<string>
 }

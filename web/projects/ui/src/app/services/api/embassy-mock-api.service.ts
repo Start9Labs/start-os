@@ -89,12 +89,18 @@ export class MockApiService extends ApiService {
     return 'success'
   }
 
-  async getStaticProxy(pkg: MarketplacePkg, path?: string): Promise<string> {
+  async getStaticProxy(
+    pkg: MarketplacePkg,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string> {
     await pauseFor(2000)
     return markdown
   }
 
-  async getStaticInstalled(id: T.PackageId, path?: string): Promise<string> {
+  async getStaticInstalled(
+    id: T.PackageId,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string> {
     await pauseFor(2000)
     return markdown
   }

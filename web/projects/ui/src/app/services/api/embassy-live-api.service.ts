@@ -63,35 +63,26 @@ export class LiveApiService extends ApiService {
 
   // for getting static files: ex. instructions, licenses
 
-  async getStaticProxy(pkg: MarketplacePkg, path?: string): Promise<string> {
+  async getStaticProxy(
+    pkg: MarketplacePkg,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string> {
     const encodedUrl = encodeURIComponent(pkg.s9pk.url)
-    const url = path
-      ? // returns the file at <path> within the s9pk at encoded url. optionally takes query params to verify the s9pk
-        `/s9pk/proxy/${encodedUrl}/${path}.md
-          ?rootSighash=${pkg.s9pk.commitment.rootSighash}
-          &rootMaxsize=${pkg.s9pk.commitment.rootMaxsize}`
-      : // returns the full s9pk at encoded url. optionally takes query params to verify the s9pk
-        `/s9pk/proxy/${encodedUrl}
-          ?rootSighash=${pkg.s9pk.commitment.rootSighash}
-          &rootMaxsize=${pkg.s9pk.commitment.rootMaxsize}`
 
     return this.httpRequest({
       method: Method.GET,
-      url,
+      url: `/s9pk/proxy/${encodedUrl}/${path}?rootSighash=${pkg.s9pk.commitment.rootSighash}&rootMaxsize=${pkg.s9pk.commitment.rootMaxsize}`,
       responseType: 'text',
     })
   }
 
-  async getStaticInstalled(id: T.PackageId, path?: string): Promise<string> {
-    const url = path
-      ? // returns the file at <path> within the s9pk of an installed package
-        `/s9pk/installed/${id}.s9pk/${path}.md`
-      : // returns the full s9pk of an installed package
-        `/s9pk/installed/${id}.s9pk`
-
+  async getStaticInstalled(
+    id: T.PackageId,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string> {
     return this.httpRequest({
       method: Method.GET,
-      url,
+      url: `/s9pk/installed/${id}.s9pk/${path}`,
       responseType: 'text',
     })
   }

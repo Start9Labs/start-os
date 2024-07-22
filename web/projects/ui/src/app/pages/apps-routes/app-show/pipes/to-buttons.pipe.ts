@@ -119,7 +119,7 @@ export class ToButtonsPipe implements PipeTransform {
         content: from(
           this.api.getStaticInstalled(
             pkg.stateInfo.manifest.id,
-            'instructions',
+            'instructions.md',
           ),
         ),
       },

@@ -17,9 +17,15 @@ export abstract class ApiService {
   abstract uploadFile(body: Blob): Promise<string>
 
   // for getting static files: ex icons, instructions, licenses
-  abstract getStaticProxy(pkg: MarketplacePkg, path?: string): Promise<string>
+  abstract getStaticProxy(
+    pkg: MarketplacePkg,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string>
 
-  abstract getStaticInstalled(id: T.PackageId, path?: string): Promise<string>
+  abstract getStaticInstalled(
+    id: T.PackageId,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string>
 
   // websocket
 
