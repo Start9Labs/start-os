@@ -146,6 +146,9 @@ impl CallbackHandle {
         }
         None
     }
+    pub fn take(&mut self) -> Self {
+        Self(std::mem::take(&mut self.0))
+    }
 }
 
 #[derive(Clone, serde::Deserialize, serde::Serialize, TS)]

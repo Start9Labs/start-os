@@ -4,14 +4,16 @@ use std::net::Ipv4Addr;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, Mutex, Weak};
 
 use clap::builder::ValueParserFactory;
 use clap::Parser;
 use exver::VersionRange;
-use imbl::Vector;
+use futures::future::join_all;
+use imbl::{vector, Vector};
 use imbl_value::json;
 use itertools::Itertools;
+use log::warn;
 use models::{
     ActionId, DataUrl, HealthCheckId, HostId, ImageId, PackageId, ServiceInterfaceId, VolumeId,
 };
@@ -191,8 +193,47 @@ pub fn service_effect_handler<C: Context>() -> ParentHandler<C> {
 }
 
 #[derive(Default)]
-pub struct ServiceCallbacks {
-    pub get_service_interface: BTreeMap<(PackageId, ServiceInterfaceId), Vec<CallbackHandler>>,
+pub struct ServiceCallbacks(Mutex<ServiceCallbackMap>);
+
+#[derive(Default)]
+struct ServiceCallbackMap {
+    get_service_interface: BTreeMap<(PackageId, ServiceInterfaceId), Vec<CallbackHandler>>,
+    get_system_smtp: Vec<CallbackHandler>,
+}
+
+impl ServiceCallbacks {
+    pub fn gc(&self) {
+        let mut this = self.0.lock().unwrap();
+        this.get_service_interface.retain(|_, v| {
+            v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
+            !v.is_empty()
+        });
+    }
+
+    fn add_get_service_interface(
+        &self,
+        package_id: PackageId,
+        service_interface_id: ServiceInterfaceId,
+        handler: CallbackHandler,
+    ) {
+        let mut this = self.0.lock().unwrap();
+        this.get_service_interface
+            .entry((package_id, service_interface_id))
+            .or_default()
+            .push(handler);
+    }
+
+    #[must_use]
+    pub fn get_service_interface(
+        &self,
+        id: &(PackageId, ServiceInterfaceId),
+    ) -> Option<CallbackHandlers> {
+        let mut this = self.0.lock().unwrap();
+        Some(CallbackHandlers(
+            this.get_service_interface.remove(id).unwrap_or_default(),
+        ))
+        .filter(|cb| !cb.0.is_empty())
+    }
 }
 
 pub struct CallbackHandler {
@@ -200,13 +241,37 @@ pub struct CallbackHandler {
     seed: Weak<ServiceActorSeed>,
 }
 impl CallbackHandler {
-    pub async fn call(self, args: Vector<Value>) -> Result<(), Error> {
+    pub fn new(service: &Service, handle: CallbackHandle) -> Self {
+        Self {
+            handle,
+            seed: Arc::downgrade(&service.seed),
+        }
+    }
+    pub async fn call(mut self, args: Vector<Value>) -> Result<(), Error> {
         if let Some(seed) = self.seed.upgrade() {
             seed.persistent_container
-                .callback(self.handle, args)
+                .callback(self.handle.take(), args)
                 .await?;
         }
         Ok(())
+    }
+}
+impl Drop for CallbackHandler {
+    fn drop(&mut self) {
+        if self.handle.is_active() {
+            warn!("Callback handler dropped while still active!");
+        }
+    }
+}
+
+pub struct CallbackHandlers(Vec<CallbackHandler>);
+impl CallbackHandlers {
+    pub async fn call(self, args: Vector<Value>) -> Result<(), Error> {
+        let mut err = ErrorCollection::new();
+        for res in join_all(self.0.into_iter().map(|cb| cb.call(args.clone()))).await {
+            err.handle(res);
+        }
+        err.into_result()
     }
 }
 
@@ -320,7 +385,7 @@ async fn set_system_smtp(context: EffectContext, data: SetSystemSmtpParams) -> R
 }
 async fn get_system_smtp(
     context: EffectContext,
-    data: GetSystemSmtpParams,
+    GetSystemSmtpParams { callback }: GetSystemSmtpParams,
 ) -> Result<String, Error> {
     let context = context.deref()?;
     let res = context
@@ -403,7 +468,6 @@ async fn export_service_interface(
         address_info,
         interface_type: r#type,
     };
-    let svc_interface_with_host_info = service_interface;
 
     context
         .seed
@@ -415,10 +479,21 @@ async fn export_service_interface(
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
                 .as_service_interfaces_mut()
-                .insert(&id, &svc_interface_with_host_info)?;
+                .insert(&id, &service_interface)?;
             Ok(())
         })
         .await?;
+    if let Some(callbacks) = context
+        .seed
+        .ctx
+        .callbacks
+        .get_service_interface(&(package_id, id))
+    {
+        callbacks
+            .call(vector![to_value(&service_interface)?])
+            .await?;
+    }
+
     Ok(())
 }
 
@@ -623,7 +698,11 @@ async fn get_service_interface(
 
     if let Some(callback) = callback {
         let callback = callback.register(&context.seed.persistent_container);
-        // context.seed.ctx.
+        context.seed.ctx.callbacks.add_get_service_interface(
+            package_id,
+            service_interface_id,
+            CallbackHandler::new(&context, callback),
+        );
     }
 
     Ok(interface)
@@ -1504,5 +1583,6 @@ fn clear_callbacks(context: EffectContext) -> Result<(), Error> {
         .persistent_container
         .state
         .send_if_modified(|s| !std::mem::take(&mut s.callbacks).is_empty());
+    context.seed.ctx.callbacks.gc();
     Ok(())
 }

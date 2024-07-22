@@ -323,8 +323,8 @@ export type Effects = {
   getHostInfo(options: {
     hostId: string
     packageId: string | null
-    callback: () => void
-  }): Promise<Host>
+    callback: (newHost: Host | null) => void
+  }): Promise<Host | null>
 
   // /**
   //  * Run rsync between two volumes. This is used to backup data between volumes.
@@ -363,8 +363,8 @@ export type Effects = {
   setMainStatus(o: SetMainStatus): Promise<void>
 
   getSystemSmtp(input: {
-    callback: (config: unknown, previousConfig: unknown) => void
-  }): Promise<SmtpValue>
+    callback: (newSmtp: SmtpValue | null) => void
+  }): Promise<SmtpValue | null>
 
   /** Get the IP address of the container */
   getContainerIp(): Promise<string>
@@ -394,8 +394,8 @@ export type Effects = {
   getServiceInterface(options: {
     packageId: PackageId | null
     serviceInterfaceId: ServiceInterfaceId
-    callback: () => void
-  }): Promise<ServiceInterface>
+    callback: (newInterface: ServiceInterface | null) => void
+  }): Promise<ServiceInterface | null>
 
   /**
    * The user sets the primary url for a interface
@@ -404,7 +404,7 @@ export type Effects = {
   getPrimaryUrl(options: {
     packageId: string | null
     serviceInterfaceId: ServiceInterfaceId
-    callback: () => void
+    callback: (newUrl: UrlString | null) => void
   }): Promise<UrlString | null>
 
   /**
@@ -415,7 +415,9 @@ export type Effects = {
    */
   listServiceInterfaces(options: {
     packageId: PackageId | null
-    callback: () => void
+    callback: (
+      newInterfaces: Record<ServiceInterfaceId, ServiceInterface>,
+    ) => void
   }): Promise<Record<ServiceInterfaceId, ServiceInterface>>
 
   /**

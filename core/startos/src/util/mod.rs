@@ -648,3 +648,9 @@ pub fn new_guid() -> InternedString {
         &buf,
     ))
 }
+
+// pub trait ExtractIf {
+//     type Args;
+//     type Item;
+//     fn extract_if_(&mut self, pred: impl FnMut(&mut Args)) -> impl Iterator<Item = Self::Item>;
+// }
