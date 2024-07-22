@@ -481,20 +481,20 @@ export class SystemForEmbassy implements System {
   private async mainStop(
     effects: Effects,
     timeoutMs: number | null,
-  ): Promise<Duration> {
-    const { currentRunning } = this
-    this.currentRunning?.clean()
-    delete this.currentRunning
-    if (currentRunning) {
-      await currentRunning.clean({
-        timeout: fromDuration(this.manifest.main["sigterm-timeout"]),
-      })
+  ): Promise<void> {
+    try {
+      const { currentRunning } = this
+      this.currentRunning?.clean()
+      delete this.currentRunning
+      if (currentRunning) {
+        await currentRunning.clean({
+          timeout: utils.inMs(this.manifest.main["sigterm-timeout"]),
+        })
+      }
+      return
+    } finally {
+      await effects.setMainStatus({ status: "stopped" })
     }
-    const durationValue = duration(
-      fromDuration(this.manifest.main["sigterm-timeout"]),
-      "s",
-    )
-    return durationValue
   }
   private async createBackup(
     effects: Effects,

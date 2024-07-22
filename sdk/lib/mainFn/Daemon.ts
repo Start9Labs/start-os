@@ -34,6 +34,7 @@ export class Daemon {
         user?: string | undefined
         onStdout?: (x: Buffer) => void
         onStderr?: (x: Buffer) => void
+        sigtermTimeout?: number
       },
     ) => {
       const startCommand = () =>

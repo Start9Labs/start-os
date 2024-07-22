@@ -441,11 +441,11 @@ impl PersistentContainer {
     }
 
     #[instrument(skip_all)]
-    pub async fn stop(&self) -> Result<Duration, Error> {
+    pub async fn stop(&self) -> Result<(), Error> {
         let timeout: Option<crate::util::serde::Duration> = self
             .execute(Guid::new(), ProcedureName::StopMain, Value::Null, None)
             .await?;
-        Ok(timeout.map(|a| *a).unwrap_or(Duration::from_secs(30)))
+        Ok(())
     }
 
     #[instrument(skip_all)]
