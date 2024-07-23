@@ -46,7 +46,7 @@ impl VHostController {
     #[instrument(skip_all)]
     pub async fn add(
         &self,
-        hostname: Option<String>,
+        hostname: Option<InternedString>,
         external: u16,
         target: SocketAddr,
         connect_ssl: Result<(), AlpnInfo>, // Ok: yes, connect using ssl, pass through alpn; Err: connect tcp, use provided strategy for alpn
@@ -70,7 +70,7 @@ impl VHostController {
         Ok(rc?)
     }
     #[instrument(skip_all)]
-    pub async fn gc(&self, hostname: Option<String>, external: u16) -> Result<(), Error> {
+    pub async fn gc(&self, hostname: Option<InternedString>, external: u16) -> Result<(), Error> {
         let mut writable = self.servers.lock().await;
         if let Some(server) = writable.remove(&external) {
             server.gc(hostname).await?;
@@ -102,7 +102,7 @@ impl Default for AlpnInfo {
 }
 
 struct VHostServer {
-    mapping: Weak<RwLock<BTreeMap<Option<String>, BTreeMap<TargetInfo, Weak<()>>>>>,
+    mapping: Weak<RwLock<BTreeMap<Option<InternedString>, BTreeMap<TargetInfo, Weak<()>>>>>,
     _thread: NonDetachingJoinHandle<()>,
 }
 impl VHostServer {
@@ -179,7 +179,7 @@ impl VHostServer {
                                         }
                                     };
                                     let target_name =
-                                        mid.client_hello().server_name().map(|s| s.to_owned());
+                                        mid.client_hello().server_name().map(|s| s.into());
                                     let target = {
                                         let mapping = mapping.read().await;
                                         mapping
@@ -208,9 +208,7 @@ impl VHostServer {
                                         let mut tcp_stream =
                                             TcpStream::connect(target.addr).await?;
                                         let hostnames = target_name
-                                            .as_ref()
                                             .into_iter()
-                                            .map(InternedString::intern)
                                             .chain(
                                                 db.peek()
                                                     .await
@@ -405,7 +403,11 @@ impl VHostServer {
             .into(),
         })
     }
-    async fn add(&self, hostname: Option<String>, target: TargetInfo) -> Result<Arc<()>, Error> {
+    async fn add(
+        &self,
+        hostname: Option<InternedString>,
+        target: TargetInfo,
+    ) -> Result<Arc<()>, Error> {
         if let Some(mapping) = Weak::upgrade(&self.mapping) {
             let mut writable = mapping.write().await;
             let mut targets = writable.remove(&hostname).unwrap_or_default();
@@ -424,7 +426,7 @@ impl VHostServer {
             ))
         }
     }
-    async fn gc(&self, hostname: Option<String>) -> Result<(), Error> {
+    async fn gc(&self, hostname: Option<InternedString>) -> Result<(), Error> {
         if let Some(mapping) = Weak::upgrade(&self.mapping) {
             let mut writable = mapping.write().await;
             let mut targets = writable.remove(&hostname).unwrap_or_default();

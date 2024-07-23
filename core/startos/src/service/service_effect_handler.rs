@@ -572,7 +572,7 @@ async fn get_service_port_forward(
 
     let context = context.deref()?;
     let net_service = context.seed.persistent_container.net_service.lock().await;
-    net_service.get_ext_port(data.host_id, internal_port)
+    net_service.get_lan_port(data.host_id, internal_port)
 }
 async fn clear_network_interfaces(context: EffectContext, _: Empty) -> Result<(), Error> {
     let context = context.deref()?;

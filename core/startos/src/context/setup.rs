@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use futures::{Future, StreamExt};
 use helpers::NonDetachingJoinHandle;
+use imbl_value::InternedString;
 use josekit::jwk::Jwk;
 use patch_db::PatchDb;
 use rpc_toolkit::Context;
@@ -40,7 +41,8 @@ lazy_static::lazy_static! {
 #[ts(export)]
 pub struct SetupResult {
     pub tor_address: String,
-    pub lan_address: String,
+    #[ts(type = "string")]
+    pub lan_address: InternedString,
     pub root_ca: String,
 }
 impl TryFrom<&AccountInfo> for SetupResult {

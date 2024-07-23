@@ -108,7 +108,8 @@ pub struct ServerInfo {
     #[ts(type = "string")]
     pub platform: InternedString,
     pub id: String,
-    pub hostname: String,
+    #[ts(type = "string")]
+    pub hostname: InternedString,
     #[ts(type = "string")]
     pub version: Version,
     #[ts(type = "string | null")]
