@@ -2,12 +2,11 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import {
-  EmverPipesModule,
+  ExverPipesModule,
   MarkdownPipeModule,
   TextSpinnerComponentModule,
 } from '@start9labs/shared'
 import { TuiElementModule } from '@taiga-ui/cdk'
-
 import { ReleaseNotesComponent } from './release-notes.component'
 
 @NgModule({
@@ -15,11 +14,11 @@ import { ReleaseNotesComponent } from './release-notes.component'
     CommonModule,
     IonicModule,
     TextSpinnerComponentModule,
-    EmverPipesModule,
+    ExverPipesModule,
     MarkdownPipeModule,
     TuiElementModule,
   ],
   declarations: [ReleaseNotesComponent],
   exports: [ReleaseNotesComponent],
 })
-export class ReleaseNotesModule {}
+export class ReleaseNotesComponentModule {}

@@ -1,16 +1,11 @@
 import { NO_TIMEOUT, SIGKILL, SIGTERM, Signals } from "../StartSdk"
 import { HealthReceipt } from "../health/HealthReceipt"
 import { CheckResult } from "../health/checkFns"
-import { SDKManifest } from "../manifest/ManifestTypes"
+
 import { Trigger } from "../trigger"
 import { TriggerInput } from "../trigger/TriggerInput"
 import { defaultTrigger } from "../trigger/defaultTrigger"
-import {
-  DaemonReturned,
-  Effects,
-  ImageId,
-  ValidIfNoStupidEscape,
-} from "../types"
+import * as T from "../types"
 import { Mounts } from "./Mounts"
 import { CommandOptions, MountOptions, Overlay } from "../util/Overlay"
 import { splitCommand } from "../util/splitCommand"
@@ -33,22 +28,23 @@ export type Ready = {
 }
 
 type DaemonsParams<
-  Manifest extends SDKManifest,
+  Manifest extends T.Manifest,
   Ids extends string,
   Command extends string,
   Id extends string,
 > = {
-  command: ValidIfNoStupidEscape<Command> | [string, ...string[]]
-  image: { id: keyof Manifest["images"] & ImageId; sharedRun?: boolean }
+  command: T.CommandType
+  image: { id: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean }
   mounts: Mounts<Manifest>
   env?: Record<string, string>
   ready: Ready
   requires: Exclude<Ids, Id>[]
+  sigtermTimeout?: number
 }
 
 type ErrorDuplicateId<Id extends string> = `The id '${Id}' is already used`
 
-export const runCommand = <Manifest extends SDKManifest>() =>
+export const runCommand = <Manifest extends T.Manifest>() =>
   CommandController.of<Manifest>()
 
 /**
@@ -74,9 +70,9 @@ Daemons.of({
 })
 ```
  */
-export class Daemons<Manifest extends SDKManifest, Ids extends string> {
+export class Daemons<Manifest extends T.Manifest, Ids extends string> {
   private constructor(
-    readonly effects: Effects,
+    readonly effects: T.Effects,
     readonly started: (onTerm: () => PromiseLike<void>) => PromiseLike<void>,
     readonly daemons: Promise<Daemon>[],
     readonly ids: Ids[],
@@ -92,8 +88,8 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
    * @param config
    * @returns
    */
-  static of<Manifest extends SDKManifest>(config: {
-    effects: Effects
+  static of<Manifest extends T.Manifest>(config: {
+    effects: T.Effects
     started: (onTerm: () => PromiseLike<void>) => PromiseLike<void>
     healthReceipts: HealthReceipt[]
   }) {
@@ -136,6 +132,7 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
       this.ids,
       options.ready,
       this.effects,
+      options.sigtermTimeout,
     )
     const daemons = this.daemons.concat(daemon)
     const ids = [...this.ids, id] as (Ids | Id)[]

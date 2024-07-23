@@ -5,7 +5,7 @@ import { RouterModule, Routes } from '@angular/router'
 import { FilterUpdatesPipe, UpdatesPage } from './updates.page'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 import {
-  EmverPipesModule,
+  ExverPipesModule,
   MarkdownPipeModule,
   SharedPipesModule,
 } from '@start9labs/shared'
@@ -34,7 +34,7 @@ const routes: Routes = [
     RoundProgressModule,
     InstallingProgressPipeModule,
     StoreIconComponentModule,
-    EmverPipesModule,
+    ExverPipesModule,
   ],
 })
 export class UpdatesPageModule {}

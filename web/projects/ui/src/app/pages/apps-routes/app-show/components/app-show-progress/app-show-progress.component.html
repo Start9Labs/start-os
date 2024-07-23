@@ -7,10 +7,12 @@
   </p>
   <ion-progress-bar
     [type]="
-      phase.progress === true ||
-      (phase.progress !== false && phase.progress!== null && phase.progress.total)
-        ? 'determinate'
-        : 'indeterminate'
+      phase.progress === false ||
+      (phase.progress !== true &&
+        phase.progress !== null &&
+        !phase.progress.total)
+        ? 'indeterminate'
+        : 'determinate'
     "
     [color]="phase.progress === true ? 'success' : 'secondary'"
     [value]="phase.progress | installingProgress"

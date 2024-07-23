@@ -7,8 +7,7 @@
     <!-- ** installing, updating, restoring ** -->
     <ng-container *ngIf="showProgress(pkg); else installed">
       <app-show-progress
-        *ngIf="pkg.stateInfo.installingInfo as installingInfo"
-        [phases]="installingInfo.progress.phases"
+        [phases]="pkg.stateInfo.installingInfo.progress.phases"
       ></app-show-progress>
     </ng-container>
 
@@ -34,9 +33,7 @@
           <!-- ** menu ** -->
           <app-show-menu [buttons]="pkg | toButtons"></app-show-menu>
           <!-- ** additional ** -->
-          <app-show-additional
-            [manifest]="pkg.stateInfo.manifest"
-          ></app-show-additional>
+          <app-show-additional [pkg]="pkg"></app-show-additional>
         </ng-container>
       </ion-item-group>
     </ng-template>

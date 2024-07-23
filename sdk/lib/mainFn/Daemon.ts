@@ -1,5 +1,4 @@
-import { SDKManifest } from "../manifest/ManifestTypes"
-import { Effects, ImageId, ValidIfNoStupidEscape } from "../types"
+import * as T from "../types"
 import { MountOptions, Overlay } from "../util/Overlay"
 import { CommandController } from "./CommandController"
 
@@ -14,14 +13,14 @@ export class Daemon {
   private commandController: CommandController | null = null
   private shouldBeRunning = false
   private constructor(private startCommand: () => Promise<CommandController>) {}
-  static of<Manifest extends SDKManifest>() {
+  static of<Manifest extends T.Manifest>() {
     return async <A extends string>(
-      effects: Effects,
+      effects: T.Effects,
       imageId: {
-        id: keyof Manifest["images"] & ImageId
+        id: keyof Manifest["images"] & T.ImageId
         sharedRun?: boolean
       },
-      command: ValidIfNoStupidEscape<A> | [string, ...string[]],
+      command: T.CommandType,
       options: {
         mounts?: { path: string; options: MountOptions }[]
         overlay?: Overlay
@@ -34,6 +33,7 @@ export class Daemon {
         user?: string | undefined
         onStdout?: (x: Buffer) => void
         onStderr?: (x: Buffer) => void
+        sigtermTimeout?: number
       },
     ) => {
       const startCommand = () =>

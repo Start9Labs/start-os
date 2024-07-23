@@ -25,7 +25,7 @@ pub fn version_api<C: Context>() -> ParentHandler<C> {
             "add",
             from_fn_async(add_version)
                 .with_metadata("admin", Value::Bool(true))
-                .with_metadata("getSigner", Value::Bool(true))
+                .with_metadata("get_signer", Value::Bool(true))
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
@@ -121,7 +121,7 @@ pub async fn remove_version(
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct GetVersionParams {
+pub struct GetOsVersionParams {
     #[ts(type = "string | null")]
     #[arg(long = "src")]
     pub source: Option<VersionString>,
@@ -138,12 +138,12 @@ pub struct GetVersionParams {
 
 pub async fn get_version(
     ctx: RegistryContext,
-    GetVersionParams {
+    GetOsVersionParams {
         source,
         target,
         server_id,
         arch,
-    }: GetVersionParams,
+    }: GetOsVersionParams,
 ) -> Result<BTreeMap<VersionString, OsVersionInfo>, Error> {
     if let (Some(pool), Some(server_id), Some(arch)) = (&ctx.pool, server_id, arch) {
         let created_at = Utc::now();

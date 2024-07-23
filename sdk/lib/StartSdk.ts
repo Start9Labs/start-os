@@ -1,4 +1,3 @@
-import { ManifestVersion, SDKManifest } from "./manifest/ManifestTypes"
 import { RequiredDefault, Value } from "./config/builder/value"
 import { Config, ExtractConfigType, LazyBuild } from "./config/builder/config"
 import {
@@ -21,7 +20,6 @@ import {
   MaybePromise,
   ServiceInterfaceId,
   PackageId,
-  ValidIfNoStupidEscape,
 } from "./types"
 import * as patterns from "./util/patterns"
 import { DependencyConfig, Update } from "./dependencies/DependencyConfig"
@@ -74,11 +72,13 @@ import { splitCommand } from "./util/splitCommand"
 import { Mounts } from "./mainFn/Mounts"
 import { Dependency } from "./Dependency"
 import * as T from "./types"
-import { Checker, EmVer } from "./emverLite/mod"
+import { testTypeVersion, ValidateExVer } from "./exver"
 import { ExposedStorePaths } from "./store/setupExposeStore"
 import { PathBuilder, extractJsonPath, pathBuilder } from "./store/PathBuilder"
 import { checkAllDependencies } from "./dependencies/dependencies"
 import { health } from "."
+
+export const SDKVersion = testTypeVersion("0.3.6")
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
@@ -101,12 +101,12 @@ function removeConstType<E>() {
   return <T>(t: T) => t as T & (E extends MainEffects ? {} : { const: never })
 }
 
-export class StartSdk<Manifest extends SDKManifest, Store> {
+export class StartSdk<Manifest extends T.Manifest, Store> {
   private constructor(readonly manifest: Manifest) {}
   static of() {
     return new StartSdk<never, never>(null as never)
   }
-  withManifest<Manifest extends SDKManifest = never>(manifest: Manifest) {
+  withManifest<Manifest extends T.Manifest = never>(manifest: Manifest) {
     return new StartSdk<Manifest, Store>(manifest)
   }
   withStore<Store extends Record<string, any>>() {
@@ -194,7 +194,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           id: keyof Manifest["images"] & T.ImageId
           sharedRun?: boolean
         },
-        command: ValidIfNoStupidEscape<A> | [string, ...string[]],
+        command: T.CommandType,
         options: CommandOptions & {
           mounts?: { path: string; options: MountOptions }[]
         },
@@ -338,7 +338,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
               ([
                 id,
                 {
-                  data: { versionSpec, ...x },
+                  data: { versionRange, ...x },
                 },
               ]) => ({
                 id,
@@ -351,7 +351,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
                   : {
                       kind: "exists",
                     }),
-                versionSpec: versionSpec.range,
+                versionRange: versionRange.toString(),
               }),
             ),
           })
@@ -435,9 +435,6 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           spec: Spec,
         ) => Config.of<Spec, Store>(spec),
       },
-      Checker: {
-        parse: Checker.parse,
-      },
       Daemons: {
         of(config: {
           effects: Effects
@@ -476,10 +473,6 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
             RemoteConfig
           >(dependencyConfig, update)
         },
-      },
-      EmVer: {
-        from: EmVer.from,
-        parse: EmVer.parse,
       },
       List: {
         text: List.text,
@@ -527,8 +520,8 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         ) => List.dynamicText<Store>(getA),
       },
       Migration: {
-        of: <Version extends ManifestVersion>(options: {
-          version: Version
+        of: <Version extends string>(options: {
+          version: Version & ValidateExVer<Version>
           up: (opts: { effects: Effects }) => Promise<void>
           down: (opts: { effects: Effects }) => Promise<void>
         }) => Migration.of<Manifest, Store, Version>(options),
@@ -723,7 +716,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
   }
 }
 
-export async function runCommand<Manifest extends SDKManifest>(
+export async function runCommand<Manifest extends T.Manifest>(
   effects: Effects,
   image: { id: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },
   command: string | [string, ...string[]],

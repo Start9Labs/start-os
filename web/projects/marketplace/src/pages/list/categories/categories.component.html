@@ -1,9 +1,9 @@
 <ion-button
-  *ngFor="let cat of categories"
+  *ngFor="let cat of categories | keyvalue : originalOrder"
   fill="clear"
   class="category"
-  [class.category_selected]="cat === category"
-  (click)="switchCategory(cat)"
+  [class.category_selected]="cat.key === category"
+  (click)="switchCategory(cat.key)"
 >
-  {{ cat }}
+  {{ cat.value.name }}
 </ion-button>

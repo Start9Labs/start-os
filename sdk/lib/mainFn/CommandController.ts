@@ -1,6 +1,7 @@
+import { DEFAULT_SIGTERM_TIMEOUT } from "."
 import { NO_TIMEOUT, SIGKILL, SIGTERM } from "../StartSdk"
-import { SDKManifest } from "../manifest/ManifestTypes"
-import { Effects, ImageId, ValidIfNoStupidEscape } from "../types"
+
+import * as T from "../types"
 import { MountOptions, Overlay } from "../util/Overlay"
 import { splitCommand } from "../util/splitCommand"
 import { cpExecFile, cpExec } from "./Daemons"
@@ -10,16 +11,19 @@ export class CommandController {
     readonly runningAnswer: Promise<unknown>,
     readonly overlay: Overlay,
     readonly pid: number | undefined,
+    readonly sigtermTimeout: number = DEFAULT_SIGTERM_TIMEOUT,
   ) {}
-  static of<Manifest extends SDKManifest>() {
+  static of<Manifest extends T.Manifest>() {
     return async <A extends string>(
-      effects: Effects,
+      effects: T.Effects,
       imageId: {
-        id: keyof Manifest["images"] & ImageId
+        id: keyof Manifest["images"] & T.ImageId
         sharedRun?: boolean
       },
-      command: ValidIfNoStupidEscape<A> | [string, ...string[]],
+      command: T.CommandType,
       options: {
+        // Defaults to the DEFAULT_SIGTERM_TIMEOUT = 30_000ms
+        sigtermTimeout?: number
         mounts?: { path: string; options: MountOptions }[]
         overlay?: Overlay
         env?:
@@ -67,10 +71,14 @@ export class CommandController {
 
       const pid = childProcess.pid
 
-      return new CommandController(answer, overlay, pid)
+      return new CommandController(answer, overlay, pid, options.sigtermTimeout)
     }
   }
-  async wait() {
+  async wait(timeout: number = NO_TIMEOUT) {
+    if (timeout > 0)
+      setTimeout(() => {
+        this.term()
+      }, timeout)
     try {
       return await this.runningAnswer
     } finally {
@@ -82,7 +90,7 @@ export class CommandController {
       await this.overlay.destroy().catch((_) => {})
     }
   }
-  async term({ signal = SIGTERM, timeout = NO_TIMEOUT } = {}) {
+  async term({ signal = SIGTERM, timeout = this.sigtermTimeout } = {}) {
     if (this.pid === undefined) return
     try {
       await cpExecFile("pkill", [

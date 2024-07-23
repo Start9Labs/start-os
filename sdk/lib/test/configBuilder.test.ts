@@ -369,7 +369,7 @@ describe("values", () => {
           setupManifest({
             id: "testOutput",
             title: "",
-            version: "1.0",
+            version: "1.0.0:0",
             releaseNotes: "",
             license: "",
             replaces: [],
@@ -395,9 +395,10 @@ describe("values", () => {
               stop: null,
             },
             dependencies: {
-              remoteTest: {
+              "remote-test": {
                 description: "",
                 optional: true,
+                s9pk: "https://example.com/remote-test.s9pk",
               },
             },
           }),

@@ -1,7 +1,7 @@
 import { polyfillEffects } from "./polyfillEffects"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import { SystemForEmbassy } from "."
-import { Daemons, T, daemons } from "@start9labs/start-sdk"
+import { T, utils } from "@start9labs/start-sdk"
 import { Daemon } from "@start9labs/start-sdk/cjs/lib/mainFn/Daemon"
 import { Effects } from "../../../Models/Effects"
 
@@ -57,6 +57,9 @@ export class MainLoop {
       currentCommand,
       {
         overlay: dockerProcedureContainer.overlay,
+        sigtermTimeout: utils.inMs(
+          this.system.manifest.main["sigterm-timeout"],
+        ),
       },
     )
     daemon.start()

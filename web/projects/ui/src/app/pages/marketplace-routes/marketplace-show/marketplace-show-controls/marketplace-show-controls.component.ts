@@ -10,7 +10,7 @@ import {
   MarketplacePkg,
 } from '@start9labs/marketplace'
 import {
-  Emver,
+  Exver,
   ErrorService,
   isEmptyObject,
   LoadingService,
@@ -44,6 +44,9 @@ export class MarketplaceShowControlsComponent {
   @Input()
   localPkg!: PackageDataEntry | null
 
+  @Input()
+  localFlavor!: boolean
+
   readonly showDevTools$ = this.ClientStorageService.showDevTools$
 
   constructor(
@@ -52,7 +55,7 @@ export class MarketplaceShowControlsComponent {
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
     private readonly loader: LoadingService,
-    private readonly emver: Emver,
+    private readonly exver: Exver,
     private readonly errorService: ErrorService,
     private readonly patch: PatchDB<DataModel>,
   ) {}
@@ -79,7 +82,7 @@ export class MarketplaceShowControlsComponent {
       const localManifest = getManifest(this.localPkg)
 
       if (
-        this.emver.compare(localManifest.version, this.pkg.manifest.version) !==
+        this.exver.compareExver(localManifest.version, this.pkg.version) !==
           0 &&
         hasCurrentDeps(localManifest.id, await getAllPackages(this.patch))
       ) {
@@ -136,9 +139,9 @@ export class MarketplaceShowControlsComponent {
 
   private async dryInstall(url: string) {
     const breakages = dryUpdate(
-      this.pkg.manifest,
+      this.pkg,
       await getAllPackages(this.patch),
-      this.emver,
+      this.exver,
     )
 
     if (isEmptyObject(breakages)) {
@@ -152,7 +155,7 @@ export class MarketplaceShowControlsComponent {
   }
 
   private async alertInstall(url: string) {
-    const installAlert = this.pkg.manifest.alerts.install
+    const installAlert = this.pkg.alerts.install
 
     if (!installAlert) return this.install(url)
 
@@ -179,7 +182,7 @@ export class MarketplaceShowControlsComponent {
   private async install(url: string) {
     const loader = this.loader.open('Beginning Install...').subscribe()
 
-    const { id, version } = this.pkg.manifest
+    const { id, version } = this.pkg
 
     try {
       await this.marketplaceService.installPackage(id, version, url)

@@ -7,7 +7,7 @@ export const sdk = StartSdk.of()
     setupManifest({
       id: "testOutput",
       title: "",
-      version: "1.0",
+      version: "1.0:0",
       releaseNotes: "",
       license: "",
       replaces: [],
@@ -33,9 +33,10 @@ export const sdk = StartSdk.of()
         stop: null,
       },
       dependencies: {
-        remoteTest: {
+        "remote-test": {
           description: "",
           optional: false,
+          s9pk: "https://example.com/remote-test.s9pk",
         },
       },
     }),

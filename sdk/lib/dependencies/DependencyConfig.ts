@@ -1,11 +1,6 @@
-import {
-  DependencyConfig as DependencyConfigType,
-  DeepPartial,
-  Effects,
-} from "../types"
+import * as T from "../types"
 import { deepEqual } from "../util/deepEqual"
 import { deepMerge } from "../util/deepMerge"
-import { SDKManifest } from "../manifest/ManifestTypes"
 
 export type Update<QueryResults, RemoteConfig> = (options: {
   remoteConfig: RemoteConfig
@@ -13,7 +8,7 @@ export type Update<QueryResults, RemoteConfig> = (options: {
 }) => Promise<RemoteConfig>
 
 export class DependencyConfig<
-  Manifest extends SDKManifest,
+  Manifest extends T.Manifest,
   Store,
   Input extends Record<string, any>,
   RemoteConfig extends Record<string, any>,
@@ -26,16 +21,16 @@ export class DependencyConfig<
   }
   constructor(
     readonly dependencyConfig: (options: {
-      effects: Effects
+      effects: T.Effects
       localConfig: Input
-    }) => Promise<void | DeepPartial<RemoteConfig>>,
+    }) => Promise<void | T.DeepPartial<RemoteConfig>>,
     readonly update: Update<
-      void | DeepPartial<RemoteConfig>,
+      void | T.DeepPartial<RemoteConfig>,
       RemoteConfig
     > = DependencyConfig.defaultUpdate as any,
   ) {}
 
-  async query(options: { effects: Effects; localConfig: unknown }) {
+  async query(options: { effects: T.Effects; localConfig: unknown }) {
     return this.dependencyConfig({
       localConfig: options.localConfig as Input,
       effects: options.effects,

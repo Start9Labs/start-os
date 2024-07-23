@@ -12,7 +12,7 @@ use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::ArchiveSource;
 use crate::util::io::{open_file, ParallelBlake3Writer};
 use crate::util::serde::Base16;
-use crate::util::Apply;
+use crate::util::{Apply, PathOrUrl};
 use crate::CAP_10_MiB;
 
 pub fn util<C: Context>() -> ParentHandler<C> {
@@ -45,21 +45,20 @@ pub async fn b3sum(
         }
         b3sum_source(file).await
     }
-    if let Ok(url) = file.parse::<Url>() {
-        if url.scheme() == "file" {
-            b3sum_file(url.path(), allow_mmap).await
-        } else if url.scheme() == "http" || url.scheme() == "https" {
-            HttpSource::new(ctx.client.clone(), url)
-                .await?
-                .apply(b3sum_source)
-                .await
-        } else {
-            return Err(Error::new(
-                eyre!("unknown scheme: {}", url.scheme()),
-                ErrorKind::InvalidRequest,
-            ));
+    match file.parse::<PathOrUrl>()? {
+        PathOrUrl::Path(path) => b3sum_file(path, allow_mmap).await,
+        PathOrUrl::Url(url) => {
+            if url.scheme() == "http" || url.scheme() == "https" {
+                HttpSource::new(ctx.client.clone(), url)
+                    .await?
+                    .apply(b3sum_source)
+                    .await
+            } else {
+                Err(Error::new(
+                    eyre!("unknown scheme: {}", url.scheme()),
+                    ErrorKind::InvalidRequest,
+                ))
+            }
         }
-    } else {
-        b3sum_file(file, allow_mmap).await
     }
 }

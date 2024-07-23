@@ -8,7 +8,7 @@ if mountpoint tmp/combined; then sudo umount -R tmp/combined; fi
 if mountpoint tmp/lower; then sudo umount tmp/lower; fi
 sudo rm -rf tmp
 mkdir -p tmp/lower tmp/upper tmp/work tmp/combined
-sudo mount debian.${ARCH}.squashfs tmp/lower
+sudo mount -o loop -t squashfs debian.${ARCH}.squashfs tmp/lower
 sudo mount -t overlay -olowerdir=tmp/lower,upperdir=tmp/upper,workdir=tmp/work overlay tmp/combined
 
 QEMU=

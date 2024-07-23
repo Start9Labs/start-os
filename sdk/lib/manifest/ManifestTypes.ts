@@ -1,20 +1,16 @@
-import { ValidEmVer } from "../emverLite/mod"
-import { ActionMetadata, ImageConfig, ImageId } from "../types"
+import { ValidateExVer, ValidateExVers } from "../exver"
+import {
+  ActionMetadata,
+  HardwareRequirements,
+  ImageConfig,
+  ImageId,
+  ImageSource,
+} from "../types"
 
-export type Container = {
-  /** This should be pointing to a docker container name */
-  image: string
-  /** These should match the manifest data volumes */
-  mounts: Record<string, string>
-  /** Default is 64mb */
-  shmSizeMb?: `${number}${"mb" | "gb" | "b" | "kb"}`
-  /** if more than 30s to shutdown */
-  sigtermTimeout?: `${number}${"s" | "m" | "h"}`
-}
-
-export type ManifestVersion = ValidEmVer
-
-export type SDKManifest = {
+export type SDKManifest<
+  Version extends string,
+  Satisfies extends string[] = [],
+> = {
   /**  The package identifier used by the OS. This must be unique amongst all other known packages */
   readonly id: string
   /** A human readable service title */
@@ -23,7 +19,8 @@ export type SDKManifest = {
    * - see documentation: https://github.com/Start9Labs/emver-rs. This value will change with each release of
    * the service
    */
-  readonly version: ManifestVersion
+  readonly version: Version & ValidateExVer<Version>
+  readonly satisfies?: Satisfies & ValidateExVers<Satisfies>
   /** Release notes for the update - can be a string, paragraph or URL */
   readonly releaseNotes: string
   /** The type of license for the project. Include the LICENSE in the root of the project directory. A license is required for a Start9 package.*/
@@ -50,36 +47,49 @@ export type SDKManifest = {
   }
 
   /** Defines the os images needed to run the container processes */
-  readonly images: Record<ImageId, ImageConfig>
+  readonly images: Record<ImageId, SDKImageConfig>
   /** This denotes readonly asset directories that should be available to mount to the container.
-   * Assuming that there will be three files with names along the lines:
-   * icon.* : the icon that will be this packages icon on the ui
-   * LICENSE : What the license is for this service
-   * Instructions : to be seen in the ui section of the package
-   * */
+   * These directories are expected to be found in `assets/<id>` at pack time.
+   **/
   readonly assets: string[]
   /** This denotes any data volumes that should be available to mount to the container */
   readonly volumes: string[]
 
-  readonly alerts: {
-    readonly install: string | null
-    readonly update: string | null
-    readonly uninstall: string | null
-    readonly restore: string | null
-    readonly start: string | null
-    readonly stop: string | null
+  readonly alerts?: {
+    readonly install?: string | null
+    readonly update?: string | null
+    readonly uninstall?: string | null
+    readonly restore?: string | null
+    readonly start?: string | null
+    readonly stop?: string | null
   }
+  readonly hasConfig?: boolean
   readonly dependencies: Readonly<Record<string, ManifestDependency>>
+  readonly hardwareRequirements?: {
+    readonly device?: { display?: RegExp; processor?: RegExp }
+    readonly ram?: number | null
+    readonly arch?: string[] | null
+  }
+}
+
+export type SDKImageConfig = {
+  source: Exclude<ImageSource, "packed">
+  arch?: string[]
+  emulateMissingAs?: string | null
 }
 
 export type ManifestDependency = {
   /**
    * A human readable explanation on what the dependency is used for
    */
-  description: string | null
+  readonly description: string | null
   /**
    * Determines if the dependency is optional or not. Times that optional that are good include such situations
    * such as being able to toggle other services or to use a different service for the same purpose.
    */
-  optional: boolean
+  readonly optional: boolean
+  /**
+   * A url or local path for an s9pk that satisfies this dependency
+   */
+  readonly s9pk: string
 }

@@ -11,6 +11,7 @@ export class DependenciesComponent {
   pkg!: MarketplacePkg
 
   getImg(key: string): string {
-    return this.pkg.dependencyMetadata[key].icon
+    const icon = this.pkg.dependencyMetadata[key]?.icon
+    return icon ? icon : 'assets/img/service-icons/fallback.png'
   }
 }

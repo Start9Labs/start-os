@@ -24,10 +24,10 @@ export class MarketplaceShowDependentComponent {
   constructor(@Inject(DOCUMENT) private readonly document: Document) {}
 
   get title(): string {
-    return this.pkg.manifest.title
+    return this.pkg.title
   }
 
   get version(): string {
-    return this.pkg.manifest.version
+    return this.pkg.version
   }
 }

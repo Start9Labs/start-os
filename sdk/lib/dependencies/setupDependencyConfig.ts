@@ -1,12 +1,12 @@
 import { Config } from "../config/builder/config"
-import { SDKManifest } from "../manifest/ManifestTypes"
-import { ExpectedExports } from "../types"
+
+import * as T from "../types"
 import { DependencyConfig } from "./DependencyConfig"
 
 export function setupDependencyConfig<
   Store,
   Input extends Record<string, any>,
-  Manifest extends SDKManifest,
+  Manifest extends T.Manifest,
 >(
   _config: Config<Input, Store> | Config<Input, never>,
   autoConfigs: {
@@ -17,6 +17,6 @@ export function setupDependencyConfig<
       any
     > | null
   },
-): ExpectedExports.dependencyConfig {
+): T.ExpectedExports.dependencyConfig {
   return autoConfigs
 }

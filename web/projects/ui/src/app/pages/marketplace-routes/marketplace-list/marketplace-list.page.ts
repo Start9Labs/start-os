@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
+import { T } from '@start9labs/start-sdk'
 import { TuiDialogService } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { map } from 'rxjs'
@@ -20,12 +21,21 @@ export class MarketplaceListPage {
 
   readonly store$ = this.marketplaceService.getSelectedStore$().pipe(
     map(({ info, packages }) => {
-      const categories = new Set<string>()
-      if (info.categories.includes('featured')) categories.add('featured')
-      info.categories.forEach(c => categories.add(c))
-      categories.add('all')
+      const categories = new Map<string, T.Category>()
+      if (info.categories['featured'])
+        categories.set('featured', info.categories['featured'])
+      Object.keys(info.categories).forEach(c =>
+        categories.set(c, info.categories[c]),
+      )
+      categories.set('all', {
+        name: 'All',
+        description: {
+          short: 'All registry packages',
+          long: 'An unfiltered list of all packages available on this registry.',
+        },
+      })
 
-      return { categories: Array.from(categories), packages }
+      return { categories, packages }
     }),
   )
 

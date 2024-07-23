@@ -1,4 +1,4 @@
-import { types as T, utils, EmVer } from "@start9labs/start-sdk"
+import { ExtendedVersion, types as T, utils } from "@start9labs/start-sdk"
 import * as fs from "fs/promises"
 
 import { polyfillEffects } from "./polyfillEffects"
@@ -644,13 +644,13 @@ export class SystemForEmbassy implements System {
       dependencies: Object.entries(dependsOn).flatMap(([key, value]) => {
         const dependency = this.manifest.dependencies?.[key]
         if (!dependency) return []
-        const versionSpec = dependency.version
+        const versionRange = dependency.version
         const registryUrl = DEFAULT_REGISTRY
         const kind = "running"
         return [
           {
             id: key,
-            versionSpec,
+            versionRange,
             registryUrl,
             kind,
             healthChecks: [...value],
@@ -665,18 +665,24 @@ export class SystemForEmbassy implements System {
     fromVersion: string,
     timeoutMs: number | null,
   ): Promise<T.MigrationRes> {
-    const fromEmver = EmVer.from(fromVersion)
-    const currentEmver = EmVer.from(this.manifest.version)
+    const fromEmver = ExtendedVersion.parseEmver(fromVersion)
+    const currentEmver = ExtendedVersion.parseEmver(this.manifest.version)
     if (!this.manifest.migrations) return { configured: true }
     const fromMigration = Object.entries(this.manifest.migrations.from)
-      .map(([version, procedure]) => [EmVer.from(version), procedure] as const)
+      .map(
+        ([version, procedure]) =>
+          [ExtendedVersion.parseEmver(version), procedure] as const,
+      )
       .find(
         ([versionEmver, procedure]) =>
           versionEmver.greaterThan(fromEmver) &&
           versionEmver.lessThanOrEqual(currentEmver),
       )
     const toMigration = Object.entries(this.manifest.migrations.to)
-      .map(([version, procedure]) => [EmVer.from(version), procedure] as const)
+      .map(
+        ([version, procedure]) =>
+          [ExtendedVersion.parseEmver(version), procedure] as const,
+      )
       .find(
         ([versionEmver, procedure]) =>
           versionEmver.greaterThan(fromEmver) &&

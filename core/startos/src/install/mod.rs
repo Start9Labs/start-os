@@ -111,6 +111,7 @@ impl std::fmt::Display for MinMax {
 
 #[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct InstallParams {
     #[ts(type = "string")]
     registry: Url,

@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::panic::UnwindSafe;
 use std::path::PathBuf;
 
+use chrono::Utc;
 use clap::Parser;
 use imbl_value::InternedString;
 use itertools::Itertools;
@@ -12,7 +13,7 @@ use url::Url;
 
 use crate::context::CliContext;
 use crate::prelude::*;
-use crate::progress::{FullProgressTracker};
+use crate::progress::FullProgressTracker;
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
 use crate::registry::os::index::OsVersionInfo;
@@ -33,19 +34,19 @@ pub fn add_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "iso",
             from_fn_async(add_iso)
-                .with_metadata("getSigner", Value::Bool(true))
+                .with_metadata("get_signer", Value::Bool(true))
                 .no_cli(),
         )
         .subcommand(
             "img",
             from_fn_async(add_img)
-                .with_metadata("getSigner", Value::Bool(true))
+                .with_metadata("get_signer", Value::Bool(true))
                 .no_cli(),
         )
         .subcommand(
             "squashfs",
             from_fn_async(add_squashfs)
-                .with_metadata("getSigner", Value::Bool(true))
+                .with_metadata("get_signer", Value::Bool(true))
                 .no_cli(),
         )
 }
@@ -107,6 +108,7 @@ async fn add_asset(
                 )
                 .upsert(&platform, || {
                     Ok(RegistryAsset {
+                        published_at: Utc::now(),
                         url,
                         commitment: commitment.clone(),
                         signatures: HashMap::new(),

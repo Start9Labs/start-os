@@ -5,7 +5,7 @@ import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import {
   SharedPipesModule,
-  EmverPipesModule,
+  ExverPipesModule,
   ResponsiveColModule,
 } from '@start9labs/shared'
 import {
@@ -34,7 +34,7 @@ const routes: Routes = [
     FormsModule,
     RouterModule.forChild(routes),
     SharedPipesModule,
-    EmverPipesModule,
+    ExverPipesModule,
     FilterPackagesPipeModule,
     MarketplaceStatusModule,
     BadgeMenuComponentModule,
