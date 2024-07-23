@@ -107,10 +107,7 @@ export class ToButtonsPipe implements PipeTransform {
     pkg: PackageDataEntry<InstalledState>,
   ) {
     this.apiService
-      .setDbValue<boolean>(
-        ['ack-instructions', pkg.stateInfo.manifest.id],
-        true,
-      )
+      .setDbValue<boolean>(['ackInstructions', pkg.stateInfo.manifest.id], true)
       .catch(e => console.error('Failed to mark instructions as seen', e))
 
     const modal = await this.modalCtrl.create({

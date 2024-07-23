@@ -150,7 +150,7 @@ export class AppActionsPage {
     try {
       await this.embassyApi.uninstallPackage({ id: this.pkgId })
       this.embassyApi
-        .setDbValue<boolean>(['ack-instructions', this.pkgId], false)
+        .setDbValue<boolean>(['ackInstructions', this.pkgId], false)
         .catch(e => console.error('Failed to mark instructions as unseen', e))
       this.navCtrl.navigateRoot('/services')
     } catch (e: any) {
