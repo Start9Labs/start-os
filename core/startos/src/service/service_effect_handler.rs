@@ -14,7 +14,7 @@ use exver::VersionRange;
 use futures::future::join_all;
 use helpers::NonDetachingJoinHandle;
 use imbl::{vector, Vector};
-use imbl_value::{json, InternedString};
+use imbl_value::{json, InOMap, InternedString};
 use itertools::Itertools;
 use log::warn;
 use models::{
@@ -51,6 +51,7 @@ use crate::status::health_check::HealthCheckResult;
 use crate::status::MainStatus;
 use crate::system::SmtpValue;
 use crate::util::clap::FromStrParser;
+use crate::util::collections::EqMap;
 use crate::util::Invoke;
 
 #[derive(Clone)]
@@ -206,8 +207,10 @@ struct ServiceCallbackMap {
     list_service_interfaces: BTreeMap<PackageId, Vec<CallbackHandler>>,
     get_system_smtp: Vec<CallbackHandler>,
     get_host_info: BTreeMap<(PackageId, HostId), Vec<CallbackHandler>>,
-    get_ssl_certificate:
-        BTreeMap<BTreeSet<InternedString>, (NonDetachingJoinHandle<()>, Vec<CallbackHandler>)>,
+    get_ssl_certificate: EqMap<
+        (BTreeSet<InternedString>, FullchainCertData, Algorithm),
+        (NonDetachingJoinHandle<()>, Vec<CallbackHandler>),
+    >,
 }
 
 impl ServiceCallbacks {
@@ -232,6 +235,10 @@ impl ServiceCallbacks {
                 v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
                 !v.is_empty()
             });
+            this.get_ssl_certificate.retain(|_, (_, v)| {
+                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
+                !v.is_empty()
+            })
         })
     }
 
@@ -318,34 +325,72 @@ impl ServiceCallbacks {
         &self,
         ctx: EffectContext,
         hostnames: BTreeSet<InternedString>,
-        mut cert: FullchainCertData,
+        cert: FullchainCertData,
+        algorithm: Algorithm,
         handler: CallbackHandler,
     ) {
         self.mutate(|this| {
             this.get_ssl_certificate
-                .entry(hostnames)
+                .entry((hostnames.clone(), cert.clone(), algorithm))
                 .or_insert_with(|| {
                     (
                         tokio::spawn(async move {
-                            loop {
-                                match cert
-                                    .expiration()
-                                    .ok()
-                                    .and_then(|e| e.duration_since(SystemTime::now()).ok())
-                                {
-                                    Some(d) => {
-                                        tokio::time::sleep(min(Duration::from_secs(86400), d)).await
+                            if let Err(e) = async {
+                                loop {
+                                    match cert
+                                        .expiration()
+                                        .ok()
+                                        .and_then(|e| e.duration_since(SystemTime::now()).ok())
+                                    {
+                                        Some(d) => {
+                                            tokio::time::sleep(min(Duration::from_secs(86400), d))
+                                                .await
+                                        }
+                                        _ => break,
                                     }
-                                    _ => break,
                                 }
+                                let Ok(ctx) = ctx.deref() else {
+                                    return Ok(());
+                                };
+                                let new_cert = ctx
+                                    .seed
+                                    .ctx
+                                    .db
+                                    .mutate(|db| {
+                                        db.as_private_mut()
+                                            .as_key_store_mut()
+                                            .as_local_certs_mut()
+                                            .cert_for(&hostnames)
+                                    })
+                                    .await?;
+                                let args = vector![to_value::<Vec<_>>(
+                                    &match algorithm {
+                                        Algorithm::Ecdsa => new_cert.fullchain_nistp256(),
+                                        Algorithm::Ed25519 => new_cert.fullchain_ed25519(),
+                                    }
+                                    .into_iter()
+                                    .map(|c| c.to_pem())
+                                    .map_ok(String::from_utf8)
+                                    .map(|a| Ok::<_, Error>(a??))
+                                    .try_collect()?
+                                )?];
+                                if let Some((_, callbacks)) =
+                                    ctx.seed.ctx.callbacks.mutate(|this| {
+                                        this.get_ssl_certificate
+                                            .remove(&(hostnames, cert, algorithm))
+                                    })
+                                {
+                                    CallbackHandlers(callbacks).call(args).await?;
+                                }
+                                Ok::<_, Error>(())
                             }
-                            let Ok(ctx) = ctx.deref() else {
-                                return ();
-                            };
-                            ctx.seed
-                                .ctx
-                                .callbacks
-                                .mutate(|this| this.get_ssl_certificate.get(key))
+                            .await
+                            {
+                                tracing::error!(
+                                    "Error in callback handler for getSslCertificate: {e}"
+                                );
+                                tracing::debug!("{e:?}");
+                            }
                         })
                         .into(),
                         Vec::new(),
@@ -908,7 +953,7 @@ fn chroot<C: Context>(
     Err(cmd.exec().into())
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 enum Algorithm {
@@ -927,14 +972,14 @@ struct GetSslCertificateParams {
 }
 
 async fn get_ssl_certificate(
-    context: EffectContext,
+    ctx: EffectContext,
     GetSslCertificateParams {
         hostnames,
         algorithm,
         callback,
     }: GetSslCertificateParams,
 ) -> Result<Vec<String>, Error> {
-    let context = context.deref()?;
+    let context = ctx.deref()?;
     let algorithm = algorithm.unwrap_or(Algorithm::Ecdsa);
 
     let cert = context
@@ -985,11 +1030,12 @@ async fn get_ssl_certificate(
         .try_collect()?;
 
     if let Some(callback) = callback {
-        let exp = cert.expiration()?;
         let callback = callback.register(&context.seed.persistent_container);
         context.seed.ctx.callbacks.add_get_ssl_certificate(
+            ctx,
             hostnames,
-            exp,
+            cert,
+            algorithm,
             CallbackHandler::new(&context, callback),
         );
     }

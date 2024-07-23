@@ -127,7 +127,7 @@ impl Model<CertStore> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct CertData {
     pub keys: PKeyPair,
     pub certs: CertPair,
@@ -138,7 +138,7 @@ impl CertData {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FullchainCertData {
     pub root: X509,
     pub int: X509,
@@ -205,11 +205,6 @@ impl PartialEq for PKeyPair {
     }
 }
 impl Eq for PKeyPair {}
-impl Ord for PKeyPair {
-    fn cmp(&self, other: &Self) -> Ordering {
-        // PKey::
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 pub struct CertPair {

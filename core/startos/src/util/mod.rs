@@ -34,8 +34,10 @@ use crate::shutdown::Shutdown;
 use crate::util::io::create_file;
 use crate::util::serde::{deserialize_from_str, serialize_display};
 use crate::{Error, ErrorKind, ResultExt as _};
+
 pub mod actor;
 pub mod clap;
+pub mod collections;
 pub mod cpupower;
 pub mod crypto;
 pub mod future;

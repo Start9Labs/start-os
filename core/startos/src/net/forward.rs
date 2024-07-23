@@ -3,6 +3,7 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Weak};
 
 use id_pool::IdPool;
+use imbl_value::InternedString;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::Mutex;
@@ -11,25 +12,46 @@ use crate::prelude::*;
 use crate::util::Invoke;
 
 pub const START9_BRIDGE_IFACE: &str = "lxcbr0";
-pub const FIRST_DYNAMIC_PRIVATE_PORT: u16 = 49152;
+pub const FIRST_FORWARD_PORT: u16 = 0xC000;
+pub const FIRST_SSL_PORT: u16 = 0xE000;
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct AvailablePorts(IdPool);
+pub struct AvailablePorts {
+    forward: IdPool,
+    ssl: BTreeMap<Option<InternedString>, IdPool>,
+}
 impl AvailablePorts {
     pub fn new() -> Self {
-        Self(IdPool::new_ranged(FIRST_DYNAMIC_PRIVATE_PORT..u16::MAX))
+        Self {
+            forward: IdPool::new_ranged(FIRST_FORWARD_PORT..(FIRST_SSL_PORT - 1)),
+            ssl: BTreeMap::new(),
+        }
     }
-    pub fn alloc(&mut self) -> Result<u16, Error> {
-        self.0.request_id().ok_or_else(|| {
-            Error::new(
-                eyre!("No more dynamic ports available!"),
-                ErrorKind::Network,
-            )
-        })
+
+    pub fn alloc_forward(&mut self) -> Result<u16, Error> {
+        self.forward
+            .request_id()
+            .ok_or_else(|| Error::new(eyre!("No more ports available!"), ErrorKind::Network))
     }
-    pub fn free(&mut self, ports: impl IntoIterator<Item = u16>) {
+    pub fn free_forward(&mut self, port: u16) {
+        self.forward.return_id(port).unwrap_or_default();
+    }
+    pub fn free_forwards(&mut self, ports: impl IntoIterator<Item = u16>) {
         for port in ports {
-            self.0.return_id(port).unwrap_or_default();
+            self.free_forward(port)
+        }
+    }
+
+    pub fn alloc_ssl(&mut self, hostname: Option<InternedString>) -> Result<u16, Error> {
+        self.ssl
+            .entry(hostname)
+            .or_insert_with(|| IdPool::new_ranged(FIRST_SSL_PORT..u16::MAX))
+            .request_id()
+            .ok_or_else(|| Error::new(eyre!("No more ports available!"), ErrorKind::Network))
+    }
+    pub fn free_ssl(&mut self, hostname: &Option<InternedString>, port: u16) {
+        if let Some(pool) = self.ssl.get_mut(hostname) {
+            pool.return_id(port).unwrap_or_default();
         }
     }
 }

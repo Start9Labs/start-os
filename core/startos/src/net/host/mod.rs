@@ -40,6 +40,10 @@ impl Host {
             hostname_info: BTreeMap::new(),
         }
     }
+    pub fn addresses(&self) -> impl Iterator<Item = &HostAddress> {
+        // TODO: handle primary
+        self.addresses.iter()
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]

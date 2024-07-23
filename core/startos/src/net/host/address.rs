@@ -27,7 +27,9 @@ impl FromStr for HostAddress {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Some(addr) = s.strip_suffix(".onion") {
             Ok(HostAddress::Onion {
-                address: addr.parse().with_kind(ErrorKind::ParseUrl)?,
+                address: addr
+                    .parse::<OnionAddressV3>()
+                    .with_kind(ErrorKind::ParseUrl)?,
             })
         } else {
             Ok(HostAddress::Domain { address: s.into() })
