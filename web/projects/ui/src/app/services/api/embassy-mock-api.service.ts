@@ -52,10 +52,7 @@ const PROGRESS: T.FullProgress = {
     },
     {
       name: 'Validating',
-      progress: {
-        done: 0,
-        total: 40,
-      },
+      progress: null,
     },
     {
       name: 'Installing',
@@ -759,11 +756,11 @@ export class MockApiService extends ApiService {
           ...Mock.LocalPkgs[params.id],
           stateInfo: {
             // if installing
-            // state: PackageState.Installing,
+            state: 'installing',
 
             // if updating
-            state: 'updating',
-            manifest: mockPatchData.packageData[params.id].stateInfo.manifest!,
+            // state: 'updating',
+            // manifest: mockPatchData.packageData[params.id].stateInfo.manifest!,
 
             // both
             installingInfo: {
@@ -1146,11 +1143,7 @@ export class MockApiService extends ApiService {
     const progress = JSON.parse(JSON.stringify(PROGRESS))
 
     for (let [i, phase] of progress.phases.entries()) {
-      if (
-        !phase.progress ||
-        typeof phase.progress !== 'object' ||
-        !phase.progress.total
-      ) {
+      if (!phase.progress || phase.progress === true || !phase.progress.total) {
         await pauseFor(2000)
 
         const patches: Operation<any>[] = [
