@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsString;
 use std::net::Ipv4Addr;
@@ -5,13 +6,15 @@ use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex, Weak};
+use std::time::{Duration, SystemTime};
 
 use clap::builder::ValueParserFactory;
 use clap::Parser;
 use exver::VersionRange;
 use futures::future::join_all;
+use helpers::NonDetachingJoinHandle;
 use imbl::{vector, Vector};
-use imbl_value::json;
+use imbl_value::{json, InternedString};
 use itertools::Itertools;
 use log::warn;
 use models::{
@@ -35,6 +38,7 @@ use crate::net::host::address::HostAddress;
 use crate::net::host::binding::{BindOptions, LanInfo};
 use crate::net::host::{Host, HostKind};
 use crate::net::service_interface::{AddressInfo, ServiceInterface, ServiceInterfaceType};
+use crate::net::ssl::FullchainCertData;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
@@ -202,25 +206,33 @@ struct ServiceCallbackMap {
     list_service_interfaces: BTreeMap<PackageId, Vec<CallbackHandler>>,
     get_system_smtp: Vec<CallbackHandler>,
     get_host_info: BTreeMap<(PackageId, HostId), Vec<CallbackHandler>>,
+    get_ssl_certificate:
+        BTreeMap<BTreeSet<InternedString>, (NonDetachingJoinHandle<()>, Vec<CallbackHandler>)>,
 }
 
 impl ServiceCallbacks {
-    pub fn gc(&self) {
+    fn mutate<T>(&self, f: impl FnOnce(&mut ServiceCallbackMap) -> T) -> T {
         let mut this = self.0.lock().unwrap();
-        this.get_service_interface.retain(|_, v| {
-            v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
-            !v.is_empty()
-        });
-        this.list_service_interfaces.retain(|_, v| {
-            v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
-            !v.is_empty()
-        });
-        this.get_system_smtp
-            .retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
-        this.get_host_info.retain(|_, v| {
-            v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
-            !v.is_empty()
-        });
+        f(&mut *this)
+    }
+
+    pub fn gc(&self) {
+        self.mutate(|this| {
+            this.get_service_interface.retain(|_, v| {
+                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
+                !v.is_empty()
+            });
+            this.list_service_interfaces.retain(|_, v| {
+                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
+                !v.is_empty()
+            });
+            this.get_system_smtp
+                .retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
+            this.get_host_info.retain(|_, v| {
+                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
+                !v.is_empty()
+            });
+        })
     }
 
     fn add_get_service_interface(
@@ -229,11 +241,12 @@ impl ServiceCallbacks {
         service_interface_id: ServiceInterfaceId,
         handler: CallbackHandler,
     ) {
-        let mut this = self.0.lock().unwrap();
-        this.get_service_interface
-            .entry((package_id, service_interface_id))
-            .or_default()
-            .push(handler);
+        self.mutate(|this| {
+            this.get_service_interface
+                .entry((package_id, service_interface_id))
+                .or_default()
+                .push(handler);
+        })
     }
 
     #[must_use]
@@ -241,57 +254,106 @@ impl ServiceCallbacks {
         &self,
         id: &(PackageId, ServiceInterfaceId),
     ) -> Option<CallbackHandlers> {
-        let mut this = self.0.lock().unwrap();
-        Some(CallbackHandlers(
-            this.get_service_interface.remove(id).unwrap_or_default(),
-        ))
-        .filter(|cb| !cb.0.is_empty())
+        self.mutate(|this| {
+            Some(CallbackHandlers(
+                this.get_service_interface.remove(id).unwrap_or_default(),
+            ))
+            .filter(|cb| !cb.0.is_empty())
+        })
     }
 
     fn add_list_service_interfaces(&self, package_id: PackageId, handler: CallbackHandler) {
-        let mut this = self.0.lock().unwrap();
-        this.list_service_interfaces
-            .entry(package_id)
-            .or_default()
-            .push(handler);
+        self.mutate(|this| {
+            this.list_service_interfaces
+                .entry(package_id)
+                .or_default()
+                .push(handler);
+        })
     }
 
     #[must_use]
     pub fn list_service_interfaces(&self, id: &PackageId) -> Option<CallbackHandlers> {
-        let mut this = self.0.lock().unwrap();
-        Some(CallbackHandlers(
-            this.list_service_interfaces.remove(id).unwrap_or_default(),
-        ))
-        .filter(|cb| !cb.0.is_empty())
+        self.mutate(|this| {
+            Some(CallbackHandlers(
+                this.list_service_interfaces.remove(id).unwrap_or_default(),
+            ))
+            .filter(|cb| !cb.0.is_empty())
+        })
     }
 
     fn add_get_system_smtp(&self, handler: CallbackHandler) {
-        let mut this = self.0.lock().unwrap();
-        this.get_system_smtp.push(handler);
+        self.mutate(|this| {
+            this.get_system_smtp.push(handler);
+        })
     }
 
     #[must_use]
     pub fn get_system_smtp(&self) -> Option<CallbackHandlers> {
-        let mut this = self.0.lock().unwrap();
-        Some(CallbackHandlers(std::mem::take(&mut this.get_system_smtp)))
-            .filter(|cb| !cb.0.is_empty())
+        self.mutate(|this| {
+            Some(CallbackHandlers(std::mem::take(&mut this.get_system_smtp)))
+                .filter(|cb| !cb.0.is_empty())
+        })
     }
 
     fn add_get_host_info(&self, package_id: PackageId, host_id: HostId, handler: CallbackHandler) {
-        let mut this = self.0.lock().unwrap();
-        this.get_host_info
-            .entry((package_id, host_id))
-            .or_default()
-            .push(handler);
+        self.mutate(|this| {
+            this.get_host_info
+                .entry((package_id, host_id))
+                .or_default()
+                .push(handler);
+        })
     }
 
     #[must_use]
     pub fn get_host_info(&self, id: &(PackageId, HostId)) -> Option<CallbackHandlers> {
-        let mut this = self.0.lock().unwrap();
-        Some(CallbackHandlers(
-            this.get_host_info.remove(id).unwrap_or_default(),
-        ))
-        .filter(|cb| !cb.0.is_empty())
+        self.mutate(|this| {
+            Some(CallbackHandlers(
+                this.get_host_info.remove(id).unwrap_or_default(),
+            ))
+            .filter(|cb| !cb.0.is_empty())
+        })
+    }
+
+    fn add_get_ssl_certificate(
+        &self,
+        ctx: EffectContext,
+        hostnames: BTreeSet<InternedString>,
+        mut cert: FullchainCertData,
+        handler: CallbackHandler,
+    ) {
+        self.mutate(|this| {
+            this.get_ssl_certificate
+                .entry(hostnames)
+                .or_insert_with(|| {
+                    (
+                        tokio::spawn(async move {
+                            loop {
+                                match cert
+                                    .expiration()
+                                    .ok()
+                                    .and_then(|e| e.duration_since(SystemTime::now()).ok())
+                                {
+                                    Some(d) => {
+                                        tokio::time::sleep(min(Duration::from_secs(86400), d)).await
+                                    }
+                                    _ => break,
+                                }
+                            }
+                            let Ok(ctx) = ctx.deref() else {
+                                return ();
+                            };
+                            ctx.seed
+                                .ctx
+                                .callbacks
+                                .mutate(|this| this.get_ssl_certificate.get(key))
+                        })
+                        .into(),
+                        Vec::new(),
+                    )
+                })
+                .1
+                .push(handler);
+        })
     }
 }
 
@@ -858,24 +920,81 @@ enum Algorithm {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 struct GetSslCertificateParams {
-    package_id: Option<String>,
-    host_id: String,
+    #[ts(type = "string[]")]
+    hostnames: BTreeSet<InternedString>,
     algorithm: Option<Algorithm>, //"ecdsa" | "ed25519"
-    callback: CallbackId,
+    callback: Option<CallbackId>,
 }
 
 async fn get_ssl_certificate(
     context: EffectContext,
     GetSslCertificateParams {
-        package_id,
+        hostnames,
         algorithm,
-        host_id,
         callback,
     }: GetSslCertificateParams,
-) -> Result<Value, Error> {
-    // TODO
-    let fake = include_str!("./fake.cert.pem");
-    Ok(json!([fake, fake, fake]))
+) -> Result<Vec<String>, Error> {
+    let context = context.deref()?;
+    let algorithm = algorithm.unwrap_or(Algorithm::Ecdsa);
+
+    let cert = context
+        .seed
+        .ctx
+        .db
+        .mutate(|db| {
+            let errfn = |h: &str| Error::new(eyre!("unknown hostname: {h}"), ErrorKind::NotFound);
+            let entries = db.as_public().as_package_data().as_entries()?;
+            let packages = entries.iter().map(|(k, _)| k).collect::<BTreeSet<_>>();
+            let allowed_hostnames = entries
+                .iter()
+                .map(|(_, m)| m.as_hosts().as_entries())
+                .flatten_ok()
+                .map_ok(|(_, m)| m.as_addresses().de())
+                .map(|a| a.and_then(|a| a))
+                .flatten_ok()
+                .try_collect::<_, BTreeSet<_>, _>()?;
+            for hostname in &hostnames {
+                if let Some(internal) = hostname
+                    .strip_suffix(".embassy")
+                    .or_else(|| hostname.strip_suffix(".startos"))
+                {
+                    if !packages.contains(internal) {
+                        return Err(errfn(&*hostname));
+                    }
+                }
+                if !allowed_hostnames.contains(&hostname.parse()?) {
+                    return Err(errfn(&*hostname));
+                }
+            }
+            db.as_private_mut()
+                .as_key_store_mut()
+                .as_local_certs_mut()
+                .cert_for(&hostnames)
+        })
+        .await?;
+    let fullchain = match algorithm {
+        Algorithm::Ecdsa => cert.fullchain_nistp256(),
+        Algorithm::Ed25519 => cert.fullchain_ed25519(),
+    };
+
+    let res = fullchain
+        .into_iter()
+        .map(|c| c.to_pem())
+        .map_ok(String::from_utf8)
+        .map(|a| Ok::<_, Error>(a??))
+        .try_collect()?;
+
+    if let Some(callback) = callback {
+        let exp = cert.expiration()?;
+        let callback = callback.register(&context.seed.persistent_container);
+        context.seed.ctx.callbacks.add_get_ssl_certificate(
+            hostnames,
+            exp,
+            CallbackHandler::new(&context, callback),
+        );
+    }
+
+    Ok(res)
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]

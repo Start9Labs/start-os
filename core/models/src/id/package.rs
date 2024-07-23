@@ -61,6 +61,11 @@ impl Borrow<str> for PackageId {
         self.0.as_ref()
     }
 }
+impl Borrow<str> for &PackageId {
+    fn borrow(&self) -> &str {
+        self.0.as_ref()
+    }
+}
 impl AsRef<Path> for PackageId {
     fn as_ref(&self) -> &Path {
         self.0.as_ref().as_ref()

@@ -448,18 +448,16 @@ export type Effects = {
    * @returns  PEM encoded fullchain (ecdsa)
    */
   getSslCertificate: (options: {
-    packageId: string | null
-    hostId: string
-    algorithm: "ecdsa" | "ed25519" | null
+    hostnames: string[]
+    algorithm?: "ecdsa" | "ed25519"
     callback?: (newFullchain: [string, string, string]) => void
   }) => Promise<[string, string, string]>
   /**
    * @returns PEM encoded ssl key (ecdsa)
    */
   getSslKey: (options: {
-    packageId: string | null
-    hostId: string
-    algorithm: "ecdsa" | "ed25519" | null
+    hostnames: string[]
+    algorithm?: "ecdsa" | "ed25519"
   }) => Promise<string>
 
   setHealth(o: SetHealth): Promise<void>
