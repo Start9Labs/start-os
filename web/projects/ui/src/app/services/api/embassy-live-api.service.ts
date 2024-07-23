@@ -18,6 +18,15 @@ import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
 import { Dump, pathFromArray } from 'patch-db-client'
+import { T } from '@start9labs/start-sdk'
+import {
+  GetPackageReq,
+  GetPackageRes,
+  GetPackagesReq,
+  GetPackagesRes,
+  MarketplacePkg,
+} from '@start9labs/marketplace'
+import { blake3 } from '@noble/hashes/blake3'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -29,17 +38,7 @@ export class LiveApiService extends ApiService {
     @Inject(PATCH_CACHE) private readonly cache$: Observable<Dump<DataModel>>,
   ) {
     super()
-    ; (window as any).rpcClient = this
-  }
-
-  // for getting static files: ex icons, instructions, licenses
-
-  async getStatic(url: string): Promise<string> {
-    return this.httpRequest({
-      method: Method.GET,
-      url,
-      responseType: 'text',
-    })
+    ;(window as any).rpcClient = this
   }
 
   // for sideloading packages
@@ -58,6 +57,36 @@ export class LiveApiService extends ApiService {
       method: Method.POST,
       body,
       url: `/rest/upload`,
+      responseType: 'text',
+    })
+  }
+
+  // for getting static files: ex. instructions, licenses
+
+  async getStaticProxy(
+    pkg: MarketplacePkg,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string> {
+    const encodedUrl = encodeURIComponent(pkg.s9pk.url)
+
+    return this.httpRequest({
+      method: Method.GET,
+      url: `/s9pk/proxy/${encodedUrl}/${path}`,
+      params: {
+        rootSighash: pkg.s9pk.commitment.rootSighash,
+        rootMaxsize: pkg.s9pk.commitment.rootMaxsize,
+      },
+      responseType: 'text',
+    })
+  }
+
+  async getStaticInstalled(
+    id: T.PackageId,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string> {
+    return this.httpRequest({
+      method: Method.GET,
+      url: `/s9pk/installed/${id}.s9pk/${path}`,
       responseType: 'text',
     })
   }
@@ -257,24 +286,63 @@ export class LiveApiService extends ApiService {
 
   // marketplace URLs
 
-  async marketplaceProxy<T>(
-    path: string,
-    qp: Record<string, string>,
-    baseUrl: string,
+  async registryRequest<T>(
+    registryUrl: string,
+    options: RPCOptions,
   ): Promise<T> {
-    const fullUrl = `${baseUrl}${path}?${new URLSearchParams(qp).toString()}`
     return this.rpcRequest({
-      method: 'marketplace.get',
-      params: { url: fullUrl },
+      ...options,
+      method: `registry.${options.method}`,
+      params: { registry: registryUrl, ...options.params },
     })
   }
 
   async checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes> {
-    return this.marketplaceProxy(
-      '/eos/v0/latest',
-      qp,
-      this.config.marketplace.start9,
-    )
+    const { serverId } = qp
+
+    return this.registryRequest(this.config.marketplace.start9, {
+      method: 'os.version.get',
+      params: { serverId },
+    })
+  }
+
+  async getRegistryInfo(registryUrl: string): Promise<T.RegistryInfo> {
+    return this.registryRequest(registryUrl, {
+      method: 'info',
+      params: {},
+    })
+  }
+
+  async getRegistryPackage(
+    registryUrl: string,
+    id: string,
+    versionRange: string | null,
+  ): Promise<GetPackageRes> {
+    const params: GetPackageReq = {
+      id,
+      version: versionRange,
+      sourceVersion: null,
+      otherVersions: 'short',
+    }
+
+    return this.registryRequest<GetPackageRes>(registryUrl, {
+      method: 'package.get',
+      params,
+    })
+  }
+
+  async getRegistryPackages(registryUrl: string): Promise<GetPackagesRes> {
+    const params: GetPackagesReq = {
+      id: null,
+      version: null,
+      sourceVersion: null,
+      otherVersions: 'short',
+    }
+
+    return this.registryRequest<GetPackagesRes>(registryUrl, {
+      method: 'package.get',
+      params,
+    })
   }
 
   // notification
@@ -504,6 +572,29 @@ export class LiveApiService extends ApiService {
 
   private async httpRequest<T>(opts: HttpOptions): Promise<T> {
     const res = await this.http.httpRequest<T>(opts)
+    if (res.headers.get('Repr-Digest')) {
+      // verify
+      const digest = res.headers.get('Repr-Digest')!
+      let data: Uint8Array
+      if (opts.responseType === 'arrayBuffer') {
+        data = Buffer.from(res.body as ArrayBuffer)
+      } else if (opts.responseType === 'text') {
+        data = Buffer.from(res.body as string)
+      } else if ((opts.responseType as string) === 'blob') {
+        data = Buffer.from(await (res.body as Blob).arrayBuffer())
+      } else {
+        console.warn(
+          `could not verify Repr-Digest for responseType ${
+            opts.responseType || 'json'
+          }`,
+        )
+        return res.body
+      }
+      const computedDigest = Buffer.from(blake3(data)).toString('base64')
+      if (`blake3=:${computedDigest}:` === digest) return res.body
+      console.debug(computedDigest, digest)
+      throw new Error('File digest mismatch.')
+    }
     return res.body
   }
 }

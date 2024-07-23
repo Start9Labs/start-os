@@ -1,6 +1,4 @@
 use std::collections::BTreeSet;
-use std::ffi::OsStr;
-use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -10,25 +8,29 @@ use futures::{FutureExt, TryStreamExt};
 use imbl_value::InternedString;
 use models::{ImageId, PackageId, VersionString};
 use serde::{Deserialize, Serialize};
-use tokio::io::AsyncRead;
 use tokio::process::Command;
 use tokio::sync::OnceCell;
 use tokio_stream::wrappers::ReadDirStream;
+use tracing::{debug, warn};
 use ts_rs::TS;
 
 use crate::context::CliContext;
+use crate::dependencies::DependencyMetadata;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
+use crate::s9pk::manifest::Manifest;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
+use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::{
-    into_dyn_read, ArchiveSource, DynFileSource, FileSource, TmpSource,
+    into_dyn_read, ArchiveSource, DynFileSource, DynRead, FileSource, TmpSource,
 };
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
 use crate::s9pk::v2::SIG_CONTEXT;
 use crate::s9pk::S9pk;
 use crate::util::io::{create_file, open_file, TmpDir};
-use crate::util::Invoke;
+use crate::util::serde::IoFormat;
+use crate::util::{new_guid, Invoke, PathOrUrl};
 
 #[cfg(not(feature = "docker"))]
 pub const CONTAINER_TOOL: &str = "podman";
@@ -83,7 +85,8 @@ pub enum PackSource {
     Squashfs(Arc<SqfsDir>),
 }
 impl FileSource for PackSource {
-    type Reader = Box<dyn AsyncRead + Unpin + Send + Sync + 'static>;
+    type Reader = DynRead;
+    type SliceReader = DynRead;
     async fn size(&self) -> Result<u64, Error> {
         match self {
             Self::Buffered(a) => Ok(a.len() as u64),
@@ -102,9 +105,21 @@ impl FileSource for PackSource {
     }
     async fn reader(&self) -> Result<Self::Reader, Error> {
         match self {
-            Self::Buffered(a) => Ok(into_dyn_read(Cursor::new(a.clone()))),
-            Self::File(f) => Ok(into_dyn_read(open_file(f).await?)),
+            Self::Buffered(a) => Ok(into_dyn_read(FileSource::reader(a).await?)),
+            Self::File(f) => Ok(into_dyn_read(FileSource::reader(f).await?)),
             Self::Squashfs(dir) => dir.file().await?.fetch_all().await.map(into_dyn_read),
+        }
+    }
+    async fn slice(&self, position: u64, size: u64) -> Result<Self::SliceReader, Error> {
+        match self {
+            Self::Buffered(a) => Ok(into_dyn_read(FileSource::slice(a, position, size).await?)),
+            Self::File(f) => Ok(into_dyn_read(FileSource::slice(f, position, size).await?)),
+            Self::Squashfs(dir) => dir
+                .file()
+                .await?
+                .fetch(position, size)
+                .await
+                .map(into_dyn_read),
         }
     }
 }
@@ -150,24 +165,71 @@ impl PackParams {
         if let Some(icon) = &self.icon {
             Ok(icon.clone())
         } else {
-            ReadDirStream::new(tokio::fs::read_dir(self.path()).await?).try_filter(|x| ready(x.path().file_stem() == Some(OsStr::new("icon")))).map_err(Error::from).try_fold(Err(Error::new(eyre!("icon not found"), ErrorKind::NotFound)), |acc, x| async move { match acc {
-                Ok(_) => Err(Error::new(eyre!("multiple icons found in working directory, please specify which to use with `--icon`"), ErrorKind::InvalidRequest)),
-                Err(e) => Ok({
-                    let path = x.path();
-                    if path.file_stem().and_then(|s| s.to_str()) == Some("icon") {
-                    Ok(path)
-                    } else {
-                        Err(e)
-                    }
+            ReadDirStream::new(tokio::fs::read_dir(self.path()).await?)
+                .try_filter(|x| {
+                    ready(
+                        x.path()
+                            .file_stem()
+                            .map_or(false, |s| s.eq_ignore_ascii_case("icon")),
+                    )
                 })
-            }}).await?
+                .map_err(Error::from)
+                .try_fold(
+                    Err(Error::new(eyre!("icon not found"), ErrorKind::NotFound)),
+                    |acc, x| async move {
+                        match acc {
+                            Ok(_) => Err(Error::new(eyre!("multiple icons found in working directory, please specify which to use with `--icon`"), ErrorKind::InvalidRequest)),
+                            Err(e) => Ok({
+                                let path = x.path();
+                                if path
+                                    .file_stem()
+                                    .map_or(false, |s| s.eq_ignore_ascii_case("icon"))
+                                {
+                                    Ok(path)
+                                } else {
+                                    Err(e)
+                                }
+                            }),
+                        }
+                    },
+                )
+                .await?
         }
     }
-    fn license(&self) -> PathBuf {
-        self.license
-            .as_ref()
-            .cloned()
-            .unwrap_or_else(|| self.path().join("LICENSE.md"))
+    async fn license(&self) -> Result<PathBuf, Error> {
+        if let Some(license) = &self.license {
+            Ok(license.clone())
+        } else {
+            ReadDirStream::new(tokio::fs::read_dir(self.path()).await?)
+                .try_filter(|x| {
+                    ready(
+                        x.path()
+                            .file_stem()
+                            .map_or(false, |s| s.eq_ignore_ascii_case("license")),
+                    )
+                })
+                .map_err(Error::from)
+                .try_fold(
+                    Err(Error::new(eyre!("icon not found"), ErrorKind::NotFound)),
+                    |acc, x| async move {
+                        match acc {
+                            Ok(_) => Err(Error::new(eyre!("multiple licenses found in working directory, please specify which to use with `--license`"), ErrorKind::InvalidRequest)),
+                            Err(e) => Ok({
+                                let path = x.path();
+                                if path
+                                    .file_stem()
+                                    .map_or(false, |s| s.eq_ignore_ascii_case("license"))
+                                {
+                                    Ok(path)
+                                } else {
+                                    Err(e)
+                                }
+                            }),
+                        }
+                    },
+                )
+                .await?
+        }
     }
     fn instructions(&self) -> PathBuf {
         self.instructions
@@ -282,6 +344,15 @@ pub enum ImageSource {
     DockerTag(String),
 }
 impl ImageSource {
+    pub fn ingredients(&self) -> Vec<PathBuf> {
+        match self {
+            Self::Packed => Vec::new(),
+            Self::DockerBuild { dockerfile, .. } => {
+                vec![dockerfile.clone().unwrap_or_else(|| "Dockerfile".into())]
+            }
+            Self::DockerTag(_) => Vec::new(),
+        }
+    }
     #[instrument(skip_all)]
     pub fn load<'a, S: From<TmpSource<PackSource>> + FileSource + Clone>(
         &'a self,
@@ -320,7 +391,7 @@ impl ImageSource {
                         format!("--platform=linux/{arch}")
                     };
                     // docker buildx build ${path} -o type=image,name=start9/${id}
-                    let tag = format!("start9/{id}/{image_id}:{version}");
+                    let tag = format!("start9/{id}/{image_id}:{}", new_guid());
                     Command::new(CONTAINER_TOOL)
                         .arg("build")
                         .arg(workdir)
@@ -501,7 +572,7 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
         "LICENSE.md".into(),
         Entry::file(TmpSource::new(
             tmp_dir.clone(),
-            PackSource::File(params.license()),
+            PackSource::File(params.license().await?),
         )),
     );
     files.insert(
@@ -541,6 +612,54 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
 
     s9pk.load_images(tmp_dir.clone()).await?;
 
+    let mut to_insert = Vec::new();
+    for (id, dependency) in &mut s9pk.as_manifest_mut().dependencies.0 {
+        if let Some(s9pk) = dependency.s9pk.take() {
+            let s9pk = match s9pk {
+                PathOrUrl::Path(path) => {
+                    S9pk::deserialize(&MultiCursorFile::from(open_file(path).await?), None)
+                        .await?
+                        .into_dyn()
+                }
+                PathOrUrl::Url(url) => {
+                    if url.scheme() == "http" || url.scheme() == "https" {
+                        S9pk::deserialize(
+                            &Arc::new(HttpSource::new(ctx.client.clone(), url).await?),
+                            None,
+                        )
+                        .await?
+                        .into_dyn()
+                    } else {
+                        return Err(Error::new(
+                            eyre!("unknown scheme: {}", url.scheme()),
+                            ErrorKind::InvalidRequest,
+                        ));
+                    }
+                }
+            };
+            let dep_path = Path::new("dependencies").join(id);
+            to_insert.push((
+                dep_path.join("metadata.json"),
+                Entry::file(PackSource::Buffered(
+                    IoFormat::Json
+                        .to_vec(&DependencyMetadata {
+                            title: s9pk.as_manifest().title.clone(),
+                        })?
+                        .into(),
+                )),
+            ));
+            let icon = s9pk.icon().await?;
+            to_insert.push((
+                dep_path.join(&*icon.0),
+                Entry::file(PackSource::Buffered(
+                    icon.1.expect_file()?.to_vec(icon.1.hash()).await?.into(),
+                )),
+            ));
+        } else {
+            warn!("no s9pk specified for {id}, leaving metadata empty");
+        }
+    }
+
     s9pk.validate_and_filter(None)?;
 
     s9pk.serialize(
@@ -554,4 +673,59 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
     tmp_dir.gc().await?;
 
     Ok(())
+}
+
+#[instrument(skip_all)]
+pub async fn list_ingredients(_: CliContext, params: PackParams) -> Result<Vec<PathBuf>, Error> {
+    let js_path = params.javascript().join("index.js");
+    let manifest: Manifest = match async {
+        serde_json::from_slice(
+            &Command::new("node")
+                .arg("-e")
+                .arg(format!(
+                    "console.log(JSON.stringify(require('{}').manifest))",
+                    js_path.display()
+                ))
+                .invoke(ErrorKind::Javascript)
+                .await?,
+        )
+        .with_kind(ErrorKind::Deserialization)
+    }
+    .await
+    {
+        Ok(m) => m,
+        Err(e) => {
+            warn!("failed to load manifest: {e}");
+            debug!("{e:?}");
+            return Ok(vec![
+                js_path,
+                params.icon().await?,
+                params.license().await?,
+                params.instructions(),
+            ]);
+        }
+    };
+    let mut ingredients = vec![
+        js_path,
+        params.icon().await?,
+        params.license().await?,
+        params.instructions(),
+    ];
+
+    for (_, dependency) in manifest.dependencies.0 {
+        if let Some(PathOrUrl::Path(p)) = dependency.s9pk {
+            ingredients.push(p);
+        }
+    }
+
+    let assets_dir = params.assets();
+    for assets in manifest.assets {
+        ingredients.push(assets_dir.join(assets));
+    }
+
+    for image in manifest.images.values() {
+        ingredients.extend(image.source.ingredients());
+    }
+
+    Ok(ingredients)
 }

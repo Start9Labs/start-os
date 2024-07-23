@@ -26,11 +26,11 @@ export class FilterPackagesPipe implements PipeTransform {
           distance: 16,
           keys: [
             {
-              name: 'manifest.title',
+              name: 'title',
               weight: 1,
             },
             {
-              name: 'manifest.id',
+              name: 'id',
               weight: 0.5,
             },
           ],
@@ -42,19 +42,19 @@ export class FilterPackagesPipe implements PipeTransform {
           useExtendedSearch: true,
           keys: [
             {
-              name: 'manifest.title',
+              name: 'title',
               weight: 1,
             },
             {
-              name: 'manifest.id',
+              name: 'id',
               weight: 0.5,
             },
             {
-              name: 'manifest.description.short',
+              name: 'description.short',
               weight: 0.4,
             },
             {
-              name: 'manifest.description.long',
+              name: 'description.long',
               weight: 0.1,
             },
           ],
@@ -71,7 +71,8 @@ export class FilterPackagesPipe implements PipeTransform {
       .filter(p => category === 'all' || p.categories.includes(category))
       .sort((a, b) => {
         return (
-          new Date(b.publishedAt).valueOf() - new Date(a.publishedAt).valueOf()
+          new Date(b.s9pk.publishedAt).valueOf() -
+          new Date(a.s9pk.publishedAt).valueOf()
         )
       })
   }

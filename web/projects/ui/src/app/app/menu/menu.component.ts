@@ -20,7 +20,7 @@ import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { SplitPaneTracker } from 'src/app/services/split-pane.service'
-import { Emver, THEME } from '@start9labs/shared'
+import { Exver, THEME } from '@start9labs/shared'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { getManifest } from 'src/app/util/get-package-data'
 
@@ -99,10 +99,10 @@ export class MenuComponent {
   ]).pipe(
     map(([marketplace, local]) =>
       Object.entries(marketplace).reduce((list, [_, store]) => {
-        store?.packages.forEach(({ manifest: { id, version } }) => {
+        store?.packages.forEach(({ id, version }) => {
           if (
             local[id] &&
-            this.emver.compare(
+            this.exver.compareExver(
               version,
               getManifest(local[id]).version || '',
             ) === 1
@@ -125,7 +125,7 @@ export class MenuComponent {
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
     private readonly splitPane: SplitPaneTracker,
-    private readonly emver: Emver,
+    private readonly exver: Exver,
     private readonly connection$: ConnectionService,
   ) {}
 }

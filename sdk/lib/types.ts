@@ -12,6 +12,7 @@ import {
   LanInfo,
   BindParams,
   Manifest,
+  CheckDependenciesResult,
 } from "./osBindings"
 
 import { MainEffects, ServiceInterfaceType, Signals } from "./StartSdk"
@@ -154,14 +155,6 @@ export type DependencyConfig = {
   }): Promise<unknown>
 }
 
-export type ValidIfNoStupidEscape<A> = A extends
-  | `${string}'"'"'${string}`
-  | `${string}\\"${string}`
-  ? never
-  : "" extends A & ""
-    ? never
-    : A
-
 export type ConfigRes = {
   /** This should be the previous config, that way during set config we start with the previous */
   config?: null | Record<string, unknown>
@@ -188,9 +181,7 @@ export type SmtpValue = {
   password: string | null | undefined
 }
 
-export type CommandType<A extends string> =
-  | ValidIfNoStupidEscape<A>
-  | [string, ...string[]]
+export type CommandType = string | [string, ...string[]]
 
 export type DaemonReturned = {
   wait(): Promise<unknown>
@@ -470,7 +461,7 @@ export type Effects = {
    */
   checkDependencies(options: {
     packageIds: PackageId[] | null
-  }): Promise<CheckDependencyResult[]>
+  }): Promise<CheckDependenciesResult[]>
   /** Exists could be useful during the runtime to know if some service exists, option dep */
   exists(options: { packageId: PackageId }): Promise<boolean>
   /** Exists could be useful during the runtime to know if some service is running, option dep */
@@ -554,12 +545,3 @@ export type Dependencies = Array<DependencyRequirement>
 export type DeepPartial<T> = T extends {}
   ? { [P in keyof T]?: DeepPartial<T[P]> }
   : T
-
-export type CheckDependencyResult = {
-  packageId: PackageId
-  isInstalled: boolean
-  isRunning: boolean
-  healthChecks: SetHealth[]
-  version: string | null
-}
-export type CheckResults = CheckDependencyResult[]

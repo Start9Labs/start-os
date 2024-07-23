@@ -1,5 +1,4 @@
 import { Injectable } from '@angular/core'
-import { Emver } from '@start9labs/shared'
 import { BehaviorSubject, combineLatest } from 'rxjs'
 import { distinctUntilChanged, map } from 'rxjs/operators'
 import { OSUpdate } from 'src/app/services/api/api.types'
@@ -7,6 +6,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchDB } from 'patch-db-client'
 import { getServerInfo } from 'src/app/util/get-server-info'
 import { DataModel } from './patch-db/data-model'
+import { Exver } from '@start9labs/shared'
 
 @Injectable({
   providedIn: 'root',
@@ -47,15 +47,15 @@ export class EOSService {
 
   constructor(
     private readonly api: ApiService,
-    private readonly emver: Emver,
     private readonly patch: PatchDB<DataModel>,
+    private readonly exver: Exver,
   ) {}
 
   async loadEos(): Promise<void> {
     const { version, id } = await getServerInfo(this.patch)
     this.osUpdate = await this.api.checkOSUpdate({ serverId: id })
     const updateAvailable =
-      this.emver.compare(this.osUpdate.version, version) === 1
+      this.exver.compareOsVersion(this.osUpdate.version, version) === 'greater'
     this.updateAvailable$.next(updateAvailable)
   }
 }

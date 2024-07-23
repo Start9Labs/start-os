@@ -1,5 +1,5 @@
-import { Effects, ExpectedExports } from "../types"
-import { SDKManifest } from "../manifest/ManifestTypes"
+import * as T from "../types"
+
 import * as D from "./configDependencies"
 import { Config, ExtractConfigType } from "./builder/config"
 import nullIfEmpty from "../util/nullIfEmpty"
@@ -16,7 +16,7 @@ export type Save<
     | Config<Record<string, any>, any>
     | Config<Record<string, never>, never>,
 > = (options: {
-  effects: Effects
+  effects: T.Effects
   input: ExtractConfigType<A> & Record<string, any>
 }) => Promise<{
   dependenciesReceipt: DependenciesReceipt
@@ -24,14 +24,14 @@ export type Save<
   restart: boolean
 }>
 export type Read<
-  Manifest extends SDKManifest,
+  Manifest extends T.Manifest,
   Store,
   A extends
     | Record<string, any>
     | Config<Record<string, any>, any>
     | Config<Record<string, any>, never>,
 > = (options: {
-  effects: Effects
+  effects: T.Effects
 }) => Promise<void | (ExtractConfigType<A> & Record<string, any>)>
 /**
  * We want to setup a config export with a get and set, this
@@ -46,7 +46,7 @@ export function setupConfig<
     | Record<string, any>
     | Config<any, any>
     | Config<any, never>,
-  Manifest extends SDKManifest,
+  Manifest extends T.Manifest,
   Type extends Record<string, any> = ExtractConfigType<ConfigType>,
 >(
   spec: Config<Type, Store> | Config<Type, never>,
@@ -69,7 +69,7 @@ export function setupConfig<
       if (restart) {
         await effects.restart()
       }
-    }) as ExpectedExports.setConfig,
+    }) as T.ExpectedExports.setConfig,
     getConfig: (async ({ effects }) => {
       const configValue = nullIfEmpty((await read({ effects })) || null)
       return {
@@ -78,7 +78,7 @@ export function setupConfig<
         }),
         config: configValue,
       }
-    }) as ExpectedExports.getConfig,
+    }) as T.ExpectedExports.getConfig,
   }
 }
 

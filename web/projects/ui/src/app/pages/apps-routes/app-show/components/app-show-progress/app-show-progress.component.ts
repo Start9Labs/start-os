@@ -9,5 +9,5 @@ import { T } from '@start9labs/start-sdk'
 })
 export class AppShowProgressComponent {
   @Input()
-  phases!: T.FullProgress['phases']
+  phases!: T.NamedProgress[]
 }

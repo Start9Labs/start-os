@@ -1147,18 +1147,14 @@ enum DependencyRequirement {
         #[ts(type = "string[]")]
         health_checks: BTreeSet<HealthCheckId>,
         #[ts(type = "string")]
-        version_spec: VersionRange,
-        #[ts(type = "string")]
-        registry_url: Url,
+        version_range: VersionRange,
     },
     #[serde(rename_all = "camelCase")]
     Exists {
         #[ts(type = "string")]
         id: PackageId,
         #[ts(type = "string")]
-        version_spec: VersionRange,
-        #[ts(type = "string")]
-        registry_url: Url,
+        version_range: VersionRange,
     },
 }
 // filebrowser:exists,bitcoind:running:foo+bar+baz
@@ -1168,8 +1164,7 @@ impl FromStr for DependencyRequirement {
         match s.split_once(':') {
             Some((id, "e")) | Some((id, "exists")) => Ok(Self::Exists {
                 id: id.parse()?,
-                registry_url: "".parse()?,  // TODO
-                version_spec: "*".parse()?, // TODO
+                version_range: "*".parse()?, // TODO
             }),
             Some((id, rest)) => {
                 let health_checks = match rest.split_once(':') {
@@ -1192,15 +1187,13 @@ impl FromStr for DependencyRequirement {
                 Ok(Self::Running {
                     id: id.parse()?,
                     health_checks,
-                    registry_url: "".parse()?,  // TODO
-                    version_spec: "*".parse()?, // TODO
+                    version_range: "*".parse()?, // TODO
                 })
             }
             None => Ok(Self::Running {
                 id: s.parse()?,
                 health_checks: BTreeSet::new(),
-                registry_url: "".parse()?,  // TODO
-                version_spec: "*".parse()?, // TODO
+                version_range: "*".parse()?, // TODO
             }),
         }
     }
@@ -1234,58 +1227,19 @@ async fn set_dependencies(
 
     let mut deps = BTreeMap::new();
     for dependency in dependencies {
-        let (dep_id, kind, registry_url, version_spec) = match dependency {
-            DependencyRequirement::Exists {
-                id,
-                registry_url,
-                version_spec,
-            } => (
-                id,
-                CurrentDependencyKind::Exists,
-                registry_url,
-                version_spec,
-            ),
+        let (dep_id, kind, version_range) = match dependency {
+            DependencyRequirement::Exists { id, version_range } => {
+                (id, CurrentDependencyKind::Exists, version_range)
+            }
             DependencyRequirement::Running {
                 id,
                 health_checks,
-                registry_url,
-                version_spec,
+                version_range,
             } => (
                 id,
                 CurrentDependencyKind::Running { health_checks },
-                registry_url,
-                version_spec,
+                version_range,
             ),
-        };
-        let (icon, title) = match async {
-            let remote_s9pk = S9pk::deserialize(
-                &Arc::new(
-                    HttpSource::new(
-                        context.seed.ctx.client.clone(),
-                        registry_url
-                            .join(&format!("package/v2/{}.s9pk?spec={}", dep_id, version_spec))?,
-                    )
-                    .await?,
-                ),
-                None, // TODO
-            )
-            .await?;
-
-            let icon = remote_s9pk.icon_data_url().await?;
-
-            Ok::<_, Error>((icon, remote_s9pk.as_manifest().title.clone()))
-        }
-        .await
-        {
-            Ok(a) => a,
-            Err(e) => {
-                tracing::error!("Error fetching remote s9pk: {e}");
-                tracing::debug!("{e:?}");
-                (
-                    DataUrl::from_slice("image/png", include_bytes!("../install/package-icon.png")),
-                    dep_id.to_string(),
-                )
-            }
         };
         let config_satisfied =
             if let Some(dep_service) = &*context.seed.ctx.services.get(&dep_id).await {
@@ -1300,17 +1254,25 @@ async fn set_dependencies(
             } else {
                 true
             };
-        deps.insert(
-            dep_id,
-            CurrentDependencyInfo {
-                kind,
-                registry_url,
-                version_spec,
-                icon,
-                title,
-                config_satisfied,
-            },
-        );
+        let info = CurrentDependencyInfo {
+            title: context
+                .seed
+                .persistent_container
+                .s9pk
+                .dependency_metadata(&dep_id)
+                .await?
+                .map(|m| m.title),
+            icon: context
+                .seed
+                .persistent_container
+                .s9pk
+                .dependency_icon_data_url(&dep_id)
+                .await?,
+            kind,
+            version_range,
+            config_satisfied,
+        };
+        deps.insert(dep_id, info);
     }
     context
         .seed
@@ -1343,23 +1305,19 @@ async fn get_dependencies(context: EffectContext) -> Result<Vec<DependencyRequir
         .into_iter()
         .map(|(id, current_dependency_info)| {
             let CurrentDependencyInfo {
-                registry_url,
-                version_spec,
+                version_range,
                 kind,
                 ..
             } = current_dependency_info;
             Ok::<_, Error>(match kind {
-                CurrentDependencyKind::Exists => DependencyRequirement::Exists {
-                    id,
-                    registry_url,
-                    version_spec,
-                },
+                CurrentDependencyKind::Exists => {
+                    DependencyRequirement::Exists { id, version_range }
+                }
                 CurrentDependencyKind::Running { health_checks } => {
                     DependencyRequirement::Running {
                         id,
                         health_checks,
-                        version_spec,
-                        registry_url,
+                        version_range,
                     }
                 }
             })
@@ -1381,7 +1339,8 @@ struct CheckDependenciesResult {
     package_id: PackageId,
     is_installed: bool,
     is_running: bool,
-    health_checks: Vec<HealthCheckResult>,
+    config_satisfied: bool,
+    health_checks: BTreeMap<HealthCheckId, HealthCheckResult>,
     #[ts(type = "string | null")]
     version: Option<exver::ExtendedVersion>,
 }
@@ -1415,24 +1374,27 @@ async fn check_dependencies(
                 package_id,
                 is_installed: false,
                 is_running: false,
-                health_checks: vec![],
+                config_satisfied: false,
+                health_checks: Default::default(),
                 version: None,
             });
             continue;
         };
-        let installed_version = package
-            .as_state_info()
-            .as_manifest(ManifestPreference::New)
-            .as_version()
-            .de()?
-            .into_version();
+        let manifest = package.as_state_info().as_manifest(ManifestPreference::New);
+        let installed_version = manifest.as_version().de()?.into_version();
+        let satisfies = manifest.as_satisfies().de()?;
         let version = Some(installed_version.clone());
-        if !installed_version.satisfies(&dependency_info.version_spec) {
+        if ![installed_version]
+            .into_iter()
+            .chain(satisfies.into_iter().map(|v| v.into_version()))
+            .any(|v| v.satisfies(&dependency_info.version_range))
+        {
             results.push(CheckDependenciesResult {
                 package_id,
                 is_installed: false,
                 is_running: false,
-                health_checks: vec![],
+                config_satisfied: false,
+                health_checks: Default::default(),
                 version,
             });
             continue;
@@ -1444,17 +1406,23 @@ async fn check_dependencies(
         } else {
             false
         };
-        let health_checks = status
-            .health()
-            .cloned()
-            .unwrap_or_default()
-            .into_iter()
-            .map(|(_, val)| val)
-            .collect();
+        let health_checks =
+            if let CurrentDependencyKind::Running { health_checks } = &dependency_info.kind {
+                status
+                    .health()
+                    .cloned()
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter(|(id, _)| health_checks.contains(id))
+                    .collect()
+            } else {
+                Default::default()
+            };
         results.push(CheckDependenciesResult {
             package_id,
             is_installed,
             is_running,
+            config_satisfied: dependency_info.config_satisfied,
             health_checks,
             version,
         });

@@ -90,6 +90,7 @@ exver = { version = "0.2.0", git = "https://github.com/Start9Labs/exver-rs.git",
   "serde",
 ] }
 fd-lock-rs = "0.1.4"
+form_urlencoded = "1.2.1"
 futures = "0.3.28"
 gpt = "3.1.0"
 helpers = { path = "../helpers" }
@@ -171,6 +172,7 @@ sscanf = "0.4.1"
 ssh-key = { version = "0.6.2", features = ["ed25519"] }
 tar = "0.4.40"
 thiserror = "1.0.49"
+textwrap = "0.16.1"
 tokio = { version = "1.38.1", features = ["full"] }
 tokio-rustls = "0.26.0"
 tokio-socks = "0.5.1"

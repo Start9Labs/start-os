@@ -3,6 +3,7 @@
   "version": "0.3.6",
   "author": "Start9 Labs, Inc",
   "homepage": "https://start9.com/",
+  "license": "MIT",
   "scripts": {
     "ng": "ng",
     "check": "npm run check:shared && npm run check:marketplace && npm run check:ui && npm run check:install-wiz && npm run check:setup && npm run check:dui",

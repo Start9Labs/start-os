@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
 import { IonicModule } from '@ionic/angular'
 import {
-  EmverPipesModule,
+  ExverPipesModule,
   SharedPipesModule,
   TickerModule,
 } from '@start9labs/shared'
@@ -16,7 +16,7 @@ import { PackageComponent } from './package.component'
     CommonModule,
     IonicModule,
     SharedPipesModule,
-    EmverPipesModule,
+    ExverPipesModule,
     TickerModule,
   ],
 })

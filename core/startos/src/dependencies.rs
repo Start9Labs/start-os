@@ -2,18 +2,21 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use clap::Parser;
+use imbl_value::InternedString;
 use models::PackageId;
 use patch_db::json_patch::merge;
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
+use url::Url;
 
 use crate::config::{Config, ConfigSpec, ConfigureContext};
 use crate::context::RpcContext;
 use crate::db::model::package::CurrentDependencies;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
+use crate::util::PathOrUrl;
 use crate::Error;
 
 pub fn dependency<C: Context>() -> ParentHandler<C> {
@@ -42,6 +45,16 @@ impl Map for Dependencies {
 pub struct DepInfo {
     pub description: Option<String>,
     pub optional: bool,
+    pub s9pk: Option<PathOrUrl>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
+#[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
+#[ts(export)]
+pub struct DependencyMetadata {
+    #[ts(type = "string")]
+    pub title: InternedString,
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]

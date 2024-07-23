@@ -1,20 +1,24 @@
 {
   "name": null,
-  "ack-welcome": "0.3.6",
+  "ackWelcome": "0.3.6",
   "marketplace": {
-    "selected-url": "https://registry.start9.com/",
-    "known-hosts": {
-      "https://registry.start9.com/": {},
-      "https://community-registry.start9.com/": {}
+    "selectedUrl": "https://registry.start9.com/",
+    "knownHosts": {
+      "https://registry.start9.com/": {
+        "name": "Start9 Registry"
+      },
+      "https://community-registry.start9.com/": {
+        "name": "Community Registry"
+      }
     }
   },
   "dev": {},
   "gaming": {
     "snake": {
-      "high-score": 0
+      "highScore": 0
     }
   },
-  "ack-instructions": {},
+  "ackInstructions": {},
   "theme": "Dark",
   "widgets": []
 }

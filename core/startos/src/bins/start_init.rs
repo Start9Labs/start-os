@@ -141,6 +141,7 @@ async fn setup_or_init(
     } else {
         let init_ctx = InitContext::init(config).await?;
         let handle = init_ctx.progress.clone();
+        let err_channel = init_ctx.error.clone();
 
         let mut disk_phase = handle.add_phase("Opening data drive".into(), Some(10));
         let init_phases = InitPhases::new(&handle);
@@ -148,47 +149,55 @@ async fn setup_or_init(
 
         server.serve_init(init_ctx);
 
-        disk_phase.start();
-        let guid_string = tokio::fs::read_to_string("/media/startos/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
+        async {
+            disk_phase.start();
+            let guid_string = tokio::fs::read_to_string("/media/startos/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
+                .await?;
+            let disk_guid = Arc::new(String::from(guid_string.trim()));
+            let requires_reboot = crate::disk::main::import(
+                &**disk_guid,
+                config.datadir(),
+                if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
+                    RepairStrategy::Aggressive
+                } else {
+                    RepairStrategy::Preen
+                },
+                if disk_guid.ends_with("_UNENC") {
+                    None
+                } else {
+                    Some(DEFAULT_PASSWORD)
+                },
+            )
             .await?;
-        let disk_guid = Arc::new(String::from(guid_string.trim()));
-        let requires_reboot = crate::disk::main::import(
-            &**disk_guid,
-            config.datadir(),
             if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
-                RepairStrategy::Aggressive
-            } else {
-                RepairStrategy::Preen
-            },
-            if disk_guid.ends_with("_UNENC") {
-                None
-            } else {
-                Some(DEFAULT_PASSWORD)
-            },
-        )
-        .await?;
-        if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
-            tokio::fs::remove_file(REPAIR_DISK_PATH)
-                .await
-                .with_ctx(|_| (crate::ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
+                tokio::fs::remove_file(REPAIR_DISK_PATH)
+                    .await
+                    .with_ctx(|_| (crate::ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
+            }
+            disk_phase.complete();
+            tracing::info!("Loaded Disk");
+
+            if requires_reboot.0 {
+                let mut reboot_phase = handle.add_phase("Rebooting".into(), Some(1));
+                reboot_phase.start();
+                return Ok(Err(Shutdown {
+                    export_args: Some((disk_guid, config.datadir().to_owned())),
+                    restart: true,
+                }));
+            }
+
+            let InitResult { net_ctrl } = crate::init::init(config, init_phases).await?;
+
+            let rpc_ctx =
+                RpcContext::init(config, disk_guid, Some(net_ctrl), rpc_ctx_phases).await?;
+
+            Ok::<_, Error>(Ok((rpc_ctx, handle)))
         }
-        disk_phase.complete();
-        tracing::info!("Loaded Disk");
-
-        if requires_reboot.0 {
-            let mut reboot_phase = handle.add_phase("Rebooting".into(), Some(1));
-            reboot_phase.start();
-            return Ok(Err(Shutdown {
-                export_args: Some((disk_guid, config.datadir().to_owned())),
-                restart: true,
-            }));
-        }
-
-        let InitResult { net_ctrl } = crate::init::init(config, init_phases).await?;
-
-        let rpc_ctx = RpcContext::init(config, disk_guid, Some(net_ctrl), rpc_ctx_phases).await?;
-
-        Ok(Ok((rpc_ctx, handle)))
+        .await
+        .map_err(|e| {
+            err_channel.send_replace(Some(e.clone_output()));
+            e
+        })
     }
 }
 

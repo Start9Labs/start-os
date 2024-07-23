@@ -5,7 +5,6 @@ export type DependencyRequirement =
       kind: "running"
       id: string
       healthChecks: string[]
-      versionSpec: string
-      registryUrl: string
+      versionRange: string
     }
-  | { kind: "exists"; id: string; versionSpec: string; registryUrl: string }
+  | { kind: "exists"; id: string; versionRange: string }

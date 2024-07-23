@@ -6,10 +6,10 @@ use imbl_value::InternedString;
 use models::{mime, DataUrl, PackageId};
 use tokio::fs::File;
 
+use crate::dependencies::DependencyMetadata;
 use crate::prelude::*;
 use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::s9pk::manifest::Manifest;
-use crate::s9pk::merkle_archive::file_contents::FileContents;
 use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::{
@@ -18,6 +18,7 @@ use crate::s9pk::merkle_archive::source::{
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
 use crate::s9pk::v2::pack::{ImageSource, PackSource};
 use crate::util::io::{open_file, TmpDir};
+use crate::util::serde::IoFormat;
 
 const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x02];
 
@@ -33,6 +34,10 @@ pub mod pack;
     ├── icon.<ext>
     ├── LICENSE.md
     ├── instructions.md
+    ├── dependencies
+    │   └── <id>
+    │       ├── metadata.json
+    │       └── icon.<ext>
     ├── javascript.squashfs
     ├── assets
     │   └── <id>.squashfs (xN)
@@ -52,9 +57,10 @@ fn priority(s: &str) -> Option<usize> {
         a if Path::new(a).file_stem() == Some(OsStr::new("icon")) => Some(1),
         "LICENSE.md" => Some(2),
         "instructions.md" => Some(3),
-        "javascript.squashfs" => Some(4),
-        "assets" => Some(5),
-        "images" => Some(6),
+        "dependencies" => Some(4),
+        "javascript.squashfs" => Some(5),
+        "assets" => Some(6),
+        "images" => Some(7),
         _ => None,
     }
 }
@@ -101,22 +107,16 @@ impl<S: FileSource + Clone> S9pk<S> {
         filter.keep_checked(self.archive.contents_mut())
     }
 
-    pub async fn icon(&self) -> Result<(InternedString, FileContents<S>), Error> {
+    pub async fn icon(&self) -> Result<(InternedString, Entry<S>), Error> {
         let mut best_icon = None;
-        for (path, icon) in self
-            .archive
-            .contents()
-            .with_stem("icon")
-            .filter(|(p, _)| {
-                Path::new(&*p)
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .and_then(mime)
-                    .map_or(false, |e| e.starts_with("image/"))
-            })
-            .filter_map(|(k, v)| v.into_file().map(|f| (k, f)))
-        {
-            let size = icon.size().await?;
+        for (path, icon) in self.archive.contents().with_stem("icon").filter(|(p, v)| {
+            Path::new(&*p)
+                .extension()
+                .and_then(|e| e.to_str())
+                .and_then(mime)
+                .map_or(false, |e| e.starts_with("image/") && v.as_file().is_some())
+        }) {
+            let size = icon.expect_file()?.size().await?;
             best_icon = match best_icon {
                 Some((s, a)) if s >= size => Some((s, a)),
                 _ => Some((size, (path, icon))),
@@ -134,7 +134,75 @@ impl<S: FileSource + Clone> S9pk<S> {
             .and_then(|e| e.to_str())
             .and_then(mime)
             .unwrap_or("image/png");
-        DataUrl::from_reader(mime, contents.reader().await?, Some(contents.size().await?)).await
+        Ok(DataUrl::from_vec(
+            mime,
+            contents.expect_file()?.to_vec(contents.hash()).await?,
+        ))
+    }
+
+    pub async fn dependency_icon(
+        &self,
+        id: &PackageId,
+    ) -> Result<Option<(InternedString, Entry<S>)>, Error> {
+        let mut best_icon = None;
+        for (path, icon) in self
+            .archive
+            .contents()
+            .get_path(Path::new("dependencies").join(id))
+            .and_then(|p| p.as_directory())
+            .into_iter()
+            .flat_map(|d| {
+                d.with_stem("icon").filter(|(p, v)| {
+                    Path::new(&*p)
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .and_then(mime)
+                        .map_or(false, |e| e.starts_with("image/") && v.as_file().is_some())
+                })
+            })
+        {
+            let size = icon.expect_file()?.size().await?;
+            best_icon = match best_icon {
+                Some((s, a)) if s >= size => Some((s, a)),
+                _ => Some((size, (path, icon))),
+            };
+        }
+        Ok(best_icon.map(|(_, a)| a))
+    }
+
+    pub async fn dependency_icon_data_url(
+        &self,
+        id: &PackageId,
+    ) -> Result<Option<DataUrl<'static>>, Error> {
+        let Some((name, contents)) = self.dependency_icon(id).await? else {
+            return Ok(None);
+        };
+        let mime = Path::new(&*name)
+            .extension()
+            .and_then(|e| e.to_str())
+            .and_then(mime)
+            .unwrap_or("image/png");
+        Ok(Some(DataUrl::from_vec(
+            mime,
+            contents.expect_file()?.to_vec(contents.hash()).await?,
+        )))
+    }
+
+    pub async fn dependency_metadata(
+        &self,
+        id: &PackageId,
+    ) -> Result<Option<DependencyMetadata>, Error> {
+        if let Some(entry) = self
+            .archive
+            .contents()
+            .get_path(Path::new("dependencies").join(id).join("metadata.json"))
+        {
+            Ok(Some(IoFormat::Json.from_slice(
+                &entry.expect_file()?.to_vec(entry.hash()).await?,
+            )?))
+        } else {
+            Ok(None)
+        }
     }
 
     pub async fn serialize<W: Sink>(&mut self, w: &mut W, verify: bool) -> Result<(), Error> {

@@ -1,5 +1,4 @@
 export { Daemons } from "./mainFn/Daemons"
-export { EmVer } from "./emverLite/mod"
 export { Overlay } from "./util/Overlay"
 export { StartSdk } from "./StartSdk"
 export { setupManifest } from "./manifest/setupManifest"
@@ -7,6 +6,7 @@ export { FileHelper } from "./util/fileHelper"
 export { setupExposeStore } from "./store/setupExposeStore"
 export { pathBuilder } from "./store/PathBuilder"
 export { S9pk } from "./s9pk"
+export { VersionRange, ExtendedVersion, Version } from "./exver"
 
 export * as actions from "./actions"
 export * as backup from "./backup"

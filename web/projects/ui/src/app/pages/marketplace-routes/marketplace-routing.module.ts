@@ -17,13 +17,6 @@ const routes: Routes = [
         m => m.MarketplaceShowPageModule,
       ),
   },
-  {
-    path: ':pkgId/notes',
-    loadChildren: () =>
-      import('./release-notes/release-notes.module').then(
-        m => m.ReleaseNotesPageModule,
-      ),
-  },
 ]
 
 @NgModule({

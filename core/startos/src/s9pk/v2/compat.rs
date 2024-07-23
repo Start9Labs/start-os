@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -199,8 +199,9 @@ impl From<ManifestV1> for Manifest {
         let default_url = value.upstream_repo.clone();
         Self {
             id: value.id,
-            title: value.title,
+            title: value.title.into(),
             version: ExtendedVersion::from(value.version).into(),
+            satisfies: BTreeSet::new(),
             release_notes: value.release_notes,
             license: value.license.into(),
             wrapper_repo: value.wrapper_repo,
@@ -233,6 +234,7 @@ impl From<ManifestV1> for Manifest {
                             DepInfo {
                                 description: value.description,
                                 optional: !value.requirement.required(),
+                                s9pk: None,
                             },
                         )
                     })

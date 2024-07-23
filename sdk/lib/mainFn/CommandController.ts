@@ -1,7 +1,7 @@
 import { DEFAULT_SIGTERM_TIMEOUT } from "."
 import { NO_TIMEOUT, SIGKILL, SIGTERM } from "../StartSdk"
-import { SDKManifest } from "../manifest/ManifestTypes"
-import { Effects, ImageId, ValidIfNoStupidEscape } from "../types"
+
+import * as T from "../types"
 import { MountOptions, Overlay } from "../util/Overlay"
 import { splitCommand } from "../util/splitCommand"
 import { cpExecFile, cpExec } from "./Daemons"
@@ -13,14 +13,14 @@ export class CommandController {
     readonly pid: number | undefined,
     readonly sigtermTimeout: number = DEFAULT_SIGTERM_TIMEOUT,
   ) {}
-  static of<Manifest extends SDKManifest>() {
+  static of<Manifest extends T.Manifest>() {
     return async <A extends string>(
-      effects: Effects,
+      effects: T.Effects,
       imageId: {
-        id: keyof Manifest["images"] & ImageId
+        id: keyof Manifest["images"] & T.ImageId
         sharedRun?: boolean
       },
-      command: ValidIfNoStupidEscape<A> | [string, ...string[]],
+      command: T.CommandType,
       options: {
         // Defaults to the DEFAULT_SIGTERM_TIMEOUT = 30_000ms
         sigtermTimeout?: number
