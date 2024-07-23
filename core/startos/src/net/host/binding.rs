@@ -1,6 +1,3 @@
-use std::collections::BTreeMap;
-
-use imbl_value::InternedString;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -14,10 +11,7 @@ use crate::prelude::*;
 pub struct BindInfo {
     pub options: BindOptions,
     pub lan: LanInfo,
-    #[ts(as = "BTreeMap::<String, u16>")]
-    pub domains: BTreeMap<InternedString, u16>, // domain -> assigned ssl port
 }
-
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, TS, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
@@ -29,14 +23,11 @@ impl BindInfo {
     pub fn new(available_ports: &mut AvailablePorts, options: BindOptions) -> Result<Self, Error> {
         let mut assigned_port = None;
         let mut assigned_ssl_port = None;
-        if options
-            .secure
-            .map_or(false, |s| !(s.ssl && options.add_ssl.is_some()))
-        {
-            assigned_port = Some(available_ports.alloc_forward()?);
+        if options.secure.is_some() {
+            assigned_port = Some(available_ports.alloc()?);
         }
         if options.add_ssl.is_some() {
-            assigned_ssl_port = Some(available_ports.alloc_ssl(None)?);
+            assigned_ssl_port = Some(available_ports.alloc()?);
         }
         Ok(Self {
             options,
@@ -60,22 +51,22 @@ impl BindInfo {
             lan.assigned_port = if let Some(port) = lan.assigned_port.take() {
                 Some(port)
             } else {
-                Some(available_ports.alloc_forward()?)
+                Some(available_ports.alloc()?)
             };
         } else {
             if let Some(port) = lan.assigned_port.take() {
-                available_ports.free_forward(port);
+                available_ports.free([port]);
             }
         }
         if options.add_ssl.is_some() {
             lan.assigned_ssl_port = if let Some(port) = lan.assigned_ssl_port.take() {
                 Some(port)
             } else {
-                Some(available_ports.alloc_ssl(None)?)
+                Some(available_ports.alloc()?)
             };
         } else {
             if let Some(port) = lan.assigned_ssl_port.take() {
-                available_ports.free_ssl(&None, port);
+                available_ports.free([port]);
             }
         }
         Ok(Self { options, lan })

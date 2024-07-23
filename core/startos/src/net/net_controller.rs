@@ -4,7 +4,6 @@ use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
 use imbl::OrdMap;
-use imbl_value::InternedString;
 use models::{HostId, OptionExt, PackageId};
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
@@ -192,14 +191,6 @@ impl NetController {
 struct HostBinds {
     lan: BTreeMap<u16, (LanInfo, Option<AddSslOptions>, Vec<Arc<()>>)>,
     tor: BTreeMap<OnionAddressV3, (OrdMap<u16, SocketAddr>, Vec<Arc<()>>)>,
-    domain: BTreeMap<
-        u16, // internal
-        (
-            BTreeMap<InternedString, u16>, // domain -> assigned ssl port
-            Option<AddSslOptions>,
-            Vec<Arc<()>>,
-        ),
-    >,
 }
 
 pub struct NetService {
@@ -255,103 +246,11 @@ impl NetService {
 
         let peek = ctrl.db.peek().await;
 
+        // LAN
         let server_info = peek.as_public().as_server_info();
         let ip_info = server_info.as_ip_info().de()?;
         let hostname = server_info.as_hostname().de()?;
         for (port, bind) in &host.bindings {
-            // LAN
-            let old_lan_bind = binds.lan.remove(port);
-            let old_lan_port = old_lan_bind.as_ref().map(|(external, _, _)| *external);
-            let lan_bind = old_lan_bind
-                .filter(|(external, ssl, _)| ssl == &bind.options.add_ssl && bind.lan == *external); // only keep existing binding if relevant details match
-            if bind.lan.assigned_port.is_some() || bind.lan.assigned_ssl_port.is_some() {
-                let new_lan_bind = if let Some(b) = lan_bind {
-                    b
-                } else {
-                    let mut rcs = Vec::with_capacity(2);
-                    if let Some(ssl) = &bind.options.add_ssl {
-                        let external = bind
-                            .lan
-                            .assigned_ssl_port
-                            .or_not_found("assigned ssl port")?;
-                        rcs.push(
-                            ctrl.vhost
-                                .add(
-                                    None,
-                                    external,
-                                    (self.ip, *port).into(),
-                                    if let Some(alpn) = ssl.alpn.clone() {
-                                        Err(alpn)
-                                    } else {
-                                        if bind.options.secure.as_ref().map_or(false, |s| s.ssl) {
-                                            Ok(())
-                                        } else {
-                                            Err(AlpnInfo::Reflect)
-                                        }
-                                    },
-                                )
-                                .await?,
-                        );
-                    }
-                    if let Some(security) = bind.options.secure {
-                        if bind.options.add_ssl.is_some() && security.ssl {
-                            // doesn't make sense to have 2 listening ports, both with ssl
-                        } else {
-                            let external =
-                                bind.lan.assigned_port.or_not_found("assigned lan port")?;
-                            rcs.push(ctrl.forward.add(external, (self.ip, *port).into()).await?);
-                        }
-                    }
-                    (bind.lan, bind.options.add_ssl.clone(), rcs)
-                };
-                let mut bind_hostname_info: Vec<HostnameInfo> =
-                    hostname_info.remove(port).unwrap_or_default();
-                for (interface, ip_info) in &ip_info {
-                    bind_hostname_info.push(HostnameInfo::Ip {
-                        network_interface_id: interface.clone(),
-                        public: false,
-                        hostname: IpHostname::Local {
-                            value: format!("{hostname}.local"),
-                            port: new_lan_bind.0.assigned_port,
-                            ssl_port: new_lan_bind.0.assigned_ssl_port,
-                        },
-                    });
-                    if let Some(ipv4) = ip_info.ipv4 {
-                        bind_hostname_info.push(HostnameInfo::Ip {
-                            network_interface_id: interface.clone(),
-                            public: false,
-                            hostname: IpHostname::Ipv4 {
-                                value: ipv4,
-                                port: new_lan_bind.0.assigned_port,
-                                ssl_port: new_lan_bind.0.assigned_ssl_port,
-                            },
-                        });
-                    }
-                    if let Some(ipv6) = ip_info.ipv6 {
-                        bind_hostname_info.push(HostnameInfo::Ip {
-                            network_interface_id: interface.clone(),
-                            public: false,
-                            hostname: IpHostname::Ipv6 {
-                                value: ipv6,
-                                port: new_lan_bind.0.assigned_port,
-                                ssl_port: new_lan_bind.0.assigned_ssl_port,
-                            },
-                        });
-                    }
-                }
-                hostname_info.insert(*port, bind_hostname_info);
-                binds.lan.insert(*port, new_lan_bind);
-            }
-            if let Some(lan) = old_lan_port {
-                if let Some(external) = lan.assigned_ssl_port {
-                    ctrl.vhost.gc(None, external).await?;
-                }
-                if let Some(external) = lan.assigned_port {
-                    ctrl.forward.gc(external).await?;
-                }
-            }
-
-            // Domain
             let old_lan_bind = binds.lan.remove(port);
             let old_lan_port = old_lan_bind.as_ref().map(|(external, _, _)| *external);
             let lan_bind = old_lan_bind
@@ -462,11 +361,11 @@ impl NetService {
             }
         }
 
-        struct HostnamePorts {
+        struct TorHostnamePorts {
             non_ssl: Option<u16>,
             ssl: Option<u16>,
         }
-        let mut tor_hostname_ports = BTreeMap::<u16, HostnamePorts>::new();
+        let mut tor_hostname_ports = BTreeMap::<u16, TorHostnamePorts>::new();
         let mut tor_binds = OrdMap::<u16, SocketAddr>::new();
         for (internal, info) in &host.bindings {
             tor_binds.insert(
@@ -482,7 +381,7 @@ impl NetService {
                 );
                 tor_hostname_ports.insert(
                     *internal,
-                    HostnamePorts {
+                    TorHostnamePorts {
                         non_ssl: Some(info.options.preferred_external_port)
                             .filter(|p| *p != ssl.preferred_external_port),
                         ssl: Some(ssl.preferred_external_port),
@@ -491,13 +390,14 @@ impl NetService {
             } else {
                 tor_hostname_ports.insert(
                     *internal,
-                    HostnamePorts {
+                    TorHostnamePorts {
                         non_ssl: Some(info.options.preferred_external_port),
                         ssl: None,
                     },
                 );
             }
         }
+
         let mut keep_tor_addrs = BTreeSet::new();
         for tor_addr in host.addresses().filter_map(|a| {
             if let HostAddress::Onion { address } = a {
