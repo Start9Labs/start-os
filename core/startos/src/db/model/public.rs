@@ -31,7 +31,7 @@ use crate::{ARCH, PLATFORM};
 pub struct Public {
     pub server_info: ServerInfo,
     pub package_data: AllPackageData,
-    #[ts(type = "any")]
+    #[ts(type = "unknown")]
     pub ui: Value,
 }
 impl Public {

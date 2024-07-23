@@ -5,5 +5,5 @@ import type { ServerInfo } from "./ServerInfo"
 export type Public = {
   serverInfo: ServerInfo
   packageData: AllPackageData
-  ui: any
+  ui: unknown
 }
