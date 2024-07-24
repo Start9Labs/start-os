@@ -42,6 +42,7 @@ describe("startosTypeValidation ", () => {
       createOverlayedImage: {} as CreateOverlayedImageParams,
       destroyOverlayedImage: {} as DestroyOverlayedImageParams,
       clearBindings: undefined,
+      getInstalledPackages: undefined,
       bind: {} as BindParams,
       getHostInfo: {} as WithCallback<GetHostInfoParams>,
       exists: {} as ParamsPackageId,

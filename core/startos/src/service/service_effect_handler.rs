@@ -196,6 +196,10 @@ pub fn service_effect_handler<C: Context>() -> ParentHandler<C> {
         .subcommand("removeAction", from_fn_async(remove_action).no_cli())
         .subcommand("mount", from_fn_async(mount).no_cli())
         .subcommand("clearCallbacks", from_fn(clear_callbacks).no_cli())
+        .subcommand(
+            "getInstalledPackages",
+            from_fn_async(get_installed_packages).no_cli(),
+        )
 
     // TODO Callbacks
 }
@@ -776,6 +780,19 @@ async fn remove_action(context: EffectContext, data: RemoveActionParams) -> Resu
 async fn mount(context: EffectContext, data: MountParams) -> Result<Value, Error> {
     // TODO
     todo!()
+}
+
+async fn get_installed_packages(context: EffectContext) -> Result<Vec<PackageId>, Error> {
+    context
+        .deref()?
+        .seed
+        .ctx
+        .db
+        .peek()
+        .await
+        .into_public()
+        .into_package_data()
+        .keys()
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]

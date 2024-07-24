@@ -118,6 +118,11 @@ function makeEffects(context: EffectContext): Effects {
         T.Effects["clearServiceInterfaces"]
       >
     },
+    getInstalledPackages(...[]: Parameters<T.Effects["getInstalledPackages"]>) {
+      return rpcRound("getInstalledPackages", {}) as ReturnType<
+        T.Effects["getInstalledPackages"]
+      >
+    },
     createOverlayedImage(options: {
       imageId: string
     }): Promise<[string, string]> {

@@ -304,6 +304,10 @@ export type Effects = {
   clearBindings(): Promise<void>
   /** Creates a host connected to the specified port with the provided options */
   bind(options: BindParams): Promise<void>
+
+  /** Returns a list of the ids of all installed packages */
+  getInstalledPackages(): Promise<string[]>
+
   /** Retrieves the current hostname(s) associated with a host id */
   // getHostInfo(options: {
   //   kind: "static" | "single"
