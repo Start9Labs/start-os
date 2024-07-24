@@ -19,9 +19,9 @@ export class InstallingProgressDisplayPipe implements PipeTransform {
   name: 'installingProgress',
 })
 export class InstallingProgressPipe implements PipeTransform {
-  transform(progress: T.Progress): number | null {
-    if (progress === true) return 1
-    if (progress === false || progress === null || !progress.total) return null
-    return Number((progress.done / progress.total).toFixed(2))
+  transform(progress: T.Progress): number {
+    if (progress === true) return 100
+    if (progress === false || progress === null || !progress.total) return 0
+    return Math.round((100 * progress.done) / progress.total)
   }
 }

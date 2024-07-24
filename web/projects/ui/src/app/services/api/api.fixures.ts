@@ -450,7 +450,7 @@ export module Mock {
             },
           },
         },
-        categories: ['lightning', 'featured'],
+        categories: ['lightning'],
         otherVersions: {
           '0.18.0:0.0.1': {
             releaseNotes: 'Upstream release and minor fixes.',
@@ -506,7 +506,7 @@ export module Mock {
             },
           },
         },
-        categories: ['lightning', 'featured'],
+        categories: ['lightning'],
         otherVersions: {
           '0.18.0:0.0.1': {
             releaseNotes: 'Upstream release and minor fixes.',
@@ -684,7 +684,7 @@ export module Mock {
           },
         },
       },
-      categories: ['lightning', 'featured'],
+      categories: ['lightning'],
       otherVersions: {
         '0.17.5:0': {
           releaseNotes: 'Upstream release to 0.17.5',
