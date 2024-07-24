@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use chrono::Utc;
 use clap::Parser;
+use exver::Version;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
@@ -27,7 +28,6 @@ use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::ArchiveSource;
 use crate::util::io::open_file;
 use crate::util::serde::Base64;
-use crate::util::VersionString;
 
 pub fn add_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -55,7 +55,8 @@ pub fn add_api<C: Context>() -> ParentHandler<C> {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct AddAssetParams {
-    pub version: VersionString,
+    #[ts(type = "string")]
+    pub version: Version,
     #[ts(type = "string")]
     pub platform: InternedString,
     #[ts(type = "string")]
@@ -154,7 +155,7 @@ pub struct CliAddAssetParams {
     #[arg(short = 'p', long = "platform")]
     pub platform: InternedString,
     #[arg(short = 'v', long = "version")]
-    pub version: VersionString,
+    pub version: Version,
     pub file: PathBuf,
     pub url: Url,
 }
@@ -209,11 +210,18 @@ pub async fn cli_add_asset(
         hash: Base64(*blake3.as_bytes()),
         size,
     };
-    let signature = Ed25519.sign_commitment(ctx.developer_key()?, &commitment, SIG_CONTEXT)?;
+    let signature = AnySignature::Ed25519(Ed25519.sign_commitment(
+        ctx.developer_key()?,
+        &commitment,
+        SIG_CONTEXT,
+    )?);
     sign_phase.complete();
 
     verify_phase.start();
     let src = HttpSource::new(ctx.client.clone(), url.clone()).await?;
+    if let Some(size) = src.size().await {
+        verify_phase.set_total(size);
+    }
     let mut writer = verify_phase.writer(VerifyingWriter::new(
         tokio::io::sink(),
         Some((blake3::Hash::from_bytes(*commitment.hash), commitment.size)),

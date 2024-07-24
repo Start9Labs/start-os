@@ -290,7 +290,7 @@ export type PropertiesReturn = {
 /** Used to reach out from the pure js runtime */
 export type Effects = {
   executeAction<Input>(opts: {
-    serviceId: string | null
+    packageId: string | null
     input: Input
   }): Promise<unknown>
 
@@ -318,7 +318,7 @@ export type Effects = {
   getHostInfo(options: {
     hostId: string
     packageId: string | null
-    callback?: (newHost: Host | null) => void
+    callback?: () => void
   }): Promise<Host | null>
 
   // /**
@@ -345,7 +345,7 @@ export type Effects = {
       packageId?: string
       /** The path defaults to root level, using the [JsonPath](https://jsonpath.com/) */
       path: StorePath
-      callback: (config: unknown, previousConfig: unknown) => void
+      callback?: () => void
     }): Promise<ExtractStore>
     /** Used to store values that can be accessed and subscribed to */
     set<Store = never, ExtractStore = unknown>(options: {
@@ -357,9 +357,7 @@ export type Effects = {
 
   setMainStatus(o: SetMainStatus): Promise<void>
 
-  getSystemSmtp(input: {
-    callback?: (newSmtp: SmtpValue | null) => void
-  }): Promise<SmtpValue | null>
+  getSystemSmtp(input: { callback?: () => void }): Promise<SmtpValue | null>
 
   /** Get the IP address of the container */
   getContainerIp(): Promise<string>
@@ -389,7 +387,7 @@ export type Effects = {
   getServiceInterface(options: {
     packageId: PackageId | null
     serviceInterfaceId: ServiceInterfaceId
-    callback?: (newInterface: ServiceInterface | null) => void
+    callback?: () => void
   }): Promise<ServiceInterface | null>
 
   /**
@@ -399,7 +397,7 @@ export type Effects = {
   getPrimaryUrl(options: {
     packageId: string | null
     serviceInterfaceId: ServiceInterfaceId
-    callback?: (newUrl: UrlString | null) => void
+    callback?: () => void
   }): Promise<UrlString | null>
 
   /**
@@ -410,9 +408,7 @@ export type Effects = {
    */
   listServiceInterfaces(options: {
     packageId: PackageId | null
-    callback?: (
-      newInterfaces: Record<ServiceInterfaceId, ServiceInterface>,
-    ) => void
+    callback?: () => void
   }): Promise<Record<ServiceInterfaceId, ServiceInterface>>
 
   /**
@@ -445,7 +441,7 @@ export type Effects = {
   getSslCertificate: (options: {
     hostnames: string[]
     algorithm?: "ecdsa" | "ed25519"
-    callback?: (newFullchain: [string, string, string]) => void
+    callback?: () => void
   }) => Promise<[string, string, string]>
   /**
    * @returns PEM encoded ssl key (ecdsa)

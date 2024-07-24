@@ -3,7 +3,7 @@ import type { Guid } from "./Guid"
 
 export type ExecuteAction = {
   procedureId: Guid
-  serviceId: string | null
+  packageId: string | null
   actionId: string
   input: any
 }

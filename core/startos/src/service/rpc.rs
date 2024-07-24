@@ -33,6 +33,42 @@ impl serde::Serialize for Init {
 }
 
 #[derive(Clone)]
+pub struct Start;
+impl RpcMethod for Start {
+    type Params = Empty;
+    type Response = ();
+    fn as_str<'a>(&'a self) -> &'a str {
+        "start"
+    }
+}
+impl serde::Serialize for Start {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+#[derive(Clone)]
+pub struct Stop;
+impl RpcMethod for Stop {
+    type Params = Empty;
+    type Response = ();
+    fn as_str<'a>(&'a self) -> &'a str {
+        "stop"
+    }
+}
+impl serde::Serialize for Stop {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+#[derive(Clone)]
 pub struct Exit;
 impl RpcMethod for Exit {
     type Params = Empty;

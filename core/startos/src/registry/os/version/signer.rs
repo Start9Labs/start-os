@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use clap::Parser;
+use exver::Version;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -12,7 +13,6 @@ use crate::registry::context::RegistryContext;
 use crate::registry::signer::SignerInfo;
 use crate::rpc_continuations::Guid;
 use crate::util::serde::HandlerExtSerde;
-use crate::util::VersionString;
 
 pub fn signer_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -44,7 +44,8 @@ pub fn signer_api<C: Context>() -> ParentHandler<C> {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct VersionSignerParams {
-    pub version: VersionString,
+    #[ts(type = "string")]
+    pub version: Version,
     pub signer: Guid,
 }
 
@@ -104,7 +105,8 @@ pub async fn remove_version_signer(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct ListVersionSignersParams {
-    pub version: VersionString,
+    #[ts(type = "string")]
+    pub version: Version,
 }
 
 pub async fn list_version_signers(

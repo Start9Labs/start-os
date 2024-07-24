@@ -14,12 +14,10 @@ use exver::VersionRange;
 use futures::future::join_all;
 use helpers::NonDetachingJoinHandle;
 use imbl::{vector, Vector};
-use imbl_value::{json, InOMap, InternedString};
+use imbl_value::{json, InternedString};
 use itertools::Itertools;
 use log::warn;
-use models::{
-    ActionId, DataUrl, HealthCheckId, HostId, ImageId, PackageId, ServiceInterfaceId, VolumeId,
-};
+use models::{ActionId, HealthCheckId, HostId, ImageId, PackageId, ServiceInterfaceId, VolumeId};
 use openssl::pkey::{PKey, Private};
 use patch_db::json_ptr::JsonPointer;
 use patch_db::ModelExt;
@@ -27,8 +25,8 @@ use rpc_toolkit::{from_fn, from_fn_async, Context, Empty, HandlerExt, ParentHand
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
-use url::Url;
 
+use crate::action::ActionResult;
 use crate::db::model::package::{
     ActionMetadata, CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind,
     ManifestPreference,
@@ -42,9 +40,7 @@ use crate::net::service_interface::{AddressInfo, ServiceInterface, ServiceInterf
 use crate::net::ssl::FullchainCertData;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
-use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::rpc::SKIP_ENV;
-use crate::s9pk::S9pk;
 use crate::service::cli::ContainerCliContext;
 use crate::service::rpc::{CallbackHandle, CallbackId};
 use crate::service::{Service, ServiceActorSeed};
@@ -217,6 +213,7 @@ struct ServiceCallbackMap {
         (BTreeSet<InternedString>, FullchainCertData, Algorithm),
         (NonDetachingJoinHandle<()>, Vec<CallbackHandler>),
     >,
+    get_store: BTreeMap<PackageId, BTreeMap<JsonPointer, Vec<CallbackHandler>>>,
 }
 
 impl ServiceCallbacks {
@@ -244,7 +241,14 @@ impl ServiceCallbacks {
             this.get_ssl_certificate.retain(|_, (_, v)| {
                 v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
                 !v.is_empty()
-            })
+            });
+            this.get_store.retain(|_, v| {
+                v.retain(|_, v| {
+                    v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
+                    !v.is_empty()
+                });
+                !v.is_empty()
+            });
         })
     }
 
@@ -358,35 +362,14 @@ impl ServiceCallbacks {
                                 let Ok(ctx) = ctx.deref() else {
                                     return Ok(());
                                 };
-                                let new_cert = ctx
-                                    .seed
-                                    .ctx
-                                    .db
-                                    .mutate(|db| {
-                                        db.as_private_mut()
-                                            .as_key_store_mut()
-                                            .as_local_certs_mut()
-                                            .cert_for(&hostnames)
-                                    })
-                                    .await?;
-                                let args = vector![to_value::<Vec<_>>(
-                                    &match algorithm {
-                                        Algorithm::Ecdsa => new_cert.fullchain_nistp256(),
-                                        Algorithm::Ed25519 => new_cert.fullchain_ed25519(),
-                                    }
-                                    .into_iter()
-                                    .map(|c| c.to_pem())
-                                    .map_ok(String::from_utf8)
-                                    .map(|a| Ok::<_, Error>(a??))
-                                    .try_collect()?
-                                )?];
+
                                 if let Some((_, callbacks)) =
                                     ctx.seed.ctx.callbacks.mutate(|this| {
                                         this.get_ssl_certificate
                                             .remove(&(hostnames, cert, algorithm))
                                     })
                                 {
-                                    CallbackHandlers(callbacks).call(args).await?;
+                                    CallbackHandlers(callbacks).call(vector![]).await?;
                                 }
                                 Ok::<_, Error>(())
                             }
@@ -404,6 +387,42 @@ impl ServiceCallbacks {
                 })
                 .1
                 .push(handler);
+        })
+    }
+
+    fn add_get_store(&self, package_id: PackageId, path: JsonPointer, handler: CallbackHandler) {
+        self.mutate(|this| {
+            this.get_store
+                .entry(package_id)
+                .or_default()
+                .entry(path)
+                .or_default()
+                .push(handler)
+        })
+    }
+
+    #[must_use]
+    pub fn get_store(
+        &self,
+        package_id: &PackageId,
+        path: &JsonPointer,
+    ) -> Option<CallbackHandlers> {
+        self.mutate(|this| {
+            if let Some(watched) = this.get_store.get_mut(package_id) {
+                let mut res = Vec::new();
+                watched.retain(|ptr, cbs| {
+                    if ptr.starts_with(path) || path.starts_with(ptr) {
+                        res.append(cbs);
+                        false
+                    } else {
+                        true
+                    }
+                });
+                Some(CallbackHandlers(res))
+            } else {
+                None
+            }
+            .filter(|cb| !cb.0.is_empty())
         })
     }
 }
@@ -627,19 +646,18 @@ async fn export_service_interface(
         interface_type: r#type,
     };
 
-    let map = context
+    context
         .seed
         .ctx
         .db
         .mutate(|db| {
-            let map = db
-                .as_public_mut()
+            db.as_public_mut()
                 .as_package_data_mut()
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
-                .as_service_interfaces_mut();
-            map.insert(&id, &service_interface)?;
-            Ok(map.clone())
+                .as_service_interfaces_mut()
+                .insert(&id, &service_interface)?;
+            Ok(())
         })
         .await?;
     if let Some(callbacks) = context
@@ -648,9 +666,7 @@ async fn export_service_interface(
         .callbacks
         .get_service_interface(&(package_id.clone(), id))
     {
-        callbacks
-            .call(vector![to_value(&service_interface)?])
-            .await?;
+        callbacks.call(vector![]).await?;
     }
     if let Some(callbacks) = context
         .seed
@@ -658,7 +674,7 @@ async fn export_service_interface(
         .callbacks
         .list_service_interfaces(&package_id)
     {
-        callbacks.call(vector![map.into_value()]).await?;
+        callbacks.call(vector![]).await?;
     }
 
     Ok(())
@@ -1027,9 +1043,10 @@ async fn get_ssl_certificate(
                     if !packages.contains(internal) {
                         return Err(errfn(&*hostname));
                     }
-                }
-                if !allowed_hostnames.contains(hostname) {
-                    return Err(errfn(&*hostname));
+                } else {
+                    if !allowed_hostnames.contains(hostname) {
+                        return Err(errfn(&*hostname));
+                    }
                 }
             }
             db.as_private_mut()
@@ -1111,9 +1128,10 @@ async fn get_ssl_key(
                     if internal != &**package_id {
                         return Err(errfn(&*hostname));
                     }
-                }
-                if !allowed_hostnames.contains(hostname) {
-                    return Err(errfn(&*hostname));
+                } else {
+                    if !allowed_hostnames.contains(hostname) {
+                        return Err(errfn(&*hostname));
+                    }
                 }
             }
             db.as_private_mut()
@@ -1158,6 +1176,15 @@ async fn get_store(
         .or_not_found(&package_id)?
         .de()?;
 
+    if let Some(callback) = callback {
+        let callback = callback.register(&context.seed.persistent_container);
+        context.seed.ctx.callbacks.add_get_store(
+            package_id,
+            path.clone(),
+            CallbackHandler::new(&context, callback),
+        );
+    }
+
     Ok(path
         .get(&value)
         .ok_or_else(|| Error::new(eyre!("Did not find value at path"), ErrorKind::NotFound))?
@@ -1178,7 +1205,7 @@ async fn set_store(
     SetStoreParams { value, path }: SetStoreParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
-    let package_id = context.seed.id.clone();
+    let package_id = &context.seed.id;
     context
         .seed
         .ctx
@@ -1187,7 +1214,7 @@ async fn set_store(
             let model = db
                 .as_private_mut()
                 .as_package_stores_mut()
-                .upsert(&package_id, || Ok(json!({})))?;
+                .upsert(package_id, || Ok(json!({})))?;
             let mut model_value = model.de()?;
             if model_value.is_null() {
                 model_value = json!({});
@@ -1197,6 +1224,11 @@ async fn set_store(
             model.ser(&model_value)
         })
         .await?;
+
+    if let Some(callbacks) = context.seed.ctx.callbacks.get_store(package_id, &path) {
+        callbacks.call(vector![]).await?;
+    }
+
     Ok(())
 }
 
@@ -1249,7 +1281,7 @@ struct ExecuteAction {
     #[serde(default)]
     procedure_id: Guid,
     #[ts(type = "string | null")]
-    service_id: Option<PackageId>,
+    package_id: Option<PackageId>,
     #[ts(type = "string")]
     action_id: ActionId,
     #[ts(type = "any")]
@@ -1259,17 +1291,27 @@ async fn execute_action(
     context: EffectContext,
     ExecuteAction {
         procedure_id,
-        service_id,
+        package_id,
         action_id,
         input,
     }: ExecuteAction,
-) -> Result<Value, Error> {
+) -> Result<ActionResult, Error> {
     let context = context.deref()?;
-    let package_id = service_id
-        .clone()
-        .unwrap_or_else(|| context.seed.id.clone());
 
-    Ok(json!(context.action(procedure_id, action_id, input).await?))
+    if let Some(package_id) = package_id {
+        context
+            .seed
+            .ctx
+            .services
+            .get(&package_id)
+            .await
+            .as_ref()
+            .or_not_found(&package_id)?
+            .action(procedure_id, action_id, input)
+            .await
+    } else {
+        context.action(procedure_id, action_id, input).await
+    }
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]

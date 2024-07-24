@@ -435,21 +435,13 @@ impl PersistentContainer {
 
     #[instrument(skip_all)]
     pub async fn start(&self) -> Result<(), Error> {
-        self.execute(
-            Guid::new(),
-            ProcedureName::StartMain,
-            Value::Null,
-            Some(Duration::from_secs(5)), // TODO
-        )
-        .await?;
+        self.rpc_client.request(rpc::Start, Empty {}).await?;
         Ok(())
     }
 
     #[instrument(skip_all)]
     pub async fn stop(&self) -> Result<(), Error> {
-        let timeout: Option<crate::util::serde::Duration> = self
-            .execute(Guid::new(), ProcedureName::StopMain, Value::Null, None)
-            .await?;
+        self.rpc_client.request(rpc::Stop, Empty {}).await?;
         Ok(())
     }
 

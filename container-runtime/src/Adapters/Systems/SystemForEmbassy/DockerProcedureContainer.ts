@@ -41,17 +41,19 @@ export class DockerProcedureContainer {
         } else if (volumeMount.type === "certificate") {
           const hostnames = [
             `${packageId}.embassy`,
-            ...Object.values(
-              (
-                await effects.getHostInfo({
-                  hostId: volumeMount["interface-id"],
-                  packageId: null,
-                })
-              )?.hostnameInfo || {},
-            )
-              .flatMap((h) => h)
-              .filter((h) => h.kind === "onion")
-              .map((h) => (h.hostname as T.OnionHostname).value),
+            ...new Set(
+              Object.values(
+                (
+                  await effects.getHostInfo({
+                    hostId: volumeMount["interface-id"],
+                    packageId: null,
+                  })
+                )?.hostnameInfo || {},
+              )
+                .flatMap((h) => h)
+                .filter((h) => h.kind === "onion")
+                .map((h) => (h.hostname as T.OnionHostname).value),
+            ).values(),
           ]
           const certChain = await effects.getSslCertificate({
             hostnames,

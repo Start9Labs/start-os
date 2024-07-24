@@ -214,7 +214,7 @@ export class SystemForEmbassy implements System {
   async start(effects: MainEffects): Promise<void> {
     if (!!this.currentRunning) return
 
-    this.currentRunning = new MainLoop(this, effects)
+    this.currentRunning = await MainLoop.of(this, effects)
   }
   callCallback(_callback: number, _args: any[]): void {}
   async stop(): Promise<void> {
@@ -223,7 +223,7 @@ export class SystemForEmbassy implements System {
     delete this.currentRunning
     if (currentRunning) {
       await currentRunning.clean({
-        timeout: fromDuration(this.manifest.main["sigterm-timeout"]),
+        timeout: fromDuration(this.manifest.main["sigterm-timeout"] || "30s"),
       })
     }
   }

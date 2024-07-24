@@ -41,7 +41,7 @@ impl FromStr for HostAddress {
 impl fmt::Display for HostAddress {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Onion { address } => write!(f, "{address}.onion"),
+            Self::Onion { address } => write!(f, "{address}"),
             Self::Domain { address } => write!(f, "{address}"),
         }
     }

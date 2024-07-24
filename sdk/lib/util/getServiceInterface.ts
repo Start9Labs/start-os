@@ -184,7 +184,7 @@ const makeInterfaceFilled = async ({
   effects: Effects
   id: string
   packageId: string | null
-  callback: () => void
+  callback?: () => void
 }) => {
   const serviceInterfaceValue = await effects.getServiceInterface({
     serviceInterfaceId: id,
@@ -247,12 +247,10 @@ export class GetServiceInterface {
    */
   async once() {
     const { id, packageId } = this.opts
-    const callback = () => {}
     const interfaceFilled = await makeInterfaceFilled({
       effects: this.effects,
       id,
       packageId,
-      callback,
     })
 
     return interfaceFilled

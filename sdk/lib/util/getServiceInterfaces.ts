@@ -12,7 +12,7 @@ const makeManyInterfaceFilled = async ({
 }: {
   effects: Effects
   packageId: string | null
-  callback: () => void
+  callback?: () => void
 }) => {
   const serviceInterfaceValues = await effects.listServiceInterfaces({
     packageId,
@@ -78,12 +78,10 @@ export class GetServiceInterfaces {
    */
   async once() {
     const { packageId } = this.opts
-    const callback = () => {}
     const interfaceFilled: ServiceInterfaceFilled[] =
       await makeManyInterfaceFilled({
         effects: this.effects,
         packageId,
-        callback,
       })
 
     return interfaceFilled
