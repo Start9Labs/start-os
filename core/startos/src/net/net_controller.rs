@@ -289,10 +289,13 @@ impl NetService {
         let ip_info = server_info.as_ip_info().de()?;
         let hostname = server_info.as_hostname().de()?;
         for (port, bind) in &host.bindings {
-            let mut old_lan_bind = binds.lan.remove(port);
-            let lan_bind = old_lan_bind.take_if(|(external, ssl, _, _)| {
-                ssl == &bind.options.add_ssl && bind.lan == *external
-            }); // only keep existing binding if relevant details match
+            let old_lan_bind = binds.lan.remove(port);
+            let lan_bind = old_lan_bind
+                .as_ref()
+                .filter(|(external, ssl, _, _)| {
+                    ssl == &bind.options.add_ssl && bind.lan == *external
+                })
+                .cloned(); // only keep existing binding if relevant details match
             if bind.lan.assigned_port.is_some() || bind.lan.assigned_ssl_port.is_some() {
                 let new_lan_bind = if let Some(b) = lan_bind {
                     b

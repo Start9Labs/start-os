@@ -14,6 +14,7 @@ export class DockerProcedureContainer {
   // }
   static async of(
     effects: T.Effects,
+    packageId: string,
     data: DockerProcedure,
     volumes: { [id: VolumeId]: Volume },
   ) {
@@ -38,16 +39,25 @@ export class DockerProcedureContainer {
             mounts[mount],
           )
         } else if (volumeMount.type === "certificate") {
-          volumeMount
+          const hostnames = [
+            `${packageId}.embassy`,
+            ...Object.values(
+              (
+                await effects.getHostInfo({
+                  hostId: volumeMount["interface-id"],
+                  packageId: null,
+                })
+              )?.hostnameInfo || {},
+            )
+              .flatMap((h) => h)
+              .filter((h) => h.kind === "onion")
+              .map((h) => (h.hostname as T.OnionHostname).value),
+          ]
           const certChain = await effects.getSslCertificate({
-            packageId: null,
-            hostId: volumeMount["interface-id"],
-            algorithm: null,
+            hostnames,
           })
           const key = await effects.getSslKey({
-            packageId: null,
-            hostId: volumeMount["interface-id"],
-            algorithm: null,
+            hostnames,
           })
           await fs.writeFile(
             `${path}/${volumeMount["interface-id"]}.cert.pem`,

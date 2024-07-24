@@ -1,3 +1,4 @@
+use std::fmt;
 use std::str::FromStr;
 
 use imbl_value::InternedString;
@@ -33,6 +34,15 @@ impl FromStr for HostAddress {
             })
         } else {
             Ok(HostAddress::Domain { address: s.into() })
+        }
+    }
+}
+
+impl fmt::Display for HostAddress {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Onion { address } => write!(f, "{address}.onion"),
+            Self::Domain { address } => write!(f, "{address}"),
         }
     }
 }

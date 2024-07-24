@@ -3,5 +3,5 @@ import type { CallbackId } from "./CallbackId"
 
 export type ListServiceInterfacesParams = {
   packageId: string | null
-  callback: CallbackId
+  callback: CallbackId | null
 }

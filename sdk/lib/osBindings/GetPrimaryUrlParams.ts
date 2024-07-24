@@ -5,5 +5,5 @@ import type { ServiceInterfaceId } from "./ServiceInterfaceId"
 export type GetPrimaryUrlParams = {
   packageId: string | null
   serviceInterfaceId: ServiceInterfaceId
-  callback: CallbackId
+  callback: CallbackId | null
 }

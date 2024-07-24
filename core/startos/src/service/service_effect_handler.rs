@@ -20,6 +20,7 @@ use log::warn;
 use models::{
     ActionId, DataUrl, HealthCheckId, HostId, ImageId, PackageId, ServiceInterfaceId, VolumeId,
 };
+use openssl::pkey::{PKey, Private};
 use patch_db::json_ptr::JsonPointer;
 use patch_db::ModelExt;
 use rpc_toolkit::{from_fn, from_fn_async, Context, Empty, HandlerExt, ParentHandler};
@@ -52,6 +53,7 @@ use crate::status::MainStatus;
 use crate::system::SmtpValue;
 use crate::util::clap::FromStrParser;
 use crate::util::collections::EqMap;
+use crate::util::serde::Pem;
 use crate::util::Invoke;
 
 #[derive(Clone)]
@@ -817,7 +819,7 @@ async fn get_host_info(
     Ok(res)
 }
 
-async fn clear_bindings(context: EffectContext, _: Empty) -> Result<(), Error> {
+async fn clear_bindings(context: EffectContext) -> Result<(), Error> {
     let context = context.deref()?;
     let mut svc = context.seed.persistent_container.net_service.lock().await;
     svc.clear_bindings().await?;
@@ -967,6 +969,7 @@ enum Algorithm {
 struct GetSslCertificateParams {
     #[ts(type = "string[]")]
     hostnames: BTreeSet<InternedString>,
+    #[ts(optional)]
     algorithm: Option<Algorithm>, //"ecdsa" | "ed25519"
     callback: Option<CallbackId>,
 }
@@ -997,6 +1000,7 @@ async fn get_ssl_certificate(
                 .map_ok(|(_, m)| m.as_addresses().de())
                 .map(|a| a.and_then(|a| a))
                 .flatten_ok()
+                .map_ok(|a| InternedString::from_display(&a))
                 .try_collect::<_, BTreeSet<_>, _>()?;
             for hostname in &hostnames {
                 if let Some(internal) = hostname
@@ -1007,7 +1011,7 @@ async fn get_ssl_certificate(
                         return Err(errfn(&*hostname));
                     }
                 }
-                if !allowed_hostnames.contains(&hostname.parse()?) {
+                if !allowed_hostnames.contains(hostname) {
                     return Err(errfn(&*hostname));
                 }
             }
@@ -1047,22 +1051,66 @@ async fn get_ssl_certificate(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 struct GetSslKeyParams {
-    package_id: Option<String>,
-    host_id: String,
-    algorithm: Option<Algorithm>,
+    #[ts(type = "string[]")]
+    hostnames: BTreeSet<InternedString>,
+    #[ts(optional)]
+    algorithm: Option<Algorithm>, //"ecdsa" | "ed25519"
 }
 
 async fn get_ssl_key(
     context: EffectContext,
     GetSslKeyParams {
-        package_id,
-        host_id,
+        hostnames,
         algorithm,
     }: GetSslKeyParams,
-) -> Result<Value, Error> {
-    // TODO
-    let fake = include_str!("./fake.cert.key");
-    Ok(json!(fake))
+) -> Result<Pem<PKey<Private>>, Error> {
+    let context = context.deref()?;
+    let package_id = &context.seed.id;
+    let algorithm = algorithm.unwrap_or(Algorithm::Ecdsa);
+
+    let cert = context
+        .seed
+        .ctx
+        .db
+        .mutate(|db| {
+            let errfn = |h: &str| Error::new(eyre!("unknown hostname: {h}"), ErrorKind::NotFound);
+            let allowed_hostnames = db
+                .as_public()
+                .as_package_data()
+                .as_idx(package_id)
+                .into_iter()
+                .map(|m| m.as_hosts().as_entries())
+                .flatten_ok()
+                .map_ok(|(_, m)| m.as_addresses().de())
+                .map(|a| a.and_then(|a| a))
+                .flatten_ok()
+                .map_ok(|a| InternedString::from_display(&a))
+                .try_collect::<_, BTreeSet<_>, _>()?;
+            for hostname in &hostnames {
+                if let Some(internal) = hostname
+                    .strip_suffix(".embassy")
+                    .or_else(|| hostname.strip_suffix(".startos"))
+                {
+                    if internal != &**package_id {
+                        return Err(errfn(&*hostname));
+                    }
+                }
+                if !allowed_hostnames.contains(hostname) {
+                    return Err(errfn(&*hostname));
+                }
+            }
+            db.as_private_mut()
+                .as_key_store_mut()
+                .as_local_certs_mut()
+                .cert_for(&hostnames)
+        })
+        .await?;
+    let key = match algorithm {
+        Algorithm::Ecdsa => cert.leaf.keys.nistp256,
+        Algorithm::Ed25519 => cert.leaf.keys.ed25519,
+    };
+
+    Ok(Pem(key))
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]

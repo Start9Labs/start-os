@@ -4,5 +4,5 @@ import type { CallbackId } from "./CallbackId"
 export type GetStoreParams = {
   packageId: string | null
   path: string
-  callback: CallbackId
+  callback: CallbackId | null
 }

@@ -5,7 +5,10 @@ export class CallbackHolder {
   private newId() {
     return this.inc++
   }
-  addCallback(callback: Function) {
+  addCallback(callback?: Function) {
+    if (!callback) {
+      return
+    }
     const id = this.newId()
     this.callbacks.set(id, callback)
     return id

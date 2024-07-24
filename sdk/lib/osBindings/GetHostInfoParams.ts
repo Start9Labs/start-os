@@ -5,5 +5,5 @@ import type { HostId } from "./HostId"
 export type GetHostInfoParams = {
   hostId: HostId
   packageId: string | null
-  callback: CallbackId
+  callback: CallbackId | null
 }

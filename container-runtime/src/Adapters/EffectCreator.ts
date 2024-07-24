@@ -167,7 +167,7 @@ function makeEffects(context: EffectContext): Effects {
         T.Effects["getContainerIp"]
       >
     },
-    getHostInfo: ((...[allOptions]: any[]) => {
+    getHostInfo: ((...[allOptions]: Parameters<T.Effects["getHostInfo"]>) => {
       const options = {
         ...allOptions,
         callback: context.callbacks?.addCallback(allOptions.callback) || null,

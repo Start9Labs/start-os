@@ -126,6 +126,7 @@ export const polyfillEffects = (
     } {
       const dockerProcedureContainer = DockerProcedureContainer.of(
         effects,
+        manifest.id,
         manifest.main,
         manifest.volumes,
       )

@@ -27,6 +27,9 @@ const makeManyInterfaceFilled = async ({
         hostId,
         callback,
       })
+      if (!host) {
+        throw new Error(`host ${hostId} not found!`)
+      }
       const primaryUrl = await effects
         .getPrimaryUrl({
           serviceInterfaceId: serviceInterfaceValue.id,

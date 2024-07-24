@@ -45,6 +45,7 @@ export class MainLoop {
     const jsMain = (this.system.moduleCode as any)?.jsMain
     const dockerProcedureContainer = await DockerProcedureContainer.of(
       effects,
+      this.system.manifest.id,
       this.system.manifest.main,
       this.system.manifest.volumes,
     )
@@ -134,6 +135,7 @@ export class MainLoop {
           if (actionProcedure.type === "docker") {
             const container = await DockerProcedureContainer.of(
               effects,
+              manifest.id,
               actionProcedure,
               manifest.volumes,
             )

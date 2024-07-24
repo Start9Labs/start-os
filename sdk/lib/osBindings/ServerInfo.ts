@@ -2,6 +2,7 @@
 import type { Governor } from "./Governor"
 import type { IpInfo } from "./IpInfo"
 import type { ServerStatus } from "./ServerStatus"
+import type { SmtpValue } from "./SmtpValue"
 import type { WifiInfo } from "./WifiInfo"
 
 export type ServerInfo = {
@@ -28,5 +29,5 @@ export type ServerInfo = {
   ntpSynced: boolean
   zram: boolean
   governor: Governor | null
-  smtp: string | null
+  smtp: SmtpValue | null
 }

@@ -499,10 +499,15 @@ export class SystemForEmbassy implements System {
   ): Promise<void> {
     const backup = this.manifest.backup.create
     if (backup.type === "docker") {
-      const container = await DockerProcedureContainer.of(effects, backup, {
-        ...this.manifest.volumes,
-        BACKUP: { type: "backup", readonly: false },
-      })
+      const container = await DockerProcedureContainer.of(
+        effects,
+        this.manifest.id,
+        backup,
+        {
+          ...this.manifest.volumes,
+          BACKUP: { type: "backup", readonly: false },
+        },
+      )
       await container.execFail([backup.entrypoint, ...backup.args], timeoutMs)
     } else {
       const moduleCode = await this.moduleCode
@@ -517,6 +522,7 @@ export class SystemForEmbassy implements System {
     if (restoreBackup.type === "docker") {
       const container = await DockerProcedureContainer.of(
         effects,
+        this.manifest.id,
         restoreBackup,
         {
           ...this.manifest.volumes,
@@ -549,6 +555,7 @@ export class SystemForEmbassy implements System {
     if (config.type === "docker") {
       const container = await DockerProcedureContainer.of(
         effects,
+        this.manifest.id,
         config,
         this.manifest.volumes,
       )
@@ -591,6 +598,7 @@ export class SystemForEmbassy implements System {
     if (setConfigValue.type === "docker") {
       const container = await DockerProcedureContainer.of(
         effects,
+        this.manifest.id,
         setConfigValue,
         this.manifest.volumes,
       )
@@ -699,6 +707,7 @@ export class SystemForEmbassy implements System {
       if (procedure.type === "docker") {
         const container = await DockerProcedureContainer.of(
           effects,
+          this.manifest.id,
           procedure,
           this.manifest.volumes,
         )
@@ -741,6 +750,7 @@ export class SystemForEmbassy implements System {
     if (setConfigValue.type === "docker") {
       const container = await DockerProcedureContainer.of(
         effects,
+        this.manifest.id,
         setConfigValue,
         this.manifest.volumes,
       )
@@ -782,6 +792,7 @@ export class SystemForEmbassy implements System {
     if (actionProcedure.type === "docker") {
       const container = await DockerProcedureContainer.of(
         effects,
+        this.manifest.id,
         actionProcedure,
         this.manifest.volumes,
       )
@@ -822,6 +833,7 @@ export class SystemForEmbassy implements System {
     if (actionProcedure.type === "docker") {
       const container = await DockerProcedureContainer.of(
         effects,
+        this.manifest.id,
         actionProcedure,
         this.manifest.volumes,
       )
@@ -1036,15 +1048,15 @@ async function updateConfig(
         }
       }
       const url: string =
-        filled === null
+        filled === null || filled.addressInfo === null
           ? ""
           : catchFn(() =>
               utils.hostnameInfoToAddress(
                 specValue.target === "lan-address"
-                  ? filled.addressInfo.localHostnames[0] ||
-                      filled.addressInfo.onionHostnames[0]
-                  : filled.addressInfo.onionHostnames[0] ||
-                      filled.addressInfo.localHostnames[0],
+                  ? filled.addressInfo!.localHostnames[0] ||
+                      filled.addressInfo!.onionHostnames[0]
+                  : filled.addressInfo!.onionHostnames[0] ||
+                      filled.addressInfo!.localHostnames[0],
               ),
             ) || ""
       mutConfigValue[key] = url
