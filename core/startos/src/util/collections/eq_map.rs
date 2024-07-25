@@ -1,5 +1,6 @@
 use std::borrow::Borrow;
 use std::fmt;
+use std::ops::{Index, IndexMut};
 
 pub struct EqMap<K: Eq, V>(Vec<(K, V)>);
 impl<K: Eq, V> Default for EqMap<K, V> {
@@ -8,6 +9,10 @@ impl<K: Eq, V> Default for EqMap<K, V> {
     }
 }
 impl<K: Eq, V> EqMap<K, V> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     pub fn clear(&mut self) {
         self.0.clear()
     }
@@ -20,7 +25,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(1, "a");
@@ -43,7 +48,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(1, "a");
@@ -66,7 +71,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(1, "a");
@@ -89,7 +94,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(1, "a");
@@ -110,7 +115,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(1, "a");
@@ -133,7 +138,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(1, "a");
@@ -156,7 +161,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(1, "a");
@@ -185,7 +190,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// assert_eq!(map.insert(37, "a"), None);
@@ -217,7 +222,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// assert_eq!(map.try_insert(37, "a").unwrap(), &"a");
@@ -246,7 +251,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(1, "a");
@@ -270,7 +275,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(1, "a");
@@ -298,7 +303,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map: EqMap<i32, i32> = (0..8).map(|x| (x, x*10)).collect();
     /// // Keep only the elements with even-numbered keys.
@@ -322,7 +327,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut a = EqMap::new();
     /// a.insert(1, "a");
@@ -360,7 +365,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut count: EqMap<&str, usize> = EqMap::new();
     ///
@@ -383,35 +388,34 @@ impl<K: Eq, V> EqMap<K, V> {
         }
     }
 
-    /// Creates an iterator that visits all elements (key-value pairs) and
-    /// uses a closure to determine if an element should be removed. If the
-    /// closure returns `true`, the element is removed from the map and yielded.
-    /// If the closure returns `false`, or panics, the element remains in the map
-    /// and will not be yielded.
-    ///
-    /// The iterator also lets you mutate the value of each element in the
-    /// closure, regardless of whether you choose to keep or remove it.
-    ///
-    /// If the returned `ExtractIf` is not exhausted, e.g. because it is dropped without iterating
-    /// or the iteration short-circuits, then the remaining elements will be retained.
-    /// Use [`retain`] with a negated predicate if you do not need the returned iterator.
-    ///
-    /// [`retain`]: EqMap::retain
-    ///
-    /// # Examples
-    ///
-    /// Splitting a map into even and odd keys, reusing the original map:
-    ///
-    /// ```
-    /// #![feature(btree_extract_if)]
-    /// use crate::util::collections::EqMap;
-    ///
-    /// let mut map: EqMap<i32, i32> = (0..8).map(|x| (x, x)).collect();
-    /// let evens: EqMap<_, _> = map.extract_if(|k, _v| k % 2 == 0).collect();
-    /// let odds = map;
-    /// assert_eq!(evens.keys().copied().collect::<Vec<_>>(), [0, 2, 4, 6]);
-    /// assert_eq!(odds.keys().copied().collect::<Vec<_>>(), [1, 3, 5, 7]);
-    /// ```
+    // /// Creates an iterator that visits all elements (key-value pairs) and
+    // /// uses a closure to determine if an element should be removed. If the
+    // /// closure returns `true`, the element is removed from the map and yielded.
+    // /// If the closure returns `false`, or panics, the element remains in the map
+    // /// and will not be yielded.
+    // ///
+    // /// The iterator also lets you mutate the value of each element in the
+    // /// closure, regardless of whether you choose to keep or remove it.
+    // ///
+    // /// If the returned `ExtractIf` is not exhausted, e.g. because it is dropped without iterating
+    // /// or the iteration short-circuits, then the remaining elements will be retained.
+    // /// Use [`retain`] with a negated predicate if you do not need the returned iterator.
+    // ///
+    // /// [`retain`]: EqMap::retain
+    // ///
+    // /// # Examples
+    // ///
+    // /// Splitting a map into even and odd keys, reusing the original map:
+    // ///
+    // /// ```
+    // /// use startos::util::collections::EqMap;
+    // ///
+    // /// let mut map: EqMap<i32, i32> = (0..8).map(|x| (x, x)).collect();
+    // /// let evens: EqMap<_, _> = map.extract_if(|k, _v| k % 2 == 0).collect();
+    // /// let odds = map;
+    // /// assert_eq!(evens.keys().copied().collect::<Vec<_>>(), [0, 2, 4, 6]);
+    // /// assert_eq!(odds.keys().copied().collect::<Vec<_>>(), [1, 3, 5, 7]);
+    // /// ```
     // pub fn extract_if<F>(&mut self, pred: F) -> ExtractIf<'_, K, V, F>
     // where
     //     K: Eq,
@@ -421,62 +425,35 @@ impl<K: Eq, V> EqMap<K, V> {
     //     ExtractIf { pred, inner, alloc }
     // }
 
-    // pub(super) fn extract_if_inner(&mut self) -> (ExtractIfInner<'_, K, V>)
-    // where
-    //     K: Eq,
-    // {
-    //     if let Some(root) = self.root.as_mut() {
-    //         let (root, dormant_root) = DormantMutRef::new(root);
-    //         let front = root.borrow_mut().first_leaf_edge();
-    //         (
-    //             ExtractIfInner {
-    //                 length: &mut self.length,
-    //                 dormant_root: Some(dormant_root),
-    //                 cur_leaf_edge: Some(front),
-    //             },
-    //             (*self.alloc).clone(),
-    //         )
-    //     } else {
-    //         (
-    //             ExtractIfInner {
-    //                 length: &mut self.length,
-    //                 dormant_root: None,
-    //                 cur_leaf_edge: None,
-    //             },
-    //             (*self.alloc).clone(),
-    //         )
-    //     }
-    // }
-
-    /// Creates a consuming iterator visiting all the keys, in sorted order.
+    /// Creates a consuming iterator visiting all the keys.
     /// The map cannot be used after calling this.
     /// The iterator element type is `K`.
     ///
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut a = EqMap::new();
     /// a.insert(2, "b");
     /// a.insert(1, "a");
     ///
     /// let keys: Vec<i32> = a.into_keys().collect();
-    /// assert_eq!(keys, [1, 2]);
+    /// assert_eq!(keys, [2, 1]);
     /// ```
     #[inline]
     pub fn into_keys(self) -> IntoKeys<K, V> {
         IntoKeys(self.0.into_iter())
     }
 
-    /// Creates a consuming iterator visiting all the values, in order by key.
+    /// Creates a consuming iterator visiting all the values.
     /// The map cannot be used after calling this.
     /// The iterator element type is `V`.
     ///
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut a = EqMap::new();
     /// a.insert(1, "hello");
@@ -490,12 +467,16 @@ impl<K: Eq, V> EqMap<K, V> {
         IntoValues(self.0.into_iter())
     }
 
-    /// Gets an iterator over the entries of the map, sorted by key.
+    pub fn iter_ref(&self) -> std::slice::Iter<'_, (K, V)> {
+        self.0.iter()
+    }
+
+    /// Gets an iterator over the entries of the map, in no particular order.
     ///
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(3, "c");
@@ -507,18 +488,18 @@ impl<K: Eq, V> EqMap<K, V> {
     /// }
     ///
     /// let (first_key, first_value) = map.iter().next().unwrap();
-    /// assert_eq!((*first_key, *first_value), (1, "a"));
+    /// assert_eq!((*first_key, *first_value), (3, "c"));
     /// ```
-    pub fn iter(&self) -> std::slice::Iter<'_, (K, V)> {
-        self.0.iter()
+    pub fn iter(&self) -> std::iter::Map<std::slice::Iter<'_, (K, V)>, fn(&(K, V)) -> (&K, &V)> {
+        self.0.iter().map(|(k, v)| (k, v))
     }
 
-    /// Gets a mutable iterator over the entries of the map, sorted by key.
+    /// Gets a mutable iterator over the entries of the map, in no particular order.
     ///
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map = EqMap::from([
     ///    ("a", 1),
@@ -539,30 +520,30 @@ impl<K: Eq, V> EqMap<K, V> {
         self.0.iter_mut().map(|(k, v)| (&*k, v))
     }
 
-    /// Gets an iterator over the keys of the map, in sorted order.
+    /// Gets an iterator over the keys of the map.
     ///
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut a = EqMap::new();
     /// a.insert(2, "b");
     /// a.insert(1, "a");
     ///
     /// let keys: Vec<_> = a.keys().cloned().collect();
-    /// assert_eq!(keys, [1, 2]);
+    /// assert_eq!(keys, [2, 1]);
     /// ```
     pub fn keys(&self) -> std::iter::Map<std::slice::Iter<'_, (K, V)>, fn(&(K, V)) -> &K> {
         self.0.iter().map(|(k, _)| k)
     }
 
-    /// Gets an iterator over the values of the map, in order by key.
+    /// Gets an iterator over the values of the map.
     ///
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut a = EqMap::new();
     /// a.insert(1, "hello");
@@ -575,12 +556,12 @@ impl<K: Eq, V> EqMap<K, V> {
         self.0.iter().map(|(_, v)| v)
     }
 
-    /// Gets a mutable iterator over the values of the map, in order by key.
+    /// Gets a mutable iterator over the values of the map.
     ///
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut a = EqMap::new();
     /// a.insert(1, String::from("hello"));
@@ -605,7 +586,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut a = EqMap::new();
     /// assert_eq!(a.len(), 0);
@@ -622,7 +603,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut a = EqMap::new();
     /// assert!(a.is_empty());
@@ -634,6 +615,88 @@ impl<K: Eq, V> EqMap<K, V> {
         self.0.is_empty()
     }
 }
+
+impl<K: fmt::Debug + Eq, V: fmt::Debug> fmt::Debug for EqMap<K, V> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_map().entries(self.iter()).finish()
+    }
+}
+
+impl<K, Q: ?Sized, V> Index<&Q> for EqMap<K, V>
+where
+    K: Borrow<Q> + Eq,
+    Q: Eq,
+{
+    type Output = V;
+
+    /// Returns a reference to the value corresponding to the supplied key.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the key is not present in the `BTreeMap`.
+    #[inline]
+    fn index(&self, key: &Q) -> &V {
+        self.get(key).expect("no entry found for key")
+    }
+}
+
+impl<K, Q: ?Sized, V> IndexMut<&Q> for EqMap<K, V>
+where
+    K: Borrow<Q> + Eq,
+    Q: Eq,
+{
+    /// Returns a reference to the value corresponding to the supplied key.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the key is not present in the `BTreeMap`.
+    #[inline]
+    fn index_mut(&mut self, key: &Q) -> &mut V {
+        self.get_mut(key).expect("no entry found for key")
+    }
+}
+
+impl<K: Eq, V> IntoIterator for EqMap<K, V> {
+    type IntoIter = std::vec::IntoIter<(K, V)>;
+    type Item = (K, V);
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<K: Eq, V> Extend<(K, V)> for EqMap<K, V> {
+    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
+        self.0.extend(iter)
+    }
+}
+
+impl<K: Eq, V> FromIterator<(K, V)> for EqMap<K, V> {
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        Self(Vec::from_iter(iter))
+    }
+}
+
+impl<K: Eq, V, const N: usize> From<[(K, V); N]> for EqMap<K, V> {
+    /// Converts a `[(K, V); N]` into a `EqMap<(K, V)>`.
+    ///
+    /// ```
+    /// use startos::util::collections::EqMap;
+    ///
+    /// let map1 = EqMap::from([(1, 2), (3, 4)]);
+    /// let map2: EqMap<_, _> = [(1, 2), (3, 4)].into();
+    /// assert_eq!(map1, map2);
+    /// ```
+    fn from(arr: [(K, V); N]) -> Self {
+        EqMap(Vec::from(arr))
+    }
+}
+
+impl<K: Eq, V: PartialEq> PartialEq for EqMap<K, V> {
+    fn eq(&self, other: &Self) -> bool {
+        self.len() == other.len() && self.iter().all(|(k, v)| other.get(k) == Some(v))
+    }
+}
+impl<K: Eq, V: Eq> Eq for EqMap<K, V> {}
 
 use Entry::*;
 
@@ -732,7 +795,7 @@ impl<'a, K: Eq, V> Entry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// map.entry("poneyland").or_insert(12);
@@ -752,7 +815,7 @@ impl<'a, K: Eq, V> Entry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map: EqMap<&str, String> = EqMap::new();
     /// let s = "hoho".to_string();
@@ -778,7 +841,7 @@ impl<'a, K: Eq, V> Entry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     ///
@@ -802,7 +865,7 @@ impl<'a, K: Eq, V> Entry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// assert_eq!(map.entry("poneyland").key(), &"poneyland");
@@ -820,7 +883,7 @@ impl<'a, K: Eq, V> Entry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     ///
@@ -855,7 +918,7 @@ impl<'a, K: Eq, V: Default> Entry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map: EqMap<&str, Option<usize>> = EqMap::new();
     /// map.entry("poneyland").or_default();
@@ -877,7 +940,7 @@ impl<'a, K: Eq, V> VacantEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// assert_eq!(map.entry("poneyland").key(), &"poneyland");
@@ -891,8 +954,8 @@ impl<'a, K: Eq, V> VacantEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
-    /// use crate::util::collections::eq_map::Entry;
+    /// use startos::util::collections::EqMap;
+    /// use startos::util::collections::eq_map::Entry;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     ///
@@ -910,8 +973,8 @@ impl<'a, K: Eq, V> VacantEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
-    /// use crate::util::collections::eq_map::Entry;
+    /// use startos::util::collections::EqMap;
+    /// use startos::util::collections::eq_map::Entry;
     ///
     /// let mut map: EqMap<&str, u32> = EqMap::new();
     ///
@@ -932,7 +995,7 @@ impl<'a, K: Eq, V> OccupiedEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
+    /// use startos::util::collections::EqMap;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// map.entry("poneyland").or_insert(12);
@@ -948,8 +1011,8 @@ impl<'a, K: Eq, V> OccupiedEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
-    /// use crate::util::collections::eq_map::Entry;
+    /// use startos::util::collections::EqMap;
+    /// use startos::util::collections::eq_map::Entry;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// map.entry("poneyland").or_insert(12);
@@ -971,8 +1034,8 @@ impl<'a, K: Eq, V> OccupiedEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
-    /// use crate::util::collections::eq_map::Entry;
+    /// use startos::util::collections::EqMap;
+    /// use startos::util::collections::eq_map::Entry;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// map.entry("poneyland").or_insert(12);
@@ -996,8 +1059,8 @@ impl<'a, K: Eq, V> OccupiedEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
-    /// use crate::util::collections::eq_map::Entry;
+    /// use startos::util::collections::EqMap;
+    /// use startos::util::collections::eq_map::Entry;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// map.entry("poneyland").or_insert(12);
@@ -1025,8 +1088,8 @@ impl<'a, K: Eq, V> OccupiedEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
-    /// use crate::util::collections::eq_map::Entry;
+    /// use startos::util::collections::EqMap;
+    /// use startos::util::collections::eq_map::Entry;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// map.entry("poneyland").or_insert(12);
@@ -1048,8 +1111,8 @@ impl<'a, K: Eq, V> OccupiedEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
-    /// use crate::util::collections::eq_map::Entry;
+    /// use startos::util::collections::EqMap;
+    /// use startos::util::collections::eq_map::Entry;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// map.entry("poneyland").or_insert(12);
@@ -1068,8 +1131,8 @@ impl<'a, K: Eq, V> OccupiedEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use crate::util::collections::EqMap;
-    /// use crate::util::collections::eq_map::Entry;
+    /// use startos::util::collections::EqMap;
+    /// use startos::util::collections::eq_map::Entry;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// map.entry("poneyland").or_insert(12);
