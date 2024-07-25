@@ -19,7 +19,7 @@ import * as fs from "fs"
 
 import { CallbackHolder } from "../Models/CallbackHolder"
 import { AllGetDependencies } from "../Interfaces/AllGetDependencies"
-import { jsonPath } from "../Models/JsonPath"
+import { jsonPath, unNestPath } from "../Models/JsonPath"
 import { RunningMain, System } from "../Interfaces/System"
 import {
   MakeMainEffects,
@@ -226,27 +226,25 @@ export class RpcListener {
         const system = this.system
         const procedure = jsonPath.unsafeCast(params.procedure)
         const effects = this.getDependencies.makeProcedureEffects()(params.id)
-        return handleRpc(
-          id,
-          system.execute(effects, {
-            procedure,
-            input: params.input,
-            timeout: params.timeout,
-          }),
-        )
+        const input = params.input
+        const timeout = params.timeout
+        const result = getResult(procedure, system, effects, timeout, input)
+
+        return handleRpc(id, result)
       })
       .when(sandboxRunType, async ({ id, params }) => {
         const system = this.system
         const procedure = jsonPath.unsafeCast(params.procedure)
         const effects = this.makeProcedureEffects(params.id)
-        return handleRpc(
-          id,
-          system.sandbox(effects, {
-            procedure,
-            input: params.input,
-            timeout: params.timeout,
-          }),
+        const result = getResult(
+          procedure,
+          system,
+          effects,
+          params.input,
+          params.input,
         )
+
+        return handleRpc(id, result)
       })
       .when(callbackType, async ({ params: { callback, args } }) => {
         this.system.callCallback(callback, args)
@@ -280,7 +278,7 @@ export class RpcListener {
           (async () => {
             if (!this._system) {
               const system = await this.getDependencies.system()
-              await system.init()
+              await system.containerInit()
               this._system = system
             }
           })().then((result) => ({ result })),
@@ -341,4 +339,89 @@ export class RpcListener {
         }
       })
   }
+}
+function getResult(
+  procedure: typeof jsonPath._TYPE,
+  system: System,
+  effects: T.Effects,
+  timeout: number | undefined,
+  input: any,
+) {
+  return (async () => {
+    switch (procedure) {
+      case "/backup/create":
+        return system.createBackup(effects, timeout || null)
+      case "/backup/restore":
+        return system.restoreBackup(effects, timeout || null)
+      case "/config/get":
+        return system.getConfig(effects, timeout || null)
+      case "/config/set":
+        return system.setConfig(effects, input, timeout || null)
+      case "/properties":
+        return system.properties(effects, timeout || null)
+      case "/actions/metadata":
+        return system.actionsMetadata(effects)
+      case "/init":
+        return system.packageInit(
+          effects,
+          string.optional().unsafeCast(input),
+          timeout || null,
+        )
+      case "/uninit":
+        return system.packageUninit(
+          effects,
+          string.optional().unsafeCast(input),
+          timeout || null,
+        )
+      default:
+        const procedures = unNestPath(procedure)
+        switch (true) {
+          case procedures[1] === "actions" && procedures[3] === "get":
+            return system.action(effects, procedures[2], input, timeout || null)
+          case procedures[1] === "actions" && procedures[3] === "run":
+            return system.action(effects, procedures[2], input, timeout || null)
+          case procedures[1] === "dependencies" && procedures[3] === "query":
+            return system.dependenciesAutoconfig(
+              effects,
+              procedures[2],
+              input,
+              timeout || null,
+            )
+
+          case procedures[1] === "dependencies" && procedures[3] === "update":
+            return system.dependenciesAutoconfig(
+              effects,
+              procedures[2],
+              input,
+              timeout || null,
+            )
+        }
+    }
+  })().then(
+    (result) => ({ result }),
+    (error) =>
+      matches(error)
+        .when(
+          object(
+            {
+              error: string,
+              code: number,
+            },
+            ["code"],
+            { code: 0 },
+          ),
+          (error) => ({
+            error: {
+              code: error.code,
+              message: error.error,
+            },
+          }),
+        )
+        .defaultToLazy(() => ({
+          error: {
+            code: 0,
+            message: String(error),
+          },
+        })),
+  )
 }

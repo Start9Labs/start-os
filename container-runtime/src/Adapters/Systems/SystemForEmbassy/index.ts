@@ -714,8 +714,21 @@ export class SystemForEmbassy implements System {
     actionId: string,
     formData: unknown,
     timeoutMs: number | null,
-  ): Promise<T.configTypes.InputSpec> {
+  ): Promise<T.ActionResult> {
     const actionProcedure = this.manifest.actions?.[actionId]?.implementation
+    const toActionResult = ({
+      message,
+      value = "",
+      copyable,
+      qr,
+    }: U.ActionResult): T.ActionResult => ({
+      message,
+      value: {
+        value,
+        copyable,
+        qr,
+      },
+    })
     if (!actionProcedure) throw Error("Action not found")
     if (actionProcedure.type === "docker") {
       const container = await DockerProcedureContainer.of(
@@ -724,18 +737,20 @@ export class SystemForEmbassy implements System {
         actionProcedure,
         this.manifest.volumes,
       )
-      return fromReturnType(
-        JSON.parse(
-          (
-            await container.execFail(
-              [
-                actionProcedure.entrypoint,
-                ...actionProcedure.args,
-                JSON.stringify(formData),
-              ],
-              timeoutMs,
-            )
-          ).stdout.toString(),
+      return toActionResult(
+        fromReturnType(
+          JSON.parse(
+            (
+              await container.execFail(
+                [
+                  actionProcedure.entrypoint,
+                  ...actionProcedure.args,
+                  JSON.stringify(formData),
+                ],
+                timeoutMs,
+              )
+            ).stdout.toString(),
+          ),
         ),
       )
     } else {
@@ -745,7 +760,9 @@ export class SystemForEmbassy implements System {
       return await method(
         polyfillEffects(effects, this.manifest),
         formData as any,
-      ).then(fromReturnType)
+      )
+        .then(fromReturnType)
+        .then(toActionResult)
     }
   }
   async dependenciesCheck(

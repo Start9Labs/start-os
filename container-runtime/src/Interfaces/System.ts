@@ -62,7 +62,7 @@ export type System = {
     actionId: string,
     formData: unknown,
     timeoutMs: number | null,
-  ): Promise<T.configTypes.InputSpec>
+  ): Promise<T.ActionResult>
 
   dependenciesCheck(
     effects: Effects,

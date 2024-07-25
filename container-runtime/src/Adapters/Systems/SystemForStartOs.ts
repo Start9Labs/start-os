@@ -95,10 +95,10 @@ export class SystemForStartOs implements System {
     id: string,
     formData: unknown,
     timeoutMs: number | null,
-  ): Promise<T.configTypes.InputSpec> {
+  ): Promise<T.ActionResult> {
     const action = (await this.abi.actions({ effects }))[id]
     if (!action) throw new Error(`Action ${id} not found`)
-    return action.getConfig({ effects })
+    return action.run({ effects })
   }
   dependenciesCheck(
     effects: Effects,
@@ -124,8 +124,8 @@ export class SystemForStartOs implements System {
       remoteConfig,
     })) // TODO
   }
-  actionsMetadata(effects: T.Effects): Promise<T.ActionMetadata[]> {
-    throw new Error("Method not implemented.")
+  async actionsMetadata(effects: T.Effects): Promise<T.ActionMetadata[]> {
+    return this.abi.actionsMetadata({ effects })
   }
 
   async init(): Promise<void> {}
