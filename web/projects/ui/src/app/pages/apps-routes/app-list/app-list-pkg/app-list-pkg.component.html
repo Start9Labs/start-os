@@ -25,7 +25,7 @@
     slot="end"
     fill="clear"
     color="primary"
-    (click)="launchUi($event, pkg.entry.serviceInterfaces)"
+    (click)="launchUi($event, pkg.entry.serviceInterfaces, pkg.entry.hosts)"
     [disabled]="
       !(pkg.entry.stateInfo.state | isLaunchable : pkgMainStatus.status)
     "

@@ -444,7 +444,11 @@ export class SystemForEmbassy implements System {
               description: interfaceValue.description,
               hasPrimary: false,
               disabled: false,
-              type: "api",
+              type:
+                interfaceValue.ui &&
+                (origin.scheme === "http" || origin.sslScheme === "https")
+                  ? "ui"
+                  : "api",
               masked: false,
               path: "",
               schemeOverride: null,

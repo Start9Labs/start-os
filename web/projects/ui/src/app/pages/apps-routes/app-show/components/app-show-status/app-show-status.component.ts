@@ -55,6 +55,10 @@ export class AppShowStatusComponent {
     return this.pkg.serviceInterfaces
   }
 
+  get hosts(): PackageDataEntry['hosts'] {
+    return this.pkg.hosts
+  }
+
   get pkgStatus(): T.Status {
     return this.pkg.status
   }
@@ -79,8 +83,11 @@ export class AppShowStatusComponent {
     return this.pkgStatus?.main.status === 'stopping' ? '30s' : null // @dr-bonez TODO
   }
 
-  launchUi(interfaces: PackageDataEntry['serviceInterfaces']): void {
-    this.launcherService.launch(interfaces)
+  launchUi(
+    interfaces: PackageDataEntry['serviceInterfaces'],
+    hosts: PackageDataEntry['hosts'],
+  ): void {
+    this.launcherService.launch(interfaces, hosts)
   }
 
   async presentModalConfig(): Promise<void> {
