@@ -13,6 +13,7 @@ use http::Uri;
 use imbl_value::InternedString;
 use models::ResultExt;
 use serde::{Deserialize, Serialize};
+use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Mutex, RwLock};
 use tokio_rustls::rustls::pki_types::{
@@ -27,7 +28,7 @@ use ts_rs::TS;
 use crate::db::model::Database;
 use crate::net::static_server::server_error;
 use crate::prelude::*;
-use crate::util::io::BackTrackingReader;
+use crate::util::io::BackTrackingIO;
 use crate::util::serde::MaybeUtf8String;
 
 // not allowed: <=1024, >=32768, 5355, 5432, 9050, 6010, 9051, 5353
@@ -129,8 +130,7 @@ impl VHostServer {
                                 tracing::debug!("{e:?}");
                             }
 
-                            let mut stream = BackTrackingReader::new(stream);
-                            stream.start_buffering();
+                            let mut stream = BackTrackingIO::new(stream);
                             let mapping = mapping.clone();
                             let db = db.clone();
                             tokio::spawn(async move {
@@ -156,6 +156,7 @@ impl VHostServer {
                                                                     .and_then(|host| host.to_str().ok());
                                                                 let uri = Uri::from_parts({
                                                                     let mut parts = req.uri().to_owned().into_parts();
+                                                                    parts.scheme = Some("https".parse()?);
                                                                     parts.authority = host.map(FromStr::from_str).transpose()?;
                                                                     parts
                                                                 })?;
@@ -313,8 +314,12 @@ impl VHostServer {
                                                         )
                                                         .await
                                                         .with_kind(crate::ErrorKind::OpenSsl)?;
+                                                let mut accept = mid.into_stream(Arc::new(cfg));
+                                                let io = accept.get_mut().unwrap();
+                                                let buffered = io.stop_buffering();
+                                                io.write_all(&buffered).await?;
                                                 let mut tls_stream =
-                                                    match mid.into_stream(Arc::new(cfg)).await {
+                                                    match accept.await {
                                                         Ok(a) => a,
                                                         Err(e) => {
                                                             tracing::trace!( "VHostController: failed to accept TLS connection on port {port}: {e}");
@@ -322,7 +327,6 @@ impl VHostServer {
                                                             return Ok(())
                                                         }
                                                     };
-                                                tls_stream.get_mut().0.stop_buffering();
                                                 tokio::io::copy_bidirectional(
                                                     &mut tls_stream,
                                                     &mut target_stream,
@@ -335,8 +339,12 @@ impl VHostServer {
                                                 {
                                                     cfg.alpn_protocols.push(proto.into());
                                                 }
+                                                let mut accept = mid.into_stream(Arc::new(cfg));
+                                                let io = accept.get_mut().unwrap();
+                                                let buffered = io.stop_buffering();
+                                                io.write_all(&buffered).await?;
                                                 let mut tls_stream =
-                                                    match mid.into_stream(Arc::new(cfg)).await {
+                                                    match accept.await {
                                                         Ok(a) => a,
                                                         Err(e) => {
                                                             tracing::trace!( "VHostController: failed to accept TLS connection on port {port}: {e}");
@@ -344,7 +352,6 @@ impl VHostServer {
                                                             return Ok(())
                                                         }
                                                     };
-                                                tls_stream.get_mut().0.stop_buffering();
                                                 tokio::io::copy_bidirectional(
                                                     &mut tls_stream,
                                                     &mut tcp_stream,
@@ -353,8 +360,12 @@ impl VHostServer {
                                             }
                                             Err(AlpnInfo::Specified(alpn)) => {
                                                 cfg.alpn_protocols = alpn.into_iter().map(|a| a.0).collect();
+                                                let mut accept = mid.into_stream(Arc::new(cfg));
+                                                let io = accept.get_mut().unwrap();
+                                                let buffered = io.stop_buffering();
+                                                io.write_all(&buffered).await?;
                                                 let mut tls_stream =
-                                                    match mid.into_stream(Arc::new(cfg)).await {
+                                                    match accept.await {
                                                         Ok(a) => a,
                                                         Err(e) => {
                                                             tracing::trace!( "VHostController: failed to accept TLS connection on port {port}: {e}");
@@ -362,7 +373,6 @@ impl VHostServer {
                                                             return Ok(())
                                                         }
                                                     };
-                                                tls_stream.get_mut().0.stop_buffering();
                                                 tokio::io::copy_bidirectional(
                                                     &mut tls_stream,
                                                     &mut tcp_stream,
