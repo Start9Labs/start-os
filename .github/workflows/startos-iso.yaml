@@ -83,7 +83,7 @@ jobs:
         uses: docker/setup-qemu-action@v3
 
       - name: Set up system dependencies
-        run: sudo apt-get update && sudo apt-get install -y qemu-user-static systemd-container
+        run: sudo apt-get update && sudo apt-get install -y qemu-user-static systemd-container squashfuse
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
