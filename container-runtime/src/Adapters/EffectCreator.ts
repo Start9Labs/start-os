@@ -140,9 +140,6 @@ function makeEffects(context: EffectContext): Effects {
         T.Effects["executeAction"]
       >
     },
-    exists(...[packageId]: Parameters<T.Effects["exists"]>) {
-      return rpcRound("exists", packageId) as ReturnType<T.Effects["exists"]>
-    },
     exportAction(...[options]: Parameters<T.Effects["exportAction"]>) {
       return rpcRound("exportAction", options) as ReturnType<
         T.Effects["exportAction"]
@@ -230,30 +227,14 @@ function makeEffects(context: EffectContext): Effects {
     mount(...[options]: Parameters<T.Effects["mount"]>) {
       return rpcRound("mount", options) as ReturnType<T.Effects["mount"]>
     },
-    removeAction(...[options]: Parameters<T.Effects["removeAction"]>) {
-      return rpcRound("removeAction", options) as ReturnType<
-        T.Effects["removeAction"]
-      >
-    },
-    removeAddress(...[options]: Parameters<T.Effects["removeAddress"]>) {
-      return rpcRound("removeAddress", options) as ReturnType<
-        T.Effects["removeAddress"]
+    clearActions(...[]: Parameters<T.Effects["clearActions"]>) {
+      return rpcRound("clearActions", {}) as ReturnType<
+        T.Effects["clearActions"]
       >
     },
     restart(...[]: Parameters<T.Effects["restart"]>) {
       return rpcRound("restart", {}) as ReturnType<T.Effects["restart"]>
     },
-    running(...[packageId]: Parameters<T.Effects["running"]>) {
-      return rpcRound("running", { packageId }) as ReturnType<
-        T.Effects["running"]
-      >
-    },
-    // runRsync(...[options]: Parameters<T.Effects[""]>) {
-    //
-    // return rpcRound('executeAction', options) as ReturnType<T.Effects["executeAction"]>
-    //
-    // return rpcRound('executeAction', options) as ReturnType<T.Effects["executeAction"]>
-    // }
     setConfigured(...[configured]: Parameters<T.Effects["setConfigured"]>) {
       return rpcRound("setConfigured", { configured }) as ReturnType<
         T.Effects["setConfigured"]
@@ -290,11 +271,6 @@ function makeEffects(context: EffectContext): Effects {
 
     shutdown(...[]: Parameters<T.Effects["shutdown"]>) {
       return rpcRound("shutdown", {}) as ReturnType<T.Effects["shutdown"]>
-    },
-    stopped(...[packageId]: Parameters<T.Effects["stopped"]>) {
-      return rpcRound("stopped", { packageId }) as ReturnType<
-        T.Effects["stopped"]
-      >
     },
     store: {
       get: async (options: any) =>

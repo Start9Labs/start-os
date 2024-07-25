@@ -46,7 +46,6 @@ export class DockerProcedureContainer {
                 (
                   await effects.getHostInfo({
                     hostId: volumeMount["interface-id"],
-                    packageId: null,
                   })
                 )?.hostnameInfo || {},
               )
