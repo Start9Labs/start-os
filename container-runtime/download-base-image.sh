@@ -16,4 +16,4 @@ elif [ "$_ARCH" = "aarch64" ]; then
     _ARCH=arm64
 fi
 
-curl https://images.linuxcontainers.org/$(curl --silent https://images.linuxcontainers.org/meta/1.0/index-system | grep "^$DISTRO;$VERSION;$_ARCH;$FLAVOR;" | head -n1 | sed 's/^.*;//g')/rootfs.squashfs --output debian.${ARCH}.squashfs
+curl -fsS https://images.linuxcontainers.org/$(curl -fsS https://images.linuxcontainers.org/meta/1.0/index-system | grep "^$DISTRO;$VERSION;$_ARCH;$FLAVOR;" | head -n1 | sed 's/^.*;//g')/rootfs.squashfs --output debian.${ARCH}.squashfs
