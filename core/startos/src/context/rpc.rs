@@ -29,7 +29,7 @@ use crate::net::wifi::WpaCli;
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle};
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
-use crate::service::service_effect_handler::ServiceCallbacks;
+use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
 use crate::system::get_mem_info;

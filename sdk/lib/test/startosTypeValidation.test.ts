@@ -2,14 +2,13 @@ import { Effects } from "../types"
 import {
   CheckDependenciesParam,
   ExecuteAction,
+  GetConfiguredParams,
   SetMainStatus,
 } from ".././osBindings"
 import { CreateOverlayedImageParams } from ".././osBindings"
 import { DestroyOverlayedImageParams } from ".././osBindings"
 import { BindParams } from ".././osBindings"
 import { GetHostInfoParams } from ".././osBindings"
-import { ParamsPackageId } from ".././osBindings"
-import { ParamsMaybePackageId } from ".././osBindings"
 import { SetConfigured } from ".././osBindings"
 import { SetHealth } from ".././osBindings"
 import { ExposeForDependentsParams } from ".././osBindings"
@@ -22,9 +21,7 @@ import { GetServicePortForwardParams } from ".././osBindings"
 import { ExportServiceInterfaceParams } from ".././osBindings"
 import { GetPrimaryUrlParams } from ".././osBindings"
 import { ListServiceInterfacesParams } from ".././osBindings"
-import { RemoveAddressParams } from ".././osBindings"
 import { ExportActionParams } from ".././osBindings"
-import { RemoveActionParams } from ".././osBindings"
 import { MountParams } from ".././osBindings"
 function typeEquality<ExpectedType>(_a: ExpectedType) {}
 
@@ -45,10 +42,7 @@ describe("startosTypeValidation ", () => {
       getInstalledPackages: undefined,
       bind: {} as BindParams,
       getHostInfo: {} as WithCallback<GetHostInfoParams>,
-      exists: {} as ParamsPackageId,
-      getConfigured: undefined,
-      stopped: {} as ParamsMaybePackageId,
-      running: {} as ParamsPackageId,
+      getConfigured: {} as GetConfiguredParams,
       restart: undefined,
       shutdown: undefined,
       setConfigured: {} as SetConfigured,
@@ -66,9 +60,8 @@ describe("startosTypeValidation ", () => {
       exportServiceInterface: {} as ExportServiceInterfaceParams,
       getPrimaryUrl: {} as WithCallback<GetPrimaryUrlParams>,
       listServiceInterfaces: {} as WithCallback<ListServiceInterfacesParams>,
-      removeAddress: {} as RemoveAddressParams,
       exportAction: {} as ExportActionParams,
-      removeAction: {} as RemoveActionParams,
+      clearActions: undefined,
       mount: {} as MountParams,
       checkDependencies: {} as CheckDependenciesParam,
       getDependencies: undefined,

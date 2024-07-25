@@ -5,5 +5,5 @@ import type { CallbackId } from "./CallbackId"
 export type GetSslCertificateParams = {
   hostnames: string[]
   algorithm?: Algorithm
-  callback: CallbackId | null
+  callback?: CallbackId
 }

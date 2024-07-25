@@ -11,7 +11,7 @@ const makeManyInterfaceFilled = async ({
   callback,
 }: {
   effects: Effects
-  packageId: string | null
+  packageId?: string
   callback?: () => void
 }) => {
   const serviceInterfaceValues = await effects.listServiceInterfaces({
@@ -32,7 +32,7 @@ const makeManyInterfaceFilled = async ({
       }
       const primaryUrl = await effects
         .getPrimaryUrl({
-          serviceInterfaceId: serviceInterfaceValue.id,
+          hostId,
           packageId,
           callback,
         })
@@ -55,7 +55,7 @@ const makeManyInterfaceFilled = async ({
 export class GetServiceInterfaces {
   constructor(
     readonly effects: Effects,
-    readonly opts: { packageId: string | null },
+    readonly opts: { packageId?: string },
   ) {}
 
   /**
@@ -108,7 +108,7 @@ export class GetServiceInterfaces {
 }
 export function getServiceInterfaces(
   effects: Effects,
-  opts: { packageId: string | null },
+  opts: { packageId?: string },
 ) {
   return new GetServiceInterfaces(effects, opts)
 }

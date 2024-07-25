@@ -14,8 +14,6 @@ use tokio::process::Command;
 use tokio::sync::{oneshot, watch, Mutex, OnceCell};
 use tracing::instrument;
 
-use super::service_effect_handler::{service_effect_handler, EffectContext};
-use super::transition::{TransitionKind, TransitionState};
 use crate::context::RpcContext;
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
@@ -29,8 +27,11 @@ use crate::prelude::*;
 use crate::rpc_continuations::Guid;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
+use crate::service::effects::context::EffectContext;
+use crate::service::effects::handler;
 use crate::service::rpc::{CallbackHandle, CallbackId, CallbackParams};
 use crate::service::start_stop::StartStop;
+use crate::service::transition::{TransitionKind, TransitionState};
 use crate::service::{rpc, RunningStatus, Service};
 use crate::util::io::create_file;
 use crate::util::rpc_client::UnixRpcClient;
@@ -313,10 +314,7 @@ impl PersistentContainer {
     #[instrument(skip_all)]
     pub async fn init(&self, seed: Weak<Service>) -> Result<(), Error> {
         let socket_server_context = EffectContext::new(seed);
-        let server = Server::new(
-            move || ready(Ok(socket_server_context.clone())),
-            service_effect_handler(),
-        );
+        let server = Server::new(move || ready(Ok(socket_server_context.clone())), handler());
         let path = self
             .lxc_container
             .get()

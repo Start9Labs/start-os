@@ -183,7 +183,7 @@ const makeInterfaceFilled = async ({
 }: {
   effects: Effects
   id: string
-  packageId: string | null
+  packageId?: string
   callback?: () => void
 }) => {
   const serviceInterfaceValue = await effects.getServiceInterface({
@@ -201,7 +201,7 @@ const makeInterfaceFilled = async ({
     callback,
   })
   const primaryUrl = await effects.getPrimaryUrl({
-    serviceInterfaceId: id,
+    hostId,
     packageId,
     callback,
   })
@@ -224,7 +224,7 @@ const makeInterfaceFilled = async ({
 export class GetServiceInterface {
   constructor(
     readonly effects: Effects,
-    readonly opts: { id: string; packageId: string | null },
+    readonly opts: { id: string; packageId?: string },
   ) {}
 
   /**
@@ -278,7 +278,7 @@ export class GetServiceInterface {
 }
 export function getServiceInterface(
   effects: Effects,
-  opts: { id: string; packageId: string | null },
+  opts: { id: string; packageId?: string },
 ) {
   return new GetServiceInterface(effects, opts)
 }

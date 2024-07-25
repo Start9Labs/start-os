@@ -148,7 +148,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           removeCallbackTypes<E>(effects)(
             getServiceInterface(effects, {
               id,
-              packageId: null,
             }),
           ),
         get: <E extends Effects>(
@@ -157,11 +156,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         ) =>
           removeCallbackTypes<E>(effects)(getServiceInterface(effects, opts)),
         getAllOwn: <E extends Effects>(effects: E) =>
-          removeCallbackTypes<E>(effects)(
-            getServiceInterfaces(effects, {
-              packageId: null,
-            }),
-          ),
+          removeCallbackTypes<E>(effects)(getServiceInterfaces(effects, {})),
         getAll: <E extends Effects>(
           effects: E,
           opts: { packageId: PackageId },
