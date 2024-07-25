@@ -11,7 +11,7 @@ use josekit::jwk::Jwk;
 use reqwest::{Client, Proxy};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty};
-use tokio::sync::{broadcast, Mutex, RwLock};
+use tokio::sync::{broadcast, watch, Mutex, RwLock};
 use tokio::time::Instant;
 use tracing::instrument;
 
@@ -43,6 +43,7 @@ pub struct RpcContextSeed {
     pub datadir: PathBuf,
     pub disk_guid: Arc<String>,
     pub db: TypedPatchDb<Database>,
+    pub sync_db: watch::Sender<u64>,
     pub account: RwLock<AccountInfo>,
     pub net_controller: Arc<NetController>,
     pub s9pk_arch: Option<&'static str>,
@@ -212,6 +213,7 @@ impl RpcContext {
                 find_eth_iface().await?
             },
             disk_guid,
+            sync_db: watch::Sender::new(db.sequence().await),
             db,
             account: RwLock::new(account),
             net_controller,
