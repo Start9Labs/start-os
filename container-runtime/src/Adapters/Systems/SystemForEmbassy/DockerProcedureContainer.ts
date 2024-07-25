@@ -50,8 +50,7 @@ export class DockerProcedureContainer {
                 )?.hostnameInfo || {},
               )
                 .flatMap((h) => h)
-                .filter((h) => h.kind === "onion")
-                .map((h) => (h.hostname as T.OnionHostname).value),
+                .flatMap((h) => (h.kind === "onion" ? [h.hostname.value] : [])),
             ).values(),
           ]
           const certChain = await effects.getSslCertificate({

@@ -319,6 +319,7 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) {
 pub struct ListParams {
     #[arg(skip)]
     #[ts(skip)]
+    #[serde(rename = "__auth_session")] // from Auth middleware
     session: InternedString,
 }
 

@@ -181,8 +181,10 @@ export class RpcListener {
         },
       })
       const writeDataToSocket = (x: SocketResponse) => {
-        if (x !== null) {
-          new Promise((resolve) => s.write(JSON.stringify(x) + "\n", resolve))
+        if (x != null) {
+          return new Promise((resolve) =>
+            s.write(JSON.stringify(x) + "\n", resolve),
+          )
         }
       }
       s.on("data", (a) =>

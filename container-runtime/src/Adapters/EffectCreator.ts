@@ -65,18 +65,18 @@ const rpcRoundFor =
             )
             if (testRpcError(res)) {
               let message = res.error.message
-              console.error({ method, params, hostSystemStartOs: true })
+              console.error("Error in host RPC:", { method, params })
               if (string.test(res.error.data)) {
                 message += ": " + res.error.data
-                console.error(res.error.data)
+                console.error(`Details: ${res.error.data}`)
               } else {
                 if (res.error.data?.details) {
                   message += ": " + res.error.data.details
-                  console.error(res.error.data.details)
+                  console.error(`Details: ${res.error.data.details}`)
                 }
                 if (res.error.data?.debug) {
                   message += "\n" + res.error.data.debug
-                  console.error("Debug: " + res.error.data.debug)
+                  console.error(`Debug: ${res.error.data.debug}`)
                 }
               }
               reject(new Error(`${message}@${method}`))

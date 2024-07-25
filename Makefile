@@ -90,7 +90,7 @@ format:
 	cd core && cargo +nightly fmt
 
 test: $(CORE_SRC) $(ENVIRONMENT_FILE) 
-	(cd core && cargo build && cargo test --features=test)
+	(cd core && cargo build  --features=test && cargo test --features=test)
 	(cd sdk && make test)
 
 cli:
