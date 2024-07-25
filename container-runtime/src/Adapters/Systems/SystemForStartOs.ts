@@ -1,43 +1,84 @@
-import { ExecuteResult, System } from "../../Interfaces/System"
+import { ExecuteResult, Procedure, System } from "../../Interfaces/System"
 import { unNestPath } from "../../Models/JsonPath"
 import matches, { any, number, object, string, tuple } from "ts-matches"
-import { hostSystemStartOs } from "../HostSystemStartOs"
 import { Effects } from "../../Models/Effects"
 import { RpcResult, matchRpcResult } from "../RpcListener"
 import { duration } from "../../Models/Duration"
 import { T } from "@start9labs/start-sdk"
-import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
 import { Volume } from "../../Models/Volume"
+import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
+import { CallbackHolder } from "../../Models/CallbackHolder"
+
 export const STARTOS_JS_LOCATION = "/usr/lib/startos/package/index.js"
+
+type RunningMain = {
+  effects: MainEffects
+  stop: () => Promise<void>
+  callbacks: CallbackHolder
+}
+
 export class SystemForStartOs implements System {
-  private onTerm: (() => Promise<void>) | undefined
+  private runningMain: RunningMain | undefined
+
   static of() {
     return new SystemForStartOs(require(STARTOS_JS_LOCATION))
   }
+
   constructor(readonly abi: T.ABI) {}
+
+  async init(): Promise<void> {}
+
+  async exit(): Promise<void> {}
+
+  async start(effects: MainEffects): Promise<void> {
+    if (this.runningMain) await this.stop()
+    let mainOnTerm: () => Promise<void> | undefined
+    const started = async (onTerm: () => Promise<void>) => {
+      await effects.setMainStatus({ status: "running" })
+      mainOnTerm = onTerm
+    }
+    const daemons = await (
+      await this.abi.main({
+        effects: effects as MainEffects,
+        started,
+      })
+    ).build()
+    this.runningMain = {
+      effects,
+      stop: async () => {
+        if (mainOnTerm) await mainOnTerm()
+        await daemons.term()
+      },
+      callbacks: new CallbackHolder(),
+    }
+  }
+
+  callCallback(callback: number, args: any[]): void {
+    if (this.runningMain) {
+      this.runningMain.callbacks
+        .callCallback(callback, args)
+        .catch((error) => console.error(`callback ${callback} failed`, error))
+    } else {
+      console.warn(`callback ${callback} ignored because system is not running`)
+    }
+  }
+
+  async stop(): Promise<void> {
+    if (this.runningMain) {
+      await this.runningMain.stop()
+      await this.runningMain.effects.clearCallbacks()
+      this.runningMain = undefined
+    }
+  }
+
   async execute(
-    effectCreator: ReturnType<typeof hostSystemStartOs>,
+    effects: Effects,
     options: {
-      id: string
-      procedure:
-        | "/init"
-        | "/uninit"
-        | "/main/start"
-        | "/main/stop"
-        | "/config/set"
-        | "/config/get"
-        | "/backup/create"
-        | "/backup/restore"
-        | "/actions/metadata"
-        | `/actions/${string}/get`
-        | `/actions/${string}/run`
-        | `/dependencies/${string}/query`
-        | `/dependencies/${string}/update`
+      procedure: Procedure
       input: unknown
       timeout?: number | undefined
     },
   ): Promise<RpcResult> {
-    const effects = effectCreator(options.id)
     return this._execute(effects, options)
       .then((x) =>
         matches(x)
@@ -93,22 +134,9 @@ export class SystemForStartOs implements System {
       })
   }
   async _execute(
-    effects: Effects,
+    effects: Effects | MainEffects,
     options: {
-      procedure:
-        | "/init"
-        | "/uninit"
-        | "/main/start"
-        | "/main/stop"
-        | "/config/set"
-        | "/config/get"
-        | "/backup/create"
-        | "/backup/restore"
-        | "/actions/metadata"
-        | `/actions/${string}/get`
-        | `/actions/${string}/run`
-        | `/dependencies/${string}/query`
-        | `/dependencies/${string}/update`
+      procedure: Procedure
       input: unknown
       timeout?: number | undefined
     },
@@ -123,30 +151,15 @@ export class SystemForStartOs implements System {
         const nextVersion = string.optional().unsafeCast(options.input) || null
         return this.abi.uninit({ effects, nextVersion })
       }
-      case "/main/start": {
-        if (this.onTerm) await this.onTerm()
-        const started = async (onTerm: () => Promise<void>) => {
-          await effects.setMainStatus({ status: "running" })
-          this.onTerm = onTerm
-        }
-        const daemons = await (
-          await this.abi.main({
-            effects: { ...effects, _type: "main" },
-            started,
-          })
-        ).build()
-        this.onTerm = daemons.term
-        return
-      }
-      case "/main/stop": {
-        try {
-          if (this.onTerm) await this.onTerm()
-          delete this.onTerm
-          return
-        } finally {
-          await effects.setMainStatus({ status: "stopped" })
-        }
-      }
+      // case "/main/start": {
+      //
+      // }
+      // case "/main/stop": {
+      //   if (this.onTerm) await this.onTerm()
+      //   await effects.setMainStatus({ status: "stopped" })
+      //   delete this.onTerm
+      //   return duration(30, "s")
+      // }
       case "/config/set": {
         const input = options.input as any // TODO
         return this.abi.setConfig({ effects, input })
@@ -168,6 +181,9 @@ export class SystemForStartOs implements System {
         })
       case "/actions/metadata": {
         return this.abi.actionsMetadata({ effects })
+      }
+      case "/properties": {
+        throw new Error("TODO")
       }
       default:
         const procedures = unNestPath(options.procedure)
@@ -199,9 +215,12 @@ export class SystemForStartOs implements System {
         }
         return
     }
-    throw new Error(`Method ${options.procedure} not implemented.`)
   }
-  async exit(effects: Effects): Promise<void> {
-    return void null
+
+  async sandbox(
+    effects: Effects,
+    options: { procedure: Procedure; input: unknown; timeout?: number },
+  ): Promise<RpcResult> {
+    return this.execute(effects, options)
   }
 }

@@ -4,8 +4,6 @@ use crate::{ActionId, PackageId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ProcedureName {
-    StartMain,
-    StopMain,
     GetConfig,
     SetConfig,
     CreateBackup,
@@ -25,8 +23,6 @@ impl ProcedureName {
         match self {
             ProcedureName::Init => "/init".to_string(),
             ProcedureName::Uninit => "/uninit".to_string(),
-            ProcedureName::StartMain => "/main/start".to_string(),
-            ProcedureName::StopMain => "/main/stop".to_string(),
             ProcedureName::SetConfig => "/config/set".to_string(),
             ProcedureName::GetConfig => "/config/get".to_string(),
             ProcedureName::CreateBackup => "/backup/create".to_string(),

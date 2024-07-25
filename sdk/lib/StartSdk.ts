@@ -77,6 +77,7 @@ import { ExposedStorePaths } from "./store/setupExposeStore"
 import { PathBuilder, extractJsonPath, pathBuilder } from "./store/PathBuilder"
 import { checkAllDependencies } from "./dependencies/dependencies"
 import { health } from "."
+import { GetSslCertificate } from "./util/GetSslCertificate"
 
 export const SDKVersion = testTypeVersion("0.3.6")
 
@@ -88,14 +89,29 @@ type AnyNeverCond<T extends any[], Then, Else> =
     never
 
 export type ServiceInterfaceType = "ui" | "p2p" | "api"
-export type MainEffects = Effects & { _type: "main" }
+export type MainEffects = Effects & {
+  _type: "main"
+  clearCallbacks: () => Promise<void>
+}
 export type Signals = NodeJS.Signals
 export const SIGTERM: Signals = "SIGTERM"
 export const SIGKILL: Signals = "SIGKILL"
 export const NO_TIMEOUT = -1
 
-function removeConstType<E>() {
-  return <T>(t: T) => t as T & (E extends MainEffects ? {} : { const: never })
+function removeCallbackTypes<E extends Effects>(effects: E) {
+  return <T extends object>(t: T) => {
+    if ("_type" in effects && effects._type === "main") {
+      return t as E extends MainEffects ? T : Omit<T, "const" | "watch">
+    } else {
+      if ("const" in t) {
+        delete t.const
+      }
+      if ("watch" in t) {
+        delete t.watch
+      }
+      return t as E extends MainEffects ? T : Omit<T, "const" | "watch">
+    }
+  }
 }
 
 export class StartSdk<Manifest extends T.Manifest, Store> {
@@ -129,26 +145,23 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       checkAllDependencies,
       serviceInterface: {
         getOwn: <E extends Effects>(effects: E, id: ServiceInterfaceId) =>
-          removeConstType<E>()(
+          removeCallbackTypes<E>(effects)(
             getServiceInterface(effects, {
               id,
-              packageId: null,
             }),
           ),
         get: <E extends Effects>(
           effects: E,
           opts: { id: ServiceInterfaceId; packageId: PackageId },
-        ) => removeConstType<E>()(getServiceInterface(effects, opts)),
+        ) =>
+          removeCallbackTypes<E>(effects)(getServiceInterface(effects, opts)),
         getAllOwn: <E extends Effects>(effects: E) =>
-          removeConstType<E>()(
-            getServiceInterfaces(effects, {
-              packageId: null,
-            }),
-          ),
+          removeCallbackTypes<E>(effects)(getServiceInterfaces(effects, {})),
         getAll: <E extends Effects>(
           effects: E,
           opts: { packageId: PackageId },
-        ) => removeConstType<E>()(getServiceInterfaces(effects, opts)),
+        ) =>
+          removeCallbackTypes<E>(effects)(getServiceInterfaces(effects, opts)),
       },
 
       store: {
@@ -157,7 +170,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           packageId: string,
           path: PathBuilder<Store, StoreValue>,
         ) =>
-          removeConstType<E>()(
+          removeCallbackTypes<E>(effects)(
             getStore<Store, StoreValue>(effects, path, {
               packageId,
             }),
@@ -165,7 +178,10 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         getOwn: <E extends Effects, StoreValue = unknown>(
           effects: E,
           path: PathBuilder<Store, StoreValue>,
-        ) => removeConstType<E>()(getStore<Store, StoreValue>(effects, path)),
+        ) =>
+          removeCallbackTypes<E>(effects)(
+            getStore<Store, StoreValue>(effects, path),
+          ),
         setOwn: <E extends Effects, Path extends PathBuilder<Store, unknown>>(
           effects: E,
           path: Path,
@@ -241,7 +257,16 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         },
       ) => new ServiceInterfaceBuilder({ ...options, effects }),
       getSystemSmtp: <E extends Effects>(effects: E) =>
-        removeConstType<E>()(new GetSystemSmtp(effects)),
+        removeCallbackTypes<E>(effects)(new GetSystemSmtp(effects)),
+
+      getSslCerificate: <E extends Effects>(
+        effects: E,
+        hostnames: string[],
+        algorithm?: T.Algorithm,
+      ) =>
+        removeCallbackTypes<E>(effects)(
+          new GetSslCertificate(effects, hostnames, algorithm),
+        ),
 
       createDynamicAction: <
         ConfigType extends

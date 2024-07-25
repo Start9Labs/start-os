@@ -3,6 +3,7 @@ use std::panic::UnwindSafe;
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
+use exver::Version;
 use helpers::AtomicFile;
 use imbl_value::{json, InternedString};
 use itertools::Itertools;
@@ -21,7 +22,6 @@ use crate::registry::signer::commitment::blake3::Blake3Commitment;
 use crate::registry::signer::commitment::Commitment;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::util::io::open_file;
-use crate::util::VersionString;
 
 pub fn get_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -37,7 +37,8 @@ pub fn get_api<C: Context>() -> ParentHandler<C> {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct GetOsAssetParams {
-    pub version: VersionString,
+    #[ts(type = "string")]
+    pub version: Version,
     #[ts(type = "string")]
     pub platform: InternedString,
 }
@@ -91,7 +92,7 @@ pub async fn get_squashfs(
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliGetOsAssetParams {
-    pub version: VersionString,
+    pub version: Version,
     pub platform: InternedString,
     #[arg(long = "download", short = 'd')]
     pub download: Option<PathBuf>,

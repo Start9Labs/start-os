@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
@@ -6,6 +6,7 @@ use std::time::Duration;
 use futures::future::ready;
 use futures::{Future, FutureExt};
 use helpers::NonDetachingJoinHandle;
+use imbl::Vector;
 use models::{ImageId, ProcedureName, VolumeId};
 use rpc_toolkit::{Empty, Server, ShutdownHandle};
 use serde::de::DeserializeOwned;
@@ -13,8 +14,6 @@ use tokio::process::Command;
 use tokio::sync::{oneshot, watch, Mutex, OnceCell};
 use tracing::instrument;
 
-use super::service_effect_handler::{service_effect_handler, EffectContext};
-use super::transition::{TransitionKind, TransitionState};
 use crate::context::RpcContext;
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
@@ -28,7 +27,11 @@ use crate::prelude::*;
 use crate::rpc_continuations::Guid;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
+use crate::service::effects::context::EffectContext;
+use crate::service::effects::handler;
+use crate::service::rpc::{CallbackHandle, CallbackId, CallbackParams};
 use crate::service::start_stop::StartStop;
+use crate::service::transition::{TransitionKind, TransitionState};
 use crate::service::{rpc, RunningStatus, Service};
 use crate::util::io::create_file;
 use crate::util::rpc_client::UnixRpcClient;
@@ -42,6 +45,8 @@ const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 pub struct ServiceState {
     // This contains the start time and health check information for when the service is running. Note: Will be overwritting to the db,
     pub(super) running_status: Option<RunningStatus>,
+    // This tracks references to callbacks registered by the running service:
+    pub(super) callbacks: BTreeSet<Arc<CallbackId>>,
     /// Setting this value causes the service actor to try to bring the service to the specified state. This is done in the background job created in ServiceActor::init
     pub(super) desired_state: StartStop,
     /// Override the current desired state for the service during a transition (this is protected by a guard that sets this value to null on drop)
@@ -61,6 +66,7 @@ impl ServiceState {
     pub fn new(desired_state: StartStop) -> Self {
         Self {
             running_status: Default::default(),
+            callbacks: Default::default(),
             temp_desired_state: Default::default(),
             transition_state: Default::default(),
             desired_state,
@@ -308,10 +314,7 @@ impl PersistentContainer {
     #[instrument(skip_all)]
     pub async fn init(&self, seed: Weak<Service>) -> Result<(), Error> {
         let socket_server_context = EffectContext::new(seed);
-        let server = Server::new(
-            move || ready(Ok(socket_server_context.clone())),
-            service_effect_handler(),
-        );
+        let server = Server::new(move || ready(Ok(socket_server_context.clone())), handler());
         let path = self
             .lxc_container
             .get()
@@ -430,21 +433,13 @@ impl PersistentContainer {
 
     #[instrument(skip_all)]
     pub async fn start(&self) -> Result<(), Error> {
-        self.execute(
-            Guid::new(),
-            ProcedureName::StartMain,
-            Value::Null,
-            Some(Duration::from_secs(5)), // TODO
-        )
-        .await?;
+        self.rpc_client.request(rpc::Start, Empty {}).await?;
         Ok(())
     }
 
     #[instrument(skip_all)]
     pub async fn stop(&self) -> Result<(), Error> {
-        let timeout: Option<crate::util::serde::Duration> = self
-            .execute(Guid::new(), ProcedureName::StopMain, Value::Null, None)
-            .await?;
+        self.rpc_client.request(rpc::Stop, Empty {}).await?;
         Ok(())
     }
 
@@ -478,6 +473,19 @@ impl PersistentContainer {
         self._sandboxed(id, name, input, timeout)
             .await
             .and_then(from_value)
+    }
+
+    #[instrument(skip_all)]
+    pub async fn callback(&self, handle: CallbackHandle, args: Vector<Value>) -> Result<(), Error> {
+        let mut params = None;
+        self.state.send_if_modified(|s| {
+            params = handle.params(&mut s.callbacks, args);
+            params.is_some()
+        });
+        if let Some(params) = params {
+            self._callback(params).await?;
+        }
+        Ok(())
     }
 
     #[instrument(skip_all)]
@@ -522,6 +530,12 @@ impl PersistentContainer {
         } else {
             fut.await?
         })
+    }
+
+    #[instrument(skip_all)]
+    async fn _callback(&self, params: CallbackParams) -> Result<(), Error> {
+        self.rpc_client.notify(rpc::Callback, params).await?;
+        Ok(())
     }
 }
 

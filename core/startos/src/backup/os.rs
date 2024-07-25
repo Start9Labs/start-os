@@ -1,3 +1,4 @@
+use imbl_value::InternedString;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use patch_db::Value;
@@ -97,7 +98,7 @@ impl OsBackupV0 {
 #[serde(rename = "kebab-case")]
 struct OsBackupV1 {
     server_id: String,               // uuidv4
-    hostname: String,                // embassy-<adjective>-<noun>
+    hostname: InternedString,        // embassy-<adjective>-<noun>
     net_key: Base64<[u8; 32]>,       // Ed25519 Secret Key
     root_ca_key: Pem<PKey<Private>>, // PEM Encoded OpenSSL Key
     root_ca_cert: Pem<X509>,         // PEM Encoded OpenSSL X509 Certificate
@@ -127,7 +128,7 @@ impl OsBackupV1 {
 
 struct OsBackupV2 {
     server_id: String,                               // uuidv4
-    hostname: String,                                // <adjective>-<noun>
+    hostname: InternedString,                        // <adjective>-<noun>
     root_ca_key: Pem<PKey<Private>>,                 // PEM Encoded OpenSSL Key
     root_ca_cert: Pem<X509>,                         // PEM Encoded OpenSSL X509 Certificate
     ssh_key: Pem<ssh_key::PrivateKey>,               // PEM Encoded OpenSSH Key

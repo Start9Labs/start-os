@@ -2,14 +2,13 @@ import { Effects } from "../types"
 import {
   CheckDependenciesParam,
   ExecuteAction,
+  GetConfiguredParams,
   SetMainStatus,
 } from ".././osBindings"
 import { CreateOverlayedImageParams } from ".././osBindings"
 import { DestroyOverlayedImageParams } from ".././osBindings"
 import { BindParams } from ".././osBindings"
 import { GetHostInfoParams } from ".././osBindings"
-import { ParamsPackageId } from ".././osBindings"
-import { ParamsMaybePackageId } from ".././osBindings"
 import { SetConfigured } from ".././osBindings"
 import { SetHealth } from ".././osBindings"
 import { ExposeForDependentsParams } from ".././osBindings"
@@ -22,11 +21,12 @@ import { GetServicePortForwardParams } from ".././osBindings"
 import { ExportServiceInterfaceParams } from ".././osBindings"
 import { GetPrimaryUrlParams } from ".././osBindings"
 import { ListServiceInterfacesParams } from ".././osBindings"
-import { RemoveAddressParams } from ".././osBindings"
 import { ExportActionParams } from ".././osBindings"
-import { RemoveActionParams } from ".././osBindings"
 import { MountParams } from ".././osBindings"
 function typeEquality<ExpectedType>(_a: ExpectedType) {}
+
+type WithCallback<T> = Omit<T, "callback"> & { callback: () => void }
+
 describe("startosTypeValidation ", () => {
   test(`checking the params match`, () => {
     const testInput: any = {}
@@ -39,32 +39,29 @@ describe("startosTypeValidation ", () => {
       createOverlayedImage: {} as CreateOverlayedImageParams,
       destroyOverlayedImage: {} as DestroyOverlayedImageParams,
       clearBindings: undefined,
+      getInstalledPackages: undefined,
       bind: {} as BindParams,
-      getHostInfo: {} as GetHostInfoParams,
-      exists: {} as ParamsPackageId,
-      getConfigured: undefined,
-      stopped: {} as ParamsMaybePackageId,
-      running: {} as ParamsPackageId,
+      getHostInfo: {} as WithCallback<GetHostInfoParams>,
+      getConfigured: {} as GetConfiguredParams,
       restart: undefined,
       shutdown: undefined,
       setConfigured: {} as SetConfigured,
       setHealth: {} as SetHealth,
       exposeForDependents: {} as ExposeForDependentsParams,
-      getSslCertificate: {} as GetSslCertificateParams,
+      getSslCertificate: {} as WithCallback<GetSslCertificateParams>,
       getSslKey: {} as GetSslKeyParams,
-      getServiceInterface: {} as GetServiceInterfaceParams,
+      getServiceInterface: {} as WithCallback<GetServiceInterfaceParams>,
       setDependencies: {} as SetDependenciesParams,
       store: {} as never,
-      getSystemSmtp: {} as GetSystemSmtpParams,
+      getSystemSmtp: {} as WithCallback<GetSystemSmtpParams>,
       getContainerIp: undefined,
       getServicePortForward: {} as GetServicePortForwardParams,
       clearServiceInterfaces: undefined,
       exportServiceInterface: {} as ExportServiceInterfaceParams,
-      getPrimaryUrl: {} as GetPrimaryUrlParams,
-      listServiceInterfaces: {} as ListServiceInterfacesParams,
-      removeAddress: {} as RemoveAddressParams,
+      getPrimaryUrl: {} as WithCallback<GetPrimaryUrlParams>,
+      listServiceInterfaces: {} as WithCallback<ListServiceInterfacesParams>,
       exportAction: {} as ExportActionParams,
-      removeAction: {} as RemoveActionParams,
+      clearActions: undefined,
       mount: {} as MountParams,
       checkDependencies: {} as CheckDependenciesParam,
       getDependencies: undefined,

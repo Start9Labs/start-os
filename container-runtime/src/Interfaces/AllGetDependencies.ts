@@ -1,6 +1,7 @@
 import { GetDependency } from "./GetDependency"
 import { System } from "./System"
-import { GetHostSystem, HostSystem } from "./HostSystem"
+import { MakeMainEffects, MakeProcedureEffects } from "./MakeEffects"
 
 export type AllGetDependencies = GetDependency<"system", Promise<System>> &
-  GetDependency<"hostSystem", GetHostSystem>
+  GetDependency<"makeProcedureEffects", MakeProcedureEffects> &
+  GetDependency<"makeMainEffects", MakeMainEffects>

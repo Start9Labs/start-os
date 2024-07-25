@@ -3,6 +3,8 @@ version = $(shell git tag --sort=committerdate | tail -1)
 
 .PHONY: test clean bundle fmt buildOutput check
 
+all: bundle
+
 test: $(TS_FILES) lib/test/output.ts
 	npm test
 

@@ -34,7 +34,7 @@ struct Resolver {
 impl Resolver {
     async fn resolve(&self, name: &Name) -> Option<Vec<Ipv4Addr>> {
         match name.iter().next_back() {
-            Some(b"embassy") => {
+            Some(b"embassy") | Some(b"startos") => {
                 if let Some(pkg) = name.iter().rev().skip(1).next() {
                     if let Some(ip) = self.services.read().await.get(&Some(
                         std::str::from_utf8(pkg)
