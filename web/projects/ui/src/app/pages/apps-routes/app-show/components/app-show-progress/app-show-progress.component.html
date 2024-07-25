@@ -2,7 +2,7 @@
   <p>
     {{ phase.name }}
     <span *ngIf="phase.progress | installingProgress as progress">
-      : {{ progress * 100 }}%
+      : {{ progress }}%
     </span>
   </p>
   <ion-progress-bar
@@ -15,6 +15,6 @@
         : 'determinate'
     "
     [color]="phase.progress === true ? 'success' : 'secondary'"
-    [value]="phase.progress | installingProgress"
+    [value]="(phase.progress | installingProgress) / 100"
   ></ion-progress-bar>
 </ng-container>

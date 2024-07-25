@@ -53,7 +53,7 @@
                       *ngIf="local.stateInfo.state === 'updating' else notUpdating"
                     >
                       <round-progress
-                        [current]="(local.stateInfo.installingInfo.progress.overall | installingProgress) || 0"
+                        [current]="(local.stateInfo.installingInfo.progress.overall | installingProgress) / 100"
                         [max]="1"
                         [radius]="13"
                         [stroke]="3"

@@ -22,11 +22,7 @@ export class MarketplaceListPage {
   readonly store$ = this.marketplaceService.getSelectedStore$().pipe(
     map(({ info, packages }) => {
       const categories = new Map<string, T.Category>()
-      if (info.categories['featured'])
-        categories.set('featured', info.categories['featured'])
-      Object.keys(info.categories).forEach(c =>
-        categories.set(c, info.categories[c]),
-      )
+
       categories.set('all', {
         name: 'All',
         description: {
@@ -34,6 +30,10 @@ export class MarketplaceListPage {
           long: 'An unfiltered list of all packages available on this registry.',
         },
       })
+
+      Object.keys(info.categories).forEach(c =>
+        categories.set(c, info.categories[c]),
+      )
 
       return { categories, packages }
     }),
@@ -88,7 +88,7 @@ export class MarketplaceListPage {
     private readonly route: ActivatedRoute,
   ) {}
 
-  category = 'featured'
+  category = 'all'
   query = ''
 
   async presentModalMarketplaceSettings() {
