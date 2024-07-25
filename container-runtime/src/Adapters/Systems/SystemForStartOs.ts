@@ -75,7 +75,7 @@ export class SystemForStartOs implements System {
     effects: Effects,
     options: {
       procedure: Procedure
-      input: unknown
+      input?: unknown
       timeout?: number | undefined
     },
   ): Promise<RpcResult> {
@@ -137,7 +137,7 @@ export class SystemForStartOs implements System {
     effects: Effects | MainEffects,
     options: {
       procedure: Procedure
-      input: unknown
+      input?: unknown
       timeout?: number | undefined
     },
   ): Promise<unknown> {
@@ -219,7 +219,7 @@ export class SystemForStartOs implements System {
 
   async sandbox(
     effects: Effects,
-    options: { procedure: Procedure; input: unknown; timeout?: number },
+    options: { procedure: Procedure; input?: unknown; timeout?: number },
   ): Promise<RpcResult> {
     return this.execute(effects, options)
   }

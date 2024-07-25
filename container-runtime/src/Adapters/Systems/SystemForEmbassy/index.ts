@@ -232,7 +232,7 @@ export class SystemForEmbassy implements System {
     effects: Effects,
     options: {
       procedure: JsonPath
-      input: unknown
+      input?: unknown
       timeout?: number | undefined
     },
   ): Promise<RpcResult> {
@@ -294,7 +294,7 @@ export class SystemForEmbassy implements System {
     effects: Effects,
     options: {
       procedure: JsonPath
-      input: unknown
+      input?: unknown
       timeout?: number | undefined
     },
   ): Promise<unknown> {
