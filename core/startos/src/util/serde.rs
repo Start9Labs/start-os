@@ -568,6 +568,14 @@ where
 
 #[derive(Deserialize, Serialize, TS)]
 pub struct StdinDeserializable<T>(pub T);
+impl<T> Default for StdinDeserializable<T>
+where
+    T: Default,
+{
+    fn default() -> Self {
+        Self(T::default())
+    }
+}
 impl<T> FromArgMatches for StdinDeserializable<T>
 where
     T: DeserializeOwned,
