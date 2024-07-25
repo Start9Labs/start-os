@@ -22,6 +22,6 @@ export class InstallingProgressPipe implements PipeTransform {
   transform(progress: T.Progress): number {
     if (progress === true) return 100
     if (progress === false || progress === null || !progress.total) return 0
-    return Math.round((100 * progress.done) / progress.total)
+    return Math.floor((100 * progress.done) / progress.total)
   }
 }
