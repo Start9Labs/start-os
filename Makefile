@@ -92,7 +92,7 @@ format:
 test: $(CORE_SRC) $(ENVIRONMENT_FILE) 
 	(cd core && cargo build  --features=test && cargo test --features=test)
 	(cd sdk && make test)
-	(cd container-runtime && npm i && npm test)
+	(cd container-runtime && npm ci && npm test)
 
 cli:
 	cd core && ./install-cli.sh
