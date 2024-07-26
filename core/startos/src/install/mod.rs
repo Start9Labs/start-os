@@ -12,7 +12,7 @@ use itertools::Itertools;
 use models::VersionString;
 use reqwest::header::{HeaderMap, CONTENT_LENGTH};
 use reqwest::Url;
-use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::yajrc::{GenericRpcMethod, RpcError};
 use rpc_toolkit::HandlerArgs;
 use rustyline_async::ReadlineEvent;
 use serde::{Deserialize, Serialize};
@@ -202,11 +202,12 @@ pub async fn sideload(
                     use axum::extract::ws::Message;
                     async move {
                         if let Err(e) = async {
+                            type RpcResponse = rpc_toolkit::yajrc::RpcResponse::<GenericRpcMethod<&'static str, (), FullProgress>>;
                             tokio::select! {
                                 res = async {
                                     while let Some(progress) = progress_listener.next().await {
                                         ws.send(Message::Text(
-                                            serde_json::to_string(&Ok::<_, ()>(progress))
+                                            serde_json::to_string(&RpcResponse::from_result::<RpcError>(Ok(progress)))
                                                 .with_kind(ErrorKind::Serialization)?,
                                         ))
                                         .await
@@ -217,7 +218,7 @@ pub async fn sideload(
                                 err = err_recv => {
                                     if let Ok(e) = err {
                                         ws.send(Message::Text(
-                                            serde_json::to_string(&Err::<(), _>(e))
+                                            serde_json::to_string(&RpcResponse::from_result::<RpcError>(Err(e)))
                                             .with_kind(ErrorKind::Serialization)?,
                                         ))
                                         .await
@@ -406,14 +407,18 @@ pub async fn cli_install(
 
                 let mut progress = FullProgress::new();
 
+                type RpcResponse = rpc_toolkit::yajrc::RpcResponse<
+                    GenericRpcMethod<&'static str, (), FullProgress>,
+                >;
+
                 loop {
                     tokio::select! {
                         msg = ws.next() => {
                             if let Some(msg) = msg {
                                 if let Message::Text(t) = msg.with_kind(ErrorKind::Network)? {
                                     progress =
-                                        serde_json::from_str::<Result<_, RpcError>>(&t)
-                                            .with_kind(ErrorKind::Deserialization)??;
+                                        serde_json::from_str::<RpcResponse>(&t)
+                                            .with_kind(ErrorKind::Deserialization)?.result?;
                                     bar.update(&progress);
                                 }
                             } else {
