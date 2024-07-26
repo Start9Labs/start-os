@@ -13,9 +13,10 @@
     "declaration": true,
     "noImplicitAny": true,
     "esModuleInterop": true,
-    "types": ["node"],
+    "types": ["node", "jest"],
     "moduleResolution": "Node16",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "resolveJsonModule": true
   },
   "ts-node": {
     "compilerOptions": {
