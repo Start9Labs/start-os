@@ -50,7 +50,8 @@ pub async fn canonicalize(
     }
     let path = path.as_ref();
     if tokio::fs::metadata(path).await.is_err() {
-        if let (Some(parent), Some(file_name)) = (path.parent(), path.file_name()) {
+        let parent = path.parent().unwrap_or(Path::new("."));
+        if let Some(file_name) = path.file_name() {
             if create_parent && tokio::fs::metadata(parent).await.is_err() {
                 return Ok(create_canonical_folder(parent).await?.join(file_name));
             } else {
