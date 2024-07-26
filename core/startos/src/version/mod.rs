@@ -27,6 +27,7 @@ enum Version {
     V0_3_5_1(Wrapper<v0_3_5_1::Version>),
     V0_3_5_2(Wrapper<v0_3_5_2::Version>),
     V0_3_6_alpha_0(Wrapper<v0_3_6_alpha_0::Version>),
+    V0_3_6_alpha_1(Wrapper<v0_3_6_alpha_1::Version>),
     Other(exver::Version),
 }
 
@@ -47,6 +48,7 @@ impl Version {
             Version::V0_3_5_1(Wrapper(x)) => x.semver(),
             Version::V0_3_5_2(Wrapper(x)) => x.semver(),
             Version::V0_3_6_alpha_0(Wrapper(x)) => x.semver(),
+            Version::V0_3_6_alpha_1(Wrapper(x)) => x.semver(),
             Version::Other(x) => x.clone(),
         }
     }
@@ -247,6 +249,7 @@ pub async fn init(
         Version::V0_3_5_1(v) => v.0.migrate_to(&Current::new(), &db, &mut progress).await?,
         Version::V0_3_5_2(v) => v.0.migrate_to(&Current::new(), &db, &mut progress).await?,
         Version::V0_3_6_alpha_0(v) => v.0.migrate_to(&Current::new(), &db, &mut progress).await?,
+        Version::V0_3_6_alpha_1(v) => v.0.migrate_to(&Current::new(), &db, &mut progress).await?,
         Version::Other(_) => {
             return Err(Error::new(
                 eyre!("Cannot downgrade"),
@@ -291,6 +294,12 @@ mod tests {
             Just(Version::V0_3_5(Wrapper(v0_3_5::Version::new()))),
             Just(Version::V0_3_5_1(Wrapper(v0_3_5_1::Version::new()))),
             Just(Version::V0_3_5_2(Wrapper(v0_3_5_2::Version::new()))),
+            Just(Version::V0_3_6_alpha_0(Wrapper(
+                v0_3_6_alpha_0::Version::new()
+            ))),
+            Just(Version::V0_3_6_alpha_1(Wrapper(
+                v0_3_6_alpha_1::Version::new()
+            ))),
             em_version().prop_map(Version::Other),
         ]
     }
