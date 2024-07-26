@@ -90,6 +90,8 @@ export const addressHostToUrl = (
     } else if (host.kind === "ip") {
       if (host.hostname.kind === "domain") {
         hostname = `${host.hostname.subdomain ? `${host.hostname.subdomain}.` : ""}${host.hostname.domain}`
+      } else if (host.hostname.kind === "ipv6") {
+        hostname = `[${host.hostname.value}]`
       } else {
         hostname = host.hostname.value
       }
