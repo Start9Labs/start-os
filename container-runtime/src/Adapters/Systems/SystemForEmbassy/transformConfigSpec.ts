@@ -104,7 +104,7 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
             : [],
         minLength: null,
         maxLength: null,
-        masked: oldVal.masked,
+        masked: oldVal.masked || false,
         generate: null,
         inputmode: "text",
         placeholder: oldVal.placeholder || null,
@@ -347,11 +347,11 @@ type OldDefaultString = typeof matchOldDefaultString._TYPE
 
 export const matchOldValueSpecString = object(
   {
+    type: literals("string"),
+    name: string,
     masked: boolean,
     copyable: boolean,
-    type: literals("string"),
     nullable: boolean,
-    name: string,
     placeholder: string,
     pattern: string,
     "pattern-description": string,
@@ -361,6 +361,9 @@ export const matchOldValueSpecString = object(
     warning: string,
   },
   [
+    "masked",
+    "copyable",
+    "nullable",
     "placeholder",
     "pattern",
     "pattern-description",
