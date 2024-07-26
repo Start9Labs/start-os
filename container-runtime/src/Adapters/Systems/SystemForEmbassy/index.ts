@@ -348,12 +348,7 @@ export class SystemForEmbassy implements System {
               options.timeout || null,
             )
           case procedures[1] === "dependencies" && procedures[3] === "query":
-            return this.dependenciesAutoconfig(
-              effects,
-              procedures[2],
-              input,
-              options.timeout || null,
-            )
+            return null
 
           case procedures[1] === "dependencies" && procedures[3] === "update":
             return this.dependenciesAutoconfig(
@@ -836,9 +831,9 @@ export class SystemForEmbassy implements System {
     id: string,
     oldConfig: unknown,
     timeoutMs: number | null,
-  ): Promise<object> {
+  ): Promise<any> {
     const actionProcedure = this.manifest.dependencies?.[id]?.config?.check
-    if (!actionProcedure) return { message: "Action not found", value: null }
+    if (!actionProcedure) return null
     if (actionProcedure.type === "docker") {
       const container = await DockerProcedureContainer.of(
         effects,
@@ -880,16 +875,19 @@ export class SystemForEmbassy implements System {
   private async dependenciesAutoconfig(
     effects: Effects,
     id: string,
-    oldConfig: unknown,
+    input: unknown,
     timeoutMs: number | null,
   ): Promise<void> {
+    const oldConfig = object({ remoteConfig: any }).unsafeCast(
+      input,
+    ).remoteConfig
     // TODO: docker
     const moduleCode = await this.moduleCode
     const method = moduleCode.dependencies?.[id]?.autoConfigure
     if (!method) return
     return (await method(
       polyfillEffects(effects, this.manifest),
-      oldConfig as any,
+      oldConfig,
     ).then((x) => {
       if ("result" in x) return x.result
       if ("error" in x) throw new Error("Error getting config: " + x.error)
