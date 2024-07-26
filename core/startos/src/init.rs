@@ -235,7 +235,7 @@ impl InitPhases {
             sync_clock: handle.add_phase("Synchronizing system clock".into(), Some(10)),
             enable_zram: handle.add_phase("Enabling ZRAM".into(), Some(1)),
             update_server_info: handle.add_phase("Updating server info".into(), Some(1)),
-            launch_service_network: handle.add_phase("Launching service intranet".into(), Some(10)),
+            launch_service_network: handle.add_phase("Launching service intranet".into(), Some(1)),
             run_migrations: handle.add_phase("Running migrations".into(), Some(10)),
             validate_db: handle.add_phase("Validating database".into(), Some(1)),
             postinit: if Path::new("/media/startos/config/postinit.sh").exists() {
