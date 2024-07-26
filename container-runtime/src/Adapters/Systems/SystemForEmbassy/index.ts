@@ -886,10 +886,7 @@ export class SystemForEmbassy implements System {
     // TODO: docker
     const moduleCode = await this.moduleCode
     const method = moduleCode.dependencies?.[id]?.autoConfigure
-    if (!method)
-      throw new Error(
-        `Expecting that the method dependency autoConfigure ${id} exists`,
-      )
+    if (!method) return
     return (await method(
       polyfillEffects(effects, this.manifest),
       oldConfig as any,
