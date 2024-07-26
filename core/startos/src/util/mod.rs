@@ -49,6 +49,7 @@ pub mod net;
 pub mod rpc;
 pub mod rpc_client;
 pub mod serde;
+pub mod sync;
 
 #[derive(Clone, Copy, Debug, ::serde::Deserialize, ::serde::Serialize)]
 pub enum Never {}

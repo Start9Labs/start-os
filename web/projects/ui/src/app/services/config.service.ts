@@ -73,8 +73,6 @@ export class ConfigService {
     const hostnameInfo =
       hosts[ui.addressInfo.hostId]?.hostnameInfo[ui.addressInfo.internalPort]
 
-    console.debug(hostnameInfo)
-
     if (!hostnameInfo) return ''
 
     const addressInfo = ui.addressInfo

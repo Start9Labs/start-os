@@ -17,6 +17,7 @@ use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
+use crate::auth::Sessions;
 use crate::context::config::ServerConfig;
 use crate::db::model::Database;
 use crate::dependencies::compute_dependency_config_errs;
@@ -34,6 +35,7 @@ use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
 use crate::system::get_mem_info;
 use crate::util::lshw::{lshw, LshwDevice};
+use crate::util::sync::SyncMutex;
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
@@ -42,6 +44,7 @@ pub struct RpcContextSeed {
     pub ethernet_interface: String,
     pub datadir: PathBuf,
     pub disk_guid: Arc<String>,
+    pub ephemeral_sessions: SyncMutex<Sessions>,
     pub db: TypedPatchDb<Database>,
     pub sync_db: watch::Sender<u64>,
     pub account: RwLock<AccountInfo>,
@@ -213,6 +216,7 @@ impl RpcContext {
                 find_eth_iface().await?
             },
             disk_guid,
+            ephemeral_sessions: SyncMutex::new(Sessions::new()),
             sync_db: watch::Sender::new(db.sequence().await),
             db,
             account: RwLock::new(account),

@@ -33,6 +33,7 @@ export module RR {
   export type LoginReq = {
     password: string
     metadata: SessionMetadata
+    ephemeral?: boolean
   } // auth.login - unauthed
   export type loginRes = null
 
