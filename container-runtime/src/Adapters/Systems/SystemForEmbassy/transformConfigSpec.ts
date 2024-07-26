@@ -12,6 +12,7 @@ import {
   deferred,
   every,
   nill,
+  literal,
 } from "ts-matches"
 
 export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
@@ -38,7 +39,7 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
         values: oldVal.values.reduce(
           (obj, curr) => ({
             ...obj,
-            [curr]: oldVal["value-names"][curr],
+            [curr]: oldVal["value-names"][curr] || curr,
           }),
           {},
         ),
@@ -109,7 +110,7 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
         inputmode: "text",
         placeholder: oldVal.placeholder || null,
       }
-    } else {
+    } else if (oldVal.type === "union") {
       newVal = {
         type: "union",
         name: oldVal.tag.name,
@@ -119,7 +120,7 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
           (obj, [id, spec]) => ({
             ...obj,
             [id]: {
-              name: oldVal.tag["variant-names"][id],
+              name: oldVal.tag["variant-names"][id] || id,
               spec: transformConfigSpec(matchOldConfigSpec.unsafeCast(spec)),
             },
           }),
@@ -130,6 +131,10 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
         default: oldVal.default,
         immutable: false,
       }
+    } else if (oldVal.type === "pointer") {
+      return inputSpec
+    } else {
+      throw new Error(`unknown spec ${JSON.stringify(oldVal)}`)
     }
 
     return {
@@ -175,6 +180,10 @@ export function transformOldConfigToNew(
       )
     }
 
+    if (isPointer(val)) {
+      return obj
+    }
+
     return {
       ...obj,
       [key]: newVal,
@@ -201,7 +210,7 @@ export function transformNewConfigToOld(
         [val.tag.id]: config[key].selection,
         ...transformNewConfigToOld(
           matchOldConfigSpec.unsafeCast(val.variants[config[key].selection]),
-          config[key].unionSelectValue,
+          config[key].value,
         ),
       }
     }
@@ -311,6 +320,10 @@ function isUnion(val: OldValueSpec): val is OldValueSpecUnion {
 
 function isList(val: OldValueSpec): val is OldValueSpecList {
   return val.type === "list"
+}
+
+function isPointer(val: OldValueSpec): val is OldValueSpecPointer {
+  return val.type === "pointer"
 }
 
 function isEnumList(
@@ -522,6 +535,28 @@ const matchOldValueSpecList = every(
 )
 type OldValueSpecList = typeof matchOldValueSpecList._TYPE
 
+const matchOldValueSpecPointer = every(
+  object({
+    type: literal("pointer"),
+  }),
+  anyOf(
+    object({
+      subtype: literal("package"),
+      target: literals("tor-key", "tor-address", "lan-address"),
+      "package-id": string,
+      interface: string,
+    }),
+    object({
+      subtype: literal("package"),
+      target: literals("config"),
+      "package-id": string,
+      selector: string,
+      multi: boolean,
+    }),
+  ),
+)
+type OldValueSpecPointer = typeof matchOldValueSpecPointer._TYPE
+
 export const matchOldValueSpec = anyOf(
   matchOldValueSpecString,
   matchOldValueSpecNumber,
@@ -530,6 +565,7 @@ export const matchOldValueSpec = anyOf(
   matchOldValueSpecEnum,
   matchOldValueSpecList,
   matchOldValueSpecUnion,
+  matchOldValueSpecPointer,
 )
 type OldValueSpec = typeof matchOldValueSpec._TYPE
 

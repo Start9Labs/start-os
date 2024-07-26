@@ -45,6 +45,7 @@ import {
   OldConfigSpec,
   matchOldConfigSpec,
   transformConfigSpec,
+  transformNewConfigToOld,
   transformOldConfigToNew,
 } from "./transformConfigSpec"
 import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
@@ -100,6 +101,11 @@ const matchSetResult = object(
   },
   ["depends-on", "dependsOn"],
 )
+
+type OldGetConfigRes = {
+  config?: null | Record<string, unknown>
+  spec: OldConfigSpec
+}
 
 export type PackagePropertiesV2 = {
   [name: string]: PackagePropertyObject | PackagePropertyString
@@ -546,14 +552,12 @@ export class SystemForEmbassy implements System {
     effects: Effects,
     timeoutMs: number | null,
   ): Promise<T.ConfigRes> {
-    return this.getConfigUncleaned(effects, timeoutMs)
-      .then(removePointers)
-      .then(convertToNewConfig)
+    return this.getConfigUncleaned(effects, timeoutMs).then(convertToNewConfig)
   }
   private async getConfigUncleaned(
     effects: Effects,
     timeoutMs: number | null,
-  ): Promise<T.ConfigRes> {
+  ): Promise<OldGetConfigRes> {
     const config = this.manifest.config?.get
     if (!config) return { spec: {} }
     if (config.type === "docker") {
@@ -590,13 +594,14 @@ export class SystemForEmbassy implements System {
     newConfigWithoutPointers: unknown,
     timeoutMs: number | null,
   ): Promise<void> {
-    const newConfig = structuredClone(newConfigWithoutPointers)
-    await updateConfig(
-      effects,
-      this.manifest,
-      await this.getConfigUncleaned(effects, timeoutMs).then((x) => x.spec),
-      newConfig,
+    const spec = await this.getConfigUncleaned(effects, timeoutMs).then(
+      (x) => x.spec,
     )
+    const newConfig = transformNewConfigToOld(
+      spec,
+      structuredClone(newConfigWithoutPointers as Record<string, unknown>),
+    )
+    await updateConfig(effects, this.manifest, spec, newConfig)
     const setConfigValue = this.manifest.config?.set
     if (!setConfigValue) return
     if (setConfigValue.type === "docker") {
@@ -895,14 +900,6 @@ export class SystemForEmbassy implements System {
     })) as any
   }
 }
-async function removePointers(value: T.ConfigRes): Promise<T.ConfigRes> {
-  const startingSpec = structuredClone(value.spec)
-  const config =
-    value.config && cleanConfigFromPointers(value.config, startingSpec)
-  const spec = cleanSpecOfPointers(startingSpec)
-
-  return { config, spec }
-}
 
 const matchPointer = object({
   type: literal("pointer"),
@@ -961,27 +958,6 @@ type CleanConfigFromPointers<C, S> =
     )
   } :
   null
-
-function cleanConfigFromPointers<C, S>(
-  config: C,
-  spec: S,
-): CleanConfigFromPointers<C, S> {
-  const newConfig = {} as CleanConfigFromPointers<C, S>
-
-  if (!(object.test(config) && object.test(spec)) || newConfig == null)
-    return null as CleanConfigFromPointers<C, S>
-
-  for (const key of Object.keys(spec)) {
-    if (!isKeyOf(key, spec)) continue
-    if (!isKeyOf(key, config)) continue
-    const partSpec = spec[key]
-    if (matchPointer.test(partSpec)) continue
-    ;(newConfig as any)[key] = matchSpec.test(partSpec)
-      ? cleanConfigFromPointers(config[key], partSpec.spec)
-      : config[key]
-  }
-  return newConfig as CleanConfigFromPointers<C, S>
-}
 
 async function updateConfig(
   effects: Effects,
@@ -1081,7 +1057,9 @@ function extractServiceInterfaceId(manifest: Manifest, specInterface: string) {
   const serviceInterfaceId = `${specInterface}-${internalPort}`
   return serviceInterfaceId
 }
-async function convertToNewConfig(value: T.ConfigRes): Promise<T.ConfigRes> {
+async function convertToNewConfig(
+  value: OldGetConfigRes,
+): Promise<T.ConfigRes> {
   const valueSpec: OldConfigSpec = matchOldConfigSpec.unsafeCast(value.spec)
   const spec = transformConfigSpec(valueSpec)
   if (!value.config) return { spec, config: null }
