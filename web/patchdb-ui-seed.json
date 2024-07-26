@@ -20,5 +20,6 @@
   },
   "ackInstructions": {},
   "theme": "Dark",
-  "widgets": []
+  "widgets": [],
+  "ack-welcome": "0.3.6-alpha.1"
 }
