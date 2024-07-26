@@ -83,15 +83,16 @@ pub async fn destroy_overlayed_image(
     DestroyOverlayedImageParams { guid }: DestroyOverlayedImageParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
-    if context
+    if let Some(overlay) = context
         .seed
         .persistent_container
         .overlays
         .lock()
         .await
         .remove(&guid)
-        .is_none()
     {
+        overlay.unmount(true).await?;
+    } else {
         tracing::warn!("Could not find a guard to remove on the destroy overlayed image; assumming that it already is removed and will be skipping");
     }
     Ok(())
