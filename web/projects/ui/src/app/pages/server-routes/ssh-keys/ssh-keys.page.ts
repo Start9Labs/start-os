@@ -80,7 +80,7 @@ const ADD_OPTIONS: Partial<TuiDialogOptions<{ message: string }>> = {
   label: 'SSH Key',
   data: {
     message:
-      'Enter the SSH public key you would like to authorize for root access to your Embassy.',
+      'Enter the SSH public key you would like to authorize for root access to your StartOS.',
   },
 }
 
