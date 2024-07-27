@@ -231,7 +231,7 @@ sdk/lib/osBindings: core/startos/bindings
 
 core/startos/bindings: $(shell git ls-files core) $(ENVIRONMENT_FILE)
 	rm -rf core/startos/bindings
-	(cd core/ && cargo test --features=test '::export_bindings_')
+	(cd core/ && cargo test --features=test 'export_bindings_')
 	touch core/startos/bindings
 
 sdk/dist: $(shell git ls-files sdk) sdk/lib/osBindings
