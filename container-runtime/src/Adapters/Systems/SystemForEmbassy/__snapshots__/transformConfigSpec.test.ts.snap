@@ -76,8 +76,8 @@ exports[`transformConfigSpec transformConfigSpec(embassyPages) 1`] = `
             "required": false,
             "type": "select",
             "values": {
-              "filebrowser": undefined,
-              "nextcloud": undefined,
+              "filebrowser": "filebrowser",
+              "nextcloud": "nextcloud",
             },
             "warning": null,
           },
@@ -192,8 +192,8 @@ exports[`transformConfigSpec transformConfigSpec(embassyPages) 1`] = `
                   "required": false,
                   "type": "select",
                   "values": {
-                    "filebrowser": undefined,
-                    "nextcloud": undefined,
+                    "filebrowser": "filebrowser",
+                    "nextcloud": "nextcloud",
                   },
                   "warning": null,
                 },

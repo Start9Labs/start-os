@@ -47,7 +47,7 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all metadata install clean format cli uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole wormhole-deb test
+.PHONY: all metadata install clean format cli uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole wormhole-deb test test-core test-sdk test-container-runtime
 
 all: $(ALL_TARGETS)
 
@@ -89,10 +89,16 @@ clean:
 format:
 	cd core && cargo +nightly fmt
 
-test: $(CORE_SRC) $(ENVIRONMENT_FILE) 
-	(cd core && cargo build  --features=test && cargo test --features=test)
-	(cd sdk && make test)
-	(cd container-runtime && npm ci && npm test)
+test: | test-core test-sdk test-container-runtime
+
+test-core: $(CORE_SRC) $(ENVIRONMENT_FILE) 
+	cd core && cargo build --features=test && cargo test --features=test
+
+test-sdk: $(shell git ls-files sdk) sdk/lib/osBindings
+	cd sdk && make test
+
+test-container-runtime: container-runtime/node_modules $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
+	cd container-runtime && npm test
 
 cli:
 	cd core && ./install-cli.sh
