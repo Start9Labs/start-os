@@ -353,6 +353,7 @@ export interface Metric {
 }
 
 export interface Session {
+  loggedIn: string
   lastActive: string
   userAgent: string
   metadata: SessionMetadata

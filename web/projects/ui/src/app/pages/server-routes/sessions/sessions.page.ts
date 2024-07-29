@@ -27,17 +27,11 @@ export class SessionsPage {
       this.currentSession = sessionInfo.sessions[sessionInfo.current]
       delete sessionInfo.sessions[sessionInfo.current]
       this.otherSessions = Object.entries(sessionInfo.sessions)
-        .map(([id, session]) => {
-          return {
-            id,
-            ...session,
-          }
-        })
-        .sort((a, b) => {
-          return (
-            new Date(b.lastActive).valueOf() - new Date(a.lastActive).valueOf()
-          )
-        })
+        .map(([id, session]) => ({ id, ...session }))
+        .sort(
+          (a, b) =>
+            new Date(b.lastActive).valueOf() - new Date(a.lastActive).valueOf(),
+        )
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -107,10 +101,6 @@ export class SessionsPage {
     } else {
       return 'Unknown Device'
     }
-  }
-
-  asIsOrder(a: any, b: any) {
-    return 0
   }
 }
 
