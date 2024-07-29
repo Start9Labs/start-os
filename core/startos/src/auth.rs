@@ -350,13 +350,13 @@ pub async fn list(
     ListParams { session, .. }: ListParams,
 ) -> Result<SessionList, Error> {
     let mut sessions = ctx.db.peek().await.into_private().into_sessions().de()?;
-    ctx.ephemeral_sessions.mutate(|s| {
+    ctx.ephemeral_sessions.peek(|s| {
         sessions
             .0
             .extend(s.0.iter().map(|(k, v)| (k.clone(), v.clone())))
     });
     Ok(SessionList {
-        current: HashSessionToken::from_token(session).hashed().clone(),
+        current: session,
         sessions,
     })
 }

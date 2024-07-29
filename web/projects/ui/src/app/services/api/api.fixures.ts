@@ -924,6 +924,7 @@ export module Mock {
     current: 'b7b1a9cef4284f00af9e9dda6e676177',
     sessions: {
       '9513226517c54ddd8107d6d7b9d8aed7': {
+        loggedIn: '2021-07-14T20:49:17.774Z',
         lastActive: '2021-07-14T20:49:17.774Z',
         userAgent: 'AppleWebKit/{WebKit Rev} (KHTML, like Gecko)',
         metadata: {
@@ -931,6 +932,7 @@ export module Mock {
         },
       },
       b7b1a9cef4284f00af9e9dda6e676177: {
+        loggedIn: '2021-07-14T20:49:17.774Z',
         lastActive: '2021-06-14T20:49:17.774Z',
         userAgent:
           'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0',
