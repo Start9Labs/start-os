@@ -13,8 +13,8 @@ use crate::util::Invoke;
 use crate::PLATFORM;
 
 /// Part of the Firmware, look there for more about
-#[derive(Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct VersionMatcher {
     /// Strip this prefix on the version matcher
     semver_prefix: Option<String>,
@@ -27,8 +27,8 @@ pub struct VersionMatcher {
 /// Inside a file that is firmware.json, we
 /// wanted a structure that could help decide what to do
 /// for each of the firmware versions
-#[derive(Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct Firmware {
     id: String,
     /// This is the platform(s) the firmware was built for
@@ -49,6 +49,7 @@ pub fn display_firmware_update_result(result: RequiresReboot) {
     }
 }
 
+#[instrument]
 pub async fn check_for_firmware_update() -> Result<Option<Firmware>, Error> {
     let system_product_name = String::from_utf8(
         Command::new("dmidecode")
@@ -118,6 +119,7 @@ pub async fn check_for_firmware_update() -> Result<Option<Firmware>, Error> {
 /// that the firmware was the correct and updated for
 /// systems like the Pure System that a new firmware
 /// was released and the updates where pushed through the pure os.
+#[instrument]
 pub async fn update_firmware(firmware: Firmware) -> Result<(), Error> {
     let id = &firmware.id;
     let firmware_dir = Path::new("/usr/lib/startos/firmware");
