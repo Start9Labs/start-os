@@ -577,7 +577,7 @@ export class SystemForEmbassy implements System {
       if (!method) throw new Error("Expecting that the method getConfig exists")
       return (await method(polyfillEffects(effects, this.manifest)).then(
         (x) => {
-          if ("result" in x) return x.result
+          if ("result" in x) return JSON.parse(JSON.stringify(x.result))
           if ("error" in x) throw new Error("Error getting config: " + x.error)
           throw new Error("Error getting config: " + x["error-code"][1])
         },

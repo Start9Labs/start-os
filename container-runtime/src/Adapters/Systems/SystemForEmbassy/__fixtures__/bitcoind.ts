@@ -315,7 +315,7 @@ export default {
           },
         },
         variants: {
-          disabled: {},
+          disabled: undefined,
           automatic: {
             size: {
               type: "number",
