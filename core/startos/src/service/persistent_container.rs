@@ -391,39 +391,31 @@ impl PersistentContainer {
         let overlays = self.overlays.clone();
         let lxc_container = self.lxc_container.take();
         self.destroyed = true;
-        Some(
-            async move {
-                dbg!(
-                    async move {
-                        let mut errs = ErrorCollection::new();
-                        if let Some((hdl, shutdown)) = rpc_server {
-                            errs.handle(rpc_client.request(rpc::Exit, Empty {}).await);
-                            shutdown.shutdown();
-                            errs.handle(hdl.await.with_kind(ErrorKind::Cancelled));
-                        }
-                        for (_, volume) in volumes {
-                            errs.handle(volume.unmount(true).await);
-                        }
-                        for (_, assets) in assets {
-                            errs.handle(assets.unmount(true).await);
-                        }
-                        for (_, overlay) in std::mem::take(&mut *overlays.lock().await) {
-                            errs.handle(overlay.unmount(true).await);
-                        }
-                        for (_, images) in images {
-                            errs.handle(images.unmount().await);
-                        }
-                        errs.handle(js_mount.unmount(true).await);
-                        if let Some(lxc_container) = lxc_container {
-                            errs.handle(lxc_container.exit().await);
-                        }
-                        dbg!(errs.into_result())
-                    }
-                    .await
-                )
+        Some(async move {
+            let mut errs = ErrorCollection::new();
+            if let Some((hdl, shutdown)) = rpc_server {
+                errs.handle(rpc_client.request(rpc::Exit, Empty {}).await);
+                shutdown.shutdown();
+                errs.handle(hdl.await.with_kind(ErrorKind::Cancelled));
             }
-            .map(|a| dbg!(a)),
-        )
+            for (_, volume) in volumes {
+                errs.handle(volume.unmount(true).await);
+            }
+            for (_, assets) in assets {
+                errs.handle(assets.unmount(true).await);
+            }
+            for (_, overlay) in std::mem::take(&mut *overlays.lock().await) {
+                errs.handle(overlay.unmount(true).await);
+            }
+            for (_, images) in images {
+                errs.handle(images.unmount().await);
+            }
+            errs.handle(js_mount.unmount(true).await);
+            if let Some(lxc_container) = lxc_container {
+                errs.handle(lxc_container.exit().await);
+            }
+            errs.into_result()
+        })
     }
 
     #[instrument(skip_all)]

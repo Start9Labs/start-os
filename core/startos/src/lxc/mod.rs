@@ -288,6 +288,11 @@ impl LxcContainer {
 
     #[instrument(skip_all)]
     pub async fn exit(mut self) -> Result<(), Error> {
+        Command::new("lxc-stop")
+            .arg("--name")
+            .arg(&**self.guid)
+            .invoke(ErrorKind::Lxc)
+            .await?;
         self.rpc_bind.take().unmount().await?;
         if let Some(log_mount) = self.log_mount.take() {
             log_mount.unmount(true).await?;
