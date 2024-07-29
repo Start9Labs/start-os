@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
-import { MaskitoModule } from '@maskito/angular'
+import { MaskitoDirective } from '@maskito/angular'
 import { TuiMapperPipe, TuiValueChanges } from '@taiga-ui/cdk'
 import {
   TuiAppearance,
@@ -74,7 +74,7 @@ import { MustachePipe } from './mustache.pipe'
     TuiFieldErrorPipe,
     TuiValueChanges,
     TuiElasticContainer,
-    MaskitoModule,
+    MaskitoDirective,
     TuiInputDateModule,
     TuiInputTimeModule,
     TuiInputDateTimeModule,
