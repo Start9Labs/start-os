@@ -52,8 +52,15 @@
         ></ion-icon>
         <ion-label>
           <h1>{{ getPlatformName(currentSession.metadata.platforms) }}</h1>
-          <h2>Last Active: {{ currentSession.lastActive| date : 'medium' }}</h2>
-          <p>{{ currentSession.userAgent }}</p>
+          <h2 *ngIf="currentSession.userAgent as agent">{{ agent }}</h2>
+          <p>
+            <b>First Seen</b>
+            : {{ currentSession.loggedIn| date : 'medium' }}
+          </p>
+          <p>
+            <b>Last Active</b>
+            : {{ currentSession.lastActive| date : 'medium' }}
+          </p>
         </ion-label>
       </ion-item>
 
@@ -78,8 +85,15 @@
           ></ion-icon>
           <ion-label>
             <h1>{{ getPlatformName(session.metadata.platforms) }}</h1>
-            <h2>Last Active: {{ session.lastActive | date : 'medium' }}</h2>
-            <p>{{ session.userAgent }}</p>
+            <h2 *ngIf="currentSession.userAgent as agent">{{ agent }}</h2>
+            <p>
+              <b>First Seen</b>
+              : {{ currentSession.loggedIn| date : 'medium' }}
+            </p>
+            <p>
+              <b>Last Active</b>
+              : {{ currentSession.lastActive| date : 'medium' }}
+            </p>
           </ion-label>
           <ion-button
             slot="end"
