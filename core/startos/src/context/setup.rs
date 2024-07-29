@@ -100,18 +100,6 @@ impl SetupContext {
             .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
         Ok(db)
     }
-    #[instrument(skip_all)]
-    pub async fn secret_store(&self) -> Result<PgPool, Error> {
-        init_postgres(&self.datadir).await?;
-        let secret_store =
-            PgPool::connect_with(PgConnectOptions::new().database("secrets").username("root"))
-                .await?;
-        sqlx::migrate!()
-            .run(&secret_store)
-            .await
-            .with_kind(crate::ErrorKind::Database)?;
-        Ok(secret_store)
-    }
 
     pub fn run_setup<F, Fut>(&self, f: F) -> Result<(), Error>
     where

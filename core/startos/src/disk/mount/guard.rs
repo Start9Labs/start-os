@@ -74,7 +74,7 @@ impl MountGuard {
     }
     pub async fn unmount(mut self, delete_mountpoint: bool) -> Result<(), Error> {
         if self.mounted {
-            unmount(&self.mountpoint).await?;
+            unmount(&self.mountpoint, false).await?;
             if delete_mountpoint {
                 match tokio::fs::remove_dir(&self.mountpoint).await {
                     Err(e) if e.raw_os_error() == Some(39) => Ok(()), // directory not empty
@@ -96,7 +96,7 @@ impl Drop for MountGuard {
     fn drop(&mut self) {
         if self.mounted {
             let mountpoint = std::mem::take(&mut self.mountpoint);
-            tokio::spawn(async move { unmount(mountpoint).await.unwrap() });
+            tokio::spawn(async move { unmount(mountpoint, true).await.unwrap() });
         }
     }
 }

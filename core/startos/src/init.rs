@@ -65,7 +65,7 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
         .await?
         .success()
     {
-        unmount("/var/lib/postgresql").await?;
+        unmount("/var/lib/postgresql", true).await?;
     }
     let exists = tokio::fs::metadata(&db_dir).await.is_ok();
     if !exists {

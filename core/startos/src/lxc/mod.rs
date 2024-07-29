@@ -123,7 +123,11 @@ impl LxcManager {
             if !expected.contains(&ContainerId::try_from(container)?) {
                 let rootfs_path = Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs");
                 if tokio::fs::metadata(&rootfs_path).await.is_ok() {
-                    unmount(Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs")).await?;
+                    unmount(
+                        Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs"),
+                        true,
+                    )
+                    .await?;
                     if tokio_stream::wrappers::ReadDirStream::new(
                         tokio::fs::read_dir(&rootfs_path).await?,
                     )
