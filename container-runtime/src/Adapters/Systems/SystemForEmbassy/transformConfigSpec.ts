@@ -285,7 +285,7 @@ function getListSpec(
             : [],
         minLength: null,
         maxLength: null,
-        masked: oldVal.spec.masked,
+        masked: oldVal.spec.masked || false,
         generate: null,
         inputmode: "text",
         placeholder: oldVal.spec.placeholder || null,
@@ -301,7 +301,7 @@ function getListSpec(
         spec: transformConfigSpec(
           matchOldConfigSpec.unsafeCast(oldVal.spec.spec),
         ),
-        uniqueBy: oldVal.spec["unique-by"],
+        uniqueBy: oldVal.spec["unique-by"] || null,
         displayAs: oldVal.spec["display-as"] || null,
       },
     }
@@ -482,7 +482,7 @@ const matchOldListValueSpecObject = object(
     "unique-by": matchOldUniqueBy, // indicates whether duplicates can be permitted in the list
     "display-as": string, // this should be a handlebars template which can make use of the entire config which corresponds to 'spec'
   },
-  ["display-as"],
+  ["display-as", "unique-by"],
 )
 const matchOldListValueSpecString = object(
   {
@@ -492,7 +492,7 @@ const matchOldListValueSpecString = object(
     "pattern-description": string,
     placeholder: string,
   },
-  ["pattern", "pattern-description", "placeholder"],
+  ["pattern", "pattern-description", "placeholder", "copyable", "masked"],
 )
 
 const matchOldListValueSpecEnum = object({
