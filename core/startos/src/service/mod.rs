@@ -29,9 +29,8 @@ use crate::s9pk::S9pk;
 use crate::service::service_map::InstallProgressHandles;
 use crate::status::health_check::HealthCheckResult;
 use crate::util::actor::concurrent::ConcurrentActor;
-use crate::util::actor::Actor;
 use crate::util::io::create_file;
-use crate::util::serde::Pem;
+use crate::util::serde::{NoOutput, Pem};
 use crate::util::Never;
 use crate::volume::data_dir;
 
@@ -80,7 +79,7 @@ impl ServiceRef {
     ) -> Result<(), Error> {
         self.seed
             .persistent_container
-            .execute(
+            .execute::<NoOutput>(
                 Guid::new(),
                 ProcedureName::Uninit,
                 to_value(&target_version)?,
@@ -90,10 +89,60 @@ impl ServiceRef {
         let id = self.seed.persistent_container.s9pk.as_manifest().id.clone();
         let ctx = self.seed.ctx.clone();
         self.shutdown().await?;
+
         if target_version.is_none() {
-            ctx.db
-                .mutate(|d| d.as_public_mut().as_package_data_mut().remove(&id))
-                .await?;
+            if let Some(pde) = ctx
+                .db
+                .mutate(|d| {
+                    if let Some(pde) = d
+                        .as_public_mut()
+                        .as_package_data_mut()
+                        .remove(&id)?
+                        .map(|d| d.de())
+                        .transpose()?
+                    {
+                        d.as_private_mut().as_available_ports_mut().mutate(|p| {
+                            p.free(
+                                pde.hosts
+                                    .0
+                                    .values()
+                                    .flat_map(|h| h.bindings.values())
+                                    .flat_map(|b| {
+                                        b.lan
+                                            .assigned_port
+                                            .into_iter()
+                                            .chain(b.lan.assigned_ssl_port)
+                                    }),
+                            );
+                            Ok(())
+                        })?;
+                        Ok(Some(pde))
+                    } else {
+                        Ok(None)
+                    }
+                })
+                .await?
+            {
+                let state = pde.state_info.expect_removing()?;
+                for volume_id in &state.manifest.volumes {
+                    let path = data_dir(&ctx.datadir, &state.manifest.id, volume_id);
+                    if tokio::fs::metadata(&path).await.is_ok() {
+                        tokio::fs::remove_dir_all(&path).await?;
+                    }
+                }
+                let logs_dir = ctx.datadir.join("logs").join(&state.manifest.id);
+                if tokio::fs::metadata(&logs_dir).await.is_ok() {
+                    tokio::fs::remove_dir_all(&logs_dir).await?;
+                }
+                let archive_path = ctx
+                    .datadir
+                    .join("archive")
+                    .join("installed")
+                    .join(&state.manifest.id);
+                if tokio::fs::metadata(&archive_path).await.is_ok() {
+                    tokio::fs::remove_file(&archive_path).await?;
+                }
+            }
         }
         Ok(())
     }
@@ -187,10 +236,9 @@ impl Service {
             let ctx = ctx.clone();
             move |s9pk: S9pk, i: Model<PackageDataEntry>| async move {
                 for volume_id in &s9pk.as_manifest().volumes {
-                    let tmp_path =
-                        data_dir(&ctx.datadir, &s9pk.as_manifest().id.clone(), volume_id);
-                    if tokio::fs::metadata(&tmp_path).await.is_err() {
-                        tokio::fs::create_dir_all(&tmp_path).await?;
+                    let path = data_dir(&ctx.datadir, &s9pk.as_manifest().id, volume_id);
+                    if tokio::fs::metadata(&path).await.is_err() {
+                        tokio::fs::create_dir_all(&path).await?;
                     }
                 }
                 let start_stop = if i.as_status().as_main().de()?.running() {
@@ -368,7 +416,7 @@ impl Service {
         service
             .seed
             .persistent_container
-            .execute(
+            .execute::<NoOutput>(
                 Guid::new(),
                 ProcedureName::Init,
                 to_value(&src_version)?,

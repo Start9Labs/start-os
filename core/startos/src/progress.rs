@@ -18,7 +18,9 @@ use crate::prelude::*;
 
 lazy_static::lazy_static! {
     static ref SPINNER: ProgressStyle = ProgressStyle::with_template("{spinner} {msg}...").unwrap();
-    static ref PERCENTAGE: ProgressStyle = ProgressStyle::with_template("{msg} {percent}% {wide_bar} [{bytes}/{total_bytes}] [{binary_bytes_per_sec} {eta}]").unwrap();
+    static ref PERCENTAGE: ProgressStyle = ProgressStyle::with_template("{msg} {percent}% {wide_bar} [{human_pos}/{human_len}] [{per_sec} {eta}]").unwrap();
+    static ref PERCENTAGE_BYTES: ProgressStyle = ProgressStyle::with_template("{msg} {percent}% {wide_bar} [{binary_bytes}/{binary_total_bytes}] [{binary_bytes_per_sec} {eta}]").unwrap();
+    static ref STEPS: ProgressStyle = ProgressStyle::with_template("{spinner} {wide_msg} [{human_pos}/?] [{per_sec} {elapsed}]").unwrap();
     static ref BYTES: ProgressStyle = ProgressStyle::with_template("{spinner} {wide_msg} [{bytes}/?] [{binary_bytes_per_sec} {elapsed}]").unwrap();
 }
 
@@ -38,7 +40,7 @@ impl Progress {
     pub fn new() -> Self {
         Progress::NotStarted(())
     }
-    pub fn update_bar(self, bar: &ProgressBar) {
+    pub fn update_bar(self, bar: &ProgressBar, bytes: bool) {
         match self {
             Self::NotStarted(()) => {
                 bar.set_style(SPINNER.clone());
@@ -51,7 +53,11 @@ impl Progress {
                 bar.finish();
             }
             Self::Progress { done, total: None } => {
-                bar.set_style(BYTES.clone());
+                if bytes {
+                    bar.set_style(BYTES.clone());
+                } else {
+                    bar.set_style(STEPS.clone());
+                }
                 bar.set_position(done);
                 bar.tick();
             }
@@ -59,7 +65,11 @@ impl Progress {
                 done,
                 total: Some(total),
             } => {
-                bar.set_style(PERCENTAGE.clone());
+                if bytes {
+                    bar.set_style(PERCENTAGE_BYTES.clone());
+                } else {
+                    bar.set_style(PERCENTAGE.clone());
+                }
                 bar.set_position(done);
                 bar.set_length(total);
                 bar.tick();
@@ -490,7 +500,7 @@ impl PhasedProgressBar {
                 );
             }
         }
-        progress.overall.update_bar(&self.overall);
+        progress.overall.update_bar(&self.overall, false);
         for (name, bar) in self.phases.iter() {
             if let Some(progress) = progress.phases.iter().find_map(|p| {
                 if &p.name == name {
@@ -499,7 +509,7 @@ impl PhasedProgressBar {
                     None
                 }
             }) {
-                progress.update_bar(bar);
+                progress.update_bar(bar, true);
             }
         }
     }

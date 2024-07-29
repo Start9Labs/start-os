@@ -45,6 +45,7 @@ import {
   OldConfigSpec,
   matchOldConfigSpec,
   transformConfigSpec,
+  transformNewConfigToOld,
   transformOldConfigToNew,
 } from "./transformConfigSpec"
 import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
@@ -100,6 +101,11 @@ const matchSetResult = object(
   },
   ["depends-on", "dependsOn"],
 )
+
+type OldGetConfigRes = {
+  config?: null | Record<string, unknown>
+  spec: OldConfigSpec
+}
 
 export type PackagePropertiesV2 = {
   [name: string]: PackagePropertyObject | PackagePropertyString
@@ -232,7 +238,7 @@ export class SystemForEmbassy implements System {
     effects: Effects,
     options: {
       procedure: JsonPath
-      input: unknown
+      input?: unknown
       timeout?: number | undefined
     },
   ): Promise<RpcResult> {
@@ -294,7 +300,7 @@ export class SystemForEmbassy implements System {
     effects: Effects,
     options: {
       procedure: JsonPath
-      input: unknown
+      input?: unknown
       timeout?: number | undefined
     },
   ): Promise<unknown> {
@@ -342,12 +348,7 @@ export class SystemForEmbassy implements System {
               options.timeout || null,
             )
           case procedures[1] === "dependencies" && procedures[3] === "query":
-            return this.dependenciesAutoconfig(
-              effects,
-              procedures[2],
-              input,
-              options.timeout || null,
-            )
+            return null
 
           case procedures[1] === "dependencies" && procedures[3] === "update":
             return this.dependenciesAutoconfig(
@@ -444,7 +445,11 @@ export class SystemForEmbassy implements System {
               description: interfaceValue.description,
               hasPrimary: false,
               disabled: false,
-              type: "api",
+              type:
+                interfaceValue.ui &&
+                (origin.scheme === "http" || origin.sslScheme === "https")
+                  ? "ui"
+                  : "api",
               masked: false,
               path: "",
               schemeOverride: null,
@@ -542,14 +547,12 @@ export class SystemForEmbassy implements System {
     effects: Effects,
     timeoutMs: number | null,
   ): Promise<T.ConfigRes> {
-    return this.getConfigUncleaned(effects, timeoutMs)
-      .then(removePointers)
-      .then(convertToNewConfig)
+    return this.getConfigUncleaned(effects, timeoutMs).then(convertToNewConfig)
   }
   private async getConfigUncleaned(
     effects: Effects,
     timeoutMs: number | null,
-  ): Promise<T.ConfigRes> {
+  ): Promise<OldGetConfigRes> {
     const config = this.manifest.config?.get
     if (!config) return { spec: {} }
     if (config.type === "docker") {
@@ -586,13 +589,14 @@ export class SystemForEmbassy implements System {
     newConfigWithoutPointers: unknown,
     timeoutMs: number | null,
   ): Promise<void> {
-    const newConfig = structuredClone(newConfigWithoutPointers)
-    await updateConfig(
-      effects,
-      this.manifest,
-      await this.getConfigUncleaned(effects, timeoutMs).then((x) => x.spec),
-      newConfig,
+    const spec = await this.getConfigUncleaned(effects, timeoutMs).then(
+      (x) => x.spec,
     )
+    const newConfig = transformNewConfigToOld(
+      spec,
+      structuredClone(newConfigWithoutPointers as Record<string, unknown>),
+    )
+    await updateConfig(effects, this.manifest, spec, newConfig)
     const setConfigValue = this.manifest.config?.set
     if (!setConfigValue) return
     if (setConfigValue.type === "docker") {
@@ -827,9 +831,9 @@ export class SystemForEmbassy implements System {
     id: string,
     oldConfig: unknown,
     timeoutMs: number | null,
-  ): Promise<object> {
+  ): Promise<any> {
     const actionProcedure = this.manifest.dependencies?.[id]?.config?.check
-    if (!actionProcedure) return { message: "Action not found", value: null }
+    if (!actionProcedure) return null
     if (actionProcedure.type === "docker") {
       const container = await DockerProcedureContainer.of(
         effects,
@@ -871,33 +875,25 @@ export class SystemForEmbassy implements System {
   private async dependenciesAutoconfig(
     effects: Effects,
     id: string,
-    oldConfig: unknown,
+    input: unknown,
     timeoutMs: number | null,
   ): Promise<void> {
+    const oldConfig = object({ remoteConfig: any }).unsafeCast(
+      input,
+    ).remoteConfig
     // TODO: docker
     const moduleCode = await this.moduleCode
     const method = moduleCode.dependencies?.[id]?.autoConfigure
-    if (!method)
-      throw new Error(
-        `Expecting that the method dependency autoConfigure ${id} exists`,
-      )
+    if (!method) return
     return (await method(
       polyfillEffects(effects, this.manifest),
-      oldConfig as any,
+      oldConfig,
     ).then((x) => {
       if ("result" in x) return x.result
       if ("error" in x) throw new Error("Error getting config: " + x.error)
       throw new Error("Error getting config: " + x["error-code"][1])
     })) as any
   }
-}
-async function removePointers(value: T.ConfigRes): Promise<T.ConfigRes> {
-  const startingSpec = structuredClone(value.spec)
-  const config =
-    value.config && cleanConfigFromPointers(value.config, startingSpec)
-  const spec = cleanSpecOfPointers(startingSpec)
-
-  return { config, spec }
 }
 
 const matchPointer = object({
@@ -957,27 +953,6 @@ type CleanConfigFromPointers<C, S> =
     )
   } :
   null
-
-function cleanConfigFromPointers<C, S>(
-  config: C,
-  spec: S,
-): CleanConfigFromPointers<C, S> {
-  const newConfig = {} as CleanConfigFromPointers<C, S>
-
-  if (!(object.test(config) && object.test(spec)) || newConfig == null)
-    return null as CleanConfigFromPointers<C, S>
-
-  for (const key of Object.keys(spec)) {
-    if (!isKeyOf(key, spec)) continue
-    if (!isKeyOf(key, config)) continue
-    const partSpec = spec[key]
-    if (matchPointer.test(partSpec)) continue
-    ;(newConfig as any)[key] = matchSpec.test(partSpec)
-      ? cleanConfigFromPointers(config[key], partSpec.spec)
-      : config[key]
-  }
-  return newConfig as CleanConfigFromPointers<C, S>
-}
 
 async function updateConfig(
   effects: Effects,
@@ -1077,7 +1052,9 @@ function extractServiceInterfaceId(manifest: Manifest, specInterface: string) {
   const serviceInterfaceId = `${specInterface}-${internalPort}`
   return serviceInterfaceId
 }
-async function convertToNewConfig(value: T.ConfigRes): Promise<T.ConfigRes> {
+async function convertToNewConfig(
+  value: OldGetConfigRes,
+): Promise<T.ConfigRes> {
   const valueSpec: OldConfigSpec = matchOldConfigSpec.unsafeCast(value.spec)
   const spec = transformConfigSpec(valueSpec)
   if (!value.config) return { spec, config: null }

@@ -59,50 +59,48 @@ export class ConfigService {
   /** ${scheme}://${username}@${host}:${externalPort}${suffix} */
   launchableAddress(
     interfaces: PackageDataEntry['serviceInterfaces'],
-    host: T.Host,
+    hosts: PackageDataEntry['hosts'],
   ): string {
-    const ui = Object.values(interfaces).find(i => i.type === 'ui')
+    const ui = Object.values(interfaces).find(
+      i =>
+        i.type === 'ui' &&
+        (i.addressInfo.scheme === 'http' ||
+          i.addressInfo.sslScheme === 'https'),
+    ) // TODO: select if multiple
 
     if (!ui) return ''
 
+    const hostnameInfo =
+      hosts[ui.addressInfo.hostId]?.hostnameInfo[ui.addressInfo.internalPort]
+
+    if (!hostnameInfo) return ''
+
     const addressInfo = ui.addressInfo
-    const scheme = this.isHttps() ? 'https' : 'http'
+    const scheme = this.isHttps()
+      ? ui.addressInfo.sslScheme === 'https'
+        ? 'https'
+        : 'http'
+      : ui.addressInfo.scheme === 'http'
+      ? 'http'
+      : 'https'
     const username = addressInfo.username ? addressInfo.username + '@' : ''
     const suffix = addressInfo.suffix || ''
     const url = new URL(`${scheme}://${username}placeholder${suffix}`)
 
-    if (host.kind === 'multi') {
-      const onionHostname = host.addresses.find(h => h.kind === 'onion')
-        ?.address as T.OnionHostname | undefined
+    const onionHostname = hostnameInfo.find(h => h.kind === 'onion')
+      ?.hostname as T.OnionHostname | undefined
 
-      if (!onionHostname)
-        throw new Error('Expecting that there is an onion hostname')
-
-      if (this.isTor() && onionHostname) {
-        url.hostname = onionHostname.value
-      }
-      // TODO Handle single
-      //  else {
-      //   const ipHostname = host.addresses.find(h => h.kind === 'ip')
-      //     ?.hostname as T.ExportedIpHostname
-
-      //   if (!ipHostname) return ''
-
-      //   url.hostname = this.hostname
-      //   url.port = String(ipHostname.sslPort || ipHostname.port)
-      // }
+    if (this.isTor() && onionHostname) {
+      url.hostname = onionHostname.value
     } else {
-      throw new Error('unimplemented')
-      // const hostname = {} as T.ExportedHostnameInfo // host.hostname
+      const ipHostname = hostnameInfo.find(h => h.kind === 'ip')?.hostname as
+        | T.IpHostname
+        | undefined
 
-      // if (!hostname) return ''
+      if (!ipHostname) return ''
 
-      // if (this.isTor() && hostname.kind === 'onion') {
-      //   url.hostname = (hostname.hostname as T.ExportedOnionHostname).value
-      // } else {
-      //   url.hostname = this.hostname
-      //   url.port = String(hostname.hostname.sslPort || hostname.hostname.port)
-      // }
+      url.hostname = this.hostname
+      url.port = String(ipHostname.sslPort || ipHostname.port)
     }
 
     return url.href

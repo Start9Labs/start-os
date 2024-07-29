@@ -1,0 +1,253 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`transformConfigSpec transformConfigSpec(embassyPages) 1`] = `
+{
+  "homepage": {
+    "default": "welcome",
+    "description": null,
+    "disabled": false,
+    "immutable": false,
+    "name": "Type",
+    "required": true,
+    "type": "union",
+    "variants": {
+      "index": {
+        "name": "Table of Contents",
+        "spec": {},
+      },
+      "redirect": {
+        "name": "Redirect",
+        "spec": {
+          "target": {
+            "default": null,
+            "description": "The name of the subdomain to redirect users to. This must be a valid subdomain site within your Start9 Pages.",
+            "disabled": false,
+            "generate": null,
+            "immutable": false,
+            "inputmode": "text",
+            "masked": false,
+            "maxLength": null,
+            "minLength": null,
+            "name": "Target Subdomain",
+            "patterns": [
+              {
+                "description": "May contain only lowercase characters and hyphens.",
+                "regex": "^[a-z-]+$",
+              },
+            ],
+            "placeholder": null,
+            "required": true,
+            "type": "text",
+            "warning": null,
+          },
+        },
+      },
+      "web-page": {
+        "name": "Web Page",
+        "spec": {
+          "folder": {
+            "default": null,
+            "description": "The path to the folder that contains the static files of your website. For example, a value of "projects/resume" would tell Start9 Pages to look for that folder path in the selected service.",
+            "disabled": false,
+            "generate": null,
+            "immutable": false,
+            "inputmode": "text",
+            "masked": false,
+            "maxLength": null,
+            "minLength": null,
+            "name": "Folder Path",
+            "patterns": [
+              {
+                "description": "Must be a valid relative file path",
+                "regex": "^(\\.|[a-zA-Z0-9_ -][a-zA-Z0-9_ .-]*|([a-zA-Z0-9_ .-][a-zA-Z0-9_ -]+\\.*)+)(/[a-zA-Z0-9_ -][a-zA-Z0-9_ .-]*|/([a-zA-Z0-9_ .-][a-zA-Z0-9_ -]+\\.*)+)*/?$",
+              },
+            ],
+            "placeholder": "e.g. websites/resume",
+            "required": true,
+            "type": "text",
+            "warning": null,
+          },
+          "source": {
+            "default": "nextcloud",
+            "description": "The service that contains your website files.",
+            "disabled": false,
+            "immutable": false,
+            "name": "Folder Location",
+            "required": false,
+            "type": "select",
+            "values": {
+              "filebrowser": "filebrowser",
+              "nextcloud": "nextcloud",
+            },
+            "warning": null,
+          },
+        },
+      },
+      "welcome": {
+        "name": "Welcome",
+        "spec": {},
+      },
+    },
+    "warning": null,
+  },
+  "subdomains": {
+    "default": [],
+    "description": "The websites you want to serve.",
+    "disabled": false,
+    "maxLength": null,
+    "minLength": null,
+    "name": "Subdomains",
+    "spec": {
+      "displayAs": "{{name}}",
+      "spec": {
+        "name": {
+          "default": null,
+          "description": "The subdomain of your Start9 Pages .onion address to host the website on. For example, a value of "me" would produce a website hosted at http://me.xxxxxx.onion.",
+          "disabled": false,
+          "generate": null,
+          "immutable": false,
+          "inputmode": "text",
+          "masked": false,
+          "maxLength": null,
+          "minLength": null,
+          "name": "Subdomain name",
+          "patterns": [
+            {
+              "description": "May contain only lowercase characters and hyphens",
+              "regex": "^[a-z-]+$",
+            },
+          ],
+          "placeholder": null,
+          "required": true,
+          "type": "text",
+          "warning": null,
+        },
+        "settings": {
+          "default": "web-page",
+          "description": null,
+          "disabled": false,
+          "immutable": false,
+          "name": "Type",
+          "required": true,
+          "type": "union",
+          "variants": {
+            "redirect": {
+              "name": "Redirect",
+              "spec": {
+                "target": {
+                  "default": null,
+                  "description": "The subdomain of your Start9 Pages .onion address to redirect to. This should be the name of another subdomain on Start9 Pages. Leave empty to redirect to the homepage.",
+                  "disabled": false,
+                  "generate": null,
+                  "immutable": false,
+                  "inputmode": "text",
+                  "masked": false,
+                  "maxLength": null,
+                  "minLength": null,
+                  "name": "Target Subdomain",
+                  "patterns": [
+                    {
+                      "description": "May contain only lowercase characters and hyphens.",
+                      "regex": "^[a-z-]+$",
+                    },
+                  ],
+                  "placeholder": null,
+                  "required": true,
+                  "type": "text",
+                  "warning": null,
+                },
+              },
+            },
+            "web-page": {
+              "name": "Web Page",
+              "spec": {
+                "folder": {
+                  "default": null,
+                  "description": "The path to the folder that contains the website files. For example, a value of "projects/resume" would tell Start9 Pages to look for that folder path in the selected service.",
+                  "disabled": false,
+                  "generate": null,
+                  "immutable": false,
+                  "inputmode": "text",
+                  "masked": false,
+                  "maxLength": null,
+                  "minLength": null,
+                  "name": "Folder Path",
+                  "patterns": [
+                    {
+                      "description": "Must be a valid relative file path",
+                      "regex": "^(\\.|[a-zA-Z0-9_ -][a-zA-Z0-9_ .-]*|([a-zA-Z0-9_ .-][a-zA-Z0-9_ -]+\\.*)+)(/[a-zA-Z0-9_ -][a-zA-Z0-9_ .-]*|/([a-zA-Z0-9_ .-][a-zA-Z0-9_ -]+\\.*)+)*/?$",
+                    },
+                  ],
+                  "placeholder": "e.g. websites/resume",
+                  "required": true,
+                  "type": "text",
+                  "warning": null,
+                },
+                "source": {
+                  "default": "nextcloud",
+                  "description": "The service that contains your website files.",
+                  "disabled": false,
+                  "immutable": false,
+                  "name": "Folder Location",
+                  "required": false,
+                  "type": "select",
+                  "values": {
+                    "filebrowser": "filebrowser",
+                    "nextcloud": "nextcloud",
+                  },
+                  "warning": null,
+                },
+              },
+            },
+          },
+          "warning": null,
+        },
+      },
+      "type": "object",
+      "uniqueBy": "name",
+    },
+    "type": "list",
+    "warning": null,
+  },
+}
+`;
+
+exports[`transformConfigSpec transformConfigSpec(searNXG) 1`] = `
+{
+  "enable-metrics": {
+    "default": true,
+    "description": "Your SearXNG instance will collect anonymous stats about its own usage and performance. You can view these metrics by appending \`/stats\` or \`/stats/errors\` to your SearXNG URL.",
+    "disabled": false,
+    "immutable": false,
+    "name": "Enable Stats",
+    "type": "toggle",
+    "warning": null,
+  },
+  "instance-name": {
+    "default": "My SearXNG Engine",
+    "description": "Enter a name for your SearXNG instance. This is the name that will be listed if you want to share your SearXNG engine publicly.",
+    "disabled": false,
+    "generate": null,
+    "immutable": false,
+    "inputmode": "text",
+    "masked": false,
+    "maxLength": null,
+    "minLength": null,
+    "name": "SearXNG Instance Name",
+    "patterns": [],
+    "placeholder": "Uncle Jim SearXNG Engine",
+    "required": true,
+    "type": "text",
+    "warning": null,
+  },
+  "tor-url": {
+    "default": false,
+    "description": "Activates the utilization of a .onion address as the primary URL, particularly beneficial for publicly hosted instances over the Tor network.",
+    "disabled": false,
+    "immutable": false,
+    "name": "Enable Tor address as the base URL",
+    "type": "toggle",
+    "warning": null,
+  },
+}
+`;

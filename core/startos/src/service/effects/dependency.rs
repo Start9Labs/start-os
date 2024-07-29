@@ -7,14 +7,20 @@ use exver::VersionRange;
 use itertools::Itertools;
 use models::{HealthCheckId, PackageId, VolumeId};
 use patch_db::json_ptr::JsonPointer;
+use tokio::process::Command;
 
 use crate::db::model::package::{
     CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind, ManifestPreference,
 };
+use crate::disk::mount::filesystem::bind::Bind;
+use crate::disk::mount::filesystem::idmapped::IdMapped;
+use crate::disk::mount::filesystem::{FileSystem, MountType};
 use crate::rpc_continuations::Guid;
 use crate::service::effects::prelude::*;
 use crate::status::health_check::HealthCheckResult;
 use crate::util::clap::FromStrParser;
+use crate::util::Invoke;
+use crate::volume::data_dir;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -29,7 +35,7 @@ pub struct MountTarget {
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct MountParams {
-    location: String,
+    location: PathBuf,
     target: MountTarget,
 }
 pub async fn mount(
@@ -45,8 +51,43 @@ pub async fn mount(
             },
     }: MountParams,
 ) -> Result<(), Error> {
-    // TODO
-    todo!()
+    let context = context.deref()?;
+    let subpath = subpath.unwrap_or_default();
+    let subpath = subpath.strip_prefix("/").unwrap_or(&subpath);
+    let source = data_dir(&context.seed.ctx.datadir, &package_id, &volume_id).join(subpath);
+    if readonly && tokio::fs::metadata(&source).await.is_err() {
+        return Err(Error::new(
+            eyre!("{volume_id}/{} does not exist", subpath.display()),
+            ErrorKind::NotFound,
+        ));
+    }
+    let location = location.strip_prefix("/").unwrap_or(&location);
+    let mountpoint = context
+        .seed
+        .persistent_container
+        .lxc_container
+        .get()
+        .or_not_found("lxc container")?
+        .rootfs_dir()
+        .join(location);
+    tokio::fs::create_dir_all(&mountpoint).await?;
+    Command::new("chown")
+        .arg("100000:100000")
+        .arg(&mountpoint)
+        .invoke(crate::ErrorKind::Filesystem)
+        .await?;
+    IdMapped::new(Bind::new(source), 0, 100000, 65536)
+        .mount(
+            mountpoint,
+            if readonly {
+                MountType::ReadOnly
+            } else {
+                MountType::ReadWrite
+            },
+        )
+        .await?;
+
+    Ok(())
 }
 
 pub async fn get_installed_packages(context: EffectContext) -> Result<Vec<PackageId>, Error> {

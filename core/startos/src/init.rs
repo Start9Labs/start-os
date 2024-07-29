@@ -235,7 +235,7 @@ impl InitPhases {
             sync_clock: handle.add_phase("Synchronizing system clock".into(), Some(10)),
             enable_zram: handle.add_phase("Enabling ZRAM".into(), Some(1)),
             update_server_info: handle.add_phase("Updating server info".into(), Some(1)),
-            launch_service_network: handle.add_phase("Launching service intranet".into(), Some(10)),
+            launch_service_network: handle.add_phase("Launching service intranet".into(), Some(1)),
             run_migrations: handle.add_phase("Running migrations".into(), Some(10)),
             validate_db: handle.add_phase("Validating database".into(), Some(1)),
             postinit: if Path::new("/media/startos/config/postinit.sh").exists() {
@@ -398,6 +398,20 @@ pub async fn init(
     Command::new("update-ca-certificates")
         .invoke(crate::ErrorKind::OpenSsl)
         .await?;
+    if tokio::fs::metadata("/home/kiosk/profile").await.is_ok() {
+        Command::new("certutil")
+            .arg("-A")
+            .arg("-n")
+            .arg("StartOS Local Root CA")
+            .arg("-t")
+            .arg("TCu,Cuw,Tuw")
+            .arg("-i")
+            .arg("/usr/local/share/ca-certificates/startos-root-ca.crt")
+            .arg("-d")
+            .arg("/home/kiosk/fx-profile")
+            .invoke(ErrorKind::OpenSsl)
+            .await?;
+    }
     load_ca_cert.complete();
 
     load_wifi.start();
@@ -422,6 +436,12 @@ pub async fn init(
         tokio::fs::remove_dir_all(&tmp_var).await?;
     }
     crate::disk::mount::util::bind(&tmp_var, "/var/tmp", false).await?;
+    let downloading = cfg
+        .datadir()
+        .join(format!("package-data/archive/downloading"));
+    if tokio::fs::metadata(&downloading).await.is_ok() {
+        tokio::fs::remove_dir_all(&downloading).await?;
+    }
     let tmp_docker = cfg
         .datadir()
         .join(format!("package-data/tmp/{CONTAINER_TOOL}"));

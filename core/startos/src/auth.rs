@@ -185,6 +185,8 @@ pub struct LoginParams {
     #[serde(rename = "__auth_userAgent")] // from Auth middleware
     user_agent: Option<String>,
     #[serde(default)]
+    ephemeral: bool,
+    #[serde(default)]
     #[ts(type = "any")]
     metadata: Value,
 }
@@ -195,28 +197,46 @@ pub async fn login_impl(
     LoginParams {
         password,
         user_agent,
+        ephemeral,
         metadata,
     }: LoginParams,
 ) -> Result<LoginRes, Error> {
     let password = password.unwrap_or_default().decrypt(&ctx)?;
 
-    ctx.db
-        .mutate(|db| {
-            check_password_against_db(db, &password)?;
-            let hash_token = HashSessionToken::new();
-            db.as_private_mut().as_sessions_mut().insert(
-                hash_token.hashed(),
-                &Session {
+    if ephemeral {
+        check_password_against_db(&ctx.db.peek().await, &password)?;
+        let hash_token = HashSessionToken::new();
+        ctx.ephemeral_sessions.mutate(|s| {
+            s.0.insert(
+                hash_token.hashed().clone(),
+                Session {
                     logged_in: Utc::now(),
                     last_active: Utc::now(),
                     user_agent,
                     metadata,
                 },
-            )?;
+            )
+        });
+        Ok(hash_token.to_login_res())
+    } else {
+        ctx.db
+            .mutate(|db| {
+                check_password_against_db(db, &password)?;
+                let hash_token = HashSessionToken::new();
+                db.as_private_mut().as_sessions_mut().insert(
+                    hash_token.hashed(),
+                    &Session {
+                        logged_in: Utc::now(),
+                        last_active: Utc::now(),
+                        user_agent,
+                        metadata,
+                    },
+                )?;
 
-            Ok(hash_token.to_login_res())
-        })
-        .await
+                Ok(hash_token.to_login_res())
+            })
+            .await
+    }
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -329,9 +349,15 @@ pub async fn list(
     ctx: RpcContext,
     ListParams { session, .. }: ListParams,
 ) -> Result<SessionList, Error> {
+    let mut sessions = ctx.db.peek().await.into_private().into_sessions().de()?;
+    ctx.ephemeral_sessions.mutate(|s| {
+        sessions
+            .0
+            .extend(s.0.iter().map(|(k, v)| (k.clone(), v.clone())))
+    });
     Ok(SessionList {
         current: HashSessionToken::from_token(session).hashed().clone(),
-        sessions: ctx.db.peek().await.into_private().into_sessions().de()?,
+        sessions,
     })
 }
 

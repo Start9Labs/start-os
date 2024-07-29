@@ -63,6 +63,18 @@ impl PackageState {
             )),
         }
     }
+    pub fn expect_removing(&self) -> Result<&InstalledState, Error> {
+        match self {
+            Self::Removing(a) => Ok(a),
+            _ => Err(Error::new(
+                eyre!(
+                    "Package {} is not in removing state",
+                    self.as_manifest(ManifestPreference::Old).id
+                ),
+                ErrorKind::InvalidRequest,
+            )),
+        }
+    }
     pub fn into_installing_info(self) -> Option<InstallingInfo> {
         match self {
             Self::Installing(InstallingState { installing_info })
