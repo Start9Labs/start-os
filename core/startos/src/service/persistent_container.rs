@@ -43,6 +43,8 @@ const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug)]
 pub struct ServiceState {
+    // indicates whether the service container runtime has been initialized yet
+    pub(super) rt_initialized: bool,
     // This contains the start time and health check information for when the service is running. Note: Will be overwritting to the db,
     pub(super) running_status: Option<RunningStatus>,
     // This tracks references to callbacks registered by the running service:
@@ -65,6 +67,7 @@ pub struct ServiceStateKinds {
 impl ServiceState {
     pub fn new(desired_state: StartStop) -> Self {
         Self {
+            rt_initialized: false,
             running_status: Default::default(),
             callbacks: Default::default(),
             temp_desired_state: Default::default(),
@@ -368,6 +371,8 @@ impl PersistentContainer {
         }
 
         self.rpc_client.request(rpc::Init, Empty {}).await?;
+
+        self.state.send_modify(|s| s.rt_initialized = true);
 
         Ok(())
     }
