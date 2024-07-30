@@ -9,13 +9,13 @@ use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
-use url::Url;
 
 use crate::config::{Config, ConfigSpec, ConfigureContext};
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::db::model::package::CurrentDependencies;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
+use crate::util::serde::HandlerExtSerde;
 use crate::util::PathOrUrl;
 use crate::Error;
 
@@ -65,11 +65,20 @@ pub struct ConfigureParams {
     dependency_id: PackageId,
 }
 pub fn configure<C: Context>() -> ParentHandler<C, ConfigureParams> {
-    ParentHandler::new().root_handler(
-        from_fn_async(configure_impl)
-            .with_inherited(|params, _| params)
-            .no_cli(),
-    )
+    ParentHandler::new()
+        .root_handler(
+            from_fn_async(configure_impl)
+                .with_inherited(|params, _| params)
+                .no_display()
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "dry",
+            from_fn_async(configure_dry)
+                .with_inherited(|params, _| params)
+                .with_display_serializable()
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 pub async fn configure_impl(
@@ -103,6 +112,17 @@ pub async fn configure_impl(
         .configure(Guid::new(), configure_context)
         .await?;
     Ok(())
+}
+
+pub async fn configure_dry(
+    ctx: RpcContext,
+    _: Empty,
+    ConfigureParams {
+        dependent_id,
+        dependency_id,
+    }: ConfigureParams,
+) -> Result<ConfigDryRes, Error> {
+    configure_logic(ctx.clone(), (dependent_id, dependency_id.clone())).await
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
