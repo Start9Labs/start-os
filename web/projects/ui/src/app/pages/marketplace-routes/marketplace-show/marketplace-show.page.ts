@@ -1,15 +1,24 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { ActivatedRoute, Router } from '@angular/router'
-import { Exver, getPkgId } from '@start9labs/shared'
+import { convertBytes, Exver, getPkgId } from '@start9labs/shared'
 import {
   AbstractMarketplaceService,
   MarketplacePkg,
 } from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, Observable } from 'rxjs'
-import { filter, map, shareReplay, startWith, switchMap } from 'rxjs/operators'
+import {
+  filter,
+  first,
+  map,
+  pairwise,
+  shareReplay,
+  startWith,
+  switchMap,
+} from 'rxjs/operators'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/util/get-package-data'
+import { Version } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'marketplace-show',
@@ -52,23 +61,40 @@ export class MarketplaceShowPage {
 
   readonly conflict$: Observable<string> = combineLatest([
     this.pkg$,
-    this.patch.watch$('packageData', this.pkgId),
-    this.patch.watch$('serverInfo'),
+    this.patch.watch$('packageData', this.pkgId).pipe(
+      map(pkg => getManifest(pkg).version),
+      pairwise(),
+      filter(([prev, curr]) => prev !== curr),
+      map(([_, curr]) => curr),
+    ),
+    this.patch.watch$('serverInfo').pipe(first()),
   ]).pipe(
-    map(([pkg, localPkg, server]) => {
+    map(([pkg, localVersion, server]) => {
       let conflicts: string[] = []
 
-      // version
-      if (localPkg) {
-        const localVersion = getManifest(localPkg).version
-        if (
-          pkg.sourceVersion &&
-          !this.exver.satisfies(localVersion, pkg.sourceVersion)
-        ) {
-          conflicts.push(
-            `Currently installed version ${localVersion} cannot be upgraded to version ${pkg.version}. Try installing an older version first.`,
-          )
-        }
+      // OS version
+      if (
+        !Version.parse(pkg.osVersion).satisfies(server.packageVersionCompat)
+      ) {
+        const compare = Version.parse(pkg.osVersion).compare(
+          Version.parse(server.version),
+        )
+        conflicts.push(
+          compare === 'greater'
+            ? `Minimum StartOS version ${pkg.osVersion}. Detected ${server.version}`
+            : `Version ${pkg.version} is outdated and cannot run newer versions of StartOS`,
+        )
+      }
+
+      // package version
+      if (
+        localVersion &&
+        pkg.sourceVersion &&
+        !this.exver.satisfies(localVersion, pkg.sourceVersion)
+      ) {
+        conflicts.push(
+          `Currently installed version ${localVersion} cannot be upgraded to version ${pkg.version}. Try installing an older version first.`,
+        )
       }
 
       const { arch, ram, device } = pkg.hardwareRequirements
@@ -76,13 +102,19 @@ export class MarketplaceShowPage {
       // arch
       if (arch && !arch.includes(server.arch)) {
         conflicts.push(
-          `Arch ${server.arch} not supported. Supported: ${arch.join(', ')}.`,
+          `Arch ${server.arch} is not supported. Supported: ${arch.join(
+            ', ',
+          )}.`,
         )
       }
 
       // ram
       if (ram && ram > server.ram) {
-        return `Minimum ${ram}GB of RAM required, detected ${server.ram}GB.`
+        conflicts.push(
+          `Minimum ${convertBytes(
+            ram,
+          )} of RAM required, detected ${convertBytes(server.ram)}.`,
+        )
       }
 
       // devices

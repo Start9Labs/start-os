@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { VersionRange, ExtendedVersion, Version } from '@start9labs/start-sdk'
+import { ExtendedVersion } from '@start9labs/start-sdk'
 
 @Injectable({
   providedIn: 'root',
@@ -29,12 +29,8 @@ export class Exver {
     }
   }
 
-  compareOsVersion(current: string, other: string) {
-    return Version.parse(current).compare(Version.parse(other))
-  }
-
   satisfies(version: string, range: string): boolean {
-    return VersionRange.parse(range).satisfiedBy(ExtendedVersion.parse(version))
+    return ExtendedVersion.parse(version).satisfies(range)
   }
 
   getFlavor(version: string): string | null {
