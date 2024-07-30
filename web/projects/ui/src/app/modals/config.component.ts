@@ -203,8 +203,6 @@ export class ConfigModal {
     const loader = new Subscription()
 
     try {
-      await this.uploadFiles(config, loader)
-
       if (hasCurrentDeps(this.pkgId, await getAllPackages(this.patchDb))) {
         await this.configureDeps(config, loader)
       } else {
@@ -215,24 +213,6 @@ export class ConfigModal {
     } finally {
       loader.unsubscribe()
     }
-  }
-
-  private async uploadFiles(config: Record<string, any>, loader: Subscription) {
-    loader.unsubscribe()
-    loader.closed = false
-
-    // TODO: Could be nested files
-    const keys = Object.keys(config).filter(key => config[key] instanceof File)
-    const message = `Uploading File${keys.length > 1 ? 's' : ''}...`
-
-    if (!keys.length) return
-
-    loader.add(this.loader.open(message).subscribe())
-
-    const hashes = await Promise.all(
-      keys.map(key => this.embassyApi.uploadFile(config[key])),
-    )
-    keys.forEach((key, i) => (config[key] = hashes[i]))
   }
 
   private async configureDeps(

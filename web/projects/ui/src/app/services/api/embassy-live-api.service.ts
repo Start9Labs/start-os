@@ -52,15 +52,6 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async uploadFile(body: Blob): Promise<string> {
-    return this.httpRequest({
-      method: Method.POST,
-      body,
-      url: `/rest/upload`,
-      responseType: 'text',
-    })
-  }
-
   // for getting static files: ex. instructions, licenses
 
   async getStaticProxy(

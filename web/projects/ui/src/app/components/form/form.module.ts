@@ -40,7 +40,6 @@ import { FormToggleComponent } from './form-toggle/form-toggle.component'
 import { FormTextareaComponent } from './form-textarea/form-textarea.component'
 import { FormNumberComponent } from './form-number/form-number.component'
 import { FormSelectComponent } from './form-select/form-select.component'
-import { FormFileComponent } from './form-file/form-file.component'
 import { FormMultiselectComponent } from './form-multiselect/form-multiselect.component'
 import { FormUnionComponent } from './form-union/form-union.component'
 import { FormObjectComponent } from './form-object/form-object.component'
@@ -96,7 +95,6 @@ import { HintPipe } from './hint.pipe'
     FormNumberComponent,
     FormSelectComponent,
     FormMultiselectComponent,
-    FormFileComponent,
     FormUnionComponent,
     FormObjectComponent,
     FormArrayComponent,

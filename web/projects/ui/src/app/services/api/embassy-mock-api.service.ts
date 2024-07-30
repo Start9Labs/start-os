@@ -1084,11 +1084,6 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async uploadFile(body: Blob): Promise<string> {
-    await pauseFor(2000)
-    return 'returnedhash'
-  }
-
   private async initProgress(): Promise<T.FullProgress> {
     const progress = JSON.parse(JSON.stringify(PROGRESS))
 
