@@ -49,6 +49,7 @@ import {
   transformOldConfigToNew,
 } from "./transformConfigSpec"
 import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
+import { StorePath } from "@start9labs/start-sdk/cjs/lib/store/PathBuilder"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
@@ -58,7 +59,7 @@ const execFile = promisify(childProcess.execFile)
 
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
 export const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
-const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig"
+const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig" as StorePath
 
 const matchSetResult = object(
   {
@@ -597,6 +598,10 @@ export class SystemForEmbassy implements System {
       structuredClone(newConfigWithoutPointers as Record<string, unknown>),
     )
     await updateConfig(effects, this.manifest, spec, newConfig)
+    await effects.store.set({
+      path: EMBASSY_POINTER_PATH_PREFIX,
+      value: newConfig,
+    })
     const setConfigValue = this.manifest.config?.set
     if (!setConfigValue) return
     if (setConfigValue.type === "docker") {
@@ -826,52 +831,6 @@ export class SystemForEmbassy implements System {
       })) as any
     }
   }
-  private async dependenciesCheck(
-    effects: Effects,
-    id: string,
-    oldConfig: unknown,
-    timeoutMs: number | null,
-  ): Promise<any> {
-    const actionProcedure = this.manifest.dependencies?.[id]?.config?.check
-    if (!actionProcedure) return null
-    if (actionProcedure.type === "docker") {
-      const container = await DockerProcedureContainer.of(
-        effects,
-        this.manifest.id,
-        actionProcedure,
-        this.manifest.volumes,
-      )
-      return JSON.parse(
-        (
-          await container.execFail(
-            [
-              actionProcedure.entrypoint,
-              ...actionProcedure.args,
-              JSON.stringify(oldConfig),
-            ],
-            timeoutMs,
-          )
-        ).stdout.toString(),
-      )
-    } else if (actionProcedure.type === "script") {
-      const moduleCode = await this.moduleCode
-      const method = moduleCode.dependencies?.[id]?.check
-      if (!method)
-        throw new Error(
-          `Expecting that the method dependency check ${id} exists`,
-        )
-      return (await method(
-        polyfillEffects(effects, this.manifest),
-        oldConfig as any,
-      ).then((x) => {
-        if ("result" in x) return x.result
-        if ("error" in x) throw new Error("Error getting config: " + x.error)
-        throw new Error("Error getting config: " + x["error-code"][1])
-      })) as any
-    } else {
-      return {}
-    }
-  }
   private async dependenciesAutoconfig(
     effects: Effects,
     id: string,
@@ -957,84 +916,96 @@ type CleanConfigFromPointers<C, S> =
 async function updateConfig(
   effects: Effects,
   manifest: Manifest,
-  spec: unknown,
-  mutConfigValue: unknown,
+  spec: OldConfigSpec,
+  mutConfigValue: Record<string, unknown>,
 ) {
-  if (!dictionary([string, unknown]).test(spec)) return
-  if (!dictionary([string, unknown]).test(mutConfigValue)) return
   for (const key in spec) {
     const specValue = spec[key]
 
-    const newConfigValue = mutConfigValue[key]
-    if (matchSpec.test(specValue)) {
-      const updateObject = { spec: newConfigValue }
+    if (specValue.type === "object") {
       await updateConfig(
         effects,
         manifest,
-        { spec: specValue.spec },
-        updateObject,
+        specValue.spec as OldConfigSpec,
+        mutConfigValue[key] as Record<string, unknown>,
       )
-      mutConfigValue[key] = updateObject.spec
-    }
-    if (
-      matchVariants.test(specValue) &&
-      object({ tag: object({ id: string }) }).test(newConfigValue) &&
-      newConfigValue.tag.id in specValue.variants
-    ) {
-      // Not going to do anything on the variants...
-    }
-    if (!matchPointer.test(specValue)) continue
-    if (matchPointerConfig.test(specValue)) {
-      const configValue = (await effects.store.get({
-        packageId: specValue["package-id"],
-        callback() {},
-        path: `${EMBASSY_POINTER_PATH_PREFIX}${specValue.selector}` as any,
-      })) as any
-      mutConfigValue[key] = configValue
-    }
-    if (matchPointerPackage.test(specValue)) {
-      if (specValue.target === "tor-key")
-        throw new Error("This service uses an unsupported target TorKey")
-
-      const specInterface = specValue.interface
-      const serviceInterfaceId = extractServiceInterfaceId(
+    } else if (specValue.type === "list" && specValue.subtype === "object") {
+      const list = mutConfigValue[key] as unknown[]
+      for (let val of list) {
+        await updateConfig(
+          effects,
+          manifest,
+          { ...(specValue.spec as any), type: "object" as const },
+          val as Record<string, unknown>,
+        )
+      }
+    } else if (specValue.type === "union") {
+      const union = mutConfigValue[key] as Record<string, unknown>
+      await updateConfig(
+        effects,
         manifest,
-        specInterface,
+        specValue.variants[union[specValue.tag.id] as string] as OldConfigSpec,
+        mutConfigValue[key] as Record<string, unknown>,
       )
-      if (!serviceInterfaceId) {
-        mutConfigValue[key] = ""
-        return
-      }
-      const filled = await utils
-        .getServiceInterface(effects, {
+    } else if (
+      specValue.type === "pointer" &&
+      specValue.subtype === "package"
+    ) {
+      if (specValue.target === "config") {
+        const jp = require("jsonpath")
+        const remoteConfig = await effects.store.get({
           packageId: specValue["package-id"],
-          id: serviceInterfaceId,
+          callback: () => effects.restart(),
+          path: EMBASSY_POINTER_PATH_PREFIX,
         })
-        .once()
-        .catch((x) => {
-          console.error("Could not get the service interface", x)
-          return null
-        })
-      const catchFn = <X>(fn: () => X) => {
-        try {
-          return fn()
-        } catch (e) {
-          return undefined
+        console.debug(remoteConfig)
+        const configValue = specValue.multi
+          ? jp.query(remoteConfig, specValue.selector)
+          : jp.query(remoteConfig, specValue.selector, 1)[0]
+        mutConfigValue[key] = configValue === undefined ? null : configValue
+      } else if (specValue.target === "tor-key") {
+        throw new Error("This service uses an unsupported target TorKey")
+      } else {
+        const specInterface = specValue.interface
+        const serviceInterfaceId = extractServiceInterfaceId(
+          manifest,
+          specInterface,
+        )
+        if (!serviceInterfaceId) {
+          mutConfigValue[key] = ""
+          return
         }
+        const filled = await utils
+          .getServiceInterface(effects, {
+            packageId: specValue["package-id"],
+            id: serviceInterfaceId,
+          })
+          .once()
+          .catch((x) => {
+            console.error("Could not get the service interface", x)
+            return null
+          })
+        const catchFn = <X>(fn: () => X) => {
+          try {
+            return fn()
+          } catch (e) {
+            return undefined
+          }
+        }
+        const url: string =
+          filled === null || filled.addressInfo === null
+            ? ""
+            : catchFn(() =>
+                utils.hostnameInfoToAddress(
+                  specValue.target === "lan-address"
+                    ? filled.addressInfo!.localHostnames[0] ||
+                        filled.addressInfo!.onionHostnames[0]
+                    : filled.addressInfo!.onionHostnames[0] ||
+                        filled.addressInfo!.localHostnames[0],
+                ),
+              ) || ""
+        mutConfigValue[key] = url
       }
-      const url: string =
-        filled === null || filled.addressInfo === null
-          ? ""
-          : catchFn(() =>
-              utils.hostnameInfoToAddress(
-                specValue.target === "lan-address"
-                  ? filled.addressInfo!.localHostnames[0] ||
-                      filled.addressInfo!.onionHostnames[0]
-                  : filled.addressInfo!.onionHostnames[0] ||
-                      filled.addressInfo!.localHostnames[0],
-              ),
-            ) || ""
-      mutConfigValue[key] = url
     }
   }
 }
