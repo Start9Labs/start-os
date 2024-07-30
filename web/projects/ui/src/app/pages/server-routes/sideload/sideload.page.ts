@@ -138,8 +138,8 @@ export class SideloadPage {
     ).getUint32(0, false)
     await getPositions(start, end, file, positions, tocLength as any)
 
-    await this.getManifest(positions, file)
-    await this.getIcon(positions, file)
+    await this.getManifestV1(positions, file)
+    await this.getIconV1(positions, file)
   }
 
   async parseS9pkV2(file: File) {
@@ -148,7 +148,7 @@ export class SideloadPage {
     this.toUpload.icon = await s9pk.icon()
   }
 
-  async getManifest(positions: Positions, file: Blob) {
+  private async getManifestV1(positions: Positions, file: Blob) {
     const data = await blobToBuffer(
       file.slice(
         Number(positions['manifest'][0]),
@@ -158,12 +158,11 @@ export class SideloadPage {
     this.toUpload.manifest = await cbor.decode(data, true)
   }
 
-  async getIcon(positions: Positions, file: Blob) {
-    const contentType = '' // @TODO
+  private async getIconV1(positions: Positions, file: Blob) {
     const data = file.slice(
       Number(positions['icon'][0]),
       Number(positions['icon'][0]) + Number(positions['icon'][1]),
-      contentType,
+      '',
     )
     this.toUpload.icon = await blobToDataURL(data)
   }

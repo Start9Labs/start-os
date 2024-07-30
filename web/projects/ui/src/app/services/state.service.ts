@@ -111,7 +111,7 @@ export class StateService extends Observable<RR.ServerState | null> {
         ),
       ),
     )
-    .subscribe() // @TODO shouldn't this be subscribed in app component with the others? Do we ever need to unsubscribe?
+    .subscribe() // @TODO Alex shouldn't this be subscribed in app component with the others? Do we ever need to unsubscribe?
 
   constructor() {
     super(subscriber => this.stream$.subscribe(subscriber))

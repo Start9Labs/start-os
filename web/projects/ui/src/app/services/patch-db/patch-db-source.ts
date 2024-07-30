@@ -41,7 +41,7 @@ export class PatchDbSource extends Observable<Update<DataModel>[]> {
     catchError((_, original$) => {
       this.state.retrigger()
 
-      // @TODO this is returning right away, but we need to wait until state emits again from the retrigger() above.
+      // @TODO Alex this is returning right away and crashing the browser, but we need to wait until state emits again from the retrigger() above.
       return this.state.pipe(
         filter(current => current === 'running'),
         take(1),

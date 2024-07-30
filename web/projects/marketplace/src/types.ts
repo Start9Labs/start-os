@@ -3,7 +3,6 @@ import { T } from '@start9labs/start-sdk'
 export type GetPackageReq = {
   id: string
   version: string | null
-  sourceVersion: null // @TODO what is this?
   otherVersions: 'short'
 }
 export type GetPackageRes = T.GetPackageResponse & {
@@ -13,9 +12,9 @@ export type GetPackageRes = T.GetPackageResponse & {
 export type GetPackagesReq = {
   id: null
   version: null
-  sourceVersion: null
   otherVersions: 'short'
 }
+
 export type GetPackagesRes = {
   [id: T.PackageId]: GetPackageRes
 }

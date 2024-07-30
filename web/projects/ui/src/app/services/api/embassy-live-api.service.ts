@@ -38,7 +38,7 @@ export class LiveApiService extends ApiService {
     @Inject(PATCH_CACHE) private readonly cache$: Observable<Dump<DataModel>>,
   ) {
     super()
-    ;(window as any).rpcClient = this
+    ; (window as any).rpcClient = this
   }
 
   // for sideloading packages
@@ -321,7 +321,6 @@ export class LiveApiService extends ApiService {
     const params: GetPackageReq = {
       id,
       version: versionRange,
-      sourceVersion: null,
       otherVersions: 'short',
     }
 
@@ -335,7 +334,6 @@ export class LiveApiService extends ApiService {
     const params: GetPackagesReq = {
       id: null,
       version: null,
-      sourceVersion: null,
       otherVersions: 'short',
     }
 
