@@ -25,9 +25,10 @@ export class MarketplaceShowPage {
     this.patch.watch$('packageData', this.pkgId).pipe(filter(Boolean)),
     this.route.queryParamMap,
   ]).pipe(
-    map(([pkg, paramMap]) =>
-      this.exver.getFlavor(getManifest(pkg).version) === paramMap.get('flavor')
-        ? pkg
+    map(([localPkg, paramMap]) =>
+      this.exver.getFlavor(getManifest(localPkg).version) ===
+      paramMap.get('flavor')
+        ? localPkg
         : null,
     ),
     shareReplay({ bufferSize: 1, refCount: true }),
@@ -47,6 +48,58 @@ export class MarketplaceShowPage {
         this.url,
       ),
     ),
+  )
+
+  readonly conflict$: Observable<string> = combineLatest([
+    this.pkg$,
+    this.patch.watch$('packageData', this.pkgId),
+    this.patch.watch$('serverInfo'),
+  ]).pipe(
+    map(([pkg, localPkg, server]) => {
+      let conflicts: string[] = []
+
+      // version
+      if (localPkg) {
+        const localVersion = getManifest(localPkg).version
+        if (
+          pkg.sourceVersion &&
+          !this.exver.satisfies(localVersion, pkg.sourceVersion)
+        ) {
+          conflicts.push(
+            `Currently installed version ${localVersion} cannot be upgraded to version ${pkg.version}. Try installing an older version first.`,
+          )
+        }
+      }
+
+      const { arch, ram, device } = pkg.hardwareRequirements
+
+      // arch
+      if (arch && !arch.includes(server.arch)) {
+        conflicts.push(
+          `Arch ${server.arch} not supported. Supported: ${arch.join(', ')}.`,
+        )
+      }
+
+      // ram
+      if (ram && ram > server.ram) {
+        return `Minimum ${ram}GB of RAM required, detected ${server.ram}GB.`
+      }
+
+      // devices
+      conflicts.concat(
+        device
+          .filter(d =>
+            server.devices.some(
+              sd =>
+                d.class === sd.class && !new RegExp(d.pattern).test(sd.product),
+            ),
+          )
+          .map(d => d.patternDescription),
+      )
+
+      return conflicts.join(' ')
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
   )
 
   readonly flavors$ = this.route.queryParamMap.pipe(
