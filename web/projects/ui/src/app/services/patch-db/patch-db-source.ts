@@ -5,6 +5,7 @@ import {
   bufferTime,
   catchError,
   filter,
+  skip,
   startWith,
   switchMap,
   take,
@@ -41,8 +42,8 @@ export class PatchDbSource extends Observable<Update<DataModel>[]> {
     catchError((_, original$) => {
       this.state.retrigger()
 
-      // @TODO Alex this is returning right away and crashing the browser, but we need to wait until state emits again from the retrigger() above.
       return this.state.pipe(
+        skip(1), // skipping previous value stored due to shareReplay
         filter(current => current === 'running'),
         take(1),
         switchMap(() => original$),
