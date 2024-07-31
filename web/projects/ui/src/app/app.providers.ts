@@ -1,14 +1,16 @@
-import { APP_INITIALIZER, Provider } from '@angular/core'
+import { APP_INITIALIZER, inject, Provider } from '@angular/core'
 import { UntypedFormBuilder } from '@angular/forms'
 import { Router, RouteReuseStrategy } from '@angular/router'
 import { IonicRouteStrategy, IonNav } from '@ionic/angular'
 import { RELATIVE_URL, THEME, WorkspaceConfig } from '@start9labs/shared'
-import { TUI_ICONS_PATH } from '@taiga-ui/core'
+import { TUI_DIALOGS_CLOSE, TUI_ICONS_PATH } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
+import { filter, pairwise } from 'rxjs'
 import {
   PATCH_CACHE,
   PatchDbSource,
 } from 'src/app/services/patch-db/patch-db-source'
+import { StateService } from 'src/app/services/state.service'
 import { ApiService } from './services/api/embassy-api.service'
 import { MockApiService } from './services/api/embassy-mock-api.service'
 import { LiveApiService } from './services/api/embassy-live-api.service'
@@ -57,6 +59,17 @@ export const APP_PROVIDERS: Provider[] = [
   {
     provide: TUI_ICONS_PATH,
     useValue: (name: string) => `/assets/taiga-ui/icons/${name}.svg#${name}`,
+  },
+  {
+    provide: TUI_DIALOGS_CLOSE,
+    useFactory: () =>
+      inject(StateService).pipe(
+        pairwise(),
+        filter(
+          ([prev, curr]) =>
+            prev === 'running' && (curr === 'error' || curr === 'initializing'),
+        ),
+      ),
   },
 ]
 
