@@ -9,11 +9,14 @@ import { WINDOW } from '@ng-web-apis/common'
 import { ErrorService, LoadingService, pauseFor } from '@start9labs/shared'
 import { CT } from '@start9labs/start-sdk'
 import { TuiDialogOptions } from '@taiga-ui/core'
+import { PatchDB } from 'patch-db-client'
 import { FormComponent, FormContext } from 'src/app/components/form.component'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
+import { ConnectionService } from 'src/app/services/connection.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 export interface WiFiForm {
   ssid: string
@@ -31,6 +34,7 @@ export class WifiPage {
   countries = require('../../../util/countries.json') as {
     [key: string]: string
   }
+  readonly hasWifi$ = this.patch.watch$('serverInfo', 'wifi', 'interface')
 
   constructor(
     private readonly api: ApiService,
@@ -41,6 +45,8 @@ export class WifiPage {
     private readonly errorService: ErrorService,
     private readonly actionCtrl: ActionSheetController,
     private readonly config: ConfigService,
+    private readonly patch: PatchDB<DataModel>,
+    readonly connection$: ConnectionService,
     @Inject(WINDOW) private readonly windowRef: Window,
   ) {}
 
