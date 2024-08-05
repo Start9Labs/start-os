@@ -55,11 +55,8 @@ pub async fn mount(
     let subpath = subpath.unwrap_or_default();
     let subpath = subpath.strip_prefix("/").unwrap_or(&subpath);
     let source = data_dir(&context.seed.ctx.datadir, &package_id, &volume_id).join(subpath);
-    if readonly && tokio::fs::metadata(&source).await.is_err() {
-        return Err(Error::new(
-            eyre!("{volume_id}/{} does not exist", subpath.display()),
-            ErrorKind::NotFound,
-        ));
+    if tokio::fs::metadata(&source).await.is_err() {
+        tokio::fs::create_dir_all(&source).await?;
     }
     let location = location.strip_prefix("/").unwrap_or(&location);
     let mountpoint = context
