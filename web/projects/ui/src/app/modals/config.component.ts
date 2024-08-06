@@ -6,7 +6,7 @@ import {
   isEmptyObject,
   LoadingService,
 } from '@start9labs/shared'
-import { CT } from '@start9labs/start-sdk'
+import { CT, T } from '@start9labs/start-sdk'
 import { TuiButtonModule } from '@taiga-ui/experimental'
 import {
   TuiDialogContext,
@@ -245,11 +245,11 @@ export class ConfigModal {
     this.context.$implicit.complete()
   }
 
-  private async approveBreakages(breakages: Breakages): Promise<boolean> {
+  private async approveBreakages(breakages: T.PackageId[]): Promise<boolean> {
     const packages = await getAllPackages(this.patchDb)
     const message =
       'As a result of this change, the following services will no longer work properly and may crash:<ul>'
-    const content = `${message}${Object.keys(breakages).map(
+    const content = `${message}${breakages.map(
       id => `<li><b>${getManifest(packages[id]).title}</b></li>`,
     )}</ul>`
     const data: TuiPromptData = { content, yes: 'Continue', no: 'Cancel' }
