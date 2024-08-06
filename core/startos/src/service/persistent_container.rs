@@ -170,17 +170,17 @@ impl PersistentContainer {
                 .arg(&mountpoint)
                 .invoke(crate::ErrorKind::Filesystem)
                 .await?;
+            let s9pk_asset_path = Path::new("assets").join(asset).with_extension("squashfs");
+            let sqfs = s9pk
+                .as_archive()
+                .contents()
+                .get_path(&s9pk_asset_path)
+                .and_then(|e| e.as_file())
+                .or_not_found(s9pk_asset_path.display())?;
             assets.insert(
                 asset.clone(),
                 MountGuard::mount(
-                    &Bind::new(
-                        asset_dir(
-                            &ctx.datadir,
-                            &s9pk.as_manifest().id,
-                            &s9pk.as_manifest().version,
-                        )
-                        .join(asset),
-                    ),
+                    &IdMapped::new(LoopDev::from(&**sqfs), 0, 100000, 65536),
                     mountpoint,
                     MountType::ReadWrite,
                 )
