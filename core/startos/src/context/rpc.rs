@@ -297,7 +297,9 @@ impl RpcContext {
         for (package_id, package) in peek.as_public().as_package_data().as_entries()?.into_iter() {
             let package = package.clone();
             let mut current_dependencies = package.as_current_dependencies().de()?;
-            compute_dependency_config_errs(self, &package_id, &mut current_dependencies).await?;
+            compute_dependency_config_errs(self, &package_id, &mut current_dependencies)
+                .await
+                .log_err();
             updated_current_dependents.insert(package_id.clone(), current_dependencies);
         }
         self.db
