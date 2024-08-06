@@ -2,18 +2,15 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use imbl::OrdMap;
-use models::PackageId;
 
 use super::start_stop::StartStop;
-
+use super::ServiceActorSeed;
 use crate::prelude::*;
 use crate::service::transition::TransitionKind;
 use crate::service::SYNC_RETRY_COOLDOWN_SECONDS;
 use crate::status::MainStatus;
 use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::actor::Actor;
-
-use super::ServiceActorSeed;
 
 #[derive(Clone)]
 pub(super) struct ServiceActor(pub(super) Arc<ServiceActorSeed>);
@@ -26,12 +23,12 @@ enum ServiceActorLoopNext {
 impl Actor for ServiceActor {
     fn init(&mut self, jobs: &BackgroundJobQueue) {
         let seed = self.0.clone();
+        let mut current = seed.persistent_container.state.subscribe();
         jobs.add_job(async move {
-            let id = seed.id.clone();
-            let mut current = seed.persistent_container.state.subscribe();
+            let _ = current.wait_for(|s| s.rt_initialized).await;
 
             loop {
-                match service_actor_loop(&current, &seed, &id).await {
+                match service_actor_loop(&current, &seed).await {
                     ServiceActorLoopNext::Wait => tokio::select! {
                         _ = current.changed() => (),
                     },
@@ -45,8 +42,8 @@ impl Actor for ServiceActor {
 async fn service_actor_loop(
     current: &tokio::sync::watch::Receiver<super::persistent_container::ServiceState>,
     seed: &Arc<ServiceActorSeed>,
-    id: &PackageId,
 ) -> ServiceActorLoopNext {
+    let id = &seed.id;
     let kinds = current.borrow().kinds();
     if let Err(e) = async {
         let main_status = match (

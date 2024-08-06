@@ -51,6 +51,11 @@ impl HasLoggedOutSessions {
         for sid in &to_log_out {
             ctx.open_authed_continuations.kill(sid)
         }
+        ctx.ephemeral_sessions.mutate(|s| {
+            for sid in &to_log_out {
+                s.0.remove(sid);
+            }
+        });
         ctx.db
             .mutate(|db| {
                 let sessions = db.as_private_mut().as_sessions_mut();
@@ -110,20 +115,29 @@ impl HasValidSession {
         ctx: &RpcContext,
     ) -> Result<Self, Error> {
         let session_hash = session_token.hashed();
-        ctx.db
-            .mutate(|db| {
-                db.as_private_mut()
-                    .as_sessions_mut()
-                    .as_idx_mut(session_hash)
-                    .ok_or_else(|| {
-                        Error::new(eyre!("UNAUTHORIZED"), crate::ErrorKind::Authorization)
-                    })?
-                    .mutate(|s| {
-                        s.last_active = Utc::now();
-                        Ok(())
-                    })
-            })
-            .await?;
+        if !ctx.ephemeral_sessions.mutate(|s| {
+            if let Some(session) = s.0.get_mut(session_hash) {
+                session.last_active = Utc::now();
+                true
+            } else {
+                false
+            }
+        }) {
+            ctx.db
+                .mutate(|db| {
+                    db.as_private_mut()
+                        .as_sessions_mut()
+                        .as_idx_mut(session_hash)
+                        .ok_or_else(|| {
+                            Error::new(eyre!("UNAUTHORIZED"), crate::ErrorKind::Authorization)
+                        })?
+                        .mutate(|s| {
+                            s.last_active = Utc::now();
+                            Ok(())
+                        })
+                })
+                .await?;
+        }
         Ok(Self(SessionType::Session(session_token)))
     }
 

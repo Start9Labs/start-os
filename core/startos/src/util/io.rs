@@ -411,107 +411,151 @@ impl<T: AsRef<[u8]>> CursorExt for Cursor<T> {
     }
 }
 
-#[pin_project::pin_project]
 #[derive(Debug)]
-pub struct BackTrackingReader<T> {
-    #[pin]
-    reader: T,
-    buffer: Cursor<Vec<u8>>,
-    buffering: bool,
+enum BTBuffer {
+    NotBuffering,
+    Buffering { read: Vec<u8>, write: Vec<u8> },
+    Rewound { read: Cursor<Vec<u8>> },
 }
-impl<T> BackTrackingReader<T> {
-    pub fn new(reader: T) -> Self {
-        Self {
-            reader,
-            buffer: Cursor::new(Vec::new()),
-            buffering: false,
-        }
-    }
-    pub fn start_buffering(&mut self) {
-        self.buffer.set_position(0);
-        self.buffer.get_mut().truncate(0);
-        self.buffering = true;
-    }
-    pub fn stop_buffering(&mut self) {
-        self.buffer.set_position(0);
-        self.buffer.get_mut().truncate(0);
-        self.buffering = false;
-    }
-    pub fn rewind(&mut self) {
-        self.buffering = false;
-    }
-    pub fn unwrap(self) -> T {
-        self.reader
+impl Default for BTBuffer {
+    fn default() -> Self {
+        BTBuffer::NotBuffering
     }
 }
 
-impl<T: AsyncRead> AsyncRead for BackTrackingReader<T> {
+#[pin_project::pin_project]
+#[derive(Debug)]
+pub struct BackTrackingIO<T> {
+    #[pin]
+    io: T,
+    buffer: BTBuffer,
+}
+impl<T> BackTrackingIO<T> {
+    pub fn new(io: T) -> Self {
+        Self {
+            io,
+            buffer: BTBuffer::Buffering {
+                read: Vec::new(),
+                write: Vec::new(),
+            },
+        }
+    }
+    #[must_use]
+    pub fn stop_buffering(&mut self) -> Vec<u8> {
+        match std::mem::take(&mut self.buffer) {
+            BTBuffer::Buffering { write, .. } => write,
+            BTBuffer::NotBuffering => Vec::new(),
+            BTBuffer::Rewound { read } => {
+                self.buffer = BTBuffer::Rewound { read };
+                Vec::new()
+            }
+        }
+    }
+    pub fn rewind(&mut self) -> Vec<u8> {
+        match std::mem::take(&mut self.buffer) {
+            BTBuffer::Buffering { read, write } => {
+                self.buffer = BTBuffer::Rewound {
+                    read: Cursor::new(read),
+                };
+                write
+            }
+            BTBuffer::NotBuffering => Vec::new(),
+            BTBuffer::Rewound { read } => {
+                self.buffer = BTBuffer::Rewound { read };
+                Vec::new()
+            }
+        }
+    }
+    pub fn unwrap(self) -> T {
+        self.io
+    }
+}
+
+impl<T: AsyncRead> AsyncRead for BackTrackingIO<T> {
     fn poll_read(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
         buf: &mut ReadBuf<'_>,
     ) -> Poll<std::io::Result<()>> {
         let this = self.project();
-        if *this.buffering {
-            let filled = buf.filled().len();
-            let res = this.reader.poll_read(cx, buf);
-            this.buffer
-                .get_mut()
-                .extend_from_slice(&buf.filled()[filled..]);
-            res
-        } else {
-            let mut ready = false;
-            if (this.buffer.position() as usize) < this.buffer.get_ref().len() {
-                this.buffer.pure_read(buf);
-                ready = true;
+        match this.buffer {
+            BTBuffer::Buffering { read, .. } => {
+                let filled = buf.filled().len();
+                let res = this.io.poll_read(cx, buf);
+                read.extend_from_slice(&buf.filled()[filled..]);
+                res
             }
-            if buf.remaining() > 0 {
-                match this.reader.poll_read(cx, buf) {
-                    Poll::Pending => {
-                        if ready {
-                            Poll::Ready(Ok(()))
-                        } else {
-                            Poll::Pending
-                        }
-                    }
-                    a => a,
+            BTBuffer::NotBuffering => this.io.poll_read(cx, buf),
+            BTBuffer::Rewound { read } => {
+                let mut ready = false;
+                if (read.position() as usize) < read.get_ref().len() {
+                    read.pure_read(buf);
+                    ready = true;
                 }
-            } else {
-                Poll::Ready(Ok(()))
+                if buf.remaining() > 0 {
+                    match this.io.poll_read(cx, buf) {
+                        Poll::Pending => {
+                            if ready {
+                                Poll::Ready(Ok(()))
+                            } else {
+                                Poll::Pending
+                            }
+                        }
+                        a => a,
+                    }
+                } else {
+                    Poll::Ready(Ok(()))
+                }
             }
         }
     }
 }
 
-impl<T: AsyncWrite> AsyncWrite for BackTrackingReader<T> {
+impl<T: AsyncWrite> AsyncWrite for BackTrackingIO<T> {
     fn is_write_vectored(&self) -> bool {
-        self.reader.is_write_vectored()
+        self.io.is_write_vectored()
     }
     fn poll_flush(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(), std::io::Error>> {
-        self.project().reader.poll_flush(cx)
+        self.project().io.poll_flush(cx)
     }
     fn poll_shutdown(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(), std::io::Error>> {
-        self.project().reader.poll_shutdown(cx)
+        self.project().io.poll_shutdown(cx)
     }
     fn poll_write(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
         buf: &[u8],
     ) -> Poll<Result<usize, std::io::Error>> {
-        self.project().reader.poll_write(cx, buf)
+        let this = self.project();
+        if let BTBuffer::Buffering { write, .. } = this.buffer {
+            write.extend_from_slice(buf);
+            Poll::Ready(Ok(buf.len()))
+        } else {
+            this.io.poll_write(cx, buf)
+        }
     }
     fn poll_write_vectored(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
         bufs: &[std::io::IoSlice<'_>],
     ) -> Poll<Result<usize, std::io::Error>> {
-        self.project().reader.poll_write_vectored(cx, bufs)
+        let this = self.project();
+        if let BTBuffer::Buffering { write, .. } = this.buffer {
+            let len = bufs.iter().map(|b| b.len()).sum();
+            write.reserve(len);
+            for buf in bufs {
+                write.extend_from_slice(buf);
+            }
+            Poll::Ready(Ok(len))
+        } else {
+            this.io.poll_write_vectored(cx, bufs)
+        }
     }
 }
 

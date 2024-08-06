@@ -13,11 +13,12 @@ export class UiLauncherService {
     private readonly config: ConfigService,
   ) {}
 
-  launch(interfaces: PackageDataEntry['serviceInterfaces']): void {
-    // TODO @Matt
-    const host = {} as any
+  launch(
+    interfaces: PackageDataEntry['serviceInterfaces'],
+    hosts: PackageDataEntry['hosts'],
+  ): void {
     this.windowRef.open(
-      this.config.launchableAddress(interfaces, host),
+      this.config.launchableAddress(interfaces, hosts),
       '_blank',
       'noreferrer',
     )

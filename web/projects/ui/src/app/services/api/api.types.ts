@@ -33,6 +33,7 @@ export module RR {
   export type LoginReq = {
     password: string
     metadata: SessionMetadata
+    ephemeral?: boolean
   } // auth.login - unauthed
   export type loginRes = null
 
@@ -229,7 +230,7 @@ export module RR {
   export type GetPackageConfigRes = { spec: CT.InputSpec; config: object }
 
   export type DrySetPackageConfigReq = { id: string; config: object } // package.config.set.dry
-  export type DrySetPackageConfigRes = Breakages
+  export type DrySetPackageConfigRes = T.PackageId[]
 
   export type SetPackageConfigReq = DrySetPackageConfigReq // package.config.set
   export type SetPackageConfigRes = null
@@ -353,6 +354,7 @@ export interface Metric {
 }
 
 export interface Session {
+  loggedIn: string
   lastActive: string
   userAgent: string
   metadata: SessionMetadata

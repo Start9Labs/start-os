@@ -28,14 +28,11 @@ set +e
 fail=
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-if ! rust-musl-builder sh -c "(cd core && cargo build --release --no-default-features --features cli,registry,$FEATURES --locked --bin registrybox --target=$ARCH-unknown-linux-musl)"; then 
+if ! rust-musl-builder sh -c "cd core && cargo build --release --no-default-features --features cli,registry,$FEATURES --locked --bin registrybox --target=$ARCH-unknown-linux-musl && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"; then 
 	fail=true
 fi
 set -e
 cd core
-
-sudo chown -R $USER target
-sudo chown -R $USER ~/.cargo
 
 if [ -n "$fail" ]; then
 	exit 1

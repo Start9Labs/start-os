@@ -26,6 +26,8 @@ export class Overlay {
       shared.push("run")
     }
 
+    fs.copyFile("/etc/resolv.conf", `${rootfs}/etc/resolv.conf`)
+
     for (const dirPart of shared) {
       const from = `/${dirPart}`
       const to = `${rootfs}/${dirPart}`

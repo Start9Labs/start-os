@@ -14,14 +14,8 @@ if ! id kiosk; then
     useradd -s /bin/bash --create-home kiosk
 fi
 
-# create kiosk script
-cat > /home/kiosk/kiosk.sh << 'EOF'
-#!/bin/sh
-PROFILE=$(mktemp -d)
-if [ -f /usr/local/share/ca-certificates/startos-root-ca.crt ]; then
-    certutil -A -n "StartOS Local Root CA" -t "TCu,Cuw,Tuw" -i /usr/local/share/ca-certificates/startos-root-ca.crt -d $PROFILE
-fi
-cat >> $PROFILE/prefs.js << EOT
+mkdir /home/kiosk/fx-profile
+cat >> /home/kiosk/fx-profile/prefs.js << EOF
 user_pref("app.normandy.api_url", "");
 user_pref("app.normandy.enabled", false);
 user_pref("app.shield.optoutstudies.enabled", false);
@@ -87,7 +81,11 @@ user_pref("toolkit.telemetry.shutdownPingSender.enabled", false);
 user_pref("toolkit.telemetry.unified", false);
 user_pref("toolkit.telemetry.updatePing.enabled", false);
 user_pref("toolkit.telemetry.cachedClientID", "");
-EOT
+EOF
+
+# create kiosk script
+cat > /home/kiosk/kiosk.sh << 'EOF'
+#!/bin/sh
 while ! curl "http://localhost" > /dev/null; do
     sleep 1
 done
@@ -101,8 +99,7 @@ done
     killall firefox-esr
 ) &
 matchbox-window-manager -use_titlebar no &
-firefox-esr http://localhost --profile $PROFILE
-rm -rf $PROFILE
+firefox-esr http://localhost --profile /home/kiosk/fx-profile
 EOF
 chmod +x /home/kiosk/kiosk.sh
 
@@ -115,6 +112,8 @@ if [[ "$(tty)" =~ ^/dev/tty ]]; then
 fi
 EOF
 fi
+
+chown -R kiosk:kiosk /home/kiosk
 
 # enable autologin
 mkdir -p /etc/systemd/system/getty@tty1.service.d

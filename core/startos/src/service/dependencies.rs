@@ -38,7 +38,7 @@ impl ServiceActorSeed {
             )
             .await
             .with_kind(ErrorKind::Dependency)
-            .map(|res| res.filter(|c| !c.is_empty()))
+            .map(|res| res.filter(|c| !c.is_empty() && Some(c) != remote_config.as_ref()))
     }
 }
 

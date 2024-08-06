@@ -43,6 +43,8 @@ const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug)]
 pub struct ServiceState {
+    // indicates whether the service container runtime has been initialized yet
+    pub(super) rt_initialized: bool,
     // This contains the start time and health check information for when the service is running. Note: Will be overwritting to the db,
     pub(super) running_status: Option<RunningStatus>,
     // This tracks references to callbacks registered by the running service:
@@ -65,6 +67,7 @@ pub struct ServiceStateKinds {
 impl ServiceState {
     pub fn new(desired_state: StartStop) -> Self {
         Self {
+            rt_initialized: false,
             running_status: Default::default(),
             callbacks: Default::default(),
             temp_desired_state: Default::default(),
@@ -167,17 +170,17 @@ impl PersistentContainer {
                 .arg(&mountpoint)
                 .invoke(crate::ErrorKind::Filesystem)
                 .await?;
+            let s9pk_asset_path = Path::new("assets").join(asset).with_extension("squashfs");
+            let sqfs = s9pk
+                .as_archive()
+                .contents()
+                .get_path(&s9pk_asset_path)
+                .and_then(|e| e.as_file())
+                .or_not_found(s9pk_asset_path.display())?;
             assets.insert(
                 asset.clone(),
                 MountGuard::mount(
-                    &Bind::new(
-                        asset_dir(
-                            &ctx.datadir,
-                            &s9pk.as_manifest().id,
-                            &s9pk.as_manifest().version,
-                        )
-                        .join(asset),
-                    ),
+                    &IdMapped::new(LoopDev::from(&**sqfs), 0, 100000, 65536),
                     mountpoint,
                     MountType::ReadWrite,
                 )
@@ -369,6 +372,8 @@ impl PersistentContainer {
 
         self.rpc_client.request(rpc::Init, Empty {}).await?;
 
+        self.state.send_modify(|s| s.rt_initialized = true);
+
         Ok(())
     }
 
@@ -386,39 +391,31 @@ impl PersistentContainer {
         let overlays = self.overlays.clone();
         let lxc_container = self.lxc_container.take();
         self.destroyed = true;
-        Some(
-            async move {
-                dbg!(
-                    async move {
-                        let mut errs = ErrorCollection::new();
-                        if let Some((hdl, shutdown)) = rpc_server {
-                            errs.handle(rpc_client.request(rpc::Exit, Empty {}).await);
-                            shutdown.shutdown();
-                            errs.handle(hdl.await.with_kind(ErrorKind::Cancelled));
-                        }
-                        for (_, volume) in volumes {
-                            errs.handle(volume.unmount(true).await);
-                        }
-                        for (_, assets) in assets {
-                            errs.handle(assets.unmount(true).await);
-                        }
-                        for (_, overlay) in std::mem::take(&mut *overlays.lock().await) {
-                            errs.handle(overlay.unmount(true).await);
-                        }
-                        for (_, images) in images {
-                            errs.handle(images.unmount().await);
-                        }
-                        errs.handle(js_mount.unmount(true).await);
-                        if let Some(lxc_container) = lxc_container {
-                            errs.handle(lxc_container.exit().await);
-                        }
-                        dbg!(errs.into_result())
-                    }
-                    .await
-                )
+        Some(async move {
+            let mut errs = ErrorCollection::new();
+            if let Some((hdl, shutdown)) = rpc_server {
+                errs.handle(rpc_client.request(rpc::Exit, Empty {}).await);
+                shutdown.shutdown();
+                errs.handle(hdl.await.with_kind(ErrorKind::Cancelled));
             }
-            .map(|a| dbg!(a)),
-        )
+            for (_, volume) in volumes {
+                errs.handle(volume.unmount(true).await);
+            }
+            for (_, assets) in assets {
+                errs.handle(assets.unmount(true).await);
+            }
+            for (_, overlay) in std::mem::take(&mut *overlays.lock().await) {
+                errs.handle(overlay.unmount(true).await);
+            }
+            for (_, images) in images {
+                errs.handle(images.unmount().await);
+            }
+            errs.handle(js_mount.unmount(true).await);
+            if let Some(lxc_container) = lxc_container {
+                errs.handle(lxc_container.exit().await);
+            }
+            errs.into_result()
+        })
     }
 
     #[instrument(skip_all)]

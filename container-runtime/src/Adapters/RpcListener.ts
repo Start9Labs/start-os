@@ -64,7 +64,7 @@ const runType = object({
       input: any,
       timeout: number,
     },
-    ["timeout"],
+    ["timeout", "input"],
   ),
 })
 const sandboxRunType = object({
@@ -77,7 +77,7 @@ const sandboxRunType = object({
       input: any,
       timeout: number,
     },
-    ["timeout"],
+    ["timeout", "input"],
   ),
 })
 const callbackType = object({

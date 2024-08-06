@@ -272,9 +272,8 @@ fn s9pk_router(ctx: RpcContext) -> Router {
         .route("/installed/:s9pk/*path", {
             let ctx = ctx.clone();
             any(
-                |x::Path(s9pk): x::Path<String>,
-                 x::Path(path): x::Path<PathBuf>,
-                 x::Query(commitment): x::Query<Option<MerkleArchiveCommitment>>,
+                |x::Path((s9pk, path)): x::Path<(String, PathBuf)>,
+                 x::RawQuery(query): x::RawQuery,
                  request: Request| async move {
                     if_authorized(&ctx, request, |request| async {
                         let s9pk = S9pk::deserialize(
@@ -287,7 +286,12 @@ fn s9pk_router(ctx: RpcContext) -> Router {
                                 )
                                 .await?,
                             ),
-                            commitment.as_ref(),
+                            query
+                                .as_deref()
+                                .map(MerkleArchiveCommitment::from_query)
+                                .and_then(|a| a.transpose())
+                                .transpose()?
+                                .as_ref(),
                         )
                         .await?;
                         let (parts, _) = request.into_parts();

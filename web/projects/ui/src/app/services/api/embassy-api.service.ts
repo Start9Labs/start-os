@@ -14,8 +14,6 @@ export abstract class ApiService {
   // for sideloading packages
   abstract uploadPackage(guid: string, body: Blob): Promise<string>
 
-  abstract uploadFile(body: Blob): Promise<string>
-
   // for getting static files: ex icons, instructions, licenses
   abstract getStaticProxy(
     pkg: MarketplacePkg,

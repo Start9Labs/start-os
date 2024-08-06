@@ -14,7 +14,7 @@ keywords = [
 name = "start-os"
 readme = "README.md"
 repository = "https://github.com/Start9Labs/start-os"
-version = "0.3.6-alpha.0"
+version = "0.3.6-alpha.3"
 license = "MIT"
 
 [lib]
@@ -98,7 +98,12 @@ hex = "0.4.3"
 hmac = "0.12.1"
 http = "1.0.0"
 http-body-util = "0.1"
-hyper-util = { version = "0.1.5", features = ["tokio", "service"] }
+hyper-util = { version = "0.1.5", features = [
+  "tokio",
+  "service",
+  "http1",
+  "http2",
+] }
 id-pool = { version = "0.2.2", default-features = false, features = [
   "serde",
   "u16",

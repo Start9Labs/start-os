@@ -58,6 +58,7 @@ pub struct ActionParams {
     pub action_id: ActionId,
     #[command(flatten)]
     #[ts(type = "{ [key: string]: any } | null")]
+    #[serde(default)]
     pub input: StdinDeserializable<Option<Config>>,
 }
 // impl C

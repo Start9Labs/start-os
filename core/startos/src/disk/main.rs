@@ -168,7 +168,7 @@ pub async fn create_all_fs<P: AsRef<Path>>(
 
 #[instrument(skip_all)]
 pub async fn unmount_fs<P: AsRef<Path>>(guid: &str, datadir: P, name: &str) -> Result<(), Error> {
-    unmount(datadir.as_ref().join(name)).await?;
+    unmount(datadir.as_ref().join(name), false).await?;
     if !guid.ends_with("_UNENC") {
         Command::new("cryptsetup")
             .arg("-q")

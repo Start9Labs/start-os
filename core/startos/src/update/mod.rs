@@ -18,6 +18,12 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
+use crate::disk::mount::filesystem::bind::Bind;
+use crate::disk::mount::filesystem::block_dev::BlockDev;
+use crate::disk::mount::filesystem::efivarfs::{self, EfiVarFs};
+use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
+use crate::disk::mount::filesystem::MountType;
+use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle, PhasedProgressBar};
@@ -247,6 +253,7 @@ async fn maybe_do_update(
     asset.validate(SIG_CONTEXT, asset.all_signers())?;
 
     let progress = FullProgressTracker::new();
+    let prune_phase = progress.add_phase("Pruning Old OS Images".into(), Some(2));
     let mut download_phase = progress.add_phase("Downloading File".into(), Some(100));
     download_phase.set_total(asset.commitment.size);
     let reverify_phase = progress.add_phase("Reverifying File".into(), Some(10));
@@ -300,6 +307,7 @@ async fn maybe_do_update(
             asset,
             UpdateProgressHandles {
                 progress,
+                prune_phase,
                 download_phase,
                 reverify_phase,
                 sync_boot_phase,
@@ -369,6 +377,7 @@ async fn maybe_do_update(
 
 struct UpdateProgressHandles {
     progress: FullProgressTracker,
+    prune_phase: PhaseProgressTrackerHandle,
     download_phase: PhaseProgressTrackerHandle,
     reverify_phase: PhaseProgressTrackerHandle,
     sync_boot_phase: PhaseProgressTrackerHandle,
@@ -381,12 +390,20 @@ async fn do_update(
     asset: RegistryAsset<Blake3Commitment>,
     UpdateProgressHandles {
         progress,
+        mut prune_phase,
         mut download_phase,
         mut reverify_phase,
         mut sync_boot_phase,
         mut finalize_phase,
     }: UpdateProgressHandles,
 ) -> Result<(), Error> {
+    prune_phase.start();
+    Command::new("/usr/lib/startos/scripts/prune-images")
+        .arg(asset.commitment.size.to_string())
+        .invoke(ErrorKind::Filesystem)
+        .await?;
+    prune_phase.complete();
+
     download_phase.start();
     let path = Path::new("/media/startos/images")
         .join(hex::encode(&asset.commitment.hash[..16]))
@@ -420,6 +437,72 @@ async fn do_update(
         .arg("boot")
         .invoke(crate::ErrorKind::Filesystem)
         .await?;
+    if &*PLATFORM != "raspberrypi" {
+        let mountpoint = "/media/startos/next";
+        let root_guard = OverlayGuard::mount(
+            TmpMountGuard::mount(&BlockDev::new(&path), MountType::ReadOnly).await?,
+            mountpoint,
+        )
+        .await?;
+        let startos = MountGuard::mount(
+            &Bind::new("/media/startos/root"),
+            root_guard.path().join("media/startos/root"),
+            MountType::ReadOnly,
+        )
+        .await?;
+        let boot_guard = MountGuard::mount(
+            &Bind::new("/boot"),
+            root_guard.path().join("boot"),
+            MountType::ReadWrite,
+        )
+        .await?;
+        let dev = MountGuard::mount(
+            &Bind::new("/dev"),
+            root_guard.path().join("dev"),
+            MountType::ReadWrite,
+        )
+        .await?;
+        let proc = MountGuard::mount(
+            &Bind::new("/proc"),
+            root_guard.path().join("proc"),
+            MountType::ReadWrite,
+        )
+        .await?;
+        let sys = MountGuard::mount(
+            &Bind::new("/sys"),
+            root_guard.path().join("sys"),
+            MountType::ReadWrite,
+        )
+        .await?;
+        let efivarfs = if tokio::fs::metadata("/sys/firmware/efi").await.is_ok() {
+            Some(
+                MountGuard::mount(
+                    &EfiVarFs,
+                    root_guard.path().join("sys/firmware/efi/efivars"),
+                    MountType::ReadWrite,
+                )
+                .await?,
+            )
+        } else {
+            None
+        };
+
+        Command::new("chroot")
+            .arg(root_guard.path())
+            .arg("update-grub2")
+            .invoke(ErrorKind::Grub)
+            .await?;
+
+        if let Some(efivarfs) = efivarfs {
+            efivarfs.unmount(false).await?;
+        }
+        sys.unmount(false).await?;
+        proc.unmount(false).await?;
+        dev.unmount(false).await?;
+        boot_guard.unmount(false).await?;
+        startos.unmount(false).await?;
+        root_guard.unmount(false).await?;
+    }
     sync_boot_phase.complete();
 
     finalize_phase.start();
@@ -429,6 +512,7 @@ async fn do_update(
         .arg("/media/startos/config/current.rootfs")
         .invoke(crate::ErrorKind::Filesystem)
         .await?;
+    Command::new("sync").invoke(ErrorKind::Filesystem).await?;
     finalize_phase.complete();
 
     progress.complete();
