@@ -230,7 +230,7 @@ export module RR {
   export type GetPackageConfigRes = { spec: CT.InputSpec; config: object }
 
   export type DrySetPackageConfigReq = { id: string; config: object } // package.config.set.dry
-  export type DrySetPackageConfigRes = Breakages
+  export type DrySetPackageConfigRes = T.PackageId[]
 
   export type SetPackageConfigReq = DrySetPackageConfigReq // package.config.set
   export type SetPackageConfigRes = null

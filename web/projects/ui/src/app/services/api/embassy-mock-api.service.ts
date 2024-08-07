@@ -790,7 +790,7 @@ export class MockApiService extends ApiService {
     params: RR.DrySetPackageConfigReq,
   ): Promise<RR.DrySetPackageConfigRes> {
     await pauseFor(2000)
-    return {}
+    return []
   }
 
   async setPackageConfig(

@@ -50,8 +50,7 @@
       <ion-item
         *ngFor="let button of cat.value"
         button
-        [style.display]="((button.title === 'Repair Disk' && !(showDiskRepair$ | async))) || (button.title === 'WiFi' && !(wifiConnected$ | async)) ? 'none' : 'block'"
-        [color]="button.title === 'WiFi' ? 'warning' : ''"
+        [style.display]="((button.title === 'Repair Disk' && !(showDiskRepair$ | async))) ? 'none' : 'block'"
         [detail]="button.detail"
         [disabled]="button.disabled$ | async"
         (click)="button.action()"
