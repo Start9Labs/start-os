@@ -14,6 +14,10 @@ const EMBASSY_PROPERTIES_LOOP = 30 * 1000
  * Also, this has an ability to clean itself up too if need be.
  */
 export class MainLoop {
+  private _mainDockerContainer?: DockerProcedureContainer
+  get mainDockerContainer() {
+    return this._mainDockerContainer
+  }
   private healthLoops?: {
     name: string
     interval: NodeJS.Timeout
@@ -54,6 +58,7 @@ export class MainLoop {
       this.system.manifest.main,
       this.system.manifest.volumes,
     )
+    this._mainDockerContainer = dockerProcedureContainer
     if (jsMain) {
       throw new Error("Unreachable")
     }
@@ -126,6 +131,7 @@ export class MainLoop {
     await main?.daemon.stop().catch((e) => console.error(e))
     this.effects.setMainStatus({ status: "stopped" })
     if (healthLoops) healthLoops.forEach((x) => clearInterval(x.interval))
+    delete this._mainDockerContainer
   }
 
   private constructHealthLoops() {
@@ -138,17 +144,25 @@ export class MainLoop {
           const actionProcedure = value
           const timeChanged = Date.now() - start
           if (actionProcedure.type === "docker") {
-            const container = await DockerProcedureContainer.of(
-              effects,
-              manifest.id,
-              actionProcedure,
-              manifest.volumes,
+            // prettier-ignore
+            const container = 
+              actionProcedure.inject && this._mainDockerContainer ?
+              this._mainDockerContainer :
+              await DockerProcedureContainer.of(
+                effects,
+                manifest.id,
+                actionProcedure,
+                manifest.volumes,
+              )
+            const shouldDestroy = container !== this._mainDockerContainer
+            const executed = await container.exec(
+              [
+                actionProcedure.entrypoint,
+                ...actionProcedure.args,
+                JSON.stringify(timeChanged),
+              ],
+              { destroy: shouldDestroy },
             )
-            const executed = await container.exec([
-              actionProcedure.entrypoint,
-              ...actionProcedure.args,
-              JSON.stringify(timeChanged),
-            ])
             if (executed.exitCode === 0) {
               await effects.setHealth({
                 id: healthId,

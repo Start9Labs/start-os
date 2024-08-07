@@ -799,12 +799,17 @@ export class SystemForEmbassy implements System {
     const actionProcedure = this.manifest.actions?.[actionId]?.implementation
     if (!actionProcedure) return { message: "Action not found", value: null }
     if (actionProcedure.type === "docker") {
-      const container = await DockerProcedureContainer.of(
-        effects,
-        this.manifest.id,
-        actionProcedure,
-        this.manifest.volumes,
-      )
+      const container =
+        actionProcedure.inject && this.currentRunning?.mainDockerContainer
+          ? this.currentRunning?.mainDockerContainer
+          : await DockerProcedureContainer.of(
+              effects,
+              this.manifest.id,
+              actionProcedure,
+              this.manifest.volumes,
+            )
+      const shouldDestroy =
+        container !== this.currentRunning?.mainDockerContainer
       return JSON.parse(
         (
           await container.execFail(
@@ -814,6 +819,7 @@ export class SystemForEmbassy implements System {
               JSON.stringify(formData),
             ],
             timeoutMs,
+            { destroy: shouldDestroy },
           )
         ).stdout.toString(),
       )
