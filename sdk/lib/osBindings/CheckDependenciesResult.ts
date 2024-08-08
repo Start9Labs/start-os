@@ -5,9 +5,10 @@ import type { PackageId } from "./PackageId"
 
 export type CheckDependenciesResult = {
   packageId: PackageId
-  isInstalled: boolean
+  title: string | null
+  installedVersion: string | null
+  satisfies: string[]
   isRunning: boolean
   configSatisfied: boolean
   healthChecks: { [key: HealthCheckId]: NamedHealthCheckResult }
-  version: string | null
 }
