@@ -132,7 +132,6 @@ export const mockPatchData: DataModel = {
         ui: {
           id: 'ui',
           hasPrimary: false,
-          disabled: false,
           masked: false,
           name: 'Web UI',
           description:
@@ -150,7 +149,6 @@ export const mockPatchData: DataModel = {
         rpc: {
           id: 'rpc',
           hasPrimary: false,
-          disabled: false,
           masked: false,
           name: 'RPC',
           description:
@@ -168,7 +166,6 @@ export const mockPatchData: DataModel = {
         p2p: {
           id: 'p2p',
           hasPrimary: true,
-          disabled: false,
           masked: false,
           name: 'P2P',
           description:
@@ -311,7 +308,6 @@ export const mockPatchData: DataModel = {
         grpc: {
           id: 'grpc',
           hasPrimary: false,
-          disabled: false,
           masked: false,
           name: 'GRPC',
           description:
@@ -329,7 +325,6 @@ export const mockPatchData: DataModel = {
         lndconnect: {
           id: 'lndconnect',
           hasPrimary: false,
-          disabled: false,
           masked: true,
           name: 'LND Connect',
           description:
@@ -347,7 +342,6 @@ export const mockPatchData: DataModel = {
         p2p: {
           id: 'p2p',
           hasPrimary: true,
-          disabled: false,
           masked: false,
           name: 'P2P',
           description:

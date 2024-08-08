@@ -1,4 +1,5 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use imbl::OrdMap;
@@ -6,8 +7,9 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use self::health_check::HealthCheckId;
-use crate::status::health_check::HealthCheckResult;
-use crate::{prelude::*, util::GeneralGuard};
+use crate::prelude::*;
+use crate::status::health_check::NamedHealthCheckResult;
+use crate::util::GeneralGuard;
 
 pub mod health_check;
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
@@ -32,15 +34,15 @@ pub enum MainStatus {
     Running {
         #[ts(type = "string")]
         started: DateTime<Utc>,
-        #[ts(as = "BTreeMap<HealthCheckId, HealthCheckResult>")]
-        health: OrdMap<HealthCheckId, HealthCheckResult>,
+        #[ts(as = "BTreeMap<HealthCheckId, NamedHealthCheckResult>")]
+        health: OrdMap<HealthCheckId, NamedHealthCheckResult>,
     },
     #[serde(rename_all = "camelCase")]
     BackingUp {
         #[ts(type = "string | null")]
         started: Option<DateTime<Utc>>,
-        #[ts(as = "BTreeMap<HealthCheckId, HealthCheckResult>")]
-        health: OrdMap<HealthCheckId, HealthCheckResult>,
+        #[ts(as = "BTreeMap<HealthCheckId, NamedHealthCheckResult>")]
+        health: OrdMap<HealthCheckId, NamedHealthCheckResult>,
     },
 }
 impl MainStatus {
@@ -93,7 +95,7 @@ impl MainStatus {
         MainStatus::BackingUp { started, health }
     }
 
-    pub fn health(&self) -> Option<&OrdMap<HealthCheckId, HealthCheckResult>> {
+    pub fn health(&self) -> Option<&OrdMap<HealthCheckId, NamedHealthCheckResult>> {
         match self {
             MainStatus::Running { health, .. } => Some(health),
             MainStatus::BackingUp { health, .. } => Some(health),

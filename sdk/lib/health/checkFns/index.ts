@@ -1,6 +1,6 @@
 import { runHealthScript } from "./runHealthScript"
 export { checkPortListening } from "./checkPortListening"
-export { CheckResult } from "./CheckResult"
+export { HealthCheckResult } from "./HealthCheckResult"
 export { checkWebUrl } from "./checkWebUrl"
 
 export function timeoutPromise(ms: number, { message = "Timed out" } = {}) {

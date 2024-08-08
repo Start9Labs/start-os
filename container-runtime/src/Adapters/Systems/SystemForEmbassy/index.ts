@@ -445,7 +445,6 @@ export class SystemForEmbassy implements System {
               id: `${id}-${internal}`,
               description: interfaceValue.description,
               hasPrimary: false,
-              disabled: false,
               type:
                 interfaceValue.ui &&
                 (origin.scheme === "http" || origin.sslScheme === "https")

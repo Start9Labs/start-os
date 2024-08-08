@@ -3,7 +3,7 @@ export * as configTypes from "./config/configTypes"
 import {
   DependencyRequirement,
   SetHealth,
-  HealthCheckResult,
+  NamedHealthCheckResult,
   SetMainStatus,
   ServiceInterface,
   Host,
@@ -174,7 +174,7 @@ export type Daemon = {
   [DaemonProof]: never
 }
 
-export type HealthStatus = HealthCheckResult["result"]
+export type HealthStatus = NamedHealthCheckResult["result"]
 export type SmtpValue = {
   server: string
   port: number

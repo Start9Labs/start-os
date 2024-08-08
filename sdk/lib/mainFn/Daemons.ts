@@ -1,6 +1,6 @@
 import { NO_TIMEOUT, SIGKILL, SIGTERM, Signals } from "../StartSdk"
 import { HealthReceipt } from "../health/HealthReceipt"
-import { CheckResult } from "../health/checkFns"
+import { HealthCheckResult } from "../health/checkFns"
 
 import { Trigger } from "../trigger"
 import { TriggerInput } from "../trigger/TriggerInput"
@@ -23,7 +23,7 @@ export const cpExec = promisify(CP.exec)
 export const cpExecFile = promisify(CP.execFile)
 export type Ready = {
   display: string | null
-  fn: () => Promise<CheckResult> | CheckResult
+  fn: () => Promise<HealthCheckResult> | HealthCheckResult
   trigger?: Trigger
 }
 

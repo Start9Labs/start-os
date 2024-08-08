@@ -16,7 +16,6 @@ describe("host", () => {
         id: "foo",
         description: "A Foo",
         hasPrimary: false,
-        disabled: false,
         type: "ui",
         username: "bar",
         path: "/baz",

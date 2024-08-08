@@ -8,7 +8,6 @@ export type ServiceInterface = {
   name: string
   description: string
   hasPrimary: boolean
-  disabled: boolean
   masked: boolean
   addressInfo: AddressInfo
   type: ServiceInterfaceType

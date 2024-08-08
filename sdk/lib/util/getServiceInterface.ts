@@ -50,8 +50,6 @@ export type ServiceInterfaceFilled = {
   description: string
   /** Whether or not the interface has a primary URL */
   hasPrimary: boolean
-  /** Whether or not the interface disabled */
-  disabled: boolean
   /** Whether or not to mask the URIs for this interface. Useful if the URIs contain sensitive information, such as a password, macaroon, or API key */
   masked: boolean
   /** Information about the host for this binding */

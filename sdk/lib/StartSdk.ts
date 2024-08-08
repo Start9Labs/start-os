@@ -293,8 +293,8 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         )
       },
       HealthCheck: {
-        of(o: HealthCheckParams<Manifest>) {
-          return healthCheck<Manifest>(o)
+        of(o: HealthCheckParams) {
+          return healthCheck(o)
         },
       },
       Dependency: {

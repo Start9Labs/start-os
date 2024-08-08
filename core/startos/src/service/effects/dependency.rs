@@ -17,7 +17,7 @@ use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::{FileSystem, MountType};
 use crate::rpc_continuations::Guid;
 use crate::service::effects::prelude::*;
-use crate::status::health_check::HealthCheckResult;
+use crate::status::health_check::NamedHealthCheckResult;
 use crate::util::clap::FromStrParser;
 use crate::util::Invoke;
 use crate::volume::data_dir;
@@ -319,7 +319,7 @@ pub struct CheckDependenciesResult {
     is_installed: bool,
     is_running: bool,
     config_satisfied: bool,
-    health_checks: BTreeMap<HealthCheckId, HealthCheckResult>,
+    health_checks: BTreeMap<HealthCheckId, NamedHealthCheckResult>,
     #[ts(type = "string | null")]
     version: Option<exver::ExtendedVersion>,
 }

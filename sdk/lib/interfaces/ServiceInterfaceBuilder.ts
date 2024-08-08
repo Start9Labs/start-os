@@ -21,7 +21,6 @@ export class ServiceInterfaceBuilder {
       id: string
       description: string
       hasPrimary: boolean
-      disabled: boolean
       type: ServiceInterfaceType
       username: string | null
       path: string
