@@ -1,0 +1,49 @@
+#!/bin/bash
+
+if [ "$UID" -ne 0 ]; then
+    >&2 echo 'Must be run as root'
+    exit 1
+fi
+
+POSITIONAL_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -*|--*)
+      echo "Unknown option $1"
+      exit 1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1") # save positional arg
+      shift # past argument
+      ;;
+  esac
+done
+
+set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
+
+needed=$1
+
+if [ -z "$needed" ]; then
+    >&2 echo "usage: $0 <SPACE NEEDED>"
+    exit 1
+fi
+
+if [ -h /media/startos/config/current.rootfs ] && [ -e /media/startos/config/current.rootfs ]; then
+    echo 'Pruning...'
+    current="$(readlink -f /media/startos/config/current.rootfs)"
+    while [[ "$(df -B1 --output=avail --sync /media/startos/images | tail -n1)" -lt "$needed" ]]; do
+        to_prune="$(ls -t1 /media/startos/images/*.rootfs /media/startos/images/*.squashfs | grep -v "$current" | tail -n1)"
+        if [ -e "$to_prune" ]; then
+            echo "  Pruning $to_prune"
+            rm -rf "$to_prune"
+        else
+            >&2 echo "Not enough space and nothing to prune!"
+            exit 1
+        fi
+    done
+    echo 'done.'
+else
+    >&2 echo 'No current.rootfs, not safe to prune'
+    exit 1
+fi

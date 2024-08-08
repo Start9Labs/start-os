@@ -69,8 +69,8 @@ export class Variants<Type, Store> {
     const validator = anyOf(
       ...Object.entries(a).map(([name, { spec }]) =>
         object({
-          unionSelectKey: literals(name),
-          unionValueKey: spec.validator,
+          selection: literals(name),
+          value: spec.validator,
         }),
       ),
     ) as Parser<unknown, any>
@@ -78,9 +78,9 @@ export class Variants<Type, Store> {
     return new Variants<
       {
         [K in keyof VariantValues]: {
-          unionSelectKey: K
+          selection: K
           // prettier-ignore
-          unionValueKey: 
+          value: 
             VariantValues[K]["spec"] extends (Config<infer B, Store> | Config<infer B, never>) ? B :
             never
         }

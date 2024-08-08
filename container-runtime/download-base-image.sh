@@ -4,8 +4,8 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 
 set -e
 
-DISTRO=alpine
-VERSION=3.19
+DISTRO=debian
+VERSION=bookworm
 ARCH=${ARCH:-$(uname -m)}
 FLAVOR=default
 
@@ -16,4 +16,8 @@ elif [ "$_ARCH" = "aarch64" ]; then
     _ARCH=arm64
 fi
 
-curl https://images.linuxcontainers.org/$(curl --silent https://images.linuxcontainers.org/meta/1.0/index-system | grep "^$DISTRO;$VERSION;$_ARCH;$FLAVOR;" | head -n1 | sed 's/^.*;//g')/rootfs.squashfs --output alpine.${ARCH}.squashfs
+URL="https://images.linuxcontainers.org/$(curl -fsSL https://images.linuxcontainers.org/meta/1.0/index-system | grep "^$DISTRO;$VERSION;$_ARCH;$FLAVOR;" | head -n1 | sed 's/^.*;//g')/rootfs.squashfs"
+
+echo "Downloading $URL to debian.${ARCH}.squashfs"
+
+curl -fsSL "$URL" > debian.${ARCH}.squashfs

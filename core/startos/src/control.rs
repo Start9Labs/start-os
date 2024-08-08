@@ -1,13 +1,13 @@
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use models::PackageId;
-use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::RpcContext;
 use crate::prelude::*;
+use crate::rpc_continuations::Guid;
 use crate::Error;
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -24,7 +24,7 @@ pub async fn start(ctx: RpcContext, ControlParams { id }: ControlParams) -> Resu
         .await
         .as_ref()
         .or_not_found(lazy_format!("Manager for {id}"))?
-        .start()
+        .start(Guid::new())
         .await?;
 
     Ok(())
@@ -37,7 +37,7 @@ pub async fn stop(ctx: RpcContext, ControlParams { id }: ControlParams) -> Resul
         .await
         .as_ref()
         .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
-        .stop()
+        .stop(Guid::new())
         .await?;
 
     Ok(())
@@ -49,7 +49,7 @@ pub async fn restart(ctx: RpcContext, ControlParams { id }: ControlParams) -> Re
         .await
         .as_ref()
         .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
-        .restart()
+        .restart(Guid::new())
         .await?;
 
     Ok(())

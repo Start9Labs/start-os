@@ -10,12 +10,12 @@ use crate::util::{FileLock, Invoke};
 use crate::{Error, ErrorKind};
 
 lazy_static::lazy_static! {
-    static ref SEMITONE_K: f64 = 2f64.powf(1f64 / 12f64);
-    static ref A_4: f64 = 440f64;
-    static ref C_0: f64 = *A_4 / SEMITONE_K.powf(9f64) / 2f64.powf(4f64);
+    static ref SEMITONE_K: f64 = 2f64.powf(1.0 / 12.0);
+    static ref A_4: f64 = 440.0;
+    static ref C_0: f64 = *A_4 / SEMITONE_K.powf(9.0) / 2_f64.powf(4.0);
 }
 
-pub const SOUND_LOCK_FILE: &str = "/etc/embassy/sound.lock";
+pub const SOUND_LOCK_FILE: &str = "/run/startos/sound.lock";
 
 struct SoundInterface {
     guard: Option<FileLock>,

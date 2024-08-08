@@ -1,11 +1,11 @@
 import { NO_TIMEOUT, SIGKILL, SIGTERM, Signals } from "../StartSdk"
 import { HealthReceipt } from "../health/HealthReceipt"
 import { CheckResult } from "../health/checkFns"
-import { SDKManifest } from "../manifest/ManifestTypes"
+
 import { Trigger } from "../trigger"
 import { TriggerInput } from "../trigger/TriggerInput"
 import { defaultTrigger } from "../trigger/defaultTrigger"
-import { DaemonReturned, Effects, ValidIfNoStupidEscape } from "../types"
+import * as T from "../types"
 import { Mounts } from "./Mounts"
 import { CommandOptions, MountOptions, Overlay } from "../util/Overlay"
 import { splitCommand } from "../util/splitCommand"
@@ -13,117 +13,39 @@ import { splitCommand } from "../util/splitCommand"
 import { promisify } from "node:util"
 import * as CP from "node:child_process"
 
-const cpExec = promisify(CP.exec)
-const cpExecFile = promisify(CP.execFile)
-async function psTree(pid: number, overlay: Overlay): Promise<number[]> {
-  const { stdout } = await cpExec(`pstree -p ${pid}`)
-  const regex: RegExp = /\((\d+)\)/g
-  return [...stdout.toString().matchAll(regex)].map(([_all, pid]) =>
-    parseInt(pid),
-  )
+export { Daemon } from "./Daemon"
+export { CommandController } from "./CommandController"
+import { HealthDaemon } from "./HealthDaemon"
+import { Daemon } from "./Daemon"
+import { CommandController } from "./CommandController"
+
+export const cpExec = promisify(CP.exec)
+export const cpExecFile = promisify(CP.execFile)
+export type Ready = {
+  display: string | null
+  fn: () => Promise<CheckResult> | CheckResult
+  trigger?: Trigger
 }
-type Daemon<
-  Manifest extends SDKManifest,
+
+type DaemonsParams<
+  Manifest extends T.Manifest,
   Ids extends string,
   Command extends string,
   Id extends string,
 > = {
-  id: "" extends Id ? never : Id
-  command: ValidIfNoStupidEscape<Command> | [string, ...string[]]
-  imageId: Manifest["images"][number]
+  command: T.CommandType
+  image: { id: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean }
   mounts: Mounts<Manifest>
   env?: Record<string, string>
-  ready: {
-    display: string | null
-    fn: () => Promise<CheckResult> | CheckResult
-    trigger?: Trigger
-  }
+  ready: Ready
   requires: Exclude<Ids, Id>[]
+  sigtermTimeout?: number
 }
 
 type ErrorDuplicateId<Id extends string> = `The id '${Id}' is already used`
 
-export const runDaemon =
-  <Manifest extends SDKManifest>() =>
-  async <A extends string>(
-    effects: Effects,
-    imageId: Manifest["images"][number],
-    command: ValidIfNoStupidEscape<A> | [string, ...string[]],
-    options: CommandOptions & {
-      mounts?: { path: string; options: MountOptions }[]
-      overlay?: Overlay
-    },
-  ): Promise<DaemonReturned> => {
-    const commands = splitCommand(command)
-    const overlay = options.overlay || (await Overlay.of(effects, imageId))
-    for (let mount of options.mounts || []) {
-      await overlay.mount(mount.options, mount.path)
-    }
-    const childProcess = await overlay.spawn(commands, {
-      env: options.env,
-    })
-    const answer = new Promise<null>((resolve, reject) => {
-      childProcess.stdout.on("data", (data: any) => {
-        console.log(data.toString())
-      })
-      childProcess.stderr.on("data", (data: any) => {
-        console.error(data.toString())
-      })
-
-      childProcess.on("exit", (code: any) => {
-        if (code === 0) {
-          return resolve(null)
-        }
-        return reject(new Error(`${commands[0]} exited with code ${code}`))
-      })
-    })
-
-    const pid = childProcess.pid
-    return {
-      async wait() {
-        const pids = pid ? await psTree(pid, overlay) : []
-        try {
-          return await answer
-        } finally {
-          for (const process of pids) {
-            cpExecFile("kill", [`-9`, String(process)]).catch((_) => {})
-          }
-        }
-      },
-      async term({ signal = SIGTERM, timeout = NO_TIMEOUT } = {}) {
-        const pids = pid ? await psTree(pid, overlay) : []
-        try {
-          childProcess.kill(signal)
-
-          if (timeout > NO_TIMEOUT) {
-            const didTimeout = await Promise.race([
-              new Promise((resolve) => setTimeout(resolve, timeout)).then(
-                () => true,
-              ),
-              answer.then(() => false),
-            ])
-            if (didTimeout) {
-              childProcess.kill(SIGKILL)
-            }
-          } else {
-            await answer
-          }
-        } finally {
-          await overlay.destroy()
-        }
-
-        try {
-          for (const process of pids) {
-            await cpExecFile("kill", [`-${signal}`, String(process)])
-          }
-        } finally {
-          for (const process of pids) {
-            cpExecFile("kill", [`-9`, String(process)]).catch((_) => {})
-          }
-        }
-      },
-    }
-  }
+export const runCommand = <Manifest extends T.Manifest>() =>
+  CommandController.of<Manifest>()
 
 /**
  * A class for defining and controlling the service daemons
@@ -148,11 +70,13 @@ Daemons.of({
 })
 ```
  */
-export class Daemons<Manifest extends SDKManifest, Ids extends string> {
+export class Daemons<Manifest extends T.Manifest, Ids extends string> {
   private constructor(
-    readonly effects: Effects,
+    readonly effects: T.Effects,
     readonly started: (onTerm: () => PromiseLike<void>) => PromiseLike<void>,
-    readonly daemons?: Daemon<Manifest, Ids, "command", Ids>[],
+    readonly daemons: Promise<Daemon>[],
+    readonly ids: Ids[],
+    readonly healthDaemons: HealthDaemon[],
   ) {}
   /**
    * Returns an empty new Daemons class with the provided config.
@@ -164,12 +88,18 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
    * @param config
    * @returns
    */
-  static of<Manifest extends SDKManifest>(config: {
-    effects: Effects
+  static of<Manifest extends T.Manifest>(config: {
+    effects: T.Effects
     started: (onTerm: () => PromiseLike<void>) => PromiseLike<void>
     healthReceipts: HealthReceipt[]
   }) {
-    return new Daemons<Manifest, never>(config.effects, config.started)
+    return new Daemons<Manifest, never>(
+      config.effects,
+      config.started,
+      [],
+      [],
+      [],
+    )
   }
   /**
    * Returns the complete list of daemons, including the one defined here
@@ -184,73 +114,57 @@ export class Daemons<Manifest extends SDKManifest, Ids extends string> {
       ErrorDuplicateId<Id> extends Id ? never :
       Id extends Ids ? ErrorDuplicateId<Id> :
       Id,
-    newDaemon: Omit<Daemon<Manifest, Ids, Command, Id>, "id">,
+    options: DaemonsParams<Manifest, Ids, Command, Id>,
   ) {
-    const daemons = ((this?.daemons ?? []) as any[]).concat({
-      ...newDaemon,
-      id,
+    const daemonIndex = this.daemons.length
+    const daemon = Daemon.of()(this.effects, options.image, options.command, {
+      ...options,
+      mounts: options.mounts.build(),
     })
-    return new Daemons<Manifest, Ids | Id>(this.effects, this.started, daemons)
+    const healthDaemon = new HealthDaemon(
+      daemon,
+      daemonIndex,
+      options.requires
+        .map((x) => this.ids.indexOf(id as any))
+        .filter((x) => x >= 0)
+        .map((id) => this.healthDaemons[id]),
+      id,
+      this.ids,
+      options.ready,
+      this.effects,
+      options.sigtermTimeout,
+    )
+    const daemons = this.daemons.concat(daemon)
+    const ids = [...this.ids, id] as (Ids | Id)[]
+    const healthDaemons = [...this.healthDaemons, healthDaemon]
+    return new Daemons<Manifest, Ids | Id>(
+      this.effects,
+      this.started,
+      daemons,
+      ids,
+      healthDaemons,
+    )
   }
 
   async build() {
-    const daemonsStarted = {} as Record<Ids, Promise<DaemonReturned>>
-    const { effects } = this
-    const daemons = this.daemons ?? []
-    for (const daemon of daemons) {
-      const requiredPromise = Promise.all(
-        daemon.requires?.map((id) => daemonsStarted[id]) ?? [],
-      )
-      daemonsStarted[daemon.id] = requiredPromise.then(async () => {
-        const { command, imageId } = daemon
+    this.updateMainHealth()
+    this.healthDaemons.forEach((x) =>
+      x.addWatcher(() => this.updateMainHealth()),
+    )
+    const built = {
+      term: async (options?: { signal?: Signals; timeout?: number }) => {
+        try {
+          await Promise.all(this.healthDaemons.map((x) => x.term(options)))
+        } finally {
+          this.effects.setMainStatus({ status: "stopped" })
+        }
+      },
+    }
+    this.started(() => built.term())
+    return built
+  }
 
-        const child = runDaemon<Manifest>()(effects, imageId, command, {
-          env: daemon.env,
-          mounts: daemon.mounts.build(),
-        })
-        let currentInput: TriggerInput = {}
-        const getCurrentInput = () => currentInput
-        const trigger = (daemon.ready.trigger ?? defaultTrigger)(
-          getCurrentInput,
-        )
-        return new Promise(async (resolve) => {
-          for (
-            let res = await trigger.next();
-            !res.done;
-            res = await trigger.next()
-          ) {
-            const response = await Promise.resolve(daemon.ready.fn()).catch(
-              (err) =>
-                ({
-                  status: "failure",
-                  message: "message" in err ? err.message : String(err),
-                }) as CheckResult,
-            )
-            currentInput.lastResult = response.status || null
-            if (!currentInput.hadSuccess && response.status === "success") {
-              currentInput.hadSuccess = true
-              resolve(child)
-            }
-          }
-          resolve(child)
-        })
-      })
-    }
-    return {
-      async term(options?: { signal?: Signals; timeout?: number }) {
-        await Promise.all(
-          Object.values<Promise<DaemonReturned>>(daemonsStarted).map((x) =>
-            x.then((x) => x.term(options)),
-          ),
-        )
-      },
-      async wait() {
-        await Promise.all(
-          Object.values<Promise<DaemonReturned>>(daemonsStarted).map((x) =>
-            x.then((x) => x.wait()),
-          ),
-        )
-      },
-    }
+  private updateMainHealth() {
+    this.effects.setMainStatus({ status: "running" })
   }
 }

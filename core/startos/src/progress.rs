@@ -1,28 +1,33 @@
 use std::panic::UnwindSafe;
-use std::sync::Arc;
 use std::time::Duration;
 
-use futures::Future;
+use futures::future::pending;
+use futures::stream::BoxStream;
+use futures::{Future, FutureExt, StreamExt, TryFutureExt};
+use helpers::NonDetachingJoinHandle;
 use imbl_value::{InOMap, InternedString};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncSeek, AsyncWrite};
-use tokio::sync::{mpsc, watch};
+use tokio::sync::watch;
 use ts_rs::TS;
 
-use crate::db::model::DatabaseModel;
+use crate::db::model::{Database, DatabaseModel};
 use crate::prelude::*;
 
 lazy_static::lazy_static! {
     static ref SPINNER: ProgressStyle = ProgressStyle::with_template("{spinner} {msg}...").unwrap();
-    static ref PERCENTAGE: ProgressStyle = ProgressStyle::with_template("{msg} {percent}% {wide_bar} [{bytes}/{total_bytes}] [{binary_bytes_per_sec} {eta}]").unwrap();
+    static ref PERCENTAGE: ProgressStyle = ProgressStyle::with_template("{msg} {percent}% {wide_bar} [{human_pos}/{human_len}] [{per_sec} {eta}]").unwrap();
+    static ref PERCENTAGE_BYTES: ProgressStyle = ProgressStyle::with_template("{msg} {percent}% {wide_bar} [{binary_bytes}/{binary_total_bytes}] [{binary_bytes_per_sec} {eta}]").unwrap();
+    static ref STEPS: ProgressStyle = ProgressStyle::with_template("{spinner} {wide_msg} [{human_pos}/?] [{per_sec} {elapsed}]").unwrap();
     static ref BYTES: ProgressStyle = ProgressStyle::with_template("{spinner} {wide_msg} [{bytes}/?] [{binary_bytes_per_sec} {elapsed}]").unwrap();
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, TS)]
 #[serde(untagged)]
 pub enum Progress {
+    NotStarted(()),
     Complete(bool),
     Progress {
         #[ts(type = "number")]
@@ -33,10 +38,13 @@ pub enum Progress {
 }
 impl Progress {
     pub fn new() -> Self {
-        Progress::Complete(false)
+        Progress::NotStarted(())
     }
-    pub fn update_bar(self, bar: &ProgressBar) {
+    pub fn update_bar(self, bar: &ProgressBar, bytes: bool) {
         match self {
+            Self::NotStarted(()) => {
+                bar.set_style(SPINNER.clone());
+            }
             Self::Complete(false) => {
                 bar.set_style(SPINNER.clone());
                 bar.tick();
@@ -45,7 +53,11 @@ impl Progress {
                 bar.finish();
             }
             Self::Progress { done, total: None } => {
-                bar.set_style(BYTES.clone());
+                if bytes {
+                    bar.set_style(BYTES.clone());
+                } else {
+                    bar.set_style(STEPS.clone());
+                }
                 bar.set_position(done);
                 bar.tick();
             }
@@ -53,16 +65,26 @@ impl Progress {
                 done,
                 total: Some(total),
             } => {
-                bar.set_style(PERCENTAGE.clone());
+                if bytes {
+                    bar.set_style(PERCENTAGE_BYTES.clone());
+                } else {
+                    bar.set_style(PERCENTAGE.clone());
+                }
                 bar.set_position(done);
                 bar.set_length(total);
                 bar.tick();
             }
         }
     }
+    pub fn start(&mut self) {
+        *self = match *self {
+            Self::NotStarted(()) => Self::Complete(false),
+            a => a,
+        };
+    }
     pub fn set_done(&mut self, done: u64) {
         *self = match *self {
-            Self::Complete(false) => Self::Progress { done, total: None },
+            Self::Complete(false) | Self::NotStarted(()) => Self::Progress { done, total: None },
             Self::Progress { mut done, total } => {
                 if let Some(total) = total {
                     if done > total {
@@ -76,7 +98,7 @@ impl Progress {
     }
     pub fn set_total(&mut self, total: u64) {
         *self = match *self {
-            Self::Complete(false) => Self::Progress {
+            Self::Complete(false) | Self::NotStarted(()) => Self::Progress {
                 done: 0,
                 total: Some(total),
             },
@@ -104,12 +126,15 @@ impl Progress {
     pub fn complete(&mut self) {
         *self = Self::Complete(true);
     }
+    pub fn is_complete(&self) -> bool {
+        matches!(self, Self::Complete(true))
+    }
 }
 impl std::ops::Add<u64> for Progress {
     type Output = Self;
     fn add(self, rhs: u64) -> Self::Output {
         match self {
-            Self::Complete(false) => Self::Progress {
+            Self::Complete(false) | Self::NotStarted(()) => Self::Progress {
                 done: rhs,
                 total: None,
             },
@@ -155,39 +180,23 @@ impl FullProgress {
     }
 }
 
+#[derive(Clone)]
 pub struct FullProgressTracker {
-    overall: Arc<watch::Sender<Progress>>,
-    overall_recv: watch::Receiver<Progress>,
-    phases: InOMap<InternedString, watch::Receiver<Progress>>,
-    new_phase: (
-        mpsc::UnboundedSender<(InternedString, watch::Receiver<Progress>)>,
-        mpsc::UnboundedReceiver<(InternedString, watch::Receiver<Progress>)>,
-    ),
+    overall: watch::Sender<Progress>,
+    phases: watch::Sender<InOMap<InternedString, watch::Receiver<Progress>>>,
 }
 impl FullProgressTracker {
     pub fn new() -> Self {
-        let (overall, overall_recv) = watch::channel(Progress::new());
-        Self {
-            overall: Arc::new(overall),
-            overall_recv,
-            phases: InOMap::new(),
-            new_phase: mpsc::unbounded_channel(),
-        }
+        let (overall, _) = watch::channel(Progress::new());
+        let (phases, _) = watch::channel(InOMap::new());
+        Self { overall, phases }
     }
-    fn fill_phases(&mut self) -> bool {
-        let mut changed = false;
-        while let Ok((name, phase)) = self.new_phase.1.try_recv() {
-            self.phases.insert(name, phase);
-            changed = true;
-        }
-        changed
-    }
-    pub fn snapshot(&mut self) -> FullProgress {
-        self.fill_phases();
+    pub fn snapshot(&self) -> FullProgress {
         FullProgress {
             overall: *self.overall.borrow(),
             phases: self
                 .phases
+                .borrow()
                 .iter()
                 .map(|(name, progress)| NamedProgress {
                     name: name.clone(),
@@ -196,29 +205,76 @@ impl FullProgressTracker {
                 .collect(),
         }
     }
-    pub async fn changed(&mut self) {
-        if self.fill_phases() {
-            return;
+    pub fn stream(&self, min_interval: Option<Duration>) -> BoxStream<'static, FullProgress> {
+        struct StreamState {
+            overall: watch::Receiver<Progress>,
+            phases_recv: watch::Receiver<InOMap<InternedString, watch::Receiver<Progress>>>,
+            phases: InOMap<InternedString, watch::Receiver<Progress>>,
         }
-        let phases = self
-            .phases
-            .iter_mut()
-            .map(|(_, p)| Box::pin(p.changed()))
-            .collect_vec();
-        tokio::select! {
-            _ = self.overall_recv.changed() => (),
-            _ = futures::future::select_all(phases) => (),
-        }
-    }
-    pub fn handle(&self) -> FullProgressTrackerHandle {
-        FullProgressTrackerHandle {
-            overall: self.overall.clone(),
-            new_phase: self.new_phase.0.clone(),
-        }
+        let mut overall = self.overall.subscribe();
+        overall.mark_changed(); // make sure stream starts with a value
+        let phases_recv = self.phases.subscribe();
+        let phases = phases_recv.borrow().clone();
+        let state = StreamState {
+            overall,
+            phases_recv,
+            phases,
+        };
+        futures::stream::unfold(
+            state,
+            move |StreamState {
+                      mut overall,
+                      mut phases_recv,
+                      mut phases,
+                  }| async move {
+                let changed = phases
+                    .iter_mut()
+                    .map(|(_, p)| async move { p.changed().or_else(|_| pending()).await }.boxed())
+                    .chain([overall.changed().boxed()])
+                    .chain([phases_recv.changed().boxed()])
+                    .map(|fut| fut.map(|r| r.unwrap_or_default()))
+                    .collect_vec();
+                if let Some(min_interval) = min_interval {
+                    tokio::join!(
+                        tokio::time::sleep(min_interval),
+                        futures::future::select_all(changed),
+                    );
+                } else {
+                    futures::future::select_all(changed).await;
+                }
+
+                for (name, phase) in &*phases_recv.borrow_and_update() {
+                    if !phases.contains_key(name) {
+                        phases.insert(name.clone(), phase.clone());
+                    }
+                }
+
+                let o = *overall.borrow_and_update();
+
+                Some((
+                    FullProgress {
+                        overall: o,
+                        phases: phases
+                            .iter_mut()
+                            .map(|(name, progress)| NamedProgress {
+                                name: name.clone(),
+                                progress: *progress.borrow_and_update(),
+                            })
+                            .collect(),
+                    },
+                    StreamState {
+                        overall,
+                        phases_recv,
+                        phases,
+                    },
+                ))
+            },
+        )
+        .boxed()
     }
     pub fn sync_to_db<DerefFn>(
-        mut self,
-        db: PatchDb,
+        &self,
+        db: TypedPatchDb<Database>,
         deref: DerefFn,
         min_interval: Option<Duration>,
     ) -> impl Future<Output = Result<(), Error>> + 'static
@@ -226,14 +282,14 @@ impl FullProgressTracker {
         DerefFn: Fn(&mut DatabaseModel) -> Option<&mut Model<FullProgress>> + 'static,
         for<'a> &'a DerefFn: UnwindSafe + Send,
     {
+        let mut stream = self.stream(min_interval);
         async move {
-            loop {
-                let progress = self.snapshot();
+            while let Some(progress) = stream.next().await {
                 if db
                     .mutate(|v| {
                         if let Some(p) = deref(v) {
                             p.ser(&progress)?;
-                            Ok(false)
+                            Ok(progress.overall.is_complete())
                         } else {
                             Ok(true)
                         }
@@ -242,25 +298,23 @@ impl FullProgressTracker {
                 {
                     break;
                 }
-                tokio::join!(self.changed(), async {
-                    if let Some(interval) = min_interval {
-                        tokio::time::sleep(interval).await
-                    } else {
-                        futures::future::ready(()).await
-                    }
-                });
             }
             Ok(())
         }
     }
-}
-
-#[derive(Clone)]
-pub struct FullProgressTrackerHandle {
-    overall: Arc<watch::Sender<Progress>>,
-    new_phase: mpsc::UnboundedSender<(InternedString, watch::Receiver<Progress>)>,
-}
-impl FullProgressTrackerHandle {
+    pub fn progress_bar_task(&self, name: &str) -> NonDetachingJoinHandle<()> {
+        let mut stream = self.stream(None);
+        let mut bar = PhasedProgressBar::new(name);
+        tokio::spawn(async move {
+            while let Some(progress) = stream.next().await {
+                bar.update(&progress);
+                if progress.overall.is_complete() {
+                    break;
+                }
+            }
+        })
+        .into()
+    }
     pub fn add_phase(
         &self,
         name: InternedString,
@@ -271,7 +325,9 @@ impl FullProgressTrackerHandle {
                 .send_modify(|o| o.add_total(overall_contribution));
         }
         let (send, recv) = watch::channel(Progress::new());
-        let _ = self.new_phase.send((name, recv));
+        self.phases.send_modify(|p| {
+            p.insert(name, recv);
+        });
         PhaseProgressTrackerHandle {
             overall: self.overall.clone(),
             overall_contribution,
@@ -285,7 +341,7 @@ impl FullProgressTrackerHandle {
 }
 
 pub struct PhaseProgressTrackerHandle {
-    overall: Arc<watch::Sender<Progress>>,
+    overall: watch::Sender<Progress>,
     overall_contribution: Option<u64>,
     contributed: u64,
     progress: watch::Sender<Progress>,
@@ -308,6 +364,9 @@ impl PhaseProgressTrackerHandle {
             }
         }
     }
+    pub fn start(&mut self) {
+        self.progress.send_modify(|p| p.start());
+    }
     pub fn set_done(&mut self, done: u64) {
         self.progress.send_modify(|p| p.set_done(done));
         self.update_overall();
@@ -323,6 +382,12 @@ impl PhaseProgressTrackerHandle {
     pub fn complete(&mut self) {
         self.progress.send_modify(|p| p.complete());
         self.update_overall();
+    }
+    pub fn writer<W>(self, writer: W) -> ProgressTrackerWriter<W> {
+        ProgressTrackerWriter {
+            writer,
+            progress: self,
+        }
     }
 }
 impl std::ops::AddAssign<u64> for PhaseProgressTrackerHandle {
@@ -435,7 +500,7 @@ impl PhasedProgressBar {
                 );
             }
         }
-        progress.overall.update_bar(&self.overall);
+        progress.overall.update_bar(&self.overall, false);
         for (name, bar) in self.phases.iter() {
             if let Some(progress) = progress.phases.iter().find_map(|p| {
                 if &p.name == name {
@@ -444,7 +509,7 @@ impl PhasedProgressBar {
                     None
                 }
             }) {
-                progress.update_bar(bar);
+                progress.update_bar(bar, true);
             }
         }
     }

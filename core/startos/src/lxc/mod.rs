@@ -1,21 +1,17 @@
 use std::collections::BTreeSet;
 use std::net::Ipv4Addr;
-use std::ops::Deref;
 use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use clap::Parser;
-use futures::{AsyncWriteExt, FutureExt, StreamExt};
+use clap::builder::ValueParserFactory;
+use futures::{AsyncWriteExt, StreamExt};
 use imbl_value::{InOMap, InternedString};
-use rpc_toolkit::yajrc::{RpcError, RpcResponse};
-use rpc_toolkit::{
-    from_fn_async, AnyContext, CallRemoteHandler, GenericRpcMethod, Handler, HandlerArgs,
-    HandlerExt, ParentHandler, RpcRequest,
-};
+use models::InvalidId;
+use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{GenericRpcMethod, RpcRequest, RpcResponse};
 use rustyline_async::{ReadlineEvent, SharedWriter};
 use serde::{Deserialize, Serialize};
-use tokio::fs::File;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::Mutex;
@@ -23,17 +19,22 @@ use tokio::time::Instant;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
-use crate::disk::mount::filesystem::ReadWrite;
-use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
+use crate::disk::mount::filesystem::{MountType, ReadOnly, ReadWrite};
+use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::disk::mount::util::unmount;
 use crate::prelude::*;
+use crate::rpc_continuations::{Guid, RpcContinuation};
+use crate::util::clap::FromStrParser;
+use crate::util::io::open_file;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::{new_guid, Invoke};
+
+#[cfg(feature = "dev")]
+pub mod dev;
 
 const LXC_CONTAINER_DIR: &str = "/var/lib/lxc";
 const RPC_DIR: &str = "media/startos/rpc"; // must not be absolute path
@@ -41,18 +42,57 @@ pub const CONTAINER_RPC_SERVER_SOCKET: &str = "service.sock"; // must not be abs
 pub const HOST_RPC_SERVER_SOCKET: &str = "host.sock"; // must not be absolute path
 const CONTAINER_DHCP_TIMEOUT: Duration = Duration::from_secs(30);
 
-pub struct LxcManager {
-    containers: Mutex<Vec<Weak<InternedString>>>,
+#[derive(
+    Clone, Debug, Serialize, Deserialize, Default, PartialEq, Eq, PartialOrd, Ord, Hash, TS,
+)]
+#[ts(type = "string")]
+pub struct ContainerId(InternedString);
+impl std::ops::Deref for ContainerId {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
+impl std::fmt::Display for ContainerId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", &*self.0)
+    }
+}
+impl TryFrom<&str> for ContainerId {
+    type Error = InvalidId;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Ok(ContainerId(InternedString::intern(value)))
+    }
+}
+impl std::str::FromStr for ContainerId {
+    type Err = InvalidId;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s)
+    }
+}
+impl ValueParserFactory for ContainerId {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
+    }
+}
+
+#[derive(Default)]
+pub struct LxcManager {
+    containers: Mutex<Vec<Weak<ContainerId>>>,
+}
+
 impl LxcManager {
     pub fn new() -> Self {
-        Self {
-            containers: Default::default(),
-        }
+        Self::default()
     }
 
-    pub async fn create(self: &Arc<Self>, config: LxcConfig) -> Result<LxcContainer, Error> {
-        let container = LxcContainer::new(self, config).await?;
+    pub async fn create(
+        self: &Arc<Self>,
+        log_mount: Option<&Path>,
+        config: LxcConfig,
+    ) -> Result<LxcContainer, Error> {
+        let container = LxcContainer::new(self, log_mount, config).await?;
         let mut guard = self.containers.lock().await;
         *guard = std::mem::take(&mut *guard)
             .into_iter()
@@ -69,7 +109,7 @@ impl LxcManager {
                 .await
                 .iter()
                 .filter_map(|g| g.upgrade())
-                .map(|g| (&*g).clone()),
+                .map(|g| (*g).clone()),
         );
         for container in String::from_utf8(
             Command::new("lxc-ls")
@@ -80,10 +120,14 @@ impl LxcManager {
         .lines()
         .map(|s| s.trim())
         {
-            if !expected.contains(container) {
+            if !expected.contains(&ContainerId::try_from(container)?) {
                 let rootfs_path = Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs");
                 if tokio::fs::metadata(&rootfs_path).await.is_ok() {
-                    unmount(Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs")).await?;
+                    unmount(
+                        Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs"),
+                        true,
+                    )
+                    .await?;
                     if tokio_stream::wrappers::ReadDirStream::new(
                         tokio::fs::read_dir(&rootfs_path).await?,
                     )
@@ -111,15 +155,21 @@ impl LxcManager {
 
 pub struct LxcContainer {
     manager: Weak<LxcManager>,
-    rootfs: OverlayGuard,
-    guid: Arc<InternedString>,
+    rootfs: OverlayGuard<TmpMountGuard>,
+    pub guid: Arc<ContainerId>,
     rpc_bind: TmpMountGuard,
+    log_mount: Option<MountGuard>,
     config: LxcConfig,
     exited: bool,
 }
 impl LxcContainer {
-    async fn new(manager: &Arc<LxcManager>, config: LxcConfig) -> Result<Self, Error> {
+    async fn new(
+        manager: &Arc<LxcManager>,
+        log_mount: Option<&Path>,
+        config: LxcConfig,
+    ) -> Result<Self, Error> {
         let guid = new_guid();
+        let machine_id = hex::encode(rand::random::<[u8; 16]>());
         let container_dir = Path::new(LXC_CONTAINER_DIR).join(&*guid);
         tokio::fs::create_dir_all(&container_dir).await?;
         tokio::fs::write(
@@ -136,15 +186,20 @@ impl LxcContainer {
             .invoke(ErrorKind::Filesystem)
             .await?;
         let rootfs = OverlayGuard::mount(
-            &IdMapped::new(
-                BlockDev::new("/usr/lib/startos/container-runtime/rootfs.squashfs"),
-                0,
-                100000,
-                65536,
-            ),
+            TmpMountGuard::mount(
+                &IdMapped::new(
+                    BlockDev::new("/usr/lib/startos/container-runtime/rootfs.squashfs"),
+                    0,
+                    100000,
+                    65536,
+                ),
+                ReadOnly,
+            )
+            .await?,
             &rootfs_dir,
         )
         .await?;
+        tokio::fs::write(rootfs_dir.join("etc/machine-id"), format!("{machine_id}\n")).await?;
         tokio::fs::write(rootfs_dir.join("etc/hostname"), format!("{guid}\n")).await?;
         Command::new("sed")
             .arg("-i")
@@ -166,6 +221,20 @@ impl LxcContainer {
             .arg(rpc_bind.path())
             .invoke(ErrorKind::Filesystem)
             .await?;
+        let log_mount = if let Some(path) = log_mount {
+            let log_mount_point = rootfs_dir.join("var/log/journal").join(machine_id);
+            let log_mount =
+                MountGuard::mount(&Bind::new(path), &log_mount_point, MountType::ReadWrite).await?;
+            Command::new("chown")
+                // This was needed as 100999 because the group id of journald
+                .arg("100000:100999")
+                .arg(&log_mount_point)
+                .invoke(crate::ErrorKind::Filesystem)
+                .await?;
+            Some(log_mount)
+        } else {
+            None
+        };
         Command::new("lxc-start")
             .arg("-d")
             .arg("--name")
@@ -175,10 +244,11 @@ impl LxcContainer {
         Ok(Self {
             manager: Arc::downgrade(manager),
             rootfs,
-            guid: Arc::new(guid),
+            guid: Arc::new(ContainerId::try_from(&*guid)?),
             rpc_bind,
             config,
             exited: false,
+            log_mount,
         })
     }
 
@@ -188,11 +258,12 @@ impl LxcContainer {
 
     pub async fn ip(&self) -> Result<Ipv4Addr, Error> {
         let start = Instant::now();
+        let guid: &str = &self.guid;
         loop {
             let output = String::from_utf8(
                 Command::new("lxc-info")
                     .arg("--name")
-                    .arg(&*self.guid)
+                    .arg(guid)
                     .arg("-iH")
                     .invoke(ErrorKind::Docker)
                     .await?,
@@ -217,28 +288,27 @@ impl LxcContainer {
 
     #[instrument(skip_all)]
     pub async fn exit(mut self) -> Result<(), Error> {
+        Command::new("lxc-stop")
+            .arg("--name")
+            .arg(&**self.guid)
+            .invoke(ErrorKind::Lxc)
+            .await?;
         self.rpc_bind.take().unmount().await?;
+        if let Some(log_mount) = self.log_mount.take() {
+            log_mount.unmount(true).await?;
+        }
         self.rootfs.take().unmount(true).await?;
         let rootfs_path = self.rootfs_dir();
-        let err_path = rootfs_path.join("var/log/containerRuntime.err");
-        if tokio::fs::metadata(&err_path).await.is_ok() {
-            let mut lines = BufReader::new(File::open(&err_path).await?).lines();
-            while let Some(line) = lines.next_line().await? {
-                let container = &**self.guid;
-                tracing::error!(container, "{}", line);
-            }
-        }
-        if tokio::fs::metadata(&rootfs_path).await.is_ok() {
-            if tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(&rootfs_path).await?)
+        if tokio::fs::metadata(&rootfs_path).await.is_ok()
+            && tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(&rootfs_path).await?)
                 .count()
                 .await
                 > 0
-            {
-                return Err(Error::new(
-                    eyre!("rootfs is not empty, refusing to delete"),
-                    ErrorKind::InvalidRequest,
-                ));
-            }
+        {
+            return Err(Error::new(
+                eyre!("rootfs is not empty, refusing to delete"),
+                ErrorKind::InvalidRequest,
+            ));
         }
         Command::new("lxc-destroy")
             .arg("--force")
@@ -281,7 +351,7 @@ impl Drop for LxcContainer {
                     if let Err(e) = async {
                         let err_path = rootfs.path().join("var/log/containerRuntime.err");
                         if tokio::fs::metadata(&err_path).await.is_ok() {
-                            let mut lines = BufReader::new(File::open(&err_path).await?).lines();
+                            let mut lines = BufReader::new(open_file(&err_path).await?).lines();
                             while let Some(line) = lines.next_line().await? {
                                 let container = &**guid;
                                 tracing::error!(container, "{}", line);
@@ -310,90 +380,16 @@ impl Drop for LxcContainer {
 
 #[derive(Default, Serialize)]
 pub struct LxcConfig {}
-
-pub fn lxc() -> ParentHandler {
-    ParentHandler::new()
-        .subcommand(
-            "create",
-            from_fn_async(create).with_remote_cli::<CliContext>(),
-        )
-        .subcommand(
-            "list",
-            from_fn_async(list)
-                .with_custom_display_fn::<AnyContext, _>(|_, res| {
-                    use prettytable::*;
-                    let mut table = table!([bc => "GUID"]);
-                    for guid in res {
-                        table.add_row(row![&*guid]);
-                    }
-                    table.printstd();
-                    Ok(())
-                })
-                .with_remote_cli::<CliContext>(),
-        )
-        .subcommand(
-            "remove",
-            from_fn_async(remove)
-                .no_display()
-                .with_remote_cli::<CliContext>(),
-        )
-        .subcommand("connect", from_fn_async(connect_rpc).no_cli())
-        .subcommand("connect", from_fn_async(connect_rpc_cli).no_display())
-}
-
-pub async fn create(ctx: RpcContext) -> Result<InternedString, Error> {
-    let container = ctx.lxc_manager.create(LxcConfig::default()).await?;
-    let guid = container.guid.deref().clone();
-    ctx.dev.lxc.lock().await.insert(guid.clone(), container);
-    Ok(guid)
-}
-
-pub async fn list(ctx: RpcContext) -> Result<Vec<InternedString>, Error> {
-    Ok(ctx.dev.lxc.lock().await.keys().cloned().collect())
-}
-
-#[derive(Deserialize, Serialize, Parser, TS)]
-pub struct RemoveParams {
-    #[ts(type = "string")]
-    pub guid: InternedString,
-}
-
-pub async fn remove(ctx: RpcContext, RemoveParams { guid }: RemoveParams) -> Result<(), Error> {
-    if let Some(container) = ctx.dev.lxc.lock().await.remove(&guid) {
-        container.exit().await?;
-    }
-    Ok(())
-}
-
-#[derive(Deserialize, Serialize, Parser, TS)]
-pub struct ConnectParams {
-    #[ts(type = "string")]
-    pub guid: InternedString,
-}
-
-pub async fn connect_rpc(
-    ctx: RpcContext,
-    ConnectParams { guid }: ConnectParams,
-) -> Result<RequestGuid, Error> {
-    connect(
-        &ctx,
-        ctx.dev.lxc.lock().await.get(&guid).ok_or_else(|| {
-            Error::new(eyre!("No container with guid: {guid}"), ErrorKind::NotFound)
-        })?,
-    )
-    .await
-}
-
-pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<RequestGuid, Error> {
+pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Guid, Error> {
     use axum::extract::ws::Message;
 
     let rpc = container.connect_rpc(Some(Duration::from_secs(30))).await?;
-    let guid = RequestGuid::new();
-    ctx.add_continuation(
-        guid.clone(),
-        RpcContinuation::ws(
-            Box::new(|mut ws| {
-                async move {
+    let guid = Guid::new();
+    ctx.rpc_continuations
+        .add(
+            guid.clone(),
+            RpcContinuation::ws(
+                |mut ws| async move {
                     if let Err(e) = async {
                         loop {
                             match ws.next().await {
@@ -413,11 +409,8 @@ pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Reque
                                     }
                                     .await;
                                     ws.send(Message::Text(
-                                        serde_json::to_string(&RpcResponse::<GenericRpcMethod> {
-                                            id,
-                                            result,
-                                        })
-                                        .with_kind(ErrorKind::Serialization)?,
+                                        serde_json::to_string(&RpcResponse { id, result })
+                                            .with_kind(ErrorKind::Serialization)?,
                                     ))
                                     .await
                                     .with_kind(ErrorKind::Network)?;
@@ -435,17 +428,15 @@ pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Reque
                         tracing::error!("{e}");
                         tracing::debug!("{e:?}");
                     }
-                }
-                .boxed()
-            }),
-            Duration::from_secs(30),
-        ),
-    )
-    .await;
+                },
+                Duration::from_secs(30),
+            ),
+        )
+        .await;
     Ok(guid)
 }
 
-pub async fn connect_cli(ctx: &CliContext, guid: RequestGuid) -> Result<(), Error> {
+pub async fn connect_cli(ctx: &CliContext, guid: Guid) -> Result<(), Error> {
     use futures::SinkExt;
     use tokio_tungstenite::tungstenite::Message;
 
@@ -502,7 +493,7 @@ pub async fn connect_cli(ctx: &CliContext, guid: RequestGuid) -> Result<(), Erro
                                 if let Some((method, rest)) = command.split_first() {
                                     let mut params = InOMap::new();
                                     for arg in rest {
-                                        if let Some((name, value)) = arg.split_once("=") {
+                                        if let Some((name, value)) = arg.split_once('=') {
                                             params.insert(InternedString::intern(name), if value.is_empty() {
                                                 Value::Null
                                             } else if let Ok(v) = serde_json::from_str(value) {
@@ -552,15 +543,4 @@ pub async fn connect_cli(ctx: &CliContext, guid: RequestGuid) -> Result<(), Erro
     }
 
     Ok(())
-}
-
-pub async fn connect_rpc_cli(
-    handle_args: HandlerArgs<CliContext, ConnectParams>,
-) -> Result<(), Error> {
-    let ctx = handle_args.context.clone();
-    let guid = CallRemoteHandler::<CliContext, _>::new(from_fn_async(connect_rpc))
-        .handle_async(handle_args)
-        .await?;
-
-    connect_cli(&ctx, guid).await
 }

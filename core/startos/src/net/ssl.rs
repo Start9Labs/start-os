@@ -1,13 +1,13 @@
-use std::cmp::Ordering;
+use std::cmp::{min, Ordering};
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::IpAddr;
 use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use futures::FutureExt;
 use imbl_value::InternedString;
 use libc::time_t;
-use openssl::asn1::{Asn1Integer, Asn1Time};
+use openssl::asn1::{Asn1Integer, Asn1Time, Asn1TimeRef};
 use openssl::bn::{BigNum, MsbOption};
 use openssl::ec::{EcGroup, EcKey};
 use openssl::hash::MessageDigest;
@@ -17,7 +17,7 @@ use openssl::x509::{X509Builder, X509Extension, X509NameBuilder, X509};
 use openssl::*;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
+use tokio::time::Instant;
 use tracing::instrument;
 
 use crate::account::AccountInfo;
@@ -127,12 +127,18 @@ impl Model<CertStore> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct CertData {
     pub keys: PKeyPair,
     pub certs: CertPair,
 }
+impl CertData {
+    pub fn expiration(&self) -> Result<SystemTime, Error> {
+        self.certs.expiration()
+    }
+}
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FullchainCertData {
     pub root: X509,
     pub int: X509,
@@ -145,6 +151,16 @@ impl FullchainCertData {
     pub fn fullchain_nistp256(&self) -> Vec<&X509> {
         vec![&self.leaf.certs.nistp256, &self.int, &self.root]
     }
+    pub fn expiration(&self) -> Result<SystemTime, Error> {
+        [
+            asn1_time_to_system_time(self.root.not_after())?,
+            asn1_time_to_system_time(self.int.not_after())?,
+            self.leaf.expiration()?,
+        ]
+        .into_iter()
+        .min()
+        .ok_or_else(|| Error::new(eyre!("unreachable"), ErrorKind::Unknown))
+    }
 }
 
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
@@ -156,6 +172,26 @@ fn unix_time(time: SystemTime) -> time_t {
         .unwrap_or_default()
 }
 
+lazy_static::lazy_static! {
+    static ref ASN1_UNIX_EPOCH: Asn1Time = Asn1Time::from_unix(0).unwrap();
+}
+
+fn asn1_time_to_system_time(time: &Asn1TimeRef) -> Result<SystemTime, Error> {
+    let diff = time.diff(&**ASN1_UNIX_EPOCH)?;
+    let mut res = UNIX_EPOCH;
+    if diff.days >= 0 {
+        res += Duration::from_secs(diff.days as u64 * 86400);
+    } else {
+        res -= Duration::from_secs((-1 * diff.days) as u64 * 86400);
+    }
+    if diff.secs >= 0 {
+        res += Duration::from_secs(diff.secs as u64);
+    } else {
+        res -= Duration::from_secs((-1 * diff.secs) as u64);
+    }
+    Ok(res)
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PKeyPair {
     #[serde(with = "crate::util::serde::pem")]
@@ -163,6 +199,12 @@ pub struct PKeyPair {
     #[serde(with = "crate::util::serde::pem")]
     pub nistp256: PKey<Private>,
 }
+impl PartialEq for PKeyPair {
+    fn eq(&self, other: &Self) -> bool {
+        self.ed25519.public_eq(&other.ed25519) && self.nistp256.public_eq(&other.nistp256)
+    }
+}
+impl Eq for PKeyPair {}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 pub struct CertPair {
@@ -170,6 +212,14 @@ pub struct CertPair {
     pub ed25519: X509,
     #[serde(with = "crate::util::serde::pem")]
     pub nistp256: X509,
+}
+impl CertPair {
+    pub fn expiration(&self) -> Result<SystemTime, Error> {
+        Ok(min(
+            asn1_time_to_system_time(self.ed25519.not_after())?,
+            asn1_time_to_system_time(self.nistp256.not_after())?,
+        ))
+    }
 }
 
 pub async fn root_ca_start_time() -> Result<SystemTime, Error> {

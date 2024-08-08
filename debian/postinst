@@ -6,12 +6,12 @@ if [ -n "$DPKG_MAINTSCRIPT_PACKAGE" ]; then
 	  SYSTEMCTL=deb-systemd-helper
 fi
 
-if [ -f /usr/sbin/grub-probe ]; then
+if [ -f /usr/sbin/grub-probe ] && ! [ -L /usr/sbin/grub-probe ]; then
   mv /usr/sbin/grub-probe /usr/sbin/grub-probe-default
   ln -s /usr/lib/startos/scripts/grub-probe-eos /usr/sbin/grub-probe
 fi
 
-cp /usr/lib/startos/scripts/embassy-initramfs-module /etc/initramfs-tools/scripts/embassy
+cp /usr/lib/startos/scripts/startos-initramfs-module /etc/initramfs-tools/scripts/startos
 
 if ! grep overlay /etc/initramfs-tools/modules > /dev/null; then
     echo overlay >> /etc/initramfs-tools/modules
@@ -20,7 +20,7 @@ fi
 update-initramfs -u -k all
 
 if [ -f /etc/default/grub ]; then
-    sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=embassy"' /etc/default/grub
+    sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=startos"' /etc/default/grub
     sed -i '/\(^\|#\)GRUB_DISTRIBUTOR=/c\GRUB_DISTRIBUTOR="StartOS v$(cat /usr/lib/startos/VERSION.txt)"' /etc/default/grub
 fi
 
@@ -49,9 +49,9 @@ managed=true
 EOF
 $SYSTEMCTL enable startd.service
 $SYSTEMCTL enable systemd-resolved.service
-$SYSTEMCTL enable systemd-networkd-wait-online.service
 $SYSTEMCTL enable ssh.service
 $SYSTEMCTL disable wpa_supplicant.service
+$SYSTEMCTL mask systemd-networkd-wait-online.service # currently use `NetworkManager-wait-online.service`
 
 $SYSTEMCTL disable docker.service
 $SYSTEMCTL disable postgresql.service
@@ -78,19 +78,9 @@ sed -i '/\(^\|#\)Compress=/c\Compress=yes' /etc/systemd/journald.conf
 sed -i '/\(^\|#\)SystemMaxUse=/c\SystemMaxUse=1G' /etc/systemd/journald.conf
 sed -i '/\(^\|#\)ForwardToSyslog=/c\ForwardToSyslog=no' /etc/systemd/journald.conf
 sed -i '/^\s*#\?\s*issue_discards\s*=\s*/c\issue_discards = 1' /etc/lvm/lvm.conf
+sed -i '/\(^\|#\)\s*unqualified-search-registries\s*=\s*/c\unqualified-search-registries = ["docker.io"]' /etc/containers/registries.conf
 
-if cat /usr/lib/startos/ENVIRONMENT.txt | grep '(^|-)docker(-|$)'; then
-    sed -i 's/ExecStart=\/usr\/bin\/dockerd/ExecStart=\/usr\/bin\/dockerd --exec-opt native.cgroupdriver=systemd/g' /lib/systemd/system/docker.service
-    mkdir -p /etc/docker
-    echo '{ "storage-driver": "overlay2" }' > /etc/docker/daemon.json
-else
-    podman network create -d bridge --subnet 172.18.0.1/24 --opt com.docker.network.bridge.name=br-start9 start9
-fi
 mkdir -p /etc/nginx/ssl
-
-# fix to suppress docker warning, fixed in 21.xx release of docker cli: https://github.com/docker/cli/pull/2934
-mkdir -p /root/.docker
-touch /root/.docker/config.json
 
 cat << EOF > /etc/tor/torrc
 SocksPort 0.0.0.0:9050
@@ -110,12 +100,14 @@ echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-embassy.conf
 locale-gen en_GB en_GB.UTF-8 
 echo "locales locales/locales_to_be_generated multiselect en_GB.UTF-8 UTF-8" | debconf-set-selections
 update-locale  LANGUAGE
-rm "/etc/locale.gen"
+rm -f "/etc/locale.gen"
 dpkg-reconfigure --frontend noninteractive locales
 
-groupadd embassy
+if ! getent group | grep '^embassy:'; then
+    groupadd embassy
+fi
 
-ln -s /usr/lib/startos/scripts/dhclient-exit-hook /etc/dhcp/dhclient-exit-hooks.d/embassy
+ln -sf /usr/lib/startos/scripts/dhclient-exit-hook /etc/dhcp/dhclient-exit-hooks.d/embassy
 
 rm -f /etc/motd
 ln -sf /usr/lib/startos/motd /etc/update-motd.d/00-embassy
@@ -123,7 +115,15 @@ chmod -x /etc/update-motd.d/*
 chmod +x /etc/update-motd.d/00-embassy
 
 # LXC
-echo "root:100000:65536" >>/etc/subuid
-echo "root:100000:65536" >>/etc/subgid
-echo "lxc.idmap = u 0 100000 65536" >>/etc/lxc/default.conf
-echo "lxc.idmap = g 0 100000 65536" >>/etc/lxc/default.conf
+cat /etc/subuid | grep -v '^root:' > /etc/subuid.tmp || true
+echo "root:100000:65536" >> /etc/subuid.tmp
+mv /etc/subuid.tmp /etc/subuid
+
+cat /etc/subgid | grep -v '^root:' > /etc/subgid.tmp || true
+echo "root:100000:65536" >> /etc/subgid.tmp
+mv /etc/subgid.tmp /etc/subgid
+
+cat /etc/lxc/default.conf | grep -v '^lxc\.idmap = [ug]' > /etc/lxc/default.conf.tmp || true
+echo "lxc.idmap = u 0 100000 65536" >> /etc/lxc/default.conf.tmp
+echo "lxc.idmap = g 0 100000 65536" >> /etc/lxc/default.conf.tmp
+mv /etc/lxc/default.conf.tmp /etc/lxc/default.conf

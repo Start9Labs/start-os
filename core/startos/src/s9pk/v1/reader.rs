@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::io::SeekFrom;
 use std::ops::Range;
 use std::path::Path;
@@ -19,7 +20,8 @@ use super::header::{FileSection, Header, TableOfContents};
 use super::SIG_CONTEXT;
 use crate::prelude::*;
 use crate::s9pk::v1::docker::DockerReader;
-use crate::util::Version;
+use crate::util::io::open_file;
+use crate::util::VersionString;
 
 #[pin_project::pin_project]
 #[derive(Debug)]
@@ -82,11 +84,11 @@ impl<'a, R: AsyncSeek + Unpin> AsyncSeek for ReadHandle<'a, R> {
 pub struct ImageTag {
     pub package_id: PackageId,
     pub image_id: ImageId,
-    pub version: Version,
+    pub version: VersionString,
 }
 impl ImageTag {
     #[instrument(skip_all)]
-    pub fn validate(&self, id: &PackageId, version: &Version) -> Result<(), Error> {
+    pub fn validate(&self, id: &PackageId, version: &VersionString) -> Result<(), Error> {
         if id != &self.package_id {
             return Err(Error::new(
                 eyre!(
@@ -149,17 +151,15 @@ pub struct S9pkReader<R: AsyncRead + AsyncSeek + Unpin + Send + Sync = BufReader
 impl S9pkReader {
     pub async fn open<P: AsRef<Path>>(path: P, check_sig: bool) -> Result<Self, Error> {
         let p = path.as_ref();
-        let rdr = File::open(p)
-            .await
-            .with_ctx(|_| (crate::error::ErrorKind::Filesystem, p.display().to_string()))?;
+        let rdr = open_file(p).await?;
 
         Self::from_reader(BufReader::new(rdr), check_sig).await
     }
 }
 impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
     #[instrument(skip_all)]
-    pub async fn image_tags(&mut self) -> Result<Vec<ImageTag>, Error> {
-        let mut tar = tokio_tar::Archive::new(self.docker_images().await?);
+    pub async fn image_tags(&mut self, arch: &str) -> Result<Vec<ImageTag>, Error> {
+        let mut tar = tokio_tar::Archive::new(self.docker_images(arch).await?);
         let mut entries = tar.entries()?;
         while let Some(mut entry) = entries.try_next().await? {
             if &*entry.path()? != Path::new("manifest.json") {
@@ -206,7 +206,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
             (
                 Some(hash),
                 Some(base32::encode(
-                    base32::Alphabet::RFC4648 { padding: false },
+                    base32::Alphabet::Rfc4648 { padding: false },
                     hash.as_slice(),
                 )),
             )
@@ -280,8 +280,15 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
         self.read_handle(self.toc.icon).await
     }
 
-    pub async fn docker_images(&mut self) -> Result<DockerReader<ReadHandle<'_, R>>, Error> {
-        DockerReader::new(self.read_handle(self.toc.docker_images).await?).await
+    pub async fn docker_arches(&mut self) -> Result<BTreeSet<String>, Error> {
+        DockerReader::list_arches(&mut self.read_handle(self.toc.docker_images).await?).await
+    }
+
+    pub async fn docker_images(
+        &mut self,
+        arch: &str,
+    ) -> Result<DockerReader<ReadHandle<'_, R>>, Error> {
+        DockerReader::new(self.read_handle(self.toc.docker_images).await?, arch).await
     }
 
     pub async fn assets(&mut self) -> Result<ReadHandle<'_, R>, Error> {

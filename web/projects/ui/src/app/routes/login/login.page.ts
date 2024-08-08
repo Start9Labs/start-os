@@ -1,11 +1,10 @@
+import { Router } from '@angular/router'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { Component, Inject, DestroyRef, inject } from '@angular/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
-import { Router } from '@angular/router'
 import { ConfigService } from 'src/app/services/config.service'
 import { LoadingService } from '@start9labs/shared'
-import { takeUntil } from 'rxjs'
 import { DOCUMENT } from '@angular/common'
 
 @Component({
@@ -43,8 +42,8 @@ export class LoginPage {
       }
       await this.api.login({
         password: this.password,
-        // TODO: get platforms metadata
-        metadata: { platforms: [] },
+        metadata: { platforms: [] }, // @TODO do we really need platforms now?
+        ephemeral: window.location.host === 'localhost',
       })
 
       this.password = ''

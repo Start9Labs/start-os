@@ -7,8 +7,7 @@ import {
   ValidatorFn,
   Validators,
 } from '@angular/forms'
-import { getDefaultString } from 'src/app/utils/config-utilities'
-import { CT } from '@start9labs/start-sdk'
+import { CT, utils } from '@start9labs/start-sdk'
 const Mustache = require('mustache')
 
 @Injectable({
@@ -40,28 +39,25 @@ export class FormService {
 
   getUnionObject(
     spec: CT.ValueSpecUnion,
-    selection: string | null,
+    selected: string | null,
   ): UntypedFormGroup {
     const group = this.getFormGroup({
-      [CT.unionSelectKey]: this.getUnionSelectSpec(spec, selection),
+      selection: this.getUnionSelectSpec(spec, selected),
     })
 
     group.setControl(
-      CT.unionValueKey,
-      this.getFormGroup(selection ? spec.variants[selection].spec : {}),
+      'value',
+      this.getFormGroup(selected ? spec.variants[selected].spec : {}),
     )
 
     return group
   }
 
   getListItem(spec: CT.ValueSpecList, entry?: any) {
-    const listItemValidators = getListItemValidators(spec)
     if (CT.isValueSpecListOf(spec, 'text')) {
-      return this.formBuilder.control(entry, listItemValidators)
-    } else if (CT.isValueSpecListOf(spec, 'number')) {
-      return this.formBuilder.control(entry, listItemValidators)
+      return this.formBuilder.control(entry, stringValidators(spec.spec))
     } else if (CT.isValueSpecListOf(spec, 'object')) {
-      return this.getFormGroup(spec.spec.spec, listItemValidators, entry)
+      return this.getFormGroup(spec.spec.spec, [], entry)
     }
   }
 
@@ -90,7 +86,7 @@ export class FormService {
         if (currentValue !== undefined) {
           value = currentValue
         } else {
-          value = spec.default ? getDefaultString(spec.default) : null
+          value = spec.default ? utils.getDefaultString(spec.default) : null
         }
         return this.formBuilder.control(value, stringValidators(spec))
       case 'textarea':
@@ -132,7 +128,7 @@ export class FormService {
           fileValidators(spec),
         )
       case 'union':
-        const currentSelection = currentValue?.[CT.unionSelectKey]
+        const currentSelection = currentValue?.selection
         const isValid = !!spec.variants[currentSelection]
 
         return this.getUnionObject(
@@ -154,13 +150,11 @@ export class FormService {
   }
 }
 
-function getListItemValidators(spec: CT.ValueSpecList) {
-  if (CT.isValueSpecListOf(spec, 'text')) {
-    return stringValidators(spec.spec)
-  } else if (CT.isValueSpecListOf(spec, 'number')) {
-    return numberValidators(spec.spec)
-  }
-}
+// function getListItemValidators(spec: CT.ValueSpecList) {
+//   if (CT.isValueSpecListOf(spec, 'text')) {
+//     return stringValidators(spec.spec)
+//   }
+// }
 
 function stringValidators(
   spec: CT.ValueSpecText | CT.ListValueSpecText,
@@ -224,9 +218,7 @@ function datetimeValidators({
   return validators
 }
 
-function numberValidators(
-  spec: CT.ValueSpecNumber | CT.ListValueSpecNumber,
-): ValidatorFn[] {
+function numberValidators(spec: CT.ValueSpecNumber): ValidatorFn[] {
   const validators: ValidatorFn[] = []
 
   validators.push(isNumber())
@@ -416,7 +408,6 @@ function listItemEquals(spec: CT.ValueSpecList, val1: any, val2: any): boolean {
   // TODO: fix types
   switch (spec.spec.type) {
     case 'text':
-    case 'number':
       return val1 == val2
     case 'object':
       const obj = spec.spec
@@ -528,12 +519,12 @@ function unionEquals(
   val1: any,
   val2: any,
 ): boolean {
-  const variantSpec = spec.variants[val1[CT.unionSelectKey]].spec
+  const variantSpec = spec.variants[val1.selection].spec
   if (!uniqueBy) {
     return false
   } else if (typeof uniqueBy === 'string') {
-    if (uniqueBy === CT.unionSelectKey) {
-      return val1[CT.unionSelectKey] === val2[CT.unionSelectKey]
+    if (uniqueBy === 'selection') {
+      return val1.selection === val2.selection
     } else {
       return itemEquals(variantSpec[uniqueBy], val1[uniqueBy], val2[uniqueBy])
     }
@@ -623,18 +614,13 @@ export function convertValuesRecursive(
       convertValuesRecursive(valueSpec.spec, group.get(key) as UntypedFormGroup)
     } else if (valueSpec.type === 'union') {
       const formGr = group.get(key) as UntypedFormGroup
-      const spec =
-        valueSpec.variants[formGr.controls[CT.unionSelectKey].value].spec
+      const spec = valueSpec.variants[formGr.controls['selection'].value].spec
       convertValuesRecursive(spec, formGr)
     } else if (valueSpec.type === 'list') {
       const formArr = group.get(key) as UntypedFormArray
       const { controls } = formArr
 
-      if (valueSpec.spec.type === 'number') {
-        controls.forEach(control => {
-          control.setValue(control.value ? Number(control.value) : null)
-        })
-      } else if (valueSpec.spec.type === 'text') {
+      if (valueSpec.spec.type === 'text') {
         controls.forEach(control => {
           if (!control.value) control.setValue(null)
         })

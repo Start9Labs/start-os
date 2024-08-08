@@ -1,11 +1,11 @@
 {
   "name": "@start9labs/start-sdk",
-  "version": "0.4.0-rev0.lib0.rc8.beta10",
+  "version": "0.3.6-alpha6",
   "description": "Software development kit to facilitate packaging services for StartOS",
-  "main": "./cjs/sdk/lib/index.js",
-  "types": "./cjs/sdk/lib/index.d.ts",
-  "module": "./mjs/sdk/lib/index.js",
-  "browser": "./mjs/sdk/lib/index.browser.js",
+  "main": "./cjs/lib/index.js",
+  "types": "./cjs/lib/index.d.ts",
+  "module": "./mjs/lib/index.js",
+  "browser": "./mjs/lib/index.browser.js",
   "sideEffects": true,
   "typesVersion": {
     ">=3.1": {
@@ -32,7 +32,13 @@
   "homepage": "https://github.com/Start9Labs/start-sdk#readme",
   "dependencies": {
     "isomorphic-fetch": "^3.0.0",
-    "ts-matches": "^5.4.1"
+    "lodash.merge": "^4.6.2",
+    "mime": "^4.0.3",
+    "ts-matches": "^5.5.1",
+    "yaml": "^2.2.2",
+    "@iarna/toml": "^2.2.5",
+    "@noble/curves": "^1.4.0",
+    "@noble/hashes": "^1.4.0"
   },
   "prettier": {
     "trailingComma": "all",
@@ -43,11 +49,14 @@
   "devDependencies": {
     "@iarna/toml": "^2.2.5",
     "@types/jest": "^29.4.0",
-    "copyfiles" : "^2.4.1",
+    "@types/lodash.merge": "^4.6.2",
+    "copyfiles": "^2.4.1",
     "jest": "^29.4.3",
+    "peggy": "^3.0.2",
     "prettier": "^3.2.5",
     "ts-jest": "^29.0.5",
     "ts-node": "^10.9.1",
+    "ts-pegjs": "^4.2.1",
     "tsx": "^4.7.1",
     "typescript": "^5.0.4",
     "yaml": "^2.2.2"

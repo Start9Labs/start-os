@@ -1,7 +1,6 @@
 use clap::Parser;
-use imbl_value::Value;
+use imbl_value::{json, Value};
 use models::PackageId;
-use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 
 use crate::context::RpcContext;
@@ -24,7 +23,10 @@ pub async fn properties(
     PropertiesParam { id }: PropertiesParam,
 ) -> Result<Value, Error> {
     match &*ctx.services.get(&id).await {
-        Some(service) => service.properties().await,
+        Some(service) => Ok(json!({
+            "version": 2,
+            "data": service.properties().await?
+        })),
         None => Err(Error::new(
             eyre!("Could not find a service with id {id}"),
             ErrorKind::NotFound,

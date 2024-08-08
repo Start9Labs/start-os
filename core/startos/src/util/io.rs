@@ -1,11 +1,15 @@
+use std::collections::VecDeque;
 use std::future::Future;
 use std::io::Cursor;
 use std::os::unix::prelude::MetadataExt;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::sync::atomic::AtomicU64;
-use std::task::Poll;
+use std::sync::Arc;
+use std::task::{Poll, Waker};
 use std::time::Duration;
 
+use bytes::{Buf, BytesMut};
 use futures::future::{BoxFuture, Fuse};
 use futures::{AsyncSeek, FutureExt, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
@@ -15,6 +19,7 @@ use tokio::io::{
     duplex, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, WriteHalf,
 };
 use tokio::net::TcpStream;
+use tokio::sync::{Notify, OwnedMutexGuard};
 use tokio::time::{Instant, Sleep};
 
 use crate::prelude::*;
@@ -270,6 +275,81 @@ pub fn response_to_reader(response: reqwest::Response) -> impl AsyncRead + Unpin
 }
 
 #[pin_project::pin_project]
+pub struct IOHook<'a, T> {
+    #[pin]
+    pub io: T,
+    pre_write: Option<Box<dyn FnMut(&[u8]) -> Result<(), std::io::Error> + Send + 'a>>,
+    post_write: Option<Box<dyn FnMut(&[u8]) + Send + 'a>>,
+    post_read: Option<Box<dyn FnMut(&[u8]) + Send + 'a>>,
+}
+impl<'a, T> IOHook<'a, T> {
+    pub fn new(io: T) -> Self {
+        Self {
+            io,
+            pre_write: None,
+            post_write: None,
+            post_read: None,
+        }
+    }
+    pub fn into_inner(self) -> T {
+        self.io
+    }
+    pub fn pre_write<F: FnMut(&[u8]) -> Result<(), std::io::Error> + Send + 'a>(&mut self, f: F) {
+        self.pre_write = Some(Box::new(f))
+    }
+    pub fn post_write<F: FnMut(&[u8]) + Send + 'a>(&mut self, f: F) {
+        self.post_write = Some(Box::new(f))
+    }
+    pub fn post_read<F: FnMut(&[u8]) + Send + 'a>(&mut self, f: F) {
+        self.post_read = Some(Box::new(f))
+    }
+}
+impl<'a, T: AsyncWrite> AsyncWrite for IOHook<'a, T> {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        let this = self.project();
+        if let Some(pre_write) = this.pre_write {
+            pre_write(buf)?;
+        }
+        let written = futures::ready!(this.io.poll_write(cx, buf)?);
+        if let Some(post_write) = this.post_write {
+            post_write(&buf[..written]);
+        }
+        Poll::Ready(Ok(written))
+    }
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        self.project().io.poll_flush(cx)
+    }
+    fn poll_shutdown(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        self.project().io.poll_shutdown(cx)
+    }
+}
+impl<'a, T: AsyncRead> AsyncRead for IOHook<'a, T> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        let this = self.project();
+        let start = buf.filled().len();
+        futures::ready!(this.io.poll_read(cx, buf)?);
+        if let Some(post_read) = this.post_read {
+            post_read(&buf.filled()[start..]);
+        }
+        Poll::Ready(Ok(()))
+    }
+}
+
+#[pin_project::pin_project]
 pub struct BufferedWriteReader {
     #[pin]
     hdl: Fuse<NonDetachingJoinHandle<Result<(), std::io::Error>>>,
@@ -312,6 +392,7 @@ impl AsyncRead for BufferedWriteReader {
 
 pub trait CursorExt {
     fn pure_read(&mut self, buf: &mut ReadBuf<'_>);
+    fn remaining_slice(&self) -> &[u8];
 }
 
 impl<T: AsRef<[u8]>> CursorExt for Cursor<T> {
@@ -324,109 +405,157 @@ impl<T: AsRef<[u8]>> CursorExt for Cursor<T> {
         buf.put_slice(&self.get_ref().as_ref()[self.position() as usize..end]);
         self.set_position(end as u64);
     }
+    fn remaining_slice(&self) -> &[u8] {
+        let len = self.position().min(self.get_ref().as_ref().len() as u64);
+        &self.get_ref().as_ref()[(len as usize)..]
+    }
+}
+
+#[derive(Debug)]
+enum BTBuffer {
+    NotBuffering,
+    Buffering { read: Vec<u8>, write: Vec<u8> },
+    Rewound { read: Cursor<Vec<u8>> },
+}
+impl Default for BTBuffer {
+    fn default() -> Self {
+        BTBuffer::NotBuffering
+    }
 }
 
 #[pin_project::pin_project]
 #[derive(Debug)]
-pub struct BackTrackingReader<T> {
+pub struct BackTrackingIO<T> {
     #[pin]
-    reader: T,
-    buffer: Cursor<Vec<u8>>,
-    buffering: bool,
+    io: T,
+    buffer: BTBuffer,
 }
-impl<T> BackTrackingReader<T> {
-    pub fn new(reader: T) -> Self {
+impl<T> BackTrackingIO<T> {
+    pub fn new(io: T) -> Self {
         Self {
-            reader,
-            buffer: Cursor::new(Vec::new()),
-            buffering: false,
+            io,
+            buffer: BTBuffer::Buffering {
+                read: Vec::new(),
+                write: Vec::new(),
+            },
         }
     }
-    pub fn start_buffering(&mut self) {
-        self.buffer.set_position(0);
-        self.buffer.get_mut().truncate(0);
-        self.buffering = true;
+    #[must_use]
+    pub fn stop_buffering(&mut self) -> Vec<u8> {
+        match std::mem::take(&mut self.buffer) {
+            BTBuffer::Buffering { write, .. } => write,
+            BTBuffer::NotBuffering => Vec::new(),
+            BTBuffer::Rewound { read } => {
+                self.buffer = BTBuffer::Rewound { read };
+                Vec::new()
+            }
+        }
     }
-    pub fn stop_buffering(&mut self) {
-        self.buffer.set_position(0);
-        self.buffer.get_mut().truncate(0);
-        self.buffering = false;
-    }
-    pub fn rewind(&mut self) {
-        self.buffering = false;
+    pub fn rewind(&mut self) -> Vec<u8> {
+        match std::mem::take(&mut self.buffer) {
+            BTBuffer::Buffering { read, write } => {
+                self.buffer = BTBuffer::Rewound {
+                    read: Cursor::new(read),
+                };
+                write
+            }
+            BTBuffer::NotBuffering => Vec::new(),
+            BTBuffer::Rewound { read } => {
+                self.buffer = BTBuffer::Rewound { read };
+                Vec::new()
+            }
+        }
     }
     pub fn unwrap(self) -> T {
-        self.reader
+        self.io
     }
 }
 
-impl<T: AsyncRead> AsyncRead for BackTrackingReader<T> {
+impl<T: AsyncRead> AsyncRead for BackTrackingIO<T> {
     fn poll_read(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
         buf: &mut ReadBuf<'_>,
     ) -> Poll<std::io::Result<()>> {
         let this = self.project();
-        if *this.buffering {
-            let filled = buf.filled().len();
-            let res = this.reader.poll_read(cx, buf);
-            this.buffer
-                .get_mut()
-                .extend_from_slice(&buf.filled()[filled..]);
-            res
-        } else {
-            let mut ready = false;
-            if (this.buffer.position() as usize) < this.buffer.get_ref().len() {
-                this.buffer.pure_read(buf);
-                ready = true;
+        match this.buffer {
+            BTBuffer::Buffering { read, .. } => {
+                let filled = buf.filled().len();
+                let res = this.io.poll_read(cx, buf);
+                read.extend_from_slice(&buf.filled()[filled..]);
+                res
             }
-            if buf.remaining() > 0 {
-                match this.reader.poll_read(cx, buf) {
-                    Poll::Pending => {
-                        if ready {
-                            Poll::Ready(Ok(()))
-                        } else {
-                            Poll::Pending
-                        }
-                    }
-                    a => a,
+            BTBuffer::NotBuffering => this.io.poll_read(cx, buf),
+            BTBuffer::Rewound { read } => {
+                let mut ready = false;
+                if (read.position() as usize) < read.get_ref().len() {
+                    read.pure_read(buf);
+                    ready = true;
                 }
-            } else {
-                Poll::Ready(Ok(()))
+                if buf.remaining() > 0 {
+                    match this.io.poll_read(cx, buf) {
+                        Poll::Pending => {
+                            if ready {
+                                Poll::Ready(Ok(()))
+                            } else {
+                                Poll::Pending
+                            }
+                        }
+                        a => a,
+                    }
+                } else {
+                    Poll::Ready(Ok(()))
+                }
             }
         }
     }
 }
 
-impl<T: AsyncWrite> AsyncWrite for BackTrackingReader<T> {
+impl<T: AsyncWrite> AsyncWrite for BackTrackingIO<T> {
     fn is_write_vectored(&self) -> bool {
-        self.reader.is_write_vectored()
+        self.io.is_write_vectored()
     }
     fn poll_flush(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(), std::io::Error>> {
-        self.project().reader.poll_flush(cx)
+        self.project().io.poll_flush(cx)
     }
     fn poll_shutdown(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(), std::io::Error>> {
-        self.project().reader.poll_shutdown(cx)
+        self.project().io.poll_shutdown(cx)
     }
     fn poll_write(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
         buf: &[u8],
     ) -> Poll<Result<usize, std::io::Error>> {
-        self.project().reader.poll_write(cx, buf)
+        let this = self.project();
+        if let BTBuffer::Buffering { write, .. } = this.buffer {
+            write.extend_from_slice(buf);
+            Poll::Ready(Ok(buf.len()))
+        } else {
+            this.io.poll_write(cx, buf)
+        }
     }
     fn poll_write_vectored(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
         bufs: &[std::io::IoSlice<'_>],
     ) -> Poll<Result<usize, std::io::Error>> {
-        self.project().reader.poll_write_vectored(cx, bufs)
+        let this = self.project();
+        if let BTBuffer::Buffering { write, .. } = this.buffer {
+            let len = bufs.iter().map(|b| b.len()).sum();
+            write.reserve(len);
+            for buf in bufs {
+                write.extend_from_slice(buf);
+            }
+            Poll::Ready(Ok(len))
+        } else {
+            this.io.poll_write_vectored(cx, bufs)
+        }
     }
 }
 
@@ -525,13 +654,13 @@ pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + S
                 let src_path = e.path();
                 let dst_path = dst_path.join(e.file_name());
                 if m.is_file() {
-                    let mut dst_file = tokio::fs::File::create(&dst_path).await.with_ctx(|_| {
+                    let mut dst_file = create_file(&dst_path).await.with_ctx(|_| {
                         (
                             crate::ErrorKind::Filesystem,
                             format!("create {}", dst_path.display()),
                         )
                     })?;
-                    let mut rdr = tokio::fs::File::open(&src_path).await.with_ctx(|_| {
+                    let mut rdr = open_file(&src_path).await.with_ctx(|_| {
                         (
                             crate::ErrorKind::Filesystem,
                             format!("open {}", src_path.display()),
@@ -621,15 +750,15 @@ impl<S: AsyncRead + AsyncWrite> AsyncRead for TimeoutStream<S> {
         buf: &mut tokio::io::ReadBuf<'_>,
     ) -> std::task::Poll<std::io::Result<()>> {
         let mut this = self.project();
-        if let std::task::Poll::Ready(_) = this.sleep.as_mut().poll(cx) {
+        let timeout = this.sleep.as_mut().poll(cx);
+        let res = this.stream.poll_read(cx, buf);
+        if res.is_ready() {
+            this.sleep.reset(Instant::now() + *this.timeout);
+        } else if timeout.is_ready() {
             return std::task::Poll::Ready(Err(std::io::Error::new(
                 std::io::ErrorKind::TimedOut,
                 "timed out",
             )));
-        }
-        let res = this.stream.poll_read(cx, buf);
-        if res.is_ready() {
-            this.sleep.reset(Instant::now() + *this.timeout);
         }
         res
     }
@@ -640,10 +769,16 @@ impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
         cx: &mut std::task::Context<'_>,
         buf: &[u8],
     ) -> std::task::Poll<Result<usize, std::io::Error>> {
-        let this = self.project();
+        let mut this = self.project();
+        let timeout = this.sleep.as_mut().poll(cx);
         let res = this.stream.poll_write(cx, buf);
         if res.is_ready() {
             this.sleep.reset(Instant::now() + *this.timeout);
+        } else if timeout.is_ready() {
+            return std::task::Poll::Ready(Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "timed out",
+            )));
         }
         res
     }
@@ -651,10 +786,16 @@ impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), std::io::Error>> {
-        let this = self.project();
+        let mut this = self.project();
+        let timeout = this.sleep.as_mut().poll(cx);
         let res = this.stream.poll_flush(cx);
         if res.is_ready() {
             this.sleep.reset(Instant::now() + *this.timeout);
+        } else if timeout.is_ready() {
+            return std::task::Poll::Ready(Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "timed out",
+            )));
         }
         res
     }
@@ -662,16 +803,20 @@ impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), std::io::Error>> {
-        let this = self.project();
+        let mut this = self.project();
+        let timeout = this.sleep.as_mut().poll(cx);
         let res = this.stream.poll_shutdown(cx);
         if res.is_ready() {
             this.sleep.reset(Instant::now() + *this.timeout);
+        } else if timeout.is_ready() {
+            return std::task::Poll::Ready(Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "timed out",
+            )));
         }
         res
     }
 }
-
-pub struct TmpFile {}
 
 #[derive(Debug)]
 pub struct TmpDir {
@@ -680,7 +825,7 @@ pub struct TmpDir {
 impl TmpDir {
     pub async fn new() -> Result<Self, Error> {
         let path = Path::new("/var/tmp/startos").join(base32::encode(
-            base32::Alphabet::RFC4648 { padding: false },
+            base32::Alphabet::Rfc4648 { padding: false },
             &rand::random::<[u8; 8]>(),
         ));
         if tokio::fs::metadata(&path).await.is_ok() {
@@ -696,6 +841,14 @@ impl TmpDir {
     pub async fn delete(self) -> Result<(), Error> {
         tokio::fs::remove_dir_all(&self.path).await?;
         Ok(())
+    }
+
+    pub async fn gc(self: Arc<Self>) -> Result<(), Error> {
+        if let Ok(dir) = Arc::try_unwrap(self) {
+            dir.delete().await
+        } else {
+            Ok(())
+        }
     }
 }
 impl std::ops::Deref for TmpDir {
@@ -718,6 +871,13 @@ impl Drop for TmpDir {
             });
         }
     }
+}
+
+pub async fn open_file(path: impl AsRef<Path>) -> Result<File, Error> {
+    let path = path.as_ref();
+    File::open(path)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("open {path:?}")))
 }
 
 pub async fn create_file(path: impl AsRef<Path>) -> Result<File, Error> {
@@ -743,4 +903,367 @@ pub async fn rename(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), 
     tokio::fs::rename(src, dst)
         .await
         .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("mv {src:?} -> {dst:?}")))
+}
+
+fn poll_flush_prefix<W: AsyncWrite>(
+    mut writer: Pin<&mut W>,
+    cx: &mut std::task::Context<'_>,
+    prefix: &mut VecDeque<Cursor<Vec<u8>>>,
+    flush_writer: bool,
+) -> Poll<Result<(), std::io::Error>> {
+    while let Some(mut cur) = prefix.pop_front() {
+        let buf = CursorExt::remaining_slice(&cur);
+        if !buf.is_empty() {
+            match writer.as_mut().poll_write(cx, buf)? {
+                Poll::Ready(n) if n == buf.len() => (),
+                Poll::Ready(n) => {
+                    cur.advance(n);
+                    prefix.push_front(cur);
+                }
+                Poll::Pending => {
+                    prefix.push_front(cur);
+                    return Poll::Pending;
+                }
+            }
+        }
+    }
+    if flush_writer {
+        writer.poll_flush(cx)
+    } else {
+        Poll::Ready(Ok(()))
+    }
+}
+
+fn poll_write_prefix_buf<W: AsyncWrite>(
+    mut writer: Pin<&mut W>,
+    cx: &mut std::task::Context<'_>,
+    prefix: &mut VecDeque<Cursor<Vec<u8>>>,
+    buf: &[u8],
+) -> Poll<Result<usize, std::io::Error>> {
+    futures::ready!(poll_flush_prefix(writer.as_mut(), cx, prefix, false)?);
+    writer.poll_write(cx, buf)
+}
+
+#[pin_project::pin_project]
+pub struct TeeWriter<W1, W2> {
+    capacity: usize,
+    buffer1: VecDeque<Cursor<Vec<u8>>>,
+    buffer2: VecDeque<Cursor<Vec<u8>>>,
+    #[pin]
+    writer1: W1,
+    #[pin]
+    writer2: W2,
+}
+impl<W1, W2> TeeWriter<W1, W2> {
+    pub fn new(writer1: W1, writer2: W2, capacity: usize) -> Self {
+        Self {
+            capacity,
+            buffer1: VecDeque::new(),
+            buffer2: VecDeque::new(),
+            writer1,
+            writer2,
+        }
+    }
+}
+impl<W1: AsyncWrite + Unpin, W2: AsyncWrite + Unpin> TeeWriter<W1, W2> {
+    pub async fn into_inner(mut self) -> Result<(W1, W2), Error> {
+        self.flush().await?;
+
+        Ok((self.writer1, self.writer2))
+    }
+}
+impl<W1: AsyncWrite, W2: AsyncWrite> AsyncWrite for TeeWriter<W1, W2> {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        mut buf: &[u8],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        let mut this = self.project();
+        let buffer_size = this
+            .buffer1
+            .iter()
+            .chain(this.buffer2.iter())
+            .map(|b| b.get_ref().len())
+            .sum::<usize>();
+        if buffer_size < *this.capacity {
+            let to_write = std::cmp::min(*this.capacity - buffer_size, buf.len());
+            buf = &buf[0..to_write];
+        } else {
+            match (
+                poll_flush_prefix(this.writer1.as_mut(), cx, &mut this.buffer1, false)?,
+                poll_flush_prefix(this.writer2.as_mut(), cx, &mut this.buffer2, false)?,
+            ) {
+                (Poll::Ready(()), Poll::Ready(())) => (),
+                _ => return Poll::Pending,
+            }
+        }
+        let (w1, w2) = match (
+            poll_write_prefix_buf(this.writer1.as_mut(), cx, &mut this.buffer1, buf)?,
+            poll_write_prefix_buf(this.writer2.as_mut(), cx, &mut this.buffer2, buf)?,
+        ) {
+            (Poll::Pending, Poll::Pending) => return Poll::Pending,
+            (Poll::Ready(n), Poll::Pending) => (n, 0),
+            (Poll::Pending, Poll::Ready(n)) => (0, n),
+            (Poll::Ready(n1), Poll::Ready(n2)) => (n1, n2),
+        };
+        if w1 > w2 {
+            this.buffer2.push_back(Cursor::new(buf[w2..w1].to_vec()));
+        } else if w1 < w2 {
+            this.buffer1.push_back(Cursor::new(buf[w1..w2].to_vec()));
+        }
+        Poll::Ready(Ok(std::cmp::max(w1, w2)))
+    }
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        let mut this = self.project();
+        match (
+            poll_flush_prefix(this.writer1, cx, &mut this.buffer1, true)?,
+            poll_flush_prefix(this.writer2, cx, &mut this.buffer2, true)?,
+        ) {
+            (Poll::Ready(()), Poll::Ready(())) => Poll::Ready(Ok(())),
+            _ => Poll::Pending,
+        }
+    }
+    fn poll_shutdown(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        self.poll_flush(cx)
+    }
+}
+
+#[pin_project::pin_project]
+pub struct ParallelBlake3Writer {
+    #[pin]
+    hasher: NonDetachingJoinHandle<blake3::Hash>,
+    buffer: Arc<(std::sync::Mutex<(BytesMut, Vec<Waker>, bool)>, Notify)>,
+    capacity: usize,
+}
+impl ParallelBlake3Writer {
+    /// memory usage can be as much as 2x capacity
+    pub fn new(capacity: usize) -> Self {
+        let buffer = Arc::new((
+            std::sync::Mutex::new((BytesMut::new(), Vec::<Waker>::new(), false)),
+            Notify::new(),
+        ));
+        let hasher_buffer = buffer.clone();
+        Self {
+            hasher: tokio::spawn(async move {
+                let mut hasher = blake3::Hasher::new();
+                let mut to_hash = BytesMut::new();
+                let mut notified;
+                while {
+                    let mut guard = hasher_buffer.0.lock().unwrap();
+                    let (buffer, wakers, shutdown) = &mut *guard;
+                    std::mem::swap(buffer, &mut to_hash);
+                    let wakers = std::mem::take(wakers);
+                    let shutdown = *shutdown;
+                    notified = hasher_buffer.1.notified();
+                    drop(guard);
+                    if to_hash.len() > 128 * 1024
+                    /* 128 KiB */
+                    {
+                        hasher.update_rayon(&to_hash);
+                    } else {
+                        hasher.update(&to_hash);
+                    }
+                    to_hash.truncate(0);
+                    for waker in wakers {
+                        waker.wake();
+                    }
+                    !shutdown && to_hash.len() == 0
+                } {
+                    notified.await;
+                }
+                hasher.finalize()
+            })
+            .into(),
+            buffer,
+            capacity,
+        }
+    }
+
+    pub async fn finalize(mut self) -> Result<blake3::Hash, Error> {
+        self.shutdown().await?;
+        self.hasher.await.with_kind(ErrorKind::Unknown)
+    }
+}
+impl AsyncWrite for ParallelBlake3Writer {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        let this = self.project();
+        let mut guard = this.buffer.0.lock().map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::Other, eyre!("hashing thread panicked"))
+        })?;
+        let (buffer, wakers, shutdown) = &mut *guard;
+        if !*shutdown {
+            if buffer.len() < *this.capacity {
+                let to_write = std::cmp::min(*this.capacity - buffer.len(), buf.len());
+                buffer.extend_from_slice(&buf[0..to_write]);
+                if buffer.len() >= *this.capacity / 2 {
+                    this.buffer.1.notify_waiters();
+                }
+                Poll::Ready(Ok(to_write))
+            } else {
+                wakers.push(cx.waker().clone());
+                Poll::Pending
+            }
+        } else {
+            Poll::Ready(Err(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                eyre!("write after shutdown"),
+            )))
+        }
+    }
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        let this = self.project();
+        let mut guard = this.buffer.0.lock().map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::Other, eyre!("hashing thread panicked"))
+        })?;
+        let (buffer, wakers, _) = &mut *guard;
+        if buffer.is_empty() {
+            Poll::Ready(Ok(()))
+        } else {
+            wakers.push(cx.waker().clone());
+            this.buffer.1.notify_waiters();
+            Poll::Pending
+        }
+    }
+    fn poll_shutdown(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        futures::ready!(self.as_mut().poll_flush(cx)?);
+        let this = self.project();
+        let mut guard = this.buffer.0.lock().map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::Other, eyre!("hashing thread panicked"))
+        })?;
+        let (buffer, wakers, shutdown) = &mut *guard;
+        if *shutdown && buffer.len() == 0 {
+            return Poll::Ready(Ok(()));
+        }
+        wakers.push(cx.waker().clone());
+        *shutdown = true;
+        this.buffer.1.notify_waiters();
+        Poll::Pending
+    }
+}
+
+#[pin_project::pin_project]
+pub struct TrackingIO<T> {
+    position: u64,
+    #[pin]
+    io: T,
+}
+impl<T> TrackingIO<T> {
+    pub fn new(start: u64, io: T) -> Self {
+        Self {
+            position: start,
+            io,
+        }
+    }
+    pub fn position(&self) -> u64 {
+        self.position
+    }
+    pub fn into_inner(self) -> T {
+        self.io
+    }
+}
+impl<W: AsyncWrite> AsyncWrite for TrackingIO<W> {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<Result<usize, std::io::Error>> {
+        let this = self.project();
+        let written = futures::ready!(this.io.poll_write(cx, buf)?);
+        *this.position += written as u64;
+        Poll::Ready(Ok(written))
+    }
+    fn poll_flush(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        self.project().io.poll_flush(cx)
+    }
+    fn poll_shutdown(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        self.project().io.poll_shutdown(cx)
+    }
+}
+impl<R: AsyncRead> AsyncRead for TrackingIO<R> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        let this = self.project();
+        let start = buf.filled().len();
+        futures::ready!(this.io.poll_read(cx, buf)?);
+        *this.position += (buf.filled().len() - start) as u64;
+        Poll::Ready(Ok(()))
+    }
+}
+impl<T> std::cmp::PartialEq for TrackingIO<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.position.eq(&other.position)
+    }
+}
+impl<T> std::cmp::Eq for TrackingIO<T> {}
+impl<T> std::cmp::PartialOrd for TrackingIO<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.position.partial_cmp(&other.position)
+    }
+}
+impl<T> std::cmp::Ord for TrackingIO<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.position.cmp(&other.position)
+    }
+}
+impl<T> std::borrow::Borrow<u64> for TrackingIO<T> {
+    fn borrow(&self) -> &u64 {
+        &self.position
+    }
+}
+
+pub struct MutexIO<T>(OwnedMutexGuard<T>);
+impl<R: AsyncRead + Unpin> AsyncRead for MutexIO<R> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut *self.get_mut().0).poll_read(cx, buf)
+    }
+}
+impl<W: AsyncWrite + Unpin> AsyncWrite for MutexIO<W> {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        Pin::new(&mut *self.get_mut().0).poll_write(cx, buf)
+    }
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        Pin::new(&mut *self.get_mut().0).poll_flush(cx)
+    }
+    fn poll_shutdown(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        Pin::new(&mut *self.get_mut().0).poll_shutdown(cx)
+    }
 }

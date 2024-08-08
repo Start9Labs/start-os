@@ -11,7 +11,7 @@
       ></marketplace-additional-item>
       <!-- git hash -->
       <marketplace-additional-item
-        *ngIf="pkg.manifest.gitHash as gitHash; else noHash"
+        *ngIf="pkg.gitHash as gitHash; else noHash"
         (click)="copyService.copy(gitHash)"
         [data]="gitHash"
         label="Git Hash"
@@ -29,7 +29,7 @@
       <!-- license -->
       <marketplace-additional-item
         (click)="presentModalMd('License')"
-        [data]="pkg.manifest.license"
+        [data]="pkg.license"
         label="License"
         icon="@tui.chevron-right"
         class="item-pointer"
@@ -46,29 +46,29 @@
       <ng-content />
       <!-- links -->
       <marketplace-additional-link
-        *ngIf="pkg.manifest.marketingSite"
-        [url]="pkg.manifest.marketingSite"
+        *ngIf="pkg.marketingSite"
+        [url]="pkg.marketingSite"
         label="Marketing Site"
         icon="@tui.external-link"
         class="item-pointer"
       ></marketplace-additional-link>
       <marketplace-additional-link
-        *ngIf="pkg.manifest.upstreamRepo"
-        [url]="pkg.manifest.upstreamRepo"
+        *ngIf="pkg.upstreamRepo"
+        [url]="pkg.upstreamRepo"
         label="Source Repository"
         icon="@tui.external-link"
         class="item-pointer"
       ></marketplace-additional-link>
       <marketplace-additional-link
-        *ngIf="pkg.manifest.wrapperRepo"
-        [url]="pkg.manifest.wrapperRepo"
+        *ngIf="pkg.wrapperRepo"
+        [url]="pkg.wrapperRepo"
         label="Wrapper Repository"
         icon="@tui.external-link"
         class="item-pointer"
       ></marketplace-additional-link>
       <marketplace-additional-link
-        *ngIf="pkg.manifest.supportSite"
-        [url]="pkg.manifest.supportSite"
+        *ngIf="pkg.supportSite"
+        [url]="pkg.supportSite"
         label="Support Site"
         icon="@tui.external-link"
         class="item-pointer"
@@ -76,3 +76,98 @@
     </div>
   </div>
 </div>
+<!-- <ion-item-divider>Additional Info</ion-item-divider>
+<ion-grid *ngIf="pkg">
+  <ion-row>
+    <ion-col responsiveCol sizeXs="12" sizeMd="6">
+      <ion-item-group>
+        <ion-item
+          *ngIf="pkg.gitHash as gitHash; else noHash"
+          button
+          detail="false"
+          (click)="copy(gitHash)"
+        >
+          <ion-label>
+            <h2>Git Hash</h2>
+            <p>{{ gitHash }}</p>
+          </ion-label>
+          <ion-icon slot="end" name="copy-outline"></ion-icon>
+        </ion-item>
+        <ng-template #noHash>
+          <ion-item>
+            <ion-label>
+              <h2>Git Hash</h2>
+              <p>Unknown</p>
+            </ion-label>
+          </ion-item>
+        </ng-template>
+        <ion-item button detail="false" (click)="presentAlertVersions()">
+          <ion-label>
+            <h2>Other Versions</h2>
+            <p>Click to view other versions</p>
+          </ion-label>
+          <ion-icon slot="end" name="chevron-forward"></ion-icon>
+        </ion-item>
+        <ion-item button detail="false" (click)="presentModalMd('license')">
+          <ion-label>
+            <h2>License</h2>
+            <p>{{ pkg.license }}</p>
+          </ion-label>
+          <ion-icon slot="end" name="chevron-forward"></ion-icon>
+        </ion-item>
+        <ion-item
+          button
+          detail="false"
+          (click)="presentModalMd('instructions')"
+        >
+          <ion-label>
+            <h2>Instructions</h2>
+            <p>Click to view instructions</p>
+          </ion-label>
+          <ion-icon slot="end" name="chevron-forward"></ion-icon>
+        </ion-item>
+      </ion-item-group>
+    </ion-col>
+    <ion-col responsiveCol sizeXs="12" sizeMd="6">
+      <ion-item-group>
+        <ion-item
+          [href]="pkg.upstreamRepo"
+          target="_blank"
+          rel="noreferrer"
+          detail="false"
+        >
+          <ion-label>
+            <h2>Source Repository</h2>
+            <p>{{ pkg.upstreamRepo }}</p>
+          </ion-label>
+          <ion-icon slot="end" name="open-outline"></ion-icon>
+        </ion-item>
+        <ion-item
+          [href]="pkg.wrapperRepo"
+          target="_blank"
+          rel="noreferrer"
+          detail="false"
+        >
+          <ion-label>
+            <h2>Wrapper Repository</h2>
+            <p>{{ pkg.wrapperRepo }}</p>
+          </ion-label>
+          <ion-icon slot="end" name="open-outline"></ion-icon>
+        </ion-item>
+        <ion-item
+          [href]="pkg.supportSite"
+          [disabled]="!pkg.supportSite"
+          target="_blank"
+          rel="noreferrer"
+          detail="false"
+        >
+          <ion-label>
+            <h2>Support Site</h2>
+            <p>{{ pkg.supportSite || 'Not provided' }}</p>
+          </ion-label>
+          <ion-icon slot="end" name="open-outline"></ion-icon>
+        </ion-item>
+      </ion-item-group>
+    </ion-col>
+  </ion-row>
+</ion-grid> -->

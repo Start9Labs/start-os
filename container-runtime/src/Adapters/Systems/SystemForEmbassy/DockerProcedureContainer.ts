@@ -14,10 +14,11 @@ export class DockerProcedureContainer {
   // }
   static async of(
     effects: T.Effects,
+    packageId: string,
     data: DockerProcedure,
     volumes: { [id: VolumeId]: Volume },
   ) {
-    const overlay = await Overlay.of(effects, data.image)
+    const overlay = await Overlay.of(effects, { id: data.image })
 
     if (data.mounts) {
       const mounts = data.mounts
@@ -38,16 +39,25 @@ export class DockerProcedureContainer {
             mounts[mount],
           )
         } else if (volumeMount.type === "certificate") {
-          volumeMount
+          const hostnames = [
+            `${packageId}.embassy`,
+            ...new Set(
+              Object.values(
+                (
+                  await effects.getHostInfo({
+                    hostId: volumeMount["interface-id"],
+                  })
+                )?.hostnameInfo || {},
+              )
+                .flatMap((h) => h)
+                .flatMap((h) => (h.kind === "onion" ? [h.hostname.value] : [])),
+            ).values(),
+          ]
           const certChain = await effects.getSslCertificate({
-            packageId: null,
-            hostId: volumeMount["interface-id"],
-            algorithm: null,
+            hostnames,
           })
           const key = await effects.getSslKey({
-            packageId: null,
-            hostId: volumeMount["interface-id"],
-            algorithm: null,
+            hostnames,
           })
           await fs.writeFile(
             `${path}/${volumeMount["interface-id"]}.cert.pem`,
@@ -58,17 +68,19 @@ export class DockerProcedureContainer {
             key,
           )
         } else if (volumeMount.type === "pointer") {
-          await effects.mount({
-            location: path,
-            target: {
-              packageId: volumeMount["package-id"],
-              subpath: volumeMount.path,
-              readonly: volumeMount.readonly,
-              volumeId: volumeMount["volume-id"],
-            },
-          })
+          await effects
+            .mount({
+              location: path,
+              target: {
+                packageId: volumeMount["package-id"],
+                subpath: volumeMount.path,
+                readonly: volumeMount.readonly,
+                volumeId: volumeMount["volume-id"],
+              },
+            })
+            .catch(console.warn)
         } else if (volumeMount.type === "backup") {
-          throw new Error("TODO")
+          await overlay.mount({ type: "backup", subpath: null }, mounts[mount])
         }
       }
     }
@@ -84,10 +96,19 @@ export class DockerProcedureContainer {
     }
   }
 
-  async execSpawn(commands: string[]) {
+  async execFail(commands: string[], timeoutMs: number | null) {
     try {
-      const spawned = await this.overlay.spawn(commands)
-      return spawned
+      const res = await this.overlay.exec(commands, {}, timeoutMs)
+      if (res.exitCode !== 0) {
+        const codeOrSignal =
+          res.exitCode !== null
+            ? `code ${res.exitCode}`
+            : `signal ${res.exitSignal}`
+        throw new Error(
+          `Process exited with ${codeOrSignal}: ${res.stderr.toString()}`,
+        )
+      }
+      return res
     } finally {
       await this.overlay.destroy()
     }

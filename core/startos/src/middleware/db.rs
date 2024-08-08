@@ -7,7 +7,6 @@ use serde::Deserialize;
 use crate::context::RpcContext;
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Metadata {
     #[serde(default)]
     sync_db: bool,
@@ -23,7 +22,6 @@ impl SyncDb {
     }
 }
 
-#[async_trait::async_trait]
 impl Middleware<RpcContext> for SyncDb {
     type Metadata = Metadata;
     async fn process_rpc_request(
@@ -38,10 +36,11 @@ impl Middleware<RpcContext> for SyncDb {
     async fn process_http_response(&mut self, context: &RpcContext, response: &mut Response) {
         if let Err(e) = async {
             if self.sync_db {
-                response.headers_mut().append(
-                    "X-Patch-Sequence",
-                    HeaderValue::from_str(&context.db.sequence().await.to_string())?,
-                );
+                let id = context.db.sequence().await;
+                response
+                    .headers_mut()
+                    .append("X-Patch-Sequence", HeaderValue::from_str(&id.to_string())?);
+                context.sync_db.send_replace(id);
             }
             Ok::<_, InvalidHeaderValue>(())
         }

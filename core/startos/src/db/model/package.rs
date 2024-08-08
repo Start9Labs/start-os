@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::{DateTime, Utc};
-use emver::VersionRange;
+use exver::VersionRange;
 use imbl_value::InternedString;
 use models::{ActionId, DataUrl, HealthCheckId, HostId, PackageId, ServiceInterfaceId};
 use patch_db::json_ptr::JsonPointer;
@@ -10,8 +10,8 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::net::host::HostInfo;
-use crate::net::service_interface::ServiceInterfaceWithHostInfo;
+use crate::net::host::Hosts;
+use crate::net::service_interface::ServiceInterface;
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::s9pk::manifest::Manifest;
@@ -54,9 +54,21 @@ impl PackageState {
     pub fn expect_installed(&self) -> Result<&InstalledState, Error> {
         match self {
             Self::Installed(a) => Ok(a),
-            a => Err(Error::new(
+            _ => Err(Error::new(
                 eyre!(
                     "Package {} is not in installed state",
+                    self.as_manifest(ManifestPreference::Old).id
+                ),
+                ErrorKind::InvalidRequest,
+            )),
+        }
+    }
+    pub fn expect_removing(&self) -> Result<&InstalledState, Error> {
+        match self {
+            Self::Removing(a) => Ok(a),
+            _ => Err(Error::new(
+                eyre!(
+                    "Package {} is not in removing state",
                     self.as_manifest(ManifestPreference::Old).id
                 ),
                 ErrorKind::InvalidRequest,
@@ -161,7 +173,7 @@ impl Model<PackageState> {
     pub fn expect_installed(&self) -> Result<&Model<InstalledState>, Error> {
         match self.as_match() {
             PackageStateMatchModelRef::Installed(a) => Ok(a),
-            a => Err(Error::new(
+            _ => Err(Error::new(
                 eyre!(
                     "Package {} is not in installed state",
                     self.as_manifest(ManifestPreference::Old).as_id().de()?
@@ -251,7 +263,7 @@ impl Model<PackageState> {
             PackageStateMatchModelMut::Installed(s) | PackageStateMatchModelMut::Removing(s) => {
                 s.as_manifest_mut()
             }
-            PackageStateMatchModelMut::Error(s) => {
+            PackageStateMatchModelMut::Error(_) => {
                 return Err(Error::new(
                     eyre!("could not determine package state to get manifest"),
                     ErrorKind::Database,
@@ -325,7 +337,7 @@ pub struct PackageDataEntry {
     pub state_info: PackageState,
     pub status: Status,
     #[ts(type = "string | null")]
-    pub marketplace_url: Option<Url>,
+    pub registry: Option<Url>,
     #[ts(type = "string")]
     pub developer_key: Pem<ed25519_dalek::VerifyingKey>,
     pub icon: DataUrl<'static>,
@@ -333,8 +345,8 @@ pub struct PackageDataEntry {
     pub last_backup: Option<DateTime<Utc>>,
     pub current_dependencies: CurrentDependencies,
     pub actions: BTreeMap<ActionId, ActionMetadata>,
-    pub service_interfaces: BTreeMap<ServiceInterfaceId, ServiceInterfaceWithHostInfo>,
-    pub hosts: HostInfo,
+    pub service_interfaces: BTreeMap<ServiceInterfaceId, ServiceInterface>,
+    pub hosts: Hosts,
     #[ts(type = "string[]")]
     pub store_exposed_dependents: Vec<JsonPointer>,
 }
@@ -372,14 +384,14 @@ impl Map for CurrentDependencies {
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CurrentDependencyInfo {
+    #[ts(type = "string | null")]
+    pub title: Option<InternedString>,
+    pub icon: Option<DataUrl<'static>>,
     #[serde(flatten)]
     pub kind: CurrentDependencyKind,
-    pub title: String,
-    pub icon: DataUrl<'static>,
     #[ts(type = "string")]
-    pub registry_url: Url,
-    #[ts(type = "string")]
-    pub version_spec: VersionRange,
+    pub version_range: VersionRange,
+    pub config_satisfied: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]

@@ -8,7 +8,7 @@ use clap::Parser;
 use isocountry::CountryCode;
 use lazy_static::lazy_static;
 use regex::Regex;
-use rpc_toolkit::{command, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::RwLock;
@@ -16,6 +16,9 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
+use crate::db::model::public::WifiInfo;
+use crate::db::model::Database;
+use crate::net::utils::find_wifi_iface;
 use crate::prelude::*;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;
@@ -34,57 +37,55 @@ pub fn wifi_manager(ctx: &RpcContext) -> Result<&WifiManager, Error> {
     }
 }
 
-pub fn wifi() -> ParentHandler {
+pub fn wifi<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "add",
             from_fn_async(add)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "connect",
             from_fn_async(connect)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "delete",
             from_fn_async(delete)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "get",
             from_fn_async(get)
                 .with_display_serializable()
-                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                .with_custom_display_fn(|handle, result| {
                     Ok(display_wifi_info(handle.params, result))
                 })
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
-        .subcommand("country", country())
-        .subcommand("available", available())
+        .subcommand("country", country::<C>())
+        .subcommand("available", available::<C>())
 }
 
-pub fn available() -> ParentHandler {
+pub fn available<C: Context>() -> ParentHandler<C> {
     ParentHandler::new().subcommand(
         "get",
         from_fn_async(get_available)
             .with_display_serializable()
-            .with_custom_display_fn::<AnyContext, _>(|handle, result| {
-                Ok(display_wifi_list(handle.params, result))
-            })
-            .with_remote_cli::<CliContext>(),
+            .with_custom_display_fn(|handle, result| Ok(display_wifi_list(handle.params, result)))
+            .with_call_remote::<CliContext>(),
     )
 }
 
-pub fn country() -> ParentHandler {
+pub fn country<C: Context>() -> ParentHandler<C> {
     ParentHandler::new().subcommand(
         "set",
         from_fn_async(set_country)
             .no_display()
-            .with_remote_cli::<CliContext>(),
+            .with_call_remote::<CliContext>(),
     )
 }
 
@@ -111,7 +112,7 @@ pub async fn add(ctx: RpcContext, AddParams { ssid, password }: AddParams) -> Re
         ));
     }
     async fn add_procedure(
-        db: PatchDb,
+        db: TypedPatchDb<Database>,
         wifi_manager: WifiManager,
         ssid: &Ssid,
         password: &Psk,
@@ -137,6 +138,18 @@ pub async fn add(ctx: RpcContext, AddParams { ssid, password }: AddParams) -> Re
             ErrorKind::Wifi,
         ));
     }
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_wifi_mut()
+                .as_ssids_mut()
+                .mutate(|s| {
+                    s.insert(ssid);
+                    Ok(())
+                })
+        })
+        .await?;
     Ok(())
 }
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -156,7 +169,7 @@ pub async fn connect(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result
         ));
     }
     async fn connect_procedure(
-        db: PatchDb,
+        db: TypedPatchDb<Database>,
         wifi_manager: WifiManager,
         ssid: &Ssid,
     ) -> Result<(), Error> {
@@ -190,6 +203,17 @@ pub async fn connect(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result
             ErrorKind::Wifi,
         ));
     }
+
+    ctx.db
+        .mutate(|db| {
+            let wifi = db.as_public_mut().as_server_info_mut().as_wifi_mut();
+            wifi.as_ssids_mut().mutate(|s| {
+                s.insert(ssid.clone());
+                Ok(())
+            })?;
+            wifi.as_selected_mut().ser(&Some(ssid))
+        })
+        .await?;
     Ok(())
 }
 
@@ -215,11 +239,23 @@ pub async fn delete(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result<
     }
 
     wpa_supplicant.remove_network(ctx.db.clone(), &ssid).await?;
+
+    ctx.db
+        .mutate(|db| {
+            let wifi = db.as_public_mut().as_server_info_mut().as_wifi_mut();
+            wifi.as_ssids_mut().mutate(|s| {
+                s.remove(&ssid.0);
+                Ok(())
+            })?;
+            wifi.as_selected_mut()
+                .map_mutate(|s| Ok(s.filter(|s| s == &ssid.0)))
+        })
+        .await?;
     Ok(())
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WiFiInfo {
+pub struct WifiListInfo {
     ssids: HashMap<Ssid, SignalStrength>,
     connected: Option<Ssid>,
     country: Option<CountryCode>,
@@ -228,7 +264,7 @@ pub struct WiFiInfo {
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct WifiListInfo {
+pub struct WifiListInfoLow {
     strength: SignalStrength,
     security: Vec<String>,
 }
@@ -239,8 +275,8 @@ pub struct WifiListOut {
     strength: SignalStrength,
     security: Vec<String>,
 }
-pub type WifiList = HashMap<Ssid, WifiListInfo>;
-fn display_wifi_info(params: WithIoFormat<Empty>, info: WiFiInfo) {
+pub type WifiList = HashMap<Ssid, WifiListInfoLow>;
+fn display_wifi_info(params: WithIoFormat<Empty>, info: WifiListInfo) {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -330,7 +366,7 @@ fn display_wifi_list(params: WithIoFormat<Empty>, info: Vec<WifiListOut>) {
 
 // #[command(display(display_wifi_info))]
 #[instrument(skip_all)]
-pub async fn get(ctx: RpcContext, _: Empty) -> Result<WiFiInfo, Error> {
+pub async fn get(ctx: RpcContext, _: Empty) -> Result<WifiListInfo, Error> {
     let wifi_manager = wifi_manager(&ctx)?;
     let wpa_supplicant = wifi_manager.read().await;
     let (list_networks, current_res, country_res, ethernet_res, signal_strengths) = tokio::join!(
@@ -368,7 +404,7 @@ pub async fn get(ctx: RpcContext, _: Empty) -> Result<WiFiInfo, Error> {
         })
         .collect();
     let current = current_res?;
-    Ok(WiFiInfo {
+    Ok(WifiListInfo {
         ssids,
         connected: current,
         country: country_res?,
@@ -477,7 +513,7 @@ impl SignalStrength {
 }
 
 #[derive(Debug, Clone)]
-pub struct WifiInfo {
+pub struct WifiInfoLow {
     ssid: Ssid,
     device: Option<String>,
 }
@@ -604,7 +640,7 @@ impl WpaCli {
         Ok(())
     }
     #[instrument(skip_all)]
-    pub async fn list_networks_low(&self) -> Result<BTreeMap<NetworkId, WifiInfo>, Error> {
+    pub async fn list_networks_low(&self) -> Result<BTreeMap<NetworkId, WifiInfoLow>, Error> {
         let r = Command::new("nmcli")
             .arg("-t")
             .arg("c")
@@ -623,13 +659,13 @@ impl WpaCli {
                 if !connection_type.contains("wireless") {
                     return None;
                 }
-                let info = WifiInfo {
+                let info = WifiInfoLow {
                     ssid: name,
                     device: device.map(|x| x.to_owned()),
                 };
                 Some((uuid, info))
             })
-            .collect::<BTreeMap<NetworkId, WifiInfo>>())
+            .collect::<BTreeMap<NetworkId, WifiInfoLow>>())
     }
 
     #[instrument(skip_all)]
@@ -652,7 +688,7 @@ impl WpaCli {
                     values.next()?.split(' ').map(|x| x.to_owned()).collect();
                 Some((
                     ssid,
-                    WifiListInfo {
+                    WifiListInfoLow {
                         strength: signal,
                         security,
                     },
@@ -681,12 +717,13 @@ impl WpaCli {
 
         Ok(())
     }
-    pub async fn save_config(&mut self, db: PatchDb) -> Result<(), Error> {
+    pub async fn save_config(&mut self, db: TypedPatchDb<Database>) -> Result<(), Error> {
         let new_country = self.get_country_low().await?;
         db.mutate(|d| {
             d.as_public_mut()
                 .as_server_info_mut()
-                .as_last_wifi_region_mut()
+                .as_wifi_mut()
+                .as_last_region_mut()
                 .ser(&new_country)
         })
         .await
@@ -720,7 +757,11 @@ impl WpaCli {
             .collect())
     }
     #[instrument(skip_all)]
-    pub async fn select_network(&mut self, db: PatchDb, ssid: &Ssid) -> Result<bool, Error> {
+    pub async fn select_network(
+        &mut self,
+        db: TypedPatchDb<Database>,
+        ssid: &Ssid,
+    ) -> Result<bool, Error> {
         let m_id = self.check_active_network(ssid).await?;
         match m_id {
             None => Err(Error::new(
@@ -772,7 +813,11 @@ impl WpaCli {
         }
     }
     #[instrument(skip_all)]
-    pub async fn remove_network(&mut self, db: PatchDb, ssid: &Ssid) -> Result<bool, Error> {
+    pub async fn remove_network(
+        &mut self,
+        db: TypedPatchDb<Database>,
+        ssid: &Ssid,
+    ) -> Result<bool, Error> {
         let found_networks = self.find_networks(ssid).await?;
         if found_networks.is_empty() {
             return Ok(true);
@@ -786,7 +831,7 @@ impl WpaCli {
     #[instrument(skip_all)]
     pub async fn set_add_network(
         &mut self,
-        db: PatchDb,
+        db: TypedPatchDb<Database>,
         ssid: &Ssid,
         psk: &Psk,
     ) -> Result<(), Error> {
@@ -795,7 +840,12 @@ impl WpaCli {
         Ok(())
     }
     #[instrument(skip_all)]
-    pub async fn add_network(&mut self, db: PatchDb, ssid: &Ssid, psk: &Psk) -> Result<(), Error> {
+    pub async fn add_network(
+        &mut self,
+        db: TypedPatchDb<Database>,
+        ssid: &Ssid,
+        psk: &Psk,
+    ) -> Result<(), Error> {
         self.add_network_low(ssid, psk).await?;
         self.save_config(db).await?;
         Ok(())
@@ -837,9 +887,12 @@ impl TypedValueParser for CountryCodeParser {
 #[instrument(skip_all)]
 pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(
     main_datadir: P,
-    wifi_iface: &str,
-    last_country_code: &Option<CountryCode>,
+    wifi: &mut WifiInfo,
 ) -> Result<(), Error> {
+    wifi.interface = find_wifi_iface().await?;
+    let Some(wifi_iface) = &wifi.interface else {
+        return Ok(());
+    };
     let persistent = main_datadir.as_ref().join("system-connections");
     tracing::debug!("persistent: {:?}", persistent);
     // let supplicant = Path::new("/etc/wpa_supplicant.conf");
@@ -863,7 +916,7 @@ pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(
         .arg("up")
         .invoke(ErrorKind::Wifi)
         .await?;
-    if let Some(last_country_code) = last_country_code {
+    if let Some(last_country_code) = wifi.last_region {
         tracing::info!("Setting the region");
         let _ = Command::new("iw")
             .arg("reg")

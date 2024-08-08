@@ -1,11 +1,15 @@
 {
   "name": null,
-  "ackWelcome": "0.3.6.1",
+  "ackWelcome": "0.0.0",
   "marketplace": {
     "selectedUrl": "https://registry.start9.com/",
     "knownHosts": {
-      "https://registry.start9.com/": {},
-      "https://community-registry.start9.com/": {}
+      "https://registry.start9.com/": {
+        "name": "Start9 Registry"
+      },
+      "https://community-registry.start9.com/": {
+        "name": "Community Registry"
+      }
     }
   },
   "dev": {},
@@ -16,5 +20,6 @@
   },
   "ackInstructions": {},
   "theme": "Dark",
-  "widgets": []
+  "widgets": [],
+  "ack-welcome": "0.3.6-alpha.3"
 }

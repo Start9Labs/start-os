@@ -1,15 +1,20 @@
 import { Injectable } from '@angular/core'
-import { pauseFor, Log, getSetupStatusMock } from '@start9labs/shared'
+import {
+  pauseFor,
+  Log,
+  getSetupStatusMock,
+  RPCErrorDetails,
+  RPCOptions,
+} from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import {
   Operation,
   PatchOp,
   pathFromArray,
   RemoveOperation,
-  Update,
+  Revision,
 } from 'patch-db-client'
 import {
-  DataModel,
   InstallingState,
   PackageDataEntry,
   Proxy,
@@ -19,24 +24,25 @@ import {
 import { BackupTargetType, Metrics, RR } from './api.types'
 import { Mock } from './api.fixures'
 import {
-  EMPTY,
-  iif,
+  from,
   interval,
   map,
   Observable,
   shareReplay,
+  startWith,
   Subject,
-  switchMap,
   tap,
-  timer,
 } from 'rxjs'
-import { LocalStorageBootstrap } from '../patch-db/local-storage-bootstrap'
 import { mockPatchData } from './mock-patch'
-import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import { AuthService } from '../auth.service'
-import { ConnectionService } from '../connection.service'
-import { StoreInfo } from '@start9labs/marketplace'
 import { T } from '@start9labs/start-sdk'
+import {
+  GetPackageRes,
+  GetPackagesRes,
+  MarketplacePkg,
+} from '@start9labs/marketplace'
+import { WebSocketSubjectConfig } from 'rxjs/webSocket'
+import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
 
 const PROGRESS: T.FullProgress = {
   overall: {
@@ -53,10 +59,7 @@ const PROGRESS: T.FullProgress = {
     },
     {
       name: 'Validating',
-      progress: {
-        done: 0,
-        total: 40,
-      },
+      progress: null,
     },
     {
       name: 'Installing',
@@ -70,44 +73,25 @@ const PROGRESS: T.FullProgress = {
 
 @Injectable()
 export class MockApiService extends ApiService {
-  readonly mockWsSource$ = new Subject<Update<DataModel>>()
+  readonly mockWsSource$ = new Subject<Revision>()
   private readonly revertTime = 1800
   sequence = 0
 
-  constructor(
-    private readonly bootstrapper: LocalStorageBootstrap,
-    private readonly connectionService: ConnectionService,
-    private readonly auth: AuthService,
-  ) {
+  constructor(private readonly auth: AuthService) {
     super()
     this.auth.isVerified$
       .pipe(
         tap(() => {
           this.sequence = 0
         }),
-        switchMap(verified =>
-          iif(
-            () => verified,
-            timer(2000).pipe(
-              tap(() => {
-                this.connectionService.websocketConnected$.next(true)
-              }),
-            ),
-            EMPTY,
-          ),
-        ),
       )
       .subscribe()
   }
 
-  async getStatic(url: string): Promise<string> {
+  async uploadPackage(guid: string, body: Blob): Promise<string> {
     await pauseFor(2000)
-    return `* Test markdown instructions
-* Test markdown instructions with [link](https://start9.com)`
-  }
-
-  async uploadPackage(guid: string, body: Blob): Promise<void> {
-    await pauseFor(2000)
+    // @TODO Matt what should this return?
+    return ''
   }
 
   async uploadFile(body: Blob): Promise<string> {
@@ -115,7 +99,82 @@ export class MockApiService extends ApiService {
     return 'returnedhash'
   }
 
+  async getStaticProxy(
+    pkg: MarketplacePkg,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string> {
+    await pauseFor(2000)
+    return markdown
+  }
+
+  async getStaticInstalled(
+    id: T.PackageId,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string> {
+    await pauseFor(2000)
+    return markdown
+  }
+
+  // websocket
+
+  openWebsocket$<T>(
+    guid: string,
+    config: RR.WebsocketConfig<T>,
+  ): Observable<T> {
+    if (guid === 'db-guid') {
+      return this.mockWsSource$.pipe<any>(
+        shareReplay({ bufferSize: 1, refCount: true }),
+      )
+    } else if (guid === 'logs-guid') {
+      return interval(50).pipe<any>(
+        map((_, index) => {
+          // mock fire open observer
+          if (index === 0) config.openObserver?.next(new Event(''))
+          if (index === 100) throw new Error('HAAHHA')
+          return Mock.ServerLogs[0]
+        }),
+      )
+    } else if (guid === 'init-progress-guid') {
+      return from(this.initProgress()).pipe(
+        startWith(PROGRESS),
+      ) as Observable<T>
+    } else {
+      throw new Error('invalid guid type')
+    }
+  }
+
+  // state
+
+  async echo(params: RR.EchoReq, url: string): Promise<RR.EchoRes> {
+    if (url) {
+      const num = Math.floor(Math.random() * 10) + 1
+      if (num > 8) return params.message
+      throw new Error()
+    }
+    await pauseFor(2000)
+    return params.message
+  }
+
+  private stateIndex = 0
+  async getState(): Promise<RR.ServerState> {
+    await pauseFor(1000)
+
+    this.stateIndex++
+
+    return this.stateIndex === 1 ? 'running' : 'running'
+  }
+
   // db
+
+  async subscribeToPatchDB(
+    params: RR.SubscribePatchReq,
+  ): Promise<RR.SubscribePatchRes> {
+    await pauseFor(2000)
+    return {
+      dump: { id: 1, value: mockPatchData },
+      guid: 'db-guid',
+    }
+  }
 
   async setDbValue<T>(
     pathArr: Array<string | number>,
@@ -140,11 +199,6 @@ export class MockApiService extends ApiService {
 
   async login(params: RR.LoginReq): Promise<RR.loginRes> {
     await pauseFor(2000)
-
-    setTimeout(() => {
-      this.mockWsSource$.next({ id: 1, value: mockPatchData })
-    }, 2000)
-
     return null
   }
 
@@ -170,34 +224,63 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  // server
+  // diagnostic
 
-  async echo(params: RR.EchoReq, url?: string): Promise<RR.EchoRes> {
-    if (url) {
-      const num = Math.floor(Math.random() * 10) + 1
-      if (num > 8) return params.message
-      throw new Error()
+  async getError(): Promise<RPCErrorDetails> {
+    await pauseFor(1000)
+    return {
+      code: 15,
+      message: 'Unknown server',
+      data: { details: 'Some details about the error here' },
     }
+  }
+
+  async diagnosticGetError(): Promise<RR.DiagnosticErrorRes> {
+    await pauseFor(1000)
+    return {
+      code: 15,
+      message: 'Unknown server',
+      data: { details: 'Some details about the error here' },
+    }
+  }
+
+  async diagnosticRestart(): Promise<void> {
+    await pauseFor(1000)
+  }
+
+  async diagnosticForgetDrive(): Promise<void> {
+    await pauseFor(1000)
+  }
+
+  async diagnosticRepairDisk(): Promise<void> {
+    await pauseFor(1000)
+  }
+
+  async diagnosticGetLogs(
+    params: RR.GetServerLogsReq,
+  ): Promise<RR.GetServerLogsRes> {
+    return this.getServerLogs(params)
+  }
+
+  // init
+
+  async initGetProgress(): Promise<RR.InitGetProgressRes> {
+    await pauseFor(250)
+    return {
+      progress: PROGRESS,
+      guid: 'init-progress-guid',
+    }
+  }
+
+  async initFollowLogs(): Promise<RR.FollowServerLogsRes> {
     await pauseFor(2000)
-    return params.message
+    return {
+      startCursor: 'start-cursor',
+      guid: 'logs-guid',
+    }
   }
 
-  openPatchWebsocket$(): Observable<Update<DataModel>> {
-    return this.mockWsSource$.pipe(
-      shareReplay({ bufferSize: 1, refCount: true }),
-    )
-  }
-
-  openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
-    return interval(50).pipe(
-      map((_, index) => {
-        // mock fire open observer
-        if (index === 0) config.openObserver?.next(new Event(''))
-        if (index === 100) throw new Error('HAAHHA')
-        return Mock.ServerLogs[0]
-      }),
-    )
-  }
+  // server
 
   openMetricsWebsocket$(
     config: WebSocketSubjectConfig<Metrics>,
@@ -265,7 +348,7 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     return {
       startCursor: 'start-cursor',
-      guid: '7251d5be-645f-4362-a51b-3a85be92b31e',
+      guid: 'logs-guid',
     }
   }
 
@@ -275,7 +358,7 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     return {
       startCursor: 'start-cursor',
-      guid: '7251d5be-645f-4362-a51b-3a85be92b31e',
+      guid: 'logs-guid',
     }
   }
 
@@ -285,11 +368,11 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     return {
       startCursor: 'start-cursor',
-      guid: '7251d5be-645f-4362-a51b-3a85be92b31e',
+      guid: 'logs-guid',
     }
   }
 
-  randomLogs(limit = 1): Log[] {
+  private randomLogs(limit = 1): Log[] {
     const arrLength = Math.ceil(limit / Mock.ServerLogs.length)
     const logs = new Array(arrLength)
       .fill(Mock.ServerLogs)
@@ -404,12 +487,6 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async systemRebuild(
-    params: RR.SystemRebuildReq,
-  ): Promise<RR.SystemRebuildRes> {
-    return this.restartServer(params)
-  }
-
   async repairDisk(params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
     await pauseFor(2000)
     return null
@@ -439,45 +516,41 @@ export class MockApiService extends ApiService {
 
   // marketplace URLs
 
-  async marketplaceProxy(
-    path: string,
-    params: Record<string, string>,
-    url: string,
+  async registryRequest(
+    registryUrl: string,
+    options: RPCOptions,
   ): Promise<any> {
     await pauseFor(2000)
 
-    if (path === '/package/v0/info') {
-      const info: StoreInfo = {
-        name: 'Start9 Registry',
-        categories: [
-          'bitcoin',
-          'lightning',
-          'data',
-          'featured',
-          'messaging',
-          'social',
-          'alt coin',
-          'ai',
-        ],
-      }
-      return info
-    } else if (path === '/package/v0/index') {
-      const version = params['ids']
-        ? (JSON.parse(params['ids']) as { version: string; id: string }[])[0]
-            .version
-        : undefined
-      return Mock.marketplacePkgsList(version)
-    } else if (path.startsWith('/package/v0/release-notes')) {
-      return Mock.ReleaseNotes
-    } else if (path.includes('instructions') || path.includes('license')) {
-      return `* Test markdown instructions
-* Test markdown instructions with [link](https://start9.com)`
+    return Error('do not call directly')
+  }
+
+  async checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes> {
+    await pauseFor(2000)
+    return Mock.MarketplaceEos
+  }
+
+  async getRegistryInfo(registryUrl: string): Promise<T.RegistryInfo> {
+    await pauseFor(2000)
+    return Mock.RegistryInfo
+  }
+
+  async getRegistryPackage(
+    url: string,
+    id: string,
+    versionRange: string,
+  ): Promise<GetPackageRes> {
+    await pauseFor(2000)
+    if (!versionRange) {
+      return Mock.RegistryPackages[id]
+    } else {
+      return Mock.OtherPackageVersions[id][versionRange]
     }
   }
 
-  async getEos(): Promise<RR.GetMarketplaceEosRes> {
+  async getRegistryPackages(registryUrl: string): Promise<GetPackagesRes> {
     await pauseFor(2000)
-    return Mock.MarketplaceEos
+    return Mock.RegistryPackages
   }
 
   // notification
@@ -776,7 +849,7 @@ export class MockApiService extends ApiService {
       path: path.replace(/\\/g, '/'),
       username: 'mockusername',
       mountable: true,
-      startOs: null,
+      startOs: {},
     }
   }
 
@@ -936,13 +1009,13 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     let entries
     if (Math.random() < 0.2) {
-      entries = Mock.PackageLogs
+      entries = Mock.ServerLogs
     } else {
       const arrLength = params.limit
-        ? Math.ceil(params.limit / Mock.PackageLogs.length)
+        ? Math.ceil(params.limit / Mock.ServerLogs.length)
         : 10
       entries = new Array(arrLength)
-        .fill(Mock.PackageLogs)
+        .fill(Mock.ServerLogs)
         .reduce((acc, val) => acc.concat(val), [])
     }
     return {
@@ -958,7 +1031,7 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     return {
       startCursor: 'start-cursor',
-      guid: '7251d5be-645f-4362-a51b-3a85be92b31e',
+      guid: 'logs-guid',
     }
   }
 
@@ -968,7 +1041,7 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
 
     setTimeout(async () => {
-      this.updateProgress(params.id)
+      this.installProgress(params.id)
     }, 1000)
 
     const patch: Operation<
@@ -981,11 +1054,11 @@ export class MockApiService extends ApiService {
           ...Mock.LocalPkgs[params.id],
           stateInfo: {
             // if installing
-            // state: 'installing',
+            state: 'installing',
 
             // if updating
-            state: 'updating',
-            manifest: mockPatchData.packageData[params.id].stateInfo.manifest!,
+            // state: 'updating',
+            // manifest: mockPatchData.packageData[params.id].stateInfo.manifest!,
 
             // both
             installingInfo: {
@@ -1015,7 +1088,7 @@ export class MockApiService extends ApiService {
     params: RR.DrySetPackageConfigReq,
   ): Promise<RR.DrySetPackageConfigRes> {
     await pauseFor(2000)
-    return {}
+    return []
   }
 
   async setPackageConfig(
@@ -1040,7 +1113,7 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     const patch: Operation<PackageDataEntry>[] = params.ids.map(id => {
       setTimeout(async () => {
-        this.updateProgress(id)
+        this.installProgress(id)
       }, 2000)
 
       return {
@@ -1267,15 +1340,12 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async sideloadPackage(
-    params: RR.SideloadPackageReq,
-  ): Promise<RR.SideloadPacakgeRes> {
+  async sideloadPackage(): Promise<RR.SideloadPackageRes> {
     await pauseFor(2000)
-    return '4120e092-05ab-4de2-9fbd-c3f1f4b1df9e' // no significance, randomly generated
-  }
-
-  async getSetupStatus() {
-    return getSetupStatusMock()
+    return {
+      upload: '4120e092-05ab-4de2-9fbd-c3f1f4b1df9e', // no significance, randomly generated
+      progress: '5120e092-05ab-4de2-9fbd-c3f1f4b1df9e', // no significance, randomly generated
+    }
   }
 
   async setInterfaceClearnetAddress(
@@ -1310,11 +1380,61 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  private async updateProgress(id: string): Promise<void> {
+  private async initProgress(): Promise<T.FullProgress> {
     const progress = JSON.parse(JSON.stringify(PROGRESS))
 
     for (let [i, phase] of progress.phases.entries()) {
-      if (typeof phase.progress !== 'object' || !phase.progress.total) {
+      if (
+        !phase.progress ||
+        typeof phase.progress !== 'object' ||
+        !phase.progress.total
+      ) {
+        await pauseFor(2000)
+
+        progress.phases[i].progress = true
+
+        if (
+          progress.overall &&
+          typeof progress.overall === 'object' &&
+          progress.overall.total
+        ) {
+          const step = progress.overall.total / progress.phases.length
+          progress.overall.done += step
+        }
+      } else {
+        const step = phase.progress.total / 4
+
+        while (phase.progress.done < phase.progress.total) {
+          await pauseFor(200)
+
+          phase.progress.done += step
+
+          if (
+            progress.overall &&
+            typeof progress.overall === 'object' &&
+            progress.overall.total
+          ) {
+            const step = progress.overall.total / progress.phases.length / 4
+
+            progress.overall.done += step
+          }
+
+          if (phase.progress.done === phase.progress.total) {
+            await pauseFor(250)
+
+            progress.phases[i].progress = true
+          }
+        }
+      }
+    }
+    return progress
+  }
+
+  private async installProgress(id: string): Promise<void> {
+    const progress = JSON.parse(JSON.stringify(PROGRESS))
+
+    for (let [i, phase] of progress.phases.entries()) {
+      if (!phase.progress || phase.progress === true || !phase.progress.total) {
         await pauseFor(2000)
 
         const patches: Operation<any>[] = [
@@ -1326,7 +1446,11 @@ export class MockApiService extends ApiService {
         ]
 
         // overall
-        if (typeof progress.overall === 'object' && progress.overall.total) {
+        if (
+          progress.overall &&
+          typeof progress.overall === 'object' &&
+          progress.overall.total
+        ) {
           const step = progress.overall.total / progress.phases.length
 
           progress.overall.done += step
@@ -1356,7 +1480,11 @@ export class MockApiService extends ApiService {
           ]
 
           // overall
-          if (typeof progress.overall === 'object' && progress.overall.total) {
+          if (
+            progress.overall &&
+            typeof progress.overall === 'object' &&
+            progress.overall.total
+          ) {
             const step = progress.overall.total / progress.phases.length / 4
 
             progress.overall.done += step
@@ -1469,10 +1597,6 @@ export class MockApiService extends ApiService {
   }
 
   private async mockRevision<T>(patch: Operation<T>[]): Promise<void> {
-    if (!this.sequence) {
-      const { sequence } = this.bootstrapper.init()
-      this.sequence = sequence
-    }
     const revision = {
       id: ++this.sequence,
       patch,

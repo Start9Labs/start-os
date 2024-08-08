@@ -1,5 +1,4 @@
-import { InterfaceReceipt } from "../interfaces/interfaceReceipt"
-import { Daemon, Effects } from "../types"
+import { Effects } from "../types"
 import { CheckResult } from "./checkFns/CheckResult"
 import { HealthReceipt } from "./HealthReceipt"
 import { Trigger } from "../trigger"
@@ -7,17 +6,26 @@ import { TriggerInput } from "../trigger/TriggerInput"
 import { defaultTrigger } from "../trigger/defaultTrigger"
 import { once } from "../util/once"
 import { Overlay } from "../util/Overlay"
+import { object, unknown } from "ts-matches"
+import * as T from "../types"
 
-export function healthCheck(o: {
+export type HealthCheckParams<Manifest extends T.Manifest> = {
   effects: Effects
   name: string
-  imageId: string
+  image: {
+    id: keyof Manifest["images"] & T.ImageId
+    sharedRun?: boolean
+  }
   trigger?: Trigger
   fn(overlay: Overlay): Promise<CheckResult> | CheckResult
   onFirstSuccess?: () => unknown | Promise<unknown>
-}) {
+}
+
+export function healthCheck<Manifest extends T.Manifest>(
+  o: HealthCheckParams<Manifest>,
+) {
   new Promise(async () => {
-    const overlay = await Overlay.of(o.effects, o.imageId)
+    const overlay = await Overlay.of(o.effects, o.image)
     try {
       let currentValue: TriggerInput = {
         hadSuccess: false,
@@ -66,8 +74,7 @@ export function healthCheck(o: {
   return {} as HealthReceipt
 }
 function asMessage(e: unknown) {
-  if (typeof e === "object" && e != null && "message" in e)
-    return String(e.message)
+  if (object({ message: unknown }).test(e)) return String(e.message)
   const value = String(e)
   if (value.length == null) return null
   return value

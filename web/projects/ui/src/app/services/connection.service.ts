@@ -1,32 +1,23 @@
-import { Injectable } from '@angular/core'
-import {
-  combineLatest,
-  distinctUntilChanged,
-  map,
-  startWith,
-  fromEvent,
-  merge,
-  ReplaySubject,
-} from 'rxjs'
+import { inject, Injectable } from '@angular/core'
+import { combineLatest, Observable, shareReplay } from 'rxjs'
+import { distinctUntilChanged, map } from 'rxjs/operators'
+import { NetworkService } from 'src/app/services/network.service'
+import { StateService } from 'src/app/services/state.service'
 
 @Injectable({
   providedIn: 'root',
 })
-export class ConnectionService {
-  readonly networkConnected$ = merge(
-    fromEvent(window, 'online'),
-    fromEvent(window, 'offline'),
-  ).pipe(
-    startWith(null),
-    map(() => navigator.onLine),
-    distinctUntilChanged(),
-  )
-  readonly websocketConnected$ = new ReplaySubject<boolean>(1)
-  readonly connected$ = combineLatest([
-    this.networkConnected$,
-    this.websocketConnected$.pipe(distinctUntilChanged()),
+export class ConnectionService extends Observable<boolean> {
+  private readonly stream$ = combineLatest([
+    inject(NetworkService),
+    inject(StateService).pipe(map(Boolean)),
   ]).pipe(
     map(([network, websocket]) => network && websocket),
     distinctUntilChanged(),
+    shareReplay(1),
   )
+
+  constructor() {
+    super(subscriber => this.stream$.subscribe(subscriber))
+  }
 }

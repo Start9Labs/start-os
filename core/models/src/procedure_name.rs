@@ -1,11 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::ActionId;
+use crate::{ActionId, PackageId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ProcedureName {
-    StartMain,
-    StopMain,
     GetConfig,
     SetConfig,
     CreateBackup,
@@ -14,8 +12,8 @@ pub enum ProcedureName {
     ActionMetadata,
     RunAction(ActionId),
     GetAction(ActionId),
-    QueryDependency(ActionId),
-    UpdateDependency(ActionId),
+    QueryDependency(PackageId),
+    UpdateDependency(PackageId),
     Init,
     Uninit,
 }
@@ -25,8 +23,6 @@ impl ProcedureName {
         match self {
             ProcedureName::Init => "/init".to_string(),
             ProcedureName::Uninit => "/uninit".to_string(),
-            ProcedureName::StartMain => "/main/start".to_string(),
-            ProcedureName::StopMain => "/main/stop".to_string(),
             ProcedureName::SetConfig => "/config/set".to_string(),
             ProcedureName::GetConfig => "/config/get".to_string(),
             ProcedureName::CreateBackup => "/backup/create".to_string(),

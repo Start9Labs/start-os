@@ -1,22 +1,51 @@
 import { Observable } from 'rxjs'
-import { Update } from 'patch-db-client'
 import { RR, BackupTargetType, Metrics } from './api.types'
-import { DataModel } from 'src/app/services/patch-db/data-model'
-import { Log, SetupStatus } from '@start9labs/shared'
-import { WebSocketSubjectConfig } from 'rxjs/webSocket'
+import { SetupStatus } from '@start9labs/shared'
+import { RPCOptions } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
+import {
+  GetPackageRes,
+  GetPackagesRes,
+  MarketplacePkg,
+} from '@start9labs/marketplace'
 
 export abstract class ApiService {
   // http
 
-  // for getting static files: ex icons, instructions, licenses
-  abstract getStatic(url: string): Promise<string>
-
   // for sideloading packages
-  abstract uploadPackage(guid: string, body: Blob): Promise<void>
+  abstract uploadPackage(guid: string, body: Blob): Promise<string>
 
   abstract uploadFile(body: Blob): Promise<string>
 
+  // for getting static files: ex icons, instructions, licenses
+  abstract getStaticProxy(
+    pkg: MarketplacePkg,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string>
+
+  abstract getStaticInstalled(
+    id: T.PackageId,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string>
+
+  // websocket
+
+  abstract openWebsocket$<T>(
+    guid: string,
+    config: RR.WebsocketConfig<T>,
+  ): Observable<T>
+
+  // state
+
+  abstract echo(params: RR.EchoReq, url: string): Promise<RR.EchoRes>
+
+  abstract getState(): Promise<RR.ServerState>
+
   // db
+
+  abstract subscribeToPatchDB(
+    params: RR.SubscribePatchReq,
+  ): Promise<RR.SubscribePatchRes>
 
   abstract setDbValue<T>(
     pathArr: Array<string | number>,
@@ -37,19 +66,25 @@ export abstract class ApiService {
     params: RR.ResetPasswordReq,
   ): Promise<RR.ResetPasswordRes>
 
+  // diagnostic
+
+  abstract diagnosticGetError(): Promise<RR.DiagnosticErrorRes>
+  abstract diagnosticRestart(): Promise<void>
+  abstract diagnosticForgetDrive(): Promise<void>
+  abstract diagnosticRepairDisk(): Promise<void>
+  abstract diagnosticGetLogs(
+    params: RR.GetServerLogsReq,
+  ): Promise<RR.GetServerLogsRes>
+
+  // init
+
+  abstract initGetProgress(): Promise<RR.InitGetProgressRes>
+
+  abstract initFollowLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes>
+
   // server
-
-  abstract echo(params: RR.EchoReq, urlOverride?: string): Promise<RR.EchoRes>
-
-  abstract openPatchWebsocket$(): Observable<Update<DataModel>>
-
-  abstract openLogsWebsocket$(
-    config: WebSocketSubjectConfig<Log>,
-  ): Observable<Log>
-
-  abstract openMetricsWebsocket$(
-    config: WebSocketSubjectConfig<Metrics>,
-  ): Observable<Metrics>
 
   abstract getSystemTime(
     params: RR.GetSystemTimeReq,
@@ -95,11 +130,7 @@ export abstract class ApiService {
     params: RR.ShutdownServerReq,
   ): Promise<RR.ShutdownServerRes>
 
-  abstract systemRebuild(
-    params: RR.SystemRebuildReq,
-  ): Promise<RR.SystemRebuildRes>
-
-  abstract repairDisk(params: RR.SystemRebuildReq): Promise<RR.SystemRebuildRes>
+  abstract repairDisk(params: RR.DiskRepairReq): Promise<RR.DiskRepairRes>
 
   abstract resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes>
 
@@ -109,13 +140,22 @@ export abstract class ApiService {
 
   // marketplace URLs
 
-  abstract marketplaceProxy<T>(
-    path: string,
-    params: Record<string, unknown>,
-    url: string,
+  abstract registryRequest<T>(
+    registryUrl: string,
+    options: RPCOptions,
   ): Promise<T>
 
-  abstract getEos(): Promise<RR.GetMarketplaceEosRes>
+  abstract checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes>
+
+  abstract getRegistryInfo(registryUrl: string): Promise<T.RegistryInfo>
+
+  abstract getRegistryPackage(
+    url: string,
+    id: string,
+    versionRange: string | null,
+  ): Promise<GetPackageRes>
+
+  abstract getRegistryPackages(registryUrl: string): Promise<GetPackagesRes>
 
   // notification
 
@@ -308,11 +348,7 @@ export abstract class ApiService {
     params: RR.DryConfigureDependencyReq,
   ): Promise<RR.DryConfigureDependencyRes>
 
-  abstract sideloadPackage(
-    params: RR.SideloadPackageReq,
-  ): Promise<RR.SideloadPacakgeRes>
-
-  abstract getSetupStatus(): Promise<SetupStatus | null>
+  abstract sideloadPackage(): Promise<RR.SideloadPackageRes>
 
   abstract setInterfaceClearnetAddress(
     params: RR.SetInterfaceClearnetAddressReq,

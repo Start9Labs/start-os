@@ -129,11 +129,13 @@ export const mockPatchData: DataModel = {
       login: '',
       password: '',
     },
+    platform: 'x86_64-nonfree',
+    // @TODO Matt zram needs to be added?
+    // zram: true,
+    governor: 'performance',
     passwordHash:
       '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-    platform: 'x86_64-nonfree',
     arch: 'x86_64',
-    governor: 'performance',
   },
   packageData: {
     bitcoind: {
@@ -141,7 +143,7 @@ export const mockPatchData: DataModel = {
         state: 'installed',
         manifest: {
           ...Mock.MockManifestBitcoind,
-          version: '0.20.0',
+          version: '0.20.0:0',
         },
       },
       icon: '/assets/img/service-icons/bitcoind.svg',
@@ -181,9 +183,8 @@ export const mockPatchData: DataModel = {
             },
           },
         },
-        dependencyConfigErrors: {},
       },
-      actions: {}, // @TODO
+      actions: {},
       serviceInterfaces: {
         ui: {
           id: 'ui',
@@ -197,65 +198,10 @@ export const mockPatchData: DataModel = {
           addressInfo: {
             username: null,
             hostId: 'abcdefg',
-            bindOptions: {
-              scheme: 'http',
-              preferredExternalPort: 80,
-              addSsl: {
-                // addXForwardedHeaders: false,
-                preferredExternalPort: 443,
-                scheme: 'https',
-                alpn: { specified: ['http/1.1', 'h2'] },
-              },
-              secure: null,
-            },
+            internalPort: 80,
+            scheme: 'http',
+            sslScheme: 'https',
             suffix: '',
-          },
-          hostInfo: {
-            id: 'abcdefg',
-            kind: 'multi',
-            hostnames: [
-              {
-                kind: 'ip',
-                networkInterfaceId: 'elan0',
-                public: false,
-                hostname: {
-                  kind: 'local',
-                  value: 'adjective-noun.local',
-                  port: null,
-                  sslPort: 1234,
-                },
-              },
-              {
-                kind: 'onion',
-                hostname: {
-                  value: 'bitcoin-ui-address.onion',
-                  port: 80,
-                  sslPort: 443,
-                },
-              },
-              {
-                kind: 'ip',
-                networkInterfaceId: 'elan0',
-                public: false,
-                hostname: {
-                  kind: 'ipv4',
-                  value: '192.168.1.5',
-                  port: null,
-                  sslPort: 1234,
-                },
-              },
-              {
-                kind: 'ip',
-                networkInterfaceId: 'elan0',
-                public: false,
-                hostname: {
-                  kind: 'ipv6',
-                  value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
-                  port: null,
-                  sslPort: 1234,
-                },
-              },
-            ],
           },
         },
         rpc: {
@@ -270,65 +216,10 @@ export const mockPatchData: DataModel = {
           addressInfo: {
             username: null,
             hostId: 'bcdefgh',
-            bindOptions: {
-              scheme: 'http',
-              preferredExternalPort: 80,
-              addSsl: {
-                // addXForwardedHeaders: false,
-                preferredExternalPort: 443,
-                scheme: 'https',
-                alpn: { specified: ['http/1.1'] },
-              },
-              secure: null,
-            },
+            internalPort: 8332,
+            scheme: 'http',
+            sslScheme: 'https',
             suffix: '',
-          },
-          hostInfo: {
-            id: 'bcdefgh',
-            kind: 'multi',
-            hostnames: [
-              {
-                kind: 'ip',
-                networkInterfaceId: 'elan0',
-                public: false,
-                hostname: {
-                  kind: 'local',
-                  value: 'adjective-noun.local',
-                  port: null,
-                  sslPort: 2345,
-                },
-              },
-              {
-                kind: 'onion',
-                hostname: {
-                  value: 'bitcoin-rpc-address.onion',
-                  port: 80,
-                  sslPort: 443,
-                },
-              },
-              {
-                kind: 'ip',
-                networkInterfaceId: 'elan0',
-                public: false,
-                hostname: {
-                  kind: 'ipv4',
-                  value: '192.168.1.5',
-                  port: null,
-                  sslPort: 2345,
-                },
-              },
-              {
-                kind: 'ip',
-                networkInterfaceId: 'elan0',
-                public: false,
-                hostname: {
-                  kind: 'ipv6',
-                  value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
-                  port: null,
-                  sslPort: 2345,
-                },
-              },
-            ],
           },
         },
         p2p: {
@@ -343,69 +234,117 @@ export const mockPatchData: DataModel = {
           addressInfo: {
             username: null,
             hostId: 'cdefghi',
-            bindOptions: {
-              scheme: 'bitcoin',
-              preferredExternalPort: 8333,
-              addSsl: null,
-              secure: {
-                ssl: false,
-              },
-            },
+            internalPort: 8333,
+            scheme: 'bitcoin',
+            sslScheme: null,
             suffix: '',
           },
-          hostInfo: {
-            id: 'cdefghi',
-            kind: 'multi',
-            hostnames: [
+        },
+      },
+      currentDependencies: {},
+      hosts: {
+        abcdefg: {
+          kind: 'multi',
+          bindings: [],
+          addresses: [],
+          hostnameInfo: {
+            80: [
               {
                 kind: 'ip',
-                networkInterfaceId: 'elan0',
+                networkInterfaceId: 'eth0',
                 public: false,
                 hostname: {
                   kind: 'local',
                   value: 'adjective-noun.local',
-                  port: 3456,
-                  sslPort: null,
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'wlan0',
+                public: false,
+                hostname: {
+                  kind: 'local',
+                  value: 'adjective-noun.local',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'eth0',
+                public: false,
+                hostname: {
+                  kind: 'ipv4',
+                  value: '10.0.0.1',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'wlan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv4',
+                  value: '10.0.0.2',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'eth0',
+                public: false,
+                hostname: {
+                  kind: 'ipv6',
+                  value: '[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'wlan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv6',
+                  value: '[FE80:CD00:0000:0CDE:1257:0000:211E:1234]',
+                  port: null,
+                  sslPort: 1234,
                 },
               },
               {
                 kind: 'onion',
                 hostname: {
-                  value: 'bitcoin-p2p-address.onion',
-                  port: 8333,
-                  sslPort: null,
-                },
-              },
-              {
-                kind: 'ip',
-                networkInterfaceId: 'elan0',
-                public: false,
-                hostname: {
-                  kind: 'ipv4',
-                  value: '192.168.1.5',
-                  port: 3456,
-                  sslPort: null,
-                },
-              },
-              {
-                kind: 'ip',
-                networkInterfaceId: 'elan0',
-                public: false,
-                hostname: {
-                  kind: 'ipv6',
-                  value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
-                  port: 3456,
-                  sslPort: null,
+                  value: 'bitcoin-p2p.onion',
+                  port: 80,
+                  sslPort: 443,
                 },
               },
             ],
           },
         },
+        bcdefgh: {
+          kind: 'multi',
+          bindings: [],
+          addresses: [],
+          hostnameInfo: {
+            8332: [],
+          },
+        },
+        cdefghi: {
+          kind: 'multi',
+          bindings: [],
+          addresses: [],
+          hostnameInfo: {
+            8333: [],
+          },
+        },
       },
-      currentDependencies: {},
-      hosts: {},
       storeExposedDependents: [],
-      marketplaceUrl: 'https://registry.start9.com/',
+      registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
       outboundProxy: null,
     },
@@ -414,7 +353,7 @@ export const mockPatchData: DataModel = {
         state: 'installed',
         manifest: {
           ...Mock.MockManifestLnd,
-          version: '0.11.0',
+          version: '0.11.0:0.0.1',
         },
       },
       icon: '/assets/img/service-icons/lnd.png',
@@ -425,9 +364,6 @@ export const mockPatchData: DataModel = {
         configured: true,
         main: {
           status: 'stopped',
-        },
-        dependencyConfigErrors: {
-          'btc-rpc-proxy': 'This is a config unsatisfied error',
         },
       },
       actions: {},
@@ -444,62 +380,10 @@ export const mockPatchData: DataModel = {
           addressInfo: {
             username: null,
             hostId: 'qrstuv',
-            bindOptions: {
-              scheme: 'grpc',
-              preferredExternalPort: 10009,
-              addSsl: null,
-              secure: {
-                ssl: true,
-              },
-            },
+            internalPort: 10009,
+            scheme: null,
+            sslScheme: 'grpc',
             suffix: '',
-          },
-          hostInfo: {
-            id: 'qrstuv',
-            kind: 'multi',
-            hostnames: [
-              {
-                kind: 'ip',
-                networkInterfaceId: 'elan0',
-                public: false,
-                hostname: {
-                  kind: 'local',
-                  value: 'adjective-noun.local',
-                  port: 5678,
-                  sslPort: null,
-                },
-              },
-              {
-                kind: 'onion',
-                hostname: {
-                  value: 'lnd-grpc-address.onion',
-                  port: 10009,
-                  sslPort: null,
-                },
-              },
-              {
-                kind: 'ip',
-                networkInterfaceId: 'elan0',
-                public: false,
-                hostname: {
-                  kind: 'ipv4',
-                  value: '192.168.1.5',
-                  port: 5678,
-                  sslPort: null,
-                },
-              },
-              {
-                kind: 'ip',
-                networkInterfaceId: 'elan0',
-                public: false,
-                hostname: {
-                  kind: 'ipv6',
-                  value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
-                  port: 5678,
-                  sslPort: null,
-                },
-              },
-            ],
           },
         },
         lndconnect: {
@@ -514,62 +398,10 @@ export const mockPatchData: DataModel = {
           addressInfo: {
             username: null,
             hostId: 'qrstuv',
-            bindOptions: {
-              scheme: 'lndconnect',
-              preferredExternalPort: 10009,
-              addSsl: null,
-              secure: {
-                ssl: true,
-              },
-            },
+            internalPort: 10009,
+            scheme: null,
+            sslScheme: 'lndconnect',
             suffix: 'cert=askjdfbjadnaskjnd&macaroon=ksjbdfnhjasbndjksand',
-          },
-          hostInfo: {
-            id: 'qrstuv',
-            kind: 'multi',
-            hostnames: [
-              {
-                kind: 'ip',
-                networkInterfaceId: 'elan0',
-                public: false,
-                hostname: {
-                  kind: 'local',
-                  value: 'adjective-noun.local',
-                  port: 5678,
-                  sslPort: null,
-                },
-              },
-              {
-                kind: 'onion',
-                hostname: {
-                  value: 'lnd-grpc-address.onion',
-                  port: 10009,
-                  sslPort: null,
-                },
-              },
-              {
-                kind: 'ip',
-                networkInterfaceId: 'elan0',
-                public: false,
-                hostname: {
-                  kind: 'ipv4',
-                  value: '192.168.1.5',
-                  port: 5678,
-                  sslPort: null,
-                },
-              },
-              {
-                kind: 'ip',
-                networkInterfaceId: 'elan0',
-                public: false,
-                hostname: {
-                  kind: 'ipv6',
-                  value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
-                  port: 5678,
-                  sslPort: null,
-                },
-              },
-            ],
           },
         },
         p2p: {
@@ -584,60 +416,10 @@ export const mockPatchData: DataModel = {
           addressInfo: {
             username: null,
             hostId: 'rstuvw',
-            bindOptions: {
-              scheme: null,
-              preferredExternalPort: 9735,
-              addSsl: null,
-              secure: { ssl: true },
-            },
+            internalPort: 8333,
+            scheme: 'bitcoin',
+            sslScheme: null,
             suffix: '',
-          },
-          hostInfo: {
-            id: 'rstuvw',
-            kind: 'multi',
-            hostnames: [
-              {
-                kind: 'ip',
-                networkInterfaceId: 'elan0',
-                public: false,
-                hostname: {
-                  kind: 'local',
-                  value: 'adjective-noun.local',
-                  port: 6789,
-                  sslPort: null,
-                },
-              },
-              {
-                kind: 'onion',
-                hostname: {
-                  value: 'lnd-p2p-address.onion',
-                  port: 9735,
-                  sslPort: null,
-                },
-              },
-              {
-                kind: 'ip',
-                networkInterfaceId: 'elan0',
-                public: false,
-                hostname: {
-                  kind: 'ipv4',
-                  value: '192.168.1.5',
-                  port: 6789,
-                  sslPort: null,
-                },
-              },
-              {
-                kind: 'ip',
-                networkInterfaceId: 'elan0',
-                public: false,
-                hostname: {
-                  kind: 'ipv6',
-                  value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
-                  port: 6789,
-                  sslPort: null,
-                },
-              },
-            ],
           },
         },
       },
@@ -646,22 +428,22 @@ export const mockPatchData: DataModel = {
           title: 'Bitcoin Core',
           icon: 'assets/img/service-icons/bitcoind.svg',
           kind: 'running',
-          registryUrl: 'https://registry.start9.com',
-          versionSpec: '>=26.0.0',
+          versionRange: '>=26.0.0',
           healthChecks: [],
+          configSatisfied: true,
         },
         'btc-rpc-proxy': {
           title: 'Bitcoin Proxy',
           icon: 'assets/img/service-icons/btc-rpc-proxy.png',
           kind: 'running',
-          registryUrl: 'https://community-registry.start9.com',
-          versionSpec: '>2.0.0',
+          versionRange: '>2.0.0',
           healthChecks: [],
+          configSatisfied: false,
         },
       },
       hosts: {},
       storeExposedDependents: [],
-      marketplaceUrl: 'https://registry.start9.com/',
+      registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
       outboundProxy: null,
     },

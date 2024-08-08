@@ -20,18 +20,13 @@ export abstract class AbstractMarketplaceService {
 
   abstract getPackage$(
     id: string,
-    version: string,
+    version: string | null,
+    flavor: string | null,
     url?: string,
-  ): Observable<MarketplacePkg> // could be {} so need to check in show page
-
-  abstract fetchReleaseNotes$(
-    id: string,
-    url?: string,
-  ): Observable<Record<string, string>>
+  ): Observable<MarketplacePkg>
 
   abstract fetchStatic$(
-    id: string,
-    type: string,
-    url?: string,
+    pkg: MarketplacePkg,
+    type: 'LICENSE.md' | 'instructions.md',
   ): Observable<string>
 }

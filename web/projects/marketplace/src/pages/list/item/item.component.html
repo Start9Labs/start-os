@@ -6,7 +6,7 @@
   <div class="background">
     <img
       [src]="determineIcon(marketplace)"
-      alt="{{ pkg.manifest.title }} Icon"
+      alt="{{ pkg.title }} Icon"
     />
   </div>
   <!-- darkening overlay -->
@@ -15,14 +15,32 @@
   <img
     [src]="determineIcon(marketplace)"
     class="icon"
-    alt="{{ pkg.manifest.title }} Icon"
+    alt="{{ pkg.title }} Icon"
   />
   <div class="detail">
     <span class="detail-title" ticker>
-      {{ pkg.manifest.title }}
+      {{ pkg.title }}
     </span>
     <span class="detail-description">
-      {{ pkg.manifest.description.short }}
+      {{ pkg.description.short }}
     </span>
   </div>
 </div>
+
+<!-- @TODO Alex -->
+<!-- <ion-item
+  class="service-card"
+  [routerLink]="['/marketplace', pkg.id]"
+  [queryParams]="{ flavor: pkg.flavor, version: pkg.version }"
+>
+  <ion-thumbnail slot="start">
+    <img alt="" [src]="pkg.icon | trustUrl" />
+  </ion-thumbnail>
+  <ion-label>
+    <h2 class="montserrat">
+      <strong>{{ pkg.title }}</strong>
+    </h2>
+    <h3>{{ pkg.description.short }}</h3>
+    <ng-content></ng-content>
+  </ion-label>
+</ion-item> -->

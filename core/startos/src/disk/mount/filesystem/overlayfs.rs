@@ -6,22 +6,26 @@ use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
 use sha2::Sha256;
 
-use crate::disk::mount::filesystem::{FileSystem, ReadOnly, ReadWrite};
-use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
+use crate::disk::mount::filesystem::{FileSystem, ReadWrite};
+use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
 use crate::prelude::*;
 use crate::util::io::TmpDir;
 
-struct OverlayFs<P0: AsRef<Path>, P1: AsRef<Path>> {
+pub struct OverlayFs<P0: AsRef<Path>, P1: AsRef<Path>, P2: AsRef<Path>> {
     lower: P0,
     upper: P1,
+    work: P2,
 }
-impl<P0: AsRef<Path>, P1: AsRef<Path>> OverlayFs<P0, P1> {
-    pub fn new(lower: P0, upper: P1) -> Self {
-        Self { lower, upper }
+impl<P0: AsRef<Path>, P1: AsRef<Path>, P2: AsRef<Path>> OverlayFs<P0, P1, P2> {
+    pub fn new(lower: P0, upper: P1, work: P2) -> Self {
+        Self { lower, upper, work }
     }
 }
-impl<P0: AsRef<Path> + Send + Sync, P1: AsRef<Path> + Send + Sync> FileSystem
-    for OverlayFs<P0, P1>
+impl<
+        P0: AsRef<Path> + Send + Sync,
+        P1: AsRef<Path> + Send + Sync,
+        P2: AsRef<Path> + Send + Sync,
+    > FileSystem for OverlayFs<P0, P1, P2>
 {
     fn mount_type(&self) -> Option<impl AsRef<str>> {
         Some("overlay")
@@ -33,24 +37,20 @@ impl<P0: AsRef<Path> + Send + Sync, P1: AsRef<Path> + Send + Sync> FileSystem
         [
             Box::new(lazy_format!("lowerdir={}", self.lower.as_ref().display()))
                 as Box<dyn Display>,
-            Box::new(lazy_format!(
-                "upperdir={}/upper",
-                self.upper.as_ref().display()
-            )),
-            Box::new(lazy_format!(
-                "workdir={}/work",
-                self.upper.as_ref().display()
-            )),
+            Box::new(lazy_format!("upperdir={}", self.upper.as_ref().display())),
+            Box::new(lazy_format!("workdir={}", self.work.as_ref().display())),
         ]
     }
     async fn pre_mount(&self) -> Result<(), Error> {
-        tokio::fs::create_dir_all(self.upper.as_ref().join("upper")).await?;
-        tokio::fs::create_dir_all(self.upper.as_ref().join("work")).await?;
+        tokio::fs::create_dir_all(self.upper.as_ref()).await?;
+        tokio::fs::create_dir_all(self.work.as_ref()).await?;
         Ok(())
     }
     async fn source_hash(
         &self,
     ) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error> {
+        tokio::fs::create_dir_all(self.upper.as_ref()).await?;
+        tokio::fs::create_dir_all(self.work.as_ref()).await?;
         let mut sha = Sha256::new();
         sha.update("OverlayFs");
         sha.update(
@@ -77,25 +77,37 @@ impl<P0: AsRef<Path> + Send + Sync, P1: AsRef<Path> + Send + Sync> FileSystem
                 .as_os_str()
                 .as_bytes(),
         );
+        sha.update(
+            tokio::fs::canonicalize(self.work.as_ref())
+                .await
+                .with_ctx(|_| {
+                    (
+                        crate::ErrorKind::Filesystem,
+                        self.upper.as_ref().display().to_string(),
+                    )
+                })?
+                .as_os_str()
+                .as_bytes(),
+        );
         Ok(sha.finalize())
     }
 }
 
 #[derive(Debug)]
-pub struct OverlayGuard {
-    lower: Option<TmpMountGuard>,
+pub struct OverlayGuard<G: GenericMountGuard> {
+    lower: Option<G>,
     upper: Option<TmpDir>,
     inner_guard: MountGuard,
 }
-impl OverlayGuard {
-    pub async fn mount(
-        base: &impl FileSystem,
-        mountpoint: impl AsRef<Path>,
-    ) -> Result<Self, Error> {
-        let lower = TmpMountGuard::mount(base, ReadOnly).await?;
+impl<G: GenericMountGuard> OverlayGuard<G> {
+    pub async fn mount(lower: G, mountpoint: impl AsRef<Path>) -> Result<Self, Error> {
         let upper = TmpDir::new().await?;
         let inner_guard = MountGuard::mount(
-            &OverlayFs::new(lower.path(), upper.as_ref()),
+            &OverlayFs::new(
+                lower.path(),
+                upper.as_ref().join("upper"),
+                upper.as_ref().join("work"),
+            ),
             mountpoint,
             ReadWrite,
         )
@@ -124,16 +136,15 @@ impl OverlayGuard {
         }
     }
 }
-#[async_trait::async_trait]
-impl GenericMountGuard for OverlayGuard {
+impl<G: GenericMountGuard> GenericMountGuard for OverlayGuard<G> {
     fn path(&self) -> &Path {
         self.inner_guard.path()
     }
-    async fn unmount(mut self) -> Result<(), Error> {
+    async fn unmount(self) -> Result<(), Error> {
         self.unmount(false).await
     }
 }
-impl Drop for OverlayGuard {
+impl<G: GenericMountGuard> Drop for OverlayGuard<G> {
     fn drop(&mut self) {
         let lower = self.lower.take();
         let upper = self.upper.take();

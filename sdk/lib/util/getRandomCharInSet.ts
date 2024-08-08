@@ -1,9 +1,10 @@
 // a,g,h,A-Z,,,,-
 
-import * as crypto from "crypto"
 export function getRandomCharInSet(charset: string): string {
   const set = stringToCharSet(charset)
-  let charIdx = crypto.randomInt(0, set.len)
+  let charIdx = Math.floor(
+    (crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32) * set.len,
+  )
   for (let range of set.ranges) {
     if (range.len > charIdx) {
       return String.fromCharCode(range.start.charCodeAt(0) + charIdx)

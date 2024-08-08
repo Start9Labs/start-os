@@ -5,7 +5,7 @@ use clap::builder::ValueParserFactory;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use imbl_value::InternedString;
-use rpc_toolkit::{command, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
@@ -13,6 +13,7 @@ use ts_rs::TS;
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
 use crate::util::clap::FromStrParser;
+use crate::util::io::create_file;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 
 pub const SSH_AUTHORIZED_KEYS_FILE: &str = "/home/start9/.ssh/authorized_keys";
@@ -79,28 +80,28 @@ impl std::str::FromStr for SshPubKey {
 }
 
 // #[command(subcommands(add, delete, list,))]
-pub fn ssh() -> ParentHandler {
+pub fn ssh<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "add",
             from_fn_async(add)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "delete",
             from_fn_async(delete)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "list",
             from_fn_async(list)
                 .with_display_serializable()
-                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                .with_custom_display_fn(|handle, result| {
                     Ok(display_all_ssh_keys(handle.params, result))
                 })
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
 }
 
@@ -229,7 +230,7 @@ pub async fn sync_keys<P: AsRef<Path>>(keys: &SshKeys, dest: P) -> Result<(), Er
     if tokio::fs::metadata(ssh_dir).await.is_err() {
         tokio::fs::create_dir_all(ssh_dir).await?;
     }
-    let mut f = tokio::fs::File::create(dest).await?;
+    let mut f = create_file(dest).await?;
     for key in keys.0.values() {
         f.write_all(key.0.to_key_format().as_bytes()).await?;
         f.write_all(b"\n").await?;

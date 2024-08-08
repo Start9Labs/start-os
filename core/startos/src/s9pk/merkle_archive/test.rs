@@ -8,9 +8,9 @@ use ed25519_dalek::SigningKey;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::file_contents::FileContents;
-use crate::s9pk::merkle_archive::sink::TrackingWriter;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::merkle_archive::{Entry, EntryContents, MerkleArchive};
+use crate::util::io::TrackingIO;
 
 /// Creates a MerkleArchive (a1) with the provided files at the provided paths. NOTE: later files can overwrite previous files/directories at the same path
 /// Tests:
@@ -52,7 +52,7 @@ fn test(files: Vec<(PathBuf, String)>) -> Result<(), Error> {
         }
     }
     let key = SigningKey::generate(&mut rand::thread_rng());
-    let mut a1 = MerkleArchive::new(root, key);
+    let mut a1 = MerkleArchive::new(root, key, "test");
     tokio::runtime::Builder::new_current_thread()
         .enable_io()
         .build()
@@ -60,10 +60,15 @@ fn test(files: Vec<(PathBuf, String)>) -> Result<(), Error> {
         .block_on(async move {
             a1.update_hashes(true).await?;
             let mut s1 = Vec::new();
-            a1.serialize(&mut TrackingWriter::new(0, &mut s1), true)
-                .await?;
+            a1.serialize(&mut TrackingIO::new(0, &mut s1), true).await?;
             let s1: Arc<[u8]> = s1.into();
-            let a2 = MerkleArchive::deserialize(&s1, &mut Cursor::new(s1.clone())).await?;
+            let a2 = MerkleArchive::deserialize(
+                &s1,
+                "test",
+                &mut Cursor::new(s1.clone()),
+                Some(&a1.commitment().await?),
+            )
+            .await?;
 
             for (path, content) in check_set {
                 match a2
@@ -88,8 +93,7 @@ fn test(files: Vec<(PathBuf, String)>) -> Result<(), Error> {
             }
 
             let mut s2 = Vec::new();
-            a2.serialize(&mut TrackingWriter::new(0, &mut s2), true)
-                .await?;
+            a2.serialize(&mut TrackingIO::new(0, &mut s2), true).await?;
             let s2: Arc<[u8]> = s2.into();
             ensure_code!(s1 == s2, ErrorKind::Pack, "s1 does not match s2");
 

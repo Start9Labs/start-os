@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use crate::account::AccountInfo;
 use crate::auth::Sessions;
@@ -41,6 +40,7 @@ impl Database {
                 notifications: Notifications::new(),
                 cifs: CifsTargets::new(),
                 package_stores: BTreeMap::new(),
+                compat_s9pk_key: Pem(account.compat_s9pk_key.clone()),
             }, // TODO
         })
     }

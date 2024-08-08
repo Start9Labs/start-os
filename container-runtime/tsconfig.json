@@ -1,11 +1,5 @@
 {
-  "include": [
-    "./**/*.mjs",
-    "./**/*.js",
-    "src/Adapters/RpcListener.ts",
-    "src/index.ts",
-    "effects.ts"
-  ],
+  "include": ["./**/*.ts"],
   "exclude": ["dist"],
   "inputs": ["./src/index.ts"],
   "compilerOptions": {
@@ -19,9 +13,10 @@
     "declaration": true,
     "noImplicitAny": true,
     "esModuleInterop": true,
-    "types": ["node"],
+    "types": ["node", "jest"],
     "moduleResolution": "Node16",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "resolveJsonModule": true
   },
   "ts-node": {
     "compilerOptions": {

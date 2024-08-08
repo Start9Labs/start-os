@@ -1,4 +1,3 @@
-import { ManifestVersion, SDKManifest } from "./manifest/ManifestTypes"
 import { RequiredDefault, Value } from "./config/builder/value"
 import { Config, ExtractConfigType, LazyBuild } from "./config/builder/config"
 import {
@@ -21,21 +20,20 @@ import {
   MaybePromise,
   ServiceInterfaceId,
   PackageId,
-  ValidIfNoStupidEscape,
 } from "./types"
 import * as patterns from "./util/patterns"
-import { DependencyConfig, Update } from "./dependencyConfig/DependencyConfig"
+import { DependencyConfig, Update } from "./dependencies/DependencyConfig"
 import { BackupSet, Backups } from "./backup/Backups"
 import { smtpConfig } from "./config/configConstants"
 import { Daemons } from "./mainFn/Daemons"
-import { healthCheck } from "./health/HealthCheck"
+import { healthCheck, HealthCheckParams } from "./health/HealthCheck"
 import { checkPortListening } from "./health/checkFns/checkPortListening"
 import { checkWebUrl, runHealthScript } from "./health/checkFns"
 import { List } from "./config/builder/list"
 import { Migration } from "./inits/migrations/Migration"
 import { Install, InstallFn } from "./inits/setupInstall"
 import { setupActions } from "./actions/setupActions"
-import { setupDependencyConfig } from "./dependencyConfig/setupDependencyConfig"
+import { setupDependencyConfig } from "./dependencies/setupDependencyConfig"
 import { SetupBackupsParams, setupBackups } from "./backup/setupBackups"
 import { setupInit } from "./inits/setupInit"
 import {
@@ -59,7 +57,7 @@ import {
 } from "./interfaces/setupInterfaces"
 import { successFailure } from "./trigger/successFailure"
 import { HealthReceipt } from "./health/HealthReceipt"
-import { MultiHost, Scheme, SingleHost, StaticHost } from "./interfaces/Host"
+import { MultiHost, Scheme } from "./interfaces/Host"
 import { ServiceInterfaceBuilder } from "./interfaces/ServiceInterfaceBuilder"
 import { GetSystemSmtp } from "./util/GetSystemSmtp"
 import nullIfEmpty from "./util/nullIfEmpty"
@@ -74,9 +72,14 @@ import { splitCommand } from "./util/splitCommand"
 import { Mounts } from "./mainFn/Mounts"
 import { Dependency } from "./Dependency"
 import * as T from "./types"
-import { Checker, EmVer } from "./emverLite/mod"
+import { testTypeVersion, ValidateExVer } from "./exver"
 import { ExposedStorePaths } from "./store/setupExposeStore"
 import { PathBuilder, extractJsonPath, pathBuilder } from "./store/PathBuilder"
+import { checkAllDependencies } from "./dependencies/dependencies"
+import { health } from "."
+import { GetSslCertificate } from "./util/GetSslCertificate"
+
+export const SDKVersion = testTypeVersion("0.3.6")
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
@@ -86,22 +89,37 @@ type AnyNeverCond<T extends any[], Then, Else> =
     never
 
 export type ServiceInterfaceType = "ui" | "p2p" | "api"
-export type MainEffects = Effects & { _type: "main" }
+export type MainEffects = Effects & {
+  _type: "main"
+  clearCallbacks: () => Promise<void>
+}
 export type Signals = NodeJS.Signals
 export const SIGTERM: Signals = "SIGTERM"
-export const SIGKILL: Signals = "SIGTERM"
+export const SIGKILL: Signals = "SIGKILL"
 export const NO_TIMEOUT = -1
 
-function removeConstType<E>() {
-  return <T>(t: T) => t as T & (E extends MainEffects ? {} : { const: never })
+function removeCallbackTypes<E extends Effects>(effects: E) {
+  return <T extends object>(t: T) => {
+    if ("_type" in effects && effects._type === "main") {
+      return t as E extends MainEffects ? T : Omit<T, "const" | "watch">
+    } else {
+      if ("const" in t) {
+        delete t.const
+      }
+      if ("watch" in t) {
+        delete t.watch
+      }
+      return t as E extends MainEffects ? T : Omit<T, "const" | "watch">
+    }
+  }
 }
 
-export class StartSdk<Manifest extends SDKManifest, Store> {
+export class StartSdk<Manifest extends T.Manifest, Store> {
   private constructor(readonly manifest: Manifest) {}
   static of() {
     return new StartSdk<never, never>(null as never)
   }
-  withManifest<Manifest extends SDKManifest = never>(manifest: Manifest) {
+  withManifest<Manifest extends T.Manifest = never>(manifest: Manifest) {
     return new StartSdk<Manifest, Store>(manifest)
   }
   withStore<Store extends Record<string, any>>() {
@@ -124,28 +142,26 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
     }
 
     return {
+      checkAllDependencies,
       serviceInterface: {
         getOwn: <E extends Effects>(effects: E, id: ServiceInterfaceId) =>
-          removeConstType<E>()(
+          removeCallbackTypes<E>(effects)(
             getServiceInterface(effects, {
               id,
-              packageId: null,
             }),
           ),
         get: <E extends Effects>(
           effects: E,
           opts: { id: ServiceInterfaceId; packageId: PackageId },
-        ) => removeConstType<E>()(getServiceInterface(effects, opts)),
+        ) =>
+          removeCallbackTypes<E>(effects)(getServiceInterface(effects, opts)),
         getAllOwn: <E extends Effects>(effects: E) =>
-          removeConstType<E>()(
-            getServiceInterfaces(effects, {
-              packageId: null,
-            }),
-          ),
+          removeCallbackTypes<E>(effects)(getServiceInterfaces(effects, {})),
         getAll: <E extends Effects>(
           effects: E,
           opts: { packageId: PackageId },
-        ) => removeConstType<E>()(getServiceInterfaces(effects, opts)),
+        ) =>
+          removeCallbackTypes<E>(effects)(getServiceInterfaces(effects, opts)),
       },
 
       store: {
@@ -154,7 +170,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           packageId: string,
           path: PathBuilder<Store, StoreValue>,
         ) =>
-          removeConstType<E>()(
+          removeCallbackTypes<E>(effects)(
             getStore<Store, StoreValue>(effects, path, {
               packageId,
             }),
@@ -162,7 +178,10 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         getOwn: <E extends Effects, StoreValue = unknown>(
           effects: E,
           path: PathBuilder<Store, StoreValue>,
-        ) => removeConstType<E>()(getStore<Store, StoreValue>(effects, path)),
+        ) =>
+          removeCallbackTypes<E>(effects)(
+            getStore<Store, StoreValue>(effects, path),
+          ),
         setOwn: <E extends Effects, Path extends PathBuilder<Store, unknown>>(
           effects: E,
           path: Path,
@@ -175,22 +194,25 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
       },
 
       host: {
-        static: (effects: Effects, id: string) =>
-          new StaticHost({ id, effects }),
-        single: (effects: Effects, id: string) =>
-          new SingleHost({ id, effects }),
+        // static: (effects: Effects, id: string) =>
+        //   new StaticHost({ id, effects }),
+        // single: (effects: Effects, id: string) =>
+        //   new SingleHost({ id, effects }),
         multi: (effects: Effects, id: string) => new MultiHost({ id, effects }),
       },
       nullIfEmpty,
       runCommand: async <A extends string>(
         effects: Effects,
-        imageId: Manifest["images"][number],
-        command: ValidIfNoStupidEscape<A> | [string, ...string[]],
+        image: {
+          id: keyof Manifest["images"] & T.ImageId
+          sharedRun?: boolean
+        },
+        command: T.CommandType,
         options: CommandOptions & {
           mounts?: { path: string; options: MountOptions }[]
         },
       ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> => {
-        return runCommand<Manifest>(effects, imageId, command, options)
+        return runCommand<Manifest>(effects, image, command, options)
       },
 
       createAction: <
@@ -235,7 +257,16 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         },
       ) => new ServiceInterfaceBuilder({ ...options, effects }),
       getSystemSmtp: <E extends Effects>(effects: E) =>
-        removeConstType<E>()(new GetSystemSmtp(effects)),
+        removeCallbackTypes<E>(effects)(new GetSystemSmtp(effects)),
+
+      getSslCerificate: <E extends Effects>(
+        effects: E,
+        hostnames: string[],
+        algorithm?: T.Algorithm,
+      ) =>
+        removeCallbackTypes<E>(effects)(
+          new GetSslCertificate(effects, hostnames, algorithm),
+        ),
 
       createDynamicAction: <
         ConfigType extends
@@ -262,7 +293,9 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         )
       },
       HealthCheck: {
-        of: healthCheck,
+        of(o: HealthCheckParams<Manifest>) {
+          return healthCheck<Manifest>(o)
+        },
       },
       Dependency: {
         of(data: Dependency["data"]) {
@@ -284,7 +317,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         Type extends Record<string, any> = ExtractConfigType<ConfigType>,
       >(
         spec: ConfigType,
-        write: Save<Store, Type, Manifest>,
+        write: Save<Type>,
         read: Read<Manifest, Store, Type>,
       ) => setupConfig<Store, ConfigType, Manifest, Type>(spec, write, read),
       setupConfigRead: <
@@ -301,7 +334,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           | Config<Record<string, never>, never>,
       >(
         _configSpec: ConfigSpec,
-        fn: Save<Store, ConfigSpec, Manifest>,
+        fn: Save<ConfigSpec>,
       ) => fn,
       setupDependencyConfig: <Input extends Record<string, any>>(
         config: Config<Input, Store> | Config<Input, never>,
@@ -327,7 +360,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
               ([
                 id,
                 {
-                  data: { versionSpec, ...x },
+                  data: { versionRange, ...x },
                 },
               ]) => ({
                 id,
@@ -340,7 +373,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
                   : {
                       kind: "exists",
                     }),
-                versionSpec: versionSpec.range,
+                versionRange: versionRange.toString(),
               }),
             ),
           })
@@ -391,7 +424,7 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
       setupProperties:
         (
           fn: (options: { effects: Effects }) => Promise<T.SdkPropertiesReturn>,
-        ): T.ExpectedExports.Properties =>
+        ): T.ExpectedExports.properties =>
         (options) =>
           fn(options).then(nullifyProperties),
       setupUninstall: (fn: UninstallFn<Manifest, Store>) =>
@@ -423,9 +456,6 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
         >(
           spec: Spec,
         ) => Config.of<Spec, Store>(spec),
-      },
-      Checker: {
-        parse: Checker.parse,
       },
       Daemons: {
         of(config: {
@@ -466,13 +496,8 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
           >(dependencyConfig, update)
         },
       },
-      EmVer: {
-        from: EmVer.from,
-        parse: EmVer.parse,
-      },
       List: {
         text: List.text,
-        number: List.number,
         obj: <Type extends Record<string, any>>(
           a: {
             name: string
@@ -515,33 +540,10 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
             }
           >,
         ) => List.dynamicText<Store>(getA),
-        dynamicNumber: (
-          getA: LazyBuild<
-            Store,
-            {
-              name: string
-              description?: string | null
-              warning?: string | null
-              /** Default = [] */
-              default?: string[]
-              minLength?: number | null
-              maxLength?: number | null
-              disabled?: false | string
-              spec: {
-                integer: boolean
-                min?: number | null
-                max?: number | null
-                step?: number | null
-                units?: string | null
-                placeholder?: string | null
-              }
-            }
-          >,
-        ) => List.dynamicNumber<Store>(getA),
       },
       Migration: {
-        of: <Version extends ManifestVersion>(options: {
-          version: Version
+        of: <Version extends string>(options: {
+          version: Version & ValidateExVer<Version>
           up: (opts: { effects: Effects }) => Promise<void>
           down: (opts: { effects: Effects }) => Promise<void>
         }) => Migration.of<Manifest, Store, Version>(options),
@@ -736,16 +738,16 @@ export class StartSdk<Manifest extends SDKManifest, Store> {
   }
 }
 
-export async function runCommand<Manifest extends SDKManifest>(
+export async function runCommand<Manifest extends T.Manifest>(
   effects: Effects,
-  imageId: Manifest["images"][number],
+  image: { id: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },
   command: string | [string, ...string[]],
   options: CommandOptions & {
     mounts?: { path: string; options: MountOptions }[]
   },
 ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
   const commands = splitCommand(command)
-  const overlay = await Overlay.of(effects, imageId)
+  const overlay = await Overlay.of(effects, image)
   try {
     for (let mount of options.mounts || []) {
       await overlay.mount(mount.options, mount.path)

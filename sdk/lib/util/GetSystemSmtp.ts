@@ -15,9 +15,7 @@ export class GetSystemSmtp {
    * Returns the system SMTP credentials. Does nothing if the credentials change
    */
   once() {
-    return this.effects.getSystemSmtp({
-      callback: () => {},
-    })
+    return this.effects.getSystemSmtp({})
   }
   /**
    * Watches the system SMTP credentials. Takes a custom callback function to run whenever the credentials change

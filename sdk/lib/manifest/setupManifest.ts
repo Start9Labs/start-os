@@ -1,20 +1,71 @@
-import { SDKManifest, ManifestVersion } from "./ManifestTypes"
+import * as T from "../types"
+import { ImageConfig, ImageId, VolumeId } from "../osBindings"
+import { SDKManifest, SDKImageConfig } from "./ManifestTypes"
+import { SDKVersion } from "../StartSdk"
 
 export function setupManifest<
   Id extends string,
-  Version extends ManifestVersion,
+  Version extends string,
   Dependencies extends Record<string, unknown>,
-  VolumesTypes extends string,
-  AssetTypes extends string,
-  ImagesTypes extends string,
-  Manifest extends SDKManifest & {
+  VolumesTypes extends VolumeId,
+  AssetTypes extends VolumeId,
+  ImagesTypes extends ImageId,
+  Manifest extends SDKManifest<Version, Satisfies> & {
     dependencies: Dependencies
     id: Id
-    version: Version
     assets: AssetTypes[]
-    images: ImagesTypes[]
+    images: Record<ImagesTypes, SDKImageConfig>
     volumes: VolumesTypes[]
   },
->(manifest: Manifest): Manifest {
-  return manifest
+  Satisfies extends string[] = [],
+>(manifest: Manifest & { version: Version }): Manifest & T.Manifest {
+  const images = Object.entries(manifest.images).reduce(
+    (images, [k, v]) => {
+      v.arch = v.arch || ["aarch64", "x86_64"]
+      if (v.emulateMissingAs === undefined)
+        v.emulateMissingAs = v.arch[0] || null
+      images[k] = v as ImageConfig
+      return images
+    },
+    {} as { [k: string]: ImageConfig },
+  )
+  return {
+    ...manifest,
+    gitHash: null,
+    osVersion: SDKVersion,
+    satisfies: manifest.satisfies || [],
+    images,
+    alerts: {
+      install: manifest.alerts?.install || null,
+      update: manifest.alerts?.update || null,
+      uninstall: manifest.alerts?.uninstall || null,
+      restore: manifest.alerts?.restore || null,
+      start: manifest.alerts?.start || null,
+      stop: manifest.alerts?.stop || null,
+    },
+    hasConfig: manifest.hasConfig === undefined ? true : manifest.hasConfig,
+    hardwareRequirements: {
+      device: Object.fromEntries(
+        Object.entries(manifest.hardwareRequirements?.device || {}).map(
+          ([k, v]) => [k, v.source],
+        ),
+      ),
+      ram: manifest.hardwareRequirements?.ram || null,
+      arch:
+        manifest.hardwareRequirements?.arch === undefined
+          ? Object.values(images).reduce(
+              (arch, config) => {
+                if (config.emulateMissingAs) {
+                  return arch
+                }
+                if (arch === null) {
+                  return config.arch
+                }
+                return arch.filter((a) => config.arch.includes(a))
+              },
+              null as string[] | null,
+            )
+          : manifest.hardwareRequirements?.arch,
+    },
+  }
 }

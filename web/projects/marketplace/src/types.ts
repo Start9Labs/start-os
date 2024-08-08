@@ -1,49 +1,39 @@
-import { Url } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 
-export type StoreURL = string
-export type StoreName = string
-
-export interface StoreIdentity {
-  url: StoreURL
-  name?: StoreName
+export type GetPackageReq = {
+  id: string
+  version: string | null
+  otherVersions: 'short'
 }
-export type Marketplace = Record<StoreURL, StoreData | null>
+export type GetPackageRes = T.GetPackageResponse & {
+  otherVersions: { [version: string]: T.PackageInfoShort }
+}
 
-export interface StoreData {
-  info: StoreInfo
+export type GetPackagesReq = {
+  id: null
+  version: null
+  otherVersions: 'short'
+}
+
+export type GetPackagesRes = {
+  [id: T.PackageId]: GetPackageRes
+}
+
+export type StoreIdentity = {
+  url: string
+  name?: string
+}
+
+export type Marketplace = Record<string, StoreData | null>
+
+export type StoreData = {
+  info: T.RegistryInfo
   packages: MarketplacePkg[]
 }
 
-export interface StoreInfo {
-  name: StoreName
-  categories: string[]
-}
-
-export type StoreIdentityWithData = StoreData & StoreIdentity
-
-export interface MarketplacePkg {
-  icon: Url
-  license: Url
-  screenshots?: string[]
-  instructions: Url
-  manifest: T.Manifest
-  categories: string[]
-  versions: string[]
-  dependencyMetadata: {
-    [id: string]: DependencyMetadata
+export type MarketplacePkg = T.PackageVersionInfo &
+  Omit<GetPackageRes, 'best'> & {
+    id: T.PackageId
+    version: string
+    flavor: string | null
   }
-  publishedAt: string
-}
-
-export interface DependencyMetadata {
-  title: string
-  icon: Url
-  optional: boolean
-  hidden: boolean
-}
-
-export interface Dependency {
-  description: string | null
-  optional: boolean
-}

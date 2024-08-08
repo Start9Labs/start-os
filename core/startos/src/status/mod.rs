@@ -1,14 +1,13 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 
 use chrono::{DateTime, Utc};
 use imbl::OrdMap;
-use models::PackageId;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use self::health_check::HealthCheckId;
-use crate::prelude::*;
 use crate::status::health_check::HealthCheckResult;
+use crate::{prelude::*, util::GeneralGuard};
 
 pub mod health_check;
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
@@ -18,23 +17,6 @@ pub mod health_check;
 pub struct Status {
     pub configured: bool,
     pub main: MainStatus,
-    #[serde(default)]
-    pub dependency_config_errors: DependencyConfigErrors,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel, Default, TS)]
-#[model = "Model<Self>"]
-#[ts(export)]
-pub struct DependencyConfigErrors(pub BTreeMap<PackageId, String>);
-impl Map for DependencyConfigErrors {
-    type Key = PackageId;
-    type Value = String;
-    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
-        Ok(key)
-    }
-    fn key_string(key: &Self::Key) -> Result<imbl_value::InternedString, Error> {
-        Ok(key.clone().into())
-    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TS)]
@@ -43,10 +25,8 @@ impl Map for DependencyConfigErrors {
 pub enum MainStatus {
     Stopped,
     Restarting,
-    #[serde(rename_all = "camelCase")]
-    Stopping {
-        timeout: crate::util::serde::Duration,
-    },
+    Restoring,
+    Stopping,
     Starting,
     #[serde(rename_all = "camelCase")]
     Running {
@@ -72,6 +52,7 @@ impl MainStatus {
                 started: Some(_), ..
             } => true,
             MainStatus::Stopped
+            | MainStatus::Restoring
             | MainStatus::Stopping { .. }
             | MainStatus::Restarting
             | MainStatus::BackingUp { started: None, .. } => false,
@@ -93,6 +74,7 @@ impl MainStatus {
             MainStatus::Running { started, .. } => Some(*started),
             MainStatus::BackingUp { started, .. } => *started,
             MainStatus::Stopped => None,
+            MainStatus::Restoring => None,
             MainStatus::Restarting => None,
             MainStatus::Stopping { .. } => None,
             MainStatus::Starting { .. } => None,
@@ -102,11 +84,24 @@ impl MainStatus {
         let (started, health) = match self {
             MainStatus::Starting { .. } => (Some(Utc::now()), Default::default()),
             MainStatus::Running { started, health } => (Some(started.clone()), health.clone()),
-            MainStatus::Stopped | MainStatus::Stopping { .. } | MainStatus::Restarting => {
-                (None, Default::default())
-            }
+            MainStatus::Stopped
+            | MainStatus::Stopping { .. }
+            | MainStatus::Restoring
+            | MainStatus::Restarting => (None, Default::default()),
             MainStatus::BackingUp { .. } => return self.clone(),
         };
         MainStatus::BackingUp { started, health }
+    }
+
+    pub fn health(&self) -> Option<&OrdMap<HealthCheckId, HealthCheckResult>> {
+        match self {
+            MainStatus::Running { health, .. } => Some(health),
+            MainStatus::BackingUp { health, .. } => Some(health),
+            MainStatus::Stopped
+            | MainStatus::Restoring
+            | MainStatus::Stopping { .. }
+            | MainStatus::Restarting => None,
+            MainStatus::Starting { .. } => None,
+        }
     }
 }

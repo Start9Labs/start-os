@@ -5,16 +5,18 @@ use tokio::sync::watch;
 
 use super::persistent_container::ServiceState;
 use crate::service::start_stop::StartStop;
-use crate::util::actor::BackgroundJobs;
+use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::future::{CancellationHandle, RemoteCancellable};
 
 pub mod backup;
 pub mod restart;
+pub mod restore;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TransitionKind {
     BackingUp,
     Restarting,
+    Restoring,
 }
 
 /// Used only in the manager/mod and is used to keep track of the state of the manager during the
@@ -41,7 +43,7 @@ impl TransitionState {
     fn new(
         task: impl Future<Output = ()> + Send + 'static,
         kind: TransitionKind,
-        jobs: &mut BackgroundJobs,
+        jobs: &BackgroundJobQueue,
     ) -> Self {
         let task = RemoteCancellable::new(task);
         let cancel_handle = task.cancellation_handle();
@@ -59,23 +61,28 @@ impl Drop for TransitionState {
 }
 
 #[derive(Debug, Clone)]
-pub struct TempDesiredState(pub(super) Arc<watch::Sender<ServiceState>>);
-impl TempDesiredState {
+pub struct TempDesiredRestore(pub(super) Arc<watch::Sender<ServiceState>>, StartStop);
+impl TempDesiredRestore {
     pub fn new(state: &Arc<watch::Sender<ServiceState>>) -> Self {
-        Self(state.clone())
+        Self(state.clone(), state.borrow().desired_state)
     }
     pub fn stop(&self) {
         self.0
             .send_modify(|s| s.temp_desired_state = Some(StartStop::Stop));
     }
-    pub fn start(&self) {
+    pub fn restore(&self) -> StartStop {
+        let restore_state = self.1;
         self.0
-            .send_modify(|s| s.temp_desired_state = Some(StartStop::Start));
+            .send_modify(|s| s.temp_desired_state = Some(restore_state));
+        restore_state
     }
 }
-impl Drop for TempDesiredState {
+impl Drop for TempDesiredRestore {
     fn drop(&mut self) {
-        self.0.send_modify(|s| s.temp_desired_state = None);
+        self.0.send_modify(|s| {
+            s.temp_desired_state.take();
+            s.transition_state.take();
+        });
     }
 }
 // impl Deref for TempDesiredState {

@@ -1,152 +1,226 @@
-import { ExecuteResult, System } from "../../Interfaces/System"
+import { ExecuteResult, Procedure, System } from "../../Interfaces/System"
 import { unNestPath } from "../../Models/JsonPath"
-import { string } from "ts-matches"
-import { HostSystemStartOs } from "../HostSystemStartOs"
+import matches, { any, number, object, string, tuple } from "ts-matches"
 import { Effects } from "../../Models/Effects"
-import { RpcResult } from "../RpcListener"
+import { RpcResult, matchRpcResult } from "../RpcListener"
 import { duration } from "../../Models/Duration"
-const LOCATION = "/usr/lib/startos/package/startos"
+import { T } from "@start9labs/start-sdk"
+import { Volume } from "../../Models/Volume"
+import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
+import { CallbackHolder } from "../../Models/CallbackHolder"
+
+export const STARTOS_JS_LOCATION = "/usr/lib/startos/package/index.js"
+
+type RunningMain = {
+  effects: MainEffects
+  stop: () => Promise<void>
+  callbacks: CallbackHolder
+}
+
 export class SystemForStartOs implements System {
-  private onTerm: (() => Promise<void>) | undefined
+  private runningMain: RunningMain | undefined
+
   static of() {
-    return new SystemForStartOs()
+    return new SystemForStartOs(require(STARTOS_JS_LOCATION))
   }
-  constructor() {}
+
+  constructor(readonly abi: T.ABI) {}
+
+  async init(): Promise<void> {}
+
+  async exit(): Promise<void> {}
+
+  async start(effects: MainEffects): Promise<void> {
+    if (this.runningMain) await this.stop()
+    let mainOnTerm: () => Promise<void> | undefined
+    const started = async (onTerm: () => Promise<void>) => {
+      await effects.setMainStatus({ status: "running" })
+      mainOnTerm = onTerm
+    }
+    const daemons = await (
+      await this.abi.main({
+        effects: effects as MainEffects,
+        started,
+      })
+    ).build()
+    this.runningMain = {
+      effects,
+      stop: async () => {
+        if (mainOnTerm) await mainOnTerm()
+        await daemons.term()
+      },
+      callbacks: new CallbackHolder(),
+    }
+  }
+
+  callCallback(callback: number, args: any[]): void {
+    if (this.runningMain) {
+      this.runningMain.callbacks
+        .callCallback(callback, args)
+        .catch((error) => console.error(`callback ${callback} failed`, error))
+    } else {
+      console.warn(`callback ${callback} ignored because system is not running`)
+    }
+  }
+
+  async stop(): Promise<void> {
+    if (this.runningMain) {
+      await this.runningMain.stop()
+      await this.runningMain.effects.clearCallbacks()
+      this.runningMain = undefined
+    }
+  }
+
   async execute(
-    effects: HostSystemStartOs,
+    effects: Effects,
     options: {
-      procedure:
-        | "/init"
-        | "/uninit"
-        | "/main/start"
-        | "/main/stop"
-        | "/config/set"
-        | "/config/get"
-        | "/backup/create"
-        | "/backup/restore"
-        | "/actions/metadata"
-        | `/actions/${string}/get`
-        | `/actions/${string}/run`
-        | `/dependencies/${string}/query`
-        | `/dependencies/${string}/update`
-      input: unknown
+      procedure: Procedure
+      input?: unknown
       timeout?: number | undefined
     },
   ): Promise<RpcResult> {
-    return { result: await this._execute(effects, options) }
+    return this._execute(effects, options)
+      .then((x) =>
+        matches(x)
+          .when(
+            object({
+              result: any,
+            }),
+            (x) => x,
+          )
+          .when(
+            object({
+              error: string,
+            }),
+            (x) => ({
+              error: {
+                code: 0,
+                message: x.error,
+              },
+            }),
+          )
+          .when(
+            object({
+              "error-code": tuple(number, string),
+            }),
+            ({ "error-code": [code, message] }) => ({
+              error: {
+                code,
+                message,
+              },
+            }),
+          )
+          .defaultTo({ result: x }),
+      )
+      .catch((error: unknown) => {
+        if (error instanceof Error)
+          return {
+            error: {
+              code: 0,
+              message: error.name,
+              data: {
+                details: error.message,
+                debug: `${error?.cause ?? "[noCause]"}:${error?.stack ?? "[noStack]"}`,
+              },
+            },
+          }
+        if (matchRpcResult.test(error)) return error
+        return {
+          error: {
+            code: 0,
+            message: String(error),
+          },
+        }
+      })
   }
   async _execute(
-    effects: Effects,
+    effects: Effects | MainEffects,
     options: {
-      procedure:
-        | "/init"
-        | "/uninit"
-        | "/main/start"
-        | "/main/stop"
-        | "/config/set"
-        | "/config/get"
-        | "/backup/create"
-        | "/backup/restore"
-        | "/actions/metadata"
-        | `/actions/${string}/get`
-        | `/actions/${string}/run`
-        | `/dependencies/${string}/query`
-        | `/dependencies/${string}/update`
-      input: unknown
+      procedure: Procedure
+      input?: unknown
       timeout?: number | undefined
     },
   ): Promise<unknown> {
     switch (options.procedure) {
       case "/init": {
-        const path = `${LOCATION}/procedures/init`
-        const procedure: any = await import(path).catch(() => require(path))
-        const previousVersion = string.optional().unsafeCast(options)
-        return procedure.init({ effects, previousVersion })
+        const previousVersion =
+          string.optional().unsafeCast(options.input) || null
+        return this.abi.init({ effects, previousVersion })
       }
       case "/uninit": {
-        const path = `${LOCATION}/procedures/init`
-        const procedure: any = await import(path).catch(() => require(path))
-        const nextVersion = string.optional().unsafeCast(options)
-        return procedure.uninit({ effects, nextVersion })
+        const nextVersion = string.optional().unsafeCast(options.input) || null
+        return this.abi.uninit({ effects, nextVersion })
       }
-      case "/main/start": {
-        const path = `${LOCATION}/procedures/main`
-        const procedure: any = await import(path).catch(() => require(path))
-        const started = async (onTerm: () => Promise<void>) => {
-          await effects.setMainStatus({ status: "running" })
-          if (this.onTerm) await this.onTerm()
-          this.onTerm = onTerm
-        }
-        return procedure.main({ effects, started })
-      }
-      case "/main/stop": {
-        await effects.setMainStatus({ status: "stopped" })
-        if (this.onTerm) await this.onTerm()
-        delete this.onTerm
-        return duration(30, "s")
-      }
+      // case "/main/start": {
+      //
+      // }
+      // case "/main/stop": {
+      //   if (this.onTerm) await this.onTerm()
+      //   await effects.setMainStatus({ status: "stopped" })
+      //   delete this.onTerm
+      //   return duration(30, "s")
+      // }
       case "/config/set": {
-        const path = `${LOCATION}/procedures/config`
-        const procedure: any = await import(path).catch(() => require(path))
-        const input = options.input
-        return procedure.setConfig({ effects, input })
+        const input = options.input as any // TODO
+        return this.abi.setConfig({ effects, input })
       }
       case "/config/get": {
-        const path = `${LOCATION}/procedures/config`
-        const procedure: any = await import(path).catch(() => require(path))
-        return procedure.getConfig({ effects })
+        return this.abi.getConfig({ effects })
       }
       case "/backup/create":
+        return this.abi.createBackup({
+          effects,
+          pathMaker: ((options) =>
+            new Volume(options.volume, options.path).path) as T.PathMaker,
+        })
       case "/backup/restore":
-        throw new Error("this should be called with the init/unit")
+        return this.abi.restoreBackup({
+          effects,
+          pathMaker: ((options) =>
+            new Volume(options.volume, options.path).path) as T.PathMaker,
+        })
       case "/actions/metadata": {
-        const path = `${LOCATION}/procedures/actions`
-        const procedure: any = await import(path).catch(() => require(path))
-        return procedure.actionsMetadata({ effects })
+        return this.abi.actionsMetadata({ effects })
+      }
+      case "/properties": {
+        throw new Error("TODO")
       }
       default:
         const procedures = unNestPath(options.procedure)
         const id = procedures[2]
         switch (true) {
           case procedures[1] === "actions" && procedures[3] === "get": {
-            const path = `${LOCATION}/procedures/actions`
-            const action: any = (await import(path).catch(() => require(path)))
-              .actions[id]
+            const action = (await this.abi.actions({ effects }))[id]
             if (!action) throw new Error(`Action ${id} not found`)
-            return action.get({ effects })
+            return action.getConfig({ effects })
           }
           case procedures[1] === "actions" && procedures[3] === "run": {
-            const path = `${LOCATION}/procedures/actions`
-            const action: any = (await import(path).catch(() => require(path)))
-              .actions[id]
+            const action = (await this.abi.actions({ effects }))[id]
             if (!action) throw new Error(`Action ${id} not found`)
-            const input = options.input
-            return action.run({ effects, input })
+            return action.run({ effects, input: options.input as any }) // TODO
           }
           case procedures[1] === "dependencies" && procedures[3] === "query": {
-            const path = `${LOCATION}/procedures/dependencies`
-            const dependencyConfig: any = (
-              await import(path).catch(() => require(path))
-            ).dependencyConfig[id]
+            const dependencyConfig = this.abi.dependencyConfig[id]
             if (!dependencyConfig)
               throw new Error(`dependencyConfig ${id} not found`)
             const localConfig = options.input
-            return dependencyConfig.query({ effects, localConfig })
+            return dependencyConfig.query({ effects })
           }
           case procedures[1] === "dependencies" && procedures[3] === "update": {
-            const path = `${LOCATION}/procedures/dependencies`
-            const dependencyConfig: any = (
-              await import(path).catch(() => require(path))
-            ).dependencyConfig[id]
+            const dependencyConfig = this.abi.dependencyConfig[id]
             if (!dependencyConfig)
               throw new Error(`dependencyConfig ${id} not found`)
-            return dependencyConfig.update(options.input)
+            return dependencyConfig.update(options.input as any) // TODO
           }
         }
+        return
     }
-    throw new Error("Method not implemented.")
   }
-  exit(effects: Effects): Promise<void> {
-    throw new Error("Method not implemented.")
+
+  async sandbox(
+    effects: Effects,
+    options: { procedure: Procedure; input?: unknown; timeout?: number },
+  ): Promise<RpcResult> {
+    return this.execute(effects, options)
   }
 }

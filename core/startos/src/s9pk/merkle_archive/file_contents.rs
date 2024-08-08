@@ -1,9 +1,11 @@
+use blake3::Hash;
 use tokio::io::AsyncRead;
 
 use crate::prelude::*;
-use crate::s9pk::merkle_archive::hash::{Hash, HashWriter};
-use crate::s9pk::merkle_archive::sink::{Sink, TrackingWriter};
+use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
+use crate::util::io::{ParallelBlake3Writer, TrackingIO};
+use crate::CAP_10_MiB;
 
 #[derive(Debug, Clone)]
 pub struct FileContents<S>(S);
@@ -13,14 +15,14 @@ impl<S> FileContents<S> {
     }
     pub const fn header_size() -> u64 {
         8 // position: u64 BE
-        + 8 // size: u64 BE
     }
 }
 impl<S: ArchiveSource> FileContents<Section<S>> {
     #[instrument(skip_all)]
     pub async fn deserialize(
-        source: &S,
+        source: S,
         header: &mut (impl AsyncRead + Unpin + Send),
+        size: u64,
     ) -> Result<Self, Error> {
         use tokio::io::AsyncReadExt;
 
@@ -28,27 +30,22 @@ impl<S: ArchiveSource> FileContents<Section<S>> {
         header.read_exact(&mut position).await?;
         let position = u64::from_be_bytes(position);
 
-        let mut size = [0u8; 8];
-        header.read_exact(&mut size).await?;
-        let size = u64::from_be_bytes(size);
-
         Ok(Self(source.section(position, size)))
     }
 }
 impl<S: FileSource> FileContents<S> {
-    pub async fn hash(&self) -> Result<Hash, Error> {
-        let mut hasher = TrackingWriter::new(0, HashWriter::new());
+    pub async fn hash(&self) -> Result<(Hash, u64), Error> {
+        let mut hasher = TrackingIO::new(0, ParallelBlake3Writer::new(CAP_10_MiB));
         self.serialize_body(&mut hasher, None).await?;
-        Ok(hasher.into_inner().finalize())
+        let size = hasher.position();
+        let hash = hasher.into_inner().finalize().await?;
+        Ok((hash, size))
     }
     #[instrument(skip_all)]
     pub async fn serialize_header<W: Sink>(&self, position: u64, w: &mut W) -> Result<u64, Error> {
         use tokio::io::AsyncWriteExt;
 
-        let size = self.0.size().await?;
-
         w.write_all(&position.to_be_bytes()).await?;
-        w.write_all(&size.to_be_bytes()).await?;
 
         Ok(position)
     }
@@ -56,21 +53,9 @@ impl<S: FileSource> FileContents<S> {
     pub async fn serialize_body<W: Sink>(
         &self,
         w: &mut W,
-        verify: Option<Hash>,
+        verify: Option<(Hash, u64)>,
     ) -> Result<(), Error> {
-        let start = if verify.is_some() {
-            Some(w.current_position().await?)
-        } else {
-            None
-        };
         self.0.copy_verify(w, verify).await?;
-        if let Some(start) = start {
-            ensure_code!(
-                w.current_position().await? - start == self.0.size().await?,
-                ErrorKind::Pack,
-                "FileSource::copy wrote a number of bytes that does not match FileSource::size"
-            );
-        }
         Ok(())
     }
     pub fn into_dyn(self) -> FileContents<DynFileSource> {

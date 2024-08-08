@@ -1,9 +1,10 @@
 use std::fmt::{Debug, Display};
 
+use axum::http::uri::InvalidUri;
+use axum::http::StatusCode;
 use color_eyre::eyre::eyre;
 use num_enum::TryFromPrimitive;
 use patch_db::Revision;
-use rpc_toolkit::hyper::http::uri::InvalidUri;
 use rpc_toolkit::reqwest;
 use rpc_toolkit::yajrc::{
     RpcError, INVALID_PARAMS_ERROR, INVALID_REQUEST_ERROR, METHOD_NOT_FOUND_ERROR, PARSE_ERROR,
@@ -88,6 +89,7 @@ pub enum ErrorKind {
     Timeout = 71,
     Lxc = 72,
     Cancelled = 73,
+    Git = 74,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -166,6 +168,7 @@ impl ErrorKind {
             Timeout => "Timeout Error",
             Lxc => "LXC Error",
             Cancelled => "Cancelled",
+            Git => "Git Error",
         }
     }
 }
@@ -207,6 +210,13 @@ impl Error {
         }
     }
 }
+impl axum::response::IntoResponse for Error {
+    fn into_response(self) -> axum::response::Response {
+        let mut res = axum::Json(RpcError::from(self)).into_response();
+        *res.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+        res
+    }
+}
 impl From<std::convert::Infallible> for Error {
     fn from(value: std::convert::Infallible) -> Self {
         match value {}
@@ -232,8 +242,8 @@ impl From<std::string::FromUtf8Error> for Error {
         Error::new(e, ErrorKind::Utf8)
     }
 }
-impl From<emver::ParseError> for Error {
-    fn from(e: emver::ParseError) -> Self {
+impl From<exver::ParseError> for Error {
+    fn from(e: exver::ParseError) -> Self {
         Error::new(e, ErrorKind::ParseVersion)
     }
 }
@@ -480,6 +490,7 @@ where
 {
     fn with_kind(self, kind: ErrorKind) -> Result<T, Error>;
     fn with_ctx<F: FnOnce(&E) -> (ErrorKind, D), D: Display>(self, f: F) -> Result<T, Error>;
+    fn log_err(self) -> Option<T>;
 }
 impl<T, E> ResultExt<T, E> for Result<T, E>
 where
@@ -506,6 +517,18 @@ where
             }
         })
     }
+
+    fn log_err(self) -> Option<T> {
+        match self {
+            Ok(a) => Some(a),
+            Err(e) => {
+                let e: color_eyre::eyre::Error = e.into();
+                tracing::error!("{e}");
+                tracing::debug!("{e:?}");
+                None
+            }
+        }
+    }
 }
 impl<T> ResultExt<T, Error> for Result<T, Error> {
     fn with_kind(self, kind: ErrorKind) -> Result<T, Error> {
@@ -528,6 +551,17 @@ impl<T> ResultExt<T, Error> for Result<T, Error> {
                 revision: e.revision,
             }
         })
+    }
+
+    fn log_err(self) -> Option<T> {
+        match self {
+            Ok(a) => Some(a),
+            Err(e) => {
+                tracing::error!("{e}");
+                tracing::debug!("{e:?}");
+                None
+            }
+        }
     }
 }
 

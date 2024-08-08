@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core'
-import { ApiService, RecoverySource } from './api.service'
+import { ApiService } from './api.service'
+import { T } from '@start9labs/start-sdk'
 
 @Injectable({
   providedIn: 'root',
@@ -8,8 +9,7 @@ export class StateService {
   private readonly api = inject(ApiService)
 
   setupType?: 'fresh' | 'restore' | 'attach' | 'transfer'
-  recoverySource?: RecoverySource
-  recoveryPassword?: string
+  recoverySource?: T.RecoverySource<string>
 
   async importDrive(guid: string, password: string): Promise<void> {
     await this.api.attach({
@@ -25,9 +25,13 @@ export class StateService {
     await this.api.execute({
       startOsLogicalname: storageLogicalname,
       startOsPassword: await this.api.encrypt(password),
-      recoverySource: this.recoverySource || null,
-      recoveryPassword: this.recoveryPassword
-        ? await this.api.encrypt(this.recoveryPassword)
+      recoverySource: this.recoverySource
+        ? this.recoverySource.type === 'migrate'
+          ? this.recoverySource
+          : {
+              ...this.recoverySource,
+              password: await this.api.encrypt(this.recoverySource.password),
+            }
         : null,
     })
   }

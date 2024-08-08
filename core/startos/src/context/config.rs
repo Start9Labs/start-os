@@ -14,7 +14,7 @@ use crate::init::init_postgres;
 use crate::prelude::*;
 use crate::util::serde::IoFormat;
 
-pub const DEVICE_CONFIG_PATH: &str = "/media/embassy/config/config.yaml"; // "/media/startos/config/config.yaml";
+pub const DEVICE_CONFIG_PATH: &str = "/media/startos/config/config.yaml"; // "/media/startos/config/config.yaml";
 pub const CONFIG_PATH: &str = "/etc/startos/config.yaml";
 pub const CONFIG_PATH_LOCAL: &str = ".startos/config.yaml";
 
@@ -37,7 +37,10 @@ pub trait ContextConfig: DeserializeOwned + Default {
             .map(|f| f.parse())
             .transpose()?
             .unwrap_or_default();
-        format.from_reader(File::open(path)?)
+        format.from_reader(
+            File::open(path.as_ref())
+                .with_ctx(|_| (ErrorKind::Filesystem, path.as_ref().display()))?,
+        )
     }
     fn load_path_rec(&mut self, path: Option<impl AsRef<Path>>) -> Result<(), Error> {
         if let Some(path) = path.filter(|p| p.as_ref().exists()) {
@@ -58,6 +61,8 @@ pub struct ClientConfig {
     pub config: Option<PathBuf>,
     #[arg(short = 'h', long = "host")]
     pub host: Option<Url>,
+    #[arg(short = 'r', long = "registry")]
+    pub registry: Option<Url>,
     #[arg(short = 'p', long = "proxy")]
     pub proxy: Option<Url>,
     #[arg(long = "cookie-path")]
@@ -71,8 +76,10 @@ impl ContextConfig for ClientConfig {
     }
     fn merge_with(&mut self, other: Self) {
         self.host = self.host.take().or(other.host);
+        self.registry = self.registry.take().or(other.registry);
         self.proxy = self.proxy.take().or(other.proxy);
         self.cookie_path = self.cookie_path.take().or(other.cookie_path);
+        self.developer_key_path = self.developer_key_path.take().or(other.developer_key_path);
     }
 }
 impl ClientConfig {
@@ -89,35 +96,34 @@ impl ClientConfig {
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct ServerConfig {
-    #[arg(short = 'c', long = "config")]
+    #[arg(short, long)]
     pub config: Option<PathBuf>,
-    #[arg(long = "wifi-interface")]
-    pub wifi_interface: Option<String>,
-    #[arg(long = "ethernet-interface")]
+    #[arg(long)]
     pub ethernet_interface: Option<String>,
     #[arg(skip)]
     pub os_partitions: Option<OsPartitionInfo>,
-    #[arg(long = "bind-rpc")]
+    #[arg(long)]
     pub bind_rpc: Option<SocketAddr>,
-    #[arg(long = "tor-control")]
+    #[arg(long)]
     pub tor_control: Option<SocketAddr>,
-    #[arg(long = "tor-socks")]
+    #[arg(long)]
     pub tor_socks: Option<SocketAddr>,
-    #[arg(long = "dns-bind")]
+    #[arg(long)]
     pub dns_bind: Option<Vec<SocketAddr>>,
-    #[arg(long = "revision-cache-size")]
+    #[arg(long)]
     pub revision_cache_size: Option<usize>,
-    #[arg(short = 'd', long = "datadir")]
+    #[arg(short, long)]
     pub datadir: Option<PathBuf>,
-    #[arg(long = "disable-encryption")]
+    #[arg(long)]
     pub disable_encryption: Option<bool>,
+    #[arg(long)]
+    pub multi_arch_s9pks: Option<bool>,
 }
 impl ContextConfig for ServerConfig {
     fn next(&mut self) -> Option<PathBuf> {
         self.config.take()
     }
     fn merge_with(&mut self, other: Self) {
-        self.wifi_interface = self.wifi_interface.take().or(other.wifi_interface);
         self.ethernet_interface = self.ethernet_interface.take().or(other.ethernet_interface);
         self.os_partitions = self.os_partitions.take().or(other.os_partitions);
         self.bind_rpc = self.bind_rpc.take().or(other.bind_rpc);
@@ -130,6 +136,7 @@ impl ContextConfig for ServerConfig {
             .or(other.revision_cache_size);
         self.datadir = self.datadir.take().or(other.datadir);
         self.disable_encryption = self.disable_encryption.take().or(other.disable_encryption);
+        self.multi_arch_s9pks = self.multi_arch_s9pks.take().or(other.multi_arch_s9pks);
     }
 }
 

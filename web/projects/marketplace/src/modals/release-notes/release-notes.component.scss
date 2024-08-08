@@ -1,0 +1,44 @@
+.box-container {
+  background-color: rgb(39 39 42);
+  border-radius: 0.75rem;
+  padding: 1.75rem;
+  display: grid;
+  grid-auto-flow: row;
+  align-items: center;
+
+  &-details {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+
+    &-version {
+      line-height: 1.5rem;
+      font-size: 1rem;
+
+      h3 {
+        font-size: 1.2rem;
+        margin-bottom: 1.25rem;
+        pointer-events: none;
+      }
+    }
+    
+    &-notes {
+      flex-wrap: wrap;
+      margin-top: 0.25rem;
+      pointer-events: none;
+    }
+
+    button {
+      margin-top: 0.75rem;
+      place-self: end;
+
+      @media (min-width: 768px) {
+        place-self: start;
+      }
+
+      @media (min-width: 1024px) {
+        place-self: end;
+      }
+    }
+  }
+}

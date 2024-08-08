@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core'
+import { Inject, Injectable } from '@angular/core'
 import {
   DiskListResponse,
   StartOSDiskInfo,
@@ -12,26 +12,35 @@ import {
   FollowLogsRes,
   FollowLogsReq,
 } from '@start9labs/shared'
-import {
-  ApiService,
-  CifsRecoverySource,
-  DiskRecoverySource,
-  AttachReq,
-  ExecuteReq,
-  CompleteRes,
-} from './api.service'
+import { T } from '@start9labs/start-sdk'
+import { ApiService } from './api.service'
 import * as jose from 'node-jose'
-import { webSocket, WebSocketSubjectConfig } from 'rxjs/webSocket'
 import { Observable } from 'rxjs'
+import { DOCUMENT } from '@angular/common'
+import { webSocket } from 'rxjs/webSocket'
 
 @Injectable({
   providedIn: 'root',
 })
 export class LiveApiService extends ApiService {
-  private readonly http = inject(HttpService)
+  constructor(
+    private readonly http: HttpService,
+    @Inject(DOCUMENT) private readonly document: Document,
+  ) {
+    super()
+  }
 
-  async getSetupStatus() {
-    return this.rpcRequest<SetupStatus | null>({
+  openProgressWebsocket$(guid: string): Observable<T.FullProgress> {
+    const { location } = this.document.defaultView!
+    const host = location.host
+
+    return webSocket({
+      url: `ws://${host}/ws/rpc/${guid}`,
+    })
+  }
+
+  async getStatus(): Promise<T.SetupStatusRes | null> {
+    return this.rpcRequest<T.SetupStatusRes | null>({
       method: 'setup.status',
       params: {},
     })
@@ -44,7 +53,7 @@ export class LiveApiService extends ApiService {
    * this wil all public/private key, which means that there is no information loss
    * through the network.
    */
-  async getPubKey() {
+  async getPubKey(): Promise<void> {
     const response: jose.JWK.Key = await this.rpcRequest({
       method: 'setup.get-pubkey',
       params: {},
@@ -53,29 +62,31 @@ export class LiveApiService extends ApiService {
     this.pubkey = response
   }
 
-  async getDrives() {
+  async getDrives(): Promise<DiskListResponse> {
     return this.rpcRequest<DiskListResponse>({
       method: 'setup.disk.list',
       params: {},
     })
   }
 
-  async verifyCifs(source: CifsRecoverySource) {
+  async verifyCifs(
+    source: T.VerifyCifsParams,
+  ): Promise<Record<string, StartOSDiskInfo>> {
     source.path = source.path.replace('/\\/g', '/')
-    return this.rpcRequest<StartOSDiskInfo>({
+    return this.rpcRequest<Record<string, StartOSDiskInfo>>({
       method: 'setup.cifs.verify',
       params: source,
     })
   }
 
-  async attach(params: AttachReq) {
-    await this.rpcRequest<void>({
+  async attach(params: T.AttachParams): Promise<T.SetupProgress> {
+    return this.rpcRequest<T.SetupProgress>({
       method: 'setup.attach',
       params,
     })
   }
 
-  async execute(setupInfo: ExecuteReq) {
+  async execute(setupInfo: T.SetupExecuteParams): Promise<T.SetupProgress> {
     if (setupInfo.recoverySource?.type === 'backup') {
       if (isCifsSource(setupInfo.recoverySource.target)) {
         setupInfo.recoverySource.target.path =
@@ -83,22 +94,14 @@ export class LiveApiService extends ApiService {
       }
     }
 
-    await this.rpcRequest<void>({
+    return this.rpcRequest<T.SetupProgress>({
       method: 'setup.execute',
       params: setupInfo,
     })
   }
 
-  async followServerLogs(params: FollowLogsReq): Promise<FollowLogsRes> {
-    return this.rpcRequest({ method: 'setup.logs.follow', params })
-  }
-
-  openLogsWebsocket$({ url }: WebSocketSubjectConfig<Log>): Observable<Log> {
-    return webSocket(`http://start.local/ws/${url}`)
-  }
-
-  async complete() {
-    const res = await this.rpcRequest<CompleteRes>({
+  async complete(): Promise<T.SetupResult> {
+    const res = await this.rpcRequest<T.SetupResult>({
       method: 'setup.complete',
       params: {},
     })
@@ -109,7 +112,7 @@ export class LiveApiService extends ApiService {
     }
   }
 
-  async exit() {
+  async exit(): Promise<void> {
     await this.rpcRequest<void>({
       method: 'setup.exit',
       params: {},
@@ -130,7 +133,7 @@ export class LiveApiService extends ApiService {
 }
 
 function isCifsSource(
-  source: CifsRecoverySource | DiskRecoverySource | null,
-): source is CifsRecoverySource {
-  return !!(source as CifsRecoverySource)?.hostname
+  source: T.BackupTargetFS | null,
+): source is T.Cifs & { type: 'cifs' } {
+  return !!(source as T.Cifs)?.hostname
 }

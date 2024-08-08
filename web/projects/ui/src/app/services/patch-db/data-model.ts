@@ -134,6 +134,10 @@ export type PackageDataEntry<T extends StateInfo = StateInfo> =
     nextBackup: string | null
   }
 
+export type AllPackageData = NonNullable<
+  T.AllPackageData & Record<string, PackageDataEntry<StateInfo>>
+>
+
 export type StateInfo = InstalledState | InstallingState | UpdatingState
 
 export type InstalledState = {

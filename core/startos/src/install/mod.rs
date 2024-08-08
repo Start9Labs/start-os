@@ -1,32 +1,37 @@
+use std::ops::Deref;
 use std::path::PathBuf;
 use std::time::Duration;
 
 use clap::builder::ValueParserFactory;
 use clap::{value_parser, CommandFactory, FromArgMatches, Parser};
 use color_eyre::eyre::eyre;
-use emver::VersionRange;
-use futures::{FutureExt, StreamExt};
-use patch_db::json_ptr::JsonPointer;
+use exver::VersionRange;
+use futures::{AsyncWriteExt, StreamExt};
+use imbl_value::{json, InternedString};
+use itertools::Itertools;
+use models::VersionString;
 use reqwest::header::{HeaderMap, CONTENT_LENGTH};
 use reqwest::Url;
-use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::CallRemote;
+use rpc_toolkit::yajrc::{GenericRpcMethod, RpcError};
+use rpc_toolkit::HandlerArgs;
+use rustyline_async::ReadlineEvent;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
 use tokio::sync::oneshot;
 use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::package::{ManifestPreference, PackageState, PackageStateMatchModelRef};
 use crate::prelude::*;
-use crate::progress::{FullProgress, PhasedProgressBar};
+use crate::progress::{FullProgress, FullProgressTracker, PhasedProgressBar};
+use crate::registry::context::{RegistryContext, RegistryUrlParams};
+use crate::registry::package::get::GetPackageResponse;
+use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::manifest::PackageId;
-use crate::s9pk::merkle_archive::source::http::HttpSource;
-use crate::s9pk::S9pk;
 use crate::upload::upload;
 use crate::util::clap::FromStrParser;
+use crate::util::io::open_file;
+use crate::util::net::WebSocketExt;
 use crate::util::Never;
 
 pub const PKG_ARCHIVE_DIR: &str = "package-data/archive";
@@ -34,32 +39,33 @@ pub const PKG_PUBLIC_DIR: &str = "package-data/public";
 pub const PKG_WASM_DIR: &str = "package-data/wasm";
 
 // #[command(display(display_serializable))]
-pub async fn list(ctx: RpcContext) -> Result<Value, Error> {
-    Ok(ctx.db.peek().await.as_public().as_package_data().as_entries()?
+pub async fn list(ctx: RpcContext) -> Result<Vec<Value>, Error> {
+    Ok(ctx
+        .db
+        .peek()
+        .await
+        .as_public()
+        .as_package_data()
+        .as_entries()?
         .iter()
         .filter_map(|(id, pde)| {
             let status = match pde.as_state_info().as_match() {
-                PackageStateMatchModelRef::Installed(_) => {
-                    "installed"
-                }
-                PackageStateMatchModelRef::Installing(_) => {
-                    "installing"
-                }
-                PackageStateMatchModelRef::Updating(_) => {
-                    "updating"
-                }
-                PackageStateMatchModelRef::Restoring(_) => {
-                    "restoring"
-                }
-                PackageStateMatchModelRef::Removing(_) => {
-                    "removing"
-                }
-                PackageStateMatchModelRef::Error(_) => {
-                    "error"
-                }
+                PackageStateMatchModelRef::Installed(_) => "installed",
+                PackageStateMatchModelRef::Installing(_) => "installing",
+                PackageStateMatchModelRef::Updating(_) => "updating",
+                PackageStateMatchModelRef::Restoring(_) => "restoring",
+                PackageStateMatchModelRef::Removing(_) => "removing",
+                PackageStateMatchModelRef::Error(_) => "error",
             };
-            serde_json::to_value(json!({ "status": status, "id": id.clone(), "version": pde.as_state_info().as_manifest(ManifestPreference::Old).as_version().de().ok()?}))
-            .ok()
+            Some(json!({
+                "status": status,
+                "id": id.clone(),
+                "version": pde.as_state_info()
+                    .as_manifest(ManifestPreference::Old)
+                    .as_version()
+                    .de()
+                    .ok()?
+            }))
         })
         .collect())
 }
@@ -103,164 +109,150 @@ impl std::fmt::Display for MinMax {
     }
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct InstallParams {
+    #[ts(type = "string")]
+    registry: Url,
     id: PackageId,
-    #[arg(short = 'm', long = "marketplace-url")]
-    #[ts(type = "string | null")]
-    marketplace_url: Option<Url>,
-    #[arg(short = 'v', long = "version-spec")]
-    version_spec: Option<String>,
-    #[arg(long = "version-priority")]
-    version_priority: Option<MinMax>,
+    version: VersionString,
 }
 
-// #[command(
-//     custom_cli(cli_install(async, context(CliContext))),
-// )]
 #[instrument(skip_all)]
 pub async fn install(
     ctx: RpcContext,
     InstallParams {
+        registry,
         id,
-        marketplace_url,
-        version_spec,
-        version_priority,
+        version,
     }: InstallParams,
 ) -> Result<(), Error> {
-    let version_str = match &version_spec {
-        None => "*",
-        Some(v) => &*v,
-    };
-    let version: VersionRange = version_str.parse()?;
-    let marketplace_url =
-        marketplace_url.unwrap_or_else(|| crate::DEFAULT_MARKETPLACE.parse().unwrap());
-    let version_priority = version_priority.unwrap_or_default();
-    let s9pk = S9pk::deserialize(
-        &HttpSource::new(
-            ctx.client.clone(),
-            format!(
-                "{}/package/v0/{}.s9pk?spec={}&version-priority={}",
-                marketplace_url, id, version, version_priority,
-            )
-            .parse()?,
+    let package: GetPackageResponse = from_value(
+        ctx.call_remote_with::<RegistryContext, _>(
+            "package.get",
+            json!({
+                "id": id,
+                "version": VersionRange::exactly(version.deref().clone()),
+            }),
+            RegistryUrlParams {
+                registry: registry.clone(),
+            },
         )
         .await?,
-    )
-    .await?;
+    )?;
 
-    ensure_code!(
-        &s9pk.as_manifest().id == &id,
-        ErrorKind::ValidateS9pk,
-        "manifest.id does not match expected"
-    );
+    let asset = &package
+        .best
+        .get(&version)
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("{id}@{version} not found on {registry}"),
+                ErrorKind::NotFound,
+            )
+        })?
+        .s9pk;
 
     let download = ctx
         .services
-        .install(ctx.clone(), s9pk, None::<Never>)
+        .install(
+            ctx.clone(),
+            || asset.deserialize_s9pk_buffered(ctx.client.clone()),
+            None::<Never>,
+            None,
+        )
         .await?;
     tokio::spawn(async move { download.await?.await });
 
     Ok(())
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SideloadParams {
+    #[ts(skip)]
+    #[serde(rename = "__auth_session")]
+    session: InternedString,
+}
+
+#[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SideloadResponse {
-    pub upload: RequestGuid,
-    pub progress: RequestGuid,
+    pub upload: Guid,
+    pub progress: Guid,
 }
 
 #[instrument(skip_all)]
-pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
-    let (upload, file) = upload(&ctx).await?;
-    let (id_send, id_recv) = oneshot::channel();
+pub async fn sideload(
+    ctx: RpcContext,
+    SideloadParams { session }: SideloadParams,
+) -> Result<SideloadResponse, Error> {
+    let (upload, file) = upload(&ctx, session.clone()).await?;
     let (err_send, err_recv) = oneshot::channel();
-    let progress = RequestGuid::new();
-    let db = ctx.db.clone();
-    let mut sub = db
-        .subscribe(
-            "/package-data/{id}/install-progress"
-                .parse::<JsonPointer>()
-                .with_kind(ErrorKind::Database)?,
-        )
-        .await;
-    ctx.add_continuation(
-        progress.clone(),
-        RpcContinuation::ws(
-            Box::new(|mut ws| {
-                use axum::extract::ws::Message;
-                async move {
-                    if let Err(e) = async {
-                        let id = id_recv.await.map_err(|_| {
-                            Error::new(
-                                eyre!("Could not get id to watch progress"),
-                                ErrorKind::Cancelled,
-                            )
-                        })?;
-                        tokio::select! {
-                            res = async {
-                                while let Some(rev) = sub.recv().await {
-                                    if !rev.patch.0.is_empty() { // TODO: don't send empty patches?
+    let progress = Guid::new();
+    let progress_tracker = FullProgressTracker::new();
+    let mut progress_listener = progress_tracker.stream(Some(Duration::from_millis(200)));
+    ctx.rpc_continuations
+        .add(
+            progress.clone(),
+            RpcContinuation::ws_authed(
+                &ctx,
+                session,
+                |mut ws| {
+                    use axum::extract::ws::Message;
+                    async move {
+                        if let Err(e) = async {
+                            type RpcResponse = rpc_toolkit::yajrc::RpcResponse::<GenericRpcMethod<&'static str, (), FullProgress>>;
+                            tokio::select! {
+                                res = async {
+                                    while let Some(progress) = progress_listener.next().await {
                                         ws.send(Message::Text(
-                                            serde_json::to_string(&if let Some(p) = db
-                                                .peek()
-                                                .await
-                                                .as_public()
-                                                .as_package_data()
-                                                .as_idx(&id)
-                                                .and_then(|e| e.as_state_info().as_installing_info()).map(|i| i.as_progress())
-                                            {
-                                                Ok::<_, ()>(p.de()?)
-                                            } else {
-                                                let mut p = FullProgress::new();
-                                                p.overall.complete();
-                                                Ok(p)
-                                            })
+                                            serde_json::to_string(&RpcResponse::from_result::<RpcError>(Ok(progress)))
+                                                .with_kind(ErrorKind::Serialization)?,
+                                        ))
+                                        .await
+                                        .with_kind(ErrorKind::Network)?;
+                                    }
+                                    Ok::<_, Error>(())
+                                } => res?,
+                                err = err_recv => {
+                                    if let Ok(e) = err {
+                                        ws.send(Message::Text(
+                                            serde_json::to_string(&RpcResponse::from_result::<RpcError>(Err(e)))
                                             .with_kind(ErrorKind::Serialization)?,
                                         ))
                                         .await
                                         .with_kind(ErrorKind::Network)?;
                                     }
                                 }
-                                Ok::<_, Error>(())
-                            } => res?,
-                            err = err_recv => {
-                                if let Ok(e) = err {
-                                    ws.send(Message::Text(
-                                        serde_json::to_string(&Err::<(), _>(e))
-                                        .with_kind(ErrorKind::Serialization)?,
-                                    ))
-                                    .await
-                                    .with_kind(ErrorKind::Network)?;
-                                }
                             }
+
+                            ws.normal_close("complete").await?;
+
+                            Ok::<_, Error>(())
                         }
-
-                        ws.close().await.with_kind(ErrorKind::Network)?;
-
-                        Ok::<_, Error>(())
+                        .await
+                        {
+                            tracing::error!("Error tracking sideload progress: {e}");
+                            tracing::debug!("{e:?}");
+                        }
                     }
-                    .await
-                    {
-                        tracing::error!("Error tracking sideload progress: {e}");
-                        tracing::debug!("{e:?}");
-                    }
-                }
-                .boxed()
-            }),
-            Duration::from_secs(600),
-        ),
-    )
-    .await;
+                },
+                Duration::from_secs(600),
+            ),
+        )
+        .await;
     tokio::spawn(async move {
         if let Err(e) = async {
-            let s9pk = S9pk::deserialize(&file).await?;
-            let _ = id_send.send(s9pk.as_manifest().id.clone());
+            let key = ctx.db.peek().await.into_private().into_compat_s9pk_key();
+
             ctx.services
-                .install(ctx.clone(), s9pk, None::<Never>)
+                .install(
+                    ctx.clone(),
+                    || crate::s9pk::load(file.clone(), || Ok(key.de()?.0), Some(&progress_tracker)),
+                    None::<Never>,
+                    Some(progress_tracker.clone()),
+                )
                 .await?
                 .await?
                 .await?;
@@ -276,10 +268,16 @@ pub async fn sideload(ctx: RpcContext) -> Result<SideloadResponse, Error> {
     Ok(SideloadResponse { upload, progress })
 }
 
+#[derive(Deserialize, Serialize, Parser)]
+pub struct QueryPackageParams {
+    id: PackageId,
+    version: Option<VersionRange>,
+}
+
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum CliInstallParams {
-    Marketplace(InstallParams),
+    Marketplace(QueryPackageParams),
     Sideload(PathBuf),
 }
 impl CommandFactory for CliInstallParams {
@@ -293,14 +291,19 @@ impl CommandFactory for CliInstallParams {
                     .required_unless_present("id")
                     .value_parser(value_parser!(PathBuf)),
             )
-            .args(InstallParams::command().get_arguments().cloned().map(|a| {
-                if a.get_id() == "id" {
-                    a.required(false).required_unless_present("sideload")
-                } else {
-                    a
-                }
-                .conflicts_with("sideload")
-            }))
+            .args(
+                QueryPackageParams::command()
+                    .get_arguments()
+                    .cloned()
+                    .map(|a| {
+                        if a.get_id() == "id" {
+                            a.required(false).required_unless_present("sideload")
+                        } else {
+                            a
+                        }
+                        .conflicts_with("sideload")
+                    }),
+            )
     }
     fn command_for_update() -> clap::Command {
         Self::command()
@@ -311,7 +314,9 @@ impl FromArgMatches for CliInstallParams {
         if let Some(sideload) = matches.get_one::<PathBuf>("sideload") {
             Ok(Self::Sideload(sideload.clone()))
         } else {
-            Ok(Self::Marketplace(InstallParams::from_arg_matches(matches)?))
+            Ok(Self::Marketplace(QueryPackageParams::from_arg_matches(
+                matches,
+            )?))
         }
     }
     fn update_from_arg_matches(&mut self, matches: &clap::ArgMatches) -> Result<(), clap::Error> {
@@ -320,16 +325,60 @@ impl FromArgMatches for CliInstallParams {
     }
 }
 
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
+pub struct InstalledVersionParams {
+    id: PackageId,
+}
+
+pub async fn installed_version(
+    ctx: RpcContext,
+    InstalledVersionParams { id }: InstalledVersionParams,
+) -> Result<Option<VersionString>, Error> {
+    if let Some(pde) = ctx
+        .db
+        .peek()
+        .await
+        .into_public()
+        .into_package_data()
+        .into_idx(&id)
+    {
+        Ok(Some(
+            pde.into_state_info()
+                .as_manifest(ManifestPreference::Old)
+                .as_version()
+                .de()?,
+        ))
+    } else {
+        Ok(None)
+    }
+}
+
 #[instrument(skip_all)]
-pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<(), RpcError> {
+pub async fn cli_install(
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        params,
+        ..
+    }: HandlerArgs<CliContext, CliInstallParams>,
+) -> Result<(), RpcError> {
+    let method = parent_method.into_iter().chain(method).collect_vec();
     match params {
         CliInstallParams::Sideload(path) => {
-            let file = crate::s9pk::load(&ctx, path).await?;
+            let file = open_file(path).await?;
 
             // rpc call remote sideload
             let SideloadResponse { upload, progress } = from_value::<SideloadResponse>(
-                ctx.call_remote("package.sideload", imbl_value::json!({}))
-                    .await?,
+                ctx.call_remote::<RpcContext>(
+                    &method[..method.len() - 1]
+                        .into_iter()
+                        .chain(std::iter::once(&"sideload"))
+                        .join("."),
+                    imbl_value::json!({}),
+                )
+                .await?,
             )?;
 
             let upload = async {
@@ -358,14 +407,18 @@ pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<()
 
                 let mut progress = FullProgress::new();
 
+                type RpcResponse = rpc_toolkit::yajrc::RpcResponse<
+                    GenericRpcMethod<&'static str, (), FullProgress>,
+                >;
+
                 loop {
                     tokio::select! {
                         msg = ws.next() => {
                             if let Some(msg) = msg {
                                 if let Message::Text(t) = msg.with_kind(ErrorKind::Network)? {
                                     progress =
-                                        serde_json::from_str::<Result<_, RpcError>>(&t)
-                                            .with_kind(ErrorKind::Deserialization)??;
+                                        serde_json::from_str::<RpcResponse>(&t)
+                                            .with_kind(ErrorKind::Deserialization)?.result?;
                                     bar.update(&progress);
                                 }
                             } else {
@@ -385,9 +438,70 @@ pub async fn cli_install(ctx: CliContext, params: CliInstallParams) -> Result<()
             progress?;
             upload?;
         }
-        CliInstallParams::Marketplace(params) => {
-            ctx.call_remote("package.install", to_value(&params)?)
-                .await?;
+        CliInstallParams::Marketplace(QueryPackageParams { id, version }) => {
+            let source_version: Option<VersionString> = from_value(
+                ctx.call_remote::<RpcContext>("package.installed-version", json!({ "id": &id }))
+                    .await?,
+            )?;
+            let mut packages: GetPackageResponse = from_value(
+                ctx.call_remote::<RegistryContext>(
+                    "package.get",
+                    json!({ "id": &id, "version": version, "sourceVersion": source_version }),
+                )
+                .await?,
+            )?;
+            let version = if packages.best.len() == 1 {
+                packages.best.pop_first().map(|(k, _)| k).unwrap()
+            } else {
+                println!("Multiple flavors of {id} found. Please select one of the following versions to install:");
+                let version;
+                loop {
+                    let (mut read, mut output) = rustyline_async::Readline::new("> ".into())
+                        .with_kind(ErrorKind::Filesystem)?;
+                    for (idx, version) in packages.best.keys().enumerate() {
+                        output
+                            .write_all(format!("  {}) {}\n", idx + 1, version).as_bytes())
+                            .await?;
+                        read.add_history_entry(version.to_string());
+                    }
+                    if let ReadlineEvent::Line(line) = read.readline().await? {
+                        let trimmed = line.trim();
+                        match trimmed.parse() {
+                            Ok(v) => {
+                                if let Some((k, _)) = packages.best.remove_entry(&v) {
+                                    version = k;
+                                    break;
+                                }
+                            }
+                            Err(_) => match trimmed.parse::<usize>() {
+                                Ok(i) if (1..=packages.best.len()).contains(&i) => {
+                                    version = packages.best.keys().nth(i - 1).unwrap().clone();
+                                    break;
+                                }
+                                _ => (),
+                            },
+                        }
+                        eprintln!("invalid selection: {trimmed}");
+                        println!("Please select one of the following versions to install:");
+                    } else {
+                        return Err(Error::new(
+                            eyre!("Could not determine precise version to install"),
+                            ErrorKind::InvalidRequest,
+                        )
+                        .into());
+                    }
+                }
+                version
+            };
+            ctx.call_remote::<RpcContext>(
+                &method.join("."),
+                to_value(&InstallParams {
+                    id,
+                    registry: ctx.registry_url.clone().or_not_found("--registry")?,
+                    version,
+                })?,
+            )
+            .await?;
         }
     }
     Ok(())
@@ -423,7 +537,12 @@ pub async fn uninstall(
 
     let return_id = id.clone();
 
-    tokio::spawn(async move { ctx.services.uninstall(&ctx, &id).await });
+    tokio::spawn(async move {
+        if let Err(e) = ctx.services.uninstall(&ctx, &id).await {
+            tracing::error!("Error uninstalling service {id}: {e}");
+            tracing::debug!("{e:?}");
+        }
+    });
 
     Ok(return_id)
 }

@@ -1,17 +1,35 @@
 export * as configTypes from "./config/configTypes"
-import { HealthCheckId } from "../../core/startos/bindings/HealthCheckId"
-import { HealthCheckResult } from "../../core/startos/bindings/HealthCheckResult"
+
+import {
+  DependencyRequirement,
+  SetHealth,
+  HealthCheckResult,
+  SetMainStatus,
+  ServiceInterface,
+  Host,
+  ExportServiceInterfaceParams,
+  GetPrimaryUrlParams,
+  LanInfo,
+  BindParams,
+  Manifest,
+  CheckDependenciesResult,
+  ActionId,
+  HostId,
+} from "./osBindings"
+
 import { MainEffects, ServiceInterfaceType, Signals } from "./StartSdk"
 import { InputSpec } from "./config/configTypes"
 import { DependenciesReceipt } from "./config/setupConfig"
 import { BindOptions, Scheme } from "./interfaces/Host"
 import { Daemons } from "./mainFn/Daemons"
-import { PathBuilder, StorePath } from "./store/PathBuilder"
+import { StorePath } from "./store/PathBuilder"
 import { ExposedStorePaths } from "./store/setupExposeStore"
 import { UrlString } from "./util/getServiceInterface"
-export * from "../../core/startos/bindings"
+export * from "./osBindings"
 export { SDKManifest } from "./manifest/ManifestTypes"
+export { HealthReceipt } from "./health/HealthReceipt"
 
+export type PathMaker = (options: { volume: string; path: string }) => string
 export type ExportedAction = (options: {
   effects: Effects
   input?: Record<string, unknown>
@@ -29,10 +47,14 @@ export namespace ExpectedExports {
   // /** These are how we make sure the our dependency configurations are valid and if not how to fix them. */
   // export type dependencies = Dependencies;
   /** For backing up service data though the startOS UI */
-  export type createBackup = (options: { effects: Effects }) => Promise<unknown>
+  export type createBackup = (options: {
+    effects: Effects
+    pathMaker: PathMaker
+  }) => Promise<unknown>
   /** For restoring service data that was previously backed up using the startOS UI create backup flow. Backup restores are also triggered via the startOS UI, or doing a system restore flow during setup. */
   export type restoreBackup = (options: {
     effects: Effects
+    pathMaker: PathMaker
   }) => Promise<unknown>
 
   // /** Health checks are used to determine if the service is working properly after starting
@@ -97,9 +119,26 @@ export namespace ExpectedExports {
    */
   export type dependencyConfig = Record<PackageId, DependencyConfig | null>
 
-  export type Properties = (options: {
+  export type properties = (options: {
     effects: Effects
   }) => Promise<PropertiesReturn>
+
+  export type manifest = Manifest
+}
+export type ABI = {
+  setConfig: ExpectedExports.setConfig
+  getConfig: ExpectedExports.getConfig
+  createBackup: ExpectedExports.createBackup
+  restoreBackup: ExpectedExports.restoreBackup
+  actions: ExpectedExports.actions
+  actionsMetadata: ExpectedExports.actionsMetadata
+  main: ExpectedExports.main
+  afterShutdown: ExpectedExports.afterShutdown
+  init: ExpectedExports.init
+  uninit: ExpectedExports.uninit
+  dependencyConfig: ExpectedExports.dependencyConfig
+  properties: ExpectedExports.properties
+  manifest: ExpectedExports.manifest
 }
 export type TimeMs = number
 export type VersionString = string
@@ -110,21 +149,13 @@ export type VersionString = string
  */
 export type DependencyConfig = {
   /** During autoconfigure, we have access to effects and local data. We are going to figure out all the data that we need and send it to update. For the sdk it is the desired delta */
-  query(options: { effects: Effects; localConfig: unknown }): Promise<unknown>
+  query(options: { effects: Effects }): Promise<unknown>
   /** This is the second part. Given the query results off the previous function, we will determine what to change the remote config to. In our sdk normall we are going to use the previous as a deep merge. */
   update(options: {
     queryResults: unknown
     remoteConfig: unknown
   }): Promise<unknown>
 }
-
-export type ValidIfNoStupidEscape<A> = A extends
-  | `${string}'"'"'${string}`
-  | `${string}\\"${string}`
-  ? never
-  : "" extends A & ""
-    ? never
-    : A
 
 export type ConfigRes = {
   /** This should be the previous config, that way during set config we start with the previous */
@@ -152,12 +183,10 @@ export type SmtpValue = {
   password: string | null | undefined
 }
 
-export type CommandType<A extends string> =
-  | ValidIfNoStupidEscape<A>
-  | [string, ...string[]]
+export type CommandType = string | [string, ...string[]]
 
 export type DaemonReturned = {
-  wait(): Promise<null>
+  wait(): Promise<unknown>
   term(options?: { signal?: Signals; timeout?: number }): Promise<void>
 }
 
@@ -176,14 +205,6 @@ export type ActionMetadata = {
 export declare const hostName: unique symbol
 // asdflkjadsf.onion | 1.2.3.4
 export type Hostname = string & { [hostName]: never }
-
-/** ${scheme}://${username}@${host}:${externalPort}${suffix} */
-export type AddressInfo = {
-  username: string | null
-  hostId: string
-  bindOptions: BindOptions
-  suffix: string
-}
 
 export type HostnameInfoIp = {
   kind: "ip"
@@ -212,44 +233,9 @@ export type HostnameInfoOnion = {
 
 export type HostnameInfo = HostnameInfoIp | HostnameInfoOnion
 
-export type SingleHost = {
-  id: string
-  kind: "single" | "static"
-  hostname: HostnameInfo | null
-}
-
-export type MultiHost = {
-  id: string
-  kind: "multi"
-  hostnames: HostnameInfo[]
-}
-
-export type HostInfo = SingleHost | MultiHost
-
 export type ServiceInterfaceId = string
 
-export type ServiceInterface = {
-  id: ServiceInterfaceId
-  /** The title of this field to be displayed */
-  name: string
-  /** Human readable description, used as tooltip usually */
-  description: string
-  /** Whether or not one address must be the primary address */
-  hasPrimary: boolean
-  /** Disabled interfaces do not serve, but they retain their metadata and addresses */
-  disabled: boolean
-  /** Whether or not to mask the URIs for this interface. Useful if the URIs contain sensitive information, such as a password, macaroon, or API key */
-  masked: boolean
-  /** URI Information */
-  addressInfo: AddressInfo
-  /** The network interface could be several types, something like ui, p2p, or network */
-  type: ServiceInterfaceType
-}
-
-export type ServiceInterfaceWithHostInfo = ServiceInterface & {
-  hostInfo: HostInfo
-}
-
+export { ServiceInterface }
 export type ExposeServicePaths<Store = never> = {
   /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
   paths: ExposedStorePaths
@@ -305,209 +291,51 @@ export type PropertiesReturn = {
 
 /** Used to reach out from the pure js runtime */
 export type Effects = {
+  // action
+
+  /** Run an action exported by a service */
   executeAction<Input>(opts: {
-    serviceId: string | null
+    packageId?: PackageId
+    actionId: ActionId
     input: Input
   }): Promise<unknown>
+  /** Define an action that can be invoked by a user or service */
+  exportAction(options: {
+    id: ActionId
+    metadata: ActionMetadata
+  }): Promise<void>
+  /** Remove all exported actions */
+  clearActions(): Promise<void>
 
-  /** A low level api used by makeOverlay */
-  createOverlayedImage(options: { imageId: string }): Promise<[string, string]>
+  // config
 
-  /** A low level api used by destroyOverlay + makeOverlay:destroy */
-  destroyOverlayedImage(options: { guid: string }): Promise<void>
-
-  /** Removes all network bindings */
-  clearBindings(): Promise<void>
-  /** Creates a host connected to the specified port with the provided options */
-  bind(
-    options: {
-      kind: "static" | "single" | "multi"
-      id: string
-      internalPort: number
-    } & BindOptions,
-  ): Promise<void>
-  /** Retrieves the current hostname(s) associated with a host id */
-  // getHostInfo(options: {
-  //   kind: "static" | "single"
-  //   serviceInterfaceId: string
-  //   packageId: string | null
-  //   callback: () => void
-  // }): Promise<SingleHost>
-  getHostInfo(options: {
-    kind: "multi" | null
-    serviceInterfaceId: string
-    packageId: string | null
-    callback: () => void
-  }): Promise<MultiHost>
-
-  // /**
-  //  * Run rsync between two volumes. This is used to backup data between volumes.
-  //  * This is a long running process, and a structure that we can either wait for, or get the progress of.
-  //  */
-  // runRsync(options: {
-  //   srcVolume: string
-  //   dstVolume: string
-  //   srcPath: string
-  //   dstPath: string
-  //   // rsync options: https://linux.die.net/man/1/rsync
-  //   options: BackupOptions
-  // }): {
-  //   id: () => Promise<string>
-  //   wait: () => Promise<null>
-  //   progress: () => Promise<number>
-  // }
-
-  store: {
-    /** Get a value in a json like data, can be observed and subscribed */
-    get<Store = never, ExtractStore = unknown>(options: {
-      /** If there is no packageId it is assumed the current package */
-      packageId?: string
-      /** The path defaults to root level, using the [JsonPath](https://jsonpath.com/) */
-      path: StorePath
-      callback: (config: unknown, previousConfig: unknown) => void
-    }): Promise<ExtractStore>
-    /** Used to store values that can be accessed and subscribed to */
-    set<Store = never, ExtractStore = unknown>(options: {
-      /** Sets the value for the wrapper at the path, it will override, using the [JsonPath](https://jsonpath.com/)  */
-      path: StorePath
-      value: ExtractStore
-    }): Promise<void>
-  }
-
-  getSystemSmtp(input: {
-    callback: (config: unknown, previousConfig: unknown) => void
-  }): Promise<SmtpValue>
-
-  /** Get the IP address of the container */
-  getContainerIp(): Promise<string>
-  /**
-   * Get the port address for another service
-   */
-  getServicePortForward(options: {
-    internalPort: number
-    packageId: string | null
-  }): Promise<number>
-
-  /** Removes all network interfaces */
-  clearServiceInterfaces(): Promise<void>
-  /** When we want to create a link in the front end interfaces, and example is
-   * exposing a url to view a web service
-   */
-  exportServiceInterface(options: ServiceInterface): Promise<string>
-
-  exposeForDependents(options: { paths: string[] }): Promise<void>
-
-  /**
-   * There are times that we want to see the addresses that where exported
-   * @param options.addressId If we want to filter the address id
-   *
-   * Note: any auth should be filtered out already
-   */
-  getServiceInterface(options: {
-    packageId: PackageId | null
-    serviceInterfaceId: ServiceInterfaceId
-    callback: () => void
-  }): Promise<ServiceInterface>
-
-  /**
-   * The user sets the primary url for a interface
-   * @param options
-   */
-  getPrimaryUrl(options: {
-    packageId: PackageId | null
-    serviceInterfaceId: ServiceInterfaceId
-    callback: () => void
-  }): Promise<UrlString | null>
-
-  /**
-   * There are times that we want to see the addresses that where exported
-   * @param options.addressId If we want to filter the address id
-   *
-   * Note: any auth should be filtered out already
-   */
-  listServiceInterfaces(options: {
-    packageId: PackageId | null
-    callback: () => void
-  }): Promise<ServiceInterface[]>
-
-  /**
-   *Remove an address that was exported. Used problably during main or during setConfig.
-   * @param options
-   */
-  removeAddress(options: { id: string }): Promise<void>
-
-  /**
-   *
-   * @param options
-   */
-  exportAction(options: { id: string; metadata: ActionMetadata }): Promise<void>
-  /**
-   * Remove an action that was exported. Used problably during main or during setConfig.
-   */
-  removeAction(options: { id: string }): Promise<void>
-
-  getConfigured(): Promise<boolean>
-  /**
-   * This called after a valid set config as well as during init.
-   * @param configured
-   */
+  /** Returns whether or not the package has been configured */
+  getConfigured(options: { packageId?: PackageId }): Promise<boolean>
+  /** Indicates that this package has been configured. Called during setConfig or init */
   setConfigured(options: { configured: boolean }): Promise<void>
 
-  /**
-   *
-   * @returns  PEM encoded fullchain (ecdsa)
-   */
-  getSslCertificate: (options: {
-    packageId: string | null
-    hostId: string
-    algorithm: "ecdsa" | "ed25519" | null
-  }) => Promise<[string, string, string]>
-  /**
-   * @returns PEM encoded ssl key (ecdsa)
-   */
-  getSslKey: (options: {
-    packageId: string | null
-    hostId: string
-    algorithm: "ecdsa" | "ed25519" | null
-  }) => Promise<string>
+  // control
 
-  setHealth(
-    o: HealthCheckResult & {
-      id: HealthCheckId
-    },
-  ): Promise<void>
+  /** restart this service's main function */
+  restart(): Promise<void>
+  /** stop this service's main function */
+  shutdown(): Promise<void>
+  /** indicate to the host os what runstate the service is in */
+  setMainStatus(options: SetMainStatus): Promise<void>
 
-  /** Set the dependencies of what the service needs, usually ran during the set config as a best practice */
+  // dependency
+
+  /** Set the dependencies of what the service needs, usually run during the set config as a best practice */
   setDependencies(options: {
     dependencies: Dependencies
   }): Promise<DependenciesReceipt>
-  /** Exists could be useful during the runtime to know if some service exists, option dep */
-  exists(options: { packageId: PackageId }): Promise<boolean>
-  /** Exists could be useful during the runtime to know if some service is running, option dep */
-  running(options: { packageId: PackageId }): Promise<boolean>
-
-  /** Instead of creating proxies with nginx, we have a utility to create and maintain a proxy in the lifetime of this running. */
-  reverseProxy(options: {
-    bind: {
-      /** Optional, default is 0.0.0.0 */
-      ip: string | null
-      port: number
-      ssl: boolean
-    }
-    dst: {
-      /** Optional: default is 127.0.0.1 */
-      ip: string | null // optional, default 127.0.0.1
-      port: number
-      ssl: boolean
-    }
-    http: {
-      // optional, will do TCP layer proxy only if not present
-      headers: Record<string, string> | null
-    } | null
-  }): Promise<{ stop(): Promise<void> }>
-  restart(): void
-  shutdown(): void
-
+  /** Get the list of the dependencies, both the dynamic set by the effect of setDependencies and the end result any required in the manifest  */
+  getDependencies(): Promise<DependencyRequirement[]>
+  /** Test whether current dependency requirements are satisfied */
+  checkDependencies(options: {
+    packageIds?: PackageId[]
+  }): Promise<CheckDependenciesResult[]>
+  /** mount a volume of a dependency */
   mount(options: {
     location: string
     target: {
@@ -517,8 +345,103 @@ export type Effects = {
       readonly: boolean
     }
   }): Promise<string>
+  /** Returns a list of the ids of all installed packages */
+  getInstalledPackages(): Promise<string[]>
+  /** grants access to certain paths in the store to dependents */
+  exposeForDependents(options: { paths: string[] }): Promise<void>
 
-  stopped(options: { packageId: string | null }): Promise<boolean>
+  // health
+
+  /** sets the result of a health check */
+  setHealth(o: SetHealth): Promise<void>
+
+  // image
+
+  /** A low level api used by Overlay */
+  createOverlayedImage(options: { imageId: string }): Promise<[string, string]>
+  /** A low level api used by Overlay */
+  destroyOverlayedImage(options: { guid: string }): Promise<void>
+
+  // net
+
+  // bind
+  /** Creates a host connected to the specified port with the provided options */
+  bind(options: BindParams): Promise<void>
+  /** Get the port address for a service */
+  getServicePortForward(options: {
+    packageId?: PackageId
+    hostId: HostId
+    internalPort: number
+  }): Promise<LanInfo>
+  /** Removes all network bindings */
+  clearBindings(): Promise<void>
+  // host
+  /** Returns information about the specified host, if it exists */
+  getHostInfo(options: {
+    packageId?: PackageId
+    hostId: HostId
+    callback?: () => void
+  }): Promise<Host | null>
+  /** Returns the primary url that a user has selected for a host, if it exists */
+  getPrimaryUrl(options: {
+    packageId?: PackageId
+    hostId: HostId
+    callback?: () => void
+  }): Promise<UrlString | null>
+  /** Returns the IP address of the container */
+  getContainerIp(): Promise<string>
+  // interface
+  /** Creates an interface bound to a specific host and port to show to the user */
+  exportServiceInterface(options: ExportServiceInterfaceParams): Promise<void>
+  /** Returns an exported service interface */
+  getServiceInterface(options: {
+    packageId?: PackageId
+    serviceInterfaceId: ServiceInterfaceId
+    callback?: () => void
+  }): Promise<ServiceInterface | null>
+  /** Returns all exported service interfaces for a package */
+  listServiceInterfaces(options: {
+    packageId?: PackageId
+    callback?: () => void
+  }): Promise<Record<ServiceInterfaceId, ServiceInterface>>
+  /** Removes all service interfaces */
+  clearServiceInterfaces(): Promise<void>
+  // ssl
+  /** Returns a PEM encoded fullchain for the hostnames specified */
+  getSslCertificate: (options: {
+    hostnames: string[]
+    algorithm?: "ecdsa" | "ed25519"
+    callback?: () => void
+  }) => Promise<[string, string, string]>
+  /** Returns a PEM encoded private key corresponding to the certificate for the hostnames specified */
+  getSslKey: (options: {
+    hostnames: string[]
+    algorithm?: "ecdsa" | "ed25519"
+  }) => Promise<string>
+
+  // store
+
+  store: {
+    /** Get a value in a json like data, can be observed and subscribed */
+    get<Store = never, ExtractStore = unknown>(options: {
+      /** If there is no packageId it is assumed the current package */
+      packageId?: string
+      /** The path defaults to root level, using the [JsonPath](https://jsonpath.com/) */
+      path: StorePath
+      callback?: () => void
+    }): Promise<ExtractStore>
+    /** Used to store values that can be accessed and subscribed to */
+    set<Store = never, ExtractStore = unknown>(options: {
+      /** Sets the value for the wrapper at the path, it will override, using the [JsonPath](https://jsonpath.com/)  */
+      path: StorePath
+      value: ExtractStore
+    }): Promise<void>
+  }
+
+  // system
+
+  /** Returns globally configured SMTP settings, if they exist */
+  getSystemSmtp(options: { callback?: () => void }): Promise<SmtpValue | null>
 }
 
 /** rsync options: https://linux.die.net/man/1/rsync
@@ -560,9 +483,8 @@ export type ActionResult = {
   }
 }
 export type SetResult = {
-  /** These are the unix process signals */
+  dependsOn: DependsOn
   signal: Signals
-  "depends-on": DependsOn
 }
 
 export type PackageId = string
@@ -570,21 +492,16 @@ export type Message = string
 export type DependencyKind = "running" | "exists"
 
 export type DependsOn = {
-  [packageId: string]: string[]
+  [packageId: string]: string[] | readonly string[]
 }
 
 export type KnownError =
   | { error: string }
   | {
-      "error-code": [number, string] | readonly [number, string]
+      errorCode: [number, string] | readonly [number, string]
     }
 
-export type Dependency = {
-  id: PackageId
-  versionSpec: string
-  registryUrl: string
-} & ({ kind: "exists" } | { kind: "running"; healthChecks: string[] })
-export type Dependencies = Array<Dependency>
+export type Dependencies = Array<DependencyRequirement>
 
 export type DeepPartial<T> = T extends {}
   ? { [P in keyof T]?: DeepPartial<T[P]> }

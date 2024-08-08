@@ -1,16 +1,19 @@
-use std::any::TypeId;
+use std::any::Any;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::str::FromStr;
 
+use base64::Engine;
 use clap::builder::ValueParserFactory;
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use color_eyre::eyre::eyre;
 use imbl::OrdMap;
 use openssl::pkey::{PKey, Private};
-use openssl::x509::{X509Ref, X509};
-use rpc_toolkit::{AnyContext, Handler, HandlerArgs, HandlerArgsFor, HandlerTypes, PrintCliResult};
+use openssl::x509::X509;
+use rpc_toolkit::{
+    CliBindings, Context, HandlerArgs, HandlerArgsFor, HandlerFor, HandlerTypes, PrintCliResult,
+};
 use serde::de::DeserializeOwned;
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -18,8 +21,9 @@ use serde_json::Value;
 use ts_rs::TS;
 
 use super::IntoDoubleEndedIterator;
+use crate::prelude::*;
 use crate::util::clap::FromStrParser;
-use crate::{Error, ResultExt};
+use crate::util::Apply;
 
 pub fn deserialize_from_str<
     'de,
@@ -35,7 +39,11 @@ pub fn deserialize_from_str<
     {
         type Value = T;
         fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(formatter, "a parsable string")
+            write!(
+                formatter,
+                "a string that can be parsed as a {}",
+                std::any::type_name::<T>()
+            )
         }
         fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
         where
@@ -105,64 +113,22 @@ pub fn serialize_display_opt<T: std::fmt::Display, S: Serializer>(
     Option::<String>::serialize(&t.as_ref().map(|t| t.to_string()), serializer)
 }
 
-pub mod ed25519_pubkey {
-    use ed25519_dalek::VerifyingKey;
-    use serde::de::{Error, Unexpected, Visitor};
-    use serde::{Deserializer, Serializer};
-
-    pub fn serialize<S: Serializer>(
-        pubkey: &VerifyingKey,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&base32::encode(
-            base32::Alphabet::RFC4648 { padding: true },
-            pubkey.as_bytes(),
-        ))
-    }
-    pub fn deserialize<'de, D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<VerifyingKey, D::Error> {
-        struct PubkeyVisitor;
-        impl<'de> Visitor<'de> for PubkeyVisitor {
-            type Value = ed25519_dalek::VerifyingKey;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(formatter, "an RFC4648 encoded string")
-            }
-            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-            where
-                E: Error,
-            {
-                VerifyingKey::from_bytes(
-                    &<[u8; 32]>::try_from(
-                        base32::decode(base32::Alphabet::RFC4648 { padding: true }, v).ok_or(
-                            Error::invalid_value(Unexpected::Str(v), &"an RFC4648 encoded string"),
-                        )?,
-                    )
-                    .map_err(|e| Error::invalid_length(e.len(), &"32 bytes"))?,
-                )
-                .map_err(Error::custom)
-            }
-        }
-        deserializer.deserialize_str(PubkeyVisitor)
-    }
-}
-
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
-pub enum ValuePrimative {
+pub enum ValuePrimitive {
     Null,
     Boolean(bool),
     String(String),
     Number(serde_json::Number),
 }
-impl<'de> serde::de::Deserialize<'de> for ValuePrimative {
+impl<'de> serde::de::Deserialize<'de> for ValuePrimitive {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::de::Deserializer<'de>,
     {
         struct Visitor;
         impl<'de> serde::de::Visitor<'de> for Visitor {
-            type Value = ValuePrimative;
+            type Value = ValuePrimitive;
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 write!(formatter, "a JSON primative value")
             }
@@ -170,37 +136,37 @@ impl<'de> serde::de::Deserialize<'de> for ValuePrimative {
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Null)
+                Ok(ValuePrimitive::Null)
             }
             fn visit_none<E>(self) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Null)
+                Ok(ValuePrimitive::Null)
             }
             fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Boolean(v))
+                Ok(ValuePrimitive::Boolean(v))
             }
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::String(v.to_owned()))
+                Ok(ValuePrimitive::String(v.to_owned()))
             }
             fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::String(v))
+                Ok(ValuePrimitive::String(v))
             }
             fn visit_f32<E>(self, v: f32) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(
+                Ok(ValuePrimitive::Number(
                     serde_json::Number::from_f64(v as f64).ok_or_else(|| {
                         serde::de::Error::invalid_value(
                             serde::de::Unexpected::Float(v as f64),
@@ -213,7 +179,7 @@ impl<'de> serde::de::Deserialize<'de> for ValuePrimative {
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(
+                Ok(ValuePrimitive::Number(
                     serde_json::Number::from_f64(v).ok_or_else(|| {
                         serde::de::Error::invalid_value(
                             serde::de::Unexpected::Float(v),
@@ -226,49 +192,49 @@ impl<'de> serde::de::Deserialize<'de> for ValuePrimative {
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(v.into()))
+                Ok(ValuePrimitive::Number(v.into()))
             }
             fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(v.into()))
+                Ok(ValuePrimitive::Number(v.into()))
             }
             fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(v.into()))
+                Ok(ValuePrimitive::Number(v.into()))
             }
             fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(v.into()))
+                Ok(ValuePrimitive::Number(v.into()))
             }
             fn visit_i8<E>(self, v: i8) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(v.into()))
+                Ok(ValuePrimitive::Number(v.into()))
             }
             fn visit_i16<E>(self, v: i16) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(v.into()))
+                Ok(ValuePrimitive::Number(v.into()))
             }
             fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(v.into()))
+                Ok(ValuePrimitive::Number(v.into()))
             }
             fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(ValuePrimative::Number(v.into()))
+                Ok(ValuePrimitive::Number(v.into()))
             }
         }
         deserializer.deserialize_any(Visitor)
@@ -489,10 +455,10 @@ impl<T: CommandFactory> CommandFactory for WithIoFormat<T> {
     }
 }
 
-pub trait HandlerExtSerde: Handler {
+pub trait HandlerExtSerde<C: Context>: HandlerFor<C> {
     fn with_display_serializable(self) -> DisplaySerializable<Self>;
 }
-impl<T: Handler> HandlerExtSerde for T {
+impl<T: HandlerFor<C>, C: Context> HandlerExtSerde<C> for T {
     fn with_display_serializable(self) -> DisplaySerializable<Self> {
         DisplaySerializable(self)
     }
@@ -506,9 +472,7 @@ impl<T: HandlerTypes> HandlerTypes for DisplaySerializable<T> {
     type Ok = T::Ok;
     type Err = T::Err;
 }
-#[async_trait::async_trait]
-impl<T: Handler> Handler for DisplaySerializable<T> {
-    type Context = T::Context;
+impl<T: HandlerFor<C>, C: Context> HandlerFor<C> for DisplaySerializable<T> {
     fn handle_sync(
         &self,
         HandlerArgs {
@@ -518,7 +482,7 @@ impl<T: Handler> Handler for DisplaySerializable<T> {
             params,
             inherited_params,
             raw_params,
-        }: HandlerArgsFor<Self::Context, Self>,
+        }: HandlerArgsFor<C, Self>,
     ) -> Result<Self::Ok, Self::Err> {
         self.0.handle_sync(HandlerArgs {
             context,
@@ -538,7 +502,7 @@ impl<T: Handler> Handler for DisplaySerializable<T> {
             params,
             inherited_params,
             raw_params,
-        }: HandlerArgsFor<Self::Context, Self>,
+        }: HandlerArgsFor<C, Self>,
     ) -> Result<Self::Ok, Self::Err> {
         self.0
             .handle_async(HandlerArgs {
@@ -551,37 +515,67 @@ impl<T: Handler> Handler for DisplaySerializable<T> {
             })
             .await
     }
-    fn contexts(&self) -> Option<imbl::OrdSet<std::any::TypeId>> {
-        self.0.contexts()
+    fn metadata(&self, method: VecDeque<&'static str>) -> OrdMap<&'static str, imbl_value::Value> {
+        self.0.metadata(method)
     }
-    fn metadata(
-        &self,
-        method: VecDeque<&'static str>,
-        ctx_ty: TypeId,
-    ) -> OrdMap<&'static str, imbl_value::Value> {
-        self.0.metadata(method, ctx_ty)
-    }
-    fn method_from_dots(&self, method: &str, ctx_ty: TypeId) -> Option<VecDeque<&'static str>> {
-        self.0.method_from_dots(method, ctx_ty)
+    fn method_from_dots(&self, method: &str) -> Option<VecDeque<&'static str>> {
+        self.0.method_from_dots(method)
     }
 }
-impl<T: HandlerTypes> PrintCliResult for DisplaySerializable<T>
+impl<T: HandlerTypes, C: Context> PrintCliResult<C> for DisplaySerializable<T>
 where
     T::Ok: Serialize,
 {
-    type Context = AnyContext;
     fn print(
         &self,
-        HandlerArgs { params, .. }: HandlerArgsFor<Self::Context, Self>,
+        HandlerArgs { params, .. }: HandlerArgsFor<C, Self>,
         result: Self::Ok,
     ) -> Result<(), Self::Err> {
         display_serializable(params.format.unwrap_or_default(), result);
         Ok(())
     }
 }
+impl<Context, T> CliBindings<Context> for DisplaySerializable<T>
+where
+    Context: crate::Context,
+    Self: HandlerTypes,
+    Self::Params: CommandFactory + FromArgMatches + Serialize,
+    Self: PrintCliResult<Context>,
+{
+    fn cli_command(&self) -> clap::Command {
+        Self::Params::command()
+    }
+    fn cli_parse(
+        &self,
+        matches: &clap::ArgMatches,
+    ) -> Result<(VecDeque<&'static str>, patch_db::Value), clap::Error> {
+        Self::Params::from_arg_matches(matches).and_then(|a| {
+            Ok((
+                VecDeque::new(),
+                imbl_value::to_value(&a)
+                    .map_err(|e| clap::Error::raw(clap::error::ErrorKind::ValueValidation, e))?,
+            ))
+        })
+    }
+    fn cli_display(
+        &self,
+        handle_args: HandlerArgsFor<Context, Self>,
+        result: Self::Ok,
+    ) -> Result<(), Self::Err> {
+        self.print(handle_args, result)
+    }
+}
 
 #[derive(Deserialize, Serialize, TS)]
 pub struct StdinDeserializable<T>(pub T);
+impl<T> Default for StdinDeserializable<T>
+where
+    T: Default,
+{
+    fn default() -> Self {
+        Self(T::default())
+    }
+}
 impl<T> FromArgMatches for StdinDeserializable<T>
 where
     T: DeserializeOwned,
@@ -938,14 +932,56 @@ impl<'de, K: Deserialize<'de>, V: Deserialize<'de>> Deserialize<'de> for KeyVal<
     }
 }
 
+#[derive(TS)]
+#[ts(type = "string", concrete(T = Vec<u8>))]
+pub struct Base16<T>(pub T);
+impl<'de, T: TryFrom<Vec<u8>>> Deserialize<'de> for Base16<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        hex::decode(&s)
+            .map_err(|_| {
+                serde::de::Error::invalid_value(
+                    serde::de::Unexpected::Str(&s),
+                    &"a valid hex string",
+                )
+            })?
+            .try_into()
+            .map_err(|_| serde::de::Error::custom("invalid length"))
+            .map(Self)
+    }
+}
+impl<T: AsRef<[u8]>> Serialize for Base16<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&hex::encode(self.0.as_ref()))
+    }
+}
+impl<T: AsRef<[u8]>> std::fmt::Display for Base16<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        hex::encode(self.0.as_ref()).fmt(f)
+    }
+}
+
+#[derive(TS)]
+#[ts(type = "string", concrete(T = Vec<u8>))]
 pub struct Base32<T>(pub T);
+impl<T: AsRef<[u8]>> std::fmt::Display for Base32<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        base32::encode(base32::Alphabet::Rfc4648 { padding: true }, self.0.as_ref()).fmt(f)
+    }
+}
 impl<'de, T: TryFrom<Vec<u8>>> Deserialize<'de> for Base32<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        base32::decode(base32::Alphabet::RFC4648 { padding: true }, &s)
+        base32::decode(base32::Alphabet::Rfc4648 { padding: true }, &s)
             .ok_or_else(|| {
                 serde::de::Error::invalid_value(
                     serde::de::Unexpected::Str(&s),
@@ -962,25 +998,45 @@ impl<T: AsRef<[u8]>> Serialize for Base32<T> {
     where
         S: Serializer,
     {
-        serializer.serialize_str(&base32::encode(
-            base32::Alphabet::RFC4648 { padding: true },
-            self.0.as_ref(),
-        ))
+        serialize_display(self, serializer)
     }
 }
 
+pub const BASE64: base64::engine::GeneralPurpose = base64::engine::GeneralPurpose::new(
+    &base64::alphabet::STANDARD,
+    base64::engine::GeneralPurposeConfig::new(),
+);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TS)]
+#[ts(type = "string", concrete(T = Vec<u8>))]
 pub struct Base64<T>(pub T);
+impl<T: AsRef<[u8]>> std::fmt::Display for Base64<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&BASE64.encode(self.0.as_ref()))
+    }
+}
+impl<T: TryFrom<Vec<u8>>> FromStr for Base64<T> {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        BASE64
+            .decode(&s)
+            .with_kind(ErrorKind::Deserialization)?
+            .apply(TryFrom::try_from)
+            .map(Self)
+            .map_err(|_| {
+                Error::new(
+                    eyre!("failed to create from buffer"),
+                    ErrorKind::Deserialization,
+                )
+            })
+    }
+}
 impl<'de, T: TryFrom<Vec<u8>>> Deserialize<'de> for Base64<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let s = String::deserialize(deserializer)?;
-        base64::decode(&s)
-            .map_err(serde::de::Error::custom)?
-            .try_into()
-            .map_err(|_| serde::de::Error::custom("invalid length"))
-            .map(Self)
+        deserialize_from_str(deserializer)
     }
 }
 impl<T: AsRef<[u8]>> Serialize for Base64<T> {
@@ -988,7 +1044,13 @@ impl<T: AsRef<[u8]>> Serialize for Base64<T> {
     where
         S: Serializer,
     {
-        serializer.serialize_str(&base64::encode(self.0.as_ref()))
+        serialize_display(self, serializer)
+    }
+}
+impl<T> Deref for Base64<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -1102,7 +1164,7 @@ pub trait PemEncoding: Sized {
 
 impl PemEncoding for X509 {
     fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
-        X509::from_pem(pem.as_bytes()).map_err(E::custom)
+        Self::from_pem(pem.as_bytes()).map_err(E::custom)
     }
     fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
         String::from_utf8((&**self).to_pem().map_err(E::custom)?).map_err(E::custom)
@@ -1111,7 +1173,7 @@ impl PemEncoding for X509 {
 
 impl PemEncoding for PKey<Private> {
     fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
-        PKey::<Private>::private_key_from_pem(pem.as_bytes()).map_err(E::custom)
+        Self::private_key_from_pem(pem.as_bytes()).map_err(E::custom)
     }
     fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
         String::from_utf8((&**self).private_key_to_pem_pkcs8().map_err(E::custom)?)
@@ -1121,7 +1183,7 @@ impl PemEncoding for PKey<Private> {
 
 impl PemEncoding for ssh_key::PrivateKey {
     fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
-        ssh_key::PrivateKey::from_openssh(pem.as_bytes()).map_err(E::custom)
+        Self::from_openssh(pem.as_bytes()).map_err(E::custom)
     }
     fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
         self.to_openssh(ssh_key::LineEnding::LF)
@@ -1133,12 +1195,25 @@ impl PemEncoding for ssh_key::PrivateKey {
 impl PemEncoding for ed25519_dalek::VerifyingKey {
     fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
         use ed25519_dalek::pkcs8::DecodePublicKey;
-        ed25519_dalek::VerifyingKey::from_public_key_pem(pem).map_err(E::custom)
+        Self::from_public_key_pem(pem).map_err(E::custom)
     }
     fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
         use ed25519_dalek::pkcs8::EncodePublicKey;
         self.to_public_key_pem(pkcs8::LineEnding::LF)
             .map_err(E::custom)
+    }
+}
+
+impl PemEncoding for ed25519_dalek::SigningKey {
+    fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
+        use ed25519_dalek::pkcs8::DecodePrivateKey;
+        Self::from_pkcs8_pem(pem).map_err(E::custom)
+    }
+    fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
+        use ed25519_dalek::pkcs8::EncodePrivateKey;
+        self.to_pkcs8_pem(pkcs8::LineEnding::LF)
+            .map_err(E::custom)
+            .map(|s| s.as_str().to_owned())
     }
 }
 
@@ -1163,7 +1238,8 @@ pub mod pem {
 }
 
 #[repr(transparent)]
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash, TS)]
+#[ts(type = "string", concrete(T = ed25519_dalek::VerifyingKey))]
 pub struct Pem<T: PemEncoding>(#[serde(with = "pem")] pub T);
 impl<T: PemEncoding> Pem<T> {
     pub fn new(value: T) -> Self {
@@ -1174,6 +1250,33 @@ impl<T: PemEncoding> Pem<T> {
     }
     pub fn new_mut(value: &mut T) -> &mut Self {
         unsafe { std::mem::transmute(value) }
+    }
+}
+impl<T: PemEncoding> Deref for Pem<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<T: PemEncoding> std::fmt::Display for Pem<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.to_pem::<serde_json::Error>()
+            .map_err(|_| std::fmt::Error::default())?
+            .fmt(f)
+    }
+}
+impl<T: PemEncoding> FromStr for Pem<T> {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(
+            T::from_pem::<serde_json::Error>(s).with_kind(ErrorKind::Pem)?,
+        ))
+    }
+}
+impl<T: PemEncoding> ValueParserFactory for Pem<T> {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        Self::Parser::new()
     }
 }
 

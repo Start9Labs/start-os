@@ -1,8 +1,8 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use chrono::{DateTime, Utc};
-use emver::VersionRange;
+use exver::{Version, VersionRange};
 use imbl_value::InternedString;
 use ipnet::{Ipv4Net, Ipv6Net};
 use isocountry::CountryCode;
@@ -19,8 +19,9 @@ use crate::account::AccountInfo;
 use crate::db::model::package::AllPackageData;
 use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::prelude::*;
+use crate::progress::FullProgress;
+use crate::system::SmtpValue;
 use crate::util::cpupower::Governor;
-use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::{ARCH, PLATFORM};
 
@@ -31,7 +32,7 @@ use crate::{ARCH, PLATFORM};
 pub struct Public {
     pub server_info: ServerInfo,
     pub package_data: AllPackageData,
-    #[ts(type = "any")]
+    #[ts(type = "unknown")]
     pub ui: Value,
 }
 impl Public {
@@ -42,10 +43,9 @@ impl Public {
                 arch: get_arch(),
                 platform: get_platform(),
                 id: account.server_id.clone(),
-                version: Current::new().semver().into(),
+                version: Current::new().semver(),
                 hostname: account.hostname.no_dot_host_name(),
                 last_backup: None,
-                last_wifi_region: None,
                 eos_version_compat: Current::new().compat().clone(),
                 lan_address,
                 onion_address: account.tor_key.public().get_onion_address(),
@@ -60,11 +60,7 @@ impl Public {
                     shutting_down: false,
                     restarting: false,
                 },
-                wifi: WifiInfo {
-                    ssids: Vec::new(),
-                    connected: None,
-                    selected: None,
-                },
+                wifi: WifiInfo::default(),
                 unread_notification_count: 0,
                 password_hash: account.password.clone(),
                 pubkey: ssh_key::PublicKey::from(&account.ssh_key)
@@ -80,6 +76,7 @@ impl Public {
                 ntp_synced: false,
                 zram: true,
                 governor: None,
+                smtp: None,
             },
             package_data: AllPackageData::default(),
             ui: serde_json::from_str(include_str!(concat!(
@@ -111,14 +108,12 @@ pub struct ServerInfo {
     #[ts(type = "string")]
     pub platform: InternedString,
     pub id: String,
-    pub hostname: String,
+    #[ts(type = "string")]
+    pub hostname: InternedString,
     #[ts(type = "string")]
     pub version: Version,
     #[ts(type = "string | null")]
     pub last_backup: Option<DateTime<Utc>>,
-    /// Used in the wifi to determine the region to set the system to
-    #[ts(type = "string | null")]
-    pub last_wifi_region: Option<CountryCode>,
     #[ts(type = "string")]
     pub eos_version_compat: VersionRange,
     #[ts(type = "string")]
@@ -142,6 +137,7 @@ pub struct ServerInfo {
     #[serde(default)]
     pub zram: bool,
     pub governor: Option<Governor>,
+    pub smtp: Option<SmtpValue>,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
@@ -183,32 +179,23 @@ pub struct BackupProgress {
 pub struct ServerStatus {
     pub backup_progress: Option<BTreeMap<PackageId, BackupProgress>>,
     pub updated: bool,
-    pub update_progress: Option<UpdateProgress>,
+    pub update_progress: Option<FullProgress>,
     #[serde(default)]
     pub shutting_down: bool,
     #[serde(default)]
     pub restarting: bool,
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
-#[serde(rename_all = "camelCase")]
-#[model = "Model<Self>"]
-#[ts(export)]
-pub struct UpdateProgress {
-    #[ts(type = "number | null")]
-    pub size: Option<u64>,
-    #[ts(type = "number")]
-    pub downloaded: u64,
-}
-
-#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct WifiInfo {
-    pub ssids: Vec<String>,
+    pub interface: Option<String>,
+    pub ssids: BTreeSet<String>,
     pub selected: Option<String>,
-    pub connected: Option<String>,
+    #[ts(type = "string | null")]
+    pub last_region: Option<CountryCode>,
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]

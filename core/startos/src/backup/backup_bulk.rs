@@ -13,14 +13,14 @@ use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 use ts_rs::TS;
 
-use super::target::BackupTargetId;
+use super::target::{BackupTargetId, PackageBackupInfo};
 use super::PackageBackupReport;
 use crate::auth::check_password_against_db;
 use crate::backup::os::OsBackup;
 use crate::backup::{BackupReport, ServerBackupReport};
 use crate::context::RpcContext;
 use crate::db::model::public::BackupProgress;
-use crate::db::model::DatabaseModel;
+use crate::db::model::{Database, DatabaseModel};
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
@@ -42,9 +42,9 @@ pub struct BackupParams {
     password: crate::auth::PasswordType,
 }
 
-struct BackupStatusGuard(Option<PatchDb>);
+struct BackupStatusGuard(Option<TypedPatchDb<Database>>);
 impl BackupStatusGuard {
-    fn new(db: PatchDb) -> Self {
+    fn new(db: TypedPatchDb<Database>) -> Self {
         Self(Some(db))
     }
     async fn handle_result(
@@ -164,7 +164,7 @@ pub async fn backup_all(
         .decrypt(&ctx)?;
     let password = password.decrypt(&ctx)?;
 
-    let ((fs, package_ids), status_guard) = (
+    let ((fs, package_ids, server_id), status_guard) = (
         ctx.db
             .mutate(|db| {
                 check_password_against_db(db, &password)?;
@@ -181,7 +181,11 @@ pub async fn backup_all(
                         .collect()
                 };
                 assure_backing_up(db, &package_ids)?;
-                Ok((fs, package_ids))
+                Ok((
+                    fs,
+                    package_ids,
+                    db.as_public().as_server_info().as_id().de()?,
+                ))
             })
             .await?,
         BackupStatusGuard::new(ctx.db.clone()),
@@ -189,6 +193,7 @@ pub async fn backup_all(
 
     let mut backup_guard = BackupMountGuard::mount(
         TmpMountGuard::mount(&fs, ReadWrite).await?,
+        &server_id,
         &old_password_decrypted,
     )
     .await?;
@@ -246,19 +251,43 @@ async fn perform_backup(
     backup_guard: BackupMountGuard<TmpMountGuard>,
     package_ids: &OrdSet<PackageId>,
 ) -> Result<BTreeMap<PackageId, PackageBackupReport>, Error> {
+    let db = ctx.db.peek().await;
     let mut backup_report = BTreeMap::new();
     let backup_guard = Arc::new(backup_guard);
+    let mut package_backups: BTreeMap<PackageId, PackageBackupInfo> =
+        backup_guard.metadata.package_backups.clone();
 
     for id in package_ids {
         if let Some(service) = &*ctx.services.get(id).await {
+            let backup_result = service
+                .backup(backup_guard.package_backup(id).await?)
+                .await
+                .err()
+                .map(|e| e.to_string());
+            if backup_result.is_none() {
+                let manifest = db
+                    .as_public()
+                    .as_package_data()
+                    .as_idx(id)
+                    .or_not_found(id)?
+                    .as_state_info()
+                    .expect_installed()?
+                    .as_manifest();
+
+                package_backups.insert(
+                    id.clone(),
+                    PackageBackupInfo {
+                        os_version: manifest.as_os_version().de()?,
+                        version: manifest.as_version().de()?,
+                        title: manifest.as_title().de()?,
+                        timestamp: Utc::now(),
+                    },
+                );
+            }
             backup_report.insert(
                 id.clone(),
                 PackageBackupReport {
-                    error: service
-                        .backup(backup_guard.package_backup(id))
-                        .await
-                        .err()
-                        .map(|e| e.to_string()),
+                    error: backup_result,
                 },
             );
         }
@@ -274,11 +303,11 @@ async fn perform_backup(
     let ui = ctx.db.peek().await.into_public().into_ui().de()?;
 
     let mut os_backup_file =
-        AtomicFile::new(backup_guard.path().join("os-backup.cbor"), None::<PathBuf>)
+        AtomicFile::new(backup_guard.path().join("os-backup.json"), None::<PathBuf>)
             .await
             .with_kind(ErrorKind::Filesystem)?;
     os_backup_file
-        .write_all(&IoFormat::Cbor.to_vec(&OsBackup {
+        .write_all(&IoFormat::Json.to_vec(&OsBackup {
             account: ctx.account.read().await.clone(),
             ui,
         })?)
@@ -296,17 +325,19 @@ async fn perform_backup(
     if tokio::fs::metadata(&luks_folder_bak).await.is_ok() {
         tokio::fs::rename(&luks_folder_bak, &luks_folder_old).await?;
     }
-    let luks_folder = Path::new("/media/embassy/config/luks");
+    let luks_folder = Path::new("/media/startos/config/luks");
     if tokio::fs::metadata(&luks_folder).await.is_ok() {
-        dir_copy(&luks_folder, &luks_folder_bak, None).await?;
+        dir_copy(luks_folder, &luks_folder_bak, None).await?;
     }
 
-    let timestamp = Some(Utc::now());
+    let timestamp = Utc::now();
 
     backup_guard.unencrypted_metadata.version = crate::version::Current::new().semver().into();
-    backup_guard.unencrypted_metadata.full = true;
+    backup_guard.unencrypted_metadata.hostname = ctx.account.read().await.hostname.clone();
+    backup_guard.unencrypted_metadata.timestamp = timestamp.clone();
     backup_guard.metadata.version = crate::version::Current::new().semver().into();
-    backup_guard.metadata.timestamp = timestamp;
+    backup_guard.metadata.timestamp = Some(timestamp);
+    backup_guard.metadata.package_backups = package_backups;
 
     backup_guard.save_and_unmount().await?;
 
@@ -315,7 +346,7 @@ async fn perform_backup(
             v.as_public_mut()
                 .as_server_info_mut()
                 .as_last_backup_mut()
-                .ser(&timestamp)
+                .ser(&Some(timestamp))
         })
         .await?;
 

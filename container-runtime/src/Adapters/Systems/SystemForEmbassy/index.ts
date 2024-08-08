@@ -1,9 +1,9 @@
-import { types as T, utils, EmVer } from "@start9labs/start-sdk"
+import { ExtendedVersion, types as T, utils } from "@start9labs/start-sdk"
 import * as fs from "fs/promises"
 
-import { PolyfillEffects } from "./polyfillEffects"
-import { Duration, duration } from "../../../Models/Duration"
-import { System } from "../../../Interfaces/System"
+import { polyfillEffects } from "./polyfillEffects"
+import { Duration, duration, fromDuration } from "../../../Models/Duration"
+import { System, Procedure } from "../../../Interfaces/System"
 import { matchManifest, Manifest } from "./matchManifest"
 import * as childProcess from "node:child_process"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
@@ -25,11 +25,31 @@ import {
   anyOf,
   deferred,
   Parser,
+  array,
 } from "ts-matches"
-import { HostSystemStartOs } from "../../HostSystemStartOs"
 import { JsonPath, unNestPath } from "../../../Models/JsonPath"
 import { RpcResult, matchRpcResult } from "../../RpcListener"
-import { InputSpec } from "@start9labs/start-sdk/cjs/sdk/lib/config/configTypes"
+import { CT } from "@start9labs/start-sdk"
+import {
+  AddSslOptions,
+  BindOptions,
+} from "@start9labs/start-sdk/cjs/lib/osBindings"
+import {
+  BindOptionsByProtocol,
+  Host,
+  MultiHost,
+} from "@start9labs/start-sdk/cjs/lib/interfaces/Host"
+import { ServiceInterfaceBuilder } from "@start9labs/start-sdk/cjs/lib/interfaces/ServiceInterfaceBuilder"
+import { Effects } from "../../../Models/Effects"
+import {
+  OldConfigSpec,
+  matchOldConfigSpec,
+  transformConfigSpec,
+  transformNewConfigToOld,
+  transformOldConfigToNew,
+} from "./transformConfigSpec"
+import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
+import { StorePath } from "@start9labs/start-sdk/cjs/lib/store/PathBuilder"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
@@ -38,8 +58,55 @@ function todo(): never {
 const execFile = promisify(childProcess.execFile)
 
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
-const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
-const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig"
+export const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
+const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig" as StorePath
+
+const matchSetResult = object(
+  {
+    "depends-on": dictionary([string, array(string)]),
+    dependsOn: dictionary([string, array(string)]),
+    signal: literals(
+      "SIGTERM",
+      "SIGHUP",
+      "SIGINT",
+      "SIGQUIT",
+      "SIGILL",
+      "SIGTRAP",
+      "SIGABRT",
+      "SIGBUS",
+      "SIGFPE",
+      "SIGKILL",
+      "SIGUSR1",
+      "SIGSEGV",
+      "SIGUSR2",
+      "SIGPIPE",
+      "SIGALRM",
+      "SIGSTKFLT",
+      "SIGCHLD",
+      "SIGCONT",
+      "SIGSTOP",
+      "SIGTSTP",
+      "SIGTTIN",
+      "SIGTTOU",
+      "SIGURG",
+      "SIGXCPU",
+      "SIGXFSZ",
+      "SIGVTALRM",
+      "SIGPROF",
+      "SIGWINCH",
+      "SIGIO",
+      "SIGPWR",
+      "SIGSYS",
+      "SIGINFO",
+    ),
+  },
+  ["depends-on", "dependsOn"],
+)
+
+type OldGetConfigRes = {
+  config?: null | Record<string, unknown>
+  spec: OldConfigSpec
+}
 
 export type PackagePropertiesV2 = {
   [name: string]: PackagePropertyObject | PackagePropertyString
@@ -120,6 +187,7 @@ const matchProperties = object({
   data: matchPackageProperties,
 })
 
+const DEFAULT_REGISTRY = "https://registry.start9.com"
 export class SystemForEmbassy implements System {
   currentRunning: MainLoop | undefined
   static async of(manifestLocation: string = MANIFEST_LOCATION) {
@@ -142,11 +210,36 @@ export class SystemForEmbassy implements System {
     readonly manifest: Manifest,
     readonly moduleCode: Partial<U.ExpectedExports>,
   ) {}
+
+  async init(): Promise<void> {}
+
+  async exit(): Promise<void> {
+    if (this.currentRunning) await this.currentRunning.clean()
+    delete this.currentRunning
+  }
+
+  async start(effects: MainEffects): Promise<void> {
+    if (!!this.currentRunning) return
+
+    this.currentRunning = await MainLoop.of(this, effects)
+  }
+  callCallback(_callback: number, _args: any[]): void {}
+  async stop(): Promise<void> {
+    const { currentRunning } = this
+    this.currentRunning?.clean()
+    delete this.currentRunning
+    if (currentRunning) {
+      await currentRunning.clean({
+        timeout: fromDuration(this.manifest.main["sigterm-timeout"] || "30s"),
+      })
+    }
+  }
+
   async execute(
-    effects: HostSystemStartOs,
+    effects: Effects,
     options: {
       procedure: JsonPath
-      input: unknown
+      input?: unknown
       timeout?: number | undefined
     },
   ): Promise<RpcResult> {
@@ -204,65 +297,172 @@ export class SystemForEmbassy implements System {
         }
       })
   }
-  async exit(effects: HostSystemStartOs): Promise<void> {
-    if (this.currentRunning) await this.currentRunning.clean()
-    delete this.currentRunning
-  }
   async _execute(
-    effects: HostSystemStartOs,
+    effects: Effects,
     options: {
       procedure: JsonPath
-      input: unknown
+      input?: unknown
       timeout?: number | undefined
     },
   ): Promise<unknown> {
     const input = options.input
     switch (options.procedure) {
       case "/backup/create":
-        return this.createBackup(effects)
+        return this.createBackup(effects, options.timeout || null)
       case "/backup/restore":
-        return this.restoreBackup(effects)
+        return this.restoreBackup(effects, options.timeout || null)
       case "/config/get":
-        return this.getConfig(effects)
+        return this.getConfig(effects, options.timeout || null)
       case "/config/set":
-        return this.setConfig(effects, input)
+        return this.setConfig(effects, input, options.timeout || null)
       case "/properties":
-        return this.properties(effects)
+        return this.properties(effects, options.timeout || null)
       case "/actions/metadata":
         return todo()
       case "/init":
-        return this.init(effects, string.optional().unsafeCast(input))
+        return this.initProcedure(
+          effects,
+          string.optional().unsafeCast(input),
+          options.timeout || null,
+        )
       case "/uninit":
-        return this.uninit(effects, string.optional().unsafeCast(input))
-      case "/main/start":
-        return this.mainStart(effects)
-      case "/main/stop":
-        return this.mainStop(effects)
+        return this.uninit(
+          effects,
+          string.optional().unsafeCast(input),
+          options.timeout || null,
+        )
       default:
         const procedures = unNestPath(options.procedure)
         switch (true) {
           case procedures[1] === "actions" && procedures[3] === "get":
-            return this.action(effects, procedures[2], input)
+            return this.action(
+              effects,
+              procedures[2],
+              input,
+              options.timeout || null,
+            )
           case procedures[1] === "actions" && procedures[3] === "run":
-            return this.action(effects, procedures[2], input)
+            return this.action(
+              effects,
+              procedures[2],
+              input,
+              options.timeout || null,
+            )
           case procedures[1] === "dependencies" && procedures[3] === "query":
-            return this.dependenciesAutoconfig(effects, procedures[2], input)
+            return null
 
           case procedures[1] === "dependencies" && procedures[3] === "update":
-            return this.dependenciesAutoconfig(effects, procedures[2], input)
+            return this.dependenciesAutoconfig(
+              effects,
+              procedures[2],
+              input,
+              options.timeout || null,
+            )
         }
     }
     throw new Error(`Could not find the path for ${options.procedure}`)
   }
-  private async init(
-    effects: HostSystemStartOs,
+  async sandbox(
+    effects: Effects,
+    options: { procedure: Procedure; input: unknown; timeout?: number },
+  ): Promise<RpcResult> {
+    return this.execute(effects, options)
+  }
+
+  private async initProcedure(
+    effects: Effects,
     previousVersion: Optional<string>,
+    timeoutMs: number | null,
   ): Promise<void> {
-    if (previousVersion) await this.migration(effects, previousVersion)
+    if (previousVersion)
+      await this.migration(effects, previousVersion, timeoutMs)
     await effects.setMainStatus({ status: "stopped" })
     await this.exportActions(effects)
+    await this.exportNetwork(effects)
   }
-  async exportActions(effects: HostSystemStartOs) {
+  async exportNetwork(effects: Effects) {
+    for (const [id, interfaceValue] of Object.entries(
+      this.manifest.interfaces,
+    )) {
+      const host = new MultiHost({ effects, id })
+      const internalPorts = new Set(
+        Object.values(interfaceValue["tor-config"]?.["port-mapping"] ?? {})
+          .map(Number.parseInt)
+          .concat(
+            ...Object.values(interfaceValue["lan-config"] ?? {}).map(
+              (c) => c.internal,
+            ),
+          )
+          .filter(Boolean),
+      )
+      const bindings = Array.from(internalPorts).map<
+        [number, BindOptionsByProtocol]
+      >((port) => {
+        const lanPort = Object.entries(interfaceValue["lan-config"] ?? {}).find(
+          ([external, internal]) => internal.internal === port,
+        )?.[0]
+        const torPort = Object.entries(
+          interfaceValue["tor-config"]?.["port-mapping"] ?? {},
+        ).find(
+          ([external, internal]) => Number.parseInt(internal) === port,
+        )?.[0]
+        let addSsl: AddSslOptions | null = null
+        if (lanPort) {
+          const lanPortNum = Number.parseInt(lanPort)
+          if (lanPortNum === 443) {
+            return [port, { protocol: "http", preferredExternalPort: 80 }]
+          }
+          addSsl = {
+            preferredExternalPort: lanPortNum,
+            alpn: { specified: [] },
+          }
+        }
+        return [
+          port,
+          {
+            secure: null,
+            preferredExternalPort: Number.parseInt(
+              torPort || lanPort || String(port),
+            ),
+            addSsl,
+          },
+        ]
+      })
+
+      await Promise.all(
+        bindings.map(async ([internal, options]) => {
+          if (internal == null) {
+            return
+          }
+          if (options?.preferredExternalPort == null) {
+            return
+          }
+          const origin = await host.bindPort(internal, options)
+          await origin.export([
+            new ServiceInterfaceBuilder({
+              effects,
+              name: interfaceValue.name,
+              id: `${id}-${internal}`,
+              description: interfaceValue.description,
+              hasPrimary: false,
+              disabled: false,
+              type:
+                interfaceValue.ui &&
+                (origin.scheme === "http" || origin.sslScheme === "https")
+                  ? "ui"
+                  : "api",
+              masked: false,
+              path: "",
+              schemeOverride: null,
+              search: {},
+              username: null,
+            }),
+          ])
+        }),
+      )
+    }
+  }
+  async exportActions(effects: Effects) {
     const manifest = this.manifest
     if (!manifest.actions) return
     for (const [actionId, action] of Object.entries(manifest.actions)) {
@@ -282,7 +482,7 @@ export class SystemForEmbassy implements System {
           name: action.name,
           description: action.description,
           warning: action.warning || null,
-          input: action["input-spec"] as InputSpec,
+          input: action["input-spec"] as CT.InputSpec,
           disabled: false,
           allowedStatuses,
           group: null,
@@ -291,89 +491,94 @@ export class SystemForEmbassy implements System {
     }
   }
   private async uninit(
-    effects: HostSystemStartOs,
+    effects: Effects,
     nextVersion: Optional<string>,
+    timeoutMs: number | null,
   ): Promise<void> {
     // TODO Do a migration down if the version exists
     await effects.setMainStatus({ status: "stopped" })
   }
-  private async mainStart(effects: HostSystemStartOs): Promise<void> {
-    if (!!this.currentRunning) return
 
-    this.currentRunning = new MainLoop(this, effects)
-  }
-  private async mainStop(
-    effects: HostSystemStartOs,
-    options?: { timeout?: number },
-  ): Promise<Duration> {
-    const { currentRunning } = this
-    delete this.currentRunning
-    if (currentRunning) {
-      await currentRunning.clean({
-        timeout: options?.timeout || this.manifest.main["sigterm-timeout"],
-      })
-    }
-    return duration(this.manifest.main["sigterm-timeout"], "s")
-  }
-  private async createBackup(effects: HostSystemStartOs): Promise<void> {
+  private async createBackup(
+    effects: Effects,
+    timeoutMs: number | null,
+  ): Promise<void> {
     const backup = this.manifest.backup.create
     if (backup.type === "docker") {
       const container = await DockerProcedureContainer.of(
         effects,
+        this.manifest.id,
         backup,
-        this.manifest.volumes,
+        {
+          ...this.manifest.volumes,
+          BACKUP: { type: "backup", readonly: false },
+        },
       )
-      await container.exec([backup.entrypoint, ...backup.args])
+      await container.execFail([backup.entrypoint, ...backup.args], timeoutMs)
     } else {
       const moduleCode = await this.moduleCode
-      await moduleCode.createBackup?.(
-        new PolyfillEffects(effects, this.manifest),
-      )
+      await moduleCode.createBackup?.(polyfillEffects(effects, this.manifest))
     }
   }
-  private async restoreBackup(effects: HostSystemStartOs): Promise<void> {
+  private async restoreBackup(
+    effects: Effects,
+    timeoutMs: number | null,
+  ): Promise<void> {
     const restoreBackup = this.manifest.backup.restore
     if (restoreBackup.type === "docker") {
       const container = await DockerProcedureContainer.of(
         effects,
+        this.manifest.id,
         restoreBackup,
-        this.manifest.volumes,
+        {
+          ...this.manifest.volumes,
+          BACKUP: { type: "backup", readonly: true },
+        },
       )
-      await container.exec([restoreBackup.entrypoint, ...restoreBackup.args])
+      await container.execFail(
+        [restoreBackup.entrypoint, ...restoreBackup.args],
+        timeoutMs,
+      )
     } else {
       const moduleCode = await this.moduleCode
-      await moduleCode.restoreBackup?.(
-        new PolyfillEffects(effects, this.manifest),
-      )
+      await moduleCode.restoreBackup?.(polyfillEffects(effects, this.manifest))
     }
   }
-  private async getConfig(effects: HostSystemStartOs): Promise<T.ConfigRes> {
-    return this.getConfigUncleaned(effects).then(removePointers)
+  private async getConfig(
+    effects: Effects,
+    timeoutMs: number | null,
+  ): Promise<T.ConfigRes> {
+    return this.getConfigUncleaned(effects, timeoutMs).then(convertToNewConfig)
   }
   private async getConfigUncleaned(
-    effects: HostSystemStartOs,
-  ): Promise<T.ConfigRes> {
+    effects: Effects,
+    timeoutMs: number | null,
+  ): Promise<OldGetConfigRes> {
     const config = this.manifest.config?.get
     if (!config) return { spec: {} }
     if (config.type === "docker") {
       const container = await DockerProcedureContainer.of(
         effects,
+        this.manifest.id,
         config,
         this.manifest.volumes,
       )
       // TODO: yaml
       return JSON.parse(
         (
-          await container.exec([config.entrypoint, ...config.args])
+          await container.execFail(
+            [config.entrypoint, ...config.args],
+            timeoutMs,
+          )
         ).stdout.toString(),
       )
     } else {
       const moduleCode = await this.moduleCode
       const method = moduleCode.getConfig
       if (!method) throw new Error("Expecting that the method getConfig exists")
-      return (await method(new PolyfillEffects(effects, this.manifest)).then(
+      return (await method(polyfillEffects(effects, this.manifest)).then(
         (x) => {
-          if ("result" in x) return x.result
+          if ("result" in x) return JSON.parse(JSON.stringify(x.result))
           if ("error" in x) throw new Error("Error getting config: " + x.error)
           throw new Error("Error getting config: " + x["error-code"][1])
         },
@@ -381,71 +586,120 @@ export class SystemForEmbassy implements System {
     }
   }
   private async setConfig(
-    effects: HostSystemStartOs,
+    effects: Effects,
     newConfigWithoutPointers: unknown,
-  ): Promise<T.SetResult> {
-    const newConfig = structuredClone(newConfigWithoutPointers)
-    await updateConfig(
-      effects,
-      await this.getConfigUncleaned(effects).then((x) => x.spec),
-      newConfig,
+    timeoutMs: number | null,
+  ): Promise<void> {
+    const spec = await this.getConfigUncleaned(effects, timeoutMs).then(
+      (x) => x.spec,
     )
+    const newConfig = transformNewConfigToOld(
+      spec,
+      structuredClone(newConfigWithoutPointers as Record<string, unknown>),
+    )
+    await updateConfig(effects, this.manifest, spec, newConfig)
+    await effects.store.set({
+      path: EMBASSY_POINTER_PATH_PREFIX,
+      value: newConfig,
+    })
     const setConfigValue = this.manifest.config?.set
-    if (!setConfigValue) return { signal: "SIGTERM", "depends-on": {} }
+    if (!setConfigValue) return
     if (setConfigValue.type === "docker") {
       const container = await DockerProcedureContainer.of(
         effects,
+        this.manifest.id,
         setConfigValue,
         this.manifest.volumes,
       )
-      return JSON.parse(
-        (
-          await container.exec([
-            setConfigValue.entrypoint,
-            ...setConfigValue.args,
-            JSON.stringify(newConfig),
-          ])
-        ).stdout.toString(),
+      const answer = matchSetResult.unsafeCast(
+        JSON.parse(
+          (
+            await container.execFail(
+              [
+                setConfigValue.entrypoint,
+                ...setConfigValue.args,
+                JSON.stringify(newConfig),
+              ],
+              timeoutMs,
+            )
+          ).stdout.toString(),
+        ),
       )
+      const dependsOn = answer["depends-on"] ?? answer.dependsOn ?? {}
+      await this.setConfigSetConfig(effects, dependsOn)
+      return
     } else if (setConfigValue.type === "script") {
       const moduleCode = await this.moduleCode
       const method = moduleCode.setConfig
       if (!method) throw new Error("Expecting that the method setConfig exists")
-      return await method(
-        new PolyfillEffects(effects, this.manifest),
-        newConfig as U.Config,
-      ).then((x): T.SetResult => {
-        if ("result" in x)
-          return {
-            "depends-on": x.result["depends-on"],
-            signal: x.result.signal === "SIGEMT" ? "SIGTERM" : x.result.signal,
-          }
-        if ("error" in x) throw new Error("Error getting config: " + x.error)
-        throw new Error("Error getting config: " + x["error-code"][1])
-      })
-    } else {
-      return {
-        "depends-on": {},
-        signal: "SIGTERM",
-      }
+
+      const answer = matchSetResult.unsafeCast(
+        await method(
+          polyfillEffects(effects, this.manifest),
+          newConfig as U.Config,
+        ).then((x): T.SetResult => {
+          if ("result" in x)
+            return {
+              dependsOn: x.result["depends-on"],
+              signal:
+                x.result.signal === "SIGEMT" ? "SIGTERM" : x.result.signal,
+            }
+          if ("error" in x) throw new Error("Error getting config: " + x.error)
+          throw new Error("Error getting config: " + x["error-code"][1])
+        }),
+      )
+      const dependsOn = answer["depends-on"] ?? answer.dependsOn ?? {}
+      await this.setConfigSetConfig(effects, dependsOn)
+      return
     }
   }
+  private async setConfigSetConfig(
+    effects: Effects,
+    dependsOn: { [x: string]: readonly string[] },
+  ) {
+    await effects.setDependencies({
+      dependencies: Object.entries(dependsOn).flatMap(([key, value]) => {
+        const dependency = this.manifest.dependencies?.[key]
+        if (!dependency) return []
+        const versionRange = dependency.version
+        const registryUrl = DEFAULT_REGISTRY
+        const kind = "running"
+        return [
+          {
+            id: key,
+            versionRange,
+            registryUrl,
+            kind,
+            healthChecks: [...value],
+          },
+        ]
+      }),
+    })
+  }
+
   private async migration(
-    effects: HostSystemStartOs,
+    effects: Effects,
     fromVersion: string,
+    timeoutMs: number | null,
   ): Promise<T.MigrationRes> {
-    const fromEmver = EmVer.from(fromVersion)
-    const currentEmver = EmVer.from(this.manifest.version)
+    const fromEmver = ExtendedVersion.parseEmver(fromVersion)
+    const currentEmver = ExtendedVersion.parseEmver(this.manifest.version)
     if (!this.manifest.migrations) return { configured: true }
     const fromMigration = Object.entries(this.manifest.migrations.from)
-      .map(([version, procedure]) => [EmVer.from(version), procedure] as const)
+      .map(
+        ([version, procedure]) =>
+          [ExtendedVersion.parseEmver(version), procedure] as const,
+      )
       .find(
         ([versionEmver, procedure]) =>
           versionEmver.greaterThan(fromEmver) &&
           versionEmver.lessThanOrEqual(currentEmver),
       )
     const toMigration = Object.entries(this.manifest.migrations.to)
-      .map(([version, procedure]) => [EmVer.from(version), procedure] as const)
+      .map(
+        ([version, procedure]) =>
+          [ExtendedVersion.parseEmver(version), procedure] as const,
+      )
       .find(
         ([versionEmver, procedure]) =>
           versionEmver.greaterThan(fromEmver) &&
@@ -462,16 +716,20 @@ export class SystemForEmbassy implements System {
       if (procedure.type === "docker") {
         const container = await DockerProcedureContainer.of(
           effects,
+          this.manifest.id,
           procedure,
           this.manifest.volumes,
         )
         return JSON.parse(
           (
-            await container.exec([
-              procedure.entrypoint,
-              ...procedure.args,
-              JSON.stringify(fromVersion),
-            ])
+            await container.execFail(
+              [
+                procedure.entrypoint,
+                ...procedure.args,
+                JSON.stringify(fromVersion),
+              ],
+              timeoutMs,
+            )
           ).stdout.toString(),
         )
       } else if (procedure.type === "script") {
@@ -480,7 +738,7 @@ export class SystemForEmbassy implements System {
         if (!method)
           throw new Error("Expecting that the method migration exists")
         return (await method(
-          new PolyfillEffects(effects, this.manifest),
+          polyfillEffects(effects, this.manifest),
           fromVersion as string,
         ).then((x) => {
           if ("result" in x) return x.result
@@ -492,24 +750,26 @@ export class SystemForEmbassy implements System {
     return { configured: true }
   }
   private async properties(
-    effects: HostSystemStartOs,
-  ): Promise<ReturnType<T.ExpectedExports.Properties>> {
+    effects: Effects,
+    timeoutMs: number | null,
+  ): Promise<ReturnType<T.ExpectedExports.properties>> {
     // TODO BLU-J set the properties ever so often
     const setConfigValue = this.manifest.properties
     if (!setConfigValue) throw new Error("There is no properties")
     if (setConfigValue.type === "docker") {
       const container = await DockerProcedureContainer.of(
         effects,
+        this.manifest.id,
         setConfigValue,
         this.manifest.volumes,
       )
       const properties = matchProperties.unsafeCast(
         JSON.parse(
           (
-            await container.exec([
-              setConfigValue.entrypoint,
-              ...setConfigValue.args,
-            ])
+            await container.execFail(
+              [setConfigValue.entrypoint, ...setConfigValue.args],
+              timeoutMs,
+            )
           ).stdout.toString(),
         ),
       )
@@ -520,7 +780,7 @@ export class SystemForEmbassy implements System {
       if (!method)
         throw new Error("Expecting that the method properties exists")
       const properties = matchProperties.unsafeCast(
-        await method(new PolyfillEffects(effects, this.manifest)).then((x) => {
+        await method(polyfillEffects(effects, this.manifest)).then((x) => {
           if ("result" in x) return x.result
           if ("error" in x) throw new Error("Error getting config: " + x.error)
           throw new Error("Error getting config: " + x["error-code"][1])
@@ -530,62 +790,31 @@ export class SystemForEmbassy implements System {
     }
     throw new Error(`Unknown type in the fetch properties: ${setConfigValue}`)
   }
-  private async health(
-    effects: HostSystemStartOs,
-    healthId: string,
-    timeSinceStarted: unknown,
-  ): Promise<void> {
-    const healthProcedure = this.manifest["health-checks"][healthId]
-    if (!healthProcedure) return
-    if (healthProcedure.type === "docker") {
-      const container = await DockerProcedureContainer.of(
-        effects,
-        healthProcedure,
-        this.manifest.volumes,
-      )
-      return JSON.parse(
-        (
-          await container.exec([
-            healthProcedure.entrypoint,
-            ...healthProcedure.args,
-            JSON.stringify(timeSinceStarted),
-          ])
-        ).stdout.toString(),
-      )
-    } else if (healthProcedure.type === "script") {
-      const moduleCode = await this.moduleCode
-      const method = moduleCode.health?.[healthId]
-      if (!method) throw new Error("Expecting that the method health exists")
-      await method(
-        new PolyfillEffects(effects, this.manifest),
-        Number(timeSinceStarted),
-      ).then((x) => {
-        if ("result" in x) return x.result
-        if ("error" in x) throw new Error("Error getting config: " + x.error)
-        throw new Error("Error getting config: " + x["error-code"][1])
-      })
-    }
-  }
   private async action(
-    effects: HostSystemStartOs,
+    effects: Effects,
     actionId: string,
     formData: unknown,
+    timeoutMs: number | null,
   ): Promise<T.ActionResult> {
     const actionProcedure = this.manifest.actions?.[actionId]?.implementation
     if (!actionProcedure) return { message: "Action not found", value: null }
     if (actionProcedure.type === "docker") {
       const container = await DockerProcedureContainer.of(
         effects,
+        this.manifest.id,
         actionProcedure,
         this.manifest.volumes,
       )
       return JSON.parse(
         (
-          await container.exec([
-            actionProcedure.entrypoint,
-            ...actionProcedure.args,
-            JSON.stringify(formData),
-          ])
+          await container.execFail(
+            [
+              actionProcedure.entrypoint,
+              ...actionProcedure.args,
+              JSON.stringify(formData),
+            ],
+            timeoutMs,
+          )
         ).stdout.toString(),
       )
     } else {
@@ -593,7 +822,7 @@ export class SystemForEmbassy implements System {
       const method = moduleCode.action?.[actionId]
       if (!method) throw new Error("Expecting that the method action exists")
       return (await method(
-        new PolyfillEffects(effects, this.manifest),
+        polyfillEffects(effects, this.manifest),
         formData as any,
       ).then((x) => {
         if ("result" in x) return x.result
@@ -602,75 +831,28 @@ export class SystemForEmbassy implements System {
       })) as any
     }
   }
-  private async dependenciesCheck(
-    effects: HostSystemStartOs,
-    id: string,
-    oldConfig: unknown,
-  ): Promise<object> {
-    const actionProcedure = this.manifest.dependencies?.[id]?.config?.check
-    if (!actionProcedure) return { message: "Action not found", value: null }
-    if (actionProcedure.type === "docker") {
-      const container = await DockerProcedureContainer.of(
-        effects,
-        actionProcedure,
-        this.manifest.volumes,
-      )
-      return JSON.parse(
-        (
-          await container.exec([
-            actionProcedure.entrypoint,
-            ...actionProcedure.args,
-            JSON.stringify(oldConfig),
-          ])
-        ).stdout.toString(),
-      )
-    } else if (actionProcedure.type === "script") {
-      const moduleCode = await this.moduleCode
-      const method = moduleCode.dependencies?.[id]?.check
-      if (!method)
-        throw new Error(
-          `Expecting that the method dependency check ${id} exists`,
-        )
-      return (await method(
-        new PolyfillEffects(effects, this.manifest),
-        oldConfig as any,
-      ).then((x) => {
-        if ("result" in x) return x.result
-        if ("error" in x) throw new Error("Error getting config: " + x.error)
-        throw new Error("Error getting config: " + x["error-code"][1])
-      })) as any
-    } else {
-      return {}
-    }
-  }
   private async dependenciesAutoconfig(
-    effects: HostSystemStartOs,
+    effects: Effects,
     id: string,
-    oldConfig: unknown,
+    input: unknown,
+    timeoutMs: number | null,
   ): Promise<void> {
+    const oldConfig = object({ remoteConfig: any }).unsafeCast(
+      input,
+    ).remoteConfig
+    // TODO: docker
     const moduleCode = await this.moduleCode
     const method = moduleCode.dependencies?.[id]?.autoConfigure
-    if (!method)
-      throw new Error(
-        `Expecting that the method dependency autoConfigure ${id} exists`,
-      )
+    if (!method) return
     return (await method(
-      new PolyfillEffects(effects, this.manifest),
-      oldConfig as any,
+      polyfillEffects(effects, this.manifest),
+      oldConfig,
     ).then((x) => {
       if ("result" in x) return x.result
       if ("error" in x) throw new Error("Error getting config: " + x.error)
       throw new Error("Error getting config: " + x["error-code"][1])
     })) as any
   }
-}
-async function removePointers(value: T.ConfigRes): Promise<T.ConfigRes> {
-  const startingSpec = structuredClone(value.spec)
-  const config =
-    value.config && cleanConfigFromPointers(value.config, startingSpec)
-  const spec = cleanSpecOfPointers(startingSpec)
-
-  return { config, spec }
 }
 
 const matchPointer = object({
@@ -731,76 +913,122 @@ type CleanConfigFromPointers<C, S> =
   } :
   null
 
-function cleanConfigFromPointers<C, S>(
-  config: C,
-  spec: S,
-): CleanConfigFromPointers<C, S> {
-  const newConfig = {} as CleanConfigFromPointers<C, S>
-
-  if (!(object.test(config) && object.test(spec)) || newConfig == null)
-    return null as CleanConfigFromPointers<C, S>
-
-  for (const key of Object.keys(spec)) {
-    if (!isKeyOf(key, spec)) continue
-    if (!isKeyOf(key, config)) continue
-    const partSpec = spec[key]
-    if (matchPointer.test(partSpec)) continue
-    ;(newConfig as any)[key] = matchSpec.test(partSpec)
-      ? cleanConfigFromPointers(config[key], partSpec.spec)
-      : config[key]
-  }
-  return newConfig as CleanConfigFromPointers<C, S>
-}
-
 async function updateConfig(
-  effects: HostSystemStartOs,
-  spec: unknown,
-  mutConfigValue: unknown,
+  effects: Effects,
+  manifest: Manifest,
+  spec: OldConfigSpec,
+  mutConfigValue: Record<string, unknown>,
 ) {
-  if (!dictionary([string, unknown]).test(spec)) return
-  if (!dictionary([string, unknown]).test(mutConfigValue)) return
   for (const key in spec) {
     const specValue = spec[key]
 
-    const newConfigValue = mutConfigValue[key]
-    if (matchSpec.test(specValue)) {
-      const updateObject = { spec: null }
-      await updateConfig(effects, { spec: specValue.spec }, updateObject)
-      mutConfigValue[key] = updateObject.spec
-    }
-    if (
-      matchVariants.test(specValue) &&
-      object({ tag: object({ id: string }) }).test(newConfigValue) &&
-      newConfigValue.tag.id in specValue.variants
+    if (specValue.type === "object") {
+      await updateConfig(
+        effects,
+        manifest,
+        specValue.spec as OldConfigSpec,
+        mutConfigValue[key] as Record<string, unknown>,
+      )
+    } else if (specValue.type === "list" && specValue.subtype === "object") {
+      const list = mutConfigValue[key] as unknown[]
+      for (let val of list) {
+        await updateConfig(
+          effects,
+          manifest,
+          { ...(specValue.spec as any), type: "object" as const },
+          val as Record<string, unknown>,
+        )
+      }
+    } else if (specValue.type === "union") {
+      const union = mutConfigValue[key] as Record<string, unknown>
+      await updateConfig(
+        effects,
+        manifest,
+        specValue.variants[union[specValue.tag.id] as string] as OldConfigSpec,
+        mutConfigValue[key] as Record<string, unknown>,
+      )
+    } else if (
+      specValue.type === "pointer" &&
+      specValue.subtype === "package"
     ) {
-      // Not going to do anything on the variants...
-    }
-    if (!matchPointer.test(specValue)) continue
-    if (matchPointerConfig.test(specValue)) {
-      const configValue = (await effects.store.get({
-        packageId: specValue["package-id"],
-        callback() {},
-        path: `${EMBASSY_POINTER_PATH_PREFIX}${specValue.selector}` as any,
-      })) as any
-      mutConfigValue[key] = configValue
-    }
-    if (matchPointerPackage.test(specValue)) {
-      if (specValue.target === "tor-key")
-        throw new Error("This service uses an unsupported target TorKey")
-      const filled = await utils
-        .getServiceInterface(effects, {
+      if (specValue.target === "config") {
+        const jp = require("jsonpath")
+        const remoteConfig = await effects.store.get({
           packageId: specValue["package-id"],
-          id: specValue.interface,
+          callback: () => effects.restart(),
+          path: EMBASSY_POINTER_PATH_PREFIX,
         })
-        .once()
-        .catch(() => null)
-
-      mutConfigValue[key] =
-        filled === null
-          ? ""
-          : specValue.target === "lan-address"
-            ? filled.addressInfo.localHostnames[0]
-            : filled.addressInfo.onionHostnames[0]
+        console.debug(remoteConfig)
+        const configValue = specValue.multi
+          ? jp.query(remoteConfig, specValue.selector)
+          : jp.query(remoteConfig, specValue.selector, 1)[0]
+        mutConfigValue[key] = configValue === undefined ? null : configValue
+      } else if (specValue.target === "tor-key") {
+        throw new Error("This service uses an unsupported target TorKey")
+      } else {
+        const specInterface = specValue.interface
+        const serviceInterfaceId = extractServiceInterfaceId(
+          manifest,
+          specInterface,
+        )
+        if (!serviceInterfaceId) {
+          mutConfigValue[key] = ""
+          return
+        }
+        const filled = await utils
+          .getServiceInterface(effects, {
+            packageId: specValue["package-id"],
+            id: serviceInterfaceId,
+          })
+          .once()
+          .catch((x) => {
+            console.error("Could not get the service interface", x)
+            return null
+          })
+        const catchFn = <X>(fn: () => X) => {
+          try {
+            return fn()
+          } catch (e) {
+            return undefined
+          }
+        }
+        const url: string =
+          filled === null || filled.addressInfo === null
+            ? ""
+            : catchFn(() =>
+                utils.hostnameInfoToAddress(
+                  specValue.target === "lan-address"
+                    ? filled.addressInfo!.localHostnames[0] ||
+                        filled.addressInfo!.onionHostnames[0]
+                    : filled.addressInfo!.onionHostnames[0] ||
+                        filled.addressInfo!.localHostnames[0],
+                ),
+              ) || ""
+        mutConfigValue[key] = url
+      }
     }
   }
+}
+function extractServiceInterfaceId(manifest: Manifest, specInterface: string) {
+  const internalPort =
+    Object.entries(
+      manifest.interfaces[specInterface]?.["lan-config"] || {},
+    )[0]?.[1]?.internal ||
+    Object.entries(
+      manifest.interfaces[specInterface]?.["tor-config"]?.["port-mapping"] ||
+        {},
+    )?.[0]?.[1]
+
+  if (!internalPort) return null
+  const serviceInterfaceId = `${specInterface}-${internalPort}`
+  return serviceInterfaceId
+}
+async function convertToNewConfig(
+  value: OldGetConfigRes,
+): Promise<T.ConfigRes> {
+  const valueSpec: OldConfigSpec = matchOldConfigSpec.unsafeCast(value.spec)
+  const spec = transformConfigSpec(valueSpec)
+  if (!value.config) return { spec, config: null }
+  const config = transformOldConfigToNew(valueSpec, value.config)
+  return { spec, config }
 }

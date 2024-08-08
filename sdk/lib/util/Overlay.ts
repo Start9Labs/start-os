@@ -8,23 +8,35 @@ const WORKDIR = (imageId: string) => `/media/startos/images/${imageId}/`
 export class Overlay {
   private constructor(
     readonly effects: T.Effects,
-    readonly imageId: string,
+    readonly imageId: T.ImageId,
     readonly rootfs: string,
-    readonly guid: string,
+    readonly guid: T.Guid,
   ) {}
-  static async of(effects: T.Effects, imageId: string) {
-    const [rootfs, guid] = await effects.createOverlayedImage({ imageId })
+  static async of(
+    effects: T.Effects,
+    image: { id: T.ImageId; sharedRun?: boolean },
+  ) {
+    const { id, sharedRun } = image
+    const [rootfs, guid] = await effects.createOverlayedImage({
+      imageId: id as string,
+    })
 
-    for (const dirPart of ["dev", "sys", "proc", "run"] as const) {
-      await fs.mkdir(`${rootfs}/${dirPart}`, { recursive: true })
-      await execFile("mount", [
-        "--rbind",
-        `/${dirPart}`,
-        `${rootfs}/${dirPart}`,
-      ])
+    const shared = ["dev", "sys", "proc"]
+    if (!!sharedRun) {
+      shared.push("run")
     }
 
-    return new Overlay(effects, imageId, rootfs, guid)
+    fs.copyFile("/etc/resolv.conf", `${rootfs}/etc/resolv.conf`)
+
+    for (const dirPart of shared) {
+      const from = `/${dirPart}`
+      const to = `${rootfs}/${dirPart}`
+      await fs.mkdir(from, { recursive: true })
+      await fs.mkdir(to, { recursive: true })
+      await execFile("mount", ["--rbind", from, to])
+    }
+
+    return new Overlay(effects, id, rootfs, guid)
   }
 
   async mount(options: MountOptions, path: string): Promise<Overlay> {
@@ -37,24 +49,35 @@ export class Overlay {
           ? options.subpath
           : `/${options.subpath}`
         : "/"
-      await execFile("mount", [
-        "--bind",
-        `/media/startos/volumes/${options.id}${subpath}`,
-        path,
-      ])
+      const from = `/media/startos/volumes/${options.id}${subpath}`
+
+      await fs.mkdir(from, { recursive: true })
+      await fs.mkdir(path, { recursive: true })
+      await await execFile("mount", ["--bind", from, path])
     } else if (options.type === "assets") {
       const subpath = options.subpath
         ? options.subpath.startsWith("/")
           ? options.subpath
           : `/${options.subpath}`
         : "/"
-      await execFile("mount", [
-        "--bind",
-        `/media/startos/assets/${options.id}${subpath}`,
-        path,
-      ])
+      const from = `/media/startos/assets/${options.id}${subpath}`
+
+      await fs.mkdir(from, { recursive: true })
+      await fs.mkdir(path, { recursive: true })
+      await execFile("mount", ["--bind", from, path])
     } else if (options.type === "pointer") {
       await this.effects.mount({ location: path, target: options })
+    } else if (options.type === "backup") {
+      const subpath = options.subpath
+        ? options.subpath.startsWith("/")
+          ? options.subpath
+          : `/${options.subpath}`
+        : "/"
+      const from = `/media/startos/backup${subpath}`
+
+      await fs.mkdir(from, { recursive: true })
+      await fs.mkdir(path, { recursive: true })
+      await execFile("mount", ["--bind", from, path])
     } else {
       throw new Error(`unknown type ${(options as any).type}`)
     }
@@ -70,8 +93,14 @@ export class Overlay {
   async exec(
     command: string[],
     options?: CommandOptions,
-  ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
-    const imageMeta = await fs
+    timeoutMs: number | null = 30000,
+  ): Promise<{
+    exitCode: number | null
+    exitSignal: NodeJS.Signals | null
+    stdout: string | Buffer
+    stderr: string | Buffer
+  }> {
+    const imageMeta: T.ImageMetadata = await fs
       .readFile(`/media/startos/images/${this.imageId}.json`, {
         encoding: "utf8",
       })
@@ -87,7 +116,7 @@ export class Overlay {
       workdir = options.cwd
       delete options.cwd
     }
-    return await execFile(
+    const child = cp.spawn(
       "start-cli",
       [
         "chroot",
@@ -97,15 +126,51 @@ export class Overlay {
         this.rootfs,
         ...command,
       ],
-      options,
+      options || {},
     )
+    const pid = child.pid
+    const stdout = { data: "" as string | Buffer }
+    const stderr = { data: "" as string | Buffer }
+    const appendData =
+      (appendTo: { data: string | Buffer }) =>
+      (chunk: string | Buffer | any) => {
+        if (typeof appendTo.data === "string" && typeof chunk === "string") {
+          appendTo.data += chunk
+        } else if (typeof chunk === "string" || chunk instanceof Buffer) {
+          appendTo.data = Buffer.concat([
+            Buffer.from(appendTo.data),
+            Buffer.from(chunk),
+          ])
+        } else {
+          console.error("received unexpected chunk", chunk)
+        }
+      }
+    return new Promise((resolve, reject) => {
+      child.on("error", reject)
+      if (timeoutMs !== null && pid) {
+        setTimeout(
+          () => execFile("pkill", ["-9", "-s", String(pid)]).catch((_) => {}),
+          timeoutMs,
+        )
+      }
+      child.stdout.on("data", appendData(stdout))
+      child.stderr.on("data", appendData(stderr))
+      child.on("exit", (code, signal) =>
+        resolve({
+          exitCode: code,
+          exitSignal: signal,
+          stdout: stdout.data,
+          stderr: stderr.data,
+        }),
+      )
+    })
   }
 
   async spawn(
     command: string[],
     options?: CommandOptions,
   ): Promise<cp.ChildProcessWithoutNullStreams> {
-    const imageMeta = await fs
+    const imageMeta: any = await fs
       .readFile(`/media/startos/images/${this.imageId}.json`, {
         encoding: "utf8",
       })
@@ -146,6 +211,7 @@ export type MountOptions =
   | MountOptionsVolume
   | MountOptionsAssets
   | MountOptionsPointer
+  | MountOptionsBackup
 
 export type MountOptionsVolume = {
   type: "volume"
@@ -166,4 +232,9 @@ export type MountOptionsPointer = {
   volumeId: string
   subpath: string | null
   readonly: boolean
+}
+
+export type MountOptionsBackup = {
+  type: "backup"
+  subpath: string | null
 }

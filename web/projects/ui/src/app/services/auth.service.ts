@@ -11,7 +11,7 @@ export enum AuthState {
   providedIn: 'root',
 })
 export class AuthService {
-  private readonly LOGGED_IN_KEY = 'loggedInKey'
+  private readonly LOGGED_IN_KEY = 'loggedIn'
   private readonly authState$ = new ReplaySubject<AuthState>(1)
 
   readonly isVerified$ = this.authState$.pipe(

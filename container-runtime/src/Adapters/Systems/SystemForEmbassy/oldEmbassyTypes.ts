@@ -99,17 +99,8 @@ export type Effects = {
   /** Sandbox mode lets us read but not write */
   is_sandboxed(): boolean
 
+  // Does a volume and path exist?
   exists(input: { volumeId: string; path: string }): Promise<boolean>
-  bindLocal(options: {
-    internalPort: number
-    name: string
-    externalPort: number
-  }): Promise<string>
-  bindTor(options: {
-    internalPort: number
-    name: string
-    externalPort: number
-  }): Promise<string>
 
   fetch(
     url: string,
@@ -129,6 +120,10 @@ export type Effects = {
     /// Returns the body as a json
     json(): Promise<unknown>
   }>
+  diskUsage(options?: {
+    volumeId: string
+    path: string
+  }): Promise<{ used: number; total: number }>
 
   runRsync(options: {
     srcVolume: string

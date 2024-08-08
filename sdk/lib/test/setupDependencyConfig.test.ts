@@ -21,7 +21,7 @@ describe("setupDependencyConfig", () => {
       dependencyConfig: async ({}) => {},
     })
     sdk.setupDependencyConfig(testConfig, {
-      remoteTest,
+      "remote-test": remoteTest,
     })
   })
 })

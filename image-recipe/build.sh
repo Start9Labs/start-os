@@ -169,17 +169,6 @@ echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/tor.key.gpg] 
 curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o config/archives/docker.key
 echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/docker.key.gpg] https://download.docker.com/linux/debian ${IB_SUITE} stable" > config/archives/docker.list
 
-echo "deb http://deb.debian.org/debian/ trixie main contrib" > config/archives/trixie.list
-cat > config/archives/trixie.pref <<- EOF
-Package: *
-Pin: release n=trixie
-Pin-Priority: 100
-
-Package: podman
-Pin: release n=trixie
-Pin-Priority: 600
-EOF
-
 # Dependencies
 
 ## Base dependencies
@@ -334,7 +323,7 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	unsquashfs -f -d $TMPDIR $prep_results_dir/binary/live/filesystem.squashfs
 
 	if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-		sed -i 's| boot=embassy| init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/cmdline.txt
+		sed -i 's| boot=startos| init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/cmdline.txt
 		rsync -a $base_dir/raspberrypi/img/ $TMPDIR/
 	fi
 

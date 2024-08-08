@@ -1,16 +1,23 @@
+use std::convert::Infallible;
 use std::ops::{Deref, DerefMut};
 use std::process::Stdio;
+use std::str::FromStr;
 use std::time::{Duration, UNIX_EPOCH};
 
 use axum::extract::ws::{self, WebSocket};
 use chrono::{DateTime, Utc};
-use clap::Parser;
+use clap::builder::ValueParserFactory;
+use clap::{Args, FromArgMatches, Parser};
 use color_eyre::eyre::eyre;
 use futures::stream::BoxStream;
-use futures::{FutureExt, Stream, StreamExt, TryStreamExt};
+use futures::{Future, FutureExt, Stream, StreamExt, TryStreamExt};
+use itertools::Itertools;
 use models::PackageId;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{command, from_fn_async, CallRemote, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{
+    from_fn_async, CallRemote, Context, Empty, HandlerArgs, HandlerExt, HandlerFor, ParentHandler,
+};
+use serde::de::{self, DeserializeOwned};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
@@ -19,14 +26,17 @@ use tokio_tungstenite::tungstenite::Message;
 use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
-use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::error::ResultExt;
+use crate::lxc::ContainerId;
 use crate::prelude::*;
+use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
+use crate::util::clap::FromStrParser;
 use crate::util::serde::Reversible;
+use crate::util::Invoke;
 
 #[pin_project::pin_project]
 pub struct LogStream {
-    _child: Child,
+    _child: Option<Child>,
     #[pin]
     entries: BoxStream<'static, Result<JournalctlEntry, Error>>,
 }
@@ -112,13 +122,15 @@ pub struct LogResponse {
 #[serde(rename_all = "camelCase")]
 pub struct LogFollowResponse {
     start_cursor: Option<String>,
-    guid: RequestGuid,
+    guid: Guid,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct LogEntry {
     timestamp: DateTime<Utc>,
     message: String,
+    boot_id: String,
 }
 impl std::fmt::Display for LogEntry {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -141,6 +153,8 @@ pub struct JournalctlEntry {
     pub message: String,
     #[serde(rename = "__CURSOR")]
     pub cursor: String,
+    #[serde(rename = "_BOOT_ID")]
+    pub boot_id: String,
 }
 impl JournalctlEntry {
     fn log_entry(self) -> Result<(String, LogEntry), Error> {
@@ -151,6 +165,7 @@ impl JournalctlEntry {
                     UNIX_EPOCH + Duration::from_micros(self.timestamp.parse::<u64>()?),
                 ),
                 message: self.message,
+                boot_id: self.boot_id,
             },
         ))
     }
@@ -169,7 +184,13 @@ fn deserialize_log_message<'de, D: serde::de::Deserializer<'de>>(
         where
             E: serde::de::Error,
         {
-            Ok(v.trim().to_owned())
+            Ok(v.to_owned())
+        }
+        fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(v)
         }
         fn visit_unit<E>(self) -> Result<Self::Value, E>
         where
@@ -187,7 +208,7 @@ fn deserialize_log_message<'de, D: serde::de::Deserializer<'de>>(
                     .flatten()
                     .collect::<Result<Vec<u8>, _>>()?,
             )
-            .map(|s| s.trim().to_owned())
+            .map(|s| s.to_owned())
             .map_err(serde::de::Error::custom)
         }
     }
@@ -200,12 +221,11 @@ fn deserialize_log_message<'de, D: serde::de::Deserializer<'de>>(
 ///     --user-unit=UNIT        Show logs from the specified user unit))
 /// System: Unit is startd, but we also filter on the comm
 /// Container: Filtering containers, like podman/docker is done by filtering on the CONTAINER_NAME
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum LogSource {
     Kernel,
     Unit(&'static str),
-    System,
-    Container(PackageId),
+    Container(ContainerId),
 }
 
 pub const SYSTEM_UNIT: &str = "startd";
@@ -213,177 +233,307 @@ pub const SYSTEM_UNIT: &str = "startd";
 #[derive(Deserialize, Serialize, Parser)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-pub struct LogsParam {
+pub struct PackageIdParams {
     id: PackageId,
+}
+
+#[derive(Debug, Clone)]
+pub enum BootIdentifier {
+    Index(i32),
+    Id(String),
+}
+impl FromStr for BootIdentifier {
+    type Err = Infallible;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s.parse() {
+            Ok(i) => Self::Index(i),
+            Err(_) => Self::Id(s.to_owned()),
+        })
+    }
+}
+impl ValueParserFactory for BootIdentifier {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        Self::Parser::new()
+    }
+}
+impl Serialize for BootIdentifier {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Self::Index(i) => serializer.serialize_i32(*i),
+            Self::Id(i) => serializer.serialize_str(i),
+        }
+    }
+}
+impl<'de> Deserialize<'de> for BootIdentifier {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct Visitor;
+        impl<'de> de::Visitor<'de> for Visitor {
+            type Value = BootIdentifier;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(formatter, "a string or integer")
+            }
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(Self::Value::Id(v.to_owned()))
+            }
+            fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(Self::Value::Id(v))
+            }
+            fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(Self::Value::Index(v as i32))
+            }
+            fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(Self::Value::Index(v as i32))
+            }
+            fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(Self::Value::Index(v as i32))
+            }
+        }
+        deserializer.deserialize_any(Visitor)
+    }
+}
+impl From<BootIdentifier> for String {
+    fn from(value: BootIdentifier) -> Self {
+        match value {
+            BootIdentifier::Index(i) => i.to_string(),
+            BootIdentifier::Id(i) => i,
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct LogsParams<Extra: FromArgMatches + Args = Empty> {
+    #[command(flatten)]
+    #[serde(flatten)]
+    extra: Extra,
     #[arg(short = 'l', long = "limit")]
     limit: Option<usize>,
-    #[arg(short = 'c', long = "cursor")]
+    #[arg(short = 'c', long = "cursor", conflicts_with = "follow")]
     cursor: Option<String>,
-    #[arg(short = 'B', long = "before")]
+    #[arg(short = 'b', long = "boot")]
+    #[serde(default)]
+    boot: Option<BootIdentifier>,
+    #[arg(short = 'B', long = "before", conflicts_with = "follow")]
     #[serde(default)]
     before: bool,
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct CliLogsParams<Extra: FromArgMatches + Args = Empty> {
+    #[command(flatten)]
+    #[serde(flatten)]
+    rpc_params: LogsParams<Extra>,
     #[arg(short = 'f', long = "follow")]
     #[serde(default)]
     follow: bool,
 }
 
-pub fn logs() -> ParentHandler<LogsParam> {
-    ParentHandler::<LogsParam>::new()
+#[allow(private_bounds)]
+pub fn logs<
+    C: Context + AsRef<RpcContinuations>,
+    Extra: FromArgMatches + Serialize + DeserializeOwned + Args + Send + Sync + 'static,
+>(
+    source: impl for<'a> LogSourceFn<'a, C, Extra>,
+) -> ParentHandler<C, LogsParams<Extra>> {
+    ParentHandler::new()
         .root_handler(
-            from_fn_async(cli_logs)
-                .no_display()
-                .with_inherited(|params, _| params),
-        )
-        .root_handler(
-            from_fn_async(logs_follow)
+            logs_nofollow::<C, Extra>(source.clone())
                 .with_inherited(|params, _| params)
                 .no_cli(),
         )
         .subcommand(
             "follow",
-            from_fn_async(logs_follow)
+            logs_follow::<C, Extra>(source)
                 .with_inherited(|params, _| params)
                 .no_cli(),
         )
 }
-pub async fn cli_logs(
-    ctx: CliContext,
-    _: Empty,
-    LogsParam {
-        id,
-        limit,
-        cursor,
-        before,
-        follow,
-    }: LogsParam,
-) -> Result<(), RpcError> {
-    if follow {
-        if cursor.is_some() {
-            return Err(RpcError::from(Error::new(
-                eyre!("The argument '--cursor <cursor>' cannot be used with '--follow'"),
-                crate::ErrorKind::InvalidRequest,
-            )));
-        }
-        if before {
-            return Err(RpcError::from(Error::new(
-                eyre!("The argument '--before' cannot be used with '--follow'"),
-                crate::ErrorKind::InvalidRequest,
-            )));
-        }
-        cli_logs_generic_follow(ctx, "package.logs.follow", Some(id), limit).await
-    } else {
-        cli_logs_generic_nofollow(ctx, "package.logs", Some(id), limit, cursor, before).await
-    }
-}
-pub async fn logs_nofollow(
-    _ctx: (),
-    _: Empty,
-    LogsParam {
-        id,
-        limit,
-        cursor,
-        before,
+
+pub async fn cli_logs<RemoteContext, Extra>(
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        params: CliLogsParams { rpc_params, follow },
         ..
-    }: LogsParam,
-) -> Result<LogResponse, Error> {
-    fetch_logs(LogSource::Container(id), limit, cursor, before).await
-}
-pub async fn logs_follow(
-    ctx: RpcContext,
-    _: Empty,
-    LogsParam { id, limit, .. }: LogsParam,
-) -> Result<LogFollowResponse, Error> {
-    follow_logs(ctx, LogSource::Container(id), limit).await
-}
+    }: HandlerArgs<CliContext, CliLogsParams<Extra>>,
+) -> Result<(), RpcError>
+where
+    CliContext: CallRemote<RemoteContext>,
+    Extra: FromArgMatches + Args + Serialize + Send + Sync,
+{
+    let method = parent_method
+        .into_iter()
+        .chain(method)
+        .chain(follow.then_some("follow"))
+        .join(".");
 
-pub async fn cli_logs_generic_nofollow(
-    ctx: CliContext,
-    method: &str,
-    id: Option<PackageId>,
-    limit: Option<usize>,
-    cursor: Option<String>,
-    before: bool,
-) -> Result<(), RpcError> {
-    let res = from_value::<LogResponse>(
-        ctx.call_remote(
-            method,
-            imbl_value::json!({
-                "id": id,
-                "limit": limit,
-                "cursor": cursor,
-                "before": before,
-            }),
-        )
-        .await?,
-    )?;
+    if follow {
+        let res = from_value::<LogFollowResponse>(
+            ctx.call_remote::<RemoteContext>(&method, to_value(&rpc_params)?)
+                .await?,
+        )?;
 
-    for entry in res.entries.iter() {
-        println!("{}", entry);
-    }
+        let mut stream = ctx.ws_continuation(res.guid).await?;
+        while let Some(log) = stream.try_next().await? {
+            if let Message::Text(log) = log {
+                println!("{}", serde_json::from_str::<LogEntry>(&log)?);
+            }
+        }
+    } else {
+        let res = from_value::<LogResponse>(
+            ctx.call_remote::<RemoteContext>(&method, to_value(&rpc_params)?)
+                .await?,
+        )?;
 
-    Ok(())
-}
-
-pub async fn cli_logs_generic_follow(
-    ctx: CliContext,
-    method: &str,
-    id: Option<PackageId>,
-    limit: Option<usize>,
-) -> Result<(), RpcError> {
-    let res = from_value::<LogFollowResponse>(
-        ctx.call_remote(
-            method,
-            imbl_value::json!({
-                "id": id,
-                "limit": limit,
-            }),
-        )
-        .await?,
-    )?;
-
-    let mut stream = ctx.ws_continuation(res.guid).await?;
-    while let Some(log) = stream.try_next().await? {
-        if let Message::Text(log) = log {
-            println!("{}", serde_json::from_str::<LogEntry>(&log)?);
+        for entry in res.entries.iter() {
+            println!("{}", entry);
         }
     }
 
     Ok(())
+}
+
+trait LogSourceFn<'a, Context, Extra>: Clone + Send + Sync + 'static {
+    type Fut: Future<Output = Result<LogSource, Error>> + Send + 'a;
+    fn call(&self, ctx: &'a Context, extra: Extra) -> Self::Fut;
+}
+
+impl<'a, C: Context, Extra, F, Fut> LogSourceFn<'a, C, Extra> for F
+where
+    F: Fn(&'a C, Extra) -> Fut + Clone + Send + Sync + 'static,
+    Fut: Future<Output = Result<LogSource, Error>> + Send + 'a,
+{
+    type Fut = Fut;
+    fn call(&self, ctx: &'a C, extra: Extra) -> Self::Fut {
+        self(ctx, extra)
+    }
+}
+
+fn logs_nofollow<C, Extra>(
+    f: impl for<'a> LogSourceFn<'a, C, Extra>,
+) -> impl HandlerFor<C, Params = Empty, InheritedParams = LogsParams<Extra>, Ok = LogResponse, Err = Error>
+where
+    C: Context,
+    Extra: FromArgMatches + Args + Send + Sync + 'static,
+{
+    from_fn_async(
+        move |HandlerArgs {
+                  context,
+                  inherited_params:
+                      LogsParams {
+                          extra,
+                          limit,
+                          cursor,
+                          boot,
+                          before,
+                      },
+                  ..
+              }: HandlerArgs<C, Empty, LogsParams<Extra>>| {
+            let f = f.clone();
+            async move {
+                fetch_logs(
+                    f.call(&context, extra).await?,
+                    limit,
+                    cursor,
+                    boot.map(String::from),
+                    before,
+                )
+                .await
+            }
+        },
+    )
+}
+
+fn logs_follow<
+    C: Context + AsRef<RpcContinuations>,
+    Extra: FromArgMatches + Args + Send + Sync + 'static,
+>(
+    f: impl for<'a> LogSourceFn<'a, C, Extra>,
+) -> impl HandlerFor<
+    C,
+    Params = Empty,
+    InheritedParams = LogsParams<Extra>,
+    Ok = LogFollowResponse,
+    Err = Error,
+> {
+    from_fn_async(
+        move |HandlerArgs {
+                  context,
+                  inherited_params:
+                      LogsParams {
+                          extra, limit, boot, ..
+                      },
+                  ..
+              }: HandlerArgs<C, Empty, LogsParams<Extra>>| {
+            let f = f.clone();
+            async move {
+                let src = f.call(&context, extra).await?;
+                follow_logs(context, src, limit, boot.map(String::from)).await
+            }
+        },
+    )
+}
+
+async fn get_package_id(
+    ctx: &RpcContext,
+    PackageIdParams { id }: PackageIdParams,
+) -> Result<LogSource, Error> {
+    let container_id = ctx
+        .services
+        .get(&id)
+        .await
+        .as_ref()
+        .map(|x| x.container_id())
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("No service found with id: {}", id),
+                ErrorKind::NotFound,
+            )
+        })??;
+    Ok(LogSource::Container(container_id))
+}
+
+pub fn package_logs() -> ParentHandler<RpcContext, LogsParams<PackageIdParams>> {
+    logs::<RpcContext, PackageIdParams>(get_package_id)
 }
 
 pub async fn journalctl(
     id: LogSource,
     limit: usize,
     cursor: Option<&str>,
+    boot: Option<&str>,
     before: bool,
     follow: bool,
 ) -> Result<LogStream, Error> {
-    let mut cmd = Command::new("journalctl");
-    cmd.kill_on_drop(true);
+    let mut cmd = gen_journalctl_command(&id);
 
-    cmd.arg("--output=json");
-    cmd.arg("--output-fields=MESSAGE");
-    cmd.arg(format!("-n{}", limit));
-    match id {
-        LogSource::Kernel => {
-            cmd.arg("-k");
-        }
-        LogSource::Unit(id) => {
-            cmd.arg("-u");
-            cmd.arg(id);
-        }
-        LogSource::System => {
-            cmd.arg("-u");
-            cmd.arg(SYSTEM_UNIT);
-            cmd.arg(format!("_COMM={}", SYSTEM_UNIT));
-        }
-        LogSource::Container(id) => {
-            #[cfg(not(feature = "docker"))]
-            cmd.arg(format!("SYSLOG_IDENTIFIER={}.embassy", id));
-            #[cfg(feature = "docker")]
-            cmd.arg(format!("CONTAINER_NAME={}.embassy", id));
-        }
-    };
+    cmd.arg(format!("--lines={}", limit));
 
     let cursor_formatted = format!("--after-cursor={}", cursor.unwrap_or(""));
     if cursor.is_some() {
@@ -392,33 +542,91 @@ pub async fn journalctl(
             cmd.arg("--reverse");
         }
     }
-    if follow {
-        cmd.arg("--follow");
+
+    if let Some(boot) = boot {
+        cmd.arg(format!("--boot={boot}"));
+    } else {
+        cmd.arg("--boot=all");
     }
 
-    let mut child = cmd.stdout(Stdio::piped()).spawn()?;
-    let out = BufReader::new(
-        child
-            .stdout
-            .take()
-            .ok_or_else(|| Error::new(eyre!("No stdout available"), crate::ErrorKind::Journald))?,
-    );
+    let deserialized_entries = String::from_utf8(cmd.invoke(ErrorKind::Journald).await?)?
+        .lines()
+        .map(serde_json::from_str::<JournalctlEntry>)
+        .collect::<Result<Vec<_>, _>>()
+        .with_kind(ErrorKind::Deserialization)?;
 
-    let journalctl_entries = LinesStream::new(out.lines());
+    if follow {
+        let mut follow_cmd = gen_journalctl_command(&id);
+        follow_cmd.arg("-f");
+        if let Some(last) = deserialized_entries.last() {
+            follow_cmd.arg(format!("--after-cursor={}", last.cursor));
+            follow_cmd.arg("--lines=all");
+        } else {
+            follow_cmd.arg("--lines=0");
+        }
+        let mut child = follow_cmd.stdout(Stdio::piped()).spawn()?;
+        let out =
+            BufReader::new(child.stdout.take().ok_or_else(|| {
+                Error::new(eyre!("No stdout available"), crate::ErrorKind::Journald)
+            })?);
 
-    let deserialized_entries = journalctl_entries
-        .map_err(|e| Error::new(e, crate::ErrorKind::Journald))
-        .and_then(|s| {
-            futures::future::ready(
-                serde_json::from_str::<JournalctlEntry>(&s)
-                    .with_kind(crate::ErrorKind::Deserialization),
-            )
-        });
+        let journalctl_entries = LinesStream::new(out.lines());
 
-    Ok(LogStream {
-        _child: child,
-        entries: deserialized_entries.boxed(),
-    })
+        let follow_deserialized_entries = journalctl_entries
+            .map_err(|e| Error::new(e, crate::ErrorKind::Journald))
+            .and_then(|s| {
+                futures::future::ready(
+                    serde_json::from_str::<JournalctlEntry>(&s)
+                        .with_kind(crate::ErrorKind::Deserialization),
+                )
+            });
+
+        let entries = futures::stream::iter(deserialized_entries)
+            .map(Ok)
+            .chain(follow_deserialized_entries)
+            .boxed();
+        Ok(LogStream {
+            _child: Some(child),
+            entries,
+        })
+    } else {
+        let entries = futures::stream::iter(deserialized_entries).map(Ok).boxed();
+
+        Ok(LogStream {
+            _child: None,
+            entries,
+        })
+    }
+}
+
+fn gen_journalctl_command(id: &LogSource) -> Command {
+    let mut cmd = match id {
+        LogSource::Container(container_id) => {
+            let mut cmd = Command::new("lxc-attach");
+            cmd.arg(format!("{}", container_id))
+                .arg("--")
+                .arg("journalctl");
+            cmd
+        }
+        _ => Command::new("journalctl"),
+    };
+    cmd.kill_on_drop(true);
+
+    cmd.arg("--output=json");
+    cmd.arg("--output-fields=MESSAGE");
+    match id {
+        LogSource::Kernel => {
+            cmd.arg("-k");
+        }
+        LogSource::Unit(id) => {
+            cmd.arg("-u");
+            cmd.arg(id);
+        }
+        LogSource::Container(_container_id) => {
+            cmd.arg("-u").arg("container-runtime.service");
+        }
+    };
+    cmd
 }
 
 #[instrument(skip_all)]
@@ -426,10 +634,12 @@ pub async fn fetch_logs(
     id: LogSource,
     limit: Option<usize>,
     cursor: Option<String>,
+    boot: Option<String>,
     before: bool,
 ) -> Result<LogResponse, Error> {
     let limit = limit.unwrap_or(50);
-    let mut stream = journalctl(id, limit, cursor.as_deref(), before, false).await?;
+    let mut stream =
+        journalctl(id, limit, cursor.as_deref(), boot.as_deref(), before, false).await?;
 
     let mut entries = Vec::with_capacity(limit);
     let mut start_cursor = None;
@@ -469,13 +679,14 @@ pub async fn fetch_logs(
 }
 
 #[instrument(skip_all)]
-pub async fn follow_logs(
-    ctx: RpcContext,
+pub async fn follow_logs<Context: AsRef<RpcContinuations>>(
+    ctx: Context,
     id: LogSource,
     limit: Option<usize>,
+    boot: Option<String>,
 ) -> Result<LogFollowResponse, Error> {
     let limit = limit.unwrap_or(50);
-    let mut stream = journalctl(id, limit, None, false, true).await?;
+    let mut stream = journalctl(id, limit, None, boot.as_deref(), false, true).await?;
 
     let mut start_cursor = None;
     let mut first_entry = None;
@@ -491,24 +702,25 @@ pub async fn follow_logs(
         first_entry = Some(entry);
     }
 
-    let guid = RequestGuid::new();
-    ctx.add_continuation(
-        guid.clone(),
-        RpcContinuation::ws(
-            Box::new(move |socket| {
-                ws_handler(first_entry, stream, socket)
-                    .map(|x| match x {
-                        Ok(_) => (),
-                        Err(e) => {
-                            tracing::error!("Error in log stream: {}", e);
-                        }
-                    })
-                    .boxed()
-            }),
-            Duration::from_secs(30),
-        ),
-    )
-    .await;
+    let guid = Guid::new();
+    ctx.as_ref()
+        .add(
+            guid.clone(),
+            RpcContinuation::ws(
+                Box::new(move |socket| {
+                    ws_handler(first_entry, stream, socket)
+                        .map(|x| match x {
+                            Ok(_) => (),
+                            Err(e) => {
+                                tracing::error!("Error in log stream: {}", e);
+                            }
+                        })
+                        .boxed()
+                }),
+                Duration::from_secs(30),
+            ),
+        )
+        .await;
     Ok(LogFollowResponse { start_cursor, guid })
 }
 

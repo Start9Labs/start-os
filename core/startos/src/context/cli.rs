@@ -10,7 +10,7 @@ use reqwest::Proxy;
 use reqwest_cookie_store::CookieStoreMutex;
 use rpc_toolkit::reqwest::{Client, Url};
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{call_remote_http, CallRemote, Context};
+use rpc_toolkit::{call_remote_http, CallRemote, Context, Empty};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
@@ -18,15 +18,17 @@ use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
 use crate::context::config::{local_config_path, ClientConfig};
-use crate::core::rpc_continuations::RequestGuid;
+use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
+use crate::rpc_continuations::Guid;
 
 #[derive(Debug)]
 pub struct CliContextSeed {
-    pub runtime: OnceCell<Runtime>,
+    pub runtime: OnceCell<Arc<Runtime>>,
     pub base_url: Url,
     pub rpc_url: Url,
+    pub registry_url: Option<Url>,
     pub client: Client,
     pub cookie_store: Arc<CookieStoreMutex>,
     pub cookie_path: PathBuf,
@@ -41,7 +43,9 @@ impl Drop for CliContextSeed {
             std::fs::create_dir_all(&parent_dir).unwrap();
         }
         let mut writer = fd_lock_rs::FdLock::lock(
-            File::create(&tmp).unwrap(),
+            File::create(&tmp)
+                .with_ctx(|_| (ErrorKind::Filesystem, &tmp))
+                .unwrap(),
             fd_lock_rs::LockType::Exclusive,
             true,
         )
@@ -66,6 +70,8 @@ impl CliContext {
             "http://localhost".parse()?
         };
 
+        let registry = config.registry.clone();
+
         let cookie_path = config.cookie_path.unwrap_or_else(|| {
             local_config_path()
                 .as_deref()
@@ -76,9 +82,12 @@ impl CliContext {
         });
         let cookie_store = Arc::new(CookieStoreMutex::new({
             let mut store = if cookie_path.exists() {
-                CookieStore::load_json(BufReader::new(File::open(&cookie_path)?))
-                    .map_err(|e| eyre!("{}", e))
-                    .with_kind(crate::ErrorKind::Deserialization)?
+                CookieStore::load_json(BufReader::new(
+                    File::open(&cookie_path)
+                        .with_ctx(|_| (ErrorKind::Filesystem, cookie_path.display()))?,
+                ))
+                .map_err(|e| eyre!("{}", e))
+                .with_kind(crate::ErrorKind::Deserialization)?
             } else {
                 CookieStore::default()
             };
@@ -104,6 +113,17 @@ impl CliContext {
                     .push("v1");
                 url
             },
+            registry_url: registry
+                .map(|mut registry| {
+                    registry
+                        .path_segments_mut()
+                        .map_err(|_| eyre!("Url cannot be base"))
+                        .with_kind(crate::ErrorKind::ParseUrl)?
+                        .push("rpc")
+                        .push("v0");
+                    Ok::<_, Error>(registry)
+                })
+                .transpose()?,
             client: {
                 let mut builder = Client::builder().cookie_provider(cookie_store.clone());
                 if let Some(proxy) = config.proxy {
@@ -149,7 +169,7 @@ impl CliContext {
 
     pub async fn ws_continuation(
         &self,
-        guid: RequestGuid,
+        guid: Guid,
     ) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, Error> {
         let mut url = self.base_url.clone();
         let ws_scheme = match url.scheme() {
@@ -179,7 +199,7 @@ impl CliContext {
 
     pub async fn rest_continuation(
         &self,
-        guid: RequestGuid,
+        guid: Guid,
         body: reqwest::Body,
         headers: reqwest::header::HeaderMap,
     ) -> Result<reqwest::Response, Error> {
@@ -198,6 +218,29 @@ impl CliContext {
             .await
             .with_kind(ErrorKind::Network)
     }
+
+    pub async fn call_remote<RemoteContext>(
+        &self,
+        method: &str,
+        params: Value,
+    ) -> Result<Value, RpcError>
+    where
+        Self: CallRemote<RemoteContext>,
+    {
+        <Self as CallRemote<RemoteContext, Empty>>::call_remote(&self, method, params, Empty {})
+            .await
+    }
+    pub async fn call_remote_with<RemoteContext, T>(
+        &self,
+        method: &str,
+        params: Value,
+        extra: T,
+    ) -> Result<Value, RpcError>
+    where
+        Self: CallRemote<RemoteContext, T>,
+    {
+        <Self as CallRemote<RemoteContext, T>>::call_remote(&self, method, params, extra).await
+    }
 }
 impl AsRef<Jwk> for CliContext {
     fn as_ref(&self) -> &Jwk {
@@ -211,21 +254,43 @@ impl std::ops::Deref for CliContext {
     }
 }
 impl Context for CliContext {
-    fn runtime(&self) -> tokio::runtime::Handle {
-        self.runtime
-            .get_or_init(|| {
-                tokio::runtime::Builder::new_multi_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap()
-            })
-            .handle()
-            .clone()
+    fn runtime(&self) -> Option<Arc<Runtime>> {
+        Some(
+            self.runtime
+                .get_or_init(|| {
+                    Arc::new(
+                        tokio::runtime::Builder::new_current_thread()
+                            .enable_all()
+                            .build()
+                            .unwrap(),
+                    )
+                })
+                .clone(),
+        )
     }
 }
-#[async_trait::async_trait]
-impl CallRemote for CliContext {
-    async fn call_remote(&self, method: &str, params: Value) -> Result<Value, RpcError> {
+impl CallRemote<RpcContext> for CliContext {
+    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
+        call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
+    }
+}
+impl CallRemote<DiagnosticContext> for CliContext {
+    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
+        call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
+    }
+}
+impl CallRemote<InitContext> for CliContext {
+    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
+        call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
+    }
+}
+impl CallRemote<SetupContext> for CliContext {
+    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
+        call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
+    }
+}
+impl CallRemote<InstallContext> for CliContext {
+    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
         call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
     }
 }
@@ -233,7 +298,7 @@ impl CallRemote for CliContext {
 #[test]
 fn test() {
     let ctx = CliContext::init(ClientConfig::default()).unwrap();
-    ctx.runtime().block_on(async {
+    ctx.runtime().unwrap().block_on(async {
         reqwest::Client::new()
             .get("http://example.com")
             .send()

@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use rpc_toolkit::{from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
+use itertools::Itertools;
+use lazy_format::lazy_format;
+use rpc_toolkit::{from_fn_async, CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 
 use crate::context::{CliContext, RpcContext};
@@ -14,7 +16,7 @@ pub mod mount;
 pub mod util;
 
 pub const BOOT_RW_PATH: &str = "/media/boot-rw";
-pub const REPAIR_DISK_PATH: &str = "/media/embassy/config/repair-disk";
+pub const REPAIR_DISK_PATH: &str = "/media/startos/config/repair-disk";
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -40,22 +42,23 @@ impl OsPartitionInfo {
     }
 }
 
-pub fn disk() -> ParentHandler {
+pub fn disk<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "list",
             from_fn_async(list)
                 .with_display_serializable()
-                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                .with_custom_display_fn(|handle, result| {
                     Ok(display_disk_info(handle.params, result))
                 })
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
+        .subcommand("repair", from_fn_async(|_: C| repair()).no_cli())
         .subcommand(
             "repair",
-            from_fn_async(repair)
-                .no_display()
-                .with_remote_cli::<CliContext>(),
+            CallRemoteHandler::<CliContext, _, _>::new(
+                from_fn_async(|_: RpcContext| repair()).no_display(),
+            ),
         )
 }
 
@@ -101,10 +104,18 @@ fn display_disk_info(params: WithIoFormat<Empty>, args: Vec<DiskInfo>) {
                 } else {
                     "N/A"
                 },
-                if let Some(eos) = part.start_os.as_ref() {
-                    eos.version.as_str()
+                &if part.start_os.is_empty() {
+                    "N/A".to_owned()
+                } else if part.start_os.len() == 1 {
+                    part.start_os
+                        .first_key_value()
+                        .map(|(_, info)| info.version.to_string())
+                        .unwrap()
                 } else {
-                    "N/A"
+                    part.start_os
+                        .iter()
+                        .map(|(id, info)| lazy_format!("{} ({})", info.version, id))
+                        .join(", ")
                 },
             ];
             table.add_row(row);

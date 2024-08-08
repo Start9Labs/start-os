@@ -1,5 +1,7 @@
-import { SDKManifest } from "../manifest/ManifestTypes"
 import * as T from "../types"
+
+import * as child_process from "child_process"
+import { promises as fsPromises } from "fs"
 
 export type BACKUP = "BACKUP"
 export const DEFAULT_OPTIONS: T.BackupOptions = {
@@ -37,14 +39,14 @@ export type BackupSet<Volumes extends string> = {
  * ).build()q
  * ```
  */
-export class Backups<M extends SDKManifest> {
+export class Backups<M extends T.Manifest> {
   static BACKUP: BACKUP = "BACKUP"
 
   private constructor(
     private options = DEFAULT_OPTIONS,
     private backupSet = [] as BackupSet<M["volumes"][number]>[],
   ) {}
-  static volumes<M extends SDKManifest = never>(
+  static volumes<M extends T.Manifest = never>(
     ...volumeNames: Array<M["volumes"][0]>
   ): Backups<M> {
     return new Backups<M>().addSets(
@@ -56,12 +58,12 @@ export class Backups<M extends SDKManifest> {
       })),
     )
   }
-  static addSets<M extends SDKManifest = never>(
+  static addSets<M extends T.Manifest = never>(
     ...options: BackupSet<M["volumes"][0]>[]
   ) {
     return new Backups().addSets(...options)
   }
-  static with_options<M extends SDKManifest = never>(
+  static with_options<M extends T.Manifest = never>(
     options?: Partial<T.BackupOptions>,
   ) {
     return new Backups({ ...DEFAULT_OPTIONS, ...options })
@@ -91,58 +93,22 @@ export class Backups<M extends SDKManifest> {
     )
     return this
   }
-  build() {
+  build(pathMaker: T.PathMaker) {
     const createBackup: T.ExpectedExports.createBackup = async ({
       effects,
     }) => {
-      // const previousItems = (
-      //   await effects
-      //     .readDir({
-      //       volumeId: Backups.BACKUP,
-      //       path: ".",
-      //     })
-      //     .catch(() => [])
-      // ).map((x) => `${x}`)
-      // const backupPaths = this.backupSet
-      //   .filter((x) => x.dstVolume === Backups.BACKUP)
-      //   .map((x) => x.dstPath)
-      //   .map((x) => x.replace(/\.\/([^]*)\//, "$1"))
-      // const filteredItems = previousItems.filter(
-      //   (x) => backupPaths.indexOf(x) === -1,
-      // )
-      // for (const itemToRemove of filteredItems) {
-      //   effects.console.error(`Trying to remove ${itemToRemove}`)
-      //   await effects
-      //     .removeDir({
-      //       volumeId: Backups.BACKUP,
-      //       path: itemToRemove,
-      //     })
-      //     .catch(() =>
-      //       effects.removeFile({
-      //         volumeId: Backups.BACKUP,
-      //         path: itemToRemove,
-      //       }),
-      //     )
-      //     .catch(() => {
-      //       console.warn(`Failed to remove ${itemToRemove} from backup volume`)
-      //     })
-      // }
       for (const item of this.backupSet) {
-        // if (notEmptyPath(item.dstPath)) {
-        //   await effects.createDir({
-        //     volumeId: item.dstVolume,
-        //     path: item.dstPath,
-        //   })
-        // }
-        // await effects
-        //   .runRsync({
-        //     ...item,
-        //     options: {
-        //       ...this.options,
-        //       ...item.options,
-        //     },
-        //   })
-        //   .wait()
+        const rsyncResults = await runRsync(
+          {
+            dstPath: item.dstPath,
+            dstVolume: item.dstVolume,
+            options: { ...this.options, ...item.options },
+            srcPath: item.srcPath,
+            srcVolume: item.srcVolume,
+          },
+          pathMaker,
+        )
+        await rsyncResults.wait()
       }
       return
     }
@@ -150,26 +116,17 @@ export class Backups<M extends SDKManifest> {
       effects,
     }) => {
       for (const item of this.backupSet) {
-        // if (notEmptyPath(item.srcPath)) {
-        //   await new Promise((resolve, reject) => fs.mkdir(items.src)).createDir(
-        //     {
-        //       volumeId: item.srcVolume,
-        //       path: item.srcPath,
-        //     },
-        //   )
-        // }
-        // await effects
-        //   .runRsync({
-        //     options: {
-        //       ...this.options,
-        //       ...item.options,
-        //     },
-        //     srcVolume: item.dstVolume,
-        //     dstVolume: item.srcVolume,
-        //     srcPath: item.dstPath,
-        //     dstPath: item.srcPath,
-        //   })
-        //   .wait()
+        const rsyncResults = await runRsync(
+          {
+            dstPath: item.dstPath,
+            dstVolume: item.dstVolume,
+            options: { ...this.options, ...item.options },
+            srcPath: item.srcPath,
+            srcVolume: item.srcVolume,
+          },
+          pathMaker,
+        )
+        await rsyncResults.wait()
       }
       return
     }
@@ -178,4 +135,74 @@ export class Backups<M extends SDKManifest> {
 }
 function notEmptyPath(file: string) {
   return ["", ".", "./"].indexOf(file) === -1
+}
+async function runRsync(
+  rsyncOptions: {
+    srcVolume: string
+    dstVolume: string
+    srcPath: string
+    dstPath: string
+    options: T.BackupOptions
+  },
+  pathMaker: T.PathMaker,
+): Promise<{
+  id: () => Promise<string>
+  wait: () => Promise<null>
+  progress: () => Promise<number>
+}> {
+  const { srcVolume, dstVolume, srcPath, dstPath, options } = rsyncOptions
+
+  const command = "rsync"
+  const args: string[] = []
+  if (options.delete) {
+    args.push("--delete")
+  }
+  if (options.force) {
+    args.push("--force")
+  }
+  if (options.ignoreExisting) {
+    args.push("--ignore-existing")
+  }
+  for (const exclude of options.exclude) {
+    args.push(`--exclude=${exclude}`)
+  }
+  args.push("-actAXH")
+  args.push("--info=progress2")
+  args.push("--no-inc-recursive")
+  args.push(pathMaker({ volume: srcVolume, path: srcPath }))
+  args.push(pathMaker({ volume: dstVolume, path: dstPath }))
+  const spawned = child_process.spawn(command, args, { detached: true })
+  let percentage = 0.0
+  spawned.stdout.on("data", (data: unknown) => {
+    const lines = String(data).replace("\r", "\n").split("\n")
+    for (const line of lines) {
+      const parsed = /$([0-9.]+)%/.exec(line)?.[1]
+      if (!parsed) continue
+      percentage = Number.parseFloat(parsed)
+    }
+  })
+
+  spawned.stderr.on("data", (data: unknown) => {
+    console.error(String(data))
+  })
+
+  const id = async () => {
+    const pid = spawned.pid
+    if (pid === undefined) {
+      throw new Error("rsync process has no pid")
+    }
+    return String(pid)
+  }
+  const waitPromise = new Promise<null>((resolve, reject) => {
+    spawned.on("exit", (code: any) => {
+      if (code === 0) {
+        resolve(null)
+      } else {
+        reject(new Error(`rsync exited with code ${code}`))
+      }
+    })
+  })
+  const wait = () => waitPromise
+  const progress = () => Promise.resolve(percentage)
+  return { id, wait, progress }
 }

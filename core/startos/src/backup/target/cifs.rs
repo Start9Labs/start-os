@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use imbl_value::InternedString;
-use rpc_toolkit::{command, from_fn_async, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -14,7 +14,7 @@ use crate::db::model::DatabaseModel;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
-use crate::disk::util::{recovery_info, EmbassyOsRecoveryInfo};
+use crate::disk::util::{recovery_info, StartOsRecoveryInfo};
 use crate::prelude::*;
 use crate::util::serde::KeyVal;
 
@@ -43,28 +43,28 @@ pub struct CifsBackupTarget {
     path: PathBuf,
     username: String,
     mountable: bool,
-    start_os: Option<EmbassyOsRecoveryInfo>,
+    start_os: BTreeMap<String, StartOsRecoveryInfo>,
 }
 
-pub fn cifs() -> ParentHandler {
+pub fn cifs<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "add",
             from_fn_async(add)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "update",
             from_fn_async(update)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "remove",
             from_fn_async(remove)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
 }
 
@@ -239,7 +239,7 @@ pub async fn list(db: &DatabaseModel) -> Result<Vec<(u32, CifsBackupTarget)>, Er
                 path: mount_info.path,
                 username: mount_info.username,
                 mountable: start_os.is_ok(),
-                start_os: start_os.ok().and_then(|a| a),
+                start_os: start_os.ok().unwrap_or_default(),
             },
         ));
     }

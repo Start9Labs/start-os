@@ -1,8 +1,10 @@
-import { PolyfillEffects } from "./polyfillEffects"
+import { polyfillEffects } from "./polyfillEffects"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import { SystemForEmbassy } from "."
-import { HostSystemStartOs } from "../../HostSystemStartOs"
-import { Daemons, T, daemons } from "@start9labs/start-sdk"
+import { T, utils } from "@start9labs/start-sdk"
+import { Daemon } from "@start9labs/start-sdk/cjs/lib/mainFn/Daemon"
+import { Effects } from "../../../Models/Effects"
+import { off } from "node:process"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
 const EMBASSY_PROPERTIES_LOOP = 30 * 1000
@@ -12,25 +14,28 @@ const EMBASSY_PROPERTIES_LOOP = 30 * 1000
  * Also, this has an ability to clean itself up too if need be.
  */
 export class MainLoop {
-  private healthLoops:
-    | {
-        name: string
-        interval: NodeJS.Timeout
-      }[]
-    | undefined
+  private healthLoops?: {
+    name: string
+    interval: NodeJS.Timeout
+  }[]
 
-  private mainEvent:
-    | Promise<{
-        daemon: T.DaemonReturned
-        wait: Promise<unknown>
-      }>
-    | undefined
-  constructor(
+  private mainEvent?: {
+    daemon: Daemon
+  }
+
+  private constructor(
     readonly system: SystemForEmbassy,
-    readonly effects: HostSystemStartOs,
-  ) {
-    this.healthLoops = this.constructHealthLoops()
-    this.mainEvent = this.constructMainEvent()
+    readonly effects: Effects,
+  ) {}
+
+  static async of(
+    system: SystemForEmbassy,
+    effects: Effects,
+  ): Promise<MainLoop> {
+    const res = new MainLoop(system, effects)
+    res.healthLoops = res.constructHealthLoops()
+    res.mainEvent = await res.constructMainEvent()
+    return res
   }
 
   private async constructMainEvent() {
@@ -40,44 +45,76 @@ export class MainLoop {
       ...system.manifest.main.args,
     ]
 
+    await this.setupInterfaces(effects)
     await effects.setMainStatus({ status: "running" })
     const jsMain = (this.system.moduleCode as any)?.jsMain
     const dockerProcedureContainer = await DockerProcedureContainer.of(
       effects,
+      this.system.manifest.id,
       this.system.manifest.main,
       this.system.manifest.volumes,
     )
     if (jsMain) {
-      const daemons = Daemons.of({
-        effects,
-        started: async (_) => {},
-        healthReceipts: [],
-      })
-      throw new Error("todo")
-      // return {
-      //   daemon,
-      //   wait: daemon.wait().finally(() => {
-      //     this.clean()
-      //     effects.setMainStatus({ status: "stopped" })
-      //   }),
-      // }
+      throw new Error("Unreachable")
     }
-    const daemon = await daemons.runDaemon()(
+    const daemon = await Daemon.of()(
       this.effects,
-      this.system.manifest.main.image,
+      { id: this.system.manifest.main.image },
       currentCommand,
       {
         overlay: dockerProcedureContainer.overlay,
+        sigtermTimeout: utils.inMs(
+          this.system.manifest.main["sigterm-timeout"],
+        ),
       },
     )
+    daemon.start()
     return {
       daemon,
-      wait: daemon.wait().finally(() => {
-        this.clean()
-        effects
-          .setMainStatus({ status: "stopped" })
-          .catch((e) => console.error("Could not set the status to stopped"))
-      }),
+    }
+  }
+
+  private async setupInterfaces(effects: T.Effects) {
+    for (const interfaceId in this.system.manifest.interfaces) {
+      const iface = this.system.manifest.interfaces[interfaceId]
+      const internalPorts = new Set<number>()
+      for (const port of Object.values(
+        iface["tor-config"]?.["port-mapping"] || {},
+      )) {
+        internalPorts.add(parseInt(port))
+      }
+      for (const port of Object.values(iface["lan-config"] || {})) {
+        internalPorts.add(port.internal)
+      }
+      for (const internalPort of internalPorts) {
+        const torConf = Object.entries(
+          iface["tor-config"]?.["port-mapping"] || {},
+        )
+          .map(([external, internal]) => ({
+            internal: parseInt(internal),
+            external: parseInt(external),
+          }))
+          .find((conf) => conf.internal == internalPort)
+        const lanConf = Object.entries(iface["lan-config"] || {})
+          .map(([external, conf]) => ({
+            external: parseInt(external),
+            ...conf,
+          }))
+          .find((conf) => conf.internal == internalPort)
+        await effects.bind({
+          kind: "multi",
+          id: interfaceId,
+          internalPort,
+          preferredExternalPort: torConf?.external || internalPort,
+          secure: null,
+          addSsl: lanConf?.ssl
+            ? {
+                preferredExternalPort: lanConf.external,
+                alpn: { specified: ["http/1.1"] },
+              }
+            : null,
+        })
+      }
     }
   }
 
@@ -86,7 +123,8 @@ export class MainLoop {
     const main = await mainEvent
     delete this.mainEvent
     delete this.healthLoops
-    if (mainEvent) await main?.daemon.term()
+    await main?.daemon.stop().catch((e) => console.error(e))
+    this.effects.setMainStatus({ status: "stopped" })
     if (healthLoops) healthLoops.forEach((x) => clearInterval(x.interval))
   }
 
@@ -102,14 +140,24 @@ export class MainLoop {
           if (actionProcedure.type === "docker") {
             const container = await DockerProcedureContainer.of(
               effects,
+              manifest.id,
               actionProcedure,
               manifest.volumes,
             )
-            const executed = await container.execSpawn([
+            const executed = await container.exec([
               actionProcedure.entrypoint,
               ...actionProcedure.args,
               JSON.stringify(timeChanged),
             ])
+            if (executed.exitCode === 0) {
+              await effects.setHealth({
+                id: healthId,
+                name: value.name,
+                result: "success",
+                message: actionProcedure["success-message"],
+              })
+              return
+            }
             if (executed.exitCode === 59) {
               await effects.setHealth({
                 id: healthId,
@@ -173,7 +221,7 @@ export class MainLoop {
             }
 
             const result = await method(
-              new PolyfillEffects(effects, this.system.manifest),
+              polyfillEffects(effects, this.system.manifest),
               timeChanged,
             )
 

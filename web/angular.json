@@ -69,7 +69,8 @@
                   "with": "projects/ui/src/environments/environment.prod.ts"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "extractLicenses": false
             },
             "development": {
               "buildOptimizer": false,
@@ -261,6 +262,8 @@
             ],
             "styles": [
               "node_modules/@taiga-ui/core/styles/taiga-ui-theme.less",
+              "projects/shared/styles/taiga.scss",
+              "projects/shared/styles/shared.scss",
               "projects/setup-wizard/src/styles.scss"
             ],
             "scripts": []

@@ -1,17 +1,17 @@
 import { Injectable } from '@angular/core'
-import { Emver } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { BehaviorSubject, distinctUntilChanged, map, combineLatest } from 'rxjs'
-import { MarketplaceEOS } from 'src/app/services/api/api.types'
+import { OSUpdate } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { getServerInfo } from 'src/app/utils/get-server-info'
 import { DataModel } from './patch-db/data-model'
+import { Exver } from '@start9labs/shared'
 
 @Injectable({
   providedIn: 'root',
 })
 export class EOSService {
-  eos?: MarketplaceEOS
+  osUpdate?: OSUpdate
   updateAvailable$ = new BehaviorSubject<boolean>(false)
 
   readonly updating$ = this.patch.watch$('serverInfo', 'statusInfo').pipe(
@@ -46,14 +46,15 @@ export class EOSService {
 
   constructor(
     private readonly api: ApiService,
-    private readonly emver: Emver,
     private readonly patch: PatchDB<DataModel>,
+    private readonly exver: Exver,
   ) {}
 
   async loadEos(): Promise<void> {
-    const { version } = await getServerInfo(this.patch)
-    this.eos = await this.api.getEos()
-    const updateAvailable = this.emver.compare(this.eos.version, version) === 1
+    const { version, id } = await getServerInfo(this.patch)
+    this.osUpdate = await this.api.checkOSUpdate({ serverId: id })
+    const updateAvailable =
+      this.exver.compareOsVersion(this.osUpdate.version, version) === 'greater'
     this.updateAvailable$.next(updateAvailable)
   }
 }

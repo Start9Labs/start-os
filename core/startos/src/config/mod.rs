@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -9,13 +10,14 @@ use models::{ErrorKind, OptionExt, PackageId};
 use patch_db::value::InternedString;
 use patch_db::Value;
 use regex::Regex;
-use rpc_toolkit::{from_fn_async, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
+use crate::rpc_continuations::Guid;
 use crate::util::serde::{HandlerExtSerde, StdinDeserializable};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -134,16 +136,19 @@ pub struct ConfigParams {
 }
 
 // #[command(subcommands(get, set))]
-pub fn config() -> ParentHandler<ConfigParams> {
+pub fn config<C: Context>() -> ParentHandler<C, ConfigParams> {
     ParentHandler::new()
         .subcommand(
             "get",
             from_fn_async(get)
                 .with_inherited(|ConfigParams { id }, _| id)
                 .with_display_serializable()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
-        .subcommand("set", set().with_inherited(|ConfigParams { id }, _| id))
+        .subcommand(
+            "set",
+            set::<C>().with_inherited(|ConfigParams { id }, _| id),
+        )
 }
 
 #[instrument(skip_all)]
@@ -153,7 +158,7 @@ pub async fn get(ctx: RpcContext, _: Empty, id: PackageId) -> Result<ConfigRes, 
         .await
         .as_ref()
         .or_not_found(lazy_format!("Manager for {id}"))?
-        .get_config()
+        .get_config(Guid::new())
         .await
 }
 
@@ -173,14 +178,69 @@ pub struct SetParams {
 //     metadata(sync_db = true)
 // )]
 #[instrument(skip_all)]
-pub fn set() -> ParentHandler<SetParams, PackageId> {
-    ParentHandler::new().root_handler(
-        from_fn_async(set_impl)
-            .with_metadata("sync_db", Value::Bool(true))
-            .with_inherited(|set_params, id| (id, set_params))
-            .no_display()
-            .with_remote_cli::<CliContext>(),
-    )
+pub fn set<C: Context>() -> ParentHandler<C, SetParams, PackageId> {
+    ParentHandler::new()
+        .root_handler(
+            from_fn_async(set_impl)
+                .with_metadata("sync_db", Value::Bool(true))
+                .with_inherited(|set_params, id| (id, set_params))
+                .no_display()
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "dry",
+            from_fn_async(set_dry)
+                .with_inherited(|set_params, id| (id, set_params))
+                .no_display()
+                .with_call_remote::<CliContext>(),
+        )
+}
+
+pub async fn set_dry(
+    ctx: RpcContext,
+    _: Empty,
+    (
+        id,
+        SetParams {
+            timeout,
+            config: StdinDeserializable(config),
+        },
+    ): (PackageId, SetParams),
+) -> Result<BTreeSet<PackageId>, Error> {
+    let mut breakages = BTreeSet::new();
+
+    let procedure_id = Guid::new();
+
+    let db = ctx.db.peek().await;
+    for dep in db
+        .as_public()
+        .as_package_data()
+        .as_entries()?
+        .into_iter()
+        .filter_map(
+            |(k, v)| match v.as_current_dependencies().contains_key(&id) {
+                Ok(true) => Some(Ok(k)),
+                Ok(false) => None,
+                Err(e) => Some(Err(e)),
+            },
+        )
+    {
+        let dep_id = dep?;
+
+        let Some(dependent) = &*ctx.services.get(&dep_id).await else {
+            continue;
+        };
+
+        if dependent
+            .dependency_config(procedure_id.clone(), id.clone(), config.clone())
+            .await?
+            .is_some()
+        {
+            breakages.insert(dep_id);
+        }
+    }
+
+    Ok(breakages)
 }
 
 #[derive(Default)]
@@ -215,7 +275,7 @@ pub async fn set_impl(
                 ErrorKind::Unknown,
             )
         })?
-        .configure(configure_context)
+        .configure(Guid::new(), configure_context)
         .await?;
     Ok(())
 }

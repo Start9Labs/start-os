@@ -5,8 +5,8 @@ use chrono::Utc;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
-use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{command, from_fn_async, AnyContext, Empty, HandlerExt, ParentHandler};
+use imbl::vector;
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::process::Command;
 use tokio::sync::broadcast::Receiver;
@@ -16,33 +16,31 @@ use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::disk::util::{get_available, get_used};
-use crate::logs::{
-    cli_logs_generic_follow, cli_logs_generic_nofollow, fetch_logs, follow_logs, LogFollowResponse,
-    LogResponse, LogSource,
-};
+use crate::logs::{LogSource, LogsParams, SYSTEM_UNIT};
 use crate::prelude::*;
+use crate::rpc_continuations::RpcContinuations;
 use crate::shutdown::Shutdown;
 use crate::util::cpupower::{get_available_governors, set_governor, Governor};
+use crate::util::io::open_file;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;
-use crate::{Error, ErrorKind, ResultExt};
 
-pub fn experimental() -> ParentHandler {
+pub fn experimental<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "zram",
             from_fn_async(zram)
                 .no_display()
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "governor",
             from_fn_async(governor)
                 .with_display_serializable()
-                .with_custom_display_fn::<AnyContext, _>(|handle, result| {
+                .with_custom_display_fn(|handle, result| {
                     Ok(display_governor_info(handle.params, result))
                 })
-                .with_remote_cli::<CliContext>(),
+                .with_call_remote::<CliContext>(),
         )
 }
 
@@ -230,173 +228,13 @@ pub async fn time(ctx: RpcContext, _: Empty) -> Result<TimeInfo, Error> {
         uptime: ctx.start_time.elapsed().as_secs(),
     })
 }
-#[derive(Deserialize, Serialize, Parser, TS)]
-#[serde(rename_all = "camelCase")]
-#[command(rename_all = "kebab-case")]
-pub struct LogsParams {
-    #[arg(short = 'l', long = "limit")]
-    #[ts(type = "number | null")]
-    limit: Option<usize>,
-    #[arg(short = 'c', long = "cursor")]
-    cursor: Option<String>,
-    #[arg(short = 'B', long = "before")]
-    #[serde(default)]
-    before: bool,
-    #[arg(short = 'f', long = "follow")]
-    #[serde(default)]
-    follow: bool,
+
+pub fn logs<C: Context + AsRef<RpcContinuations>>() -> ParentHandler<C, LogsParams> {
+    crate::logs::logs(|_: &C, _| async { Ok(LogSource::Unit(SYSTEM_UNIT)) })
 }
 
-pub fn logs() -> ParentHandler<LogsParams> {
-    ParentHandler::new()
-        .root_handler(
-            from_fn_async(cli_logs)
-                .no_display()
-                .with_inherited(|params, _| params),
-        )
-        .root_handler(
-            from_fn_async(logs_nofollow)
-                .with_inherited(|params, _| params)
-                .no_cli(),
-        )
-        .subcommand(
-            "follow",
-            from_fn_async(logs_follow)
-                .with_inherited(|params, _| params)
-                .no_cli(),
-        )
-}
-
-pub async fn cli_logs(
-    ctx: CliContext,
-    _: Empty,
-    LogsParams {
-        limit,
-        cursor,
-        before,
-        follow,
-    }: LogsParams,
-) -> Result<(), RpcError> {
-    if follow {
-        if cursor.is_some() {
-            return Err(RpcError::from(Error::new(
-                eyre!("The argument '--cursor <cursor>' cannot be used with '--follow'"),
-                crate::ErrorKind::InvalidRequest,
-            )));
-        }
-        if before {
-            return Err(RpcError::from(Error::new(
-                eyre!("The argument '--before' cannot be used with '--follow'"),
-                crate::ErrorKind::InvalidRequest,
-            )));
-        }
-        cli_logs_generic_follow(ctx, "server.logs.follow", None, limit).await
-    } else {
-        cli_logs_generic_nofollow(ctx, "server.logs", None, limit, cursor, before).await
-    }
-}
-pub async fn logs_nofollow(
-    _ctx: AnyContext,
-    _: Empty,
-    LogsParams {
-        limit,
-        cursor,
-        before,
-        ..
-    }: LogsParams,
-) -> Result<LogResponse, Error> {
-    fetch_logs(LogSource::System, limit, cursor, before).await
-}
-
-pub async fn logs_follow(
-    ctx: RpcContext,
-    _: Empty,
-    LogsParams { limit, .. }: LogsParams,
-) -> Result<LogFollowResponse, Error> {
-    follow_logs(ctx, LogSource::System, limit).await
-}
-#[derive(Deserialize, Serialize, Parser, TS)]
-#[serde(rename_all = "camelCase")]
-#[command(rename_all = "kebab-case")]
-pub struct KernelLogsParams {
-    #[arg(short = 'l', long = "limit")]
-    #[ts(type = "number | null")]
-    limit: Option<usize>,
-    #[arg(short = 'c', long = "cursor")]
-    cursor: Option<String>,
-    #[arg(short = 'B', long = "before")]
-    #[serde(default)]
-    before: bool,
-    #[arg(short = 'f', long = "follow")]
-    #[serde(default)]
-    follow: bool,
-}
-pub fn kernel_logs() -> ParentHandler<KernelLogsParams> {
-    ParentHandler::new()
-        .root_handler(
-            from_fn_async(cli_kernel_logs)
-                .no_display()
-                .with_inherited(|params, _| params),
-        )
-        .root_handler(
-            from_fn_async(kernel_logs_nofollow)
-                .with_inherited(|params, _| params)
-                .no_cli(),
-        )
-        .subcommand(
-            "follow",
-            from_fn_async(kernel_logs_follow)
-                .with_inherited(|params, _| params)
-                .no_cli(),
-        )
-}
-pub async fn cli_kernel_logs(
-    ctx: CliContext,
-    _: Empty,
-    KernelLogsParams {
-        limit,
-        cursor,
-        before,
-        follow,
-    }: KernelLogsParams,
-) -> Result<(), RpcError> {
-    if follow {
-        if cursor.is_some() {
-            return Err(RpcError::from(Error::new(
-                eyre!("The argument '--cursor <cursor>' cannot be used with '--follow'"),
-                crate::ErrorKind::InvalidRequest,
-            )));
-        }
-        if before {
-            return Err(RpcError::from(Error::new(
-                eyre!("The argument '--before' cannot be used with '--follow'"),
-                crate::ErrorKind::InvalidRequest,
-            )));
-        }
-        cli_logs_generic_follow(ctx, "server.kernel-logs.follow", None, limit).await
-    } else {
-        cli_logs_generic_nofollow(ctx, "server.kernel-logs", None, limit, cursor, before).await
-    }
-}
-pub async fn kernel_logs_nofollow(
-    _ctx: AnyContext,
-    _: Empty,
-    KernelLogsParams {
-        limit,
-        cursor,
-        before,
-        ..
-    }: KernelLogsParams,
-) -> Result<LogResponse, Error> {
-    fetch_logs(LogSource::Kernel, limit, cursor, before).await
-}
-
-pub async fn kernel_logs_follow(
-    ctx: RpcContext,
-    _: Empty,
-    KernelLogsParams { limit, .. }: KernelLogsParams,
-) -> Result<LogFollowResponse, Error> {
-    follow_logs(ctx, LogSource::Kernel, limit).await
+pub fn kernel_logs<C: Context + AsRef<RpcContinuations>>() -> ParentHandler<C, LogsParams> {
+    crate::logs::logs(|_: &C, _| async { Ok(LogSource::Kernel) })
 }
 
 #[derive(Serialize, Deserialize)]
@@ -821,7 +659,7 @@ impl ProcStat {
 async fn get_proc_stat() -> Result<ProcStat, Error> {
     use tokio::io::AsyncBufReadExt;
     let mut cpu_line = String::new();
-    let _n = tokio::io::BufReader::new(tokio::fs::File::open("/proc/stat").await?)
+    let _n = tokio::io::BufReader::new(open_file("/proc/stat").await?)
         .read_line(&mut cpu_line)
         .await?;
     let stats: Vec<u64> = cpu_line
@@ -985,6 +823,51 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
         available: GigaBytes(total_available as f64 / 1_000_000_000.0),
         percentage_used: Percentage(total_percentage as f64),
     })
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct SmtpValue {
+    #[arg(long)]
+    pub server: String,
+    #[arg(long)]
+    pub port: u16,
+    #[arg(long)]
+    pub from: String,
+    #[arg(long)]
+    pub login: String,
+    #[arg(long)]
+    pub password: Option<String>,
+}
+pub async fn set_system_smtp(ctx: RpcContext, smtp: SmtpValue) -> Result<(), Error> {
+    let smtp = Some(smtp);
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_smtp_mut()
+                .ser(&smtp)
+        })
+        .await?;
+    if let Some(callbacks) = ctx.callbacks.get_system_smtp() {
+        callbacks.call(vector![to_value(&smtp)?]).await?;
+    }
+    Ok(())
+}
+pub async fn clear_system_smtp(ctx: RpcContext) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_smtp_mut()
+                .ser(&None)
+        })
+        .await?;
+    if let Some(callbacks) = ctx.callbacks.get_system_smtp() {
+        callbacks.call(vector![Value::Null]).await?;
+    }
+    Ok(())
 }
 
 #[tokio::test]
