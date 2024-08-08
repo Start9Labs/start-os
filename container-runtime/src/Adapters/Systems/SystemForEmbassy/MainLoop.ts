@@ -168,7 +168,7 @@ export class MainLoop {
                 id: healthId,
                 name: value.name,
                 result: "success",
-                message: actionProcedure["success-message"],
+                message: actionProcedure["success-message"] ?? null,
               })
               return
             }
