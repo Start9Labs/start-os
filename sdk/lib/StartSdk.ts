@@ -256,7 +256,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           id: string
           description: string
           hasPrimary: boolean
-          disabled: boolean
           type: ServiceInterfaceType
           username: null | string
           path: string
