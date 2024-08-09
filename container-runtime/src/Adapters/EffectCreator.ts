@@ -1,4 +1,4 @@
-import { types as T } from "@start9labs/start-sdk"
+import { types as T, utils } from "@start9labs/start-sdk"
 import * as net from "net"
 import { object, string, number, literals, some, unknown } from "ts-matches"
 import { Effects } from "../Models/Effects"
@@ -65,7 +65,10 @@ const rpcRoundFor =
             )
             if (testRpcError(res)) {
               let message = res.error.message
-              console.error("Error in host RPC:", { method, params })
+              console.error(
+                "Error in host RPC:",
+                utils.asError({ method, params }),
+              )
               if (string.test(res.error.data)) {
                 message += ": " + res.error.data
                 console.error(`Details: ${res.error.data}`)

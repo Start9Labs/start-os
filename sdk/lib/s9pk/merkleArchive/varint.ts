@@ -1,3 +1,5 @@
+import { asError } from "../../util/asError"
+
 const msb = 0x80
 const dropMsb = 0x7f
 const maxSize = Math.floor((8 * 8 + 7) / 7)
@@ -38,7 +40,7 @@ export class VarIntProcessor {
     if (success) {
       return result
     } else {
-      console.error(this.buf)
+      console.error(asError(this.buf))
       return null
     }
   }

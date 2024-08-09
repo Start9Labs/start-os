@@ -2,6 +2,7 @@ import { DEFAULT_SIGTERM_TIMEOUT } from "."
 import { NO_TIMEOUT, SIGKILL, SIGTERM } from "../StartSdk"
 
 import * as T from "../types"
+import { asError } from "../util/asError"
 import { MountOptions, Overlay } from "../util/Overlay"
 import { splitCommand } from "../util/splitCommand"
 import { cpExecFile, cpExec } from "./Daemons"
@@ -57,7 +58,7 @@ export class CommandController {
           "data",
           options.onStderr ??
             ((data: any) => {
-              console.error(data.toString())
+              console.error(asError(data))
             }),
         )
 

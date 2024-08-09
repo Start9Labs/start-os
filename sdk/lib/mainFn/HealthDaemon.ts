@@ -4,6 +4,7 @@ import { Ready } from "./Daemons"
 import { Daemon } from "./Daemon"
 import { Effects, SetHealth } from "../types"
 import { DEFAULT_SIGTERM_TIMEOUT } from "."
+import { asError } from "../util/asError"
 
 const oncePromise = <T>() => {
   let resolve: (value: T) => void
@@ -102,7 +103,7 @@ export class HealthDaemon {
         const response: HealthCheckResult = await Promise.resolve(
           this.ready.fn(),
         ).catch((err) => {
-          console.error(err)
+          console.error(asError(err))
           return {
             result: "failure",
             message: "message" in err ? err.message : String(err),

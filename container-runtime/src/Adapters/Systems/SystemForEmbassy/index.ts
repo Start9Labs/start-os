@@ -194,7 +194,7 @@ export class SystemForEmbassy implements System {
     const moduleCode = await import(EMBASSY_JS_LOCATION)
       .catch((_) => require(EMBASSY_JS_LOCATION))
       .catch(async (_) => {
-        console.error("Could not load the js")
+        console.error(utils.asError("Could not load the js"))
         console.error({
           exists: await fs.stat(EMBASSY_JS_LOCATION),
         })
@@ -987,7 +987,10 @@ async function updateConfig(
           })
           .once()
           .catch((x) => {
-            console.error("Could not get the service interface", x)
+            console.error(
+              "Could not get the service interface",
+              utils.asError(x),
+            )
             return null
           })
         const catchFn = <X>(fn: () => X) => {

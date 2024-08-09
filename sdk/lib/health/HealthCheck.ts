@@ -8,6 +8,7 @@ import { once } from "../util/once"
 import { Overlay } from "../util/Overlay"
 import { object, unknown } from "ts-matches"
 import * as T from "../types"
+import { asError } from "../util/asError"
 
 export type HealthCheckParams = {
   effects: Effects
@@ -44,7 +45,7 @@ export function healthCheck(o: HealthCheckParams) {
         })
         currentValue.lastResult = result
         await triggerFirstSuccess().catch((err) => {
-          console.error(err)
+          console.error(asError(err))
         })
       } catch (e) {
         await o.effects.setHealth({
