@@ -67,6 +67,9 @@ export class MainLoop {
       { id: this.system.manifest.main.image },
       currentCommand,
       {
+        env: {
+          TINI_SUBREAPER: "true",
+        },
         overlay: dockerProcedureContainer.overlay,
         sigtermTimeout: utils.inMs(
           this.system.manifest.main["sigterm-timeout"],
