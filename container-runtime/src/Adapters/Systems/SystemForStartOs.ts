@@ -4,7 +4,7 @@ import matches, { any, number, object, string, tuple } from "ts-matches"
 import { Effects } from "../../Models/Effects"
 import { RpcResult, matchRpcResult } from "../RpcListener"
 import { duration } from "../../Models/Duration"
-import { T } from "@start9labs/start-sdk"
+import { T, utils } from "@start9labs/start-sdk"
 import { Volume } from "../../Models/Volume"
 import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
 import { CallbackHolder } from "../../Models/CallbackHolder"
@@ -57,7 +57,9 @@ export class SystemForStartOs implements System {
     if (this.runningMain) {
       this.runningMain.callbacks
         .callCallback(callback, args)
-        .catch((error) => console.error(`callback ${callback} failed`, error))
+        .catch((error) =>
+          console.error(`callback ${callback} failed`, utils.asError(error)),
+        )
     } else {
       console.warn(`callback ${callback} ignored because system is not running`)
     }

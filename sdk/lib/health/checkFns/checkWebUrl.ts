@@ -1,4 +1,5 @@
 import { Effects } from "../../types"
+import { asError } from "../../util/asError"
 import { HealthCheckResult } from "./HealthCheckResult"
 import { timeoutPromise } from "./index"
 import "isomorphic-fetch"
@@ -29,7 +30,7 @@ export const checkWebUrl = async (
     .catch((e) => {
       console.warn(`Error while fetching URL: ${url}`)
       console.error(JSON.stringify(e))
-      console.error(e.toString())
+      console.error(asError(e))
       return { result: "failure" as const, message: errorMessage }
     })
 }

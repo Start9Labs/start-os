@@ -1,4 +1,5 @@
 import * as T from "../types"
+import { asError } from "../util/asError"
 import { MountOptions, Overlay } from "../util/Overlay"
 import { CommandController } from "./CommandController"
 
@@ -57,7 +58,7 @@ export class Daemon {
         timeoutCounter = Math.max(MAX_TIMEOUT_MS, timeoutCounter)
       }
     }).catch((err) => {
-      console.error(err)
+      console.error(asError(err))
     })
   }
   async term(termOptions?: {
@@ -73,7 +74,7 @@ export class Daemon {
     this.shouldBeRunning = false
     await this.commandController
       ?.term(termOptions)
-      .catch((e) => console.error(e))
+      .catch((e) => console.error(asError(e)))
     this.commandController = null
   }
 }

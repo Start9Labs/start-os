@@ -6,6 +6,7 @@ import { Buffer } from "node:buffer"
 export const execFile = promisify(cp.execFile)
 const WORKDIR = (imageId: string) => `/media/startos/images/${imageId}/`
 export class Overlay {
+  private destroyed = false
   private constructor(
     readonly effects: T.Effects,
     readonly imageId: T.ImageId,
@@ -70,7 +71,7 @@ export class Overlay {
 
       await fs.mkdir(from, { recursive: true })
       await fs.mkdir(path, { recursive: true })
-      await await execFile("mount", ["--bind", from, path])
+      await execFile("mount", ["--bind", from, path])
     } else if (options.type === "assets") {
       const subpath = options.subpath
         ? options.subpath.startsWith("/")
@@ -102,6 +103,8 @@ export class Overlay {
   }
 
   async destroy() {
+    if (this.destroyed) return
+    this.destroyed = true
     const imageId = this.imageId
     const guid = this.guid
     await this.effects.destroyOverlayedImage({ guid })
