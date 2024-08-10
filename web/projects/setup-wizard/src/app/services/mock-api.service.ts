@@ -1,27 +1,18 @@
 import { Injectable } from '@angular/core'
 import {
   DiskListResponse,
-  StartOSDiskInfo,
   encodeBase64,
+  FollowLogsReq,
+  FollowLogsRes,
+  Log,
   pauseFor,
+  StartOSDiskInfo,
 } from '@start9labs/shared'
-import { ApiService } from './api.service'
-import * as jose from 'node-jose'
 import { T } from '@start9labs/start-sdk'
-import {
-  Observable,
-  concatMap,
-  delay,
-  from,
-  interval,
-  map,
-  mergeScan,
-  of,
-  startWith,
-  switchMap,
-  switchScan,
-  takeWhile,
-} from 'rxjs'
+import * as jose from 'node-jose'
+import { interval, map, Observable, of } from 'rxjs'
+import { WebSocketSubjectConfig } from 'rxjs/webSocket'
+import { ApiService } from './api.service'
 
 @Injectable({
   providedIn: 'root',
@@ -277,6 +268,24 @@ export class MockApiService extends ApiService {
       progress: PROGRESS,
       guid: 'progress-guid',
     }
+  }
+
+  async followServerLogs(params: FollowLogsReq): Promise<FollowLogsRes> {
+    await pauseFor(1000)
+    return {
+      startCursor: 'fakestartcursor',
+      guid: 'fake-guid',
+    }
+  }
+
+  openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
+    return interval(500).pipe(
+      map(() => ({
+        timestamp: new Date().toISOString(),
+        message: 'fake log entry',
+        bootId: 'boot-id',
+      })),
+    )
   }
 
   async complete(): Promise<T.SetupResult> {

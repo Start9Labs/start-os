@@ -5,7 +5,6 @@ import {
   provideSetupLogsService,
   provideSetupService,
 } from '@start9labs/shared'
-
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({

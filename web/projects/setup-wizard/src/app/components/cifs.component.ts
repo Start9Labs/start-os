@@ -1,6 +1,5 @@
-import { TuiInputModule, TuiInputPasswordModule } from '@taiga-ui/legacy'
 import { CommonModule } from '@angular/common'
-import { Component, inject, Inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import {
   FormControl,
   FormGroup,
@@ -9,24 +8,26 @@ import {
   Validators,
 } from '@angular/forms'
 import { LoadingService, StartOSDiskInfo } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import {
+  TuiButton,
   TuiDialogContext,
   TuiDialogService,
   TuiError,
-  TuiButton,
 } from '@taiga-ui/core'
 import { TUI_VALIDATION_ERRORS, TuiFieldErrorPipe } from '@taiga-ui/kit'
-import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus'
-import { PASSWORD } from 'src/app/components/password.component'
+import { TuiInputModule, TuiInputPasswordModule } from '@taiga-ui/legacy'
 import {
-  ApiService,
-  CifsBackupTarget,
-  CifsRecoverySource,
-} from 'src/app/services/api.service'
+  POLYMORPHEUS_CONTEXT,
+  PolymorpheusComponent,
+} from '@taiga-ui/polymorpheus'
+import { SERVERS, ServersResponse } from 'src/app/components/servers.component'
+import { ApiService } from 'src/app/services/api.service'
 
-interface Context {
-  cifs: CifsRecoverySource
-  recoveryPassword: string
+export interface CifsResponse {
+  cifs: T.Cifs
+  serverId: string
+  password: string
 }
 
 @Component({
@@ -34,10 +35,10 @@ interface Context {
   template: `
     <form [formGroup]="form" (ngSubmit)="submit()">
       <tui-input formControlName="hostname">
-        Hostname
+        Hostname *
         <input
           tuiTextfieldLegacy
-          placeholder="'My Computer' OR 'my-computer.local'"
+          placeholder="e.g. 'My Computer' OR 'my-computer.local'"
         />
       </tui-input>
       <tui-error
@@ -46,7 +47,7 @@ interface Context {
       ></tui-error>
 
       <tui-input formControlName="path" class="input">
-        Path
+        Path *
         <input tuiTextfieldLegacy placeholder="/Desktop/my-folder'" />
       </tui-input>
       <tui-error
@@ -55,7 +56,7 @@ interface Context {
       ></tui-error>
 
       <tui-input formControlName="username" class="input">
-        Username
+        Username *
         <input tuiTextfieldLegacy placeholder="Enter username" />
       </tui-input>
       <tui-error
@@ -108,7 +109,7 @@ export class CifsComponent {
   private readonly api = inject(ApiService)
   private readonly loader = inject(LoadingService)
   private readonly context =
-    inject<TuiDialogContext<Context>>(POLYMORPHEUS_CONTEXT)
+    inject<TuiDialogContext<CifsResponse>>(POLYMORPHEUS_CONTEXT)
 
   readonly form = new FormGroup({
     hostname: new FormControl('', {
@@ -141,7 +142,6 @@ export class CifsComponent {
     try {
       const diskInfo = await this.api.verifyCifs({
         ...this.form.getRawValue(),
-        type: 'cifs',
         password: this.form.value.password
           ? await this.api.encrypt(String(this.form.value.password))
           : null,
@@ -149,35 +149,31 @@ export class CifsComponent {
 
       loader.unsubscribe()
 
-      this.presentModalPassword(diskInfo)
+      this.selectServer(diskInfo)
     } catch (e) {
       loader.unsubscribe()
-      this.presentAlertFailed()
+      this.onFail()
     }
   }
 
-  private presentModalPassword(diskInfo: StartOSDiskInfo) {
-    const target: CifsBackupTarget = {
-      ...this.form.getRawValue(),
-      mountable: true,
-      startOs: diskInfo,
-    }
-
+  private selectServer(servers: Record<string, StartOSDiskInfo>) {
     this.dialogs
-      .open<string>(PASSWORD, {
-        label: 'Unlock Drive',
-        size: 's',
-        data: { target },
+      .open<ServersResponse>(SERVERS, {
+        label: 'Select Server to Restore',
+        data: {
+          servers: Object.keys(servers).map(id => ({ id, ...servers[id] })),
+        },
       })
-      .subscribe(recoveryPassword => {
+      .subscribe(({ password, serverId }) => {
         this.context.completeWith({
-          cifs: { ...this.form.getRawValue(), type: 'cifs' },
-          recoveryPassword,
+          cifs: { ...this.form.getRawValue() },
+          serverId,
+          password,
         })
       })
   }
 
-  private presentAlertFailed() {
+  private onFail() {
     this.dialogs
       .open(
         'Unable to connect to shared folder. Ensure (1) target computer is connected to LAN, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.',
@@ -189,3 +185,5 @@ export class CifsComponent {
       .subscribe()
   }
 }
+
+export const CIFS = new PolymorpheusComponent(CifsComponent)

@@ -2,7 +2,7 @@ import { Component, ElementRef, inject, OnInit, ViewChild } from '@angular/core'
 import { INTERSECTION_ROOT } from '@ng-web-apis/intersection-observer'
 import { convertAnsi, ErrorService } from '@start9labs/shared'
 import { TuiScrollbar } from '@taiga-ui/core'
-import { DiagnosticService } from 'src/app/routes/diagnostic/services/diagnostic.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
   selector: 'logs',
@@ -28,7 +28,7 @@ import { DiagnosticService } from 'src/app/routes/diagnostic/services/diagnostic
 export class LogsPage implements OnInit {
   @ViewChild(TuiScrollbar, { read: ElementRef })
   private readonly scrollbar?: ElementRef<HTMLElement>
-  private readonly api = inject(DiagnosticService)
+  private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
 
   startCursor?: string
@@ -59,7 +59,7 @@ export class LogsPage implements OnInit {
     this.loading = true
 
     try {
-      const response = await this.api.getLogs({
+      const response = await this.api.diagnosticGetLogs({
         cursor: this.startCursor,
         before: !!this.startCursor,
         limit: 200,

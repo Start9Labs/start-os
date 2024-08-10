@@ -12,12 +12,7 @@ import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiCell } from '@taiga-ui/layout'
 import { filter, of, switchMap } from 'rxjs'
 import { PASSWORD } from 'src/app/components/password.component'
-import {
-  ApiService,
-  BackupRecoverySource,
-  DiskMigrateSource,
-  DiskRecoverySource,
-} from 'src/app/services/api.service'
+import { ApiService } from 'src/app/services/api.service'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
@@ -44,7 +39,7 @@ import { StateService } from 'src/app/services/state.service'
         </button>
       }
 
-      <button tuiButton iconStart="@tui.rotate-cw" (click)="getDrives()">
+      <button tuiButton iconStart="@tui.rotate-cw" (click)="refresh()">
         Refresh
       </button>
     </section>
@@ -81,21 +76,24 @@ export default class StoragePage {
       const disks = await this.api.getDrives()
       if (this.stateService.setupType === 'fresh') {
         this.drives = disks
-      } else if (this.stateService.setupType === 'restore') {
-        this.drives = disks.filter(
-          d =>
-            !d.partitions
-              .map(p => p.logicalname)
-              .includes(
-                (
-                  (this.stateService.recoverySource as BackupRecoverySource)
-                    ?.target as DiskRecoverySource
-                )?.logicalname,
-              ),
-        )
-      } else if (this.stateService.setupType === 'transfer') {
-        const guid = (this.stateService.recoverySource as DiskMigrateSource)
-          .guid
+      } else if (
+        this.stateService.setupType === 'restore' &&
+        this.stateService.recoverySource?.type === 'backup'
+      ) {
+        if (this.stateService.recoverySource.target.type === 'disk') {
+          const logicalname =
+            this.stateService.recoverySource.target.logicalname
+          this.drives = disks.filter(
+            d => !d.partitions.map(p => p.logicalname).includes(logicalname),
+          )
+        } else {
+          this.drives = disks
+        }
+      } else if (
+        this.stateService.setupType === 'transfer' &&
+        this.stateService.recoverySource?.type === 'migrate'
+      ) {
+        const guid = this.stateService.recoverySource.guid
         this.drives = disks.filter(d => {
           return (
             d.guid !== guid && !d.partitions.map(p => p.guid).includes(guid)
@@ -130,19 +128,19 @@ export default class StoragePage {
       .pipe(filter(Boolean))
       .subscribe(() => {
         // for backup recoveries
-        if (this.stateService.recoveryPassword) {
+        if (this.stateService.recoverySource?.type === 'backup') {
           this.setupEmbassy(
             drive.logicalname,
-            this.stateService.recoveryPassword,
+            this.stateService.recoverySource.password,
           )
         } else {
           // for migrations and fresh setups
-          this.presentModalPassword(drive.logicalname)
+          this.promptPassword(drive.logicalname)
         }
       })
   }
 
-  private presentModalPassword(logicalname: string) {
+  private promptPassword(logicalname: string) {
     this.dialogs
       .open<string>(PASSWORD, {
         label: 'Set Password',
@@ -162,7 +160,7 @@ export default class StoragePage {
 
     try {
       await this.stateService.setupEmbassy(logicalname, password)
-      await this.router.navigate([`loading`])
+      await this.router.navigate(['loading'])
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

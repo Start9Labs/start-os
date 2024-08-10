@@ -4,7 +4,6 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { PreloadAllModules, RouterModule } from '@angular/router'
 import {
   provideSetupLogsService,
-  provideSetupService,
   RELATIVE_URL,
   WorkspaceConfig,
 } from '@start9labs/shared'
@@ -34,7 +33,6 @@ const {
   ],
   providers: [
     NG_EVENT_PLUGINS,
-    provideSetupService(ApiService),
     provideSetupLogsService(ApiService),
     tuiButtonOptionsProvider({ size: 'm' }),
     {

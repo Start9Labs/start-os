@@ -1,6 +1,7 @@
+import { DatePipe } from '@angular/common'
 import { Component, inject } from '@angular/core'
 import { Router } from '@angular/router'
-import { DriveComponent, ErrorService } from '@start9labs/shared'
+import { ErrorService } from '@start9labs/shared'
 import {
   TuiButton,
   TuiDialogService,
@@ -9,15 +10,9 @@ import {
   TuiTitle,
 } from '@taiga-ui/core'
 import { TuiCardLarge, TuiCell } from '@taiga-ui/layout'
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { filter } from 'rxjs'
-import { CifsComponent } from 'src/app/components/cifs.component'
-import { PASSWORD } from 'src/app/components/password.component'
-import {
-  ApiService,
-  CifsRecoverySource,
-  DiskBackupTarget,
-} from 'src/app/services/api.service'
+import { CIFS, CifsResponse } from 'src/app/components/cifs.component'
+import { ServerComponent } from 'src/app/components/server.component'
+import { ApiService, StartOSDiskInfoFull } from 'src/app/services/api.service'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
@@ -38,8 +33,10 @@ import { StateService } from 'src/app/services/state.service'
         </button>
 
         <h2>Physical Drive</h2>
-        Restore StartOS data from a physical drive that is plugged directly into
-        your server.
+        <div>
+          Restore StartOS data from a physical drive that is plugged directly
+          into your server.
+        </div>
         <strong>
           Warning. Do not use this option if you are using a Raspberry Pi with
           an external SSD as your main data drive. The Raspberry Pi cannot not
@@ -47,18 +44,11 @@ import { StateService } from 'src/app/services/state.service'
           cause data corruption.
         </strong>
 
-        @for (d of drives; track d) {
-          <button tuiCell [drive]="d" [disabled]="empty(d)" (click)="select(d)">
-            <span tuiSubtitle>
-              @if (empty(d)) {
-                <tui-icon icon="@tui.cloud-off" class="g-error" />
-                <strong>No StartOS backup</strong>
-              } @else {
-                <tui-icon icon="@tui.cloud" class="g-success" />
-                <strong>StartOS backup detected</strong>
-              }
-            </span>
-          </button>
+        @for (server of servers; track $index) {
+          <button
+            [server]="server"
+            (password)="select($event, server)"
+          ></button>
         }
 
         <button tuiButton iconStart="@tui.rotate-cw" (click)="refresh()">
@@ -74,7 +64,8 @@ import { StateService } from 'src/app/services/state.service'
     TuiCell,
     TuiIcon,
     TuiTitle,
-    DriveComponent,
+    DatePipe,
+    ServerComponent,
   ],
 })
 export default class RecoverPage {
@@ -85,7 +76,7 @@ export default class RecoverPage {
   private readonly stateService = inject(StateService)
 
   loading = true
-  drives: DiskBackupTarget[] = []
+  servers: StartOSDiskInfoFull[] = []
 
   async ngOnInit() {
     this.stateService.setupType = 'restore'
@@ -97,21 +88,21 @@ export default class RecoverPage {
     await this.getDrives()
   }
 
-  empty(drive: DiskBackupTarget) {
-    return !drive.startOs?.full
-  }
-
   async getDrives() {
-    this.drives = []
+    this.servers = []
+
     try {
-      await this.api.getDrives().then(disks =>
-        disks
-          .filter(d => d.partitions.length)
-          .forEach(d => {
-            d.partitions.forEach(p => {
-              this.drives.push({ ...d, ...p })
-            })
-          }),
+      const drives = await this.api.getDrives()
+
+      this.servers = drives.flatMap(drive =>
+        drive.partitions.flatMap(partition =>
+          Object.entries(partition.startOs).map(([id, val]) => ({
+            id,
+            ...val,
+            partition,
+            drive,
+          })),
+        ),
       )
     } catch (e: any) {
       this.errorService.handleError(e)
@@ -120,44 +111,35 @@ export default class RecoverPage {
     }
   }
 
-  select(target: DiskBackupTarget) {
-    const { logicalname } = target
-
-    if (!logicalname) return
-
-    this.dialogs
-      .open<string>(PASSWORD, {
-        label: 'Unlock Drive',
-        size: 's',
-        data: { target },
-      })
-      .pipe(filter(Boolean))
-      .subscribe(password => {
-        this.onSource(logicalname, password)
-      })
+  select(password: string, server: StartOSDiskInfoFull) {
+    this.stateService.recoverySource = {
+      type: 'backup',
+      target: {
+        type: 'disk',
+        logicalname: server.partition.logicalname,
+      },
+      serverId: server.id,
+      password,
+    }
+    this.router.navigate(['storage'])
   }
 
   onCifs() {
     this.dialogs
-      .open<{
-        cifs: CifsRecoverySource
-        recoveryPassword: string
-      }>(new PolymorpheusComponent(CifsComponent), {
+      .open<CifsResponse>(CIFS, {
         label: 'Connect Network Folder',
       })
-      .subscribe(({ cifs, recoveryPassword }) => {
-        this.stateService.recoverySource = { type: 'backup', target: cifs }
-        this.stateService.recoveryPassword = recoveryPassword
+      .subscribe(({ cifs, serverId, password }) => {
+        this.stateService.recoverySource = {
+          type: 'backup',
+          target: {
+            type: 'cifs',
+            ...cifs,
+          },
+          serverId,
+          password,
+        }
         this.router.navigate(['storage'])
       })
-  }
-
-  private onSource(logicalname: string, password?: string) {
-    this.stateService.recoverySource = {
-      type: 'backup',
-      target: { type: 'disk', logicalname },
-    }
-    this.stateService.recoveryPassword = password
-    this.router.navigate(['storage'])
   }
 }

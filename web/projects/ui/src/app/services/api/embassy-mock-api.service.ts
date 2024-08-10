@@ -2,7 +2,6 @@ import { Injectable } from '@angular/core'
 import {
   pauseFor,
   Log,
-  getSetupStatusMock,
   RPCErrorDetails,
   RPCOptions,
 } from '@start9labs/shared'

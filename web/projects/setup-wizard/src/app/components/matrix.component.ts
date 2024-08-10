@@ -1,12 +1,5 @@
-import {
-  Component,
-  Directive,
-  ElementRef,
-  inject,
-  NgZone,
-  OnInit,
-} from '@angular/core'
-import { WINDOW } from '@ng-web-apis/common'
+import { Component, ElementRef, inject, NgZone, OnInit } from '@angular/core'
+import { WA_WINDOW } from '@ng-web-apis/common'
 
 // a higher fade factor will make the characters fade quicker
 const FADE_FACTOR = 0.07
@@ -19,7 +12,7 @@ const FADE_FACTOR = 0.07
 })
 export class MatrixComponent implements OnInit {
   private readonly ngZone = inject(NgZone)
-  private readonly window = inject(WINDOW)
+  private readonly window = inject(WA_WINDOW)
   private readonly el: HTMLCanvasElement = inject(ElementRef).nativeElement
   private readonly ctx = this.el.getContext('2d')!
 

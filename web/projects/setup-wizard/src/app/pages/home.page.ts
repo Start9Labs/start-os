@@ -26,7 +26,7 @@ import { StateService } from 'src/app/services/state.service'
               Back
             </button>
           }
-          {{ recover ? 'StartOS Setup' : 'Recover Options' }}
+          {{ recover ? 'Recover Options' : 'StartOS Setup' }}
         </header>
         <div class="pages">
           <div class="options" [class.options_recover]="recover">

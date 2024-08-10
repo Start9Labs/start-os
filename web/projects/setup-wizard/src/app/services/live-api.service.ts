@@ -1,23 +1,22 @@
+import { DOCUMENT } from '@angular/common'
 import { Inject, Injectable } from '@angular/core'
 import {
   DiskListResponse,
-  StartOSDiskInfo,
   encodeBase64,
+  FollowLogsReq,
+  FollowLogsRes,
   HttpService,
   isRpcError,
   Log,
   RpcError,
   RPCOptions,
-  SetupStatus,
-  FollowLogsRes,
-  FollowLogsReq,
+  StartOSDiskInfo,
 } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import { ApiService } from './api.service'
 import * as jose from 'node-jose'
 import { Observable } from 'rxjs'
-import { DOCUMENT } from '@angular/common'
-import { webSocket } from 'rxjs/webSocket'
+import { webSocket, WebSocketSubjectConfig } from 'rxjs/webSocket'
+import { ApiService } from './api.service'
 
 @Injectable({
   providedIn: 'root',
@@ -98,6 +97,14 @@ export class LiveApiService extends ApiService {
       method: 'setup.execute',
       params: setupInfo,
     })
+  }
+
+  async followServerLogs(params: FollowLogsReq): Promise<FollowLogsRes> {
+    return this.rpcRequest({ method: 'setup.logs.follow', params })
+  }
+
+  openLogsWebsocket$({ url }: WebSocketSubjectConfig<Log>): Observable<Log> {
+    return webSocket(`http://start.local/ws/${url}`)
   }
 
   async complete(): Promise<T.SetupResult> {
