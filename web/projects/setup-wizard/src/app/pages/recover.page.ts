@@ -12,7 +12,7 @@ import {
 import { TuiCardLarge, TuiCell } from '@taiga-ui/layout'
 import { CIFS, CifsResponse } from 'src/app/components/cifs.component'
 import { ServerComponent } from 'src/app/components/server.component'
-import { ApiService, StartOSDiskInfoWithId } from 'src/app/services/api.service'
+import { ApiService, StartOSDiskInfoFull } from 'src/app/services/api.service'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
@@ -47,7 +47,7 @@ import { StateService } from 'src/app/services/state.service'
         @for (server of servers; track $index) {
           <button
             [server]="server"
-            (password)="select($event, server.id)"
+            (password)="select($event, server)"
           ></button>
         }
 
@@ -76,7 +76,7 @@ export default class RecoverPage {
   private readonly stateService = inject(StateService)
 
   loading = true
-  servers: StartOSDiskInfoWithId[] = []
+  servers: StartOSDiskInfoFull[] = []
 
   async ngOnInit() {
     this.stateService.setupType = 'restore'
@@ -111,15 +111,14 @@ export default class RecoverPage {
     }
   }
 
-  select(password: string, serverId: string) {
+  select(password: string, server: StartOSDiskInfoFull) {
     this.stateService.recoverySource = {
       type: 'backup',
       target: {
         type: 'disk',
-        // @TODO Matt where to get logicalname?
-        logicalname: '',
+        logicalname: server.partition.logicalname,
       },
-      serverId,
+      serverId: server.id,
       password,
     }
     this.router.navigate(['storage'])
