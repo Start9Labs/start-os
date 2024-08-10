@@ -49,9 +49,3 @@ export type StartOSDiskInfo = {
   passwordHash: string | null
   wrappedKey: string | null
 }
-
-export interface SetupStatus {
-  bytesTransferred: number
-  totalBytes: number | null
-  complete: boolean
-}

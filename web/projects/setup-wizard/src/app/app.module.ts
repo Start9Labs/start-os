@@ -2,12 +2,7 @@ import { HttpClientModule } from '@angular/common/http'
 import { NgModule } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { PreloadAllModules, RouterModule } from '@angular/router'
-import {
-  provideSetupLogsService,
-  provideSetupService,
-  RELATIVE_URL,
-  WorkspaceConfig,
-} from '@start9labs/shared'
+import { RELATIVE_URL, WorkspaceConfig } from '@start9labs/shared'
 import { tuiButtonOptionsProvider, TuiRoot } from '@taiga-ui/core'
 import { NG_EVENT_PLUGINS } from '@taiga-ui/event-plugins'
 import { ApiService } from 'src/app/services/api.service'
@@ -34,8 +29,6 @@ const {
   ],
   providers: [
     NG_EVENT_PLUGINS,
-    provideSetupService(ApiService),
-    provideSetupLogsService(ApiService),
     tuiButtonOptionsProvider({ size: 'm' }),
     {
       provide: ApiService,

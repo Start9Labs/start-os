@@ -1,27 +1,14 @@
 import { Injectable } from '@angular/core'
 import {
   DiskListResponse,
-  StartOSDiskInfo,
   encodeBase64,
   pauseFor,
+  StartOSDiskInfo,
 } from '@start9labs/shared'
-import { ApiService } from './api.service'
-import * as jose from 'node-jose'
 import { T } from '@start9labs/start-sdk'
-import {
-  Observable,
-  concatMap,
-  delay,
-  from,
-  interval,
-  map,
-  mergeScan,
-  of,
-  startWith,
-  switchMap,
-  switchScan,
-  takeWhile,
-} from 'rxjs'
+import * as jose from 'node-jose'
+import { Observable, of } from 'rxjs'
+import { ApiService } from './api.service'
 
 @Injectable({
   providedIn: 'root',

@@ -8,13 +8,9 @@ import {
   POLYMORPHEUS_CONTEXT,
   PolymorpheusComponent,
 } from '@taiga-ui/polymorpheus'
-import {
-  CifsBackupTarget,
-  DiskBackupTarget,
-} from 'src/app/services/api.service'
 
 interface DialogData {
-  target?: CifsBackupTarget | DiskBackupTarget
+  passwordHash?: string
   storageDrive?: boolean
 }
 
@@ -73,24 +69,14 @@ export class PasswordComponent {
   private readonly context =
     inject<TuiDialogContext<string, DialogData>>(POLYMORPHEUS_CONTEXT)
 
-  readonly target = this.context.data.target
   readonly storageDrive = this.context.data.storageDrive
   readonly password = new FormControl('', { nonNullable: true })
   readonly confirm = new FormControl('', { nonNullable: true })
 
   get passwordError(): string | null {
-    if (!this.password.touched || this.target) return null
-
-    if (!this.storageDrive && !this.target?.['embassy-os'])
-      return 'No recovery target' // unreachable
-
-    if (this.password.value.length < 12)
-      return 'Must be 12 characters or greater'
-
-    if (this.password.value.length > 64)
-      return 'Must be less than 65 characters'
-
-    return null
+    return this.password.touched && this.password.value.length < 12
+      ? 'Must be 12 characters or greater'
+      : null
   }
 
   get confirmError(): string | null {
@@ -107,9 +93,7 @@ export class PasswordComponent {
     }
 
     try {
-      const passwordHash = this.target!.startOs?.passwordHash || ''
-
-      argon2.verify(passwordHash, this.password.value)
+      argon2.verify(this.context.data.passwordHash || '', this.password.value)
       this.context.completeWith(this.password.value)
     } catch (e) {
       this.errorService.handleError('Incorrect password provided')

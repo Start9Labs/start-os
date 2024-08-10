@@ -1,23 +1,19 @@
+import { DOCUMENT } from '@angular/common'
 import { Inject, Injectable } from '@angular/core'
 import {
   DiskListResponse,
-  StartOSDiskInfo,
   encodeBase64,
   HttpService,
   isRpcError,
-  Log,
   RpcError,
   RPCOptions,
-  SetupStatus,
-  FollowLogsRes,
-  FollowLogsReq,
+  StartOSDiskInfo,
 } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import { ApiService } from './api.service'
 import * as jose from 'node-jose'
 import { Observable } from 'rxjs'
-import { DOCUMENT } from '@angular/common'
 import { webSocket } from 'rxjs/webSocket'
+import { ApiService } from './api.service'
 
 @Injectable({
   providedIn: 'root',
