@@ -23,7 +23,7 @@ import { LogsWindowComponent } from './logs-window.component'
       ></progress>
       <p>{{ progress.message }}</p>
     </section>
-    <!--    <logs-window />-->
+    <logs-window />
   `,
   styles: `
     section {
