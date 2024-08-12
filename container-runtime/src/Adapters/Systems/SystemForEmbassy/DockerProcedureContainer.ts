@@ -8,17 +8,39 @@ export const exec = promisify(cp.exec)
 export const execFile = promisify(cp.execFile)
 
 export class DockerProcedureContainer {
-  private constructor(readonly overlay: Overlay) {}
-  // static async readonlyOf(data: DockerProcedure) {
-  //   return DockerProcedureContainer.of(data, ["-o", "ro"])
-  // }
+  private constructor(
+    readonly overlay: Overlay,
+    readonly destroy = true,
+  ) {}
+
   static async of(
     effects: T.Effects,
     packageId: string,
     data: DockerProcedure,
     volumes: { [id: VolumeId]: Volume },
+    options: { overlay?: Overlay } = {},
   ) {
-    const overlay = await Overlay.of(effects, { id: data.image })
+    const overlay =
+      options?.overlay ??
+      (await DockerProcedureContainer.createOverlay(
+        effects,
+        packageId,
+        data,
+        volumes,
+        options,
+      ))
+    const shouldDestroy = options?.overlay === undefined
+    return new DockerProcedureContainer(overlay, shouldDestroy)
+  }
+  static async createOverlay(
+    effects: T.Effects,
+    packageId: string,
+    data: DockerProcedure,
+    volumes: { [id: VolumeId]: Volume },
+    options: { overlay?: Overlay } = {},
+  ) {
+    const overlay =
+      options.overlay ?? (await Overlay.of(effects, { id: data.image }))
 
     if (data.mounts) {
       const mounts = data.mounts
@@ -84,11 +106,10 @@ export class DockerProcedureContainer {
         }
       }
     }
-
-    return new DockerProcedureContainer(overlay)
+    return overlay
   }
 
-  async exec(commands: string[], { destroy = true } = {}) {
+  async exec(commands: string[], { destroy = this.destroy } = {}) {
     try {
       return await this.overlay.exec(commands)
     } finally {
@@ -99,7 +120,7 @@ export class DockerProcedureContainer {
   async execFail(
     commands: string[],
     timeoutMs: number | null,
-    { destroy = true } = {},
+    { destroy = this.destroy } = {},
   ) {
     try {
       const res = await this.overlay.exec(commands, {}, timeoutMs)

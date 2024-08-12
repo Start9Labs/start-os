@@ -13,7 +13,10 @@ const MAX_TIMEOUT_MS = 30000
 export class Daemon {
   private commandController: CommandController | null = null
   private shouldBeRunning = false
-  private constructor(private startCommand: () => Promise<CommandController>) {}
+  constructor(private startCommand: () => Promise<CommandController>) {}
+  get overlay() {
+    return this.commandController?.overlay
+  }
   static of<Manifest extends T.Manifest>() {
     return async <A extends string>(
       effects: T.Effects,
@@ -42,7 +45,6 @@ export class Daemon {
       return new Daemon(startCommand)
     }
   }
-
   async start() {
     if (this.commandController) {
       return
@@ -52,7 +54,9 @@ export class Daemon {
     new Promise(async () => {
       while (this.shouldBeRunning) {
         this.commandController = await this.startCommand()
-        await this.commandController.wait().catch((err) => console.error(err))
+        await this.commandController
+          .wait({ destroy: false })
+          .catch((err) => console.error(err))
         await new Promise((resolve) => setTimeout(resolve, timeoutCounter))
         timeoutCounter += TIMEOUT_INCREMENT_MS
         timeoutCounter = Math.max(MAX_TIMEOUT_MS, timeoutCounter)
@@ -73,7 +77,7 @@ export class Daemon {
   }) {
     this.shouldBeRunning = false
     await this.commandController
-      ?.term(termOptions)
+      ?.term({ ...termOptions })
       .catch((e) => console.error(asError(e)))
     this.commandController = null
   }

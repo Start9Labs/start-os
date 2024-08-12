@@ -13,6 +13,7 @@ export class CommandController {
     readonly overlay: Overlay,
     readonly pid: number | undefined,
     readonly sigtermTimeout: number = DEFAULT_SIGTERM_TIMEOUT,
+    readonly destroy = true,
   ) {}
   static of<Manifest extends T.Manifest>() {
     return async <A extends string>(
@@ -72,13 +73,19 @@ export class CommandController {
 
       const pid = childProcess.pid
 
-      return new CommandController(answer, overlay, pid, options.sigtermTimeout)
+      return new CommandController(
+        answer,
+        overlay,
+        pid,
+        options.sigtermTimeout,
+        false,
+      )
     }
   }
-  async wait(timeout: number = NO_TIMEOUT) {
+  async wait({ destroy = this.destroy, timeout = NO_TIMEOUT } = {}) {
     if (timeout > 0)
       setTimeout(() => {
-        this.term()
+        this.term({ destroy })
       }, timeout)
     try {
       return await this.runningAnswer
@@ -88,10 +95,14 @@ export class CommandController {
           (_) => {},
         )
       }
-      await this.overlay.destroy().catch((_) => {})
+      if (destroy) await this.overlay.destroy().catch((_) => {})
     }
   }
-  async term({ signal = SIGTERM, timeout = this.sigtermTimeout } = {}) {
+  async term({
+    signal = SIGTERM,
+    timeout = this.sigtermTimeout,
+    destroy = this.destroy,
+  } = {}) {
     if (this.pid === undefined) return
     try {
       await cpExecFile("pkill", [
@@ -107,7 +118,7 @@ export class CommandController {
         )
       }
     } finally {
-      await this.overlay.destroy()
+      if (destroy) await this.overlay.destroy()
     }
   }
 }
