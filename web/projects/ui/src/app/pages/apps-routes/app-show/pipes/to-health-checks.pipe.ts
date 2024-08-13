@@ -14,7 +14,7 @@ export class ToHealthChecksPipe implements PipeTransform {
 
   transform(
     manifest: T.Manifest,
-  ): Observable<Record<string, T.HealthCheckResult | null> | null> {
+  ): Observable<Record<string, T.NamedHealthCheckResult | null> | null> {
     return this.patch.watch$('packageData', manifest.id, 'status', 'main').pipe(
       map(main => {
         return main.status === 'running' && !isEmptyObject(main.health)

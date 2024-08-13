@@ -88,15 +88,19 @@ export class DockerProcedureContainer {
     return new DockerProcedureContainer(overlay)
   }
 
-  async exec(commands: string[]) {
+  async exec(commands: string[], { destroy = true } = {}) {
     try {
       return await this.overlay.exec(commands)
     } finally {
-      await this.overlay.destroy()
+      if (destroy) await this.overlay.destroy()
     }
   }
 
-  async execFail(commands: string[], timeoutMs: number | null) {
+  async execFail(
+    commands: string[],
+    timeoutMs: number | null,
+    { destroy = true } = {},
+  ) {
     try {
       const res = await this.overlay.exec(commands, {}, timeoutMs)
       if (res.exitCode !== 0) {
@@ -110,7 +114,7 @@ export class DockerProcedureContainer {
       }
       return res
     } finally {
-      await this.overlay.destroy()
+      if (destroy) await this.overlay.destroy()
     }
   }
 

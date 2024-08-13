@@ -1699,7 +1699,6 @@ export module Mock {
       ui: {
         id: 'ui',
         hasPrimary: false,
-        disabled: false,
         masked: false,
         name: 'Web UI',
         description:
@@ -1717,7 +1716,6 @@ export module Mock {
       rpc: {
         id: 'rpc',
         hasPrimary: false,
-        disabled: false,
         masked: false,
         name: 'RPC',
         description:
@@ -1735,7 +1733,6 @@ export module Mock {
       p2p: {
         id: 'p2p',
         hasPrimary: true,
-        disabled: false,
         masked: false,
         name: 'P2P',
         description:
@@ -1876,7 +1873,6 @@ export module Mock {
       ui: {
         id: 'ui',
         hasPrimary: false,
-        disabled: false,
         masked: false,
         name: 'Web UI',
         description: 'A launchable web app for Bitcoin Proxy',
@@ -1925,7 +1921,6 @@ export module Mock {
       grpc: {
         id: 'grpc',
         hasPrimary: false,
-        disabled: false,
         masked: false,
         name: 'GRPC',
         description:
@@ -1943,7 +1938,6 @@ export module Mock {
       lndconnect: {
         id: 'lndconnect',
         hasPrimary: false,
-        disabled: false,
         masked: true,
         name: 'LND Connect',
         description:
@@ -1961,7 +1955,6 @@ export module Mock {
       p2p: {
         id: 'p2p',
         hasPrimary: true,
-        disabled: false,
         masked: false,
         name: 'P2P',
         description:

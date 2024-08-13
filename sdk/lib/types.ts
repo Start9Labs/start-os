@@ -3,7 +3,7 @@ export * as configTypes from "./config/configTypes"
 import {
   DependencyRequirement,
   SetHealth,
-  HealthCheckResult,
+  NamedHealthCheckResult,
   SetMainStatus,
   ServiceInterface,
   Host,
@@ -174,7 +174,7 @@ export type Daemon = {
   [DaemonProof]: never
 }
 
-export type HealthStatus = HealthCheckResult["result"]
+export type HealthStatus = NamedHealthCheckResult["result"]
 export type SmtpValue = {
   server: string
   port: number
@@ -249,15 +249,15 @@ export type SdkPropertiesValue =
     }
   | {
       type: "string"
-      /** Value  */
+      /** The value to display to the user */
       value: string
       /** A human readable description or explanation of the value */
       description?: string
-      /** (string/number only) Whether or not to mask the value, for example, when displaying a password */
+      /** Whether or not to mask the value, for example, when displaying a password */
       masked: boolean
-      /** (string/number only) Whether or not to include a button for copying the value to clipboard */
+      /** Whether or not to include a button for copying the value to clipboard */
       copyable?: boolean
-      /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
+      /** Whether or not to include a button for displaying the value as a QR code */
       qr?: boolean
     }
 
@@ -273,15 +273,15 @@ export type PropertiesValue =
     }
   | {
       type: "string"
-      /** Value  */
+      /** The value to display to the user */
       value: string
       /** A human readable description or explanation of the value */
       description: string | null
-      /** (string/number only) Whether or not to mask the value, for example, when displaying a password */
+      /** Whether or not to mask the value, for example, when displaying a password */
       masked: boolean
-      /** (string/number only) Whether or not to include a button for copying the value to clipboard */
+      /** Whether or not to include a button for copying the value to clipboard */
       copyable: boolean | null
-      /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
+      /** Whether or not to include a button for displaying the value as a QR code */
       qr: boolean | null
     }
 

@@ -3,6 +3,11 @@ import { ImageConfig, ImageId, VolumeId } from "../osBindings"
 import { SDKManifest, SDKImageConfig } from "./ManifestTypes"
 import { SDKVersion } from "../StartSdk"
 
+/**
+ * This is an example of a function that takes a manifest and returns a new manifest with additional properties
+ * @param manifest Manifests are the description of the package
+ * @returns The manifest with additional properties
+ */
 export function setupManifest<
   Id extends string,
   Version extends string,
@@ -10,15 +15,16 @@ export function setupManifest<
   VolumesTypes extends VolumeId,
   AssetTypes extends VolumeId,
   ImagesTypes extends ImageId,
-  Manifest extends SDKManifest<Version, Satisfies> & {
+  Manifest extends {
     dependencies: Dependencies
     id: Id
     assets: AssetTypes[]
     images: Record<ImagesTypes, SDKImageConfig>
     volumes: VolumesTypes[]
+    version: Version
   },
   Satisfies extends string[] = [],
->(manifest: Manifest & { version: Version }): Manifest & T.Manifest {
+>(manifest: SDKManifest<Version, Satisfies> & Manifest): Manifest & T.Manifest {
   const images = Object.entries(manifest.images).reduce(
     (images, [k, v]) => {
       v.arch = v.arch || ["aarch64", "x86_64"]

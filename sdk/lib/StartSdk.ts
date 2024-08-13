@@ -75,7 +75,10 @@ import * as T from "./types"
 import { testTypeVersion, ValidateExVer } from "./exver"
 import { ExposedStorePaths } from "./store/setupExposeStore"
 import { PathBuilder, extractJsonPath, pathBuilder } from "./store/PathBuilder"
-import { checkAllDependencies } from "./dependencies/dependencies"
+import {
+  CheckDependencies,
+  checkDependencies,
+} from "./dependencies/dependencies"
 import { health } from "."
 import { GetSslCertificate } from "./util/GetSslCertificate"
 
@@ -142,7 +145,13 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
     }
 
     return {
-      checkAllDependencies,
+      checkDependencies: checkDependencies as <
+        DependencyId extends keyof Manifest["dependencies"] &
+          PackageId = keyof Manifest["dependencies"] & PackageId,
+      >(
+        effects: Effects,
+        packageIds?: DependencyId[],
+      ) => Promise<CheckDependencies<DependencyId>>,
       serviceInterface: {
         getOwn: <E extends Effects>(effects: E, id: ServiceInterfaceId) =>
           removeCallbackTypes<E>(effects)(
@@ -247,7 +256,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           id: string
           description: string
           hasPrimary: boolean
-          disabled: boolean
           type: ServiceInterfaceType
           username: null | string
           path: string
@@ -293,8 +301,8 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         )
       },
       HealthCheck: {
-        of(o: HealthCheckParams<Manifest>) {
-          return healthCheck<Manifest>(o)
+        of(o: HealthCheckParams) {
+          return healthCheck(o)
         },
       },
       Dependency: {
