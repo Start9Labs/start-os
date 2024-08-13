@@ -3,17 +3,21 @@ import { NO_TIMEOUT, SIGKILL, SIGTERM } from "../StartSdk"
 
 import * as T from "../types"
 import { asError } from "../util/asError"
-import { MountOptions, Overlay } from "../util/Overlay"
+import {
+  ExecSpawnable,
+  MountOptions,
+  NonDestroyableOverlay,
+  Overlay,
+} from "../util/Overlay"
 import { splitCommand } from "../util/splitCommand"
 import { cpExecFile, cpExec } from "./Daemons"
 
 export class CommandController {
   private constructor(
     readonly runningAnswer: Promise<unknown>,
-    readonly overlay: Overlay,
+    private readonly overlay: ExecSpawnable,
     readonly pid: number | undefined,
     readonly sigtermTimeout: number = DEFAULT_SIGTERM_TIMEOUT,
-    readonly destroy = true,
   ) {}
   static of<Manifest extends T.Manifest>() {
     return async <A extends string>(
@@ -27,7 +31,7 @@ export class CommandController {
         // Defaults to the DEFAULT_SIGTERM_TIMEOUT = 30_000ms
         sigtermTimeout?: number
         mounts?: { path: string; options: MountOptions }[]
-        overlay?: Overlay
+        overlay?: ExecSpawnable
         env?:
           | {
               [variable: string]: string
@@ -40,10 +44,15 @@ export class CommandController {
       },
     ) => {
       const commands = splitCommand(command)
-      const overlay = options.overlay || (await Overlay.of(effects, imageId))
-      for (let mount of options.mounts || []) {
-        await overlay.mount(mount.options, mount.path)
-      }
+      const overlay =
+        options.overlay ||
+        (await (async () => {
+          const overlay = await Overlay.of(effects, imageId)
+          for (let mount of options.mounts || []) {
+            await overlay.mount(mount.options, mount.path)
+          }
+          return overlay
+        })())
       const childProcess = await overlay.spawn(commands, {
         env: options.env,
       })
@@ -73,19 +82,16 @@ export class CommandController {
 
       const pid = childProcess.pid
 
-      return new CommandController(
-        answer,
-        overlay,
-        pid,
-        options.sigtermTimeout,
-        false,
-      )
+      return new CommandController(answer, overlay, pid, options.sigtermTimeout)
     }
   }
-  async wait({ destroy = this.destroy, timeout = NO_TIMEOUT } = {}) {
+  get nonDestroyableOverlay() {
+    return new NonDestroyableOverlay(this.overlay)
+  }
+  async wait({ timeout = NO_TIMEOUT } = {}) {
     if (timeout > 0)
       setTimeout(() => {
-        this.term({ destroy })
+        this.term()
       }, timeout)
     try {
       return await this.runningAnswer
@@ -95,14 +101,10 @@ export class CommandController {
           (_) => {},
         )
       }
-      if (destroy) await this.overlay.destroy().catch((_) => {})
+      await this.overlay.destroy?.().catch((_) => {})
     }
   }
-  async term({
-    signal = SIGTERM,
-    timeout = this.sigtermTimeout,
-    destroy = this.destroy,
-  } = {}) {
+  async term({ signal = SIGTERM, timeout = this.sigtermTimeout } = {}) {
     if (this.pid === undefined) return
     try {
       await cpExecFile("pkill", [
@@ -118,7 +120,7 @@ export class CommandController {
         )
       }
     } finally {
-      if (destroy) await this.overlay.destroy()
+      await this.overlay.destroy?.()
     }
   }
 }

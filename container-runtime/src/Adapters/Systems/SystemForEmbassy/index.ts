@@ -810,7 +810,6 @@ export class SystemForEmbassy implements System {
           overlay,
         },
       )
-      const shouldDestroy = container.destroy
       return JSON.parse(
         (
           await container.execFail(
@@ -820,7 +819,6 @@ export class SystemForEmbassy implements System {
               JSON.stringify(formData),
             ],
             timeoutMs,
-            { destroy: shouldDestroy },
           )
         ).stdout.toString(),
       )

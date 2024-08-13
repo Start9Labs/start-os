@@ -1,6 +1,6 @@
 import * as T from "../types"
 import { asError } from "../util/asError"
-import { MountOptions, Overlay } from "../util/Overlay"
+import { ExecSpawnable, MountOptions, Overlay } from "../util/Overlay"
 import { CommandController } from "./CommandController"
 
 const TIMEOUT_INCREMENT_MS = 1000
@@ -14,8 +14,8 @@ export class Daemon {
   private commandController: CommandController | null = null
   private shouldBeRunning = false
   constructor(private startCommand: () => Promise<CommandController>) {}
-  get overlay() {
-    return this.commandController?.overlay
+  get overlay(): undefined | ExecSpawnable {
+    return this.commandController?.nonDestroyableOverlay
   }
   static of<Manifest extends T.Manifest>() {
     return async <A extends string>(
@@ -54,9 +54,7 @@ export class Daemon {
     new Promise(async () => {
       while (this.shouldBeRunning) {
         this.commandController = await this.startCommand()
-        await this.commandController
-          .wait({ destroy: false })
-          .catch((err) => console.error(err))
+        await this.commandController.wait().catch((err) => console.error(err))
         await new Promise((resolve) => setTimeout(resolve, timeoutCounter))
         timeoutCounter += TIMEOUT_INCREMENT_MS
         timeoutCounter = Math.max(MAX_TIMEOUT_MS, timeoutCounter)

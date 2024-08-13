@@ -5,7 +5,39 @@ import { promisify } from "util"
 import { Buffer } from "node:buffer"
 export const execFile = promisify(cp.execFile)
 const WORKDIR = (imageId: string) => `/media/startos/images/${imageId}/`
-export class Overlay {
+
+type ExecResults = {
+  exitCode: number | null
+  exitSignal: NodeJS.Signals | null
+  stdout: string | Buffer
+  stderr: string | Buffer
+}
+
+/**
+ * This is the type that is going to describe what an overlay could do. The main point of the
+ * overlay is to have commands that run in a chrooted environment. This is useful for running
+ * commands in a containerized environment. But, I wanted the destroy to sometimes be doable, for example the
+ * case where the overlay isn't owned by the process, the overlay shouldn't be destroyed.
+ */
+export interface ExecSpawnable {
+  get destroy(): undefined | (() => Promise<void>)
+  exec(
+    command: string[],
+    options?: CommandOptions,
+    timeoutMs?: number | null,
+  ): Promise<ExecResults>
+  spawn(
+    command: string[],
+    options?: CommandOptions,
+  ): Promise<cp.ChildProcessWithoutNullStreams>
+}
+/**
+ * Want to limit what we can do in a container, so we want to launch a container with a specific image and the mounts.
+ *
+ * Implements:
+ * @see {@link ExecSpawnable}
+ */
+export class Overlay implements ExecSpawnable {
   private destroyed = false
   private constructor(
     readonly effects: T.Effects,
@@ -85,12 +117,14 @@ export class Overlay {
     return this
   }
 
-  async destroy() {
-    if (this.destroyed) return
-    this.destroyed = true
-    const imageId = this.imageId
-    const guid = this.guid
-    await this.effects.destroyOverlayedImage({ guid })
+  get destroy() {
+    return async () => {
+      if (this.destroyed) return
+      this.destroyed = true
+      const imageId = this.imageId
+      const guid = this.guid
+      await this.effects.destroyOverlayedImage({ guid })
+    }
   }
 
   async exec(
@@ -201,6 +235,32 @@ export class Overlay {
       ],
       options,
     )
+  }
+}
+
+/**
+ * Take an overlay but remove the ability to add the mounts and the destroy function.
+ * Lets other functions, like health checks, to not destroy the parents.
+ *
+ */
+export class NonDestroyableOverlay implements ExecSpawnable {
+  constructor(private overlay: ExecSpawnable) {}
+  get destroy() {
+    return undefined
+  }
+
+  exec(
+    command: string[],
+    options?: CommandOptions,
+    timeoutMs?: number | null,
+  ): Promise<ExecResults> {
+    return this.overlay.exec(command, options, timeoutMs)
+  }
+  spawn(
+    command: string[],
+    options?: CommandOptions,
+  ): Promise<cp.ChildProcessWithoutNullStreams> {
+    return this.overlay.spawn(command, options)
   }
 }
 

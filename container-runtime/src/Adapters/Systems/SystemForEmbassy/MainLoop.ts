@@ -165,14 +165,13 @@ export class MainLoop {
                   overlay,
                 }
               )
-            const shouldDestroy = container.destroy
             const executed = await container.exec(
               [
                 actionProcedure.entrypoint,
                 ...actionProcedure.args,
                 JSON.stringify(timeChanged),
               ],
-              { destroy: shouldDestroy },
+              {},
             )
             if (executed.exitCode === 0) {
               await effects.setHealth({
