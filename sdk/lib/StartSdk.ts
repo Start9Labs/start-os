@@ -319,7 +319,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       setupActions: (...createdActions: CreatedAction<any, any, any>[]) =>
         setupActions<Manifest, Store>(...createdActions),
       setupBackups: (...args: SetupBackupsParams<Manifest>) =>
-        setupBackups<Manifest>(...args),
+        setupBackups<Manifest>(this.manifest, ...args),
       setupConfig: <
         ConfigType extends Config<any, Store> | Config<any, never>,
         Type extends Record<string, any> = ExtractConfigType<ConfigType>,

@@ -8,6 +8,7 @@ export type SetupBackupsParams<M extends T.Manifest> = Array<
 >
 
 export function setupBackups<M extends T.Manifest>(
+  manifest: M,
   ...args: _<SetupBackupsParams<M>>
 ) {
   const backups = Array<Backups<M>>()
@@ -36,6 +37,7 @@ export function setupBackups<M extends T.Manifest>(
         for (const backup of backups) {
           await backup.build(options.pathMaker).restoreBackup(options)
         }
+        await options.effects.setDataVersion({ version: manifest.version })
       }) as T.ExpectedExports.restoreBackup
     },
   }
