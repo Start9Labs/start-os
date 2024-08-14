@@ -4,7 +4,7 @@ import { ErrorService } from '@start9labs/shared'
 import { CifsModal } from 'src/app/modals/cifs-modal/cifs-modal.page'
 import {
   ApiService,
-  StartOSDiskInfoWithId,
+  StartOSDiskInfoFull,
 } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../../modals/password/password.page'
@@ -16,7 +16,7 @@ import { PasswordPage } from '../../modals/password/password.page'
 })
 export class RecoverPage {
   loading = true
-  servers: StartOSDiskInfoWithId[] = []
+  servers: StartOSDiskInfoFull[] = []
 
   constructor(
     private readonly apiService: ApiService,
@@ -78,7 +78,7 @@ export class RecoverPage {
     await modal.present()
   }
 
-  async select(server: StartOSDiskInfoWithId) {
+  async select(server: StartOSDiskInfoFull) {
     const modal = await this.modalController.create({
       component: PasswordPage,
       componentProps: { passwordHash: server.passwordHash },
@@ -90,7 +90,7 @@ export class RecoverPage {
           type: 'backup',
           target: {
             type: 'disk',
-            logicalname: res.data.logicalname,
+            logicalname: server.partition.logicalname,
           },
           serverId: server.id,
           password: res.data.password,

@@ -55,10 +55,13 @@ export const matchManifest = object(
       string,
       every(
         matchProcedure,
-        object({
-          name: string,
-          ["success-message"]: string,
-        }),
+        object(
+          {
+            name: string,
+            ["success-message"]: string,
+          },
+          ["success-message"],
+        ),
       ),
     ]),
     config: object({
