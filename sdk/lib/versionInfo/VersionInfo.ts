@@ -1,4 +1,5 @@
 import { ValidateExVer } from "../exver"
+import { testOutput } from "../test/output.test"
 import * as T from "../types"
 
 export const IMPOSSIBLE = Symbol("IMPOSSIBLE")
@@ -30,6 +31,7 @@ export type VersionOptions<Version extends string> = {
 }
 
 export class VersionInfo<Version extends string> {
+  private _version: Version = null
   private constructor(
     readonly options: VersionOptions<Version> & { satisfies: string[] },
   ) {}
@@ -45,4 +47,20 @@ export class VersionInfo<Version extends string> {
       satisfies: [...this.options.satisfies, version],
     })
   }
+}
+
+function tests() {
+  const version: VersionInfo<"1.0.0:0"> = VersionInfo.of({
+    version: "1.0.0:0",
+    releaseNotes: "",
+    migrations: {},
+  })
+    .satisfies("#other:1.0.0:0")
+    .satisfies("#other:2.0.0:0")
+    // @ts-expect-error
+    .satisfies("#other:2.f.0:0")
+
+  testOutput<typeof version, VersionInfo<"1.0.0:0">>()(null)
+  // @ts-expect-error
+  testOutput<typeof version, VersionInfo<"1.0.0:3">>()(null)
 }
