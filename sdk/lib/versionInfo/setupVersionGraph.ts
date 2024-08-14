@@ -153,7 +153,7 @@ export class VersionGraph<CurrentVersion extends string> {
   }
   canMigrateFrom = once(() =>
     Array.from(
-      this.graph().reverseBfs(
+      this.graph().reverseBreadthFirstSearch(
         (v) =>
           (v.metadata instanceof VersionRange &&
             v.metadata.satisfiedBy(this.currentVersion())) ||
@@ -172,7 +172,7 @@ export class VersionGraph<CurrentVersion extends string> {
   )
   canMigrateTo = once(() =>
     Array.from(
-      this.graph().bfs(
+      this.graph().breadthFirstSearch(
         (v) =>
           (v.metadata instanceof VersionRange &&
             v.metadata.satisfiedBy(this.currentVersion())) ||

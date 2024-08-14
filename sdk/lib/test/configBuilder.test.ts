@@ -405,7 +405,6 @@ describe("values", () => {
             VersionGraph.of(
               VersionInfo.of({
                 version: "1.0.0:0",
-                satisfies: [],
                 releaseNotes: "",
                 migrations: {},
               }),

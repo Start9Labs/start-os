@@ -1,4 +1,4 @@
-import { ExtendedVersion, ValidateExVer } from "../exver"
+import { ValidateExVer } from "../exver"
 import * as T from "../types"
 
 export const IMPOSSIBLE = Symbol("IMPOSSIBLE")
@@ -8,8 +8,6 @@ export type VersionOptions<Version extends string> = {
   version: Version & ValidateExVer<Version>
   /** The release notes for this version */
   releaseNotes: string
-  /** The versions that this version is 100% backwards compatible to */
-  satisfies: string[]
   /** Data migrations for this version */
   migrations: {
     /**
@@ -32,8 +30,19 @@ export type VersionOptions<Version extends string> = {
 }
 
 export class VersionInfo<Version extends string> {
-  constructor(readonly options: VersionOptions<Version>) {}
+  private constructor(
+    readonly options: VersionOptions<Version> & { satisfies: string[] },
+  ) {}
   static of<Version extends string>(options: VersionOptions<Version>) {
-    return new VersionInfo<Version>(options)
+    return new VersionInfo<Version>({ ...options, satisfies: [] })
+  }
+  /** Specify a version that this version is 100% backwards compatible to */
+  satisfies<V extends string>(
+    version: V & ValidateExVer<V>,
+  ): VersionInfo<Version> {
+    return new VersionInfo({
+      ...this.options,
+      satisfies: [...this.options.satisfies, version],
+    })
   }
 }

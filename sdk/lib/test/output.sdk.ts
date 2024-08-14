@@ -44,10 +44,11 @@ export const sdk = StartSdk.of()
       VersionGraph.of(
         VersionInfo.of({
           version: "1.0.0:0",
-          satisfies: [],
           releaseNotes: "",
           migrations: {},
-        }),
+        })
+          .satisfies("#other:1.0.0:0")
+          .satisfies("#other:2.0.0:0"),
       ),
     ),
   )

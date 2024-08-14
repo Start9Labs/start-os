@@ -12,7 +12,7 @@ export type Edge<EMetadata = void, VMetadata = void> = {
 }
 
 export class Graph<VMetadata = void, EMetadata = void> {
-  private readonly veritces: Array<Vertex<VMetadata, EMetadata>> = []
+  private readonly vertices: Array<Vertex<VMetadata, EMetadata>> = []
   constructor() {}
   addVertex(
     metadata: VMetadata,
@@ -41,13 +41,13 @@ export class Graph<VMetadata = void, EMetadata = void> {
       edge.to.edges.push(vEdge)
       vertex.edges.push(vEdge)
     }
-    this.veritces.push(vertex)
+    this.vertices.push(vertex)
     return vertex
   }
   findVertex(
     predicate: (vertex: Vertex<VMetadata, EMetadata>) => boolean,
   ): Generator<Vertex<VMetadata, EMetadata>, void> {
-    const veritces = this.veritces
+    const veritces = this.vertices
     function* gen() {
       for (let vertex of veritces) {
         if (predicate(vertex)) {
@@ -71,7 +71,7 @@ export class Graph<VMetadata = void, EMetadata = void> {
     edge.to.edges.push(edge)
     return edge
   }
-  bfs(
+  breadthFirstSearch(
     from:
       | Vertex<VMetadata, EMetadata>
       | ((vertex: Vertex<VMetadata, EMetadata>) => boolean),
@@ -102,7 +102,7 @@ export class Graph<VMetadata = void, EMetadata = void> {
     }
 
     if (from instanceof Function) {
-      let generators = this.veritces.filter(from).map(rec)
+      let generators = this.vertices.filter(from).map(rec)
       return (function* () {
         while (generators.length) {
           let prev = generators
@@ -120,7 +120,7 @@ export class Graph<VMetadata = void, EMetadata = void> {
       return rec(from)
     }
   }
-  reverseBfs(
+  reverseBreadthFirstSearch(
     to:
       | Vertex<VMetadata, EMetadata>
       | ((vertex: Vertex<VMetadata, EMetadata>) => boolean),
@@ -151,7 +151,7 @@ export class Graph<VMetadata = void, EMetadata = void> {
     }
 
     if (to instanceof Function) {
-      let generators = this.veritces.filter(to).map(rec)
+      let generators = this.vertices.filter(to).map(rec)
       return (function* () {
         while (generators.length) {
           let prev = generators
@@ -216,7 +216,7 @@ export class Graph<VMetadata = void, EMetadata = void> {
     }
 
     if (from instanceof Function) {
-      let generators = this.veritces.filter(from).map((v) => check(v, []))
+      let generators = this.vertices.filter(from).map((v) => check(v, []))
       while (generators.length) {
         let prev = generators
         generators = []

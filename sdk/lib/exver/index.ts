@@ -16,9 +16,9 @@ export type ValidateExVer<T extends string> =
 
 // prettier-ignore
 export type ValidateExVers<T> =
-  T extends [] ? unknown :
+  T extends [] ? unknown[] :
   T extends [infer A, ...infer B] ? ValidateExVer<A & string> & ValidateExVers<B> :
-  never
+  never[]
 
 type Anchor = {
   type: "Anchor"
