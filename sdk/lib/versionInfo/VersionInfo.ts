@@ -1,5 +1,4 @@
 import { ValidateExVer } from "../exver"
-import { testOutput } from "../test/output.test"
 import * as T from "../types"
 
 export const IMPOSSIBLE = Symbol("IMPOSSIBLE")
@@ -49,7 +48,7 @@ export class VersionInfo<Version extends string> {
   }
 }
 
-function tests() {
+function __type_tests() {
   const version: VersionInfo<"1.0.0:0"> = VersionInfo.of({
     version: "1.0.0:0",
     releaseNotes: "",
@@ -60,9 +59,9 @@ function tests() {
     // @ts-expect-error
     .satisfies("#other:2.f.0:0")
 
-  testOutput<typeof version, VersionInfo<"1.0.0:0">>()(null)
+  let a: VersionInfo<"1.0.0:0"> = version
   // @ts-expect-error
-  testOutput<typeof version, VersionInfo<"1.0.0:3">>()(null)
+  let b: VersionInfo<"1.0.0:3"> = version
 
   VersionInfo.of({
     // @ts-expect-error
