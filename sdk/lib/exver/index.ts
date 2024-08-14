@@ -3,7 +3,7 @@ import * as P from "./exver"
 // prettier-ignore
 export type ValidateVersion<T extends String> = 
 T extends `-${infer A}` ? never  :
-T extends `${infer A}-${infer B}` ? ValidateVersion<A> & ValidateVersion<B> :
+T extends `${infer A}-${string}` ? ValidateVersion<A> :
   T extends `${bigint}` ? unknown :
   T extends `${bigint}.${infer A}` ? ValidateVersion<A> :
   never

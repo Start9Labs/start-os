@@ -2,6 +2,7 @@ import * as T from "../types"
 import { ImageConfig, ImageId, VolumeId } from "../osBindings"
 import { SDKManifest, SDKImageConfig } from "./ManifestTypes"
 import { SDKVersion } from "../StartSdk"
+import { VersionGraph } from "../versionInfo/setupVersionGraph"
 
 /**
  * This is an example of a function that takes a manifest and returns a new manifest with additional properties
@@ -21,10 +22,12 @@ export function setupManifest<
     assets: AssetTypes[]
     images: Record<ImagesTypes, SDKImageConfig>
     volumes: VolumesTypes[]
-    version: Version
   },
   Satisfies extends string[] = [],
->(manifest: SDKManifest<Version, Satisfies> & Manifest): Manifest & T.Manifest {
+>(
+  manifest: SDKManifest & Manifest,
+  versions: VersionGraph<Version>,
+): Manifest & T.Manifest {
   const images = Object.entries(manifest.images).reduce(
     (images, [k, v]) => {
       v.arch = v.arch || ["aarch64", "x86_64"]
@@ -39,7 +42,11 @@ export function setupManifest<
     ...manifest,
     gitHash: null,
     osVersion: SDKVersion,
-    satisfies: manifest.satisfies || [],
+    version: versions.current.options.version,
+    releaseNotes: versions.current.options.releaseNotes,
+    satisfies: versions.current.options.satisfies || [],
+    canMigrateTo: versions.canMigrateTo().toString(),
+    canMigrateFrom: versions.canMigrateFrom().toString(),
     images,
     alerts: {
       install: manifest.alerts?.install || null,

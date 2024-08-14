@@ -7,22 +7,11 @@ import {
   ImageSource,
 } from "../types"
 
-export type SDKManifest<
-  Version extends string,
-  Satisfies extends string[] = [],
-> = {
+export type SDKManifest = {
   /**  The package identifier used by the OS. This must be unique amongst all other known packages */
   readonly id: string
   /** A human readable service title */
   readonly title: string
-  /** Service version - accepts up to four digits, where the last confirms to revisions necessary for StartOs
-   * - see documentation: https://github.com/Start9Labs/emver-rs. This value will change with each release of
-   * the service
-   */
-  readonly version: Version & ValidateExVer<Version>
-  readonly satisfies?: Satisfies & ValidateExVers<Satisfies>
-  /** Release notes for the update - can be a string, paragraph or URL */
-  readonly releaseNotes: string
   /** The type of license for the project. Include the LICENSE in the root of the project directory. A license is required for a Start9 package.*/
   readonly license: string // name of license
   /** The Start9 wrapper repository URL for the package. This repo contains the manifest file (this),

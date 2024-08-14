@@ -6,6 +6,8 @@ import { Variants } from "../config/builder/variants"
 import { ValueSpec } from "../config/configTypes"
 import { setupManifest } from "../manifest/setupManifest"
 import { StartSdk } from "../StartSdk"
+import { VersionGraph } from "../versionInfo/setupVersionGraph"
+import { VersionInfo } from "../versionInfo/VersionInfo"
 
 describe("builder tests", () => {
   test("text", async () => {
@@ -366,42 +368,49 @@ describe("values", () => {
     test("datetime", async () => {
       const sdk = StartSdk.of()
         .withManifest(
-          setupManifest({
-            id: "testOutput",
-            title: "",
-            version: "1.0.0:0",
-            releaseNotes: "",
-            license: "",
-            replaces: [],
-            wrapperRepo: "",
-            upstreamRepo: "",
-            supportSite: "",
-            marketingSite: "",
-            donationUrl: null,
-            description: {
-              short: "",
-              long: "",
-            },
-            containers: {},
-            images: {},
-            volumes: [],
-            assets: [],
-            alerts: {
-              install: null,
-              update: null,
-              uninstall: null,
-              restore: null,
-              start: null,
-              stop: null,
-            },
-            dependencies: {
-              "remote-test": {
-                description: "",
-                optional: true,
-                s9pk: "https://example.com/remote-test.s9pk",
+          setupManifest(
+            {
+              id: "testOutput",
+              title: "",
+              license: "",
+              wrapperRepo: "",
+              upstreamRepo: "",
+              supportSite: "",
+              marketingSite: "",
+              donationUrl: null,
+              description: {
+                short: "",
+                long: "",
+              },
+              containers: {},
+              images: {},
+              volumes: [],
+              assets: [],
+              alerts: {
+                install: null,
+                update: null,
+                uninstall: null,
+                restore: null,
+                start: null,
+                stop: null,
+              },
+              dependencies: {
+                "remote-test": {
+                  description: "",
+                  optional: true,
+                  s9pk: "https://example.com/remote-test.s9pk",
+                },
               },
             },
-          }),
+            VersionGraph.of(
+              VersionInfo.of({
+                version: "1.0.0:0",
+                satisfies: [],
+                releaseNotes: "",
+                migrations: {},
+              }),
+            ),
+          ),
         )
         .withStore<{ test: "a" }>()
         .build(true)

@@ -72,6 +72,23 @@ export class Overlay implements ExecSpawnable {
     return new Overlay(effects, id, rootfs, guid)
   }
 
+  static async with<T>(
+    effects: T.Effects,
+    image: { id: T.ImageId; sharedRun?: boolean },
+    mounts: { options: MountOptions; path: string }[],
+    fn: (overlay: Overlay) => Promise<T>,
+  ): Promise<T> {
+    const overlay = await Overlay.of(effects, image)
+    try {
+      for (let mount of mounts) {
+        await overlay.mount(mount.options, mount.path)
+      }
+      return await fn(overlay)
+    } finally {
+      await overlay.destroy()
+    }
+  }
+
   async mount(options: MountOptions, path: string): Promise<Overlay> {
     path = path.startsWith("/")
       ? `${this.rootfs}${path}`
