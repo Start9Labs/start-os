@@ -63,4 +63,17 @@ function tests() {
   testOutput<typeof version, VersionInfo<"1.0.0:0">>()(null)
   // @ts-expect-error
   testOutput<typeof version, VersionInfo<"1.0.0:3">>()(null)
+
+  VersionInfo.of({
+    // @ts-expect-error
+    version: "test",
+    releaseNotes: "",
+    migrations: {},
+  })
+  VersionInfo.of({
+    // @ts-expect-error
+    version: "test" as string,
+    releaseNotes: "",
+    migrations: {},
+  })
 }
