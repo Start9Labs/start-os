@@ -92,7 +92,7 @@ pub async fn set_store(
     Ok(())
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SetDataVersionParams {

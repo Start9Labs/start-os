@@ -164,6 +164,25 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
         // store
         .subcommand("getStore", from_fn_async(store::get_store).no_cli())
         .subcommand("setStore", from_fn_async(store::set_store).no_cli())
+        .subcommand(
+            "setDataVersion",
+            from_fn_async(store::set_data_version)
+                .no_display()
+                .with_call_remote::<ContainerCliContext>(),
+        )
+        .subcommand(
+            "getDataVersion",
+            from_fn_async(store::get_data_version)
+                .with_custom_display_fn(|_, v| {
+                    if let Some(v) = v {
+                        println!("{v}")
+                    } else {
+                        println!("N/A")
+                    }
+                    Ok(())
+                })
+                .with_call_remote::<ContainerCliContext>(),
+        )
         // system
         .subcommand(
             "getSystemSmtp",
