@@ -145,9 +145,7 @@ export class SystemForStartOs implements System {
   ): Promise<unknown> {
     switch (options.procedure) {
       case "/init": {
-        const previousVersion =
-          string.optional().unsafeCast(options.input) || null
-        return this.abi.init({ effects, previousVersion })
+        return this.abi.init({ effects })
       }
       case "/uninit": {
         const nextVersion = string.optional().unsafeCast(options.input) || null

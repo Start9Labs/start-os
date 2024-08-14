@@ -284,6 +284,16 @@ function makeEffects(context: EffectContext): Effects {
       set: async (options: any) =>
         rpcRound("setStore", options) as ReturnType<T.Effects["store"]["set"]>,
     } as T.Effects["store"],
+    getDataVersion() {
+      return rpcRound("getDataVersion", {}) as ReturnType<
+        T.Effects["getDataVersion"]
+      >
+    },
+    setDataVersion(...[options]: Parameters<T.Effects["setDataVersion"]>) {
+      return rpcRound("setDataVersion", options) as ReturnType<
+        T.Effects["setDataVersion"]
+      >
+    },
   }
   return self
 }
