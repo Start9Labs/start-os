@@ -31,7 +31,7 @@ export type VersionOptions<Version extends string> = {
 }
 
 export class VersionInfo<Version extends string> {
-  private _version: Version = null
+  private _version: null | Version = null
   private constructor(
     readonly options: VersionOptions<Version> & { satisfies: string[] },
   ) {}
