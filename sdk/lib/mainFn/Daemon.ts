@@ -1,5 +1,6 @@
 import * as T from "../types"
-import { MountOptions, Overlay } from "../util/Overlay"
+import { asError } from "../util/asError"
+import { ExecSpawnable, MountOptions, Overlay } from "../util/Overlay"
 import { CommandController } from "./CommandController"
 
 const TIMEOUT_INCREMENT_MS = 1000
@@ -12,7 +13,10 @@ const MAX_TIMEOUT_MS = 30000
 export class Daemon {
   private commandController: CommandController | null = null
   private shouldBeRunning = false
-  private constructor(private startCommand: () => Promise<CommandController>) {}
+  constructor(private startCommand: () => Promise<CommandController>) {}
+  get overlay(): undefined | ExecSpawnable {
+    return this.commandController?.nonDestroyableOverlay
+  }
   static of<Manifest extends T.Manifest>() {
     return async <A extends string>(
       effects: T.Effects,
@@ -41,7 +45,6 @@ export class Daemon {
       return new Daemon(startCommand)
     }
   }
-
   async start() {
     if (this.commandController) {
       return
@@ -57,7 +60,7 @@ export class Daemon {
         timeoutCounter = Math.max(MAX_TIMEOUT_MS, timeoutCounter)
       }
     }).catch((err) => {
-      console.error(err)
+      console.error(asError(err))
     })
   }
   async term(termOptions?: {
@@ -72,8 +75,8 @@ export class Daemon {
   }) {
     this.shouldBeRunning = false
     await this.commandController
-      ?.term(termOptions)
-      .catch((e) => console.error(e))
+      ?.term({ ...termOptions })
+      .catch((e) => console.error(asError(e)))
     this.commandController = null
   }
 }

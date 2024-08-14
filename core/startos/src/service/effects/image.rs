@@ -34,7 +34,7 @@ pub fn chroot<C: Context>(
         args,
     }: ChrootParams,
 ) -> Result<(), Error> {
-    let mut cmd = std::process::Command::new(command);
+    let mut cmd: std::process::Command = std::process::Command::new(command);
     if let Some(env) = env {
         for (k, v) in std::fs::read_to_string(env)?
             .lines()

@@ -194,7 +194,7 @@ export class SystemForEmbassy implements System {
     const moduleCode = await import(EMBASSY_JS_LOCATION)
       .catch((_) => require(EMBASSY_JS_LOCATION))
       .catch(async (_) => {
-        console.error("Could not load the js")
+        console.error(utils.asError("Could not load the js"))
         console.error({
           exists: await fs.stat(EMBASSY_JS_LOCATION),
         })
@@ -798,17 +798,18 @@ export class SystemForEmbassy implements System {
     const actionProcedure = this.manifest.actions?.[actionId]?.implementation
     if (!actionProcedure) return { message: "Action not found", value: null }
     if (actionProcedure.type === "docker") {
-      const container =
-        actionProcedure.inject && this.currentRunning?.mainDockerContainer
-          ? this.currentRunning?.mainDockerContainer
-          : await DockerProcedureContainer.of(
-              effects,
-              this.manifest.id,
-              actionProcedure,
-              this.manifest.volumes,
-            )
-      const shouldDestroy =
-        container !== this.currentRunning?.mainDockerContainer
+      const overlay = actionProcedure.inject
+        ? this.currentRunning?.mainOverlay
+        : undefined
+      const container = await DockerProcedureContainer.of(
+        effects,
+        this.manifest.id,
+        actionProcedure,
+        this.manifest.volumes,
+        {
+          overlay,
+        },
+      )
       return JSON.parse(
         (
           await container.execFail(
@@ -818,7 +819,6 @@ export class SystemForEmbassy implements System {
               JSON.stringify(formData),
             ],
             timeoutMs,
-            { destroy: shouldDestroy },
           )
         ).stdout.toString(),
       )
@@ -987,7 +987,10 @@ async function updateConfig(
           })
           .once()
           .catch((x) => {
-            console.error("Could not get the service interface", x)
+            console.error(
+              "Could not get the service interface",
+              utils.asError(x),
+            )
             return null
           })
         const catchFn = <X>(fn: () => X) => {

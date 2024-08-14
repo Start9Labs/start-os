@@ -2,6 +2,7 @@ import * as T from "../types"
 
 import * as child_process from "child_process"
 import { promises as fsPromises } from "fs"
+import { asError } from "../util"
 
 export type BACKUP = "BACKUP"
 export const DEFAULT_OPTIONS: T.BackupOptions = {
@@ -183,7 +184,7 @@ async function runRsync(
   })
 
   spawned.stderr.on("data", (data: unknown) => {
-    console.error(String(data))
+    console.error(`Backups.runAsync`, asError(data))
   })
 
   const id = async () => {

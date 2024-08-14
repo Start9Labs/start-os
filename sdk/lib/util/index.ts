@@ -7,6 +7,7 @@ import "./Overlay"
 import "./once"
 
 export { GetServiceInterface, getServiceInterface } from "./getServiceInterface"
+export { asError } from "./asError"
 export { getServiceInterfaces } from "./getServiceInterfaces"
 export { addressHostToUrl } from "./getServiceInterface"
 export { hostnameInfoToAddress } from "./Hostname"

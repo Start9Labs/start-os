@@ -5,6 +5,7 @@ import { T, utils } from "@start9labs/start-sdk"
 import { Daemon } from "@start9labs/start-sdk/cjs/lib/mainFn/Daemon"
 import { Effects } from "../../../Models/Effects"
 import { off } from "node:process"
+import { CommandController } from "@start9labs/start-sdk/cjs/lib/mainFn/CommandController"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
 const EMBASSY_PROPERTIES_LOOP = 30 * 1000
@@ -14,9 +15,8 @@ const EMBASSY_PROPERTIES_LOOP = 30 * 1000
  * Also, this has an ability to clean itself up too if need be.
  */
 export class MainLoop {
-  private _mainDockerContainer?: DockerProcedureContainer
-  get mainDockerContainer() {
-    return this._mainDockerContainer
+  get mainOverlay() {
+    return this.mainEvent?.daemon?.overlay
   }
   private healthLoops?: {
     name: string
@@ -52,27 +52,33 @@ export class MainLoop {
     await this.setupInterfaces(effects)
     await effects.setMainStatus({ status: "running" })
     const jsMain = (this.system.moduleCode as any)?.jsMain
-    const dockerProcedureContainer = await DockerProcedureContainer.of(
-      effects,
-      this.system.manifest.id,
-      this.system.manifest.main,
-      this.system.manifest.volumes,
-    )
-    this._mainDockerContainer = dockerProcedureContainer
     if (jsMain) {
       throw new Error("Unreachable")
     }
-    const daemon = await Daemon.of()(
-      this.effects,
-      { id: this.system.manifest.main.image },
-      currentCommand,
-      {
-        overlay: dockerProcedureContainer.overlay,
-        sigtermTimeout: utils.inMs(
-          this.system.manifest.main["sigterm-timeout"],
-        ),
-      },
-    )
+    const daemon = new Daemon(async () => {
+      const overlay = await DockerProcedureContainer.createOverlay(
+        effects,
+        this.system.manifest.id,
+        this.system.manifest.main,
+        this.system.manifest.volumes,
+      )
+      return CommandController.of()(
+        this.effects,
+
+        { id: this.system.manifest.main.image },
+        currentCommand,
+        {
+          overlay,
+          env: {
+            TINI_SUBREAPER: "true",
+          },
+          sigtermTimeout: utils.inMs(
+            this.system.manifest.main["sigterm-timeout"],
+          ),
+        },
+      )
+    })
+
     daemon.start()
     return {
       daemon,
@@ -128,10 +134,11 @@ export class MainLoop {
     const main = await mainEvent
     delete this.mainEvent
     delete this.healthLoops
-    await main?.daemon.stop().catch((e) => console.error(e))
+    await main?.daemon
+      .stop()
+      .catch((e) => console.error(`Main loop error`, utils.asError(e)))
     this.effects.setMainStatus({ status: "stopped" })
     if (healthLoops) healthLoops.forEach((x) => clearInterval(x.interval))
-    delete this._mainDockerContainer
   }
 
   private constructHealthLoops() {
@@ -144,24 +151,27 @@ export class MainLoop {
           const actionProcedure = value
           const timeChanged = Date.now() - start
           if (actionProcedure.type === "docker") {
+            const overlay = actionProcedure.inject
+              ? this.mainOverlay
+              : undefined
             // prettier-ignore
             const container = 
-              actionProcedure.inject && this._mainDockerContainer ?
-              this._mainDockerContainer :
               await DockerProcedureContainer.of(
                 effects,
                 manifest.id,
                 actionProcedure,
                 manifest.volumes,
+                {
+                  overlay,
+                }
               )
-            const shouldDestroy = container !== this._mainDockerContainer
             const executed = await container.exec(
               [
                 actionProcedure.entrypoint,
                 ...actionProcedure.args,
                 JSON.stringify(timeChanged),
               ],
-              { destroy: shouldDestroy },
+              {},
             )
             if (executed.exitCode === 0) {
               await effects.setHealth({

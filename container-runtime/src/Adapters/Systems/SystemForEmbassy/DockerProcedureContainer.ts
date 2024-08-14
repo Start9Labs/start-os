@@ -4,15 +4,31 @@ import { Overlay, types as T } from "@start9labs/start-sdk"
 import { promisify } from "util"
 import { DockerProcedure, VolumeId } from "../../../Models/DockerProcedure"
 import { Volume } from "./matchVolume"
+import { ExecSpawnable } from "@start9labs/start-sdk/cjs/lib/util/Overlay"
 export const exec = promisify(cp.exec)
 export const execFile = promisify(cp.execFile)
 
 export class DockerProcedureContainer {
-  private constructor(readonly overlay: Overlay) {}
-  // static async readonlyOf(data: DockerProcedure) {
-  //   return DockerProcedureContainer.of(data, ["-o", "ro"])
-  // }
+  private constructor(private readonly overlay: ExecSpawnable) {}
+
   static async of(
+    effects: T.Effects,
+    packageId: string,
+    data: DockerProcedure,
+    volumes: { [id: VolumeId]: Volume },
+    options: { overlay?: ExecSpawnable } = {},
+  ) {
+    const overlay =
+      options?.overlay ??
+      (await DockerProcedureContainer.createOverlay(
+        effects,
+        packageId,
+        data,
+        volumes,
+      ))
+    return new DockerProcedureContainer(overlay)
+  }
+  static async createOverlay(
     effects: T.Effects,
     packageId: string,
     data: DockerProcedure,
@@ -84,23 +100,18 @@ export class DockerProcedureContainer {
         }
       }
     }
-
-    return new DockerProcedureContainer(overlay)
+    return overlay
   }
 
-  async exec(commands: string[], { destroy = true } = {}) {
+  async exec(commands: string[], {} = {}) {
     try {
       return await this.overlay.exec(commands)
     } finally {
-      if (destroy) await this.overlay.destroy()
+      await this.overlay.destroy?.()
     }
   }
 
-  async execFail(
-    commands: string[],
-    timeoutMs: number | null,
-    { destroy = true } = {},
-  ) {
+  async execFail(commands: string[], timeoutMs: number | null, {} = {}) {
     try {
       const res = await this.overlay.exec(commands, {}, timeoutMs)
       if (res.exitCode !== 0) {
@@ -114,7 +125,7 @@ export class DockerProcedureContainer {
       }
       return res
     } finally {
-      if (destroy) await this.overlay.destroy()
+      await this.overlay.destroy?.()
     }
   }
 
