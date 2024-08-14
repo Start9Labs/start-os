@@ -426,6 +426,7 @@ function tests() {
   testTypeVersion("12.34.56")
   testTypeVersion("1.2-3")
   testTypeVersion("1-3")
+  testTypeVersion("1-alpha")
   // @ts-expect-error
   testTypeVersion("-3")
   // @ts-expect-error
