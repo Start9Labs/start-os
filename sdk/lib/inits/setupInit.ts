@@ -9,7 +9,7 @@ import { Install } from "./setupInstall"
 import { Uninstall } from "./setupUninstall"
 
 export function setupInit<Manifest extends T.Manifest, Store>(
-  migrations: VersionGraph<Manifest["version"]>,
+  versions: VersionGraph<Manifest["version"]>,
   install: Install<Manifest, Store>,
   uninstall: Uninstall<Manifest, Store>,
   setInterfaces: SetInterfaces<Manifest, Store, any, any>,
@@ -26,15 +26,15 @@ export function setupInit<Manifest extends T.Manifest, Store>(
     init: async (opts) => {
       const prev = await opts.effects.getDataVersion()
       if (prev) {
-        await migrations.migrate({
+        await versions.migrate({
           effects: opts.effects,
           from: ExtendedVersion.parse(prev),
-          to: migrations.currentVersion(),
+          to: versions.currentVersion(),
         })
       } else {
-        await install.init(opts)
+        await install.install(opts)
         await opts.effects.setDataVersion({
-          version: migrations.current.options.version,
+          version: versions.current.options.version,
         })
       }
       await setInterfaces({
@@ -48,14 +48,14 @@ export function setupInit<Manifest extends T.Manifest, Store>(
       if (opts.nextVersion) {
         const prev = await opts.effects.getDataVersion()
         if (prev) {
-          await migrations.migrate({
+          await versions.migrate({
             effects: opts.effects,
             from: ExtendedVersion.parse(prev),
             to: ExtendedVersion.parse(opts.nextVersion),
           })
         }
       } else {
-        await uninstall.uninit(opts)
+        await uninstall.uninstall(opts)
       }
     },
   }
