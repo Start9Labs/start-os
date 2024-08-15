@@ -138,6 +138,8 @@ pub struct ServerInfo {
     pub zram: bool,
     pub governor: Option<Governor>,
     pub smtp: Option<SmtpValue>,
+    // TODO: RAM
+    // TODO: Devices
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
