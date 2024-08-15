@@ -10,6 +10,7 @@ cifs-utils
 cryptsetup
 curl
 dmidecode
+dnsutils
 dosfstools
 e2fsprogs
 ecryptfs-utils
@@ -53,6 +54,8 @@ systemd-resolved
 systemd-sysv
 systemd-timesyncd
 tor
+ufw
 util-linux
 vim
+wireguard-tools
 wireless-tools
