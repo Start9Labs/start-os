@@ -1,8 +1,23 @@
 <div class="background-border box-shadow-lg shadow-color-light">
   <div class="box-container">
+    <h2 class="additional-detail-title">New in {{ pkg.version }}</h2>
+    <p [innerHTML]="pkg.releaseNotes | markdown"></p>
+    <button tuiButton iconEnd="@tui.chevron-right" (click)="onPast()">
+      Past Release Notes
+    </button>
+  </div>
+  <div class="box-container">
     <h2 class="additional-detail-title">About</h2>
-    <p>
-      {{ pkg.manifest.description.long }}
-    </p>
+    <p>{{ pkg.description.long }}</p>
+    <a
+      *ngIf="pkg.marketingSite as url"
+      tuiButton
+      iconEnd="@tui.external-link"
+      target="_blank"
+      rel="noreferrer"
+      [href]="url"
+    >
+      View website
+    </a>
   </div>
 </div>

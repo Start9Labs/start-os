@@ -1,7 +1,12 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  Input,
+} from '@angular/core'
+import { TuiDialogService } from '@taiga-ui/core'
+import { RELEASE_NOTES } from '../../../modals/release-notes.component'
 import { MarketplacePkg } from '../../../types'
-import { ModalController } from '@ionic/angular'
-import { ReleaseNotesComponent } from '../../../modals/release-notes/release-notes.component'
 
 @Component({
   selector: 'marketplace-about',
@@ -10,17 +15,14 @@ import { ReleaseNotesComponent } from '../../../modals/release-notes/release-not
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AboutComponent {
+  private readonly dialogs = inject(TuiDialogService)
+
   @Input({ required: true })
   pkg!: MarketplacePkg
 
-  constructor(private readonly modalCtrl: ModalController) {}
-
-  async presentModalNotes() {
-    const modal = await this.modalCtrl.create({
-      componentProps: { pkg: this.pkg },
-      component: ReleaseNotesComponent,
-    })
-
-    await modal.present()
+  async onPast() {
+    this.dialogs
+      .open(RELEASE_NOTES, { label: 'Past Release Notes' })
+      .subscribe()
   }
 }

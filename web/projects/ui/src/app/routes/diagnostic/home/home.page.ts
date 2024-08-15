@@ -1,6 +1,6 @@
 import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { Component, Inject } from '@angular/core'
-import { WINDOW } from '@ng-web-apis/common'
+import { WA_WINDOW } from '@ng-web-apis/common'
 import { LoadingService } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
 import { filter } from 'rxjs'
@@ -24,7 +24,7 @@ export class HomePage {
     private readonly loader: LoadingService,
     private readonly api: ApiService,
     private readonly dialogs: TuiDialogService,
-    @Inject(WINDOW) private readonly window: Window,
+    @Inject(WA_WINDOW) private readonly window: Window,
   ) {}
 
   async ngOnInit() {

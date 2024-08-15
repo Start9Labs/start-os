@@ -65,5 +65,5 @@ import { RouterPortComponent } from './table.component'
   ],
 })
 export class SettingsRouterComponent {
-  readonly server$ = inject(PatchDB<DataModel>).watch$('serverInfo')
+  readonly server$ = inject<PatchDB<DataModel>>(PatchDB).watch$('serverInfo')
 }

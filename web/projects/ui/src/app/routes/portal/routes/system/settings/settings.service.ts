@@ -39,7 +39,7 @@ export class SettingsService {
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly formDialog = inject(FormDialogService)
-  private readonly patch = inject(PatchDB<DataModel>)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly api = inject(ApiService)
   private readonly auth = inject(AuthService)
   private readonly isTor = inject(ConfigService).isTor()

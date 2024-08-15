@@ -7,7 +7,7 @@ import {
   inject,
   Input,
 } from '@angular/core'
-import { WINDOW } from '@ng-web-apis/common'
+import { WA_WINDOW } from '@ng-web-apis/common'
 import { CopyService } from '@start9labs/shared'
 import { TuiDialogService, TuiTitle, TuiButton } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -68,7 +68,7 @@ import { AddressesService } from './interface.utils'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AddressItemComponent {
-  private readonly window = inject(WINDOW)
+  private readonly window = inject(WA_WINDOW)
   private readonly dialogs = inject(TuiDialogService)
 
   readonly service = inject(AddressesService)

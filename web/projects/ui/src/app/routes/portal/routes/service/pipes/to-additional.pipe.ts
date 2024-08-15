@@ -74,11 +74,7 @@ export class ToAdditionalPipe implements PipeTransform {
         label: 'License',
         size: 'l',
         data: {
-          content: from(
-            this.api.getStatic(
-              `/public/package-data/${id}/${version}/LICENSE.md`,
-            ),
-          ),
+          content: from(this.api.getStaticInstalled(id, 'LICENSE.md')),
         },
       })
       .subscribe()

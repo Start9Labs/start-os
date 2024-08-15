@@ -14,7 +14,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
-  private readonly patch = inject(PatchDB<DataModel>)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
   private readonly dialogs = inject(TuiDialogService)

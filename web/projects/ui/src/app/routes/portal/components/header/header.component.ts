@@ -166,7 +166,7 @@ import { BreadcrumbsService } from 'src/app/services/breadcrumbs.service'
 export class HeaderComponent {
   readonly options = OPTIONS
   readonly breadcrumbs$ = inject(BreadcrumbsService)
-  readonly snekScore$ = inject(PatchDB<DataModel>).watch$(
+  readonly snekScore$ = inject<PatchDB<DataModel>>(PatchDB).watch$(
     'ui',
     'gaming',
     'snake',

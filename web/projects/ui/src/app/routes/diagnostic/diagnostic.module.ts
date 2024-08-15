@@ -17,4 +17,4 @@ const ROUTES: Routes = [
 @NgModule({
   imports: [RouterModule.forChild(ROUTES)],
 })
-export class DiagnosticModule {}
+export default class DiagnosticModule {}

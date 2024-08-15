@@ -17,7 +17,7 @@ import { PatchMonitorService } from './services/patch-monitor.service'
 })
 export class AppComponent implements OnInit {
   private readonly title = inject(Title)
-  private readonly patch = inject(PatchDB<DataModel>)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
   readonly auth = inject(AuthService)
   readonly theme$ = inject(THEME)
@@ -29,7 +29,7 @@ export class AppComponent implements OnInit {
     .subscribe()
 
   readonly offline$ = combineLatest([
-    inject(ConnectionService).connected$,
+    inject(ConnectionService),
     this.auth.isVerified$,
     this.patch
       .watch$('serverInfo', 'statusInfo')

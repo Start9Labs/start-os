@@ -1,10 +1,5 @@
 import { Injectable } from '@angular/core'
-import {
-  pauseFor,
-  Log,
-  RPCErrorDetails,
-  RPCOptions,
-} from '@start9labs/shared'
+import { pauseFor, Log, RPCErrorDetails, RPCOptions } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import {
   Operation,
@@ -280,6 +275,17 @@ export class MockApiService extends ApiService {
   }
 
   // server
+
+  openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
+    return interval(50).pipe(
+      map((_, index) => {
+        // mock fire open observer
+        if (index === 0) config.openObserver?.next(new Event(''))
+        if (index === 100) throw new Error('HAAHHA')
+        return Mock.ServerLogs[0]
+      }),
+    )
+  }
 
   openMetricsWebsocket$(
     config: WebSocketSubjectConfig<Metrics>,

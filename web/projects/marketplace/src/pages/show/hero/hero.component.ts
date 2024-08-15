@@ -18,26 +18,26 @@ import { MarketplacePkg, StoreIdentity } from '../../../types'
         <!-- icon -->
         <img
           [src]="determineIcon(marketplace) | trustUrl"
-          alt="{{ pkg.manifest.title }} Icon"
+          alt="{{ pkg.title }} Icon"
         />
         <!-- color background -->
         <div class="color-background">
           <img
             [src]="determineIcon(marketplace) | trustUrl"
-            alt="{{ pkg.manifest.title }} background image"
+            alt="{{ pkg.title }} background image"
           />
         </div>
         <!-- background darkening overlay -->
         <div class="dark-overlay"></div>
         <div class="inner-container-title">
           <h2 ticker>
-            {{ pkg.manifest.title }}
+            {{ pkg.title }}
           </h2>
           <h3>
-            {{ pkg.manifest.version }}
+            {{ pkg.version }}
           </h3>
           <p>
-            {{ pkg.manifest.description.short }}
+            {{ pkg.description.short }}
           </p>
         </div>
         <!-- control buttons -->
@@ -175,7 +175,7 @@ export class MarketplacePackageHeroComponent {
       const iconUrl = new URL(this.pkg.icon)
       return iconUrl.href
     } catch (e) {
-      return `${marketplace?.url}package/v0/icon/${this.pkg.manifest.id}`
+      return `${marketplace?.url}package/v0/icon/${this.pkg.id}`
     }
   }
 }

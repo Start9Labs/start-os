@@ -19,13 +19,13 @@ import { MARKETPLACE_REGISTRY } from '../modals/registry.component'
         tuiIconButton
         type="button"
         appearance="icon"
-        icon="@tui.repeat"
+        iconStart="@tui.repeat"
         (click)="changeRegistry()"
       >
         Change Registry
       </button>
       <button slot="mobile" class="mobile-button" (click)="changeRegistry()">
-        <tui-icon tuiAppearance="icon" icon="@tui.repeat"></tui-icon>
+        <tui-icon tuiAppearance="icon" icon="@tui.repeat" />
         Change Registry
       </button>
     </menu>

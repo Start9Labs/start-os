@@ -20,7 +20,7 @@ export interface Breadcrumb {
   providedIn: 'root',
 })
 export class BreadcrumbsService extends BehaviorSubject<readonly Breadcrumb[]> {
-  private readonly patch = inject(PatchDB<DataModel>)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
   constructor() {
     super([])

@@ -26,7 +26,7 @@ export class ToOptionsPipe implements PipeTransform {
             id,
             installed: !!packageData[id],
             checked: false,
-            newerOS: this.compare(packageBackups[id].osVersion),
+            newerStartOs: this.compare(packageBackups[id].osVersion),
           }))
           .sort((a, b) =>
             b.title.toLowerCase() > a.title.toLowerCase() ? -1 : 1,

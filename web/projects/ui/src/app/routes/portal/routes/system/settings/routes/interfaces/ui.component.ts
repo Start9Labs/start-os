@@ -29,7 +29,8 @@ export class StartOsUiComponent {
     .watch$('serverInfo', 'ui')
     .pipe(
       map(hosts => {
-        const serviceInterface: T.ServiceInterfaceWithHostInfo = {
+        // @TODO Matt fix types
+        const serviceInterface: T.ServiceInterface = {
           id: 'startos-ui',
           name: 'StartOS UI',
           description: 'The primary web user interface for StartOS',
@@ -60,7 +61,7 @@ export class StartOsUiComponent {
             kind: 'multi',
             hostnames: hosts,
           },
-        }
+        } as any
 
         return {
           ...serviceInterface,

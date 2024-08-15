@@ -11,7 +11,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
   providedIn: 'root',
 })
 export class ServicesService extends Observable<readonly PackageDataEntry[]> {
-  private readonly services$ = inject(PatchDB<DataModel>)
+  private readonly services$ = inject<PatchDB<DataModel>>(PatchDB)
     .watch$('packageData')
     .pipe(
       map(pkgs =>

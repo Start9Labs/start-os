@@ -5,7 +5,6 @@ import {
   MarketplacePkg,
 } from '@start9labs/marketplace'
 import {
-  EmverPipesModule,
   MarkdownPipeModule,
   SafeLinksDirective,
   SharedPipesModule,
@@ -45,12 +44,12 @@ import { hasCurrentDeps } from 'src/app/utils/has-deps'
           <img alt="" [src]="marketplacePkg.icon" />
         </tui-avatar>
         <div [style.flex]="1" [style.overflow]="'hidden'">
-          <strong>{{ marketplacePkg.manifest.title }}</strong>
+          <strong>{{ marketplacePkg.title }}</strong>
           <div>
-            {{ localPkg.stateInfo.manifest.version | displayEmver }}
+            {{ localPkg.stateInfo.manifest.version }}
             <tui-icon icon="@tui.arrow-right" [style.font-size.rem]="1" />
             <span [style.color]="'var(--tui-text-positive)'">
-              {{ marketplacePkg.manifest.version | displayEmver }}
+              {{ marketplacePkg.version }}
             </span>
           </div>
           <div [style.color]="'var(--tui-text-negative)'">{{ errors }}</div>
@@ -84,16 +83,13 @@ import { hasCurrentDeps } from 'src/app/utils/has-deps'
         <strong>What's new</strong>
         <p
           safeLinks
-          [innerHTML]="
-            marketplacePkg.manifest.releaseNotes | markdown | dompurify
-          "
+          [innerHTML]="marketplacePkg.releaseNotes | markdown | dompurify"
         ></p>
         <a
           tuiLink
-          iconAlign="right"
-          icon="@tui.external-link"
+          iconEnd="@tui.external-link"
           routerLink="/marketplace"
-          [queryParams]="{ url: url, id: marketplacePkg.manifest.id }"
+          [queryParams]="{ url: url, id: marketplacePkg.id }"
         >
           View listing
         </a>
@@ -115,7 +111,6 @@ import { hasCurrentDeps } from 'src/app/utils/has-deps'
   standalone: true,
   imports: [
     RouterLink,
-    EmverPipesModule,
     MarkdownPipeModule,
     NgDompurifyModule,
     SafeLinksDirective,
@@ -132,7 +127,7 @@ import { hasCurrentDeps } from 'src/app/utils/has-deps'
 })
 export class UpdatesItemComponent {
   private readonly dialogs = inject(TuiDialogService)
-  private readonly patch = inject(PatchDB<DataModel>)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly marketplace = inject(
     AbstractMarketplaceService,
   ) as MarketplaceService
@@ -147,7 +142,7 @@ export class UpdatesItemComponent {
   url!: string
 
   get pkgId(): string {
-    return this.marketplacePkg.manifest.id
+    return this.marketplacePkg.id
   }
 
   get errors(): string {
@@ -159,7 +154,7 @@ export class UpdatesItemComponent {
   }
 
   async onClick() {
-    const { id } = this.marketplacePkg.manifest
+    const { id } = this.marketplacePkg
 
     delete this.marketplace.updateErrors[id]
     this.marketplace.updateQueue[id] = true
@@ -178,7 +173,7 @@ export class UpdatesItemComponent {
   }
 
   private async update() {
-    const { id, version } = this.marketplacePkg.manifest
+    const { id, version } = this.marketplacePkg
 
     try {
       await this.marketplace.installPackage(id, version, this.url)

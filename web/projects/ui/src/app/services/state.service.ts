@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core'
 import { CanActivateFn, IsActiveMatchOptions, Router } from '@angular/router'
-import { ALWAYS_TRUE_HANDLER } from '@taiga-ui/cdk'
-import { TuiAlertService, TuiNotification } from '@taiga-ui/core'
+import { TUI_TRUE_HANDLER } from '@taiga-ui/cdk'
+import { TuiAlertService } from '@taiga-ui/core'
 import {
   BehaviorSubject,
   combineLatest,
@@ -94,8 +94,8 @@ export class StateService extends Observable<RR.ServerState | null> {
           this.alerts
             .open('Trying to reach server', {
               label: 'State unknown',
-              autoClose: false,
-              status: TuiNotification.Error,
+              autoClose: 0,
+              status: 'error',
             })
             .pipe(
               takeUntil(
@@ -106,7 +106,7 @@ export class StateService extends Observable<RR.ServerState | null> {
             ),
           this.alerts.open('Connection restored', {
             label: 'Server reached',
-            status: TuiNotification.Success,
+            status: 'success',
           }),
         ),
       ),
@@ -131,6 +131,6 @@ export function stateNot(state: RR.ServerState[]): CanActivateFn {
   return () =>
     inject(StateService).pipe(
       filter(current => !current || !state.includes(current)),
-      map(ALWAYS_TRUE_HANDLER),
+      map(TUI_TRUE_HANDLER),
     )
 }

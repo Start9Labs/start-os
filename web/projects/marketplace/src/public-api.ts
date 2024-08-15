@@ -19,7 +19,6 @@ export * from './pages/show/dependencies/dependency-item.component'
 export * from './pages/show/screenshots/screenshots.component'
 export * from './pages/show/hero/hero.component'
 export * from './pages/show/flavors/flavors.component'
-export * from './pages/show/flavors/flavors.module'
 
 export * from './pipes/filter-packages.pipe'
 

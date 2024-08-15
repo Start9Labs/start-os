@@ -51,7 +51,7 @@ export class LogsPipe implements PipeTransform {
       ),
     ).pipe(
       catchError(() =>
-        this.connection.connected$.pipe(
+        this.connection.pipe(
           tap(v => this.logs.status$.next(v ? 'reconnecting' : 'disconnected')),
           filter(Boolean),
           take(1),

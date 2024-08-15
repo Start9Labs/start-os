@@ -418,7 +418,8 @@ export module RR {
   // marketplace
 
   export type GetMarketplaceInfoReq = { serverId: string }
-  export type GetMarketplaceInfoRes = StoreInfo
+  // @TODO Matt fix type
+  export type GetMarketplaceInfoRes = any
 
   export type GetMarketplaceEosReq = { serverId: string }
   // @TODO Matt fix type

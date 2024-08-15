@@ -77,7 +77,7 @@ interface Package {
   imports: [FormsModule, TuiButton, TuiGroup, TuiLoader, TuiBlock, TuiCheckbox],
 })
 export class BackupsBackupModal {
-  private readonly patch = inject(PatchDB<DataModel>)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   readonly context =
     inject<TuiDialogContext<string[], { btnText: string } | undefined>>(
       POLYMORPHEUS_CONTEXT,

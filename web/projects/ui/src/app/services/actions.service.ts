@@ -24,7 +24,7 @@ export class ActionsService {
   private readonly loader = inject(LoadingService)
   private readonly api = inject(ApiService)
   private readonly formDialog = inject(FormDialogService)
-  private readonly patch = inject(PatchDB<DataModel>)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
   configure(manifest: T.Manifest): void {
     this.formDialog.open<PackageConfigData>(ConfigModal, {

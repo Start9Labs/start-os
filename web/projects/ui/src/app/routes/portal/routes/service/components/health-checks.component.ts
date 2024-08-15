@@ -33,5 +33,5 @@ export class ServiceHealthChecksComponent {
   @Input({ required: true })
   checks: readonly T.HealthCheckResult[] = []
 
-  readonly connected$ = inject(ConnectionService).connected$
+  readonly connected$ = inject(ConnectionService)
 }

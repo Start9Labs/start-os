@@ -3,10 +3,11 @@ import {
   GetPackagesRes,
   MarketplacePkg,
 } from '@start9labs/marketplace'
-import { RPCOptions } from '@start9labs/shared'
+import { Log, RPCOptions } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { Observable } from 'rxjs'
-import { BackupTargetType, RR } from './api.types'
+import { WebSocketSubjectConfig } from 'rxjs/webSocket'
+import { BackupTargetType, Metrics, RR } from './api.types'
 
 export abstract class ApiService {
   // http
@@ -84,6 +85,13 @@ export abstract class ApiService {
   ): Promise<RR.FollowServerLogsRes>
 
   // server
+  abstract openLogsWebsocket$(
+    config: WebSocketSubjectConfig<Log>,
+  ): Observable<Log>
+
+  abstract openMetricsWebsocket$(
+    config: WebSocketSubjectConfig<Metrics>,
+  ): Observable<Metrics>
 
   abstract getSystemTime(
     params: RR.GetSystemTimeReq,

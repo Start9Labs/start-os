@@ -22,11 +22,11 @@ import { MarketplaceControlsComponent } from './controls.component'
     <marketplace-item [pkg]="pkg" (click)="toggle(true)">
       <marketplace-preview
         *tuiSidebar="
-          (id$ | async) === pkg.manifest.id;
+          (id$ | async) === pkg.id;
           direction: 'right';
           autoWidth: true
         "
-        [pkgId]="pkg.manifest.id"
+        [pkgId]="pkg.id"
         class="preview-wrapper"
         (tuiClickOutside)="toggle(false)"
       >
@@ -45,7 +45,7 @@ import { MarketplaceControlsComponent } from './controls.component'
           slot="controls"
           class="controls-wrapper"
           [pkg]="pkg"
-          [localPkg]="pkg.manifest.id | toLocal | async"
+          [localPkg]="pkg.id | toLocal | async"
         />
       </marketplace-preview>
     </marketplace-item>
@@ -125,7 +125,7 @@ export class MarketplaceTileComponent {
 
   toggle(open: boolean) {
     this.router.navigate([], {
-      queryParams: { id: open ? this.pkg.manifest.id : null },
+      queryParams: { id: open ? this.pkg.id : null },
     })
   }
 }

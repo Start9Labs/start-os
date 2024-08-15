@@ -25,9 +25,9 @@ import { StoreIconComponent } from './store-icon.component'
     </div>
     <tui-icon
       *ngIf="registry.selected; else content"
-      icon="tuiIconCheck"
+      icon="@tui.check"
       [style.color]="'var(--tui-positive)'"
-    ></tui-icon>
+    />
     <ng-template #content><ng-content></ng-content></ng-template>
   `,
   styles: [':host { border-radius: 0.25rem; width: stretch; }'],

@@ -1,7 +1,11 @@
 import { inject, Injectable } from '@angular/core'
 import { Router } from '@angular/router'
 import * as argon2 from '@start9labs/argon2'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import {
+  ErrorService,
+  LoadingService,
+  StartOSDiskInfo,
+} from '@start9labs/shared'
 import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
 import {
   catchError,
@@ -18,10 +22,11 @@ import {
   PROMPT,
   PromptOptions,
 } from 'src/app/routes/portal/modals/prompt.component'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { BackupTarget } from 'src/app/services/api/api.types'
-import { TARGET, TARGET_RESTORE } from '../modals/target.component'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { RECOVER } from '../modals/recover.component'
+import { SERVERS } from '../modals/servers.component'
+import { TARGET, TARGET_RESTORE } from '../modals/target.component'
 import { RecoverData } from '../types/recover-data'
 
 @Injectable({
@@ -38,23 +43,33 @@ export class BackupsRestoreService {
     this.dialogs
       .open<BackupTarget>(TARGET, TARGET_RESTORE)
       .pipe(
+        // @TODO Alex implement servers
         switchMap(target =>
-          this.dialogs.open<string>(PROMPT, PROMPT_OPTIONS).pipe(
-            exhaustMap(password =>
-              this.getRecoverData(
-                target.id,
-                password,
-                target.startOs?.passwordHash || '',
+          this.dialogs
+            .open<StartOSDiskInfo & { id: string }>(SERVERS, {
+              data: { servers: [] },
+            })
+            .pipe(
+              switchMap(({ id, passwordHash }) =>
+                this.dialogs.open<string>(PROMPT, PROMPT_OPTIONS).pipe(
+                  exhaustMap(password =>
+                    this.getRecoverData(
+                      target.id,
+                      id,
+                      password,
+                      passwordHash || '',
+                    ),
+                  ),
+                  take(1),
+                  switchMap(data =>
+                    this.dialogs.open(RECOVER, {
+                      label: 'Select Services to Restore',
+                      data,
+                    }),
+                  ),
+                ),
               ),
             ),
-            take(1),
-            switchMap(data =>
-              this.dialogs.open(RECOVER, {
-                label: 'Select Services to Restore',
-                data,
-              }),
-            ),
-          ),
         ),
       )
       .subscribe(() => {
@@ -64,6 +79,7 @@ export class BackupsRestoreService {
 
   private getRecoverData(
     targetId: string,
+    serverId: string,
     password: string,
     hash: string,
   ): Observable<RecoverData> {
@@ -81,7 +97,7 @@ export class BackupsRestoreService {
 
         return EMPTY
       }),
-      map(backupInfo => ({ targetId, password, backupInfo })),
+      map(backupInfo => ({ targetId, password, backupInfo, serverId })),
     )
   }
 }

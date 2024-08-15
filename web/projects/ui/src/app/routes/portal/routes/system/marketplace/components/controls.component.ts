@@ -12,12 +12,12 @@ import {
   MarketplacePkg,
 } from '@start9labs/marketplace'
 import {
-  Emver,
+  Exver,
   ErrorService,
   isEmptyObject,
   LoadingService,
   sameUrl,
-  EmverPipesModule,
+  ExverPipesModule,
 } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
@@ -41,7 +41,7 @@ import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
         localPkg.stateInfo.state === 'installed' && (localPkg | toManifest);
         as localManifest
       ) {
-        @switch (localManifest.version | compareEmver: pkg.manifest.version) {
+        @switch (localManifest.version | compareExver: pkg.version) {
           @case (1) {
             <button
               tuiButton
@@ -97,14 +97,14 @@ import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
   `,
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, EmverPipesModule, TuiButton, ToManifestPipe],
+  imports: [CommonModule, ExverPipesModule, TuiButton, ToManifestPipe],
 })
 export class MarketplaceControlsComponent {
   private readonly alerts = inject(MarketplaceAlertsService)
-  private readonly patch = inject(PatchDB<DataModel>)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly errorService = inject(ErrorService)
   private readonly loader = inject(LoadingService)
-  private readonly emver = inject(Emver)
+  private readonly exver = inject(Exver)
   private readonly router = inject(Router)
   private readonly marketplace = inject(
     AbstractMarketplaceService,
@@ -124,7 +124,7 @@ export class MarketplaceControlsComponent {
   async tryInstall() {
     const current = await firstValueFrom(this.marketplace.getSelectedHost$())
     const url = this.url || current.url
-    const originalUrl = this.localPkg?.marketplaceUrl || ''
+    const originalUrl = this.localPkg?.registry || ''
 
     if (!this.localPkg) {
       if (await this.alerts.alertInstall(this.pkg)) this.install(url)
@@ -143,7 +143,7 @@ export class MarketplaceControlsComponent {
 
     if (
       hasCurrentDeps(localManifest.id, await getAllPackages(this.patch)) &&
-      this.emver.compare(localManifest.version, this.pkg.manifest.version) !== 0
+      this.exver.compareExver(localManifest.version, this.pkg.version) !== 0
     ) {
       this.dryInstall(url)
     } else {
@@ -152,14 +152,14 @@ export class MarketplaceControlsComponent {
   }
 
   async showService() {
-    this.router.navigate(['/portal/service', this.pkg.manifest.id])
+    this.router.navigate(['/portal/service', this.pkg.id])
   }
 
   private async dryInstall(url: string) {
     const breakages = dryUpdate(
-      this.pkg.manifest,
+      this.pkg,
       await getAllPackages(this.patch),
-      this.emver,
+      this.exver,
     )
 
     if (
@@ -172,7 +172,7 @@ export class MarketplaceControlsComponent {
 
   private async install(url: string) {
     const loader = this.loader.open('Beginning Install...').subscribe()
-    const { id, version } = this.pkg.manifest
+    const { id, version } = this.pkg
 
     try {
       await this.marketplace.installPackage(id, version, url)

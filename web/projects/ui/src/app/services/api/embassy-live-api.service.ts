@@ -3,15 +3,16 @@ import {
   HttpOptions,
   HttpService,
   isRpcError,
+  Log,
   Method,
   RpcError,
   RPCOptions,
 } from '@start9labs/shared'
 import { PATCH_CACHE } from 'src/app/services/patch-db/patch-db-source'
 import { ApiService } from './embassy-api.service'
-import { BackupTargetType, RR } from './api.types'
+import { BackupTargetType, Metrics, RR } from './api.types'
 import { ConfigService } from '../config.service'
-import { webSocket } from 'rxjs/webSocket'
+import { webSocket, WebSocketSubjectConfig } from 'rxjs/webSocket'
 import { Observable, filter, firstValueFrom } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
@@ -92,6 +93,16 @@ export class LiveApiService extends ApiService {
   }
 
   // websocket
+  // @TODO Matt which of these 2 APIs should we use?
+  private openWebsocket<T>(config: WebSocketSubjectConfig<T>): Observable<T> {
+    const { location } = this.document.defaultView!
+    const protocol = location.protocol === 'http:' ? 'ws' : 'wss'
+    const host = location.host
+
+    config.url = `${protocol}://${host}/ws${config.url}`
+
+    return webSocket(config)
+  }
 
   openWebsocket$<T>(
     guid: string,
@@ -210,6 +221,15 @@ export class LiveApiService extends ApiService {
   }
 
   // server
+  openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
+    return this.openWebsocket(config)
+  }
+
+  openMetricsWebsocket$(
+    config: WebSocketSubjectConfig<Metrics>,
+  ): Observable<Metrics> {
+    return this.openWebsocket(config)
+  }
 
   async getSystemTime(
     params: RR.GetSystemTimeReq,

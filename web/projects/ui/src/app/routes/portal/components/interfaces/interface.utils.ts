@@ -53,9 +53,9 @@ export type AddressDetails = {
   url: string
 }
 
-export function getAddresses(
-  serviceInterface: T.ServiceInterfaceWithHostInfo,
-): {
+// @TODO Matt these types have change significantly
+export function getAddresses(serviceInterface: any): {
+  // T.ServiceInterface): {
   clearnet: AddressDetails[]
   local: AddressDetails[]
   tor: AddressDetails[]
@@ -76,7 +76,7 @@ export function getAddresses(
   const local: AddressDetails[] = []
   const tor: AddressDetails[] = []
 
-  hostnames.forEach(h => {
+  hostnames.forEach((h: any) => {
     let scheme = ''
     let port = ''
 

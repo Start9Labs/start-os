@@ -1021,7 +1021,7 @@ export module Mock {
         username: 'TestUser',
         mountable: false,
         // @TODO Matt Provide mock for startOs
-        startOs: null,
+        startOs: {},
       },
       {
         id: 'ftcvewdnkemfksdm',
@@ -1030,7 +1030,7 @@ export module Mock {
         provider: 'dropbox',
         path: '/Home/backups',
         mountable: true,
-        startOs: null,
+        startOs: {},
       },
       {
         id: 'csgashbdjkasnd',
@@ -1040,7 +1040,7 @@ export module Mock {
         path: '/Desktop/embassy-backups-2',
         username: 'TestUser',
         mountable: true,
-        startOs: null,
+        startOs: {},
       },
       {
         id: 'powjefhjbnwhdva',

@@ -1,4 +1,3 @@
-import { TuiLoader, TuiIcon } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -6,10 +5,10 @@ import {
   HostBinding,
   Input,
 } from '@angular/core'
+import { TuiIcon, TuiLoader } from '@taiga-ui/core'
+import { InstallingInfo } from 'src/app/services/patch-db/data-model'
 import { StatusRendering } from 'src/app/services/pkg-status-rendering.service'
 import { InstallingProgressDisplayPipe } from '../pipes/install-progress.pipe'
-import { InstallingInfo } from 'src/app/services/patch-db/data-model'
-import { UnitConversionPipesModule } from '@start9labs/shared'
 
 @Component({
   selector: 'service-status',
@@ -26,9 +25,6 @@ import { UnitConversionPipesModule } from '@start9labs/shared'
       {{ connected ? rendering.display : 'Unknown' }}
       @if (rendering.showDots) {
         <span class="loading-dots"></span>
-      }
-      @if (sigtermTimeout && (sigtermTimeout | durationToSeconds) > 30) {
-        <div>This may take a while</div>
       }
     }
   `,
@@ -58,13 +54,7 @@ import { UnitConversionPipesModule } from '@start9labs/shared'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [
-    CommonModule,
-    InstallingProgressDisplayPipe,
-    UnitConversionPipesModule,
-    TuiIcon,
-    TuiLoader,
-  ],
+  imports: [CommonModule, InstallingProgressDisplayPipe, TuiIcon, TuiLoader],
 })
 export class ServiceStatusComponent {
   @Input({ required: true })
@@ -75,8 +65,6 @@ export class ServiceStatusComponent {
 
   @Input()
   connected = false
-
-  @Input() sigtermTimeout?: string | null = null
 
   @HostBinding('class')
   get class(): string | null {

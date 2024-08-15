@@ -7,7 +7,7 @@ import {
 import { ActivatedRoute } from '@angular/router'
 import { TuiDialogService } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { CopyService, Exver, MarkdownComponent } from '@start9labs/shared'
+import { CopyService, MarkdownComponent } from '@start9labs/shared'
 import { MarketplacePkg } from '../../../types'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
 
@@ -38,9 +38,8 @@ export class AdditionalComponent {
         size: 'l',
         data: {
           content: this.marketplaceService.fetchStatic$(
-            this.pkg.id,
-            label.toLowerCase(),
-            this.url,
+            this.pkg,
+            label === 'License' ? 'LICENSE.md' : 'instructions.md',
           ),
         },
       })

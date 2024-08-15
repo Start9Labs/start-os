@@ -26,7 +26,6 @@ import { ERRORS } from '../form-group/form-group.component'
   templateUrl: './form-array.component.html',
   styleUrls: ['./form-array.component.scss'],
   animations: [tuiFadeIn, tuiHeightCollapse, tuiParentStop],
-  providers: [],
 })
 export class FormArrayComponent {
   @Input({ required: true })
@@ -41,6 +40,7 @@ export class FormArrayComponent {
   private warned = false
   private readonly formService = inject(FormService)
   private readonly dialogs = inject(TuiDialogService)
+  private readonly destroyRef = inject(DestroyRef)
 
   get canAdd(): boolean {
     return (
@@ -95,6 +95,4 @@ export class FormArrayComponent {
     this.array.control.insert(0, this.formService.getListItem(this.spec))
     this.open.set(this.array.control.at(0), true)
   }
-
-  readonly destroyRef = inject(DestroyRef)
 }

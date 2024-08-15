@@ -28,7 +28,7 @@ export class ServiceInterfaceRoute {
     interfaceId: this.route.snapshot.paramMap.get('interfaceId') || '',
   }
 
-  readonly interfaceInfo$ = inject(PatchDB<DataModel>)
+  readonly interfaceInfo$ = inject<PatchDB<DataModel>>(PatchDB)
     .watch$(
       'packageData',
       this.context.packageId,

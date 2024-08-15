@@ -81,7 +81,7 @@ export class BackupsRecoverModal {
   private readonly context =
     inject<TuiDialogContext<void, RecoverData>>(POLYMORPHEUS_CONTEXT)
 
-  readonly packageData$ = inject(PatchDB<DataModel>)
+  readonly packageData$ = inject<PatchDB<DataModel>>(PatchDB)
     .watch$('packageData')
     .pipe(take(1))
 
@@ -118,12 +118,13 @@ export class BackupsRecoverModal {
     const ids = options.filter(({ checked }) => !!checked).map(({ id }) => id)
     const loader = this.loader.open('Initializing...').subscribe()
 
-    const { targetId, password } = this.context.data
+    const { targetId, serverId, password } = this.context.data
 
     try {
       await this.api.restorePackages({
         ids,
         targetId,
+        serverId,
         password,
       })
 

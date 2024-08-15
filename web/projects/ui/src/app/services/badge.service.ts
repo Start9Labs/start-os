@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
-import { Emver } from '@start9labs/shared'
+import { Exver } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import {
   combineLatest,
@@ -26,8 +26,8 @@ import { getManifest } from 'src/app/utils/get-package-data'
 })
 export class BadgeService {
   private readonly notifications = inject(NotificationService)
-  private readonly emver = inject(Emver)
-  private readonly patch = inject(PatchDB<DataModel>)
+  private readonly exver = inject(Exver)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly settings$ = combineLatest([
     this.patch.watch$('serverInfo', 'ntpSynced'),
     inject(EOSService).updateAvailable$,
@@ -36,7 +36,7 @@ export class BadgeService {
     AbstractMarketplaceService,
   ) as MarketplaceService
 
-  private readonly local$ = inject(ConnectionService).connected$.pipe(
+  private readonly local$ = inject(ConnectionService).pipe(
     filter(Boolean),
     switchMap(() => this.patch.watch$('packageData').pipe(first())),
     switchMap(outer =>
@@ -67,10 +67,12 @@ export class BadgeService {
         Object.entries(marketplace).reduce(
           (list, [_, store]) =>
             store?.packages.reduce(
-              (result, { manifest: { id, version } }) =>
+              (result, { id, version }) =>
                 local[id] &&
-                this.emver.compare(version, getManifest(local[id]).version) ===
-                  1
+                this.exver.compareExver(
+                  version,
+                  getManifest(local[id]).version,
+                ) === 1
                   ? result.add(id)
                   : result,
               list,

@@ -1,10 +1,11 @@
 import { Component, inject } from '@angular/core'
+import { ServerComponent } from '@start9labs/shared'
 import { TuiDialogContext } from '@taiga-ui/core'
 import {
   POLYMORPHEUS_CONTEXT,
   PolymorpheusComponent,
 } from '@taiga-ui/polymorpheus'
-import { ServerComponent } from 'src/app/components/server.component'
+import { PasswordDirective } from 'src/app/components/password.directive'
 import { StartOSDiskInfoWithId } from 'src/app/services/api.service'
 
 interface Data {
@@ -23,7 +24,7 @@ export interface ServersResponse {
       <button [server]="server" (password)="select($event, server.id)"></button>
     }
   `,
-  imports: [ServerComponent],
+  imports: [ServerComponent, PasswordDirective],
 })
 export class ServersComponent {
   readonly context =

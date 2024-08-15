@@ -168,21 +168,11 @@ export class MarketplaceService implements AbstractMarketplaceService {
         this.marketplace$.pipe(
           map(m => m[url]),
           filter(Boolean),
-          map(({ info, packages }) => {
-            const categories = new Set<string>()
-            if (info.categories.includes('featured')) categories.add('featured')
-            categories.add('all')
-            info.categories.forEach(c => categories.add(c))
-
-            return {
-              url,
-              info: {
-                ...info,
-                categories: Array.from(categories),
-              },
-              packages,
-            }
-          }),
+          map(({ info, packages }) => ({
+            url,
+            info,
+            packages,
+          })),
         ),
       ),
     )

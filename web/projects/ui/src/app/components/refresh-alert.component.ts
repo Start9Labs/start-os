@@ -1,7 +1,7 @@
 import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { SwUpdate } from '@angular/service-worker'
-import { Emver, LoadingService } from '@start9labs/shared'
+import { Exver, LoadingService } from '@start9labs/shared'
 import { TuiAutoFocus } from '@taiga-ui/cdk'
 import { TuiButton, TuiDialog } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
@@ -47,16 +47,16 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 export class RefreshAlertComponent {
   private readonly updates = inject(SwUpdate)
   private readonly loader = inject(LoadingService)
-  private readonly emver = inject(Emver)
+  private readonly exver = inject(Exver)
   private readonly config = inject(ConfigService)
   private readonly dismiss$ = new Subject<boolean>()
 
   readonly show$ = merge(
     this.dismiss$,
-    inject(PatchDB<DataModel>)
+    inject<PatchDB<DataModel>>(PatchDB)
       .watch$('serverInfo', 'version')
       .pipe(
-        map(version => !!this.emver.compare(this.config.version, version)),
+        map(version => !!this.exver.compareExver(this.config.version, version)),
         endWith(false),
       ),
   ).pipe(debounceTime(0))

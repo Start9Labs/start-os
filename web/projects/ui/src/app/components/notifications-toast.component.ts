@@ -27,7 +27,7 @@ export class NotificationsToastComponent {
 
   readonly visible$: Observable<boolean> = merge(
     this.dismiss$,
-    inject(PatchDB<DataModel>)
+    inject<PatchDB<DataModel>>(PatchDB)
       .watch$('serverInfo', 'unreadNotifications', 'count')
       .pipe(
         pairwise(),

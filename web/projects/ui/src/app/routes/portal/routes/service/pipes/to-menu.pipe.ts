@@ -98,13 +98,13 @@ export class ToMenuPipe implements PipeTransform {
             })
             .subscribe(),
       },
-      pkg.marketplaceUrl
+      pkg.registry
         ? {
             icon: '@tui.shopping-bag',
             name: 'Marketplace Listing',
             description: `View ${manifest.title} on the Marketplace`,
             routerLink: `/portal/system/marketplace`,
-            params: { url: pkg.marketplaceUrl, id: manifest.id },
+            params: { url: pkg.registry, id: manifest.id },
           }
         : {
             icon: '@tui.shopping-bag',
@@ -114,7 +114,7 @@ export class ToMenuPipe implements PipeTransform {
     ]
   }
 
-  private showInstructions({ title, id, version }: T.Manifest) {
+  private showInstructions({ title, id }: T.Manifest) {
     this.api
       .setDbValue<boolean>(['ack-instructions', id], true)
       .catch(e => console.error('Failed to mark instructions as seen', e))
@@ -124,11 +124,7 @@ export class ToMenuPipe implements PipeTransform {
         label: `${title} instructions`,
         size: 'l',
         data: {
-          content: from(
-            this.api.getStatic(
-              `/public/package-data/${id}/${version}/INSTRUCTIONS.md`,
-            ),
-          ),
+          content: from(this.api.getStaticInstalled(id, 'instructions.md')),
         },
       })
       .subscribe()

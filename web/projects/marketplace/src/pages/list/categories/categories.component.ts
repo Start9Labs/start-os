@@ -15,13 +15,21 @@ import { T } from '@start9labs/start-sdk'
 })
 export class CategoriesComponent {
   @Input()
-  categories!: Map<string, T.Category>
+  categories?: Record<string, T.Category>
 
   @Input()
   category = ''
 
   @Output()
   readonly categoryChange = new EventEmitter<string>()
+
+  readonly fallback: Record<string, T.Category> = {
+    a: { name: 'a', description: { short: 'a', long: 'a' } },
+    b: { name: 'a', description: { short: 'a', long: 'a' } },
+    c: { name: 'a', description: { short: 'a', long: 'a' } },
+    d: { name: 'a', description: { short: 'a', long: 'a' } },
+    e: { name: 'a', description: { short: 'a', long: 'a' } },
+  }
 
   switchCategory(category: string): void {
     this.category = category

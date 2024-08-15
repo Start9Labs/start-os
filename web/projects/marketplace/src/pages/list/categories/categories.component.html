@@ -1,14 +1,14 @@
 <button
-  *ngFor="let cat of categories || ['', '', '', '', '', '']"
-  (click)="switchCategory(cat)"
-  [class.category_selected]="cat === category"
+  *ngFor="let cat of categories || fallback | keyvalue"
+  (click)="switchCategory(cat.key)"
+  [class.category_selected]="cat.key === category"
 >
   <div
     class="category-wrapper"
     [class.tui-skeleton]="!categories"
     [class.tui-skeleton_rounded]="!categories"
   >
-    <tui-icon tuiAppearance="icon" icon="{{ determineIcon(cat) }}"></tui-icon>
+    <tui-icon tuiAppearance="icon" [icon]="determineIcon(cat.key)" />
   </div>
   <span
     class="category-title"
@@ -16,9 +16,9 @@
     [class.tui-skeleton_rounded]="!categories"
   >
     {{
-      cat === 'ai'
-        ? (cat | uppercase)
-        : (cat | titlecase) || 'Loading category...'
+      cat.key === 'ai'
+        ? (cat.key | uppercase)
+        : (cat.value.name | titlecase) || 'Loading category...'
     }}
   </span>
 </button>
