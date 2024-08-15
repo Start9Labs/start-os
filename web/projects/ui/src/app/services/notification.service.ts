@@ -2,7 +2,6 @@ import { inject, Injectable } from '@angular/core'
 import { ErrorService } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
 import {
-  NotificationLevel,
   ServerNotification,
   ServerNotifications,
 } from 'src/app/services/api/api.types'
@@ -63,13 +62,13 @@ export class NotificationService {
 
   getColor(notification: ServerNotification<number>): string {
     switch (notification.level) {
-      case NotificationLevel.Info:
+      case 'info':
         return 'var(--tui-status-info)'
-      case NotificationLevel.Success:
+      case 'success':
         return 'var(--tui-status-positive)'
-      case NotificationLevel.Warning:
+      case 'warning':
         return 'var(--tui-status-warning)'
-      case NotificationLevel.Error:
+      case 'error':
         return 'var(--tui-status-negative)'
       default:
         return ''
@@ -78,12 +77,12 @@ export class NotificationService {
 
   getIcon(notification: ServerNotification<number>): string {
     switch (notification.level) {
-      case NotificationLevel.Info:
+      case 'info':
         return '@tui.info'
-      case NotificationLevel.Success:
+      case 'success':
         return '@tui.circle-check'
-      case NotificationLevel.Warning:
-      case NotificationLevel.Error:
+      case 'warning':
+      case 'error':
         return '@tui.circle-alert'
       default:
         return ''

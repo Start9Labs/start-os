@@ -1,4 +1,4 @@
-// @TODO Matt this is T.FullProgress but shared does not depend on sdk
+// @TODO get types from sdk
 type Progress = null | boolean | { done: number; total: number | null }
 type NamedProgress = { name: string; progress: Progress }
 type FullProgress = { overall: Progress; phases: Array<NamedProgress> }

@@ -56,6 +56,7 @@ export type ServerInfo = {
   platform: string
   arch: string
   governor: string | null
+  zram: boolean
 }
 
 export type NetworkInfo = {

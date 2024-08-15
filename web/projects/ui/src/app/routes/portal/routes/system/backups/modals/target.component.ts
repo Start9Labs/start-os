@@ -23,6 +23,9 @@ import { BackupsStatusComponent } from '../components/status.component'
 import { GetDisplayInfoPipe } from '../pipes/get-display-info.pipe'
 import { BackupType } from '../types/backup-type'
 import { TARGETS } from './targets.component'
+import { getServerInfo } from 'src/app/utils/get-server-info'
+import { PatchDB } from 'patch-db-client'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
   template: `
@@ -40,7 +43,12 @@ import { TARGETS } from './targets.component'
             <tui-icon [icon]="displayInfo.icon" />
             <div>
               <strong>{{ displayInfo.name }}</strong>
-              <backups-status [type]="context.data.type" [target]="target" />
+              <backups-status
+                [type]="context.data.type"
+                [target]="target"
+                [serverId]="serverId"
+                ]
+              />
               <div [style.color]="'var(--tui-text-secondary'">
                 {{ displayInfo.description }}
                 <br />
@@ -69,6 +77,7 @@ export class BackupsTargetModal {
   private readonly dialogs = inject(TuiDialogService)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
+  private readonly patch = inject(PatchDB<DataModel>)
 
   readonly context =
     inject<TuiDialogContext<BackupTarget, { type: BackupType }>>(
@@ -81,10 +90,12 @@ export class BackupsTargetModal {
       ? 'Loading Backup Targets'
       : 'Loading Backup Sources'
 
+  serverId = ''
   targets: BackupTarget[] = []
 
   async ngOnInit() {
     try {
+      this.serverId = (await getServerInfo(this.patch)).id
       this.targets = (await this.api.getBackupTargets({})).saved
     } catch (e: any) {
       this.errorService.handleError(e)

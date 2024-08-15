@@ -3,16 +3,15 @@ import {
   HttpOptions,
   HttpService,
   isRpcError,
-  Log,
   Method,
   RpcError,
   RPCOptions,
 } from '@start9labs/shared'
 import { PATCH_CACHE } from 'src/app/services/patch-db/patch-db-source'
 import { ApiService } from './embassy-api.service'
-import { BackupTargetType, Metrics, RR } from './api.types'
+import { BackupTargetType, RR } from './api.types'
 import { ConfigService } from '../config.service'
-import { webSocket, WebSocketSubjectConfig } from 'rxjs/webSocket'
+import { webSocket } from 'rxjs/webSocket'
 import { Observable, filter, firstValueFrom } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
@@ -93,20 +92,10 @@ export class LiveApiService extends ApiService {
   }
 
   // websocket
-  // @TODO Matt which of these 2 APIs should we use?
-  private openWebsocket<T>(config: WebSocketSubjectConfig<T>): Observable<T> {
-    const { location } = this.document.defaultView!
-    const protocol = location.protocol === 'http:' ? 'ws' : 'wss'
-    const host = location.host
-
-    config.url = `${protocol}://${host}/ws${config.url}`
-
-    return webSocket(config)
-  }
 
   openWebsocket$<T>(
     guid: string,
-    config: RR.WebsocketConfig<T>,
+    config: RR.WebsocketConfig<T> = {},
   ): Observable<T> {
     const { location } = this.document.defaultView!
     const protocol = location.protocol === 'http:' ? 'ws' : 'wss'
@@ -210,7 +199,7 @@ export class LiveApiService extends ApiService {
 
   // init
 
-  async initGetProgress(): Promise<RR.InitGetProgressRes> {
+  async initFollowProgress(): Promise<RR.InitFollowProgressRes> {
     return this.rpcRequest({ method: 'init.subscribe', params: {} })
   }
 
@@ -221,15 +210,6 @@ export class LiveApiService extends ApiService {
   }
 
   // server
-  openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
-    return this.openWebsocket(config)
-  }
-
-  openMetricsWebsocket$(
-    config: WebSocketSubjectConfig<Metrics>,
-  ): Observable<Metrics> {
-    return this.openWebsocket(config)
-  }
 
   async getSystemTime(
     params: RR.GetSystemTimeReq,
@@ -271,9 +251,9 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'net.tor.logs.follow', params })
   }
 
-  async getServerMetrics(
-    params: RR.GetServerMetricsReq,
-  ): Promise<RR.GetServerMetricsRes> {
+  async followServerMetrics(
+    params: RR.FollowServerMetricsReq,
+  ): Promise<RR.FollowServerMetricsRes> {
     return this.rpcRequest({ method: 'server.metrics', params })
   }
 

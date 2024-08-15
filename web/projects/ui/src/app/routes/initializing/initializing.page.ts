@@ -33,7 +33,7 @@ export default class InitializingPage {
   private readonly state = inject(StateService)
 
   readonly progress = toSignal(
-    defer(() => from(this.api.initGetProgress())).pipe(
+    defer(() => from(this.api.initFollowProgress())).pipe(
       switchMap(({ guid, progress }) =>
         this.api
           .openWebsocket$<T.FullProgress>(guid, {})

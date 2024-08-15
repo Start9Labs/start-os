@@ -130,8 +130,7 @@ export const mockPatchData: DataModel = {
       password: '',
     },
     platform: 'x86_64-nonfree',
-    // @TODO Matt zram needs to be added?
-    // zram: true,
+    zram: true,
     governor: 'performance',
     passwordHash:
       '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',

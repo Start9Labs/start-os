@@ -3,12 +3,7 @@ import {
   PackageDataEntry,
   ServerStatusInfo,
 } from 'src/app/services/patch-db/data-model'
-import {
-  Metrics,
-  NotificationLevel,
-  RR,
-  ServerNotifications,
-} from './api.types'
+import { RR, ServerMetrics, ServerNotifications } from './api.types'
 import { BTC_ICON, LND_ICON, PROXY_ICON, REGISTRY_ICON } from './api-icons'
 import { Log } from '@start9labs/shared'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
@@ -748,7 +743,7 @@ export module Mock {
       packageId: null,
       createdAt: '2019-12-26T14:20:30.872Z',
       code: 1,
-      level: NotificationLevel.Success,
+      level: 'success',
       title: 'Backup Complete',
       message: 'StartOS and services have been successfully backed up.',
       data: {
@@ -769,7 +764,7 @@ export module Mock {
       packageId: null,
       createdAt: '2019-12-26T14:20:30.872Z',
       code: 2,
-      level: NotificationLevel.Warning,
+      level: 'warning',
       title: 'SSH Key Added',
       message: 'A new SSH key was added. If you did not do this, shit is bad.',
       data: null,
@@ -780,7 +775,7 @@ export module Mock {
       packageId: null,
       createdAt: '2019-12-26T14:20:30.872Z',
       code: 3,
-      level: NotificationLevel.Info,
+      level: 'info',
       title: 'SSH Key Removed',
       message: 'A SSH key was removed.',
       data: null,
@@ -791,7 +786,7 @@ export module Mock {
       packageId: 'bitcoind',
       createdAt: '2019-12-26T14:20:30.872Z',
       code: 4,
-      level: NotificationLevel.Error,
+      level: 'error',
       title: 'Service Crashed',
       message: new Array(3)
         .fill(
@@ -806,7 +801,7 @@ export module Mock {
     },
   ]
 
-  export function getMetrics(): Metrics {
+  export function getMetrics(): ServerMetrics {
     return {
       general: {
         temperature: {
@@ -1020,8 +1015,16 @@ export module Mock {
         path: '/Desktop/embassy-backups',
         username: 'TestUser',
         mountable: false,
-        // @TODO Matt Provide mock for startOs
-        startOs: {},
+        startOs: {
+          abcdefgh: {
+            hostname: 'adjective-noun.local',
+            version: '0.3.6',
+            timestamp: new Date().toISOString(),
+            passwordHash:
+              '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+            wrappedKey: '',
+          },
+        },
       },
       {
         id: 'ftcvewdnkemfksdm',
@@ -1054,8 +1057,16 @@ export module Mock {
         vendor: 'SSK',
         mountable: true,
         path: '/HomeFolder/Documents',
-        // @TODO Matt Provide mock for startOs
-        startOs: {},
+        startOs: {
+          'different-server': {
+            hostname: 'different-server.local',
+            version: '0.3.6',
+            timestamp: new Date().toISOString(),
+            passwordHash:
+              '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+            wrappedKey: '',
+          },
+        },
       },
     ],
   }

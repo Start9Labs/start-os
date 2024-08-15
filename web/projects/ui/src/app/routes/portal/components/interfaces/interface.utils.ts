@@ -1,4 +1,4 @@
-import { CB, CT, T } from '@start9labs/start-sdk'
+import { CB, CT, T, utils } from '@start9labs/start-sdk'
 import { TuiDialogOptions } from '@taiga-ui/core'
 import { TuiConfirmData } from '@taiga-ui/kit'
 import { NetworkInfo } from 'src/app/services/patch-db/data-model'
@@ -53,75 +53,44 @@ export type AddressDetails = {
   url: string
 }
 
-// @TODO Matt these types have change significantly
-export function getAddresses(serviceInterface: any): {
-  // T.ServiceInterface): {
+export function getMultihostAddresses(
+  serviceInterface: T.ServiceInterface,
+  host: T.Host,
+): {
   clearnet: AddressDetails[]
   local: AddressDetails[]
   tor: AddressDetails[]
 } {
-  const host = serviceInterface.hostInfo
   const addressInfo = serviceInterface.addressInfo
-  const username = addressInfo.username ? addressInfo.username + '@' : ''
-  const suffix = addressInfo.suffix || ''
-
-  const hostnames =
-    host.kind === 'multi'
-      ? host.hostnames
-      : host.hostname
-        ? [host.hostname]
-        : []
+  const hostnamesInfo = host.hostnameInfo[addressInfo.internalPort]
 
   const clearnet: AddressDetails[] = []
   const local: AddressDetails[] = []
   const tor: AddressDetails[] = []
 
-  hostnames.forEach((h: any) => {
-    let scheme = ''
-    let port = ''
-
-    if (h.hostname.sslPort) {
-      port = h.hostname.sslPort === 443 ? '' : `:${h.hostname.sslPort}`
-      scheme = addressInfo.bindOptions.addSsl?.scheme
-        ? `${addressInfo.bindOptions.addSsl.scheme}://`
-        : ''
-    }
-
-    if (h.hostname.port) {
-      port = h.hostname.port === 80 ? '' : `:${h.hostname.port}`
-      scheme = addressInfo.bindOptions.scheme
-        ? `${addressInfo.bindOptions.scheme}://`
-        : ''
-    }
-
-    if (h.kind === 'onion') {
-      tor.push({
-        label: h.hostname.sslPort ? 'HTTPS' : 'HTTP',
-        url: toHref(scheme, username, h.hostname.value, port, suffix),
-      })
-    } else {
-      const hostnameKind = h.hostname.kind
-
-      if (hostnameKind === 'domain') {
-        tor.push({
-          url: toHref(
-            scheme,
-            username,
-            `${h.hostname.subdomain}.${h.hostname.domain}`,
-            port,
-            suffix,
-          ),
-        })
+  hostnamesInfo.forEach(hostnameInfo => {
+    utils.addressHostToUrl(addressInfo, hostnameInfo).forEach(url => {
+      // Onion
+      if (hostnameInfo.kind === 'onion') {
+        tor.push({ url })
+        // IP
       } else {
-        local.push({
-          label:
-            hostnameKind === 'local'
-              ? 'Local'
-              : `${h.networkInterfaceId} (${hostnameKind})`,
-          url: toHref(scheme, username, h.hostname.value, port, suffix),
-        })
+        // Domain
+        if (hostnameInfo.hostname.kind === 'domain') {
+          clearnet.push({ url })
+          // Local
+        } else {
+          const hostnameKind = hostnameInfo.hostname.kind
+          local.push({
+            label:
+              hostnameKind === 'local'
+                ? 'Local'
+                : `${hostnameInfo.networkInterfaceId} (${hostnameKind})`,
+            url,
+          })
+        }
       }
-    }
+    })
   })
 
   return {
@@ -129,14 +98,4 @@ export function getAddresses(serviceInterface: any): {
     local,
     tor,
   }
-}
-
-function toHref(
-  scheme: string,
-  username: string,
-  hostname: string,
-  port: string,
-  suffix: string,
-): string {
-  return `${scheme}${username}${hostname}${port}${suffix}`
 }

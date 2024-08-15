@@ -40,7 +40,7 @@ export default class LoadingPage {
       filter(Boolean),
       take(1),
       switchMap(({ guid, progress }) =>
-        this.api.openProgressWebsocket$(guid).pipe(
+        this.api.openWebsocket$<T.FullProgress>(guid).pipe(
           startWith(progress),
           catchError((_, watch$) =>
             interval(2000).pipe(

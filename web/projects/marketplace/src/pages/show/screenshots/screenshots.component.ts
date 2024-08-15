@@ -14,7 +14,7 @@ import { PolymorpheusContent } from '@taiga-ui/polymorpheus'
 @Component({
   selector: 'marketplace-package-screenshots',
   template: `
-    <!--@TODO Matt or Lucy?-->
+    <!--@TODO future release-->
     <div
       *ngIf="$any(pkg).screenshots as screenshots"
       tuiCarouselButtons

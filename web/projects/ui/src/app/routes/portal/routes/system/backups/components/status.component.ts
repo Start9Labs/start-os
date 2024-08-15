@@ -23,6 +23,7 @@ import { BackupType } from '../types/backup-type'
 export class BackupsStatusComponent {
   private readonly exver = inject(Exver)
 
+  @Input({ required: true }) serverId!: string
   @Input({ required: true }) type!: BackupType
   @Input({ required: true }) target!: BackupTarget
 
@@ -61,8 +62,12 @@ export class BackupsStatusComponent {
   }
 
   private get hasBackup(): boolean {
-    return !!this.target.startOs
-    // @TODO Matt types changed
-    // && this.exver.compareExver(this.target.startOs.version, '0.3.0') !== -1
+    return (
+      this.target.startOs[this.serverId] &&
+      this.exver.compareOsVersion(
+        this.target.startOs[this.serverId].version,
+        '0.3.6',
+      ) !== 'less'
+    )
   }
 }

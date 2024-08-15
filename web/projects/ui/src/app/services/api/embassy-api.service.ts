@@ -3,11 +3,10 @@ import {
   GetPackagesRes,
   MarketplacePkg,
 } from '@start9labs/marketplace'
-import { Log, RPCOptions } from '@start9labs/shared'
+import { RPCOptions } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { Observable } from 'rxjs'
-import { WebSocketSubjectConfig } from 'rxjs/webSocket'
-import { BackupTargetType, Metrics, RR } from './api.types'
+import { BackupTargetType, RR } from './api.types'
 
 export abstract class ApiService {
   // http
@@ -32,7 +31,7 @@ export abstract class ApiService {
 
   abstract openWebsocket$<T>(
     guid: string,
-    config: RR.WebsocketConfig<T>,
+    config?: RR.WebsocketConfig<T>,
   ): Observable<T>
 
   // state
@@ -78,20 +77,13 @@ export abstract class ApiService {
 
   // init
 
-  abstract initGetProgress(): Promise<RR.InitGetProgressRes>
+  abstract initFollowProgress(): Promise<RR.InitFollowProgressRes>
 
   abstract initFollowLogs(
     params: RR.FollowServerLogsReq,
   ): Promise<RR.FollowServerLogsRes>
 
   // server
-  abstract openLogsWebsocket$(
-    config: WebSocketSubjectConfig<Log>,
-  ): Observable<Log>
-
-  abstract openMetricsWebsocket$(
-    config: WebSocketSubjectConfig<Metrics>,
-  ): Observable<Metrics>
 
   abstract getSystemTime(
     params: RR.GetSystemTimeReq,
@@ -119,9 +111,9 @@ export abstract class ApiService {
     params: RR.FollowServerLogsReq,
   ): Promise<RR.FollowServerLogsRes>
 
-  abstract getServerMetrics(
-    params: RR.GetServerMetricsReq,
-  ): Promise<RR.GetServerMetricsRes>
+  abstract followServerMetrics(
+    params: RR.FollowServerMetricsReq,
+  ): Promise<RR.FollowServerMetricsRes>
 
   abstract updateServer(url?: string): Promise<RR.UpdateServerRes>
 
