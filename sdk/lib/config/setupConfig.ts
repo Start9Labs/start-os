@@ -57,7 +57,9 @@ export function setupConfig<
   return {
     setConfig: (async ({ effects, input }) => {
       if (!validator.test(input)) {
-        await console.error(String(validator.errorMessage(input)))
+        await console.error(
+          new Error(validator.errorMessage(input)?.toString()),
+        )
         return { error: "Set config type error for config" }
       }
       await effects.clearBindings()

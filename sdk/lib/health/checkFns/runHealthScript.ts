@@ -1,7 +1,7 @@
 import { Effects } from "../../types"
 import { Overlay } from "../../util/Overlay"
 import { stringFromStdErrOut } from "../../util/stringFromStdErrOut"
-import { CheckResult } from "./CheckResult"
+import { HealthCheckResult } from "./HealthCheckResult"
 import { timeoutPromise } from "./index"
 
 /**
@@ -12,7 +12,6 @@ import { timeoutPromise } from "./index"
  * @returns
  */
 export const runHealthScript = async (
-  effects: Effects,
   runCommand: string[],
   overlay: Overlay,
   {
@@ -21,7 +20,7 @@ export const runHealthScript = async (
     message = (res: string) =>
       `Have ran script ${runCommand} and the result: ${res}`,
   } = {},
-): Promise<CheckResult> => {
+): Promise<HealthCheckResult> => {
   const res = await Promise.race([
     overlay.exec(runCommand),
     timeoutPromise(timeout),
@@ -29,10 +28,10 @@ export const runHealthScript = async (
     console.warn(errorMessage)
     console.warn(JSON.stringify(e))
     console.warn(e.toString())
-    throw { status: "failure", message: errorMessage } as CheckResult
+    throw { result: "failure", message: errorMessage } as HealthCheckResult
   })
   return {
-    status: "success",
+    result: "success",
     message: message(res.stdout.toString()),
-  } as CheckResult
+  } as HealthCheckResult
 }

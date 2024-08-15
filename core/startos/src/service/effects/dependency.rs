@@ -4,8 +4,10 @@ use std::str::FromStr;
 
 use clap::builder::ValueParserFactory;
 use exver::VersionRange;
+use imbl::OrdMap;
+use imbl_value::InternedString;
 use itertools::Itertools;
-use models::{HealthCheckId, PackageId, VolumeId};
+use models::{HealthCheckId, PackageId, VersionString, VolumeId};
 use patch_db::json_ptr::JsonPointer;
 use tokio::process::Command;
 
@@ -17,7 +19,7 @@ use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::{FileSystem, MountType};
 use crate::rpc_continuations::Guid;
 use crate::service::effects::prelude::*;
-use crate::status::health_check::HealthCheckResult;
+use crate::status::health_check::NamedHealthCheckResult;
 use crate::util::clap::FromStrParser;
 use crate::util::Invoke;
 use crate::volume::data_dir;
@@ -316,12 +318,16 @@ pub struct CheckDependenciesParam {
 #[ts(export)]
 pub struct CheckDependenciesResult {
     package_id: PackageId,
-    is_installed: bool,
+    #[ts(type = "string | null")]
+    title: Option<InternedString>,
+    #[ts(type = "string | null")]
+    installed_version: Option<exver::ExtendedVersion>,
+    #[ts(type = "string[]")]
+    satisfies: BTreeSet<VersionString>,
     is_running: bool,
     config_satisfied: bool,
-    health_checks: BTreeMap<HealthCheckId, HealthCheckResult>,
-    #[ts(type = "string | null")]
-    version: Option<exver::ExtendedVersion>,
+    #[ts(as = "BTreeMap::<HealthCheckId, NamedHealthCheckResult>")]
+    health_checks: OrdMap<HealthCheckId, NamedHealthCheckResult>,
 }
 pub async fn check_dependencies(
     context: EffectContext,
@@ -347,36 +353,23 @@ pub async fn check_dependencies(
     let mut results = Vec::with_capacity(package_ids.len());
 
     for (package_id, dependency_info) in package_ids {
+        let title = dependency_info.title.clone();
         let Some(package) = db.as_public().as_package_data().as_idx(&package_id) else {
             results.push(CheckDependenciesResult {
                 package_id,
-                is_installed: false,
+                title,
+                installed_version: None,
+                satisfies: BTreeSet::new(),
                 is_running: false,
                 config_satisfied: false,
                 health_checks: Default::default(),
-                version: None,
             });
             continue;
         };
         let manifest = package.as_state_info().as_manifest(ManifestPreference::New);
         let installed_version = manifest.as_version().de()?.into_version();
         let satisfies = manifest.as_satisfies().de()?;
-        let version = Some(installed_version.clone());
-        if ![installed_version]
-            .into_iter()
-            .chain(satisfies.into_iter().map(|v| v.into_version()))
-            .any(|v| v.satisfies(&dependency_info.version_range))
-        {
-            results.push(CheckDependenciesResult {
-                package_id,
-                is_installed: false,
-                is_running: false,
-                config_satisfied: false,
-                health_checks: Default::default(),
-                version,
-            });
-            continue;
-        }
+        let installed_version = Some(installed_version.clone());
         let is_installed = true;
         let status = package.as_status().as_main().de()?;
         let is_running = if is_installed {
@@ -384,25 +377,15 @@ pub async fn check_dependencies(
         } else {
             false
         };
-        let health_checks =
-            if let CurrentDependencyKind::Running { health_checks } = &dependency_info.kind {
-                status
-                    .health()
-                    .cloned()
-                    .unwrap_or_default()
-                    .into_iter()
-                    .filter(|(id, _)| health_checks.contains(id))
-                    .collect()
-            } else {
-                Default::default()
-            };
+        let health_checks = status.health().cloned().unwrap_or_default();
         results.push(CheckDependenciesResult {
             package_id,
-            is_installed,
+            title,
+            installed_version,
+            satisfies,
             is_running,
             config_satisfied: dependency_info.config_satisfied,
             health_checks,
-            version,
         });
     }
     Ok(results)

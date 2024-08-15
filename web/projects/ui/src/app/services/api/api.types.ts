@@ -535,7 +535,7 @@ export interface DependencyErrorConfigUnsatisfied {
 
 export interface DependencyErrorHealthChecksFailed {
   type: 'healthChecksFailed'
-  check: T.HealthCheckResult
+  check: T.NamedHealthCheckResult
 }
 
 export interface DependencyErrorTransitive {

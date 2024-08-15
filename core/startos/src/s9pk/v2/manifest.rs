@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use color_eyre::eyre::eyre;
-use exver::Version;
+use exver::{Version, VersionRange};
 use helpers::const_true;
 use imbl_value::InternedString;
 pub use models::PackageId;
@@ -36,6 +36,10 @@ pub struct Manifest {
     pub version: VersionString,
     pub satisfies: BTreeSet<VersionString>,
     pub release_notes: String,
+    #[ts(type = "string")]
+    pub can_migrate_to: VersionRange,
+    #[ts(type = "string")]
+    pub can_migrate_from: VersionRange,
     #[ts(type = "string")]
     pub license: InternedString, // type of license
     #[ts(type = "string")]
@@ -159,8 +163,8 @@ impl Manifest {
 #[ts(export)]
 pub struct HardwareRequirements {
     #[serde(default)]
-    #[ts(type = "{ device?: string, processor?: string }")]
-    pub device: BTreeMap<String, Regex>,
+    #[ts(type = "{ display?: string, processor?: string }")]
+    pub device: BTreeMap<String, Regex>, // TODO: array
     #[ts(type = "number | null")]
     pub ram: Option<u64>,
     #[ts(type = "string[] | null")]

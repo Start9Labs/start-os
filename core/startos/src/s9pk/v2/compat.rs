@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::sync::Arc;
 
-use exver::ExtendedVersion;
+use exver::{ExtendedVersion, VersionRange};
 use models::ImageId;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWriteExt};
 use tokio::process::Command;
@@ -203,6 +203,8 @@ impl From<ManifestV1> for Manifest {
             version: ExtendedVersion::from(value.version).into(),
             satisfies: BTreeSet::new(),
             release_notes: value.release_notes,
+            can_migrate_from: VersionRange::any(),
+            can_migrate_to: VersionRange::none(),
             license: value.license.into(),
             wrapper_repo: value.wrapper_repo,
             upstream_repo: value.upstream_repo,

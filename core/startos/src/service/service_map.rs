@@ -173,6 +173,7 @@ impl ServiceMap {
                                 } else {
                                     PackageState::Installing(installing)
                                 },
+                                data_version: None,
                                 status: Status {
                                     configured: false,
                                     main: MainStatus::Stopped,

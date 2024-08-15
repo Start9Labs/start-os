@@ -8,7 +8,6 @@ export type ExportServiceInterfaceParams = {
   name: string
   description: string
   hasPrimary: boolean
-  disabled: boolean
   masked: boolean
   addressInfo: AddressInfo
   type: ServiceInterfaceType

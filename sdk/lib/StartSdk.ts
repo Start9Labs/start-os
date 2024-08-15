@@ -30,7 +30,7 @@ import { healthCheck, HealthCheckParams } from "./health/HealthCheck"
 import { checkPortListening } from "./health/checkFns/checkPortListening"
 import { checkWebUrl, runHealthScript } from "./health/checkFns"
 import { List } from "./config/builder/list"
-import { Migration } from "./inits/migrations/Migration"
+import { VersionInfo, VersionOptions } from "./versionInfo/VersionInfo"
 import { Install, InstallFn } from "./inits/setupInstall"
 import { setupActions } from "./actions/setupActions"
 import { setupDependencyConfig } from "./dependencies/setupDependencyConfig"
@@ -38,9 +38,9 @@ import { SetupBackupsParams, setupBackups } from "./backup/setupBackups"
 import { setupInit } from "./inits/setupInit"
 import {
   EnsureUniqueId,
-  Migrations,
-  setupMigrations,
-} from "./inits/migrations/setupMigrations"
+  VersionGraph,
+  setupVersionGraph,
+} from "./versionInfo/setupVersionGraph"
 import { Uninstall, UninstallFn, setupUninstall } from "./inits/setupUninstall"
 import { setupMain } from "./mainFn"
 import { defaultTrigger } from "./trigger/defaultTrigger"
@@ -75,7 +75,10 @@ import * as T from "./types"
 import { testTypeVersion, ValidateExVer } from "./exver"
 import { ExposedStorePaths } from "./store/setupExposeStore"
 import { PathBuilder, extractJsonPath, pathBuilder } from "./store/PathBuilder"
-import { checkAllDependencies } from "./dependencies/dependencies"
+import {
+  CheckDependencies,
+  checkDependencies,
+} from "./dependencies/dependencies"
 import { health } from "."
 import { GetSslCertificate } from "./util/GetSslCertificate"
 
@@ -142,7 +145,13 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
     }
 
     return {
-      checkAllDependencies,
+      checkDependencies: checkDependencies as <
+        DependencyId extends keyof Manifest["dependencies"] &
+          PackageId = keyof Manifest["dependencies"] & PackageId,
+      >(
+        effects: Effects,
+        packageIds?: DependencyId[],
+      ) => Promise<CheckDependencies<DependencyId>>,
       serviceInterface: {
         getOwn: <E extends Effects>(effects: E, id: ServiceInterfaceId) =>
           removeCallbackTypes<E>(effects)(
@@ -247,7 +256,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           id: string
           description: string
           hasPrimary: boolean
-          disabled: boolean
           type: ServiceInterfaceType
           username: null | string
           path: string
@@ -293,8 +301,8 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         )
       },
       HealthCheck: {
-        of(o: HealthCheckParams<Manifest>) {
-          return healthCheck<Manifest>(o)
+        of(o: HealthCheckParams) {
+          return healthCheck(o)
         },
       },
       Dependency: {
@@ -311,7 +319,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       setupActions: (...createdActions: CreatedAction<any, any, any>[]) =>
         setupActions<Manifest, Store>(...createdActions),
       setupBackups: (...args: SetupBackupsParams<Manifest>) =>
-        setupBackups<Manifest>(...args),
+        setupBackups<Manifest>(this.manifest, ...args),
       setupConfig: <
         ConfigType extends Config<any, Store> | Config<any, never>,
         Type extends Record<string, any> = ExtractConfigType<ConfigType>,
@@ -380,7 +388,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         }
       },
       setupInit: (
-        migrations: Migrations<Manifest, Store>,
+        versions: VersionGraph<Manifest["version"]>,
         install: Install<Manifest, Store>,
         uninstall: Uninstall<Manifest, Store>,
         setInterfaces: SetInterfaces<Manifest, Store, any, any>,
@@ -391,7 +399,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         exposedStore: ExposedStorePaths,
       ) =>
         setupInit<Manifest, Store>(
-          migrations,
+          versions,
           install,
           uninstall,
           setInterfaces,
@@ -412,15 +420,13 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           started(onTerm: () => PromiseLike<void>): PromiseLike<void>
         }) => Promise<Daemons<Manifest, any>>,
       ) => setupMain<Manifest, Store>(fn),
-      setupMigrations: <
-        Migrations extends Array<Migration<Manifest, Store, any>>,
+      setupVersionGraph: <
+        CurrentVersion extends string,
+        OtherVersions extends Array<VersionInfo<any>>,
       >(
-        ...migrations: EnsureUniqueId<Migrations>
-      ) =>
-        setupMigrations<Manifest, Store, Migrations>(
-          this.manifest,
-          ...migrations,
-        ),
+        current: VersionInfo<CurrentVersion>,
+        ...other: EnsureUniqueId<OtherVersions, OtherVersions, CurrentVersion>
+      ) => setupVersionGraph<CurrentVersion, OtherVersions>(current, ...other),
       setupProperties:
         (
           fn: (options: { effects: Effects }) => Promise<T.SdkPropertiesReturn>,
@@ -541,12 +547,9 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           >,
         ) => List.dynamicText<Store>(getA),
       },
-      Migration: {
-        of: <Version extends string>(options: {
-          version: Version & ValidateExVer<Version>
-          up: (opts: { effects: Effects }) => Promise<void>
-          down: (opts: { effects: Effects }) => Promise<void>
-        }) => Migration.of<Manifest, Store, Version>(options),
+      VersionInfo: {
+        of: <Version extends string>(options: VersionOptions<Version>) =>
+          VersionInfo.of<Version>(options),
       },
       StorePath: pathBuilder<Store>(),
       Value: {
@@ -747,15 +750,9 @@ export async function runCommand<Manifest extends T.Manifest>(
   },
 ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
   const commands = splitCommand(command)
-  const overlay = await Overlay.of(effects, image)
-  try {
-    for (let mount of options.mounts || []) {
-      await overlay.mount(mount.options, mount.path)
-    }
-    return await overlay.exec(commands)
-  } finally {
-    await overlay.destroy()
-  }
+  return Overlay.with(effects, image, options.mounts || [], (overlay) =>
+    overlay.exec(commands),
+  )
 }
 function nullifyProperties(value: T.SdkPropertiesReturn): T.PropertiesReturn {
   return Object.fromEntries(

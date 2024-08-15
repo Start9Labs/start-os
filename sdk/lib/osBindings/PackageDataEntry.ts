@@ -8,9 +8,11 @@ import type { PackageState } from "./PackageState"
 import type { ServiceInterface } from "./ServiceInterface"
 import type { ServiceInterfaceId } from "./ServiceInterfaceId"
 import type { Status } from "./Status"
+import type { Version } from "./Version"
 
 export type PackageDataEntry = {
   stateInfo: PackageState
+  dataVersion: Version | null
   status: Status
   registry: string | null
   developerKey: string

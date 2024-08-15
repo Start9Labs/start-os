@@ -91,6 +91,7 @@ export const mockPatchData: DataModel = {
           version: '0.20.0:0',
         },
       },
+      dataVersion: '0.20.0:0',
       icon: '/assets/img/service-icons/bitcoind.svg',
       lastBackup: null,
       status: {
@@ -132,7 +133,6 @@ export const mockPatchData: DataModel = {
         ui: {
           id: 'ui',
           hasPrimary: false,
-          disabled: false,
           masked: false,
           name: 'Web UI',
           description:
@@ -150,7 +150,6 @@ export const mockPatchData: DataModel = {
         rpc: {
           id: 'rpc',
           hasPrimary: false,
-          disabled: false,
           masked: false,
           name: 'RPC',
           description:
@@ -168,7 +167,6 @@ export const mockPatchData: DataModel = {
         p2p: {
           id: 'p2p',
           hasPrimary: true,
-          disabled: false,
           masked: false,
           name: 'P2P',
           description:
@@ -298,6 +296,7 @@ export const mockPatchData: DataModel = {
           version: '0.11.0:0.0.1',
         },
       },
+      dataVersion: '0.11.0:0.0.1',
       icon: '/assets/img/service-icons/lnd.png',
       lastBackup: null,
       status: {
@@ -311,7 +310,6 @@ export const mockPatchData: DataModel = {
         grpc: {
           id: 'grpc',
           hasPrimary: false,
-          disabled: false,
           masked: false,
           name: 'GRPC',
           description:
@@ -329,7 +327,6 @@ export const mockPatchData: DataModel = {
         lndconnect: {
           id: 'lndconnect',
           hasPrimary: false,
-          disabled: false,
           masked: true,
           name: 'LND Connect',
           description:
@@ -347,7 +344,6 @@ export const mockPatchData: DataModel = {
         p2p: {
           id: 'p2p',
           hasPrimary: true,
-          disabled: false,
           masked: false,
           name: 'P2P',
           description:

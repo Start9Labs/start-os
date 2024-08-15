@@ -3,7 +3,7 @@ import * as P from "./exver"
 // prettier-ignore
 export type ValidateVersion<T extends String> = 
 T extends `-${infer A}` ? never  :
-T extends `${infer A}-${infer B}` ? ValidateVersion<A> & ValidateVersion<B> :
+T extends `${infer A}-${string}` ? ValidateVersion<A> :
   T extends `${bigint}` ? unknown :
   T extends `${bigint}.${infer A}` ? ValidateVersion<A> :
   never
@@ -16,9 +16,9 @@ export type ValidateExVer<T extends string> =
 
 // prettier-ignore
 export type ValidateExVers<T> =
-  T extends [] ? unknown :
+  T extends [] ? unknown[] :
   T extends [infer A, ...infer B] ? ValidateExVer<A & string> & ValidateExVers<B> :
-  never
+  never[]
 
 type Anchor = {
   type: "Anchor"
@@ -44,7 +44,7 @@ type Not = {
 }
 
 export class VersionRange {
-  private constructor(private atom: Anchor | And | Or | Not | P.Any | P.None) {}
+  private constructor(public atom: Anchor | And | Or | Not | P.Any | P.None) {}
 
   toString(): string {
     switch (this.atom.type) {
@@ -60,67 +60,6 @@ export class VersionRange {
         return "*"
       case "None":
         return "!"
-    }
-  }
-
-  /**
-   * Returns a boolean indicating whether a given version satisfies the VersionRange
-   * !( >= 1:1 <= 2:2) || <=#bitcoin:1.2.0-alpha:0
-   */
-  satisfiedBy(version: ExtendedVersion): boolean {
-    switch (this.atom.type) {
-      case "Anchor":
-        const otherVersion = this.atom.version
-        switch (this.atom.operator) {
-          case "=":
-            return version.equals(otherVersion)
-          case ">":
-            return version.greaterThan(otherVersion)
-          case "<":
-            return version.lessThan(otherVersion)
-          case ">=":
-            return version.greaterThanOrEqual(otherVersion)
-          case "<=":
-            return version.lessThanOrEqual(otherVersion)
-          case "!=":
-            return !version.equals(otherVersion)
-          case "^":
-            const nextMajor = this.atom.version.incrementMajor()
-            if (
-              version.greaterThanOrEqual(otherVersion) &&
-              version.lessThan(nextMajor)
-            ) {
-              return true
-            } else {
-              return false
-            }
-          case "~":
-            const nextMinor = this.atom.version.incrementMinor()
-            if (
-              version.greaterThanOrEqual(otherVersion) &&
-              version.lessThan(nextMinor)
-            ) {
-              return true
-            } else {
-              return false
-            }
-        }
-      case "And":
-        return (
-          this.atom.left.satisfiedBy(version) &&
-          this.atom.right.satisfiedBy(version)
-        )
-      case "Or":
-        return (
-          this.atom.left.satisfiedBy(version) ||
-          this.atom.right.satisfiedBy(version)
-        )
-      case "Not":
-        return !this.atom.value.satisfiedBy(version)
-      case "Any":
-        return true
-      case "None":
-        return false
     }
   }
 
@@ -207,6 +146,10 @@ export class VersionRange {
   static none() {
     return new VersionRange({ type: "None" })
   }
+
+  satisfiedBy(version: Version | ExtendedVersion) {
+    return version.satisfies(this)
+  }
 }
 
 export class Version {
@@ -265,6 +208,12 @@ export class Version {
   static parse(version: string): Version {
     const parsed = P.parse(version, { startRule: "Version" })
     return new Version(parsed.number, parsed.prerelease)
+  }
+
+  satisfies(versionRange: VersionRange): boolean {
+    return new ExtendedVersion(null, this, new Version([0], [])).satisfies(
+      versionRange,
+    )
   }
 }
 
@@ -404,6 +353,67 @@ export class ExtendedVersion {
       updatedDownstream,
     )
   }
+
+  /**
+   * Returns a boolean indicating whether a given version satisfies the VersionRange
+   * !( >= 1:1 <= 2:2) || <=#bitcoin:1.2.0-alpha:0
+   */
+  satisfies(versionRange: VersionRange): boolean {
+    switch (versionRange.atom.type) {
+      case "Anchor":
+        const otherVersion = versionRange.atom.version
+        switch (versionRange.atom.operator) {
+          case "=":
+            return this.equals(otherVersion)
+          case ">":
+            return this.greaterThan(otherVersion)
+          case "<":
+            return this.lessThan(otherVersion)
+          case ">=":
+            return this.greaterThanOrEqual(otherVersion)
+          case "<=":
+            return this.lessThanOrEqual(otherVersion)
+          case "!=":
+            return !this.equals(otherVersion)
+          case "^":
+            const nextMajor = versionRange.atom.version.incrementMajor()
+            if (
+              this.greaterThanOrEqual(otherVersion) &&
+              this.lessThan(nextMajor)
+            ) {
+              return true
+            } else {
+              return false
+            }
+          case "~":
+            const nextMinor = versionRange.atom.version.incrementMinor()
+            if (
+              this.greaterThanOrEqual(otherVersion) &&
+              this.lessThan(nextMinor)
+            ) {
+              return true
+            } else {
+              return false
+            }
+        }
+      case "And":
+        return (
+          this.satisfies(versionRange.atom.left) &&
+          this.satisfies(versionRange.atom.right)
+        )
+      case "Or":
+        return (
+          this.satisfies(versionRange.atom.left) ||
+          this.satisfies(versionRange.atom.right)
+        )
+      case "Not":
+        return !this.satisfies(versionRange.atom.value)
+      case "Any":
+        return true
+      case "None":
+        return false
+    }
+  }
 }
 
 export const testTypeExVer = <T extends string>(t: T & ValidateExVer<T>) => t
@@ -416,6 +426,7 @@ function tests() {
   testTypeVersion("12.34.56")
   testTypeVersion("1.2-3")
   testTypeVersion("1-3")
+  testTypeVersion("1-alpha")
   // @ts-expect-error
   testTypeVersion("-3")
   // @ts-expect-error

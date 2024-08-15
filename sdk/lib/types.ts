@@ -3,7 +3,7 @@ export * as configTypes from "./config/configTypes"
 import {
   DependencyRequirement,
   SetHealth,
-  HealthCheckResult,
+  NamedHealthCheckResult,
   SetMainStatus,
   ServiceInterface,
   Host,
@@ -102,10 +102,7 @@ export namespace ExpectedExports {
    * Every time a package completes an install, this function is called before the main.
    * Can be used to do migration like things.
    */
-  export type init = (options: {
-    effects: Effects
-    previousVersion: null | string
-  }) => Promise<unknown>
+  export type init = (options: { effects: Effects }) => Promise<unknown>
   /** This will be ran during any time a package is uninstalled, for example during a update
    * this will be called.
    */
@@ -174,7 +171,7 @@ export type Daemon = {
   [DaemonProof]: never
 }
 
-export type HealthStatus = HealthCheckResult["result"]
+export type HealthStatus = NamedHealthCheckResult["result"]
 export type SmtpValue = {
   server: string
   port: number
@@ -249,15 +246,15 @@ export type SdkPropertiesValue =
     }
   | {
       type: "string"
-      /** Value  */
+      /** The value to display to the user */
       value: string
       /** A human readable description or explanation of the value */
       description?: string
-      /** (string/number only) Whether or not to mask the value, for example, when displaying a password */
+      /** Whether or not to mask the value, for example, when displaying a password */
       masked: boolean
-      /** (string/number only) Whether or not to include a button for copying the value to clipboard */
+      /** Whether or not to include a button for copying the value to clipboard */
       copyable?: boolean
-      /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
+      /** Whether or not to include a button for displaying the value as a QR code */
       qr?: boolean
     }
 
@@ -273,15 +270,15 @@ export type PropertiesValue =
     }
   | {
       type: "string"
-      /** Value  */
+      /** The value to display to the user */
       value: string
       /** A human readable description or explanation of the value */
       description: string | null
-      /** (string/number only) Whether or not to mask the value, for example, when displaying a password */
+      /** Whether or not to mask the value, for example, when displaying a password */
       masked: boolean
-      /** (string/number only) Whether or not to include a button for copying the value to clipboard */
+      /** Whether or not to include a button for copying the value to clipboard */
       copyable: boolean | null
-      /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
+      /** Whether or not to include a button for displaying the value as a QR code */
       qr: boolean | null
     }
 
@@ -437,6 +434,10 @@ export type Effects = {
       value: ExtractStore
     }): Promise<void>
   }
+  /** sets the version that this service's data has been migrated to */
+  setDataVersion(options: { version: string }): Promise<void>
+  /** returns the version that this service's data has been migrated to */
+  getDataVersion(): Promise<string | null>
 
   // system
 

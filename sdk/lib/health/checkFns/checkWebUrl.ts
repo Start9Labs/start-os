@@ -1,5 +1,6 @@
 import { Effects } from "../../types"
-import { CheckResult } from "./CheckResult"
+import { asError } from "../../util/asError"
+import { HealthCheckResult } from "./HealthCheckResult"
 import { timeoutPromise } from "./index"
 import "isomorphic-fetch"
 
@@ -17,19 +18,19 @@ export const checkWebUrl = async (
     successMessage = `Reached ${url}`,
     errorMessage = `Error while fetching URL: ${url}`,
   } = {},
-): Promise<CheckResult> => {
+): Promise<HealthCheckResult> => {
   return Promise.race([fetch(url), timeoutPromise(timeout)])
     .then(
       (x) =>
         ({
-          status: "success",
+          result: "success",
           message: successMessage,
         }) as const,
     )
     .catch((e) => {
       console.warn(`Error while fetching URL: ${url}`)
       console.error(JSON.stringify(e))
-      console.error(e.toString())
-      return { status: "failure" as const, message: errorMessage }
+      console.error(asError(e))
+      return { result: "failure" as const, message: errorMessage }
     })
 }
