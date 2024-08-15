@@ -88,6 +88,8 @@ export module Mock {
     title: 'Bitcoin Core',
     version: '0.21.0:0',
     satisfies: [],
+    canMigrateTo: '!',
+    canMigrateFrom: '*',
     gitHash: 'abcdefgh',
     description: {
       short: 'A Bitcoin full node by Bitcoin Core.',
@@ -132,6 +134,8 @@ export module Mock {
     title: 'Lightning Network Daemon',
     version: '0.11.1:0',
     satisfies: [],
+    canMigrateTo: '!',
+    canMigrateFrom: '*',
     gitHash: 'abcdefgh',
     description: {
       short: 'A bolt spec compliant client.',
@@ -188,6 +192,8 @@ export module Mock {
     title: 'Bitcoin Proxy',
     version: '0.2.2:0',
     satisfies: [],
+    canMigrateTo: '!',
+    canMigrateFrom: '*',
     gitHash: 'lmnopqrx',
     description: {
       short: 'A super charger for your Bitcoin node.',
@@ -1684,6 +1690,7 @@ export module Mock {
       state: 'installed',
       manifest: MockManifestBitcoind,
     },
+    dataVersion: MockManifestBitcoind.version,
     icon: '/assets/img/service-icons/bitcoind.svg',
     lastBackup: null,
     status: {
@@ -1860,6 +1867,7 @@ export module Mock {
       state: 'installed',
       manifest: MockManifestBitcoinProxy,
     },
+    dataVersion: MockManifestBitcoinProxy.version,
     icon: '/assets/img/service-icons/btc-rpc-proxy.png',
     lastBackup: null,
     status: {
@@ -1908,6 +1916,7 @@ export module Mock {
       state: 'installed',
       manifest: MockManifestLnd,
     },
+    dataVersion: MockManifestLnd.version,
     icon: '/assets/img/service-icons/lnd.png',
     lastBackup: null,
     status: {

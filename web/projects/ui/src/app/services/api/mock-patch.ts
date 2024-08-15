@@ -91,6 +91,7 @@ export const mockPatchData: DataModel = {
           version: '0.20.0:0',
         },
       },
+      dataVersion: '0.20.0:0',
       icon: '/assets/img/service-icons/bitcoind.svg',
       lastBackup: null,
       status: {
@@ -295,6 +296,7 @@ export const mockPatchData: DataModel = {
           version: '0.11.0:0.0.1',
         },
       },
+      dataVersion: '0.11.0:0.0.1',
       icon: '/assets/img/service-icons/lnd.png',
       lastBackup: null,
       status: {

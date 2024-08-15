@@ -3,6 +3,7 @@ import {
   CheckDependenciesParam,
   ExecuteAction,
   GetConfiguredParams,
+  SetDataVersionParams,
   SetMainStatus,
 } from ".././osBindings"
 import { CreateOverlayedImageParams } from ".././osBindings"
@@ -46,6 +47,8 @@ describe("startosTypeValidation ", () => {
       restart: undefined,
       shutdown: undefined,
       setConfigured: {} as SetConfigured,
+      setDataVersion: {} as SetDataVersionParams,
+      getDataVersion: undefined,
       setHealth: {} as SetHealth,
       exposeForDependents: {} as ExposeForDependentsParams,
       getSslCertificate: {} as WithCallback<GetSslCertificateParams>,

@@ -102,10 +102,7 @@ export namespace ExpectedExports {
    * Every time a package completes an install, this function is called before the main.
    * Can be used to do migration like things.
    */
-  export type init = (options: {
-    effects: Effects
-    previousVersion: null | string
-  }) => Promise<unknown>
+  export type init = (options: { effects: Effects }) => Promise<unknown>
   /** This will be ran during any time a package is uninstalled, for example during a update
    * this will be called.
    */
@@ -437,6 +434,10 @@ export type Effects = {
       value: ExtractStore
     }): Promise<void>
   }
+  /** sets the version that this service's data has been migrated to */
+  setDataVersion(options: { version: string }): Promise<void>
+  /** returns the version that this service's data has been migrated to */
+  getDataVersion(): Promise<string | null>
 
   // system
 

@@ -1,14 +1,15 @@
 import { DependenciesReceipt } from "../config/setupConfig"
+import { ExtendedVersion, VersionRange } from "../exver"
 import { SetInterfaces } from "../interfaces/setupInterfaces"
 
 import { ExposedStorePaths } from "../store/setupExposeStore"
 import * as T from "../types"
-import { Migrations } from "./migrations/setupMigrations"
+import { VersionGraph } from "../versionInfo/setupVersionGraph"
 import { Install } from "./setupInstall"
 import { Uninstall } from "./setupUninstall"
 
 export function setupInit<Manifest extends T.Manifest, Store>(
-  migrations: Migrations<Manifest, Store>,
+  versions: VersionGraph<Manifest["version"]>,
   install: Install<Manifest, Store>,
   uninstall: Uninstall<Manifest, Store>,
   setInterfaces: SetInterfaces<Manifest, Store, any, any>,
@@ -23,8 +24,19 @@ export function setupInit<Manifest extends T.Manifest, Store>(
 } {
   return {
     init: async (opts) => {
-      await migrations.init(opts)
-      await install.init(opts)
+      const prev = await opts.effects.getDataVersion()
+      if (prev) {
+        await versions.migrate({
+          effects: opts.effects,
+          from: ExtendedVersion.parse(prev),
+          to: versions.currentVersion(),
+        })
+      } else {
+        await install.install(opts)
+        await opts.effects.setDataVersion({
+          version: versions.current.options.version,
+        })
+      }
       await setInterfaces({
         ...opts,
         input: null,
@@ -33,8 +45,18 @@ export function setupInit<Manifest extends T.Manifest, Store>(
       await setDependencies({ effects: opts.effects, input: null })
     },
     uninit: async (opts) => {
-      await migrations.uninit(opts)
-      await uninstall.uninit(opts)
+      if (opts.nextVersion) {
+        const prev = await opts.effects.getDataVersion()
+        if (prev) {
+          await versions.migrate({
+            effects: opts.effects,
+            from: ExtendedVersion.parse(prev),
+            to: ExtendedVersion.parse(opts.nextVersion),
+          })
+        }
+      } else {
+        await uninstall.uninstall(opts)
+      }
     },
   }
 }

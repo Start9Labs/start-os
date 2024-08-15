@@ -11,14 +11,10 @@ export class Install<Manifest extends T.Manifest, Store> {
     return new Install(fn)
   }
 
-  async init({
-    effects,
-    previousVersion,
-  }: Parameters<T.ExpectedExports.init>[0]) {
-    if (!previousVersion)
-      await this.fn({
-        effects,
-      })
+  async install({ effects }: Parameters<T.ExpectedExports.init>[0]) {
+    await this.fn({
+      effects,
+    })
   }
 }
 
