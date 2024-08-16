@@ -60,14 +60,20 @@ impl SqfsDir {
             .get_or_try_init(|| async move {
                 let guid = Guid::new();
                 let path = self.tmpdir.join(guid.as_ref()).with_extension("squashfs");
-                let mut cmd = Command::new("mksquashfs");
                 if self.path.extension().and_then(|s| s.to_str()) == Some("tar") {
-                    cmd.arg("-tar");
+                    Command::new("tar2sqfs")
+                        .arg(&path)
+                        .input(Some(&mut open_file(&self.path).await?))
+                        .invoke(ErrorKind::Filesystem)
+                        .await?;
+                } else {
+                    Command::new("mksquashfs")
+                        .arg(&self.path)
+                        .arg(&path)
+                        .invoke(ErrorKind::Filesystem)
+                        .await?;
                 }
-                cmd.arg(&self.path)
-                    .arg(&path)
-                    .invoke(ErrorKind::Filesystem)
-                    .await?;
+
                 Ok(MultiCursorFile::from(
                     open_file(&path)
                         .await
@@ -507,7 +513,7 @@ impl ImageSource {
                     Command::new(CONTAINER_TOOL)
                         .arg("export")
                         .arg(container.trim())
-                        .pipe(Command::new("mksquashfs").arg("-").arg(&dest).arg("-tar"))
+                        .pipe(Command::new("tar2sqfs").arg(&dest))
                         .capture(false)
                         .invoke(ErrorKind::Docker)
                         .await?;
