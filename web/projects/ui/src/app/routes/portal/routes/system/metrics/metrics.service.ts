@@ -25,7 +25,7 @@ export class MetricsService extends Observable<ServerMetrics> {
     ),
     // @TODO Alex how to handle failure and reconnection here? Simple retry() will not work. Seems like we need a general solution for reconnecting websockets: patchDB, logs, metrics, progress, and any future. Reconnection should depend on server state, then we need to get a new guid, then reconnect. Similar to how patchDB websocket currently behaves on disconnect/reconnect.
     retry(),
-    shareReplay(),
+    shareReplay(1),
   )
 
   constructor() {

@@ -38,7 +38,7 @@ export class DepErrorService {
           ),
       ),
       distinctUntilChanged(deepEqual),
-      shareReplay({ bufferSize: 1, refCount: true }),
+      shareReplay(1),
     )
 
   constructor(

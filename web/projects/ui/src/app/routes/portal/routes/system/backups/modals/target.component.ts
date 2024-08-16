@@ -47,7 +47,6 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
                 [type]="context.data.type"
                 [target]="target"
                 [serverId]="serverId"
-                ]
               />
               <div [style.color]="'var(--tui-text-secondary'">
                 {{ displayInfo.description }}
@@ -77,7 +76,7 @@ export class BackupsTargetModal {
   private readonly dialogs = inject(TuiDialogService)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
-  private readonly patch = inject(PatchDB<DataModel>)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
   readonly context =
     inject<TuiDialogContext<BackupTarget, { type: BackupType }>>(
