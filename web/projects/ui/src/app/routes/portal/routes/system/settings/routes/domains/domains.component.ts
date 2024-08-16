@@ -64,7 +64,7 @@ export class SettingsDomainsComponent {
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly formDialog = inject(FormDialogService)
-  private readonly patch = inject(PatchDB<DataModel>)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly api = inject(ApiService)
   private readonly dialogs = inject(TuiDialogService)
 
@@ -151,9 +151,9 @@ export class SettingsDomainsComponent {
   }
   // @TODO figure out how to get types here
   private getNetworkStrategy(strategy: any) {
-    return strategy.unionSelectKey === 'local'
-      ? { ipStrategy: strategy.unionValueKey.ipStrategy }
-      : { proxy: strategy.unionValueKey.proxyId }
+    return strategy.selection === 'local'
+      ? { ipStrategy: strategy.value.ipStrategy }
+      : { proxy: strategy.value.proxyId }
   }
 
   private async deleteDomain(hostname?: string) {
@@ -189,7 +189,7 @@ export class SettingsDomainsComponent {
   // @TODO figure out how to get types here
   private async save({ provider, strategy, hostname }: any): Promise<boolean> {
     const loader = this.loader.open('Saving...').subscribe()
-    const name = provider.unionSelectKey
+    const name = provider.selection
 
     try {
       await this.api.addDomain({
@@ -197,8 +197,8 @@ export class SettingsDomainsComponent {
         networkStrategy: this.getNetworkStrategy(strategy),
         provider: {
           name,
-          username: name === 'start9' ? null : provider.unionValueKey.username,
-          password: name === 'start9' ? null : provider.unionValueKey.password,
+          username: name === 'start9' ? null : provider.value.username,
+          password: name === 'start9' ? null : provider.value.password,
         },
       })
       return true

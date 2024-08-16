@@ -4,7 +4,7 @@ import {
   inject,
   Input,
 } from '@angular/core'
-import { Emver } from '@start9labs/shared'
+import { Exver } from '@start9labs/shared'
 import { TuiIcon } from '@taiga-ui/core'
 import { BackupTarget } from 'src/app/services/api/api.types'
 import { BackupType } from '../types/backup-type'
@@ -21,8 +21,9 @@ import { BackupType } from '../types/backup-type'
   imports: [TuiIcon],
 })
 export class BackupsStatusComponent {
-  private readonly emver = inject(Emver)
+  private readonly exver = inject(Exver)
 
+  @Input({ required: true }) serverId!: string
   @Input({ required: true }) type!: BackupType
   @Input({ required: true }) target!: BackupTarget
 
@@ -62,8 +63,11 @@ export class BackupsStatusComponent {
 
   private get hasBackup(): boolean {
     return (
-      !!this.target.startOs &&
-      this.emver.compare(this.target.startOs.version, '0.3.0') !== -1
+      this.target.startOs[this.serverId] &&
+      this.exver.compareOsVersion(
+        this.target.startOs[this.serverId].version,
+        '0.3.6',
+      ) !== 'less'
     )
   }
 }

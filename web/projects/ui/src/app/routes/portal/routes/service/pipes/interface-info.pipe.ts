@@ -2,7 +2,7 @@ import { Pipe, PipeTransform } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 
-export interface ExtendedInterfaceInfo extends T.ServiceInterfaceWithHostInfo {
+export interface ExtendedInterfaceInfo extends T.ServiceInterface {
   id: string
   icon: string
   color: string

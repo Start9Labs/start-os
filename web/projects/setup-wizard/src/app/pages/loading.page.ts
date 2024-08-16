@@ -1,7 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { Router } from '@angular/router'
-import { ErrorService, InitializingComponent } from '@start9labs/shared'
+import {
+  ErrorService,
+  formatProgress,
+  InitializingComponent,
+} from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import {
   catchError,
@@ -36,13 +40,12 @@ export default class LoadingPage {
       filter(Boolean),
       take(1),
       switchMap(({ guid, progress }) =>
-        this.api.openProgressWebsocket$(guid).pipe(
+        this.api.openWebsocket$<T.FullProgress>(guid).pipe(
           startWith(progress),
           catchError((_, watch$) =>
             interval(2000).pipe(
-              switchMap(() =>
-                from(this.api.getStatus()).pipe(catchError(() => EMPTY)),
-              ),
+              switchMap(() => from(this.api.getStatus())),
+              catchError(() => EMPTY),
               take(1),
               switchMap(() => watch$),
             ),
@@ -54,13 +57,7 @@ export default class LoadingPage {
           }),
         ),
       ),
-      map(({ phases, overall }) => ({
-        total: getDecimal(overall),
-        message: phases
-          .filter(p => p.progress !== true && p.progress !== null)
-          .map(p => `${p.name}${getPhaseBytes(p.progress)}`)
-          .join(','),
-      })),
+      map(formatProgress),
       catchError(e => {
         this.errorService.handleError(e)
         return EMPTY
@@ -86,20 +83,4 @@ export default class LoadingPage {
       return res
     }
   }
-}
-
-function getDecimal(progress: T.Progress): number {
-  if (progress === true) {
-    return 1
-  } else if (!progress || !progress.total) {
-    return 0
-  } else {
-    return progress.total && progress.done / progress.total
-  }
-}
-
-function getPhaseBytes(progress: T.Progress): string {
-  return progress === true || !progress
-    ? ''
-    : `: (${progress.done}/${progress.total})`
 }

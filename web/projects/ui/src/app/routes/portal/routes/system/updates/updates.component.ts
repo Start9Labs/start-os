@@ -35,7 +35,7 @@ import { isInstalled, isUpdating } from 'src/app/utils/get-package-data'
           @for (pkg of pkgs; track pkg) {
             <updates-item
               [marketplacePkg]="pkg"
-              [localPkg]="data.local[pkg.manifest.id]"
+              [localPkg]="data.local[pkg.id]"
               [url]="host.url"
             />
           } @empty {
@@ -76,7 +76,7 @@ export default class UpdatesComponent {
   readonly data$ = combineLatest({
     hosts: this.service.getKnownHosts$(true),
     mp: this.service.getMarketplace$(),
-    local: inject(PatchDB<DataModel>)
+    local: inject<PatchDB<DataModel>>(PatchDB)
       .watch$('packageData')
       .pipe(
         map(pkgs =>

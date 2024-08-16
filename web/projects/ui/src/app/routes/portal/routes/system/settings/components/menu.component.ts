@@ -68,7 +68,7 @@ export class SettingsMenuComponent {
   private readonly clientStorageService = inject(ClientStorageService)
   private readonly alerts = inject(TuiAlertService)
 
-  readonly server$ = inject(PatchDB<DataModel>).watch$('serverInfo')
+  readonly server$ = inject<PatchDB<DataModel>>(PatchDB).watch$('serverInfo')
   readonly service = inject(SettingsService)
 
   manageClicks = 0

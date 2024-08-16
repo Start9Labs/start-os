@@ -1,4 +1,3 @@
-import { TuiConfirmService } from '@taiga-ui/kit'
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -15,7 +14,8 @@ import {
   tuiMarkControlAsTouchedAndValidate,
   TuiValueChanges,
 } from '@taiga-ui/cdk'
-import { TuiDialogContext, TuiButton } from '@taiga-ui/core'
+import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
+import { TuiConfirmService } from '@taiga-ui/kit'
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus'
 import { compare, Operation } from 'fast-json-patch'
 import { FormModule } from 'src/app/routes/portal/components/form/form.module'
@@ -100,7 +100,7 @@ export interface FormContext<T> {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FormComponent<T extends Record<string, any>> implements OnInit {
-  private readonly dialogFormService = inject(TuiConfirmService)
+  private readonly confirmService = inject(TuiConfirmService)
   private readonly formService = inject(FormService)
   private readonly invalidService = inject(InvalidService)
   private readonly context = inject<TuiDialogContext<void, FormContext<T>>>(
@@ -116,7 +116,7 @@ export class FormComponent<T extends Record<string, any>> implements OnInit {
   form = new FormGroup({})
 
   ngOnInit() {
-    this.dialogFormService.markAsPristine()
+    this.confirmService.markAsPristine()
     this.form = this.formService.createForm(this.spec, this.value)
     this.process(this.patch)
   }
@@ -140,7 +140,7 @@ export class FormComponent<T extends Record<string, any>> implements OnInit {
   }
 
   markAsDirty() {
-    this.dialogFormService.markAsDirty()
+    this.confirmService.markAsDirty()
   }
 
   close() {

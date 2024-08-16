@@ -95,7 +95,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
 })
 export class BackupsUpcomingComponent {
   readonly current = toSignal(
-    inject(PatchDB<DataModel>)
+    inject<PatchDB<DataModel>>(PatchDB)
       .watch$('serverInfo', 'statusInfo', 'currentBackup', 'job')
       .pipe(map(job => job || {})),
   )

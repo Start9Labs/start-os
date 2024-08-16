@@ -47,11 +47,6 @@ import { DependencyInfo } from '../types/dependency-info'
           [connected]="!!(connected$ | async)"
           [installingInfo]="service.pkg.stateInfo.installingInfo"
           [rendering]="getRendering(service.status)"
-          [sigtermTimeout]="
-            service.pkg.status.main.status === 'stopping'
-              ? service.pkg.status.main.timeout
-              : null
-          "
         />
 
         @if (isInstalled(service) && (connected$ | async)) {
@@ -164,14 +159,14 @@ import { DependencyInfo } from '../types/dependency-info'
   ],
 })
 export class ServiceRoute {
-  private readonly patch = inject(PatchDB<DataModel>)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly pkgId$ = inject(ActivatedRoute).paramMap.pipe(
     map(params => params.get('pkgId')!),
   )
   private readonly depErrorService = inject(DepErrorService)
   private readonly router = inject(Router)
   private readonly formDialog = inject(FormDialogService)
-  readonly connected$ = inject(ConnectionService).connected$
+  readonly connected$ = inject(ConnectionService)
 
   readonly service$ = this.pkgId$.pipe(
     switchMap(pkgId =>
@@ -232,11 +227,11 @@ export class ServiceRoute {
       depErrors,
     )
 
-    const { title, icon, versionSpec } = pkg.currentDependencies[depId]
+    const { title, icon, versionRange } = pkg.currentDependencies[depId]
 
     return {
       id: depId,
-      version: versionSpec,
+      version: versionRange,
       title,
       icon,
       errorText: errorText
@@ -322,7 +317,7 @@ export class ServiceRoute {
     const dependentInfo: DependentInfo = {
       id: manifest.id,
       title: manifest.title,
-      version: pkg.currentDependencies[depId].versionSpec,
+      version: pkg.currentDependencies[depId].versionRange,
     }
     const navigationExtras: NavigationExtras = {
       // @TODO state not being used by marketplace component. Maybe it is not important to use.

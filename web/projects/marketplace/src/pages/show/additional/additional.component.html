@@ -4,11 +4,11 @@
     <div class="detail-container">
       <!-- release date -->
       <marketplace-additional-item
-        *ngIf="pkg.publishedAt as published"
+        *ngIf="pkg.s9pk.publishedAt as published"
         [data]="(published | date: 'medium')!"
         label="Released"
         icon=""
-      ></marketplace-additional-item>
+      />
       <!-- git hash -->
       <marketplace-additional-item
         *ngIf="pkg.gitHash as gitHash; else noHash"
@@ -17,7 +17,7 @@
         label="Git Hash"
         icon="@tui.copy"
         class="item-copy"
-      ></marketplace-additional-item>
+      />
       <ng-template #noHash>
         <div class="item-padding">
           <label tuiTitle>
@@ -33,7 +33,7 @@
         label="License"
         icon="@tui.chevron-right"
         class="item-pointer"
-      ></marketplace-additional-item>
+      />
       <!-- instructions -->
       <marketplace-additional-item
         (click)="presentModalMd('Instructions')"
@@ -41,7 +41,7 @@
         label="Instructions"
         icon="@tui.chevron-right"
         class="item-pointer"
-      ></marketplace-additional-item>
+      />
       <!-- versions -->
       <ng-content />
       <!-- links -->
@@ -51,28 +51,28 @@
         label="Marketing Site"
         icon="@tui.external-link"
         class="item-pointer"
-      ></marketplace-additional-link>
+      />
       <marketplace-additional-link
         *ngIf="pkg.upstreamRepo"
         [url]="pkg.upstreamRepo"
         label="Source Repository"
         icon="@tui.external-link"
         class="item-pointer"
-      ></marketplace-additional-link>
+      />
       <marketplace-additional-link
         *ngIf="pkg.wrapperRepo"
         [url]="pkg.wrapperRepo"
         label="Wrapper Repository"
         icon="@tui.external-link"
         class="item-pointer"
-      ></marketplace-additional-link>
+      />
       <marketplace-additional-link
         *ngIf="pkg.supportSite"
         [url]="pkg.supportSite"
         label="Support Site"
         icon="@tui.external-link"
         class="item-pointer"
-      ></marketplace-additional-link>
+      />
     </div>
   </div>
 </div>

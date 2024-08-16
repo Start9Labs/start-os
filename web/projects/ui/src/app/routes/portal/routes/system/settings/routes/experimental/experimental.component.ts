@@ -80,7 +80,7 @@ export class SettingsExperimentalComponent {
   private readonly dialogs = inject(TuiDialogService)
   private readonly alerts = inject(TuiAlertService)
 
-  readonly server$ = inject(PatchDB<DataModel>).watch$('server-info')
+  readonly server$ = inject<PatchDB<DataModel>>(PatchDB).watch$('server-info')
   readonly isTor = inject(ConfigService).isTor()
 
   wipe = false

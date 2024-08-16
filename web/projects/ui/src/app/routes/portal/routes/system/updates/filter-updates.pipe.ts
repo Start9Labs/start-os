@@ -1,5 +1,5 @@
 import { inject, Pipe, PipeTransform } from '@angular/core'
-import { Emver } from '@start9labs/shared'
+import { Exver } from '@start9labs/shared'
 import { MarketplacePkg } from '@start9labs/marketplace'
 import {
   InstalledState,
@@ -12,7 +12,7 @@ import {
   standalone: true,
 })
 export class FilterUpdatesPipe implements PipeTransform {
-  private readonly emver = inject(Emver)
+  private readonly exver = inject(Exver)
 
   transform(
     pkgs?: MarketplacePkg[],
@@ -20,10 +20,10 @@ export class FilterUpdatesPipe implements PipeTransform {
   ): MarketplacePkg[] | null {
     return (
       pkgs?.filter(
-        ({ manifest }) =>
-          this.emver.compare(
-            manifest.version,
-            local?.[manifest.id]?.stateInfo.manifest.version,
+        ({ version, id }) =>
+          this.exver.compareExver(
+            version,
+            local?.[id]?.stateInfo.manifest.version || '',
           ) === 1,
       ) || null
     )

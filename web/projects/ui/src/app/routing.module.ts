@@ -1,19 +1,19 @@
 import { NgModule } from '@angular/core'
 import { PreloadAllModules, RouterModule, Routes } from '@angular/router'
+import { stateNot } from 'src/app/services/state.service'
 import { AuthGuard } from './guards/auth.guard'
 import { UnauthGuard } from './guards/unauth.guard'
 
 const routes: Routes = [
   {
     path: 'diagnostic',
-    loadChildren: () =>
-      import('./routes/diagnostic/diagnostic.module').then(
-        m => m.DiagnosticModule,
-      ),
+    canActivate: [stateNot(['initializing', 'running'])],
+    loadChildren: () => import('./routes/diagnostic/diagnostic.module'),
   },
   {
-    path: 'loading',
-    loadComponent: () => import('./routes/loading/loading.page'),
+    path: 'initializing',
+    canActivate: [stateNot(['error', 'running'])],
+    loadComponent: () => import('./routes/initializing/initializing.page'),
   },
   {
     path: 'login',
@@ -23,8 +23,7 @@ const routes: Routes = [
   },
   {
     path: 'portal',
-    canActivate: [AuthGuard],
-    canActivateChild: [AuthGuard],
+    canActivate: [AuthGuard, stateNot(['error', 'initializing'])],
     loadChildren: () => import('./routes/portal/portal.routes'),
   },
   {

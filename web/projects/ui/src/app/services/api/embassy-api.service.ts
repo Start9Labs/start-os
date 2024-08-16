@@ -31,7 +31,7 @@ export abstract class ApiService {
 
   abstract openWebsocket$<T>(
     guid: string,
-    config: RR.WebsocketConfig<T>,
+    config?: RR.WebsocketConfig<T>,
   ): Observable<T>
 
   // state
@@ -77,7 +77,7 @@ export abstract class ApiService {
 
   // init
 
-  abstract initGetProgress(): Promise<RR.InitGetProgressRes>
+  abstract initFollowProgress(): Promise<RR.InitFollowProgressRes>
 
   abstract initFollowLogs(
     params: RR.FollowServerLogsReq,
@@ -111,9 +111,9 @@ export abstract class ApiService {
     params: RR.FollowServerLogsReq,
   ): Promise<RR.FollowServerLogsRes>
 
-  abstract getServerMetrics(
-    params: RR.GetServerMetricsReq,
-  ): Promise<RR.GetServerMetricsRes>
+  abstract followServerMetrics(
+    params: RR.FollowServerMetricsReq,
+  ): Promise<RR.FollowServerMetricsRes>
 
   abstract updateServer(url?: string): Promise<RR.UpdateServerRes>
 

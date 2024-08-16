@@ -1,10 +1,5 @@
 import { Injectable } from '@angular/core'
-import {
-  pauseFor,
-  Log,
-  RPCErrorDetails,
-  RPCOptions,
-} from '@start9labs/shared'
+import { pauseFor, Log, RPCErrorDetails, RPCOptions } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import {
   Operation,
@@ -20,7 +15,7 @@ import {
   StateInfo,
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
-import { BackupTargetType, Metrics, RR } from './api.types'
+import { BackupTargetType, RR } from './api.types'
 import { Mock } from './api.fixures'
 import {
   from,
@@ -40,7 +35,6 @@ import {
   GetPackagesRes,
   MarketplacePkg,
 } from '@start9labs/marketplace'
-import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
 
 const PROGRESS: T.FullProgress = {
@@ -89,8 +83,8 @@ export class MockApiService extends ApiService {
 
   async uploadPackage(guid: string, body: Blob): Promise<string> {
     await pauseFor(2000)
-    // @TODO Matt what should this return?
-    return ''
+    // @TODO Aiden confirm this is correct
+    return 'success'
   }
 
   async uploadFile(body: Blob): Promise<string> {
@@ -263,7 +257,7 @@ export class MockApiService extends ApiService {
 
   // init
 
-  async initGetProgress(): Promise<RR.InitGetProgressRes> {
+  async initFollowProgress(): Promise<RR.InitFollowProgressRes> {
     await pauseFor(250)
     return {
       progress: PROGRESS,
@@ -280,19 +274,6 @@ export class MockApiService extends ApiService {
   }
 
   // server
-
-  openMetricsWebsocket$(
-    config: WebSocketSubjectConfig<Metrics>,
-  ): Observable<Metrics> {
-    return interval(2000).pipe(
-      map((_, index) => {
-        // mock fire open observer
-        if (index === 0) config.openObserver?.next(new Event(''))
-        if (index === 4) throw new Error('HAHAHA')
-        return Mock.getMetrics()
-      }),
-    )
-  }
 
   async getSystemTime(
     params: RR.GetSystemTimeReq,
@@ -380,9 +361,9 @@ export class MockApiService extends ApiService {
     return logs
   }
 
-  async getServerMetrics(
-    params: RR.GetServerMetricsReq,
-  ): Promise<RR.GetServerMetricsRes> {
+  async followServerMetrics(
+    params: RR.FollowServerMetricsReq,
+  ): Promise<RR.FollowServerMetricsRes> {
     await pauseFor(2000)
     return {
       guid: 'iqudh37um-i38u3-34-a51b-jkhd783ein',

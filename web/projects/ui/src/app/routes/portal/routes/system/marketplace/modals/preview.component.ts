@@ -6,6 +6,8 @@ import {
   Input,
   TemplateRef,
 } from '@angular/core'
+import { FormsModule } from '@angular/forms'
+import { Router } from '@angular/router'
 import {
   AboutModule,
   AbstractMarketplaceService,
@@ -14,21 +16,17 @@ import {
   MarketplaceDependenciesComponent,
   MarketplacePackageHeroComponent,
   MarketplacePkg,
-  ReleaseNotesModule,
-  StoreIdentity,
 } from '@start9labs/marketplace'
-import { displayEmver, Emver, SharedPipesModule } from '@start9labs/shared'
-import { BehaviorSubject, filter, switchMap, tap } from 'rxjs'
+import { Exver, SharedPipesModule } from '@start9labs/shared'
 import {
+  TuiButton,
   TuiDialogContext,
   TuiDialogService,
-  TuiLoader,
   TuiIcon,
-  TuiButton,
+  TuiLoader,
 } from '@taiga-ui/core'
 import { TuiRadioList, TuiStringifyContentPipe } from '@taiga-ui/kit'
-import { FormsModule } from '@angular/forms'
-import { Router } from '@angular/router'
+import { BehaviorSubject, filter, switchMap, tap } from 'rxjs'
 
 @Component({
   selector: 'marketplace-preview',
@@ -44,13 +42,12 @@ import { Router } from '@angular/router'
           </marketplace-package-hero>
           <div class="inner-container">
             <marketplace-about [pkg]="pkg" />
-            @if (!(pkg.manifest.dependencies | empty)) {
+            @if (!(pkg.dependencyMetadata | empty)) {
               <marketplace-dependencies
                 [pkg]="pkg"
                 (open)="open($event)"
               ></marketplace-dependencies>
             }
-            <release-notes [pkg]="pkg" />
             <marketplace-additional [pkg]="pkg">
               <marketplace-additional-item
                 (click)="presentAlertVersions(pkg, version)"
@@ -64,11 +61,7 @@ import { Router } from '@angular/router'
                 let-data="data"
                 let-completeWith="completeWith"
               >
-                <tui-radio-list
-                  [items]="data.items"
-                  [itemContent]="displayEmver | tuiStringifyContent"
-                  [(ngModel)]="data.value"
-                />
+                <tui-radio-list [items]="data.items" [(ngModel)]="data.value" />
                 <footer class="buttons">
                   <button
                     tuiButton
@@ -160,15 +153,14 @@ import { Router } from '@angular/router'
   imports: [
     CommonModule,
     MarketplacePackageHeroComponent,
-    TuiButton,
     MarketplaceDependenciesComponent,
-    ReleaseNotesModule,
+    MarketplaceAdditionalItemComponent,
+    TuiButton,
     AdditionalModule,
     AboutModule,
     SharedPipesModule,
     FormsModule,
     TuiStringifyContentPipe,
-    MarketplaceAdditionalItemComponent,
     TuiRadioList,
     TuiLoader,
     TuiIcon,
@@ -180,11 +172,9 @@ export class MarketplacePreviewComponent {
 
   readonly loading$ = new BehaviorSubject(true)
 
-  readonly displayEmver = displayEmver
   private readonly router = inject(Router)
   private readonly marketplaceService = inject(AbstractMarketplaceService)
-  readonly url =
-    this.router.routerState.snapshot.root.queryParamMap.get('url') || undefined
+  readonly url = this.router.routerState.snapshot.root.queryParamMap.get('url')
 
   readonly loadVersion$ = new BehaviorSubject<string>('*')
   readonly pkg$ = this.loadVersion$.pipe(
@@ -199,7 +189,7 @@ export class MarketplacePreviewComponent {
 
   constructor(
     private readonly dialogs: TuiDialogService,
-    private readonly emver: Emver,
+    private readonly exver: Exver,
   ) {}
 
   open(id: string) {
@@ -215,9 +205,9 @@ export class MarketplacePreviewComponent {
         label: 'Versions',
         size: 's',
         data: {
-          value: pkg.manifest.version,
-          items: [...new Set(pkg.versions)].sort(
-            (a, b) => -1 * (this.emver.compare(a, b) || 0),
+          value: pkg.version,
+          items: [...new Set(Object.keys(pkg.otherVersions))].sort(
+            (a, b) => -1 * (this.exver.compareExver(a, b) || 0),
           ),
         },
       })

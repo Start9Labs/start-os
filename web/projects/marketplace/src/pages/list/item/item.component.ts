@@ -25,7 +25,7 @@ export class ItemComponent {
       const iconUrl = new URL(this.pkg.icon)
       return iconUrl.href
     } catch (e) {
-      return `${marketplace?.url}package/v0/icon/${this.pkg.manifest.id}`
+      return `${marketplace?.url}package/v0/icon/${this.pkg.id}`
     }
   }
 }

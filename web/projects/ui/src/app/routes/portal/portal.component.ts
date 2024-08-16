@@ -58,5 +58,5 @@ export class PortalComponent {
       this.breadcrumbs.update(e.url.replace('/portal/service/', ''))
     })
 
-  readonly name$ = inject(PatchDB<DataModel>).watch$('ui', 'name')
+  readonly name$ = inject<PatchDB<DataModel>>(PatchDB).watch$('ui', 'name')
 }

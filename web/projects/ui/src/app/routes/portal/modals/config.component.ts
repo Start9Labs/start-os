@@ -6,7 +6,7 @@ import {
   isEmptyObject,
   LoadingService,
 } from '@start9labs/shared'
-import { CT } from '@start9labs/start-sdk'
+import { CT, T } from '@start9labs/start-sdk'
 import {
   TuiDialogContext,
   TuiDialogService,
@@ -199,8 +199,6 @@ export class ConfigModal {
     const loader = new Subscription()
 
     try {
-      await this.uploadFiles(config, loader)
-
       if (hasCurrentDeps(this.pkgId, await getAllPackages(this.patchDb))) {
         await this.configureDeps(config, loader)
       } else {
@@ -211,24 +209,6 @@ export class ConfigModal {
     } finally {
       loader.unsubscribe()
     }
-  }
-
-  private async uploadFiles(config: Record<string, any>, loader: Subscription) {
-    loader.unsubscribe()
-    loader.closed = false
-
-    // TODO: Could be nested files
-    const keys = Object.keys(config).filter(key => config[key] instanceof File)
-    const message = `Uploading File${keys.length > 1 ? 's' : ''}...`
-
-    if (!keys.length) return
-
-    loader.add(this.loader.open(message).subscribe())
-
-    const hashes = await Promise.all(
-      keys.map(key => this.embassyApi.uploadFile(config[key])),
-    )
-    keys.forEach((key, i) => (config[key] = hashes[i]))
   }
 
   private async configureDeps(
@@ -261,11 +241,11 @@ export class ConfigModal {
     this.context.$implicit.complete()
   }
 
-  private async approveBreakages(breakages: Breakages): Promise<boolean> {
+  private async approveBreakages(breakages: T.PackageId[]): Promise<boolean> {
     const packages = await getAllPackages(this.patchDb)
     const message =
       'As a result of this change, the following services will no longer work properly and may crash:<ul>'
-    const content = `${message}${Object.keys(breakages).map(
+    const content = `${message}${breakages.map(
       id => `<li><b>${getManifest(packages[id]).title}</b></li>`,
     )}</ul>`
     const data: TuiConfirmData = { content, yes: 'Continue', no: 'Cancel' }

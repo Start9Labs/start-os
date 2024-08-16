@@ -9,6 +9,7 @@ import {
 } from '@angular/core'
 import { map, timer } from 'rxjs'
 import { ConfigService } from 'src/app/services/config.service'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { ExtendedInterfaceInfo } from '../pipes/interface-info.pipe'
 
 @Component({
@@ -56,8 +57,11 @@ import { ExtendedInterfaceInfo } from '../pipes/interface-info.pipe'
 export class ServiceInterfaceListItemComponent {
   private readonly config = inject(ConfigService)
 
-  @Input({ required: true, alias: 'serviceInterfaceListItem' })
+  @Input({ required: true })
   info!: ExtendedInterfaceInfo
+
+  @Input({ required: true })
+  pkg!: PackageDataEntry
 
   @Input()
   disabled = false
@@ -68,6 +72,8 @@ export class ServiceInterfaceListItemComponent {
   )
 
   get href(): string | null {
-    return this.disabled ? null : this.config.launchableAddress(this.info)
+    return this.disabled
+      ? null
+      : this.config.launchableAddress(this.info, this.pkg.hosts)
   }
 }

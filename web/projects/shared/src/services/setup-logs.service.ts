@@ -1,13 +1,12 @@
 import { StaticClassProvider } from '@angular/core'
 import { bufferTime, defer, map, Observable, scan, switchMap } from 'rxjs'
-import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import { FollowLogsReq, FollowLogsRes, Log } from '../types/api'
 import { Constructor } from '../types/constructor'
 import { convertAnsi } from '../util/convert-ansi'
 
 interface Api {
   followServerLogs: (params: FollowLogsReq) => Promise<FollowLogsRes>
-  openLogsWebsocket$: (config: WebSocketSubjectConfig<Log>) => Observable<Log>
+  openWebsocket$: (guid: string) => Observable<Log>
 }
 
 export function provideSetupLogsService(
@@ -22,9 +21,7 @@ export function provideSetupLogsService(
 
 export class SetupLogsService extends Observable<readonly string[]> {
   private readonly log$ = defer(() => this.api.followServerLogs({})).pipe(
-    switchMap(({ guid }) =>
-      this.api.openLogsWebsocket$({ url: `/rpc/${guid}` }),
-    ),
+    switchMap(({ guid }) => this.api.openWebsocket$(guid)),
     bufferTime(1000),
     map(convertAnsi),
     scan((logs: readonly string[], log) => [...logs, log], []),

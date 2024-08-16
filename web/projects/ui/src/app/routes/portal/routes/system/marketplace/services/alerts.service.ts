@@ -11,7 +11,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 })
 export class MarketplaceAlertsService {
   private readonly dialogs = inject(TuiDialogService)
-  private readonly marketplace$ = inject(PatchDB<DataModel>).watch$(
+  private readonly marketplace$ = inject<PatchDB<DataModel>>(PatchDB).watch$(
     'ui',
     'marketplace',
   )
@@ -60,8 +60,8 @@ export class MarketplaceAlertsService {
     })
   }
 
-  async alertInstall({ manifest }: MarketplacePkg): Promise<boolean> {
-    const content = manifest.alerts.install
+  async alertInstall({ alerts }: MarketplacePkg): Promise<boolean> {
+    const content = alerts.install
 
     return (
       !!content &&

@@ -1,14 +1,13 @@
+import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
   EventEmitter,
   Input,
   Output,
-  inject,
 } from '@angular/core'
-import { CommonModule } from '@angular/common'
-import { MarketplaceDepItemComponent } from './dependency-item.component'
 import { MarketplacePkg } from '../../../types'
+import { MarketplaceDepItemComponent } from './dependency-item.component'
 
 @Component({
   selector: 'marketplace-dependencies',
@@ -17,7 +16,7 @@ import { MarketplacePkg } from '../../../types'
       <div class="dependencies-container">
         <h2 class="additional-detail-title">Dependencies</h2>
         <div class="dependencies-list">
-          @for (dep of pkg.manifest.dependencies | keyvalue; track $index) {
+          @for (dep of pkg.dependencyMetadata | keyvalue; track $index) {
             <marketplace-dep-item
               [dep]="dep"
               [pkg]="pkg"

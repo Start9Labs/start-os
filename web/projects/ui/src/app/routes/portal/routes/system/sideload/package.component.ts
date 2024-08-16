@@ -10,7 +10,7 @@ import {
   MarketplacePkg,
 } from '@start9labs/marketplace'
 import {
-  Emver,
+  Exver,
   ErrorService,
   LoadingService,
   SharedPipesModule,
@@ -37,7 +37,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
             *ngIf="button !== null && button !== 'Install'"
             tuiButton
             appearance="tertiary-solid"
-            [routerLink]="'/portal/service/' + package.manifest.id"
+            [routerLink]="'/portal/service/' + package.id"
           >
             View installed
           </a>
@@ -47,7 +47,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
         </div>
       </marketplace-package-hero>
       <marketplace-about [pkg]="package" />
-      @if (!(package.manifest.dependencies | empty)) {
+      @if (!(package.dependencyMetadata | empty)) {
         <marketplace-dependencies [pkg]="package" (open)="open($event)" />
       }
       <marketplace-additional [pkg]="package" />
@@ -93,18 +93,18 @@ export class SideloadPackageComponent {
   private readonly errorService = inject(ErrorService)
   private readonly router = inject(Router)
   private readonly alerts = inject(TuiAlertService)
-  private readonly emver = inject(Emver)
+  private readonly exver = inject(Exver)
 
   readonly button$ = combineLatest([
     inject(ClientStorageService).showDevTools$,
-    inject(PatchDB<DataModel>)
+    inject<PatchDB<DataModel>>(PatchDB)
       .watch$('packageData')
       .pipe(
         map(local =>
-          local[this.package.manifest.id]
-            ? this.emver.compare(
-                getManifest(local[this.package.manifest.id]).version,
-                this.package.manifest.version,
+          local[this.package.id]
+            ? this.exver.compareExver(
+                getManifest(local[this.package.id]).version,
+                this.package.version,
               )
             : null,
         ),
@@ -132,14 +132,12 @@ export class SideloadPackageComponent {
 
   async upload() {
     const loader = this.loader.open('Uploading package').subscribe()
-    const { manifest, icon } = this.package
-    const { size } = this.file
 
     try {
-      const pkg = await this.api.sideloadPackage({ manifest, icon, size })
+      const { upload } = await this.api.sideloadPackage()
 
-      await this.api.uploadPackage(pkg, this.file)
-      await this.router.navigate(['/portal/service', manifest.id])
+      await this.api.uploadPackage(upload, this.file).catch(console.error)
+      await this.router.navigate(['/portal/service', this.package.id])
 
       this.alerts
         .open('Package uploaded successfully', { status: 'success' })

@@ -7,7 +7,7 @@ import {
   InterfaceComponent,
   ServiceInterfaceWithAddresses,
 } from 'src/app/routes/portal/components/interfaces/interface.component'
-import { getAddresses } from 'src/app/routes/portal/components/interfaces/interface.utils'
+import { getMultihostAddresses } from 'src/app/routes/portal/components/interfaces/interface.utils'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
@@ -29,7 +29,7 @@ export class StartOsUiComponent {
     .watch$('serverInfo', 'ui')
     .pipe(
       map(hosts => {
-        const serviceInterface: T.ServiceInterfaceWithHostInfo = {
+        const serviceInterface: T.ServiceInterface = {
           id: 'startos-ui',
           name: 'StartOS UI',
           description: 'The primary web user interface for StartOS',
@@ -40,31 +40,26 @@ export class StartOsUiComponent {
           addressInfo: {
             hostId: '',
             username: null,
+            internalPort: 80,
+            scheme: 'http',
+            sslScheme: 'https',
             suffix: '',
-            bindOptions: {
-              scheme: 'http',
-              preferredExternalPort: 80,
-              addSsl: {
-                scheme: 'https',
-                preferredExternalPort: 443,
-                // @TODO is this alpn correct?
-                alpn: { specified: ['http/1.1', 'h2'] },
-              },
-              secure: {
-                ssl: false,
-              },
-            },
           },
-          hostInfo: {
-            id: 'start-os-ui-host',
-            kind: 'multi',
-            hostnames: hosts,
+        }
+
+        // @TODO Aiden confirm this is correct
+        const host: T.Host = {
+          kind: 'multi',
+          bindings: {},
+          hostnameInfo: {
+            80: hosts,
           },
+          addresses: [],
         }
 
         return {
           ...serviceInterface,
-          addresses: getAddresses(serviceInterface),
+          addresses: getMultihostAddresses(serviceInterface, host),
         }
       }),
     )

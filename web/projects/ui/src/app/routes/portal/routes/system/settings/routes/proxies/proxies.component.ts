@@ -40,7 +40,7 @@ export class SettingsProxiesComponent {
   private readonly api = inject(ApiService)
   private readonly formDialog = inject(FormDialogService)
 
-  readonly proxies$ = inject(PatchDB<DataModel>).watch$(
+  readonly proxies$ = inject<PatchDB<DataModel>>(PatchDB).watch$(
     'serverInfo',
     'network',
     'proxies',

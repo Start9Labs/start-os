@@ -2,9 +2,7 @@ import * as jose from 'node-jose'
 import {
   DiskInfo,
   DiskListResponse,
-  FollowLogsReq,
   FollowLogsRes,
-  Log,
   PartitionInfo,
   StartOSDiskInfo,
 } from '@start9labs/shared'
@@ -25,11 +23,8 @@ export abstract class ApiService {
   abstract execute(setupInfo: T.SetupExecuteParams): Promise<T.SetupProgress> // setup.execute
   abstract complete(): Promise<T.SetupResult> // setup.complete
   abstract exit(): Promise<void> // setup.exit
-  abstract followServerLogs(params: FollowLogsReq): Promise<FollowLogsRes> // setup.logs.follow
-  abstract openLogsWebsocket$(
-    config: WebSocketSubjectConfig<Log>,
-  ): Observable<Log>
-  abstract openProgressWebsocket$(guid: string): Observable<T.FullProgress>
+  abstract followServerLogs(): Promise<FollowLogsRes> // setup.logs.follow
+  abstract openWebsocket$<T>(guid: string): Observable<T>
 
   async encrypt(toEncrypt: string): Promise<T.EncryptedWire> {
     if (!this.pubkey) throw new Error('No pubkey found!')

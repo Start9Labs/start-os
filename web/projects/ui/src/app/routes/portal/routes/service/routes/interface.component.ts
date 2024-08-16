@@ -3,17 +3,17 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
-import { map } from 'rxjs'
+import { combineLatest, map } from 'rxjs'
 import { InterfaceComponent } from 'src/app/routes/portal/components/interfaces/interface.component'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { getAddresses } from '../../../components/interfaces/interface.utils'
+import { getMultihostAddresses } from '../../../components/interfaces/interface.utils'
 
 @Component({
   template: `
     <app-interface
-      *ngIf="interfaceInfo$ | async as interfaceInfo"
+      *ngIf="interfacesWithAddresses$ | async as serviceInterface"
       [packageContext]="context"
-      [serviceInterface]="interfaceInfo"
+      [serviceInterface]="serviceInterface"
     />
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -22,23 +22,25 @@ import { getAddresses } from '../../../components/interfaces/interface.utils'
 })
 export class ServiceInterfaceRoute {
   private readonly route = inject(ActivatedRoute)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
   readonly context = {
     packageId: getPkgId(this.route),
     interfaceId: this.route.snapshot.paramMap.get('interfaceId') || '',
   }
 
-  readonly interfaceInfo$ = inject(PatchDB<DataModel>)
-    .watch$(
+  readonly interfacesWithAddresses$ = combineLatest([
+    this.patch.watch$(
       'packageData',
       this.context.packageId,
       'serviceInterfaces',
       this.context.interfaceId,
-    )
-    .pipe(
-      map(info => ({
-        ...info,
-        addresses: getAddresses(info),
-      })),
-    )
+    ),
+    this.patch.watch$('packageData', this.context.packageId, 'hosts'),
+  ]).pipe(
+    map(([iFace, hosts]) => ({
+      ...iFace,
+      addresses: getMultihostAddresses(iFace, hosts[iFace.addressInfo.hostId]),
+    })),
+  )
 }

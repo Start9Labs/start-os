@@ -9,7 +9,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
   standalone: true,
 })
 export class ToLocalPipe implements PipeTransform {
-  private readonly patch = inject(PatchDB<DataModel>)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
   transform(id: string): Observable<PackageDataEntry> {
     return this.patch.watch$('packageData', id).pipe(filter(Boolean))

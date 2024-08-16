@@ -6,7 +6,7 @@ import {
   Input,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
-import { WINDOW } from '@ng-web-apis/common'
+import { WA_WINDOW } from '@ng-web-apis/common'
 import { Breadcrumb } from 'src/app/services/breadcrumbs.service'
 
 @Component({
@@ -68,7 +68,7 @@ import { Breadcrumb } from 'src/app/services/breadcrumbs.service'
   imports: [TuiIcon, RouterLink],
 })
 export class HeaderMobileComponent {
-  private readonly win = inject(WINDOW)
+  private readonly win = inject(WA_WINDOW)
 
   @Input() headerMobile: readonly Breadcrumb[] | null = []
 

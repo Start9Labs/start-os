@@ -2,16 +2,13 @@ import { Injectable } from '@angular/core'
 import {
   DiskListResponse,
   encodeBase64,
-  FollowLogsReq,
   FollowLogsRes,
-  Log,
   pauseFor,
   StartOSDiskInfo,
 } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import * as jose from 'node-jose'
-import { interval, map, Observable, of } from 'rxjs'
-import { WebSocketSubjectConfig } from 'rxjs/webSocket'
+import { interval, map, Observable } from 'rxjs'
 import { ApiService } from './api.service'
 
 @Injectable({
@@ -47,68 +44,102 @@ export class MockApiService extends ApiService {
 
   // websocket
 
-  openProgressWebsocket$(guid: string): Observable<T.FullProgress> {
-    return of(PROGRESS)
-    // const numPhases = PROGRESS.phases.length
+  // oldMockProgress$(): Promise<T.FullProgress> {
+  //   const numPhases = PROGRESS.phases.length
 
-    // return of(PROGRESS).pipe(
-    //   switchMap(full =>
-    //     from(PROGRESS.phases).pipe(
-    //       mergeScan((full, phase, i) => {
-    //         if (
-    //           !phase.progress ||
-    //           typeof phase.progress !== 'object' ||
-    //           !phase.progress.total
-    //         ) {
-    //           full.phases[i].progress = true
+  //   return of(PROGRESS).pipe(
+  //     switchMap(full =>
+  //       from(PROGRESS.phases).pipe(
+  //         mergeScan((full, phase, i) => {
+  //           if (
+  //             !phase.progress ||
+  //             typeof phase.progress !== 'object' ||
+  //             !phase.progress.total
+  //           ) {
+  //             full.phases[i].progress = true
 
-    //           if (
-    //             full.overall &&
-    //             typeof full.overall === 'object' &&
-    //             full.overall.total
-    //           ) {
-    //             const step = full.overall.total / numPhases
-    //             full.overall.done += step
-    //           }
+  //             if (
+  //               full.overall &&
+  //               typeof full.overall === 'object' &&
+  //               full.overall.total
+  //             ) {
+  //               const step = full.overall.total / numPhases
+  //               full.overall.done += step
+  //             }
 
-    //           return of(full).pipe(delay(2000))
-    //         } else {
-    //           const total = phase.progress.total
-    //           const step = total / 4
-    //           let done = phase.progress.done
+  //             return of(full).pipe(delay(2000))
+  //           } else {
+  //             const total = phase.progress.total
+  //             const step = total / 4
+  //             let done = phase.progress.done
 
-    //           return interval(1000).pipe(
-    //             takeWhile(() => done < total),
-    //             map(() => {
-    //               done += step
+  //             return interval(1000).pipe(
+  //               takeWhile(() => done < total),
+  //               map(() => {
+  //                 done += step
 
-    //               console.error(done)
+  //                 console.error(done)
 
-    //               if (
-    //                 full.overall &&
-    //                 typeof full.overall === 'object' &&
-    //                 full.overall.total
-    //               ) {
-    //                 const step = full.overall.total / numPhases / 4
+  //                 if (
+  //                   full.overall &&
+  //                   typeof full.overall === 'object' &&
+  //                   full.overall.total
+  //                 ) {
+  //                   const step = full.overall.total / numPhases / 4
 
-    //                 full.overall.done += step
-    //               }
+  //                   full.overall.done += step
+  //                 }
 
-    //               if (done === total) {
-    //                 full.phases[i].progress = true
+  //                 if (done === total) {
+  //                   full.phases[i].progress = true
 
-    //                 if (i === numPhases - 1) {
-    //                   full.overall = true
-    //                 }
-    //               }
-    //               return full
-    //             }),
-    //           )
-    //         }
-    //       }, full),
-    //     ),
-    //   ),
-    // )
+  //                   if (i === numPhases - 1) {
+  //                     full.overall = true
+  //                   }
+  //                 }
+  //                 return full
+  //               }),
+  //             )
+  //           }
+  //         }, full),
+  //       ),
+  //     ),
+  //   )
+  // }
+
+  openWebsocket$<T>(guid: string): Observable<T> {
+    if (guid === 'logs-guid') {
+      return interval(500).pipe(
+        map(() => ({
+          timestamp: new Date().toISOString(),
+          message: 'fake log entry',
+          bootId: 'boot-id',
+        })),
+      ) as Observable<T>
+    } else if (guid === 'progress-guid') {
+      // @TODO mock progress
+      return interval(1000).pipe(
+        map(() => ({
+          overall: true,
+          phases: [
+            {
+              name: 'Preparing Data',
+              progress: true,
+            },
+            {
+              name: 'Transferring Data',
+              progress: true,
+            },
+            {
+              name: 'Finalizing Setup',
+              progress: true,
+            },
+          ],
+        })),
+      ) as Observable<T>
+    } else {
+      throw new Error('invalid guid type')
+    }
   }
 
   private statusIndex = 0
@@ -270,22 +301,12 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async followServerLogs(params: FollowLogsReq): Promise<FollowLogsRes> {
+  async followServerLogs(): Promise<FollowLogsRes> {
     await pauseFor(1000)
     return {
       startCursor: 'fakestartcursor',
-      guid: 'fake-guid',
+      guid: 'logs-guid',
     }
-  }
-
-  openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
-    return interval(500).pipe(
-      map(() => ({
-        timestamp: new Date().toISOString(),
-        message: 'fake log entry',
-        bootId: 'boot-id',
-      })),
-    )
   }
 
   async complete(): Promise<T.SetupResult> {

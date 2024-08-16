@@ -1,7 +1,7 @@
 import { DatePipe } from '@angular/common'
 import { Component, inject } from '@angular/core'
 import { Router } from '@angular/router'
-import { ErrorService } from '@start9labs/shared'
+import { ErrorService, ServerComponent } from '@start9labs/shared'
 import {
   TuiButton,
   TuiDialogService,
@@ -11,7 +11,7 @@ import {
 } from '@taiga-ui/core'
 import { TuiCardLarge, TuiCell } from '@taiga-ui/layout'
 import { CIFS, CifsResponse } from 'src/app/components/cifs.component'
-import { ServerComponent } from 'src/app/components/server.component'
+import { PasswordDirective } from 'src/app/components/password.directive'
 import { ApiService, StartOSDiskInfoFull } from 'src/app/services/api.service'
 import { StateService } from 'src/app/services/state.service'
 
@@ -66,6 +66,7 @@ import { StateService } from 'src/app/services/state.service'
     TuiTitle,
     DatePipe,
     ServerComponent,
+    PasswordDirective,
   ],
 })
 export default class RecoverPage {

@@ -112,7 +112,7 @@ import { toRouterLink } from 'src/app/utils/to-router-link'
   imports: [CommonModule, RouterLink, TuiLineClamp, TuiLink, TuiIcon],
 })
 export class NotificationItemComponent {
-  private readonly patch = inject(PatchDB<DataModel>)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   readonly service = inject(NotificationService)
 
   @Input({ required: true }) notificationItem!: ServerNotification<number>

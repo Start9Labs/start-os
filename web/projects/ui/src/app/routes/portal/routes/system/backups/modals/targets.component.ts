@@ -171,8 +171,8 @@ export class BackupsTargetsModal implements OnInit {
             text: 'Save',
             handler: ({ type }: BackupConfig) =>
               this.add(
-                type[CT.unionSelectKey] === 'cifs' ? 'cifs' : 'cloud',
-                type[CT.unionValueKey],
+                type.selection === 'cifs' ? 'cifs' : 'cloud',
+                type.value,
               ),
           },
         ],

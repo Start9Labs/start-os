@@ -1,5 +1,5 @@
 import { inject, Pipe, PipeTransform } from '@angular/core'
-import { convertAnsi, toLocalIsoString } from '@start9labs/shared'
+import { convertAnsi, Log, toLocalIsoString } from '@start9labs/shared'
 import {
   bufferTime,
   catchError,
@@ -44,14 +44,20 @@ export class LogsPipe implements PipeTransform {
       ),
       defer(() => followLogs(this.options)).pipe(
         tap(r => this.logs.setCursor(r.startCursor)),
-        switchMap(r => this.api.openLogsWebsocket$(this.toConfig(r.guid))),
+        switchMap(r =>
+          this.api.openWebsocket$<Log>(r.guid, {
+            openObserver: {
+              next: () => this.logs.status$.next('connected'),
+            },
+          }),
+        ),
         bufferTime(1000),
         filter(logs => !!logs.length),
         map(convertAnsi),
       ),
     ).pipe(
       catchError(() =>
-        this.connection.connected$.pipe(
+        this.connection.pipe(
           tap(v => this.logs.status$.next(v ? 'reconnecting' : 'disconnected')),
           filter(Boolean),
           take(1),
@@ -66,15 +72,6 @@ export class LogsPipe implements PipeTransform {
 
   private get options() {
     return this.logs.status$.value === 'connected' ? { limit: 400 } : {}
-  }
-
-  private toConfig(guid: string) {
-    return {
-      url: `/rpc/${guid}`,
-      openObserver: {
-        next: () => this.logs.status$.next('connected'),
-      },
-    }
   }
 }
 

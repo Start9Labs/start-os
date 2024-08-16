@@ -95,7 +95,7 @@ export class LiveApiService extends ApiService {
 
   openWebsocket$<T>(
     guid: string,
-    config: RR.WebsocketConfig<T>,
+    config: RR.WebsocketConfig<T> = {},
   ): Observable<T> {
     const { location } = this.document.defaultView!
     const protocol = location.protocol === 'http:' ? 'ws' : 'wss'
@@ -199,7 +199,7 @@ export class LiveApiService extends ApiService {
 
   // init
 
-  async initGetProgress(): Promise<RR.InitGetProgressRes> {
+  async initFollowProgress(): Promise<RR.InitFollowProgressRes> {
     return this.rpcRequest({ method: 'init.subscribe', params: {} })
   }
 
@@ -251,9 +251,9 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'net.tor.logs.follow', params })
   }
 
-  async getServerMetrics(
-    params: RR.GetServerMetricsReq,
-  ): Promise<RR.GetServerMetricsRes> {
+  async followServerMetrics(
+    params: RR.FollowServerMetricsReq,
+  ): Promise<RR.FollowServerMetricsRes> {
     return this.rpcRequest({ method: 'server.metrics', params })
   }
 

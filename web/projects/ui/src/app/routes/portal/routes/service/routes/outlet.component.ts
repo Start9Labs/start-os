@@ -16,7 +16,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
   imports: [CommonModule, RouterOutlet],
 })
 export class ServiceOutletComponent {
-  private readonly patch = inject(PatchDB<DataModel>)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly route = inject(ActivatedRoute)
   private readonly router = inject(Router)
 

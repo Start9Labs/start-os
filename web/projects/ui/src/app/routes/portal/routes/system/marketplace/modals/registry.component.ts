@@ -90,7 +90,7 @@ export class MarketplaceRegistryModal {
   private readonly marketplace = inject(
     AbstractMarketplaceService,
   ) as MarketplaceService
-  private readonly hosts$ = inject(PatchDB<DataModel>).watch$(
+  private readonly hosts$ = inject<PatchDB<DataModel>>(PatchDB).watch$(
     'ui',
     'marketplace',
     'knownHosts',

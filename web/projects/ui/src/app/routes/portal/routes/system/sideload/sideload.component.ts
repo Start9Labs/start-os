@@ -12,8 +12,6 @@ import { Subject } from 'rxjs'
 import { ConfigService } from 'src/app/services/config.service'
 import { SideloadPackageComponent } from './package.component'
 
-import { parseS9pk, validateS9pk } from './sideload.utils'
-
 @Component({
   template: `
     <ng-container *ngIf="refresh$ | async"></ng-container>
@@ -105,13 +103,14 @@ export default class SideloadComponent {
     this.package = null
   }
 
+  // @TODO Alex refactor sideload
   async onFile(file: File | null) {
-    if (!file || !(await validateS9pk(file))) {
-      this.invalid = true
-    } else {
-      this.package = await parseS9pk(file)
-      this.file = file
-    }
+    // if (!file || !(await validateS9pk(file))) {
+    //   this.invalid = true
+    // } else {
+    //   this.package = await parseS9pk(file)
+    //   this.file = file
+    // }
 
     this.refresh$.next()
   }

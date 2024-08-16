@@ -1,10 +1,8 @@
 import { DatePipe } from '@angular/common'
-import { Component, ElementRef, inject, input, Output } from '@angular/core'
-import { StartOSDiskInfo } from '@start9labs/shared'
+import { Component, inject, input } from '@angular/core'
 import { TuiDialogService, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiCell } from '@taiga-ui/layout'
-import { filter, fromEvent, switchMap } from 'rxjs'
-import { PASSWORD } from 'src/app/components/password.component'
+import { StartOSDiskInfo } from '../types/api'
 
 @Component({
   standalone: true,
@@ -31,16 +29,4 @@ export class ServerComponent {
   private readonly dialogs = inject(TuiDialogService)
 
   readonly server = input.required<StartOSDiskInfo>()
-
-  @Output()
-  readonly password = fromEvent(inject(ElementRef).nativeElement, 'click').pipe(
-    switchMap(() =>
-      this.dialogs.open<string>(PASSWORD, {
-        label: 'Unlock Drive',
-        size: 's',
-        data: { passwordHash: this.server().passwordHash },
-      }),
-    ),
-    filter(Boolean),
-  )
 }

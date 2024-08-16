@@ -2,7 +2,7 @@ import { TuiCell } from '@taiga-ui/layout'
 import { TuiTitle, TuiButton } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { CopyService, EmverPipesModule } from '@start9labs/shared'
+import { CopyService, ExverPipesModule } from '@start9labs/shared'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -14,7 +14,7 @@ import { ConfigService } from 'src/app/services/config.service'
       <div tuiCell>
         <div tuiTitle>
           <strong>Version</strong>
-          <div tuiSubtitle>{{ server.version | displayEmver }}</div>
+          <div tuiSubtitle>{{ server.version }}</div>
         </div>
       </div>
       <div tuiCell>
@@ -50,10 +50,10 @@ import { ConfigService } from 'src/app/services/config.service'
   styles: ['[tuiCell] { padding-inline: 0 }'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, EmverPipesModule, TuiTitle, TuiButton, TuiCell],
+  imports: [CommonModule, ExverPipesModule, TuiTitle, TuiButton, TuiCell],
 })
 export class AboutComponent {
-  readonly server$ = inject(PatchDB<DataModel>).watch$('serverInfo')
+  readonly server$ = inject<PatchDB<DataModel>>(PatchDB).watch$('serverInfo')
   readonly copyService = inject(CopyService)
   readonly gitHash = inject(ConfigService).gitHash
 }

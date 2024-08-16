@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@angular/core'
-import { WINDOW } from '@ng-web-apis/common'
+import { WA_WINDOW } from '@ng-web-apis/common'
 import { PatchDB } from 'patch-db-client'
 import { filter, take, BehaviorSubject } from 'rxjs'
 import { ApiService } from './api/embassy-api.service'
@@ -12,7 +12,7 @@ export class ThemeSwitcherService extends BehaviorSubject<string> {
   constructor(
     private readonly patch: PatchDB<DataModel>,
     private readonly embassyApi: ApiService,
-    @Inject(WINDOW) private readonly windowRef: Window,
+    @Inject(WA_WINDOW) private readonly windowRef: Window,
   ) {
     super('Dark')
 

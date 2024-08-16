@@ -82,17 +82,14 @@ export class ConfigService {
 
   /** ${scheme}://${username}@${host}:${externalPort}${suffix} */
   launchableAddress(
-    interfaces: PackageDataEntry['serviceInterfaces'],
+    ui: T.ServiceInterface,
     hosts: PackageDataEntry['hosts'],
   ): string {
-    const ui = Object.values(interfaces).find(
-      i =>
-        i.type === 'ui' &&
-        (i.addressInfo.scheme === 'http' ||
-          i.addressInfo.sslScheme === 'https'),
-    ) // TODO select if multiple
-
-    if (!ui) return ''
+    if (
+      ui.type !== 'ui' ||
+      (ui.addressInfo.scheme !== 'http' && ui.addressInfo.sslScheme !== 'https')
+    )
+      return ''
 
     const hostnameInfo =
       hosts[ui.addressInfo.hostId]?.hostnameInfo[ui.addressInfo.internalPort]

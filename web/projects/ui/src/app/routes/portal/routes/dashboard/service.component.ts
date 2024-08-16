@@ -108,7 +108,7 @@ export class ServiceComponent implements OnChanges {
   @Input()
   depErrors?: PkgDependencyErrors
 
-  readonly connected$ = inject(ConnectionService).connected$
+  readonly connected$ = inject(ConnectionService)
 
   get installed(): boolean {
     return this.pkg.stateInfo.state !== 'installed'

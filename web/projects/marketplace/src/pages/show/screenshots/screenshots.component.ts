@@ -14,11 +14,16 @@ import { PolymorpheusContent } from '@taiga-ui/polymorpheus'
 @Component({
   selector: 'marketplace-package-screenshots',
   template: `
-    <div *ngIf="pkg.screenshots" tuiCarouselButtons class="outer-container">
+    <!--@TODO future release-->
+    <div
+      *ngIf="$any(pkg).screenshots as screenshots"
+      tuiCarouselButtons
+      class="outer-container"
+    >
       <button
         tuiIconButton
         appearance="flat"
-        icon="@tui.chevron-left"
+        iconStart="@tui.chevron-left"
         title="Previous"
         type="button"
         (click)="carousel.prev()"
@@ -29,7 +34,7 @@ import { PolymorpheusContent } from '@taiga-ui/polymorpheus'
         [(index)]="index"
         class="carousel"
       >
-        <ng-container *ngFor="let item of pkg.screenshots; let i = index">
+        <ng-container *ngFor="let item of screenshots; let i = index">
           <div
             *tuiItem
             draggable="false"
@@ -57,7 +62,7 @@ import { PolymorpheusContent } from '@taiga-ui/polymorpheus'
         tuiIconButton
         appearance="flat"
         type="button"
-        icon="@tui.chevron-right"
+        iconStart="@tui.chevron-right"
         title="Next"
         (click)="carousel.next()"
       ></button>

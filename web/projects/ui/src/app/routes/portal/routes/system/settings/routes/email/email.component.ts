@@ -76,7 +76,7 @@ export class SettingsEmailComponent {
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly formService = inject(FormService)
-  private readonly patch = inject(PatchDB<DataModel>)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly api = inject(ApiService)
 
   testAddress = ''

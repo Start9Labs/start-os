@@ -2,15 +2,16 @@ import { CommonModule, KeyValue } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
-  Input,
   inject,
+  Input,
 } from '@angular/core'
 import { RouterModule } from '@angular/router'
-import { EmverPipesModule } from '@start9labs/shared'
+import { ExverPipesModule } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { TuiLet } from '@taiga-ui/cdk'
 import { TuiAvatar, TuiLineClamp } from '@taiga-ui/kit'
-import { Dependency, MarketplacePkg, StoreIdentity } from '../../../types'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
+import { MarketplacePkg, StoreIdentity } from '../../../types'
 
 @Component({
   selector: 'marketplace-dep-item',
@@ -104,7 +105,7 @@ import { AbstractMarketplaceService } from '../../../services/marketplace.servic
     CommonModule,
     RouterModule,
     TuiAvatar,
-    EmverPipesModule,
+    ExverPipesModule,
     TuiLineClamp,
     TuiLet,
   ],
@@ -114,7 +115,7 @@ export class MarketplaceDepItemComponent {
   pkg!: MarketplacePkg
 
   @Input({ required: true })
-  dep!: KeyValue<string, Dependency>
+  dep!: KeyValue<string, T.DependencyMetadata>
 
   private readonly marketplaceService = inject(AbstractMarketplaceService)
   readonly marketplace$ = this.marketplaceService.getSelectedHost$()

@@ -1,7 +1,7 @@
 export interface DependencyInfo {
   id: string
-  title: string
-  icon: string
+  title: string | null
+  icon: string | null
   version: string
   errorText: string
   actionText: string

@@ -95,7 +95,10 @@ import { AddressDetails } from './interface.utils'
   ],
 })
 export class InterfaceComponent {
-  readonly network$ = inject(PatchDB<DataModel>).watch$('serverInfo', 'network')
+  readonly network$ = inject<PatchDB<DataModel>>(PatchDB).watch$(
+    'serverInfo',
+    'network',
+  )
 
   @Input() packageContext?: {
     packageId: string

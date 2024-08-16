@@ -4,6 +4,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map, Observable, startWith } from 'rxjs'
 import { ConnectionService } from 'src/app/services/connection.service'
+import { NetworkService } from 'src/app/services/network.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
@@ -47,9 +48,9 @@ export class HeaderConnectionComponent {
     icon: string
     status: string
   }> = combineLatest([
-    inject(ConnectionService).networkConnected$,
-    inject(ConnectionService).websocketConnected$.pipe(startWith(false)),
-    inject(PatchDB<DataModel>)
+    inject(NetworkService),
+    inject(ConnectionService),
+    inject<PatchDB<DataModel>>(PatchDB)
       .watch$('serverInfo', 'statusInfo')
       .pipe(startWith({ restarting: false, shuttingDown: false })),
   ]).pipe(

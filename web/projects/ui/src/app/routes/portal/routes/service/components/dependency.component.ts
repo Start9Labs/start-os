@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { EmverPipesModule } from '@start9labs/shared'
+import { ExverPipesModule } from '@start9labs/shared'
 import { TuiIcon } from '@taiga-ui/core'
 import { DependencyInfo } from '../types/dependency-info'
 
@@ -14,10 +14,8 @@ import { DependencyInfo } from '../types/dependency-info'
         }
         {{ dep.title }}
       </strong>
-      <div>{{ dep.version | displayEmver }}</div>
-      <div [style.color]="color">
-        {{ dep.errorText || 'Satisfied' }}
-      </div>
+      <div>{{ dep.version }}</div>
+      <div [style.color]="color">{{ dep.errorText || 'Satisfied' }}</div>
     </span>
     @if (dep.actionText) {
       <div>
@@ -41,7 +39,7 @@ import { DependencyInfo } from '../types/dependency-info'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [EmverPipesModule, TuiIcon],
+  imports: [ExverPipesModule, TuiIcon],
 })
 export class ServiceDependencyComponent {
   @Input({ required: true, alias: 'serviceDependency' })

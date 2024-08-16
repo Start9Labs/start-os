@@ -64,7 +64,7 @@ export class UILaunchComponent {
   @Input()
   pkg!: PackageDataEntry
 
-  get interfaces(): readonly T.ServiceInterfaceWithHostInfo[] {
+  get interfaces(): readonly T.ServiceInterface[] {
     return this.getInterfaces(this.pkg)
   }
 
@@ -72,18 +72,20 @@ export class UILaunchComponent {
     return this.pkg.status.main.status === 'running'
   }
 
-  get first(): T.ServiceInterfaceWithHostInfo | undefined {
+  get first(): T.ServiceInterface | undefined {
     return this.interfaces[0]
   }
 
   @tuiPure
-  getInterfaces(pkg?: PackageDataEntry): T.ServiceInterfaceWithHostInfo[] {
+  getInterfaces(pkg?: PackageDataEntry): T.ServiceInterface[] {
     return pkg
       ? Object.values(pkg.serviceInterfaces).filter(({ type }) => type === 'ui')
       : []
   }
 
-  getHref(info?: T.ServiceInterfaceWithHostInfo): string | null {
-    return info && this.isRunning ? this.config.launchableAddress(info) : null
+  getHref(info?: T.ServiceInterface): string | null {
+    return info && this.isRunning
+      ? this.config.launchableAddress(info, this.pkg.hosts)
+      : null
   }
 }

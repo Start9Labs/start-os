@@ -61,7 +61,7 @@ export module RR {
 
   // init
 
-  export type InitGetProgressRes = {
+  export type InitFollowProgressRes = {
     progress: T.FullProgress
     guid: string
   }
@@ -88,10 +88,10 @@ export module RR {
     guid: string
   }
 
-  export type GetServerMetricsReq = {} // server.metrics
-  export type GetServerMetricsRes = {
+  export type FollowServerMetricsReq = {} // server.metrics.follow
+  export type FollowServerMetricsRes = {
     guid: string
-    metrics: Metrics
+    metrics: ServerMetrics
   }
 
   export type UpdateServerReq = { registry: string } // server.update
@@ -339,9 +339,11 @@ export module RR {
   export type FollowPackageLogsReq = FollowServerLogsReq & { id: string } // package.logs.follow
   export type FollowPackageLogsRes = FollowServerLogsRes
 
-  export type GetPackageMetricsReq = { id: string } // package.metrics
-  // @TODO Matt create package metrics type
-  export type GetPackageMetricsRes = any
+  export type FollowPackageMetricsReq = { id: string } // package.metrics.follow
+  export type FollowPackageMetricsRes = {
+    guid: string
+    metrics: AppMetrics
+  }
 
   export type InstallPackageReq = T.InstallParams
   export type InstallPackageRes = null
@@ -415,24 +417,6 @@ export module RR {
   } // package.proxy.set-outbound
   export type SetServiceOutboundProxyRes = null
 
-  // marketplace
-
-  export type GetMarketplaceInfoReq = { serverId: string }
-  export type GetMarketplaceInfoRes = StoreInfo
-
-  export type GetMarketplaceEosReq = { serverId: string }
-  // @TODO Matt fix type
-  export type GetMarketplaceEosRes = any
-
-  export type GetMarketplacePackagesReq = {
-    ids?: { id: string; version: string }[]
-    // iff !ids
-    category?: string
-    query?: string
-    page?: number
-    perPage?: number
-  }
-
   // registry
 
   /** these are returned in ASCENDING order. the newest available version will be the LAST in the object */
@@ -442,34 +426,34 @@ export module RR {
   export type CheckOSUpdateRes = OSUpdate
 }
 
-export interface OSUpdate {
+export type OSUpdate = {
   version: string
   headline: string
   releaseNotes: { [version: string]: string }
 }
 
-export interface Breakages {
+export type Breakages = {
   [id: string]: TaggedDependencyError
 }
 
-export interface TaggedDependencyError {
+export type TaggedDependencyError = {
   dependency: string
   error: DependencyError
 }
 
-export interface ActionResponse {
+export type ActionResponse = {
   message: string
   value: string | null
   copyable: boolean
   qr: boolean
 }
 
-interface MetricData {
+type MetricData = {
   value: string
   unit: string
 }
 
-export interface Metrics {
+export type ServerMetrics = {
   general: {
     temperature: MetricData | null
   }
@@ -497,14 +481,28 @@ export interface Metrics {
   }
 }
 
-export interface Session {
+export type AppMetrics = {
+  memory: {
+    percentageUsed: MetricData
+    used: MetricData
+  }
+  cpu: {
+    percentageUsed: MetricData
+  }
+  disk: {
+    percentageUsed: MetricData
+    used: MetricData
+  }
+}
+
+export type Session = {
   loggedIn: string
   lastActive: string
   userAgent: string
   metadata: SessionMetadata
 }
 
-export interface SessionMetadata {
+export type SessionMetadata = {
   platforms: PlatformType[]
 }
 
@@ -564,7 +562,7 @@ export interface CloudBackupTarget extends BaseBackupTarget {
   provider: 'dropbox' | 'google-drive'
 }
 
-export interface BackupRun {
+export type BackupRun = {
   id: string
   startedAt: string
   completedAt: string
@@ -573,7 +571,7 @@ export interface BackupRun {
   report: BackupReport
 }
 
-export interface BackupJob {
+export type BackupJob = {
   id: string
   name: string
   target: BackupTarget
@@ -581,7 +579,7 @@ export interface BackupJob {
   packageIds: string[]
 }
 
-export interface BackupInfo {
+export type BackupInfo = {
   version: string
   timestamp: string
   packageBackups: {
@@ -589,18 +587,18 @@ export interface BackupInfo {
   }
 }
 
-export interface PackageBackupInfo {
+export type PackageBackupInfo = {
   title: string
   version: string
   osVersion: string
   timestamp: string
 }
 
-export interface ServerSpecs {
+export type ServerSpecs = {
   [key: string]: string | number
 }
 
-export interface SSHKey {
+export type SSHKey = {
   createdAt: string
   alg: string
   hostname: string
@@ -609,23 +607,16 @@ export interface SSHKey {
 
 export type ServerNotifications = ServerNotification<number>[]
 
-export interface ServerNotification<T extends number> {
+export type ServerNotification<T extends number> = {
   id: number
   packageId: string | null
   createdAt: string
   code: T
-  level: NotificationLevel
+  level: 'success' | 'info' | 'warning' | 'error'
   title: string
   message: string
   data: NotificationData<T>
   read: boolean
-}
-
-export enum NotificationLevel {
-  Success = 'success',
-  Info = 'info',
-  Warning = 'warning',
-  Error = 'error',
 }
 
 export type NotificationData<T> = T extends 0
@@ -634,7 +625,7 @@ export type NotificationData<T> = T extends 0
     ? BackupReport
     : any
 
-export interface BackupReport {
+export type BackupReport = {
   server: {
     attempted: boolean
     error: string | null
@@ -646,7 +637,7 @@ export interface BackupReport {
   }
 }
 
-export interface AvailableWifi {
+export type AvailableWifi = {
   ssid: string
   strength: number
   security: string[]
@@ -681,29 +672,29 @@ export type DependencyError =
   | DependencyErrorHealthChecksFailed
   | DependencyErrorTransitive
 
-export interface DependencyErrorNotInstalled {
+export type DependencyErrorNotInstalled = {
   type: 'notInstalled'
 }
 
-export interface DependencyErrorNotRunning {
+export type DependencyErrorNotRunning = {
   type: 'notRunning'
 }
 
-export interface DependencyErrorIncorrectVersion {
+export type DependencyErrorIncorrectVersion = {
   type: 'incorrectVersion'
   expected: string // version range
   received: string // version
 }
 
-export interface DependencyErrorConfigUnsatisfied {
+export type DependencyErrorConfigUnsatisfied = {
   type: 'configUnsatisfied'
 }
 
-export interface DependencyErrorHealthChecksFailed {
+export type DependencyErrorHealthChecksFailed = {
   type: 'healthChecksFailed'
   check: T.HealthCheckResult
 }
 
-export interface DependencyErrorTransitive {
+export type DependencyErrorTransitive = {
   type: 'transitive'
 }
