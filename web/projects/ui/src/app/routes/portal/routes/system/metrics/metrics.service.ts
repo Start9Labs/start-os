@@ -16,7 +16,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 export class MetricsService extends Observable<ServerMetrics> {
   private readonly api = inject(ApiService)
 
-  // @TODO Alex do we need to use defer? I am unsure when this is necessary.
   private readonly metrics$ = defer(() =>
     this.api.followServerMetrics({}),
   ).pipe(

@@ -43,22 +43,17 @@ export class BackupsRestoreService {
     this.dialogs
       .open<BackupTarget>(TARGET, TARGET_RESTORE)
       .pipe(
-        // @TODO Alex implement servers
         switchMap(target =>
           this.dialogs
             .open<StartOSDiskInfo & { id: string }>(SERVERS, {
-              data: { servers: [] },
+              label: 'Select server',
+              data: { servers: Object.values(target.startOs) },
             })
             .pipe(
               switchMap(({ id, passwordHash }) =>
                 this.dialogs.open<string>(PROMPT, PROMPT_OPTIONS).pipe(
                   exhaustMap(password =>
-                    this.getRecoverData(
-                      target.id,
-                      id,
-                      password,
-                      passwordHash || '',
-                    ),
+                    this.getRecoverData(target.id, id, password, passwordHash),
                   ),
                   take(1),
                   switchMap(data =>
@@ -81,10 +76,10 @@ export class BackupsRestoreService {
     targetId: string,
     serverId: string,
     password: string,
-    hash: string,
+    hash: string | null,
   ): Observable<RecoverData> {
     return of(password).pipe(
-      tap(() => argon2.verify(hash, password)),
+      tap(() => argon2.verify(hash || '', password)),
       switchMap(() => {
         const loader = this.loader.open('Decrypting drive...').subscribe()
 

@@ -30,15 +30,9 @@ import { MarketplacePkg, StoreIdentity } from '../../../types'
         <!-- background darkening overlay -->
         <div class="dark-overlay"></div>
         <div class="inner-container-title">
-          <h2 ticker>
-            {{ pkg.title }}
-          </h2>
-          <h3>
-            {{ pkg.version }}
-          </h3>
-          <p>
-            {{ pkg.description.short }}
-          </p>
+          <h2 ticker>{{ pkg.title }}</h2>
+          <h3>{{ pkg.version }}</h3>
+          <p>{{ pkg.description.short }}</p>
         </div>
         <!-- control buttons -->
         <ng-content />
@@ -150,8 +144,8 @@ import { MarketplacePkg, StoreIdentity } from '../../../types'
           position: absolute;
           width: 100%;
           height: 100%;
-          top: 0px;
-          left: 0px;
+          top: 0;
+          left: 0;
           border-radius: 1.5rem;
           background-color: rgb(63 63 70);
           opacity: 0.7;
@@ -164,8 +158,15 @@ import { MarketplacePkg, StoreIdentity } from '../../../types'
   imports: [CommonModule, SharedPipesModule, TickerModule, TuiLet],
 })
 export class MarketplacePackageHeroComponent {
+  // @TODO Matt this used to be MarketplacePkg
   @Input({ required: true })
-  pkg!: MarketplacePkg
+  pkg!: {
+    id: string
+    title: string
+    version: string
+    description: { short: string }
+    icon: string
+  }
 
   private readonly marketplaceService = inject(AbstractMarketplaceService)
   readonly marketplace$ = this.marketplaceService.getSelectedHost$()
