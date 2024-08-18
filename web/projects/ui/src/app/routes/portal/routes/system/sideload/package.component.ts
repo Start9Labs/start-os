@@ -1,4 +1,3 @@
-import { TuiLet } from '@taiga-ui/cdk'
 import { CommonModule } from '@angular/common'
 import { Component, inject, Input } from '@angular/core'
 import { Router, RouterLink } from '@angular/router'
@@ -7,20 +6,21 @@ import {
   AdditionalModule,
   MarketplaceDependenciesComponent,
   MarketplacePackageHeroComponent,
-  MarketplacePkg,
 } from '@start9labs/marketplace'
 import {
-  Exver,
   ErrorService,
+  Exver,
   LoadingService,
   SharedPipesModule,
 } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
+import { TuiLet } from '@taiga-ui/cdk'
 import { TuiAlertService, TuiButton } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map } from 'rxjs'
-import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
 
 @Component({
@@ -33,24 +33,26 @@ import { getManifest } from 'src/app/utils/get-package-data'
         [pkg]="package"
       >
         <div class="inner-container">
-          <a
-            *ngIf="button !== null && button !== 'Install'"
-            tuiButton
-            appearance="tertiary-solid"
-            [routerLink]="'/portal/service/' + package.id"
-          >
-            View installed
-          </a>
-          <button *ngIf="button" tuiButton (click)="upload()">
-            {{ button }}
-          </button>
+          @if (button !== null && button !== 'Install') {
+            <a
+              tuiButton
+              appearance="tertiary-solid"
+              [routerLink]="'/portal/service/' + package.id"
+            >
+              View installed
+            </a>
+          }
+          @if (button) {
+            <button tuiButton (click)="upload()">{{ button }}</button>
+          }
         </div>
       </marketplace-package-hero>
-      <marketplace-about [pkg]="package" />
-      @if (!(package.dependencyMetadata | empty)) {
-        <marketplace-dependencies [pkg]="package" (open)="open($event)" />
-      }
-      <marketplace-additional [pkg]="package" />
+      <!-- @TODO Matt do we want this here? How do we turn s9pk into MarketplacePkg? -->
+      <!--      <marketplace-about [pkg]="package" />-->
+      <!--      @if (!(package.dependencyMetadata | empty)) {-->
+      <!--        <marketplace-dependencies [pkg]="package" (open)="open($event)" />-->
+      <!--      }-->
+      <!--      <marketplace-additional [pkg]="package" />-->
     </div>
   `,
   styles: [
@@ -125,7 +127,7 @@ export class SideloadPackageComponent {
   )
 
   @Input({ required: true })
-  package!: MarketplacePkg
+  package!: T.Manifest & { icon: string }
 
   @Input({ required: true })
   file!: File

@@ -1014,7 +1014,7 @@ export module Mock {
         hostname: 'smb://192.169.10.0',
         path: '/Desktop/embassy-backups',
         username: 'TestUser',
-        mountable: false,
+        mountable: true,
         startOs: {
           abcdefgh: {
             hostname: 'adjective-noun.local',
@@ -1032,7 +1032,7 @@ export module Mock {
         name: 'Dropbox 1',
         provider: 'dropbox',
         path: '/Home/backups',
-        mountable: true,
+        mountable: false,
         startOs: {},
       },
       {

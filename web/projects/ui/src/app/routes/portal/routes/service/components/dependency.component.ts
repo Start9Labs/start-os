@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { ExverPipesModule } from '@start9labs/shared'
 import { TuiIcon } from '@taiga-ui/core'
 import { DependencyInfo } from '../types/dependency-info'
 
@@ -39,7 +38,7 @@ import { DependencyInfo } from '../types/dependency-info'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [ExverPipesModule, TuiIcon],
+  imports: [TuiIcon],
 })
 export class ServiceDependencyComponent {
   @Input({ required: true, alias: 'serviceDependency' })

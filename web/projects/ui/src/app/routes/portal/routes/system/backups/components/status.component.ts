@@ -21,14 +21,12 @@ import { BackupType } from '../types/backup-type'
   imports: [TuiIcon],
 })
 export class BackupsStatusComponent {
-  private readonly exver = inject(Exver)
-
-  @Input({ required: true }) serverId!: string
+  @Input({ required: true }) hasBackup!: boolean
   @Input({ required: true }) type!: BackupType
-  @Input({ required: true }) target!: BackupTarget
+  @Input({ required: true }) mountable!: boolean
 
   get status() {
-    if (!this.target.mountable) {
+    if (!this.mountable) {
       return {
         icon: '@tui.bar-chart',
         color: 'var(--tui-text-negative)',
@@ -46,28 +44,16 @@ export class BackupsStatusComponent {
       }
     }
 
-    if (this.hasBackup) {
-      return {
-        icon: '@tui.cloud',
-        color: 'var(--tui-text-positive)',
-        text: 'Embassy backup detected',
-      }
-    }
-
-    return {
-      icon: '@tui.cloud-off',
-      color: 'var(--tui-text-negative)',
-      text: 'No Embassy backup',
-    }
-  }
-
-  private get hasBackup(): boolean {
-    return (
-      this.target.startOs[this.serverId] &&
-      this.exver.compareOsVersion(
-        this.target.startOs[this.serverId].version,
-        '0.3.6',
-      ) !== 'less'
-    )
+    return this.hasBackup
+      ? {
+          icon: '@tui.cloud',
+          color: 'var(--tui-text-positive)',
+          text: 'Embassy backup detected',
+        }
+      : {
+          icon: '@tui.cloud-off',
+          color: 'var(--tui-text-negative)',
+          text: 'No Embassy backup',
+        }
   }
 }

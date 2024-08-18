@@ -10,7 +10,7 @@ import { StartOSDiskInfo } from '../types/api'
   template: `
     <tui-icon icon="@tui.save" />
     <span tuiTitle>
-      <strong>{{ server().hostname }}.local</strong>
+      <strong>{{ server().hostname.replace('.local', '') }}.local</strong>
       <span tuiSubtitle>
         <b>StartOS Version</b>
         : {{ server().version }}
@@ -26,7 +26,5 @@ import { StartOSDiskInfo } from '../types/api'
   imports: [DatePipe, TuiIcon, TuiTitle],
 })
 export class ServerComponent {
-  private readonly dialogs = inject(TuiDialogService)
-
   readonly server = input.required<StartOSDiskInfo>()
 }
