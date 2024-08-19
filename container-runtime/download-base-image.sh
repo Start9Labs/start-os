@@ -5,7 +5,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 set -e
 
 DISTRO=debian
-VERSION=bookworm
+VERSION=trixie
 ARCH=${ARCH:-$(uname -m)}
 FLAVOR=default
 

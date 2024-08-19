@@ -31,7 +31,7 @@ else
 	QEMU_ARCH="$PLATFORM"
 fi
 
-SUITE=bookworm
+SUITE=trixie
 
 debspawn list | grep $SUITE || debspawn create $SUITE
 

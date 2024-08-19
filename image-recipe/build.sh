@@ -52,7 +52,7 @@ ARCHIVE_AREAS="main contrib"
 if [ "$NON_FREE" = 1 ]; then
 	if [ "$IB_SUITE" = "bullseye" ]; then
 		ARCHIVE_AREAS="$ARCHIVE_AREAS non-free"
-	elif [ "$IB_SUITE" = "bookworm" ]; then
+	elif [ "$IB_SUITE" = "trixie" ]; then
 		ARCHIVE_AREAS="$ARCHIVE_AREAS non-free-firmware"
 	fi
 fi
@@ -148,15 +148,21 @@ sed -i -e '2i set timeout=5' config/bootloaders/grub-pc/config.cfg
 mkdir -p config/archives
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	curl -fsSL https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o config/archives/raspi.key
-	echo "deb https://archive.raspberrypi.org/debian/ bullseye main" > config/archives/raspi.list
+	curl -fsSL wget https://archive.raspbian.org/raspbian.public.key | gpg --dearmor -o config/archives/raspi.key
+	echo "deb http://archive.raspbian.org/raspbian ${IB_SUITE} main contrib non-free" > config/archives/raspi.list
+
+	cat > config/archives/raspi.pref <<- EOF
+	Package: *
+	Pin: origin archive.raspbian.org
+	Pin-Priority: 600
+	EOF
 fi
 
-cat > config/archives/backports.pref <<- EOF
-Package: *
-Pin: release a=stable-backports
-Pin-Priority: 500
-EOF
+# cat > config/archives/backports.pref <<- EOF
+# Package: *
+# Pin: release a=stable-backports
+# Pin-Priority: 500
+# EOF
 
 if [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	curl -fsSL https://apt.armbian.com/armbian.key | gpg --dearmor -o config/archives/armbian.key
@@ -196,11 +202,11 @@ set -e
 apt-get install -y /deb/${IMAGE_BASENAME}.deb
 rm -rf /deb
 
-if [ "${IB_SUITE}" = bookworm ]; then
-	echo 'deb https://deb.debian.org/debian/ bullseye main' > /etc/apt/sources.list.d/bullseye.list
+if [ "${IB_SUITE}" = trixie ]; then
+	echo 'deb https://deb.debian.org/debian/ bookworm main' > /etc/apt/sources.list.d/bookworm.list
 	apt-get update
-	apt-get install -y postgresql-13
-	rm /etc/apt/sources.list.d/bullseye.list
+	apt-get install -y postgresql-15
+	rm /etc/apt/sources.list.d/bookworm.list
 	apt-get update
 fi
 
