@@ -37,14 +37,21 @@ export interface ExecSpawnable {
  * Implements:
  * @see {@link ExecSpawnable}
  */
-export class Overlay implements ExecSpawnable {
+export class SubContainer implements ExecSpawnable {
   private destroyed = false
+  private leader: cp.ChildProcess
   private constructor(
     readonly effects: T.Effects,
     readonly imageId: T.ImageId,
     readonly rootfs: string,
     readonly guid: T.Guid,
-  ) {}
+  ) {
+    this.leader = cp.spawn(
+      "start-cli",
+      ["container", "launch", rootfs, "sleep", "infinity"],
+      { killSignal: "SIGKILL", stdio: "ignore" },
+    )
+  }
   static async of(
     effects: T.Effects,
     image: { id: T.ImageId; sharedRun?: boolean },
@@ -69,16 +76,16 @@ export class Overlay implements ExecSpawnable {
       await execFile("mount", ["--rbind", from, to])
     }
 
-    return new Overlay(effects, id, rootfs, guid)
+    return new SubContainer(effects, id, rootfs, guid)
   }
 
   static async with<T>(
     effects: T.Effects,
     image: { id: T.ImageId; sharedRun?: boolean },
     mounts: { options: MountOptions; path: string }[],
-    fn: (overlay: Overlay) => Promise<T>,
+    fn: (overlay: SubContainer) => Promise<T>,
   ): Promise<T> {
-    const overlay = await Overlay.of(effects, image)
+    const overlay = await SubContainer.of(effects, image)
     try {
       for (let mount of mounts) {
         await overlay.mount(mount.options, mount.path)
@@ -89,7 +96,7 @@ export class Overlay implements ExecSpawnable {
     }
   }
 
-  async mount(options: MountOptions, path: string): Promise<Overlay> {
+  async mount(options: MountOptions, path: string): Promise<SubContainer> {
     path = path.startsWith("/")
       ? `${this.rootfs}${path}`
       : `${this.rootfs}/${path}`
@@ -220,6 +227,41 @@ export class Overlay implements ExecSpawnable {
     })
   }
 
+  async launch(
+    command: string[],
+    options?: CommandOptions,
+  ): Promise<cp.ChildProcessWithoutNullStreams> {
+    const imageMeta: any = await fs
+      .readFile(`/media/startos/images/${this.imageId}.json`, {
+        encoding: "utf8",
+      })
+      .catch(() => "{}")
+      .then(JSON.parse)
+    let extra: string[] = []
+    if (options?.user) {
+      extra.push(`--user=${options.user}`)
+      delete options.user
+    }
+    let workdir = imageMeta.workdir || "/"
+    if (options?.cwd) {
+      workdir = options.cwd
+      delete options.cwd
+    }
+    return cp.spawn(
+      "start-cli",
+      [
+        "container",
+        "launch",
+        `--env=/media/startos/images/${this.imageId}.env`,
+        `--workdir=${workdir}`,
+        ...extra,
+        this.rootfs,
+        ...command,
+      ],
+      options,
+    )
+  }
+
   async spawn(
     command: string[],
     options?: CommandOptions,
@@ -243,7 +285,8 @@ export class Overlay implements ExecSpawnable {
     return cp.spawn(
       "start-cli",
       [
-        "chroot",
+        "subcontainer",
+        "exec",
         `--env=/media/startos/images/${this.imageId}.env`,
         `--workdir=${workdir}`,
         ...extra,

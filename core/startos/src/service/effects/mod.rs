@@ -106,7 +106,7 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
         // image
         .subcommand(
             "chroot",
-            from_fn(image::chroot::<ContainerCliContext>).no_display(),
+            from_fn(image::unshare::<ContainerCliContext>).no_display(),
         )
         .subcommand(
             "createOverlayedImage",

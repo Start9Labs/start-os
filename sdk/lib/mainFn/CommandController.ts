@@ -7,7 +7,7 @@ import {
   ExecSpawnable,
   MountOptions,
   NonDestroyableOverlay,
-  Overlay,
+  SubContainer,
 } from "../util/Overlay"
 import { splitCommand } from "../util/splitCommand"
 import { cpExecFile, cpExec } from "./Daemons"
@@ -47,7 +47,7 @@ export class CommandController {
       const overlay =
         options.overlay ||
         (await (async () => {
-          const overlay = await Overlay.of(effects, imageId)
+          const overlay = await SubContainer.of(effects, imageId)
           for (let mount of options.mounts || []) {
             await overlay.mount(mount.options, mount.path)
           }
@@ -57,26 +57,13 @@ export class CommandController {
         env: options.env,
       })
       const answer = new Promise<null>((resolve, reject) => {
-        childProcess.stdout.on(
-          "data",
-          options.onStdout ??
-            ((data: any) => {
-              console.log(data.toString())
-            }),
-        )
-        childProcess.stderr.on(
-          "data",
-          options.onStderr ??
-            ((data: any) => {
-              console.error(asError(data))
-            }),
-        )
-
         childProcess.on("exit", (code: any) => {
           if (code === 0) {
             return resolve(null)
           }
-          return reject(new Error(`${commands[0]} exited with code ${code}`))
+          return reject(
+            asError(new Error(`${commands[0]} exited with code ${code}`)),
+          )
         })
       })
 

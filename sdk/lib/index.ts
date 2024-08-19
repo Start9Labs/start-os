@@ -1,5 +1,5 @@
 export { Daemons } from "./mainFn/Daemons"
-export { Overlay } from "./util/Overlay"
+export { SubContainer as Overlay } from "./util/Overlay"
 export { StartSdk } from "./StartSdk"
 export { setupManifest } from "./manifest/setupManifest"
 export { FileHelper } from "./util/fileHelper"

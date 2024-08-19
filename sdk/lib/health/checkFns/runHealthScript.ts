@@ -1,5 +1,5 @@
 import { Effects } from "../../types"
-import { Overlay } from "../../util/Overlay"
+import { SubContainer } from "../../util/Overlay"
 import { stringFromStdErrOut } from "../../util/stringFromStdErrOut"
 import { HealthCheckResult } from "./HealthCheckResult"
 import { timeoutPromise } from "./index"
@@ -13,7 +13,7 @@ import { timeoutPromise } from "./index"
  */
 export const runHealthScript = async (
   runCommand: string[],
-  overlay: Overlay,
+  overlay: SubContainer,
   {
     timeout = 30000,
     errorMessage = `Error while running command: ${runCommand}`,

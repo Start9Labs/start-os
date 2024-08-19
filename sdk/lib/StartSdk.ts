@@ -67,7 +67,7 @@ import {
 } from "./util/getServiceInterface"
 import { getServiceInterfaces } from "./util/getServiceInterfaces"
 import { getStore } from "./store/getStore"
-import { CommandOptions, MountOptions, Overlay } from "./util/Overlay"
+import { CommandOptions, MountOptions, SubContainer } from "./util/Overlay"
 import { splitCommand } from "./util/splitCommand"
 import { Mounts } from "./mainFn/Mounts"
 import { Dependency } from "./Dependency"
@@ -750,7 +750,7 @@ export async function runCommand<Manifest extends T.Manifest>(
   },
 ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
   const commands = splitCommand(command)
-  return Overlay.with(effects, image, options.mounts || [], (overlay) =>
+  return SubContainer.with(effects, image, options.mounts || [], (overlay) =>
     overlay.exec(commands),
   )
 }

@@ -1,6 +1,6 @@
 import * as T from "../types"
 import { asError } from "../util/asError"
-import { ExecSpawnable, MountOptions, Overlay } from "../util/Overlay"
+import { ExecSpawnable, MountOptions, SubContainer } from "../util/Overlay"
 import { CommandController } from "./CommandController"
 
 const TIMEOUT_INCREMENT_MS = 1000
@@ -27,7 +27,7 @@ export class Daemon {
       command: T.CommandType,
       options: {
         mounts?: { path: string; options: MountOptions }[]
-        overlay?: Overlay
+        overlay?: SubContainer
         env?:
           | {
               [variable: string]: string

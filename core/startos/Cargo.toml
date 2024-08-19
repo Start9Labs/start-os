@@ -130,7 +130,13 @@ log = "0.4.20"
 mbrman = "0.5.2"
 models = { version = "*", path = "../models" }
 new_mime_guess = "4"
-nix = { version = "0.29.0", features = ["user", "process", "signal", "fs"] }
+nix = { version = "0.29.0", features = [
+  "fs",
+  "mount",
+  "process",
+  "signal",
+  "user",
+] }
 nom = "7.1.3"
 num = "0.4.1"
 num_enum = "0.7.0"
@@ -197,6 +203,8 @@ tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 trust-dns-server = "0.23.1"
 ts-rs = { git = "https://github.com/dr-bonez/ts-rs.git", branch = "feature/top-level-as" } # "8.1.0"
 typed-builder = "0.18.0"
+unix-named-pipe = "0.2.0"
+unshare = "0.7.0"
 url = { version = "2.4.1", features = ["serde"] }
 urlencoding = "2.1.3"
 uuid = { version = "1.4.1", features = ["v4"] }
