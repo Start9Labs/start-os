@@ -476,12 +476,11 @@ export type MigrationRes = {
 }
 
 export type ActionResult = {
+  version: "0"
   message: string
-  value: null | {
-    value: string
-    copyable: boolean
-    qr: boolean
-  }
+  value: string | null
+  copyable: boolean
+  qr: boolean
 }
 export type SetResult = {
   dependsOn: DependsOn

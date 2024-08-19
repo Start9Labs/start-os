@@ -75,9 +75,9 @@ const matchErrorCode = object<{
 
 const assertNever = (
   x: never,
-  message = "Not expecting to get here",
+  message = "Not expecting to get here: ",
 ): never => {
-  throw new Error(message)
+  throw new Error(message + JSON.stringify(x))
 }
 const fromReturnType = <A>(a: U.ResultType<A>): A => {
   if (matchResult.test(a)) {
@@ -736,12 +736,11 @@ export class SystemForEmbassy implements System {
       copyable,
       qr,
     }: U.ActionResult): T.ActionResult => ({
+      version: "0",
       message,
-      value: {
-        value,
-        copyable,
-        qr,
-      },
+      value,
+      copyable,
+      qr,
     })
     if (!actionProcedure) throw Error("Action not found")
     if (actionProcedure.type === "docker") {
@@ -752,19 +751,17 @@ export class SystemForEmbassy implements System {
         this.manifest.volumes,
       )
       return toActionResult(
-        fromReturnType(
-          JSON.parse(
-            (
-              await container.execFail(
-                [
-                  actionProcedure.entrypoint,
-                  ...actionProcedure.args,
-                  JSON.stringify(formData),
-                ],
-                timeoutMs,
-              )
-            ).stdout.toString(),
-          ),
+        JSON.parse(
+          (
+            await container.execFail(
+              [
+                actionProcedure.entrypoint,
+                ...actionProcedure.args,
+                JSON.stringify(formData),
+              ],
+              timeoutMs,
+            )
+          ).stdout.toString(),
         ),
       )
     } else {
