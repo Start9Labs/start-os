@@ -191,16 +191,6 @@ export class VersionGraph<CurrentVersion extends string> {
   )
 }
 
-export function setupVersionGraph<
-  CurrentVersion extends string,
-  OtherVersions extends Array<VersionInfo<any>>,
->(
-  current: VersionInfo<CurrentVersion>,
-  ...other: EnsureUniqueId<OtherVersions, OtherVersions, CurrentVersion>
-) {
-  return VersionGraph.of<CurrentVersion, OtherVersions>(current, ...other)
-}
-
 // prettier-ignore
 export type EnsureUniqueId<A, B = A, OtherVersions = never> =
   B extends [] ? A : 

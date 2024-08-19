@@ -22,7 +22,7 @@ const VERSION_2 = new Uint8Array([2])
 export class SideloadPage {
   isMobile = isPlatform(window, 'ios') || isPlatform(window, 'android')
   toUpload: {
-    manifest: T.Manifest | null
+    manifest: { title: string; version: string } | null
     icon: string | null
     file: File | null
   } = {

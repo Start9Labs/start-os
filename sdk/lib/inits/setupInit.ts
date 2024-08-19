@@ -4,7 +4,7 @@ import { SetInterfaces } from "../interfaces/setupInterfaces"
 
 import { ExposedStorePaths } from "../store/setupExposeStore"
 import * as T from "../types"
-import { VersionGraph } from "../versionInfo/setupVersionGraph"
+import { VersionGraph } from "../version/VersionGraph"
 import { Install } from "./setupInstall"
 import { Uninstall } from "./setupUninstall"
 

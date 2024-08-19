@@ -6,8 +6,8 @@ import { Variants } from "../config/builder/variants"
 import { ValueSpec } from "../config/configTypes"
 import { setupManifest } from "../manifest/setupManifest"
 import { StartSdk } from "../StartSdk"
-import { VersionGraph } from "../versionInfo/setupVersionGraph"
-import { VersionInfo } from "../versionInfo/VersionInfo"
+import { VersionGraph } from "../version/VersionGraph"
+import { VersionInfo } from "../version/VersionInfo"
 
 describe("builder tests", () => {
   test("text", async () => {
@@ -369,6 +369,13 @@ describe("values", () => {
       const sdk = StartSdk.of()
         .withManifest(
           setupManifest(
+            VersionGraph.of(
+              VersionInfo.of({
+                version: "1.0.0:0",
+                releaseNotes: "",
+                migrations: {},
+              }),
+            ),
             {
               id: "testOutput",
               title: "",
@@ -402,13 +409,6 @@ describe("values", () => {
                 },
               },
             },
-            VersionGraph.of(
-              VersionInfo.of({
-                version: "1.0.0:0",
-                releaseNotes: "",
-                migrations: {},
-              }),
-            ),
           ),
         )
         .withStore<{ test: "a" }>()
