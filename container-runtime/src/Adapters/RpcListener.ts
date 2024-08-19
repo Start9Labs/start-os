@@ -52,6 +52,8 @@ const SOCKET_PARENT = "/media/startos/rpc"
 const SOCKET_PATH = "/media/startos/rpc/service.sock"
 const jsonrpc = "2.0" as const
 
+const isResult = object({ result: any }).test
+
 const idType = some(string, number, literal(null))
 type IdType = null | string | number
 const runType = object({
@@ -347,6 +349,17 @@ function getResult(
   timeout: number | undefined,
   input: any,
 ) {
+  const ensureResultTypeShape = (
+    result:
+      | void
+      | T.ConfigRes
+      | T.PropertiesReturn
+      | T.ActionMetadata[]
+      | T.ActionResult,
+  ): { result: any } => {
+    if (isResult(result)) return result
+    return { result }
+  }
   return (async () => {
     switch (procedure) {
       case "/backup/create":
@@ -397,31 +410,29 @@ function getResult(
             )
         }
     }
-  })().then(
-    (result) => ({ result }),
-    (error) =>
-      matches(error)
-        .when(
-          object(
-            {
-              error: string,
-              code: number,
-            },
-            ["code"],
-            { code: 0 },
-          ),
-          (error) => ({
-            error: {
-              code: error.code,
-              message: error.error,
-            },
-          }),
-        )
-        .defaultToLazy(() => ({
-          error: {
-            code: 0,
-            message: String(error),
+  })().then(ensureResultTypeShape, (error) =>
+    matches(error)
+      .when(
+        object(
+          {
+            error: string,
+            code: number,
           },
-        })),
+          ["code"],
+          { code: 0 },
+        ),
+        (error) => ({
+          error: {
+            code: error.code,
+            message: error.error,
+          },
+        }),
+      )
+      .defaultToLazy(() => ({
+        error: {
+          code: 0,
+          message: String(error),
+        },
+      })),
   )
 }
