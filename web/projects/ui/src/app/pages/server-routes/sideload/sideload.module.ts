@@ -5,6 +5,7 @@ import { SideloadPage } from './sideload.page'
 import { Routes, RouterModule } from '@angular/router'
 import { ExverPipesModule, SharedPipesModule } from '@start9labs/shared'
 import { DragNDropDirective } from './dnd.directive'
+import { InstallingProgressPipeModule } from 'src/app/pipes/install-progress/install-progress.module'
 
 const routes: Routes = [
   {
@@ -20,6 +21,7 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     SharedPipesModule,
     ExverPipesModule,
+    InstallingProgressPipeModule,
   ],
   declarations: [SideloadPage, DragNDropDirective],
 })

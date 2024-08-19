@@ -43,12 +43,11 @@ export class LiveApiService extends ApiService {
 
   // for sideloading packages
 
-  async uploadPackage(guid: string, body: Blob): Promise<string> {
-    return this.httpRequest({
+  async uploadPackage(guid: string, body: Blob): Promise<void> {
+    await this.httpRequest({
       method: Method.POST,
       body,
       url: `/rest/rpc/${guid}`,
-      responseType: 'text',
     })
   }
 
@@ -86,7 +85,7 @@ export class LiveApiService extends ApiService {
 
   openWebsocket$<T>(
     guid: string,
-    config: RR.WebsocketConfig<T>,
+    config: RR.WebsocketConfig<T> = {},
   ): Observable<T> {
     const { location } = this.document.defaultView!
     const protocol = location.protocol === 'http:' ? 'ws' : 'wss'

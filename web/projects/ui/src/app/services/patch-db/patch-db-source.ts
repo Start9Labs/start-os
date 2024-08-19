@@ -33,7 +33,7 @@ export class PatchDbSource extends Observable<Update<DataModel>[]> {
   private readonly stream$ = inject(AuthService).isVerified$.pipe(
     switchMap(verified => (verified ? this.api.subscribeToPatchDB({}) : EMPTY)),
     switchMap(({ dump, guid }) =>
-      this.api.openWebsocket$<Revision>(guid, {}).pipe(
+      this.api.openWebsocket$<Revision>(guid).pipe(
         bufferTime(250),
         filter(revisions => !!revisions.length),
         startWith([dump]),

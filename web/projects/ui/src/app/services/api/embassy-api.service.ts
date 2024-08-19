@@ -12,7 +12,7 @@ export abstract class ApiService {
   // http
 
   // for sideloading packages
-  abstract uploadPackage(guid: string, body: Blob): Promise<string>
+  abstract uploadPackage(guid: string, body: Blob): Promise<void>
 
   // for getting static files: ex icons, instructions, licenses
   abstract getStaticProxy(
@@ -29,7 +29,7 @@ export abstract class ApiService {
 
   abstract openWebsocket$<T>(
     guid: string,
-    config: RR.WebsocketConfig<T>,
+    config?: RR.WebsocketConfig<T>,
   ): Observable<T>
 
   // state
