@@ -79,6 +79,9 @@ const assertNever = (
 ): never => {
   throw new Error(message + JSON.stringify(x))
 }
+/**
+  Should be changing the type for specific properties, and this is mostly a transformation for the old return types to the newer one.
+*/
 const fromReturnType = <A>(a: U.ResultType<A>): A => {
   if (matchResult.test(a)) {
     return a.result
