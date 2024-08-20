@@ -87,22 +87,18 @@ import { ABOUT } from './about.component'
   `,
   styles: [
     `
-      tui-icon {
-        font-size: 1rem;
+      :host {
+        margin: 0 -0.5rem;
       }
 
-      tui-hosted-dropdown {
-        margin: 0 -0.5rem;
-
-        [tuiIconButton] {
-          height: calc(var(--tui-height-m) + 0.25rem);
-          width: calc(var(--tui-height-m) + 0.625rem);
-        }
+      [tuiIconButton] {
+        height: calc(var(--tui-height-m) + 0.25rem);
+        width: calc(var(--tui-height-m) + 0.625rem);
       }
 
       .item {
         justify-content: flex-start;
-        gap: 0.75rem;
+        gap: 0.5rem;
       }
     `,
   ],

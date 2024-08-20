@@ -88,10 +88,10 @@ import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
       <button
         tuiButton
         type="button"
-        appearance="primary"
+        [appearance]="localFlavor ? 'warning' : 'primary'"
         (click)="tryInstall()"
       >
-        Install
+        {{ localFlavor ? 'Switch' : 'Install' }}
       </button>
     }
   `,
@@ -118,6 +118,9 @@ export class MarketplaceControlsComponent {
 
   @Input()
   localPkg!: PackageDataEntry | null
+
+  @Input()
+  localFlavor!: boolean
 
   readonly showDevTools$ = inject(ClientStorageService).showDevTools$
 

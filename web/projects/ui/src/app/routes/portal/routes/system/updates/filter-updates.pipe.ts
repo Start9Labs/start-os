@@ -16,16 +16,25 @@ export class FilterUpdatesPipe implements PipeTransform {
 
   transform(
     pkgs?: MarketplacePkg[],
-    local?: Record<string, PackageDataEntry<InstalledState | UpdatingState>>,
+    local: Record<
+      string,
+      PackageDataEntry<InstalledState | UpdatingState>
+    > = {},
   ): MarketplacePkg[] | null {
     return (
       pkgs?.filter(
-        ({ version, id }) =>
-          this.exver.compareExver(
-            version,
-            local?.[id]?.stateInfo.manifest.version || '',
-          ) === 1,
+        ({ id, version, flavor }) =>
+          local[id] &&
+          this.exver.getFlavor(getVersion(local, id)) === flavor &&
+          this.exver.compareExver(version, getVersion(local, id)) === 1,
       ) || null
     )
   }
+}
+
+function getVersion(
+  local: Record<string, PackageDataEntry<InstalledState | UpdatingState>>,
+  id: string,
+): string {
+  return local[id].stateInfo.manifest.version
 }
