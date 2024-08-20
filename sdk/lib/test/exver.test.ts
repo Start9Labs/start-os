@@ -290,6 +290,36 @@ describe("ExVer", () => {
       })
     }
 
+    test(`"!(=1 && =2)" normalizes`, () => {
+      const checker = VersionRange.parse("!(=1 && =2)").normalize()
+
+      expect(checker.toString()).toEqual('!(=1:0) || !(=2:0)')
+    })
+
+    test(`"!(=1 || =2)" normalizes`, () => {
+      const checker = VersionRange.parse("!(=1 || =2)").normalize()
+
+      expect(checker.toString()).toEqual('!(=1:0) && !(=2:0)')
+    })
+
+    test(`"=1 && (=2 || =3)" normalizes`, () => {
+      const checker = VersionRange.parse("=1 && (=2 || =3)").normalize()
+
+      expect(checker.toString()).toEqual('(=1:0 && =2:0) || (=1:0 && =3:0)')
+    })
+
+    test(`"(=1 || =2) && =3" normalizes`, () => {
+      const checker = VersionRange.parse("(=1 || =2) && =3").normalize()
+      
+      expect(checker.toString()).toEqual('(=1:0 && =3:0) || (=2:0 && =3:0)')
+    })
+
+    test(`"!(!(=1 || =2) || =3)" normalizes`, () => {
+      const checker = VersionRange.parse("!(!(=1 || =2) || =3)").normalize()
+    
+      expect(checker.toString()).toEqual('(=1:0 && !=3:0) || (=2:0 && !=3:0)')
+    })
+
     {
       test(">1 && =1.2", () => {
         const checker = VersionRange.parse(">1 && =1.2")

@@ -43,19 +43,172 @@ type Not = {
   value: VersionRange
 }
 
+// !(#o:=2) && !(#o:=3)
+// (<2 || >2 || !#o) && (<3 || >3 || !#o)
+// (<3 && (<2 || >2 || !#o)) || (>3 && (<2 || >2 || !#o)) || (!#o && (<2 || >2 || !#o))
+// <3 && <2 || <3 && >2 || <3 && !#o || >3 && <2 || >3 && >2 || >3 && !#o || !#o && <2 || !#o && >2 || !#o && !#o
+
+
+type Flavor = {
+  type: "Flavor",
+  flavor: string | null,
+}
+
+type FlavorNot = {
+  type: "FlavorNot",
+  flavor: string | null,
+}
+
+class VersionRangeEnd {
+  constructor(
+    public inclusive: boolean,
+    public upstream: Version,
+    public downstream: Version,
+  ) {}
+
+  static compare(self: VersionRangeEnd | 'Inf', other: VersionRangeEnd | 'Inf', side: 'lo' | 'hi') {
+    if (self == 'Inf' && other == 'Inf') {
+      return 'equal';
+    }
+    if (self == 'Inf') {
+      return side == 'lo' ? 'less' : 'greater';
+    }
+    if (other == 'Inf') {
+      return side == 'lo' ? 'greater' : 'less';
+    }
+
+    let cmp = self.upstream.compare(other.upstream);
+    if (cmp != 'equal') {
+      return cmp
+    }
+    cmp = self.downstream.compare(other.downstream);
+    if (cmp != 'equal') {
+      return cmp;
+    }
+
+    if (self.inclusive && other.inclusive) {
+      return 'equal';
+    }
+    if (self.inclusive) {
+      return side == 'lo' ? 'less' : 'greater';
+    }
+    if (other.inclusive) {
+      return side == 'lo' ? 'greater' : 'less';
+    }
+
+    return 'equal';
+  }
+
+  static lower(self: VersionRangeEnd | 'Inf', other: VersionRangeEnd | 'Inf') {
+    if (VersionRangeEnd.compare(self, other, 'lo') == 'less') {
+      return self;
+    } else {
+      return other;
+    }
+  }
+
+  static higher(self: VersionRangeEnd | 'Inf', other: VersionRangeEnd | 'Inf') {
+    if (VersionRangeEnd.compare(self, other, 'hi') == 'greater') {
+      return self;
+    } else {
+      return other;
+    }
+  }
+}
+
+class ContiguousVersionRange {
+  constructor(
+    public flavor: Flavor | FlavorNot[] | "Any",
+    public lo: VersionRangeEnd | "Inf",
+    public hi: VersionRangeEnd | "Inf",
+  ) {}
+
+  and(other: ContiguousVersionRange): ContiguousVersionRange | null {
+    let flavor: Flavor | FlavorNot[] | "Any";
+    if (this.flavor != 'Any' && other.flavor != 'Any') {
+      if (Array.isArray(this.flavor)) {
+        if (Array.isArray(other.flavor)) {
+          flavor = this.flavor.concat(other.flavor);
+        } else if (this.flavor.find(x => x.flavor == other.flavor) === undefined) {
+          flavor = other.flavor;
+        } else {
+          return null;
+        }
+      } else {
+        if (Array.isArray(other.flavor)) {
+          if (other.flavor.find(x => x.flavor == this.flavor) === undefined) {
+            flavor = other.flavor;
+          } else {
+            return null;
+          }
+        } else {
+          if (this.flavor == other.flavor) {
+            flavor = this.flavor;
+          } else {
+            return null;
+          }
+        }
+      }
+    } else {
+      flavor = 'Any';
+    }
+
+    if (other.hi < this.lo || this.hi < other.lo) {
+      return null;
+    }
+    return new ContiguousVersionRange(
+      flavor,
+      VersionRangeEnd.lower(this.lo, other.lo),
+      VersionRangeEnd.higher(this.hi, other.hi),
+    )
+  }
+}
+
+type VersionRangeList = ContiguousVersionRange[]
+
 export class VersionRange {
-  private constructor(public atom: Anchor | And | Or | Not | P.Any | P.None) {}
+  private constructor(public atom: Anchor | And | Or | Not | Flavor | FlavorNot | P.Any | P.None) {}
+
+  toStringParens(parent: "And" | "Or" | "Not") {
+    let needs = true;
+    switch (this.atom.type) {
+      case "And":
+      case "Or":
+        needs = parent != this.atom.type;
+        break
+      case "Anchor":
+      case "Any":
+      case "None":
+        needs = parent == "Not"
+        break
+      case "Not":
+      case "Flavor":
+      case "FlavorNot":
+        needs = false;
+        break
+    }
+
+    if (needs) {
+      return "(" + this.toString() + ")";
+    } else {
+      return this.toString();
+    }
+  }
 
   toString(): string {
     switch (this.atom.type) {
       case "Anchor":
         return `${this.atom.operator}${this.atom.version}`
       case "And":
-        return `(${this.atom.left.toString()}) && (${this.atom.right.toString()})`
+        return `${this.atom.left.toStringParens(this.atom.type)} && ${this.atom.right.toStringParens(this.atom.type)}`
       case "Or":
-        return `(${this.atom.left.toString()}) || (${this.atom.right.toString()})`
+        return `${this.atom.left.toStringParens(this.atom.type)} || ${this.atom.right.toStringParens(this.atom.type)}`
       case "Not":
-        return `!(${this.atom.value.toString()})`
+        return `!${this.atom.value.toStringParens(this.atom.type)}`
+      case "Flavor":
+        return `#${this.atom.flavor}`
+      case "FlavorNot":
+        return `!#${this.atom.flavor}`
       case "Any":
         return "*"
       case "None":
@@ -123,16 +276,74 @@ export class VersionRange {
     )
   }
 
-  and(right: VersionRange) {
+  and(right: VersionRange): VersionRange {
+    if (this.atom.type == "None" || right.atom.type == "None") {
+      return VersionRange.none()
+    }
+    if (this.atom.type == "Any") {
+      return right
+    }
+    if (right.atom.type == "Any") {
+      return this
+    }
+    if (right.atom.type == "Or") {
+      return this.and(right.atom.left).or(this.and(right.atom.right))
+    }
+    if (this.atom.type == "Or") {
+      return this.atom.left.and(right).or(this.atom.right.and(right))
+    }
     return new VersionRange({ type: "And", left: this, right })
   }
 
-  or(right: VersionRange) {
+  or(right: VersionRange): VersionRange {
+    if (this.atom.type == "Any" || right.atom.type == "Any") {
+      return VersionRange.any()
+    }
+    if (this.atom.type == "None") {
+      return right
+    }
+    if (right.atom.type == "None") {
+      return this
+    }
     return new VersionRange({ type: "Or", left: this, right })
   }
 
-  not() {
-    return new VersionRange({ type: "Not", value: this })
+  not(): VersionRange {
+    switch (this.atom.type) {
+      case "Anchor":
+        const fn = VersionRange.flavorNot(this.atom.version.flavor);
+        switch (this.atom.operator) {
+          case "=":
+            return VersionRange.anchor("!=", this.atom.version)
+          case "!=":
+            return VersionRange.anchor("=", this.atom.version)
+          case ">":
+            return VersionRange.anchor("<=", this.atom.version).or(fn)
+          case "<":
+            return VersionRange.anchor(">=", this.atom.version).or(fn)
+          case ">=":
+            return VersionRange.anchor("<", this.atom.version).or(fn)
+          case "<=":
+            return VersionRange.anchor(">", this.atom.version).or(fn)
+          case "^":
+          case "~":
+            return new VersionRange({ type: "Not", value: this })
+        }
+      case "And":
+        return this.atom.left.not().or(this.atom.right.not())
+      case "Or":
+        return this.atom.left.not().and(this.atom.right.not())
+      case "Not":
+        return this.atom.value
+      case "Any":
+        return VersionRange.none()
+      case "None":
+        return VersionRange.any()
+      case "Flavor":
+        return VersionRange.flavorNot(this.atom.flavor)
+      case "FlavorNot":
+        return VersionRange.flavor(this.atom.flavor)
+    }
   }
 
   static anchor(operator: P.CmpOp, version: ExtendedVersion) {
@@ -147,8 +358,99 @@ export class VersionRange {
     return new VersionRange({ type: "None" })
   }
 
+  static flavor(flavor: string | null) {
+    return new VersionRange({ type: "Flavor", flavor })
+  }
+
+  static flavorNot(flavor: string | null) {
+    return new VersionRange({ type: "FlavorNot", flavor })
+  }
+
   satisfiedBy(version: Version | ExtendedVersion) {
     return version.satisfies(this)
+  }
+
+  normalize(): VersionRange {
+    switch (this.atom.type) {
+      case "Anchor":
+        switch (this.atom.operator) {
+          case "!=":
+            return VersionRange.anchor("<", this.atom.version).or(VersionRange.anchor(">", this.atom.version)).or(VersionRange.flavorNot(this.atom.version.flavor))
+          case "^":
+            return VersionRange.anchor(">=", this.atom.version).and(VersionRange.anchor("<", this.atom.version.incrementMajor()))
+          case "~":
+            return VersionRange.anchor(">=", this.atom.version).and(VersionRange.anchor("<", this.atom.version.incrementMinor()))
+          default:
+            return this
+        }
+      case "And":
+        return this.atom.left.normalize().and(this.atom.right.normalize())
+      case "Or":
+        return this.atom.left.normalize().or(this.atom.right.normalize())
+      case "Not":
+        return this.atom.value.normalize().not()
+      case "Flavor":
+        return VersionRange.flavor(this.atom.flavor)
+      case "FlavorNot":
+        return VersionRange.flavorNot(this.atom.flavor)
+      case "Any":
+        return this
+      case "None":
+        return VersionRange.none()
+        
+    }
+  }
+
+  private flattenUnsorted(): VersionRangeList {
+    let norm = this.normalize();
+    let left;
+    let right;
+    let here: ExtendedVersion;
+    let flavor: Flavor;
+    switch(norm.atom.type) {
+      case "Anchor":
+        here = norm.atom.version;
+        flavor = { type: "Flavor", flavor: here.flavor };
+        switch (norm.atom.operator) {
+          case "=":
+            return [new ContiguousVersionRange(flavor, here.inclusive(), here.inclusive())]
+          case ">":
+            return [new ContiguousVersionRange(flavor, here.exclusive(), "Inf")]
+          case "<":
+            return [new ContiguousVersionRange(flavor, "Inf", here.exclusive())]
+          case ">=":
+            return [new ContiguousVersionRange(flavor, here.inclusive(), "Inf")]
+          case "<=":
+            return [new ContiguousVersionRange(flavor, "Inf", here.inclusive())]
+          case "!=":
+          case "^":
+          case "~":
+            throw Error('not normalized')
+        }
+      case "Not":
+        throw Error('not normalized')
+      case "And":
+        left = norm.atom.left.flattenUnsorted();
+        right = norm.atom.right.flattenUnsorted();
+        if (left.length == 0 || right.length == 0) {
+          return []
+        }
+        if (left.length != 1 || right.length != 1) {
+          throw Error('not normalized')
+        }
+        return [left[0].and(right[0])]
+      case "Or":
+        left = norm.atom.left.flattenUnsorted();
+        right = norm.atom.right.flattenUnsorted();
+        return left.concat(right)
+      case "Flavor":
+      case "FlavorNot":
+        return [new ContiguousVersionRange(norm.atom, "Inf", "Inf")]
+      case "Any":
+        return [new ContiguousVersionRange("Any", "Inf", "Inf")]
+      case "None":
+        return []
+    }
   }
 }
 
@@ -354,6 +656,14 @@ export class ExtendedVersion {
     )
   }
 
+  inclusive(): VersionRangeEnd {
+    return new VersionRangeEnd(true, this.upstream, this.downstream)
+  }
+
+  exclusive(): VersionRangeEnd {
+    return new VersionRangeEnd(false, this.upstream, this.downstream)
+  }
+
   /**
    * Returns a boolean indicating whether a given version satisfies the VersionRange
    * !( >= 1:1 <= 2:2) || <=#bitcoin:1.2.0-alpha:0
@@ -420,6 +730,7 @@ export const testTypeExVer = <T extends string>(t: T & ValidateExVer<T>) => t
 
 export const testTypeVersion = <T extends string>(t: T & ValidateVersion<T>) =>
   t
+
 function tests() {
   testTypeVersion("1.2.3")
   testTypeVersion("1")
