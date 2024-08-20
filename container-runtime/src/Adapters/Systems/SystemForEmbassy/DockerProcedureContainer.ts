@@ -1,6 +1,6 @@
 import * as fs from "fs/promises"
 import * as cp from "child_process"
-import { Overlay, types as T } from "@start9labs/start-sdk"
+import { SubContainer, types as T } from "@start9labs/start-sdk"
 import { promisify } from "util"
 import { DockerProcedure, VolumeId } from "../../../Models/DockerProcedure"
 import { Volume } from "./matchVolume"
@@ -34,7 +34,7 @@ export class DockerProcedureContainer {
     data: DockerProcedure,
     volumes: { [id: VolumeId]: Volume },
   ) {
-    const overlay = await Overlay.of(effects, { id: data.image })
+    const overlay = await SubContainer.of(effects, { id: data.image })
 
     if (data.mounts) {
       const mounts = data.mounts

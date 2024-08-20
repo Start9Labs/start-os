@@ -7,7 +7,11 @@ import { TriggerInput } from "../trigger/TriggerInput"
 import { defaultTrigger } from "../trigger/defaultTrigger"
 import * as T from "../types"
 import { Mounts } from "./Mounts"
-import { CommandOptions, MountOptions, SubContainer } from "../util/Overlay"
+import {
+  CommandOptions,
+  MountOptions,
+  SubContainer,
+} from "../util/SubContainer"
 import { splitCommand } from "../util/splitCommand"
 
 import { promisify } from "node:util"

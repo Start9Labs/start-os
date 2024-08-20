@@ -152,6 +152,7 @@ pbkdf2 = "0.12.2"
 pin-project = "1.1.3"
 pkcs8 = { version = "0.10.2", features = ["std"] }
 prettytable-rs = "0.10.0"
+procfs = "0.16.0"
 proptest = "1.3.1"
 proptest-derive = "0.5.0"
 rand = { version = "0.8.5", features = ["std"] }
@@ -172,6 +173,7 @@ serde_with = { version = "3.4.0", features = ["macros", "json"] }
 serde_yaml = { package = "serde_yml", version = "0.0.10" }
 sha2 = "0.10.2"
 shell-words = "1"
+signal-hook = "0.3.17"
 simple-logging = "2.0.2"
 socket2 = "0.5.7"
 sqlx = { version = "0.7.2", features = [

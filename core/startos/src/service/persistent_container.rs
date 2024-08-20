@@ -98,7 +98,7 @@ pub struct PersistentContainer {
     volumes: BTreeMap<VolumeId, MountGuard>,
     assets: BTreeMap<VolumeId, MountGuard>,
     pub(super) images: BTreeMap<ImageId, Arc<MountGuard>>,
-    pub(super) overlays: Arc<Mutex<BTreeMap<Guid, OverlayGuard<Arc<MountGuard>>>>>,
+    pub(super) subcontainers: Arc<Mutex<BTreeMap<Guid, OverlayGuard<Arc<MountGuard>>>>>,
     pub(super) state: Arc<watch::Sender<ServiceState>>,
     pub(super) net_service: Mutex<NetService>,
     destroyed: bool,
@@ -273,7 +273,7 @@ impl PersistentContainer {
             volumes,
             assets,
             images,
-            overlays: Arc::new(Mutex::new(BTreeMap::new())),
+            subcontainers: Arc::new(Mutex::new(BTreeMap::new())),
             state: Arc::new(watch::channel(ServiceState::new(start)).0),
             net_service: Mutex::new(net_service),
             destroyed: false,
@@ -388,7 +388,7 @@ impl PersistentContainer {
         let volumes = std::mem::take(&mut self.volumes);
         let assets = std::mem::take(&mut self.assets);
         let images = std::mem::take(&mut self.images);
-        let overlays = self.overlays.clone();
+        let subcontainers = self.subcontainers.clone();
         let lxc_container = self.lxc_container.take();
         self.destroyed = true;
         Some(async move {
@@ -404,7 +404,7 @@ impl PersistentContainer {
             for (_, assets) in assets {
                 errs.handle(assets.unmount(true).await);
             }
-            for (_, overlay) in std::mem::take(&mut *overlays.lock().await) {
+            for (_, overlay) in std::mem::take(&mut *subcontainers.lock().await) {
                 errs.handle(overlay.unmount(true).await);
             }
             for (_, images) in images {

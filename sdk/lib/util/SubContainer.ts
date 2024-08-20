@@ -46,22 +46,21 @@ export class SubContainer implements ExecSpawnable {
     readonly rootfs: string,
     readonly guid: T.Guid,
   ) {
-    this.leader = cp.spawn(
-      "start-cli",
-      ["container", "launch", rootfs, "sleep", "infinity"],
-      { killSignal: "SIGKILL", stdio: "ignore" },
-    )
+    this.leader = cp.spawn("start-cli", ["subcontainer", "launch", rootfs], {
+      killSignal: "SIGKILL",
+      stdio: "ignore",
+    })
   }
   static async of(
     effects: T.Effects,
     image: { id: T.ImageId; sharedRun?: boolean },
   ) {
     const { id, sharedRun } = image
-    const [rootfs, guid] = await effects.createOverlayedImage({
+    const [rootfs, guid] = await effects.subcontainer.createFs({
       imageId: id as string,
     })
 
-    const shared = ["dev", "sys", "proc"]
+    const shared = ["dev", "sys"]
     if (!!sharedRun) {
       shared.push("run")
     }
@@ -147,7 +146,7 @@ export class SubContainer implements ExecSpawnable {
       this.destroyed = true
       const imageId = this.imageId
       const guid = this.guid
-      await this.effects.destroyOverlayedImage({ guid })
+      await this.effects.subcontainer.destroyFs({ guid })
     }
   }
 
@@ -180,7 +179,8 @@ export class SubContainer implements ExecSpawnable {
     const child = cp.spawn(
       "start-cli",
       [
-        "chroot",
+        "subcontainer",
+        "exec",
         `--env=/media/startos/images/${this.imageId}.env`,
         `--workdir=${workdir}`,
         ...extra,
@@ -250,7 +250,7 @@ export class SubContainer implements ExecSpawnable {
     return cp.spawn(
       "start-cli",
       [
-        "container",
+        "subcontainer",
         "launch",
         `--env=/media/startos/images/${this.imageId}.env`,
         `--workdir=${workdir}`,

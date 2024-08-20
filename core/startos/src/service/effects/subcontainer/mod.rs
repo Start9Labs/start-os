@@ -15,26 +15,26 @@ pub use sync::*;
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct DestroyOverlayedImageParams {
+pub struct DestroySubcontainerFsParams {
     guid: Guid,
 }
 #[instrument(skip_all)]
-pub async fn destroy_overlayed_image(
+pub async fn destroy_subcontainer_fs(
     context: EffectContext,
-    DestroyOverlayedImageParams { guid }: DestroyOverlayedImageParams,
+    DestroySubcontainerFsParams { guid }: DestroySubcontainerFsParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
     if let Some(overlay) = context
         .seed
         .persistent_container
-        .overlays
+        .subcontainers
         .lock()
         .await
         .remove(&guid)
     {
         overlay.unmount(true).await?;
     } else {
-        tracing::warn!("Could not find a guard to remove on the destroy overlayed image; assumming that it already is removed and will be skipping");
+        tracing::warn!("Could not find a subcontainer fs to destroy; assumming that it already is destroyed and will be skipping");
     }
     Ok(())
 }
@@ -42,13 +42,13 @@ pub async fn destroy_overlayed_image(
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct CreateOverlayedImageParams {
+pub struct CreateSubcontainerFsParams {
     image_id: ImageId,
 }
 #[instrument(skip_all)]
-pub async fn create_overlayed_image(
+pub async fn create_subcontainer_fs(
     context: EffectContext,
-    CreateOverlayedImageParams { image_id }: CreateOverlayedImageParams,
+    CreateSubcontainerFsParams { image_id }: CreateSubcontainerFsParams,
 ) -> Result<(PathBuf, Guid), Error> {
     let context = context.deref()?;
     if let Some(image) = context
@@ -72,7 +72,7 @@ pub async fn create_overlayed_image(
             })?
             .rootfs_dir();
         let mountpoint = rootfs_dir
-            .join("media/startos/overlays")
+            .join("media/startos/subcontainers")
             .join(guid.as_ref());
         tokio::fs::create_dir_all(&mountpoint).await?;
         let container_mountpoint = Path::new("/").join(
@@ -91,7 +91,7 @@ pub async fn create_overlayed_image(
         context
             .seed
             .persistent_container
-            .overlays
+            .subcontainers
             .lock()
             .await
             .insert(guid.clone(), guard);

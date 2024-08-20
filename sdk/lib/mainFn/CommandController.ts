@@ -8,7 +8,7 @@ import {
   MountOptions,
   NonDestroyableOverlay,
   SubContainer,
-} from "../util/Overlay"
+} from "../util/SubContainer"
 import { splitCommand } from "../util/splitCommand"
 import { cpExecFile, cpExec } from "./Daemons"
 

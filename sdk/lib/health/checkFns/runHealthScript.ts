@@ -1,5 +1,5 @@
 import { Effects } from "../../types"
-import { SubContainer } from "../../util/Overlay"
+import { SubContainer } from "../../util/SubContainer"
 import { stringFromStdErrOut } from "../../util/stringFromStdErrOut"
 import { HealthCheckResult } from "./HealthCheckResult"
 import { timeoutPromise } from "./index"

@@ -1,6 +1,6 @@
 import * as T from "../types"
 import { asError } from "../util/asError"
-import { ExecSpawnable, MountOptions, SubContainer } from "../util/Overlay"
+import { ExecSpawnable, MountOptions, SubContainer } from "../util/SubContainer"
 import { CommandController } from "./CommandController"
 
 const TIMEOUT_INCREMENT_MS = 1000

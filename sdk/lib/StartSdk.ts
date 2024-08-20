@@ -67,7 +67,7 @@ import {
 } from "./util/getServiceInterface"
 import { getServiceInterfaces } from "./util/getServiceInterfaces"
 import { getStore } from "./store/getStore"
-import { CommandOptions, MountOptions, SubContainer } from "./util/Overlay"
+import { CommandOptions, MountOptions, SubContainer } from "./util/SubContainer"
 import { splitCommand } from "./util/splitCommand"
 import { Mounts } from "./mainFn/Mounts"
 import { Dependency } from "./Dependency"
