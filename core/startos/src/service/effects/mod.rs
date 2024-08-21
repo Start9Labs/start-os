@@ -176,8 +176,12 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
         )
         .subcommand("get-ssl-key", from_fn_async(net::ssl::get_ssl_key).no_cli())
         // store
-        .subcommand("get-store", from_fn_async(store::get_store).no_cli())
-        .subcommand("set-store", from_fn_async(store::set_store).no_cli())
+        .subcommand(
+            "store",
+            ParentHandler::<C>::new()
+                .subcommand("get", from_fn_async(store::get_store).no_cli())
+                .subcommand("set", from_fn_async(store::set_store).no_cli()),
+        )
         .subcommand(
             "set-data-version",
             from_fn_async(store::set_data_version)
