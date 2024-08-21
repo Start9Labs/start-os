@@ -124,19 +124,19 @@ export const polyfillEffects = (
       wait(): Promise<oet.ResultType<string>>
       term(): Promise<void>
     } {
-      const promiseOverlay = DockerProcedureContainer.createOverlay(
+      const promiseSubcontainer = DockerProcedureContainer.createSubContainer(
         effects,
         manifest.id,
         manifest.main,
         manifest.volumes,
       )
-      const daemon = promiseOverlay.then((overlay) =>
+      const daemon = promiseSubcontainer.then((subcontainer) =>
         daemons.runCommand()(
           effects,
           { id: manifest.main.image },
           [input.command, ...(input.args || [])],
           {
-            overlay,
+            subcontainer,
           },
         ),
       )

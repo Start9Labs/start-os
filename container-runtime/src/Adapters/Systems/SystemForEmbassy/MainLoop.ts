@@ -15,8 +15,8 @@ const EMBASSY_PROPERTIES_LOOP = 30 * 1000
  * Also, this has an ability to clean itself up too if need be.
  */
 export class MainLoop {
-  get mainOverlay() {
-    return this.mainEvent?.daemon?.overlay
+  get mainSubContainerHandle() {
+    return this.mainEvent?.daemon?.subContainerHandle
   }
   private healthLoops?: {
     name: string
@@ -56,7 +56,7 @@ export class MainLoop {
       throw new Error("Unreachable")
     }
     const daemon = new Daemon(async () => {
-      const overlay = await DockerProcedureContainer.createOverlay(
+      const subcontainer = await DockerProcedureContainer.createSubContainer(
         effects,
         this.system.manifest.id,
         this.system.manifest.main,
@@ -68,7 +68,8 @@ export class MainLoop {
         { id: this.system.manifest.main.image },
         currentCommand,
         {
-          overlay,
+          subcontainer,
+          runAsInit: true,
           env: {
             TINI_SUBREAPER: "true",
           },
@@ -151,8 +152,8 @@ export class MainLoop {
           const actionProcedure = value
           const timeChanged = Date.now() - start
           if (actionProcedure.type === "docker") {
-            const overlay = actionProcedure.inject
-              ? this.mainOverlay
+            const subcontainer = actionProcedure.inject
+              ? this.mainSubContainerHandle
               : undefined
             // prettier-ignore
             const container = 
@@ -162,7 +163,7 @@ export class MainLoop {
                 actionProcedure,
                 manifest.volumes,
                 {
-                  overlay,
+                  subcontainer,
                 }
               )
             const executed = await container.exec(

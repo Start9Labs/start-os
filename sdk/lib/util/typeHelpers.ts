@@ -102,3 +102,15 @@ export type ToKebab<S extends string> = S extends string
   : never
 
 export type StringObject = Record<string, unknown>
+
+function test() {
+  // prettier-ignore
+  const t = <A, B>(a: (
+    A extends B ? (
+      B extends A ? null : never
+    ) : never
+  )) =>{ }
+  t<"foo-bar", ToKebab<"FooBar">>(null)
+  // @ts-expect-error
+  t<"foo-3ar", ToKebab<"FooBar">>(null)
+}

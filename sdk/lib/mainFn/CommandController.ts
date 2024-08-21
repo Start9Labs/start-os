@@ -11,12 +11,13 @@ import {
 } from "../util/SubContainer"
 import { splitCommand } from "../util/splitCommand"
 import { cpExecFile, cpExec } from "./Daemons"
+import * as cp from "child_process"
 
 export class CommandController {
   private constructor(
     readonly runningAnswer: Promise<unknown>,
-    private readonly overlay: ExecSpawnable,
-    readonly pid: number | undefined,
+    private readonly subcontainer: SubContainer,
+    private process: cp.ChildProcessWithoutNullStreams | undefined,
     readonly sigtermTimeout: number = DEFAULT_SIGTERM_TIMEOUT,
   ) {}
   static of<Manifest extends T.Manifest>() {
@@ -31,7 +32,8 @@ export class CommandController {
         // Defaults to the DEFAULT_SIGTERM_TIMEOUT = 30_000ms
         sigtermTimeout?: number
         mounts?: { path: string; options: MountOptions }[]
-        overlay?: ExecSpawnable
+        subcontainer?: SubContainer
+        runAsInit?: boolean
         env?:
           | {
               [variable: string]: string
@@ -44,18 +46,25 @@ export class CommandController {
       },
     ) => {
       const commands = splitCommand(command)
-      const overlay =
-        options.overlay ||
+      const subcontainer =
+        options.subcontainer ||
         (await (async () => {
-          const overlay = await SubContainer.of(effects, imageId)
+          const subcontainer = await SubContainer.of(effects, imageId)
           for (let mount of options.mounts || []) {
-            await overlay.mount(mount.options, mount.path)
+            await subcontainer.mount(mount.options, mount.path)
           }
-          return overlay
+          return subcontainer
         })())
-      const childProcess = await overlay.spawn(commands, {
-        env: options.env,
-      })
+      let childProcess: cp.ChildProcessWithoutNullStreams
+      if (options.runAsInit) {
+        childProcess = await subcontainer.launch(commands, {
+          env: options.env,
+        })
+      } else {
+        childProcess = await subcontainer.spawn(commands, {
+          env: options.env,
+        })
+      }
       const answer = new Promise<null>((resolve, reject) => {
         childProcess.on("exit", (code: any) => {
           if (code === 0) {
@@ -67,13 +76,16 @@ export class CommandController {
         })
       })
 
-      const pid = childProcess.pid
-
-      return new CommandController(answer, overlay, pid, options.sigtermTimeout)
+      return new CommandController(
+        answer,
+        subcontainer,
+        childProcess,
+        options.sigtermTimeout,
+      )
     }
   }
-  get nonDestroyableOverlay() {
-    return new SubContainerHandle(this.overlay)
+  get subContainerHandle() {
+    return new SubContainerHandle(this.subcontainer)
   }
   async wait({ timeout = NO_TIMEOUT } = {}) {
     if (timeout > 0)
@@ -83,75 +95,26 @@ export class CommandController {
     try {
       return await this.runningAnswer
     } finally {
-      if (this.pid !== undefined) {
-        await cpExecFile("pkill", ["-9", "-s", String(this.pid)]).catch(
-          (_) => {},
-        )
+      if (this.process !== undefined) {
+        if (this.process.kill("SIGKILL")) {
+          this.process = undefined
+        }
       }
-      await this.overlay.destroy?.().catch((_) => {})
+      await this.subcontainer.destroy?.().catch((_) => {})
     }
   }
   async term({ signal = SIGTERM, timeout = this.sigtermTimeout } = {}) {
-    if (this.pid === undefined) return
+    if (this.process === undefined) return
     try {
-      await cpExecFile("pkill", [
-        `-${signal.replace("SIG", "")}`,
-        "-s",
-        String(this.pid),
-      ])
-
-      const didTimeout = await waitSession(this.pid, timeout)
-      if (didTimeout) {
-        await cpExecFile("pkill", [`-9`, "-s", String(this.pid)]).catch(
-          (_) => {},
+      if (!this.process.kill(signal)) {
+        console.error(
+          `failed to send signal ${signal} to pid ${this.process.pid}`,
         )
       }
-    } finally {
-      await this.overlay.destroy?.()
-    }
-  }
-}
 
-function waitSession(
-  sid: number,
-  timeout = NO_TIMEOUT,
-  interval = 100,
-): Promise<boolean> {
-  let nextInterval = interval * 2
-  if (timeout >= 0 && timeout < nextInterval) {
-    nextInterval = timeout
-  }
-  let nextTimeout = timeout
-  if (timeout > 0) {
-    if (timeout >= interval) {
-      nextTimeout -= interval
-    } else {
-      nextTimeout = 0
+      await this.wait({ timeout })
+    } finally {
+      await this.subcontainer.destroy?.()
     }
   }
-  return new Promise((resolve, reject) => {
-    let next: NodeJS.Timeout | null = null
-    if (timeout !== 0) {
-      next = setTimeout(() => {
-        waitSession(sid, nextTimeout, nextInterval).then(resolve, reject)
-      }, interval)
-    }
-    cpExecFile("ps", [`--sid=${sid}`, "-o", "--pid="]).then(
-      (_) => {
-        if (timeout === 0) {
-          resolve(true)
-        }
-      },
-      (e) => {
-        if (next) {
-          clearTimeout(next)
-        }
-        if (typeof e === "object" && e && "code" in e && e.code) {
-          resolve(false)
-        } else {
-          reject(e)
-        }
-      },
-    )
-  })
 }

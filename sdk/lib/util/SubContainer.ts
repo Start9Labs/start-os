@@ -31,7 +31,6 @@ export interface ExecSpawnable {
     options?: CommandOptions,
   ): Promise<cp.ChildProcessWithoutNullStreams>
 }
-
 /**
  * Want to limit what we can do in a container, so we want to launch a container with a specific image and the mounts.
  *
@@ -39,17 +38,21 @@ export interface ExecSpawnable {
  * @see {@link ExecSpawnable}
  */
 export class SubContainer implements ExecSpawnable {
-  private destroyed = false
   private leader: cp.ChildProcess
+  private leaderExited: boolean = false
   private constructor(
     readonly effects: T.Effects,
     readonly imageId: T.ImageId,
     readonly rootfs: string,
     readonly guid: T.Guid,
   ) {
+    this.leaderExited = false
     this.leader = cp.spawn("start-cli", ["subcontainer", "launch", rootfs], {
       killSignal: "SIGKILL",
       stdio: "ignore",
+    })
+    this.leader.on("exit", () => {
+      this.leaderExited = true
     })
   }
   static async of(
@@ -83,16 +86,16 @@ export class SubContainer implements ExecSpawnable {
     effects: T.Effects,
     image: { id: T.ImageId; sharedRun?: boolean },
     mounts: { options: MountOptions; path: string }[],
-    fn: (overlay: SubContainer) => Promise<T>,
+    fn: (subContainer: SubContainer) => Promise<T>,
   ): Promise<T> {
-    const overlay = await SubContainer.of(effects, image)
+    const subContainer = await SubContainer.of(effects, image)
     try {
       for (let mount of mounts) {
-        await overlay.mount(mount.options, mount.path)
+        await subContainer.mount(mount.options, mount.path)
       }
-      return await fn(overlay)
+      return await fn(subContainer)
     } finally {
-      await overlay.destroy()
+      await subContainer.destroy()
     }
   }
 
@@ -141,12 +144,28 @@ export class SubContainer implements ExecSpawnable {
     return this
   }
 
+  private async killLeader() {
+    if (this.leaderExited) {
+      return
+    }
+    return new Promise<void>((resolve, reject) => {
+      try {
+        this.leader.on("exit", () => {
+          resolve()
+        })
+        if (!this.leader.kill("SIGKILL")) {
+          reject(new Error("kill(2) failed"))
+        }
+      } catch (e) {
+        reject(e)
+      }
+    })
+  }
+
   get destroy() {
     return async () => {
-      if (this.destroyed) return
-      this.destroyed = true
-      const imageId = this.imageId
       const guid = this.guid
+      await this.killLeader()
       await this.effects.subcontainer.destroyFs({ guid })
     }
   }
@@ -248,7 +267,9 @@ export class SubContainer implements ExecSpawnable {
       workdir = options.cwd
       delete options.cwd
     }
-    return cp.spawn(
+    await this.killLeader()
+    this.leaderExited = false
+    this.leader = cp.spawn(
       "start-cli",
       [
         "subcontainer",
@@ -261,6 +282,10 @@ export class SubContainer implements ExecSpawnable {
       ],
       options,
     )
+    this.leader.on("exit", () => {
+      this.leaderExited = true
+    })
+    return this.leader as cp.ChildProcessWithoutNullStreams
   }
 
   async spawn(
@@ -300,12 +325,12 @@ export class SubContainer implements ExecSpawnable {
 }
 
 /**
- * Take an overlay but remove the ability to add the mounts and the destroy function.
+ * Take an subcontainer but remove the ability to add the mounts and the destroy function.
  * Lets other functions, like health checks, to not destroy the parents.
  *
  */
 export class SubContainerHandle implements ExecSpawnable {
-  constructor(private overlay: ExecSpawnable) {}
+  constructor(private subContainer: ExecSpawnable) {}
   get destroy() {
     return undefined
   }
@@ -315,13 +340,13 @@ export class SubContainerHandle implements ExecSpawnable {
     options?: CommandOptions,
     timeoutMs?: number | null,
   ): Promise<ExecResults> {
-    return this.overlay.exec(command, options, timeoutMs)
+    return this.subContainer.exec(command, options, timeoutMs)
   }
   spawn(
     command: string[],
     options?: CommandOptions,
   ): Promise<cp.ChildProcessWithoutNullStreams> {
-    return this.overlay.spawn(command, options)
+    return this.subContainer.spawn(command, options)
   }
 }
 

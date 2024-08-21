@@ -9,6 +9,7 @@ import * as T from "../types"
 import { Mounts } from "./Mounts"
 import {
   CommandOptions,
+  ExecSpawnable,
   MountOptions,
   SubContainer,
 } from "../util/SubContainer"
@@ -27,7 +28,9 @@ export const cpExec = promisify(CP.exec)
 export const cpExecFile = promisify(CP.execFile)
 export type Ready = {
   display: string | null
-  fn: () => Promise<HealthCheckResult> | HealthCheckResult
+  fn: (
+    spawnable: ExecSpawnable,
+  ) => Promise<HealthCheckResult> | HealthCheckResult
   trigger?: Trigger
 }
 

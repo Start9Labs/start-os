@@ -750,8 +750,11 @@ export async function runCommand<Manifest extends T.Manifest>(
   },
 ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
   const commands = splitCommand(command)
-  return SubContainer.with(effects, image, options.mounts || [], (overlay) =>
-    overlay.exec(commands),
+  return SubContainer.with(
+    effects,
+    image,
+    options.mounts || [],
+    (subcontainer) => subcontainer.exec(commands),
   )
 }
 function nullifyProperties(value: T.SdkPropertiesReturn): T.PropertiesReturn {

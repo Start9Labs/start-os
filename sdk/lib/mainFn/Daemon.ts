@@ -14,8 +14,8 @@ export class Daemon {
   private commandController: CommandController | null = null
   private shouldBeRunning = false
   constructor(private startCommand: () => Promise<CommandController>) {}
-  get overlay(): undefined | ExecSpawnable {
-    return this.commandController?.nonDestroyableOverlay
+  get subContainerHandle(): undefined | ExecSpawnable {
+    return this.commandController?.subContainerHandle
   }
   static of<Manifest extends T.Manifest>() {
     return async <A extends string>(
@@ -27,7 +27,7 @@ export class Daemon {
       command: T.CommandType,
       options: {
         mounts?: { path: string; options: MountOptions }[]
-        overlay?: SubContainer
+        subcontainer?: SubContainer
         env?:
           | {
               [variable: string]: string

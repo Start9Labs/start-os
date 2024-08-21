@@ -13,7 +13,7 @@ import { timeoutPromise } from "./index"
  */
 export const runHealthScript = async (
   runCommand: string[],
-  overlay: SubContainer,
+  subcontainer: SubContainer,
   {
     timeout = 30000,
     errorMessage = `Error while running command: ${runCommand}`,
@@ -22,7 +22,7 @@ export const runHealthScript = async (
   } = {},
 ): Promise<HealthCheckResult> => {
   const res = await Promise.race([
-    overlay.exec(runCommand),
+    subcontainer.exec(runCommand),
     timeoutPromise(timeout),
   ]).catch((e) => {
     console.warn(errorMessage)

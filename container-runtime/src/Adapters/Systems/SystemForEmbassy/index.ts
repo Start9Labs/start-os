@@ -798,8 +798,8 @@ export class SystemForEmbassy implements System {
     const actionProcedure = this.manifest.actions?.[actionId]?.implementation
     if (!actionProcedure) return { message: "Action not found", value: null }
     if (actionProcedure.type === "docker") {
-      const overlay = actionProcedure.inject
-        ? this.currentRunning?.mainOverlay
+      const subcontainer = actionProcedure.inject
+        ? this.currentRunning?.mainSubContainerHandle
         : undefined
       const container = await DockerProcedureContainer.of(
         effects,
@@ -807,7 +807,7 @@ export class SystemForEmbassy implements System {
         actionProcedure,
         this.manifest.volumes,
         {
-          overlay,
+          subcontainer,
         },
       )
       return JSON.parse(
