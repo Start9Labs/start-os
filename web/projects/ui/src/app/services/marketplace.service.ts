@@ -285,7 +285,12 @@ export class MarketplaceService implements AbstractMarketplaceService {
       this.api.getRegistryPackage(url, id, version ? `=${version}` : null),
     ).pipe(
       map(pkgInfo =>
-        this.convertToMarketplacePkg(id, version, flavor, pkgInfo),
+        this.convertToMarketplacePkg(
+          id,
+          version === '*' ? null : version,
+          flavor,
+          pkgInfo,
+        ),
       ),
     )
   }
