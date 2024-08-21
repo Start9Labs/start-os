@@ -5,9 +5,10 @@ import { SDKVersion } from "../StartSdk"
 import { VersionGraph } from "../version/VersionGraph"
 
 /**
- * This is an example of a function that takes a manifest and returns a new manifest with additional properties
- * @param manifest Manifests are the description of the package
- * @returns The manifest with additional properties
+ * @description Use this function to define critical information about your package
+ *
+ * @param versions Every version of the package, imported from ./versions
+ * @param manifest Static properties of the package
  */
 export function setupManifest<
   Id extends string,

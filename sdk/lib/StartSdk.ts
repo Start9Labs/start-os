@@ -55,10 +55,7 @@ import { MultiHost, Scheme } from "./interfaces/Host"
 import { ServiceInterfaceBuilder } from "./interfaces/ServiceInterfaceBuilder"
 import { GetSystemSmtp } from "./util/GetSystemSmtp"
 import nullIfEmpty from "./util/nullIfEmpty"
-import {
-  GetServiceInterface,
-  getServiceInterface,
-} from "./util/getServiceInterface"
+import { getServiceInterface } from "./util/getServiceInterface"
 import { getServiceInterfaces } from "./util/getServiceInterfaces"
 import { getStore } from "./store/getStore"
 import { CommandOptions, MountOptions, Overlay } from "./util/Overlay"
@@ -66,14 +63,13 @@ import { splitCommand } from "./util/splitCommand"
 import { Mounts } from "./mainFn/Mounts"
 import { Dependency } from "./Dependency"
 import * as T from "./types"
-import { testTypeVersion, ValidateExVer } from "./exver"
+import { testTypeVersion } from "./exver"
 import { ExposedStorePaths } from "./store/setupExposeStore"
 import { PathBuilder, extractJsonPath, pathBuilder } from "./store/PathBuilder"
 import {
   CheckDependencies,
   checkDependencies,
 } from "./dependencies/dependencies"
-import { health } from "."
 import { GetSslCertificate } from "./util/GetSslCertificate"
 import { VersionGraph } from "./version"
 
@@ -415,6 +411,31 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           started(onTerm: () => PromiseLike<void>): PromiseLike<void>
         }) => Promise<Daemons<Manifest, any>>,
       ) => setupMain<Manifest, Store>(fn),
+      /**
+       * @description Use this function to determine which information to expose to the UI in the "Properties" section.
+       *
+       *   Values can be obtained from anywhere: the Store, the upstream service, or another service.
+       * @example
+       * In this example, we retrieve the admin password from the Store and expose it, masked and copyable, to
+       * the UI as "Admin Password".
+       *
+       * ```
+       * export const properties = sdk.setupProperties(async ({ effects }) => {
+       *   const store = await sdk.store.getOwn(effects, sdk.StorePath).once()
+       *
+       *   return {
+       *     'Admin Password': {
+       *       type: 'string',
+       *       value: store.adminPassword,
+       *       description: 'Used for logging into the admin UI',
+       *       copyable: true,
+       *       masked: true,
+       *       qr: false,
+       *     },
+       *   }
+       * })
+       * ```
+       */
       setupProperties:
         (
           fn: (options: { effects: Effects }) => Promise<T.SdkPropertiesReturn>,
@@ -745,7 +766,13 @@ function nullifyProperties(value: T.SdkPropertiesReturn): T.PropertiesReturn {
 }
 function nullifyProperties_(value: T.SdkPropertiesValue): T.PropertiesValue {
   if (value.type === "string") {
-    return { description: null, copyable: null, qr: null, ...value }
+    return {
+      description: null,
+      copyable: null,
+      masked: null,
+      qr: null,
+      ...value,
+    }
   }
   return {
     description: null,

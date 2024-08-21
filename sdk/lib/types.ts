@@ -8,7 +8,6 @@ import {
   ServiceInterface,
   Host,
   ExportServiceInterfaceParams,
-  GetPrimaryUrlParams,
   LanInfo,
   BindParams,
   Manifest,
@@ -16,11 +15,9 @@ import {
   ActionId,
   HostId,
 } from "./osBindings"
-
-import { MainEffects, ServiceInterfaceType, Signals } from "./StartSdk"
+import { MainEffects, Signals } from "./StartSdk"
 import { InputSpec } from "./config/configTypes"
 import { DependenciesReceipt } from "./config/setupConfig"
-import { BindOptions, Scheme } from "./interfaces/Host"
 import { Daemons } from "./mainFn/Daemons"
 import { StorePath } from "./store/PathBuilder"
 import { ExposedStorePaths } from "./store/setupExposeStore"
@@ -251,7 +248,7 @@ export type SdkPropertiesValue =
       /** A human readable description or explanation of the value */
       description?: string
       /** Whether or not to mask the value, for example, when displaying a password */
-      masked: boolean
+      masked?: boolean
       /** Whether or not to include a button for copying the value to clipboard */
       copyable?: boolean
       /** Whether or not to include a button for displaying the value as a QR code */
@@ -264,18 +261,22 @@ export type SdkPropertiesReturn = {
 
 export type PropertiesValue =
   | {
+      /** The type of this value, either "string" or "object" */
       type: "object"
+      /** A nested mapping of values. The user will experience this as a nested page with back button */
       value: { [k: string]: PropertiesValue }
+      /** (optional) A human readable description of the new set of values */
       description: string | null
     }
   | {
+      /** The type of this value, either "string" or "object" */
       type: "string"
       /** The value to display to the user */
       value: string
-      /** A human readable description or explanation of the value */
+      /** A human readable description of the value */
       description: string | null
       /** Whether or not to mask the value, for example, when displaying a password */
-      masked: boolean
+      masked: boolean | null
       /** Whether or not to include a button for copying the value to clipboard */
       copyable: boolean | null
       /** Whether or not to include a button for displaying the value as a QR code */

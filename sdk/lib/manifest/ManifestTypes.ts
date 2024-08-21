@@ -1,59 +1,148 @@
-import { ValidateExVer, ValidateExVers } from "../exver"
-import {
-  ActionMetadata,
-  HardwareRequirements,
-  ImageConfig,
-  ImageId,
-  ImageSource,
-} from "../types"
+import { ImageId, ImageSource } from "../types"
 
 export type SDKManifest = {
-  /**  The package identifier used by the OS. This must be unique amongst all other known packages */
+  /**
+   * The package identifier used by StartOS. This must be unique amongst all other known packages.
+   * @example nextcloud
+   * */
   readonly id: string
-  /** A human readable service title */
+  /**
+   * The human readable name of your service
+   * @example Nextcloud
+   * */
   readonly title: string
-  /** The type of license for the project. Include the LICENSE in the root of the project directory. A license is required for a Start9 package.*/
-  readonly license: string // name of license
-  /** The Start9 wrapper repository URL for the package. This repo contains the manifest file (this),
-   * any scripts necessary for configuration, backups, actions, or health checks (more below). This key
-   * must exist. But could be embedded into the source repository
+  /**
+   * The name of the software license for this project. The license itself should be included in the root of the project directory.
+   * @example MIT
+   */
+  readonly license: string
+  /**
+   * URL of the StartOS package repository
+   * @example `https://github.com/Start9Labs/nextcloud-startos`
    */
   readonly wrapperRepo: string
-  /** The original project repository URL. There is no upstream repo in this example */
+  /**
+   * URL of the upstream service repository
+   * @example `https://github.com/nextcloud/docker`
+   */
   readonly upstreamRepo: string
-  /**  URL to the support site / channel for the project. This key can be omitted if none exists, or it can link to the original project repository issues */
+  /**
+   * URL where users can get help using the upstream service
+   * @example `https://github.com/nextcloud/docker/issues`
+   */
   readonly supportSite: string
-  /** URL to the marketing site for the project. If there is no marketing site, it can link to the original project repository */
+  /**
+   * URL where users can learn more about the upstream service
+   * @example `https://nextcloud.com`
+   */
   readonly marketingSite: string
-  /** URL where users can donate to the upstream project */
+  /**
+   * (optional) URL where users can donate to the upstream project
+   * @example `https://nextcloud.com/contribute/`
+   */
   readonly donationUrl: string | null
-  /**Human readable descriptions for the service. These are used throughout the StartOS user interface, primarily in the marketplace. */
   readonly description: {
-    /**This is the first description visible to the user in the marketplace */
+    /** Short description to display on the marketplace list page. Max length 80 chars. */
     readonly short: string
-    /** This description will display with additional details in the service's individual marketplace page */
+    /** Long description to display on the marketplace details page for this service. Max length 500 chars. */
     readonly long: string
   }
-
-  /** Defines the os images needed to run the container processes */
+  /**
+   * @description A mapping of OS images needed to run the container processes. Each image ID is a unique key.
+   * @example
+   * Using dockerTag...
+   *
+   * ```
+   * images: {
+   *   main: {
+   *     source: {
+   *       dockerTag: 'start9/hello-world',
+   *     },
+   *   },
+   * },
+   * ```
+   * @example
+   * Using dockerBuild...
+   *
+   * ```
+   * images: {
+   *   main: {
+   *     source: {
+   *       dockerBuild: {
+   *         dockerFile: '../Dockerfile',
+   *         workdir: '.',
+   *       },
+   *     },
+   *   },
+   * },
+   * ```
+   */
   readonly images: Record<ImageId, SDKImageConfig>
-  /** This denotes readonly asset directories that should be available to mount to the container.
-   * These directories are expected to be found in `assets/<id>` at pack time.
-   **/
+  /**
+   * @description A list of readonly asset directories that will mount to the container. Each item here must
+   *   correspond to a directory in the /assets directory of this project.
+   *
+   *   Most projects will not make use of this.
+   * @example []
+   */
   readonly assets: string[]
-  /** This denotes any data volumes that should be available to mount to the container */
+  /**
+   * @description A list of data volumes that will mount to the container. Must contain at least one volume.
+   * @example ['main']
+   */
   readonly volumes: string[]
 
   readonly alerts?: {
+    /** An warning alert requiring user confirmation before proceeding with initial installation of this service. */
     readonly install?: string | null
+    /** An warning alert requiring user confirmation before updating this service. */
     readonly update?: string | null
+    /** An warning alert requiring user confirmation before uninstalling this service. */
     readonly uninstall?: string | null
+    /** An warning alert requiring user confirmation before restoring this service from backup. */
     readonly restore?: string | null
+    /** An warning alert requiring user confirmation before starting this service. */
     readonly start?: string | null
+    /** An warning alert requiring user confirmation before stopping this service. */
     readonly stop?: string | null
   }
-  readonly hasConfig?: boolean
-  readonly dependencies: Readonly<Record<string, ManifestDependency>>
+  readonly hasConfig?: boolean // TODO Aiden
+  /**
+   * @description A mapping of service dependencies to be displayed to users when viewing the Marketplace
+   * @property {string} description - An explanation of why this service is a dependency.
+   * @property {boolean} optional - Whether or not this dependency is required or contingent on user configuration.
+   * @property {string} s9pk - TODO Aiden what goes here?
+   * @example
+   * ```
+   * dependencies: {
+   *   'hello-world': {
+   *     description: 'A moon needs a world',
+   *     optional: false,
+   *     s9pk: '',
+   *   },
+   * },
+   * ```
+   */
+  readonly dependencies: Record<string, ManifestDependency>
+  /**
+   * @description (optional) A set of hardware requirements for this service. If the user's machine
+   *   does not meet these requirements, they will not be able to install this service.
+   * @property {object[]} devices - TODO Aiden confirm type on the left. List of required devices (displays or processors).
+   * @property {number} ram - Minimum RAM requirement (in megabytes MB)
+   * @property {string[]} arch - List of supported arches
+   * @example
+   * ```
+   * TODO Aiden verify below and provide examples for devices
+   * hardwareRequirements: {
+   *   devices: [
+   *     { class: 'display', value: '' },
+   *     { class: 'processor', value: '' },
+   *   ],
+   *   ram: 8192,
+   *   arch: ['x86-64'],
+   * },
+   * ```
+   */
   readonly hardwareRequirements?: {
     readonly device?: { display?: RegExp; processor?: RegExp }
     readonly ram?: number | null
@@ -68,17 +157,7 @@ export type SDKImageConfig = {
 }
 
 export type ManifestDependency = {
-  /**
-   * A human readable explanation on what the dependency is used for
-   */
   readonly description: string | null
-  /**
-   * Determines if the dependency is optional or not. Times that optional that are good include such situations
-   * such as being able to toggle other services or to use a different service for the same purpose.
-   */
   readonly optional: boolean
-  /**
-   * A url or local path for an s9pk that satisfies this dependency
-   */
   readonly s9pk: string
 }
