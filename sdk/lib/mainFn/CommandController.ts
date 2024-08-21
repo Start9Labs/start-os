@@ -6,7 +6,7 @@ import { asError } from "../util/asError"
 import {
   ExecSpawnable,
   MountOptions,
-  NonDestroyableOverlay,
+  SubContainerHandle,
   SubContainer,
 } from "../util/SubContainer"
 import { splitCommand } from "../util/splitCommand"
@@ -73,7 +73,7 @@ export class CommandController {
     }
   }
   get nonDestroyableOverlay() {
-    return new NonDestroyableOverlay(this.overlay)
+    return new SubContainerHandle(this.overlay)
   }
   async wait({ timeout = NO_TIMEOUT } = {}) {
     if (timeout > 0)

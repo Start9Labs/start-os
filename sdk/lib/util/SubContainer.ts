@@ -14,10 +14,10 @@ type ExecResults = {
 }
 
 /**
- * This is the type that is going to describe what an overlay could do. The main point of the
- * overlay is to have commands that run in a chrooted environment. This is useful for running
+ * This is the type that is going to describe what an subcontainer could do. The main point of the
+ * subcontainer is to have commands that run in a chrooted environment. This is useful for running
  * commands in a containerized environment. But, I wanted the destroy to sometimes be doable, for example the
- * case where the overlay isn't owned by the process, the overlay shouldn't be destroyed.
+ * case where the subcontainer isn't owned by the process, the subcontainer shouldn't be destroyed.
  */
 export interface ExecSpawnable {
   get destroy(): undefined | (() => Promise<void>)
@@ -31,6 +31,7 @@ export interface ExecSpawnable {
     options?: CommandOptions,
   ): Promise<cp.ChildProcessWithoutNullStreams>
 }
+
 /**
  * Want to limit what we can do in a container, so we want to launch a container with a specific image and the mounts.
  *
@@ -303,7 +304,7 @@ export class SubContainer implements ExecSpawnable {
  * Lets other functions, like health checks, to not destroy the parents.
  *
  */
-export class NonDestroyableOverlay implements ExecSpawnable {
+export class SubContainerHandle implements ExecSpawnable {
   constructor(private overlay: ExecSpawnable) {}
   get destroy() {
     return undefined
