@@ -5,9 +5,7 @@
     <button tuiButton iconEnd="@tui.chevron-right" (click)="onPast()">
       Past Release Notes
     </button>
-  </div>
-  <div class="box-container">
-    <h2 class="additional-detail-title">About</h2>
+    <h2 class="additional-detail-title" [style.margin-top.rem]="2">About</h2>
     <p>{{ pkg.description.long }}</p>
     <a
       *ngIf="pkg.marketingSite as url"

@@ -521,7 +521,7 @@ export class MockApiService extends ApiService {
     versionRange: string,
   ): Promise<GetPackageRes> {
     await pauseFor(2000)
-    if (!versionRange) {
+    if (!versionRange || versionRange === '=*') {
       return Mock.RegistryPackages[id]
     } else {
       return Mock.OtherPackageVersions[id][versionRange]

@@ -189,7 +189,6 @@ export class MarketplaceService implements AbstractMarketplaceService {
         this.marketplace$.pipe(
           switchMap(m => {
             const url = registryUrl || selected.url
-
             const pkg = m[url]?.packages.find(
               p =>
                 p.id === id &&
@@ -197,9 +196,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
                 (!version || this.exver.compareExver(p.version, version) === 0),
             )
 
-            return !!pkg
-              ? of(pkg)
-              : this.fetchPackage$(url, id, version, flavor)
+            return pkg ? of(pkg) : this.fetchPackage$(url, id, version, flavor)
           }),
         ),
       ),
@@ -229,7 +226,18 @@ export class MarketplaceService implements AbstractMarketplaceService {
   }
 
   fetchInfo$(url: string): Observable<T.RegistryInfo> {
-    return from(this.api.getRegistryInfo(url))
+    return from(this.api.getRegistryInfo(url)).pipe(
+      map(info => ({
+        ...info,
+        categories: {
+          all: {
+            name: 'All',
+            description: { short: 'All services', long: 'All services' },
+          },
+          ...info.categories,
+        },
+      })),
+    )
   }
 
   fetchStatic$(
@@ -269,7 +277,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
 
   convertToMarketplacePkg(
     id: string,
-    version: string | null,
+    version: string | null | undefined,
     flavor: string | null,
     pkgInfo: GetPackageRes,
   ): MarketplacePkg {
@@ -299,7 +307,12 @@ export class MarketplaceService implements AbstractMarketplaceService {
       this.api.getRegistryPackage(url, id, version ? `=${version}` : null),
     ).pipe(
       map(pkgInfo =>
-        this.convertToMarketplacePkg(id, version, flavor, pkgInfo),
+        this.convertToMarketplacePkg(
+          id,
+          version === '*' ? null : version,
+          flavor,
+          pkgInfo,
+        ),
       ),
     )
   }

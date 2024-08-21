@@ -22,7 +22,7 @@ export class AboutComponent {
 
   async onPast() {
     this.dialogs
-      .open(RELEASE_NOTES, { label: 'Past Release Notes' })
+      .open(RELEASE_NOTES, { label: 'Past Release Notes', data: this.pkg })
       .subscribe()
   }
 }

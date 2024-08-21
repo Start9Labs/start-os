@@ -12,6 +12,7 @@ import {
   AboutModule,
   AbstractMarketplaceService,
   AdditionalModule,
+  FlavorsComponent,
   MarketplaceAdditionalItemComponent,
   MarketplaceDependenciesComponent,
   MarketplacePackageHeroComponent,
@@ -26,7 +27,16 @@ import {
   TuiLoader,
 } from '@taiga-ui/core'
 import { TuiRadioList, TuiStringifyContentPipe } from '@taiga-ui/kit'
-import { BehaviorSubject, filter, switchMap, tap } from 'rxjs'
+import {
+  BehaviorSubject,
+  combineLatest,
+  filter,
+  firstValueFrom,
+  map,
+  startWith,
+  switchMap,
+  tap,
+} from 'rxjs'
 
 @Component({
   selector: 'marketplace-preview',
@@ -34,34 +44,36 @@ import { BehaviorSubject, filter, switchMap, tap } from 'rxjs'
     <div class="outer-container">
       <ng-content select="[slot=close]" />
       @if (pkg$ | async; as pkg) {
-        @if (loading$ | async) {
-          <tui-loader class="loading" textContent="Loading" />
-        } @else {
-          <marketplace-package-hero [pkg]="pkg">
-            <ng-content select="[slot=controls]" />
-          </marketplace-package-hero>
-          <div class="inner-container">
-            <marketplace-about [pkg]="pkg" />
-            @if (!(pkg.dependencyMetadata | empty)) {
-              <marketplace-dependencies
-                [pkg]="pkg"
-                (open)="open($event)"
-              ></marketplace-dependencies>
-            }
-            <marketplace-additional [pkg]="pkg">
+        <marketplace-package-hero [pkg]="pkg">
+          <ng-content select="[slot=controls]" />
+        </marketplace-package-hero>
+        <div class="inner-container">
+          @if (flavors$ | async; as flavors) {
+            <marketplace-flavors [pkgs]="flavors" />
+          }
+          <marketplace-about [pkg]="pkg" />
+          @if (!(pkg.dependencyMetadata | empty)) {
+            <marketplace-dependencies [pkg]="pkg" (open)="open($event)" />
+          }
+          <marketplace-additional [pkg]="pkg">
+            @if (versions$ | async; as versions) {
               <marketplace-additional-item
-                (click)="presentAlertVersions(pkg, version)"
-                data="Click to view all versions"
+                (click)="versions.length ? selectVersion(pkg, version) : 0"
+                [data]="
+                  versions.length
+                    ? 'Click to view all versions'
+                    : 'No other versions'
+                "
                 label="All versions"
                 icon="@tui.chevron-right"
                 class="versions"
-              ></marketplace-additional-item>
+              />
               <ng-template
                 #version
                 let-data="data"
                 let-completeWith="completeWith"
               >
-                <tui-radio-list [items]="data.items" [(ngModel)]="data.value" />
+                <tui-radio-list [items]="versions" [(ngModel)]="data.value" />
                 <footer class="buttons">
                   <button
                     tuiButton
@@ -73,15 +85,17 @@ import { BehaviorSubject, filter, switchMap, tap } from 'rxjs'
                   <button
                     tuiButton
                     appearance="secondary"
-                    (click)="loading$.next(true); completeWith(data.value)"
+                    (click)="completeWith(data.value)"
                   >
                     Ok
                   </button>
                 </footer>
               </ng-template>
-            </marketplace-additional>
-          </div>
-        }
+            }
+          </marketplace-additional>
+        </div>
+      } @else {
+        <tui-loader class="loading" textContent="Loading" />
       }
     </div>
   `,
@@ -164,54 +178,72 @@ import { BehaviorSubject, filter, switchMap, tap } from 'rxjs'
     TuiRadioList,
     TuiLoader,
     TuiIcon,
+    FlavorsComponent,
   ],
 })
 export class MarketplacePreviewComponent {
   @Input({ required: true })
   pkgId!: string
 
-  readonly loading$ = new BehaviorSubject(true)
-
+  private readonly dialogs = inject(TuiDialogService)
+  private readonly exver = inject(Exver)
   private readonly router = inject(Router)
   private readonly marketplaceService = inject(AbstractMarketplaceService)
-  readonly url = this.router.routerState.snapshot.root.queryParamMap.get('url')
-
-  readonly loadVersion$ = new BehaviorSubject<string>('*')
-  readonly pkg$ = this.loadVersion$.pipe(
-    switchMap(version =>
-      this.marketplaceService.getPackage$(this.pkgId, version, this.url),
-    ),
-    tap(data => {
-      this.loading$.next(false)
-      return data
-    }),
+  private readonly version$ = new BehaviorSubject<string>('*')
+  private readonly flavor$ = this.router.routerState.root.queryParamMap.pipe(
+    map(paramMap => paramMap.get('flavor')),
   )
 
-  constructor(
-    private readonly dialogs: TuiDialogService,
-    private readonly exver: Exver,
-  ) {}
+  readonly pkg$ = combineLatest([this.version$, this.flavor$]).pipe(
+    switchMap(([version, flavor]) =>
+      this.marketplaceService
+        .getPackage$(this.pkgId, version, flavor)
+        .pipe(startWith(null)),
+    ),
+  )
+
+  readonly flavors$ = this.flavor$.pipe(
+    switchMap(current =>
+      this.marketplaceService
+        .getSelectedStore$()
+        .pipe(
+          map(({ packages }) =>
+            packages.filter(
+              ({ id, flavor }) => id === this.pkgId && flavor !== current,
+            ),
+          ),
+        ),
+    ),
+  )
+
+  readonly versions$ = combineLatest([
+    this.pkg$.pipe(filter(Boolean)),
+    this.flavor$,
+  ]).pipe(
+    map(([{ otherVersions }, flavor]) =>
+      Object.keys(otherVersions)
+        .filter(v => this.exver.getFlavor(v) === flavor)
+        .sort((a, b) => -1 * (this.exver.compareExver(a, b) || 0)),
+    ),
+  )
 
   open(id: string) {
     this.router.navigate([], { queryParams: { id } })
   }
 
-  presentAlertVersions(
-    pkg: MarketplacePkg,
-    version: TemplateRef<TuiDialogContext>,
+  selectVersion(
+    { version }: MarketplacePkg,
+    template: TemplateRef<TuiDialogContext>,
   ) {
     this.dialogs
-      .open<string>(version, {
+      .open<string>(template, {
         label: 'Versions',
         size: 's',
         data: {
-          value: pkg.version,
-          items: [...new Set(Object.keys(pkg.otherVersions))].sort(
-            (a, b) => -1 * (this.exver.compareExver(a, b) || 0),
-          ),
+          value: version,
         },
       })
       .pipe(filter(Boolean))
-      .subscribe(version => this.loadVersion$.next(version))
+      .subscribe(version => this.version$.next(version))
   }
 }

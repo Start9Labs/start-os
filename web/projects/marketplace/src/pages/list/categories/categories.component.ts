@@ -7,6 +7,21 @@ import {
 } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
 
+const ICONS: Record<string, string> = {
+  all: '@tui.layout-grid',
+  bitcoin: '@tui.bitcoin',
+  messaging: '@tui.message-circle',
+  communications: '@tui.message-circle',
+  data: '@tui.file-text',
+  'developer tools': '@tui.table-split',
+  featured: '@tui.star',
+  lightning: '@tui.zap',
+  media: '@tui.circle-play',
+  networking: '@tui.globe',
+  social: '@tui.users',
+  ai: '@tui.cpu',
+}
+
 @Component({
   selector: 'marketplace-categories',
   templateUrl: 'categories.component.html',
@@ -37,32 +52,10 @@ export class CategoriesComponent {
   }
 
   determineIcon(category: string): string {
-    switch (category.toLowerCase()) {
-      case 'all':
-        return '@tui.layout-grid'
-      case 'bitcoin':
-        return '@tui.bitcoin'
-      case 'messaging':
-      case 'communications':
-        return '@tui.message-circle'
-      case 'data':
-        return '@tui.file-text'
-      case 'developer tools':
-        return '@tui.table-split'
-      case 'featured':
-        return '@tui.star'
-      case 'lightning':
-        return '@tui.zap'
-      case 'media':
-        return '@tui.circle-play'
-      case 'networking':
-        return '@tui.globe'
-      case 'social':
-        return '@tui.users'
-      case 'ai':
-        return '@tui.cpu'
-      default:
-        return '@tui.box'
-    }
+    return ICONS[category.toLowerCase()] || '@tui.box'
+  }
+
+  asIsOrder(a: any, b: any) {
+    return 0
   }
 }

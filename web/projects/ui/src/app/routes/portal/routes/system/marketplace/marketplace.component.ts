@@ -52,7 +52,6 @@ import { MarketplaceSidebarsComponent } from './components/sidebars.component'
   styles: [
     `
       :host {
-        height: calc(100vh - 3.5rem);
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -131,7 +130,7 @@ import { MarketplaceSidebarsComponent } from './components/sidebars.component'
       }
 
       :host-context(tui-root._mobile) {
-        height: calc(100vh - 3.5rem - var(--tui-height-l));
+        padding: 0;
       }
     `,
   ],

@@ -9,7 +9,7 @@ header {
   @include scrollbar-hidden();
 
   // TODO: Theme
-  background: #2B2B2F;
+  background: #2b2b2f;
   overflow: hidden;
   width: 100%;
   position: fixed;
@@ -33,7 +33,7 @@ header {
       1;
     border-width: 0;
     border-right: 0.125rem solid;
-    overflow: visible;
+    overflow: auto;
   }
 
   @media screen and (min-width: 1536px) {
@@ -133,11 +133,11 @@ header {
 
     &-sidebar {
       background-color: rgb(var(--tw-color-zinc-700) / 0.9);
-      height: calc(100vh - var(--portal-header-height));
       width: 70vw;
       display: flex;
       flex-direction: column;
       height: 100%;
+      overflow: auto;
 
       &-top {
         display: flex;

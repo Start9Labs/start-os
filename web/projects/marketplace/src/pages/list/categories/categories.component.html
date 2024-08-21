@@ -1,24 +1,15 @@
-<button
-  *ngFor="let cat of categories || fallback | keyvalue"
-  (click)="switchCategory(cat.key)"
-  [class.category_selected]="cat.key === category"
->
-  <div
-    class="category-wrapper"
-    [class.tui-skeleton]="!categories"
-    [class.tui-skeleton_rounded]="!categories"
+@for (cat of categories || fallback | keyvalue: asIsOrder; track $index) {
+  <button
+    (click)="switchCategory(cat.key)"
+    [class.category_selected]="cat.key === category"
   >
-    <tui-icon tuiAppearance="icon" [icon]="determineIcon(cat.key)" />
-  </div>
-  <span
-    class="category-title"
-    [class.tui-skeleton]="!categories"
-    [class.tui-skeleton_rounded]="!categories"
-  >
-    {{
-      cat.key === 'ai'
-        ? (cat.key | uppercase)
-        : (cat.value.name | titlecase) || 'Loading category...'
-    }}
-  </span>
-</button>
+    <div class="category-wrapper" [tuiSkeleton]="!categories">
+      <tui-icon tuiAppearance="icon" [icon]="determineIcon(cat.key)" />
+    </div>
+    <span class="category-title" [tuiSkeleton]="categories ? false : 3">
+      {{
+        cat.key === 'ai' ? (cat.key | uppercase) : (cat.value.name | titlecase)
+      }}
+    </span>
+  </button>
+}
