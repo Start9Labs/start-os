@@ -94,6 +94,22 @@ export class Host {
     },
   ) {}
 
+  /**
+   * @description Use this function to bind the host to an internal port and configure options for protocol, security, and external port.
+   *
+   * @param internalPort - The internal port to be bound.
+   * @param options - The protocol options for this binding.
+   * @returns A multi-origin that is capable of exporting one or more service interfaces.
+   * @example
+   * In this example, we bind a previously created multi-host to port 80, then select the http protocol and request an external port of 8332.
+   *
+   * ```
+   * const uiMultiOrigin = await uiMulti.bindPort(80, {
+   *   protocol: 'http',
+   *   preferredExternalPort: 8332,
+   * })
+   * ```
+   */
   async bindPort(
     internalPort: number,
     options: BindOptionsByProtocol,

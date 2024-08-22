@@ -240,18 +240,53 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         )
       },
       configConstants: { smtpConfig },
+      /**
+       * @description Use this function to create a service interface.
+       * @param effects
+       * @param options
+       * @example
+       * In this example, we create a standard web UI
+       *
+       * ```
+       * const ui = sdk.createInterface(effects, {
+       *   name: 'Web UI',
+       *   id: 'ui',
+       *   description: 'The primary web app for this service.',
+       *   type: 'ui',
+       *   hasPrimary: false,
+       *   masked: false,
+       *   schemeOverride: null,
+       *   username: null,
+       *   path: '',
+       *   search: {},
+       * })
+       * ```
+       */
       createInterface: (
         effects: Effects,
         options: {
+          /** The human readable name of this service interface. */
           name: string
+          /** A unique ID for this service interface. */
           id: string
+          /** The human readable description. */
           description: string
+          /** Not available until StartOS v0.4.0. If true, forces the user to select one URL (i.e. .onion, .local, or IP address) as the primary URL. This is needed by some services to function properly. */
           hasPrimary: boolean
+          /** Affects how the interface appears to the user. One of: 'ui', 'api', 'p2p'. */
           type: ServiceInterfaceType
+          /** (optional) prepends the provided username to all URLs. */
           username: null | string
+          /** (optional) appends the provided path to all URLs. */
           path: string
+          /** (optional) appends the provided query params to all URLs. */
           search: Record<string, string>
+          /** (optional) overrides the protocol prefix provided by the bind function.
+           *
+           * @example `ftp://`
+           */
           schemeOverride: { ssl: Scheme; noSsl: Scheme } | null
+          /** TODO Aiden how would someone include a password in the URL? Whether or not to mask the URLs on the screen, for example, when they contain a password */
           masked: boolean
         },
       ) => new ServiceInterfaceBuilder({ ...options, effects }),
@@ -398,6 +433,80 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           exposedStore,
         ),
       setupInstall: (fn: InstallFn<Manifest, Store>) => Install.of(fn),
+      /**
+       * @description Use this function to determine how this service will be hosted and served. The function executes on service install, service update, and config save.
+       *
+       *   To learn about creating multi-hosts and interfaces, check out the {@link https://docs.start9.com/packaging-guide/learn/interfaces documentation}.
+       * @param config - The config spec of this service as exported from /config/spec.
+       * @param fn - an async function that returns an array of interface receipts. The function always has access to `effects`; it has access to `input` only after config save, otherwise `input` will be null.
+       * @example
+       * In this example, we create two UIs from one multi-host, and one API from another multi-host.
+       *
+       * ```
+       * export const setInterfaces = sdk.setupInterfaces(
+       *   configSpec,
+       *   async ({ effects, input }) => {
+       *     // ** UI multi-host **
+       *     const uiMulti = sdk.host.multi(effects, 'ui-multi')
+       *     const uiMultiOrigin = await uiMulti.bindPort(80, {
+       *       protocol: 'http',
+       *     })
+       *     // Primary UI
+       *     const primaryUi = sdk.createInterface(effects, {
+       *       name: 'Primary UI',
+       *       id: 'primary-ui',
+       *       description: 'The primary web app for this service.',
+       *       type: 'ui',
+       *       hasPrimary: false,
+       *       masked: false,
+       *       schemeOverride: null,
+       *       username: null,
+       *       path: '',
+       *       search: {},
+       *     })
+       *     // Admin UI
+       *     const adminUi = sdk.createInterface(effects, {
+       *       name: 'Admin UI',
+       *       id: 'admin-ui',
+       *       description: 'The admin web app for this service.',
+       *       type: 'ui',
+       *       hasPrimary: false,
+       *       masked: false,
+       *       schemeOverride: null,
+       *       username: null,
+       *       path: '/admin',
+       *       search: {},
+       *     })
+       *     // UI receipt
+       *     const uiReceipt = await uiMultiOrigin.export([primaryUi, adminUi])
+       *
+       *     // ** API multi-host **
+       *     const apiMulti = sdk.host.multi(effects, 'api-multi')
+       *     const apiMultiOrigin = await apiMulti.bindPort(5959, {
+       *       protocol: 'http',
+       *     })
+       *     // API
+       *     const api = sdk.createInterface(effects, {
+       *       name: 'Admin API',
+       *       id: 'api',
+       *       description: 'The advanced API for this service.',
+       *       type: 'api',
+       *       hasPrimary: false,
+       *       masked: false,
+       *       schemeOverride: null,
+       *       username: null,
+       *       path: '',
+       *       search: {},
+       *     })
+       *     // API receipt
+       *     const apiReceipt = await apiMultiOrigin.export([api])
+       *
+       *     // ** Return receipts **
+       *     return [uiReceipt, apiReceipt]
+       *   },
+       * )
+       * ```
+       */
       setupInterfaces: <
         ConfigInput extends Record<string, any>,
         Output extends InterfacesReceipt,
