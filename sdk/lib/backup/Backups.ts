@@ -43,7 +43,7 @@ export class Backups<M extends T.Manifest> {
     private options = DEFAULT_OPTIONS,
     private backupSet = [] as BackupSet<M["volumes"][number]>[],
   ) {}
-  /** Accepts as parameters every volume to be backed up */
+
   static volumes<M extends T.Manifest = never>(
     ...volumeNames: Array<M["volumes"][0]>
   ): Backups<M> {
@@ -61,11 +61,7 @@ export class Backups<M extends T.Manifest> {
   ) {
     return new Backups().addSets(...options)
   }
-  /**
-   * @description Advanced options for more control over backups
-   * @property {boolean} delete - Whether or not to delete files old backup before creating the new one. Defaults to true.
-   * @property {boolean} exclude - A list of directories to exclude from being backed up. This should be used for any large datasets that can recovered another way, such as the Bitcoin blockchain.
-   */
+
   static with_options<M extends T.Manifest = never>(
     options?: Partial<T.BackupOptions>,
   ) {

@@ -344,6 +344,24 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       patterns,
       setupActions: (...createdActions: CreatedAction<any, any, any>[]) =>
         setupActions<Manifest, Store>(...createdActions),
+      /**
+       * @description Use this function to determine which volumes are backed up when a user creates a backup, including advanced options.
+       * @example
+       * In this example, we back up the entire "main" volume and nothing else.
+       *
+       * ```
+       * export const { createBackup, restoreBackup } = sdk.setupBackups(sdk.Backups.addVolume('main'))
+       * ```
+       * @example
+       * In this example, we back up the "main" and the "other" volume, but exclude hypothetical directory "excludedDir" from the "other".
+       *
+       * ```
+       * export const { createBackup, restoreBackup } = sdk.setupBackups(sdk.Backups
+       *   .addVolume('main')
+       *   .addVolume('other', { exclude: ['path/to/excludedDir'] })
+       * )
+       * ```
+       */
       setupBackups: (...args: SetupBackupsParams<Manifest>) =>
         setupBackups<Manifest>(this.manifest, ...args),
       setupConfig: <
@@ -432,6 +450,24 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           setDependencies,
           exposedStore,
         ),
+      /**
+       * @description Use this function to execute arbitrary logic *once*, on initial install only.
+       * @example
+       * In the this example, we bootstrap our Store with a random, 16-char admin password.
+       *
+       * ```
+       * const install = sdk.setupInstall(async ({ effects }) => {
+       *   await sdk.store.setOwn(
+       *     effects,
+       *     sdk.StorePath.adminPassword,
+       *     utils.getDefaultString({
+       *       charset: 'a-z,A-Z,1-9,!,@,$,%,&,*',
+       *       len: 16,
+       *     }),
+       *   )
+       * })
+       * ```
+       */
       setupInstall: (fn: InstallFn<Manifest, Store>) => Install.of(fn),
       /**
        * @description Use this function to determine how this service will be hosted and served. The function executes on service install, service update, and config save.
@@ -551,6 +587,9 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         ): T.ExpectedExports.properties =>
         (options) =>
           fn(options).then(nullifyProperties),
+      /**
+       * Use this function to execute arbitrary logic *once*, on uninstall only. Most services will not use this.
+       */
       setupUninstall: (fn: UninstallFn<Manifest, Store>) =>
         setupUninstall<Manifest, Store>(fn),
       trigger: {
