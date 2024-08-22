@@ -1,11 +1,14 @@
+use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::ffi::{c_int, OsStr, OsString};
-use std::fs::File;
+use std::fs::{File, OpenOptions};
+use std::os::fd::AsRawFd;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command as StdCommand;
 use std::sync::Arc;
-use std::time::Duration;
 
+use nix::sched::CloneFlags;
 use nix::unistd::Pid;
 use rpc_toolkit::Context;
 use signal_hook::consts::signal::*;
@@ -14,9 +17,29 @@ use unshare::Command as NSCommand;
 use crate::service::effects::prelude::*;
 
 const FWD_SIGNALS: &[c_int] = &[
-    SIGABRT, SIGALRM, SIGCONT, SIGHUP, SIGINT, SIGIO, SIGPIPE, SIGPROF, SIGQUIT, SIGSTOP, SIGTERM,
-    SIGTRAP, SIGTSTP, SIGTTIN, SIGTTOU, SIGURG, SIGUSR1, SIGUSR2, SIGVTALRM,
+    SIGABRT, SIGALRM, SIGCONT, SIGHUP, SIGINT, SIGIO, SIGPIPE, SIGPROF, SIGQUIT, SIGTERM, SIGTRAP,
+    SIGTSTP, SIGTTIN, SIGTTOU, SIGURG, SIGUSR1, SIGUSR2, SIGVTALRM,
 ];
+
+/// Removes `O_NONBLOCK` from fd's flags.
+fn set_blocking<T: AsRawFd>(fd: &T) -> std::io::Result<()> {
+    // Safety: it's safe to use `fcntl` to read flags of a valid, open file descriptor.
+    let previous = unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_GETFL) };
+    if previous == -1 {
+        return Err(std::io::Error::last_os_error());
+    }
+
+    let new = previous & !libc::O_NONBLOCK;
+
+    // Safety: it's safe to use `fcntl` to unset the `O_NONBLOCK` flag of a valid,
+    // open file descriptor.
+    let r = unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_SETFL, new) };
+    if r == -1 {
+        Err(std::io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
+}
 
 struct NSPid(Vec<i32>);
 impl procfs::FromBufRead for NSPid {
@@ -35,8 +58,51 @@ impl procfs::FromBufRead for NSPid {
     }
 }
 
-fn open_file(path: impl AsRef<Path>) -> Result<File, Error> {
-    File::open(&path).with_ctx(|_| (ErrorKind::Filesystem, path.as_ref().display()))
+fn mkfifo(path: impl AsRef<Path>, mode: u32) -> Result<(File, File), Error> {
+    let path = path.as_ref();
+    unix_named_pipe::create(path, Some(mode)).with_ctx(|_| {
+        (
+            ErrorKind::Filesystem,
+            lazy_format!("create {}", path.display()),
+        )
+    })?;
+    let read = unix_named_pipe::open_read(path).with_ctx(|_| {
+        (
+            ErrorKind::Filesystem,
+            lazy_format!("open r {}", path.display()),
+        )
+    })?;
+    let write = unix_named_pipe::open_write(path).with_ctx(|_| {
+        (
+            ErrorKind::Filesystem,
+            lazy_format!("open w {}", path.display()),
+        )
+    })?;
+    set_blocking(&read)?;
+    set_blocking(&write)?;
+    Ok((read, write))
+}
+
+fn open_file_read(path: impl AsRef<Path>) -> Result<File, Error> {
+    File::open(&path).with_ctx(|_| {
+        (
+            ErrorKind::Filesystem,
+            lazy_format!("open r {}", path.as_ref().display()),
+        )
+    })
+}
+
+fn open_file_append(path: impl AsRef<Path>) -> Result<File, Error> {
+    OpenOptions::new()
+        .write(true)
+        .append(true)
+        .open(&path)
+        .with_ctx(|_| {
+            (
+                ErrorKind::Filesystem,
+                lazy_format!("open w+a {}", path.as_ref().display()),
+            )
+        })
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
@@ -63,13 +129,10 @@ pub fn launch<C: Context>(
     use unshare::{Namespace, Stdio};
     let mut sig = signal_hook::iterator::Signals::new(FWD_SIGNALS)?;
     let tmpdir = TmpDir::new()?;
-    let stdin_fifo = tmpdir.join("stdin");
-    unix_named_pipe::create(&stdin_fifo, Some(0o644))?;
-    let stdout_fifo = tmpdir.join("stdout");
-    unix_named_pipe::create(&stdout_fifo, Some(0o666))?;
-    let stderr_fifo = tmpdir.join("stderr");
-    unix_named_pipe::create(&stderr_fifo, Some(0o666))?;
-    let mut cmd = NSCommand::new("start-cli");
+    let (stdin_r, mut stdin_w) = mkfifo(tmpdir.join("stdin"), 0o644)?;
+    let (mut stdout_r, stdout_w) = mkfifo(tmpdir.join("stdout"), 0o666)?;
+    let (mut stderr_r, stderr_w) = mkfifo(tmpdir.join("stderr"), 0o666)?;
+    let mut cmd = NSCommand::new("/usr/bin/start-cli");
     cmd.arg("subcontainer").arg("launch-init");
     if let Some(env) = env {
         cmd.arg("--env").arg(env);
@@ -83,53 +146,66 @@ pub fn launch<C: Context>(
     cmd.arg(&path);
     cmd.args(&command);
     cmd.unshare(&[Namespace::Pid, Namespace::Cgroup, Namespace::Ipc]);
-    cmd.stdin(Stdio::from_file(unix_named_pipe::open_read(&stdin_fifo)?));
-    cmd.stdout(Stdio::from_file(unix_named_pipe::open_write(&stdout_fifo)?));
-    cmd.stderr(Stdio::from_file(unix_named_pipe::open_write(&stderr_fifo)?));
-    let mut stdin = unix_named_pipe::open_write(&stdin_fifo)?;
-    let mut stdout = unix_named_pipe::open_read(&stdout_fifo)?;
-    let mut stderr = unix_named_pipe::open_read(&stderr_fifo)?;
+    cmd.stdin(Stdio::from_file(stdin_r));
+    cmd.stdout(Stdio::from_file(stdout_w));
+    cmd.stderr(Stdio::from_file(stderr_w));
     std::thread::spawn(move || {
-        std::io::copy(&mut std::io::stdin(), &mut stdin).unwrap();
+        std::io::copy(&mut std::io::stdin(), &mut stdin_w).unwrap();
     });
     std::thread::spawn(move || {
-        std::io::copy(&mut stdout, &mut std::io::stdout()).unwrap();
+        std::io::copy(&mut stdout_r, &mut std::io::stdout()).unwrap();
     });
     std::thread::spawn(move || {
-        std::io::copy(&mut stderr, &mut std::io::stderr()).unwrap();
+        std::io::copy(&mut stderr_r, &mut std::io::stderr()).unwrap();
     });
     if path.join("proc/1").exists() {
         let ns_id = procfs::process::Process::new_with_root(path.join("proc"))
-            .with_kind(ErrorKind::Filesystem)?
+            .with_ctx(|_| (ErrorKind::Filesystem, "open subcontainer procfs"))?
             .namespaces()
-            .with_kind(ErrorKind::Filesystem)?
+            .with_ctx(|_| (ErrorKind::Filesystem, "read subcontainer pid 1 ns"))?
             .0
             .get(OsStr::new("pid"))
             .or_not_found("pid namespace")?
             .identifier;
-        for proc in procfs::process::all_processes().with_kind(ErrorKind::Filesystem)? {
-            let proc = proc.with_kind(ErrorKind::Filesystem)?;
+        for proc in
+            procfs::process::all_processes().with_ctx(|_| (ErrorKind::Filesystem, "open procfs"))?
+        {
+            let proc = proc.with_ctx(|_| (ErrorKind::Filesystem, "read single process details"))?;
+            let pid = proc.pid();
             if proc
                 .namespaces()
-                .with_kind(ErrorKind::Filesystem)?
+                .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("read pid {} ns", pid)))?
                 .0
                 .get(OsStr::new("pid"))
                 .map_or(false, |ns| ns.identifier == ns_id)
             {
-                let pids = proc
-                    .read::<NSPid>("status")
-                    .with_kind(ErrorKind::Filesystem)?;
+                let pids = proc.read::<NSPid>("status").with_ctx(|_| {
+                    (
+                        ErrorKind::Filesystem,
+                        lazy_format!("read pid {} NSpid", pid),
+                    )
+                })?;
                 if pids.0.len() == 2 && pids.0[1] == 1 {
-                    nix::sys::signal::kill(Pid::from_raw(pids.0[0]), nix::sys::signal::SIGKILL)
-                        .with_kind(ErrorKind::Filesystem)?;
+                    nix::sys::signal::kill(Pid::from_raw(pid), nix::sys::signal::SIGKILL)
+                        .with_ctx(|_| {
+                            (
+                                ErrorKind::Filesystem,
+                                lazy_format!(
+                                    "kill pid {} (determined to be pid 1 in subcontainer)",
+                                    pid
+                                ),
+                            )
+                        })?;
                 }
             }
         }
-        nix::mount::umount(&path.join("proc")).with_kind(ErrorKind::Filesystem)?;
+        nix::mount::umount(&path.join("proc"))
+            .with_ctx(|_| (ErrorKind::Filesystem, "unmounting subcontainer procfs"))?;
     }
     let mut child = cmd
         .spawn()
-        .map_err(|e| Error::new(color_eyre::eyre::Report::msg(e), ErrorKind::Filesystem))?;
+        .map_err(color_eyre::eyre::Report::msg)
+        .with_ctx(|_| (ErrorKind::Filesystem, "spawning child process"))?;
     let pid = child.pid();
     std::thread::spawn(move || {
         for sig in sig.forever() {
@@ -141,7 +217,9 @@ pub fn launch<C: Context>(
         }
     });
     // TODO: subreaping, signal handling
-    let exit = child.wait()?;
+    let exit = child
+        .wait()
+        .with_ctx(|_| (ErrorKind::Filesystem, "waiting on child process"))?;
     tmpdir.delete().unwrap();
     if let Some(code) = exit.code() {
         std::process::exit(code);
@@ -156,6 +234,7 @@ pub fn launch<C: Context>(
         }
     }
 }
+
 pub fn exec<C: Context>(
     _: C,
     ExecParams {
@@ -167,6 +246,7 @@ pub fn exec<C: Context>(
     }: ExecParams,
 ) -> Result<(), Error> {
     use unshare::{Namespace, Stdio};
+    let path = &path;
     let mut sig = signal_hook::iterator::Signals::new(FWD_SIGNALS)?;
     let Some(([command], args)) = command.split_at_checked(1) else {
         return Err(Error::new(
@@ -175,28 +255,43 @@ pub fn exec<C: Context>(
         ));
     };
     let tmpdir = TmpDir::new()?;
-    let stdin_fifo = tmpdir.join("stdin");
-    unix_named_pipe::create(&stdin_fifo, Some(0o644))?;
-    let stdout_fifo = tmpdir.join("stdout");
-    unix_named_pipe::create(&stdout_fifo, Some(0o666))?;
-    let stderr_fifo = tmpdir.join("stderr");
-    unix_named_pipe::create(&stderr_fifo, Some(0o666))?;
+    let (stdin_r, mut stdin_w) = mkfifo(tmpdir.join("stdin"), 0o644)?;
+    let (mut stdout_r, stdout_w) = mkfifo(tmpdir.join("stdout"), 0o666)?;
+    let (mut stderr_r, stderr_w) = mkfifo(tmpdir.join("stderr"), 0o666)?;
+    let env_string = if let Some(env) = &env {
+        std::fs::read_to_string(env)
+            .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("read {env:?}")))?
+    } else {
+        Default::default()
+    };
+    let env = env_string
+        .lines()
+        .map(|l| l.trim())
+        .filter_map(|l| l.split_once("="))
+        .collect::<BTreeMap<_, _>>();
+    std::os::unix::fs::chroot(path)
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("chroot {path:?}")))?;
+    let command = which::which_in(
+        command,
+        env.get("PATH")
+            .copied()
+            .map(Cow::Borrowed)
+            .or_else(|| std::env::var("PATH").ok().map(Cow::Owned))
+            .as_deref(),
+        workdir.as_deref().unwrap_or(Path::new("/")),
+    )
+    .with_kind(ErrorKind::Filesystem)?;
     let mut cmd = NSCommand::new(command);
     cmd.args(args);
-    if let Some(env) = env {
-        for (k, v) in std::fs::read_to_string(env)?
-            .lines()
-            .map(|l| l.trim())
-            .filter_map(|l| l.split_once("="))
-        {
-            cmd.env(k, v);
-        }
+    for (k, v) in env {
+        cmd.env(k, v);
     }
-    std::os::unix::fs::chroot(path)?;
+
     if let Some(uid) = user.as_deref().and_then(|u| u.parse::<u32>().ok()) {
         cmd.uid(uid);
     } else if let Some(user) = user {
-        let (uid, gid) = std::fs::read_to_string("/etc/passwd")?
+        let (uid, gid) = std::fs::read_to_string("/etc/passwd")
+            .with_ctx(|_| (ErrorKind::Filesystem, "read /etc/passwd"))?
             .lines()
             .find_map(|l| {
                 let mut split = l.trim().split(":");
@@ -214,27 +309,31 @@ pub fn exec<C: Context>(
     if let Some(workdir) = workdir {
         cmd.current_dir(workdir);
     }
-    cmd.set_namespace(&open_file("/proc/1/ns/pid")?, Namespace::Pid)?;
-    cmd.set_namespace(&open_file("/proc/1/ns/cgroup")?, Namespace::Cgroup)?;
-    cmd.set_namespace(&open_file("/proc/1/ns/ipc")?, Namespace::Ipc)?;
-    cmd.stdin(Stdio::from_file(unix_named_pipe::open_read(&stdin_fifo)?));
-    cmd.stdout(Stdio::from_file(unix_named_pipe::open_write(&stdout_fifo)?));
-    cmd.stderr(Stdio::from_file(unix_named_pipe::open_write(&stderr_fifo)?));
-    let mut stdin = unix_named_pipe::open_write(&stdin_fifo)?;
-    let mut stdout = unix_named_pipe::open_read(&stdout_fifo)?;
-    let mut stderr = unix_named_pipe::open_read(&stderr_fifo)?;
+    cmd.stdin(Stdio::from_file(stdin_r));
+    cmd.stdout(Stdio::from_file(stdout_w));
+    cmd.stderr(Stdio::from_file(stderr_w));
     std::thread::spawn(move || {
-        std::io::copy(&mut std::io::stdin(), &mut stdin).unwrap();
+        std::io::copy(&mut std::io::stdin(), &mut stdin_w).unwrap();
     });
     std::thread::spawn(move || {
-        std::io::copy(&mut stdout, &mut std::io::stdout()).unwrap();
+        std::io::copy(&mut stdout_r, &mut std::io::stdout()).unwrap();
     });
     std::thread::spawn(move || {
-        std::io::copy(&mut stderr, &mut std::io::stderr()).unwrap();
+        std::io::copy(&mut stderr_r, &mut std::io::stderr()).unwrap();
     });
+    nix::sched::setns(open_file_read("/proc/1/ns/pid")?, CloneFlags::CLONE_NEWPID)
+        .with_ctx(|_| (ErrorKind::Filesystem, "set pid ns"))?;
+    nix::sched::setns(
+        open_file_read("/proc/1/ns/cgroup")?,
+        CloneFlags::CLONE_NEWCGROUP,
+    )
+    .with_ctx(|_| (ErrorKind::Filesystem, "set cgroup ns"))?;
+    nix::sched::setns(open_file_read("/proc/1/ns/ipc")?, CloneFlags::CLONE_NEWIPC)
+        .with_ctx(|_| (ErrorKind::Filesystem, "set ipc ns"))?;
     let mut child = cmd
         .spawn()
-        .map_err(|e| Error::new(color_eyre::eyre::Report::msg(e), ErrorKind::Filesystem))?;
+        .map_err(color_eyre::eyre::Report::msg)
+        .with_ctx(|_| (ErrorKind::Filesystem, "spawning child process"))?;
     let pid = child.pid();
     std::thread::spawn(move || {
         for sig in sig.forever() {
@@ -245,7 +344,9 @@ pub fn exec<C: Context>(
             .unwrap();
         }
     });
-    let exit = child.wait()?;
+    let exit = child
+        .wait()
+        .with_ctx(|_| (ErrorKind::Filesystem, "waiting on child process"))?;
     tmpdir.delete().unwrap();
     if let Some(code) = exit.code() {
         std::process::exit(code);

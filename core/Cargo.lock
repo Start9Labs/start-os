@@ -533,7 +533,7 @@ dependencies = [
  "rustc-hash",
  "shlex",
  "syn 2.0.74",
- "which",
+ "which 4.4.2",
 ]
 
 [[package]]
@@ -5150,6 +5150,7 @@ dependencies = [
  "url",
  "urlencoding",
  "uuid",
+ "which 6.0.3",
  "zeroize",
 ]
 
@@ -6266,6 +6267,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "which"
+version = "6.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4ee928febd44d98f2f459a4a79bd4d928591333a494a10a868418ac1b39cf1f"
+dependencies = [
+ "either",
+ "home",
+ "rustix",
+ "winsafe",
+]
+
+[[package]]
 name = "whoami"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6490,6 +6503,12 @@ dependencies = [
  "cfg-if",
  "windows-sys 0.48.0",
 ]
+
+[[package]]
+name = "winsafe"
+version = "0.0.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d135d17ab770252ad95e9a872d365cf3090e3be864a34ab46f48555993efc904"
 
 [[package]]
 name = "wyz"
