@@ -1,11 +1,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use imbl::OrdMap;
-
 use super::start_stop::StartStop;
 use super::ServiceActorSeed;
 use crate::prelude::*;
+use crate::service::persistent_container::ServiceStateKinds;
 use crate::service::transition::TransitionKind;
 use crate::service::SYNC_RETRY_COOLDOWN_SECONDS;
 use crate::status::MainStatus;
@@ -46,96 +45,77 @@ async fn service_actor_loop(
     let id = &seed.id;
     let kinds = current.borrow().kinds();
     if let Err(e) = async {
-        let main_status = match (
-            kinds.transition_state,
-            kinds.desired_state,
-            kinds.running_status,
-        ) {
-            (Some(TransitionKind::Restarting), StartStop::Stop, Some(_)) => {
-                seed.persistent_container.stop().await?;
-                MainStatus::Restarting
-            }
-            (Some(TransitionKind::Restarting), StartStop::Start, _) => {
-                seed.persistent_container.start().await?;
-                MainStatus::Restarting
-            }
-            (Some(TransitionKind::Restarting), _, _) => MainStatus::Restarting,
-            (Some(TransitionKind::Restoring), _, _) => MainStatus::Restoring,
-            (Some(TransitionKind::BackingUp), StartStop::Stop, Some(status)) => {
-                seed.persistent_container.stop().await?;
-                MainStatus::BackingUp {
-                    started: Some(status.started),
-                    health: status.health.clone(),
-                }
-            }
-            (Some(TransitionKind::BackingUp), StartStop::Start, _) => {
-                seed.persistent_container.start().await?;
-                MainStatus::BackingUp {
-                    started: None,
-                    health: OrdMap::new(),
-                }
-            }
-            (Some(TransitionKind::BackingUp), _, _) => MainStatus::BackingUp {
-                started: None,
-                health: OrdMap::new(),
-            },
-            (None, StartStop::Stop, None) => MainStatus::Stopped,
-            (None, StartStop::Stop, Some(_)) => {
-                let task_seed = seed.clone();
-                seed.ctx
-                    .db
-                    .mutate(|d| {
-                        if let Some(i) = d.as_public_mut().as_package_data_mut().as_idx_mut(&id) {
-                            i.as_status_mut().as_main_mut().ser(&MainStatus::Stopping)?;
-                        }
-                        Ok(())
-                    })
-                    .await?;
-                task_seed.persistent_container.stop().await?;
-                MainStatus::Stopped
-            }
-            (None, StartStop::Start, Some(status)) => MainStatus::Running {
-                started: status.started,
-                health: status.health.clone(),
-            },
-            (None, StartStop::Start, None) => {
-                seed.persistent_container.start().await?;
-                MainStatus::Starting
-            }
-        };
         seed.ctx
             .db
             .mutate(|d| {
                 if let Some(i) = d.as_public_mut().as_package_data_mut().as_idx_mut(&id) {
                     let previous = i.as_status().as_main().de()?;
-                    let previous_health = previous.health();
-                    let previous_started = previous.started();
-                    let mut main_status = main_status;
-                    match &mut main_status {
-                        &mut MainStatus::Running { ref mut health, .. }
-                        | &mut MainStatus::BackingUp { ref mut health, .. } => {
-                            *health = previous_health.unwrap_or(health).clone();
-                        }
-                        _ => (),
-                    };
-                    match &mut main_status {
-                        MainStatus::Running {
-                            ref mut started, ..
-                        } => {
-                            *started = previous_started.unwrap_or(*started);
-                        }
-                        MainStatus::BackingUp {
-                            ref mut started, ..
-                        } => {
-                            *started = previous_started.map(Some).unwrap_or(*started);
-                        }
-                        _ => (),
+                    let main_status = match &kinds {
+                        ServiceStateKinds {
+                            transition_state: Some(TransitionKind::Restarting),
+                            ..
+                        } => MainStatus::Restarting,
+                        ServiceStateKinds {
+                            transition_state: Some(TransitionKind::Restoring),
+                            ..
+                        } => MainStatus::Restoring,
+                        ServiceStateKinds {
+                            transition_state: Some(TransitionKind::BackingUp),
+                            ..
+                        } => previous.backing_up(),
+                        ServiceStateKinds {
+                            running_status: Some(status),
+                            desired_state: StartStop::Start,
+                            ..
+                        } => MainStatus::Running {
+                            started: status.started,
+                            health: previous.health().cloned().unwrap_or_default(),
+                        },
+                        ServiceStateKinds {
+                            running_status: None,
+                            desired_state: StartStop::Start,
+                            ..
+                        } => MainStatus::Starting {
+                            health: previous.health().cloned().unwrap_or_default(),
+                        },
+                        ServiceStateKinds {
+                            running_status: Some(_),
+                            desired_state: StartStop::Stop,
+                            ..
+                        } => MainStatus::Stopping,
+                        ServiceStateKinds {
+                            running_status: None,
+                            desired_state: StartStop::Stop,
+                            ..
+                        } => MainStatus::Stopped,
                     };
                     i.as_status_mut().as_main_mut().ser(&main_status)?;
                 }
                 Ok(())
             })
             .await?;
+        seed.synchronized.notify_waiters();
+
+        match kinds {
+            ServiceStateKinds {
+                running_status: None,
+                desired_state: StartStop::Start,
+                ..
+            } => {
+                seed.persistent_container.start().await?;
+            }
+            ServiceStateKinds {
+                running_status: Some(_),
+                desired_state: StartStop::Stop,
+                ..
+            } => {
+                seed.persistent_container.stop().await?;
+                seed.persistent_container
+                    .state
+                    .send_if_modified(|s| s.running_status.take().is_some());
+            }
+            _ => (),
+        };
 
         Ok::<_, Error>(())
     }

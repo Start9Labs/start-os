@@ -6,6 +6,7 @@ import { Daemon } from "@start9labs/start-sdk/cjs/lib/mainFn/Daemon"
 import { Effects } from "../../../Models/Effects"
 import { off } from "node:process"
 import { CommandController } from "@start9labs/start-sdk/cjs/lib/mainFn/CommandController"
+import { asError } from "@start9labs/start-sdk/cjs/lib/util"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
 const EMBASSY_PROPERTIES_LOOP = 30 * 1000
@@ -146,12 +147,14 @@ export class MainLoop {
     const start = Date.now()
     return Object.entries(manifest["health-checks"]).map(
       ([healthId, value]) => {
-        effects.setHealth({
-          id: healthId,
-          name: value.name,
-          result: "starting",
-          message: null,
-        })
+        effects
+          .setHealth({
+            id: healthId,
+            name: value.name,
+            result: "starting",
+            message: null,
+          })
+          .catch((e) => console.error(asError(e)))
         const interval = setInterval(async () => {
           const actionProcedure = value
           const timeChanged = Date.now() - start

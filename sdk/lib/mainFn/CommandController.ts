@@ -78,9 +78,15 @@ export class CommandController {
           ) {
             return resolve(null)
           }
-          return reject(
-            asError(new Error(`${commands[0]} exited with code ${code}`)),
-          )
+          if (code) {
+            return reject(new Error(`${commands[0]} exited with code ${code}`))
+          } else {
+            return reject(
+              new Error(
+                `${commands[0]} exited with signal ${childProcess.signalCode}`,
+              ),
+            )
+          }
         })
       })
 
