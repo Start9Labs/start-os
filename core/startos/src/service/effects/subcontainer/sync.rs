@@ -12,6 +12,7 @@ use nix::sched::CloneFlags;
 use nix::unistd::Pid;
 use rpc_toolkit::Context;
 use signal_hook::consts::signal::*;
+use tokio::sync::oneshot;
 use unshare::Command as NSCommand;
 
 use crate::service::effects::prelude::*;
@@ -113,22 +114,92 @@ pub struct ExecParams {
     workdir: Option<PathBuf>,
     #[arg(short = 'u', long = "user")]
     user: Option<String>,
-    path: PathBuf,
+    chroot: PathBuf,
     command: Vec<OsString>,
 }
+impl ExecParams {
+    fn exec(&self) -> Result<(), Error> {
+        let ExecParams {
+            env,
+            workdir,
+            user,
+            chroot,
+            command,
+        } = self;
+        let Some(([command], args)) = command.split_at_checked(1) else {
+            return Err(Error::new(
+                eyre!("command cannot be empty"),
+                ErrorKind::InvalidRequest,
+            ));
+        };
+        let env_string = if let Some(env) = &env {
+            std::fs::read_to_string(env)
+                .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("read {env:?}")))?
+        } else {
+            Default::default()
+        };
+        let env = env_string
+            .lines()
+            .map(|l| l.trim())
+            .filter_map(|l| l.split_once("="))
+            .collect::<BTreeMap<_, _>>();
+        std::os::unix::fs::chroot(chroot)
+            .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("chroot {chroot:?}")))?;
+        let command = which::which_in(
+            command,
+            env.get("PATH")
+                .copied()
+                .map(Cow::Borrowed)
+                .or_else(|| std::env::var("PATH").ok().map(Cow::Owned))
+                .as_deref(),
+            workdir.as_deref().unwrap_or(Path::new("/")),
+        )
+        .with_kind(ErrorKind::Filesystem)?;
+        let mut cmd = StdCommand::new(command);
+        cmd.args(args);
+        for (k, v) in env {
+            cmd.env(k, v);
+        }
+
+        if let Some(uid) = user.as_deref().and_then(|u| u.parse::<u32>().ok()) {
+            cmd.uid(uid);
+        } else if let Some(user) = user {
+            let (uid, gid) = std::fs::read_to_string("/etc/passwd")
+                .with_ctx(|_| (ErrorKind::Filesystem, "read /etc/passwd"))?
+                .lines()
+                .find_map(|l| {
+                    let mut split = l.trim().split(":");
+                    if user != split.next()? {
+                        return None;
+                    }
+                    split.next(); // throw away x
+                    Some((split.next()?.parse().ok()?, split.next()?.parse().ok()?))
+                    // uid gid
+                })
+                .or_not_found(lazy_format!("{user} in /etc/passwd"))?;
+            cmd.uid(uid);
+            cmd.gid(gid);
+        };
+        if let Some(workdir) = workdir {
+            cmd.current_dir(workdir);
+        }
+        Err(cmd.exec().into())
+    }
+}
+
 pub fn launch<C: Context>(
     _: C,
     ExecParams {
         env,
         workdir,
         user,
-        path,
+        chroot,
         command,
     }: ExecParams,
 ) -> Result<(), Error> {
     use unshare::{Namespace, Stdio};
     let mut sig = signal_hook::iterator::Signals::new(FWD_SIGNALS)?;
-    let tmpdir = TmpDir::new()?;
+    let tmpdir = TmpDirSync::new()?;
     let (stdin_r, mut stdin_w) = mkfifo(tmpdir.join("stdin"), 0o644)?;
     let (mut stdout_r, stdout_w) = mkfifo(tmpdir.join("stdout"), 0o666)?;
     let (mut stderr_r, stderr_w) = mkfifo(tmpdir.join("stderr"), 0o666)?;
@@ -143,7 +214,7 @@ pub fn launch<C: Context>(
     if let Some(user) = user {
         cmd.arg("--user").arg(user);
     }
-    cmd.arg(&path);
+    cmd.arg(&chroot);
     cmd.args(&command);
     cmd.unshare(&[Namespace::Pid, Namespace::Cgroup, Namespace::Ipc]);
     cmd.stdin(Stdio::from_file(stdin_r));
@@ -158,8 +229,8 @@ pub fn launch<C: Context>(
     std::thread::spawn(move || {
         std::io::copy(&mut stderr_r, &mut std::io::stderr()).unwrap();
     });
-    if path.join("proc/1").exists() {
-        let ns_id = procfs::process::Process::new_with_root(path.join("proc"))
+    if chroot.join("proc/1").exists() {
+        let ns_id = procfs::process::Process::new_with_root(chroot.join("proc"))
             .with_ctx(|_| (ErrorKind::Filesystem, "open subcontainer procfs"))?
             .namespaces()
             .with_ctx(|_| (ErrorKind::Filesystem, "read subcontainer pid 1 ns"))?
@@ -199,7 +270,7 @@ pub fn launch<C: Context>(
                 }
             }
         }
-        nix::mount::umount(&path.join("proc"))
+        nix::mount::umount(&chroot.join("proc"))
             .with_ctx(|_| (ErrorKind::Filesystem, "unmounting subcontainer procfs"))?;
     }
     let mut child = cmd
@@ -235,80 +306,65 @@ pub fn launch<C: Context>(
     }
 }
 
+pub fn launch_init<C: Context>(_: C, params: ExecParams) -> Result<(), Error> {
+    nix::mount::mount(
+        Some("proc"),
+        &params.chroot.join("proc"),
+        Some("proc"),
+        nix::mount::MsFlags::empty(),
+        None::<&str>,
+    )
+    .with_ctx(|_| (ErrorKind::Filesystem, "mount procfs"))?;
+    if params.command.is_empty() {
+        loop {
+            std::thread::park();
+        }
+    } else {
+        params.exec()
+    }
+}
+
 pub fn exec<C: Context>(
     _: C,
     ExecParams {
         env,
         workdir,
         user,
-        path,
+        chroot,
         command,
     }: ExecParams,
 ) -> Result<(), Error> {
-    use unshare::{Namespace, Stdio};
-    let path = &path;
+    use unshare::Stdio;
     let mut sig = signal_hook::iterator::Signals::new(FWD_SIGNALS)?;
-    let Some(([command], args)) = command.split_at_checked(1) else {
-        return Err(Error::new(
-            eyre!("command cannot be empty"),
-            ErrorKind::InvalidRequest,
-        ));
-    };
-    let tmpdir = TmpDir::new()?;
+    let (send_pid, recv_pid) = oneshot::channel();
+    std::thread::spawn(move || {
+        if let Ok(pid) = recv_pid.blocking_recv() {
+            for sig in sig.forever() {
+                nix::sys::signal::kill(
+                    Pid::from_raw(pid),
+                    Some(nix::sys::signal::Signal::try_from(sig).unwrap()),
+                )
+                .unwrap();
+            }
+        }
+    });
+    let tmpdir = TmpDirSync::new()?;
     let (stdin_r, mut stdin_w) = mkfifo(tmpdir.join("stdin"), 0o644)?;
     let (mut stdout_r, stdout_w) = mkfifo(tmpdir.join("stdout"), 0o666)?;
     let (mut stderr_r, stderr_w) = mkfifo(tmpdir.join("stderr"), 0o666)?;
-    let env_string = if let Some(env) = &env {
-        std::fs::read_to_string(env)
-            .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("read {env:?}")))?
-    } else {
-        Default::default()
-    };
-    let env = env_string
-        .lines()
-        .map(|l| l.trim())
-        .filter_map(|l| l.split_once("="))
-        .collect::<BTreeMap<_, _>>();
-    std::os::unix::fs::chroot(path)
-        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("chroot {path:?}")))?;
-    let command = which::which_in(
-        command,
-        env.get("PATH")
-            .copied()
-            .map(Cow::Borrowed)
-            .or_else(|| std::env::var("PATH").ok().map(Cow::Owned))
-            .as_deref(),
-        workdir.as_deref().unwrap_or(Path::new("/")),
-    )
-    .with_kind(ErrorKind::Filesystem)?;
-    let mut cmd = NSCommand::new(command);
-    cmd.args(args);
-    for (k, v) in env {
-        cmd.env(k, v);
+    let mut cmd = NSCommand::new("/usr/bin/start-cli");
+    cmd.arg("subcontainer").arg("exec-command");
+    if let Some(env) = env {
+        cmd.arg("--env").arg(env);
     }
-
-    if let Some(uid) = user.as_deref().and_then(|u| u.parse::<u32>().ok()) {
-        cmd.uid(uid);
-    } else if let Some(user) = user {
-        let (uid, gid) = std::fs::read_to_string("/etc/passwd")
-            .with_ctx(|_| (ErrorKind::Filesystem, "read /etc/passwd"))?
-            .lines()
-            .find_map(|l| {
-                let mut split = l.trim().split(":");
-                if user != split.next()? {
-                    return None;
-                }
-                split.next(); // throw away x
-                Some((split.next()?.parse().ok()?, split.next()?.parse().ok()?))
-                // uid gid
-            })
-            .or_not_found(lazy_format!("{user} in /etc/passwd"))?;
-        cmd.uid(uid);
-        cmd.gid(gid);
-    };
     if let Some(workdir) = workdir {
-        cmd.current_dir(workdir);
+        cmd.arg("--workdir").arg(workdir);
     }
+    if let Some(user) = user {
+        cmd.arg("--user").arg(user);
+    }
+    cmd.arg(&chroot);
+    cmd.args(&command);
     cmd.stdin(Stdio::from_file(stdin_r));
     cmd.stdout(Stdio::from_file(stdout_w));
     cmd.stderr(Stdio::from_file(stderr_w));
@@ -321,29 +377,27 @@ pub fn exec<C: Context>(
     std::thread::spawn(move || {
         std::io::copy(&mut stderr_r, &mut std::io::stderr()).unwrap();
     });
-    nix::sched::setns(open_file_read("/proc/1/ns/pid")?, CloneFlags::CLONE_NEWPID)
-        .with_ctx(|_| (ErrorKind::Filesystem, "set pid ns"))?;
     nix::sched::setns(
-        open_file_read("/proc/1/ns/cgroup")?,
+        open_file_read(chroot.join("proc/1/ns/pid"))?,
+        CloneFlags::CLONE_NEWPID,
+    )
+    .with_ctx(|_| (ErrorKind::Filesystem, "set pid ns"))?;
+    nix::sched::setns(
+        open_file_read(chroot.join("proc/1/ns/cgroup"))?,
         CloneFlags::CLONE_NEWCGROUP,
     )
     .with_ctx(|_| (ErrorKind::Filesystem, "set cgroup ns"))?;
-    nix::sched::setns(open_file_read("/proc/1/ns/ipc")?, CloneFlags::CLONE_NEWIPC)
-        .with_ctx(|_| (ErrorKind::Filesystem, "set ipc ns"))?;
+    nix::sched::setns(
+        open_file_read(chroot.join("proc/1/ns/ipc"))?,
+        CloneFlags::CLONE_NEWIPC,
+    )
+    .with_ctx(|_| (ErrorKind::Filesystem, "set ipc ns"))?;
     let mut child = cmd
         .spawn()
         .map_err(color_eyre::eyre::Report::msg)
         .with_ctx(|_| (ErrorKind::Filesystem, "spawning child process"))?;
     let pid = child.pid();
-    std::thread::spawn(move || {
-        for sig in sig.forever() {
-            nix::sys::signal::kill(
-                Pid::from_raw(pid),
-                Some(nix::sys::signal::Signal::try_from(sig).unwrap()),
-            )
-            .unwrap();
-        }
-    });
+    send_pid.send(pid).unwrap_or_default();
     let exit = child
         .wait()
         .with_ctx(|_| (ErrorKind::Filesystem, "waiting on child process"))?;
@@ -362,71 +416,15 @@ pub fn exec<C: Context>(
     }
 }
 
-pub fn launch_init<C: Context>(
-    _: C,
-    ExecParams {
-        env,
-        workdir,
-        user,
-        path,
-        command,
-    }: ExecParams,
-) -> Result<(), Error> {
-    nix::mount::mount(
-        Some("proc"),
-        &path.join("proc"),
-        Some("proc"),
-        nix::mount::MsFlags::empty(),
-        None::<&str>,
-    )
-    .with_ctx(|_| (ErrorKind::Filesystem, "mount procfs"))?;
-    if let Some(cmd) = command.get(0) {
-        let mut cmd = StdCommand::new(cmd);
-        if let Some(env) = env {
-            for (k, v) in std::fs::read_to_string(env)?
-                .lines()
-                .map(|l| l.trim())
-                .filter_map(|l| l.split_once("="))
-            {
-                cmd.env(k, v);
-            }
-        }
-        std::os::unix::fs::chroot(path)?;
-        if let Some(uid) = user.as_deref().and_then(|u| u.parse::<u32>().ok()) {
-            cmd.uid(uid);
-        } else if let Some(user) = user {
-            let (uid, gid) = std::fs::read_to_string("/etc/passwd")?
-                .lines()
-                .find_map(|l| {
-                    let mut split = l.trim().split(":");
-                    if user != split.next()? {
-                        return None;
-                    }
-                    split.next(); // throw away x
-                    Some((split.next()?.parse().ok()?, split.next()?.parse().ok()?))
-                    // uid gid
-                })
-                .or_not_found(lazy_format!("{user} in /etc/passwd"))?;
-            cmd.uid(uid);
-            cmd.gid(gid);
-        };
-        if let Some(workdir) = workdir {
-            cmd.current_dir(workdir);
-        }
-        cmd.args(&command[1..]);
-        Err(cmd.exec().into())
-    } else {
-        loop {
-            std::thread::park();
-        }
-    }
+pub fn exec_command<C: Context>(_: C, params: ExecParams) -> Result<(), Error> {
+    params.exec()
 }
 
 #[derive(Debug)]
-struct TmpDir {
+pub struct TmpDirSync {
     path: PathBuf,
 }
-impl TmpDir {
+impl TmpDirSync {
     pub fn new() -> Result<Self, Error> {
         let path = Path::new("/var/tmp/startos").join(base32::encode(
             base32::Alphabet::Rfc4648 { padding: false },
@@ -455,18 +453,18 @@ impl TmpDir {
         }
     }
 }
-impl std::ops::Deref for TmpDir {
+impl std::ops::Deref for TmpDirSync {
     type Target = Path;
     fn deref(&self) -> &Self::Target {
         &self.path
     }
 }
-impl AsRef<Path> for TmpDir {
+impl AsRef<Path> for TmpDirSync {
     fn as_ref(&self) -> &Path {
         &*self
     }
 }
-impl Drop for TmpDir {
+impl Drop for TmpDirSync {
     fn drop(&mut self) {
         if self.path.exists() {
             std::fs::remove_dir_all(&self.path).log_err();
