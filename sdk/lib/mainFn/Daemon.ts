@@ -20,14 +20,15 @@ export class Daemon {
   static of<Manifest extends T.Manifest>() {
     return async <A extends string>(
       effects: T.Effects,
-      imageId: {
-        id: keyof Manifest["images"] & T.ImageId
-        sharedRun?: boolean
-      },
+      subcontainer:
+        | {
+            id: keyof Manifest["images"] & T.ImageId
+            sharedRun?: boolean
+          }
+        | SubContainer,
       command: T.CommandType,
       options: {
         mounts?: { path: string; options: MountOptions }[]
-        subcontainer?: SubContainer
         env?:
           | {
               [variable: string]: string
@@ -41,7 +42,12 @@ export class Daemon {
       },
     ) => {
       const startCommand = () =>
-        CommandController.of<Manifest>()(effects, imageId, command, options)
+        CommandController.of<Manifest>()(
+          effects,
+          subcontainer,
+          command,
+          options,
+        )
       return new Daemon(startCommand)
     }
   }

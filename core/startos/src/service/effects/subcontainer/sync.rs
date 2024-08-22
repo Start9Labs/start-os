@@ -1,12 +1,11 @@
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::ffi::{c_int, OsStr, OsString};
-use std::fs::{File, OpenOptions};
+use std::fs::File;
 use std::os::fd::AsRawFd;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
-use std::process::Command as StdCommand;
-use std::sync::Arc;
+use std::process::{Command as StdCommand, Stdio};
 
 use nix::sched::CloneFlags;
 use nix::unistd::Pid;
@@ -93,19 +92,6 @@ fn open_file_read(path: impl AsRef<Path>) -> Result<File, Error> {
     })
 }
 
-fn open_file_append(path: impl AsRef<Path>) -> Result<File, Error> {
-    OpenOptions::new()
-        .write(true)
-        .append(true)
-        .open(&path)
-        .with_ctx(|_| {
-            (
-                ErrorKind::Filesystem,
-                lazy_format!("open w+a {}", path.as_ref().display()),
-            )
-        })
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct ExecParams {
     #[arg(short = 'e', long = "env")]
@@ -182,6 +168,8 @@ impl ExecParams {
         };
         if let Some(workdir) = workdir {
             cmd.current_dir(workdir);
+        } else {
+            cmd.current_dir("/");
         }
         Err(cmd.exec().into())
     }
@@ -199,10 +187,6 @@ pub fn launch<C: Context>(
 ) -> Result<(), Error> {
     use unshare::{Namespace, Stdio};
     let mut sig = signal_hook::iterator::Signals::new(FWD_SIGNALS)?;
-    let tmpdir = TmpDirSync::new()?;
-    let (stdin_r, mut stdin_w) = mkfifo(tmpdir.join("stdin"), 0o644)?;
-    let (mut stdout_r, stdout_w) = mkfifo(tmpdir.join("stdout"), 0o666)?;
-    let (mut stderr_r, stderr_w) = mkfifo(tmpdir.join("stderr"), 0o666)?;
     let mut cmd = NSCommand::new("/usr/bin/start-cli");
     cmd.arg("subcontainer").arg("launch-init");
     if let Some(env) = env {
@@ -217,17 +201,26 @@ pub fn launch<C: Context>(
     cmd.arg(&chroot);
     cmd.args(&command);
     cmd.unshare(&[Namespace::Pid, Namespace::Cgroup, Namespace::Ipc]);
-    cmd.stdin(Stdio::from_file(stdin_r));
-    cmd.stdout(Stdio::from_file(stdout_w));
-    cmd.stderr(Stdio::from_file(stderr_w));
+    cmd.stdin(Stdio::piped());
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+    let (stdin_send, stdin_recv) = oneshot::channel();
     std::thread::spawn(move || {
-        std::io::copy(&mut std::io::stdin(), &mut stdin_w).unwrap();
+        if let Ok(mut stdin) = stdin_recv.blocking_recv() {
+            std::io::copy(&mut std::io::stdin(), &mut stdin).unwrap();
+        }
     });
+    let (stdout_send, stdout_recv) = oneshot::channel();
     std::thread::spawn(move || {
-        std::io::copy(&mut stdout_r, &mut std::io::stdout()).unwrap();
+        if let Ok(mut stdout) = stdout_recv.blocking_recv() {
+            std::io::copy(&mut stdout, &mut std::io::stdout()).unwrap();
+        }
     });
+    let (stderr_send, stderr_recv) = oneshot::channel();
     std::thread::spawn(move || {
-        std::io::copy(&mut stderr_r, &mut std::io::stderr()).unwrap();
+        if let Ok(mut stderr) = stderr_recv.blocking_recv() {
+            std::io::copy(&mut stderr, &mut std::io::stderr()).unwrap();
+        }
     });
     if chroot.join("proc/1").exists() {
         let ns_id = procfs::process::Process::new_with_root(chroot.join("proc"))
@@ -287,11 +280,19 @@ pub fn launch<C: Context>(
             .unwrap();
         }
     });
+    stdin_send
+        .send(child.stdin.take().unwrap())
+        .unwrap_or_default();
+    stdout_send
+        .send(child.stdout.take().unwrap())
+        .unwrap_or_default();
+    stderr_send
+        .send(child.stderr.take().unwrap())
+        .unwrap_or_default();
     // TODO: subreaping, signal handling
     let exit = child
         .wait()
         .with_ctx(|_| (ErrorKind::Filesystem, "waiting on child process"))?;
-    tmpdir.delete().unwrap();
     if let Some(code) = exit.code() {
         std::process::exit(code);
     } else {
@@ -334,7 +335,6 @@ pub fn exec<C: Context>(
         command,
     }: ExecParams,
 ) -> Result<(), Error> {
-    use unshare::Stdio;
     let mut sig = signal_hook::iterator::Signals::new(FWD_SIGNALS)?;
     let (send_pid, recv_pid) = oneshot::channel();
     std::thread::spawn(move || {
@@ -348,11 +348,7 @@ pub fn exec<C: Context>(
             }
         }
     });
-    let tmpdir = TmpDirSync::new()?;
-    let (stdin_r, mut stdin_w) = mkfifo(tmpdir.join("stdin"), 0o644)?;
-    let (mut stdout_r, stdout_w) = mkfifo(tmpdir.join("stdout"), 0o666)?;
-    let (mut stderr_r, stderr_w) = mkfifo(tmpdir.join("stderr"), 0o666)?;
-    let mut cmd = NSCommand::new("/usr/bin/start-cli");
+    let mut cmd = StdCommand::new("/usr/bin/start-cli");
     cmd.arg("subcontainer").arg("exec-command");
     if let Some(env) = env {
         cmd.arg("--env").arg(env);
@@ -365,17 +361,26 @@ pub fn exec<C: Context>(
     }
     cmd.arg(&chroot);
     cmd.args(&command);
-    cmd.stdin(Stdio::from_file(stdin_r));
-    cmd.stdout(Stdio::from_file(stdout_w));
-    cmd.stderr(Stdio::from_file(stderr_w));
+    cmd.stdin(Stdio::piped());
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+    let (stdin_send, stdin_recv) = oneshot::channel();
     std::thread::spawn(move || {
-        std::io::copy(&mut std::io::stdin(), &mut stdin_w).unwrap();
+        if let Ok(mut stdin) = stdin_recv.blocking_recv() {
+            std::io::copy(&mut std::io::stdin(), &mut stdin).unwrap();
+        }
     });
+    let (stdout_send, stdout_recv) = oneshot::channel();
     std::thread::spawn(move || {
-        std::io::copy(&mut stdout_r, &mut std::io::stdout()).unwrap();
+        if let Ok(mut stdout) = stdout_recv.blocking_recv() {
+            std::io::copy(&mut stdout, &mut std::io::stdout()).unwrap();
+        }
     });
+    let (stderr_send, stderr_recv) = oneshot::channel();
     std::thread::spawn(move || {
-        std::io::copy(&mut stderr_r, &mut std::io::stderr()).unwrap();
+        if let Ok(mut stderr) = stderr_recv.blocking_recv() {
+            std::io::copy(&mut stderr, &mut std::io::stderr()).unwrap();
+        }
     });
     nix::sched::setns(
         open_file_read(chroot.join("proc/1/ns/pid"))?,
@@ -396,12 +401,19 @@ pub fn exec<C: Context>(
         .spawn()
         .map_err(color_eyre::eyre::Report::msg)
         .with_ctx(|_| (ErrorKind::Filesystem, "spawning child process"))?;
-    let pid = child.pid();
-    send_pid.send(pid).unwrap_or_default();
+    send_pid.send(child.id() as i32).unwrap_or_default();
+    stdin_send
+        .send(child.stdin.take().unwrap())
+        .unwrap_or_default();
+    stdout_send
+        .send(child.stdout.take().unwrap())
+        .unwrap_or_default();
+    stderr_send
+        .send(child.stderr.take().unwrap())
+        .unwrap_or_default();
     let exit = child
         .wait()
         .with_ctx(|_| (ErrorKind::Filesystem, "waiting on child process"))?;
-    tmpdir.delete().unwrap();
     if let Some(code) = exit.code() {
         std::process::exit(code);
     } else {
@@ -418,56 +430,4 @@ pub fn exec<C: Context>(
 
 pub fn exec_command<C: Context>(_: C, params: ExecParams) -> Result<(), Error> {
     params.exec()
-}
-
-#[derive(Debug)]
-pub struct TmpDirSync {
-    path: PathBuf,
-}
-impl TmpDirSync {
-    pub fn new() -> Result<Self, Error> {
-        let path = Path::new("/var/tmp/startos").join(base32::encode(
-            base32::Alphabet::Rfc4648 { padding: false },
-            &rand::random::<[u8; 8]>(),
-        ));
-        if path.exists() {
-            return Err(Error::new(
-                eyre!("{path:?} already exists"),
-                ErrorKind::Filesystem,
-            ));
-        }
-        std::fs::create_dir_all(&path)?;
-        Ok(Self { path })
-    }
-
-    pub fn delete(self) -> Result<(), Error> {
-        std::fs::remove_dir_all(&self.path)?;
-        Ok(())
-    }
-
-    pub fn gc(self: Arc<Self>) -> Result<(), Error> {
-        if let Ok(dir) = Arc::try_unwrap(self) {
-            dir.delete()
-        } else {
-            Ok(())
-        }
-    }
-}
-impl std::ops::Deref for TmpDirSync {
-    type Target = Path;
-    fn deref(&self) -> &Self::Target {
-        &self.path
-    }
-}
-impl AsRef<Path> for TmpDirSync {
-    fn as_ref(&self) -> &Path {
-        &*self
-    }
-}
-impl Drop for TmpDirSync {
-    fn drop(&mut self) {
-        if self.path.exists() {
-            std::fs::remove_dir_all(&self.path).log_err();
-        }
-    }
 }

@@ -10,7 +10,6 @@ import {
   SubContainer,
 } from "../util/SubContainer"
 import { splitCommand } from "../util/splitCommand"
-import { cpExecFile, cpExec } from "./Daemons"
 import * as cp from "child_process"
 
 export class CommandController {
@@ -23,16 +22,17 @@ export class CommandController {
   static of<Manifest extends T.Manifest>() {
     return async <A extends string>(
       effects: T.Effects,
-      imageId: {
-        id: keyof Manifest["images"] & T.ImageId
-        sharedRun?: boolean
-      },
+      subcontainer:
+        | {
+            id: keyof Manifest["images"] & T.ImageId
+            sharedRun?: boolean
+          }
+        | SubContainer,
       command: T.CommandType,
       options: {
         // Defaults to the DEFAULT_SIGTERM_TIMEOUT = 30_000ms
         sigtermTimeout?: number
         mounts?: { path: string; options: MountOptions }[]
-        subcontainer?: SubContainer
         runAsInit?: boolean
         env?:
           | {
@@ -46,22 +46,23 @@ export class CommandController {
       },
     ) => {
       const commands = splitCommand(command)
-      const subcontainer =
-        options.subcontainer ||
-        (await (async () => {
-          const subcontainer = await SubContainer.of(effects, imageId)
-          for (let mount of options.mounts || []) {
-            await subcontainer.mount(mount.options, mount.path)
-          }
-          return subcontainer
-        })())
+      const subc =
+        subcontainer instanceof SubContainer
+          ? subcontainer
+          : await (async () => {
+              const subc = await SubContainer.of(effects, subcontainer)
+              for (let mount of options.mounts || []) {
+                await subc.mount(mount.options, mount.path)
+              }
+              return subc
+            })()
       let childProcess: cp.ChildProcessWithoutNullStreams
       if (options.runAsInit) {
-        childProcess = await subcontainer.launch(commands, {
+        childProcess = await subc.launch(commands, {
           env: options.env,
         })
       } else {
-        childProcess = await subcontainer.spawn(commands, {
+        childProcess = await subc.spawn(commands, {
           env: options.env,
         })
       }
@@ -78,7 +79,7 @@ export class CommandController {
 
       return new CommandController(
         answer,
-        subcontainer,
+        subc,
         childProcess,
         options.sigtermTimeout,
       )

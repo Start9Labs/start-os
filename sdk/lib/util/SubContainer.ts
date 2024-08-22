@@ -13,6 +13,10 @@ type ExecResults = {
   stderr: string | Buffer
 }
 
+export type ExecOptions = {
+  input?: string | Buffer
+}
+
 /**
  * This is the type that is going to describe what an subcontainer could do. The main point of the
  * subcontainer is to have commands that run in a chrooted environment. This is useful for running
@@ -23,7 +27,7 @@ export interface ExecSpawnable {
   get destroy(): undefined | (() => Promise<void>)
   exec(
     command: string[],
-    options?: CommandOptions,
+    options?: CommandOptions & ExecOptions,
     timeoutMs?: number | null,
   ): Promise<ExecResults>
   spawn(
@@ -172,7 +176,7 @@ export class SubContainer implements ExecSpawnable {
 
   async exec(
     command: string[],
-    options?: CommandOptions,
+    options?: CommandOptions & ExecOptions,
     timeoutMs: number | null = 30000,
   ): Promise<{
     exitCode: number | null
@@ -209,6 +213,18 @@ export class SubContainer implements ExecSpawnable {
       ],
       options || {},
     )
+    if (options?.input) {
+      await new Promise<void>((resolve, reject) =>
+        child.stdin.write(options.input, (e) => {
+          if (e) {
+            reject(e)
+          } else {
+            resolve()
+          }
+        }),
+      )
+      await new Promise<void>((resolve) => child.stdin.end(resolve))
+    }
     const pid = child.pid
     const stdout = { data: "" as string | Buffer }
     const stderr = { data: "" as string | Buffer }
@@ -228,11 +244,8 @@ export class SubContainer implements ExecSpawnable {
       }
     return new Promise((resolve, reject) => {
       child.on("error", reject)
-      if (timeoutMs !== null && pid) {
-        setTimeout(
-          () => execFile("pkill", ["-9", "-s", String(pid)]).catch((_) => {}),
-          timeoutMs,
-        )
+      if (timeoutMs !== null && child.pid) {
+        setTimeout(() => child.kill("SIGKILL"), timeoutMs)
       }
       child.stdout.on("data", appendData(stdout))
       child.stderr.on("data", appendData(stderr))
@@ -280,7 +293,7 @@ export class SubContainer implements ExecSpawnable {
         this.rootfs,
         ...command,
       ],
-      options,
+      { ...options, stdio: "inherit" },
     )
     this.leader.on("exit", () => {
       this.leaderExited = true

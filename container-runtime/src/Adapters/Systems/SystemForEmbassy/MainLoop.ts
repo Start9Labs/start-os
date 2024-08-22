@@ -148,6 +148,12 @@ export class MainLoop {
     const start = Date.now()
     return Object.entries(manifest["health-checks"]).map(
       ([healthId, value]) => {
+        effects.setHealth({
+          id: healthId,
+          name: value.name,
+          result: "starting",
+          message: null,
+        })
         const interval = setInterval(async () => {
           const actionProcedure = value
           const timeChanged = Date.now() - start
@@ -167,12 +173,8 @@ export class MainLoop {
                 }
               )
             const executed = await container.exec(
-              [
-                actionProcedure.entrypoint,
-                ...actionProcedure.args,
-                JSON.stringify(timeChanged),
-              ],
-              {},
+              [actionProcedure.entrypoint, ...actionProcedure.args],
+              { input: JSON.stringify(timeChanged) },
             )
             if (executed.exitCode === 0) {
               await effects.setHealth({

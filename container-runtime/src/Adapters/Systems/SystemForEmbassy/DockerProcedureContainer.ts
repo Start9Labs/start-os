@@ -4,7 +4,11 @@ import { SubContainer, types as T } from "@start9labs/start-sdk"
 import { promisify } from "util"
 import { DockerProcedure, VolumeId } from "../../../Models/DockerProcedure"
 import { Volume } from "./matchVolume"
-import { ExecSpawnable } from "@start9labs/start-sdk/cjs/lib/util/SubContainer"
+import {
+  CommandOptions,
+  ExecOptions,
+  ExecSpawnable,
+} from "@start9labs/start-sdk/cjs/lib/util/SubContainer"
 export const exec = promisify(cp.exec)
 export const execFile = promisify(cp.execFile)
 
@@ -106,17 +110,25 @@ export class DockerProcedureContainer {
     return subcontainer
   }
 
-  async exec(commands: string[], {} = {}) {
+  async exec(
+    commands: string[],
+    options?: CommandOptions & ExecOptions,
+    timeoutMs?: number | null,
+  ) {
     try {
-      return await this.subcontainer.exec(commands)
+      return await this.subcontainer.exec(commands, options, timeoutMs)
     } finally {
       await this.subcontainer.destroy?.()
     }
   }
 
-  async execFail(commands: string[], timeoutMs: number | null, {} = {}) {
+  async execFail(
+    commands: string[],
+    timeoutMs: number | null,
+    options?: CommandOptions & ExecOptions,
+  ) {
     try {
-      const res = await this.subcontainer.exec(commands, {}, timeoutMs)
+      const res = await this.subcontainer.exec(commands, options, timeoutMs)
       if (res.exitCode !== 0) {
         const codeOrSignal =
           res.exitCode !== null
