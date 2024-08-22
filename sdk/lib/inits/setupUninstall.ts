@@ -22,6 +22,9 @@ export class Uninstall<Manifest extends T.Manifest, Store> {
   }
 }
 
+/**
+ * Use this function to execute arbitrary logic *once*, on uninstall only. Most services will not use this.
+ */
 export function setupUninstall<Manifest extends T.Manifest, Store>(
   fn: UninstallFn<Manifest, Store>,
 ) {

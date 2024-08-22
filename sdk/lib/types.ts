@@ -450,8 +450,6 @@ export type Effects = {
  */
 export type BackupOptions = {
   delete: boolean
-  force: boolean
-  ignoreExisting: boolean
   exclude: string[]
 }
 /**

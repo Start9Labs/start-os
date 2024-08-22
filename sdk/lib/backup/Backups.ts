@@ -1,14 +1,10 @@
 import * as T from "../types"
-
 import * as child_process from "child_process"
-import { promises as fsPromises } from "fs"
 import { asError } from "../util"
 
 export type BACKUP = "BACKUP"
 export const DEFAULT_OPTIONS: T.BackupOptions = {
   delete: true,
-  force: true,
-  ignoreExisting: false,
   exclude: [],
 }
 export type BackupSet<Volumes extends string> = {
@@ -24,7 +20,7 @@ export type BackupSet<Volumes extends string> = {
  * export const { createBackup, restoreBackup } = Backups.volumes("main").build();
  * ```
  *
- * Changing the options of the rsync, (ie exludes) use either
+ * Changing the options of the rsync, (ie excludes) use either
  * ```ts
  *  Backups.volumes("main").set_options({exclude: ['bigdata/']}).volumes('excludedVolume').build()
  * // or
@@ -47,6 +43,7 @@ export class Backups<M extends T.Manifest> {
     private options = DEFAULT_OPTIONS,
     private backupSet = [] as BackupSet<M["volumes"][number]>[],
   ) {}
+  /** Accepts as parameters every volume to be backed up */
   static volumes<M extends T.Manifest = never>(
     ...volumeNames: Array<M["volumes"][0]>
   ): Backups<M> {
@@ -64,6 +61,11 @@ export class Backups<M extends T.Manifest> {
   ) {
     return new Backups().addSets(...options)
   }
+  /**
+   * @description Advanced options for more control over backups
+   * @property {boolean} delete - Whether or not to delete files old backup before creating the new one. Defaults to true.
+   * @property {boolean} exclude - A list of directories to exclude from being backed up. This should be used for any large datasets that can recovered another way, such as the Bitcoin blockchain.
+   */
   static with_options<M extends T.Manifest = never>(
     options?: Partial<T.BackupOptions>,
   ) {
@@ -157,12 +159,6 @@ async function runRsync(
   const args: string[] = []
   if (options.delete) {
     args.push("--delete")
-  }
-  if (options.force) {
-    args.push("--force")
-  }
-  if (options.ignoreExisting) {
-    args.push("--ignore-existing")
   }
   for (const exclude of options.exclude) {
     args.push(`--exclude=${exclude}`)
