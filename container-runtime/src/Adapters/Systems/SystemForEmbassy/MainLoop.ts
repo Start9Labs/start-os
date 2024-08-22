@@ -64,11 +64,9 @@ export class MainLoop {
       )
       return CommandController.of()(
         this.effects,
-
-        { id: this.system.manifest.main.image },
+        subcontainer,
         currentCommand,
         {
-          subcontainer,
           runAsInit: true,
           env: {
             TINI_SUBREAPER: "true",

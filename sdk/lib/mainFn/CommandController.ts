@@ -15,8 +15,9 @@ import * as cp from "child_process"
 export class CommandController {
   private constructor(
     readonly runningAnswer: Promise<unknown>,
+    private state: { exited: boolean },
     private readonly subcontainer: SubContainer,
-    private process: cp.ChildProcessWithoutNullStreams | undefined,
+    private process: cp.ChildProcessWithoutNullStreams,
     readonly sigtermTimeout: number = DEFAULT_SIGTERM_TIMEOUT,
   ) {}
   static of<Manifest extends T.Manifest>() {
@@ -66,8 +67,10 @@ export class CommandController {
           env: options.env,
         })
       }
+      const state = { exited: false }
       const answer = new Promise<null>((resolve, reject) => {
         childProcess.on("exit", (code: any) => {
+          state.exited = true
           if (code === 0) {
             return resolve(null)
           }
@@ -79,6 +82,7 @@ export class CommandController {
 
       return new CommandController(
         answer,
+        state,
         subc,
         childProcess,
         options.sigtermTimeout,
@@ -96,24 +100,28 @@ export class CommandController {
     try {
       return await this.runningAnswer
     } finally {
-      if (this.process !== undefined) {
-        if (this.process.kill("SIGKILL")) {
-          this.process = undefined
-        }
+      if (!this.state.exited) {
+        this.process.kill("SIGKILL")
       }
       await this.subcontainer.destroy?.().catch((_) => {})
     }
   }
   async term({ signal = SIGTERM, timeout = this.sigtermTimeout } = {}) {
-    if (this.process === undefined) return
     try {
-      if (!this.process.kill(signal)) {
-        console.error(
-          `failed to send signal ${signal} to pid ${this.process.pid}`,
-        )
+      if (!this.state.exited) {
+        if (!this.process.kill(signal)) {
+          console.error(
+            `failed to send signal ${signal} to pid ${this.process.pid}`,
+          )
+        }
       }
 
-      await this.wait({ timeout })
+      if (signal !== "SIGKILL") {
+        setTimeout(() => {
+          this.process.kill("SIGKILL")
+        }, timeout)
+      }
+      await this.runningAnswer
     } finally {
       await this.subcontainer.destroy?.()
     }

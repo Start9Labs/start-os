@@ -2,7 +2,6 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::ffi::{c_int, OsStr, OsString};
 use std::fs::File;
-use std::os::fd::AsRawFd;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command as StdCommand, Stdio};
@@ -21,26 +20,6 @@ const FWD_SIGNALS: &[c_int] = &[
     SIGTSTP, SIGTTIN, SIGTTOU, SIGURG, SIGUSR1, SIGUSR2, SIGVTALRM,
 ];
 
-/// Removes `O_NONBLOCK` from fd's flags.
-fn set_blocking<T: AsRawFd>(fd: &T) -> std::io::Result<()> {
-    // Safety: it's safe to use `fcntl` to read flags of a valid, open file descriptor.
-    let previous = unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_GETFL) };
-    if previous == -1 {
-        return Err(std::io::Error::last_os_error());
-    }
-
-    let new = previous & !libc::O_NONBLOCK;
-
-    // Safety: it's safe to use `fcntl` to unset the `O_NONBLOCK` flag of a valid,
-    // open file descriptor.
-    let r = unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_SETFL, new) };
-    if r == -1 {
-        Err(std::io::Error::last_os_error())
-    } else {
-        Ok(())
-    }
-}
-
 struct NSPid(Vec<i32>);
 impl procfs::FromBufRead for NSPid {
     fn from_buf_read<R: std::io::BufRead>(r: R) -> procfs::ProcResult<Self> {
@@ -56,31 +35,6 @@ impl procfs::FromBufRead for NSPid {
         }
         Err(procfs::ProcError::Incomplete(None))
     }
-}
-
-fn mkfifo(path: impl AsRef<Path>, mode: u32) -> Result<(File, File), Error> {
-    let path = path.as_ref();
-    unix_named_pipe::create(path, Some(mode)).with_ctx(|_| {
-        (
-            ErrorKind::Filesystem,
-            lazy_format!("create {}", path.display()),
-        )
-    })?;
-    let read = unix_named_pipe::open_read(path).with_ctx(|_| {
-        (
-            ErrorKind::Filesystem,
-            lazy_format!("open r {}", path.display()),
-        )
-    })?;
-    let write = unix_named_pipe::open_write(path).with_ctx(|_| {
-        (
-            ErrorKind::Filesystem,
-            lazy_format!("open w {}", path.display()),
-        )
-    })?;
-    set_blocking(&read)?;
-    set_blocking(&write)?;
-    Ok((read, write))
 }
 
 fn open_file_read(path: impl AsRef<Path>) -> Result<File, Error> {
@@ -101,6 +55,7 @@ pub struct ExecParams {
     #[arg(short = 'u', long = "user")]
     user: Option<String>,
     chroot: PathBuf,
+    #[arg(trailing_var_arg = true)]
     command: Vec<OsString>,
 }
 impl ExecParams {
@@ -317,9 +272,10 @@ pub fn launch_init<C: Context>(_: C, params: ExecParams) -> Result<(), Error> {
     )
     .with_ctx(|_| (ErrorKind::Filesystem, "mount procfs"))?;
     if params.command.is_empty() {
-        loop {
-            std::thread::park();
-        }
+        signal_hook::iterator::Signals::new(signal_hook::consts::TERM_SIGNALS)?
+            .forever()
+            .next();
+        std::process::exit(0)
     } else {
         params.exec()
     }

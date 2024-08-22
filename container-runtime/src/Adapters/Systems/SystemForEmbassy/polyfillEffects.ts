@@ -133,11 +133,9 @@ export const polyfillEffects = (
       const daemon = promiseSubcontainer.then((subcontainer) =>
         daemons.runCommand()(
           effects,
-          { id: manifest.main.image },
+          subcontainer,
           [input.command, ...(input.args || [])],
-          {
-            subcontainer,
-          },
+          {},
         ),
       )
       return {

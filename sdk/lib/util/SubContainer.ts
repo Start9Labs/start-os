@@ -244,19 +244,21 @@ export class SubContainer implements ExecSpawnable {
       }
     return new Promise((resolve, reject) => {
       child.on("error", reject)
+      let killTimeout: NodeJS.Timeout | undefined
       if (timeoutMs !== null && child.pid) {
-        setTimeout(() => child.kill("SIGKILL"), timeoutMs)
+        killTimeout = setTimeout(() => child.kill("SIGKILL"), timeoutMs)
       }
       child.stdout.on("data", appendData(stdout))
       child.stderr.on("data", appendData(stderr))
-      child.on("exit", (code, signal) =>
+      child.on("exit", (code, signal) => {
+        clearTimeout(killTimeout)
         resolve({
           exitCode: code,
           exitSignal: signal,
           stdout: stdout.data,
           stderr: stderr.data,
-        }),
-      )
+        })
+      })
     })
   }
 
