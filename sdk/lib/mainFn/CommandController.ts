@@ -69,9 +69,13 @@ export class CommandController {
       }
       const state = { exited: false }
       const answer = new Promise<null>((resolve, reject) => {
-        childProcess.on("exit", (code: any) => {
+        childProcess.on("exit", (code) => {
           state.exited = true
-          if (code === 0) {
+          if (
+            code === 0 ||
+            code === 143 ||
+            (code === null && childProcess.signalCode == "SIGTERM")
+          ) {
             return resolve(null)
           }
           return reject(
