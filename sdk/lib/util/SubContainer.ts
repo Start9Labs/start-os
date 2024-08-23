@@ -3,9 +3,10 @@ import * as T from "../types"
 import * as cp from "child_process"
 import { promisify } from "util"
 import { Buffer } from "node:buffer"
+import { once } from "./once"
 export const execFile = promisify(cp.execFile)
 const WORKDIR = (imageId: string) => `/media/startos/images/${imageId}/`
-
+const False = () => false
 type ExecResults = {
   exitCode: number | null
   exitSignal: NodeJS.Signals | null
@@ -16,6 +17,8 @@ type ExecResults = {
 export type ExecOptions = {
   input?: string | Buffer
 }
+
+const TIMES_TO_WAIT_FOR_PROC = 100
 
 /**
  * This is the type that is going to describe what an subcontainer could do. The main point of the
@@ -44,6 +47,7 @@ export interface ExecSpawnable {
 export class SubContainer implements ExecSpawnable {
   private leader: cp.ChildProcess
   private leaderExited: boolean = false
+  private waitProc: () => Promise<void>
   private constructor(
     readonly effects: T.Effects,
     readonly imageId: T.ImageId,
@@ -58,6 +62,26 @@ export class SubContainer implements ExecSpawnable {
     this.leader.on("exit", () => {
       this.leaderExited = true
     })
+    this.waitProc = once(
+      () =>
+        new Promise(async (resolve, reject) => {
+          let count = 0
+          while (
+            !(await fs.stat(`${this.rootfs}/proc/1`).then((x) => !!x, False))
+          ) {
+            if (count++ > TIMES_TO_WAIT_FOR_PROC) {
+              console.debug("Failed to start subcontainer", {
+                guid: this.guid,
+                imageId: this.imageId,
+                rootfs: this.rootfs,
+              })
+              reject(new Error(`Failed to start subcontainer ${this.imageId}`))
+            }
+            await wait(1)
+          }
+          resolve()
+        }),
+    )
   }
   static async of(
     effects: T.Effects,
@@ -184,6 +208,7 @@ export class SubContainer implements ExecSpawnable {
     stdout: string | Buffer
     stderr: string | Buffer
   }> {
+    await this.waitProc()
     const imageMeta: T.ImageMetadata = await fs
       .readFile(`/media/startos/images/${this.imageId}.json`, {
         encoding: "utf8",
@@ -266,6 +291,7 @@ export class SubContainer implements ExecSpawnable {
     command: string[],
     options?: CommandOptions,
   ): Promise<cp.ChildProcessWithoutNullStreams> {
+    await this.waitProc()
     const imageMeta: any = await fs
       .readFile(`/media/startos/images/${this.imageId}.json`, {
         encoding: "utf8",
@@ -307,6 +333,7 @@ export class SubContainer implements ExecSpawnable {
     command: string[],
     options?: CommandOptions,
   ): Promise<cp.ChildProcessWithoutNullStreams> {
+    await this.waitProc()
     const imageMeta: any = await fs
       .readFile(`/media/startos/images/${this.imageId}.json`, {
         encoding: "utf8",
@@ -401,4 +428,7 @@ export type MountOptionsPointer = {
 export type MountOptionsBackup = {
   type: "backup"
   subpath: string | null
+}
+function wait(time: number) {
+  return new Promise((resolve) => setTimeout(resolve, time))
 }
