@@ -1,9 +1,6 @@
-use std::ffi::OsString;
-use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 
 use models::ImageId;
-use rpc_toolkit::Context;
 use tokio::process::Command;
 
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
@@ -11,89 +8,33 @@ use crate::rpc_continuations::Guid;
 use crate::service::effects::prelude::*;
 use crate::util::Invoke;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Parser)]
-pub struct ChrootParams {
-    #[arg(short = 'e', long = "env")]
-    env: Option<PathBuf>,
-    #[arg(short = 'w', long = "workdir")]
-    workdir: Option<PathBuf>,
-    #[arg(short = 'u', long = "user")]
-    user: Option<String>,
-    path: PathBuf,
-    command: OsString,
-    args: Vec<OsString>,
-}
-pub fn chroot<C: Context>(
-    _: C,
-    ChrootParams {
-        env,
-        workdir,
-        user,
-        path,
-        command,
-        args,
-    }: ChrootParams,
-) -> Result<(), Error> {
-    let mut cmd: std::process::Command = std::process::Command::new(command);
-    if let Some(env) = env {
-        for (k, v) in std::fs::read_to_string(env)?
-            .lines()
-            .map(|l| l.trim())
-            .filter_map(|l| l.split_once("="))
-        {
-            cmd.env(k, v);
-        }
-    }
-    nix::unistd::setsid().ok(); // https://stackoverflow.com/questions/25701333/os-setsid-operation-not-permitted
-    std::os::unix::fs::chroot(path)?;
-    if let Some(uid) = user.as_deref().and_then(|u| u.parse::<u32>().ok()) {
-        cmd.uid(uid);
-    } else if let Some(user) = user {
-        let (uid, gid) = std::fs::read_to_string("/etc/passwd")?
-            .lines()
-            .find_map(|l| {
-                let mut split = l.trim().split(":");
-                if user != split.next()? {
-                    return None;
-                }
-                split.next(); // throw away x
-                Some((split.next()?.parse().ok()?, split.next()?.parse().ok()?))
-                // uid gid
-            })
-            .or_not_found(lazy_format!("{user} in /etc/passwd"))?;
-        cmd.uid(uid);
-        cmd.gid(gid);
-    };
-    if let Some(workdir) = workdir {
-        cmd.current_dir(workdir);
-    }
-    cmd.args(args);
-    Err(cmd.exec().into())
-}
+mod sync;
+
+pub use sync::*;
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct DestroyOverlayedImageParams {
+pub struct DestroySubcontainerFsParams {
     guid: Guid,
 }
 #[instrument(skip_all)]
-pub async fn destroy_overlayed_image(
+pub async fn destroy_subcontainer_fs(
     context: EffectContext,
-    DestroyOverlayedImageParams { guid }: DestroyOverlayedImageParams,
+    DestroySubcontainerFsParams { guid }: DestroySubcontainerFsParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
     if let Some(overlay) = context
         .seed
         .persistent_container
-        .overlays
+        .subcontainers
         .lock()
         .await
         .remove(&guid)
     {
         overlay.unmount(true).await?;
     } else {
-        tracing::warn!("Could not find a guard to remove on the destroy overlayed image; assumming that it already is removed and will be skipping");
+        tracing::warn!("Could not find a subcontainer fs to destroy; assumming that it already is destroyed and will be skipping");
     }
     Ok(())
 }
@@ -101,13 +42,13 @@ pub async fn destroy_overlayed_image(
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct CreateOverlayedImageParams {
+pub struct CreateSubcontainerFsParams {
     image_id: ImageId,
 }
 #[instrument(skip_all)]
-pub async fn create_overlayed_image(
+pub async fn create_subcontainer_fs(
     context: EffectContext,
-    CreateOverlayedImageParams { image_id }: CreateOverlayedImageParams,
+    CreateSubcontainerFsParams { image_id }: CreateSubcontainerFsParams,
 ) -> Result<(PathBuf, Guid), Error> {
     let context = context.deref()?;
     if let Some(image) = context
@@ -131,7 +72,7 @@ pub async fn create_overlayed_image(
             })?
             .rootfs_dir();
         let mountpoint = rootfs_dir
-            .join("media/startos/overlays")
+            .join("media/startos/subcontainers")
             .join(guid.as_ref());
         tokio::fs::create_dir_all(&mountpoint).await?;
         let container_mountpoint = Path::new("/").join(
@@ -150,7 +91,7 @@ pub async fn create_overlayed_image(
         context
             .seed
             .persistent_container
-            .overlays
+            .subcontainers
             .lock()
             .await
             .insert(guid.clone(), guard);

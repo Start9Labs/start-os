@@ -1,3 +1,4 @@
+import { ExecSpawnable } from "../util/SubContainer"
 import { TriggerInput } from "./TriggerInput"
 export { changeOnFirstSuccess } from "./changeOnFirstSuccess"
 export { cooldownTrigger } from "./cooldownTrigger"

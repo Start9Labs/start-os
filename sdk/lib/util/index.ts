@@ -3,7 +3,7 @@ import "./fileHelper"
 import "../store/getStore"
 import "./deepEqual"
 import "./deepMerge"
-import "./Overlay"
+import "./SubContainer"
 import "./once"
 
 export { GetServiceInterface, getServiceInterface } from "./getServiceInterface"

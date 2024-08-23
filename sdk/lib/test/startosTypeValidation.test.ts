@@ -3,11 +3,13 @@ import {
   CheckDependenciesParam,
   ExecuteAction,
   GetConfiguredParams,
+  GetStoreParams,
   SetDataVersionParams,
   SetMainStatus,
+  SetStoreParams,
 } from ".././osBindings"
-import { CreateOverlayedImageParams } from ".././osBindings"
-import { DestroyOverlayedImageParams } from ".././osBindings"
+import { CreateSubcontainerFsParams } from ".././osBindings"
+import { DestroySubcontainerFsParams } from ".././osBindings"
 import { BindParams } from ".././osBindings"
 import { GetHostInfoParams } from ".././osBindings"
 import { SetConfigured } from ".././osBindings"
@@ -24,21 +26,28 @@ import { GetPrimaryUrlParams } from ".././osBindings"
 import { ListServiceInterfacesParams } from ".././osBindings"
 import { ExportActionParams } from ".././osBindings"
 import { MountParams } from ".././osBindings"
+import { StringObject } from "../util"
 function typeEquality<ExpectedType>(_a: ExpectedType) {}
 
 type WithCallback<T> = Omit<T, "callback"> & { callback: () => void }
 
+type EffectsTypeChecker<T extends StringObject = Effects> = {
+  [K in keyof T]: T[K] extends (args: infer A) => any
+    ? A
+    : T[K] extends StringObject
+      ? EffectsTypeChecker<T[K]>
+      : never
+}
+
 describe("startosTypeValidation ", () => {
   test(`checking the params match`, () => {
     const testInput: any = {}
-    typeEquality<{
-      [K in keyof Effects]: Effects[K] extends (args: infer A) => any
-        ? A
-        : never
-    }>({
+    typeEquality<EffectsTypeChecker>({
       executeAction: {} as ExecuteAction,
-      createOverlayedImage: {} as CreateOverlayedImageParams,
-      destroyOverlayedImage: {} as DestroyOverlayedImageParams,
+      subcontainer: {
+        createFs: {} as CreateSubcontainerFsParams,
+        destroyFs: {} as DestroySubcontainerFsParams,
+      },
       clearBindings: undefined,
       getInstalledPackages: undefined,
       bind: {} as BindParams,
@@ -55,7 +64,10 @@ describe("startosTypeValidation ", () => {
       getSslKey: {} as GetSslKeyParams,
       getServiceInterface: {} as WithCallback<GetServiceInterfaceParams>,
       setDependencies: {} as SetDependenciesParams,
-      store: {} as never,
+      store: {
+        get: {} as any, // as GetStoreParams,
+        set: {} as any, // as SetStoreParams,
+      },
       getSystemSmtp: {} as WithCallback<GetSystemSmtpParams>,
       getContainerIp: undefined,
       getServicePortForward: {} as GetServicePortForwardParams,

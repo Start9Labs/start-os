@@ -45,7 +45,7 @@ mod properties;
 mod rpc;
 mod service_actor;
 pub mod service_map;
-mod start_stop;
+pub mod start_stop;
 mod transition;
 mod util;
 
@@ -493,7 +493,6 @@ impl Service {
 
 #[derive(Debug, Clone)]
 pub struct RunningStatus {
-    health: OrdMap<HealthCheckId, NamedHealthCheckResult>,
     started: DateTime<Utc>,
 }
 
@@ -516,7 +515,6 @@ impl ServiceActorSeed {
                         .running_status
                         .take()
                         .unwrap_or_else(|| RunningStatus {
-                            health: Default::default(),
                             started: Utc::now(),
                         }),
                 );

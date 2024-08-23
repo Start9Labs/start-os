@@ -13,17 +13,21 @@ type ExecResults = {
   stderr: string | Buffer
 }
 
+export type ExecOptions = {
+  input?: string | Buffer
+}
+
 /**
- * This is the type that is going to describe what an overlay could do. The main point of the
- * overlay is to have commands that run in a chrooted environment. This is useful for running
+ * This is the type that is going to describe what an subcontainer could do. The main point of the
+ * subcontainer is to have commands that run in a chrooted environment. This is useful for running
  * commands in a containerized environment. But, I wanted the destroy to sometimes be doable, for example the
- * case where the overlay isn't owned by the process, the overlay shouldn't be destroyed.
+ * case where the subcontainer isn't owned by the process, the subcontainer shouldn't be destroyed.
  */
 export interface ExecSpawnable {
   get destroy(): undefined | (() => Promise<void>)
   exec(
     command: string[],
-    options?: CommandOptions,
+    options?: CommandOptions & ExecOptions,
     timeoutMs?: number | null,
   ): Promise<ExecResults>
   spawn(
@@ -37,24 +41,34 @@ export interface ExecSpawnable {
  * Implements:
  * @see {@link ExecSpawnable}
  */
-export class Overlay implements ExecSpawnable {
-  private destroyed = false
+export class SubContainer implements ExecSpawnable {
+  private leader: cp.ChildProcess
+  private leaderExited: boolean = false
   private constructor(
     readonly effects: T.Effects,
     readonly imageId: T.ImageId,
     readonly rootfs: string,
     readonly guid: T.Guid,
-  ) {}
+  ) {
+    this.leaderExited = false
+    this.leader = cp.spawn("start-cli", ["subcontainer", "launch", rootfs], {
+      killSignal: "SIGKILL",
+      stdio: "ignore",
+    })
+    this.leader.on("exit", () => {
+      this.leaderExited = true
+    })
+  }
   static async of(
     effects: T.Effects,
     image: { id: T.ImageId; sharedRun?: boolean },
   ) {
     const { id, sharedRun } = image
-    const [rootfs, guid] = await effects.createOverlayedImage({
+    const [rootfs, guid] = await effects.subcontainer.createFs({
       imageId: id as string,
     })
 
-    const shared = ["dev", "sys", "proc"]
+    const shared = ["dev", "sys"]
     if (!!sharedRun) {
       shared.push("run")
     }
@@ -69,27 +83,27 @@ export class Overlay implements ExecSpawnable {
       await execFile("mount", ["--rbind", from, to])
     }
 
-    return new Overlay(effects, id, rootfs, guid)
+    return new SubContainer(effects, id, rootfs, guid)
   }
 
   static async with<T>(
     effects: T.Effects,
     image: { id: T.ImageId; sharedRun?: boolean },
     mounts: { options: MountOptions; path: string }[],
-    fn: (overlay: Overlay) => Promise<T>,
+    fn: (subContainer: SubContainer) => Promise<T>,
   ): Promise<T> {
-    const overlay = await Overlay.of(effects, image)
+    const subContainer = await SubContainer.of(effects, image)
     try {
       for (let mount of mounts) {
-        await overlay.mount(mount.options, mount.path)
+        await subContainer.mount(mount.options, mount.path)
       }
-      return await fn(overlay)
+      return await fn(subContainer)
     } finally {
-      await overlay.destroy()
+      await subContainer.destroy()
     }
   }
 
-  async mount(options: MountOptions, path: string): Promise<Overlay> {
+  async mount(options: MountOptions, path: string): Promise<SubContainer> {
     path = path.startsWith("/")
       ? `${this.rootfs}${path}`
       : `${this.rootfs}/${path}`
@@ -134,19 +148,35 @@ export class Overlay implements ExecSpawnable {
     return this
   }
 
+  private async killLeader() {
+    if (this.leaderExited) {
+      return
+    }
+    return new Promise<void>((resolve, reject) => {
+      try {
+        this.leader.on("exit", () => {
+          resolve()
+        })
+        if (!this.leader.kill("SIGKILL")) {
+          reject(new Error("kill(2) failed"))
+        }
+      } catch (e) {
+        reject(e)
+      }
+    })
+  }
+
   get destroy() {
     return async () => {
-      if (this.destroyed) return
-      this.destroyed = true
-      const imageId = this.imageId
       const guid = this.guid
-      await this.effects.destroyOverlayedImage({ guid })
+      await this.killLeader()
+      await this.effects.subcontainer.destroyFs({ guid })
     }
   }
 
   async exec(
     command: string[],
-    options?: CommandOptions,
+    options?: CommandOptions & ExecOptions,
     timeoutMs: number | null = 30000,
   ): Promise<{
     exitCode: number | null
@@ -173,7 +203,8 @@ export class Overlay implements ExecSpawnable {
     const child = cp.spawn(
       "start-cli",
       [
-        "chroot",
+        "subcontainer",
+        "exec",
         `--env=/media/startos/images/${this.imageId}.env`,
         `--workdir=${workdir}`,
         ...extra,
@@ -182,6 +213,18 @@ export class Overlay implements ExecSpawnable {
       ],
       options || {},
     )
+    if (options?.input) {
+      await new Promise<void>((resolve, reject) =>
+        child.stdin.write(options.input, (e) => {
+          if (e) {
+            reject(e)
+          } else {
+            resolve()
+          }
+        }),
+      )
+      await new Promise<void>((resolve) => child.stdin.end(resolve))
+    }
     const pid = child.pid
     const stdout = { data: "" as string | Buffer }
     const stderr = { data: "" as string | Buffer }
@@ -201,23 +244,63 @@ export class Overlay implements ExecSpawnable {
       }
     return new Promise((resolve, reject) => {
       child.on("error", reject)
-      if (timeoutMs !== null && pid) {
-        setTimeout(
-          () => execFile("pkill", ["-9", "-s", String(pid)]).catch((_) => {}),
-          timeoutMs,
-        )
+      let killTimeout: NodeJS.Timeout | undefined
+      if (timeoutMs !== null && child.pid) {
+        killTimeout = setTimeout(() => child.kill("SIGKILL"), timeoutMs)
       }
       child.stdout.on("data", appendData(stdout))
       child.stderr.on("data", appendData(stderr))
-      child.on("exit", (code, signal) =>
+      child.on("exit", (code, signal) => {
+        clearTimeout(killTimeout)
         resolve({
           exitCode: code,
           exitSignal: signal,
           stdout: stdout.data,
           stderr: stderr.data,
-        }),
-      )
+        })
+      })
     })
+  }
+
+  async launch(
+    command: string[],
+    options?: CommandOptions,
+  ): Promise<cp.ChildProcessWithoutNullStreams> {
+    const imageMeta: any = await fs
+      .readFile(`/media/startos/images/${this.imageId}.json`, {
+        encoding: "utf8",
+      })
+      .catch(() => "{}")
+      .then(JSON.parse)
+    let extra: string[] = []
+    if (options?.user) {
+      extra.push(`--user=${options.user}`)
+      delete options.user
+    }
+    let workdir = imageMeta.workdir || "/"
+    if (options?.cwd) {
+      workdir = options.cwd
+      delete options.cwd
+    }
+    await this.killLeader()
+    this.leaderExited = false
+    this.leader = cp.spawn(
+      "start-cli",
+      [
+        "subcontainer",
+        "launch",
+        `--env=/media/startos/images/${this.imageId}.env`,
+        `--workdir=${workdir}`,
+        ...extra,
+        this.rootfs,
+        ...command,
+      ],
+      { ...options, stdio: "inherit" },
+    )
+    this.leader.on("exit", () => {
+      this.leaderExited = true
+    })
+    return this.leader as cp.ChildProcessWithoutNullStreams
   }
 
   async spawn(
@@ -243,7 +326,8 @@ export class Overlay implements ExecSpawnable {
     return cp.spawn(
       "start-cli",
       [
-        "chroot",
+        "subcontainer",
+        "exec",
         `--env=/media/startos/images/${this.imageId}.env`,
         `--workdir=${workdir}`,
         ...extra,
@@ -256,12 +340,12 @@ export class Overlay implements ExecSpawnable {
 }
 
 /**
- * Take an overlay but remove the ability to add the mounts and the destroy function.
+ * Take an subcontainer but remove the ability to add the mounts and the destroy function.
  * Lets other functions, like health checks, to not destroy the parents.
  *
  */
-export class NonDestroyableOverlay implements ExecSpawnable {
-  constructor(private overlay: ExecSpawnable) {}
+export class SubContainerHandle implements ExecSpawnable {
+  constructor(private subContainer: ExecSpawnable) {}
   get destroy() {
     return undefined
   }
@@ -271,13 +355,13 @@ export class NonDestroyableOverlay implements ExecSpawnable {
     options?: CommandOptions,
     timeoutMs?: number | null,
   ): Promise<ExecResults> {
-    return this.overlay.exec(command, options, timeoutMs)
+    return this.subContainer.exec(command, options, timeoutMs)
   }
   spawn(
     command: string[],
     options?: CommandOptions,
   ): Promise<cp.ChildProcessWithoutNullStreams> {
-    return this.overlay.spawn(command, options)
+    return this.subContainer.spawn(command, options)
   }
 }
 

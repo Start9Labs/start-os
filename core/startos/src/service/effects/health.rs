@@ -32,8 +32,8 @@ pub async fn set_health(
                 .as_main_mut()
                 .mutate(|main| {
                     match main {
-                        &mut MainStatus::Running { ref mut health, .. }
-                        | &mut MainStatus::BackingUp { ref mut health, .. } => {
+                        MainStatus::Running { ref mut health, .. }
+                        | MainStatus::Starting { ref mut health } => {
                             health.insert(id, result);
                         }
                         _ => (),

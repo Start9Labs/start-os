@@ -100,16 +100,25 @@ export class HealthDaemon {
         !res.done;
         res = await Promise.race([status, trigger.next()])
       ) {
-        const response: HealthCheckResult = await Promise.resolve(
-          this.ready.fn(),
-        ).catch((err) => {
-          console.error(asError(err))
-          return {
+        const handle = (await this.daemon).subContainerHandle
+
+        if (handle) {
+          const response: HealthCheckResult = await Promise.resolve(
+            this.ready.fn(handle),
+          ).catch((err) => {
+            console.error(asError(err))
+            return {
+              result: "failure",
+              message: "message" in err ? err.message : String(err),
+            }
+          })
+          await this.setHealth(response)
+        } else {
+          await this.setHealth({
             result: "failure",
-            message: "message" in err ? err.message : String(err),
-          }
-        })
-        await this.setHealth(response)
+            message: "Daemon not running",
+          })
+        }
       }
     }).catch((err) => console.error(`Daemon ${this.id} failed: ${err}`))
 
