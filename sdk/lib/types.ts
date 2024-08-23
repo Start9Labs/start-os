@@ -382,7 +382,7 @@ export type Effects = {
     hostId: HostId
     internalPort: number
   }): Promise<LanInfo>
-  /** Removes all network bindings */
+  /** Removes all network bindings, called in the setupConfig */
   clearBindings(): Promise<void>
   // host
   /** Returns information about the specified host, if it exists */
