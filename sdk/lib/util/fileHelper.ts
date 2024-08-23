@@ -8,49 +8,37 @@ import * as fs from "node:fs/promises"
 const previousPath = /(.+?)\/([^/]*)$/
 
 /**
- * Used in the get config and the set config exported functions.
- * The idea is that we are going to be reading/ writing to a file, or multiple files. And then we use this tool
- * to keep the same path on the read and write, and have methods for helping with structured data.
- * And if we are not using a structured data, we can use the raw method which forces the construction of a BiMap
- * ```ts
-        import {InputSpec} from './InputSpec.ts'
-        import {matches, T} from '../deps.ts';
-        const { object, string, number, boolean, arrayOf, array, anyOf, allOf } = matches
-        const someValidator = object({
-        data: string
-        })
-        const jsonFile = FileHelper.json({
-        path: 'data.json',
-        validator: someValidator,
-        volume: 'main'
-        })
-        const  tomlFile = FileHelper.toml({
-        path: 'data.toml',
-        validator: someValidator,
-        volume: 'main'
-        })
-        const rawFile = FileHelper.raw({
-        path: 'data.amazingSettings',
-        volume: 'main'
-        fromData(dataIn: Data): string {
-            return `myDatais ///- ${dataIn.data}`
-        },
-        toData(rawData: string): Data {
-        const [,data] = /myDatais \/\/\/- (.*)/.match(rawData)
-        return {data}
-        }
-        })
-
-        export const setConfig : T.ExpectedExports.setConfig= async (effects, config) => {
-        await  jsonFile.write({ data: 'here lies data'}, effects)
-        }
-
-        export const getConfig: T.ExpectedExports.getConfig = async (effects, config) => ({
-        spec: InputSpec,
-        config: nullIfEmpty({
-            ...jsonFile.get(effects)
-        })
-    ```
+ * @description Use this class to read/write an underlying configuration file belonging to the upstream service.
+ *
+ * Using the static functions, choose between officially supported file formats (json, yaml, toml), or a custom format (raw).
+ * @example
+ * Below are a few examples
+ *
+ * ```
+ * import { matches, FileHelper } from '@start9labs/start-sdk'
+ * const { arrayOf, boolean, literal, literals, object, oneOf, natural, string } = matches
+ *
+ * export const jsonFile = FileHelper.json('./config.json', object({
+ *   passwords: arrayOf(string)
+ *   type: oneOf(literals('private', 'public'))
+ * }))
+ *
+ * export const tomlFile = FileHelper.toml('./config.toml', object({
+ *   url: literal('https://start9.com')
+ *   public: boolean
+ * }))
+ *
+ * export const yamlFile = FileHelper.yaml('./config.yml', object({
+ *   name: string
+ *   age: natural
+ * }))
+ *
+ * export const bitcoinConfFile = FileHelper.raw(
+ *   './service.conf',
+ *   (obj: CustomType) => customConvertObjToFormattedString(obj),
+ *   (str) => customParseStringToTypedObj(str),
+ * )
+ * ```
  */
 export class FileHelper<A> {
   protected constructor(
@@ -58,6 +46,9 @@ export class FileHelper<A> {
     readonly writeData: (dataIn: A) => string,
     readonly readData: (stringValue: string) => A,
   ) {}
+  /**
+   * Accepts structured data and overwrites the existing file on disk.
+   */
   async write(data: A, effects: T.Effects) {
     const parent = previousPath.exec(this.path)
     if (parent) {
@@ -66,6 +57,9 @@ export class FileHelper<A> {
 
     await fs.writeFile(this.path, this.writeData(data))
   }
+  /**
+   * Reads the file from disk and converts it to structured data.
+   */
   async read(effects: T.Effects) {
     if (
       !(await fs.access(this.path).then(
@@ -79,7 +73,9 @@ export class FileHelper<A> {
       await fs.readFile(this.path).then((data) => data.toString("utf-8")),
     )
   }
-
+  /**
+   * Accepts structured data and performs a merge with the existing file on disk.
+   */
   async merge(data: A, effects: T.Effects) {
     const fileData = (await this.read(effects).catch(() => ({}))) || {}
     const mergeData = merge({}, fileData, data)
@@ -88,7 +84,7 @@ export class FileHelper<A> {
   /**
    * Create a File Helper for an arbitrary file type.
    *
-   * Provide custom functions for translating data to the file format and visa versa.
+   * Provide custom functions for translating data to/from the file format.
    */
   static raw<A>(
     path: string,
@@ -98,7 +94,7 @@ export class FileHelper<A> {
     return new FileHelper<A>(path, toFile, fromFile)
   }
   /**
-   * Create a File Helper for a .json file
+   * Create a File Helper for a .json file.
    */
   static json<A>(path: string, shape: matches.Validator<unknown, A>) {
     return new FileHelper<A>(

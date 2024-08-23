@@ -110,6 +110,11 @@ export class VersionGraph<CurrentVersion extends string> {
   currentVersion = once(() =>
     ExtendedVersion.parse(this.current.options.version),
   )
+  /**
+   * Each exported `VersionInfo.of()` should be imported and provided as an argument to this function.
+   *
+   * ** The current version must be the FIRST argument. **
+   */
   static of<
     CurrentVersion extends string,
     OtherVersions extends Array<VersionInfo<any>>,
