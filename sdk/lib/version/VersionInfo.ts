@@ -4,7 +4,7 @@ import * as T from "../types"
 export const IMPOSSIBLE = Symbol("IMPOSSIBLE")
 
 export type VersionOptions<Version extends string> = {
-  /** The version being described */
+  /** The exver-compliant version number */
   version: Version & ValidateExVer<Version>
   /** The release notes for this version */
   releaseNotes: string
@@ -32,6 +32,13 @@ export class VersionInfo<Version extends string> {
   private constructor(
     readonly options: VersionOptions<Version> & { satisfies: string[] },
   ) {}
+  /**
+   * @description Use this function to define a new version of the service. By convention, each version should receive its own file.
+   * @property {string} version
+   * @property {string} releaseNotes
+   * @property {object} migrations
+   * @returns A VersionInfo class instance that is exported, then imported into versions/index.ts.
+   */
   static of<Version extends string>(options: VersionOptions<Version>) {
     return new VersionInfo<Version>({ ...options, satisfies: [] })
   }
