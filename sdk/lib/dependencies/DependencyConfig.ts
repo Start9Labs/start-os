@@ -1,5 +1,4 @@
 import * as T from "../types"
-import { deepEqual } from "../util/deepEqual"
 import { deepMerge } from "../util/deepMerge"
 
 export type Update<QueryResults, RemoteConfig> = (options: {

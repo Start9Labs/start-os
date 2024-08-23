@@ -1,5 +1,4 @@
 import { ExtendedVersion, VersionRange } from "../exver"
-
 import * as T from "../types"
 import { Graph, Vertex } from "../util/graph"
 import { once } from "../util/once"

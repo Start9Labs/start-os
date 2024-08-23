@@ -5,9 +5,7 @@ import { Trigger } from "../trigger"
 import { TriggerInput } from "../trigger/TriggerInput"
 import { defaultTrigger } from "../trigger/defaultTrigger"
 import { once } from "../util/once"
-import { Overlay } from "../util/Overlay"
 import { object, unknown } from "ts-matches"
-import * as T from "../types"
 import { asError } from "../util/asError"
 
 export type HealthCheckParams = {

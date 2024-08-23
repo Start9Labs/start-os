@@ -1,7 +1,6 @@
 import { DependenciesReceipt } from "../config/setupConfig"
-import { ExtendedVersion, VersionRange } from "../exver"
+import { ExtendedVersion } from "../exver"
 import { SetInterfaces } from "../interfaces/setupInterfaces"
-
 import { ExposedStorePaths } from "../store/setupExposeStore"
 import * as T from "../types"
 import { VersionGraph } from "../version/VersionGraph"

@@ -61,7 +61,7 @@ import { getStore } from "./store/getStore"
 import { CommandOptions, MountOptions, Overlay } from "./util/Overlay"
 import { splitCommand } from "./util/splitCommand"
 import { Mounts } from "./mainFn/Mounts"
-import { Dependency } from "./Dependency"
+import { Dependency } from "./dependencies/Dependency"
 import * as T from "./types"
 import { testTypeVersion } from "./exver"
 import { ExposedStorePaths } from "./store/setupExposeStore"
@@ -332,6 +332,12 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         },
       },
       Dependency: {
+        /**
+         * @description Use this function to create a dependency for the service.
+         * @property {DependencyType} type
+         * @property {VersionRange} versionRange
+         * @property {string[]} healthChecks
+         */
         of(data: Dependency["data"]) {
           return new Dependency({ ...data })
         },
@@ -388,6 +394,15 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         _configSpec: ConfigSpec,
         fn: Save<ConfigSpec>,
       ) => fn,
+      /**
+       * @description Use this function to provide all the required dependency configurations.
+       *
+       *   The function executes on service install, update, and config save. "input" will be of type `Input` for config save. It will be `null` for install and update.
+       *
+       *   By convention, each dependency config should receive its own file.
+       * @param {Config} config - the config spec for this service.
+       * @param {Record<string, DependencyConfig>} autoConfigs - a mapping of dependency IDs to auto configs as imported from their respective files.
+       */
       setupDependencyConfig: <Input extends Record<string, any>>(
         config: Config<Input, Store> | Config<Input, never>,
         autoConfigs: {
@@ -399,6 +414,46 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           > | null
         },
       ) => setupDependencyConfig<Store, Input, Manifest>(config, autoConfigs),
+      /**
+       * @description Use this function to set dependency information.
+       *
+       *   The function executes on service install, update, and config save. "input" will be of type `Input` for config save. It will be `null` for install and update.
+       * @example
+       * In this example, we create a static dependency on Hello World >=1.0.0:0, where Hello World must be running and passing its "webui" health check.
+       *
+       * ```
+       * export const setDependencies = sdk.setupDependencies(
+       *   async ({ effects, input }) => {
+       *     return {
+       *       'hello-world': sdk.Dependency.of({
+       *         type: 'running',
+       *         versionRange: VersionRange.parse('>=1.0.0:0'),
+       *         healthChecks: ['webui'],
+       *       }),
+       *     }
+       *   },
+       * )
+       * ```
+       * @example
+       * In this example, we create a conditional dependency on Hello World based on a hypothetical "needsWorld" boolean from config.
+       *
+       * ```
+       * export const setDependencies = sdk.setupDependencies(
+       *   async ({ effects, input }) => {
+       *     if (input.needsWorld) {
+       *       return {
+       *         'hello-world': sdk.Dependency.of({
+       *           type: 'running',
+       *           versionRange: VersionRange.parse('>=1.0.0:0'),
+       *           healthChecks: ['webui'],
+       *         }),
+       *       }
+       *     }
+       *     return {}
+       *   },
+       * )
+       * ```
+       */
       setupDependencies: <Input extends Record<string, any>>(
         fn: (options: {
           effects: Effects
@@ -471,6 +526,8 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       setupInstall: (fn: InstallFn<Manifest, Store>) => Install.of(fn),
       /**
        * @description Use this function to determine how this service will be hosted and served. The function executes on service install, service update, and config save.
+       *
+       *   "input" will be of type `Input` for config save. It will be `null` for install and update.
        *
        *   To learn about creating multi-hosts and interfaces, check out the {@link https://docs.start9.com/packaging-guide/learn/interfaces documentation}.
        * @param config - The config spec of this service as exported from /config/spec.
@@ -630,6 +687,25 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         },
       },
       DependencyConfig: {
+        /**
+         * @description Use this function to define a dependency configuration requirement and to automatically (with user permission) update the dependency's configuration to satisfy.
+         *
+         * The function executes on service install, update, and config save. "localConfig" will be of type `Input` for config save. It will be `null` for install and update.
+         * @example
+         * In this example, we require the `name` option in Hello World's config to be "Satoshi".
+         *
+         * ```
+         * export const helloWorldConfig = sdk.DependencyConfig.of({
+         *   localConfigSpec: configSpec,
+         *   remoteConfigSpec: helloWorldSpec,
+         *   dependencyConfig: async ({ effects, localConfig }) => {
+         *     return {
+         *       name: 'Satoshi',
+         *     }
+         *   },
+         * })
+         * ```
+         */
         of<
           LocalConfig extends Record<string, any>,
           RemoteConfig extends Record<string, any>,
@@ -639,12 +715,27 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           dependencyConfig,
           update,
         }: {
+          /** The config spec for this service. */
           localConfigSpec:
             | Config<LocalConfig, Store>
             | Config<LocalConfig, never>
+          /** The dependency's config spec. */
           remoteConfigSpec:
             | Config<RemoteConfig, any>
             | Config<RemoteConfig, never>
+          /**
+           * @description Use this function to set specific requirements for the dependency's config. These requirements can be static or conditional based on the services own config.
+           *
+           * The function executes on service install, update, and config save. "localConfig" will be of type `Input` for config save. It will be `null` for install and update.
+           * @example
+           * In this example, we conditionally require the `name` option in Hello World's config to be "Satoshi" based on a hypothetical lovesSatoshi boolean from config.
+           *
+           * ```
+           * dependencyConfig: async ({ effects, localConfig }) => {
+           *   return localConfig.lovesSatoshi ? { name: 'Satoshi' } : {}
+           * },
+           * ```
+           */
           dependencyConfig: (options: {
             effects: Effects
             localConfig: LocalConfig
