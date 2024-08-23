@@ -30,17 +30,11 @@ import { healthCheck, HealthCheckParams } from "./health/HealthCheck"
 import { checkPortListening } from "./health/checkFns/checkPortListening"
 import { checkWebUrl, runHealthScript } from "./health/checkFns"
 import { List } from "./config/builder/list"
-import { VersionInfo, VersionOptions } from "./versionInfo/VersionInfo"
 import { Install, InstallFn } from "./inits/setupInstall"
 import { setupActions } from "./actions/setupActions"
 import { setupDependencyConfig } from "./dependencies/setupDependencyConfig"
 import { SetupBackupsParams, setupBackups } from "./backup/setupBackups"
 import { setupInit } from "./inits/setupInit"
-import {
-  EnsureUniqueId,
-  VersionGraph,
-  setupVersionGraph,
-} from "./versionInfo/setupVersionGraph"
 import { Uninstall, UninstallFn, setupUninstall } from "./inits/setupUninstall"
 import { setupMain } from "./mainFn"
 import { defaultTrigger } from "./trigger/defaultTrigger"
@@ -81,6 +75,7 @@ import {
 } from "./dependencies/dependencies"
 import { health } from "."
 import { GetSslCertificate } from "./util/GetSslCertificate"
+import { VersionGraph } from "./version"
 
 export const SDKVersion = testTypeVersion("0.3.6")
 
@@ -420,13 +415,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           started(onTerm: () => PromiseLike<void>): PromiseLike<void>
         }) => Promise<Daemons<Manifest, any>>,
       ) => setupMain<Manifest, Store>(fn),
-      setupVersionGraph: <
-        CurrentVersion extends string,
-        OtherVersions extends Array<VersionInfo<any>>,
-      >(
-        current: VersionInfo<CurrentVersion>,
-        ...other: EnsureUniqueId<OtherVersions, OtherVersions, CurrentVersion>
-      ) => setupVersionGraph<CurrentVersion, OtherVersions>(current, ...other),
       setupProperties:
         (
           fn: (options: { effects: Effects }) => Promise<T.SdkPropertiesReturn>,
@@ -546,10 +534,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             }
           >,
         ) => List.dynamicText<Store>(getA),
-      },
-      VersionInfo: {
-        of: <Version extends string>(options: VersionOptions<Version>) =>
-          VersionInfo.of<Version>(options),
       },
       StorePath: pathBuilder<Store>(),
       Value: {

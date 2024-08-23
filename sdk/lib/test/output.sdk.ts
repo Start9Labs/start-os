@@ -1,12 +1,21 @@
 import { StartSdk } from "../StartSdk"
 import { setupManifest } from "../manifest/setupManifest"
-import { VersionInfo } from "../versionInfo/VersionInfo"
-import { VersionGraph } from "../versionInfo/setupVersionGraph"
+import { VersionInfo } from "../version/VersionInfo"
+import { VersionGraph } from "../version/VersionGraph"
 
 export type Manifest = any
 export const sdk = StartSdk.of()
   .withManifest(
     setupManifest(
+      VersionGraph.of(
+        VersionInfo.of({
+          version: "1.0.0:0",
+          releaseNotes: "",
+          migrations: {},
+        })
+          .satisfies("#other:1.0.0:0")
+          .satisfies("#other:2.0.0:0"),
+      ),
       {
         id: "testOutput",
         title: "",
@@ -41,15 +50,6 @@ export const sdk = StartSdk.of()
           },
         },
       },
-      VersionGraph.of(
-        VersionInfo.of({
-          version: "1.0.0:0",
-          releaseNotes: "",
-          migrations: {},
-        })
-          .satisfies("#other:1.0.0:0")
-          .satisfies("#other:2.0.0:0"),
-      ),
     ),
   )
   .withStore<{ storeRoot: { storeLeaf: "value" } }>()

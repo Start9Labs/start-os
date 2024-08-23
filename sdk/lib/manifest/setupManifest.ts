@@ -2,7 +2,7 @@ import * as T from "../types"
 import { ImageConfig, ImageId, VolumeId } from "../osBindings"
 import { SDKManifest, SDKImageConfig } from "./ManifestTypes"
 import { SDKVersion } from "../StartSdk"
-import { VersionGraph } from "../versionInfo/setupVersionGraph"
+import { VersionGraph } from "../version/VersionGraph"
 
 /**
  * This is an example of a function that takes a manifest and returns a new manifest with additional properties
@@ -25,8 +25,8 @@ export function setupManifest<
   },
   Satisfies extends string[] = [],
 >(
-  manifest: SDKManifest & Manifest,
   versions: VersionGraph<Version>,
+  manifest: SDKManifest & Manifest,
 ): Manifest & T.Manifest {
   const images = Object.entries(manifest.images).reduce(
     (images, [k, v]) => {
