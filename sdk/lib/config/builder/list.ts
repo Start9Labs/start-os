@@ -7,25 +7,14 @@ import {
   ValueSpecList,
   ValueSpecListOf,
 } from "../configTypes"
-import { Parser, arrayOf, number, string } from "ts-matches"
-/**
- * Used as a subtype of Value.list
-```ts
-export const authorizationList = List.string({
-  "name": "Authorization",
-  "range": "[0,*)",
-  "default": [],
-  "description": "Username and hashed password for JSON-RPC connections. RPC clients connect using the usual http basic authentication.",
-  "warning": null
-}, {"masked":false,"placeholder":null,"pattern":"^[a-zA-Z0-9_-]+:([0-9a-fA-F]{2})+\\$([0-9a-fA-F]{2})+$","patternDescription":"Each item must be of the form \"<USERNAME>:<SALT>$<HASH>\"."});
-export const auth = Value.list(authorizationList);
-```
-*/
+import { Parser, arrayOf, string } from "ts-matches"
+
 export class List<Type, Store> {
   private constructor(
     public build: LazyBuild<Store, ValueSpecList>,
     public validator: Parser<unknown, Type>,
   ) {}
+
   static text(
     a: {
       name: string
@@ -95,6 +84,7 @@ export class List<Type, Store> {
       return built
     }, arrayOf(string))
   }
+
   static dynamicText<Store = never>(
     getA: LazyBuild<
       Store,
@@ -102,20 +92,17 @@ export class List<Type, Store> {
         name: string
         description?: string | null
         warning?: string | null
-        /** Default = [] */
         default?: string[]
         minLength?: number | null
         maxLength?: number | null
         disabled?: false | string
         generate?: null | RandomString
         spec: {
-          /** Default = false */
           masked?: boolean
           placeholder?: string | null
           minLength?: number | null
           maxLength?: number | null
-          patterns: Pattern[]
-          /** Default = "text" */
+          patterns?: Pattern[]
           inputmode?: ListValueSpecText["inputmode"]
         }
       }
@@ -131,6 +118,7 @@ export class List<Type, Store> {
         masked: false,
         inputmode: "text" as const,
         generate: null,
+        patterns: aSpec.patterns || [],
         ...aSpec,
       }
       const built: ValueSpecListOf<"text"> = {
@@ -147,6 +135,7 @@ export class List<Type, Store> {
       return built
     }, arrayOf(string))
   }
+
   static obj<Type extends Record<string, any>, Store>(
     a: {
       name: string
@@ -158,61 +147,7 @@ export class List<Type, Store> {
     },
     aSpec: {
       spec: Config<Type, Store>
-      /**
-       * @description The ID of a required field on the inner object whose value will be used to display items in the list.
-       * @example
-       * In this example, we use the value of the `label` field to display members of the list.
-       *
-       * ```
-       * spec: Config.of({
-       *   label: Value.text({
-       *     name: 'Label',
-       *     required: false,
-       *   })
-       * })
-       * displayAs: 'label',
-       * uniqueBy: null,
-       * ```
-       *
-       */
       displayAs?: null | string
-      /**
-       * @description The ID(s) of required fields on the inner object whose value(s) will be used to enforce uniqueness in the list.
-       * @example
-       * In this example, we use the `label` field to enforce uniqueness, meaning the label field must be unique from other entries.
-       *
-       * ```
-       * spec: Config.of({
-       *   label: Value.text({
-       *     name: 'Label',
-       *     required: { default: null },
-       *   })
-       *   pubkey: Value.text({
-       *     name: 'Pubkey',
-       *     required: { default: null },
-       *   })
-       * })
-       * displayAs: 'label',
-       * uniqueBy: 'label',
-       * ```
-       * @example
-       * In this example, we use the `label` field AND the `pubkey` field to enforce uniqueness, meaning both these fields must be unique from other entries.
-       *
-       * ```
-       * spec: Config.of({
-       *   label: Value.text({
-       *     name: 'Label',
-       *     required: { default: null },
-       *   })
-       *   pubkey: Value.text({
-       *     name: 'Pubkey',
-       *     required: { default: null },
-       *   })
-       * })
-       * displayAs: 'label',
-       * uniqueBy: { all: ['label', 'pubkey'] },
-       * ```
-       */
       uniqueBy?: null | UniqueBy
     },
   ) {

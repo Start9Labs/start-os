@@ -104,6 +104,7 @@ export class Value<Type, Store> {
   static toggle(a: {
     name: string
     description?: string | null
+    /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
     default: boolean
     /**
@@ -151,6 +152,7 @@ export class Value<Type, Store> {
   static text<Required extends RequiredDefault<DefaultString>>(a: {
     name: string
     description?: string | null
+    /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
     /**
      * @description Determines if the field is required. If so, optionally provide a default value.
@@ -260,6 +262,7 @@ export class Value<Type, Store> {
   static textarea(a: {
     name: string
     description?: string | null
+    /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
     /**
      * @description Unlike other "required" fields, for textarea this is a simple boolean.
@@ -322,6 +325,7 @@ export class Value<Type, Store> {
   static number<Required extends RequiredDefault<number>>(a: {
     name: string
     description?: string | null
+    /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
     /**
      * @description Determines if the field is required. If so, optionally provide a default value.
@@ -410,6 +414,7 @@ export class Value<Type, Store> {
   static color<Required extends RequiredDefault<string>>(a: {
     name: string
     description?: string | null
+    /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
     /**
      * @description Determines if the field is required. If so, optionally provide a default value.
@@ -468,6 +473,7 @@ export class Value<Type, Store> {
   static datetime<Required extends RequiredDefault<string>>(a: {
     name: string
     description?: string | null
+    /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
     /**
      * @description Determines if the field is required. If so, optionally provide a default value.
@@ -544,6 +550,7 @@ export class Value<Type, Store> {
   >(a: {
     name: string
     description?: string | null
+    /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
     /**
      * @description Determines if the field is required. If so, optionally provide a default value from the list of values.
@@ -626,6 +633,7 @@ export class Value<Type, Store> {
   static multiselect<Values extends Record<string, string>>(a: {
     name: string
     description?: string | null
+    /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
     /**
      * @description A simple list of which options should be checked by default.
@@ -708,7 +716,6 @@ export class Value<Type, Store> {
     a: {
       name: string
       description?: string | null
-      warning?: string | null
     },
     spec: Config<Type, Store>,
   ) {
@@ -726,7 +733,6 @@ export class Value<Type, Store> {
   static file<Required extends RequiredDefault<string>, Store>(a: {
     name: string
     description?: string | null
-    warning?: string | null
     extensions: string[]
     // TODO BluJ similar to textarea, this should be a boolean. We can't provide a default file.
     required: Required
@@ -772,6 +778,7 @@ export class Value<Type, Store> {
     a: {
       name: string
       description?: string | null
+      /** Presents a warning prompt before permitting the value to change. */
       warning?: string | null
       /**
        * @description Determines if the field is required. If so, optionally provide a default value from the list of variants.

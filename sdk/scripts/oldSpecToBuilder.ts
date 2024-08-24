@@ -195,7 +195,6 @@ const {Config, List, Value, Variants} = sdk
         return `Value.object({
         name: ${JSON.stringify(value.name || null)},
         description: ${JSON.stringify(value.description || null)},
-        warning: ${JSON.stringify(value.warning || null)},
       }, ${specName})`
       }
       case "union": {
@@ -319,7 +318,6 @@ const {Config, List, Value, Variants} = sdk
           maxLength: ${JSON.stringify(null)},
           default: ${JSON.stringify(value.default || null)},
           description: ${JSON.stringify(value.description || null)},
-          warning: ${JSON.stringify(value.warning || null)},
         }, {
           spec: ${specName},
           displayAs: ${JSON.stringify(value?.spec?.["display-as"] || null)},

@@ -232,7 +232,6 @@ describe("values", () => {
       {
         name: "Testing",
         description: null,
-        warning: null,
       },
       Config.of({
         a: Value.toggle({

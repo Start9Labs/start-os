@@ -833,23 +833,92 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         },
       },
       List: {
+        /**
+         * @description Create a list of text inputs.
+         * @param a - attributes of the list itself.
+         * @param aSpec - attributes describing each member of the list.
+         */
         text: List.text,
+        /**
+         * @description Create a list of objects.
+         * @param a - attributes of the list itself.
+         * @param aSpec - attributes describing each member of the list.
+         */
         obj: <Type extends Record<string, any>>(
           a: {
             name: string
             description?: string | null
+            /** Presents a warning before adding/removing/editing a list item. */
             warning?: string | null
-            /** Default [] */
             default?: []
             minLength?: number | null
             maxLength?: number | null
           },
           aSpec: {
             spec: Config<Type, Store>
+            /**
+             * @description The ID of a required field on the inner object whose value will be used to display items in the list.
+             * @example
+             * In this example, we use the value of the `label` field to display members of the list.
+             *
+             * ```
+             * spec: Config.of({
+             *   label: Value.text({
+             *     name: 'Label',
+             *     required: false,
+             *   })
+             * })
+             * displayAs: 'label',
+             * uniqueBy: null,
+             * ```
+             *
+             */
             displayAs?: null | string
+            /**
+             * @description The ID(s) of required fields on the inner object whose value(s) will be used to enforce uniqueness in the list.
+             * @example
+             * In this example, we use the `label` field to enforce uniqueness, meaning the label field must be unique from other entries.
+             *
+             * ```
+             * spec: Config.of({
+             *   label: Value.text({
+             *     name: 'Label',
+             *     required: { default: null },
+             *   })
+             *   pubkey: Value.text({
+             *     name: 'Pubkey',
+             *     required: { default: null },
+             *   })
+             * })
+             * displayAs: 'label',
+             * uniqueBy: 'label',
+             * ```
+             * @example
+             * In this example, we use the `label` field AND the `pubkey` field to enforce uniqueness, meaning both these fields must be unique from other entries.
+             *
+             * ```
+             * spec: Config.of({
+             *   label: Value.text({
+             *     name: 'Label',
+             *     required: { default: null },
+             *   })
+             *   pubkey: Value.text({
+             *     name: 'Pubkey',
+             *     required: { default: null },
+             *   })
+             * })
+             * displayAs: 'label',
+             * uniqueBy: { all: ['label', 'pubkey'] },
+             * ```
+             */
             uniqueBy?: null | UniqueBy
           },
         ) => List.obj<Type, Store>(a, aSpec),
+        /**
+         * @description Create a list of dynamic text inputs.
+         * @param a - attributes of the list itself.
+         * @param aSpec - attributes describing each member of the list.
+         */
         dynamicText: (
           getA: LazyBuild<
             Store,
@@ -857,20 +926,17 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               name: string
               description?: string | null
               warning?: string | null
-              /** Default = [] */
               default?: string[]
               minLength?: number | null
               maxLength?: number | null
               disabled?: false | string
               generate?: null | RandomString
               spec: {
-                /** Default = false */
                 masked?: boolean
                 placeholder?: string | null
                 minLength?: number | null
                 maxLength?: number | null
                 patterns: Pattern[]
-                /** Default = "text" */
                 inputmode?: ListValueSpecText["inputmode"]
               }
             }
@@ -886,10 +952,10 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * toggleExample: Value.toggle({
          *   // required
          *   name: 'Toggle Example',
-         *   description: null,
          *   default: true,
          *
          *   // optional
+         *   description: null,
          *   warning: null,
          *   immutable: false,
          * }),
@@ -903,10 +969,10 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * textExample: Value.text({
          *   // required
          *   name: 'Text Example',
-         *   description: null,
          *   required: false,
          *
          *   // optional
+         *   description: null,
          *   placeholder: null,
          *   warning: null,
          *   generate: null,
@@ -927,10 +993,10 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * textareaExample: Value.textarea({
          *   // required
          *   name: 'Textarea Example',
-         *   description: null,
          *   required: false,
          *
          *   // optional
+         *   description: null,
          *   placeholder: null,
          *   warning: null,
          *   minLength: null,
@@ -947,11 +1013,11 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * numberExample: Value.number({
          *   // required
          *   name: 'Number Example',
-         *   description: null,
          *   required: false,
          *   integer: true,
          *
          *   // optional
+         *   description: null,
          *   placeholder: null,
          *   warning: null,
          *   min: null,
@@ -970,10 +1036,10 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * colorExample: Value.color({
          *   // required
          *   name: 'Color Example',
-         *   description: null,
          *   required: false,
          *
          *   // optional
+         *   description: null,
          *   warning: null,
          *   immutable: false,
          * }),
@@ -987,10 +1053,10 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * datetimeExample: Value.datetime({
          *   // required
          *   name: 'Datetime Example',
-         *   description: null,
          *   required: false,
          *
          *   // optional
+         *   description: null,
          *   warning: null,
          *   immutable: false,
          *   inputmode: 'datetime-local',
@@ -1007,7 +1073,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * selectExample: Value.select({
          *   // required
          *   name: 'Select Example',
-         *   description: null,
          *   required: false,
          *   values: {
          *     radio1: 'Radio 1',
@@ -1015,6 +1080,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          *   },
          *
          *   // optional
+         *   description: null,
          *   warning: null,
          *   immutable: false,
          *   disabled: false,
@@ -1029,7 +1095,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * multiselectExample: Value.multiselect({
          *   // required
          *   name: 'Multiselect Example',
-         *   description: null,
          *   values: {
          *     option1: 'Option 1',
          *     option2: 'Option 2',
@@ -1037,6 +1102,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          *   default: [],
          *
          *   // optional
+         *   description: null,
          *   warning: null,
          *   immutable: false,
          *   disabled: false,
@@ -1054,9 +1120,9 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          *   {
          *     // required
          *     name: 'Object Example',
-         *     description: null,
          *
          *     // optional
+         *     description: null,
          *     warning: null,
          *   },
          *   Config.of({}),
@@ -1072,10 +1138,10 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          *   {
          *     // required
          *     name: 'Union Example',
-         *     description: null,
          *     required: false,
          *
          *     // optional
+         *     description: null,
          *     warning: null,
          *     disabled: false,
          *     immutable: false,
@@ -1178,13 +1244,11 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               description?: string | null
               warning?: string | null
               required: RequiredDefault<DefaultString>
-              /** Default = false */
               masked?: boolean
               placeholder?: string | null
               minLength?: number | null
               maxLength?: number | null
               patterns?: Pattern[]
-              /** Default = 'text' */
               inputmode?: ValueSpecText["inputmode"]
               generate?: null | RandomString
             }
@@ -1216,7 +1280,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               required: RequiredDefault<number>
               min?: number | null
               max?: number | null
-              /** Default = '1' */
               step?: number | null
               integer: boolean
               units?: string | null
@@ -1245,7 +1308,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               description?: string | null
               warning?: string | null
               required: RequiredDefault<string>
-              /** Default = 'datetime-local' */
               inputmode?: ValueSpecDatetime["inputmode"]
               min?: string | null
               max?: string | null
