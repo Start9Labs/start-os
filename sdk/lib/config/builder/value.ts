@@ -74,28 +74,6 @@ function asRequiredParser<
   return parser.optional() as any
 }
 
-/**
- * A value is going to be part of the form in the FE of the OS.
- * Something like a boolean, a string, a number, etc.
- * in the fe it will ask for the name of value, and use the rest of the value to determine how to render it.
- * While writing with a value, you will start with `Value.` then let the IDE suggest the rest.
- * for things like string, the options are going to be in {}.
- * Keep an eye out for another config builder types as params.
- * Note, usually this is going to be used in a `Config` {@link Config} builder.
- ```ts
-const username = Value.string({
-  name: "Username",
-  default: "bitcoin",
-  description: "The username for connecting to Bitcoin over RPC.",
-  warning: null,
-  required: true,
-  masked: true,
-  placeholder: null,
-  pattern: "^[a-zA-Z0-9_]+$",
-  patternDescription: "Must be alphanumeric (can contain underscore).",
-});
- ```
- */
 export class Value<Type, Store> {
   protected constructor(
     public build: LazyBuild<Store, ValueSpec>,
@@ -546,7 +524,7 @@ export class Value<Type, Store> {
   }
   static select<
     Required extends RequiredDefault<string>,
-    B extends Record<string, string>,
+    Values extends Record<string, string>,
   >(a: {
     name: string
     description?: string | null
@@ -571,22 +549,14 @@ export class Value<Type, Store> {
      * }
      * ```
      */
-    values: B
-    /**
-     * @options
-     *   - false - The field can be modified.
-     *   - string - The field cannot be modified. The provided text explains why.
-     *   - string[] - The field can be modified, but the values contained in the array cannot be selected.
-     * @default false
-     */
-    disabled?: false | string | (string & keyof B)[]
+    values: Values
     /**
      * @description Once set, the value can never be changed.
      * @default false
      */
     immutable?: boolean
   }) {
-    return new Value<AsRequired<keyof B, Required>, never>(
+    return new Value<AsRequired<keyof Values, Required>, never>(
       () => ({
         description: null,
         warning: null,
@@ -598,7 +568,9 @@ export class Value<Type, Store> {
       }),
       asRequiredParser(
         anyOf(
-          ...Object.keys(a.values).map((x: keyof B & string) => literal(x)),
+          ...Object.keys(a.values).map((x: keyof Values & string) =>
+            literal(x),
+          ),
         ),
         a,
       ) as any,
@@ -653,14 +625,6 @@ export class Value<Type, Store> {
     values: Values
     minLength?: number | null
     maxLength?: number | null
-    /**
-     * @options
-     *   - false - The field can be modified.
-     *   - string - The field cannot be modified. The provided text explains why.
-     *   - string[] - The field can be modified, but the values contained in the array cannot be selected.
-     * @default false
-     */
-    disabled?: false | string | (string & keyof Values)[]
     /**
      * @description Once set, the value can never be changed.
      * @default false
@@ -788,14 +752,6 @@ export class Value<Type, Store> {
        * @example required: { default: 'variant1' }
        */
       required: Required
-      /**
-       * @options
-       *   - false - The field can be modified.
-       *   - string - The field cannot be modified. The provided text explains why.
-       *   - string[] - The field can be modified, but the values contained in the array cannot be selected.
-       * @default false
-       */
-      disabled?: false | string | string[]
       /**
        * @description Once set, the value can never be changed.
        * @default false

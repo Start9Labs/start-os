@@ -1230,6 +1230,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             {
               name: string
               description?: string | null
+              /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
               default: boolean
               disabled?: false | string
@@ -1242,14 +1243,47 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             {
               name: string
               description?: string | null
+              /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
+              /**
+               * @description Determines if the field is required. If so, optionally provide a default value.
+               * @type { false | { default: string | RandomString | null } }
+               * @example required: false
+               * @example required: { default: null }
+               * @example required: { default: 'World' }
+               * @example required: { default: { charset: 'abcdefg', len: 16 } }
+               */
               required: RequiredDefault<DefaultString>
+              /**
+               * @description Mask (aka camouflage) text input with dots: ● ● ●
+               * @default false
+               */
               masked?: boolean
               placeholder?: string | null
               minLength?: number | null
               maxLength?: number | null
+              /**
+               * @description A list of regular expressions to which the text must conform to pass validation. A human readable description is provided in case the validation fails.
+               * @default []
+               * @example
+               * ```
+               * [
+               *   {
+               *     regex: "[a-z]",
+               *     description: "May only contain lower case letters from the English alphabet."
+               *   }
+               * ]
+               * ```
+               */
               patterns?: Pattern[]
+              /**
+               * @description Informs the browser how to behave and which keyboard to display on mobile
+               * @default "text"
+               */
               inputmode?: ValueSpecText["inputmode"]
+              /**
+               * @description Displays a button that will generate a random string according to the provided charset and len attributes.
+               */
               generate?: null | RandomString
             }
           >,
@@ -1260,7 +1294,11 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             {
               name: string
               description?: string | null
+              /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
+              /**
+               * @description Unlike other "required" fields, for textarea this is a simple boolean.
+               */
               required: boolean
               minLength?: number | null
               maxLength?: number | null
@@ -1276,12 +1314,30 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             {
               name: string
               description?: string | null
+              /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
+              /**
+               * @description Determines if the field is required. If so, optionally provide a default value.
+               * @type { false | { default: number | null } }
+               * @example required: false
+               * @example required: { default: null }
+               * @example required: { default: 7 }
+               */
               required: RequiredDefault<number>
               min?: number | null
               max?: number | null
+              /**
+               * @description How much does the number increase/decrease when using the arrows provided by the browser.
+               * @default 1
+               */
               step?: number | null
+              /**
+               * @description Requires the number to be an integer.
+               */
               integer: boolean
+              /**
+               * @description Optionally display units to the right of the input box.
+               */
               units?: string | null
               placeholder?: string | null
               disabled?: false | string
@@ -1294,7 +1350,15 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             {
               name: string
               description?: string | null
+              /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
+              /**
+               * @description Determines if the field is required. If so, optionally provide a default value.
+               * @type { false | { default: string | null } }
+               * @example required: false
+               * @example required: { default: null }
+               * @example required: { default: 'ffffff' }
+               */
               required: RequiredDefault<string>
               disabled?: false | string
             }
@@ -1306,8 +1370,20 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             {
               name: string
               description?: string | null
+              /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
+              /**
+               * @description Determines if the field is required. If so, optionally provide a default value.
+               * @type { false | { default: string | null } }
+               * @example required: false
+               * @example required: { default: null }
+               * @example required: { default: '1985-12-16 18:00:00.000' }
+               */
               required: RequiredDefault<string>
+              /**
+               * @description Informs the browser how to behave and which date/time component to display.
+               * @default "datetime-local"
+               */
               inputmode?: ValueSpecDatetime["inputmode"]
               min?: string | null
               max?: string | null
@@ -1321,8 +1397,27 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             {
               name: string
               description?: string | null
+              /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
+              /**
+               * @description Determines if the field is required. If so, optionally provide a default value from the list of values.
+               * @type { false | { default: string | null } }
+               * @example required: false
+               * @example required: { default: null }
+               * @example required: { default: 'radio1' }
+               */
               required: RequiredDefault<string>
+              /**
+               * @description A mapping of unique radio options to their human readable display format.
+               * @example
+               * ```
+               * {
+               *   radio1: "Radio 1"
+               *   radio2: "Radio 2"
+               *   radio3: "Radio 3"
+               * }
+               * ```
+               */
               values: Record<string, string>
               /**
                * @options
@@ -1331,7 +1426,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
                *   - string[] - The field can be modified, but the values contained in the array cannot be selected.
                * @default false
                */
-              disabled?: false | string
+              disabled?: false | string | string[]
             }
           >,
         ) => Value.dynamicSelect<Store>(getA),
@@ -1341,8 +1436,23 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             {
               name: string
               description?: string | null
+              /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
+              /**
+               * @description A simple list of which options should be checked by default.
+               */
               default: string[]
+              /**
+               * @description A mapping of checkbox options to their human readable display format.
+               * @example
+               * ```
+               * {
+               *   option1: "Option 1"
+               *   option2: "Option 2"
+               *   option3: "Option 3"
+               * }
+               * ```
+               */
               values: Record<string, string>
               minLength?: number | null
               maxLength?: number | null
@@ -1353,7 +1463,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
                *   - string[] - The field can be modified, but the values contained in the array cannot be selected.
                * @default false
                */
-              disabled?: false | string
+              disabled?: false | string | string[]
             }
           >,
         ) => Value.dynamicMultiselect<Store>(getA),
@@ -1385,7 +1495,15 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             {
               name: string
               description?: string | null
+              /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
+              /**
+               * @description Determines if the field is required. If so, optionally provide a default value from the list of variants.
+               * @type { false | { default: string | null } }
+               * @example required: false
+               * @example required: { default: null }
+               * @example required: { default: 'variant1' }
+               */
               required: Required
               /**
                * @options
@@ -1394,7 +1512,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
                *   - string[] - The field can be modified, but the values contained in the array cannot be selected.
                * @default false
                */
-              disabled: string[] | false | string
+              disabled: false | string | string[]
             }
           >,
           aVariants: Variants<Type, Store> | Variants<Type, never>,
