@@ -113,16 +113,12 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
                 )
                 .subcommand(
                     "launch-init",
-                    from_fn_blocking(subcontainer::launch_init::<ContainerCliContext>).no_display(),
+                    from_fn_blocking(subcontainer::launch_init).no_display(),
                 )
-                .subcommand(
-                    "exec",
-                    from_fn_blocking(subcontainer::exec::<ContainerCliContext>).no_display(),
-                )
+                .subcommand("exec", from_fn_blocking(subcontainer::exec).no_display())
                 .subcommand(
                     "exec-command",
-                    from_fn_blocking(subcontainer::exec_command::<ContainerCliContext>)
-                        .no_display(),
+                    from_fn_blocking(subcontainer::exec_command).no_display(),
                 )
                 .subcommand(
                     "create-fs",

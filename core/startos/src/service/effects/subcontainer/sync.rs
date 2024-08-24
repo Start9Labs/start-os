@@ -22,7 +22,6 @@ const FWD_SIGNALS: &[c_int] = &[
 ];
 
 struct NSPid(Vec<i32>);
-#[cfg(feature = "container-runtime")]
 impl procfs::FromBufRead for NSPid {
     fn from_buf_read<R: std::io::BufRead>(r: R) -> procfs::ProcResult<Self> {
         for line in r.lines() {
@@ -132,24 +131,6 @@ impl ExecParams {
     }
 }
 
-#[cfg(not(feature = "container-runtime"))]
-pub fn launch(
-    _: ContainerCliContext,
-    ExecParams {
-        env,
-        workdir,
-        user,
-        chroot,
-        command,
-    }: ExecParams,
-) -> Result<(), Error> {
-    Err(Error::new(
-        eyre!("requires feature container-runtime"),
-        ErrorKind::InvalidRequest,
-    ))
-}
-
-#[cfg(feature = "container-runtime")]
 pub fn launch(
     _: ContainerCliContext,
     ExecParams {
