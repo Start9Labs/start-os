@@ -1,6 +1,4 @@
 import * as T from "../types"
-
-import * as D from "./configDependencies"
 import { Config, ExtractConfigType } from "./builder/config"
 import nullIfEmpty from "../util/nullIfEmpty"
 import { InterfacesReceipt as InterfacesReceipt } from "../interfaces/setupInterfaces"
@@ -33,13 +31,6 @@ export type Read<
 > = (options: {
   effects: T.Effects
 }) => Promise<void | (ExtractConfigType<A> & Record<string, any>)>
-/**
- * We want to setup a config export with a get and set, this
- * is going to be the default helper to setup config, because it will help
- * enforce that we have a spec, write, and reading.
- * @param options
- * @returns
- */
 export function setupConfig<
   Store,
   ConfigType extends
@@ -57,9 +48,7 @@ export function setupConfig<
   return {
     setConfig: (async ({ effects, input }) => {
       if (!validator.test(input)) {
-        await console.error(
-          new Error(validator.errorMessage(input)?.toString()),
-        )
+        console.error(new Error(validator.errorMessage(input)?.toString()))
         return { error: "Set config type error for config" }
       }
       await effects.clearBindings()

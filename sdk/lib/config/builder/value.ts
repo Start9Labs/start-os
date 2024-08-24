@@ -1,4 +1,4 @@
-import { Config, LazyBuild, LazyBuildOptions } from "./config"
+import { Config, LazyBuild } from "./config"
 import { List } from "./list"
 import { Variants } from "./variants"
 import {
@@ -54,6 +54,7 @@ type AsRequired<Type, MaybeRequiredType> = MaybeRequiredType extends
   ? Type
   : Type | null | undefined
 
+// TODO BluJ is this tech debt?
 type InputAsRequired<A, Type> = A extends
   | { required: { default: any } | never }
   | never
@@ -105,8 +106,10 @@ export class Value<Type, Store> {
     description?: string | null
     warning?: string | null
     default: boolean
-    /**  Immutable means it can only be configed at the first config then never again 
-    Default is false */
+    /**
+     * @description Once set, the value can never be changed.
+     * @default false
+     */
     immutable?: boolean
   }) {
     return new Value<boolean, never>(
@@ -149,21 +152,51 @@ export class Value<Type, Store> {
     name: string
     description?: string | null
     warning?: string | null
+    /**
+     * @description Determines if the field is required. If so, optionally provide a default value.
+     * @type { false | { default: string | RandomString | null } }
+     * @example required: false
+     * @example required: { default: null }
+     * @example required: { default: 'World' }
+     * @example required: { default: { charset: 'abcdefg', len: 16 } }
+     */
     required: Required
-
-    /** Default = false */
+    /**
+     * @description Mask (aka camouflage) text input with dots: ● ● ●
+     * @default false
+     */
     masked?: boolean
     placeholder?: string | null
     minLength?: number | null
     maxLength?: number | null
+    /**
+     * @description A list of regular expressions to which the text must conform to pass validation. A human readable description is provided in case the validation fails.
+     * @default []
+     * @example
+     * ```
+     * [
+     *   {
+     *     regex: "[a-z]",
+     *     description: "May only contain lower case letters from the English alphabet."
+     *   }
+     * ]
+     * ```
+     */
     patterns?: Pattern[]
-    /** Default = 'text' */
+    /**
+     * @description Informs the browser how to behave and which keyboard to display on mobile
+     * @default "text"
+     */
     inputmode?: ValueSpecText["inputmode"]
-    /**  Immutable means it can only be configured at the first config then never again
-     * Default is false
+    /**
+     * @description Once set, the value can never be changed.
+     * @default false
      */
     immutable?: boolean
-    generate?: null | RandomString
+    /**
+     * @description Displays a button that will generate a random string according to the provided charset and len attributes.
+     */
+    generate?: RandomString | null
   }) {
     return new Value<AsRequired<string, Required>, never>(
       async () => ({
@@ -193,19 +226,13 @@ export class Value<Type, Store> {
         description?: string | null
         warning?: string | null
         required: RequiredDefault<DefaultString>
-
-        /** Default = false */
         masked?: boolean
         placeholder?: string | null
         minLength?: number | null
         maxLength?: number | null
         patterns?: Pattern[]
-        /** Default = 'text' */
         inputmode?: ValueSpecText["inputmode"]
         disabled?: string | false
-        /**  Immutable means it can only be configured at the first config then never again
-         * Default is false
-         */
         generate?: null | RandomString
       }
     >,
@@ -234,12 +261,17 @@ export class Value<Type, Store> {
     name: string
     description?: string | null
     warning?: string | null
+    /**
+     * @description Unlike other "required" fields, for textarea this is a simple boolean.
+     */
     required: boolean
     minLength?: number | null
     maxLength?: number | null
     placeholder?: string | null
-    /**  Immutable means it can only be configed at the first config then never again 
-    Default is false */
+    /**
+     * @description Once set, the value can never be changed.
+     * @default false
+     */
     immutable?: boolean
   }) {
     return new Value<string, never>(async () => {
@@ -291,16 +323,34 @@ export class Value<Type, Store> {
     name: string
     description?: string | null
     warning?: string | null
+    /**
+     * @description Determines if the field is required. If so, optionally provide a default value.
+     * @type { false | { default: number | null } }
+     * @example required: false
+     * @example required: { default: null }
+     * @example required: { default: 7 }
+     */
     required: Required
     min?: number | null
     max?: number | null
-    /** Default = '1' */
+    /**
+     * @description How much does the number increase/decrease when using the arrows provided by the browser.
+     * @default 1
+     */
     step?: number | null
+    /**
+     * @description Requires the number to be an integer.
+     */
     integer: boolean
+    /**
+     * @description Optionally display units to the right of the input box.
+     */
     units?: string | null
     placeholder?: string | null
-    /**  Immutable means it can only be configed at the first config then never again 
-    Default is false */
+    /**
+     * @description Once set, the value can never be changed.
+     * @default false
+     */
     immutable?: boolean
   }) {
     return new Value<AsRequired<number, Required>, never>(
@@ -331,7 +381,6 @@ export class Value<Type, Store> {
         required: RequiredDefault<number>
         min?: number | null
         max?: number | null
-        /** Default = '1' */
         step?: number | null
         integer: boolean
         units?: string | null
@@ -362,9 +411,18 @@ export class Value<Type, Store> {
     name: string
     description?: string | null
     warning?: string | null
+    /**
+     * @description Determines if the field is required. If so, optionally provide a default value.
+     * @type { false | { default: string | null } }
+     * @example required: false
+     * @example required: { default: null }
+     * @example required: { default: 'ffffff' }
+     */
     required: Required
-    /**  Immutable means it can only be configed at the first config then never again 
-    Default is false */
+    /**
+     * @description Once set, the value can never be changed.
+     * @default false
+     */
     immutable?: boolean
   }) {
     return new Value<AsRequired<string, Required>, never>(
@@ -411,13 +469,25 @@ export class Value<Type, Store> {
     name: string
     description?: string | null
     warning?: string | null
+    /**
+     * @description Determines if the field is required. If so, optionally provide a default value.
+     * @type { false | { default: string | null } }
+     * @example required: false
+     * @example required: { default: null }
+     * @example required: { default: '1985-12-16 18:00:00.000' }
+     */
     required: Required
-    /** Default = 'datetime-local' */
+    /**
+     * @description Informs the browser how to behave and which date/time component to display.
+     * @default "datetime-local"
+     */
     inputmode?: ValueSpecDatetime["inputmode"]
     min?: string | null
     max?: string | null
-    /**  Immutable means it can only be configed at the first config then never again 
-    Default is false */
+    /**
+     * @description Once set, the value can never be changed.
+     * @default false
+     */
     immutable?: boolean
   }) {
     return new Value<AsRequired<string, Required>, never>(
@@ -445,7 +515,6 @@ export class Value<Type, Store> {
         description?: string | null
         warning?: string | null
         required: RequiredDefault<string>
-        /** Default = 'datetime-local' */
         inputmode?: ValueSpecDatetime["inputmode"]
         min?: string | null
         max?: string | null
@@ -476,16 +545,38 @@ export class Value<Type, Store> {
     name: string
     description?: string | null
     warning?: string | null
+    /**
+     * @description Determines if the field is required. If so, optionally provide a default value from the list of values.
+     * @type { false | { default: string | null } }
+     * @example required: false
+     * @example required: { default: null }
+     * @example required: { default: 'radio1' }
+     */
     required: Required
+    /**
+     * @description A mapping of unique radio options to their human readable display format.
+     * @example
+     * ```
+     * {
+     *   radio1: "Radio 1"
+     *   radio2: "Radio 2"
+     *   radio3: "Radio 3"
+     * }
+     * ```
+     */
     values: B
     /**
-     * Disabled:  false means that there is nothing disabled, good to modify
-     *           string means that this is the message displayed and the whole thing is disabled
-     *           string[] means that the options are disabled
+     * @options
+     *   - false - The field can be modified.
+     *   - string - The field cannot be modified. The provided text explains why.
+     *   - string[] - The field can be modified, but the values contained in the array cannot be selected.
+     * @default false
      */
     disabled?: false | string | (string & keyof B)[]
-    /**  Immutable means it can only be configed at the first config then never again 
-    Default is false */
+    /**
+     * @description Once set, the value can never be changed.
+     * @default false
+     */
     immutable?: boolean
   }) {
     return new Value<AsRequired<keyof B, Required>, never>(
@@ -515,11 +606,6 @@ export class Value<Type, Store> {
         warning?: string | null
         required: RequiredDefault<string>
         values: Record<string, string>
-        /**
-         * Disabled:  false means that there is nothing disabled, good to modify
-         *           string means that this is the message displayed and the whole thing is disabled
-         *           string[] means that the options are disabled
-         */
         disabled?: false | string | string[]
       }
     >,
@@ -541,19 +627,37 @@ export class Value<Type, Store> {
     name: string
     description?: string | null
     warning?: string | null
+    /**
+     * @description A simple list of which options should be checked by default.
+     */
     default: string[]
+    /**
+     * @description A mapping of checkbox options to their human readable display format.
+     * @example
+     * ```
+     * {
+     *   option1: "Option 1"
+     *   option2: "Option 2"
+     *   option3: "Option 3"
+     * }
+     * ```
+     */
     values: Values
     minLength?: number | null
     maxLength?: number | null
-    /**  Immutable means it can only be configed at the first config then never again 
-    Default is false */
-    immutable?: boolean
     /**
-     * Disabled:  false means that there is nothing disabled, good to modify
-     *           string means that this is the message displayed and the whole thing is disabled
-     *           string[] means that the options are disabled
+     * @options
+     *   - false - The field can be modified.
+     *   - string - The field cannot be modified. The provided text explains why.
+     *   - string[] - The field can be modified, but the values contained in the array cannot be selected.
+     * @default false
      */
     disabled?: false | string | (string & keyof Values)[]
+    /**
+     * @description Once set, the value can never be changed.
+     * @default false
+     */
+    immutable?: boolean
   }) {
     return new Value<(keyof Values)[], never>(
       () => ({
@@ -582,11 +686,6 @@ export class Value<Type, Store> {
         values: Record<string, string>
         minLength?: number | null
         maxLength?: number | null
-        /**
-         * Disabled:  false means that there is nothing disabled, good to modify
-         *           string means that this is the message displayed and the whole thing is disabled
-         *           string[] means that the options are disabled
-         */
         disabled?: false | string | string[]
       }
     >,
@@ -629,6 +728,7 @@ export class Value<Type, Store> {
     description?: string | null
     warning?: string | null
     extensions: string[]
+    // TODO BluJ similar to textarea, this should be a boolean. We can't provide a default file.
     required: Required
   }) {
     const buildValue = {
@@ -673,16 +773,27 @@ export class Value<Type, Store> {
       name: string
       description?: string | null
       warning?: string | null
-      required: Required
-      /**  Immutable means it can only be configed at the first config then never again 
-      Default is false */
-      immutable?: boolean
       /**
-       * Disabled:  false means that there is nothing disabled, good to modify
-       *           string means that this is the message displayed and the whole thing is disabled
-       *           string[] means that the options are disabled
+       * @description Determines if the field is required. If so, optionally provide a default value from the list of variants.
+       * @type { false | { default: string | null } }
+       * @example required: false
+       * @example required: { default: null }
+       * @example required: { default: 'variant1' }
+       */
+      required: Required
+      /**
+       * @options
+       *   - false - The field can be modified.
+       *   - string - The field cannot be modified. The provided text explains why.
+       *   - string[] - The field can be modified, but the values contained in the array cannot be selected.
+       * @default false
        */
       disabled?: false | string | string[]
+      /**
+       * @description Once set, the value can never be changed.
+       * @default false
+       */
+      immutable?: boolean
     },
     aVariants: Variants<Type, Store>,
   ) {
@@ -736,11 +847,11 @@ export class Value<Type, Store> {
     getA: LazyBuild<
       Store,
       {
-        disabled: string[] | false | string
         name: string
         description?: string | null
         warning?: string | null
         required: Required
+        disabled: string[] | false | string
       }
     >,
     aVariants: Variants<Type, Store> | Variants<Type, never>,
@@ -777,6 +888,7 @@ export class Value<Type, Store> {
   })
   ```
    */
+  // TODO BluJ are we using this?
   withStore<NewStore extends Store extends never ? any : Store>() {
     return this as any as Value<Type, NewStore>
   }

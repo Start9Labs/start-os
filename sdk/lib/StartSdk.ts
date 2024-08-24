@@ -378,6 +378,28 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         write: Save<Type>,
         read: Read<Manifest, Store, Type>,
       ) => setupConfig<Store, ConfigType, Manifest, Type>(spec, write, read),
+      /**
+       * @description Use this function to construct the current state of config, potentially from one or more underlying configuration files, for display to the user.
+       * @returns The current config, conforming to the config specification defined in ./spec.ts
+       * @example
+       * In this example, we read from an underlying config.json file belonging to the upstream service, as well as a value from the Store, and compose them into the expected config for display to the user.
+       *
+       * ```
+       * import { sdk } from '../sdk'
+       * import { jsonFile } from '../file-models/config.json'
+       * import { configSpec } from './spec'
+       *
+       * export const read = sdk.setupConfigRead(configSpec, async ({ effects }) => {
+       *   const configJson = await jsonFile.read(effects)
+       *   const store = await sdk.store.getOwn(effects, sdk.StorePath).once()
+       *
+       *   return {
+       *     name: configJson?.name || '',
+       *     makePublic: store?.makePublic || false
+       *   }
+       * })
+       * ```
+       */
       setupConfigRead: <
         ConfigSpec extends
           | Config<Record<string, any>, any>
@@ -386,6 +408,40 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         _configSpec: ConfigSpec,
         fn: Read<Manifest, Store, ConfigSpec>,
       ) => fn,
+      /**
+       * @description Use this function to accept user selections from config and save them to underlying config files or Store.
+       * 
+       *   Optionally force a service restart by passing `restart: true` in the return object.
+       * @example
+       * In this example, we accept user preferences for "name" and "makePublic" and save them to different places.
+       * 
+       * ```
+       * import { sdk } from '../sdk'
+       * import { setDependencies } from '../dependencies/dependencies'
+       * import { setInterfaces } from '../interfaces'
+       * import { configSpec } from './spec'
+       * import { jsonFile } from '../file-models/config.yml'
+
+       * export const save = sdk.setupConfigSave(
+       *   configSpec,
+       *   async ({ effects, input }) => {
+       *     await jsonFile.merge({ name: input.name }, effects)
+       *
+       *     await sdk.store.setOwn(
+       *       effects,
+       *       sdk.StorePath.makePublic,
+       *       input.makePublic,
+       *     ),
+       *
+       *     return {
+       *       interfacesReceipt: await setInterfaces({ effects, input }), // Plumbing. DO NOT EDIT.
+       *       dependenciesReceipt: await setDependencies({ effects, input }), // Plumbing. DO NOT EDIT.
+       *       restart: true, // optionally force a service restart on config save.
+       *     }
+       *   },
+       * )
+       * ```
+       */
       setupConfigSave: <
         ConfigSpec extends
           | Config<Record<string, any>, any>
@@ -671,6 +727,32 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           Backups.with_options<Manifest>(options),
       },
       Config: {
+        /**
+         * @description Use this function to define the config specification that will ultimately present to the user as validated form inputs.
+         *
+         *   Most form controls are supported, including text, textarea, number, toggle, select, multiselect, list, color, datetime, object (sub form), and union (conditional sub form).
+         * @example
+         * In this example, we define a config form with two value: name and makePublic.
+         *
+         * ```
+         * import { sdk } from '../sdk'
+         * const { Config, Value } = sdk
+         *
+         * export const configSpec = Config.of({
+         *   name: Value.text({
+         *     name: 'Name',
+         *     description:
+         *       'When you launch the Hello World UI, it will display "Hello [Name]"',
+         *     required: { default: 'World' },
+         *   }),
+         *   makePublic: Value.toggle({
+         *     name: 'Make Public',
+         *     description: 'Whether or not to expose the service to the network',
+         *     default: false,
+         *   }),
+         * })
+         * ```
+         */
         of: <
           Spec extends Record<string, Value<any, Store> | Value<any, never>>,
         >(
@@ -797,16 +879,284 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       },
       StorePath: pathBuilder<Store>(),
       Value: {
+        /**
+         * @description Displays a boolean toggle to enable/disable
+         * @example
+         * ```
+         * toggleExample: Value.toggle({
+         *   // required
+         *   name: 'Toggle Example',
+         *   description: null,
+         *   default: true,
+         *
+         *   // optional
+         *   warning: null,
+         *   immutable: false,
+         * }),
+         * ```
+         */
         toggle: Value.toggle,
+        /**
+         * @description Displays a text input field
+         * @example
+         * ```
+         * textExample: Value.text({
+         *   // required
+         *   name: 'Text Example',
+         *   description: null,
+         *   required: false,
+         *
+         *   // optional
+         *   placeholder: null,
+         *   warning: null,
+         *   generate: null,
+         *   inputmode: 'text',
+         *   masked: false,
+         *   minLength: null,
+         *   maxLength: null,
+         *   patterns: [],
+         *   immutable: false,
+         * }),
+         * ```
+         */
         text: Value.text,
+        /**
+         * @description Displays a large textarea field for long form entry.
+         * @example
+         * ```
+         * textareaExample: Value.textarea({
+         *   // required
+         *   name: 'Textarea Example',
+         *   description: null,
+         *   required: false,
+         *
+         *   // optional
+         *   placeholder: null,
+         *   warning: null,
+         *   minLength: null,
+         *   maxLength: null,
+         *   immutable: false,
+         * }),
+         * ```
+         */
         textarea: Value.textarea,
+        /**
+         * @description Displays a number input field
+         * @example
+         * ```
+         * numberExample: Value.number({
+         *   // required
+         *   name: 'Number Example',
+         *   description: null,
+         *   required: false,
+         *   integer: true,
+         *
+         *   // optional
+         *   placeholder: null,
+         *   warning: null,
+         *   min: null,
+         *   max: null,
+         *   immutable: false,
+         *   step: null,
+         *   units: null,
+         * }),
+         * ```
+         */
         number: Value.number,
+        /**
+         * @description Displays a browser-native color selector.
+         * @example
+         * ```
+         * colorExample: Value.color({
+         *   // required
+         *   name: 'Color Example',
+         *   description: null,
+         *   required: false,
+         *
+         *   // optional
+         *   warning: null,
+         *   immutable: false,
+         * }),
+         * ```
+         */
         color: Value.color,
+        /**
+         * @description Displays a browser-native date/time selector.
+         * @example
+         * ```
+         * datetimeExample: Value.datetime({
+         *   // required
+         *   name: 'Datetime Example',
+         *   description: null,
+         *   required: false,
+         *
+         *   // optional
+         *   warning: null,
+         *   immutable: false,
+         *   inputmode: 'datetime-local',
+         *   min: null,
+         *   max: null,
+         * }),
+         * ```
+         */
         datetime: Value.datetime,
+        /**
+         * @description Displays a select modal with radio buttons, allowing for a single selection.
+         * @example
+         * ```
+         * selectExample: Value.select({
+         *   // required
+         *   name: 'Select Example',
+         *   description: null,
+         *   required: false,
+         *   values: {
+         *     radio1: 'Radio 1',
+         *     radio2: 'Radio 2',
+         *   },
+         *
+         *   // optional
+         *   warning: null,
+         *   immutable: false,
+         *   disabled: false,
+         * }),
+         * ```
+         */
         select: Value.select,
+        /**
+         * @description Displays a select modal with checkboxes, allowing for multiple selections.
+         * @example
+         * ```
+         * multiselectExample: Value.multiselect({
+         *   // required
+         *   name: 'Multiselect Example',
+         *   description: null,
+         *   values: {
+         *     option1: 'Option 1',
+         *     option2: 'Option 2',
+         *   },
+         *   default: [],
+         *
+         *   // optional
+         *   warning: null,
+         *   immutable: false,
+         *   disabled: false,
+         *   minlength: null,
+         *   maxLength: null,
+         * }),
+         * ```
+         */
         multiselect: Value.multiselect,
+        /**
+         * @description Display a collapsable grouping of additional fields, a "sub form". The second value is the config spec for the sub form.
+         * @example
+         * ```
+         * objectExample: Value.object(
+         *   {
+         *     // required
+         *     name: 'Object Example',
+         *     description: null,
+         *
+         *     // optional
+         *     warning: null,
+         *   },
+         *   Config.of({}),
+         * ),
+         * ```
+         */
         object: Value.object,
+        /**
+         * @description Displays a dropdown, allowing for a single selection. Depending on the selection, a different object ("sub form") is presented.
+         * @example
+         * ```
+         * unionExample: Value.union(
+         *   {
+         *     // required
+         *     name: 'Union Example',
+         *     description: null,
+         *     required: false,
+         *
+         *     // optional
+         *     warning: null,
+         *     disabled: false,
+         *     immutable: false,
+         *   },
+         *   Variants.of({
+         *     option1: {
+         *       name: 'Option 1',
+         *       spec: Config.of({}),
+         *     },
+         *     option2: {
+         *       name: 'Option 2',
+         *       spec: Config.of({}),
+         *     },
+         *   }),
+         * ),
+         * ```
+         */
         union: Value.union,
+        /**
+         * @description Presents an interface to add/remove/edit items in a list.
+         * @example
+         * In this example, we create a list of text inputs.
+         * 
+         * ```
+          listExampleText: Value.list(
+            List.text(
+              {
+                // required
+                name: 'Text List',
+
+                // optional
+                description: null,
+                warning: null,
+                default: [],
+                minLength: null,
+                maxLength: null,
+              },
+              {
+                // required
+                patterns: [],
+
+                // optional
+                placeholder: null,
+                generate: null,
+                inputmode: 'url',
+                masked: false,
+                minLength: null,
+                maxLength: null,
+              },
+            ),
+          ),
+         * ```
+         * @example
+         * In this example, we create a list of objects.
+         * 
+         * ```
+          listExampleObject: Value.list(
+            List.obj(
+              {
+                // required
+                name: 'Object List',
+
+                // optional
+                description: null,
+                warning: null,
+                default: [],
+                minLength: null,
+                maxLength: null,
+              },
+              {
+                // required
+                spec: Config.of({}),
+
+                // optional
+                displayAs: null,
+                uniqueBy: null,
+              },
+            ),
+          ),
+         * ```
+         */
         list: Value.list,
         dynamicToggle: (
           a: LazyBuild<
@@ -828,7 +1178,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               description?: string | null
               warning?: string | null
               required: RequiredDefault<DefaultString>
-
               /** Default = false */
               masked?: boolean
               placeholder?: string | null
@@ -884,7 +1233,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               description?: string | null
               warning?: string | null
               required: RequiredDefault<string>
-
               disabled?: false | string
             }
           >,
@@ -914,6 +1262,13 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               warning?: string | null
               required: RequiredDefault<string>
               values: Record<string, string>
+              /**
+               * @options
+               *   - false - The field can be modified.
+               *   - string - The field cannot be modified. The provided text explains why.
+               *   - string[] - The field can be modified, but the values contained in the array cannot be selected.
+               * @default false
+               */
               disabled?: false | string
             }
           >,
@@ -929,6 +1284,13 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               values: Record<string, string>
               minLength?: number | null
               maxLength?: number | null
+              /**
+               * @options
+               *   - false - The field can be modified.
+               *   - string - The field cannot be modified. The provided text explains why.
+               *   - string[] - The field can be modified, but the values contained in the array cannot be selected.
+               * @default false
+               */
               disabled?: false | string
             }
           >,
@@ -959,11 +1321,18 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           getA: LazyBuild<
             Store,
             {
-              disabled: string[] | false | string
               name: string
               description?: string | null
               warning?: string | null
               required: Required
+              /**
+               * @options
+               *   - false - The field can be modified.
+               *   - string - The field cannot be modified. The provided text explains why.
+               *   - string[] - The field can be modified, but the values contained in the array cannot be selected.
+               * @default false
+               */
+              disabled: string[] | false | string
             }
           >,
           aVariants: Variants<Type, Store> | Variants<Type, never>,

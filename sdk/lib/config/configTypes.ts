@@ -48,7 +48,6 @@ export type ValueSpecText = {
   default: DefaultString | null
   disabled: false | string
   generate: null | RandomString
-  /** Immutable means it can only be configured at the first config then never again */
   immutable: boolean
 }
 export type ValueSpecTextarea = {
@@ -62,7 +61,6 @@ export type ValueSpecTextarea = {
   maxLength: number | null
   required: boolean
   disabled: false | string
-  /** Immutable means it can only be configured at the first config then never again */
   immutable: boolean
 }
 
@@ -83,7 +81,6 @@ export type ValueSpecNumber = {
   required: boolean
   default: number | null
   disabled: false | string
-  /** Immutable means it can only be configured at the first config then never again */
   immutable: boolean
 }
 export type ValueSpecColor = {
@@ -95,7 +92,6 @@ export type ValueSpecColor = {
   required: boolean
   default: string | null
   disabled: false | string
-  /** Immutable means it can only be configured at the first config then never again */
   immutable: boolean
 }
 export type ValueSpecDatetime = {
@@ -109,7 +105,6 @@ export type ValueSpecDatetime = {
   max: string | null
   default: string | null
   disabled: false | string
-  /** Immutable means it can only be configured at the first config then never again */
   immutable: boolean
 }
 export type ValueSpecSelect = {
@@ -120,13 +115,7 @@ export type ValueSpecSelect = {
   type: "select"
   required: boolean
   default: string | null
-  /**
-   * Disabled:  false means that there is nothing disabled, good to modify
-   *           string means that this is the message displayed and the whole thing is disabled
-   *           string[] means that the options are disabled
-   */
   disabled: false | string | string[]
-  /** Immutable means it can only be configured at the first config then never again */
   immutable: boolean
 }
 export type ValueSpecMultiselect = {
@@ -139,14 +128,8 @@ export type ValueSpecMultiselect = {
   type: "multiselect"
   minLength: number | null
   maxLength: number | null
-  /**
-   * Disabled:  false means that there is nothing disabled, good to modify
-   *           string means that this is the message displayed and the whole thing is disabled
-   *           string[] means that the options are disabled
-   */
   disabled: false | string | string[]
   default: string[]
-  /** Immutable means it can only be configured at the first config then never again */
   immutable: boolean
 }
 export type ValueSpecToggle = {
@@ -157,7 +140,6 @@ export type ValueSpecToggle = {
   type: "toggle"
   default: boolean | null
   disabled: false | string
-  /** Immutable means it can only be configured at the first config then never again */
   immutable: boolean
 }
 export type ValueSpecUnion = {
@@ -173,15 +155,9 @@ export type ValueSpecUnion = {
       spec: InputSpec
     }
   >
-  /**
-   * Disabled:  false means that there is nothing disabled, good to modify
-   *           string means that this is the message displayed and the whole thing is disabled
-   *           string[] means that the options are disabled
-   */
   disabled: false | string | string[]
   required: boolean
   default: string | null
-  /** Immutable means it can only be configured at the first config then never again */
   immutable: boolean
 }
 export type ValueSpecFile = {
@@ -200,13 +176,11 @@ export type ValueSpecObject = {
   spec: InputSpec
 }
 export type ListValueSpecType = "text" | "object"
-/** represents a spec for the values of a list */
 // prettier-ignore
 export type ListValueSpecOf<T extends ListValueSpecType> = 
   T extends "text" ? ListValueSpecText :
   T extends "object" ? ListValueSpecObject :
   never
-/** represents a spec for a list */
 export type ValueSpecList = ValueSpecListOf<ListValueSpecType>
 export type ValueSpecListOf<T extends ListValueSpecType> = {
   name: string
@@ -242,13 +216,13 @@ export type ListValueSpecText = {
 }
 export type ListValueSpecObject = {
   type: "object"
-  /** this is a mapped type of the config object at this level, replacing the object's values with specs on those values */
   spec: InputSpec
-  /** indicates whether duplicates can be permitted in the list */
   uniqueBy: UniqueBy
-  /** this should be a handlebars template which can make use of the entire config which corresponds to 'spec' */
   displayAs: string | null
 }
+// TODO Aiden do we really want this expressivity? Why not the below. Also what's with the "readonly" portion?
+// export type UniqueBy = null | string | { any: string[] } | { all: string[] }
+
 export type UniqueBy =
   | null
   | string

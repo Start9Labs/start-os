@@ -31,20 +31,41 @@ export class List<Type, Store> {
       name: string
       description?: string | null
       warning?: string | null
-      /** Default = [] */
       default?: string[]
       minLength?: number | null
       maxLength?: number | null
     },
     aSpec: {
-      /** Default = false */
+      /**
+       * @description Mask (aka camouflage) text input with dots: ● ● ●
+       * @default false
+       */
       masked?: boolean
       placeholder?: string | null
       minLength?: number | null
       maxLength?: number | null
-      patterns: Pattern[]
-      /** Default = "text" */
+      /**
+       * @description A list of regular expressions to which the text must conform to pass validation. A human readable description is provided in case the validation fails.
+       * @default []
+       * @example
+       * ```
+       * [
+       *   {
+       *     regex: "[a-z]",
+       *     description: "May only contain lower case letters from the English alphabet."
+       *   }
+       * ]
+       * ```
+       */
+      patterns?: Pattern[]
+      /**
+       * @description Informs the browser how to behave and which keyboard to display on mobile
+       * @default "text"
+       */
       inputmode?: ListValueSpecText["inputmode"]
+      /**
+       * @description Displays a button that will generate a random string according to the provided charset and len attributes.
+       */
       generate?: null | RandomString
     },
   ) {
@@ -57,6 +78,7 @@ export class List<Type, Store> {
         masked: false,
         inputmode: "text" as const,
         generate: null,
+        patterns: aSpec.patterns || [],
         ...aSpec,
       }
       const built: ValueSpecListOf<"text"> = {
@@ -130,14 +152,67 @@ export class List<Type, Store> {
       name: string
       description?: string | null
       warning?: string | null
-      /** Default [] */
       default?: []
       minLength?: number | null
       maxLength?: number | null
     },
     aSpec: {
       spec: Config<Type, Store>
+      /**
+       * @description The ID of a required field on the inner object whose value will be used to display items in the list.
+       * @example
+       * In this example, we use the value of the `label` field to display members of the list.
+       *
+       * ```
+       * spec: Config.of({
+       *   label: Value.text({
+       *     name: 'Label',
+       *     required: false,
+       *   })
+       * })
+       * displayAs: 'label',
+       * uniqueBy: null,
+       * ```
+       *
+       */
       displayAs?: null | string
+      /**
+       * @description The ID(s) of required fields on the inner object whose value(s) will be used to enforce uniqueness in the list.
+       * @example
+       * In this example, we use the `label` field to enforce uniqueness, meaning the label field must be unique from other entries.
+       *
+       * ```
+       * spec: Config.of({
+       *   label: Value.text({
+       *     name: 'Label',
+       *     required: { default: null },
+       *   })
+       *   pubkey: Value.text({
+       *     name: 'Pubkey',
+       *     required: { default: null },
+       *   })
+       * })
+       * displayAs: 'label',
+       * uniqueBy: 'label',
+       * ```
+       * @example
+       * In this example, we use the `label` field AND the `pubkey` field to enforce uniqueness, meaning both these fields must be unique from other entries.
+       *
+       * ```
+       * spec: Config.of({
+       *   label: Value.text({
+       *     name: 'Label',
+       *     required: { default: null },
+       *   })
+       *   pubkey: Value.text({
+       *     name: 'Pubkey',
+       *     required: { default: null },
+       *   })
+       * })
+       * displayAs: 'label',
+       * uniqueBy: { all: ['label', 'pubkey'] },
+       * ```
+       */
       uniqueBy?: null | UniqueBy
     },
   ) {
