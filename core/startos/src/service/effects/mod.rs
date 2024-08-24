@@ -109,7 +109,7 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
             ParentHandler::<C>::new()
                 .subcommand(
                     "launch",
-                    from_fn_blocking(subcontainer::launch::<ContainerCliContext>).no_display(),
+                    from_fn_blocking(subcontainer::launch).no_display(),
                 )
                 .subcommand(
                     "launch-init",
