@@ -6,6 +6,7 @@ import { Daemon } from "@start9labs/start-sdk/cjs/lib/mainFn/Daemon"
 import { Effects } from "../../../Models/Effects"
 import { off } from "node:process"
 import { CommandController } from "@start9labs/start-sdk/cjs/lib/mainFn/CommandController"
+import { asError } from "@start9labs/start-sdk/cjs/lib/util"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
 const EMBASSY_PROPERTIES_LOOP = 30 * 1000
@@ -15,8 +16,8 @@ const EMBASSY_PROPERTIES_LOOP = 30 * 1000
  * Also, this has an ability to clean itself up too if need be.
  */
 export class MainLoop {
-  get mainOverlay() {
-    return this.mainEvent?.daemon?.overlay
+  get mainSubContainerHandle() {
+    return this.mainEvent?.daemon?.subContainerHandle
   }
   private healthLoops?: {
     name: string
@@ -56,7 +57,7 @@ export class MainLoop {
       throw new Error("Unreachable")
     }
     const daemon = new Daemon(async () => {
-      const overlay = await DockerProcedureContainer.createOverlay(
+      const subcontainer = await DockerProcedureContainer.createSubContainer(
         effects,
         this.system.manifest.id,
         this.system.manifest.main,
@@ -64,11 +65,10 @@ export class MainLoop {
       )
       return CommandController.of()(
         this.effects,
-
-        { id: this.system.manifest.main.image },
+        subcontainer,
         currentCommand,
         {
-          overlay,
+          runAsInit: true,
           env: {
             TINI_SUBREAPER: "true",
           },
@@ -147,12 +147,20 @@ export class MainLoop {
     const start = Date.now()
     return Object.entries(manifest["health-checks"]).map(
       ([healthId, value]) => {
+        effects
+          .setHealth({
+            id: healthId,
+            name: value.name,
+            result: "starting",
+            message: null,
+          })
+          .catch((e) => console.error(asError(e)))
         const interval = setInterval(async () => {
           const actionProcedure = value
           const timeChanged = Date.now() - start
           if (actionProcedure.type === "docker") {
-            const overlay = actionProcedure.inject
-              ? this.mainOverlay
+            const subcontainer = actionProcedure.inject
+              ? this.mainSubContainerHandle
               : undefined
             // prettier-ignore
             const container = 
@@ -162,16 +170,12 @@ export class MainLoop {
                 actionProcedure,
                 manifest.volumes,
                 {
-                  overlay,
+                  subcontainer,
                 }
               )
             const executed = await container.exec(
-              [
-                actionProcedure.entrypoint,
-                ...actionProcedure.args,
-                JSON.stringify(timeChanged),
-              ],
-              {},
+              [actionProcedure.entrypoint, ...actionProcedure.args],
+              { input: JSON.stringify(timeChanged) },
             )
             if (executed.exitCode === 0) {
               await effects.setHealth({

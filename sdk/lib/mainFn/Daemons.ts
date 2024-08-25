@@ -7,7 +7,12 @@ import { TriggerInput } from "../trigger/TriggerInput"
 import { defaultTrigger } from "../trigger/defaultTrigger"
 import * as T from "../types"
 import { Mounts } from "./Mounts"
-import { CommandOptions, MountOptions, Overlay } from "../util/Overlay"
+import {
+  CommandOptions,
+  ExecSpawnable,
+  MountOptions,
+  SubContainer,
+} from "../util/SubContainer"
 import { splitCommand } from "../util/splitCommand"
 
 import { promisify } from "node:util"
@@ -23,7 +28,9 @@ export const cpExec = promisify(CP.exec)
 export const cpExecFile = promisify(CP.execFile)
 export type Ready = {
   display: string | null
-  fn: () => Promise<HealthCheckResult> | HealthCheckResult
+  fn: (
+    spawnable: ExecSpawnable,
+  ) => Promise<HealthCheckResult> | HealthCheckResult
   trigger?: Trigger
 }
 

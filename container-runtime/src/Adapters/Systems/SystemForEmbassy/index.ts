@@ -747,11 +747,17 @@ export class SystemForEmbassy implements System {
     })
     if (!actionProcedure) throw Error("Action not found")
     if (actionProcedure.type === "docker") {
+      const subcontainer = actionProcedure.inject
+        ? this.currentRunning?.mainSubContainerHandle
+        : undefined
       const container = await DockerProcedureContainer.of(
         effects,
         this.manifest.id,
         actionProcedure,
         this.manifest.volumes,
+        {
+          subcontainer,
+        },
       )
       return toActionResult(
         JSON.parse(
