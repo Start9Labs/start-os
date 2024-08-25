@@ -214,7 +214,67 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> => {
         return runCommand<Manifest>(effects, image, command, options)
       },
+      /**
+       * @description Use this function to create a static Action, including optional form input.
+       *
+       *   By convention, each Action should receive its own file.
+       *
+       * @param id
+       * @param metaData
+       * @param fn
+       * @returns
+       * @example
+       * In this example, we create an Action that prints a name to the console. We present a user
+       * with a form for optionally entering a temp name. If no temp name is provided, we use the name
+       * from the underlying `config.yaml` file. If no name is there, we use "Unknown". Then, we return
+       * a message to the user informing them what happened.
+       * 
+       * ```
+        import { sdk } from '../sdk'
+        const { Config, Value } = sdk
+        import { yamlFile } from '../file-models/config.yml'
 
+        const input = Config.of({
+          nameToPrint: Value.text({
+            name: 'Temp Name',
+            description: 'If no name is provided, the name from config will be used',
+            required: false,
+          }),
+        })
+
+        export const nameToLog = sdk.createAction(
+          // id
+          'nameToLogs',
+
+          // metadata
+          {
+            name: 'Name to Logs',
+            description: 'Prints "Hello [Name]" to the service logs.',
+            warning: null,
+            disabled: false,
+            input,
+            allowedStatuses: 'onlyRunning',
+            group: null,
+          },
+
+          // the execution function
+          async ({ effects, input }) => {
+            const name =
+              input.nameToPrint || (await yamlFile.read(effects))?.name || 'Unknown'
+
+            console.info(`Hello ${name}`)
+
+            return {
+              version: '0',
+              message: `"Hello ${name}" has been written to the service logs. Open your logs to view it.`,
+              value: name,
+              copyable: true,
+              qr: false,
+            }
+          },
+        )
+       * ```
+       */
       createAction: <
         ConfigType extends
           | Record<string, any>
@@ -301,7 +361,70 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         removeCallbackTypes<E>(effects)(
           new GetSslCertificate(effects, hostnames, algorithm),
         ),
+      /**
+       * @description Use this function to define a dynamic Action, including optional form input.
+       *
+       *   By convention, each Action should receive its own file.
+       * @param id
+       * @param metaData
+       * @param fn
+       * @param input
+       * @returns
+       * @example
+       * In this example, we create an Action that prints a name to the console. We present a user
+       * with a form for optionally entering a temp name. If no temp name is provided, we use the name
+       * from the underlying `config.yaml` file. If no name is there, we use "Unknown". Then, we return
+       * a message to the user informing them what happened.
+       * 
+       * ```
+        import { sdk } from '../sdk'
+        const { Config, Value } = sdk
+        import { yamlFile } from '../file-models/config.yml'
 
+        const input = Config.of({
+          nameToPrint: Value.text({
+            name: 'Temp Name',
+            description: 'If no name is provided, the name from config will be used',
+            required: false,
+          }),
+        })
+
+        export const nameToLogs = sdk.createDynamicAction(
+          // id
+          'nameToLogs',
+
+          //metadata
+          async ({ effects }) => {
+            return {
+              name: 'Name to Logs',
+              description: 'Prints "Hello [Name]" to the service logs.',
+              warning: null,
+              disabled: false,
+              allowedStatuses: 'onlyRunning',
+              group: null,
+            }
+          },
+
+          // the execution function
+          async ({ effects, input }) => {
+            const name =
+              input.nameToPrint || (await yamlFile.read(effects))?.name || 'Unknown'
+
+            console.info(`Hello ${name}`)
+
+            return {
+              version: '0',
+              message: `"Hello ${name}" has been written to the service logs. Open your logs to view it.`,
+              value: name,
+              copyable: true,
+              qr: false,
+            }
+          },
+          // spec for form input
+          input,
+        )
+       * ```
+       */
       createDynamicAction: <
         ConfigType extends
           | Record<string, any>
@@ -348,6 +471,11 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         runHealthScript,
       },
       patterns,
+      /**
+       * @description Use this function to list every Action offered by the service. Actions will be displayed in provided order.
+       *
+       * By convention, each Action should receive its own file in the "actions" directory.
+       */
       setupActions: (...createdActions: CreatedAction<any, any, any>[]) =>
         setupActions<Manifest, Store>(...createdActions),
       /**
