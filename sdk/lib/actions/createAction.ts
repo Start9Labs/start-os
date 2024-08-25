@@ -1,6 +1,5 @@
 import * as T from "../types"
 import { Config, ExtractConfigType } from "../config/builder/config"
-
 import { ActionMetadata, ActionResult, Effects, ExportedAction } from "../types"
 
 export type MaybeFn<Manifest extends T.Manifest, Store, Value> =

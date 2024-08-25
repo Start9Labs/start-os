@@ -1,6 +1,6 @@
 import { AddressInfo } from "../types"
 import { AddressReceipt } from "./AddressReceipt"
-import { Host, BindOptions, Scheme } from "./Host"
+import { Host, Scheme } from "./Host"
 import { ServiceInterfaceBuilder } from "./ServiceInterfaceBuilder"
 
 export class Origin<T extends Host> {
@@ -31,9 +31,9 @@ export class Origin<T extends Host> {
   }
 
   /**
-   * A function to register a group of origins (<PROTOCOL> :// <HOSTNAME> : <PORT>) with StartOS
+   * @description A function to register a group of origins (<PROTOCOL> :// <HOSTNAME> : <PORT>) with StartOS
    *
-   * The returned addressReceipt serves as proof that the addresses were registered
+   *   The returned addressReceipt serves as proof that the addresses were registered
    *
    * @param addressInfo
    * @returns

@@ -1,5 +1,4 @@
 import { Config } from "../config/builder/config"
-
 import * as T from "../types"
 import { AddressReceipt } from "./AddressReceipt"
 

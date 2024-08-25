@@ -104,10 +104,10 @@ export class Host {
    * In this example, we bind a previously created multi-host to port 80, then select the http protocol and request an external port of 8332.
    *
    * ```
-   * const uiMultiOrigin = await uiMulti.bindPort(80, {
-   *   protocol: 'http',
-   *   preferredExternalPort: 8332,
-   * })
+    const uiMultiOrigin = await uiMulti.bindPort(80, {
+      protocol: 'http',
+      preferredExternalPort: 8332,
+    })
    * ```
    */
   async bindPort(

@@ -308,18 +308,18 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
        * In this example, we create a standard web UI
        *
        * ```
-       * const ui = sdk.createInterface(effects, {
-       *   name: 'Web UI',
-       *   id: 'ui',
-       *   description: 'The primary web app for this service.',
-       *   type: 'ui',
-       *   hasPrimary: false,
-       *   masked: false,
-       *   schemeOverride: null,
-       *   username: null,
-       *   path: '',
-       *   search: {},
-       * })
+        const ui = sdk.createInterface(effects, {
+          name: 'Web UI',
+          id: 'ui',
+          description: 'The primary web app for this service.',
+          type: 'ui',
+          hasPrimary: false,
+          masked: false,
+          schemeOverride: null,
+          username: null,
+          path: '',
+          search: {},
+        })
        * ```
        */
       createInterface: (
@@ -472,9 +472,17 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       },
       patterns,
       /**
-       * @description Use this function to list every Action offered by the service. Actions will be displayed in provided order.
+       * @description Use this function to list every Action offered by the service. Actions will be displayed in the provided order.
        *
-       * By convention, each Action should receive its own file in the "actions" directory.
+       *   By convention, each Action should receive its own file in the "actions" directory.
+       * @example
+       * 
+       * ```
+        import { sdk } from '../sdk'
+        import { nameToLogs } from './nameToLogs'
+
+        export const { actions, actionsMetadata } = sdk.setupActions(nameToLogs)
+       * ```
        */
       setupActions: (...createdActions: CreatedAction<any, any, any>[]) =>
         setupActions<Manifest, Store>(...createdActions),
@@ -484,16 +492,16 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
        * In this example, we back up the entire "main" volume and nothing else.
        *
        * ```
-       * export const { createBackup, restoreBackup } = sdk.setupBackups(sdk.Backups.addVolume('main'))
+        export const { createBackup, restoreBackup } = sdk.setupBackups(sdk.Backups.addVolume('main'))
        * ```
        * @example
        * In this example, we back up the "main" and the "other" volume, but exclude hypothetical directory "excludedDir" from the "other".
        *
        * ```
-       * export const { createBackup, restoreBackup } = sdk.setupBackups(sdk.Backups
-       *   .addVolume('main')
-       *   .addVolume('other', { exclude: ['path/to/excludedDir'] })
-       * )
+        export const { createBackup, restoreBackup } = sdk.setupBackups(sdk.Backups
+          .addVolume('main')
+          .addVolume('other', { exclude: ['path/to/excludedDir'] })
+        )
        * ```
        */
       setupBackups: (...args: SetupBackupsParams<Manifest>) =>
@@ -513,19 +521,19 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
        * In this example, we read from an underlying config.json file belonging to the upstream service, as well as a value from the Store, and compose them into the expected config for display to the user.
        *
        * ```
-       * import { sdk } from '../sdk'
-       * import { jsonFile } from '../file-models/config.json'
-       * import { configSpec } from './spec'
-       *
-       * export const read = sdk.setupConfigRead(configSpec, async ({ effects }) => {
-       *   const configJson = await jsonFile.read(effects)
-       *   const store = await sdk.store.getOwn(effects, sdk.StorePath).once()
-       *
-       *   return {
-       *     name: configJson?.name || '',
-       *     makePublic: store?.makePublic || false
-       *   }
-       * })
+        import { sdk } from '../sdk'
+        import { jsonFile } from '../file-models/config.json'
+        import { configSpec } from './spec'
+        
+        export const read = sdk.setupConfigRead(configSpec, async ({ effects }) => {
+          const configJson = await jsonFile.read(effects)
+          const store = await sdk.store.getOwn(effects, sdk.StorePath).once()
+        
+          return {
+            name: configJson?.name || '',
+            makePublic: store?.makePublic || false
+          }
+        })
        * ```
        */
       setupConfigRead: <
@@ -544,30 +552,30 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
        * In this example, we accept user preferences for "name" and "makePublic" and save them to different places.
        * 
        * ```
-       * import { sdk } from '../sdk'
-       * import { setDependencies } from '../dependencies/dependencies'
-       * import { setInterfaces } from '../interfaces'
-       * import { configSpec } from './spec'
-       * import { jsonFile } from '../file-models/config.yml'
+        import { sdk } from '../sdk'
+        import { setDependencies } from '../dependencies/dependencies'
+        import { setInterfaces } from '../interfaces'
+        import { configSpec } from './spec'
+        import { jsonFile } from '../file-models/config.yml'
 
-       * export const save = sdk.setupConfigSave(
-       *   configSpec,
-       *   async ({ effects, input }) => {
-       *     await jsonFile.merge({ name: input.name }, effects)
-       *
-       *     await sdk.store.setOwn(
-       *       effects,
-       *       sdk.StorePath.makePublic,
-       *       input.makePublic,
-       *     ),
-       *
-       *     return {
-       *       interfacesReceipt: await setInterfaces({ effects, input }), // Plumbing. DO NOT EDIT.
-       *       dependenciesReceipt: await setDependencies({ effects, input }), // Plumbing. DO NOT EDIT.
-       *       restart: true, // optionally force a service restart on config save.
-       *     }
-       *   },
-       * )
+        export const save = sdk.setupConfigSave(
+          configSpec,
+          async ({ effects, input }) => {
+            await jsonFile.merge({ name: input.name }, effects)
+
+            await sdk.store.setOwn(
+              effects,
+              sdk.StorePath.makePublic,
+              input.makePublic,
+            ),
+
+            return {
+              interfacesReceipt: await setInterfaces({ effects, input }), // Plumbing. DO NOT EDIT.
+              dependenciesReceipt: await setDependencies({ effects, input }), // Plumbing. DO NOT EDIT.
+              restart: true, // optionally force a service restart on config save.
+            }
+          },
+        )
        * ```
        */
       setupConfigSave: <
@@ -606,36 +614,36 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
        * In this example, we create a static dependency on Hello World >=1.0.0:0, where Hello World must be running and passing its "webui" health check.
        *
        * ```
-       * export const setDependencies = sdk.setupDependencies(
-       *   async ({ effects, input }) => {
-       *     return {
-       *       'hello-world': sdk.Dependency.of({
-       *         type: 'running',
-       *         versionRange: VersionRange.parse('>=1.0.0:0'),
-       *         healthChecks: ['webui'],
-       *       }),
-       *     }
-       *   },
-       * )
+        export const setDependencies = sdk.setupDependencies(
+          async ({ effects, input }) => {
+            return {
+              'hello-world': sdk.Dependency.of({
+                type: 'running',
+                versionRange: VersionRange.parse('>=1.0.0:0'),
+                healthChecks: ['webui'],
+              }),
+            }
+          },
+        )
        * ```
        * @example
        * In this example, we create a conditional dependency on Hello World based on a hypothetical "needsWorld" boolean from config.
        *
        * ```
-       * export const setDependencies = sdk.setupDependencies(
-       *   async ({ effects, input }) => {
-       *     if (input.needsWorld) {
-       *       return {
-       *         'hello-world': sdk.Dependency.of({
-       *           type: 'running',
-       *           versionRange: VersionRange.parse('>=1.0.0:0'),
-       *           healthChecks: ['webui'],
-       *         }),
-       *       }
-       *     }
-       *     return {}
-       *   },
-       * )
+        export const setDependencies = sdk.setupDependencies(
+          async ({ effects, input }) => {
+            if (input.needsWorld) {
+              return {
+                'hello-world': sdk.Dependency.of({
+                  type: 'running',
+                  versionRange: VersionRange.parse('>=1.0.0:0'),
+                  healthChecks: ['webui'],
+                }),
+              }
+            }
+            return {}
+          },
+        )
        * ```
        */
       setupDependencies: <Input extends Record<string, any>>(
@@ -695,16 +703,16 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
        * In the this example, we bootstrap our Store with a random, 16-char admin password.
        *
        * ```
-       * const install = sdk.setupInstall(async ({ effects }) => {
-       *   await sdk.store.setOwn(
-       *     effects,
-       *     sdk.StorePath.adminPassword,
-       *     utils.getDefaultString({
-       *       charset: 'a-z,A-Z,1-9,!,@,$,%,&,*',
-       *       len: 16,
-       *     }),
-       *   )
-       * })
+        const install = sdk.setupInstall(async ({ effects }) => {
+          await sdk.store.setOwn(
+            effects,
+            sdk.StorePath.adminPassword,
+            utils.getDefaultString({
+              charset: 'a-z,A-Z,1-9,!,@,$,%,&,',
+              len: 16,
+            }),
+          )
+        })
        * ```
        */
       setupInstall: (fn: InstallFn<Manifest, Store>) => Install.of(fn),
@@ -720,68 +728,68 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
        * In this example, we create two UIs from one multi-host, and one API from another multi-host.
        *
        * ```
-       * export const setInterfaces = sdk.setupInterfaces(
-       *   configSpec,
-       *   async ({ effects, input }) => {
-       *     // ** UI multi-host **
-       *     const uiMulti = sdk.host.multi(effects, 'ui-multi')
-       *     const uiMultiOrigin = await uiMulti.bindPort(80, {
-       *       protocol: 'http',
-       *     })
-       *     // Primary UI
-       *     const primaryUi = sdk.createInterface(effects, {
-       *       name: 'Primary UI',
-       *       id: 'primary-ui',
-       *       description: 'The primary web app for this service.',
-       *       type: 'ui',
-       *       hasPrimary: false,
-       *       masked: false,
-       *       schemeOverride: null,
-       *       username: null,
-       *       path: '',
-       *       search: {},
-       *     })
-       *     // Admin UI
-       *     const adminUi = sdk.createInterface(effects, {
-       *       name: 'Admin UI',
-       *       id: 'admin-ui',
-       *       description: 'The admin web app for this service.',
-       *       type: 'ui',
-       *       hasPrimary: false,
-       *       masked: false,
-       *       schemeOverride: null,
-       *       username: null,
-       *       path: '/admin',
-       *       search: {},
-       *     })
-       *     // UI receipt
-       *     const uiReceipt = await uiMultiOrigin.export([primaryUi, adminUi])
-       *
-       *     // ** API multi-host **
-       *     const apiMulti = sdk.host.multi(effects, 'api-multi')
-       *     const apiMultiOrigin = await apiMulti.bindPort(5959, {
-       *       protocol: 'http',
-       *     })
-       *     // API
-       *     const api = sdk.createInterface(effects, {
-       *       name: 'Admin API',
-       *       id: 'api',
-       *       description: 'The advanced API for this service.',
-       *       type: 'api',
-       *       hasPrimary: false,
-       *       masked: false,
-       *       schemeOverride: null,
-       *       username: null,
-       *       path: '',
-       *       search: {},
-       *     })
-       *     // API receipt
-       *     const apiReceipt = await apiMultiOrigin.export([api])
-       *
-       *     // ** Return receipts **
-       *     return [uiReceipt, apiReceipt]
-       *   },
-       * )
+        export const setInterfaces = sdk.setupInterfaces(
+          configSpec,
+          async ({ effects, input }) => {
+            // ** UI multi-host **
+            const uiMulti = sdk.host.multi(effects, 'ui-multi')
+            const uiMultiOrigin = await uiMulti.bindPort(80, {
+              protocol: 'http',
+            })
+            // Primary UI
+            const primaryUi = sdk.createInterface(effects, {
+              name: 'Primary UI',
+              id: 'primary-ui',
+              description: 'The primary web app for this service.',
+              type: 'ui',
+              hasPrimary: false,
+              masked: false,
+              schemeOverride: null,
+              username: null,
+              path: '',
+              search: {},
+            })
+            // Admin UI
+            const adminUi = sdk.createInterface(effects, {
+              name: 'Admin UI',
+              id: 'admin-ui',
+              description: 'The admin web app for this service.',
+              type: 'ui',
+              hasPrimary: false,
+              masked: false,
+              schemeOverride: null,
+              username: null,
+              path: '/admin',
+              search: {},
+            })
+            // UI receipt
+            const uiReceipt = await uiMultiOrigin.export([primaryUi, adminUi])
+       
+            // ** API multi-host **
+            const apiMulti = sdk.host.multi(effects, 'api-multi')
+            const apiMultiOrigin = await apiMulti.bindPort(5959, {
+              protocol: 'http',
+            })
+            // API
+            const api = sdk.createInterface(effects, {
+              name: 'Admin API',
+              id: 'api',
+              description: 'The advanced API for this service.',
+              type: 'api',
+              hasPrimary: false,
+              masked: false,
+              schemeOverride: null,
+              username: null,
+              path: '',
+              search: {},
+            })
+            // API receipt
+            const apiReceipt = await apiMultiOrigin.export([api])
+       
+            // ** Return receipts **
+            return [uiReceipt, apiReceipt]
+          },
+        )
        * ```
        */
       setupInterfaces: <
@@ -806,20 +814,20 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
        * the UI as "Admin Password".
        *
        * ```
-       * export const properties = sdk.setupProperties(async ({ effects }) => {
-       *   const store = await sdk.store.getOwn(effects, sdk.StorePath).once()
-       *
-       *   return {
-       *     'Admin Password': {
-       *       type: 'string',
-       *       value: store.adminPassword,
-       *       description: 'Used for logging into the admin UI',
-       *       copyable: true,
-       *       masked: true,
-       *       qr: false,
-       *     },
-       *   }
-       * })
+        export const properties = sdk.setupProperties(async ({ effects }) => {
+          const store = await sdk.store.getOwn(effects, sdk.StorePath).once()
+       
+          return {
+            'Admin Password': {
+              type: 'string',
+              value: store.adminPassword,
+              description: 'Used for logging into the admin UI',
+              copyable: true,
+              masked: true,
+              qr: false,
+            },
+          }
+        })
        * ```
        */
       setupProperties:
@@ -863,22 +871,22 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * In this example, we define a config form with two value: name and makePublic.
          *
          * ```
-         * import { sdk } from '../sdk'
-         * const { Config, Value } = sdk
-         *
-         * export const configSpec = Config.of({
-         *   name: Value.text({
-         *     name: 'Name',
-         *     description:
-         *       'When you launch the Hello World UI, it will display "Hello [Name]"',
-         *     required: { default: 'World' },
-         *   }),
-         *   makePublic: Value.toggle({
-         *     name: 'Make Public',
-         *     description: 'Whether or not to expose the service to the network',
-         *     default: false,
-         *   }),
-         * })
+          import { sdk } from '../sdk'
+          const { Config, Value } = sdk
+         
+          export const configSpec = Config.of({
+            name: Value.text({
+              name: 'Name',
+              description:
+                'When you launch the Hello World UI, it will display "Hello [Name]"',
+              required: { default: 'World' },
+            }),
+            makePublic: Value.toggle({
+              name: 'Make Public',
+              description: 'Whether or not to expose the service to the network',
+              default: false,
+            }),
+          })
          * ```
          */
         of: <
@@ -905,15 +913,15 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * In this example, we require the `name` option in Hello World's config to be "Satoshi".
          *
          * ```
-         * export const helloWorldConfig = sdk.DependencyConfig.of({
-         *   localConfigSpec: configSpec,
-         *   remoteConfigSpec: helloWorldSpec,
-         *   dependencyConfig: async ({ effects, localConfig }) => {
-         *     return {
-         *       name: 'Satoshi',
-         *     }
-         *   },
-         * })
+          export const helloWorldConfig = sdk.DependencyConfig.of({
+            localConfigSpec: configSpec,
+            remoteConfigSpec: helloWorldSpec,
+            dependencyConfig: async ({ effects, localConfig }) => {
+              return {
+                name: 'Satoshi',
+              }
+            },
+          })
          * ```
          */
         of<
@@ -941,9 +949,9 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
            * In this example, we conditionally require the `name` option in Hello World's config to be "Satoshi" based on a hypothetical lovesSatoshi boolean from config.
            *
            * ```
-           * dependencyConfig: async ({ effects, localConfig }) => {
-           *   return localConfig.lovesSatoshi ? { name: 'Satoshi' } : {}
-           * },
+            dependencyConfig: async ({ effects, localConfig }) => {
+              return localConfig.lovesSatoshi ? { name: 'Satoshi' } : {}
+            },
            * ```
            */
           dependencyConfig: (options: {
@@ -990,14 +998,14 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
              * In this example, we use the value of the `label` field to display members of the list.
              *
              * ```
-             * spec: Config.of({
-             *   label: Value.text({
-             *     name: 'Label',
-             *     required: false,
-             *   })
-             * })
-             * displayAs: 'label',
-             * uniqueBy: null,
+              spec: Config.of({
+                label: Value.text({
+                  name: 'Label',
+                  required: false,
+                })
+              })
+              displayAs: 'label',
+              uniqueBy: null,
              * ```
              *
              */
@@ -1008,35 +1016,35 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
              * In this example, we use the `label` field to enforce uniqueness, meaning the label field must be unique from other entries.
              *
              * ```
-             * spec: Config.of({
-             *   label: Value.text({
-             *     name: 'Label',
-             *     required: { default: null },
-             *   })
-             *   pubkey: Value.text({
-             *     name: 'Pubkey',
-             *     required: { default: null },
-             *   })
-             * })
-             * displayAs: 'label',
-             * uniqueBy: 'label',
+              spec: Config.of({
+                label: Value.text({
+                  name: 'Label',
+                  required: { default: null },
+                })
+                pubkey: Value.text({
+                  name: 'Pubkey',
+                  required: { default: null },
+                })
+              })
+              displayAs: 'label',
+              uniqueBy: 'label',
              * ```
              * @example
              * In this example, we use the `label` field AND the `pubkey` field to enforce uniqueness, meaning both these fields must be unique from other entries.
              *
              * ```
-             * spec: Config.of({
-             *   label: Value.text({
-             *     name: 'Label',
-             *     required: { default: null },
-             *   })
-             *   pubkey: Value.text({
-             *     name: 'Pubkey',
-             *     required: { default: null },
-             *   })
-             * })
-             * displayAs: 'label',
-             * uniqueBy: { all: ['label', 'pubkey'] },
+              spec: Config.of({
+                label: Value.text({
+                  name: 'Label',
+                  required: { default: null },
+                })
+                pubkey: Value.text({
+                  name: 'Pubkey',
+                  required: { default: null },
+                })
+              })
+              displayAs: 'label',
+              uniqueBy: { all: ['label', 'pubkey'] },
              * ```
              */
             uniqueBy?: null | UniqueBy
@@ -1077,16 +1085,16 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * @description Displays a boolean toggle to enable/disable
          * @example
          * ```
-         * toggleExample: Value.toggle({
-         *   // required
-         *   name: 'Toggle Example',
-         *   default: true,
-         *
-         *   // optional
-         *   description: null,
-         *   warning: null,
-         *   immutable: false,
-         * }),
+          toggleExample: Value.toggle({
+            // required
+            name: 'Toggle Example',
+            default: true,
+         
+            // optional
+            description: null,
+            warning: null,
+            immutable: false,
+          }),
          * ```
          */
         toggle: Value.toggle,
@@ -1094,23 +1102,23 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * @description Displays a text input field
          * @example
          * ```
-         * textExample: Value.text({
-         *   // required
-         *   name: 'Text Example',
-         *   required: false,
-         *
-         *   // optional
-         *   description: null,
-         *   placeholder: null,
-         *   warning: null,
-         *   generate: null,
-         *   inputmode: 'text',
-         *   masked: false,
-         *   minLength: null,
-         *   maxLength: null,
-         *   patterns: [],
-         *   immutable: false,
-         * }),
+          textExample: Value.text({
+            // required
+            name: 'Text Example',
+            required: false,
+         
+            // optional
+            description: null,
+            placeholder: null,
+            warning: null,
+            generate: null,
+            inputmode: 'text',
+            masked: false,
+            minLength: null,
+            maxLength: null,
+            patterns: [],
+            immutable: false,
+          }),
          * ```
          */
         text: Value.text,
@@ -1118,19 +1126,19 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * @description Displays a large textarea field for long form entry.
          * @example
          * ```
-         * textareaExample: Value.textarea({
-         *   // required
-         *   name: 'Textarea Example',
-         *   required: false,
-         *
-         *   // optional
-         *   description: null,
-         *   placeholder: null,
-         *   warning: null,
-         *   minLength: null,
-         *   maxLength: null,
-         *   immutable: false,
-         * }),
+          textareaExample: Value.textarea({
+            // required
+            name: 'Textarea Example',
+            required: false,
+         
+            // optional
+            description: null,
+            placeholder: null,
+            warning: null,
+            minLength: null,
+            maxLength: null,
+            immutable: false,
+          }),
          * ```
          */
         textarea: Value.textarea,
@@ -1138,22 +1146,22 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * @description Displays a number input field
          * @example
          * ```
-         * numberExample: Value.number({
-         *   // required
-         *   name: 'Number Example',
-         *   required: false,
-         *   integer: true,
-         *
-         *   // optional
-         *   description: null,
-         *   placeholder: null,
-         *   warning: null,
-         *   min: null,
-         *   max: null,
-         *   immutable: false,
-         *   step: null,
-         *   units: null,
-         * }),
+          numberExample: Value.number({
+            // required
+            name: 'Number Example',
+            required: false,
+            integer: true,
+         
+            // optional
+            description: null,
+            placeholder: null,
+            warning: null,
+            min: null,
+            max: null,
+            immutable: false,
+            step: null,
+            units: null,
+          }),
          * ```
          */
         number: Value.number,
@@ -1161,16 +1169,16 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * @description Displays a browser-native color selector.
          * @example
          * ```
-         * colorExample: Value.color({
-         *   // required
-         *   name: 'Color Example',
-         *   required: false,
-         *
-         *   // optional
-         *   description: null,
-         *   warning: null,
-         *   immutable: false,
-         * }),
+          colorExample: Value.color({
+            // required
+            name: 'Color Example',
+            required: false,
+         
+            // optional
+            description: null,
+            warning: null,
+            immutable: false,
+          }),
          * ```
          */
         color: Value.color,
@@ -1178,19 +1186,19 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * @description Displays a browser-native date/time selector.
          * @example
          * ```
-         * datetimeExample: Value.datetime({
-         *   // required
-         *   name: 'Datetime Example',
-         *   required: false,
-         *
-         *   // optional
-         *   description: null,
-         *   warning: null,
-         *   immutable: false,
-         *   inputmode: 'datetime-local',
-         *   min: null,
-         *   max: null,
-         * }),
+          datetimeExample: Value.datetime({
+            // required
+            name: 'Datetime Example',
+            required: false,
+         
+            // optional
+            description: null,
+            warning: null,
+            immutable: false,
+            inputmode: 'datetime-local',
+            min: null,
+            max: null,
+          }),
          * ```
          */
         datetime: Value.datetime,
@@ -1198,21 +1206,21 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * @description Displays a select modal with radio buttons, allowing for a single selection.
          * @example
          * ```
-         * selectExample: Value.select({
-         *   // required
-         *   name: 'Select Example',
-         *   required: false,
-         *   values: {
-         *     radio1: 'Radio 1',
-         *     radio2: 'Radio 2',
-         *   },
-         *
-         *   // optional
-         *   description: null,
-         *   warning: null,
-         *   immutable: false,
-         *   disabled: false,
-         * }),
+          selectExample: Value.select({
+            // required
+            name: 'Select Example',
+            required: false,
+            values: {
+              radio1: 'Radio 1',
+              radio2: 'Radio 2',
+            },
+         
+            // optional
+            description: null,
+            warning: null,
+            immutable: false,
+            disabled: false,
+          }),
          * ```
          */
         select: Value.select,
@@ -1220,23 +1228,23 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * @description Displays a select modal with checkboxes, allowing for multiple selections.
          * @example
          * ```
-         * multiselectExample: Value.multiselect({
-         *   // required
-         *   name: 'Multiselect Example',
-         *   values: {
-         *     option1: 'Option 1',
-         *     option2: 'Option 2',
-         *   },
-         *   default: [],
-         *
-         *   // optional
-         *   description: null,
-         *   warning: null,
-         *   immutable: false,
-         *   disabled: false,
-         *   minlength: null,
-         *   maxLength: null,
-         * }),
+          multiselectExample: Value.multiselect({
+            // required
+            name: 'Multiselect Example',
+            values: {
+              option1: 'Option 1',
+              option2: 'Option 2',
+            },
+            default: [],
+         
+            // optional
+            description: null,
+            warning: null,
+            immutable: false,
+            disabled: false,
+            minlength: null,
+            maxLength: null,
+          }),
          * ```
          */
         multiselect: Value.multiselect,
@@ -1244,17 +1252,17 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * @description Display a collapsable grouping of additional fields, a "sub form". The second value is the config spec for the sub form.
          * @example
          * ```
-         * objectExample: Value.object(
-         *   {
-         *     // required
-         *     name: 'Object Example',
-         *
-         *     // optional
-         *     description: null,
-         *     warning: null,
-         *   },
-         *   Config.of({}),
-         * ),
+          objectExample: Value.object(
+            {
+              // required
+              name: 'Object Example',
+         
+              // optional
+              description: null,
+              warning: null,
+            },
+            Config.of({}),
+          ),
          * ```
          */
         object: Value.object,
@@ -1262,29 +1270,29 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * @description Displays a dropdown, allowing for a single selection. Depending on the selection, a different object ("sub form") is presented.
          * @example
          * ```
-         * unionExample: Value.union(
-         *   {
-         *     // required
-         *     name: 'Union Example',
-         *     required: false,
-         *
-         *     // optional
-         *     description: null,
-         *     warning: null,
-         *     disabled: false,
-         *     immutable: false,
-         *   },
-         *   Variants.of({
-         *     option1: {
-         *       name: 'Option 1',
-         *       spec: Config.of({}),
-         *     },
-         *     option2: {
-         *       name: 'Option 2',
-         *       spec: Config.of({}),
-         *     },
-         *   }),
-         * ),
+          unionExample: Value.union(
+            {
+              // required
+              name: 'Union Example',
+              required: false,
+         
+              // optional
+              description: null,
+              warning: null,
+              disabled: false,
+              immutable: false,
+            },
+            Variants.of({
+              option1: {
+                name: 'Option 1',
+                spec: Config.of({}),
+              },
+              option2: {
+                name: 'Option 2',
+                spec: Config.of({}),
+              },
+            }),
+          ),
          * ```
          */
         union: Value.union,
@@ -1395,12 +1403,12 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
                * @default []
                * @example
                * ```
-               * [
-               *   {
-               *     regex: "[a-z]",
-               *     description: "May only contain lower case letters from the English alphabet."
-               *   }
-               * ]
+                [
+                  {
+                    regex: "[a-z]",
+                    description: "May only contain lower case letters from the English alphabet."
+                  }
+                ]
                * ```
                */
               patterns?: Pattern[]
@@ -1539,11 +1547,11 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
                * @description A mapping of unique radio options to their human readable display format.
                * @example
                * ```
-               * {
-               *   radio1: "Radio 1"
-               *   radio2: "Radio 2"
-               *   radio3: "Radio 3"
-               * }
+                {
+                  radio1: "Radio 1"
+                  radio2: "Radio 2"
+                  radio3: "Radio 3"
+                }
                * ```
                */
               values: Record<string, string>
@@ -1574,11 +1582,11 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
                * @description A mapping of checkbox options to their human readable display format.
                * @example
                * ```
-               * {
-               *   option1: "Option 1"
-               *   option2: "Option 2"
-               *   option3: "Option 3"
-               * }
+                {
+                  option1: "Option 1"
+                  option2: "Option 2"
+                  option3: "Option 3"
+                }
                * ```
                */
               values: Record<string, string>

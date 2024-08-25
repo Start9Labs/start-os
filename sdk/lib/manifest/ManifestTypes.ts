@@ -53,28 +53,28 @@ export type SDKManifest = {
    * Using dockerTag...
    *
    * ```
-   * images: {
-   *   main: {
-   *     source: {
-   *       dockerTag: 'start9/hello-world',
-   *     },
-   *   },
-   * },
+    images: {
+      main: {
+        source: {
+          dockerTag: 'start9/hello-world',
+        },
+      },
+    },
    * ```
    * @example
    * Using dockerBuild...
    *
    * ```
-   * images: {
-   *   main: {
-   *     source: {
-   *       dockerBuild: {
-   *         dockerFile: '../Dockerfile',
-   *         workdir: '.',
-   *       },
-   *     },
-   *   },
-   * },
+    images: {
+      main: {
+        source: {
+          dockerBuild: {
+            dockerFile: '../Dockerfile',
+            workdir: '.',
+          },
+        },
+      },
+    },
    * ```
    */
   readonly images: Record<ImageId, SDKImageConfig>
@@ -114,13 +114,13 @@ export type SDKManifest = {
    * @property {string} s9pk - TODO Aiden what goes here?
    * @example
    * ```
-   * dependencies: {
-   *   'hello-world': {
-   *     description: 'A moon needs a world',
-   *     optional: false,
-   *     s9pk: '',
-   *   },
-   * },
+    dependencies: {
+      'hello-world': {
+        description: 'A moon needs a world',
+        optional: false,
+        s9pk: '',
+      },
+    },
    * ```
    */
   readonly dependencies: Record<string, ManifestDependency>
@@ -132,15 +132,15 @@ export type SDKManifest = {
    * @property {string[]} arch - List of supported arches
    * @example
    * ```
-   * TODO Aiden verify below and provide examples for devices
-   * hardwareRequirements: {
-   *   devices: [
-   *     { class: 'display', value: '' },
-   *     { class: 'processor', value: '' },
-   *   ],
-   *   ram: 8192,
-   *   arch: ['x86-64'],
-   * },
+    TODO Aiden verify below and provide examples for devices
+    hardwareRequirements: {
+      devices: [
+        { class: 'display', value: '' },
+        { class: 'processor', value: '' },
+      ],
+      ram: 8192,
+      arch: ['x86-64'],
+    },
    * ```
    */
   readonly hardwareRequirements?: {

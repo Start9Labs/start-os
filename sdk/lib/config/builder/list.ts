@@ -38,12 +38,12 @@ export class List<Type, Store> {
        * @default []
        * @example
        * ```
-       * [
-       *   {
-       *     regex: "[a-z]",
-       *     description: "May only contain lower case letters from the English alphabet."
-       *   }
-       * ]
+        [
+          {
+            regex: "[a-z]",
+            description: "May only contain lower case letters from the English alphabet."
+          }
+        ]
        * ```
        */
       patterns?: Pattern[]

@@ -154,12 +154,12 @@ export class Value<Type, Store> {
      * @default []
      * @example
      * ```
-     * [
-     *   {
-     *     regex: "[a-z]",
-     *     description: "May only contain lower case letters from the English alphabet."
-     *   }
-     * ]
+      [
+        {
+          regex: "[a-z]",
+          description: "May only contain lower case letters from the English alphabet."
+        }
+      ]
      * ```
      */
     patterns?: Pattern[]
@@ -542,11 +542,11 @@ export class Value<Type, Store> {
      * @description A mapping of unique radio options to their human readable display format.
      * @example
      * ```
-     * {
-     *   radio1: "Radio 1"
-     *   radio2: "Radio 2"
-     *   radio3: "Radio 3"
-     * }
+      {
+        radio1: "Radio 1"
+        radio2: "Radio 2"
+        radio3: "Radio 3"
+      }
      * ```
      */
     values: Values
@@ -615,11 +615,11 @@ export class Value<Type, Store> {
      * @description A mapping of checkbox options to their human readable display format.
      * @example
      * ```
-     * {
-     *   option1: "Option 1"
-     *   option2: "Option 2"
-     *   option3: "Option 3"
-     * }
+      {
+        option1: "Option 1"
+        option2: "Option 2"
+        option3: "Option 3"
+      }
      * ```
      */
     values: Values

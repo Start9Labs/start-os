@@ -9,10 +9,10 @@ export type ExposedStorePaths = string[] & Affine<"ExposedStorePaths">
  * In this example, we expose the hypothetical Store values "adminPassword" and "nameLastUpdatedAt".
  *
  * ```
- * export const exposedStore = setupExposeStore<Store>((pathBuilder) => [
- *   pathBuilder.adminPassword
- *   pathBuilder.nameLastUpdatedAt,
- * ])
+  export const exposedStore = setupExposeStore<Store>((pathBuilder) => [
+    pathBuilder.adminPassword
+    pathBuilder.nameLastUpdatedAt,
+  ])
  * ```
  */
 export const setupExposeStore = <Store extends Record<string, any>>(
