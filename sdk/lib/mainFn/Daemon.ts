@@ -1,6 +1,6 @@
 import * as T from "../types"
 import { asError } from "../util/asError"
-import { ExecSpawnable, MountOptions, Overlay } from "../util/Overlay"
+import { ExecSpawnable, MountOptions, SubContainer } from "../util/SubContainer"
 import { CommandController } from "./CommandController"
 
 const TIMEOUT_INCREMENT_MS = 1000
@@ -14,20 +14,21 @@ export class Daemon {
   private commandController: CommandController | null = null
   private shouldBeRunning = false
   constructor(private startCommand: () => Promise<CommandController>) {}
-  get overlay(): undefined | ExecSpawnable {
-    return this.commandController?.nonDestroyableOverlay
+  get subContainerHandle(): undefined | ExecSpawnable {
+    return this.commandController?.subContainerHandle
   }
   static of<Manifest extends T.Manifest>() {
     return async <A extends string>(
       effects: T.Effects,
-      imageId: {
-        id: keyof Manifest["images"] & T.ImageId
-        sharedRun?: boolean
-      },
+      subcontainer:
+        | {
+            id: keyof Manifest["images"] & T.ImageId
+            sharedRun?: boolean
+          }
+        | SubContainer,
       command: T.CommandType,
       options: {
         mounts?: { path: string; options: MountOptions }[]
-        overlay?: Overlay
         env?:
           | {
               [variable: string]: string
@@ -41,7 +42,12 @@ export class Daemon {
       },
     ) => {
       const startCommand = () =>
-        CommandController.of<Manifest>()(effects, imageId, command, options)
+        CommandController.of<Manifest>()(
+          effects,
+          subcontainer,
+          command,
+          options,
+        )
       return new Daemon(startCommand)
     }
   }

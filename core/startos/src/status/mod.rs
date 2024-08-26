@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use imbl::OrdMap;
@@ -8,8 +7,8 @@ use ts_rs::TS;
 
 use self::health_check::HealthCheckId;
 use crate::prelude::*;
+use crate::service::start_stop::StartStop;
 use crate::status::health_check::NamedHealthCheckResult;
-use crate::util::GeneralGuard;
 
 pub mod health_check;
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
@@ -24,25 +23,24 @@ pub struct Status {
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TS)]
 #[serde(tag = "status")]
 #[serde(rename_all = "camelCase")]
+#[serde(rename_all_fields = "camelCase")]
 pub enum MainStatus {
     Stopped,
     Restarting,
     Restoring,
     Stopping,
-    Starting,
-    #[serde(rename_all = "camelCase")]
+    Starting {
+        #[ts(as = "BTreeMap<HealthCheckId, NamedHealthCheckResult>")]
+        health: OrdMap<HealthCheckId, NamedHealthCheckResult>,
+    },
     Running {
         #[ts(type = "string")]
         started: DateTime<Utc>,
         #[ts(as = "BTreeMap<HealthCheckId, NamedHealthCheckResult>")]
         health: OrdMap<HealthCheckId, NamedHealthCheckResult>,
     },
-    #[serde(rename_all = "camelCase")]
     BackingUp {
-        #[ts(type = "string | null")]
-        started: Option<DateTime<Utc>>,
-        #[ts(as = "BTreeMap<HealthCheckId, NamedHealthCheckResult>")]
-        health: OrdMap<HealthCheckId, NamedHealthCheckResult>,
+        on_complete: StartStop,
     },
 }
 impl MainStatus {
@@ -50,60 +48,37 @@ impl MainStatus {
         match self {
             MainStatus::Starting { .. }
             | MainStatus::Running { .. }
+            | MainStatus::Restarting
             | MainStatus::BackingUp {
-                started: Some(_), ..
+                on_complete: StartStop::Start,
             } => true,
             MainStatus::Stopped
             | MainStatus::Restoring
             | MainStatus::Stopping { .. }
-            | MainStatus::Restarting
-            | MainStatus::BackingUp { started: None, .. } => false,
+            | MainStatus::BackingUp {
+                on_complete: StartStop::Stop,
+            } => false,
         }
     }
-    // pub fn stop(&mut self) {
-    //     match self {
-    //         MainStatus::Starting { .. } | MainStatus::Running { .. } => {
-    //             *self = MainStatus::Stopping;
-    //         }
-    //         MainStatus::BackingUp { started, .. } => {
-    //             *started = None;
-    //         }
-    //         MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => (),
-    //     }
-    // }
-    pub fn started(&self) -> Option<DateTime<Utc>> {
-        match self {
-            MainStatus::Running { started, .. } => Some(*started),
-            MainStatus::BackingUp { started, .. } => *started,
-            MainStatus::Stopped => None,
-            MainStatus::Restoring => None,
-            MainStatus::Restarting => None,
-            MainStatus::Stopping { .. } => None,
-            MainStatus::Starting { .. } => None,
+
+    pub fn backing_up(self) -> Self {
+        MainStatus::BackingUp {
+            on_complete: if self.running() {
+                StartStop::Start
+            } else {
+                StartStop::Stop
+            },
         }
-    }
-    pub fn backing_up(&self) -> Self {
-        let (started, health) = match self {
-            MainStatus::Starting { .. } => (Some(Utc::now()), Default::default()),
-            MainStatus::Running { started, health } => (Some(started.clone()), health.clone()),
-            MainStatus::Stopped
-            | MainStatus::Stopping { .. }
-            | MainStatus::Restoring
-            | MainStatus::Restarting => (None, Default::default()),
-            MainStatus::BackingUp { .. } => return self.clone(),
-        };
-        MainStatus::BackingUp { started, health }
     }
 
     pub fn health(&self) -> Option<&OrdMap<HealthCheckId, NamedHealthCheckResult>> {
         match self {
-            MainStatus::Running { health, .. } => Some(health),
-            MainStatus::BackingUp { health, .. } => Some(health),
-            MainStatus::Stopped
+            MainStatus::Running { health, .. } | MainStatus::Starting { health } => Some(health),
+            MainStatus::BackingUp { .. }
+            | MainStatus::Stopped
             | MainStatus::Restoring
             | MainStatus::Stopping { .. }
             | MainStatus::Restarting => None,
-            MainStatus::Starting { .. } => None,
         }
     }
 }

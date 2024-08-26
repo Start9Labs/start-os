@@ -61,7 +61,7 @@ import {
 } from "./util/getServiceInterface"
 import { getServiceInterfaces } from "./util/getServiceInterfaces"
 import { getStore } from "./store/getStore"
-import { CommandOptions, MountOptions, Overlay } from "./util/Overlay"
+import { CommandOptions, MountOptions, SubContainer } from "./util/SubContainer"
 import { splitCommand } from "./util/splitCommand"
 import { Mounts } from "./mainFn/Mounts"
 import { Dependency } from "./Dependency"
@@ -139,7 +139,51 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       }]?: Dependency
     }
 
+    type NestedEffects = "subcontainer" | "store"
+    type InterfaceEffects =
+      | "getServiceInterface"
+      | "listServiceInterfaces"
+      | "exportServiceInterface"
+      | "clearServiceInterfaces"
+      | "bind"
+      | "getHostInfo"
+      | "getPrimaryUrl"
+    type MainUsedEffects = "setMainStatus" | "setHealth"
+    type AlreadyExposed = "getSslCertificate" | "getSystemSmtp"
+
+    // prettier-ignore
+    type StartSdkEffectWrapper = {
+      [K in keyof Omit<Effects, NestedEffects | InterfaceEffects | MainUsedEffects| AlreadyExposed>]: (effects: Effects, ...args: Parameters<Effects[K]>) => ReturnType<Effects[K]>
+    }
+    const startSdkEffectWrapper: StartSdkEffectWrapper = {
+      executeAction: (effects, ...args) => effects.executeAction(...args),
+      exportAction: (effects, ...args) => effects.exportAction(...args),
+      clearActions: (effects, ...args) => effects.clearActions(...args),
+      getConfigured: (effects, ...args) => effects.getConfigured(...args),
+      setConfigured: (effects, ...args) => effects.setConfigured(...args),
+      restart: (effects, ...args) => effects.restart(...args),
+      setDependencies: (effects, ...args) => effects.setDependencies(...args),
+      checkDependencies: (effects, ...args) =>
+        effects.checkDependencies(...args),
+      mount: (effects, ...args) => effects.mount(...args),
+      getInstalledPackages: (effects, ...args) =>
+        effects.getInstalledPackages(...args),
+      exposeForDependents: (effects, ...args) =>
+        effects.exposeForDependents(...args),
+      getServicePortForward: (effects, ...args) =>
+        effects.getServicePortForward(...args),
+      clearBindings: (effects, ...args) => effects.clearBindings(...args),
+      getContainerIp: (effects, ...args) => effects.getContainerIp(...args),
+      getSslKey: (effects, ...args) => effects.getSslKey(...args),
+      setDataVersion: (effects, ...args) => effects.setDataVersion(...args),
+      getDataVersion: (effects, ...args) => effects.getDataVersion(...args),
+      shutdown: (effects, ...args) => effects.shutdown(...args),
+      getDependencies: (effects, ...args) => effects.getDependencies(...args),
+    }
+
     return {
+      ...startSdkEffectWrapper,
+
       checkDependencies: checkDependencies as <
         DependencyId extends keyof Manifest["dependencies"] &
           PackageId = keyof Manifest["dependencies"] & PackageId,
@@ -734,8 +778,11 @@ export async function runCommand<Manifest extends T.Manifest>(
   },
 ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
   const commands = splitCommand(command)
-  return Overlay.with(effects, image, options.mounts || [], (overlay) =>
-    overlay.exec(commands),
+  return SubContainer.with(
+    effects,
+    image,
+    options.mounts || [],
+    (subcontainer) => subcontainer.exec(commands),
   )
 }
 function nullifyProperties(value: T.SdkPropertiesReturn): T.PropertiesReturn {

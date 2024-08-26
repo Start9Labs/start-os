@@ -268,9 +268,10 @@ impl LxcContainer {
                     .invoke(ErrorKind::Docker)
                     .await?,
             )?;
-            let out_str = output.trim();
-            if !out_str.is_empty() {
-                return Ok(out_str.parse()?);
+            for line in output.lines() {
+                if let Ok(ip) = line.trim().parse() {
+                    return Ok(ip);
+                }
             }
             if start.elapsed() > CONTAINER_DHCP_TIMEOUT {
                 return Err(Error::new(

@@ -1,5 +1,5 @@
 import { Effects } from "../../types"
-import { Overlay } from "../../util/Overlay"
+import { SubContainer } from "../../util/SubContainer"
 import { stringFromStdErrOut } from "../../util/stringFromStdErrOut"
 import { HealthCheckResult } from "./HealthCheckResult"
 import { timeoutPromise } from "./index"
@@ -13,7 +13,7 @@ import { timeoutPromise } from "./index"
  */
 export const runHealthScript = async (
   runCommand: string[],
-  overlay: Overlay,
+  subcontainer: SubContainer,
   {
     timeout = 30000,
     errorMessage = `Error while running command: ${runCommand}`,
@@ -22,7 +22,7 @@ export const runHealthScript = async (
   } = {},
 ): Promise<HealthCheckResult> => {
   const res = await Promise.race([
-    overlay.exec(runCommand),
+    subcontainer.exec(runCommand),
     timeoutPromise(timeout),
   ]).catch((e) => {
     console.warn(errorMessage)
