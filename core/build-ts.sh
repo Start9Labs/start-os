@@ -2,11 +2,15 @@
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-set -e
+set -ea
 shopt -s expand_aliases
 
 if [ -z "$ARCH" ]; then
 	ARCH=$(uname -m)
+fi
+
+if [ "$ARCH" = "arm64" ]; then
+  ARCH="aarch64"
 fi
 
 USE_TTY=
