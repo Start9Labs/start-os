@@ -30,4 +30,7 @@ alias 'rust-musl-builder'='docker run $USE_TTY --rm -e "RUSTFLAGS=$RUSTFLAGS" -v
 
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-rust-musl-builder sh -c "cd core && cargo build --release --no-default-features --features cli,daemon,$FEATURES --locked --bin startbox --target=$ARCH-unknown-linux-musl && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"
+rust-musl-builder sh -c "cd core && cargo build --release --no-default-features --features cli,daemon,$FEATURES --locked --bin startbox --target=$ARCH-unknown-linux-musl"
+if [ "$(stat -c '%u' core/target/$ARCH-unknown-linux-musl/release/startbox)" != "$UID" ]; then
+	rust-musl-builder sh -c "cd core && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"
+fi

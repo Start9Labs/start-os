@@ -30,4 +30,7 @@ alias 'rust-musl-builder'='docker run $USE_TTY --rm -e "RUSTFLAGS=$RUSTFLAGS" -v
 
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-rust-musl-builder sh -c "cd core && cargo test --release --features=test,$FEATURES 'export_bindings_' && chown -R $UID:$UID startos/bindings && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"
+rust-musl-builder sh -c "cd core && cargo test --release --features=test,$FEATURES 'export_bindings_' && chown \$UID:\$UID startos/bindings"
+if [ "$(stat -c '%u' core/startos/bindings)" != "$UID" ]; then
+	rust-musl-builder sh -c "cd core && chown -R $UID:$UID startos/bindings && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"
+fi
