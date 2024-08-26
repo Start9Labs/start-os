@@ -6,6 +6,7 @@ import {
   EMPTY,
   endWith,
   ReplaySubject,
+  shareReplay,
   Subject,
   switchMap,
 } from 'rxjs'
@@ -35,6 +36,7 @@ export class SideloadService {
           endWith(null),
         ),
     ),
+    shareReplay(1),
   )
 
   constructor(
