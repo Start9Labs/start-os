@@ -31,6 +31,6 @@ alias 'rust-musl-builder'='docker run $USE_TTY --rm -e "RUSTFLAGS=$RUSTFLAGS" -v
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
 rust-musl-builder sh -c "apt-get update && apt-get install -y rsync && cd core && cargo test --release --features=test,$FEATURES --workspace --locked --target=$ARCH-unknown-linux-musl -- --skip export_bindings_ && chown \$UID:\$UID target"
-if [ "$(stat -c '%u' core/target)" != "$UID" ]; then
+if [ "$(ls -nd core/target | awk '{ print $3 }')" != "$UID" ]; then
 	rust-musl-builder sh -c "cd core && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"
 fi

@@ -265,7 +265,7 @@ pub fn launch(
     }
 }
 
-pub fn launch_init<C: Context>(_: C, params: ExecParams) -> Result<(), Error> {
+pub fn launch_init(_: ContainerCliContext, params: ExecParams) -> Result<(), Error> {
     nix::mount::mount(
         Some("proc"),
         &params.chroot.join("proc"),
@@ -284,8 +284,8 @@ pub fn launch_init<C: Context>(_: C, params: ExecParams) -> Result<(), Error> {
     }
 }
 
-pub fn exec<C: Context>(
-    _: C,
+pub fn exec(
+    _: ContainerCliContext,
     ExecParams {
         env,
         workdir,
@@ -387,6 +387,6 @@ pub fn exec<C: Context>(
     }
 }
 
-pub fn exec_command<C: Context>(_: C, params: ExecParams) -> Result<(), Error> {
+pub fn exec_command(_: ContainerCliContext, params: ExecParams) -> Result<(), Error> {
     params.exec()
 }
