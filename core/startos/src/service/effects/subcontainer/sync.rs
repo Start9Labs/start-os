@@ -14,6 +14,7 @@ use tokio::sync::oneshot;
 use unshare::Command as NSCommand;
 
 use crate::service::effects::prelude::*;
+use crate::service::effects::ContainerCliContext;
 
 const FWD_SIGNALS: &[c_int] = &[
     SIGABRT, SIGALRM, SIGCONT, SIGHUP, SIGINT, SIGIO, SIGPIPE, SIGPROF, SIGQUIT, SIGTERM, SIGTRAP,
@@ -130,8 +131,8 @@ impl ExecParams {
     }
 }
 
-pub fn launch<C: Context>(
-    _: C,
+pub fn launch(
+    _: ContainerCliContext,
     ExecParams {
         env,
         workdir,
@@ -141,6 +142,8 @@ pub fn launch<C: Context>(
     }: ExecParams,
 ) -> Result<(), Error> {
     use unshare::{Namespace, Stdio};
+
+    use crate::service::cli::ContainerCliContext;
     let mut sig = signal_hook::iterator::Signals::new(FWD_SIGNALS)?;
     let mut cmd = NSCommand::new("/usr/bin/start-cli");
     cmd.arg("subcontainer").arg("launch-init");
@@ -262,7 +265,7 @@ pub fn launch<C: Context>(
     }
 }
 
-pub fn launch_init<C: Context>(_: C, params: ExecParams) -> Result<(), Error> {
+pub fn launch_init(_: ContainerCliContext, params: ExecParams) -> Result<(), Error> {
     nix::mount::mount(
         Some("proc"),
         &params.chroot.join("proc"),
@@ -281,8 +284,8 @@ pub fn launch_init<C: Context>(_: C, params: ExecParams) -> Result<(), Error> {
     }
 }
 
-pub fn exec<C: Context>(
-    _: C,
+pub fn exec(
+    _: ContainerCliContext,
     ExecParams {
         env,
         workdir,
@@ -384,6 +387,6 @@ pub fn exec<C: Context>(
     }
 }
 
-pub fn exec_command<C: Context>(_: C, params: ExecParams) -> Result<(), Error> {
+pub fn exec_command(_: ContainerCliContext, params: ExecParams) -> Result<(), Error> {
     params.exec()
 }

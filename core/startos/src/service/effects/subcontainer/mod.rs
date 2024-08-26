@@ -8,9 +8,15 @@ use crate::rpc_continuations::Guid;
 use crate::service::effects::prelude::*;
 use crate::util::Invoke;
 
+#[cfg(feature = "container-runtime")]
 mod sync;
 
+#[cfg(not(feature = "container-runtime"))]
+mod sync_dummy;
+
 pub use sync::*;
+#[cfg(not(feature = "container-runtime"))]
+use sync_dummy as sync;
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]

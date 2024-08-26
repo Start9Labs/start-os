@@ -21,7 +21,7 @@ pub struct Manifest {
     #[serde(default)]
     pub git_hash: Option<GitHash>,
     pub title: String,
-    pub version: exver::emver::Version,
+    pub version: String,
     pub description: Description,
     #[serde(default)]
     pub assets: Assets,
