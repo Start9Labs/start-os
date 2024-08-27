@@ -38,8 +38,10 @@ import { ToHumanCronPipe } from '../pipes/to-human-cron.pipe'
         (click)="selectTarget()"
       >
         Target
-        <tui-badge [appearance]="target()?.type ? 'success' : 'warning'">
-          {{ target()?.type || 'Select target' }}
+        <tui-badge
+          [appearance]="target()?.[job.targetId]?.type ? 'success' : 'warning'"
+        >
+          {{ target()?.[job.targetId]?.type || 'Select target' }}
         </tui-badge>
       </button>
       <button
@@ -114,9 +116,7 @@ export class BackupsEditModal {
     inject<TuiDialogContext<BackupJob, BackupJobBuilder>>(POLYMORPHEUS_CONTEXT)
 
   readonly target = toSignal(
-    from(this.api.getBackupTargets({})).pipe(
-      map(({ saved }) => saved[this.job.targetId]),
-    ),
+    from(this.api.getBackupTargets({})).pipe(map(({ saved }) => saved)),
   )
 
   get job() {
