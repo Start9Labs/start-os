@@ -1,15 +1,6 @@
 import { Injectable } from '@angular/core'
-import { ErrorService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import {
-  catchError,
-  EMPTY,
-  endWith,
-  ReplaySubject,
-  shareReplay,
-  Subject,
-  switchMap,
-} from 'rxjs'
+import { endWith, ReplaySubject, shareReplay, Subject, switchMap } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Injectable({
@@ -28,21 +19,12 @@ export class SideloadService {
             next: () => this.websocketConnected$.next(''),
           },
         })
-        .pipe(
-          catchError(err => {
-            this.errorService.handleError(err)
-            return EMPTY
-          }),
-          endWith(null),
-        ),
+        .pipe(endWith(null)),
     ),
     shareReplay(1),
   )
 
-  constructor(
-    private readonly api: ApiService,
-    private readonly errorService: ErrorService,
-  ) {}
+  constructor(private readonly api: ApiService) {}
 
   followProgress(guid: string) {
     this.guid$.next(guid)
