@@ -6,7 +6,7 @@ import { BackupTargetType } from 'src/app/services/api/api.types'
   standalone: true,
 })
 export class GetBackupIconPipe implements PipeTransform {
-  transform(type: BackupTargetType) {
+  transform(type: BackupTargetType = 'disk') {
     switch (type) {
       case 'cifs':
         return '@tui.folder'

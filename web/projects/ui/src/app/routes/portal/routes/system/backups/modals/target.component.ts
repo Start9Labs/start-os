@@ -1,10 +1,11 @@
+import { KeyValuePipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
   inject,
   signal,
 } from '@angular/core'
-import { ErrorService, Exver, isEmptyObject } from '@start9labs/shared'
+import { ErrorService, Exver } from '@start9labs/shared'
 import {
   TuiButton,
   TuiDialogContext,
@@ -17,15 +18,15 @@ import {
   POLYMORPHEUS_CONTEXT,
   PolymorpheusComponent,
 } from '@taiga-ui/polymorpheus'
+import { PatchDB } from 'patch-db-client'
 import { BackupTarget } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
+import { getServerInfo } from 'src/app/utils/get-server-info'
 import { BackupsStatusComponent } from '../components/status.component'
 import { GetDisplayInfoPipe } from '../pipes/get-display-info.pipe'
 import { BackupType } from '../types/backup-type'
 import { TARGETS } from './targets.component'
-import { getServerInfo } from 'src/app/utils/get-server-info'
-import { PatchDB } from 'patch-db-client'
-import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
   template: `
@@ -33,20 +34,20 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       <tui-loader size="l" [textContent]="text" />
     } @else {
       <h3 class="g-title">Saved Targets</h3>
-      @for (target of targets; track $index) {
+      @for (target of targets | keyvalue; track $index) {
         <button
           class="g-action"
-          [disabled]="isDisabled(target)"
-          (click)="context.completeWith(target)"
+          [disabled]="isDisabled(target.value)"
+          (click)="select(target.value, target.key)"
         >
-          @if (target | getDisplayInfo; as displayInfo) {
+          @if (target.value | getDisplayInfo; as displayInfo) {
             <tui-icon [icon]="displayInfo.icon" />
             <div>
               <strong>{{ displayInfo.name }}</strong>
               <backups-status
                 [type]="context.data.type"
-                [mountable]="target.mountable"
-                [hasBackup]="hasBackup(target)"
+                [mountable]="target.value.mountable"
+                [hasBackup]="hasBackup(target.value)"
               />
               <div [style.color]="'var(--tui-text-secondary'">
                 {{ displayInfo.description }}
@@ -70,6 +71,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     TuiIcon,
     BackupsStatusComponent,
     GetDisplayInfoPipe,
+    KeyValuePipe,
   ],
 })
 export class BackupsTargetModal {
@@ -80,9 +82,9 @@ export class BackupsTargetModal {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
   readonly context =
-    inject<TuiDialogContext<BackupTarget, { type: BackupType }>>(
-      POLYMORPHEUS_CONTEXT,
-    )
+    inject<
+      TuiDialogContext<BackupTarget & { id: string }, { type: BackupType }>
+    >(POLYMORPHEUS_CONTEXT)
 
   readonly loading = signal(true)
   readonly text =
@@ -91,7 +93,7 @@ export class BackupsTargetModal {
       : 'Loading Backup Sources'
 
   serverId = ''
-  targets: BackupTarget[] = []
+  targets: Record<string, BackupTarget> = {}
 
   async ngOnInit() {
     try {
@@ -126,6 +128,10 @@ export class BackupsTargetModal {
     this.dialogs
       .open(TARGETS, { label: 'Backup Targets', size: 'l' })
       .subscribe()
+  }
+
+  select(target: BackupTarget, id: string) {
+    this.context.completeWith({ ...target, id })
   }
 }
 

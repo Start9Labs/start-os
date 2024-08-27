@@ -1,3 +1,4 @@
+import { toSignal } from '@angular/core/rxjs-interop'
 import {
   TuiWrapperModule,
   TuiInputModule,
@@ -13,6 +14,7 @@ import {
   POLYMORPHEUS_CONTEXT,
   PolymorpheusComponent,
 } from '@taiga-ui/polymorpheus'
+import { from, map } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { BackupJob, BackupTarget } from 'src/app/services/api/api.types'
 import { TARGET, TARGET_CREATE } from './target.component'
@@ -36,8 +38,8 @@ import { ToHumanCronPipe } from '../pipes/to-human-cron.pipe'
         (click)="selectTarget()"
       >
         Target
-        <tui-badge [appearance]="job.target.type ? 'success' : 'warning'">
-          {{ job.target.type || 'Select target' }}
+        <tui-badge [appearance]="target()?.type ? 'success' : 'warning'">
+          {{ target()?.type || 'Select target' }}
         </tui-badge>
       </button>
       <button
@@ -111,6 +113,12 @@ export class BackupsEditModal {
   private readonly context =
     inject<TuiDialogContext<BackupJob, BackupJobBuilder>>(POLYMORPHEUS_CONTEXT)
 
+  readonly target = toSignal(
+    from(this.api.getBackupTargets({})).pipe(
+      map(({ saved }) => saved[this.job.targetId]),
+    ),
+  )
+
   get job() {
     return this.context.data
   }
@@ -132,9 +140,11 @@ export class BackupsEditModal {
   }
 
   selectTarget() {
-    this.dialogs.open<BackupTarget>(TARGET, TARGET_CREATE).subscribe(target => {
-      this.job.target = target
-    })
+    this.dialogs
+      .open<BackupTarget & { id: string }>(TARGET, TARGET_CREATE)
+      .subscribe(({ id }) => {
+        this.job.targetId = id
+      })
   }
 
   selectPackages() {

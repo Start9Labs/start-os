@@ -1006,9 +1006,8 @@ export module Mock {
         startOs: {},
       },
     ],
-    saved: [
-      {
-        id: 'hsbdjhasbasda',
+    saved: {
+      hsbdjhasbasda: {
         type: 'cifs',
         name: 'Embassy Backups',
         hostname: 'smb://192.169.10.0',
@@ -1026,8 +1025,7 @@ export module Mock {
           },
         },
       },
-      {
-        id: 'ftcvewdnkemfksdm',
+      ftcvewdnkemfksdm: {
         type: 'cloud',
         name: 'Dropbox 1',
         provider: 'dropbox',
@@ -1035,8 +1033,7 @@ export module Mock {
         mountable: false,
         startOs: {},
       },
-      {
-        id: 'csgashbdjkasnd',
+      csgashbdjkasnd: {
         type: 'cifs',
         name: 'Network Folder 2',
         hostname: 'smb://192.169.10.0',
@@ -1045,8 +1042,7 @@ export module Mock {
         mountable: true,
         startOs: {},
       },
-      {
-        id: 'powjefhjbnwhdva',
+      powjefhjbnwhdva: {
         type: 'disk',
         name: 'Physical Drive 1',
         logicalname: 'sdba1',
@@ -1068,21 +1064,21 @@ export module Mock {
           },
         },
       },
-    ],
+    },
   }
 
   export const BackupJobs: RR.GetBackupJobsRes = [
     {
       id: 'lalalalalala-babababababa',
       name: 'My Backup Job',
-      target: BackupTargets.saved[0],
+      targetId: Object.keys(BackupTargets.saved)[0],
       cron: '0 3 * * *',
       packageIds: ['bitcoind', 'lnd'],
     },
     {
       id: 'hahahahaha-mwmwmwmwmwmw',
       name: 'Another Backup Job',
-      target: BackupTargets.saved[1],
+      targetId: Object.keys(BackupTargets.saved)[1],
       cron: '0 * * * *',
       packageIds: ['lnd'],
     },

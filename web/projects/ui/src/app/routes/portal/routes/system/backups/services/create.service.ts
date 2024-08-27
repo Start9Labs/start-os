@@ -17,7 +17,7 @@ export class BackupsCreateService {
 
   readonly handle = () => {
     this.dialogs
-      .open<BackupTarget>(TARGET, TARGET_CREATE)
+      .open<BackupTarget & { id: string }>(TARGET, TARGET_CREATE)
       .pipe(
         switchMap(({ id }) =>
           this.dialogs

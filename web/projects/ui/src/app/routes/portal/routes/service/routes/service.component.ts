@@ -50,10 +50,7 @@ import { DependencyInfo } from '../types/dependency-info'
         />
 
         @if (isInstalled(service) && (connected$ | async)) {
-          <service-actions
-            [pkg]="service.pkg"
-            [dependencies]="service.dependencies"
-          />
+          <service-actions [service]="service" />
         }
       </section>
 

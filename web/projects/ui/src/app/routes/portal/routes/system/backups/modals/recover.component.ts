@@ -85,17 +85,17 @@ export class BackupsRecoverModal {
     .watch$('packageData')
     .pipe(take(1))
 
-  readonly toMessage = (option: RecoverOption) => {
-    if (option.newerStartOs) {
+  readonly toMessage = ({ newerStartOs, installed, title }: RecoverOption) => {
+    if (newerStartOs) {
       return {
         text: `Unavailable. Backup was made on a newer version of StartOS.`,
         color: 'var(--tui-status-negative)',
       }
     }
 
-    if (option.installed) {
+    if (installed) {
       return {
-        text: `Unavailable. ${option.title} is already installed.`,
+        text: `Unavailable. ${title} is already installed.`,
         color: 'var(--tui-status-warning)',
       }
     }

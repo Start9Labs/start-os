@@ -96,7 +96,7 @@ export class BackupsTargetsModal implements OnInit {
       this.targets.set(await this.api.getBackupTargets({}))
     } catch (e: any) {
       this.errorService.handleError(e)
-      this.targets.set({ unknownDisks: [], saved: [] })
+      this.targets.set({ unknownDisks: [], saved: {} })
     }
   }
 
@@ -105,7 +105,12 @@ export class BackupsTargetsModal implements OnInit {
 
     try {
       await this.api.removeBackupTarget({ id })
-      this.setTargets(this.targets()?.saved.filter(a => a.id !== id))
+
+      const saved = this.targets()?.saved || {}
+
+      delete saved[id]
+
+      this.setTargets(saved)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -113,7 +118,11 @@ export class BackupsTargetsModal implements OnInit {
     }
   }
 
-  async onUpdate(value: BackupTarget) {
+  async onUpdate(id: string) {
+    const value = this.targets()?.saved[id]
+
+    if (!value) return
+
     this.formDialog.open(FormComponent, {
       label: 'Update Target',
       data: {
@@ -127,7 +136,7 @@ export class BackupsTargetsModal implements OnInit {
                 | RR.UpdateCifsBackupTargetReq
                 | RR.UpdateCloudBackupTargetReq
                 | RR.UpdateDiskBackupTargetReq,
-            ) => this.update(value.type, { ...response, id: value.id }),
+            ) => this.update(value.type, { ...response, id }),
           },
         ],
       },
@@ -148,8 +157,13 @@ export class BackupsTargetsModal implements OnInit {
                 logicalname: disk.logicalname,
                 ...value,
               }).then(response => {
+                const [id, entry] = Object.entries(response)[0]
+                const saved = this.targets()?.saved || {}
+
+                saved[id] = entry
+
                 this.setTargets(
-                  this.targets()?.saved.concat(response),
+                  saved,
                   this.targets()?.unknownDisks.filter(a => a !== disk),
                 )
                 return true
@@ -185,7 +199,7 @@ export class BackupsTargetsModal implements OnInit {
       | RR.AddCifsBackupTargetReq
       | RR.AddCloudBackupTargetReq
       | RR.AddDiskBackupTargetReq,
-  ): Promise<BackupTarget> {
+  ): Promise<RR.AddBackupTargetRes> {
     const loader = this.loader.open('Saving target...').subscribe()
 
     try {
@@ -201,7 +215,7 @@ export class BackupsTargetsModal implements OnInit {
       | RR.UpdateCifsBackupTargetReq
       | RR.UpdateCloudBackupTargetReq
       | RR.UpdateDiskBackupTargetReq,
-  ): Promise<BackupTarget> {
+  ): Promise<RR.UpdateBackupTargetRes> {
     const loader = this.loader.open('Saving target...').subscribe()
 
     try {
@@ -212,7 +226,7 @@ export class BackupsTargetsModal implements OnInit {
   }
 
   private setTargets(
-    saved: BackupTarget[] = this.targets()?.saved || [],
+    saved: Record<string, BackupTarget> = this.targets()?.saved || {},
     unknownDisks: UnknownDisk[] = this.targets()?.unknownDisks || [],
   ) {
     this.targets.set({ unknownDisks, saved })

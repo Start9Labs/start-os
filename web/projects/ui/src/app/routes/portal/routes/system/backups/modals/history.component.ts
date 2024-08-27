@@ -1,3 +1,4 @@
+import { toSignal } from '@angular/core/rxjs-interop'
 import { TuiCheckbox } from '@taiga-ui/kit'
 import { CommonModule } from '@angular/common'
 import {
@@ -11,6 +12,7 @@ import { ErrorService, LoadingService } from '@start9labs/shared'
 import { TUI_TRUE_HANDLER, TUI_FALSE_HANDLER } from '@taiga-ui/cdk'
 import { TuiDialogService, TuiIcon, TuiLink, TuiButton } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { from } from 'rxjs'
 import { REPORT } from 'src/app/components/report.component'
 import { BackupRun } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -76,17 +78,23 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
               <button tuiLink (click)="showReport(run)">Report</button>
             </td>
             <td [style.grid-column]="'span 2'">
-              <tui-icon [icon]="run.job.target.type | getBackupIcon" />
-              {{ run.job.target.name }}
+              @if (targets()?.saved?.[run.job.targetId]; as target) {
+                <tui-icon [icon]="target.type | getBackupIcon" />
+                {{ target.name }}
+              }
             </td>
           </tr>
         } @empty {
           @if (runs()) {
-            <tr><td colspan="6">No backups have been run yet.</td></tr>
+            <tr>
+              <td colspan="6">No backups have been run yet.</td>
+            </tr>
           } @else {
             @for (row of ['', '']; track $index) {
               <tr>
-                <td colspan="6"><div class="tui-skeleton">Loading</div></td>
+                <td colspan="6">
+                  <div class="tui-skeleton">Loading</div>
+                </td>
               </tr>
             }
           }
@@ -166,7 +174,8 @@ export class BackupsHistoryModal {
   private readonly errorService = inject(ErrorService)
   private readonly loader = inject(LoadingService)
 
-  runs = signal<BackupRun[] | null>(null)
+  readonly targets = toSignal(from(this.api.getBackupTargets({})))
+  readonly runs = signal<BackupRun[] | null>(null)
   selected: boolean[] = []
 
   get all(): boolean | null {

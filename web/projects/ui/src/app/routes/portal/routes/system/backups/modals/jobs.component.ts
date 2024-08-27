@@ -1,4 +1,5 @@
 import { Component, inject, OnInit } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import {
   TuiDialogOptions,
@@ -9,7 +10,7 @@ import {
 } from '@taiga-ui/core'
 import { TuiConfirmData, TUI_CONFIRM } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { BehaviorSubject, filter } from 'rxjs'
+import { BehaviorSubject, filter, from } from 'rxjs'
 import { BackupJob } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
@@ -52,8 +53,10 @@ import { EDIT } from './edit.component'
           <tr>
             <td class="title">{{ job.name }}</td>
             <td class="target">
-              <tui-icon [icon]="job.target.type | getBackupIcon" />
-              {{ job.target.name }}
+              @if (targets()?.saved?.[job.targetId]; as target) {
+                <tui-icon [icon]="target.type | getBackupIcon" />
+                {{ target.name }}
+              }
             </td>
             <td class="packages">Packages: {{ job.packageIds.length }}</td>
             <td class="schedule">{{ (job.cron | toHumanCron).message }}</td>
@@ -76,11 +79,15 @@ import { EDIT } from './edit.component'
           </tr>
         } @empty {
           @if (jobs) {
-            <tr><td colspan="5">No jobs found.</td></tr>
+            <tr>
+              <td colspan="5">No jobs found.</td>
+            </tr>
           } @else {
             @for (i of ['', '']; track $index) {
               <tr>
-                <td colspan="5"><div class="tui-skeleton">Loading</div></td>
+                <td colspan="5">
+                  <div class="tui-skeleton">Loading</div>
+                </td>
               </tr>
             }
           }
@@ -147,6 +154,7 @@ export class BackupsJobsModal implements OnInit {
   private readonly api = inject(ApiService)
 
   readonly loading$ = new BehaviorSubject(true)
+  readonly targets = toSignal(from(this.api.getBackupTargets({})))
 
   jobs?: BackupJob[]
 
@@ -179,11 +187,11 @@ export class BackupsJobsModal implements OnInit {
         label: 'Edit Job',
         data: new BackupJobBuilder(data),
       })
-      .subscribe(job => {
-        data.name = job.name
-        data.target = job.target
-        data.cron = job.cron
-        data.packageIds = job.packageIds
+      .subscribe(({ name, targetId, cron, packageIds }) => {
+        data.name = name
+        data.targetId = targetId
+        data.cron = cron
+        data.packageIds = packageIds
       })
   }
 

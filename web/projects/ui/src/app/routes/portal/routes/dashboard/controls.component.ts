@@ -13,13 +13,16 @@ import { UILaunchComponent } from 'src/app/routes/portal/routes/dashboard/ui.com
 import { ActionsService } from 'src/app/services/actions.service'
 import { DepErrorService } from 'src/app/services/dep-error.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getManifest } from 'src/app/utils/get-package-data'
+
+const RUNNING = ['running', 'starting', 'restarting']
 
 @Component({
   standalone: true,
   selector: 'fieldset[appControls]',
   template: `
-    @if (pkg().status.main.status === 'running') {
+    @if (running()) {
       <button
         tuiIconButton
         iconStart="@tui.square"
@@ -31,6 +34,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
       <button
         tuiIconButton
         iconStart="@tui.rotate-cw"
+        [disabled]="status().primary !== 'running'"
         (click)="actions.restart(manifest())"
       >
         Restart
@@ -40,7 +44,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
         *tuiLet="hasUnmet() | async as hasUnmet"
         tuiIconButton
         iconStart="@tui.play"
-        [disabled]="!pkg().status.configured"
+        [disabled]="status().primary !== 'stopped' || !pkg().status.configured"
         (click)="actions.start(manifest(), !!hasUnmet)"
       >
         Start
@@ -78,14 +82,16 @@ export class ControlsComponent {
   private readonly errors = inject(DepErrorService)
   readonly actions = inject(ActionsService)
 
-  pkg = input.required<PackageDataEntry>()
+  readonly pkg = input.required<PackageDataEntry>()
 
+  readonly status = computed(() => renderPkgStatus(this.pkg()))
+  readonly running = computed(() => RUNNING.includes(this.status().primary))
   readonly manifest = computed(() => getManifest(this.pkg()))
   readonly hasUnmet = computed(() =>
     this.errors.getPkgDepErrors$(this.manifest().id).pipe(
       map(errors =>
         Object.keys(this.pkg().currentDependencies)
-          .map(id => !!(errors[id] as any)?.[id]) // @TODO fix type
+          .map(id => errors[id])
           .some(Boolean),
       ),
     ),

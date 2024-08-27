@@ -11,12 +11,15 @@ import { tuiButtonOptionsProvider } from '@taiga-ui/core'
 import { DependencyInfo } from 'src/app/routes/portal/routes/service/types/dependency-info'
 import { ActionsService } from 'src/app/services/actions.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { PackageStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getManifest } from 'src/app/utils/get-package-data'
+
+const STOPPABLE = ['running', 'starting', 'restarting']
 
 @Component({
   selector: 'service-actions',
   template: `
-    @if (pkg.status.main.status === 'running') {
+    @if (canStop) {
       <button
         tuiButton
         appearance="danger-solid"
@@ -25,7 +28,9 @@ import { getManifest } from 'src/app/utils/get-package-data'
       >
         Stop
       </button>
+    }
 
+    @if (canRestart) {
       <button
         tuiButton
         iconStart="@tui.rotate-cw"
@@ -35,17 +40,17 @@ import { getManifest } from 'src/app/utils/get-package-data'
       </button>
     }
 
-    @if (pkg.status.main.status === 'stopped' && isConfigured) {
+    @if (canStart) {
       <button
         tuiButton
         iconStart="@tui.play"
-        (click)="actions.start(manifest, hasUnmet(dependencies))"
+        (click)="actions.start(manifest, hasUnmet(service.dependencies))"
       >
         Start
       </button>
     }
 
-    @if (!isConfigured) {
+    @if (canConfigure) {
       <button
         tuiButton
         appearance="secondary-warning"
@@ -73,19 +78,32 @@ import { getManifest } from 'src/app/utils/get-package-data'
 })
 export class ServiceActionsComponent {
   @Input({ required: true })
-  pkg!: PackageDataEntry
-
-  @Input({ required: true })
-  dependencies: readonly DependencyInfo[] = []
+  service!: {
+    pkg: PackageDataEntry
+    dependencies: readonly DependencyInfo[]
+    status: PackageStatus
+  }
 
   readonly actions = inject(ActionsService)
 
-  get isConfigured(): boolean {
-    return this.pkg.status.configured
+  get manifest(): T.Manifest {
+    return getManifest(this.service.pkg)
   }
 
-  get manifest(): T.Manifest {
-    return getManifest(this.pkg)
+  get canStop(): boolean {
+    return STOPPABLE.includes(this.service.status.primary)
+  }
+
+  get canStart(): boolean {
+    return this.service.status.primary === 'stopped' && !this.canConfigure
+  }
+
+  get canRestart(): boolean {
+    return this.service.status.primary === 'running'
+  }
+
+  get canConfigure(): boolean {
+    return !this.service.pkg.status.configured
   }
 
   @tuiPure
