@@ -97,7 +97,8 @@ export class SubContainer implements ExecSpawnable {
       shared.push("run")
     }
 
-    fs.copyFile("/etc/resolv.conf", `${rootfs}/etc/resolv.conf`)
+    await fs.mkdir(`${rootfs}/etc`, { recursive: true })
+    await fs.copyFile("/etc/resolv.conf", `${rootfs}/etc/resolv.conf`)
 
     for (const dirPart of shared) {
       const from = `/${dirPart}`
