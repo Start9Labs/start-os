@@ -15,6 +15,8 @@ export type Manifest = {
   version: Version
   satisfies: Array<Version>
   releaseNotes: string
+  canMigrateTo: string
+  canMigrateFrom: string
   license: string
   wrapperRepo: string
   upstreamRepo: string

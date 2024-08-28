@@ -691,7 +691,7 @@ export type DependencyErrorConfigUnsatisfied = {
 
 export type DependencyErrorHealthChecksFailed = {
   type: 'healthChecksFailed'
-  check: T.HealthCheckResult
+  check: T.NamedHealthCheckResult
 }
 
 export type DependencyErrorTransitive = {

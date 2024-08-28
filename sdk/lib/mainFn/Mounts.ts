@@ -1,5 +1,5 @@
 import * as T from "../types"
-import { MountOptions } from "../util/Overlay"
+import { MountOptions } from "../util/SubContainer"
 
 type MountArray = { path: string; options: MountOptions }[]
 

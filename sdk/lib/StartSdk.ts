@@ -30,17 +30,11 @@ import { healthCheck, HealthCheckParams } from "./health/HealthCheck"
 import { checkPortListening } from "./health/checkFns/checkPortListening"
 import { checkWebUrl, runHealthScript } from "./health/checkFns"
 import { List } from "./config/builder/list"
-import { Migration } from "./inits/migrations/Migration"
 import { Install, InstallFn } from "./inits/setupInstall"
 import { setupActions } from "./actions/setupActions"
 import { setupDependencyConfig } from "./dependencies/setupDependencyConfig"
 import { SetupBackupsParams, setupBackups } from "./backup/setupBackups"
 import { setupInit } from "./inits/setupInit"
-import {
-  EnsureUniqueId,
-  Migrations,
-  setupMigrations,
-} from "./inits/migrations/setupMigrations"
 import { Uninstall, UninstallFn, setupUninstall } from "./inits/setupUninstall"
 import { setupMain } from "./mainFn"
 import { defaultTrigger } from "./trigger/defaultTrigger"
@@ -67,7 +61,7 @@ import {
 } from "./util/getServiceInterface"
 import { getServiceInterfaces } from "./util/getServiceInterfaces"
 import { getStore } from "./store/getStore"
-import { CommandOptions, MountOptions, Overlay } from "./util/Overlay"
+import { CommandOptions, MountOptions, SubContainer } from "./util/SubContainer"
 import { splitCommand } from "./util/splitCommand"
 import { Mounts } from "./mainFn/Mounts"
 import { Dependency } from "./Dependency"
@@ -75,9 +69,13 @@ import * as T from "./types"
 import { testTypeVersion, ValidateExVer } from "./exver"
 import { ExposedStorePaths } from "./store/setupExposeStore"
 import { PathBuilder, extractJsonPath, pathBuilder } from "./store/PathBuilder"
-import { checkAllDependencies } from "./dependencies/dependencies"
+import {
+  CheckDependencies,
+  checkDependencies,
+} from "./dependencies/dependencies"
 import { health } from "."
 import { GetSslCertificate } from "./util/GetSslCertificate"
+import { VersionGraph } from "./version"
 
 export const SDKVersion = testTypeVersion("0.3.6")
 
@@ -141,8 +139,58 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       }]?: Dependency
     }
 
+    type NestedEffects = "subcontainer" | "store"
+    type InterfaceEffects =
+      | "getServiceInterface"
+      | "listServiceInterfaces"
+      | "exportServiceInterface"
+      | "clearServiceInterfaces"
+      | "bind"
+      | "getHostInfo"
+      | "getPrimaryUrl"
+    type MainUsedEffects = "setMainStatus" | "setHealth"
+    type AlreadyExposed = "getSslCertificate" | "getSystemSmtp"
+
+    // prettier-ignore
+    type StartSdkEffectWrapper = {
+      [K in keyof Omit<Effects, NestedEffects | InterfaceEffects | MainUsedEffects| AlreadyExposed>]: (effects: Effects, ...args: Parameters<Effects[K]>) => ReturnType<Effects[K]>
+    }
+    const startSdkEffectWrapper: StartSdkEffectWrapper = {
+      executeAction: (effects, ...args) => effects.executeAction(...args),
+      exportAction: (effects, ...args) => effects.exportAction(...args),
+      clearActions: (effects, ...args) => effects.clearActions(...args),
+      getConfigured: (effects, ...args) => effects.getConfigured(...args),
+      setConfigured: (effects, ...args) => effects.setConfigured(...args),
+      restart: (effects, ...args) => effects.restart(...args),
+      setDependencies: (effects, ...args) => effects.setDependencies(...args),
+      checkDependencies: (effects, ...args) =>
+        effects.checkDependencies(...args),
+      mount: (effects, ...args) => effects.mount(...args),
+      getInstalledPackages: (effects, ...args) =>
+        effects.getInstalledPackages(...args),
+      exposeForDependents: (effects, ...args) =>
+        effects.exposeForDependents(...args),
+      getServicePortForward: (effects, ...args) =>
+        effects.getServicePortForward(...args),
+      clearBindings: (effects, ...args) => effects.clearBindings(...args),
+      getContainerIp: (effects, ...args) => effects.getContainerIp(...args),
+      getSslKey: (effects, ...args) => effects.getSslKey(...args),
+      setDataVersion: (effects, ...args) => effects.setDataVersion(...args),
+      getDataVersion: (effects, ...args) => effects.getDataVersion(...args),
+      shutdown: (effects, ...args) => effects.shutdown(...args),
+      getDependencies: (effects, ...args) => effects.getDependencies(...args),
+    }
+
     return {
-      checkAllDependencies,
+      ...startSdkEffectWrapper,
+
+      checkDependencies: checkDependencies as <
+        DependencyId extends keyof Manifest["dependencies"] &
+          PackageId = keyof Manifest["dependencies"] & PackageId,
+      >(
+        effects: Effects,
+        packageIds?: DependencyId[],
+      ) => Promise<CheckDependencies<DependencyId>>,
       serviceInterface: {
         getOwn: <E extends Effects>(effects: E, id: ServiceInterfaceId) =>
           removeCallbackTypes<E>(effects)(
@@ -247,7 +295,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           id: string
           description: string
           hasPrimary: boolean
-          disabled: boolean
           type: ServiceInterfaceType
           username: null | string
           path: string
@@ -293,8 +340,8 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         )
       },
       HealthCheck: {
-        of(o: HealthCheckParams<Manifest>) {
-          return healthCheck<Manifest>(o)
+        of(o: HealthCheckParams) {
+          return healthCheck(o)
         },
       },
       Dependency: {
@@ -311,7 +358,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       setupActions: (...createdActions: CreatedAction<any, any, any>[]) =>
         setupActions<Manifest, Store>(...createdActions),
       setupBackups: (...args: SetupBackupsParams<Manifest>) =>
-        setupBackups<Manifest>(...args),
+        setupBackups<Manifest>(this.manifest, ...args),
       setupConfig: <
         ConfigType extends Config<any, Store> | Config<any, never>,
         Type extends Record<string, any> = ExtractConfigType<ConfigType>,
@@ -380,7 +427,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         }
       },
       setupInit: (
-        migrations: Migrations<Manifest, Store>,
+        versions: VersionGraph<Manifest["version"]>,
         install: Install<Manifest, Store>,
         uninstall: Uninstall<Manifest, Store>,
         setInterfaces: SetInterfaces<Manifest, Store, any, any>,
@@ -391,7 +438,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         exposedStore: ExposedStorePaths,
       ) =>
         setupInit<Manifest, Store>(
-          migrations,
+          versions,
           install,
           uninstall,
           setInterfaces,
@@ -412,15 +459,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           started(onTerm: () => PromiseLike<void>): PromiseLike<void>
         }) => Promise<Daemons<Manifest, any>>,
       ) => setupMain<Manifest, Store>(fn),
-      setupMigrations: <
-        Migrations extends Array<Migration<Manifest, Store, any>>,
-      >(
-        ...migrations: EnsureUniqueId<Migrations>
-      ) =>
-        setupMigrations<Manifest, Store, Migrations>(
-          this.manifest,
-          ...migrations,
-        ),
       setupProperties:
         (
           fn: (options: { effects: Effects }) => Promise<T.SdkPropertiesReturn>,
@@ -540,13 +578,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             }
           >,
         ) => List.dynamicText<Store>(getA),
-      },
-      Migration: {
-        of: <Version extends string>(options: {
-          version: Version & ValidateExVer<Version>
-          up: (opts: { effects: Effects }) => Promise<void>
-          down: (opts: { effects: Effects }) => Promise<void>
-        }) => Migration.of<Manifest, Store, Version>(options),
       },
       StorePath: pathBuilder<Store>(),
       Value: {
@@ -747,15 +778,12 @@ export async function runCommand<Manifest extends T.Manifest>(
   },
 ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
   const commands = splitCommand(command)
-  const overlay = await Overlay.of(effects, image)
-  try {
-    for (let mount of options.mounts || []) {
-      await overlay.mount(mount.options, mount.path)
-    }
-    return await overlay.exec(commands)
-  } finally {
-    await overlay.destroy()
-  }
+  return SubContainer.with(
+    effects,
+    image,
+    options.mounts || [],
+    (subcontainer) => subcontainer.exec(commands),
+  )
 }
 function nullifyProperties(value: T.SdkPropertiesReturn): T.PropertiesReturn {
   return Object.fromEntries(

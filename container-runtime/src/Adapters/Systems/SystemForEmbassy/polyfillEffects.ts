@@ -3,7 +3,7 @@ import * as oet from "./oldEmbassyTypes"
 import { Volume } from "../../../Models/Volume"
 import * as child_process from "child_process"
 import { promisify } from "util"
-import { daemons, startSdk, T } from "@start9labs/start-sdk"
+import { daemons, startSdk, T, utils } from "@start9labs/start-sdk"
 import "isomorphic-fetch"
 import { Manifest } from "./matchManifest"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
@@ -124,20 +124,18 @@ export const polyfillEffects = (
       wait(): Promise<oet.ResultType<string>>
       term(): Promise<void>
     } {
-      const dockerProcedureContainer = DockerProcedureContainer.of(
+      const promiseSubcontainer = DockerProcedureContainer.createSubContainer(
         effects,
         manifest.id,
         manifest.main,
         manifest.volumes,
       )
-      const daemon = dockerProcedureContainer.then((dockerProcedureContainer) =>
+      const daemon = promiseSubcontainer.then((subcontainer) =>
         daemons.runCommand()(
           effects,
-          { id: manifest.main.image },
+          subcontainer,
           [input.command, ...(input.args || [])],
-          {
-            overlay: dockerProcedureContainer.overlay,
-          },
+          {},
         ),
       )
       return {
@@ -224,16 +222,16 @@ export const polyfillEffects = (
       return new Promise((resolve) => setTimeout(resolve, timeMs))
     },
     trace(whatToPrint: string): void {
-      console.trace(whatToPrint)
+      console.trace(utils.asError(whatToPrint))
     },
     warn(whatToPrint: string): void {
-      console.warn(whatToPrint)
+      console.warn(utils.asError(whatToPrint))
     },
     error(whatToPrint: string): void {
-      console.error(whatToPrint)
+      console.error(utils.asError(whatToPrint))
     },
     debug(whatToPrint: string): void {
-      console.debug(whatToPrint)
+      console.debug(utils.asError(whatToPrint))
     },
     info(whatToPrint: string): void {
       console.log(false)
@@ -357,7 +355,7 @@ export const polyfillEffects = (
       })
 
       spawned.stderr.on("data", (data: unknown) => {
-        console.error(String(data))
+        console.error(`polyfill.runAsync`, utils.asError(data))
       })
 
       const id = async () => {

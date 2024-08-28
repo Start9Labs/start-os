@@ -31,7 +31,7 @@ import { ConnectionService } from 'src/app/services/connection.service'
 })
 export class ServiceHealthChecksComponent {
   @Input({ required: true })
-  checks: readonly T.HealthCheckResult[] = []
+  checks: readonly T.NamedHealthCheckResult[] = []
 
   readonly connected$ = inject(ConnectionService)
 }

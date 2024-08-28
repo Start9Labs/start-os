@@ -1,7 +1,7 @@
 use models::HealthCheckId;
 
 use crate::service::effects::prelude::*;
-use crate::status::health_check::HealthCheckResult;
+use crate::status::health_check::NamedHealthCheckResult;
 use crate::status::MainStatus;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -10,7 +10,7 @@ use crate::status::MainStatus;
 pub struct SetHealth {
     id: HealthCheckId,
     #[serde(flatten)]
-    result: HealthCheckResult,
+    result: NamedHealthCheckResult,
 }
 pub async fn set_health(
     context: EffectContext,
@@ -32,8 +32,8 @@ pub async fn set_health(
                 .as_main_mut()
                 .mutate(|main| {
                     match main {
-                        &mut MainStatus::Running { ref mut health, .. }
-                        | &mut MainStatus::BackingUp { ref mut health, .. } => {
+                        MainStatus::Running { ref mut health, .. }
+                        | MainStatus::Starting { ref mut health } => {
                             health.insert(id, result);
                         }
                         _ => (),

@@ -3,7 +3,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use chrono::{DateTime, Utc};
 use exver::VersionRange;
 use imbl_value::InternedString;
-use models::{ActionId, DataUrl, HealthCheckId, HostId, PackageId, ServiceInterfaceId};
+use models::{
+    ActionId, DataUrl, HealthCheckId, HostId, PackageId, ServiceInterfaceId, VersionString,
+};
 use patch_db::json_ptr::JsonPointer;
 use patch_db::HasModel;
 use reqwest::Url;
@@ -335,6 +337,7 @@ pub struct ActionMetadata {
 #[ts(export)]
 pub struct PackageDataEntry {
     pub state_info: PackageState,
+    pub data_version: Option<VersionString>,
     pub status: Status,
     #[ts(type = "string | null")]
     pub registry: Option<Url>,

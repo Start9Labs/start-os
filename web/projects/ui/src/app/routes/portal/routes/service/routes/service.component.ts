@@ -329,7 +329,7 @@ export class ServiceRoute {
   }
 }
 
-function toHealthCheck(main: T.MainStatus): T.HealthCheckResult[] | null {
+function toHealthCheck(main: T.MainStatus): T.NamedHealthCheckResult[] | null {
   return main.status !== 'running' || isEmptyObject(main.health)
     ? null
     : Object.values(main.health)

@@ -35,7 +35,6 @@ export class StartOsUiComponent {
           description: 'The primary web user interface for StartOS',
           type: 'ui',
           hasPrimary: false,
-          disabled: false,
           masked: false,
           addressInfo: {
             hostId: '',

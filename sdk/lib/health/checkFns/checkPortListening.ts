@@ -1,6 +1,6 @@
 import { Effects } from "../../types"
 import { stringFromStdErrOut } from "../../util/stringFromStdErrOut"
-import { CheckResult } from "./CheckResult"
+import { HealthCheckResult } from "./HealthCheckResult"
 
 import { promisify } from "node:util"
 import * as CP from "node:child_process"
@@ -32,8 +32,8 @@ export async function checkPortListening(
     timeoutMessage?: string
     timeout?: number
   },
-): Promise<CheckResult> {
-  return Promise.race<CheckResult>([
+): Promise<HealthCheckResult> {
+  return Promise.race<HealthCheckResult>([
     Promise.resolve().then(async () => {
       const hasAddress =
         containsAddress(
@@ -45,10 +45,10 @@ export async function checkPortListening(
           port,
         )
       if (hasAddress) {
-        return { status: "success", message: options.successMessage }
+        return { result: "success", message: options.successMessage }
       }
       return {
-        status: "failure",
+        result: "failure",
         message: options.errorMessage,
       }
     }),
@@ -56,7 +56,7 @@ export async function checkPortListening(
       setTimeout(
         () =>
           resolve({
-            status: "failure",
+            result: "failure",
             message:
               options.timeoutMessage || `Timeout trying to check port ${port}`,
           }),

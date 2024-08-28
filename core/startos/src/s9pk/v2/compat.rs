@@ -1,8 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::Arc;
 
-use exver::ExtendedVersion;
+use exver::{ExtendedVersion, VersionRange};
 use models::ImageId;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWriteExt};
 use tokio::process::Command;
@@ -44,9 +45,9 @@ impl S9pk<TmpSource<PackSource>> {
         // manifest.json
         let manifest_raw = reader.manifest().await?;
         let manifest = from_value::<ManifestV1>(manifest_raw.clone())?;
-        let mut new_manifest = Manifest::from(manifest.clone());
+        let mut new_manifest = Manifest::try_from(manifest.clone())?;
 
-        let images: BTreeMap<ImageId, bool> = manifest
+        let images: BTreeSet<(ImageId, bool)> = manifest
             .package_procedures()
             .filter_map(|p| {
                 if let PackageProcedure::Docker(p) = p {
@@ -89,8 +90,6 @@ impl S9pk<TmpSource<PackSource>> {
 
         // images
         for arch in reader.docker_arches().await? {
-            let images_dir = tmp_dir.join("images").join(&arch);
-            tokio::fs::create_dir_all(&images_dir).await?;
             Command::new(CONTAINER_TOOL)
                 .arg("load")
                 .input(Some(&mut reader.docker_images(&arch).await?))
@@ -194,15 +193,22 @@ impl S9pk<TmpSource<PackSource>> {
     }
 }
 
-impl From<ManifestV1> for Manifest {
-    fn from(value: ManifestV1) -> Self {
+impl TryFrom<ManifestV1> for Manifest {
+    type Error = Error;
+    fn try_from(value: ManifestV1) -> Result<Self, Self::Error> {
         let default_url = value.upstream_repo.clone();
-        Self {
+        Ok(Self {
             id: value.id,
             title: value.title.into(),
-            version: ExtendedVersion::from(value.version).into(),
+            version: ExtendedVersion::from(
+                exver::emver::Version::from_str(&value.version)
+                    .with_kind(ErrorKind::Deserialization)?,
+            )
+            .into(),
             satisfies: BTreeSet::new(),
             release_notes: value.release_notes,
+            can_migrate_from: VersionRange::any(),
+            can_migrate_to: VersionRange::none(),
             license: value.license.into(),
             wrapper_repo: value.wrapper_repo,
             upstream_repo: value.upstream_repo,
@@ -244,6 +250,6 @@ impl From<ManifestV1> for Manifest {
             git_hash: value.git_hash,
             os_version: value.eos_version,
             has_config: value.config.is_some(),
-        }
+        })
     }
 }

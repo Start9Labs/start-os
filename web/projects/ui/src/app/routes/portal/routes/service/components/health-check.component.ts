@@ -42,7 +42,7 @@ import { TuiIcon, TuiLoader } from '@taiga-ui/core'
 })
 export class ServiceHealthCheckComponent {
   @Input({ required: true })
-  check!: T.HealthCheckResult
+  check!: T.NamedHealthCheckResult
 
   @Input()
   connected = false

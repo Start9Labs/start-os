@@ -22,7 +22,7 @@ mod v0_3_6_alpha_5;
 mod v0_3_6_alpha_6;
 mod v0_3_6_alpha_7;
 
-pub type Current = v0_3_6_alpha_3::Version; // VERSION_BUMP
+pub type Current = v0_3_6_alpha_5::Version; // VERSION_BUMP
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(untagged)]

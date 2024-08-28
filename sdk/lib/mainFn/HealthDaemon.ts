@@ -1,9 +1,10 @@
-import { CheckResult } from "../health/checkFns"
+import { HealthCheckResult } from "../health/checkFns"
 import { defaultTrigger } from "../trigger/defaultTrigger"
 import { Ready } from "./Daemons"
 import { Daemon } from "./Daemon"
-import { Effects } from "../types"
+import { Effects, SetHealth } from "../types"
 import { DEFAULT_SIGTERM_TIMEOUT } from "."
+import { asError } from "../util/asError"
 
 const oncePromise = <T>() => {
   let resolve: (value: T) => void
@@ -21,14 +22,13 @@ const oncePromise = <T>() => {
  *
  */
 export class HealthDaemon {
-  #health: CheckResult = { status: "starting", message: null }
-  #healthWatchers: Array<() => unknown> = []
-  #running = false
-  #hadSuccess = false
+  private _health: HealthCheckResult = { result: "starting", message: null }
+  private healthWatchers: Array<() => unknown> = []
+  private running = false
   constructor(
-    readonly daemon: Promise<Daemon>,
+    private readonly daemon: Promise<Daemon>,
     readonly daemonIndex: number,
-    readonly dependencies: HealthDaemon[],
+    private readonly dependencies: HealthDaemon[],
     readonly id: string,
     readonly ids: string[],
     readonly ready: Ready,
@@ -44,12 +44,12 @@ export class HealthDaemon {
     signal?: NodeJS.Signals | undefined
     timeout?: number | undefined
   }) {
-    this.#healthWatchers = []
-    this.#running = false
-    this.#healthCheckCleanup?.()
+    this.healthWatchers = []
+    this.running = false
+    this.healthCheckCleanup?.()
 
     await this.daemon.then((d) =>
-      d.stop({
+      d.term({
         timeout: this.sigtermTimeout,
         ...termOptions,
       }),
@@ -58,17 +58,17 @@ export class HealthDaemon {
 
   /** Want to add another notifier that the health might have changed */
   addWatcher(watcher: () => unknown) {
-    this.#healthWatchers.push(watcher)
+    this.healthWatchers.push(watcher)
   }
 
   get health() {
-    return Object.freeze(this.#health)
+    return Object.freeze(this._health)
   }
 
   private async changeRunning(newStatus: boolean) {
-    if (this.#running === newStatus) return
+    if (this.running === newStatus) return
 
-    this.#running = newStatus
+    this.running = newStatus
 
     if (newStatus) {
       ;(await this.daemon).start()
@@ -77,19 +77,18 @@ export class HealthDaemon {
       ;(await this.daemon).stop()
       this.turnOffHealthCheck()
 
-      this.setHealth({ status: "starting", message: null })
+      this.setHealth({ result: "starting", message: null })
     }
   }
 
-  #healthCheckCleanup: (() => void) | null = null
+  private healthCheckCleanup: (() => void) | null = null
   private turnOffHealthCheck() {
-    this.#healthCheckCleanup?.()
+    this.healthCheckCleanup?.()
   }
   private async setupHealthCheck() {
-    if (this.#healthCheckCleanup) return
+    if (this.healthCheckCleanup) return
     const trigger = (this.ready.trigger ?? defaultTrigger)(() => ({
-      hadSuccess: this.#hadSuccess,
-      lastResult: this.#health.status,
+      lastResult: this._health.result,
     }))
 
     const { promise: status, resolve: setStatus } = oncePromise<{
@@ -101,59 +100,51 @@ export class HealthDaemon {
         !res.done;
         res = await Promise.race([status, trigger.next()])
       ) {
-        const response: CheckResult = await Promise.resolve(
-          this.ready.fn(),
-        ).catch((err) => {
-          console.error(err)
-          return {
-            status: "failure",
-            message: "message" in err ? err.message : String(err),
-          }
-        })
-        this.setHealth(response)
-        if (response.status === "success") {
-          this.#hadSuccess = true
+        const handle = (await this.daemon).subContainerHandle
+
+        if (handle) {
+          const response: HealthCheckResult = await Promise.resolve(
+            this.ready.fn(handle),
+          ).catch((err) => {
+            console.error(asError(err))
+            return {
+              result: "failure",
+              message: "message" in err ? err.message : String(err),
+            }
+          })
+          await this.setHealth(response)
+        } else {
+          await this.setHealth({
+            result: "failure",
+            message: "Daemon not running",
+          })
         }
       }
     }).catch((err) => console.error(`Daemon ${this.id} failed: ${err}`))
 
-    this.#healthCheckCleanup = () => {
+    this.healthCheckCleanup = () => {
       setStatus({ done: true })
-      this.#healthCheckCleanup = null
+      this.healthCheckCleanup = null
     }
   }
 
-  private setHealth(health: CheckResult) {
-    this.#health = health
-    this.#healthWatchers.forEach((watcher) => watcher())
+  private async setHealth(health: HealthCheckResult) {
+    this._health = health
+    this.healthWatchers.forEach((watcher) => watcher())
     const display = this.ready.display
-    const status = health.status
+    const result = health.result
     if (!display) {
       return
     }
-    if (
-      status === "success" ||
-      status === "disabled" ||
-      status === "starting"
-    ) {
-      this.effects.setHealth({
-        result: status,
-        message: health.message,
-        id: this.id,
-        name: display,
-      })
-    } else {
-      this.effects.setHealth({
-        result: health.status,
-        message: health.message || "",
-        id: this.id,
-        name: display,
-      })
-    }
+    await this.effects.setHealth({
+      ...health,
+      id: this.id,
+      name: display,
+    } as SetHealth)
   }
 
   private async updateStatus() {
-    const healths = this.dependencies.map((d) => d.#health)
-    this.changeRunning(healths.every((x) => x.status === "success"))
+    const healths = this.dependencies.map((d) => d._health)
+    this.changeRunning(healths.every((x) => x.result === "success"))
   }
 }

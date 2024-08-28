@@ -27,7 +27,7 @@ use crate::progress::{NamedProgress, Progress};
 use crate::rpc_continuations::Guid;
 use crate::s9pk::S9pk;
 use crate::service::service_map::InstallProgressHandles;
-use crate::status::health_check::HealthCheckResult;
+use crate::status::health_check::NamedHealthCheckResult;
 use crate::util::actor::concurrent::ConcurrentActor;
 use crate::util::io::create_file;
 use crate::util::serde::{NoOutput, Pem};
@@ -45,7 +45,7 @@ mod properties;
 mod rpc;
 mod service_actor;
 pub mod service_map;
-mod start_stop;
+pub mod start_stop;
 mod transition;
 mod util;
 
@@ -493,7 +493,6 @@ impl Service {
 
 #[derive(Debug, Clone)]
 pub struct RunningStatus {
-    health: OrdMap<HealthCheckId, HealthCheckResult>,
     started: DateTime<Utc>,
 }
 
@@ -516,7 +515,6 @@ impl ServiceActorSeed {
                         .running_status
                         .take()
                         .unwrap_or_else(|| RunningStatus {
-                            health: Default::default(),
                             started: Utc::now(),
                         }),
                 );

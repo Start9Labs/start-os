@@ -1,13 +1,18 @@
 import { NO_TIMEOUT, SIGKILL, SIGTERM, Signals } from "../StartSdk"
 import { HealthReceipt } from "../health/HealthReceipt"
-import { CheckResult } from "../health/checkFns"
+import { HealthCheckResult } from "../health/checkFns"
 
 import { Trigger } from "../trigger"
 import { TriggerInput } from "../trigger/TriggerInput"
 import { defaultTrigger } from "../trigger/defaultTrigger"
 import * as T from "../types"
 import { Mounts } from "./Mounts"
-import { CommandOptions, MountOptions, Overlay } from "../util/Overlay"
+import {
+  CommandOptions,
+  ExecSpawnable,
+  MountOptions,
+  SubContainer,
+} from "../util/SubContainer"
 import { splitCommand } from "../util/splitCommand"
 
 import { promisify } from "node:util"
@@ -23,7 +28,9 @@ export const cpExec = promisify(CP.exec)
 export const cpExecFile = promisify(CP.execFile)
 export type Ready = {
   display: string | null
-  fn: () => Promise<CheckResult> | CheckResult
+  fn: (
+    spawnable: ExecSpawnable,
+  ) => Promise<HealthCheckResult> | HealthCheckResult
   trigger?: Trigger
 }
 

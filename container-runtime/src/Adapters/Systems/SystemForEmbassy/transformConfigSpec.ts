@@ -74,7 +74,7 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
         integer: oldVal.integral,
         step: null,
         units: oldVal.units || null,
-        placeholder: oldVal.placeholder || null,
+        placeholder: oldVal.placeholder ? String(oldVal.placeholder) : null,
       }
     } else if (oldVal.type === "object") {
       newVal = {
@@ -267,6 +267,31 @@ function getListSpec(
         {},
       ),
     }
+  } else if (isNumberList(oldVal)) {
+    return {
+      ...partial,
+      type: "list",
+      default: oldVal.default.map(String) as string[],
+      spec: {
+        type: "text",
+        patterns: oldVal.spec.integral
+          ? [{ regex: "[0-9]+", description: "Integral number type" }]
+          : [
+              {
+                regex: "[-+]?[0-9]*\\.?[0-9]+",
+                description: "Number type",
+              },
+            ],
+        minLength: null,
+        maxLength: null,
+        masked: false,
+        generate: null,
+        inputmode: "text",
+        placeholder: oldVal.spec.placeholder
+          ? String(oldVal.spec.placeholder)
+          : null,
+      },
+    }
   } else if (isStringList(oldVal)) {
     return {
       ...partial,
@@ -337,11 +362,16 @@ function isStringList(
 ): val is OldValueSpecList & { subtype: "string" } {
   return val.subtype === "string"
 }
+function isNumberList(
+  val: OldValueSpecList,
+): val is OldValueSpecList & { subtype: "number" } {
+  return val.subtype === "number"
+}
 
 function isObjectList(
   val: OldValueSpecList,
 ): val is OldValueSpecList & { subtype: "object" } {
-  if (["number", "union"].includes(val.subtype)) {
+  if (["union"].includes(val.subtype)) {
     throw new Error("Invalid list subtype. enum, string, and object permitted.")
   }
   return val.subtype === "object"
@@ -398,7 +428,7 @@ export const matchOldValueSpecNumber = object(
     description: string,
     warning: string,
     units: string,
-    placeholder: string,
+    placeholder: anyOf(number, string),
   },
   ["default", "description", "warning", "units", "placeholder"],
 )
@@ -499,6 +529,15 @@ const matchOldListValueSpecEnum = object({
   values: array(string),
   "value-names": dictionary([string, string]),
 })
+const matchOldListValueSpecNumber = object(
+  {
+    range: string,
+    integral: boolean,
+    units: string,
+    placeholder: anyOf(number, string),
+  },
+  ["units", "placeholder"],
+)
 
 // represents a spec for a list
 const matchOldValueSpecList = every(
@@ -530,6 +569,10 @@ const matchOldValueSpecList = every(
     object({
       subtype: literals("object"),
       spec: matchOldListValueSpecObject,
+    }),
+    object({
+      subtype: literals("number"),
+      spec: matchOldListValueSpecNumber,
     }),
   ),
 )

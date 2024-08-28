@@ -3,7 +3,7 @@ export * as configTypes from "./config/configTypes"
 import {
   DependencyRequirement,
   SetHealth,
-  HealthCheckResult,
+  NamedHealthCheckResult,
   SetMainStatus,
   ServiceInterface,
   Host,
@@ -25,6 +25,7 @@ import { Daemons } from "./mainFn/Daemons"
 import { StorePath } from "./store/PathBuilder"
 import { ExposedStorePaths } from "./store/setupExposeStore"
 import { UrlString } from "./util/getServiceInterface"
+import { StringObject, ToKebab } from "./util"
 export * from "./osBindings"
 export { SDKManifest } from "./manifest/ManifestTypes"
 export { HealthReceipt } from "./health/HealthReceipt"
@@ -102,10 +103,7 @@ export namespace ExpectedExports {
    * Every time a package completes an install, this function is called before the main.
    * Can be used to do migration like things.
    */
-  export type init = (options: {
-    effects: Effects
-    previousVersion: null | string
-  }) => Promise<unknown>
+  export type init = (options: { effects: Effects }) => Promise<unknown>
   /** This will be ran during any time a package is uninstalled, for example during a update
    * this will be called.
    */
@@ -174,7 +172,7 @@ export type Daemon = {
   [DaemonProof]: never
 }
 
-export type HealthStatus = HealthCheckResult["result"]
+export type HealthStatus = NamedHealthCheckResult["result"]
 export type SmtpValue = {
   server: string
   port: number
@@ -249,15 +247,15 @@ export type SdkPropertiesValue =
     }
   | {
       type: "string"
-      /** Value  */
+      /** The value to display to the user */
       value: string
       /** A human readable description or explanation of the value */
       description?: string
-      /** (string/number only) Whether or not to mask the value, for example, when displaying a password */
+      /** Whether or not to mask the value, for example, when displaying a password */
       masked: boolean
-      /** (string/number only) Whether or not to include a button for copying the value to clipboard */
+      /** Whether or not to include a button for copying the value to clipboard */
       copyable?: boolean
-      /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
+      /** Whether or not to include a button for displaying the value as a QR code */
       qr?: boolean
     }
 
@@ -273,21 +271,31 @@ export type PropertiesValue =
     }
   | {
       type: "string"
-      /** Value  */
+      /** The value to display to the user */
       value: string
       /** A human readable description or explanation of the value */
       description: string | null
-      /** (string/number only) Whether or not to mask the value, for example, when displaying a password */
+      /** Whether or not to mask the value, for example, when displaying a password */
       masked: boolean
-      /** (string/number only) Whether or not to include a button for copying the value to clipboard */
+      /** Whether or not to include a button for copying the value to clipboard */
       copyable: boolean | null
-      /** (string/number only) Whether or not to include a button for displaying the value as a QR code */
+      /** Whether or not to include a button for displaying the value as a QR code */
       qr: boolean | null
     }
 
 export type PropertiesReturn = {
   [key: string]: PropertiesValue
 }
+
+export type EffectMethod<T extends StringObject = Effects> = {
+  [K in keyof T]-?: K extends string
+    ? T[K] extends Function
+      ? ToKebab<K>
+      : T[K] extends StringObject
+        ? `${ToKebab<K>}.${EffectMethod<T[K]>}`
+        : never
+    : never
+}[keyof T]
 
 /** Used to reach out from the pure js runtime */
 export type Effects = {
@@ -355,12 +363,13 @@ export type Effects = {
   /** sets the result of a health check */
   setHealth(o: SetHealth): Promise<void>
 
-  // image
-
-  /** A low level api used by Overlay */
-  createOverlayedImage(options: { imageId: string }): Promise<[string, string]>
-  /** A low level api used by Overlay */
-  destroyOverlayedImage(options: { guid: string }): Promise<void>
+  // subcontainer
+  subcontainer: {
+    /** A low level api used by SubContainer */
+    createFs(options: { imageId: string }): Promise<[string, string]>
+    /** A low level api used by SubContainer */
+    destroyFs(options: { guid: string }): Promise<void>
+  }
 
   // net
 
@@ -373,7 +382,7 @@ export type Effects = {
     hostId: HostId
     internalPort: number
   }): Promise<LanInfo>
-  /** Removes all network bindings */
+  /** Removes all network bindings, called in the setupConfig */
   clearBindings(): Promise<void>
   // host
   /** Returns information about the specified host, if it exists */
@@ -437,6 +446,10 @@ export type Effects = {
       value: ExtractStore
     }): Promise<void>
   }
+  /** sets the version that this service's data has been migrated to */
+  setDataVersion(options: { version: string }): Promise<void>
+  /** returns the version that this service's data has been migrated to */
+  getDataVersion(): Promise<string | null>
 
   // system
 
@@ -475,12 +488,11 @@ export type MigrationRes = {
 }
 
 export type ActionResult = {
+  version: "0"
   message: string
-  value: null | {
-    value: string
-    copyable: boolean
-    qr: boolean
-  }
+  value: string | null
+  copyable: boolean
+  qr: boolean
 }
 export type SetResult = {
   dependsOn: DependsOn

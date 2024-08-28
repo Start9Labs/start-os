@@ -92,7 +92,7 @@ format:
 test: | test-core test-sdk test-container-runtime
 
 test-core: $(CORE_SRC) $(ENVIRONMENT_FILE) 
-	cd core && cargo build --features=test && cargo test --features=test
+	./core/run-tests.sh
 
 test-sdk: $(shell git ls-files sdk) sdk/lib/osBindings
 	cd sdk && make test
@@ -231,7 +231,7 @@ sdk/lib/osBindings: core/startos/bindings
 
 core/startos/bindings: $(shell git ls-files core) $(ENVIRONMENT_FILE)
 	rm -rf core/startos/bindings
-	(cd core/ && cargo test --features=test 'export_bindings_')
+	./core/build-ts.sh
 	touch core/startos/bindings
 
 sdk/dist: $(shell git ls-files sdk) sdk/lib/osBindings

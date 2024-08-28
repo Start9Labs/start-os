@@ -89,6 +89,8 @@ export module Mock {
     title: 'Bitcoin Core',
     version: '0.21.0:0',
     satisfies: [],
+    canMigrateTo: '!',
+    canMigrateFrom: '*',
     gitHash: 'abcdefgh',
     description: {
       short: 'A Bitcoin full node by Bitcoin Core.',
@@ -133,6 +135,8 @@ export module Mock {
     title: 'Lightning Network Daemon',
     version: '0.11.1:0',
     satisfies: [],
+    canMigrateTo: '!',
+    canMigrateFrom: '*',
     gitHash: 'abcdefgh',
     description: {
       short: 'A bolt spec compliant client.',
@@ -189,6 +193,8 @@ export module Mock {
     title: 'Bitcoin Proxy',
     version: '0.2.2:0',
     satisfies: [],
+    canMigrateTo: '!',
+    canMigrateFrom: '*',
     gitHash: 'lmnopqrx',
     description: {
       short: 'A super charger for your Bitcoin node.',
@@ -1693,6 +1699,7 @@ export module Mock {
       state: 'installed',
       manifest: MockManifestBitcoind,
     },
+    dataVersion: MockManifestBitcoind.version,
     icon: '/assets/img/service-icons/bitcoind.svg',
     installedAt: new Date().toISOString(),
     lastBackup: null,
@@ -1710,7 +1717,6 @@ export module Mock {
       ui: {
         id: 'ui',
         hasPrimary: false,
-        disabled: false,
         masked: false,
         name: 'Web UI',
         description:
@@ -1728,7 +1734,6 @@ export module Mock {
       rpc: {
         id: 'rpc',
         hasPrimary: false,
-        disabled: false,
         masked: false,
         name: 'RPC',
         description:
@@ -1746,7 +1751,6 @@ export module Mock {
       p2p: {
         id: 'p2p',
         hasPrimary: true,
-        disabled: false,
         masked: false,
         name: 'P2P',
         description:
@@ -1875,6 +1879,7 @@ export module Mock {
       state: 'installed',
       manifest: MockManifestBitcoinProxy,
     },
+    dataVersion: MockManifestBitcoinProxy.version,
     icon: '/assets/img/service-icons/btc-rpc-proxy.png',
     installedAt: new Date().toISOString(),
     lastBackup: null,
@@ -1890,7 +1895,6 @@ export module Mock {
       ui: {
         id: 'ui',
         hasPrimary: false,
-        disabled: false,
         masked: false,
         name: 'Web UI',
         description: 'A launchable web app for Bitcoin Proxy',
@@ -1927,6 +1931,7 @@ export module Mock {
       state: 'installed',
       manifest: MockManifestLnd,
     },
+    dataVersion: MockManifestLnd.version,
     icon: '/assets/img/service-icons/lnd.png',
     installedAt: new Date().toISOString(),
     lastBackup: null,
@@ -1942,7 +1947,6 @@ export module Mock {
       grpc: {
         id: 'grpc',
         hasPrimary: false,
-        disabled: false,
         masked: false,
         name: 'GRPC',
         description:
@@ -1960,7 +1964,6 @@ export module Mock {
       lndconnect: {
         id: 'lndconnect',
         hasPrimary: false,
-        disabled: false,
         masked: true,
         name: 'LND Connect',
         description:
@@ -1978,7 +1981,6 @@ export module Mock {
       p2p: {
         id: 'p2p',
         hasPrimary: true,
-        disabled: false,
         masked: false,
         name: 'P2P',
         description:
