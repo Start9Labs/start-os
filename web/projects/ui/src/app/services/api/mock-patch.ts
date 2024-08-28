@@ -79,6 +79,9 @@ export const mockPatchData: DataModel = {
       wifi: {
         enabled: false,
         lastRegion: null,
+        interface: 'test',
+        ssids: [],
+        selected: null,
       },
       wanConfig: {
         upnp: false,

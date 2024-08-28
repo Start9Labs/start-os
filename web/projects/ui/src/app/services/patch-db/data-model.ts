@@ -86,6 +86,9 @@ export type PortForward = {
 export type WiFiInfo = {
   enabled: boolean
   lastRegion: string | null
+  interface: string | null
+  ssids: Array<string>
+  selected: string | null
 }
 
 export type Domain = {

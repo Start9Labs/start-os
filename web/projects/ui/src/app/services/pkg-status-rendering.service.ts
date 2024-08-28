@@ -10,7 +10,7 @@ export interface PackageStatus {
 
 export function renderPkgStatus(
   pkg: PackageDataEntry,
-  depErrors: PkgDependencyErrors,
+  depErrors: PkgDependencyErrors = {},
 ): PackageStatus {
   let primary: PrimaryStatus
   let dependency: DependencyStatus | null = null

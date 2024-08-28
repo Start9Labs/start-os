@@ -1,3 +1,4 @@
+import { KeyValuePipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -30,27 +31,27 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
       </tr>
     </thead>
     <tbody>
-      @for (target of backupsTargets; track $index) {
+      @for (target of backupsTargets || {} | keyvalue; track $index) {
         <tr>
-          <td class="title">{{ target.name }}</td>
+          <td class="title">{{ target.value.name }}</td>
           <td class="type">
-            <tui-icon [icon]="target.type | getBackupIcon" />
-            {{ target.type }}
+            <tui-icon [icon]="target.value.type | getBackupIcon" />
+            {{ target.value.type }}
           </td>
           <td class="available">
             <tui-icon
-              [icon]="target.mountable ? '@tui.check' : '@tui.x'"
-              [class]="target.mountable ? 'g-success' : 'g-error'"
+              [icon]="target.value.mountable ? '@tui.check' : '@tui.x'"
+              [class]="target.value.mountable ? 'g-success' : 'g-error'"
             />
           </td>
-          <td class="path">{{ target.path }}</td>
+          <td class="path">{{ target.value.path }}</td>
           <td class="actions">
             <button
               tuiIconButton
               size="xs"
               appearance="icon"
               iconStart="@tui.pencil"
-              (click)="update.emit(target)"
+              (click)="update.emit(target.key)"
             >
               Update
             </button>
@@ -59,7 +60,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
               size="xs"
               appearance="icon"
               iconStart="@tui.trash-2"
-              (click)="delete$.next(target.id)"
+              (click)="delete$.next(target.key)"
             >
               Delete
             </button>
@@ -132,7 +133,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiButton, GetBackupIconPipe, TuiIcon],
+  imports: [TuiButton, GetBackupIconPipe, TuiIcon, KeyValuePipe],
 })
 export class BackupsTargetsComponent {
   private readonly dialogs = inject(TuiDialogService)
@@ -140,10 +141,10 @@ export class BackupsTargetsComponent {
   readonly delete$ = new Subject<string>()
 
   @Input()
-  backupsTargets: readonly BackupTarget[] | null = null
+  backupsTargets: Record<string, BackupTarget> | null = null
 
   @Output()
-  readonly update = new EventEmitter<BackupTarget>()
+  readonly update = new EventEmitter<string>()
 
   @Output()
   readonly delete = this.delete$.pipe(

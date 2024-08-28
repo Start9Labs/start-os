@@ -822,14 +822,15 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     const { path, name } = params
     return {
-      id: 'latfgvwdbhjsndmk',
-      name,
-      type: 'cifs',
-      hostname: 'mockhotname',
-      path: path.replace(/\\/g, '/'),
-      username: 'mockusername',
-      mountable: true,
-      startOs: {},
+      latfgvwdbhjsndmk: {
+        name,
+        type: 'cifs',
+        hostname: 'mockhotname',
+        path: path.replace(/\\/g, '/'),
+        username: 'mockusername',
+        mountable: true,
+        startOs: {},
+      },
     }
   }
 
@@ -838,7 +839,7 @@ export class MockApiService extends ApiService {
     params: RR.UpdateCifsBackupTargetReq | RR.UpdateCloudBackupTargetReq,
   ): Promise<RR.UpdateBackupTargetRes> {
     await pauseFor(2000)
-    return Mock.BackupTargets.saved.find(b => b.id === params.id)!
+    return { [params.id]: Mock.BackupTargets.saved[params.id] }
   }
 
   async removeBackupTarget(
@@ -862,7 +863,7 @@ export class MockApiService extends ApiService {
     return {
       id: 'hjdfbjsahdbn',
       name: params.name,
-      target: Mock.BackupTargets.saved[0],
+      targetId: Object.keys(Mock.BackupTargets.saved)[0],
       cron: params.cron,
       packageIds: params.packageIds,
     }

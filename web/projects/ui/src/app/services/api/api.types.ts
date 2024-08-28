@@ -256,7 +256,7 @@ export module RR {
   export type GetBackupTargetsReq = {} // backup.target.list
   export type GetBackupTargetsRes = {
     unknownDisks: UnknownDisk[]
-    saved: BackupTarget[]
+    saved: Record<string, BackupTarget>
   }
 
   export type AddCifsBackupTargetReq = {
@@ -277,7 +277,7 @@ export module RR {
     name: string
     path: string
   } // backup.target.disk.add
-  export type AddBackupTargetRes = BackupTarget
+  export type AddBackupTargetRes = Record<string, BackupTarget>
 
   export type UpdateCifsBackupTargetReq = AddCifsBackupTargetReq & {
     id: string
@@ -539,7 +539,6 @@ export interface UnknownDisk {
 }
 
 export interface BaseBackupTarget {
-  id: string
   type: BackupTargetType
   name: string
   mountable: boolean
@@ -574,7 +573,7 @@ export type BackupRun = {
 export type BackupJob = {
   id: string
   name: string
-  target: BackupTarget
+  targetId: string
   cron: string // '* * * * * *' https://cloud.google.com/scheduler/docs/configuring/cron-job-schedules
   packageIds: string[]
 }

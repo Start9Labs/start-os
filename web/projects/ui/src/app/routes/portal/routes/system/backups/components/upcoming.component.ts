@@ -33,8 +33,10 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
             </td>
             <td class="name">{{ job.name }}</td>
             <td>
-              <tui-icon [icon]="job.target.type | getBackupIcon" />
-              {{ job.target.name }}
+              @if (targets()?.saved?.[job.targetId]; as target) {
+                <tui-icon [icon]="target.type | getBackupIcon" />
+                {{ target.name }}
+              }
             </td>
             <td class="packages">Packages: {{ job.packageIds.length }}</td>
           </tr>
@@ -94,6 +96,9 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
   imports: [GetBackupIconPipe, DatePipe, TuiIcon],
 })
 export class BackupsUpcomingComponent {
+  private readonly api = inject(ApiService)
+
+  readonly targets = toSignal(from(this.api.getBackupTargets({})))
   readonly current = toSignal(
     inject<PatchDB<DataModel>>(PatchDB)
       .watch$('serverInfo', 'statusInfo', 'currentBackup', 'job')
@@ -101,7 +106,7 @@ export class BackupsUpcomingComponent {
   )
 
   readonly upcoming = toSignal(
-    from(inject(ApiService).getBackupJobs({})).pipe(
+    from(this.api.getBackupJobs({})).pipe(
       map(jobs =>
         jobs
           .map(job => {

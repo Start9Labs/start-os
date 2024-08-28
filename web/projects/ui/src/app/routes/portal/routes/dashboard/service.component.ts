@@ -111,7 +111,7 @@ export class ServiceComponent implements OnChanges {
   readonly connected$ = inject(ConnectionService)
 
   get installed(): boolean {
-    return this.pkg.stateInfo.state !== 'installed'
+    return this.pkg.stateInfo.state === 'installed'
   }
 
   get manifest() {

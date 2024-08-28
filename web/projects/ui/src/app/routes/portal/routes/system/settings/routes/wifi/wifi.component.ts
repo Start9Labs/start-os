@@ -1,20 +1,15 @@
-import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
   inject,
 } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
-import {
-  ErrorService,
-  LoadingService,
-  pauseFor,
-  SharedPipesModule,
-} from '@start9labs/shared'
-import { TuiLet } from '@taiga-ui/cdk'
+import { ErrorService, LoadingService, pauseFor } from '@start9labs/shared'
 import {
   TuiAlertService,
+  TuiAppearance,
   TuiButton,
   TuiDialogOptions,
   TuiLoader,
@@ -38,53 +33,58 @@ import { wifiSpec } from './wifi.const'
 @Component({
   template: `
     <wifi-info />
-    <ng-container *tuiLet="enabled$ | async as enabled">
+    @if (status()?.interface) {
       <h3 class="g-title">
         Wi-Fi
         <input
           type="checkbox"
           tuiSwitch
-          [ngModel]="enabled"
+          [ngModel]="status()?.enabled"
           (ngModelChange)="onToggle($event)"
         />
       </h3>
 
-      <ng-container *ngIf="enabled">
-        <ng-container *ngIf="wifi$ | async as wifi; else loading">
-          <ng-container *ngIf="wifi.known.length">
+      @if (status()?.enabled) {
+        @if (wifi(); as data) {
+          @if (data.known.length) {
             <h3 class="g-title">Known Networks</h3>
-            <div tuiCard="l" [wifi]="wifi.known"></div>
-          </ng-container>
-          <ng-container *ngIf="wifi.available.length">
+            <div tuiCardLarge tuiAppearance="neutral" [wifi]="data.known"></div>
+          }
+          @if (data.available.length) {
             <h3 class="g-title">Other Networks</h3>
-            <div tuiCard="l" [wifi]="wifi.available"></div>
-          </ng-container>
+            <div
+              tuiCardLarge
+              tuiAppearance="neutral"
+              [wifi]="data.available"
+            ></div>
+          }
           <p>
             <button
               tuiButton
               size="s"
               appearance="opposite"
-              (click)="other(wifi)"
+              (click)="other(data)"
             >
               Other...
             </button>
           </p>
-        </ng-container>
-        <ng-template #loading><tui-loader></tui-loader></ng-template>
-      </ng-container>
-    </ng-container>
+        } @else {
+          <tui-loader />
+        }
+      }
+    } @else {
+      <p>No wireless interface detected.</p>
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     TuiButton,
     TuiSwitch,
-    TuiLet,
     TuiCardLarge,
     TuiLoader,
-    SharedPipesModule,
+    TuiAppearance,
     WifiInfoComponent,
     WifiTableComponent,
   ],
@@ -97,14 +97,10 @@ export class SettingsWifiComponent {
   private readonly update$ = new Subject<WifiData>()
   private readonly formDialog = inject(FormDialogService)
   private readonly cdr = inject(ChangeDetectorRef)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
-  readonly wifi$ = merge(this.getWifi$(), this.update$)
-  readonly enabled$ = inject<PatchDB<DataModel>>(PatchDB).watch$(
-    'serverInfo',
-    'network',
-    'wifi',
-    'enabled',
-  )
+  readonly status = toSignal(this.patch.watch$('serverInfo', 'network', 'wifi'))
+  readonly wifi = toSignal(merge(this.getWifi$(), this.update$))
 
   async onToggle(enable: boolean) {
     const loader = this.loader
