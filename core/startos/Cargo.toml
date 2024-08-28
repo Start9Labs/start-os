@@ -39,10 +39,10 @@ path = "src/main.rs"
 
 [features]
 cli = []
-container-runtime = ["procfs", "unshare"]
+container-runtime = ["procfs", "unshare", "tty-spawn"]
 daemon = []
 registry = []
-default = ["cli", "daemon"]
+default = ["cli", "daemon", "registry", "container-runtime"]
 dev = []
 unstable = ["console-subscriber", "tokio/tracing"]
 docker = []
@@ -205,6 +205,7 @@ tracing-journald = "0.3.0"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 trust-dns-server = "0.23.1"
 ts-rs = { git = "https://github.com/dr-bonez/ts-rs.git", branch = "feature/top-level-as" } # "8.1.0"
+tty-spawn = { version = "0.4.0", optional = true }
 typed-builder = "0.18.0"
 which = "6.0.3"
 unix-named-pipe = "0.2.0"
