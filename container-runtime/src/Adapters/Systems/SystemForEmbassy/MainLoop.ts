@@ -173,9 +173,14 @@ export class MainLoop {
                   subcontainer,
                 }
               )
+            const env: Record<string, string> = actionProcedure.inject
+              ? {
+                  HOME: "/root",
+                }
+              : {}
             const executed = await container.exec(
               [actionProcedure.entrypoint, ...actionProcedure.args],
-              { input: JSON.stringify(timeChanged) },
+              { input: JSON.stringify(timeChanged), env },
             )
 
             if (executed.exitCode === 0) {
