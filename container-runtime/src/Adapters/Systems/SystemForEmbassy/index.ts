@@ -750,6 +750,12 @@ export class SystemForEmbassy implements System {
       const subcontainer = actionProcedure.inject
         ? this.currentRunning?.mainSubContainerHandle
         : undefined
+
+      const env: Record<string, string> = actionProcedure.inject
+        ? {
+            HOME: "/root",
+          }
+        : {}
       const container = await DockerProcedureContainer.of(
         effects,
         this.manifest.id,
@@ -769,6 +775,7 @@ export class SystemForEmbassy implements System {
                 JSON.stringify(formData),
               ],
               timeoutMs,
+              { env },
             )
           ).stdout.toString(),
         ),
