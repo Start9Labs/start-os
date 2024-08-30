@@ -5144,6 +5144,7 @@ dependencies = [
  "tracing-subscriber",
  "trust-dns-server",
  "ts-rs",
+ "tty-spawn",
  "typed-builder",
  "unix-named-pipe",
  "unshare",
@@ -5884,6 +5885,17 @@ dependencies = [
  "quote",
  "syn 2.0.74",
  "termcolor",
+]
+
+[[package]]
+name = "tty-spawn"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb91489cf2611235ae8d755d66ab028437980ee573e2230c05af41b136236ad1"
+dependencies = [
+ "anyhow",
+ "nix 0.29.0",
+ "signal-hook",
 ]
 
 [[package]]
