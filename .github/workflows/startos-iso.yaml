@@ -78,7 +78,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: "3.x"
 
       - uses: actions/setup-node@v4
         with:
@@ -156,7 +156,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: "3.x"
 
       - name: Install dependencies
         run: |
@@ -184,13 +184,7 @@ jobs:
         run: tar -xvf compiled-${{ env.ARCH }}.tar
 
       - name: Prevent rebuild of compiled artifacts
-        run: |
-          mkdir -p web/node_modules
-          mkdir -p web/dist/raw
-          touch core/startos/bindings
-          touch sdk/lib/osBindings
-          mkdir -p container-runtime/dist
-          PLATFORM=${{ matrix.platform }} make -t compiled-${{ env.ARCH }}.tar
+        run: PLATFORM=${{ matrix.platform }} make -t compiled-${{ env.ARCH }}.tar
 
       - name: Run iso build
         run: PLATFORM=${{ matrix.platform }} make iso

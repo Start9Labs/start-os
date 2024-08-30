@@ -9,6 +9,7 @@ ca-certificates
 cifs-utils
 cryptsetup
 curl
+dnsutils
 dmidecode
 dosfstools
 e2fsprogs

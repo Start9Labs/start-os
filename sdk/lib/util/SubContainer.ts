@@ -179,10 +179,12 @@ export class SubContainer implements ExecSpawnable {
     }
     return new Promise<void>((resolve, reject) => {
       try {
+        let timeout = setTimeout(() => this.leader.kill("SIGKILL"), 30000)
         this.leader.on("exit", () => {
+          clearTimeout(timeout)
           resolve()
         })
-        if (!this.leader.kill("SIGKILL")) {
+        if (!this.leader.kill("SIGTERM")) {
           reject(new Error("kill(2) failed"))
         }
       } catch (e) {

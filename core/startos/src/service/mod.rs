@@ -1,18 +1,32 @@
+use std::ffi::OsString;
+use std::io::IsTerminal;
 use std::ops::Deref;
+use std::os::unix::process::ExitStatusExt;
+use std::path::Path;
+use std::process::Stdio;
 use std::sync::{Arc, Weak};
+use std::task::Poll;
 use std::time::Duration;
 
+use axum::extract::ws::WebSocket;
 use chrono::{DateTime, Utc};
 use clap::Parser;
 use futures::future::BoxFuture;
-use imbl::OrdMap;
-use models::{HealthCheckId, PackageId, ProcedureName};
+use futures::stream::FusedStream;
+use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
+use imbl_value::{json, InternedString};
+use itertools::Itertools;
+use models::{PackageId, ProcedureName};
+use nix::sys::signal::Signal;
 use persistent_container::PersistentContainer;
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerFor};
 use serde::{Deserialize, Serialize};
 use service_actor::ServiceActor;
 use start_stop::StartStop;
+use tokio::io::AsyncWriteExt;
+use tokio::process::Command;
 use tokio::sync::Notify;
+use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
@@ -24,15 +38,16 @@ use crate::install::PKG_ARCHIVE_DIR;
 use crate::lxc::ContainerId;
 use crate::prelude::*;
 use crate::progress::{NamedProgress, Progress};
-use crate::rpc_continuations::Guid;
+use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::S9pk;
 use crate::service::service_map::InstallProgressHandles;
-use crate::status::health_check::NamedHealthCheckResult;
 use crate::util::actor::concurrent::ConcurrentActor;
-use crate::util::io::create_file;
+use crate::util::io::{create_file, AsyncReadStream};
+use crate::util::net::WebSocketExt;
 use crate::util::serde::{NoOutput, Pem};
 use crate::util::Never;
 use crate::volume::data_dir;
+use crate::CAP_1_KiB;
 
 mod action;
 pub mod cli;
@@ -577,4 +592,352 @@ pub async fn connect_rpc_cli(
         .await?;
 
     crate::lxc::connect_cli(&ctx, guid).await
+}
+
+#[derive(Deserialize, Serialize, TS)]
+pub struct AttachParams {
+    pub id: PackageId,
+    #[ts(type = "string[]")]
+    pub command: Vec<OsString>,
+    pub tty: bool,
+    #[ts(skip)]
+    #[serde(rename = "__auth_session")]
+    session: Option<InternedString>,
+}
+pub async fn attach(
+    ctx: RpcContext,
+    AttachParams {
+        id,
+        command,
+        tty,
+        session,
+    }: AttachParams,
+) -> Result<Guid, Error> {
+    let (container_id, subcontainer_id) = {
+        let id = &id;
+
+        let service = ctx.services.get(id).await;
+
+        let service_ref = service.as_ref().or_not_found(id)?;
+
+        let container = &service_ref.seed.persistent_container;
+
+        let subcontainer_id = container
+            .subcontainers
+            .lock()
+            .await
+            .keys()
+            .fold(Err(Vec::new()), |acc, x| match acc {
+                Err(e) if e.is_empty() => Ok(x),
+                Ok(prev) => Err(vec![prev, x]),
+                Err(mut e) => {
+                    e.push(x);
+                    Err(e)
+                }
+            })
+            .map_err(|e| {
+                if e.is_empty() {
+                    Error::new(
+                        eyre!("no subcontainers are running for {id}"),
+                        ErrorKind::NotFound,
+                    )
+                } else {
+                    Error::new(
+                        eyre!("multiple subcontainers found for {id}"),
+                        ErrorKind::InvalidRequest,
+                    ) // TODO specify
+                }
+            })?
+            .clone();
+
+        (service_ref.container_id()?, subcontainer_id)
+    };
+
+    let guid = Guid::new();
+    async fn handler(
+        ws: &mut WebSocket,
+        container_id: ContainerId,
+        subcontainer_id: Guid,
+        command: Vec<OsString>,
+        tty: bool,
+    ) -> Result<(), Error> {
+        use axum::extract::ws::Message;
+
+        let mut ws = ws.fuse();
+
+        let mut cmd = Command::new("lxc-attach");
+        cmd.kill_on_drop(true);
+
+        cmd.arg(&*container_id)
+            .arg("--")
+            .arg("start-cli")
+            .arg("subcontainer")
+            .arg("exec");
+
+        if tty {
+            cmd.arg("--force-tty");
+        }
+
+        cmd
+            // .arg("--env=TODO")
+            // .arg("--workdir=TODO")
+            .arg(Path::new("/media/startos/subcontainers").join(subcontainer_id.as_ref()))
+            .arg("--");
+
+        if command.is_empty() {
+            // TODO
+        } else {
+            cmd.args(&command);
+        }
+
+        let mut child = cmd
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+
+        let pid = nix::unistd::Pid::from_raw(child.id().or_not_found("child pid")? as i32);
+
+        let mut stdin = child.stdin.take().or_not_found("child stdin")?;
+
+        let mut current_in = "stdin".to_owned();
+        let mut current_out = "stdout";
+        ws.send(Message::Text(current_out.into()))
+            .await
+            .with_kind(ErrorKind::Network)?;
+        let mut stdout = AsyncReadStream::new(
+            child.stdout.take().or_not_found("child stdout")?,
+            4 * CAP_1_KiB,
+        )
+        .fuse();
+        let mut stderr = AsyncReadStream::new(
+            child.stderr.take().or_not_found("child stderr")?,
+            4 * CAP_1_KiB,
+        )
+        .fuse();
+
+        loop {
+            futures::select_biased! {
+                out = stdout.try_next() => {
+                    if let Some(out) = out? {
+                        if current_out != "stdout" {
+                            ws.send(Message::Text("stdout".into()))
+                                .await
+                                .with_kind(ErrorKind::Network)?;
+                            current_out = "stdout";
+                        }
+                        dbg!(&current_out);
+                        ws.send(Message::Binary(out))
+                            .await
+                            .with_kind(ErrorKind::Network)?;
+                    }
+                }
+                err = stderr.try_next() => {
+                    if let Some(err) = err? {
+                        if current_out != "stderr" {
+                            ws.send(Message::Text("stderr".into()))
+                                .await
+                                .with_kind(ErrorKind::Network)?;
+                            current_out = "stderr";
+                        }
+                        dbg!(&current_out);
+                        ws.send(Message::Binary(err))
+                            .await
+                            .with_kind(ErrorKind::Network)?;
+                    }
+                }
+                msg = ws.try_next() => {
+                    if let Some(msg) = msg.with_kind(ErrorKind::Network)? {
+                        match msg {
+                            Message::Text(in_ty) => {
+                                current_in = in_ty;
+                            }
+                            Message::Binary(data) => {
+                                match &*current_in {
+                                    "stdin" => {
+                                        stdin.write_all(&data).await?;
+                                    }
+                                    "signal" => {
+                                        if data.len() != 4 {
+                                            return Err(Error::new(
+                                                eyre!("invalid byte length for signal: {}", data.len()),
+                                                ErrorKind::InvalidRequest
+                                            ));
+                                        }
+                                        let mut sig_buf = [0u8; 4];
+                                        sig_buf.clone_from_slice(&data);
+                                        nix::sys::signal::kill(
+                                            pid,
+                                            Signal::try_from(i32::from_be_bytes(sig_buf))
+                                                .with_kind(ErrorKind::InvalidRequest)?
+                                        ).with_kind(ErrorKind::Filesystem)?;
+                                    }
+                                    _ => (),
+                                }
+                            }
+                            _ => ()
+                        }
+                    } else {
+                        return Ok(())
+                    }
+                }
+            }
+            if stdout.is_terminated() && stderr.is_terminated() {
+                break;
+            }
+        }
+
+        let exit = child.wait().await?;
+        ws.send(Message::Text("exit".into()))
+            .await
+            .with_kind(ErrorKind::Network)?;
+        ws.send(Message::Binary(i32::to_be_bytes(exit.into_raw()).to_vec()))
+            .await
+            .with_kind(ErrorKind::Network)?;
+
+        Ok(())
+    }
+    ctx.rpc_continuations
+        .add(
+            guid.clone(),
+            RpcContinuation::ws_authed(
+                &ctx,
+                session,
+                move |mut ws| async move {
+                    if let Err(e) =
+                        handler(&mut ws, container_id, subcontainer_id, command, tty).await
+                    {
+                        tracing::error!("Error in attach websocket: {e}");
+                        tracing::debug!("{e:?}");
+                        ws.close_result(Err::<&str, _>(e)).await.log_err();
+                    } else {
+                        ws.normal_close("exit").await.log_err();
+                    }
+                },
+                Duration::from_secs(30),
+            ),
+        )
+        .await;
+
+    Ok(guid)
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+pub struct CliAttachParams {
+    pub id: PackageId,
+    #[arg(long)]
+    pub force_tty: bool,
+    #[arg(trailing_var_arg = true)]
+    pub command: Vec<OsString>,
+}
+pub async fn cli_attach(
+    HandlerArgs {
+        context,
+        parent_method,
+        method,
+        params,
+        ..
+    }: HandlerArgs<CliContext, CliAttachParams>,
+) -> Result<(), Error> {
+    use tokio_tungstenite::tungstenite::Message;
+
+    let guid: Guid = from_value(
+        context
+            .call_remote::<RpcContext>(
+                &parent_method.into_iter().chain(method).join("."),
+                json!({
+                    "id": params.id,
+                    "command": params.command,
+                    "tty": (std::io::stdin().is_terminal()
+                        && std::io::stdout().is_terminal()
+                        && std::io::stderr().is_terminal())
+                        || params.force_tty
+                }),
+            )
+            .await?,
+    )?;
+    let mut ws = context.ws_continuation(guid).await?;
+
+    let mut current_in = "stdin";
+    let mut current_out = "stdout".to_owned();
+    ws.send(Message::Text(current_in.into()))
+        .await
+        .with_kind(ErrorKind::Network)?;
+    let mut stdin = AsyncReadStream::new(tokio::io::stdin(), 4 * CAP_1_KiB).fuse();
+    let mut stdout = tokio::io::stdout();
+    let mut stderr = tokio::io::stderr();
+    loop {
+        futures::select_biased! {
+            // signal = tokio:: => {
+            //     let exit = exit?;
+            //     if current_out != "exit" {
+            //         ws.send(Message::Text("exit".into()))
+            //             .await
+            //             .with_kind(ErrorKind::Network)?;
+            //         current_out = "exit";
+            //     }
+            //     ws.send(Message::Binary(
+            //         i32::to_be_bytes(exit.into_raw()).to_vec()
+            //     )).await.with_kind(ErrorKind::Network)?;
+            // }
+            input = stdin.try_next() => {
+                if let Some(input) = input? {
+                    if current_in != "stdin" {
+                        ws.send(Message::Text("stdin".into()))
+                            .await
+                            .with_kind(ErrorKind::Network)?;
+                        current_in = "stdin";
+                    }
+                    ws.send(Message::Binary(input))
+                        .await
+                        .with_kind(ErrorKind::Network)?;
+                }
+            }
+            msg = ws.try_next() => {
+                if let Some(msg) = msg.with_kind(ErrorKind::Network)? {
+                    match msg {
+                        Message::Text(out_ty) => {
+                            current_out = out_ty;
+                        }
+                        Message::Binary(data) => {
+                            match &*current_out {
+                                "stdout" => {
+                                    stdout.write_all(&data).await?;
+                                    stdout.flush().await?;
+                                }
+                                "stderr" => {
+                                    stderr.write_all(&data).await?;
+                                    stderr.flush().await?;
+                                }
+                                "exit" => {
+                                    if data.len() != 4 {
+                                        return Err(Error::new(
+                                            eyre!("invalid byte length for exit code: {}", data.len()),
+                                            ErrorKind::InvalidRequest
+                                        ));
+                                    }
+                                    let mut exit_buf = [0u8; 4];
+                                    exit_buf.clone_from_slice(&data);
+                                    let code = i32::from_be_bytes(exit_buf);
+                                    std::process::exit(code);
+                                }
+                                _ => (),
+                            }
+                        }
+                        Message::Close(Some(close)) => {
+                            if close.code != CloseCode::Normal {
+                                return Err(Error::new(
+                                    color_eyre::eyre::Report::msg(close.reason),
+                                    ErrorKind::Network
+                                ));
+                            }
+                        }
+                        _ => ()
+                    }
+                } else {
+                    return Ok(())
+                }
+            }
+        }
+    }
 }
