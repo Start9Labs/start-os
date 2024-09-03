@@ -81,9 +81,8 @@ export class MockApiService extends ApiService {
       .subscribe()
   }
 
-  async uploadPackage(guid: string, body: Blob): Promise<string> {
+  async uploadPackage(guid: string, body: Blob): Promise<void> {
     await pauseFor(2000)
-    return 'success'
   }
 
   async getStaticProxy(
@@ -106,7 +105,7 @@ export class MockApiService extends ApiService {
 
   openWebsocket$<T>(
     guid: string,
-    config: RR.WebsocketConfig<T>,
+    config: RR.WebsocketConfig<T> = {},
   ): Observable<T> {
     if (guid === 'db-guid') {
       return this.mockWsSource$.pipe<any>(
@@ -122,6 +121,11 @@ export class MockApiService extends ApiService {
         }),
       )
     } else if (guid === 'init-progress-guid') {
+      return from(this.initProgress()).pipe(
+        startWith(PROGRESS),
+      ) as Observable<T>
+    } else if (guid === 'sideload-progress-guid') {
+      config.openObserver?.next(new Event(''))
       return from(this.initProgress()).pipe(
         startWith(PROGRESS),
       ) as Observable<T>
@@ -1079,8 +1083,8 @@ export class MockApiService extends ApiService {
   async sideloadPackage(): Promise<RR.SideloadPackageRes> {
     await pauseFor(2000)
     return {
-      upload: '4120e092-05ab-4de2-9fbd-c3f1f4b1df9e', // no significance, randomly generated
-      progress: '5120e092-05ab-4de2-9fbd-c3f1f4b1df9e', // no significance, randomly generated
+      upload: 'sideload-upload-guid', // no significance, randomly generated
+      progress: 'sideload-progress-guid', // no significance, randomly generated
     }
   }
 
