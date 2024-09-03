@@ -2,11 +2,15 @@
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-set -e
+set -ea
 shopt -s expand_aliases
 
 if [ -z "$ARCH" ]; then
 	ARCH=$(uname -m)
+fi
+
+if [ "$ARCH" = "arm64" ]; then
+  ARCH="aarch64"
 fi
 
 USE_TTY=
@@ -26,4 +30,7 @@ alias 'rust-musl-builder'='docker run $USE_TTY --rm -e "RUSTFLAGS=$RUSTFLAGS" -v
 
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-rust-musl-builder sh -c "cd core && cargo build --release --no-default-features --features cli,daemon,$FEATURES --locked --bin startbox --target=$ARCH-unknown-linux-musl && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"
+rust-musl-builder sh -c "cd core && cargo build --release --no-default-features --features cli,daemon,$FEATURES --locked --bin startbox --target=$ARCH-unknown-linux-musl"
+if [ "$(ls -nd core/target/$ARCH-unknown-linux-musl/release/startbox | awk '{ print $3 }')" != "$UID" ]; then
+	rust-musl-builder sh -c "cd core && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"
+fi

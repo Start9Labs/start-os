@@ -2,18 +2,20 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::ffi::{c_int, OsStr, OsString};
 use std::fs::File;
+use std::io::IsTerminal;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command as StdCommand, Stdio};
 
 use nix::sched::CloneFlags;
 use nix::unistd::Pid;
-use rpc_toolkit::Context;
 use signal_hook::consts::signal::*;
 use tokio::sync::oneshot;
+use tty_spawn::TtySpawn;
 use unshare::Command as NSCommand;
 
 use crate::service::effects::prelude::*;
+use crate::service::effects::ContainerCliContext;
 
 const FWD_SIGNALS: &[c_int] = &[
     SIGABRT, SIGALRM, SIGCONT, SIGHUP, SIGINT, SIGIO, SIGPIPE, SIGPROF, SIGQUIT, SIGTERM, SIGTRAP,
@@ -130,8 +132,8 @@ impl ExecParams {
     }
 }
 
-pub fn launch<C: Context>(
-    _: C,
+pub fn launch(
+    _: ContainerCliContext,
     ExecParams {
         env,
         workdir,
@@ -141,6 +143,8 @@ pub fn launch<C: Context>(
     }: ExecParams,
 ) -> Result<(), Error> {
     use unshare::{Namespace, Stdio};
+
+    use crate::service::cli::ContainerCliContext;
     let mut sig = signal_hook::iterator::Signals::new(FWD_SIGNALS)?;
     let mut cmd = NSCommand::new("/usr/bin/start-cli");
     cmd.arg("subcontainer").arg("launch-init");
@@ -262,7 +266,7 @@ pub fn launch<C: Context>(
     }
 }
 
-pub fn launch_init<C: Context>(_: C, params: ExecParams) -> Result<(), Error> {
+pub fn launch_init(_: ContainerCliContext, params: ExecParams) -> Result<(), Error> {
     nix::mount::mount(
         Some("proc"),
         &params.chroot.join("proc"),
@@ -281,8 +285,8 @@ pub fn launch_init<C: Context>(_: C, params: ExecParams) -> Result<(), Error> {
     }
 }
 
-pub fn exec<C: Context>(
-    _: C,
+pub fn exec(
+    _: ContainerCliContext,
     ExecParams {
         env,
         workdir,
@@ -291,6 +295,37 @@ pub fn exec<C: Context>(
         command,
     }: ExecParams,
 ) -> Result<(), Error> {
+    if std::io::stdin().is_terminal() {
+        let mut cmd = TtySpawn::new("/usr/bin/start-cli");
+        cmd.arg("subcontainer").arg("exec-command");
+        if let Some(env) = env {
+            cmd.arg("--env").arg(env);
+        }
+        if let Some(workdir) = workdir {
+            cmd.arg("--workdir").arg(workdir);
+        }
+        if let Some(user) = user {
+            cmd.arg("--user").arg(user);
+        }
+        cmd.arg(&chroot);
+        cmd.args(command.iter());
+        nix::sched::setns(
+            open_file_read(chroot.join("proc/1/ns/pid"))?,
+            CloneFlags::CLONE_NEWPID,
+        )
+        .with_ctx(|_| (ErrorKind::Filesystem, "set pid ns"))?;
+        nix::sched::setns(
+            open_file_read(chroot.join("proc/1/ns/cgroup"))?,
+            CloneFlags::CLONE_NEWCGROUP,
+        )
+        .with_ctx(|_| (ErrorKind::Filesystem, "set cgroup ns"))?;
+        nix::sched::setns(
+            open_file_read(chroot.join("proc/1/ns/ipc"))?,
+            CloneFlags::CLONE_NEWIPC,
+        )
+        .with_ctx(|_| (ErrorKind::Filesystem, "set ipc ns"))?;
+        std::process::exit(cmd.spawn().with_kind(ErrorKind::Filesystem)?);
+    }
     let mut sig = signal_hook::iterator::Signals::new(FWD_SIGNALS)?;
     let (send_pid, recv_pid) = oneshot::channel();
     std::thread::spawn(move || {
@@ -384,6 +419,6 @@ pub fn exec<C: Context>(
     }
 }
 
-pub fn exec_command<C: Context>(_: C, params: ExecParams) -> Result<(), Error> {
+pub fn exec_command(_: ContainerCliContext, params: ExecParams) -> Result<(), Error> {
     params.exec()
 }

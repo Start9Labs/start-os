@@ -39,10 +39,10 @@ path = "src/main.rs"
 
 [features]
 cli = []
-container-runtime = []
+container-runtime = ["procfs", "unshare", "tty-spawn"]
 daemon = []
 registry = []
-default = ["cli", "daemon"]
+default = ["cli", "daemon", "registry", "container-runtime"]
 dev = []
 unstable = ["console-subscriber", "tokio/tracing"]
 docker = []
@@ -153,7 +153,7 @@ pbkdf2 = "0.12.2"
 pin-project = "1.1.3"
 pkcs8 = { version = "0.10.2", features = ["std"] }
 prettytable-rs = "0.10.0"
-procfs = "0.16.0"
+procfs = { version = "0.16.0", optional = true }
 proptest = "1.3.1"
 proptest-derive = "0.5.0"
 rand = { version = "0.8.5", features = ["std"] }
@@ -205,10 +205,11 @@ tracing-journald = "0.3.0"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 trust-dns-server = "0.23.1"
 ts-rs = { git = "https://github.com/dr-bonez/ts-rs.git", branch = "feature/top-level-as" } # "8.1.0"
+tty-spawn = { version = "0.4.0", optional = true }
 typed-builder = "0.18.0"
 which = "6.0.3"
 unix-named-pipe = "0.2.0"
-unshare = "0.7.0"
+unshare = { version = "0.7.0", optional = true }
 url = { version = "2.4.1", features = ["serde"] }
 urlencoding = "2.1.3"
 uuid = { version = "1.4.1", features = ["v4"] }

@@ -173,10 +173,16 @@ export class MainLoop {
                   subcontainer,
                 }
               )
+            const env: Record<string, string> = actionProcedure.inject
+              ? {
+                  HOME: "/root",
+                }
+              : {}
             const executed = await container.exec(
               [actionProcedure.entrypoint, ...actionProcedure.args],
-              { input: JSON.stringify(timeChanged) },
+              { input: JSON.stringify(timeChanged), env },
             )
+
             if (executed.exitCode === 0) {
               await effects.setHealth({
                 id: healthId,
@@ -224,6 +230,18 @@ export class MainLoop {
                 name: value.name,
                 result: "failure",
                 message: errorMessage,
+              })
+              return
+            }
+            if (executed.exitCode && executed.exitCode > 0) {
+              await effects.setHealth({
+                id: healthId,
+                name: value.name,
+                result: "failure",
+                message:
+                  executed.stderr.toString() ||
+                  executed.stdout.toString() ||
+                  `Program exited with code ${executed.exitCode}:`,
               })
               return
             }
