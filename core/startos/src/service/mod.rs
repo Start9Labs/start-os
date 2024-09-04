@@ -603,6 +603,8 @@ pub struct AttachParams {
     #[ts(skip)]
     #[serde(rename = "__auth_session")]
     session: Option<InternedString>,
+    #[ts(type = "string", optional)]
+    subcontainer: Option<InternedString>,
 }
 pub async fn attach(
     ctx: RpcContext,
@@ -611,6 +613,7 @@ pub async fn attach(
         command,
         tty,
         session,
+        subcontainer,
     }: AttachParams,
 ) -> Result<Guid, Error> {
     let (container_id, subcontainer_id) = {
@@ -622,33 +625,35 @@ pub async fn attach(
 
         let container = &service_ref.seed.persistent_container;
 
-        let subcontainer_id = container
-            .subcontainers
-            .lock()
-            .await
+        let subcontainer = subcontainer.map(|x| AsRef::<str>::as_ref(&x).to_uppercase());
+
+        let subcontainers = container.subcontainers.lock().await;
+        let subcontainer_ids: Vec<_> = subcontainers
             .keys()
-            .fold(Err(Vec::new()), |acc, x| match acc {
-                Err(e) if e.is_empty() => Ok(x),
-                Ok(prev) => Err(vec![prev, x]),
-                Err(mut e) => {
-                    e.push(x);
-                    Err(e)
+            .filter(|x: &&Guid| {
+                if let Some(subcontainer) = subcontainer.as_ref() {
+                    AsRef::<str>::as_ref(x).contains(AsRef::<str>::as_ref(subcontainer))
+                } else {
+                    true
                 }
             })
-            .map_err(|e| {
-                if e.is_empty() {
-                    Error::new(
-                        eyre!("no subcontainers are running for {id}"),
-                        ErrorKind::NotFound,
-                    )
-                } else {
-                    Error::new(
-                        eyre!("multiple subcontainers found for {id}"),
-                        ErrorKind::InvalidRequest,
-                    ) // TODO specify
-                }
-            })?
-            .clone();
+            .collect();
+
+        let Some(subcontainer_id) = subcontainer_ids.first().map::<Guid, _>(|&x| x.clone()) else {
+            drop(subcontainers);
+            let subcontainers = container.subcontainers.lock().await.keys().join("\n");
+            return Err(Error::new(
+                eyre!("no matching subcontainers are running for {id}; some possible choices are:\n{subcontainers}"),
+                ErrorKind::NotFound,
+            ));
+        };
+        if subcontainer_ids.len() > 1 {
+            let subcontainer_ids = subcontainer_ids.iter().join("\n");
+            return Err(Error::new(
+                eyre!("multiple subcontainers found for {id}: \n{subcontainer_ids}"),
+                ErrorKind::InvalidRequest,
+            ));
+        }
 
         (service_ref.container_id()?, subcontainer_id)
     };
@@ -829,6 +834,8 @@ pub struct CliAttachParams {
     pub force_tty: bool,
     #[arg(trailing_var_arg = true)]
     pub command: Vec<OsString>,
+    #[arg(long, short)]
+    subcontainer: Option<InternedString>,
 }
 pub async fn cli_attach(
     HandlerArgs {
@@ -851,7 +858,8 @@ pub async fn cli_attach(
                     "tty": (std::io::stdin().is_terminal()
                         && std::io::stdout().is_terminal()
                         && std::io::stderr().is_terminal())
-                        || params.force_tty
+                        || params.force_tty,
+                    "subcontainer": params.subcontainer,
                 }),
             )
             .await?,
