@@ -86,10 +86,12 @@ export class SubContainer implements ExecSpawnable {
   static async of(
     effects: T.Effects,
     image: { id: T.ImageId; sharedRun?: boolean },
+    name: string,
   ) {
     const { id, sharedRun } = image
     const [rootfs, guid] = await effects.subcontainer.createFs({
       imageId: id as string,
+      name,
     })
 
     const shared = ["dev", "sys"]
@@ -115,9 +117,10 @@ export class SubContainer implements ExecSpawnable {
     effects: T.Effects,
     image: { id: T.ImageId; sharedRun?: boolean },
     mounts: { options: MountOptions; path: string }[],
+    name: string,
     fn: (subContainer: SubContainer) => Promise<T>,
   ): Promise<T> {
-    const subContainer = await SubContainer.of(effects, image)
+    const subContainer = await SubContainer.of(effects, image, name)
     try {
       for (let mount of mounts) {
         await subContainer.mount(mount.options, mount.path)

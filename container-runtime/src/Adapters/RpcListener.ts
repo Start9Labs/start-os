@@ -198,7 +198,11 @@ export class RpcListener {
           .then((x) => this.dealWithInput(x))
           .catch(mapError)
           .then(logData("response"))
-          .then(writeDataToSocket),
+          .then(writeDataToSocket)
+          .catch((e) => {
+            console.error(`Major error in socket handling: ${e}`)
+            console.debug(`Data in: ${a.toString()}`)
+          }),
       )
     })
   }

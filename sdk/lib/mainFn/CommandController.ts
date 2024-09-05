@@ -31,6 +31,7 @@ export class CommandController {
         | SubContainer,
       command: T.CommandType,
       options: {
+        subcontainerName?: string
         // Defaults to the DEFAULT_SIGTERM_TIMEOUT = 30_000ms
         sigtermTimeout?: number
         mounts?: { path: string; options: MountOptions }[]
@@ -51,7 +52,11 @@ export class CommandController {
         subcontainer instanceof SubContainer
           ? subcontainer
           : await (async () => {
-              const subc = await SubContainer.of(effects, subcontainer)
+              const subc = await SubContainer.of(
+                effects,
+                subcontainer,
+                options?.subcontainerName || commands.join(" "),
+              )
               for (let mount of options.mounts || []) {
                 await subc.mount(mount.options, mount.path)
               }

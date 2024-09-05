@@ -1,12 +1,16 @@
 use std::path::{Path, PathBuf};
 
+use imbl_value::InternedString;
 use models::ImageId;
 use tokio::process::Command;
 
-use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::rpc_continuations::Guid;
 use crate::service::effects::prelude::*;
 use crate::util::Invoke;
+use crate::{
+    disk::mount::filesystem::overlayfs::OverlayGuard,
+    service::persistent_container::SubcontainerWrapper,
+};
 
 #[cfg(feature = "container-runtime")]
 mod sync;
@@ -38,7 +42,7 @@ pub async fn destroy_subcontainer_fs(
         .await
         .remove(&guid)
     {
-        overlay.unmount(true).await?;
+        overlay.overlay.unmount(true).await?;
     } else {
         tracing::warn!("Could not find a subcontainer fs to destroy; assumming that it already is destroyed and will be skipping");
     }
@@ -50,11 +54,13 @@ pub async fn destroy_subcontainer_fs(
 #[ts(export)]
 pub struct CreateSubcontainerFsParams {
     image_id: ImageId,
+    #[ts(type = "string | null")]
+    name: Option<InternedString>,
 }
 #[instrument(skip_all)]
 pub async fn create_subcontainer_fs(
     context: EffectContext,
-    CreateSubcontainerFsParams { image_id }: CreateSubcontainerFsParams,
+    CreateSubcontainerFsParams { image_id, name }: CreateSubcontainerFsParams,
 ) -> Result<(PathBuf, Guid), Error> {
     let context = context.deref()?;
     if let Some(image) = context
@@ -87,7 +93,13 @@ pub async fn create_subcontainer_fs(
                 .with_kind(ErrorKind::Incoherent)?,
         );
         tracing::info!("Mounting overlay {guid} for {image_id}");
-        let guard = OverlayGuard::mount(image, &mountpoint).await?;
+        let subcontainer_wrapper = SubcontainerWrapper {
+            overlay: OverlayGuard::mount(image, &mountpoint).await?,
+            name: name
+                .unwrap_or_else(|| InternedString::intern(format!("subcontainer-{}", image_id))),
+            image_id: image_id.clone(),
+        };
+
         Command::new("chown")
             .arg("100000:100000")
             .arg(&mountpoint)
@@ -100,7 +112,7 @@ pub async fn create_subcontainer_fs(
             .subcontainers
             .lock()
             .await
-            .insert(guid.clone(), guard);
+            .insert(guid.clone(), subcontainer_wrapper);
         Ok((container_mountpoint, guid))
     } else {
         Err(Error::new(

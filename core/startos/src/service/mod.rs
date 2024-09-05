@@ -1,12 +1,11 @@
-use std::ffi::OsString;
 use std::io::IsTerminal;
 use std::ops::Deref;
 use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 use std::process::Stdio;
 use std::sync::{Arc, Weak};
-use std::task::Poll;
 use std::time::Duration;
+use std::{ffi::OsString, path::PathBuf};
 
 use axum::extract::ws::WebSocket;
 use chrono::{DateTime, Utc};
@@ -16,14 +15,14 @@ use futures::stream::FusedStream;
 use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
 use imbl_value::{json, InternedString};
 use itertools::Itertools;
-use models::{PackageId, ProcedureName};
+use models::{ImageId, PackageId, ProcedureName};
 use nix::sys::signal::Signal;
-use persistent_container::PersistentContainer;
+use persistent_container::{PersistentContainer, SubcontainerWrapper};
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerFor};
 use serde::{Deserialize, Serialize};
 use service_actor::ServiceActor;
 use start_stop::StartStop;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 use tokio::sync::Notify;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
@@ -595,6 +594,7 @@ pub async fn connect_rpc_cli(
 }
 
 #[derive(Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct AttachParams {
     pub id: PackageId,
     #[ts(type = "string[]")]
@@ -603,8 +603,12 @@ pub struct AttachParams {
     #[ts(skip)]
     #[serde(rename = "__auth_session")]
     session: Option<InternedString>,
-    #[ts(type = "string", optional)]
+    #[ts(type = "string | null")]
     subcontainer: Option<InternedString>,
+    #[ts(type = "string | null")]
+    name: Option<InternedString>,
+    #[ts(type = "string | null")]
+    image_id: Option<ImageId>,
 }
 pub async fn attach(
     ctx: RpcContext,
@@ -614,6 +618,8 @@ pub async fn attach(
         tty,
         session,
         subcontainer,
+        image_id,
+        name,
     }: AttachParams,
 ) -> Result<Guid, Error> {
     let (container_id, subcontainer_id) = {
@@ -626,29 +632,59 @@ pub async fn attach(
         let container = &service_ref.seed.persistent_container;
 
         let subcontainer = subcontainer.map(|x| AsRef::<str>::as_ref(&x).to_uppercase());
+        let name = name.map(|x| AsRef::<str>::as_ref(&x).to_uppercase());
+        let image_id = image_id.map(|x| AsRef::<Path>::as_ref(&x).to_string_lossy().to_uppercase());
 
         let subcontainers = container.subcontainers.lock().await;
         let subcontainer_ids: Vec<_> = subcontainers
-            .keys()
-            .filter(|x: &&Guid| {
+            .iter()
+            .filter(|(x, wrapper)| {
                 if let Some(subcontainer) = subcontainer.as_ref() {
                     AsRef::<str>::as_ref(x).contains(AsRef::<str>::as_ref(subcontainer))
+                } else if let Some(name) = name.as_ref() {
+                    AsRef::<str>::as_ref(&wrapper.name)
+                        .to_uppercase()
+                        .contains(AsRef::<str>::as_ref(name))
+                } else if let Some(image_id) = image_id.as_ref() {
+                    let Some(wrapper_image_id) = AsRef::<Path>::as_ref(&wrapper.image_id).to_str()
+                    else {
+                        return false;
+                    };
+                    wrapper_image_id
+                        .to_uppercase()
+                        .contains(AsRef::<str>::as_ref(&image_id))
                 } else {
                     true
                 }
             })
             .collect();
-
-        let Some(subcontainer_id) = subcontainer_ids.first().map::<Guid, _>(|&x| x.clone()) else {
+        let format_subcontainer_pair = |(guid, wrapper): (&Guid, &SubcontainerWrapper)| {
+            format!(
+                "{guid} imageId: {image_id} name: \"{name}\"",
+                name = &wrapper.name,
+                image_id = &wrapper.image_id
+            )
+        };
+        let Some(subcontainer_id) = subcontainer_ids.first().map::<Guid, _>(|&x| x.0.clone())
+        else {
             drop(subcontainers);
-            let subcontainers = container.subcontainers.lock().await.keys().join("\n");
+            let subcontainers = container
+                .subcontainers
+                .lock()
+                .await
+                .iter()
+                .map(format_subcontainer_pair)
+                .join("\n");
             return Err(Error::new(
                 eyre!("no matching subcontainers are running for {id}; some possible choices are:\n{subcontainers}"),
                 ErrorKind::NotFound,
             ));
         };
         if subcontainer_ids.len() > 1 {
-            let subcontainer_ids = subcontainer_ids.iter().join("\n");
+            let subcontainer_ids = subcontainer_ids
+                .into_iter()
+                .map(format_subcontainer_pair)
+                .join("\n");
             return Err(Error::new(
                 eyre!("multiple subcontainers found for {id}: \n{subcontainer_ids}"),
                 ErrorKind::InvalidRequest,
@@ -690,7 +726,12 @@ pub async fn attach(
             .arg("--");
 
         if command.is_empty() {
-            // TODO
+            let etc_passwd_path = Path::new("/media/startos/subcontainers")
+                .join(subcontainer_id.as_ref())
+                .join("etc")
+                .join("passwd");
+            let root_cmd = get_passwd_root_command(etc_passwd_path).await;
+            cmd.arg(root_cmd);
         } else {
             cmd.args(&command);
         }
@@ -827,6 +868,39 @@ pub async fn attach(
     Ok(guid)
 }
 
+async fn get_passwd_root_command(etc_passwd_path: PathBuf) -> String {
+    async {
+        'parsed: {
+            let mut file = tokio::fs::File::open(etc_passwd_path).await?;
+
+            let mut contents = vec![];
+            file.read_to_end(&mut contents).await?;
+
+            let contents = String::from_utf8_lossy(&contents);
+
+            for line in contents.split('\n') {
+                let line_information = line.split(':').collect::<Vec<_>>();
+                match (line_information.first(), line_information.last()) {
+                    (Some(&"root"), Some(shell)) => {
+                        break 'parsed Ok(shell.to_string());
+                    }
+                    _ => (),
+                }
+            }
+            Err(Error::new(
+                eyre!("Could not parse /etc/passwd for shell: {}", contents),
+                ErrorKind::Filesystem,
+            ))
+        }
+    }
+    .await
+    .unwrap_or_else(|e| {
+        tracing::error!("Could not get the /etc/passwd: {e}");
+        tracing::debug!("{e:?}");
+        "/bin/sh".to_string()
+    })
+}
+
 #[derive(Deserialize, Serialize, Parser)]
 pub struct CliAttachParams {
     pub id: PackageId,
@@ -836,6 +910,10 @@ pub struct CliAttachParams {
     pub command: Vec<OsString>,
     #[arg(long, short)]
     subcontainer: Option<InternedString>,
+    #[arg(long, short)]
+    name: Option<InternedString>,
+    #[arg(long, short)]
+    image_id: Option<ImageId>,
 }
 pub async fn cli_attach(
     HandlerArgs {
@@ -860,6 +938,8 @@ pub async fn cli_attach(
                         && std::io::stderr().is_terminal())
                         || params.force_tty,
                     "subcontainer": params.subcontainer,
+                    "imageId": params.image_id,
+                    "name": params.name,
                 }),
             )
             .await?,
