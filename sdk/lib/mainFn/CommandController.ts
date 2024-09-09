@@ -126,7 +126,7 @@ export class CommandController {
       if (!this.state.exited) {
         if (signal !== "SIGKILL") {
           setTimeout(() => {
-            this.process.kill("SIGKILL")
+            if (!this.state.exited) this.process.kill("SIGKILL")
           }, timeout)
         }
         if (!this.process.kill(signal)) {
