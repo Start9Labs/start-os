@@ -12,7 +12,7 @@ use chrono::{DateTime, Utc};
 use clap::Parser;
 use futures::future::BoxFuture;
 use futures::stream::FusedStream;
-use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
+use futures::{SinkExt, StreamExt, TryStreamExt};
 use imbl_value::{json, InternedString};
 use itertools::Itertools;
 use models::{ImageId, PackageId, ProcedureName};
@@ -81,6 +81,8 @@ pub enum LoadDisposition {
     Retry,
     Undo,
 }
+
+struct RootCommand(pub String);
 
 pub struct ServiceRef(Arc<Service>);
 impl ServiceRef {
@@ -197,7 +199,7 @@ impl ServiceRef {
 impl Deref for ServiceRef {
     type Target = Service;
     fn deref(&self) -> &Self::Target {
-        &*self.0
+        &self.0
     }
 }
 impl From<Service> for ServiceRef {
@@ -368,7 +370,7 @@ impl Service {
                             tracing::debug!("{e:?}")
                         })
                     {
-                        match ServiceRef::from(service).uninstall(None).await {
+                        match service.uninstall(None).await {
                             Err(e) => {
                                 tracing::error!("Error uninstalling service: {e}");
                                 tracing::debug!("{e:?}")
@@ -622,7 +624,7 @@ pub async fn attach(
         name,
     }: AttachParams,
 ) -> Result<Guid, Error> {
-    let (container_id, subcontainer_id) = {
+    let (container_id, subcontainer_id, image_id, workdir, root_command) = {
         let id = &id;
 
         let service = ctx.services.get(id).await;
@@ -630,6 +632,11 @@ pub async fn attach(
         let service_ref = service.as_ref().or_not_found(id)?;
 
         let container = &service_ref.seed.persistent_container;
+        let root_dir = container
+            .lxc_container
+            .get()
+            .map(|x| x.rootfs_dir().to_owned())
+            .or_not_found(format!("container for {id}"))?;
 
         let subcontainer = subcontainer.map(|x| AsRef::<str>::as_ref(&x).to_uppercase());
         let name = name.map(|x| AsRef::<str>::as_ref(&x).to_uppercase());
@@ -665,7 +672,9 @@ pub async fn attach(
                 image_id = &wrapper.image_id
             )
         };
-        let Some(subcontainer_id) = subcontainer_ids.first().map::<Guid, _>(|&x| x.0.clone())
+        let Some((subcontainer_id, image_id)) = subcontainer_ids
+            .first()
+            .map::<(Guid, ImageId), _>(|&x| (x.0.clone(), x.1.image_id.clone()))
         else {
             drop(subcontainers);
             let subcontainers = container
@@ -680,6 +689,17 @@ pub async fn attach(
                 ErrorKind::NotFound,
             ));
         };
+
+        let passwd = root_dir
+            .join("media/startos/subcontainers")
+            .join(subcontainer_id.as_ref())
+            .join("etc")
+            .join("passwd");
+
+        let root_command = get_passwd_root_command(passwd).await;
+
+        let workdir = attach_workdir(&image_id, &root_dir).await?;
+
         if subcontainer_ids.len() > 1 {
             let subcontainer_ids = subcontainer_ids
                 .into_iter()
@@ -691,7 +711,13 @@ pub async fn attach(
             ));
         }
 
-        (service_ref.container_id()?, subcontainer_id)
+        (
+            service_ref.container_id()?,
+            subcontainer_id,
+            image_id,
+            workdir,
+            root_command,
+        )
     };
 
     let guid = Guid::new();
@@ -701,37 +727,43 @@ pub async fn attach(
         subcontainer_id: Guid,
         command: Vec<OsString>,
         tty: bool,
+        image_id: ImageId,
+        workdir: Option<String>,
+        root_command: &RootCommand,
     ) -> Result<(), Error> {
         use axum::extract::ws::Message;
 
         let mut ws = ws.fuse();
 
         let mut cmd = Command::new("lxc-attach");
+        let root_path = Path::new("/media/startos/subcontainers").join(subcontainer_id.as_ref());
         cmd.kill_on_drop(true);
 
         cmd.arg(&*container_id)
             .arg("--")
             .arg("start-cli")
             .arg("subcontainer")
-            .arg("exec");
+            .arg("exec")
+            .arg("--env")
+            .arg(
+                Path::new("/media/startos/images")
+                    .join(image_id)
+                    .with_extension("env"),
+            );
+
+        if let Some(workdir) = workdir {
+            cmd.arg("--workdir").arg(workdir);
+        }
 
         if tty {
             cmd.arg("--force-tty");
         }
 
-        cmd
-            // .arg("--env=TODO")
-            // .arg("--workdir=TODO")
-            .arg(Path::new("/media/startos/subcontainers").join(subcontainer_id.as_ref()))
-            .arg("--");
+        cmd.arg(&root_path).arg("--");
 
         if command.is_empty() {
-            let etc_passwd_path = Path::new("/media/startos/subcontainers")
-                .join(subcontainer_id.as_ref())
-                .join("etc")
-                .join("passwd");
-            let root_cmd = get_passwd_root_command(etc_passwd_path).await;
-            cmd.arg(root_cmd);
+            let etc_passwd_path = root_path.join("etc").join("passwd");
+            cmd.arg(&root_command.0);
         } else {
             cmd.args(&command);
         }
@@ -850,8 +882,17 @@ pub async fn attach(
                 &ctx,
                 session,
                 move |mut ws| async move {
-                    if let Err(e) =
-                        handler(&mut ws, container_id, subcontainer_id, command, tty).await
+                    if let Err(e) = handler(
+                        &mut ws,
+                        container_id,
+                        subcontainer_id,
+                        command,
+                        tty,
+                        image_id,
+                        workdir,
+                        &root_command,
+                    )
+                    .await
                     {
                         tracing::error!("Error in attach websocket: {e}");
                         tracing::debug!("{e:?}");
@@ -868,7 +909,19 @@ pub async fn attach(
     Ok(guid)
 }
 
-async fn get_passwd_root_command(etc_passwd_path: PathBuf) -> String {
+async fn attach_workdir(image_id: &ImageId, root_dir: &Path) -> Result<Option<String>, Error> {
+    let path_str = root_dir.join("media/startos/images/");
+
+    let mut subcontainer_json =
+        tokio::fs::File::open(path_str.join(image_id).with_extension("json")).await?;
+    let mut contents = vec![];
+    subcontainer_json.read_to_end(&mut contents).await?;
+    let subcontainer_json: serde_json::Value =
+        serde_json::from_slice(&contents).with_kind(ErrorKind::Filesystem)?;
+    Ok(subcontainer_json["workdir"].as_str().map(|x| x.to_string()))
+}
+
+async fn get_passwd_root_command(etc_passwd_path: PathBuf) -> RootCommand {
     async {
         'parsed: {
             let mut file = tokio::fs::File::open(etc_passwd_path).await?;
@@ -880,11 +933,10 @@ async fn get_passwd_root_command(etc_passwd_path: PathBuf) -> String {
 
             for line in contents.split('\n') {
                 let line_information = line.split(':').collect::<Vec<_>>();
-                match (line_information.first(), line_information.last()) {
-                    (Some(&"root"), Some(shell)) => {
-                        break 'parsed Ok(shell.to_string());
-                    }
-                    _ => (),
+                if let (Some(&"root"), Some(shell)) =
+                    (line_information.first(), line_information.last())
+                {
+                    break 'parsed Ok(shell.to_string());
                 }
             }
             Err(Error::new(
@@ -894,10 +946,11 @@ async fn get_passwd_root_command(etc_passwd_path: PathBuf) -> String {
         }
     }
     .await
+    .map(RootCommand)
     .unwrap_or_else(|e| {
         tracing::error!("Could not get the /etc/passwd: {e}");
         tracing::debug!("{e:?}");
-        "/bin/sh".to_string()
+        RootCommand("/bin/sh".to_string())
     })
 }
 
