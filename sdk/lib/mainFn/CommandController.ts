@@ -124,6 +124,11 @@ export class CommandController {
   async term({ signal = SIGTERM, timeout = this.sigtermTimeout } = {}) {
     try {
       if (!this.state.exited) {
+        if (signal !== "SIGKILL") {
+          setTimeout(() => {
+            this.process.kill("SIGKILL")
+          }, timeout)
+        }
         if (!this.process.kill(signal)) {
           console.error(
             `failed to send signal ${signal} to pid ${this.process.pid}`,
@@ -131,11 +136,6 @@ export class CommandController {
         }
       }
 
-      if (signal !== "SIGKILL") {
-        setTimeout(() => {
-          this.process.kill("SIGKILL")
-        }, timeout)
-      }
       await this.runningAnswer
     } finally {
       await this.subcontainer.destroy?.()
