@@ -5,5 +5,5 @@ export type CurrentDependencyInfo = {
   title: string | null
   icon: DataUrl | null
   versionRange: string
-  configSatisfied: boolean
+  inputSpecSatisfied: boolean
 } & ({ kind: "exists" } | { kind: "running"; healthChecks: string[] })

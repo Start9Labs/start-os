@@ -1,6 +1,6 @@
 import * as T from "../types"
-import { ImageConfig, ImageId, VolumeId } from "../osBindings"
-import { SDKManifest, SDKImageConfig } from "./ManifestTypes"
+import { ImageInputSpec, ImageId, VolumeId } from "../osBindings"
+import { SDKManifest, SDKImageInputSpec } from "./ManifestTypes"
 import { SDKVersion } from "../StartSdk"
 import { VersionGraph } from "../version/VersionGraph"
 
@@ -21,7 +21,7 @@ export function setupManifest<
     dependencies: Dependencies
     id: Id
     assets: AssetTypes[]
-    images: Record<ImagesTypes, SDKImageConfig>
+    images: Record<ImagesTypes, SDKImageInputSpec>
     volumes: VolumesTypes[]
   },
   Satisfies extends string[] = [],
@@ -34,10 +34,10 @@ export function setupManifest<
       v.arch = v.arch || ["aarch64", "x86_64"]
       if (v.emulateMissingAs === undefined)
         v.emulateMissingAs = v.arch[0] || null
-      images[k] = v as ImageConfig
+      images[k] = v as ImageInputSpec
       return images
     },
-    {} as { [k: string]: ImageConfig },
+    {} as { [k: string]: ImageInputSpec },
   )
   return {
     ...manifest,
@@ -57,7 +57,8 @@ export function setupManifest<
       start: manifest.alerts?.start || null,
       stop: manifest.alerts?.stop || null,
     },
-    hasConfig: manifest.hasConfig === undefined ? true : manifest.hasConfig,
+    hasInputSpec:
+      manifest.hasInputSpec === undefined ? true : manifest.hasInputSpec,
     hardwareRequirements: {
       device: Object.fromEntries(
         Object.entries(manifest.hardwareRequirements?.device || {}).map(
@@ -68,14 +69,14 @@ export function setupManifest<
       arch:
         manifest.hardwareRequirements?.arch === undefined
           ? Object.values(images).reduce(
-              (arch, config) => {
-                if (config.emulateMissingAs) {
+              (arch, inputSpec) => {
+                if (inputSpec.emulateMissingAs) {
                   return arch
                 }
                 if (arch === null) {
-                  return config.arch
+                  return inputSpec.arch
                 }
-                return arch.filter((a) => config.arch.includes(a))
+                return arch.filter((a) => inputSpec.arch.includes(a))
               },
               null as string[] | null,
             )

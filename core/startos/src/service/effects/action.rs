@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use models::{ActionId, PackageId};
 
@@ -41,7 +41,19 @@ pub async fn export_action(context: EffectContext, data: ExportActionParams) -> 
     Ok(())
 }
 
-pub async fn clear_actions(context: EffectContext) -> Result<(), Error> {
+#[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct ClearActionsParams {
+    #[arg(long)]
+    pub except: Vec<ActionId>,
+}
+
+pub async fn clear_actions(
+    context: EffectContext,
+    ClearActionsParams { except }: ClearActionsParams,
+) -> Result<(), Error> {
+    let except: BTreeSet<_> = except.into_iter().collect();
     let context = context.deref()?;
     let package_id = context.seed.id.clone();
     context
@@ -54,7 +66,7 @@ pub async fn clear_actions(context: EffectContext) -> Result<(), Error> {
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
                 .as_actions_mut()
-                .ser(&BTreeMap::new())
+                .mutate(|a| Ok(a.retain(|e, _| except.contains(e))))
         })
         .await?;
     Ok(())
@@ -81,7 +93,7 @@ pub async fn execute_action(
         action_id,
         input,
     }: ExecuteAction,
-) -> Result<ActionResult, Error> {
+) -> Result<Option<ActionResult>, Error> {
     let context = context.deref()?;
 
     if let Some(package_id) = package_id {
@@ -93,9 +105,11 @@ pub async fn execute_action(
             .await
             .as_ref()
             .or_not_found(&package_id)?
-            .action(procedure_id, action_id, input)
+            .run_action(procedure_id, action_id, None, input)
             .await
     } else {
-        context.action(procedure_id, action_id, input).await
+        context
+            .run_action(procedure_id, action_id, None, input)
+            .await
     }
 }

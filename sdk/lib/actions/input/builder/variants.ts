@@ -1,5 +1,6 @@
-import { InputSpec, ValueSpecUnion } from "../configTypes"
-import { LazyBuild, Config } from "./config"
+import { T } from "../../.."
+import { ValueSpec, ValueSpecUnion } from "../inputSpecTypes"
+import { LazyBuild, InputSpec } from "./inputSpec"
 import { Parser, anyOf, literals, object } from "ts-matches"
 
 /**
@@ -8,7 +9,7 @@ import { Parser, anyOf, literals, object } from "ts-matches"
  * key to the tag.id in the Value.select
 ```ts
  
-export const disabled = Config.of({});
+export const disabled = InputSpec.of({});
 export const size = Value.number({
   name: "Max Chain Size",
   default: 550,
@@ -20,7 +21,7 @@ export const size = Value.number({
   units: "MiB",
   placeholder: null,
 });
-export const automatic = Config.of({ size: size });
+export const automatic = InputSpec.of({ size: size });
 export const size1 = Value.number({
   name: "Failsafe Chain Size",
   default: 65536,
@@ -32,7 +33,7 @@ export const size1 = Value.number({
   units: "MiB",
   placeholder: null,
 });
-export const manual = Config.of({ size: size1 });
+export const manual = InputSpec.of({ size: size1 });
 export const pruningSettingsVariants = Variants.of({
   disabled: { name: "Disabled", spec: disabled },
   automatic: { name: "Automatic", spec: automatic },
@@ -61,7 +62,7 @@ export class Variants<Type, Store> {
     VariantValues extends {
       [K in string]: {
         name: string
-        spec: Config<any, Store> | Config<any, never>
+        spec: InputSpec<any, Store> | InputSpec<any, never>
       }
     },
     Store = never,
@@ -81,14 +82,17 @@ export class Variants<Type, Store> {
           selection: K
           // prettier-ignore
           value: 
-            VariantValues[K]["spec"] extends (Config<infer B, Store> | Config<infer B, never>) ? B :
+            VariantValues[K]["spec"] extends (InputSpec<infer B, Store> | InputSpec<infer B, never>) ? B :
             never
         }
       }[keyof VariantValues],
       Store
     >(async (options) => {
       const variants = {} as {
-        [K in keyof VariantValues]: { name: string; spec: InputSpec }
+        [K in keyof VariantValues]: {
+          name: string
+          spec: Record<string, ValueSpec>
+        }
       }
       for (const key in a) {
         const value = a[key]
@@ -102,14 +106,14 @@ export class Variants<Type, Store> {
   }
   /**
    * Use this during the times that the input needs a more specific type.
-   * Used in types that the value/ variant/ list/ config is constructed somewhere else.
+   * Used in types that the value/ variant/ list/ inputSpec is constructed somewhere else.
   ```ts
-  const a = Config.text({
+  const a = InputSpec.text({
     name: "a",
     required: false,
   })
 
-  return Config.of<Store>()({
+  return InputSpec.of<Store>()({
     myValue: a.withStore(),
   })
   ```

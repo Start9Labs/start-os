@@ -33,18 +33,18 @@ export default async function makeFileContentFromOld(
   const outputLines: string[] = []
   outputLines.push(`
 import { sdk } from "${StartSdk}"
-const {Config, List, Value, Variants} = sdk
+const {InputSpec, List, Value, Variants} = sdk
 `)
   const data = await inputData
 
-  const namedConsts = new Set(["Config", "Value", "List"])
-  const configName = newConst("configSpec", convertInputSpec(data))
-  const configMatcherName = newConst(
-    "matchConfigSpec",
-    `${configName}.validator`,
+  const namedConsts = new Set(["InputSpec", "Value", "List"])
+  const inputSpecName = newConst("inputSpecSpec", convertInputSpec(data))
+  const inputSpecMatcherName = newConst(
+    "matchInputSpecSpec",
+    `${inputSpecName}.validator`,
   )
   outputLines.push(
-    `export type ConfigSpec = typeof ${configMatcherName}._TYPE;`,
+    `export type InputSpecSpec = typeof ${inputSpecMatcherName}._TYPE;`,
   )
 
   return outputLines.join("\n")
@@ -71,7 +71,7 @@ const {Config, List, Value, Variants} = sdk
   }
 
   function convertInputSpec(data: any) {
-    return `Config.of(${convertInputSpecInner(data)})`
+    return `InputSpec.of(${convertInputSpecInner(data)})`
   }
   function convertValueSpec(value: any): string {
     switch (value.type) {
@@ -350,10 +350,10 @@ const {Config, List, Value, Variants} = sdk
           }, ${variants})
         `,
         )
-        const listConfig = maybeNewConst(
-          value.name + "_list_config",
+        const listInputSpec = maybeNewConst(
+          value.name + "_list_inputSpec",
           `
-          Config.of({
+          InputSpec.of({
             "union": ${unionValueName}
           })
         `,
@@ -366,7 +366,7 @@ const {Config, List, Value, Variants} = sdk
           description: ${JSON.stringify(value.description || null)},
           warning: ${JSON.stringify(value.warning || null)},
         }, {
-          spec: ${listConfig},
+          spec: ${listInputSpec},
           displayAs: ${JSON.stringify(value?.spec?.["display-as"] || null)},
           uniqueBy: ${JSON.stringify(value?.spec?.["unique-by"] || null)},
         })`
@@ -405,7 +405,7 @@ function rangeToTodoComment(range: string | undefined) {
 }
 
 // oldSpecToBuilder(
-//   "./config.ts",
-//   // Put config here
+//   "./inputSpec.ts",
+//   // Put inputSpec here
 //   {},
 // )

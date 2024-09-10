@@ -1,7 +1,7 @@
-import { ValueSpec } from "../configTypes"
+import { ValueSpec } from "../inputSpecTypes"
 import { Value } from "./value"
-import { _ } from "../../util"
-import { Effects } from "../../types"
+import { _ } from "../../../util"
+import { Effects } from "../../../types"
 import { Parser, object } from "ts-matches"
 
 export type LazyBuildOptions<Store> = {
@@ -12,20 +12,20 @@ export type LazyBuild<Store, ExpectedOut> = (
 ) => Promise<ExpectedOut> | ExpectedOut
 
 // prettier-ignore
-export type ExtractConfigType<A extends Record<string, any> | Config<Record<string, any>, any> | Config<Record<string, any>, never>> = 
-  A extends Config<infer B, any> | Config<infer B, never> ? B :
+export type ExtractInputSpecType<A extends Record<string, any> | InputSpec<Record<string, any>, any> | InputSpec<Record<string, any>, never>> = 
+  A extends InputSpec<infer B, any> | InputSpec<infer B, never> ? B :
   A
 
-export type ConfigSpecOf<A extends Record<string, any>, Store = never> = {
+export type InputSpecOf<A extends Record<string, any>, Store = never> = {
   [K in keyof A]: Value<A[K], Store>
 }
 
 export type MaybeLazyValues<A> = LazyBuild<any, A> | A
 /**
- * Configs are the specs that are used by the os configuration form for this service.
- * Here is an example of a simple configuration
+ * InputSpecs are the specs that are used by the os input specification form for this service.
+ * Here is an example of a simple input specification
   ```ts
-    const smallConfig = Config.of({
+    const smallInputSpec = InputSpec.of({
       test: Value.boolean({
         name: "Test",
         description: "This is the description for the test",
@@ -35,17 +35,17 @@ export type MaybeLazyValues<A> = LazyBuild<any, A> | A
     });
   ```
 
-  The idea of a config is that now the form is going to ask for
+  The idea of an inputSpec is that now the form is going to ask for
   Test: [ ] and the value is going to be checked as a boolean.
   There are more complex values like selects, lists, and objects. See {@link Value}
 
-  Also, there is the ability to get a validator/parser from this config spec.
+  Also, there is the ability to get a validator/parser from this inputSpec spec.
   ```ts
-  const matchSmallConfig = smallConfig.validator();
-  type SmallConfig = typeof matchSmallConfig._TYPE;
+  const matchSmallInputSpec = smallInputSpec.validator();
+  type SmallInputSpec = typeof matchSmallInputSpec._TYPE;
   ```
 
-  Here is an example of a more complex configuration which came from a configuration for a service
+  Here is an example of a more complex input specification which came from an input specification for a service
   that works with bitcoin, like c-lightning.
   ```ts
 
@@ -73,11 +73,11 @@ export const port = Value.number({
   units: null,
   placeholder: null,
 });
-export const addNodesSpec = Config.of({ hostname: hostname, port: port });
+export const addNodesSpec = InputSpec.of({ hostname: hostname, port: port });
 
   ```
  */
-export class Config<Type extends Record<string, any>, Store = never> {
+export class InputSpec<Type extends Record<string, any>, Store = never> {
   private constructor(
     private readonly spec: {
       [K in keyof Type]: Value<Type[K], Store> | Value<Type[K], never>
@@ -105,7 +105,7 @@ export class Config<Type extends Record<string, any>, Store = never> {
       validatorObj[key] = spec[key].validator
     }
     const validator = object(validatorObj)
-    return new Config<
+    return new InputSpec<
       {
         [K in keyof Spec]: Spec[K] extends
           | Value<infer T, Store>
@@ -119,19 +119,19 @@ export class Config<Type extends Record<string, any>, Store = never> {
 
   /**
    * Use this during the times that the input needs a more specific type.
-   * Used in types that the value/ variant/ list/ config is constructed somewhere else.
+   * Used in types that the value/ variant/ list/ inputSpec is constructed somewhere else.
   ```ts
-  const a = Config.text({
+  const a = InputSpec.text({
     name: "a",
     required: false,
   })
 
-  return Config.of<Store>()({
+  return InputSpec.of<Store>()({
     myValue: a.withStore(),
   })
   ```
    */
   withStore<NewStore extends Store extends never ? any : Store>() {
-    return this as any as Config<Type, NewStore>
+    return this as any as InputSpec<Type, NewStore>
   }
 }

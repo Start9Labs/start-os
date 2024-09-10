@@ -2,4 +2,4 @@
 import type { BindOptions } from "./BindOptions"
 import type { LanInfo } from "./LanInfo"
 
-export type BindInfo = { options: BindOptions; lan: LanInfo }
+export type BindInfo = { enabled: boolean; options: BindOptions; lan: LanInfo }

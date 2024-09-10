@@ -1,9 +1,8 @@
 use std::marker::PhantomData;
 use std::str::FromStr;
 
-use clap::builder::TypedValueParser;
-
-use crate::prelude::*;
+use rpc_toolkit::clap;
+use rpc_toolkit::clap::builder::TypedValueParser;
 
 pub struct FromStrParser<T>(PhantomData<T>);
 impl<T> FromStrParser<T> {

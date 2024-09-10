@@ -1,4 +1,4 @@
-import { ConfigSpec, matchConfigSpec } from "./output"
+import { InputSpecSpec, matchInputSpecSpec } from "./output"
 import * as _I from "../index"
 import { camelCase } from "../../scripts/oldSpecToBuilder"
 import { deepMerge } from "../util/deepMerge"
@@ -10,37 +10,40 @@ export function testOutput<A, B>(): (c: IfEquals<A, B>) => null {
 }
 
 /// Testing the types of the input spec
-testOutput<ConfigSpec["rpc"]["enable"], boolean>()(null)
-testOutput<ConfigSpec["rpc"]["username"], string>()(null)
-testOutput<ConfigSpec["rpc"]["username"], string>()(null)
+testOutput<InputSpecSpec["rpc"]["enable"], boolean>()(null)
+testOutput<InputSpecSpec["rpc"]["username"], string>()(null)
+testOutput<InputSpecSpec["rpc"]["username"], string>()(null)
 
-testOutput<ConfigSpec["rpc"]["advanced"]["auth"], string[]>()(null)
+testOutput<InputSpecSpec["rpc"]["advanced"]["auth"], string[]>()(null)
 testOutput<
-  ConfigSpec["rpc"]["advanced"]["serialversion"],
+  InputSpecSpec["rpc"]["advanced"]["serialversion"],
   "segwit" | "non-segwit"
 >()(null)
-testOutput<ConfigSpec["rpc"]["advanced"]["servertimeout"], number>()(null)
+testOutput<InputSpecSpec["rpc"]["advanced"]["servertimeout"], number>()(null)
 testOutput<
-  ConfigSpec["advanced"]["peers"]["addnode"][0]["hostname"],
+  InputSpecSpec["advanced"]["peers"]["addnode"][0]["hostname"],
   string | null | undefined
 >()(null)
-testOutput<ConfigSpec["testListUnion"][0]["union"]["value"]["name"], string>()(
+testOutput<
+  InputSpecSpec["testListUnion"][0]["union"]["value"]["name"],
+  string
+>()(null)
+testOutput<InputSpecSpec["testListUnion"][0]["union"]["selection"], "lnd">()(
   null,
 )
-testOutput<ConfigSpec["testListUnion"][0]["union"]["selection"], "lnd">()(null)
-testOutput<ConfigSpec["mediasources"], Array<"filebrowser" | "nextcloud">>()(
+testOutput<InputSpecSpec["mediasources"], Array<"filebrowser" | "nextcloud">>()(
   null,
 )
 
 // @ts-expect-error Because enable should be a boolean
-testOutput<ConfigSpec["rpc"]["enable"], string>()(null)
+testOutput<InputSpecSpec["rpc"]["enable"], string>()(null)
 // prettier-ignore
 // @ts-expect-error Expect that the string is the one above
-testOutput<ConfigSpec["testListUnion"][0]['selection']['selection'], "selection">()(null);
+testOutput<InputSpecSpec["testListUnion"][0]['selection']['selection'], "selection">()(null);
 
-/// Here we test the output of the matchConfigSpec function
+/// Here we test the output of the matchInputSpecSpec function
 describe("Inputs", () => {
-  const validInput: ConfigSpec = {
+  const validInput: InputSpecSpec = {
     mediasources: ["filebrowser"],
     testListUnion: [
       {
@@ -95,24 +98,24 @@ describe("Inputs", () => {
   }
 
   test("test valid input", () => {
-    const output = matchConfigSpec.unsafeCast(validInput)
+    const output = matchInputSpecSpec.unsafeCast(validInput)
     expect(output).toEqual(validInput)
   })
   test("test no longer care about the conversion of min/max and validating", () => {
-    matchConfigSpec.unsafeCast(
+    matchInputSpecSpec.unsafeCast(
       deepMerge({}, validInput, { rpc: { advanced: { threads: 0 } } }),
     )
   })
   test("test errors should throw for number in string", () => {
     expect(() =>
-      matchConfigSpec.unsafeCast(
+      matchInputSpecSpec.unsafeCast(
         deepMerge({}, validInput, { rpc: { enable: 2 } }),
       ),
     ).toThrowError()
   })
   test("Test that we set serialversion to something not segwit or non-segwit", () => {
     expect(() =>
-      matchConfigSpec.unsafeCast(
+      matchInputSpecSpec.unsafeCast(
         deepMerge({}, validInput, {
           rpc: { advanced: { serialversion: "testing" } },
         }),

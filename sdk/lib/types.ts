@@ -1,4 +1,4 @@
-export * as configTypes from "./config/configTypes"
+export * as inputSpecTypes from "./actions/input/inputSpecTypes"
 
 import {
   DependencyRequirement,
@@ -14,15 +14,17 @@ import {
   CheckDependenciesResult,
   ActionId,
   HostId,
+  ActionMetadata,
 } from "./osBindings"
 import { MainEffects, Signals } from "./StartSdk"
-import { InputSpec } from "./config/configTypes"
-import { DependenciesReceipt } from "./config/setupConfig"
+import { InputSpec } from "./actions/input/inputSpecTypes"
 import { Daemons } from "./mainFn/Daemons"
 import { StorePath } from "./store/PathBuilder"
 import { ExposedStorePaths } from "./store/setupExposeStore"
 import { UrlString } from "./util/getServiceInterface"
 import { StringObject, ToKebab } from "./util"
+import { Actions } from "./actions/setupActions"
+import { InputSpecRes } from "./osBindings/ConfigRes"
 export * from "./osBindings"
 export { SDKManifest } from "./manifest/ManifestTypes"
 export { HealthReceipt } from "./health/HealthReceipt"
@@ -35,49 +37,13 @@ export type ExportedAction = (options: {
 export type MaybePromise<A> = Promise<A> | A
 export namespace ExpectedExports {
   version: 1
-  /** Set configuration is called after we have modified and saved the configuration in the start9 ui. Use this to make a file for the docker to read from for configuration.  */
-  export type setConfig = (options: {
-    effects: Effects
-    input: Record<string, unknown>
-  }) => Promise<void>
-  /** Get configuration returns a shape that describes the format that the start9 ui will generate, and later send to the set config  */
-  export type getConfig = (options: { effects: Effects }) => Promise<ConfigRes>
-  // /** These are how we make sure the our dependency configurations are valid and if not how to fix them. */
-  // export type dependencies = Dependencies;
+
   /** For backing up service data though the startOS UI */
-  export type createBackup = (options: {
-    effects: Effects
-    pathMaker: PathMaker
-  }) => Promise<unknown>
+  export type createBackup = (options: { effects: Effects }) => Promise<unknown>
   /** For restoring service data that was previously backed up using the startOS UI create backup flow. Backup restores are also triggered via the startOS UI, or doing a system restore flow during setup. */
   export type restoreBackup = (options: {
     effects: Effects
-    pathMaker: PathMaker
   }) => Promise<unknown>
-
-  // /** Health checks are used to determine if the service is working properly after starting
-  //  * A good use case is if we are using a web server, seeing if we can get to the web server.
-  //  */
-  // export type health = {
-  //   /** Should be the health check id */
-  //   [id: string]: (options: { effects: Effects; input: TimeMs }) => Promise<unknown>;
-  // };
-
-  /**
-   * Actions are used so we can effect the service, like deleting a directory.
-   * One old use case is to add a action where we add a file, that will then be run during the
-   * service starting, and that file would indicate that it would rescan all the data.
-   */
-  export type actions = (options: { effects: Effects }) => MaybePromise<{
-    [id: string]: {
-      run: ExportedAction
-      getConfig: (options: { effects: Effects }) => Promise<InputSpec>
-    }
-  }>
-
-  export type actionsMetadata = (options: {
-    effects: Effects
-  }) => Promise<Array<ActionMetadata>>
 
   /**
    * This is the entrypoint for the main container. Used to start up something like the service that the
@@ -109,55 +75,27 @@ export namespace ExpectedExports {
     nextVersion: null | string
   }) => Promise<unknown>
 
-  /** Auto configure is used to make sure that other dependencies have the values t
-   * that this service could use.
-   */
-  export type dependencyConfig = Record<PackageId, DependencyConfig | null>
-
   export type properties = (options: {
     effects: Effects
   }) => Promise<PropertiesReturn>
 
   export type manifest = Manifest
+
+  export type actions = Actions<any, any>
 }
 export type ABI = {
-  setConfig: ExpectedExports.setConfig
-  getConfig: ExpectedExports.getConfig
   createBackup: ExpectedExports.createBackup
   restoreBackup: ExpectedExports.restoreBackup
-  actions: ExpectedExports.actions
-  actionsMetadata: ExpectedExports.actionsMetadata
   main: ExpectedExports.main
   afterShutdown: ExpectedExports.afterShutdown
   init: ExpectedExports.init
   uninit: ExpectedExports.uninit
-  dependencyConfig: ExpectedExports.dependencyConfig
   properties: ExpectedExports.properties
   manifest: ExpectedExports.manifest
+  actions: ExpectedExports.actions
 }
 export type TimeMs = number
 export type VersionString = string
-
-/**
- * AutoConfigure is used as the value to the key of package id,
- * this is used to make sure that other dependencies have the values that this service could use.
- */
-export type DependencyConfig = {
-  /** During autoconfigure, we have access to effects and local data. We are going to figure out all the data that we need and send it to update. For the sdk it is the desired delta */
-  query(options: { effects: Effects }): Promise<unknown>
-  /** This is the second part. Given the query results off the previous function, we will determine what to change the remote config to. In our sdk normall we are going to use the previous as a deep merge. */
-  update(options: {
-    queryResults: unknown
-    remoteConfig: unknown
-  }): Promise<unknown>
-}
-
-export type ConfigRes = {
-  /** This should be the previous config, that way during set config we start with the previous */
-  config?: null | Record<string, unknown>
-  /** Shape that is describing the form in the ui */
-  spec: InputSpec
-}
 
 declare const DaemonProof: unique symbol
 export type DaemonReceipt = {
@@ -185,18 +123,6 @@ export type DaemonReturned = {
   term(options?: { signal?: Signals; timeout?: number }): Promise<void>
 }
 
-export type ActionMetadata = {
-  name: string
-  description: string
-  warning: string | null
-  input: InputSpec
-  disabled: boolean
-  allowedStatuses: "onlyRunning" | "onlyStopped" | "any"
-  /**
-   * So the ordering of the actions is by alphabetical order of the group, then followed by the alphabetical of the actions
-   */
-  group: string | null
-}
 export declare const hostName: unique symbol
 // asdflkjadsf.onion | 1.2.3.4
 export type Hostname = string & { [hostName]: never }
@@ -306,6 +232,7 @@ export type Effects = {
   executeAction<Input>(opts: {
     packageId?: PackageId
     actionId: ActionId
+    prev?: InputSpecRes
     input: Input
   }): Promise<unknown>
   /** Define an action that can be invoked by a user or service */
@@ -314,14 +241,14 @@ export type Effects = {
     metadata: ActionMetadata
   }): Promise<void>
   /** Remove all exported actions */
-  clearActions(): Promise<void>
+  clearActions(options: { except: ActionId[] }): Promise<void>
 
-  // config
+  // inputSpec
 
-  /** Returns whether or not the package has been configured */
-  getConfigured(options: { packageId?: PackageId }): Promise<boolean>
-  /** Indicates that this package has been configured. Called during setConfig or init */
-  setConfigured(options: { configured: boolean }): Promise<void>
+  /** Returns whether or not the package has been inputSpecured */
+  getInputSpecured(options: { packageId?: PackageId }): Promise<boolean>
+  /** Indicates that this package has been inputSpecured. Called during setInputSpec or init */
+  setInputSpecured(options: { inputSpecured: boolean }): Promise<void>
 
   // control
 
@@ -334,10 +261,8 @@ export type Effects = {
 
   // dependency
 
-  /** Set the dependencies of what the service needs, usually run during the set config as a best practice */
-  setDependencies(options: {
-    dependencies: Dependencies
-  }): Promise<DependenciesReceipt>
+  /** Set the dependencies of what the service needs, usually run during the inputSpec action as a best practice */
+  setDependencies(options: { dependencies: Dependencies }): Promise<void>
   /** Get the list of the dependencies, both the dynamic set by the effect of setDependencies and the end result any required in the manifest  */
   getDependencies(): Promise<DependencyRequirement[]>
   /** Test whether current dependency requirements are satisfied */
@@ -383,8 +308,10 @@ export type Effects = {
     hostId: HostId
     internalPort: number
   }): Promise<LanInfo>
-  /** Removes all network bindings, called in the setupConfig */
-  clearBindings(): Promise<void>
+  /** Removes all network bindings, called in the setupInputSpec */
+  clearBindings(options: {
+    except: { id: HostId; internalPort: number }[]
+  }): Promise<void>
   // host
   /** Returns information about the specified host, if it exists */
   getHostInfo(options: {
@@ -415,7 +342,9 @@ export type Effects = {
     callback?: () => void
   }): Promise<Record<ServiceInterfaceId, ServiceInterface>>
   /** Removes all service interfaces */
-  clearServiceInterfaces(): Promise<void>
+  clearServiceInterfaces(options: {
+    except: ServiceInterfaceId[]
+  }): Promise<void>
   // ssl
   /** Returns a PEM encoded fullchain for the hostnames specified */
   getSslCertificate: (options: {
@@ -454,16 +383,17 @@ export type Effects = {
 
   // system
 
-  /** Returns globally configured SMTP settings, if they exist */
+  /** Returns globally inputSpecured SMTP settings, if they exist */
   getSystemSmtp(options: { callback?: () => void }): Promise<SmtpValue | null>
 }
 
-/** rsync options: https://linux.die.net/man/1/rsync
- */
-export type BackupOptions = {
+export type SyncOptions = {
+  /** delete files that exist in the target directory, but not in the source directory */
   delete: boolean
+  /** do not sync files with paths that match these patterns */
   exclude: string[]
 }
+
 /**
  * This is the metadata that is returned from the metadata call.
  */
@@ -483,7 +413,7 @@ export type Metadata = {
 }
 
 export type MigrationRes = {
-  configured: boolean
+  inputSpecured: boolean
 }
 
 export type ActionResult = {

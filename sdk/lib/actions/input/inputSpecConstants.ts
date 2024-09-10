@@ -1,14 +1,14 @@
-import { SmtpValue } from "../types"
-import { GetSystemSmtp } from "../util/GetSystemSmtp"
-import { email } from "../util/patterns"
-import { Config, ConfigSpecOf } from "./builder/config"
+import { SmtpValue } from "../../types"
+import { GetSystemSmtp } from "../../util/GetSystemSmtp"
+import { email } from "../../util/patterns"
+import { InputSpec, InputSpecOf } from "./builder/inputSpec"
 import { Value } from "./builder/value"
 import { Variants } from "./builder/variants"
 
 /**
  * Base SMTP settings, to be used by StartOS for system wide SMTP
  */
-export const customSmtp = Config.of<ConfigSpecOf<SmtpValue>, never>({
+export const customSmtp = InputSpec.of<InputSpecOf<SmtpValue>, never>({
   server: Value.text({
     name: "SMTP Server",
     required: {
@@ -45,9 +45,9 @@ export const customSmtp = Config.of<ConfigSpecOf<SmtpValue>, never>({
 })
 
 /**
- * For service config. Gives users 3 options for SMTP: (1) disabled, (2) use system SMTP settings, (3) use custom SMTP settings
+ * For service inputSpec. Gives users 3 options for SMTP: (1) disabled, (2) use system SMTP settings, (3) use custom SMTP settings
  */
-export const smtpConfig = Value.filteredUnion(
+export const smtpInputSpec = Value.filteredUnion(
   async ({ effects }) => {
     const smtp = await new GetSystemSmtp(effects).once()
     return smtp ? [] : ["system"]
@@ -58,10 +58,10 @@ export const smtpConfig = Value.filteredUnion(
     required: { default: "disabled" },
   },
   Variants.of({
-    disabled: { name: "Disabled", spec: Config.of({}) },
+    disabled: { name: "Disabled", spec: InputSpec.of({}) },
     system: {
       name: "System Credentials",
-      spec: Config.of({
+      spec: InputSpec.of({
         customFrom: Value.text({
           name: "Custom From Address",
           description:

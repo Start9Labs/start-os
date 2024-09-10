@@ -95,7 +95,7 @@ export class Host {
   ) {}
 
   /**
-   * @description Use this function to bind the host to an internal port and configure options for protocol, security, and external port.
+   * @description Use this function to bind the host to an internal port and inputSpecure options for protocol, security, and external port.
    *
    * @param internalPort - The internal port to be bound.
    * @param options - The protocol options for this binding.

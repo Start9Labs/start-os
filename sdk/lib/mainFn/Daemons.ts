@@ -86,23 +86,23 @@ export class Daemons<Manifest extends T.Manifest, Ids extends string> {
     readonly healthDaemons: HealthDaemon[],
   ) {}
   /**
-   * Returns an empty new Daemons class with the provided config.
+   * Returns an empty new Daemons class with the provided inputSpec.
    *
    * Call .addDaemon() on the returned class to add a daemon.
    *
    * Daemons run in the order they are defined, with latter daemons being capable of
    * depending on prior daemons
-   * @param config
+   * @param inputSpec
    * @returns
    */
-  static of<Manifest extends T.Manifest>(config: {
+  static of<Manifest extends T.Manifest>(inputSpec: {
     effects: T.Effects
     started: (onTerm: () => PromiseLike<void>) => PromiseLike<void>
     healthReceipts: HealthReceipt[]
   }) {
     return new Daemons<Manifest, never>(
-      config.effects,
-      config.started,
+      inputSpec.effects,
+      inputSpec.started,
       [],
       [],
       [],

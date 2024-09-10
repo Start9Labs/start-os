@@ -1,4 +1,4 @@
-import { Config, LazyBuild } from "./config"
+import { InputSpec, LazyBuild } from "./inputSpec"
 import {
   ListValueSpecText,
   Pattern,
@@ -6,7 +6,7 @@ import {
   UniqueBy,
   ValueSpecList,
   ValueSpecListOf,
-} from "../configTypes"
+} from "../inputSpecTypes"
 import { Parser, arrayOf, string } from "ts-matches"
 
 export class List<Type, Store> {
@@ -146,7 +146,7 @@ export class List<Type, Store> {
       maxLength?: number | null
     },
     aSpec: {
-      spec: Config<Type, Store>
+      spec: InputSpec<Type, Store>
       displayAs?: null | string
       uniqueBy?: null | UniqueBy
     },
@@ -180,14 +180,14 @@ export class List<Type, Store> {
 
   /**
    * Use this during the times that the input needs a more specific type.
-   * Used in types that the value/ variant/ list/ config is constructed somewhere else.
+   * Used in types that the value/ variant/ list/ inputSpec is constructed somewhere else.
   ```ts
-  const a = Config.text({
+  const a = InputSpec.text({
     name: "a",
     required: false,
   })
 
-  return Config.of<Store>()({
+  return InputSpec.of<Store>()({
     myValue: a.withStore(),
   })
   ```

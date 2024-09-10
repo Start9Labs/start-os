@@ -1,4 +1,4 @@
-import { RandomString } from "../config/configTypes"
+import { RandomString } from "../actions/input/inputSpecTypes"
 import { getRandomCharInSet } from "./getRandomCharInSet"
 
 export function getRandomString(generator: RandomString): string {

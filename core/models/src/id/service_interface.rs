@@ -1,9 +1,11 @@
 use std::path::Path;
+use std::str::FromStr;
 
+use rpc_toolkit::clap::builder::ValueParserFactory;
 use serde::{Deserialize, Deserializer, Serialize};
 use ts_rs::TS;
 
-use crate::Id;
+use crate::{FromStrParser, Id};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TS)]
 #[ts(export, type = "string")]
@@ -57,5 +59,17 @@ impl sqlx::Type<sqlx::Postgres> for ServiceInterfaceId {
 
     fn compatible(ty: &sqlx::postgres::PgTypeInfo) -> bool {
         <&str as sqlx::Type<sqlx::Postgres>>::compatible(ty)
+    }
+}
+impl FromStr for ServiceInterfaceId {
+    type Err = <Id as FromStr>::Err;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Id::from_str(s).map(Self)
+    }
+}
+impl ValueParserFactory for ServiceInterfaceId {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
     }
 }

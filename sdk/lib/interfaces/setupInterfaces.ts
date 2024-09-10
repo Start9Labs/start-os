@@ -1,22 +1,40 @@
-import { Config } from "../config/builder/config"
 import * as T from "../types"
 import { AddressReceipt } from "./AddressReceipt"
 
-export type InterfacesReceipt = Array<T.AddressInfo[] & AddressReceipt>
-export type SetInterfaces<
-  Manifest extends T.Manifest,
-  Store,
-  ConfigInput extends Record<string, any>,
-  Output extends InterfacesReceipt,
-> = (opts: { effects: T.Effects; input: null | ConfigInput }) => Promise<Output>
-export type SetupInterfaces = <
-  Manifest extends T.Manifest,
-  Store,
-  ConfigInput extends Record<string, any>,
-  Output extends InterfacesReceipt,
->(
-  config: Config<ConfigInput, Store>,
-  fn: SetInterfaces<Manifest, Store, ConfigInput, Output>,
-) => SetInterfaces<Manifest, Store, ConfigInput, Output>
-export const NO_INTERFACE_CHANGES = [] as InterfacesReceipt
-export const setupInterfaces: SetupInterfaces = (_config, fn) => fn
+declare const UpdateServiceInterfacesProof: unique symbol
+export type UpdateServiceInterfacesReceipt = {
+  [UpdateServiceInterfacesProof]: never
+}
+
+export type ServiceInterfacesReceipt = Array<T.AddressInfo[] & AddressReceipt>
+export type SetServiceInterfaces<Output extends ServiceInterfacesReceipt> =
+  (opts: { effects: T.Effects }) => Promise<Output>
+export type UpdateServiceInterfaces<Output extends ServiceInterfacesReceipt> =
+  (opts: {
+    effects: T.Effects
+  }) => Promise<Output & UpdateServiceInterfacesReceipt>
+export type SetupServiceInterfaces = <Output extends ServiceInterfacesReceipt>(
+  fn: SetServiceInterfaces<Output>,
+) => UpdateServiceInterfaces<Output>
+export const NO_INTERFACE_CHANGES = {} as UpdateServiceInterfacesReceipt
+export const setupServiceInterfaces: SetupServiceInterfaces =
+  (fn) => async (opts: { effects: T.Effects }) => {
+    const bindings: T.BindId[] = []
+    const interfaces: T.ServiceInterfaceId[] = []
+    const res = await fn({
+      effects: {
+        ...opts.effects,
+        bind: (params: T.BindParams) => {
+          bindings.push({ id: params.id, internalPort: params.internalPort })
+          return opts.effects.bind(params)
+        },
+        exportServiceInterface: (params: T.ExportServiceInterfaceParams) => {
+          interfaces.push(params.id)
+          return opts.effects.exportServiceInterface(params)
+        },
+      },
+    })
+    await opts.effects.clearBindings({ except: bindings })
+    await opts.effects.clearServiceInterfaces({ except: interfaces })
+    return res as typeof res & UpdateServiceInterfacesReceipt
+  }

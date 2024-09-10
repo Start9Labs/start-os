@@ -1,26 +1,26 @@
 import { sdk } from "./output.sdk"
 
-describe("setupDependencyConfig", () => {
+describe("setupDependencyInputSpec", () => {
   test("test", () => {
-    const testConfig = sdk.Config.of({
+    const testInputSpec = sdk.InputSpec.of({
       test: sdk.Value.text({
         name: "testValue",
         required: false,
       }),
     })
 
-    const testConfig2 = sdk.Config.of({
+    const testInputSpec2 = sdk.InputSpec.of({
       test2: sdk.Value.text({
         name: "testValue2",
         required: false,
       }),
     })
-    const remoteTest = sdk.DependencyConfig.of({
-      localConfigSpec: testConfig,
-      remoteConfigSpec: testConfig2,
-      dependencyConfig: async ({}) => {},
+    const remoteTest = sdk.DependencyInputSpec.of({
+      localInputSpecSpec: testInputSpec,
+      remoteInputSpecSpec: testInputSpec2,
+      dependencyInputSpec: async ({}) => {},
     })
-    sdk.setupDependencyConfig(testConfig, {
+    sdk.setupDependencyInputSpec(testInputSpec, {
       "remote-test": remoteTest,
     })
   })

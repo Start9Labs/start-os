@@ -29,7 +29,6 @@ pub mod action;
 pub mod auth;
 pub mod backup;
 pub mod bins;
-pub mod config;
 pub mod context;
 pub mod control;
 pub mod db;
@@ -70,7 +69,6 @@ pub mod volume;
 use std::time::SystemTime;
 
 use clap::Parser;
-pub use config::Config;
 pub use error::{Error, ErrorKind, ResultExt};
 use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
@@ -240,15 +238,7 @@ pub fn server<C: Context>() -> ParentHandler<C> {
 
 pub fn package<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand(
-            "action",
-            from_fn_async(action::action)
-                .with_display_serializable()
-                .with_custom_display_fn(|handle, result| {
-                    Ok(action::display_action_result(handle.params, result))
-                })
-                .with_call_remote::<CliContext>(),
-        )
+        .subcommand("action", action::action::<C>())
         .subcommand(
             "install",
             from_fn_async(install::install)
@@ -281,7 +271,6 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                 .with_display_serializable()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("config", config::config::<C>())
         .subcommand(
             "start",
             from_fn_async(control::start)
@@ -316,7 +305,6 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                 })
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("dependency", dependencies::dependency::<C>())
         .subcommand("backup", backup::package_backup::<C>())
         .subcommand("connect", from_fn_async(service::connect_rpc).no_cli())
         .subcommand(

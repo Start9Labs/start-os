@@ -5,8 +5,7 @@ export type ActionMetadata = {
   name: string
   description: string
   warning: string | null
-  input: any
-  disabled: boolean
+  disabled: string | null
   allowedStatuses: AllowedStatuses
   group: string | null
 }

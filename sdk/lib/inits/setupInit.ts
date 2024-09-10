@@ -1,6 +1,6 @@
-import { DependenciesReceipt } from "../config/setupConfig"
+import { Actions } from "../actions/setupActions"
 import { ExtendedVersion } from "../exver"
-import { SetInterfaces } from "../interfaces/setupInterfaces"
+import { UpdateServiceInterfaces } from "../interfaces/setupInterfaces"
 import { ExposedStorePaths } from "../store/setupExposeStore"
 import * as T from "../types"
 import { VersionGraph } from "../version/VersionGraph"
@@ -11,11 +11,12 @@ export function setupInit<Manifest extends T.Manifest, Store>(
   versions: VersionGraph<Manifest["version"]>,
   install: Install<Manifest, Store>,
   uninstall: Uninstall<Manifest, Store>,
-  setInterfaces: SetInterfaces<Manifest, Store, any, any>,
+  setServiceInterfaces: UpdateServiceInterfaces<any>,
   setDependencies: (options: {
     effects: T.Effects
     input: any
-  }) => Promise<DependenciesReceipt>,
+  }) => Promise<void>,
+  actions: Actions<Store, any>,
   exposedStore: ExposedStorePaths,
 ): {
   init: T.ExpectedExports.init
@@ -36,9 +37,8 @@ export function setupInit<Manifest extends T.Manifest, Store>(
           version: versions.current.options.version,
         })
       }
-      await setInterfaces({
+      await setServiceInterfaces({
         ...opts,
-        input: null,
       })
       await opts.effects.exposeForDependents({ paths: exposedStore })
       await setDependencies({ effects: opts.effects, input: null })

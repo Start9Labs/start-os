@@ -1,4 +1,4 @@
-import { Pattern } from "../config/configTypes"
+import { Pattern } from "../actions/input/inputSpecTypes"
 import * as regexes from "./regexes"
 
 export const ipv6: Pattern = {

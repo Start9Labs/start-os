@@ -1,4 +1,4 @@
-import { DefaultString } from "../config/configTypes"
+import { DefaultString } from "../actions/input/inputSpecTypes"
 import { getRandomString } from "./getRandomString"
 
 export function getDefaultString(defaultSpec: DefaultString): string {

@@ -2,17 +2,16 @@ import * as T from "../types"
 import * as child_process from "child_process"
 import { asError } from "../util"
 
-export type BACKUP = "BACKUP"
-export const DEFAULT_OPTIONS: T.BackupOptions = {
+export const DEFAULT_OPTIONS: T.SyncOptions = {
   delete: true,
   exclude: [],
 }
-export type BackupSet<Volumes extends string> = {
-  srcPath: string
-  srcVolume: Volumes | BACKUP
-  dstPath: string
-  dstVolume: Volumes | BACKUP
-  options?: Partial<T.BackupOptions>
+export type BackupSync<Volumes extends string> = {
+  dataPath: `/media/startos/volumes/${Volumes}/${string}`
+  backupPath: `/media/startos/backup/${string}`
+  options?: Partial<T.SyncOptions>
+  backupOptions?: Partial<T.SyncOptions>
+  restoreOptions?: Partial<T.SyncOptions>
 }
 /**
  * This utility simplifies the volume backup process.
@@ -37,119 +36,127 @@ export type BackupSet<Volumes extends string> = {
  * ```
  */
 export class Backups<M extends T.Manifest> {
-  static BACKUP: BACKUP = "BACKUP"
-
   private constructor(
     private options = DEFAULT_OPTIONS,
-    private backupSet = [] as BackupSet<M["volumes"][number]>[],
+    private restoreOptions: Partial<T.SyncOptions> = {},
+    private backupOptions: Partial<T.SyncOptions> = {},
+    private backupSet = [] as BackupSync<M["volumes"][number]>[],
   ) {}
 
-  static volumes<M extends T.Manifest = never>(
-    ...volumeNames: Array<M["volumes"][0]>
+  static withVolumes<M extends T.Manifest = never>(
+    ...volumeNames: Array<M["volumes"][number]>
   ): Backups<M> {
-    return new Backups<M>().addSets(
+    return Backups.withSyncs(
       ...volumeNames.map((srcVolume) => ({
-        srcVolume,
-        srcPath: "./",
-        dstPath: `./${srcVolume}/`,
-        dstVolume: Backups.BACKUP,
+        dataPath: `/media/startos/volumes/${srcVolume}/` as const,
+        backupPath: `/media/startos/backup/${srcVolume}/` as const,
       })),
     )
   }
-  static addSets<M extends T.Manifest = never>(
-    ...options: BackupSet<M["volumes"][0]>[]
+
+  static withSyncs<M extends T.Manifest = never>(
+    ...syncs: BackupSync<M["volumes"][number]>[]
   ) {
-    return new Backups().addSets(...options)
+    return syncs.reduce((acc, x) => acc.addSync(x), new Backups<M>())
   }
 
-  static with_options<M extends T.Manifest = never>(
-    options?: Partial<T.BackupOptions>,
+  static withOptions<M extends T.Manifest = never>(
+    options?: Partial<T.SyncOptions>,
   ) {
-    return new Backups({ ...DEFAULT_OPTIONS, ...options })
+    return new Backups<M>({ ...DEFAULT_OPTIONS, ...options })
   }
 
-  static withOptions = Backups.with_options
-  setOptions(options?: Partial<T.BackupOptions>) {
+  setOptions(options?: Partial<T.SyncOptions>) {
     this.options = {
       ...this.options,
       ...options,
     }
     return this
   }
-  volumes(...volumeNames: Array<M["volumes"][0]>) {
-    return this.addSets(
-      ...volumeNames.map((srcVolume) => ({
-        srcVolume,
-        srcPath: "./",
-        dstPath: `./${srcVolume}/`,
-        dstVolume: Backups.BACKUP,
-      })),
-    )
-  }
-  addSets(...options: BackupSet<M["volumes"][0]>[]) {
-    options.forEach((x) =>
-      this.backupSet.push({ ...x, options: { ...this.options, ...x.options } }),
-    )
+
+  setBackupOptions(options?: Partial<T.SyncOptions>) {
+    this.backupOptions = {
+      ...this.backupOptions,
+      ...options,
+    }
     return this
   }
-  build(pathMaker: T.PathMaker) {
-    const createBackup: T.ExpectedExports.createBackup = async ({
-      effects,
-    }) => {
-      for (const item of this.backupSet) {
-        const rsyncResults = await runRsync(
-          {
-            dstPath: item.dstPath,
-            dstVolume: item.dstVolume,
-            options: { ...this.options, ...item.options },
-            srcPath: item.srcPath,
-            srcVolume: item.srcVolume,
-          },
-          pathMaker,
-        )
-        await rsyncResults.wait()
-      }
-      return
+
+  setRestoreOptions(options?: Partial<T.SyncOptions>) {
+    this.restoreOptions = {
+      ...this.restoreOptions,
+      ...options,
     }
-    const restoreBackup: T.ExpectedExports.restoreBackup = async ({
-      effects,
-    }) => {
-      for (const item of this.backupSet) {
-        const rsyncResults = await runRsync(
-          {
-            dstPath: item.dstPath,
-            dstVolume: item.dstVolume,
-            options: { ...this.options, ...item.options },
-            srcPath: item.srcPath,
-            srcVolume: item.srcVolume,
-          },
-          pathMaker,
-        )
-        await rsyncResults.wait()
-      }
-      return
+    return this
+  }
+
+  addVolume(
+    volume: M["volumes"][number],
+    options?: Partial<{
+      options: T.SyncOptions
+      backupOptions: T.SyncOptions
+      restoreOptions: T.SyncOptions
+    }>,
+  ) {
+    return this.addSync({
+      dataPath: `/media/startos/volumes/${volume}/` as const,
+      backupPath: `/media/startos/backup/${volume}/` as const,
+      ...options,
+    })
+  }
+  addSync(sync: BackupSync<M["volumes"][0]>) {
+    this.backupSet.push({
+      ...sync,
+      options: { ...this.options, ...sync.options },
+    })
+    return this
+  }
+
+  async createBackup() {
+    for (const item of this.backupSet) {
+      const rsyncResults = await runRsync({
+        srcPath: item.dataPath,
+        dstPath: item.backupPath,
+        options: {
+          ...this.options,
+          ...this.backupOptions,
+          ...item.options,
+          ...item.backupOptions,
+        },
+      })
+      await rsyncResults.wait()
     }
-    return { createBackup, restoreBackup }
+    return
+  }
+
+  async restoreBackup() {
+    for (const item of this.backupSet) {
+      const rsyncResults = await runRsync({
+        srcPath: item.backupPath,
+        dstPath: item.dataPath,
+        options: {
+          ...this.options,
+          ...this.backupOptions,
+          ...item.options,
+          ...item.backupOptions,
+        },
+      })
+      await rsyncResults.wait()
+    }
+    return
   }
 }
-function notEmptyPath(file: string) {
-  return ["", ".", "./"].indexOf(file) === -1
-}
-async function runRsync(
-  rsyncOptions: {
-    srcVolume: string
-    dstVolume: string
-    srcPath: string
-    dstPath: string
-    options: T.BackupOptions
-  },
-  pathMaker: T.PathMaker,
-): Promise<{
+
+async function runRsync(rsyncOptions: {
+  srcPath: string
+  dstPath: string
+  options: T.SyncOptions
+}): Promise<{
   id: () => Promise<string>
   wait: () => Promise<null>
   progress: () => Promise<number>
 }> {
-  const { srcVolume, dstVolume, srcPath, dstPath, options } = rsyncOptions
+  const { srcPath, dstPath, options } = rsyncOptions
 
   const command = "rsync"
   const args: string[] = []
@@ -162,8 +169,8 @@ async function runRsync(
   args.push("-actAXH")
   args.push("--info=progress2")
   args.push("--no-inc-recursive")
-  args.push(pathMaker({ volume: srcVolume, path: srcPath }))
-  args.push(pathMaker({ volume: dstVolume, path: dstPath }))
+  args.push(srcPath)
+  args.push(dstPath)
   const spawned = child_process.spawn(command, args, { detached: true })
   let percentage = 0.0
   spawned.stdout.on("data", (data: unknown) => {

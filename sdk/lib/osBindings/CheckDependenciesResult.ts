@@ -9,6 +9,6 @@ export type CheckDependenciesResult = {
   installedVersion: string | null
   satisfies: string[]
   isRunning: boolean
-  configSatisfied: boolean
+  inputSpecSatisfied: boolean
   healthChecks: { [key: HealthCheckId]: NamedHealthCheckResult }
 }

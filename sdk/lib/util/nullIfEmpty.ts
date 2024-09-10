@@ -1,6 +1,6 @@
 /**
- * A useful tool when doing a getConfig.
- * Look into the config {@link FileHelper} for an example of the use.
+ * A useful tool when doing a getInputSpec.
+ * Look into the inputSpec {@link FileHelper} for an example of the use.
  * @param s
  * @returns
  */

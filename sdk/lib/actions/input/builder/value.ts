@@ -1,4 +1,4 @@
-import { Config, LazyBuild } from "./config"
+import { InputSpec, LazyBuild } from "./inputSpec"
 import { List } from "./list"
 import { Variants } from "./variants"
 import {
@@ -9,9 +9,9 @@ import {
   ValueSpecDatetime,
   ValueSpecText,
   ValueSpecTextarea,
-} from "../configTypes"
-import { DefaultString } from "../configTypes"
-import { _ } from "../../util"
+} from "../inputSpecTypes"
+import { DefaultString } from "../inputSpecTypes"
+import { _ } from "../../../util"
 import {
   Parser,
   anyOf,
@@ -24,7 +24,7 @@ import {
   string,
   unknown,
 } from "ts-matches"
-import { once } from "../../util/once"
+import { once } from "../../../util/once"
 
 export type RequiredDefault<A> =
   | false
@@ -681,7 +681,7 @@ export class Value<Type, Store> {
       name: string
       description?: string | null
     },
-    spec: Config<Type, Store>,
+    spec: InputSpec<Type, Store>,
   ) {
     return new Value<Type, Store>(async (options) => {
       const built = await spec.build(options as any)
@@ -839,14 +839,14 @@ export class Value<Type, Store> {
 
   /**
    * Use this during the times that the input needs a more specific type.
-   * Used in types that the value/ variant/ list/ config is constructed somewhere else.
+   * Used in types that the value/ variant/ list/ inputSpec is constructed somewhere else.
   ```ts
-  const a = Config.text({
+  const a = InputSpec.text({
     name: "a",
     required: false,
   })
 
-  return Config.of<Store>()({
+  return InputSpec.of<Store>()({
     myValue: a.withStore(),
   })
   ```

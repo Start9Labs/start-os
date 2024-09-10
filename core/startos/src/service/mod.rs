@@ -1,12 +1,10 @@
 use std::ops::Deref;
 use std::sync::{Arc, Weak};
-use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use clap::Parser;
 use futures::future::BoxFuture;
-use imbl::OrdMap;
-use models::{HealthCheckId, PackageId, ProcedureName};
+use models::{PackageId, ProcedureName};
 use persistent_container::PersistentContainer;
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerFor};
 use serde::{Deserialize, Serialize};
@@ -27,7 +25,6 @@ use crate::progress::{NamedProgress, Progress};
 use crate::rpc_continuations::Guid;
 use crate::s9pk::S9pk;
 use crate::service::service_map::InstallProgressHandles;
-use crate::status::health_check::NamedHealthCheckResult;
 use crate::util::actor::concurrent::ConcurrentActor;
 use crate::util::io::create_file;
 use crate::util::serde::{NoOutput, Pem};
@@ -36,9 +33,7 @@ use crate::volume::data_dir;
 
 mod action;
 pub mod cli;
-mod config;
 mod control;
-mod dependencies;
 pub mod effects;
 pub mod persistent_container;
 mod properties;

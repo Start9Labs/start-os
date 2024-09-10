@@ -1,5 +1,9 @@
-import { RequiredDefault, Value } from "./config/builder/value"
-import { Config, ExtractConfigType, LazyBuild } from "./config/builder/config"
+import { RequiredDefault, Value } from "./actions/input/builder/value"
+import {
+  InputSpec,
+  ExtractInputSpecType,
+  LazyBuild,
+} from "./actions/input/builder/inputSpec"
 import {
   DefaultString,
   ListValueSpecText,
@@ -8,46 +12,38 @@ import {
   UniqueBy,
   ValueSpecDatetime,
   ValueSpecText,
-} from "./config/configTypes"
-import { Variants } from "./config/builder/variants"
-import { CreatedAction, createAction } from "./actions/createAction"
+} from "./actions/input/inputSpecTypes"
+import { Variants } from "./actions/input/builder/variants"
+import { Action, Actions, setupActions } from "./actions/setupActions"
 import {
   ActionMetadata,
   Effects,
   ActionResult,
-  BackupOptions,
+  SyncOptions,
   DeepPartial,
   MaybePromise,
   ServiceInterfaceId,
   PackageId,
 } from "./types"
 import * as patterns from "./util/patterns"
-import { DependencyConfig, Update } from "./dependencies/DependencyConfig"
-import { BackupSet, Backups } from "./backup/Backups"
-import { smtpConfig } from "./config/configConstants"
+import { BackupSync, Backups } from "./backup/Backups"
+import { smtpInputSpec } from "./actions/input/inputSpecConstants"
 import { Daemons } from "./mainFn/Daemons"
 import { healthCheck, HealthCheckParams } from "./health/HealthCheck"
 import { checkPortListening } from "./health/checkFns/checkPortListening"
 import { checkWebUrl, runHealthScript } from "./health/checkFns"
-import { List } from "./config/builder/list"
+import { List } from "./actions/input/builder/list"
 import { Install, InstallFn } from "./inits/setupInstall"
-import { setupActions } from "./actions/setupActions"
-import { setupDependencyConfig } from "./dependencies/setupDependencyConfig"
 import { SetupBackupsParams, setupBackups } from "./backup/setupBackups"
 import { setupInit } from "./inits/setupInit"
 import { Uninstall, UninstallFn, setupUninstall } from "./inits/setupUninstall"
 import { setupMain } from "./mainFn"
 import { defaultTrigger } from "./trigger/defaultTrigger"
 import { changeOnFirstSuccess, cooldownTrigger } from "./trigger"
-import setupConfig, {
-  DependenciesReceipt,
-  Read,
-  Save,
-} from "./config/setupConfig"
 import {
-  InterfacesReceipt,
-  SetInterfaces,
-  setupInterfaces,
+  ServiceInterfacesReceipt,
+  UpdateServiceInterfaces,
+  setupServiceInterfaces,
 } from "./interfaces/setupInterfaces"
 import { successFailure } from "./trigger/successFailure"
 import { HealthReceipt } from "./health/HealthReceipt"
@@ -72,6 +68,10 @@ import {
 } from "./dependencies/dependencies"
 import { GetSslCertificate } from "./util/GetSslCertificate"
 import { VersionGraph } from "./version"
+import { MaybeFn } from "./actions/setupActions"
+import { GetInput } from "./actions/setupActions"
+import { Run } from "./actions/setupActions"
+import { actions } from "."
 
 export const SDKVersion = testTypeVersion("0.3.6")
 
@@ -155,8 +155,8 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       executeAction: (effects, ...args) => effects.executeAction(...args),
       exportAction: (effects, ...args) => effects.exportAction(...args),
       clearActions: (effects, ...args) => effects.clearActions(...args),
-      getConfigured: (effects, ...args) => effects.getConfigured(...args),
-      setConfigured: (effects, ...args) => effects.setConfigured(...args),
+      getInputSpecured: (effects, ...args) => effects.getInputSpecured(...args),
+      setInputSpecured: (effects, ...args) => effects.setInputSpecured(...args),
       restart: (effects, ...args) => effects.restart(...args),
       setDependencies: (effects, ...args) => effects.setDependencies(...args),
       checkDependencies: (effects, ...args) =>
@@ -259,6 +259,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         return runCommand<Manifest>(effects, image, command, options)
       },
       /**
+       * TODO: rewrite this
        * @description Use this function to create a static Action, including optional form input.
        *
        *   By convention, each Action should receive its own file.
@@ -270,18 +271,18 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
        * @example
        * In this example, we create an Action that prints a name to the console. We present a user
        * with a form for optionally entering a temp name. If no temp name is provided, we use the name
-       * from the underlying `config.yaml` file. If no name is there, we use "Unknown". Then, we return
+       * from the underlying `inputSpec.yaml` file. If no name is there, we use "Unknown". Then, we return
        * a message to the user informing them what happened.
        * 
        * ```
         import { sdk } from '../sdk'
-        const { Config, Value } = sdk
-        import { yamlFile } from '../file-models/config.yml'
+        const { InputSpec, Value } = sdk
+        import { yamlFile } from '../file-models/inputSpec.yml'
 
-        const input = Config.of({
+        const input = InputSpec.of({
           nameToPrint: Value.text({
             name: 'Temp Name',
-            description: 'If no name is provided, the name from config will be used',
+            description: 'If no name is provided, the name from inputSpec will be used',
             required: false,
           }),
         })
@@ -319,31 +320,24 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         )
        * ```
        */
-      createAction: <
-        ConfigType extends
-          | Record<string, any>
-          | Config<any, any>
-          | Config<any, never>,
-        Type extends Record<string, any> = ExtractConfigType<ConfigType>,
-      >(
-        id: string,
-        metaData: Omit<ActionMetadata, "input"> & {
-          input: Config<Type, Store> | Config<Type, never>
-        },
-        fn: (options: {
-          effects: Effects
-          input: Type
-        }) => Promise<ActionResult>,
-      ) => {
-        const { input, ...rest } = metaData
-        return createAction<Manifest, Store, ConfigType, Type>(
-          id,
-          rest,
-          fn,
-          input,
-        )
+      Action: {
+        of: <
+          Id extends T.ActionId,
+          InputSpecType extends
+            | Record<string, any>
+            | InputSpec<any, any>
+            | InputSpec<any, never>,
+          Type extends
+            ExtractInputSpecType<InputSpecType> = ExtractInputSpecType<InputSpecType>,
+        >(
+          id: Id,
+          metadata: MaybeFn<T.ActionMetadata>,
+          inputSpec: InputSpecType,
+          getInput: GetInput<Type>,
+          run: Run<Type>,
+        ) => Action.of(id, metadata, inputSpec, getInput, run),
       },
-      configConstants: { smtpConfig },
+      inputSpecConstants: { smtpInputSpec },
       /**
        * @description Use this function to create a service interface.
        * @param effects
@@ -405,94 +399,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         removeCallbackTypes<E>(effects)(
           new GetSslCertificate(effects, hostnames, algorithm),
         ),
-      /**
-       * @description Use this function to define a dynamic Action, including optional form input.
-       *
-       *   By convention, each Action should receive its own file.
-       * @param id
-       * @param metaData
-       * @param fn
-       * @param input
-       * @returns
-       * @example
-       * In this example, we create an Action that prints a name to the console. We present a user
-       * with a form for optionally entering a temp name. If no temp name is provided, we use the name
-       * from the underlying `config.yaml` file. If no name is there, we use "Unknown". Then, we return
-       * a message to the user informing them what happened.
-       * 
-       * ```
-        import { sdk } from '../sdk'
-        const { Config, Value } = sdk
-        import { yamlFile } from '../file-models/config.yml'
-
-        const input = Config.of({
-          nameToPrint: Value.text({
-            name: 'Temp Name',
-            description: 'If no name is provided, the name from config will be used',
-            required: false,
-          }),
-        })
-
-        export const nameToLogs = sdk.createDynamicAction(
-          // id
-          'nameToLogs',
-
-          //metadata
-          async ({ effects }) => {
-            return {
-              name: 'Name to Logs',
-              description: 'Prints "Hello [Name]" to the service logs.',
-              warning: null,
-              disabled: false,
-              allowedStatuses: 'onlyRunning',
-              group: null,
-            }
-          },
-
-          // the execution function
-          async ({ effects, input }) => {
-            const name =
-              input.nameToPrint || (await yamlFile.read(effects))?.name || 'Unknown'
-
-            console.info(`Hello ${name}`)
-
-            return {
-              version: '0',
-              message: `"Hello ${name}" has been written to the service logs. Open your logs to view it.`,
-              value: name,
-              copyable: true,
-              qr: false,
-            }
-          },
-          // spec for form input
-          input,
-        )
-       * ```
-       */
-      createDynamicAction: <
-        ConfigType extends
-          | Record<string, any>
-          | Config<any, any>
-          | Config<any, never>,
-        Type extends Record<string, any> = ExtractConfigType<ConfigType>,
-      >(
-        id: string,
-        metaData: (options: {
-          effects: Effects
-        }) => MaybePromise<Omit<ActionMetadata, "input">>,
-        fn: (options: {
-          effects: Effects
-          input: Type
-        }) => Promise<ActionResult>,
-        input: Config<Type, Store> | Config<Type, never>,
-      ) => {
-        return createAction<Manifest, Store, ConfigType, Type>(
-          id,
-          metaData,
-          fn,
-          input,
-        )
-      },
       HealthCheck: {
         of(o: HealthCheckParams) {
           return healthCheck(o)
@@ -528,8 +434,14 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         export const { actions, actionsMetadata } = sdk.setupActions(nameToLogs)
        * ```
        */
-      setupActions: (...createdActions: CreatedAction<any, any, any>[]) =>
-        setupActions<Manifest, Store>(...createdActions),
+      setupActions: <
+        AllActions extends Record<
+          T.ActionId,
+          Action<T.ActionId, Store, any, any>
+        >,
+      >(
+        actions: Actions<Store, AllActions>,
+      ) => setupActions<Store, AllActions>(actions),
       /**
        * @description Use this function to determine which volumes are backed up when a user creates a backup, including advanced options.
        * @example
@@ -548,112 +460,12 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         )
        * ```
        */
-      setupBackups: (...args: SetupBackupsParams<Manifest>) =>
-        setupBackups<Manifest>(this.manifest, ...args),
-      setupConfig: <
-        ConfigType extends Config<any, Store> | Config<any, never>,
-        Type extends Record<string, any> = ExtractConfigType<ConfigType>,
-      >(
-        spec: ConfigType,
-        write: Save<Type>,
-        read: Read<Manifest, Store, Type>,
-      ) => setupConfig<Store, ConfigType, Manifest, Type>(spec, write, read),
-      /**
-       * @description Use this function to construct the current state of config, potentially from one or more underlying configuration files, for display to the user.
-       * @returns The current config, conforming to the config specification defined in ./spec.ts
-       * @example
-       * In this example, we read from an underlying config.json file belonging to the upstream service, as well as a value from the Store, and compose them into the expected config for display to the user.
-       *
-       * ```
-        import { sdk } from '../sdk'
-        import { jsonFile } from '../file-models/config.json'
-        import { configSpec } from './spec'
-        
-        export const read = sdk.setupConfigRead(configSpec, async ({ effects }) => {
-          const configJson = await jsonFile.read(effects)
-          const store = await sdk.store.getOwn(effects, sdk.StorePath).once()
-        
-          return {
-            name: configJson?.name || '',
-            makePublic: store?.makePublic || false
-          }
-        })
-       * ```
-       */
-      setupConfigRead: <
-        ConfigSpec extends
-          | Config<Record<string, any>, any>
-          | Config<Record<string, never>, never>,
-      >(
-        _configSpec: ConfigSpec,
-        fn: Read<Manifest, Store, ConfigSpec>,
-      ) => fn,
-      /**
-       * @description Use this function to accept user selections from config and save them to underlying config files or Store.
-       * 
-       *   Optionally force a service restart by passing `restart: true` in the return object.
-       * @example
-       * In this example, we accept user preferences for "name" and "makePublic" and save them to different places.
-       * 
-       * ```
-        import { sdk } from '../sdk'
-        import { setDependencies } from '../dependencies/dependencies'
-        import { setInterfaces } from '../interfaces'
-        import { configSpec } from './spec'
-        import { jsonFile } from '../file-models/config.yml'
-
-        export const save = sdk.setupConfigSave(
-          configSpec,
-          async ({ effects, input }) => {
-            await jsonFile.merge({ name: input.name }, effects)
-
-            await sdk.store.setOwn(
-              effects,
-              sdk.StorePath.makePublic,
-              input.makePublic,
-            ),
-
-            return {
-              interfacesReceipt: await setInterfaces({ effects, input }), // Plumbing. DO NOT EDIT.
-              dependenciesReceipt: await setDependencies({ effects, input }), // Plumbing. DO NOT EDIT.
-              restart: true, // optionally force a service restart on config save.
-            }
-          },
-        )
-       * ```
-       */
-      setupConfigSave: <
-        ConfigSpec extends
-          | Config<Record<string, any>, any>
-          | Config<Record<string, never>, never>,
-      >(
-        _configSpec: ConfigSpec,
-        fn: Save<ConfigSpec>,
-      ) => fn,
-      /**
-       * @description Use this function to provide all the required dependency configurations.
-       *
-       *   The function executes on service install, update, and config save. "input" will be of type `Input` for config save. It will be `null` for install and update.
-       *
-       *   By convention, each dependency config should receive its own file.
-       * @param {Config} config - the config spec for this service.
-       * @param {Record<string, DependencyConfig>} autoConfigs - a mapping of dependency IDs to auto configs as imported from their respective files.
-       */
-      setupDependencyConfig: <Input extends Record<string, any>>(
-        config: Config<Input, Store> | Config<Input, never>,
-        autoConfigs: {
-          [K in keyof Manifest["dependencies"]]: DependencyConfig<
-            Manifest,
-            Store,
-            Input,
-            any
-          > | null
-        },
-      ) => setupDependencyConfig<Store, Input, Manifest>(config, autoConfigs),
+      setupBackups: (options: SetupBackupsParams<Manifest>) =>
+        setupBackups<Manifest>(options),
       /**
        * @description Use this function to set dependency information.
        *
-       *   The function executes on service install, update, and config save. "input" will be of type `Input` for config save. It will be `null` for install and update.
+       *   The function executes on service install, update, and inputSpec save. "input" will be of type `Input` for inputSpec save. It will be `null` for install and update.
        * @example
        * In this example, we create a static dependency on Hello World >=1.0.0:0, where Hello World must be running and passing its "webui" health check.
        *
@@ -671,7 +483,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         )
        * ```
        * @example
-       * In this example, we create a conditional dependency on Hello World based on a hypothetical "needsWorld" boolean from config.
+       * In this example, we create a conditional dependency on Hello World based on a hypothetical "needsWorld" boolean from inputSpec.
        *
        * ```
         export const setDependencies = sdk.setupDependencies(
@@ -726,11 +538,11 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         versions: VersionGraph<Manifest["version"]>,
         install: Install<Manifest, Store>,
         uninstall: Uninstall<Manifest, Store>,
-        setInterfaces: SetInterfaces<Manifest, Store, any, any>,
+        setInterfaces: UpdateServiceInterfaces<any>,
         setDependencies: (options: {
           effects: Effects
           input: any
-        }) => Promise<DependenciesReceipt>,
+        }) => Promise<void>,
         exposedStore: ExposedStorePaths,
       ) =>
         setupInit<Manifest, Store>(
@@ -739,6 +551,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           uninstall,
           setInterfaces,
           setDependencies,
+          actions,
           exposedStore,
         ),
       /**
@@ -761,19 +574,19 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
        */
       setupInstall: (fn: InstallFn<Manifest, Store>) => Install.of(fn),
       /**
-       * @description Use this function to determine how this service will be hosted and served. The function executes on service install, service update, and config save.
+       * @description Use this function to determine how this service will be hosted and served. The function executes on service install, service update, and inputSpec save.
        *
-       *   "input" will be of type `Input` for config save. It will be `null` for install and update.
+       *   "input" will be of type `Input` for inputSpec save. It will be `null` for install and update.
        *
        *   To learn about creating multi-hosts and interfaces, check out the {@link https://docs.start9.com/packaging-guide/learn/interfaces documentation}.
-       * @param config - The config spec of this service as exported from /config/spec.
-       * @param fn - an async function that returns an array of interface receipts. The function always has access to `effects`; it has access to `input` only after config save, otherwise `input` will be null.
+       * @param inputSpec - The inputSpec spec of this service as exported from /inputSpec/spec.
+       * @param fn - an async function that returns an array of interface receipts. The function always has access to `effects`; it has access to `input` only after inputSpec save, otherwise `input` will be null.
        * @example
        * In this example, we create two UIs from one multi-host, and one API from another multi-host.
        *
        * ```
         export const setInterfaces = sdk.setupInterfaces(
-          configSpec,
+          inputSpecSpec,
           async ({ effects, input }) => {
             // ** UI multi-host **
             const uiMulti = sdk.host.multi(effects, 'ui-multi')
@@ -836,13 +649,9 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         )
        * ```
        */
-      setupInterfaces: <
-        ConfigInput extends Record<string, any>,
-        Output extends InterfacesReceipt,
-      >(
-        config: Config<ConfigInput, Store>,
-        fn: SetInterfaces<Manifest, Store, ConfigInput, Output>,
-      ) => setupInterfaces(config, fn),
+      setupInterfaces: <Output extends ServiceInterfacesReceipt>(
+        fn: UpdateServiceInterfaces<Output>,
+      ) => setupServiceInterfaces(fn),
       setupMain: (
         fn: (o: {
           effects: MainEffects
@@ -899,26 +708,26 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       Backups: {
         volumes: (
           ...volumeNames: Array<Manifest["volumes"][number] & string>
-        ) => Backups.volumes<Manifest>(...volumeNames),
+        ) => Backups.withVolumes<Manifest>(...volumeNames),
         addSets: (
-          ...options: BackupSet<Manifest["volumes"][number] & string>[]
-        ) => Backups.addSets<Manifest>(...options),
-        withOptions: (options?: Partial<BackupOptions>) =>
-          Backups.with_options<Manifest>(options),
+          ...options: BackupSync<Manifest["volumes"][number] & string>[]
+        ) => Backups.withSyncs<Manifest>(...options),
+        withOptions: (options?: Partial<SyncOptions>) =>
+          Backups.withOptions<Manifest>(options),
       },
-      Config: {
+      InputSpec: {
         /**
-         * @description Use this function to define the config specification that will ultimately present to the user as validated form inputs.
+         * @description Use this function to define the inputSpec specification that will ultimately present to the user as validated form inputs.
          *
          *   Most form controls are supported, including text, textarea, number, toggle, select, multiselect, list, color, datetime, object (sub form), and union (conditional sub form).
          * @example
-         * In this example, we define a config form with two value: name and makePublic.
+         * In this example, we define a inputSpec form with two value: name and makePublic.
          *
          * ```
           import { sdk } from '../sdk'
-          const { Config, Value } = sdk
+          const { InputSpec, Value } = sdk
          
-          export const configSpec = Config.of({
+          export const inputSpecSpec = InputSpec.of({
             name: Value.text({
               name: 'Name',
               description:
@@ -937,79 +746,15 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           Spec extends Record<string, Value<any, Store> | Value<any, never>>,
         >(
           spec: Spec,
-        ) => Config.of<Spec, Store>(spec),
+        ) => InputSpec.of<Spec, Store>(spec),
       },
       Daemons: {
-        of(config: {
+        of(inputSpec: {
           effects: Effects
           started: (onTerm: () => PromiseLike<void>) => PromiseLike<void>
           healthReceipts: HealthReceipt[]
         }) {
-          return Daemons.of<Manifest>(config)
-        },
-      },
-      DependencyConfig: {
-        /**
-         * @description Use this function to define a dependency configuration requirement and to automatically (with user permission) update the dependency's configuration to satisfy.
-         *
-         * The function executes on service install, update, and config save. "localConfig" will be of type `Input` for config save. It will be `null` for install and update.
-         * @example
-         * In this example, we require the `name` option in Hello World's config to be "Satoshi".
-         *
-         * ```
-          export const helloWorldConfig = sdk.DependencyConfig.of({
-            localConfigSpec: configSpec,
-            remoteConfigSpec: helloWorldSpec,
-            dependencyConfig: async ({ effects, localConfig }) => {
-              return {
-                name: 'Satoshi',
-              }
-            },
-          })
-         * ```
-         */
-        of<
-          LocalConfig extends Record<string, any>,
-          RemoteConfig extends Record<string, any>,
-        >({
-          localConfigSpec,
-          remoteConfigSpec,
-          dependencyConfig,
-          update,
-        }: {
-          /** The config spec for this service. */
-          localConfigSpec:
-            | Config<LocalConfig, Store>
-            | Config<LocalConfig, never>
-          /** The dependency's config spec. */
-          remoteConfigSpec:
-            | Config<RemoteConfig, any>
-            | Config<RemoteConfig, never>
-          /**
-           * @description Use this function to set specific requirements for the dependency's config. These requirements can be static or conditional based on the services own config.
-           *
-           * The function executes on service install, update, and config save. "localConfig" will be of type `Input` for config save. It will be `null` for install and update.
-           * @example
-           * In this example, we conditionally require the `name` option in Hello World's config to be "Satoshi" based on a hypothetical lovesSatoshi boolean from config.
-           *
-           * ```
-            dependencyConfig: async ({ effects, localConfig }) => {
-              return localConfig.lovesSatoshi ? { name: 'Satoshi' } : {}
-            },
-           * ```
-           */
-          dependencyConfig: (options: {
-            effects: Effects
-            localConfig: LocalConfig
-          }) => Promise<void | DeepPartial<RemoteConfig>>
-          update?: Update<void | DeepPartial<RemoteConfig>, RemoteConfig>
-        }) {
-          return new DependencyConfig<
-            Manifest,
-            Store,
-            LocalConfig,
-            RemoteConfig
-          >(dependencyConfig, update)
+          return Daemons.of<Manifest>(inputSpec)
         },
       },
       List: {
@@ -1035,14 +780,14 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             maxLength?: number | null
           },
           aSpec: {
-            spec: Config<Type, Store>
+            spec: InputSpec<Type, Store>
             /**
              * @description The ID of a required field on the inner object whose value will be used to display items in the list.
              * @example
              * In this example, we use the value of the `label` field to display members of the list.
              *
              * ```
-              spec: Config.of({
+              spec: InputSpec.of({
                 label: Value.text({
                   name: 'Label',
                   required: false,
@@ -1060,7 +805,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
              * In this example, we use the `label` field to enforce uniqueness, meaning the label field must be unique from other entries.
              *
              * ```
-              spec: Config.of({
+              spec: InputSpec.of({
                 label: Value.text({
                   name: 'Label',
                   required: { default: null },
@@ -1077,7 +822,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
              * In this example, we use the `label` field AND the `pubkey` field to enforce uniqueness, meaning both these fields must be unique from other entries.
              *
              * ```
-              spec: Config.of({
+              spec: InputSpec.of({
                 label: Value.text({
                   name: 'Label',
                   required: { default: null },
@@ -1293,7 +1038,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          */
         multiselect: Value.multiselect,
         /**
-         * @description Display a collapsable grouping of additional fields, a "sub form". The second value is the config spec for the sub form.
+         * @description Display a collapsable grouping of additional fields, a "sub form". The second value is the inputSpec spec for the sub form.
          * @example
          * ```
           objectExample: Value.object(
@@ -1305,7 +1050,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               description: null,
               warning: null,
             },
-            Config.of({}),
+            InputSpec.of({}),
           ),
          * ```
          */
@@ -1329,11 +1074,11 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             Variants.of({
               option1: {
                 name: 'Option 1',
-                spec: Config.of({}),
+                spec: InputSpec.of({}),
               },
               option2: {
                 name: 'Option 2',
-                spec: Config.of({}),
+                spec: InputSpec.of({}),
               },
             }),
           ),
@@ -1393,7 +1138,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               },
               {
                 // required
-                spec: Config.of({}),
+                spec: InputSpec.of({}),
 
                 // optional
                 displayAs: null,
@@ -1703,7 +1448,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           VariantValues extends {
             [K in string]: {
               name: string
-              spec: Config<any, Store>
+              spec: InputSpec<any, Store>
             }
           },
         >(

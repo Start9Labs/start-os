@@ -77,7 +77,7 @@ export type SDKManifest = {
     },
    * ```
    */
-  readonly images: Record<ImageId, SDKImageConfig>
+  readonly images: Record<ImageId, SDKImageInputSpec>
   /**
    * @description A list of readonly asset directories that will mount to the container. Each item here must
    *   correspond to a directory in the /assets directory of this project.
@@ -106,11 +106,11 @@ export type SDKManifest = {
     /** An warning alert requiring user confirmation before stopping this service. */
     readonly stop?: string | null
   }
-  readonly hasConfig?: boolean // TODO Aiden
+  readonly hasInputSpec?: boolean // TODO Aiden
   /**
    * @description A mapping of service dependencies to be displayed to users when viewing the Marketplace
    * @property {string} description - An explanation of why this service is a dependency.
-   * @property {boolean} optional - Whether or not this dependency is required or contingent on user configuration.
+   * @property {boolean} optional - Whether or not this dependency is required or contingent on user inputSpecuration.
    * @property {string} s9pk - TODO Aiden what goes here?
    * @example
    * ```
@@ -150,7 +150,7 @@ export type SDKManifest = {
   }
 }
 
-export type SDKImageConfig = {
+export type SDKImageInputSpec = {
   source: Exclude<ImageSource, "packed">
   arch?: string[]
   emulateMissingAs?: string | null

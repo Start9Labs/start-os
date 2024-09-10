@@ -1,6 +1,6 @@
-import { Config } from "./config"
+import { InputSpec } from "./inputSpec"
 import { List } from "./list"
 import { Value } from "./value"
 import { Variants } from "./variants"
 
-export { Config, List, Value, Variants }
+export { InputSpec as InputSpec, List, Value, Variants }

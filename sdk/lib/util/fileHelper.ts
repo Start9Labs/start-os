@@ -8,7 +8,7 @@ import * as fs from "node:fs/promises"
 const previousPath = /(.+?)\/([^/]*)$/
 
 /**
- * @description Use this class to read/write an underlying configuration file belonging to the upstream service.
+ * @description Use this class to read/write an underlying inputSpecuration file belonging to the upstream service.
  *
  * Using the static functions, choose between officially supported file formats (json, yaml, toml), or a custom format (raw).
  * @example
@@ -18,17 +18,17 @@ const previousPath = /(.+?)\/([^/]*)$/
  * import { matches, FileHelper } from '@start9labs/start-sdk'
  * const { arrayOf, boolean, literal, literals, object, oneOf, natural, string } = matches
  *
- * export const jsonFile = FileHelper.json('./config.json', object({
+ * export const jsonFile = FileHelper.json('./inputSpec.json', object({
  *   passwords: arrayOf(string)
  *   type: oneOf(literals('private', 'public'))
  * }))
  *
- * export const tomlFile = FileHelper.toml('./config.toml', object({
+ * export const tomlFile = FileHelper.toml('./inputSpec.toml', object({
  *   url: literal('https://start9.com')
  *   public: boolean
  * }))
  *
- * export const yamlFile = FileHelper.yaml('./config.yml', object({
+ * export const yamlFile = FileHelper.yaml('./inputSpec.yml', object({
  *   name: string
  *   age: natural
  * }))

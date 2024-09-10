@@ -1,9 +1,9 @@
 import { testOutput } from "./output.test"
-import { Config } from "../config/builder/config"
-import { List } from "../config/builder/list"
-import { Value } from "../config/builder/value"
-import { Variants } from "../config/builder/variants"
-import { ValueSpec } from "../config/configTypes"
+import { InputSpec } from "../input/builder/inputSpec"
+import { List } from "../input/builder/list"
+import { Value } from "../input/builder/value"
+import { Variants } from "../input/builder/variants"
+import { ValueSpec } from "../input/inputSpecTypes"
 import { setupManifest } from "../manifest/setupManifest"
 import { StartSdk } from "../StartSdk"
 import { VersionGraph } from "../version/VersionGraph"
@@ -13,7 +13,7 @@ describe("builder tests", () => {
   test("text", async () => {
     const bitcoinPropertiesBuilt: {
       "peer-tor-address": ValueSpec
-    } = await Config.of({
+    } = await InputSpec.of({
       "peer-tor-address": Value.text({
         name: "Peer tor address",
         description: "The Tor address of the peer interface",
@@ -233,7 +233,7 @@ describe("values", () => {
         name: "Testing",
         description: null,
       },
-      Config.of({
+      InputSpec.of({
         a: Value.toggle({
           name: "test",
           description: null,
@@ -257,7 +257,7 @@ describe("values", () => {
       Variants.of({
         a: {
           name: "a",
-          spec: Config.of({
+          spec: InputSpec.of({
             b: Value.toggle({
               name: "b",
               description: null,
@@ -276,7 +276,7 @@ describe("values", () => {
 
   describe("dynamic", () => {
     const fakeOptions = {
-      config: "config",
+      inputSpec: "inputSpec",
       effects: "effects",
       utils: "utils",
     } as any
@@ -545,7 +545,7 @@ describe("values", () => {
         Variants.of({
           a: {
             name: "a",
-            spec: Config.of({
+            spec: InputSpec.of({
               b: Value.toggle({
                 name: "b",
                 description: null,
@@ -556,7 +556,7 @@ describe("values", () => {
           },
           b: {
             name: "b",
-            spec: Config.of({
+            spec: InputSpec.of({
               b: Value.toggle({
                 name: "b",
                 description: null,
@@ -612,7 +612,7 @@ describe("values", () => {
       Variants.of({
         a: {
           name: "a",
-          spec: Config.of({
+          spec: InputSpec.of({
             b: Value.toggle({
               name: "b",
               description: null,
@@ -623,7 +623,7 @@ describe("values", () => {
         },
         b: {
           name: "b",
-          spec: Config.of({
+          spec: InputSpec.of({
             b: Value.toggle({
               name: "b",
               description: null,
@@ -678,7 +678,7 @@ describe("Builder List", () => {
           name: "test",
         },
         {
-          spec: Config.of({
+          spec: InputSpec.of({
             test: Value.toggle({
               name: "test",
               description: null,
@@ -731,11 +731,11 @@ describe("Builder List", () => {
 
 describe("Nested nullable values", () => {
   test("Testing text", async () => {
-    const value = Config.of({
+    const value = InputSpec.of({
       a: Value.text({
         name: "Temp Name",
         description:
-          "If no name is provided, the name from config will be used",
+          "If no name is provided, the name from inputSpec will be used",
         required: false,
       }),
     })
@@ -746,11 +746,11 @@ describe("Nested nullable values", () => {
     testOutput<typeof validator._TYPE, { a: string | null | undefined }>()(null)
   })
   test("Testing number", async () => {
-    const value = Config.of({
+    const value = InputSpec.of({
       a: Value.number({
         name: "Temp Name",
         description:
-          "If no name is provided, the name from config will be used",
+          "If no name is provided, the name from inputSpec will be used",
         required: false,
         warning: null,
         placeholder: null,
@@ -768,11 +768,11 @@ describe("Nested nullable values", () => {
     testOutput<typeof validator._TYPE, { a: number | null | undefined }>()(null)
   })
   test("Testing color", async () => {
-    const value = Config.of({
+    const value = InputSpec.of({
       a: Value.color({
         name: "Temp Name",
         description:
-          "If no name is provided, the name from config will be used",
+          "If no name is provided, the name from inputSpec will be used",
         required: false,
         warning: null,
       }),
@@ -784,11 +784,11 @@ describe("Nested nullable values", () => {
     testOutput<typeof validator._TYPE, { a: string | null | undefined }>()(null)
   })
   test("Testing select", async () => {
-    const value = Config.of({
+    const value = InputSpec.of({
       a: Value.select({
         name: "Temp Name",
         description:
-          "If no name is provided, the name from config will be used",
+          "If no name is provided, the name from inputSpec will be used",
         required: false,
         warning: null,
         values: {
@@ -798,7 +798,8 @@ describe("Nested nullable values", () => {
     })
     const higher = await Value.select({
       name: "Temp Name",
-      description: "If no name is provided, the name from config will be used",
+      description:
+        "If no name is provided, the name from inputSpec will be used",
       required: false,
       warning: null,
       values: {
@@ -813,11 +814,11 @@ describe("Nested nullable values", () => {
     testOutput<typeof validator._TYPE, { a: "a" | null | undefined }>()(null)
   })
   test("Testing multiselect", async () => {
-    const value = Config.of({
+    const value = InputSpec.of({
       a: Value.multiselect({
         name: "Temp Name",
         description:
-          "If no name is provided, the name from config will be used",
+          "If no name is provided, the name from inputSpec will be used",
 
         warning: null,
         default: [],

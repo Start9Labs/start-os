@@ -1,8 +1,11 @@
 import { Effects } from "../types"
 import {
   CheckDependenciesParam,
+  ClearActionsParams,
+  ClearBindingsParams,
+  ClearServiceInterfacesParams,
   ExecuteAction,
-  GetConfiguredParams,
+  GetInputSpecuredParams,
   GetStoreParams,
   SetDataVersionParams,
   SetMainStatus,
@@ -12,7 +15,7 @@ import { CreateSubcontainerFsParams } from ".././osBindings"
 import { DestroySubcontainerFsParams } from ".././osBindings"
 import { BindParams } from ".././osBindings"
 import { GetHostInfoParams } from ".././osBindings"
-import { SetConfigured } from ".././osBindings"
+import { SetInputSpecured } from ".././osBindings"
 import { SetHealth } from ".././osBindings"
 import { ExposeForDependentsParams } from ".././osBindings"
 import { GetSslCertificateParams } from ".././osBindings"
@@ -48,14 +51,14 @@ describe("startosTypeValidation ", () => {
         createFs: {} as CreateSubcontainerFsParams,
         destroyFs: {} as DestroySubcontainerFsParams,
       },
-      clearBindings: undefined,
+      clearBindings: {} as ClearBindingsParams,
       getInstalledPackages: undefined,
       bind: {} as BindParams,
       getHostInfo: {} as WithCallback<GetHostInfoParams>,
-      getConfigured: {} as GetConfiguredParams,
+      getInputSpecured: {} as GetInputSpecuredParams,
       restart: undefined,
       shutdown: undefined,
-      setConfigured: {} as SetConfigured,
+      setInputSpecured: {} as SetInputSpecured,
       setDataVersion: {} as SetDataVersionParams,
       getDataVersion: undefined,
       setHealth: {} as SetHealth,
@@ -71,12 +74,12 @@ describe("startosTypeValidation ", () => {
       getSystemSmtp: {} as WithCallback<GetSystemSmtpParams>,
       getContainerIp: undefined,
       getServicePortForward: {} as GetServicePortForwardParams,
-      clearServiceInterfaces: undefined,
+      clearServiceInterfaces: {} as ClearServiceInterfacesParams,
       exportServiceInterface: {} as ExportServiceInterfaceParams,
       getPrimaryUrl: {} as WithCallback<GetPrimaryUrlParams>,
       listServiceInterfaces: {} as WithCallback<ListServiceInterfacesParams>,
       exportAction: {} as ExportActionParams,
-      clearActions: undefined,
+      clearActions: {} as ClearActionsParams,
       mount: {} as MountParams,
       checkDependencies: {} as CheckDependenciesParam,
       getDependencies: undefined,

@@ -5,7 +5,7 @@ export type CheckDependencies<DependencyId extends PackageId = PackageId> = {
   installedSatisfied: (packageId: DependencyId) => boolean
   installedVersionSatisfied: (packageId: DependencyId) => boolean
   runningSatisfied: (packageId: DependencyId) => boolean
-  configSatisfied: (packageId: DependencyId) => boolean
+  inputSpecSatisfied: (packageId: DependencyId) => boolean
   healthCheckSatisfied: (
     packageId: DependencyId,
     healthCheckId: HealthCheckId,
@@ -15,7 +15,7 @@ export type CheckDependencies<DependencyId extends PackageId = PackageId> = {
   throwIfInstalledNotSatisfied: (packageId: DependencyId) => void
   throwIfInstalledVersionNotSatisfied: (packageId: DependencyId) => void
   throwIfRunningNotSatisfied: (packageId: DependencyId) => void
-  throwIfConfigNotSatisfied: (packageId: DependencyId) => void
+  throwIfInputSpecNotSatisfied: (packageId: DependencyId) => void
   throwIfHealthNotSatisfied: (
     packageId: DependencyId,
     healthCheckId?: HealthCheckId,
@@ -64,8 +64,8 @@ export async function checkDependencies<
     const dep = find(packageId)
     return dep.requirement.kind !== "running" || dep.result.isRunning
   }
-  const configSatisfied = (packageId: DependencyId) =>
-    find(packageId).result.configSatisfied
+  const inputSpecSatisfied = (packageId: DependencyId) =>
+    find(packageId).result.inputSpecSatisfied
   const healthCheckSatisfied = (
     packageId: DependencyId,
     healthCheckId?: HealthCheckId,
@@ -87,7 +87,7 @@ export async function checkDependencies<
     installedSatisfied(packageId) &&
     installedVersionSatisfied(packageId) &&
     runningSatisfied(packageId) &&
-    configSatisfied(packageId) &&
+    inputSpecSatisfied(packageId) &&
     healthCheckSatisfied(packageId)
   const satisfied = (packageId?: DependencyId) =>
     packageId
@@ -123,11 +123,11 @@ export async function checkDependencies<
       throw new Error(`${dep.result.title || packageId} is not running`)
     }
   }
-  const throwIfConfigNotSatisfied = (packageId: DependencyId) => {
+  const throwIfInputSpecNotSatisfied = (packageId: DependencyId) => {
     const dep = find(packageId)
-    if (!dep.result.configSatisfied) {
+    if (!dep.result.inputSpecSatisfied) {
       throw new Error(
-        `${dep.result.title || packageId}'s configuration does not satisfy requirements`,
+        `${dep.result.title || packageId}'s inputSpecuration does not satisfy requirements`,
       )
     }
   }
@@ -161,7 +161,7 @@ export async function checkDependencies<
     throwIfInstalledNotSatisfied(packageId)
     throwIfInstalledVersionNotSatisfied(packageId)
     throwIfRunningNotSatisfied(packageId)
-    throwIfConfigNotSatisfied(packageId)
+    throwIfInputSpecNotSatisfied(packageId)
     throwIfHealthNotSatisfied(packageId)
   }
   const throwIfNotSatisfied = (packageId?: DependencyId) =>
@@ -186,13 +186,13 @@ export async function checkDependencies<
     installedSatisfied,
     installedVersionSatisfied,
     runningSatisfied,
-    configSatisfied,
+    inputSpecSatisfied,
     healthCheckSatisfied,
     satisfied,
     throwIfInstalledNotSatisfied,
     throwIfInstalledVersionNotSatisfied,
     throwIfRunningNotSatisfied,
-    throwIfConfigNotSatisfied,
+    throwIfInputSpecNotSatisfied,
     throwIfHealthNotSatisfied,
     throwIfNotSatisfied,
   }

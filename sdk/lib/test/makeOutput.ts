@@ -3,7 +3,7 @@ import { oldSpecToBuilder } from "../../scripts/oldSpecToBuilder"
 oldSpecToBuilder(
   // Make the location
   "./lib/test/output.ts",
-  // Put the config here
+  // Put the inputSpec here
   {
     mediasources: {
       type: "list",
@@ -59,7 +59,7 @@ oldSpecToBuilder(
     rpc: {
       type: "object",
       name: "RPC Settings",
-      description: "RPC configuration options.",
+      description: "RPC inputSpecuration options.",
       spec: {
         enable: {
           type: "boolean",

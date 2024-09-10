@@ -12,7 +12,7 @@ use color_eyre::eyre::eyre;
 use futures::stream::BoxStream;
 use futures::{Future, FutureExt, Stream, StreamExt, TryStreamExt};
 use itertools::Itertools;
-use models::PackageId;
+use models::{FromStrParser, PackageId};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
     from_fn_async, CallRemote, Context, Empty, HandlerArgs, HandlerExt, HandlerFor, ParentHandler,
@@ -30,7 +30,6 @@ use crate::error::ResultExt;
 use crate::lxc::ContainerId;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
-use crate::util::clap::FromStrParser;
 use crate::util::serde::Reversible;
 use crate::util::Invoke;
 
