@@ -15,6 +15,7 @@ import {
   ActionId,
   HostId,
   ActionMetadata,
+  ActionInput,
 } from "./osBindings"
 import { MainEffects, Signals } from "./StartSdk"
 import { InputSpec } from "./actions/input/inputSpecTypes"
@@ -24,7 +25,6 @@ import { ExposedStorePaths } from "./store/setupExposeStore"
 import { UrlString } from "./util/getServiceInterface"
 import { StringObject, ToKebab } from "./util"
 import { Actions } from "./actions/setupActions"
-import { InputSpecRes } from "./osBindings/ConfigRes"
 export * from "./osBindings"
 export { SDKManifest } from "./manifest/ManifestTypes"
 export { HealthReceipt } from "./health/HealthReceipt"
@@ -232,7 +232,7 @@ export type Effects = {
   executeAction<Input>(opts: {
     packageId?: PackageId
     actionId: ActionId
-    prev?: InputSpecRes
+    prev?: ActionInput
     input: Input
   }): Promise<unknown>
   /** Define an action that can be invoked by a user or service */

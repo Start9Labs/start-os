@@ -32,5 +32,4 @@ export type Manifest = {
   hardwareRequirements: HardwareRequirements
   gitHash: string | null
   osVersion: string
-  hasConfig: boolean
 }

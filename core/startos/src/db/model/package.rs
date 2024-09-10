@@ -431,6 +431,7 @@ impl Default for CurrentDependencyKind {
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionRequest {
+    pub id: ActionId,
     pub r#if: Option<ActionRequestCondition>,
     pub input: Option<ActionRequestInput>,
 }

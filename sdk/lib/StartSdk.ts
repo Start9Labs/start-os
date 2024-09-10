@@ -543,6 +543,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           effects: Effects
           input: any
         }) => Promise<void>,
+        actions: Actions<Store, any>,
         exposedStore: ExposedStorePaths,
       ) =>
         setupInit<Manifest, Store>(

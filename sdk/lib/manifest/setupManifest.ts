@@ -1,5 +1,5 @@
 import * as T from "../types"
-import { ImageInputSpec, ImageId, VolumeId } from "../osBindings"
+import { ImageConfig, ImageId, VolumeId } from "../osBindings"
 import { SDKManifest, SDKImageInputSpec } from "./ManifestTypes"
 import { SDKVersion } from "../StartSdk"
 import { VersionGraph } from "../version/VersionGraph"
@@ -34,10 +34,10 @@ export function setupManifest<
       v.arch = v.arch || ["aarch64", "x86_64"]
       if (v.emulateMissingAs === undefined)
         v.emulateMissingAs = v.arch[0] || null
-      images[k] = v as ImageInputSpec
+      images[k] = v as ImageConfig
       return images
     },
-    {} as { [k: string]: ImageInputSpec },
+    {} as { [k: string]: ImageConfig },
   )
   return {
     ...manifest,
@@ -57,8 +57,6 @@ export function setupManifest<
       start: manifest.alerts?.start || null,
       stop: manifest.alerts?.stop || null,
     },
-    hasInputSpec:
-      manifest.hasInputSpec === undefined ? true : manifest.hasInputSpec,
     hardwareRequirements: {
       device: Object.fromEntries(
         Object.entries(manifest.hardwareRequirements?.device || {}).map(

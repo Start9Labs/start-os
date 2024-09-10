@@ -106,7 +106,6 @@ export type SDKManifest = {
     /** An warning alert requiring user confirmation before stopping this service. */
     readonly stop?: string | null
   }
-  readonly hasInputSpec?: boolean // TODO Aiden
   /**
    * @description A mapping of service dependencies to be displayed to users when viewing the Marketplace
    * @property {string} description - An explanation of why this service is a dependency.

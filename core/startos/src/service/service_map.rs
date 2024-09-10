@@ -175,7 +175,6 @@ impl ServiceMap {
                                 },
                                 data_version: None,
                                 status: Status {
-                                    configured: false,
                                     main: MainStatus::Stopped,
                                 },
                                 registry: None,

@@ -5,7 +5,7 @@ export type CheckDependencies<DependencyId extends PackageId = PackageId> = {
   installedSatisfied: (packageId: DependencyId) => boolean
   installedVersionSatisfied: (packageId: DependencyId) => boolean
   runningSatisfied: (packageId: DependencyId) => boolean
-  inputSpecSatisfied: (packageId: DependencyId) => boolean
+  actionsSatisfied: (packageId: DependencyId) => boolean
   healthCheckSatisfied: (
     packageId: DependencyId,
     healthCheckId: HealthCheckId,
@@ -15,7 +15,7 @@ export type CheckDependencies<DependencyId extends PackageId = PackageId> = {
   throwIfInstalledNotSatisfied: (packageId: DependencyId) => void
   throwIfInstalledVersionNotSatisfied: (packageId: DependencyId) => void
   throwIfRunningNotSatisfied: (packageId: DependencyId) => void
-  throwIfInputSpecNotSatisfied: (packageId: DependencyId) => void
+  throwIfActionsNotSatisfied: (packageId: DependencyId) => void
   throwIfHealthNotSatisfied: (
     packageId: DependencyId,
     healthCheckId?: HealthCheckId,
@@ -64,8 +64,8 @@ export async function checkDependencies<
     const dep = find(packageId)
     return dep.requirement.kind !== "running" || dep.result.isRunning
   }
-  const inputSpecSatisfied = (packageId: DependencyId) =>
-    find(packageId).result.inputSpecSatisfied
+  const actionsSatisfied = (packageId: DependencyId) =>
+    Object.keys(find(packageId).result.requestedActions).length === 0
   const healthCheckSatisfied = (
     packageId: DependencyId,
     healthCheckId?: HealthCheckId,
@@ -87,7 +87,7 @@ export async function checkDependencies<
     installedSatisfied(packageId) &&
     installedVersionSatisfied(packageId) &&
     runningSatisfied(packageId) &&
-    inputSpecSatisfied(packageId) &&
+    actionsSatisfied(packageId) &&
     healthCheckSatisfied(packageId)
   const satisfied = (packageId?: DependencyId) =>
     packageId
@@ -123,11 +123,12 @@ export async function checkDependencies<
       throw new Error(`${dep.result.title || packageId} is not running`)
     }
   }
-  const throwIfInputSpecNotSatisfied = (packageId: DependencyId) => {
+  const throwIfActionsNotSatisfied = (packageId: DependencyId) => {
     const dep = find(packageId)
-    if (!dep.result.inputSpecSatisfied) {
+    const reqs = Object.keys(dep.result.requestedActions)
+    if (reqs.length) {
       throw new Error(
-        `${dep.result.title || packageId}'s inputSpecuration does not satisfy requirements`,
+        `The following action requests have not been fulfilled: ${reqs.join(", ")}`,
       )
     }
   }
@@ -161,7 +162,7 @@ export async function checkDependencies<
     throwIfInstalledNotSatisfied(packageId)
     throwIfInstalledVersionNotSatisfied(packageId)
     throwIfRunningNotSatisfied(packageId)
-    throwIfInputSpecNotSatisfied(packageId)
+    throwIfActionsNotSatisfied(packageId)
     throwIfHealthNotSatisfied(packageId)
   }
   const throwIfNotSatisfied = (packageId?: DependencyId) =>
@@ -186,13 +187,13 @@ export async function checkDependencies<
     installedSatisfied,
     installedVersionSatisfied,
     runningSatisfied,
-    inputSpecSatisfied,
+    actionsSatisfied,
     healthCheckSatisfied,
     satisfied,
     throwIfInstalledNotSatisfied,
     throwIfInstalledVersionNotSatisfied,
     throwIfRunningNotSatisfied,
-    throwIfInputSpecNotSatisfied,
+    throwIfActionsNotSatisfied,
     throwIfHealthNotSatisfied,
     throwIfNotSatisfied,
   }

@@ -16,7 +16,6 @@ pub mod health_check;
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct Status {
-    pub configured: bool,
     pub main: MainStatus,
 }
 

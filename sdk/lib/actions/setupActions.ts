@@ -75,10 +75,10 @@ export class Action<
     await options.effects.exportAction({ id: this.id, metadata })
     return metadata
   }
-  async getInput(options: { effects: T.Effects }): Promise<T.InputSpecRes> {
+  async getInput(options: { effects: T.Effects }): Promise<T.ActionInput> {
     return {
       spec: await this.inputSpec.build(options),
-      inputSpec: (await this.getInputFn(options)) || null,
+      value: (await this.getInputFn(options)) || null,
     }
   }
   async run(options: {
