@@ -1,6 +1,7 @@
 use core::fmt;
 use std::borrow::Cow;
 use std::sync::Mutex;
+use std::time::Duration;
 
 use axum::extract::ws::{self, CloseFrame};
 use futures::{Future, Stream, StreamExt};
@@ -19,13 +20,8 @@ pub trait WebSocketExt {
 }
 
 impl WebSocketExt for ws::WebSocket {
-    async fn normal_close(mut self, msg: impl Into<Cow<'static, str>> + Send) -> Result<(), Error> {
-        self.send(ws::Message::Close(Some(CloseFrame {
-            code: 1000,
-            reason: msg.into(),
-        })))
-        .await
-        .with_kind(ErrorKind::Network)
+    async fn normal_close(self, msg: impl Into<Cow<'static, str>> + Send) -> Result<(), Error> {
+        self.close_result(Ok::<_, Error>(msg)).await
     }
     async fn close_result(
         mut self,
@@ -38,15 +34,31 @@ impl WebSocketExt for ws::WebSocket {
                     reason: msg.into(),
                 })))
                 .await
-                .with_kind(ErrorKind::Network),
+                .with_kind(ErrorKind::Network)?,
             Err(e) => self
                 .send(ws::Message::Close(Some(CloseFrame {
                     code: 1011,
                     reason: e.to_string().into(),
                 })))
                 .await
-                .with_kind(ErrorKind::Network),
+                .with_kind(ErrorKind::Network)?,
         }
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if let Some(ws::Message::Close(_)) = self
+                    .next()
+                    .await
+                    .transpose()
+                    .with_kind(ErrorKind::Network)?
+                {
+                    break;
+                }
+            }
+            Ok::<_, Error>(())
+        })
+        .await
+        .with_kind(ErrorKind::Timeout)??;
+        Ok(())
     }
 }
 
