@@ -368,7 +368,7 @@ pub async fn check_dependencies(
         let satisfies = manifest.as_satisfies().de()?;
         let installed_version = Some(installed_version.clone());
         let is_installed = true;
-        let status = package.as_status().as_main().de()?;
+        let status = package.as_status().de()?;
         let is_running = if is_installed {
             status.running()
         } else {

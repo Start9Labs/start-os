@@ -4,17 +4,17 @@ import type { NamedHealthCheckResult } from "./NamedHealthCheckResult"
 import type { StartStop } from "./StartStop"
 
 export type MainStatus =
-  | { status: "stopped" }
-  | { status: "restarting" }
-  | { status: "restoring" }
-  | { status: "stopping" }
+  | { main: "stopped" }
+  | { main: "restarting" }
+  | { main: "restoring" }
+  | { main: "stopping" }
   | {
-      status: "starting"
+      main: "starting"
       health: { [key: HealthCheckId]: NamedHealthCheckResult }
     }
   | {
-      status: "running"
+      main: "running"
       started: string
       health: { [key: HealthCheckId]: NamedHealthCheckResult }
     }
-  | { status: "backingUp"; onComplete: StartStop }
+  | { main: "backingUp"; onComplete: StartStop }

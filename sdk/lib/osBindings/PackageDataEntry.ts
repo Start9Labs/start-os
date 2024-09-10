@@ -5,16 +5,16 @@ import type { ActionRequest } from "./ActionRequest"
 import type { CurrentDependencies } from "./CurrentDependencies"
 import type { DataUrl } from "./DataUrl"
 import type { Hosts } from "./Hosts"
+import type { MainStatus } from "./MainStatus"
 import type { PackageState } from "./PackageState"
 import type { ServiceInterface } from "./ServiceInterface"
 import type { ServiceInterfaceId } from "./ServiceInterfaceId"
-import type { Status } from "./Status"
 import type { Version } from "./Version"
 
 export type PackageDataEntry = {
   stateInfo: PackageState
   dataVersion: Version | null
-  status: Status
+  status: MainStatus
   registry: string | null
   developerKey: string
   icon: DataUrl

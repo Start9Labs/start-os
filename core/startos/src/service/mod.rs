@@ -236,7 +236,7 @@ impl Service {
                         tokio::fs::create_dir_all(&path).await?;
                     }
                 }
-                let start_stop = if i.as_status().as_main().de()?.running() {
+                let start_stop = if i.as_status().de()?.running() {
                     StartStop::Start
                 } else {
                     StartStop::Stop

@@ -17,7 +17,7 @@ use crate::net::service_interface::ServiceInterface;
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::s9pk::manifest::Manifest;
-use crate::status::Status;
+use crate::status::MainStatus;
 use crate::util::serde::Pem;
 
 #[derive(Debug, Default, Deserialize, Serialize, TS)]
@@ -310,9 +310,9 @@ pub struct InstallingInfo {
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 pub enum AllowedStatuses {
-    OnlyRunning, // onlyRunning
+    OnlyRunning,
     OnlyStopped,
     Any,
 }
@@ -324,9 +324,24 @@ pub struct ActionMetadata {
     pub name: String,
     pub description: String,
     pub warning: Option<String>,
-    pub disabled: Option<String>,
+    #[serde(default)]
+    pub visibility: ActionVisibility,
     pub allowed_statuses: AllowedStatuses,
     pub group: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "kebab-case")]
+pub enum ActionVisibility {
+    Hidden,
+    Disabled { reason: String },
+    Enabled,
+}
+impl Default for ActionVisibility {
+    fn default() -> Self {
+        Self::Enabled
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
@@ -336,7 +351,7 @@ pub struct ActionMetadata {
 pub struct PackageDataEntry {
     pub state_info: PackageState,
     pub data_version: Option<VersionString>,
-    pub status: Status,
+    pub status: MainStatus,
     #[ts(type = "string | null")]
     pub registry: Option<Url>,
     #[ts(type = "string")]
