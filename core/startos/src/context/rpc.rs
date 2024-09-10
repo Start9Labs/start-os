@@ -367,33 +367,34 @@ impl RpcContext {
         self.services.init(&self, init_services).await?;
         tracing::info!("Initialized Package Managers");
 
-        check_dependencies.start();
-        let mut updated_current_dependents = BTreeMap::new();
-        let peek = self.db.peek().await;
-        for (package_id, package) in peek.as_public().as_package_data().as_entries()?.into_iter() {
-            let package = package.clone();
-            let mut current_dependencies = package.as_current_dependencies().de()?;
-            compute_dependency_config_errs(self, &package_id, &mut current_dependencies)
-                .await
-                .log_err();
-            updated_current_dependents.insert(package_id.clone(), current_dependencies);
-        }
-        self.db
-            .mutate(|v| {
-                for (package_id, deps) in updated_current_dependents {
-                    if let Some(model) = v
-                        .as_public_mut()
-                        .as_package_data_mut()
-                        .as_idx_mut(&package_id)
-                        .map(|i| i.as_current_dependencies_mut())
-                    {
-                        model.ser(&deps)?;
-                    }
-                }
-                Ok(())
-            })
-            .await?;
-        check_dependencies.complete();
+        // TODO
+        // check_dependencies.start();
+        // let mut updated_current_dependents = BTreeMap::new();
+        // let peek = self.db.peek().await;
+        // for (package_id, package) in peek.as_public().as_package_data().as_entries()?.into_iter() {
+        //     let package = package.clone();
+        //     let mut current_dependencies = package.as_current_dependencies().de()?;
+        //     compute_dependency_config_errs(self, &package_id, &mut current_dependencies)
+        //         .await
+        //         .log_err();
+        //     updated_current_dependents.insert(package_id.clone(), current_dependencies);
+        // }
+        // self.db
+        //     .mutate(|v| {
+        //         for (package_id, deps) in updated_current_dependents {
+        //             if let Some(model) = v
+        //                 .as_public_mut()
+        //                 .as_package_data_mut()
+        //                 .as_idx_mut(&package_id)
+        //                 .map(|i| i.as_current_dependencies_mut())
+        //             {
+        //                 model.ser(&deps)?;
+        //             }
+        //         }
+        //         Ok(())
+        //     })
+        //     .await?;
+        // check_dependencies.complete();
 
         Ok(())
     }

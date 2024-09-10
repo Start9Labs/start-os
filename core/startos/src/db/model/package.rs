@@ -346,6 +346,8 @@ pub struct PackageDataEntry {
     pub last_backup: Option<DateTime<Utc>>,
     pub current_dependencies: CurrentDependencies,
     pub actions: BTreeMap<ActionId, ActionMetadata>,
+    #[ts(as = "BTreeMap::<String, ActionRequest>")]
+    pub requested_actions: BTreeMap<InternedString, ActionRequest>,
     pub service_interfaces: BTreeMap<ServiceInterfaceId, ServiceInterface>,
     pub hosts: Hosts,
     #[ts(type = "string[]")]

@@ -26,7 +26,7 @@ pub struct ActionInput {
     value: Option<Value>,
 }
 
-#[derive(Deserialize, Serialize, TS)]
+#[derive(Deserialize, Serialize, TS, Parser)]
 #[serde(rename_all = "camelCase")]
 pub struct GetActionInputParams {
     #[serde(rename = "id")]
