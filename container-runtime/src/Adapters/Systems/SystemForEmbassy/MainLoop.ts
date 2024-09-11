@@ -182,7 +182,7 @@ export class MainLoop {
                   HOME: "/root",
                 }
               : {}
-            const executed = await container.execFail(commands, null, {
+            const executed = await container.exec(commands, {
               input: JSON.stringify(timeChanged),
               env,
             })
