@@ -16,14 +16,31 @@ use crate::util::io::BackTrackingIO;
 use crate::util::serde::{display_serializable, HandlerExtSerde, IoFormat, WithIoFormat};
 use crate::util::Apply;
 
+pub fn action_api<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand(
+            "get-input",
+            from_fn_async(get_action_input)
+                .with_display_serializable()
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand("run", from_fn_async(run_action).no_cli())
+        .subcommand(
+            "run",
+            from_fn_async(cli_run_action)
+                .with_display_serializable()
+                .with_custom_display_fn(|args, res| Ok(display_action_result(args.params, res))),
+        )
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionInput {
     #[ts(type = "Record<string, unknown>")]
-    spec: Value,
+    pub spec: Value,
     #[ts(type = "Record<string, unknown> | null")]
-    value: Option<Value>,
+    pub value: Option<Value>,
 }
 
 #[derive(Deserialize, Serialize, TS, Parser)]
@@ -113,23 +130,6 @@ pub struct RunActionParams {
     pub prev: Option<ActionInput>,
     #[ts(optional, type = "any")]
     pub input: Option<Value>,
-}
-
-pub fn action_api<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new()
-        .subcommand(
-            "get-input",
-            from_fn_async(get_action_input)
-                .with_display_serializable()
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand("run", from_fn_async(run_action).no_cli())
-        .subcommand(
-            "run",
-            from_fn_async(cli_run_action)
-                .with_display_serializable()
-                .with_custom_display_fn(|args, res| Ok(display_action_result(args.params, res))),
-        )
 }
 
 // #[command(about = "Executes an action", display(display_action_result))]

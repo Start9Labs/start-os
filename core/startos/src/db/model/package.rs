@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::{DateTime, Utc};
+use clap::Parser;
 use exver::VersionRange;
 use imbl_value::InternedString;
 use models::{
@@ -12,13 +13,14 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::action::ActionInput;
 use crate::net::host::Hosts;
 use crate::net::service_interface::ServiceInterface;
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::s9pk::manifest::Manifest;
 use crate::status::MainStatus;
-use crate::util::serde::Pem;
+use crate::util::serde::{is_partial_of, Pem};
 
 #[derive(Debug, Default, Deserialize, Serialize, TS)]
 #[ts(export)]
@@ -401,8 +403,9 @@ impl Map for CurrentDependencies {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, TS, HasModel)]
 #[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
 pub struct CurrentDependencyInfo {
     #[ts(type = "string | null")]
     pub title: Option<InternedString>,
@@ -445,23 +448,30 @@ impl Default for CurrentDependencyKind {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS, HasModel)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
+#[model = "Model<Self>"]
 pub struct ActionRequestEntry {
     pub request: ActionRequest,
     pub active: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS, HasModel)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
+#[model = "Model<Self>"]
 pub struct ActionRequest {
     pub id: ActionId,
+    #[ts(optional)]
     pub when: Option<ActionRequestTrigger>,
+    #[ts(optional)]
     pub input: Option<ActionRequestInput>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct ActionRequestTrigger {
     #[serde(default)]
     pub once: bool,
@@ -470,6 +480,7 @@ pub struct ActionRequestTrigger {
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "kebab-case")]
+#[ts(export)]
 pub enum ActionRequestCondition {
     InputNotMatches,
 }
@@ -482,6 +493,16 @@ pub enum ActionRequestInput {
         #[ts(type = "Record<string, unknown>")]
         value: Value,
     },
+}
+impl ActionRequestInput {
+    pub fn matches(&self, input: Option<&Value>) -> bool {
+        match self {
+            Self::Partial { value } => match input {
+                None => false,
+                Some(full) => is_partial_of(value, full),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]

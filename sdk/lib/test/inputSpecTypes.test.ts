@@ -1,7 +1,10 @@
-import { ListValueSpecOf, isValueSpecListOf } from "../input/inputSpecTypes"
-import { InputSpec } from "../input/builder/inputSpec"
-import { List } from "../input/builder/list"
-import { Value } from "../input/builder/value"
+import {
+  ListValueSpecOf,
+  isValueSpecListOf,
+} from "../actions/input/inputSpecTypes"
+import { InputSpec } from "../actions/input/builder/inputSpec"
+import { List } from "../actions/input/builder/list"
+import { Value } from "../actions/input/builder/value"
 
 describe("InputSpec Types", () => {
   test("isValueSpecListOf", async () => {

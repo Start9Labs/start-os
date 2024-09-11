@@ -1,4 +1,4 @@
-import { Effects } from "../types"
+import { Effects } from "../Effects"
 import { PathBuilder, extractJsonPath } from "./PathBuilder"
 
 export class GetStore<Store, StoreValue> {

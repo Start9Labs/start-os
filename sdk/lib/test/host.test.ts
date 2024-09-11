@@ -1,5 +1,5 @@
 import { ServiceInterfaceBuilder } from "../interfaces/ServiceInterfaceBuilder"
-import { Effects } from "../types"
+import { Effects } from "../Effects"
 import { sdk } from "./output.sdk"
 
 describe("host", () => {

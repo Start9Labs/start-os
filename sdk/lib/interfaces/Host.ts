@@ -1,5 +1,5 @@
 import { object, string } from "ts-matches"
-import { Effects } from "../types"
+import { Effects } from "../Effects"
 import { Origin } from "./Origin"
 import { AddSslOptions, BindParams } from ".././osBindings"
 import { Security } from ".././osBindings"

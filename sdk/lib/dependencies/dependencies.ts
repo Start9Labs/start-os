@@ -1,5 +1,6 @@
 import { ExtendedVersion, VersionRange } from "../exver"
-import { Effects, PackageId, HealthCheckId } from "../types"
+import { PackageId, HealthCheckId } from "../types"
+import { Effects } from "../Effects"
 
 export type CheckDependencies<DependencyId extends PackageId = PackageId> = {
   installedSatisfied: (packageId: DependencyId) => boolean

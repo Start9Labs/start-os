@@ -1,10 +1,12 @@
+use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Deref;
 use std::sync::{Arc, Weak};
 
 use chrono::{DateTime, Utc};
 use clap::Parser;
 use futures::future::BoxFuture;
-use models::{PackageId, ProcedureName};
+use itertools::Itertools;
+use models::{ActionId, PackageId, ProcedureName};
 use persistent_container::PersistentContainer;
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerFor};
 use serde::{Deserialize, Serialize};
@@ -14,6 +16,7 @@ use tokio::sync::Notify;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
+use crate::db;
 use crate::db::model::package::{
     InstalledState, PackageDataEntry, PackageState, PackageStateMatchModelRef, UpdatingState,
 };
@@ -24,6 +27,7 @@ use crate::prelude::*;
 use crate::progress::{NamedProgress, Progress};
 use crate::rpc_continuations::Guid;
 use crate::s9pk::S9pk;
+use crate::service::action::update_requested_actions;
 use crate::service::service_map::InstallProgressHandles;
 use crate::util::actor::concurrent::ConcurrentActor;
 use crate::util::io::create_file;
@@ -408,11 +412,12 @@ impl Service {
                     .clone(),
             );
         }
+        let procedure_id = Guid::new();
         service
             .seed
             .persistent_container
             .execute::<NoOutput>(
-                Guid::new(),
+                procedure_id.clone(),
                 ProcedureName::Init,
                 to_value(&src_version)?,
                 None,
@@ -424,13 +429,77 @@ impl Service {
             progress.progress.complete();
             tokio::task::yield_now().await;
         }
+
+        let peek = ctx.db.peek().await;
+        let mut action_input: BTreeMap<ActionId, Value> = BTreeMap::new();
+        let requested_actions: BTreeSet<_> = peek
+            .as_public()
+            .as_package_data()
+            .as_idx(&manifest.id)
+            .or_not_found(&manifest.id)?
+            .as_requested_actions()
+            .as_entries()?
+            .into_iter()
+            .map(|(_, r)| r.as_request().as_id().de())
+            .chain(
+                peek.as_public()
+                    .as_package_data()
+                    .as_entries()?
+                    .into_iter()
+                    .filter_map(|(_, pde)| pde.as_current_dependencies().as_idx(&manifest.id))
+                    .map(|dep_info| dep_info.as_requested_actions().as_entries())
+                    .map_ok(|e| e.into_iter().map(|(_, r)| r.as_request().as_id().de()))
+                    .flatten_ok()
+                    .map(|a| a.and_then(|a| a)),
+            )
+            .try_collect()?;
+        for action_id in requested_actions {
+            if let Some(input) = service
+                .get_action_input(procedure_id.clone(), action_id.clone())
+                .await?
+                .and_then(|i| i.value)
+            {
+                action_input.insert(action_id, input);
+            }
+        }
         ctx.db
-            .mutate(|d| {
-                let entry = d
+            .mutate(|db| {
+                for (action_id, input) in &action_input {
+                    for (_, dependent_pde) in
+                        db.as_public_mut().as_package_data_mut().as_entries_mut()?
+                    {
+                        if let Some(dep_info) = dependent_pde
+                            .as_current_dependencies_mut()
+                            .as_idx_mut(&manifest.id)
+                        {
+                            dep_info
+                                .as_requested_actions_mut()
+                                .mutate(|requested_actions| {
+                                    Ok(update_requested_actions(
+                                        requested_actions,
+                                        action_id,
+                                        input,
+                                    ))
+                                })?;
+                        }
+                    }
+                }
+                let entry = db
                     .as_public_mut()
                     .as_package_data_mut()
                     .as_idx_mut(&manifest.id)
                     .or_not_found(&manifest.id)?;
+                for (action_id, input) in &action_input {
+                    entry
+                        .as_requested_actions_mut()
+                        .mutate(|requested_actions| {
+                            Ok(update_requested_actions(
+                                requested_actions,
+                                action_id,
+                                input,
+                            ))
+                        })?;
+                }
                 entry
                     .as_state_info_mut()
                     .ser(&PackageState::Installed(InstalledState { manifest }))?;

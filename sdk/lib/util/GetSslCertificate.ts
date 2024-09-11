@@ -1,5 +1,5 @@
 import { T } from ".."
-import { Effects } from "../types"
+import { Effects } from "../Effects"
 
 export class GetSslCertificate {
   constructor(

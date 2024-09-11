@@ -1,12 +1,13 @@
-import { Effects } from "../types"
+import { Effects } from "../Effects"
 import {
   CheckDependenciesParam,
   ClearActionsParams,
   ClearBindingsParams,
   ClearServiceInterfacesParams,
-  ExecuteAction,
-  GetInputSpecuredParams,
+  GetActionInputParams,
   GetStoreParams,
+  RequestActionParams,
+  RunActionParams,
   SetDataVersionParams,
   SetMainStatus,
   SetStoreParams,
@@ -15,7 +16,6 @@ import { CreateSubcontainerFsParams } from ".././osBindings"
 import { DestroySubcontainerFsParams } from ".././osBindings"
 import { BindParams } from ".././osBindings"
 import { GetHostInfoParams } from ".././osBindings"
-import { SetInputSpecured } from ".././osBindings"
 import { SetHealth } from ".././osBindings"
 import { ExposeForDependentsParams } from ".././osBindings"
 import { GetSslCertificateParams } from ".././osBindings"
@@ -44,9 +44,14 @@ type EffectsTypeChecker<T extends StringObject = Effects> = {
 
 describe("startosTypeValidation ", () => {
   test(`checking the params match`, () => {
-    const testInput: any = {}
     typeEquality<EffectsTypeChecker>({
-      executeAction: {} as ExecuteAction,
+      action: {
+        clear: {} as ClearActionsParams,
+        export: {} as ExportActionParams,
+        getInput: {} as GetActionInputParams,
+        run: {} as RunActionParams,
+        request: {} as RequestActionParams,
+      },
       subcontainer: {
         createFs: {} as CreateSubcontainerFsParams,
         destroyFs: {} as DestroySubcontainerFsParams,
@@ -55,10 +60,8 @@ describe("startosTypeValidation ", () => {
       getInstalledPackages: undefined,
       bind: {} as BindParams,
       getHostInfo: {} as WithCallback<GetHostInfoParams>,
-      getInputSpecured: {} as GetInputSpecuredParams,
       restart: undefined,
       shutdown: undefined,
-      setInputSpecured: {} as SetInputSpecured,
       setDataVersion: {} as SetDataVersionParams,
       getDataVersion: undefined,
       setHealth: {} as SetHealth,
@@ -78,15 +81,10 @@ describe("startosTypeValidation ", () => {
       exportServiceInterface: {} as ExportServiceInterfaceParams,
       getPrimaryUrl: {} as WithCallback<GetPrimaryUrlParams>,
       listServiceInterfaces: {} as WithCallback<ListServiceInterfacesParams>,
-      exportAction: {} as ExportActionParams,
-      clearActions: {} as ClearActionsParams,
       mount: {} as MountParams,
       checkDependencies: {} as CheckDependenciesParam,
       getDependencies: undefined,
       setMainStatus: {} as SetMainStatus,
     })
-    typeEquality<Parameters<Effects["executeAction"]>[0]>(
-      testInput as ExecuteAction,
-    )
   })
 })

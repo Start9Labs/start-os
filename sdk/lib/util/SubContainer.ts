@@ -261,8 +261,8 @@ export class SubContainer implements ExecSpawnable {
           appendTo.data += chunk
         } else if (typeof chunk === "string" || chunk instanceof Buffer) {
           appendTo.data = Buffer.concat([
-            Buffer.from(appendTo.data),
-            Buffer.from(chunk),
+            new Uint8Array(Buffer.from(appendTo.data).buffer),
+            new Uint8Array(Buffer.from(chunk).buffer),
           ])
         } else {
           console.error("received unexpected chunk", chunk)

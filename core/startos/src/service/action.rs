@@ -1,14 +1,17 @@
+use std::collections::BTreeMap;
 use std::time::Duration;
 
-use imbl_value::json;
+use imbl_value::{json, InternedString};
 use models::{ActionId, ProcedureName};
 
 use crate::action::{ActionInput, ActionResult};
+use crate::db::model::package::{ActionRequestCondition, ActionRequestEntry, ActionRequestInput};
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
 use crate::service::{Service, ServiceActor};
 use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::actor::{ConflictBuilder, Handler};
+use crate::util::serde::is_partial_of;
 
 pub(super) struct GetActionInput {
     id: ActionId,
@@ -43,10 +46,64 @@ impl Service {
         id: Guid,
         action_id: ActionId,
     ) -> Result<Option<ActionInput>, Error> {
+        if !self
+            .seed
+            .ctx
+            .db
+            .peek()
+            .await
+            .as_public()
+            .as_package_data()
+            .as_idx(&self.seed.id)
+            .or_not_found(&self.seed.id)?
+            .as_actions()
+            .as_idx(&action_id)
+            .or_not_found(&action_id)?
+            .as_has_input()
+            .de()?
+        {
+            return Ok(None);
+        }
         self.actor
             .send(id, GetActionInput { id: action_id })
             .await?
     }
+}
+
+pub fn update_requested_actions(
+    requested_actions: &mut BTreeMap<InternedString, ActionRequestEntry>,
+    action_id: &ActionId,
+    input: &Value,
+) {
+    requested_actions.retain(|_, v| {
+        if &v.request.id != action_id {
+            return true;
+        }
+        if let Some(when) = &v.request.when {
+            match &when.condition {
+                ActionRequestCondition::InputNotMatches => match &v.request.input {
+                    Some(ActionRequestInput::Partial { value }) => {
+                        if is_partial_of(value, input) {
+                            if when.once {
+                                return false;
+                            } else {
+                                v.active = false;
+                            }
+                        } else {
+                            v.active = true;
+                        }
+                    }
+                    None => {
+                        tracing::error!(
+                            "action request exists in an invalid state {:?}",
+                            v.request
+                        );
+                    }
+                },
+            }
+        }
+        true
+    })
 }
 
 pub(super) struct RunAction {
@@ -70,10 +127,10 @@ impl Handler<RunAction> for ServiceActor {
         _: &BackgroundJobQueue,
     ) -> Self::Response {
         let container = &self.0.persistent_container;
-        container
+        let result = container
             .execute::<Option<ActionResult>>(
                 id,
-                ProcedureName::RunAction(action_id),
+                ProcedureName::RunAction(action_id.clone()),
                 json!({
                     "prev": prev,
                     "input": input,
@@ -81,7 +138,46 @@ impl Handler<RunAction> for ServiceActor {
                 Some(Duration::from_secs(30)),
             )
             .await
-            .with_kind(ErrorKind::Action)
+            .with_kind(ErrorKind::Action)?;
+        let package_id = &self.0.id;
+        self.0
+            .ctx
+            .db
+            .mutate(|db| {
+                db.as_public_mut()
+                    .as_package_data_mut()
+                    .as_idx_mut(package_id)
+                    .or_not_found(package_id)?
+                    .as_requested_actions_mut()
+                    .mutate(|requested_actions| {
+                        Ok(update_requested_actions(
+                            requested_actions,
+                            &action_id,
+                            &input,
+                        ))
+                    })?;
+                for (_, dependent_pde) in
+                    db.as_public_mut().as_package_data_mut().as_entries_mut()?
+                {
+                    if let Some(dep_info) = dependent_pde
+                        .as_current_dependencies_mut()
+                        .as_idx_mut(package_id)
+                    {
+                        dep_info
+                            .as_requested_actions_mut()
+                            .mutate(|requested_actions| {
+                                Ok(update_requested_actions(
+                                    requested_actions,
+                                    &action_id,
+                                    &input,
+                                ))
+                            })?;
+                    }
+                }
+                Ok(())
+            })
+            .await?;
+        Ok(result)
     }
 }
 

@@ -72,7 +72,7 @@ export class Action<
     effects: T.Effects
   }): Promise<T.ActionMetadata> {
     const metadata = await callMaybeFn(this.metadataFn, options)
-    await options.effects.exportAction({ id: this.id, metadata })
+    await options.effects.action.export({ id: this.id, metadata })
     return metadata
   }
   async getInput(options: { effects: T.Effects }): Promise<T.ActionInput> {
@@ -107,7 +107,7 @@ export class Actions<
     for (let action of Object.values(this.actions)) {
       await action.exportMetadata(options)
     }
-    await options.effects.clearActions({ except: Object.keys(this.actions) })
+    await options.effects.action.clear({ except: Object.keys(this.actions) })
   }
 }
 

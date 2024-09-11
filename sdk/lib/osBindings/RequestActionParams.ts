@@ -2,8 +2,11 @@
 import type { ActionId } from "./ActionId"
 import type { ActionRequestInput } from "./ActionRequestInput"
 import type { ActionRequestTrigger } from "./ActionRequestTrigger"
+import type { PackageId } from "./PackageId"
 
-export type ActionRequest = {
+export type RequestActionParams = {
+  packageId?: PackageId
+  replayId: string
   id: ActionId
   when?: ActionRequestTrigger
   input?: ActionRequestInput

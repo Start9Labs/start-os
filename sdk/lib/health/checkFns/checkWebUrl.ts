@@ -1,4 +1,4 @@
-import { Effects } from "../../types"
+import { Effects } from "../../Effects"
 import { asError } from "../../util/asError"
 import { HealthCheckResult } from "./HealthCheckResult"
 import { timeoutPromise } from "./index"

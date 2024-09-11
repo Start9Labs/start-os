@@ -17,7 +17,6 @@ import { Variants } from "./actions/input/builder/variants"
 import { Action, Actions, setupActions } from "./actions/setupActions"
 import {
   ActionMetadata,
-  Effects,
   ActionResult,
   SyncOptions,
   DeepPartial,
@@ -25,6 +24,7 @@ import {
   ServiceInterfaceId,
   PackageId,
 } from "./types"
+import { Effects } from "./Effects"
 import * as patterns from "./util/patterns"
 import { BackupSync, Backups } from "./backup/Backups"
 import { smtpInputSpec } from "./actions/input/inputSpecConstants"
@@ -135,7 +135,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       }]?: Dependency
     }
 
-    type NestedEffects = "subcontainer" | "store"
+    type NestedEffects = "subcontainer" | "store" | "action"
     type InterfaceEffects =
       | "getServiceInterface"
       | "listServiceInterfaces"
@@ -152,11 +152,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       [K in keyof Omit<Effects, NestedEffects | InterfaceEffects | MainUsedEffects| AlreadyExposed>]: (effects: Effects, ...args: Parameters<Effects[K]>) => ReturnType<Effects[K]>
     }
     const startSdkEffectWrapper: StartSdkEffectWrapper = {
-      executeAction: (effects, ...args) => effects.executeAction(...args),
-      exportAction: (effects, ...args) => effects.exportAction(...args),
-      clearActions: (effects, ...args) => effects.clearActions(...args),
-      getInputSpecured: (effects, ...args) => effects.getInputSpecured(...args),
-      setInputSpecured: (effects, ...args) => effects.setInputSpecured(...args),
       restart: (effects, ...args) => effects.restart(...args),
       setDependencies: (effects, ...args) => effects.setDependencies(...args),
       checkDependencies: (effects, ...args) =>
@@ -179,7 +174,10 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
 
     return {
       ...startSdkEffectWrapper,
-
+      action: {
+        run: actions.runAction,
+        request: actions.requestAction,
+      },
       checkDependencies: checkDependencies as <
         DependencyId extends keyof Manifest["dependencies"] &
           PackageId = keyof Manifest["dependencies"] & PackageId,

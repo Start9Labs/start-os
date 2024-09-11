@@ -1,4 +1,4 @@
-import { Effects } from "../../types"
+import { Effects } from "../../Effects"
 import { stringFromStdErrOut } from "../../util/stringFromStdErrOut"
 import { HealthCheckResult } from "./HealthCheckResult"
 

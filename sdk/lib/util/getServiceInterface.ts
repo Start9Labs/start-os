@@ -2,7 +2,6 @@ import { ServiceInterfaceType } from "../StartSdk"
 import { knownProtocols } from "../interfaces/Host"
 import {
   AddressInfo,
-  Effects,
   Host,
   HostAddress,
   Hostname,
@@ -11,6 +10,7 @@ import {
   HostnameInfoOnion,
   IpInfo,
 } from "../types"
+import { Effects } from "../Effects"
 
 export type UrlString = string
 export type HostId = string

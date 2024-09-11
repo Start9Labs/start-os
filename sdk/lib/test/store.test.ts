@@ -1,6 +1,6 @@
 import { MainEffects, StartSdk } from "../StartSdk"
 import { extractJsonPath } from "../store/PathBuilder"
-import { Effects } from "../types"
+import { Effects } from "../Effects"
 
 type Store = {
   inputSpec: {

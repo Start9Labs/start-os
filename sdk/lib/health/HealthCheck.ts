@@ -1,4 +1,4 @@
-import { Effects } from "../types"
+import { Effects } from "../Effects"
 import { HealthCheckResult } from "./checkFns/HealthCheckResult"
 import { HealthReceipt } from "./HealthReceipt"
 import { Trigger } from "../trigger"

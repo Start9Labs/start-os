@@ -1,4 +1,4 @@
-import { Effects } from "../types"
+import { Effects } from "../Effects"
 
 export class GetSystemSmtp {
   constructor(readonly effects: Effects) {}

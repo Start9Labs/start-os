@@ -1,7 +1,7 @@
 import { ValueSpec } from "../inputSpecTypes"
 import { Value } from "./value"
 import { _ } from "../../../util"
-import { Effects } from "../../../types"
+import { Effects } from "../../../Effects"
 import { Parser, object } from "ts-matches"
 
 export type LazyBuildOptions<Store> = {
