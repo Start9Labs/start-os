@@ -8,8 +8,7 @@ use crate::rpc_continuations::Guid;
 use crate::service::effects::prelude::*;
 use crate::util::Invoke;
 use crate::{
-    disk::mount::filesystem::overlayfs::OverlayGuard,
-    service::persistent_container::SubcontainerWrapper,
+    disk::mount::filesystem::overlayfs::OverlayGuard, service::persistent_container::Subcontainer,
 };
 
 #[cfg(feature = "container-runtime")]
@@ -93,7 +92,7 @@ pub async fn create_subcontainer_fs(
                 .with_kind(ErrorKind::Incoherent)?,
         );
         tracing::info!("Mounting overlay {guid} for {image_id}");
-        let subcontainer_wrapper = SubcontainerWrapper {
+        let subcontainer_wrapper = Subcontainer {
             overlay: OverlayGuard::mount(image, &mountpoint).await?,
             name: name
                 .unwrap_or_else(|| InternedString::intern(format!("subcontainer-{}", image_id))),

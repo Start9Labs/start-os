@@ -4,7 +4,7 @@ use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use futures::future::ready;
-use futures::{Future, FutureExt};
+use futures::Future;
 use helpers::NonDetachingJoinHandle;
 use imbl::Vector;
 use imbl_value::InternedString;
@@ -37,7 +37,7 @@ use crate::service::{rpc, RunningStatus, Service};
 use crate::util::io::create_file;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::Invoke;
-use crate::volume::{asset_dir, data_dir};
+use crate::volume::data_dir;
 use crate::ARCH;
 
 const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -87,7 +87,7 @@ impl ServiceState {
 
 /// Want to have a wrapper for uses like the inject where we are going to be finding the subcontainer and doing some filtering on it.
 /// As well, the imageName is also used for things like env.
-pub struct SubcontainerWrapper {
+pub struct Subcontainer {
     pub(super) name: InternedString,
     pub(super) image_id: ImageId,
     pub(super) overlay: OverlayGuard<Arc<MountGuard>>,
@@ -107,7 +107,7 @@ pub struct PersistentContainer {
     volumes: BTreeMap<VolumeId, MountGuard>,
     assets: BTreeMap<VolumeId, MountGuard>,
     pub(super) images: BTreeMap<ImageId, Arc<MountGuard>>,
-    pub(super) subcontainers: Arc<Mutex<BTreeMap<Guid, SubcontainerWrapper>>>,
+    pub(super) subcontainers: Arc<Mutex<BTreeMap<Guid, Subcontainer>>>,
     pub(super) state: Arc<watch::Sender<ServiceState>>,
     pub(super) net_service: Mutex<NetService>,
     destroyed: bool,

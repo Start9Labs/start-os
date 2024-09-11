@@ -17,7 +17,7 @@ use imbl_value::{json, InternedString};
 use itertools::Itertools;
 use models::{ImageId, PackageId, ProcedureName};
 use nix::sys::signal::Signal;
-use persistent_container::{PersistentContainer, SubcontainerWrapper};
+use persistent_container::{PersistentContainer, Subcontainer};
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerFor};
 use serde::{Deserialize, Serialize};
 use service_actor::ServiceActor;
@@ -665,7 +665,7 @@ pub async fn attach(
                 }
             })
             .collect();
-        let format_subcontainer_pair = |(guid, wrapper): (&Guid, &SubcontainerWrapper)| {
+        let format_subcontainer_pair = |(guid, wrapper): (&Guid, &Subcontainer)| {
             format!(
                 "{guid} imageId: {image_id} name: \"{name}\"",
                 name = &wrapper.name,
@@ -762,7 +762,6 @@ pub async fn attach(
         cmd.arg(&root_path).arg("--");
 
         if command.is_empty() {
-            let etc_passwd_path = root_path.join("etc").join("passwd");
             cmd.arg(&root_command.0);
         } else {
             cmd.args(&command);
@@ -923,27 +922,25 @@ async fn attach_workdir(image_id: &ImageId, root_dir: &Path) -> Result<Option<St
 
 async fn get_passwd_root_command(etc_passwd_path: PathBuf) -> RootCommand {
     async {
-        'parsed: {
-            let mut file = tokio::fs::File::open(etc_passwd_path).await?;
+        let mut file = tokio::fs::File::open(etc_passwd_path).await?;
 
-            let mut contents = vec![];
-            file.read_to_end(&mut contents).await?;
+        let mut contents = vec![];
+        file.read_to_end(&mut contents).await?;
 
-            let contents = String::from_utf8_lossy(&contents);
+        let contents = String::from_utf8_lossy(&contents);
 
-            for line in contents.split('\n') {
-                let line_information = line.split(':').collect::<Vec<_>>();
-                if let (Some(&"root"), Some(shell)) =
-                    (line_information.first(), line_information.last())
-                {
-                    break 'parsed Ok(shell.to_string());
-                }
+        for line in contents.split('\n') {
+            let line_information = line.split(':').collect::<Vec<_>>();
+            if let (Some(&"root"), Some(shell)) =
+                (line_information.first(), line_information.last())
+            {
+                return Ok(shell.to_string());
             }
-            Err(Error::new(
-                eyre!("Could not parse /etc/passwd for shell: {}", contents),
-                ErrorKind::Filesystem,
-            ))
         }
+        Err(Error::new(
+            eyre!("Could not parse /etc/passwd for shell: {}", contents),
+            ErrorKind::Filesystem,
+        ))
     }
     .await
     .map(RootCommand)
