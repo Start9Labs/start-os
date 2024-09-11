@@ -2,7 +2,7 @@
 import type { ActionId } from "./ActionId"
 import type { PackageId } from "./PackageId"
 
-export type ExecuteAction = {
+export type RunActionParams = {
   packageId?: PackageId
   actionId: ActionId
   input: any

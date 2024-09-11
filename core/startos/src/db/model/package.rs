@@ -327,12 +327,14 @@ pub struct ActionMetadata {
     #[serde(default)]
     pub visibility: ActionVisibility,
     pub allowed_statuses: AllowedStatuses,
+    pub has_input: bool,
     pub group: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "kebab-case")]
+#[serde(rename_all_fields = "camelCase")]
 pub enum ActionVisibility {
     Hidden,
     Disabled { reason: String },
@@ -361,8 +363,8 @@ pub struct PackageDataEntry {
     pub last_backup: Option<DateTime<Utc>>,
     pub current_dependencies: CurrentDependencies,
     pub actions: BTreeMap<ActionId, ActionMetadata>,
-    #[ts(as = "BTreeMap::<String, ActionRequest>")]
-    pub requested_actions: BTreeMap<InternedString, ActionRequest>,
+    #[ts(as = "BTreeMap::<String, ActionRequestEntry>")]
+    pub requested_actions: BTreeMap<InternedString, ActionRequestEntry>,
     pub service_interfaces: BTreeMap<ServiceInterfaceId, ServiceInterface>,
     pub hosts: Hosts,
     #[ts(type = "string[]")]
@@ -409,8 +411,8 @@ pub struct CurrentDependencyInfo {
     pub kind: CurrentDependencyKind,
     #[ts(type = "string")]
     pub version_range: VersionRange,
-    #[ts(as = "BTreeMap::<String, ActionRequest>")]
-    pub requested_actions: BTreeMap<InternedString, ActionRequest>,
+    #[ts(as = "BTreeMap::<String, ActionRequestEntry>")]
+    pub requested_actions: BTreeMap<InternedString, ActionRequestEntry>,
 }
 impl CurrentDependencyInfo {
     pub fn update(&mut self, new: Self) {
@@ -445,10 +447,25 @@ impl Default for CurrentDependencyKind {
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+pub struct ActionRequestEntry {
+    pub request: ActionRequest,
+    pub active: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct ActionRequest {
     pub id: ActionId,
-    pub r#if: Option<ActionRequestCondition>,
+    pub when: Option<ActionRequestTrigger>,
     pub input: Option<ActionRequestInput>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionRequestTrigger {
+    #[serde(default)]
+    pub once: bool,
+    pub condition: ActionRequestCondition,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]

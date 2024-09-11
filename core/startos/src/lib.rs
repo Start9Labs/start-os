@@ -238,7 +238,7 @@ pub fn server<C: Context>() -> ParentHandler<C> {
 
 pub fn package<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("action", action::action::<C>())
+        .subcommand("action", action::action_api::<C>())
         .subcommand(
             "install",
             from_fn_async(install::install)

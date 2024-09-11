@@ -8,5 +8,6 @@ export type ActionMetadata = {
   warning: string | null
   visibility: ActionVisibility
   allowedStatuses: AllowedStatuses
+  hasInput: boolean
   group: string | null
 }

@@ -25,18 +25,7 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
             from_fn(echo::<EffectContext>).with_call_remote::<ContainerCliContext>(),
         )
         // action
-        .subcommand(
-            "execute-action",
-            from_fn_async(action::execute_action).no_cli(),
-        )
-        .subcommand(
-            "export-action",
-            from_fn_async(action::export_action).no_cli(),
-        )
-        .subcommand(
-            "clear-actions",
-            from_fn_async(action::clear_actions).no_cli(),
-        )
+        .subcommand("action", action::action_api::<C>())
         // callbacks
         .subcommand(
             "clear-callbacks",

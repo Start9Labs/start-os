@@ -11,7 +11,8 @@ use patch_db::json_ptr::JsonPointer;
 use tokio::process::Command;
 
 use crate::db::model::package::{
-    ActionRequest, CurrentDependencyInfo, CurrentDependencyKind, ManifestPreference,
+    ActionRequest, ActionRequestEntry, CurrentDependencyInfo, CurrentDependencyKind,
+    ManifestPreference,
 };
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
@@ -321,8 +322,8 @@ pub struct CheckDependenciesResult {
     #[ts(type = "string[]")]
     satisfies: BTreeSet<VersionString>,
     is_running: bool,
-    #[ts(as = "BTreeMap::<String, ActionRequest>")]
-    requested_actions: BTreeMap<InternedString, ActionRequest>,
+    #[ts(as = "BTreeMap::<String, ActionRequestEntry>")]
+    requested_actions: BTreeMap<InternedString, ActionRequestEntry>,
     #[ts(as = "BTreeMap::<HealthCheckId, NamedHealthCheckResult>")]
     health_checks: OrdMap<HealthCheckId, NamedHealthCheckResult>,
 }

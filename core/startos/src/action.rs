@@ -93,7 +93,7 @@ impl fmt::Display for ActionResultV0 {
     }
 }
 
-fn display_action_result<T: Serialize>(params: WithIoFormat<T>, result: Option<ActionResult>) {
+pub fn display_action_result<T: Serialize>(params: WithIoFormat<T>, result: Option<ActionResult>) {
     let Some(result) = result else {
         return;
     };
@@ -115,7 +115,7 @@ pub struct RunActionParams {
     pub input: Option<Value>,
 }
 
-pub fn action<C: Context>() -> ParentHandler<C> {
+pub fn action_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "get-input",
