@@ -184,7 +184,11 @@ jobs:
         run: tar -xvf compiled-${{ env.ARCH }}.tar
 
       - name: Prevent rebuild of compiled artifacts
-        run: PLATFORM=${{ matrix.platform }} make -t compiled-${{ env.ARCH }}.tar
+        run: |
+          mkdir -p web/node_modules
+          mkdir -p web/dist/raw
+          mkdir -p container-runtime/dist
+          PLATFORM=${{ matrix.platform }} make -t compiled-${{ env.ARCH }}.tar
 
       - name: Run iso build
         run: PLATFORM=${{ matrix.platform }} make iso
