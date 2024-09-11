@@ -10,6 +10,7 @@ import {
   switchMap,
 } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { retryWithState } from 'src/app/util/retry-with-state'
 
 var Convert = require('ansi-to-html')
 var convert = new Convert({
@@ -35,6 +36,7 @@ function convertAnsi(entries: readonly any[]): string {
 @Injectable({ providedIn: 'root' })
 export class LogsService extends Observable<readonly string[]> {
   private readonly api = inject(ApiService)
+  // @TODO Matt — when we retry, should we use different `boot`?
   private readonly log$ = defer(() =>
     this.api.initFollowLogs({ boot: 0 }),
   ).pipe(
@@ -43,6 +45,7 @@ export class LogsService extends Observable<readonly string[]> {
     filter(logs => !!logs.length),
     map(convertAnsi),
     scan((logs: readonly string[], log) => [...logs, log], []),
+    retryWithState(),
   )
 
   constructor() {

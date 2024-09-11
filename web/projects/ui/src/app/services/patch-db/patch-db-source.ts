@@ -1,16 +1,8 @@
 import { inject, Injectable, InjectionToken } from '@angular/core'
 import { Dump, Revision, Update } from 'patch-db-client'
 import { BehaviorSubject, EMPTY, Observable } from 'rxjs'
-import {
-  bufferTime,
-  catchError,
-  filter,
-  skip,
-  startWith,
-  switchMap,
-  take,
-} from 'rxjs/operators'
-import { StateService } from 'src/app/services/state.service'
+import { bufferTime, filter, startWith, switchMap } from 'rxjs/operators'
+import { retryWithState } from 'src/app/util/retry-with-state'
 import { ApiService } from '../api/embassy-api.service'
 import { AuthService } from '../auth.service'
 import { DataModel } from './data-model'
@@ -29,7 +21,6 @@ export const PATCH_CACHE = new InjectionToken('', {
 })
 export class PatchDbSource extends Observable<Update<DataModel>[]> {
   private readonly api = inject(ApiService)
-  private readonly state = inject(StateService)
   private readonly stream$ = inject(AuthService).isVerified$.pipe(
     switchMap(verified => (verified ? this.api.subscribeToPatchDB({}) : EMPTY)),
     switchMap(({ dump, guid }) =>
@@ -39,16 +30,7 @@ export class PatchDbSource extends Observable<Update<DataModel>[]> {
         startWith([dump]),
       ),
     ),
-    catchError((_, original$) => {
-      this.state.retrigger()
-
-      return this.state.pipe(
-        skip(1), // skipping previous value stored due to shareReplay
-        filter(current => current === 'running'),
-        take(1),
-        switchMap(() => original$),
-      )
-    }),
+    retryWithState(),
     startWith([inject(LocalStorageBootstrap).init()]),
   )
 

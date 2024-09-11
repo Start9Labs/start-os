@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
 import { endWith, ReplaySubject, shareReplay, Subject, switchMap } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { retryWithState } from 'src/app/util/retry-with-state'
 
 @Injectable({
   providedIn: 'root',
@@ -22,6 +23,8 @@ export class SideloadService {
         .pipe(endWith(null)),
     ),
     shareReplay(1),
+    // @TODO Matt what would happen if the sideloading finished while we waited?
+    retryWithState(),
   )
 
   constructor(private readonly api: ApiService) {}

@@ -178,6 +178,7 @@ export class LogsComponent {
                   : 'disconnected'),
             ),
             filter(Boolean),
+            // @TODO Matt this already has some sort of reconnection, is it enough?
             switchMap(() => this.reconnect$()),
           )
         }),

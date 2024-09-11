@@ -1,19 +1,9 @@
 import { inject, Injectable } from '@angular/core'
-import { ErrorService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import {
-  catchError,
-  defer,
-  EMPTY,
-  from,
-  map,
-  Observable,
-  startWith,
-  switchMap,
-  tap,
-} from 'rxjs'
+import { defer, from, map, Observable, startWith, switchMap, tap } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { StateService } from 'src/app/services/state.service'
+import { retryWithState } from 'src/app/util/retry-with-state'
 
 interface MappedProgress {
   readonly total: number | null
@@ -24,7 +14,6 @@ interface MappedProgress {
 export class InitService extends Observable<MappedProgress> {
   private readonly state = inject(StateService)
   private readonly api = inject(ApiService)
-  private readonly errorService = inject(ErrorService)
   private readonly progress$ = defer(() =>
     from(this.api.initGetProgress()),
   ).pipe(
@@ -55,10 +44,7 @@ export class InitService extends Observable<MappedProgress> {
         this.state.syncState()
       }
     }),
-    catchError(e => {
-      console.error(e)
-      return EMPTY
-    }),
+    retryWithState(),
   )
 
   constructor() {
