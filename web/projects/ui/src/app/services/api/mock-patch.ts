@@ -1,6 +1,7 @@
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Mock } from './api.fixures'
 import { BUILT_IN_WIDGETS } from '../../pages/widgets/built-in/widgets'
+const version = require('../../../../../../package.json').version
 
 export const mockPatchData: DataModel = {
   ui: {
@@ -37,7 +38,7 @@ export const mockPatchData: DataModel = {
     arch: 'x86_64',
     onionAddress: 'myveryownspecialtoraddress',
     id: 'abcdefgh',
-    version: '0.3.6',
+    version,
     lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
     lanAddress: 'https://adjective-noun.local',
     torAddress: 'https://myveryownspecialtoraddress.onion',
